@@ -257,10 +257,13 @@ static void sum_program(SumResults *results)
     }
     const unsigned int out_limbs = loaded.layout.out_limbs;
     const size_t words = (size_t)SUM_TEST_LANES * out_limbs;
-    unsigned int *const out = (unsigned int *)malloc(words * sizeof(unsigned int));
+    unsigned int *const out =
+        (unsigned int *)platform_cell_taken(words * sizeof(unsigned int), platform_place_g_program_owner, 0);
     const unsigned long long runs = SUM_TEST_LANES / SUM_TEST_RUN;
-    unsigned int *const device_sums = (unsigned int *)malloc((size_t)runs * SUM_TEST_SUM_LIMBS * sizeof(unsigned int));
-    unsigned int *const host_sums = (unsigned int *)malloc((size_t)runs * SUM_TEST_SUM_LIMBS * sizeof(unsigned int));
+    unsigned int *const device_sums = (unsigned int *)platform_cell_taken(
+        (size_t)runs * SUM_TEST_SUM_LIMBS * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host_sums = (unsigned int *)platform_cell_taken(
+        (size_t)runs * SUM_TEST_SUM_LIMBS * sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned int shared[1] = {0u};
     unsigned int *device_shared = NULL;
     unsigned int *device_out = NULL;
@@ -319,9 +322,9 @@ static void sum_program(SumResults *results)
     }
     cudaFree(device_shared);
     cudaFree(device_out);
-    free(out);
-    free(device_sums);
-    free(host_sums);
+    platform_cell_released(out, platform_place_g_program_owner);
+    platform_cell_released(device_sums, platform_place_g_program_owner);
+    platform_cell_released(host_sums, platform_place_g_program_owner);
     sum_free(&loaded);
 }
 
@@ -329,11 +332,12 @@ static void sum_program(SumResults *results)
 static void sum_records(SumResults *results)
 {
     const size_t words = (size_t)SUM_TEST_RECORDS * SUM_TEST_RECORD_LIMBS;
-    unsigned int *const records = (unsigned int *)malloc(words * sizeof(unsigned int));
-    unsigned int *const device_sums =
-        (unsigned int *)malloc((size_t)SUM_TEST_RECORDS * SUM_TEST_SUM_LIMBS * sizeof(unsigned int));
-    unsigned int *const host_sums =
-        (unsigned int *)malloc((size_t)SUM_TEST_RECORDS * SUM_TEST_SUM_LIMBS * sizeof(unsigned int));
+    unsigned int *const records =
+        (unsigned int *)platform_cell_taken(words * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_sums = (unsigned int *)platform_cell_taken(
+        (size_t)SUM_TEST_RECORDS * SUM_TEST_SUM_LIMBS * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host_sums = (unsigned int *)platform_cell_taken(
+        (size_t)SUM_TEST_RECORDS * SUM_TEST_SUM_LIMBS * sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned int *device_records = NULL;
     int ok = (records != NULL) && (device_sums != NULL) && (host_sums != NULL) &&
              (cudaMalloc((void **)&device_records, words * sizeof(unsigned int)) == cudaSuccess);
@@ -407,9 +411,9 @@ static void sum_records(SumResults *results)
                                 : "the host refuses a run past 2^32 records");
     }
     cudaFree(device_records);
-    free(records);
-    free(device_sums);
-    free(host_sums);
+    platform_cell_released(records, platform_place_g_program_owner);
+    platform_cell_released(device_sums, platform_place_g_program_owner);
+    platform_cell_released(host_sums, platform_place_g_program_owner);
 }
 
 int program_main(int count, char **arguments)
@@ -418,7 +422,7 @@ int program_main(int count, char **arguments)
     results.checks = 0ull;
     results.failures = 0ull;
     results.line.capacity = SUM_TEST_LINE;
-    results.line.out = (char *)malloc((size_t)SUM_TEST_LINE);
+    results.line.out = (char *)platform_cell_taken((size_t)SUM_TEST_LINE, platform_place_g_program_owner, 0);
     results.line.at = 0ull;
     if (results.line.out == NULL)
     {
@@ -444,6 +448,6 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " failed\n");
     (void)(mmgr_line_ok(&results.line) &&
            (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
-    free(results.line.out);
+    platform_cell_released(results.line.out, platform_place_g_program_owner);
     return (results.failures == 0ull) ? 0 : 1;
 }

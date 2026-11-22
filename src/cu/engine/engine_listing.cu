@@ -64,7 +64,7 @@ static unsigned int entry_listing(const char *directory, char ***names, int samp
         if (has_sample != 0)
         {
             const size_t size = mmgr_text_length(stem, PLATFORM_TEXT_TO_TERMINATOR) + 1u;
-            char *const copy = (char *)malloc(size);
+            char *const copy = (char *)platform_cell_taken(size, platform_place_g_program_owner, 0);
             if (copy != NULL)
             {
                 mmgr_bytes_copy(copy, stem, size);
@@ -83,12 +83,13 @@ static unsigned int entry_listing(const char *directory, char ***names, int samp
         closedir(search);
     }
 #endif
-    char **const listed = (char **)calloc(found.size() + 1u, sizeof(char *));
+    char **const listed =
+        (char **)platform_cell_cleared(found.size() + 1u, sizeof(char *), platform_place_g_program_owner, 0);
     if (listed == NULL)
     {
         for (size_t found_at = 0u; found_at < found.size(); found_at += 1u)
         {
-            free(found[found_at]);
+            platform_cell_released(found[found_at], platform_place_g_program_owner);
         }
         *names = NULL;
         return 0u;
@@ -146,7 +147,8 @@ static long long entry_geff_array(const char *root, const char *leaf, unsigned l
         elements *= layout.extent.sizes[axis];
     }
     *rows = layout.extent.sizes[0];
-    unsigned char *const out = (unsigned char *)malloc((size_t)(elements * 8ULL) + 8u);
+    unsigned char *const out =
+        (unsigned char *)platform_cell_taken((size_t)(elements * 8ULL) + 8u, platform_place_g_program_owner, 0);
     ZarrReadRequest read;
     read.root = array_root;
     read.layout = &layout;
@@ -157,7 +159,7 @@ static long long entry_geff_array(const char *root, const char *leaf, unsigned l
     read.out_capacity = elements * 8ULL;
     if ((out == NULL) || ((elements != 0ULL) && (zarr_read(&read) != (long long)(elements * 8ULL))))
     {
-        free(out);
+        platform_cell_released(out, platform_place_g_program_owner);
         return -1LL;
     }
     *bytes = out;
@@ -166,9 +168,9 @@ static long long entry_geff_array(const char *root, const char *leaf, unsigned l
 
 extern "C" void engine_geff_release(EngineGeff *geff)
 {
-    free(geff->node_identity);
-    free(geff->node_place);
-    free(geff->edge_ends);
+    platform_cell_released(geff->node_identity, platform_place_g_program_owner);
+    platform_cell_released(geff->node_place, platform_place_g_program_owner);
+    platform_cell_released(geff->edge_ends, platform_place_g_program_owner);
     mmgr_bytes_set(geff, 0, sizeof(*geff));
 }
 
@@ -188,8 +190,12 @@ extern "C" long engine_geff_read(const char *path, EngineGeff *geff)
     }
     ok = ok && (entry_geff_array(path, "edges/ids", 2ULL, &geff->edges, &edges) >= 0LL);
     geff->node_identity =
-        ok ? (unsigned long long *)malloc((size_t)(geff->nodes + 1ULL) * sizeof(unsigned long long)) : NULL;
-    geff->node_place = ok ? (long long *)malloc((size_t)(geff->nodes + 1ULL) * 4u * sizeof(long long)) : NULL;
+        ok ? (unsigned long long *)platform_cell_taken((size_t)(geff->nodes + 1ULL) * sizeof(unsigned long long),
+                                                       platform_place_g_program_owner, 0)
+           : NULL;
+    geff->node_place = ok ? (long long *)platform_cell_taken((size_t)(geff->nodes + 1ULL) * 4u * sizeof(long long),
+                                                             platform_place_g_program_owner, 0)
+                          : NULL;
     ok = ok && (geff->node_identity != NULL) && (geff->node_place != NULL);
     for (unsigned long long node = 0ULL; ok && (node < geff->nodes); node += 1ULL)
     {
@@ -204,11 +210,11 @@ extern "C" long engine_geff_read(const char *path, EngineGeff *geff)
         geff->edge_ends = (unsigned long long *)edges;
         edges = NULL;
     }
-    free(ids);
-    free(edges);
+    platform_cell_released(ids, platform_place_g_program_owner);
+    platform_cell_released(edges, platform_place_g_program_owner);
     for (unsigned int axis = 0u; axis < 4u; axis += 1u)
     {
-        free(places[axis]);
+        platform_cell_released(places[axis], platform_place_g_program_owner);
     }
     if (ok == 0)
     {

@@ -20,6 +20,7 @@
 #define TWISTER_RECORD_H
 
 #include "game_record.h"
+#include "../../src/platform/platform.h"
 
 /** @brief The words of the state of MT19937, and the reach of its twist. */
 #define TWISTER_WORDS 624u
@@ -201,10 +202,10 @@ static inline void twister_close(TwisterSet *set)
     cudaFree(set->requests);
     cudaFree(set->index);
     cudaFree(set->out);
-    free(set->place);
-    free(set->host_index);
-    free(set->host_out);
-    free(set->host_requests);
+    platform_cell_released(set->place, platform_place_g_program_owner);
+    platform_cell_released(set->host_index, platform_place_g_program_owner);
+    platform_cell_released(set->host_out, platform_place_g_program_owner);
+    platform_cell_released(set->host_requests, platform_place_g_program_owner);
     memset(set, 0, sizeof(*set));
 }
 
@@ -439,10 +440,14 @@ static inline int twister_open(SimResults *results, TwisterSet *set, const unsig
         }
     }
     sim_check(results, ok, "the six record programs of the twister imprint, arrange and load");
-    set->place = (unsigned long long *)calloc((size_t)count, sizeof(unsigned long long));
-    set->host_index = (unsigned int *)malloc((size_t)(words * 3ULL * 4ULL));
-    set->host_out = (unsigned int *)malloc((size_t)(count * 4ULL * 4ULL));
-    set->host_requests = (unsigned int *)malloc((size_t)(count * 2ULL * 4ULL));
+    set->place = (unsigned long long *)platform_cell_cleared((size_t)count, sizeof(unsigned long long),
+                                                             platform_place_g_program_owner, 0);
+    set->host_index =
+        (unsigned int *)platform_cell_taken((size_t)(words * 3ULL * 4ULL), platform_place_g_program_owner, 0);
+    set->host_out =
+        (unsigned int *)platform_cell_taken((size_t)(count * 4ULL * 4ULL), platform_place_g_program_owner, 0);
+    set->host_requests =
+        (unsigned int *)platform_cell_taken((size_t)(count * 2ULL * 4ULL), platform_place_g_program_owner, 0);
     ok = ok && (set->place != NULL) && (set->host_index != NULL) && (set->host_out != NULL) &&
          (set->host_requests != NULL) &&
          sim_status_check(results, cudaMalloc((void **)&set->state, words * TWISTER_RECORD_BYTES), "state") &&
@@ -539,7 +544,8 @@ static inline int twister_open(SimResults *results, TwisterSet *set, const unsig
 static inline int twister_below(SimResults *results, TwisterSet *set, const unsigned int *which,
                                 unsigned long long count, const unsigned int *bounds, unsigned int *draws)
 {
-    unsigned int *const pending = (unsigned int *)malloc((size_t)((count + 1ULL) * 4ULL));
+    unsigned int *const pending =
+        (unsigned int *)platform_cell_taken((size_t)((count + 1ULL) * 4ULL), platform_place_g_program_owner, 0);
     int ok = pending != NULL;
     unsigned long long open = 0ULL;
     for (unsigned long long one = 0ULL; ok && (one < count); one += 1ULL)
@@ -609,7 +615,7 @@ static inline int twister_below(SimResults *results, TwisterSet *set, const unsi
         }
         open = still;
     }
-    free(pending);
+    platform_cell_released(pending, platform_place_g_program_owner);
     return ok;
 }
 
@@ -631,9 +637,12 @@ static inline int twister_shuffle_each(SimResults *results, TwisterSet *set, con
                                        unsigned int stride, unsigned int *orders)
 {
     const unsigned long long count = set->count;
-    unsigned int *const which = (unsigned int *)malloc((size_t)(count * 4ULL));
-    unsigned int *const bounds = (unsigned int *)malloc((size_t)(count * 4ULL));
-    unsigned int *const draws = (unsigned int *)malloc((size_t)(count * 4ULL));
+    unsigned int *const which =
+        (unsigned int *)platform_cell_taken((size_t)(count * 4ULL), platform_place_g_program_owner, 0);
+    unsigned int *const bounds =
+        (unsigned int *)platform_cell_taken((size_t)(count * 4ULL), platform_place_g_program_owner, 0);
+    unsigned int *const draws =
+        (unsigned int *)platform_cell_taken((size_t)(count * 4ULL), platform_place_g_program_owner, 0);
     int ok = (which != NULL) && (bounds != NULL) && (draws != NULL);
     unsigned int longest = 0u;
     for (unsigned long long one = 0ULL; ok && (one < count); one += 1ULL)
@@ -666,9 +675,9 @@ static inline int twister_shuffle_each(SimResults *results, TwisterSet *set, con
             order[draws[one]] = held;
         }
     }
-    free(which);
-    free(bounds);
-    free(draws);
+    platform_cell_released(which, platform_place_g_program_owner);
+    platform_cell_released(bounds, platform_place_g_program_owner);
+    platform_cell_released(draws, platform_place_g_program_owner);
     return ok;
 }
 
@@ -683,14 +692,15 @@ static inline int twister_shuffle_each(SimResults *results, TwisterSet *set, con
  */
 static inline int twister_shuffle(SimResults *results, TwisterSet *set, unsigned int length, unsigned int *orders)
 {
-    unsigned int *const lengths = (unsigned int *)malloc((size_t)((set->count + 1ULL) * 4ULL));
+    unsigned int *const lengths =
+        (unsigned int *)platform_cell_taken((size_t)((set->count + 1ULL) * 4ULL), platform_place_g_program_owner, 0);
     int ok = lengths != NULL;
     for (unsigned long long one = 0ULL; ok && (one < set->count); one += 1ULL)
     {
         lengths[one] = length;
     }
     ok = ok && twister_shuffle_each(results, set, lengths, length, orders);
-    free(lengths);
+    platform_cell_released(lengths, platform_place_g_program_owner);
     return ok;
 }
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_object.c: layout, pipeline, links and symbol tables
 #include "hdf5_internal.h"
+#include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 static Hdf5Walk hdf5_object_layout(Hdf5File *file, Hdf5Object *object, Hdf5Cursor *cursor)
@@ -29,7 +30,9 @@ static Hdf5Walk hdf5_object_layout(Hdf5File *file, Hdf5Object *object, Hdf5Curso
             return hdf5_walk_error(file, "a malformed compact layout message");
         }
         object->data_bytes = size;
-        object->compact = (size > 0ULL) ? (unsigned char *)malloc((size_t)size) : NULL;
+        object->compact = (size > 0ULL)
+                              ? (unsigned char *)platform_cell_taken((size_t)size, platform_place_g_program_owner, 0)
+                              : NULL;
         if ((size > 0ULL) && (object->compact == NULL))
         {
             return hdf5_walk_error(file, "no memory for compact data");
@@ -148,7 +151,7 @@ static Hdf5Walk hdf5_object_message(Hdf5File *file, void *state, unsigned int ty
 
 void hdf5_object_close(Hdf5Object *object)
 {
-    free(object->compact);
+    platform_cell_released(object->compact, platform_place_g_program_owner);
     object->compact = NULL;
 }
 
@@ -265,7 +268,7 @@ static Hdf5Walk hdf5_table_symbols(Hdf5File *file, Hdf5GroupWalk *walk, const un
         step = !ordered ? hdf5_walk_error(file, "a symbol whose name lies outside the local heap or out of order")
                         : walk->visit(file, walk->state, name, length, (cache == 2ULL) ? 1u : 0u, object);
     }
-    free(node);
+    platform_cell_released(node, platform_place_g_program_owner);
     return step;
 }
 
@@ -323,7 +326,7 @@ static Hdf5Walk hdf5_table_node(Hdf5File *file, Hdf5GroupWalk *walk, const unsig
                    ? hdf5_table_node(file, walk, names, names_length, child_address, node_level - 1u, 0, depth + 1u)
                    : hdf5_table_symbols(file, walk, names, names_length, child_address);
     }
-    free(node);
+    platform_cell_released(node, platform_place_g_program_owner);
     return step;
 }
 
@@ -347,6 +350,6 @@ Hdf5Walk hdf5_table_links(Hdf5File *file, Hdf5GroupWalk *walk)
         return HDF5_WALK_FAILED;
     }
     const Hdf5Walk step = hdf5_table_node(file, walk, names, (size_t)names_bytes, walk->table_tree, 0u, 1, 0u);
-    free(names);
+    platform_cell_released(names, platform_place_g_program_owner);
     return step;
 }

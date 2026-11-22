@@ -10,6 +10,7 @@
 // and leaves the sweep usable, and a malformed request errors. The test is one job on the device's tessera daemon,
 // submitted before its first device work.
 #include "sim.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/unit_sweep/unit_sweep.h"
 
 #include <cuda_runtime.h>
@@ -291,16 +292,25 @@ static int planes_test_reserve(PlanesTestDevice *device, PlanesTestHost *host)
     memset(host, 0, sizeof(*host));
     const size_t lane_words = (size_t)PLANES_TEST_VOXELS_MAX * PLANES_TEST_LIMBS_MAX;
     const size_t plane_words = (size_t)PLANES_TEST_VOXELS_MAX * PLANES_TEST_INPUT_LIMBS_MAX;
-    host->parts =
-        (unsigned short *)malloc((size_t)PLANES_TEST_VOXELS_MAX * PLANES_TEST_PARTS_MAX * sizeof(unsigned short));
-    host->planes = (unsigned int *)malloc(plane_words * sizeof(unsigned int));
-    host->altered_planes = (unsigned int *)malloc(plane_words * sizeof(unsigned int));
-    host->part_residual = (unsigned int *)malloc(lane_words * sizeof(unsigned int));
-    host->expected = (unsigned int *)malloc(lane_words * sizeof(unsigned int));
-    host->residual = (unsigned int *)malloc(lane_words * sizeof(unsigned int));
-    host->cleared_residual = (unsigned int *)malloc(lane_words * sizeof(unsigned int));
-    host->raised_residual = (unsigned int *)malloc(lane_words * sizeof(unsigned int));
-    host->repeat_residual = (unsigned int *)malloc(lane_words * sizeof(unsigned int));
+    host->parts = (unsigned short *)platform_cell_taken((size_t)PLANES_TEST_VOXELS_MAX * PLANES_TEST_PARTS_MAX *
+                                                            sizeof(unsigned short),
+                                                        platform_place_g_program_owner, 0);
+    host->planes =
+        (unsigned int *)platform_cell_taken(plane_words * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    host->altered_planes =
+        (unsigned int *)platform_cell_taken(plane_words * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    host->part_residual =
+        (unsigned int *)platform_cell_taken(lane_words * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    host->expected =
+        (unsigned int *)platform_cell_taken(lane_words * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    host->residual =
+        (unsigned int *)platform_cell_taken(lane_words * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    host->cleared_residual =
+        (unsigned int *)platform_cell_taken(lane_words * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    host->raised_residual =
+        (unsigned int *)platform_cell_taken(lane_words * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    host->repeat_residual =
+        (unsigned int *)platform_cell_taken(lane_words * sizeof(unsigned int), platform_place_g_program_owner, 0);
     return (host->parts != NULL) && (host->planes != NULL) && (host->altered_planes != NULL) &&
            (host->part_residual != NULL) && (host->expected != NULL) && (host->residual != NULL) &&
            (host->cleared_residual != NULL) && (host->raised_residual != NULL) && (host->repeat_residual != NULL) &&
@@ -315,15 +325,15 @@ static void planes_test_release(PlanesTestDevice *device, PlanesTestHost *host)
     cudaFree(device->volume);
     cudaFree(device->planes);
     cudaFree(device->out);
-    free(host->parts);
-    free(host->planes);
-    free(host->altered_planes);
-    free(host->part_residual);
-    free(host->expected);
-    free(host->residual);
-    free(host->cleared_residual);
-    free(host->raised_residual);
-    free(host->repeat_residual);
+    platform_cell_released(host->parts, platform_place_g_program_owner);
+    platform_cell_released(host->planes, platform_place_g_program_owner);
+    platform_cell_released(host->altered_planes, platform_place_g_program_owner);
+    platform_cell_released(host->part_residual, platform_place_g_program_owner);
+    platform_cell_released(host->expected, platform_place_g_program_owner);
+    platform_cell_released(host->residual, platform_place_g_program_owner);
+    platform_cell_released(host->cleared_residual, platform_place_g_program_owner);
+    platform_cell_released(host->raised_residual, platform_place_g_program_owner);
+    platform_cell_released(host->repeat_residual, platform_place_g_program_owner);
     memset(device, 0, sizeof(*device));
     memset(host, 0, sizeof(*host));
 }

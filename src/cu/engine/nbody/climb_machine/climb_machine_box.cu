@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_box.cu: boxes released, ordered and merged
 #include "climb_machine_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 void machine_box_release(ClimbMachine *machine)
 {
-    free(machine->box_earlier);
-    free(machine->box_later);
-    free(machine->box_leaf);
-    free(machine->box_cell_first);
-    free(machine->box_cell_shift);
-    free(machine->box_entry_first);
-    free(machine->box_target);
-    free(machine->box_count);
+    platform_cell_released(machine->box_earlier, platform_place_g_program_owner);
+    platform_cell_released(machine->box_later, platform_place_g_program_owner);
+    platform_cell_released(machine->box_leaf, platform_place_g_program_owner);
+    platform_cell_released(machine->box_cell_first, platform_place_g_program_owner);
+    platform_cell_released(machine->box_cell_shift, platform_place_g_program_owner);
+    platform_cell_released(machine->box_entry_first, platform_place_g_program_owner);
+    platform_cell_released(machine->box_target, platform_place_g_program_owner);
+    platform_cell_released(machine->box_count, platform_place_g_program_owner);
     machine->box_earlier = NULL;
     machine->box_later = NULL;
     machine->box_leaf = NULL;
@@ -40,7 +41,8 @@ static int machine_box_merge(ClimbMachine *machine, const unsigned int *cell_raw
         const size_t size = (size_t)(machine->box_entry_first[cell + 1u] - machine->box_entry_first[cell]);
         widest = (size > widest) ? size : widest;
     }
-    MachineBoxPiece *const pieces = (MachineBoxPiece *)malloc((widest + 1u) * sizeof(MachineBoxPiece));
+    MachineBoxPiece *const pieces = (MachineBoxPiece *)platform_cell_taken((widest + 1u) * sizeof(MachineBoxPiece),
+                                                                           platform_place_g_program_owner, 0);
     if (pieces == NULL)
     {
         return 0;
@@ -89,7 +91,7 @@ static int machine_box_merge(ClimbMachine *machine, const unsigned int *cell_raw
         from = end;
     }
     machine->box_entry_first[cell_count] = (unsigned int)merged;
-    free(pieces);
+    platform_cell_released(pieces, platform_place_g_program_owner);
     return 1;
 }
 
@@ -110,16 +112,26 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
     const size_t capacity = (size_t)boxed + 1u;
     const unsigned long long cells = (unsigned long long)boxed * CLIMB_MACHINE_BOX_CELLS;
     const size_t cell_count = (cells <= 0x7FFFFFFFULL) ? (size_t)cells : 0u;
-    machine->box_earlier = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    machine->box_later = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    machine->box_leaf = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    machine->box_cell_first = (unsigned int *)malloc((capacity + 1u) * sizeof(unsigned int));
-    machine->box_cell_shift = (int *)malloc((cell_count + 1u) * 3u * sizeof(int));
-    machine->box_entry_first = (unsigned int *)malloc((cell_count + 1u) * sizeof(unsigned int));
-    unsigned int *const climber_of_box = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    unsigned int *const cell_climber = (unsigned int *)malloc((cell_count + 1u) * sizeof(unsigned int));
-    unsigned int *const cell_total = (unsigned int *)malloc((cell_count + 1u) * sizeof(unsigned int));
-    unsigned int *const cell_raw = (unsigned int *)malloc((cell_count + 1u) * sizeof(unsigned int));
+    machine->box_earlier =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    machine->box_later =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    machine->box_leaf =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    machine->box_cell_first =
+        (unsigned int *)platform_cell_taken((capacity + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    machine->box_cell_shift =
+        (int *)platform_cell_taken((cell_count + 1u) * 3u * sizeof(int), platform_place_g_program_owner, 0);
+    machine->box_entry_first = (unsigned int *)platform_cell_taken((cell_count + 1u) * sizeof(unsigned int),
+                                                                   platform_place_g_program_owner, 0);
+    unsigned int *const climber_of_box =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const cell_climber = (unsigned int *)platform_cell_taken((cell_count + 1u) * sizeof(unsigned int),
+                                                                           platform_place_g_program_owner, 0);
+    unsigned int *const cell_total = (unsigned int *)platform_cell_taken((cell_count + 1u) * sizeof(unsigned int),
+                                                                         platform_place_g_program_owner, 0);
+    unsigned int *const cell_raw = (unsigned int *)platform_cell_taken((cell_count + 1u) * sizeof(unsigned int),
+                                                                       platform_place_g_program_owner, 0);
     int ok = (cells <= 0x7FFFFFFFULL) && (machine->box_earlier != NULL) && (machine->box_later != NULL) &&
              (machine->box_leaf != NULL) && (machine->box_cell_first != NULL) && (machine->box_cell_shift != NULL) &&
              (machine->box_entry_first != NULL) && (climber_of_box != NULL) && (cell_climber != NULL) &&
@@ -229,8 +241,12 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
         machine->box_entry_first[cell_count] = (unsigned int)entries;
     }
     const size_t entry_count = ok ? (size_t)entries : 0u;
-    machine->box_target = ok ? (unsigned int *)malloc((entry_count + 1u) * sizeof(unsigned int)) : NULL;
-    machine->box_count = ok ? (unsigned int *)malloc((entry_count + 1u) * sizeof(unsigned int)) : NULL;
+    machine->box_target = ok ? (unsigned int *)platform_cell_taken((entry_count + 1u) * sizeof(unsigned int),
+                                                                   platform_place_g_program_owner, 0)
+                             : NULL;
+    machine->box_count = ok ? (unsigned int *)platform_cell_taken((entry_count + 1u) * sizeof(unsigned int),
+                                                                  platform_place_g_program_owner, 0)
+                            : NULL;
     ok = ok && (machine->box_target != NULL) && (machine->box_count != NULL) &&
          (cudaMalloc((void **)&device_target, (entry_count + 1u) * sizeof(unsigned int)) == cudaSuccess) &&
          (cudaMalloc((void **)&device_count, (entry_count + 1u) * sizeof(unsigned int)) == cudaSuccess) &&
@@ -284,10 +300,10 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
     cudaFree(device_target);
     cudaFree(device_count);
     cudaFree(device_error);
-    free(cell_climber);
-    free(cell_total);
-    free(cell_raw);
-    free(climber_of_box);
+    platform_cell_released(cell_climber, platform_place_g_program_owner);
+    platform_cell_released(cell_total, platform_place_g_program_owner);
+    platform_cell_released(cell_raw, platform_place_g_program_owner);
+    platform_cell_released(climber_of_box, platform_place_g_program_owner);
     if (ok == 0)
     {
         machine_box_release(machine);

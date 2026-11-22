@@ -260,12 +260,15 @@ static void probe_run(SimResults *results, const ProbeRecord *record, const long
     const unsigned long long top =
         (length >= 1ull) ? ((record->reach < (length - 1ull)) ? record->reach : (length - 1ull)) : 0ull;
     const unsigned long long phase_count = (top >= 2ull) ? energy_phase_base(top + 1ull) : 1ull;
-    long long *const sums = (long long *)calloc((size_t)phase_count, sizeof(long long));
-    long long *const shuffled = (long long *)calloc((size_t)(length + 1ull), sizeof(long long));
+    long long *const sums =
+        (long long *)platform_cell_cleared((size_t)phase_count, sizeof(long long), platform_place_g_program_owner, 0);
+    long long *const shuffled = (long long *)platform_cell_cleared((size_t)(length + 1ull), sizeof(long long),
+                                                                   platform_place_g_program_owner, 0);
     const unsigned long long phases = (record->period != 0ull) ? record->period : 1ull;
-    long long *const welford_numerator = (long long *)calloc((size_t)phases, sizeof(long long));
-    unsigned long long *const welford_denominator =
-        (unsigned long long *)calloc((size_t)phases, sizeof(unsigned long long));
+    long long *const welford_numerator =
+        (long long *)platform_cell_cleared((size_t)phases, sizeof(long long), platform_place_g_program_owner, 0);
+    unsigned long long *const welford_denominator = (unsigned long long *)platform_cell_cleared(
+        (size_t)phases, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     if ((sums == NULL) || (shuffled == NULL) || (welford_numerator == NULL) || (welford_denominator == NULL))
     {
         {
@@ -274,10 +277,10 @@ static void probe_run(SimResults *results, const ProbeRecord *record, const long
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(sums);
-        free(shuffled);
-        free(welford_numerator);
-        free(welford_denominator);
+        platform_cell_released(sums, platform_place_g_program_owner);
+        platform_cell_released(shuffled, platform_place_g_program_owner);
+        platform_cell_released(welford_numerator, platform_place_g_program_owner);
+        platform_cell_released(welford_denominator, platform_place_g_program_owner);
         return;
     }
     const unsigned int places = (unsigned int)record->places;
@@ -417,10 +420,10 @@ static void probe_run(SimResults *results, const ProbeRecord *record, const long
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(sums);
-    free(shuffled);
-    free(welford_numerator);
-    free(welford_denominator);
+    platform_cell_released(sums, platform_place_g_program_owner);
+    platform_cell_released(shuffled, platform_place_g_program_owner);
+    platform_cell_released(welford_numerator, platform_place_g_program_owner);
+    platform_cell_released(welford_denominator, platform_place_g_program_owner);
 }
 
 int program_main(int count, char **arguments)
@@ -481,9 +484,13 @@ int program_main(int count, char **arguments)
             break;
         }
         long long *const values =
-            (header > 0) ? (long long *)calloc((size_t)(record.length + 1ull), sizeof(long long)) : NULL;
+            (header > 0) ? (long long *)platform_cell_cleared((size_t)(record.length + 1ull), sizeof(long long),
+                                                              platform_place_g_program_owner, 0)
+                         : NULL;
         long long *const target =
-            (header > 0) ? (long long *)calloc((size_t)(record.length + 1ull), sizeof(long long)) : NULL;
+            (header > 0) ? (long long *)platform_cell_cleared((size_t)(record.length + 1ull), sizeof(long long),
+                                                              platform_place_g_program_owner, 0)
+                         : NULL;
         const int body = (values != NULL) && (target != NULL) &&
                          (fread(values, sizeof(long long), (size_t)record.length, file) == (size_t)record.length) &&
                          ((record.has_target == 0u) ||
@@ -498,14 +505,14 @@ int program_main(int count, char **arguments)
                 mmgr_line_ch(output_line, '\n');
                 platform_line_out_ended();
             }
-            free(values);
-            free(target);
+            platform_cell_released(values, platform_place_g_program_owner);
+            platform_cell_released(target, platform_place_g_program_owner);
             ok = 0;
             break;
         }
         probe_run(&results, &record, values, target, number);
-        free(values);
-        free(target);
+        platform_cell_released(values, platform_place_g_program_owner);
+        platform_cell_released(target, platform_place_g_program_owner);
         number += 1ull;
         platform_line_flushed();
     }

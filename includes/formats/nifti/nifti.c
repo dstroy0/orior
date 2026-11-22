@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "nifti.h"
+#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -181,8 +182,8 @@ static unsigned int nifti_open(const EngineIngestTools *tools, const char *path,
     {
         return 0u;
     }
-    unsigned char *const packed = malloc((size_t)file_bytes);
-    unsigned char *const unpacked = malloc((size_t)expected);
+    unsigned char *const packed = platform_cell_taken((size_t)file_bytes, platform_place_g_program_owner, 0);
+    unsigned char *const unpacked = platform_cell_taken((size_t)expected, platform_place_g_program_owner, 0);
     int ok = (packed != NULL) && (unpacked != NULL) && nifti_file_fetch(tools, path, 0ULL, file_bytes, packed);
     if (ok)
     {
@@ -190,10 +191,10 @@ static unsigned int nifti_open(const EngineIngestTools *tools, const char *path,
         const long long made = decode(&request);
         ok = (made >= 0LL) && ((unsigned long long)made == expected);
     }
-    free(packed);
+    platform_cell_released(packed, platform_place_g_program_owner);
     if (!ok)
     {
-        free(unpacked);
+        platform_cell_released(unpacked, platform_place_g_program_owner);
         return 0u;
     }
     const NiftiSource inflated = {tools, path, expected, unpacked};
@@ -316,7 +317,7 @@ static char *nifti_sibling(const char *path, const char *from, const char *to, u
         return NULL;
     }
     const int ends_gzipped = gzipped ? (toggle_gzip == 0u) : (toggle_gzip != 0u);
-    char *const sibling = malloc(stem_end + 4u);
+    char *const sibling = platform_cell_taken(stem_end + 4u, platform_place_g_program_owner, 0);
     if (sibling == NULL)
     {
         return NULL;
@@ -341,7 +342,7 @@ static char *nifti_existing_sibling(const EngineIngestTools *tools, const char *
         {
             return sibling;
         }
-        free(sibling);
+        platform_cell_released(sibling, platform_place_g_program_owner);
     }
     return NULL;
 }
@@ -374,8 +375,8 @@ static unsigned int nifti_prepare(const char *path, const char *member, const En
         nifti_header(bytes, (header.length < NIFTI_TWO_HEADER) ? header.length : NIFTI_TWO_HEADER, &built);
     if (!parsed || ((built.paired == 0u) && (header_owned != NULL)))
     {
-        free(header.memory);
-        free(header_owned);
+        platform_cell_released(header.memory, platform_place_g_program_owner);
+        platform_cell_released(header_owned, platform_place_g_program_owner);
         return 0u;
     }
     if (built.paired == 0u)
@@ -384,25 +385,25 @@ static unsigned int nifti_prepare(const char *path, const char *member, const En
     }
     else
     {
-        free(header.memory);
+        platform_cell_released(header.memory, platform_place_g_program_owner);
         *image_path = nifti_existing_sibling(tools, header_path, "hdr", "img");
         NiftiSource image = nifti_empty_source;
         if ((*image_path == NULL) || !nifti_open(tools, *image_path, &image))
         {
-            free(*image_path);
+            platform_cell_released(*image_path, platform_place_g_program_owner);
             *image_path = NULL;
-            free(header_owned);
+            platform_cell_released(header_owned, platform_place_g_program_owner);
             return 0u;
         }
         *data = image;
     }
     if ((built.data_offset > data->length) || (built.data_bytes > (data->length - built.data_offset)))
     {
-        free(data->memory);
+        platform_cell_released(data->memory, platform_place_g_program_owner);
         data->memory = NULL;
-        free(*image_path);
+        platform_cell_released(*image_path, platform_place_g_program_owner);
         *image_path = NULL;
-        free(header_owned);
+        platform_cell_released(header_owned, platform_place_g_program_owner);
         return 0u;
     }
     if ((noting != 0u) && (built.scaled != 0u))
@@ -415,7 +416,7 @@ static unsigned int nifti_prepare(const char *path, const char *member, const En
         mmgr_line_ch(&engine_note.line, '\n');
         engine_note_written(&engine_note);
     }
-    free(header_owned);
+    platform_cell_released(header_owned, platform_place_g_program_owner);
     *layout = built;
     return 1u;
 }
@@ -440,8 +441,8 @@ long nifti_describe(const EngineDescribeRequest *request)
     {
         return -1L;
     }
-    free(data.memory);
-    free(image_path);
+    platform_cell_released(data.memory, platform_place_g_program_owner);
+    platform_cell_released(image_path, platform_place_g_program_owner);
     *request->extent = layout.extent;
     return 0L;
 }
@@ -461,8 +462,8 @@ long long nifti_read(const EngineArrayRead *request)
     const unsigned long long wanted = agrees ? ((request->end - request->first) * row_bytes) : 0ULL;
     const int copied = agrees && (wanted <= request->out_capacity) &&
                        nifti_fetch(&data, layout.data_offset + (request->first * row_bytes), wanted, request->out);
-    free(data.memory);
-    free(image_path);
+    platform_cell_released(data.memory, platform_place_g_program_owner);
+    platform_cell_released(image_path, platform_place_g_program_owner);
     if (!copied)
     {
         if (agrees && (wanted <= request->out_capacity) && nifti_fits_memory(wanted))

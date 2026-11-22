@@ -23,6 +23,7 @@
  *       seeds 0 to 11. The tallest margin of the twelve is the floor of the row.
  */
 #include "../period_detector.h"
+#include "../../../src/platform/platform.h"
 #include "../subtraction_record.h"
 #include "../twister_record.h"
 
@@ -102,10 +103,12 @@ int program_main(int argc, char **argv)
         }
         do
         {
-            unsigned int *const grown = (unsigned int *)realloc(masks, (games + 1u) * sizeof(unsigned int));
+            unsigned int *const grown = (unsigned int *)platform_cell_grown(masks, (size_t)games * sizeof(unsigned int),
+                                                                            (games + 1u) * sizeof(unsigned int),
+                                                                            platform_place_g_program_owner, 0);
             if (grown == NULL)
             {
-                free(masks);
+                platform_cell_released(masks, platform_place_g_program_owner);
                 return sim_close(&results, "grundy period");
             }
             masks = grown;
@@ -139,10 +142,12 @@ int program_main(int argc, char **argv)
                           "values") &&
          sim_status_check(&results, cudaMemset(device.values, 0, ((series_max * whole) + 1ULL) * 4ULL),
                           "values cleared");
-    unsigned int *const host_index = (unsigned int *)malloc((size_t)(lag_lanes * 2ULL * 4ULL));
-    unsigned int *const period = (unsigned int *)calloc(games + 1u, sizeof(unsigned int));
-    unsigned int *const sums =
-        (unsigned int *)malloc((size_t)((series_max + 1ULL) * (GRUNDY_LAGS + 1ULL) * 2ULL * 4ULL));
+    unsigned int *const host_index =
+        (unsigned int *)platform_cell_taken((size_t)(lag_lanes * 2ULL * 4ULL), platform_place_g_program_owner, 0);
+    unsigned int *const period =
+        (unsigned int *)platform_cell_cleared(games + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const sums = (unsigned int *)platform_cell_taken(
+        (size_t)((series_max + 1ULL) * (GRUNDY_LAGS + 1ULL) * 2ULL * 4ULL), platform_place_g_program_owner, 0);
     // the Grundy sequence of every game and its exact period, on the record machine
     SubtractionGames heaps;
     memset(&heaps, 0, sizeof(heaps));
@@ -182,7 +187,8 @@ int program_main(int argc, char **argv)
     // the rows that the widest window reads, and their shuffles at the seeds 0 to 11 by the twister of CPython
     const unsigned int widest = GRUNDY_WINDOWS[GRUNDY_WINDOW_COUNT - 1u];
     unsigned int rows = 0u;
-    unsigned int *const row_game = (unsigned int *)malloc((games + 1u) * sizeof(unsigned int));
+    unsigned int *const row_game =
+        (unsigned int *)platform_cell_taken((games + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = ok && (row_game != NULL);
     for (unsigned int game = 0u; ok && (game < games); game += 1u)
     {
@@ -201,13 +207,15 @@ int program_main(int argc, char **argv)
     {
         seeds[draw] = draw;
     }
-    unsigned int *const orders = (unsigned int *)malloc((size_t)(GRUNDY_DRAWS * whole * sizeof(unsigned int)));
+    unsigned int *const orders = (unsigned int *)platform_cell_taken(
+        (size_t)(GRUNDY_DRAWS * whole * sizeof(unsigned int)), platform_place_g_program_owner, 0);
     TwisterSet twister;
     ok = ok && (orders != NULL) && twister_open(&results, &twister, seeds, GRUNDY_DRAWS) &&
          twister_shuffle(&results, &twister, GRUNDY_POSITIONS, orders);
     twister_close(&twister);
     // the twister of the host, as a second route: every order of the device equals its order
-    unsigned int *const order = (unsigned int *)malloc(whole * sizeof(unsigned int));
+    unsigned int *const order =
+        (unsigned int *)platform_cell_taken(whole * sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = ok && (order != NULL);
     unsigned long long mismatches = 0ULL;
     for (unsigned int draw = 0u; ok && (draw < GRUNDY_DRAWS); draw += 1u)
@@ -260,16 +268,16 @@ int program_main(int argc, char **argv)
     }
     sim_check(&results, ok, "the gather writes every series and shuffle");
     // the lag sums of every series at lags 0 to 64
-    DetectorLagSums *const lag_sums =
-        (DetectorLagSums *)calloc((size_t)(series * (GRUNDY_LAGS + 1ULL)), sizeof(DetectorLagSums));
+    DetectorLagSums *const lag_sums = (DetectorLagSums *)platform_cell_cleared(
+        (size_t)(series * (GRUNDY_LAGS + 1ULL)), sizeof(DetectorLagSums), platform_place_g_program_owner, 0);
     ok = ok && (lag_sums != NULL);
     const DetectorSweep sweep = {&lag,        lag_steps,  device.values, series,     whole,
                                  GRUNDY_LAGS, host_index, device.index,  device.out, sums};
     ok = ok && detector_sweep(&results, &sweep, lag_sums);
     sim_check(&results, ok, "the lag program sweeps and sums every series on the device");
     // the detector at every window on every row in range, and its floor from the shuffles at the widest
-    DetectorReading *const readings =
-        (DetectorReading *)calloc((size_t)games * GRUNDY_WINDOW_COUNT, sizeof(DetectorReading));
+    DetectorReading *const readings = (DetectorReading *)platform_cell_cleared(
+        (size_t)games * GRUNDY_WINDOW_COUNT, sizeof(DetectorReading), platform_place_g_program_owner, 0);
     ok = ok && (readings != NULL);
     unsigned long long undecided = 0ULL;
     if (ok)
@@ -298,9 +306,12 @@ int program_main(int argc, char **argv)
         snprintf(text, sizeof(text), "%-8u %8u %8u %8u\n", reach, inside, hit, settled - inside);
         mmgr_line_put(line, text);
     }
-    GameInterval *const live = (GameInterval *)calloc(rows + 1u, sizeof(GameInterval));
-    GameInterval *const floors = (GameInterval *)calloc(rows + 1u, sizeof(GameInterval));
-    GameInterval *const ratios = (GameInterval *)calloc(rows + 1u, sizeof(GameInterval));
+    GameInterval *const live =
+        (GameInterval *)platform_cell_cleared(rows + 1u, sizeof(GameInterval), platform_place_g_program_owner, 0);
+    GameInterval *const floors =
+        (GameInterval *)platform_cell_cleared(rows + 1u, sizeof(GameInterval), platform_place_g_program_owner, 0);
+    GameInterval *const ratios =
+        (GameInterval *)platform_cell_cleared(rows + 1u, sizeof(GameInterval), platform_place_g_program_owner, 0);
     ok = ok && (live != NULL) && (floors != NULL) && (ratios != NULL);
     unsigned long long ratio_count = 0ULL;
     unsigned long long uncleared = 0ULL;
@@ -422,17 +433,17 @@ int program_main(int argc, char **argv)
     subtraction_close(&heaps);
     game_release(&lag);
     cycle_record_sum_release();
-    free(masks);
-    free(host_index);
-    free(period);
-    free(sums);
-    free(row_game);
-    free(order);
-    free(orders);
-    free(lag_sums);
-    free(readings);
-    free(live);
-    free(floors);
-    free(ratios);
+    platform_cell_released(masks, platform_place_g_program_owner);
+    platform_cell_released(host_index, platform_place_g_program_owner);
+    platform_cell_released(period, platform_place_g_program_owner);
+    platform_cell_released(sums, platform_place_g_program_owner);
+    platform_cell_released(row_game, platform_place_g_program_owner);
+    platform_cell_released(order, platform_place_g_program_owner);
+    platform_cell_released(orders, platform_place_g_program_owner);
+    platform_cell_released(lag_sums, platform_place_g_program_owner);
+    platform_cell_released(readings, platform_place_g_program_owner);
+    platform_cell_released(live, platform_place_g_program_owner);
+    platform_cell_released(floors, platform_place_g_program_owner);
+    platform_cell_released(ratios, platform_place_g_program_owner);
     return sim_close(&results, "grundy period");
 }

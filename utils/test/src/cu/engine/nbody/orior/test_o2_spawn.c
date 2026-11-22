@@ -156,9 +156,9 @@ static void o2_fill(uint8_t *const corpus, const uint32_t alphabet, uint64_t *co
  */
 static int o2_case_found_past_cap(void)
 {
-    uint8_t *const corpus = (uint8_t *)malloc(O2_CORPUS);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(O2_CORPUS, platform_place_g_program_owner, 0);
     const size_t alignments = (O2_CORPUS - O2_NEEDLE) + 1u;
-    uint8_t *const survivors = (uint8_t *)malloc(alignments);
+    uint8_t *const survivors = (uint8_t *)platform_cell_taken(alignments, platform_place_g_program_owner, 0);
     int failed = 0;
 
     if ((corpus == NULL) || (survivors == NULL))
@@ -169,8 +169,8 @@ static int o2_case_found_past_cap(void)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(corpus);
-        free(survivors);
+        platform_cell_released(corpus, platform_place_g_program_owner);
+        platform_cell_released(survivors, platform_place_g_program_owner);
         return 1;
     }
 
@@ -199,8 +199,8 @@ static int o2_case_found_past_cap(void)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(corpus);
-        free(survivors);
+        platform_cell_released(corpus, platform_place_g_program_owner);
+        platform_cell_released(survivors, platform_place_g_program_owner);
         return 1;
     }
 
@@ -268,8 +268,8 @@ static int o2_case_found_past_cap(void)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(corpus);
-    free(survivors);
+    platform_cell_released(corpus, platform_place_g_program_owner);
+    platform_cell_released(survivors, platform_place_g_program_owner);
     return failed;
 }
 
@@ -280,9 +280,9 @@ static int o2_case_found_past_cap(void)
  */
 static int o2_case_flat_errors(void)
 {
-    uint8_t *const corpus = (uint8_t *)malloc(O2_CORPUS);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(O2_CORPUS, platform_place_g_program_owner, 0);
     const size_t alignments = (O2_CORPUS - O2_NEEDLE) + 1u;
-    uint8_t *const survivors = (uint8_t *)malloc(alignments);
+    uint8_t *const survivors = (uint8_t *)platform_cell_taken(alignments, platform_place_g_program_owner, 0);
     int failed = 0;
 
     if ((corpus == NULL) || (survivors == NULL))
@@ -293,8 +293,8 @@ static int o2_case_flat_errors(void)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(corpus);
-        free(survivors);
+        platform_cell_released(corpus, platform_place_g_program_owner);
+        platform_cell_released(survivors, platform_place_g_program_owner);
         return 1;
     }
 
@@ -345,8 +345,8 @@ static int o2_case_flat_errors(void)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(corpus);
-    free(survivors);
+    platform_cell_released(corpus, platform_place_g_program_owner);
+    platform_cell_released(survivors, platform_place_g_program_owner);
     return failed;
 }
 
@@ -357,9 +357,9 @@ static int o2_case_flat_errors(void)
  */
 static int o2_case_anytime_superset(void)
 {
-    uint8_t *const corpus = (uint8_t *)malloc(O2_CORPUS);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(O2_CORPUS, platform_place_g_program_owner, 0);
     const size_t alignments = (O2_CORPUS - O2_NEEDLE) + 1u;
-    uint8_t *const survivors = (uint8_t *)malloc(alignments);
+    uint8_t *const survivors = (uint8_t *)platform_cell_taken(alignments, platform_place_g_program_owner, 0);
     int failed = 0;
 
     if ((corpus == NULL) || (survivors == NULL))
@@ -370,8 +370,8 @@ static int o2_case_anytime_superset(void)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(corpus);
-        free(survivors);
+        platform_cell_released(corpus, platform_place_g_program_owner);
+        platform_cell_released(survivors, platform_place_g_program_owner);
         return 1;
     }
 
@@ -395,8 +395,8 @@ static int o2_case_anytime_superset(void)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(corpus);
-        free(survivors);
+        platform_cell_released(corpus, platform_place_g_program_owner);
+        platform_cell_released(survivors, platform_place_g_program_owner);
         return 1;
     }
 
@@ -440,8 +440,8 @@ static int o2_case_anytime_superset(void)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(corpus);
-    free(survivors);
+    platform_cell_released(corpus, platform_place_g_program_owner);
+    platform_cell_released(survivors, platform_place_g_program_owner);
     return failed;
 }
 
@@ -456,9 +456,9 @@ static int o2_case_anytime_superset(void)
  */
 static int o2_case_cost_boundary(void)
 {
-    uint8_t *const corpus = (uint8_t *)malloc(O2_CORPUS);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(O2_CORPUS, platform_place_g_program_owner, 0);
     const size_t alignments = (O2_CORPUS - O2_NEEDLE) + 1u;
-    uint8_t *const survivors = (uint8_t *)malloc(alignments);
+    uint8_t *const survivors = (uint8_t *)platform_cell_taken(alignments, platform_place_g_program_owner, 0);
 
     if ((corpus == NULL) || (survivors == NULL))
     {
@@ -468,8 +468,8 @@ static int o2_case_cost_boundary(void)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(corpus);
-        free(survivors);
+        platform_cell_released(corpus, platform_place_g_program_owner);
+        platform_cell_released(survivors, platform_place_g_program_owner);
         return 1;
     }
 
@@ -543,8 +543,8 @@ static int o2_case_cost_boundary(void)
         platform_line_out_ended();
     }
 
-    free(corpus);
-    free(survivors);
+    platform_cell_released(corpus, platform_place_g_program_owner);
+    platform_cell_released(survivors, platform_place_g_program_owner);
     return 0;
 }
 

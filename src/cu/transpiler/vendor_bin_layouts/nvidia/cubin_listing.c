@@ -79,7 +79,8 @@ static int listing_read(const char *nvdisasm, const char *architecture, char *pa
         }
         // the output ran past its room: the room grown to contain it, and the read made again
         const unsigned long long room = answer.output_bytes + 1048576ULL;
-        char *const larger = (char *)realloc(s_output, (size_t)room);
+        char *const larger =
+            (char *)platform_cell_grown(s_output, s_output_room, (size_t)room, platform_place_g_program_owner, 0);
         if (larger == NULL)
         {
             return -1;
@@ -134,12 +135,14 @@ static int listing_raw_cleared(QryShared *run, ListedCode *codes, unsigned int c
     {
         total += codes[at].size;
     }
-    unsigned char *const joined = (unsigned char *)malloc((size_t)total + 1u);
-    unsigned long long *const start = (unsigned long long *)calloc((size_t)count + 1u, sizeof(unsigned long long));
+    unsigned char *const joined =
+        (unsigned char *)platform_cell_taken((size_t)total + 1u, platform_place_g_program_owner, 0);
+    unsigned long long *const start = (unsigned long long *)platform_cell_cleared(
+        (size_t)count + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     if ((joined == NULL) || (start == NULL))
     {
-        free(joined);
-        free(start);
+        platform_cell_released(joined, platform_place_g_program_owner);
+        platform_cell_released(start, platform_place_g_program_owner);
         return 0;
     }
     int cleared = 0;
@@ -200,8 +203,8 @@ static int listing_raw_cleared(QryShared *run, ListedCode *codes, unsigned int c
             }
         }
     }
-    free(joined);
-    free(start);
+    platform_cell_released(joined, platform_place_g_program_owner);
+    platform_cell_released(start, platform_place_g_program_owner);
     for (unsigned int at = 0u; !cleared && (at < count); at += 1u)
     {
         codes[at].aside = 1;
@@ -214,9 +217,12 @@ static int listing_raw_cleared(QryShared *run, ListedCode *codes, unsigned int c
 static int listing_cubin_read(QryShared *run, ListedCode *codes, unsigned int count, const unsigned char *pattern,
                               unsigned long long pattern_size, const char *nvdisasm)
 {
-    ContainerPart *const parts = (ContainerPart *)calloc((size_t)count + 1u, sizeof(ContainerPart));
-    const char **const names = (const char **)calloc((size_t)count + 1u, sizeof(const char *));
-    unsigned int *const of = (unsigned int *)calloc((size_t)count + 1u, sizeof(unsigned int));
+    ContainerPart *const parts = (ContainerPart *)platform_cell_cleared((size_t)count + 1u, sizeof(ContainerPart),
+                                                                        platform_place_g_program_owner, 0);
+    const char **const names = (const char **)platform_cell_cleared((size_t)count + 1u, sizeof(const char *),
+                                                                    platform_place_g_program_owner, 0);
+    unsigned int *const of = (unsigned int *)platform_cell_cleared((size_t)count + 1u, sizeof(unsigned int),
+                                                                   platform_place_g_program_owner, 0);
     unsigned long long total = 0ULL;
     unsigned int retained = 0u;
     for (unsigned int at = 0u; (parts != NULL) && (names != NULL) && (of != NULL) && (at < count); at += 1u)
@@ -234,7 +240,7 @@ static int listing_cubin_read(QryShared *run, ListedCode *codes, unsigned int co
     }
     // every section may move by its alignment, and every part's attributes grow by four bytes an exit
     const unsigned long long room = (pattern_size * 2ULL) + (total * 2ULL) + 1048576ULL;
-    unsigned char *const cubin = (unsigned char *)malloc((size_t)room);
+    unsigned char *const cubin = (unsigned char *)platform_cell_taken((size_t)room, platform_place_g_program_owner, 0);
     unsigned long long cubin_size = 0ULL;
     const CubinKernels kernels = {pattern, pattern_size, parts, retained};
     char path[1400];
@@ -242,7 +248,7 @@ static int listing_cubin_read(QryShared *run, ListedCode *codes, unsigned int co
                cubin_kernels_write(&kernels, cubin, room, &cubin_size) &&
                (qry_member_streamed("cubin_listing_cubin", cubin, cubin_size, path, sizeof(path)) != 0ULL) &&
                (listing_read(nvdisasm, NULL, path) == 0);
-    free(cubin);
+    platform_cell_released(cubin, platform_place_g_program_owner);
     CubinListingCut cut;
     mmgr_bytes_set(&cut, 0, sizeof(cut));
     read = read && cubin_listing_cut(s_output, (size_t)s_output_size, names, retained, &cut);
@@ -262,9 +268,9 @@ static int listing_cubin_read(QryShared *run, ListedCode *codes, unsigned int co
         read = qry_member_append(name, cut.text + cut.start[at], cut.size[at], QRY_ORDINARY) != 0;
     }
     cubin_listing_cut_freed(&cut);
-    free(parts);
-    free(names);
-    free(of);
+    platform_cell_released(parts, platform_place_g_program_owner);
+    platform_cell_released(names, platform_place_g_program_owner);
+    platform_cell_released(of, platform_place_g_program_owner);
     return read || (retained == 0u);
 }
 
@@ -333,7 +339,8 @@ int program_main(int count, char **words)
     {
         lines += (list[at] == '\n') ? 1u : 0u;
     }
-    ListedCode *const codes = (ListedCode *)calloc((size_t)lines + 2u, sizeof(ListedCode));
+    ListedCode *const codes =
+        (ListedCode *)platform_cell_cleared((size_t)lines + 2u, sizeof(ListedCode), platform_place_g_program_owner, 0);
     if (codes == NULL)
     {
         return 2;
@@ -400,7 +407,8 @@ int program_main(int count, char **words)
         unsigned long long offset = 0ULL;
         unsigned long long size = 0ULL;
         const unsigned int room = (unsigned int)(code->size / 16ULL) + 1u;
-        code->exits = (unsigned int *)calloc(room, sizeof(unsigned int));
+        code->exits =
+            (unsigned int *)platform_cell_cleared(room, sizeof(unsigned int), platform_place_g_program_owner, 0);
         code->exit_count = (exit_known && (code->exits != NULL))
                                ? cubin_exits_find(code->code, code->size, exit_low, code->exits, room)
                                : 0u;
@@ -408,7 +416,7 @@ int program_main(int count, char **words)
         code->aside = !cubin_code_of(pattern, pattern_size, code->kernel, &offset, &size) || (code->exit_count == 0u);
     }
     s_output_room = ((unsigned long long)code_count * 65536ULL) + 16777216ULL;
-    s_output = (char *)malloc((size_t)s_output_room);
+    s_output = (char *)platform_cell_taken((size_t)s_output_room, platform_place_g_program_owner, 0);
     if (s_output == NULL)
     {
         return 2;
@@ -466,9 +474,9 @@ int program_main(int count, char **words)
     }
     for (unsigned int one = 0u; one < code_count; one += 1u)
     {
-        free(codes[one].exits);
+        platform_cell_released(codes[one].exits, platform_place_g_program_owner);
     }
-    free(codes);
-    free(s_output);
+    platform_cell_released(codes, platform_place_g_program_owner);
+    platform_cell_released(s_output, platform_place_g_program_owner);
     return reached ? 0 : 2;
 }

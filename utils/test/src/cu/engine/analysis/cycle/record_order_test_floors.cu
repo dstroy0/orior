@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_order_test_floors.cu: wraps, forward and inverse, floors and edges
 #include "record_order_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 static unsigned long long s_order_state = 0x0DE7C0DE5EEDF00Dull;
 
@@ -204,17 +205,22 @@ void order_both_ways(OrderResults *results)
     const unsigned int count = ORDER_TEST_WORDS + 1u + (ORDER_TEST_FLOORS * ORDER_TEST_FLOOR_STEPS);
     const unsigned int output_count = ORDER_TEST_WORDS * ORDER_TEST_FLOORS;
     const unsigned int span = (2u * ORDER_TEST_DEPTH) + 1u;
-    OrderStack stack = {(EngineRecordStep *)calloc(count, sizeof(EngineRecordStep)), 0u};
-    unsigned int *const outputs = (unsigned int *)malloc((size_t)output_count * sizeof(unsigned int));
-    int *const floor_order = (int *)malloc((size_t)ORDER_TEST_FLOORS * sizeof(int));
-    OrderState *const states = (OrderState *)malloc((size_t)span * sizeof(OrderState));
+    OrderStack stack = {
+        (EngineRecordStep *)platform_cell_cleared(count, sizeof(EngineRecordStep), platform_place_g_program_owner, 0),
+        0u};
+    unsigned int *const outputs = (unsigned int *)platform_cell_taken((size_t)output_count * sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    int *const floor_order =
+        (int *)platform_cell_taken((size_t)ORDER_TEST_FLOORS * sizeof(int), platform_place_g_program_owner, 0);
+    OrderState *const states =
+        (OrderState *)platform_cell_taken((size_t)span * sizeof(OrderState), platform_place_g_program_owner, 0);
     if ((stack.steps == NULL) || (outputs == NULL) || (floor_order == NULL) || (states == NULL))
     {
         order_check(results, 0, "the orders' program is allocated");
-        free(stack.steps);
-        free(outputs);
-        free(floor_order);
-        free(states);
+        platform_cell_released(stack.steps, platform_place_g_program_owner);
+        platform_cell_released(outputs, platform_place_g_program_owner);
+        platform_cell_released(floor_order, platform_place_g_program_owner);
+        platform_cell_released(states, platform_place_g_program_owner);
         return;
     }
     unsigned int field_bits[ORDER_TEST_WORDS];
@@ -256,17 +262,20 @@ void order_both_ways(OrderResults *results)
     order_check(results, loads, "the orders' stack encodes, arranges with reuse and loads");
     if (loads == 0)
     {
-        free(stack.steps);
-        free(outputs);
-        free(floor_order);
-        free(states);
+        platform_cell_released(stack.steps, platform_place_g_program_owner);
+        platform_cell_released(outputs, platform_place_g_program_owner);
+        platform_cell_released(floor_order, platform_place_g_program_owner);
+        platform_cell_released(states, platform_place_g_program_owner);
         return;
     }
     const unsigned int lanes = ORDER_TEST_LANES;
     const unsigned int out_limbs = loaded.layout.out_limbs;
-    unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * ORDER_TEST_WORDS, sizeof(unsigned int));
-    unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-    unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * ORDER_TEST_WORDS, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
     const int buffers = (atoms != NULL) && (host_out != NULL) && (device_out != NULL);
     for (unsigned int lane = 0u; (buffers != 0) && (lane < lanes); lane += 1u)
     {
@@ -351,7 +360,7 @@ void order_both_ways(OrderResults *results)
     mmgr_line_put(&results->line, " of ");
     mmgr_line_decimal(&results->line, lanes, 1u);
     mmgr_line_put(&results->line,
-                   " lanes contain the CPU's G^k(x) at every visit to every order; the counter reads k on ");
+                  " lanes contain the CPU's G^k(x) at every visit to every order; the counter reads k on ");
     mmgr_line_decimal(&results->line, counters_ok, 1u);
     mmgr_line_put(&results->line, "; ");
     mmgr_line_decimal(&results->line, returned, 1u);
@@ -367,12 +376,12 @@ void order_both_ways(OrderResults *results)
     order_check(results, visits_ok == lanes, "every visit to order k contains the CPU's G^k(x), whichever way it came");
     order_check(results, counters_ok == lanes, "the counter reads the order at every floor, below zero included");
     order_check(results, returned == lanes, "the run returns to order 0 and to x exactly");
-    free(atoms);
-    free(host_out);
-    free(device_out);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
     order_free(&loaded);
-    free(stack.steps);
-    free(outputs);
-    free(floor_order);
-    free(states);
+    platform_cell_released(stack.steps, platform_place_g_program_owner);
+    platform_cell_released(outputs, platform_place_g_program_owner);
+    platform_cell_released(floor_order, platform_place_g_program_owner);
+    platform_cell_released(states, platform_place_g_program_owner);
 }

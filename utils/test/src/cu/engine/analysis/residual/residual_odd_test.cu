@@ -17,6 +17,7 @@
 // one at a spacing, and spacings past the extent. The test is one job on the device's tessera daemon, submitted before
 // its first device work.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../../../src/cu/engine/analysis/residual/residual.h"
@@ -63,14 +64,34 @@ static const unsigned int ODD_TEST_COMB[ODD_TEST_ORDER_SETS][ENGINE_AXES] = {
 
 // the spaced pairs on each axis at spacings 1, 2, 4, 8 and 16; the sets before the last four take none
 static const unsigned int ODD_TEST_SMOOTH_SPACED[ODD_TEST_ORDER_SETS][ENGINE_AXES][ODD_TEST_SPACINGS] = {
-    {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
     {{0u, 0u, 0u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u}, {0u, 1u, 0u, 0u, 0u}},
     {{0u, 0u, 0u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u}, {0u, 0u, 1u, 0u, 0u}},
     {{0u, 0u, 0u, 0u, 0u}, {0u, 1u, 0u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u}},
     {{0u, 0u, 1u, 0u, 0u}, {1u, 0u, 0u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u}}};
 
 static const unsigned int ODD_TEST_BACKGROUND_SPACED[ODD_TEST_ORDER_SETS][ENGINE_AXES][ODD_TEST_SPACINGS] = {
-    {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
     {{0u, 1u, 0u, 0u, 0u}, {0u, 0u, 1u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u}},
     {{0u, 1u, 0u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u}, {0u, 2u, 0u, 0u, 0u}},
     {{0u, 0u, 0u, 0u, 0u}, {0u, 0u, 0u, 0u, 0u}, {0u, 0u, 1u, 0u, 0u}},
@@ -163,10 +184,10 @@ static unsigned int odd_test_row(unsigned int order, unsigned int comb, const un
             const unsigned int wider = taps + (2u * apart);
             for (unsigned int tap = 0u; tap < wider; tap += 1u)
             {
-                paired[tap] = ((tap < taps) ? row[tap] : 0ull) +
-                              (((tap >= apart) && ((tap - apart) < taps)) ? (2ull * row[tap - apart]) : 0ull) +
-                              (((tap >= (2u * apart)) && ((tap - (2u * apart)) < taps)) ? row[tap - (2u * apart)]
-                                                                                         : 0ull);
+                paired[tap] =
+                    ((tap < taps) ? row[tap] : 0ull) +
+                    (((tap >= apart) && ((tap - apart) < taps)) ? (2ull * row[tap - apart]) : 0ull) +
+                    (((tap >= (2u * apart)) && ((tap - (2u * apart)) < taps)) ? row[tap - (2u * apart)] : 0ull);
             }
             memcpy(row, paired, (size_t)wider * sizeof(unsigned long long));
             taps = wider;
@@ -566,7 +587,8 @@ int program_main(int count, char **arguments)
     SimResults results;
     sim_open(&results, line_buffer);
     const int admitted = sim_job_submit(&results, "residual_odd_test", count, arguments, ODD_TEST_DECLARED);
-    OddTestHost *const host = (OddTestHost *)malloc(sizeof(OddTestHost));
+    OddTestHost *const host =
+        (OddTestHost *)platform_cell_taken(sizeof(OddTestHost), platform_place_g_program_owner, 0);
     OddTestDevice device;
     memset(&device, 0, sizeof(device));
     const size_t lane_words = (size_t)ODD_TEST_VOXELS_MAX * ENGINE_RESIDUAL_LIMBS;
@@ -603,6 +625,6 @@ int program_main(int count, char **arguments)
         cudaFree(device.sweep_out);
         unit_sweep_release();
     }
-    free(host);
+    platform_cell_released(host, platform_place_g_program_owner);
     return sim_close(&results, "residual odd test");
 }

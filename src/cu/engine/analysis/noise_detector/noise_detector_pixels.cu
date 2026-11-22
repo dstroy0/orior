@@ -58,7 +58,7 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    NoiseClips *const clips = (NoiseClips *)malloc(sizeof(NoiseClips));
+    NoiseClips *const clips = (NoiseClips *)platform_cell_taken(sizeof(NoiseClips), platform_place_g_program_owner, 0);
     ok = ok && NOISE_DETECTOR_CHECK(clips != NULL, &clips, error, ENGINE_ERROR_RESOURCE);
     const unsigned long long began = engine_clock_microseconds();
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
@@ -69,14 +69,14 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
         ok = NOISE_DETECTOR_CHECK(request->load(request->set, name, extent, &volume, error) == 0L, name, error,
                                   ENGINE_ERROR_REQUEST) &&
              (noise_clips_sample(volume, extent, clips, error) == 0L);
-        free(volume);
+        platform_cell_released(volume, platform_place_g_program_owner);
         ok = ok && NOISE_DETECTOR_IO(noise_clips_rows(tables, name, clips) != 0, tables[NOISE_TABLE_CLIPS], error);
         if (ok != 0)
         {
             noise_clips_summary(name, clips);
         }
     }
-    free(clips);
+    platform_cell_released(clips, platform_place_g_program_owner);
     for (unsigned int type = 0u; type < NOISE_CLIPS_TABLES; type += 1u)
     {
         if (tables[type] != NULL)
@@ -136,7 +136,7 @@ static long noise_pixels_sample(const unsigned short *volume, const unsigned lon
     {
         return NOISE_DETECTOR_ERROR;
     }
-    unsigned char *const mask = (unsigned char *)malloc((size_t)voxels);
+    unsigned char *const mask = (unsigned char *)platform_cell_taken((size_t)voxels, platform_place_g_program_owner, 0);
     int ok = NOISE_DETECTOR_CHECK(mask != NULL, &mask, error, ENGINE_ERROR_RESOURCE) &&
              NOISE_DETECTOR_CHECK(noise_static_mask(volume, frames, voxels, 0u, mask, ceiling) != 0, mask, error,
                                   ENGINE_ERROR_RESOURCE);
@@ -174,7 +174,7 @@ static long noise_pixels_sample(const unsigned short *volume, const unsigned lon
             }
         }
     }
-    free(mask);
+    platform_cell_released(mask, platform_place_g_program_owner);
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 
@@ -253,14 +253,15 @@ extern "C" long noise_pixels_set(const NoiseSetRequest *request)
         // the maps grow to the widest plane the set contains
         if (ok && (cells > max_cells))
         {
-            free(maps);
-            maps = (unsigned long long *)malloc((size_t)cells * sizeof(unsigned long long));
+            platform_cell_released(maps, platform_place_g_program_owner);
+            maps = (unsigned long long *)platform_cell_taken((size_t)cells * sizeof(unsigned long long),
+                                                             platform_place_g_program_owner, 0);
             max_cells = (maps != NULL) ? cells : 0ULL;
             ok = NOISE_DETECTOR_CHECK(maps != NULL, &maps, error, ENGINE_ERROR_RESOURCE);
         }
         unsigned long long ceiling = 0ULL;
         ok = ok && (noise_pixels_sample(volume, extent, maps, &ceiling, error) == 0L);
-        free(volume);
+        platform_cell_released(volume, platform_place_g_program_owner);
         ok = ok && NOISE_DETECTOR_IO(noise_pixels_rows(table, name, extent, maps) != 0, table, error);
         if (ok != 0)
         {
@@ -276,7 +277,7 @@ extern "C" long noise_pixels_set(const NoiseSetRequest *request)
             platform_line_flushed();
         }
     }
-    free(maps);
+    platform_cell_released(maps, platform_place_g_program_owner);
     if (table != NULL)
     {
         ok = NOISE_DETECTOR_IO(platform_file_close(table) == 0, path, error) && ok;

@@ -15,16 +15,18 @@ static void coherence_residue_table(CoherenceResults *results)
     const unsigned int lanes = COHERENCE_TEST_LANES;
     const unsigned int rows = 1u << COHERENCE_TEST_TABLE_BITS;
     const unsigned long long row_mask = (unsigned long long)rows - 1ull;
-    unsigned int *const atoms =
-        (unsigned int *)calloc((size_t)lanes * COHERENCE_TEST_TABLE_INPUTS, sizeof(unsigned int));
-    unsigned int *const values = (unsigned int *)calloc(rows, sizeof(unsigned int));
-    CoherenceProgram *const program = (CoherenceProgram *)calloc(1u, sizeof(CoherenceProgram));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * COHERENCE_TEST_TABLE_INPUTS, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const values =
+        (unsigned int *)platform_cell_cleared(rows, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    CoherenceProgram *const program =
+        (CoherenceProgram *)platform_cell_cleared(1u, sizeof(CoherenceProgram), platform_place_g_program_owner, 0);
     if ((atoms == NULL) || (values == NULL) || (program == NULL))
     {
         coherence_check(results, 0, "the residue table lanes are allocated");
-        free(atoms);
-        free(values);
-        free(program);
+        platform_cell_released(atoms, platform_place_g_program_owner);
+        platform_cell_released(values, platform_place_g_program_owner);
+        platform_cell_released(program, platform_place_g_program_owner);
         return;
     }
     for (unsigned int row = 0u; row < rows; row += 1u)
@@ -80,8 +82,10 @@ static void coherence_residue_table(CoherenceResults *results)
             atoms[at] = coherence_input(coherence_random());
         }
         const unsigned int out_limbs = loaded.layout.out_limbs;
-        unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-        unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
+        unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+            (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+        unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+            (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
         int host_ran = 0;
         int device_ran = 0;
         if ((host_out != NULL) && (device_out != NULL))
@@ -129,8 +133,8 @@ static void coherence_residue_table(CoherenceResults *results)
                 }
             }
         }
-        free(host_out);
-        free(device_out);
+        platform_cell_released(host_out, platform_place_g_program_owner);
+        platform_cell_released(device_out, platform_place_g_program_owner);
         coherence_free(&loaded);
     }
     unsigned int magnitude_fewest = lanes;
@@ -175,9 +179,9 @@ static void coherence_residue_table(CoherenceResults *results)
     coherence_check(results, narrow_breaks != 0u, "a wrap narrower than b breaks the residue table on some lane");
     coherence_check(results, magnitude_fewest != 0u,
                     "a table indexed by |x| mod 2^b breaks under the wrap at every width b or wider");
-    free(atoms);
-    free(values);
-    free(program);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(values, platform_place_g_program_owner);
+    platform_cell_released(program, platform_place_g_program_owner);
 }
 
 int program_main(int count, char **arguments)
@@ -186,7 +190,7 @@ int program_main(int count, char **arguments)
     results.checks = 0ull;
     results.failures = 0ull;
     results.line.capacity = COHERENCE_TEST_LINE;
-    results.line.out = (char *)malloc((size_t)COHERENCE_TEST_LINE);
+    results.line.out = (char *)platform_cell_taken((size_t)COHERENCE_TEST_LINE, platform_place_g_program_owner, 0);
     results.line.at = 0ull;
     if (results.line.out == NULL)
     {
@@ -215,6 +219,6 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " failed\n");
     (void)(mmgr_line_ok(&results.line) &&
            (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
-    free(results.line.out);
+    platform_cell_released(results.line.out, platform_place_g_program_owner);
     return (results.failures == 0ull) ? 0 : 1;
 }

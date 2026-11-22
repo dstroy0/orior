@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // dicom_parse.c: the parse of a file and the gathering of a series
 #include "dicom_internal.h"
+#include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 static const char dicom_explicit_little[] = "1.2.840.10008.1.2.1";
@@ -261,13 +262,13 @@ void dicom_resident_release(void)
     DicomResident *const resident = &g_dicom_resident;
     for (unsigned long long at = 0ULL; (resident->slices != NULL) && (at < resident->count); at += 1ULL)
     {
-        free(resident->slices[at].member);
-        free(resident->slices[at].name);
+        platform_cell_released(resident->slices[at].member, platform_place_g_program_owner);
+        platform_cell_released(resident->slices[at].name, platform_place_g_program_owner);
     }
-    free(resident->slices);
-    free(resident->order);
-    free(resident->path);
-    free(resident->member);
+    platform_cell_released(resident->slices, platform_place_g_program_owner);
+    platform_cell_released(resident->order, platform_place_g_program_owner);
+    platform_cell_released(resident->path, platform_place_g_program_owner);
+    platform_cell_released(resident->member, platform_place_g_program_owner);
     mmgr_bytes_set(resident, 0, sizeof(*resident));
 }
 
@@ -309,15 +310,19 @@ int dicom_gather(const EngineIngestTools *tools, const char *path, const ZipArch
                  unsigned long long count, EngineError *error)
 {
     DicomResident *const resident = &g_dicom_resident;
-    resident->slices = (DicomSlice *)calloc((size_t)count + 1u, sizeof(DicomSlice));
-    resident->order = (unsigned long long *)calloc((size_t)count + 1u, sizeof(unsigned long long));
-    ZipEntry *const entries = (ZipEntry *)calloc((size_t)count + 1u, sizeof(ZipEntry));
-    EngineError *const errors = (EngineError *)calloc((size_t)count + 1u, sizeof(EngineError));
+    resident->slices =
+        (DicomSlice *)platform_cell_cleared((size_t)count + 1u, sizeof(DicomSlice), platform_place_g_program_owner, 0);
+    resident->order = (unsigned long long *)platform_cell_cleared((size_t)count + 1u, sizeof(unsigned long long),
+                                                                  platform_place_g_program_owner, 0);
+    ZipEntry *const entries =
+        (ZipEntry *)platform_cell_cleared((size_t)count + 1u, sizeof(ZipEntry), platform_place_g_program_owner, 0);
+    EngineError *const errors = (EngineError *)platform_cell_cleared((size_t)count + 1u, sizeof(EngineError),
+                                                                     platform_place_g_program_owner, 0);
     if (!DICOM_CHECK((resident->slices != NULL) && (resident->order != NULL) && (entries != NULL) && (errors != NULL),
                      &resident->slices, error, ENGINE_ERROR_RESOURCE))
     {
-        free(entries);
-        free(errors);
+        platform_cell_released(entries, platform_place_g_program_owner);
+        platform_cell_released(errors, platform_place_g_program_owner);
         return 0;
     }
     const unsigned char *series = NULL;
@@ -346,8 +351,9 @@ int dicom_gather(const EngineIngestTools *tools, const char *path, const ZipArch
         {
             continue;
         }
-        slice->member = (unsigned char *)malloc((size_t)entry.uncompressed + 1u);
-        slice->name = (char *)malloc((size_t)entry.name_length + 1u);
+        slice->member =
+            (unsigned char *)platform_cell_taken((size_t)entry.uncompressed + 1u, platform_place_g_program_owner, 0);
+        slice->name = (char *)platform_cell_taken((size_t)entry.name_length + 1u, platform_place_g_program_owner, 0);
         entries[resident->count] = entry;
         resident->count += 1ULL;
         ok = DICOM_CHECK((slice->member != NULL) && (slice->name != NULL), &entry, error, ENGINE_ERROR_RESOURCE);
@@ -379,8 +385,8 @@ int dicom_gather(const EngineIngestTools *tools, const char *path, const ZipArch
         *error = (errors[item].type != ENGINE_ERROR_NONE) ? errors[item] : *error;
     }
     zip_span_release(&span);
-    free(entries);
-    free(errors);
+    platform_cell_released(entries, platform_place_g_program_owner);
+    platform_cell_released(errors, platform_place_g_program_owner);
     return ok;
 }
 

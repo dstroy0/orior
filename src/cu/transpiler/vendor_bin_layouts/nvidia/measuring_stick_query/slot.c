@@ -283,8 +283,8 @@ int msq_distinct_made(MsqDistinct *set, size_t max)
     {
         slots *= 2u;
     }
-    set->slots = (size_t *)malloc(slots * sizeof(size_t));
-    set->items = (MsqBytes *)malloc((max + 1u) * sizeof(MsqBytes));
+    set->slots = (size_t *)platform_cell_taken(slots * sizeof(size_t), platform_place_g_program_owner, 0);
+    set->items = (MsqBytes *)platform_cell_taken((max + 1u) * sizeof(MsqBytes), platform_place_g_program_owner, 0);
     if ((set->slots == NULL) || (set->items == NULL))
     {
         return 0;
@@ -323,7 +323,7 @@ size_t msq_distinct_index(MsqDistinct *set, const MsqBytes *item)
 
 void msq_distinct_free(MsqDistinct *set)
 {
-    free(set->items);
-    free(set->slots);
+    platform_cell_released(set->items, platform_place_g_program_owner);
+    platform_cell_released(set->slots, platform_place_g_program_owner);
     mmgr_bytes_set(set, 0, sizeof(*set));
 }

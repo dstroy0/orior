@@ -19,7 +19,7 @@
 // `length` characters at `text` copied into an allocation of their own, ended: NULL where there was no memory
 static char *kfile_lines_copy(const char *text, size_t length)
 {
-    char *const copy = (char *)malloc(length + 1u);
+    char *const copy = (char *)platform_cell_taken(length + 1u, platform_place_g_program_owner, 0);
     if (copy != NULL)
     {
         mmgr_bytes_copy(copy, text, length);
@@ -40,7 +40,9 @@ static int kfile_lines_room(KfileLines *file, unsigned int more)
     {
         grown *= 2u;
     }
-    char **const larger = (char **)realloc(file->line, (size_t)grown * sizeof(char *));
+    char **const larger =
+        (char **)platform_cell_grown(file->line, (size_t)file->room * sizeof(char *), (size_t)grown * sizeof(char *),
+                                     platform_place_g_program_owner, 0);
     if (larger == NULL)
     {
         return 0;
@@ -79,7 +81,7 @@ int kfile_lines_read(KfileLines *file, const char *path)
         }
         else
         {
-            free(copy);
+            platform_cell_released(copy, platform_place_g_program_owner);
         }
     }
     return ok;
@@ -116,9 +118,9 @@ void kfile_lines_free(KfileLines *file)
 {
     for (unsigned int at = 0u; at < file->lines; at += 1u)
     {
-        free(file->line[at]);
+        platform_cell_released(file->line[at], platform_place_g_program_owner);
     }
-    free(file->line);
+    platform_cell_released(file->line, platform_place_g_program_owner);
     mmgr_bytes_set(file, 0, sizeof(*file));
 }
 
@@ -127,7 +129,7 @@ int kfile_lines_line_add(KfileLines *file, const char *text)
     char *const copy = kfile_lines_copy(text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR));
     if ((copy == NULL) || !kfile_lines_room(file, 1u))
     {
-        free(copy);
+        platform_cell_released(copy, platform_place_g_program_owner);
         return 0;
     }
     file->line[file->lines] = copy;
@@ -143,7 +145,7 @@ int kfile_lines_line_replaced(KfileLines *file, unsigned int at, const char *tex
     {
         return 0;
     }
-    free(file->line[at]);
+    platform_cell_released(file->line[at], platform_place_g_program_owner);
     file->line[at] = copy;
     return 1;
 }
@@ -154,7 +156,7 @@ void kfile_lines_line_drop(KfileLines *file, unsigned int at)
     {
         return;
     }
-    free(file->line[at]);
+    platform_cell_released(file->line[at], platform_place_g_program_owner);
     mmgr_bytes_move(&file->line[at], &file->line[at + 1u], (size_t)(file->lines - at - 1u) * sizeof(char *));
     file->lines -= 1u;
 }
@@ -214,10 +216,11 @@ unsigned int kfile_lines_put_by(KfileLines *file, unsigned int at, const char *c
     const int follows = (at < file->lines) && !kfile_lines_who_line(file->line[at], &next_who, &next_has_who);
     // the lines put, each its own allocation, made before the file is touched
     const unsigned int put = count + (own ? 0u : 1u) + ((!own && follows) ? 1u : 0u);
-    char **const made = (char **)calloc((size_t)put + 1u, sizeof(char *));
+    char **const made =
+        (char **)platform_cell_cleared((size_t)put + 1u, sizeof(char *), platform_place_g_program_owner, 0);
     if ((made == NULL) || !kfile_lines_room(file, put))
     {
-        free(made);
+        platform_cell_released(made, platform_place_g_program_owner);
         return 0u;
     }
     char whose[WHO_CODE_CHARACTERS + 8u];
@@ -247,15 +250,15 @@ unsigned int kfile_lines_put_by(KfileLines *file, unsigned int at, const char *c
     {
         for (unsigned int line = 0u; line < next; line += 1u)
         {
-            free(made[line]);
+            platform_cell_released(made[line], platform_place_g_program_owner);
         }
-        free(made);
+        platform_cell_released(made, platform_place_g_program_owner);
         return 0u;
     }
     mmgr_bytes_move(&file->line[at + put], &file->line[at], (size_t)(file->lines - at) * sizeof(char *));
     mmgr_bytes_copy(&file->line[at], made, (size_t)put * sizeof(char *));
     file->lines += put;
-    free(made);
+    platform_cell_released(made, platform_place_g_program_owner);
     return put;
 }
 
@@ -268,7 +271,8 @@ int kfile_lines_cut(char *text, unsigned long long size, const char ***lines, un
     {
         ends += (text[at] == '\n') ? 1u : 0u;
     }
-    const char **const cut = (const char **)calloc((size_t)ends + 1u, sizeof(char *));
+    const char **const cut =
+        (const char **)platform_cell_cleared((size_t)ends + 1u, sizeof(char *), platform_place_g_program_owner, 0);
     if (cut == NULL)
     {
         return 0;
@@ -295,7 +299,8 @@ int kfile_lines_block_lines(const KfileLines *file, const char *lang, unsigned i
     // turned back into lines
     static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     size_t joined = 0u;
-    size_t *const starts = (size_t *)calloc((size_t)file->lines + 1u, sizeof(size_t));
+    size_t *const starts =
+        (size_t *)platform_cell_cleared((size_t)file->lines + 1u, sizeof(size_t), platform_place_g_program_owner, 0);
     if (starts == NULL)
     {
         return 0;
@@ -320,7 +325,7 @@ int kfile_lines_block_lines(const KfileLines *file, const char *lang, unsigned i
         opener = (starts[at] <= block.opened) ? at : opener;
         closer = (starts[at] <= block.text_end) ? at : closer;
     }
-    free(starts);
+    platform_cell_released(starts, platform_place_g_program_owner);
     if (!found || (opener == file->lines) || (closer == file->lines))
     {
         return 0;
@@ -356,10 +361,14 @@ static int kfile_lines_who_equal(Who one, Who other)
 int kfile_lines_written_by(KfileLines *file, unsigned int first, const char *const *lines, unsigned int count, Who who)
 {
     // each line the file contains that is no who line, in the order of its text, and the who in force over it
-    KfileLinesEntry *const entries = (KfileLinesEntry *)calloc((size_t)file->lines + 1u, sizeof(KfileLinesEntry));
-    Who *const whose = (Who *)calloc((size_t)file->lines + 1u, sizeof(Who));
-    unsigned char *const whose_has_who = (unsigned char *)calloc((size_t)file->lines + 1u, 1u);
-    unsigned char *const taken = (unsigned char *)calloc((size_t)file->lines + 1u, 1u);
+    KfileLinesEntry *const entries = (KfileLinesEntry *)platform_cell_cleared(
+        (size_t)file->lines + 1u, sizeof(KfileLinesEntry), platform_place_g_program_owner, 0);
+    Who *const whose =
+        (Who *)platform_cell_cleared((size_t)file->lines + 1u, sizeof(Who), platform_place_g_program_owner, 0);
+    unsigned char *const whose_has_who =
+        (unsigned char *)platform_cell_cleared((size_t)file->lines + 1u, 1u, platform_place_g_program_owner, 0);
+    unsigned char *const taken =
+        (unsigned char *)platform_cell_cleared((size_t)file->lines + 1u, 1u, platform_place_g_program_owner, 0);
     int written = (entries != NULL) && (whose != NULL) && (whose_has_who != NULL) && (taken != NULL);
     unsigned int entry_count = 0u;
     Who now = {0u, 0u, 0u, 0ULL};
@@ -425,10 +434,10 @@ int kfile_lines_written_by(KfileLines *file, unsigned int first, const char *con
         }
         written = written && kfile_lines_line_add(&made, lines[line]);
     }
-    free(taken);
-    free(whose_has_who);
-    free(whose);
-    free(entries);
+    platform_cell_released(taken, platform_place_g_program_owner);
+    platform_cell_released(whose_has_who, platform_place_g_program_owner);
+    platform_cell_released(whose, platform_place_g_program_owner);
+    platform_cell_released(entries, platform_place_g_program_owner);
     if (!written)
     {
         kfile_lines_free(&made);

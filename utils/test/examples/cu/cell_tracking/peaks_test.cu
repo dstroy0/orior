@@ -9,6 +9,7 @@
 // with no positive voxel gives none, and a malformed request, a width of no limbs among them, errors. The test is one
 // job on the device's tessera daemon, submitted before its first device work.
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
+#include "../../../../../src/platform/platform.h"
 #include "peaks.h"
 #include "sim.h"
 
@@ -161,17 +162,20 @@ static int peaks_test_reserve(PeaksTestField *field, unsigned int depth, unsigne
     field->width = width;
     field->voxels = depth * height * width;
     field->limbs = limbs;
-    field->residual = (unsigned int *)malloc(((size_t)field->voxels * limbs + 1u) * sizeof(unsigned int));
-    field->values = (OriorExactInteger *)malloc(((size_t)field->voxels + 1u) * sizeof(OriorExactInteger));
-    field->expected = (unsigned int *)malloc(((size_t)field->voxels + 1u) * sizeof(unsigned int));
+    field->residual = (unsigned int *)platform_cell_taken(((size_t)field->voxels * limbs + 1u) * sizeof(unsigned int),
+                                                          platform_place_g_program_owner, 0);
+    field->values = (OriorExactInteger *)platform_cell_taken(((size_t)field->voxels + 1u) * sizeof(OriorExactInteger),
+                                                             platform_place_g_program_owner, 0);
+    field->expected = (unsigned int *)platform_cell_taken(((size_t)field->voxels + 1u) * sizeof(unsigned int),
+                                                          platform_place_g_program_owner, 0);
     return (field->residual != NULL) && (field->values != NULL) && (field->expected != NULL);
 }
 
 static void peaks_test_release(PeaksTestField *field)
 {
-    free(field->residual);
-    free(field->values);
-    free(field->expected);
+    platform_cell_released(field->residual, platform_place_g_program_owner);
+    platform_cell_released(field->values, platform_place_g_program_owner);
+    platform_cell_released(field->expected, platform_place_g_program_owner);
     memset(field, 0, sizeof(*field));
 }
 
@@ -189,9 +193,10 @@ static void peaks_test_prove(SimResults *results, PeaksTestField *field, const c
         sim_status_check(results, cudaMalloc((void **)&device, bytes), "the residual is allocated on the device") &&
         sim_status_check(results, cudaMemcpy(device, field->residual, bytes, cudaMemcpyHostToDevice),
                          "the residual reaches the device");
-    unsigned int *const voxels = (unsigned int *)malloc(((size_t)field->expected_count + 1u) * sizeof(unsigned int));
-    unsigned int *const levels =
-        (unsigned int *)malloc(((size_t)field->expected_count * limbs + 1u) * sizeof(unsigned int));
+    unsigned int *const voxels = (unsigned int *)platform_cell_taken(
+        ((size_t)field->expected_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const levels = (unsigned int *)platform_cell_taken(
+        ((size_t)field->expected_count * limbs + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = ok && (voxels != NULL) && (levels != NULL);
     PeaksRequest request = {device, field->depth, field->height, field->width, limbs, 0u, NULL, NULL};
     const long counted = ok ? peaks_find(&request) : PEAKS_ERROR;
@@ -231,8 +236,8 @@ static void peaks_test_prove(SimResults *results, PeaksTestField *field, const c
     mmgr_line_decimal(&results->line, (found >= 0L) ? (unsigned long long)found : ~0ull, 1u);
     mmgr_line_put(&results->line, " on the device\n");
     sim_flush(results);
-    free(voxels);
-    free(levels);
+    platform_cell_released(voxels, platform_place_g_program_owner);
+    platform_cell_released(levels, platform_place_g_program_owner);
     cudaFree(device);
 }
 

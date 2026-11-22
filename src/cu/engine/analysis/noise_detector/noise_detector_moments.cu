@@ -32,7 +32,7 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
     mmgr_bytes_set(cells, 0, (size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell));
     *sampled = 0ULL;
     *left_out = 0ULL;
-    unsigned char *const mask = (unsigned char *)malloc((size_t)voxels);
+    unsigned char *const mask = (unsigned char *)platform_cell_taken((size_t)voxels, platform_place_g_program_owner, 0);
     int ok = NOISE_DETECTOR_CHECK(mask != NULL, &mask, error, ENGINE_ERROR_RESOURCE) &&
              NOISE_DETECTOR_CHECK(noise_static_mask(volume, frames, voxels, 1u, mask, ceiling) != 0, mask, error,
                                   ENGINE_ERROR_RESOURCE);
@@ -42,8 +42,8 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
         members += mask[voxel];
     }
     // one more than the members. A sample with none still allocates
-    unsigned long long *const places =
-        (unsigned long long *)malloc((size_t)(members + 1ULL) * sizeof(unsigned long long));
+    unsigned long long *const places = (unsigned long long *)platform_cell_taken(
+        (size_t)(members + 1ULL) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     ok = ok && NOISE_DETECTOR_CHECK(places != NULL, &places, error, ENGINE_ERROR_RESOURCE);
     if (ok != 0)
     {
@@ -117,8 +117,8 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
             noise_wide_add_square(&cell->s2_squared, s2);
         }
     }
-    free(mask);
-    free(places);
+    platform_cell_released(mask, platform_place_g_program_owner);
+    platform_cell_released(places, platform_place_g_program_owner);
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 
@@ -195,7 +195,8 @@ extern "C" long noise_moments_set(const NoiseSetRequest *request)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    NoiseMomentCell *const cells = (NoiseMomentCell *)malloc((size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell));
+    NoiseMomentCell *const cells = (NoiseMomentCell *)platform_cell_taken(
+        (size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell), platform_place_g_program_owner, 0);
     ok = ok && NOISE_DETECTOR_CHECK(cells != NULL, &cells, error, ENGINE_ERROR_RESOURCE);
     const unsigned long long began = engine_clock_microseconds();
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
@@ -209,7 +210,7 @@ extern "C" long noise_moments_set(const NoiseSetRequest *request)
         ok = NOISE_DETECTOR_CHECK(request->load(request->set, name, extent, &volume, error) == 0L, name, error,
                                   ENGINE_ERROR_REQUEST) &&
              (noise_moments_sample(volume, extent, cells, &ceiling, &sampled, &left_out, error) == 0L);
-        free(volume);
+        platform_cell_released(volume, platform_place_g_program_owner);
         ok = ok && NOISE_DETECTOR_IO(noise_moments_rows(table, name, cells) != 0, table, error);
         if (ok != 0)
         {
@@ -232,7 +233,7 @@ extern "C" long noise_moments_set(const NoiseSetRequest *request)
             platform_line_flushed();
         }
     }
-    free(cells);
+    platform_cell_released(cells, platform_place_g_program_owner);
     if (table != NULL)
     {
         ok = NOISE_DETECTOR_IO(platform_file_close(table) == 0, path, error) && ok;
@@ -345,7 +346,8 @@ extern "C" long noise_moments_volume(const unsigned short *volume, const unsigne
     {
         return NOISE_DETECTOR_ERROR;
     }
-    NoiseMomentCell *const cells = (NoiseMomentCell *)malloc((size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell));
+    NoiseMomentCell *const cells = (NoiseMomentCell *)platform_cell_taken(
+        (size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell), platform_place_g_program_owner, 0);
     unsigned long long ceiling = 0ULL;
     unsigned long long sampled = 0ULL;
     unsigned long long left_out = 0ULL;
@@ -382,7 +384,7 @@ extern "C" long noise_moments_volume(const unsigned short *volume, const unsigne
                                       error, ENGINE_ERROR_RESOURCE);
         }
     }
-    free(cells);
+    platform_cell_released(cells, platform_place_g_program_owner);
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 

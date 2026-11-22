@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zarr_read.c: the shard index, fill and the read
 #include "zarr_internal.h"
+#include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 static int zarr_shard_index(ZarrWalk *walk, const char *path, long long file_bytes)
@@ -17,9 +18,10 @@ static int zarr_shard_index(ZarrWalk *walk, const char *path, long long file_byt
     {
         return 0;
     }
-    unsigned char *const raw = (unsigned char *)malloc((size_t)index_bytes);
-    unsigned long long *const index =
-        (unsigned long long *)malloc((size_t)(entries * 2ULL * sizeof(unsigned long long)));
+    unsigned char *const raw =
+        (unsigned char *)platform_cell_taken((size_t)index_bytes, platform_place_g_program_owner, 0);
+    unsigned long long *const index = (unsigned long long *)platform_cell_taken(
+        (size_t)(entries * 2ULL * sizeof(unsigned long long)), platform_place_g_program_owner, 0);
     const unsigned long long at =
         (layout->index_at_start != 0u) ? 0ULL : ((unsigned long long)file_bytes - index_bytes);
     int ok = (raw != NULL) && (index != NULL) &&
@@ -33,13 +35,13 @@ static int zarr_shard_index(ZarrWalk *walk, const char *path, long long file_byt
         index[word] =
             (layout->index_big_endian != 0u) ? zarr_big(&raw[word * 8ULL], 8u) : zarr_little(&raw[word * 8ULL], 8u);
     }
-    free(raw);
+    platform_cell_released(raw, platform_place_g_program_owner);
     if (ok == 0)
     {
-        free(index);
+        platform_cell_released(index, platform_place_g_program_owner);
         return 0;
     }
-    free(walk->shard_index);
+    platform_cell_released(walk->shard_index, platform_place_g_program_owner);
     walk->shard_index = index;
     walk->shard_entries = entries;
     return 1;
@@ -231,7 +233,7 @@ long long zarr_read(const ZarrReadRequest *request)
     {
         return ZARR_ERROR;
     }
-    walk.chunk = (unsigned char *)malloc((size_t)leaf_bytes);
+    walk.chunk = (unsigned char *)platform_cell_taken((size_t)leaf_bytes, platform_place_g_program_owner, 0);
     walk.chunk_capacity = leaf_bytes;
     if (walk.chunk == NULL)
     {
@@ -257,8 +259,8 @@ long long zarr_read(const ZarrReadRequest *request)
             position[axis - 1u] = 0ULL;
         }
     }
-    free(walk.chunk);
-    free(walk.raw);
-    free(walk.shard_index);
+    platform_cell_released(walk.chunk, platform_place_g_program_owner);
+    platform_cell_released(walk.raw, platform_place_g_program_owner);
+    platform_cell_released(walk.shard_index, platform_place_g_program_owner);
     return ok ? (long long)total : ZARR_ERROR;
 }

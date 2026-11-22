@@ -114,7 +114,8 @@ int program_main(int count, char **words)
     {
         lines += (list[at] == '\n') ? 1u : 0u;
     }
-    MsqQuestion *const questions = (MsqQuestion *)calloc(lines + 1u, sizeof(MsqQuestion));
+    MsqQuestion *const questions =
+        (MsqQuestion *)platform_cell_cleared(lines + 1u, sizeof(MsqQuestion), platform_place_g_program_owner, 0);
     if (questions == NULL)
     {
         return 2;
@@ -175,7 +176,8 @@ int program_main(int count, char **words)
     MsqDistinct tails;
     MsqDistinct prefixes;
     MsqDistinct pieces;
-    size_t *const piece_of = (size_t *)calloc(question_count + 1u, sizeof(size_t));
+    size_t *const piece_of =
+        (size_t *)platform_cell_cleared(question_count + 1u, sizeof(size_t), platform_place_g_program_owner, 0);
     if (!msq_distinct_made(&place_words, question_count) || !msq_distinct_made(&whole_codes, question_count) ||
         !msq_distinct_made(&tails, question_count) || !msq_distinct_made(&prefixes, question_count) ||
         !msq_distinct_made(&pieces, question_count) || (piece_of == NULL))
@@ -215,14 +217,21 @@ int program_main(int count, char **words)
     // same in every question of one kernel. The encodings, the frames and the tails are read together as one
     // accumulated run at one start of the vendor (msq_accumulated_read), and a piece it stops at is set aside and read
     // alone
-    MsqReading *const readings = (MsqReading *)calloc(place_words.count + 1u, sizeof(MsqReading));
-    MsqFrame *const whole_frames = (MsqFrame *)calloc(whole_codes.count + 1u, sizeof(MsqFrame));
-    MsqFrame *const piece_frames = (MsqFrame *)calloc(pieces.count + 1u, sizeof(MsqFrame));
-    MsqRegisters *const addressed = (MsqRegisters *)calloc(tails.count + 1u, sizeof(MsqRegisters));
+    MsqReading *const readings = (MsqReading *)platform_cell_cleared(place_words.count + 1u, sizeof(MsqReading),
+                                                                     platform_place_g_program_owner, 0);
+    MsqFrame *const whole_frames =
+        (MsqFrame *)platform_cell_cleared(whole_codes.count + 1u, sizeof(MsqFrame), platform_place_g_program_owner, 0);
+    MsqFrame *const piece_frames =
+        (MsqFrame *)platform_cell_cleared(pieces.count + 1u, sizeof(MsqFrame), platform_place_g_program_owner, 0);
+    MsqRegisters *const addressed = (MsqRegisters *)platform_cell_cleared(tails.count + 1u, sizeof(MsqRegisters),
+                                                                          platform_place_g_program_owner, 0);
     const size_t frame_count = whole_codes.count + pieces.count;
-    MsqBytes *const framed = (MsqBytes *)calloc(frame_count + 1u, sizeof(MsqBytes));
-    MsqFrame *const frame_read = (MsqFrame *)calloc(frame_count + 1u, sizeof(MsqFrame));
-    unsigned char **const piece_bytes = (unsigned char **)calloc(pieces.count + 1u, sizeof(unsigned char *));
+    MsqBytes *const framed =
+        (MsqBytes *)platform_cell_cleared(frame_count + 1u, sizeof(MsqBytes), platform_place_g_program_owner, 0);
+    MsqFrame *const frame_read =
+        (MsqFrame *)platform_cell_cleared(frame_count + 1u, sizeof(MsqFrame), platform_place_g_program_owner, 0);
+    unsigned char **const piece_bytes = (unsigned char **)platform_cell_cleared(
+        pieces.count + 1u, sizeof(unsigned char *), platform_place_g_program_owner, 0);
     int whole = (readings != NULL) && (whole_frames != NULL) && (piece_frames != NULL) && (addressed != NULL) &&
                 (framed != NULL) && (frame_read != NULL) && (piece_bytes != NULL);
     for (size_t code = 0u; whole && (code < whole_codes.count); code += 1u)
@@ -246,8 +255,10 @@ int program_main(int count, char **words)
     // every piece in one accumulated run, read at one start: the distinct probe encodings, then the frames, then the
     // distinct tails; a piece the vendor stops at set aside, and the run read again without it until it reads clean
     const size_t piece_count = place_words.count + frame_count + tails.count;
-    MsqPiece *const run_pieces = (MsqPiece *)calloc(piece_count + 1u, sizeof(MsqPiece));
-    size_t *const aside = (size_t *)calloc(piece_count + 1u, sizeof(size_t));
+    MsqPiece *const run_pieces =
+        (MsqPiece *)platform_cell_cleared(piece_count + 1u, sizeof(MsqPiece), platform_place_g_program_owner, 0);
+    size_t *const aside =
+        (size_t *)platform_cell_cleared(piece_count + 1u, sizeof(size_t), platform_place_g_program_owner, 0);
     whole = whole && (run_pieces != NULL) && (aside != NULL);
     size_t placed = 0u;
     for (size_t word = 0u; whole && (word < place_words.count); word += 1u)
@@ -274,7 +285,8 @@ int program_main(int count, char **words)
     MsqReader reader;
     mmgr_bytes_set(&reader, 0, sizeof(reader));
     reader.output_room = 8ULL << 20u;
-    reader.output = whole ? (char *)malloc((size_t)reader.output_room) : NULL;
+    reader.output =
+        whole ? (char *)platform_cell_taken((size_t)reader.output_room, platform_place_g_program_owner, 0) : NULL;
     // the accumulated run's listing, which every reading and frame of it points into until the cross ends
     MsqListing accumulated;
     mmgr_bytes_set(&accumulated, 0, sizeof(accumulated));
@@ -303,7 +315,8 @@ int program_main(int count, char **words)
     pool.addressed = addressed;
     const unsigned int processors = msq_processors();
     const unsigned int threads = (aside_count < processors) ? (unsigned int)aside_count : processors;
-    pthread_t *const started = (pthread_t *)calloc((size_t)threads + 1u, sizeof(pthread_t));
+    pthread_t *const started =
+        (pthread_t *)platform_cell_cleared((size_t)threads + 1u, sizeof(pthread_t), platform_place_g_program_owner, 0);
     unsigned int readers = 0u;
     for (unsigned int thread = 0u; whole && (started != NULL) && (thread < threads); thread += 1u)
     {
@@ -319,13 +332,13 @@ int program_main(int count, char **words)
     {
         pthread_join(started[thread], NULL);
     }
-    free(started);
+    platform_cell_released(started, platform_place_g_program_owner);
     whole = whole && (started != NULL) && !atomic_load(&pool.failed);
     const unsigned long long accumulated_calls = reader.calls;
-    free(reader.output);
-    free(reader.raw);
-    free(run_pieces);
-    free(aside);
+    platform_cell_released(reader.output, platform_place_g_program_owner);
+    platform_cell_released(reader.raw, platform_place_g_program_owner);
+    platform_cell_released(run_pieces, platform_place_g_program_owner);
+    platform_cell_released(aside, platform_place_g_program_owner);
     for (size_t code = 0u; code < whole_codes.count; code += 1u)
     {
         whole_frames[code] = frame_read[code];
@@ -333,11 +346,11 @@ int program_main(int count, char **words)
     for (size_t piece = 0u; piece < pieces.count; piece += 1u)
     {
         piece_frames[piece] = frame_read[whole_codes.count + piece];
-        free(piece_bytes[piece]);
+        platform_cell_released(piece_bytes[piece], platform_place_g_program_owner);
     }
-    free(piece_bytes);
-    free(framed);
-    free(frame_read);
+    platform_cell_released(piece_bytes, platform_place_g_program_owner);
+    platform_cell_released(framed, platform_place_g_program_owner);
+    platform_cell_released(frame_read, platform_place_g_program_owner);
     if (!whole)
     {
         {
@@ -604,9 +617,9 @@ int program_main(int count, char **words)
     {
         msq_frame_free(&piece_frames[piece]);
     }
-    free(whole_frames);
-    free(piece_frames);
-    free(piece_of);
+    platform_cell_released(whole_frames, platform_place_g_program_owner);
+    platform_cell_released(piece_frames, platform_place_g_program_owner);
+    platform_cell_released(piece_of, platform_place_g_program_owner);
     msq_listing_free(&accumulated);
     msq_distinct_free(&place_words);
     msq_distinct_free(&whole_codes);

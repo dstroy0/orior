@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // shift_agreement_run.cu: the axis, volumes and the run
 #include "shift_agreement_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 static int agreement_axis(unsigned int *values, AgreementLayout layout, unsigned int axis, int inverse)
@@ -127,7 +128,7 @@ static int reserve_volumes(size_t total, size_t words)
         return 1;
     }
     device_pool_release(&resident->pool);
-    free(resident->cached_words);
+    platform_cell_released(resident->cached_words, platform_place_g_program_owner);
     mmgr_bytes_set(resident, 0, sizeof(*resident));
     resident->cached = SHIFT_AGREEMENT_NONE_CACHED;
     // the run errors without detail, and the pool's error is recorded here and dropped
@@ -142,12 +143,13 @@ static int reserve_volumes(size_t total, size_t words)
     {
         ok = device_pool_take(&takes[at]) == 0L;
     }
-    resident->cached_words = (unsigned long long *)malloc(words * sizeof(unsigned long long));
+    resident->cached_words = (unsigned long long *)platform_cell_taken(words * sizeof(unsigned long long),
+                                                                       platform_place_g_program_owner, 0);
     ok = ok && (resident->cached_words != NULL);
     if (ok == 0)
     {
         device_pool_release(&resident->pool);
-        free(resident->cached_words);
+        platform_cell_released(resident->cached_words, platform_place_g_program_owner);
         mmgr_bytes_set(resident, 0, sizeof(*resident));
         resident->cached = SHIFT_AGREEMENT_NONE_CACHED;
         return 0;
@@ -175,7 +177,8 @@ static int reserve_negation(const AgreementLayout *layout)
     {
         entries += (size_t)layout->padded[axis];
     }
-    unsigned int *const host = (unsigned int *)malloc((entries + 1u) * sizeof(unsigned int));
+    unsigned int *const host =
+        (unsigned int *)platform_cell_taken((entries + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     int ok = (host != NULL) ? 1 : 0;
     for (unsigned int axis = 0u; (ok != 0) && (axis < layout->axes); axis += 1u)
     {
@@ -195,7 +198,7 @@ static int reserve_negation(const AgreementLayout *layout)
     ok = ok && (cudaMalloc((void **)&resident->negation, (entries + 1u) * sizeof(unsigned int)) == cudaSuccess);
     ok = ok &&
          (cudaMemcpy(resident->negation, host, entries * sizeof(unsigned int), cudaMemcpyHostToDevice) == cudaSuccess);
-    free(host);
+    platform_cell_released(host, platform_place_g_program_owner);
     if (ok == 0)
     {
         cudaFree(resident->negation);
@@ -257,7 +260,9 @@ extern "C" long shift_agreement_run(ShiftAgreementRequest *args)
     const size_t total = (size_t)layout.total;
     const size_t words = ((size_t)layout.voxels + 63u) / 64u;
     unsigned int *const host_counts =
-        (args->counts != NULL) ? (unsigned int *)malloc(total * sizeof(unsigned int)) : NULL;
+        (args->counts != NULL)
+            ? (unsigned int *)platform_cell_taken(total * sizeof(unsigned int), platform_place_g_program_owner, 0)
+            : NULL;
     int ok = ((args->counts == NULL) || (host_counts != NULL)) ? 1 : 0;
     ok = ok && reserve_volumes(total, words);
     ok = ok && reserve_negation(&layout);
@@ -383,6 +388,6 @@ extern "C" long shift_agreement_run(ShiftAgreementRequest *args)
             mmgr_bytes_copy(resident->cached_extents, layout.extents, sizeof(resident->cached_extents));
         }
     }
-    free(host_counts);
+    platform_cell_released(host_counts, platform_place_g_program_owner);
     return answer;
 }

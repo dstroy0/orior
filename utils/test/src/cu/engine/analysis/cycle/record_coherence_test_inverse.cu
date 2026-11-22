@@ -2,19 +2,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_coherence_test_inverse.cu: broken, inverse, odd divisors and orthogonality
 #include "record_coherence_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // a quotient and a comparison read the whole integer: wrapping before and after them disagree on some lane
 void coherence_broken(CoherenceResults *results)
 {
     const unsigned int bits = 8u;
-    CoherenceProgram *const program = (CoherenceProgram *)calloc(1u, sizeof(CoherenceProgram));
+    CoherenceProgram *const program =
+        (CoherenceProgram *)platform_cell_cleared(1u, sizeof(CoherenceProgram), platform_place_g_program_owner, 0);
     const unsigned int lanes = COHERENCE_TEST_LANES;
-    unsigned int *const atoms = (unsigned int *)calloc(lanes, sizeof(unsigned int));
+    unsigned int *const atoms =
+        (unsigned int *)platform_cell_cleared(lanes, sizeof(unsigned int), platform_place_g_program_owner, 0);
     if ((program == NULL) || (atoms == NULL))
     {
         coherence_check(results, 0, "the broken lanes are allocated");
-        free(program);
-        free(atoms);
+        platform_cell_released(program, platform_place_g_program_owner);
+        platform_cell_released(atoms, platform_place_g_program_owner);
         return;
     }
     const unsigned int value = coherence_append(program, ENGINE_RECORD_FIELD_SIGNED, 0u, 0u);
@@ -33,8 +36,8 @@ void coherence_broken(CoherenceResults *results)
     if (coherence_load(program, 1u, &loaded) == 0)
     {
         coherence_check(results, 0, "the quotient and comparison program loads");
-        free(program);
-        free(atoms);
+        platform_cell_released(program, platform_place_g_program_owner);
+        platform_cell_released(atoms, platform_place_g_program_owner);
         return;
     }
     for (unsigned int lane = 0u; lane < lanes; lane += 1u)
@@ -42,8 +45,10 @@ void coherence_broken(CoherenceResults *results)
         atoms[lane] = coherence_input(coherence_random());
     }
     const unsigned int out_limbs = loaded.layout.out_limbs;
-    unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-    unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
     int host_ran = 0;
     int device_ran = 0;
     if ((host_out != NULL) && (device_out != NULL))
@@ -78,10 +83,10 @@ void coherence_broken(CoherenceResults *results)
                     "the quotient and comparison program's device records equal the host's word for word");
     coherence_check(results, quotient_breaks != 0u, "a quotient does not commute with the wrap");
     coherence_check(results, compare_breaks != 0u, "a comparison does not commute with the wrap");
-    free(host_out);
-    free(device_out);
-    free(atoms);
-    free(program);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(program, platform_place_g_program_owner);
     coherence_free(&loaded);
 }
 
@@ -104,13 +109,15 @@ void coherence_odd_divisors(CoherenceResults *results)
 {
     static const unsigned int divisors[3] = {3u, 7u, 12345u};
     const unsigned int lanes = COHERENCE_TEST_LANES;
-    unsigned int *const atoms = (unsigned int *)calloc(lanes, sizeof(unsigned int));
-    CoherenceProgram *const program = (CoherenceProgram *)calloc(1u, sizeof(CoherenceProgram));
+    unsigned int *const atoms =
+        (unsigned int *)platform_cell_cleared(lanes, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    CoherenceProgram *const program =
+        (CoherenceProgram *)platform_cell_cleared(1u, sizeof(CoherenceProgram), platform_place_g_program_owner, 0);
     if ((atoms == NULL) || (program == NULL))
     {
         coherence_check(results, 0, "the odd divisor lanes are allocated");
-        free(atoms);
-        free(program);
+        platform_cell_released(atoms, platform_place_g_program_owner);
+        platform_cell_released(program, platform_place_g_program_owner);
         return;
     }
     unsigned int loaded_all = 1u;
@@ -148,8 +155,10 @@ void coherence_odd_divisors(CoherenceResults *results)
             atoms[lane] = coherence_input(coherence_random());
         }
         const unsigned int out_limbs = loaded.layout.out_limbs;
-        unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-        unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
+        unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+            (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+        unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+            (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
         int host_ran = 0;
         int device_ran = 0;
         if ((host_out != NULL) && (device_out != NULL))
@@ -174,8 +183,8 @@ void coherence_odd_divisors(CoherenceResults *results)
                 agreements += ((divided == expected) && (multiplied == expected)) ? 1ull : 0ull;
             }
         }
-        free(host_out);
-        free(device_out);
+        platform_cell_released(host_out, platform_place_g_program_owner);
+        platform_cell_released(device_out, platform_place_g_program_owner);
         coherence_free(&loaded);
     }
     mmgr_line_put(&results->line, "  odd divisors: 3, 7 and 12345; ");
@@ -183,13 +192,13 @@ void coherence_odd_divisors(CoherenceResults *results)
     mmgr_line_put(&results->line, " of ");
     mmgr_line_decimal(&results->line, comparisons, 1u);
     mmgr_line_put(&results->line,
-                   " lane-widths: the exact quotient wrapped equals the wrapped product by c^-1 mod 2^w\n");
+                  " lane-widths: the exact quotient wrapped equals the wrapped product by c^-1 mod 2^w\n");
     coherence_check(results, loaded_all, "every odd divisor program loads");
     coherence_check(results, words_all, "the odd divisor programs' device records equal the host's word for word");
     coherence_check(results, (comparisons != 0ull) && (agreements == comparisons),
                     "an exact quotient by an odd c is the product by c^-1 in every projection");
-    free(atoms);
-    free(program);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(program, platform_place_g_program_owner);
 }
 
 #define COHERENCE_TEST_MODULI 4u
@@ -216,13 +225,15 @@ void coherence_orthogonal(CoherenceResults *results)
 {
     const unsigned int lanes = COHERENCE_TEST_LANES;
     const long long join = 1ll << COHERENCE_TEST_JOIN_BITS;
-    unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * COHERENCE_TEST_INPUTS, sizeof(unsigned int));
-    CoherenceProgram *const program = (CoherenceProgram *)calloc(1u, sizeof(CoherenceProgram));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * COHERENCE_TEST_INPUTS, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    CoherenceProgram *const program =
+        (CoherenceProgram *)platform_cell_cleared(1u, sizeof(CoherenceProgram), platform_place_g_program_owner, 0);
     if ((atoms == NULL) || (program == NULL))
     {
         coherence_check(results, 0, "the orthogonal lanes are allocated");
-        free(atoms);
-        free(program);
+        platform_cell_released(atoms, platform_place_g_program_owner);
+        platform_cell_released(program, platform_place_g_program_owner);
         return;
     }
     unsigned int loaded_all = 1u;
@@ -295,8 +306,10 @@ void coherence_orthogonal(CoherenceResults *results)
             atoms[at] = coherence_input(coherence_random());
         }
         const unsigned int out_limbs = loaded.layout.out_limbs;
-        unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-        unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
+        unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+            (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+        unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+            (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
         int host_ran = 0;
         int device_ran = 0;
         if ((host_out != NULL) && (device_out != NULL))
@@ -344,8 +357,8 @@ void coherence_orthogonal(CoherenceResults *results)
                 joined += (coherence_residue(rebuilt - integer_part, join * modulus) == 0ll) ? 1ull : 0ull;
             }
         }
-        free(host_out);
-        free(device_out);
+        platform_cell_released(host_out, platform_place_g_program_owner);
+        platform_cell_released(device_out, platform_place_g_program_owner);
         coherence_free(&loaded);
     }
     // the xor modulo 3: the xor of the residues against the residue of the xor
@@ -370,8 +383,10 @@ void coherence_orthogonal(CoherenceResults *results)
             atoms[at] = coherence_input(coherence_random());
         }
         const unsigned int out_limbs = loaded.layout.out_limbs;
-        unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-        unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
+        unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+            (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+        unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+            (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
         int host_ran = 0;
         int device_ran = 0;
         if ((host_out != NULL) && (device_out != NULL))
@@ -387,8 +402,8 @@ void coherence_orthogonal(CoherenceResults *results)
             const long long parts = coherence_take(record, &loaded.layout.step_table[program->outputs[1]]);
             xor_breaks += (coherence_residue(integer_part, 3ll) != coherence_residue(parts, 3ll)) ? 1u : 0u;
         }
-        free(host_out);
-        free(device_out);
+        platform_cell_released(host_out, platform_place_g_program_owner);
+        platform_cell_released(device_out, platform_place_g_program_owner);
         coherence_free(&loaded);
     }
     mmgr_line_put(&results->line, "  orthogonal crystals: 3^5, 3^10, 5^4 and 7^3 over ");
@@ -411,8 +426,8 @@ void coherence_orthogonal(CoherenceResults *results)
     coherence_check(results, joined == comparisons,
                     "the machine joins the 2-adic and p-adic windows into the exact run modulo 2^w p^v");
     coherence_check(results, xor_breaks != 0u, "an xor is the 2-adic crystal's alone: it breaks modulo 3");
-    free(atoms);
-    free(program);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(program, platform_place_g_program_owner);
 }
 
 // |x| as an unsigned word, for the row a magnitude-indexed table reads

@@ -16,6 +16,7 @@
  *       The Grundy sequences run on the record machine too, and each cell of a grid is the exclusive or of two values.
  */
 #include "../period_detector.h"
+#include "../../../src/platform/platform.h"
 #include "../reversi_record.h"
 #include "../subtraction_record.h"
 
@@ -62,8 +63,8 @@ typedef struct
 static int width_read(SimResults *results, WidthDetector *detector, unsigned long long count,
                       unsigned long long positions, unsigned int longest, DetectorReading *readings)
 {
-    DetectorLagSums *const sums =
-        (DetectorLagSums *)calloc((size_t)(count * (longest + 1ULL)), sizeof(DetectorLagSums));
+    DetectorLagSums *const sums = (DetectorLagSums *)platform_cell_cleared(
+        (size_t)(count * (longest + 1ULL)), sizeof(DetectorLagSums), platform_place_g_program_owner, 0);
     int ok = sums != NULL;
     const DetectorSweep sweep = {&detector->lag, detector->steps,      detector->values, count,         positions,
                                  longest,        detector->host_index, detector->index,  detector->out, detector->sums};
@@ -75,7 +76,7 @@ static int width_read(SimResults *results, WidthDetector *detector, unsigned lon
         undecided += (ok && !readings[one].decided) ? 1ULL : 0ULL;
     }
     sim_check(results, ok && (undecided == 0ULL), "every reading is decided at the precision that it asked for");
-    free(sums);
+    platform_cell_released(sums, platform_place_g_program_owner);
     return ok;
 }
 
@@ -145,15 +146,21 @@ int program_main(int argc, char **argv)
         sim_status_check(
             &results, cudaMalloc((void **)&detector.out, DETECTOR_SWEEP_LANES * detector.lag.layout.out_limbs * 4ULL),
             "out");
-    detector.host_index = (unsigned int *)malloc((size_t)(DETECTOR_SWEEP_LANES * 2ULL * 4ULL));
-    detector.sums = (unsigned int *)malloc((size_t)(DETECTOR_SWEEP_LANES * 2ULL * 4ULL));
-    unsigned int *const values = (unsigned int *)malloc((size_t)(value_room * 4ULL));
+    detector.host_index = (unsigned int *)platform_cell_taken((size_t)(DETECTOR_SWEEP_LANES * 2ULL * 4ULL),
+                                                              platform_place_g_program_owner, 0);
+    detector.sums = (unsigned int *)platform_cell_taken((size_t)(DETECTOR_SWEEP_LANES * 2ULL * 4ULL),
+                                                        platform_place_g_program_owner, 0);
+    unsigned int *const values =
+        (unsigned int *)platform_cell_taken((size_t)(value_room * 4ULL), platform_place_g_program_owner, 0);
     ok = ok && (detector.host_index != NULL) && (detector.sums != NULL) && (values != NULL);
     // Reversi: each player plays `games` games at the seeds 0 to games - 1, the same player for both colors
     const unsigned int total = 2u * games;
-    unsigned int *const players = (unsigned int *)malloc(total * sizeof(unsigned int));
-    unsigned int *const seeds = (unsigned int *)malloc(total * sizeof(unsigned int));
-    unsigned char *const finals = (unsigned char *)malloc((size_t)total * REVERSI_SQUARES);
+    unsigned int *const players =
+        (unsigned int *)platform_cell_taken(total * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const seeds =
+        (unsigned int *)platform_cell_taken(total * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned char *const finals =
+        (unsigned char *)platform_cell_taken((size_t)total * REVERSI_SQUARES, platform_place_g_program_owner, 0);
     ok = ok && (players != NULL) && (seeds != NULL) && (finals != NULL);
     for (unsigned int game = 0u; ok && (game < total); game += 1u)
     {
@@ -164,8 +171,10 @@ int program_main(int argc, char **argv)
     sim_check(&results, ok, "every game of Reversi plays to its end on the device");
     // the null of each board: its colors over its occupied squares, in the order of random.Random(seed).shuffle at the
     // seed of the game
-    unsigned int *const lengths = (unsigned int *)malloc(total * sizeof(unsigned int));
-    unsigned int *const orders = (unsigned int *)malloc((size_t)total * REVERSI_SQUARES * sizeof(unsigned int));
+    unsigned int *const lengths =
+        (unsigned int *)platform_cell_taken(total * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const orders = (unsigned int *)platform_cell_taken(
+        (size_t)total * REVERSI_SQUARES * sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = ok && (lengths != NULL) && (orders != NULL);
     for (unsigned int game = 0u; ok && (game < total); game += 1u)
     {
@@ -281,7 +290,8 @@ int program_main(int argc, char **argv)
         width_lengths[width] = WIDTHS[width] * WIDTHS[width];
     }
     const unsigned int widest_cells = WIDTHS[WIDTH_COUNT - 1u] * WIDTHS[WIDTH_COUNT - 1u];
-    unsigned int *const grid_orders = (unsigned int *)malloc((size_t)WIDTH_COUNT * widest_cells * sizeof(unsigned int));
+    unsigned int *const grid_orders = (unsigned int *)platform_cell_taken(
+        (size_t)WIDTH_COUNT * widest_cells * sizeof(unsigned int), platform_place_g_program_owner, 0);
     TwisterSet grids;
     memset(&grids, 0, sizeof(grids));
     ok = ok && (grid_orders != NULL) && twister_open(&results, &grids, width_seeds, WIDTH_COUNT) &&
@@ -291,8 +301,10 @@ int program_main(int argc, char **argv)
     unsigned int first_seen[WIDTH_LABELS] = {0u, 0u, 0u, 0u};
     unsigned int seen_count = 0u;
     unsigned int hits = 0u;
-    unsigned int *const pairs = (unsigned int *)malloc((size_t)(swept + WIDTH_SHUFFLED_GAMES) * widest_cells * 2u * 4u);
-    DetectorReading *const readings = (DetectorReading *)calloc(swept + WIDTH_SHUFFLED_GAMES, sizeof(DetectorReading));
+    unsigned int *const pairs = (unsigned int *)platform_cell_taken(
+        (size_t)(swept + WIDTH_SHUFFLED_GAMES) * widest_cells * 2u * 4u, platform_place_g_program_owner, 0);
+    DetectorReading *const readings = (DetectorReading *)platform_cell_cleared(
+        swept + WIDTH_SHUFFLED_GAMES, sizeof(DetectorReading), platform_place_g_program_owner, 0);
     ok = ok && (pairs != NULL) && (readings != NULL);
     for (unsigned int width = 0u; ok && (width < WIDTH_COUNT); width += 1u)
     {
@@ -382,16 +394,16 @@ int program_main(int argc, char **argv)
     cudaFree(detector.index);
     cudaFree(detector.out);
     cycle_record_sum_release();
-    free(detector.host_index);
-    free(detector.sums);
-    free(values);
-    free(players);
-    free(seeds);
-    free(finals);
-    free(lengths);
-    free(orders);
-    free(grid_orders);
-    free(pairs);
-    free(readings);
+    platform_cell_released(detector.host_index, platform_place_g_program_owner);
+    platform_cell_released(detector.sums, platform_place_g_program_owner);
+    platform_cell_released(values, platform_place_g_program_owner);
+    platform_cell_released(players, platform_place_g_program_owner);
+    platform_cell_released(seeds, platform_place_g_program_owner);
+    platform_cell_released(finals, platform_place_g_program_owner);
+    platform_cell_released(lengths, platform_place_g_program_owner);
+    platform_cell_released(orders, platform_place_g_program_owner);
+    platform_cell_released(grid_orders, platform_place_g_program_owner);
+    platform_cell_released(pairs, platform_place_g_program_owner);
+    platform_cell_released(readings, platform_place_g_program_owner);
     return sim_close(&results, "board width");
 }

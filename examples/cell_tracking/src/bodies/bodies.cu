@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "bodies.h"
+#include "../../../../src/platform/platform.h"
 
 #include "../../../../src/cu/engine/analysis/golden_bands/golden_bands.h"
 #include "track.h"
@@ -17,14 +18,18 @@ int assign_bodies(TreeFrame *frames, unsigned int frame_count, unsigned int by_b
     {
         TreeFrame *const tree = &frames[frame];
         const size_t capacity = (size_t)tree->leaf_count + 1u;
-        tree->body_id = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-        tree->body_parent = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-        tree->body_state = (unsigned int *)calloc(capacity, sizeof(unsigned int));
+        tree->body_id =
+            (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+        tree->body_parent =
+            (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+        tree->body_state =
+            (unsigned int *)platform_cell_cleared(capacity, sizeof(unsigned int), platform_place_g_program_owner, 0);
         ok = (tree->body_id != NULL) && (tree->body_parent != NULL) && (tree->body_state != NULL);
         widest = (tree->leaf_count > widest) ? tree->leaf_count : widest;
     }
-    int *const heaviest = (int *)malloc((size_t)widest * sizeof(int));
-    unsigned int *const arrivals = (unsigned int *)malloc((size_t)widest * sizeof(unsigned int));
+    int *const heaviest = (int *)platform_cell_taken((size_t)widest * sizeof(int), platform_place_g_program_owner, 0);
+    unsigned int *const arrivals =
+        (unsigned int *)platform_cell_taken((size_t)widest * sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = ok && (heaviest != NULL) && (arrivals != NULL);
     unsigned int next_id = 0u;
     for (unsigned int body = 0u; ok && (frame_count != 0u) && (body < frames[0].leaf_count); body += 1u)
@@ -94,7 +99,7 @@ int assign_bodies(TreeFrame *frames, unsigned int frame_count, unsigned int by_b
             tree->body_state[body] |= (carried != 0u) ? 0u : ended;
         }
     }
-    free(heaviest);
-    free(arrivals);
+    platform_cell_released(heaviest, platform_place_g_program_owner);
+    platform_cell_released(arrivals, platform_place_g_program_owner);
     return ok;
 }

@@ -356,8 +356,8 @@ static int check_test_points_write(const char *set, const char *sample, const Ch
 {
     char path[CHECK_TEST_PATH];
     int ok = check_test_directory(set, sample);
-    unsigned long long *const words =
-        (unsigned long long *)calloc(CHECK_TEST_READINGS + 5u, sizeof(unsigned long long));
+    unsigned long long *const words = (unsigned long long *)platform_cell_cleared(
+        CHECK_TEST_READINGS + 5u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     ok = ok && (words != NULL);
     if (ok && (points->no_readings == 0))
     {
@@ -374,14 +374,14 @@ static int check_test_points_write(const char *set, const char *sample, const Ch
              check_test_file(path, words, (CHECK_TEST_READINGS + 5u) * sizeof(unsigned long long),
                              points->readings_short_by);
     }
-    free(words);
+    platform_cell_released(words, platform_place_g_program_owner);
     if ((ok == 0) || (points->no_points != 0))
     {
         return ok;
     }
     // the .points whole, in one buffer: the head, the readings, C, then the frames and a trailing word
     const size_t capacity = (6u * 4u) + 8u + (CHECK_TEST_READINGS * 8u) + (4u * (2u + 4u + 12u + 1u));
-    unsigned char *const bytes = (unsigned char *)malloc(capacity);
+    unsigned char *const bytes = (unsigned char *)platform_cell_taken(capacity, platform_place_g_program_owner, 0);
     if (bytes == NULL)
     {
         return 0;
@@ -420,7 +420,7 @@ static int check_test_points_write(const char *set, const char *sample, const Ch
     }
     ok = check_test_sample_path(path, sizeof(path), set, sample, ".points") &&
          check_test_file(path, bytes, used, points->short_by);
-    free(bytes);
+    platform_cell_released(bytes, platform_place_g_program_owner);
     return ok;
 }
 
@@ -516,7 +516,8 @@ static int check_test_points_case(const char *root, PointsCase which)
     }
     // the set's C and readings from the counts the samples contain (at values 10, 11 and 12), as the scan sums them; in
     // sum_past_64 the sum wraps.
-    unsigned long long *const contrast = (unsigned long long *)calloc(CHECK_TEST_READINGS, sizeof(unsigned long long));
+    unsigned long long *const contrast = (unsigned long long *)platform_cell_cleared(
+        CHECK_TEST_READINGS, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     if (contrast == NULL)
     {
         return 0;
@@ -544,7 +545,7 @@ static int check_test_points_case(const char *root, PointsCase which)
     {
         ok = ok && check_test_points_write(set, "c", &a, contrast, running);
     }
-    free(contrast);
+    platform_cell_released(contrast, platform_place_g_program_owner);
     char path[CHECK_TEST_PATH];
     char text[256];
     const unsigned long long named = (which == POINTS_CASE_SET_NOT_REBUILT) ? (running + 1ull) : running;
@@ -628,10 +629,10 @@ static int check_test_graph_points(const char *set, const char *sample, const un
         check_test_put(&frames, 0u);
     }
     const size_t length = 24u + 8u + (CHECK_TEST_READINGS * 8u) + ((size_t)frames.count * 4u);
-    unsigned char *const bytes = (unsigned char *)calloc(length, 1u);
+    unsigned char *const bytes = (unsigned char *)platform_cell_cleared(length, 1u, platform_place_g_program_owner, 0);
     if ((bytes == NULL) || (frames.count > CHECK_TEST_WORDS))
     {
-        free(bytes);
+        platform_cell_released(bytes, platform_place_g_program_owner);
         return 0;
     }
     memcpy(bytes, head, 24u);
@@ -640,7 +641,7 @@ static int check_test_graph_points(const char *set, const char *sample, const un
     const int ok = check_test_directory(set, sample) &&
                    check_test_sample_path(path, sizeof(path), set, sample, ".points") &&
                    check_test_file(path, bytes, length, (size_t)short_by);
-    free(bytes);
+    platform_cell_released(bytes, platform_place_g_program_owner);
     return ok;
 }
 
@@ -656,7 +657,7 @@ static int check_test_text(const char *path, const char *text, OutputCase which,
                            char becomes)
 {
     const size_t length = strlen(text);
-    char *const copy = (char *)malloc((2u * length) + 64u);
+    char *const copy = (char *)platform_cell_taken((2u * length) + 64u, platform_place_g_program_owner, 0);
     if (copy == NULL)
     {
         return 0;
@@ -688,7 +689,7 @@ static int check_test_text(const char *path, const char *text, OutputCase which,
         used += strlen(over_limit);
     }
     const int ok = check_test_file(path, copy, used, 0u);
-    free(copy);
+    platform_cell_released(copy, platform_place_g_program_owner);
     return ok;
 }
 

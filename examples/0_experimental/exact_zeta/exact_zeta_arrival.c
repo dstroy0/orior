@@ -37,6 +37,7 @@
  *       same way. The bar: the V_n of the device meets the direct sum within 2^-40 at every boundary checked.
  */
 #include "zeta_exact.h"
+#include "../../../src/platform/platform.h"
 
 #include <dirent.h>
 #include <math.h>
@@ -235,7 +236,8 @@ static int64_t *seeds(int64_t n0, int64_t top)
 {
     const int32_t digits = digits_for(n0);
     // The sieve of least prime factors.
-    int64_t *const least = (int64_t *)arrival_memory(malloc(((size_t)top + 1u) * sizeof(int64_t)));
+    int64_t *const least = (int64_t *)arrival_memory(
+        platform_cell_taken(((size_t)top + 1u) * sizeof(int64_t), platform_place_g_program_owner, 0));
     for (int64_t m = 0; m <= top; m += 1)
     {
         least[m] = m;
@@ -254,8 +256,8 @@ static int64_t *seeds(int64_t n0, int64_t top)
         }
     }
     // Each wave keeps u, r, q (two parts each) and m^(-1/2) at the work scale.
-    OriorExactInteger(*const kept)[7] =
-        (OriorExactInteger(*)[7])arrival_memory(malloc(((size_t)top + 1u) * sizeof(OriorExactInteger[7])));
+    OriorExactInteger(*const kept)[7] = (OriorExactInteger(*)[7])arrival_memory(
+        platform_cell_taken(((size_t)top + 1u) * sizeof(OriorExactInteger[7]), platform_place_g_program_owner, 0));
     OriorExactInteger one;
     z_two_to(WORK_BITS, &one);
     for (unsigned part = 0u; part < 7u; part += 1u)
@@ -301,7 +303,8 @@ static int64_t *seeds(int64_t n0, int64_t top)
             shift_right(&kept[m][6], WORK_BITS, &kept[m][6]);
         }
     }
-    int64_t *const rows = (int64_t *)arrival_memory(malloc((size_t)top * 7u * sizeof(int64_t)));
+    int64_t *const rows = (int64_t *)arrival_memory(
+        platform_cell_taken((size_t)top * 7u * sizeof(int64_t), platform_place_g_program_owner, 0));
     for (int64_t m = 1; m <= top; m += 1)
     {
         for (unsigned part = 0u; part < 7u; part += 1u)
@@ -311,8 +314,8 @@ static int64_t *seeds(int64_t n0, int64_t top)
             rows[((size_t)(m - 1) * 7u) + part] = z_small(&value);
         }
     }
-    free(kept);
-    free(least);
+    platform_cell_released(kept, platform_place_g_program_owner);
+    platform_cell_released(least, platform_place_g_program_owner);
     return rows;
 }
 
@@ -352,7 +355,7 @@ static void run_device(const char *binary, int64_t n0, int64_t top, int64_t swee
     fwrite(header, sizeof(int64_t), 6u, input);
     int64_t *const rows = seeds(n0, top);
     fwrite(rows, sizeof(int64_t), (size_t)top * 7u, input);
-    free(rows);
+    platform_cell_released(rows, platform_place_g_program_owner);
     fclose(input);
     char command[1024];
 #ifdef _WIN32
@@ -369,8 +372,10 @@ static void run_device(const char *binary, int64_t n0, int64_t top, int64_t swee
     }
     values->first = n0;
     values->count = (size_t)(sweeps * FLOORS) + 2u;
-    values->present = (unsigned char *)arrival_memory(calloc(values->count, 1u));
-    values->value = (OriorExactInteger(*)[2])arrival_memory(calloc(values->count, sizeof(OriorExactInteger[2])));
+    values->present =
+        (unsigned char *)arrival_memory(platform_cell_cleared(values->count, 1u, platform_place_g_program_owner, 0));
+    values->value = (OriorExactInteger(*)[2])arrival_memory(
+        platform_cell_cleared(values->count, sizeof(OriorExactInteger[2]), platform_place_g_program_owner, 0));
     *same = 0;
     steps[0] = '\0';
     static char line[65536];
@@ -461,8 +466,8 @@ static const OriorExactInteger *value_at(const BoundaryValues *values, int64_t n
  */
 static void values_free(BoundaryValues *values)
 {
-    free(values->present);
-    free(values->value);
+    platform_cell_released(values->present, platform_place_g_program_owner);
+    platform_cell_released(values->value, platform_place_g_program_owner);
     values->present = NULL;
     values->value = NULL;
 }
@@ -553,9 +558,12 @@ static void tally_begin(Tally *tally, int64_t first, size_t count)
     tally->run = 0;
     tally->first = first;
     tally->count = count;
-    tally->present = (unsigned char *)arrival_memory(calloc(count + 1u, 1u));
-    tally->mean = (OriorExactInteger(*)[2])arrival_memory(calloc(count + 1u, sizeof(OriorExactInteger[2])));
-    tally->runs = (int64_t *)arrival_memory(calloc(count + 1u, sizeof(int64_t)));
+    tally->present =
+        (unsigned char *)arrival_memory(platform_cell_cleared(count + 1u, 1u, platform_place_g_program_owner, 0));
+    tally->mean = (OriorExactInteger(*)[2])arrival_memory(
+        platform_cell_cleared(count + 1u, sizeof(OriorExactInteger[2]), platform_place_g_program_owner, 0));
+    tally->runs = (int64_t *)arrival_memory(
+        platform_cell_cleared(count + 1u, sizeof(int64_t), platform_place_g_program_owner, 0));
 }
 
 /**
@@ -565,9 +573,9 @@ static void tally_begin(Tally *tally, int64_t first, size_t count)
  */
 static void tally_free(Tally *tally)
 {
-    free(tally->present);
-    free(tally->mean);
-    free(tally->runs);
+    platform_cell_released(tally->present, platform_place_g_program_owner);
+    platform_cell_released(tally->mean, platform_place_g_program_owner);
+    platform_cell_released(tally->runs, platform_place_g_program_owner);
 }
 
 /**
@@ -882,7 +890,8 @@ static int main_stretch(FILE *out, int64_t n0, int64_t count)
     fprintf(out, "  a stretch of %lld windows from n0 = %lld, binary %s\n", (long long)count, (long long)n0, binary);
     Tally whole;
     tally_begin(&whole, n0, (size_t)(count * WINDOW) + 2u);
-    double *const spreads = (double *)arrival_memory(calloc((size_t)count + 1u, sizeof(double)));
+    double *const spreads = (double *)arrival_memory(
+        platform_cell_cleared((size_t)count + 1u, sizeof(double), platform_place_g_program_owner, 0));
     int every = 1;
     const double begun = seconds_now();
     OriorExactInteger bar;
@@ -985,7 +994,7 @@ static int main_stretch(FILE *out, int64_t n0, int64_t count)
         fflush(out);
     }
     fprintf(out, "  host equals device and both ends within the bar: %s; %.1fs\n", truth(every), seconds_now() - begun);
-    free(spreads);
+    platform_cell_released(spreads, platform_place_g_program_owner);
     tally_free(&whole);
     return every ? 0 : 1;
 }

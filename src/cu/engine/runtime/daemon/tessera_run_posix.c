@@ -20,7 +20,7 @@ int run_cpu(const RunChild *child, unsigned long long *microseconds)
     {
         ticks += processes[at].in_tree ? processes[at].ticks : 0ULL;
     }
-    free(processes);
+    platform_cell_released(processes, platform_place_g_program_owner);
     const long hertz = sysconf(_SC_CLK_TCK);
     // the clock's ticks a second are positive where it answers
     *microseconds = (hertz > 0L) ? ((ticks * RUN_MILLION) / (unsigned long long)hertz) : 0ULL;
@@ -184,7 +184,7 @@ unsigned long long run_end_command(RunChild *child, unsigned long long grace)
         living = run_living(processes, count, 0);
     }
     const unsigned long long forced = (living != 0ULL) ? run_living(processes, count, SIGKILL) : 0ULL;
-    free(processes);
+    platform_cell_released(processes, platform_place_g_program_owner);
     return forced;
 }
 
@@ -303,7 +303,9 @@ RunProcess *run_tree(pid_t root, unsigned long long *count)
         if (*count == capacity)
         {
             capacity = (capacity == 0ULL) ? 256ULL : (capacity * 2ULL);
-            RunProcess *const grown = (RunProcess *)realloc(processes, (size_t)capacity * sizeof(RunProcess));
+            RunProcess *const grown = (RunProcess *)platform_cell_grown(processes, (size_t)*count * sizeof(RunProcess),
+                                                                        (size_t)capacity * sizeof(RunProcess),
+                                                                        platform_place_g_program_owner, 0);
             ok = grown != NULL;
             processes = ok ? grown : processes;
         }
@@ -316,7 +318,7 @@ RunProcess *run_tree(pid_t root, unsigned long long *count)
     closedir(listing);
     if (!ok || (processes == NULL))
     {
-        free(processes);
+        platform_cell_released(processes, platform_place_g_program_owner);
         return NULL;
     }
     for (unsigned long long at = 0ULL; at < *count; at += 1ULL)

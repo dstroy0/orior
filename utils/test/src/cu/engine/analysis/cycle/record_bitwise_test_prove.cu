@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_bitwise_test_prove.cu: proofs, narrow and wide, known and errored
 #include "record_bitwise_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // fill `lanes` atoms with edge-shaped fields, run the program on both sides, and check both records against the oracle
 static void bitwise_prove(BitwiseResults *results, const BitwiseProgram *program, unsigned int lanes, const char *name)
@@ -17,17 +18,21 @@ static void bitwise_prove(BitwiseResults *results, const BitwiseProgram *program
     }
     const unsigned int in_limbs = program->in_limbs[0];
     const unsigned int out_limbs = loaded.layout.out_limbs;
-    unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * in_limbs, sizeof(unsigned int));
-    unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-    unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-    BitwiseOracle *const oracle = (BitwiseOracle *)malloc(sizeof(BitwiseOracle));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared((size_t)lanes * in_limbs, sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    BitwiseOracle *const oracle =
+        (BitwiseOracle *)platform_cell_taken(sizeof(BitwiseOracle), platform_place_g_program_owner, 0);
     if ((atoms == NULL) || (host_out == NULL) || (device_out == NULL) || (oracle == NULL))
     {
         bitwise_check(results, 0, "the lanes are allocated");
-        free(atoms);
-        free(host_out);
-        free(device_out);
-        free(oracle);
+        platform_cell_released(atoms, platform_place_g_program_owner);
+        platform_cell_released(host_out, platform_place_g_program_owner);
+        platform_cell_released(device_out, platform_place_g_program_owner);
+        platform_cell_released(oracle, platform_place_g_program_owner);
         bitwise_free(&loaded);
         return;
     }
@@ -67,10 +72,10 @@ static void bitwise_prove(BitwiseResults *results, const BitwiseProgram *program
                   "the device records equal the host's word for word");
     bitwise_check(results, lanes_equal == lanes,
                   "every lane's record equals the oracle, and its sign extends past the width");
-    free(atoms);
-    free(host_out);
-    free(device_out);
-    free(oracle);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
+    platform_cell_released(oracle, platform_place_g_program_owner);
     bitwise_free(&loaded);
 }
 
@@ -214,8 +219,10 @@ void bitwise_known(BitwiseResults *results)
         atoms[lane] = ((unsigned int)cases[lane][0] & 0xFFFFu) | (((unsigned int)cases[lane][1] & 0xFFFFu) << 16u);
     }
     const unsigned int out_limbs = loaded.layout.out_limbs;
-    unsigned int *const host_out = (unsigned int *)calloc((size_t)4u * out_limbs, sizeof(unsigned int));
-    unsigned int *const device_out = (unsigned int *)calloc((size_t)4u * out_limbs, sizeof(unsigned int));
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared((size_t)4u * out_limbs, sizeof(unsigned int),
+                                                                         platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared((size_t)4u * out_limbs, sizeof(unsigned int),
+                                                                           platform_place_g_program_owner, 0);
     int passed = (host_out != NULL) && (device_out != NULL);
     int host_ran = 0;
     int device_ran = 0;
@@ -239,8 +246,8 @@ void bitwise_known(BitwiseResults *results)
     }
     bitwise_check(results, passed,
                   "-6 ^ 3 = -7, -6 & 3 = 2, 200 wraps to -56 in 8 bits and -8 in 4, -32768 ^ 32767 = -1, and the rest");
-    free(host_out);
-    free(device_out);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
     bitwise_free(&loaded);
 }
 

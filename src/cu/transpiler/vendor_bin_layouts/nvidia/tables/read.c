@@ -30,7 +30,9 @@ static int tables_set_grown(TablesSet *set)
         return 1;
     }
     const unsigned int room = (set->room == 0u) ? 64u : (set->room * 2u);
-    TablesClass *const grown = (TablesClass *)realloc(set->class_, (size_t)room * sizeof(TablesClass));
+    TablesClass *const grown =
+        (TablesClass *)platform_cell_grown(set->class_, (size_t)set->room * sizeof(TablesClass),
+                                           (size_t)room * sizeof(TablesClass), platform_place_g_program_owner, 0);
     if (grown == NULL)
     {
         return 0;
@@ -526,7 +528,7 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
 
 void tables_set_freed(TablesSet *set)
 {
-    free(set->class_);
+    platform_cell_released(set->class_, platform_place_g_program_owner);
     set->class_ = NULL;
     set->count = 0u;
     set->room = 0u;

@@ -86,7 +86,8 @@ unsigned long long platform_line_out_put(const char *bytes, unsigned long long l
 // cannot meet the bytes [RETURNS OWNERSHIP]
 void *platform_cell_taken(unsigned long long bytes, unsigned int place, int ephemeral);
 
-// a cell given back to the pool by the owner that took it, and nothing where the cell is NULL [TAKES OWNERSHIP]
+// a cell given back to the pool by the owner that took it. Nothing goes back where the cell is NULL or after
+// platform_close [TAKES OWNERSHIP]
 void platform_cell_released(void *cell, unsigned int place);
 
 // a cell of `count` elements of `size` bytes each, every byte 0, as calloc gives one. NULL where the product of `count`

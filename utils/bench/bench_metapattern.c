@@ -51,6 +51,7 @@
 #include <stdint.h>
 
 #include "sha256_core.h"
+#include "../../src/platform/platform.h"
 
 /** @brief Leading zero bits a first-winner must reach. Small, a header costs about 2^16 hashes. */
 #define WANTED_ZEROS 16u
@@ -207,14 +208,18 @@ static void metapattern_plant(const uint32_t *const seed, uint32_t *const winner
     }
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
-    uint32_t *const winner = (uint32_t *)malloc(sizeof(uint32_t) * WANTED_HEADERS);
-    uint32_t *const seed = (uint32_t *)malloc(sizeof(uint32_t) * WANTED_HEADERS);
+    (void)argc;
+    (void)argv;
+    uint32_t *const winner =
+        (uint32_t *)platform_cell_taken(sizeof(uint32_t) * WANTED_HEADERS, platform_place_g_program_owner, 0);
+    uint32_t *const seed =
+        (uint32_t *)platform_cell_taken(sizeof(uint32_t) * WANTED_HEADERS, platform_place_g_program_owner, 0);
     if ((winner == NULL) || (seed == NULL))
     {
-        free(winner);
-        free(seed);
+        platform_cell_released(winner, platform_place_g_program_owner);
+        platform_cell_released(seed, platform_place_g_program_owner);
         (void)fprintf(stderr, "no room\n");
         return 1;
     }
@@ -284,16 +289,17 @@ int main(void)
     if (sample_count < 2u)
     {
         (void)printf("  too few to compare. Nothing is claimed.\n\n");
-        free(winner);
-        free(seed);
+        platform_cell_released(winner, platform_place_g_program_owner);
+        platform_cell_released(seed, platform_place_g_program_owner);
         return 0;
     }
 
-    uint32_t *const scratch = (uint32_t *)malloc(sizeof(uint32_t) * sample_count);
+    uint32_t *const scratch =
+        (uint32_t *)platform_cell_taken(sizeof(uint32_t) * sample_count, platform_place_g_program_owner, 0);
     if (scratch == NULL)
     {
-        free(winner);
-        free(seed);
+        platform_cell_released(winner, platform_place_g_program_owner);
+        platform_cell_released(seed, platform_place_g_program_owner);
         (void)fprintf(stderr, "no room for the control\n");
         return 1;
     }
@@ -346,9 +352,9 @@ int main(void)
         (void)printf("  REFUSED. The search did not recover a metapattern it was handed, at any\n");
         (void)printf("  size up to seven sigma. It cannot see one, so it has never been able to,\n");
         (void)printf("  and the measured reading above is not evidence of anything.\n\n");
-        free(winner);
-        free(seed);
-        free(scratch);
+        platform_cell_released(winner, platform_place_g_program_owner);
+        platform_cell_released(seed, platform_place_g_program_owner);
+        platform_cell_released(scratch, platform_place_g_program_owner);
         return 1;
     }
 
@@ -368,8 +374,8 @@ int main(void)
         (void)printf("  cannot be started anywhere better than zero.\n\n");
     }
 
-    free(winner);
-    free(seed);
-    free(scratch);
+    platform_cell_released(winner, platform_place_g_program_owner);
+    platform_cell_released(seed, platform_place_g_program_owner);
+    platform_cell_released(scratch, platform_place_g_program_owner);
     return 0;
 }

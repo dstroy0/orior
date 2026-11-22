@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // parquet_thrift.c: the Thrift compact protocol the footer and every page header are written in, and growing bytes
 #include "parquet_internal.h"
+#include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 // the longest a varint may run: ten groups of seven bits cover sixty-four, and the last group's bits that land
@@ -268,7 +269,8 @@ int parquet_bytes_append(ParquetBytes *bytes, const unsigned char *from, unsigne
         {
             room *= 2ULL;
         }
-        unsigned char *const grown = (unsigned char *)realloc(bytes->bytes, (size_t)room);
+        unsigned char *const grown = (unsigned char *)platform_cell_grown(bytes->bytes, bytes->room, (size_t)room,
+                                                                          platform_place_g_program_owner, 0);
         if (grown == NULL)
         {
             return 0;

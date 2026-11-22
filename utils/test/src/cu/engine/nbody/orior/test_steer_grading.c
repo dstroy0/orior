@@ -77,7 +77,7 @@ uint8_t *read_whole_file(const char *path, size_t *length)
     }
     rewind(handle);
 
-    uint8_t *bytes = (uint8_t *)malloc((size_t)span);
+    uint8_t *bytes = (uint8_t *)platform_cell_taken((size_t)span, platform_place_g_program_owner, 0);
     if (bytes == NULL)
     {
         fclose(handle);
@@ -87,7 +87,7 @@ uint8_t *read_whole_file(const char *path, size_t *length)
     fclose(handle);
     if (elapsed == 0u)
     {
-        free(bytes);
+        platform_cell_released(bytes, platform_place_g_program_owner);
         return NULL;
     }
     *length = elapsed;
@@ -129,7 +129,7 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     memcpy(needle, corpus + (corpus_len / 3u), sizeof(needle));
 
     const size_t alignments = (corpus_len - needle_len) + 1u;
-    uint8_t *survivors = (uint8_t *)malloc(alignments);
+    uint8_t *survivors = (uint8_t *)platform_cell_taken(alignments, platform_place_g_program_owner, 0);
     if (survivors == NULL)
     {
         {
@@ -365,7 +365,7 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
         }
     }
 
-    free(survivors);
+    platform_cell_released(survivors, platform_place_g_program_owner);
     return failed;
 }
 
@@ -390,7 +390,7 @@ int check_arm_is_wired(const uint8_t *corpus, size_t corpus_len, const uint8_t *
 {
     int failed = 0;
     const size_t alignments = (corpus_len - needle_len) + 1u;
-    uint8_t *survivors = (uint8_t *)malloc(alignments);
+    uint8_t *survivors = (uint8_t *)platform_cell_taken(alignments, platform_place_g_program_owner, 0);
     if (survivors == NULL)
     {
         {
@@ -507,7 +507,7 @@ int check_arm_is_wired(const uint8_t *corpus, size_t corpus_len, const uint8_t *
         platform_line_out_ended();
     }
 
-    free(survivors);
+    platform_cell_released(survivors, platform_place_g_program_owner);
     return failed;
 }
 

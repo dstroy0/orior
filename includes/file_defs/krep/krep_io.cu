@@ -198,8 +198,10 @@ int krep_seal_read(PlatformFile *crystal, const unsigned long long head[KREP_CRY
 {
     seal->lane_count = head[KREP_HEAD_LANE_NODES];
     seal->chunk_count = head[KREP_HEAD_CHUNKS];
-    seal->lane_nodes = (EngineSignum *)calloc((size_t)seal->lane_count + 1u, sizeof(EngineSignum));
-    seal->chunk_leaves = (EngineSignum *)calloc((size_t)seal->chunk_count + 1u, sizeof(EngineSignum));
+    seal->lane_nodes = (EngineSignum *)platform_cell_cleared((size_t)seal->lane_count + 1u, sizeof(EngineSignum),
+                                                             platform_place_g_program_owner, 0);
+    seal->chunk_leaves = (EngineSignum *)platform_cell_cleared((size_t)seal->chunk_count + 1u, sizeof(EngineSignum),
+                                                               platform_place_g_program_owner, 0);
     return KREP_CHECK((seal->lane_nodes != NULL) && (seal->chunk_leaves != NULL), seal, error, ENGINE_ERROR_RESOURCE) &&
            KREP_IO(platform_file_read_items(seal->roots, sizeof(EngineSignum), ENGINE_SEAL_ROOTS, crystal) ==
                        ENGINE_SEAL_ROOTS,
@@ -291,13 +293,20 @@ static int krep_members_read(PlatformFile *crystal, const unsigned long long hea
 {
     const size_t leaves = (size_t)head[KREP_HEAD_LEAVES];
     side->leaves = head[KREP_HEAD_LEAVES];
-    side->pixel_at = (unsigned long long *)calloc(leaves + 1u, sizeof(unsigned long long));
-    side->pixel_stored = (unsigned long long *)calloc(leaves + 1u, sizeof(unsigned long long));
-    side->byte_start = (unsigned long long *)calloc(leaves + 1u, sizeof(unsigned long long));
-    side->name_start = (unsigned long long *)calloc(leaves + 1u, sizeof(unsigned long long));
-    side->member_crc = (unsigned long long *)calloc(leaves + 1u, sizeof(unsigned long long));
-    side->member_bytes = (unsigned long long *)calloc(leaves + 1u, sizeof(unsigned long long));
-    side->names = (char *)malloc((size_t)head[KREP_HEAD_NAMES_BYTES] + 1u);
+    side->pixel_at = (unsigned long long *)platform_cell_cleared(leaves + 1u, sizeof(unsigned long long),
+                                                                 platform_place_g_program_owner, 0);
+    side->pixel_stored = (unsigned long long *)platform_cell_cleared(leaves + 1u, sizeof(unsigned long long),
+                                                                     platform_place_g_program_owner, 0);
+    side->byte_start = (unsigned long long *)platform_cell_cleared(leaves + 1u, sizeof(unsigned long long),
+                                                                   platform_place_g_program_owner, 0);
+    side->name_start = (unsigned long long *)platform_cell_cleared(leaves + 1u, sizeof(unsigned long long),
+                                                                   platform_place_g_program_owner, 0);
+    side->member_crc = (unsigned long long *)platform_cell_cleared(leaves + 1u, sizeof(unsigned long long),
+                                                                   platform_place_g_program_owner, 0);
+    side->member_bytes = (unsigned long long *)platform_cell_cleared(leaves + 1u, sizeof(unsigned long long),
+                                                                     platform_place_g_program_owner, 0);
+    side->names =
+        (char *)platform_cell_taken((size_t)head[KREP_HEAD_NAMES_BYTES] + 1u, platform_place_g_program_owner, 0);
     return KREP_CHECK((side->pixel_at != NULL) && (side->pixel_stored != NULL) && (side->byte_start != NULL) &&
                           (side->name_start != NULL) && (side->member_crc != NULL) && (side->member_bytes != NULL) &&
                           (side->names != NULL),
@@ -326,7 +335,7 @@ int krep_side_read(PlatformFile *crystal, const unsigned long long head[KREP_CRY
     }
     const unsigned long long packed = head[KREP_HEAD_PACKED_BYTES];
     section->packed_bytes = packed;
-    section->packed = (unsigned char *)malloc((size_t)packed + 1u);
+    section->packed = (unsigned char *)platform_cell_taken((size_t)packed + 1u, platform_place_g_program_owner, 0);
     return KREP_CHECK(section->packed != NULL, &section->packed, error, ENGINE_ERROR_RESOURCE) &&
            KREP_IO(platform_file_read_items(section->packed, 1u, (size_t)packed, crystal) == (size_t)packed,
                    section->packed, error) &&

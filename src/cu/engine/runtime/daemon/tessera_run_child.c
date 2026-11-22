@@ -176,7 +176,9 @@ char **run_channel_open(RunChannel *channel, const RunRequest *request, char *co
         placed && run_path_joined(channel->records, "", channel->named_records, sizeof(channel->named_records));
 #endif
     // a word count is positive. It converts exactly
-    char **const watched = named ? (char **)malloc(((size_t)count + RUN_WATCH_WORDS + 1u) * sizeof(char *)) : NULL;
+    char **const watched = named ? (char **)platform_cell_taken(((size_t)count + RUN_WATCH_WORDS + 1u) * sizeof(char *),
+                                                                platform_place_g_program_owner, 0)
+                                 : NULL;
     if (watched == NULL)
     {
         if (placed)

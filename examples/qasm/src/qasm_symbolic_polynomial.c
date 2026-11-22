@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_symbolic_polynomial.c: polynomials
 #include "qasm_symbolic_internal.h"
+#include "../../../src/platform/platform.h"
 
 int qasm_symbolic_text_put(QasmText *builder, const char *piece)
 {
@@ -43,7 +44,7 @@ int qasm_text_exponent(QasmText *builder, int exponent)
 
 void qasm_polynomial_release(QasmPolynomial *polynomial)
 {
-    free(polynomial->coefficients);
+    platform_cell_released(polynomial->coefficients, platform_place_g_program_owner);
     polynomial->coefficients = NULL;
     polynomial->count = 0u;
     polynomial->low = 0;
@@ -70,7 +71,8 @@ long qasm_polynomial_alloc(long long low, unsigned long long count, QasmPolynomi
         return 0L;
     }
     // the count is within the exponent bound, below 2^31. It fits in a size_t
-    QasmNumber *const coefficients = (QasmNumber *)malloc((size_t)count * sizeof(QasmNumber));
+    QasmNumber *const coefficients =
+        (QasmNumber *)platform_cell_taken((size_t)count * sizeof(QasmNumber), platform_place_g_program_owner, 0);
     if (QASM_CHECK(coefficients != NULL, polynomial, error, ENGINE_ERROR_RESOURCE) == 0)
     {
         return QASM_ERROR;

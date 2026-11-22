@@ -121,7 +121,8 @@ static int knee_text_add(KneeText *text, const char *format, ...)
         {
             room *= 2u;
         }
-        char *const grown = (char *)realloc(text->bytes, room);
+        char *const grown =
+            (char *)platform_cell_grown(text->bytes, text->room, room, platform_place_g_program_owner, 0);
         if (grown == NULL)
         {
             return 0;
@@ -142,16 +143,16 @@ static char *knee_line(FILE *file)
     // a line of any length: the room doubles until the line ends
     size_t room = 64u;
     size_t at = 0u;
-    char *line = (char *)malloc(room);
+    char *line = (char *)platform_cell_taken(room, platform_place_g_program_owner, 0);
     int read = 0;
     while ((line != NULL) && ((read = fgetc(file)) != EOF) && (read != '\n'))
     {
         if ((at + 1u) >= room)
         {
-            char *const grown = (char *)realloc(line, room * 2u);
+            char *const grown = (char *)platform_cell_grown(line, room, room * 2u, platform_place_g_program_owner, 0);
             if (grown == NULL)
             {
-                free(line);
+                platform_cell_released(line, platform_place_g_program_owner);
                 return NULL;
             }
             line = grown;
@@ -162,7 +163,7 @@ static char *knee_line(FILE *file)
     }
     if ((line == NULL) || ((read == EOF) && (at == 0u)))
     {
-        free(line);
+        platform_cell_released(line, platform_place_g_program_owner);
         return NULL;
     }
     line[at] = '\0';
@@ -194,7 +195,8 @@ static int knee_job_submit(const char *type, const unsigned long long *shape, un
 #endif
     const size_t named = strlen(type) + 1u;
     const size_t request_bytes = named + (KNEE_RANK * sizeof(unsigned long long));
-    unsigned char *const request = (unsigned char *)malloc(request_bytes);
+    unsigned char *const request =
+        (unsigned char *)platform_cell_taken(request_bytes, platform_place_g_program_owner, 0);
     if (request == NULL)
     {
         return 0;
@@ -204,7 +206,7 @@ static int knee_job_submit(const char *type, const unsigned long long *shape, un
     const ObsignatioSignumRequest signum = {
         request, request_bytes, NULL, OBSIGNATIO_MODE_HASH, submit.signum.bytes, ENGINE_SIGNUM_BYTES, &error};
     const long hashed = obsignatio_signum(&signum);
-    free(request);
+    platform_cell_released(request, platform_place_g_program_owner);
     if ((hashed != 0L) || (declared == 0ull))
     {
         fprintf(stderr, "  tessera: %s: no job could be requested\n", type);
@@ -346,7 +348,7 @@ static unsigned short *knee_load(const KneeSeries *series, EngineSignum *root, E
     {
         fprintf(stderr, "  %s: the crystal did not load (type %u, module %u, site %u)\n", series->name, error.type,
                 error.module, error.site);
-        free(volume);
+        platform_cell_released(volume, platform_place_g_program_owner);
         if ((loaded == 0L) && (side != NULL))
         {
             engine_side_release(side);
@@ -452,7 +454,7 @@ static int knee_resume(const char *path, const KneeText *header, KneeLineTake ta
     while (good && ((line = knee_line(old)) != NULL))
     {
         good = (line[0] == '#') ? knee_text_add(&seen, "%s\n", line) : take(line, context);
-        free(line);
+        platform_cell_released(line, platform_place_g_program_owner);
     }
     fclose(old);
     if (good && ((seen.used != header->used) || (memcmp(seen.bytes, header->bytes, header->used) != 0)))
@@ -460,7 +462,7 @@ static int knee_resume(const char *path, const KneeText *header, KneeLineTake ta
         fprintf(stderr, "  %s was written under other groups or tops; move it aside to start again\n", path);
         good = 0;
     }
-    free(seen.bytes);
+    platform_cell_released(seen.bytes, platform_place_g_program_owner);
     return good;
 }
 
@@ -533,7 +535,7 @@ static int knee_take_draw(const char *line, void *context)
     {
         return 0;
     }
-    char *const name = (char *)malloc((size_t)(tab - line) + 1u);
+    char *const name = (char *)platform_cell_taken((size_t)(tab - line) + 1u, platform_place_g_program_owner, 0);
     if (name == NULL)
     {
         return 0;
@@ -541,7 +543,7 @@ static int knee_take_draw(const char *line, void *context)
     memcpy(name, line, (size_t)(tab - line));
     name[tab - line] = '\0';
     KneeSeries *const series = knee_find(run, name);
-    free(name);
+    platform_cell_released(name, platform_place_g_program_owner);
     char *end = NULL;
     const unsigned long long draw = strtoull(tab + 1, &end, 10);
     PeriodMargin heights[KNEE_RANK];
@@ -574,7 +576,7 @@ static int knee_take_reading(const char *line, void *context)
     {
         return 0;
     }
-    char *const name = (char *)malloc((size_t)(tab - line) + 1u);
+    char *const name = (char *)platform_cell_taken((size_t)(tab - line) + 1u, platform_place_g_program_owner, 0);
     if (name == NULL)
     {
         return 0;
@@ -582,7 +584,7 @@ static int knee_take_reading(const char *line, void *context)
     memcpy(name, line, (size_t)(tab - line));
     name[tab - line] = '\0';
     KneeSeries *const series = knee_find(run, name);
-    free(name);
+    platform_cell_released(name, platform_place_g_program_owner);
     if ((series == NULL) || (run->done[series - run->series] != 0u))
     {
         fprintf(stderr, "  a reading line does not fit this run's series: %s\n", line);
@@ -648,13 +650,15 @@ static int knee_ingest(int argc, char **argv)
     {
         if (line[0] == '\0')
         {
-            free(line);
+            platform_cell_released(line, platform_place_g_program_owner);
             continue;
         }
         if (listed.count == listed.room)
         {
             listed.room = (listed.room != 0ull) ? (listed.room * 2ull) : 1024ull;
-            char **const grown = (char **)realloc(listed.names, (size_t)listed.room * sizeof(char *));
+            char **const grown =
+                (char **)platform_cell_grown(listed.names, (size_t)listed.count * sizeof(char *),
+                                             (size_t)listed.room * sizeof(char *), platform_place_g_program_owner, 0);
             ingest_ok = (grown != NULL);
             listed.names = ingest_ok ? grown : listed.names;
         }
@@ -795,9 +799,9 @@ static int knee_ingest(int argc, char **argv)
     }
     for (unsigned long long at = 0ull; at < listed.count; at += 1ull)
     {
-        free(listed.names[at]);
+        platform_cell_released(listed.names[at], platform_place_g_program_owner);
     }
-    free(listed.names);
+    platform_cell_released(listed.names, platform_place_g_program_owner);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  the ingest is done: ");
@@ -839,13 +843,15 @@ static KneePeriod *knee_periods_read(const char *path, unsigned long long *count
     {
         if ((line[0] == '#') || (line[0] == '\0'))
         {
-            free(line);
+            platform_cell_released(line, platform_place_g_program_owner);
             continue;
         }
         if (*count == room)
         {
             room = (room != 0ull) ? (room * 2ull) : 1024ull;
-            KneePeriod *const grown = (KneePeriod *)realloc(periods, (size_t)room * sizeof(KneePeriod));
+            KneePeriod *const grown =
+                (KneePeriod *)platform_cell_grown(periods, (size_t)*count * sizeof(KneePeriod),
+                                                  (size_t)room * sizeof(KneePeriod), platform_place_g_program_owner, 0);
             ok = (grown != NULL);
             periods = ok ? grown : periods;
         }
@@ -879,7 +885,7 @@ static KneePeriod *knee_periods_read(const char *path, unsigned long long *count
         else
         {
             fprintf(stderr, "  %s: a reading line does not contain a name, a group and P on each axis\n", path);
-            free(line);
+            platform_cell_released(line, platform_place_g_program_owner);
         }
     }
     if (file != NULL)
@@ -890,9 +896,9 @@ static KneePeriod *knee_periods_read(const char *path, unsigned long long *count
     {
         for (unsigned long long at = 0ull; at < *count; at += 1ull)
         {
-            free(periods[at].name);
+            platform_cell_released(periods[at].name, platform_place_g_program_owner);
         }
-        free(periods);
+        platform_cell_released(periods, platform_place_g_program_owner);
         *count = 0ull;
         return NULL;
     }
@@ -962,11 +968,13 @@ static int knee_flatten(int argc, char **argv)
         char *line = NULL;
         while ((named != NULL) && ((line = knee_line(named)) != NULL))
         {
-            char **const grown =
-                (line[0] != '\0') ? (char **)realloc(names, ((size_t)count + 1u) * sizeof(char *)) : NULL;
+            char **const grown = (line[0] != '\0') ? (char **)platform_cell_grown(names, (size_t)count * sizeof(char *),
+                                                                                  ((size_t)count + 1u) * sizeof(char *),
+                                                                                  platform_place_g_program_owner, 0)
+                                                   : NULL;
             if (grown == NULL)
             {
-                free(line);
+                platform_cell_released(line, platform_place_g_program_owner);
                 continue;
             }
             names = grown;
@@ -982,9 +990,12 @@ static int knee_flatten(int argc, char **argv)
     {
         count = engine_set_samples(set, &names);
     }
-    FlattenOrders *const orders = (FlattenOrders *)calloc((size_t)count + 1u, sizeof(FlattenOrders));
-    char **const flat_names = (char **)calloc((size_t)count + 1u, sizeof(char *));
-    unsigned long long *const lanes = (unsigned long long *)calloc((size_t)count + 1u, sizeof(unsigned long long));
+    FlattenOrders *const orders = (FlattenOrders *)platform_cell_cleared((size_t)count + 1u, sizeof(FlattenOrders),
+                                                                         platform_place_g_program_owner, 0);
+    char **const flat_names =
+        (char **)platform_cell_cleared((size_t)count + 1u, sizeof(char *), platform_place_g_program_owner, 0);
+    unsigned long long *const lanes = (unsigned long long *)platform_cell_cleared(
+        (size_t)count + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     if ((count == 0u) || (orders == NULL) || (flat_names == NULL) || (lanes == NULL))
     {
         fprintf(stderr, "  %s: no series, or no room to store them\n", set);
@@ -1023,8 +1034,10 @@ static int knee_flatten(int argc, char **argv)
         return 1;
     }
     // the run checks each distinct set of orders once, and every series that shares it takes its answer
-    unsigned char *const fits = (unsigned char *)calloc((size_t)count + 1u, 1u);
-    EngineError *const refusals = (EngineError *)calloc((size_t)count + 1u, sizeof(EngineError));
+    unsigned char *const fits =
+        (unsigned char *)platform_cell_cleared((size_t)count + 1u, 1u, platform_place_g_program_owner, 0);
+    EngineError *const refusals = (EngineError *)platform_cell_cleared((size_t)count + 1u, sizeof(EngineError),
+                                                                       platform_place_g_program_owner, 0);
     if ((fits == NULL) || (refusals == NULL))
     {
         knee_job_release("knee flatten", &job);
@@ -1082,8 +1095,8 @@ static int knee_flatten(int argc, char **argv)
             }
         }
     }
-    free(fits);
-    free(refusals);
+    platform_cell_released(fits, platform_place_g_program_owner);
+    platform_cell_released(refusals, platform_place_g_program_owner);
     EngineError error;
     memset(&error, 0, sizeof(error));
     FlattenSetRequest flatten;
@@ -1259,14 +1272,16 @@ static int knee_take_spacing(const char *line, void *context)
     if (written->count == written->room)
     {
         written->room = (written->room != 0ull) ? (written->room * 2ull) : 1024ull;
-        char **const grown = (char **)realloc(written->names, (size_t)written->room * sizeof(char *));
+        char **const grown =
+            (char **)platform_cell_grown(written->names, (size_t)written->count * sizeof(char *),
+                                         (size_t)written->room * sizeof(char *), platform_place_g_program_owner, 0);
         if (grown == NULL)
         {
             return 0;
         }
         written->names = grown;
     }
-    char *const name = (char *)malloc((size_t)(tab - line) + 1u);
+    char *const name = (char *)platform_cell_taken((size_t)(tab - line) + 1u, platform_place_g_program_owner, 0);
     if (name == NULL)
     {
         return 0;
@@ -1345,10 +1360,12 @@ static int knee_spacing(int argc, char **argv)
         unsigned short *volume = NULL;
         int good = (engine_iapx_head(set, names[at], series.extent, &error) == 0L) && (series.extent[0] == 1ull) &&
                    ((volume = knee_load(&series, &root, &side)) != NULL) && (side.leaves != 0ull);
-        free(volume);
+        platform_cell_released(volume, platform_place_g_program_owner);
         const size_t leaves = good ? (size_t)side.leaves : 0u;
-        DicomDecimal *const read_values = (DicomDecimal *)calloc((leaves * KNEE_RANK) + 1u, sizeof(DicomDecimal));
-        unsigned int *const read_found = (unsigned int *)calloc(leaves + 1u, sizeof(unsigned int));
+        DicomDecimal *const read_values = (DicomDecimal *)platform_cell_cleared(
+            (leaves * KNEE_RANK) + 1u, sizeof(DicomDecimal), platform_place_g_program_owner, 0);
+        unsigned int *const read_found =
+            (unsigned int *)platform_cell_cleared(leaves + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
         good = good && (read_values != NULL) && (read_found != NULL);
         DicomDecimal largest[KNEE_RANK];
         memset(largest, 0, sizeof(largest));
@@ -1395,7 +1412,10 @@ static int knee_spacing(int argc, char **argv)
                                            &read_found[leaf], &error) != 0;
             positioned = good && (read_found[leaf] != 0u);
         }
-        DicomDecimal *const gaps = (good && positioned) ? (DicomDecimal *)calloc(leaves, sizeof(DicomDecimal)) : NULL;
+        DicomDecimal *const gaps =
+            (good && positioned)
+                ? (DicomDecimal *)platform_cell_cleared(leaves, sizeof(DicomDecimal), platform_place_g_program_owner, 0)
+                : NULL;
         positioned = positioned && (gaps != NULL);
         for (size_t leaf = 0u; good && positioned && ((leaf + 1u) < leaves); leaf += 1u)
         {
@@ -1426,9 +1446,9 @@ static int knee_spacing(int argc, char **argv)
         good = good && knee_text_add(&line, "\t%llu\t%llu\t%llu", side.leaves, apart[0], apart[1]);
         good = good && (positioned ? knee_decimal_add(&line, &widest) : knee_text_add(&line, "\t-"));
         good = good && knee_text_add(&line, "\t%llu\n", gaps_apart);
-        free(read_values);
-        free(read_found);
-        free(gaps);
+        platform_cell_released(read_values, platform_place_g_program_owner);
+        platform_cell_released(read_found, platform_place_g_program_owner);
+        platform_cell_released(gaps, platform_place_g_program_owner);
         engine_side_release(&side);
         if (good)
         {
@@ -1452,7 +1472,7 @@ static int knee_spacing(int argc, char **argv)
             fprintf(stderr, "  %s: the spacing did not read (type %u, module %u, site %u)\n", names[at], error.type,
                     error.module, error.site);
         }
-        free(line.bytes);
+        platform_cell_released(line.bytes, platform_place_g_program_owner);
     }
     fclose(file);
     {
@@ -1522,13 +1542,15 @@ static KneeSpacing *knee_spacings_read(const char *path, unsigned long long *cou
     {
         if ((line[0] == '#') || (line[0] == '\0'))
         {
-            free(line);
+            platform_cell_released(line, platform_place_g_program_owner);
             continue;
         }
         if (*count == room)
         {
             room = (room != 0ull) ? (room * 2ull) : 1024ull;
-            KneeSpacing *const grown = (KneeSpacing *)realloc(spacings, (size_t)room * sizeof(KneeSpacing));
+            KneeSpacing *const grown = (KneeSpacing *)platform_cell_grown(
+                spacings, (size_t)*count * sizeof(KneeSpacing), (size_t)room * sizeof(KneeSpacing),
+                platform_place_g_program_owner, 0);
             ok = (grown != NULL);
             spacings = ok ? grown : spacings;
         }
@@ -1579,7 +1601,7 @@ static KneeSpacing *knee_spacings_read(const char *path, unsigned long long *cou
         else
         {
             fprintf(stderr, "  %s: a spacing line does not contain a name, z, y, x and z² from the positions\n", path);
-            free(line);
+            platform_cell_released(line, platform_place_g_program_owner);
         }
     }
     if (file != NULL)
@@ -1590,9 +1612,9 @@ static KneeSpacing *knee_spacings_read(const char *path, unsigned long long *cou
     {
         for (unsigned long long at = 0ull; at < *count; at += 1ull)
         {
-            free(spacings[at].name);
+            platform_cell_released(spacings[at].name, platform_place_g_program_owner);
         }
-        free(spacings);
+        platform_cell_released(spacings, platform_place_g_program_owner);
         *count = 0ull;
         return NULL;
     }
@@ -1788,8 +1810,8 @@ static unsigned int knee_power_steps(EngineRecordStep *steps, unsigned int *at, 
 static EngineRecordStep *knee_ladder_program(unsigned int rise, unsigned int fall, unsigned int *count,
                                              unsigned int outputs[KNEE_LADDER_OUTPUTS])
 {
-    EngineRecordStep *const steps =
-        (EngineRecordStep *)calloc(24u + (2u * ((rise / 32u) + (fall / 32u))), sizeof(EngineRecordStep));
+    EngineRecordStep *const steps = (EngineRecordStep *)platform_cell_cleared(
+        24u + (2u * ((rise / 32u) + (fall / 32u))), sizeof(EngineRecordStep), platform_place_g_program_owner, 0);
     if (steps == NULL)
     {
         return NULL;
@@ -1844,12 +1866,12 @@ typedef struct
 
 static void knee_rung_release(KneeRung *rung)
 {
-    free(rung->magnitudes);
-    free(rung->peaks);
-    free(rung->before);
-    free(rung->after);
-    free(rung->labels);
-    free(rung->positive);
+    platform_cell_released(rung->magnitudes, platform_place_g_program_owner);
+    platform_cell_released(rung->peaks, platform_place_g_program_owner);
+    platform_cell_released(rung->before, platform_place_g_program_owner);
+    platform_cell_released(rung->after, platform_place_g_program_owner);
+    platform_cell_released(rung->labels, platform_place_g_program_owner);
+    platform_cell_released(rung->positive, platform_place_g_program_owner);
     memset(rung, 0, sizeof(*rung));
 }
 
@@ -1876,8 +1898,10 @@ static int knee_rung_cut(const unsigned short *volume, const unsigned int extent
 {
     const size_t voxels = (size_t)extent[0] * extent[1] * extent[2];
     const size_t words = (voxels + 63u) / 64u;
-    rung->labels = (unsigned int *)malloc(voxels * sizeof(unsigned int));
-    rung->positive = (unsigned long long *)malloc(words * sizeof(unsigned long long));
+    rung->labels =
+        (unsigned int *)platform_cell_taken(voxels * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    rung->positive = (unsigned long long *)platform_cell_taken(words * sizeof(unsigned long long),
+                                                               platform_place_g_program_owner, 0);
     int offset_halves[ENGINE_AXES] = {0, 0, 0};
     EngineResidualRequest residual;
     if (knee_rung_request(&rung->orders, extent, &residual) == 0u)
@@ -1920,10 +1944,19 @@ static int knee_rung_cut(const unsigned short *volume, const unsigned int extent
     rung->count = ok ? (unsigned int)found : 0u;
     unsigned int *device_magnitudes = NULL;
     const size_t limbs = (size_t)layout->limbs;
-    rung->magnitudes = ok ? (unsigned int *)calloc(((size_t)rung->count + 1u) * limbs, sizeof(unsigned int)) : NULL;
-    rung->peaks = ok ? (unsigned int *)malloc(((size_t)rung->count + 1u) * sizeof(unsigned int)) : NULL;
-    rung->before = ok ? (unsigned int *)malloc(((size_t)rung->count + 1u) * sizeof(unsigned int)) : NULL;
-    rung->after = ok ? (unsigned int *)malloc(((size_t)rung->count + 1u) * sizeof(unsigned int)) : NULL;
+    rung->magnitudes =
+        ok ? (unsigned int *)platform_cell_cleared(((size_t)rung->count + 1u) * limbs, sizeof(unsigned int),
+                                                   platform_place_g_program_owner, 0)
+           : NULL;
+    rung->peaks = ok ? (unsigned int *)platform_cell_taken(((size_t)rung->count + 1u) * sizeof(unsigned int),
+                                                           platform_place_g_program_owner, 0)
+                     : NULL;
+    rung->before = ok ? (unsigned int *)platform_cell_taken(((size_t)rung->count + 1u) * sizeof(unsigned int),
+                                                            platform_place_g_program_owner, 0)
+                      : NULL;
+    rung->after = ok ? (unsigned int *)platform_cell_taken(((size_t)rung->count + 1u) * sizeof(unsigned int),
+                                                           platform_place_g_program_owner, 0)
+                     : NULL;
     ok = ok && (rung->magnitudes != NULL) && (rung->peaks != NULL) && (rung->before != NULL) && (rung->after != NULL) &&
          (cudaMalloc((void **)&device_magnitudes, ((size_t)rung->count + 1u) * limbs * sizeof(unsigned int)) ==
           cudaSuccess);
@@ -1987,12 +2020,15 @@ static int knee_rung_link(KneeRung *earlier, KneeRung *later, const unsigned int
     long total = -1L;
     for (;;)
     {
-        free(peaks_before);
-        free(peaks_after);
-        free(counts);
-        peaks_before = (unsigned int *)malloc((size_t)capacity * sizeof(unsigned int));
-        peaks_after = (unsigned int *)malloc((size_t)capacity * sizeof(unsigned int));
-        counts = (unsigned int *)malloc((size_t)capacity * sizeof(unsigned int));
+        platform_cell_released(peaks_before, platform_place_g_program_owner);
+        platform_cell_released(peaks_after, platform_place_g_program_owner);
+        platform_cell_released(counts, platform_place_g_program_owner);
+        peaks_before = (unsigned int *)platform_cell_taken((size_t)capacity * sizeof(unsigned int),
+                                                           platform_place_g_program_owner, 0);
+        peaks_after = (unsigned int *)platform_cell_taken((size_t)capacity * sizeof(unsigned int),
+                                                          platform_place_g_program_owner, 0);
+        counts = (unsigned int *)platform_cell_taken((size_t)capacity * sizeof(unsigned int),
+                                                     platform_place_g_program_owner, 0);
         if ((peaks_before == NULL) || (peaks_after == NULL) || (counts == NULL))
         {
             total = -1L;
@@ -2025,10 +2061,14 @@ static int knee_rung_link(KneeRung *earlier, KneeRung *later, const unsigned int
         capacity = (unsigned int)total;
     }
     const unsigned int pairs = (total > 0L) ? (unsigned int)total : 0u;
-    unsigned int *const before = (unsigned int *)malloc(((size_t)pairs + 1u) * sizeof(unsigned int));
-    unsigned int *const after = (unsigned int *)malloc(((size_t)pairs + 1u) * sizeof(unsigned int));
-    unsigned int *const weights = (unsigned int *)malloc(((size_t)pairs + 1u) * sizeof(unsigned int));
-    unsigned char *const chosen = (unsigned char *)calloc((size_t)pairs + 1u, 1u);
+    unsigned int *const before = (unsigned int *)platform_cell_taken(((size_t)pairs + 1u) * sizeof(unsigned int),
+                                                                     platform_place_g_program_owner, 0);
+    unsigned int *const after = (unsigned int *)platform_cell_taken(((size_t)pairs + 1u) * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
+    unsigned int *const weights = (unsigned int *)platform_cell_taken(((size_t)pairs + 1u) * sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    unsigned char *const chosen =
+        (unsigned char *)platform_cell_cleared((size_t)pairs + 1u, 1u, platform_place_g_program_owner, 0);
     int ok = (total >= 0L) && (before != NULL) && (after != NULL) && (weights != NULL) && (chosen != NULL);
     unsigned int linked = 0u;
     for (unsigned int pair = 0u; ok && (pair < pairs); pair += 1u)
@@ -2067,13 +2107,13 @@ static int knee_rung_link(KneeRung *earlier, KneeRung *later, const unsigned int
             later->before[after[pair]] = before[pair];
         }
     }
-    free(peaks_before);
-    free(peaks_after);
-    free(counts);
-    free(before);
-    free(after);
-    free(weights);
-    free(chosen);
+    platform_cell_released(peaks_before, platform_place_g_program_owner);
+    platform_cell_released(peaks_after, platform_place_g_program_owner);
+    platform_cell_released(counts, platform_place_g_program_owner);
+    platform_cell_released(before, platform_place_g_program_owner);
+    platform_cell_released(after, platform_place_g_program_owner);
+    platform_cell_released(weights, platform_place_g_program_owner);
+    platform_cell_released(chosen, platform_place_g_program_owner);
     return ok;
 }
 
@@ -2123,9 +2163,12 @@ static int knee_rung_verdicts(const KneeRung *own, const KneeRung *before, const
     int ok = (program != NULL) && (engine_record_encode(&encode, &record, error) != ENGINE_ERROR);
     const unsigned int out_limbs = ok ? cycle_record_out_limbs(record) : 0u;
     const size_t lanes = (size_t)own->count;
-    unsigned int *const index = (unsigned int *)malloc(lanes * KNEE_LADDER_MEMBERS * sizeof(unsigned int));
-    unsigned int *const device = (unsigned int *)malloc((lanes * out_limbs + 1u) * sizeof(unsigned int));
-    unsigned int *const host = (unsigned int *)malloc((lanes * out_limbs + 1u) * sizeof(unsigned int));
+    unsigned int *const index = (unsigned int *)platform_cell_taken(lanes * KNEE_LADDER_MEMBERS * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
+    unsigned int *const device = (unsigned int *)platform_cell_taken((lanes * out_limbs + 1u) * sizeof(unsigned int),
+                                                                     platform_place_g_program_owner, 0);
+    unsigned int *const host = (unsigned int *)platform_cell_taken((lanes * out_limbs + 1u) * sizeof(unsigned int),
+                                                                   platform_place_g_program_owner, 0);
     ok = ok && (index != NULL) && (device != NULL) && (host != NULL);
     for (size_t lane = 0u; ok && (lane < lanes); lane += 1u)
     {
@@ -2179,10 +2222,10 @@ static int knee_rung_verdicts(const KneeRung *own, const KneeRung *before, const
     {
         cycle_record_release(record);
     }
-    free(program);
-    free(index);
-    free(device);
-    free(host);
+    platform_cell_released(program, platform_place_g_program_owner);
+    platform_cell_released(index, platform_place_g_program_owner);
+    platform_cell_released(device, platform_place_g_program_owner);
+    platform_cell_released(host, platform_place_g_program_owner);
     return ok;
 }
 
@@ -2227,8 +2270,9 @@ static int knee_magnitudes_add(KneeMagnitudes *magnitudes, const unsigned int *m
     if (magnitudes->count == magnitudes->room)
     {
         const size_t room = (magnitudes->room != 0u) ? (magnitudes->room * 2u) : 1024u;
-        unsigned int *const grown =
-            (unsigned int *)realloc(magnitudes->words, room * magnitudes->limbs * sizeof(unsigned int));
+        unsigned int *const grown = (unsigned int *)platform_cell_grown(
+            magnitudes->words, magnitudes->room * magnitudes->limbs * sizeof(unsigned int),
+            room * magnitudes->limbs * sizeof(unsigned int), platform_place_g_program_owner, 0);
         if (grown == NULL)
         {
             return 0;
@@ -2274,8 +2318,8 @@ static int knee_ladder_write(const char *dir, const char *name, const MaxTreeLay
     {
         fprintf(stderr, "  %s was not written\n", (path.bytes != NULL) ? path.bytes : name);
     }
-    free(path.bytes);
-    free(part.bytes);
+    platform_cell_released(path.bytes, platform_place_g_program_owner);
+    platform_cell_released(part.bytes, platform_place_g_program_owner);
     return ok;
 }
 
@@ -2406,7 +2450,7 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
     memset(&job, 0, sizeof(job));
     if ((declared != 0ull) && !knee_job_submit("knee ladder", shape, declared, &job))
     {
-        free(volume);
+        platform_cell_released(volume, platform_place_g_program_owner);
         return 0;
     }
     KneeRung rungs[3];
@@ -2493,7 +2537,9 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
         }
         // the rung's own: each body against its partner before, with no partner after
         unsigned long long own_counted[KNEE_LADDER_OUTPUTS] = {0ull, 0ull};
-        unsigned char *const rose = ok ? (unsigned char *)calloc((size_t)here->count + 1u, 1u) : NULL;
+        unsigned char *const rose =
+            ok ? (unsigned char *)platform_cell_cleared((size_t)here->count + 1u, 1u, platform_place_g_program_owner, 0)
+               : NULL;
         unsigned char *const own_truthy[KNEE_LADDER_OUTPUTS] = {rose, NULL};
         ok = ok && (rose != NULL) &&
              knee_rung_verdicts(here, (step == 0u) ? here : before, here->before, here, here->after,
@@ -2502,8 +2548,10 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
         // the rung before: each body against both its partners, now that the ladder cut the rung after it. The ladder
         // keeps its peaked bodies
         unsigned long long before_counted[KNEE_LADDER_OUTPUTS] = {0ull, 0ull};
-        unsigned char *const peaked =
-            (ok && (step != 0u)) ? (unsigned char *)calloc((size_t)before->count + 1u, 1u) : NULL;
+        unsigned char *const peaked = (ok && (step != 0u))
+                                          ? (unsigned char *)platform_cell_cleared((size_t)before->count + 1u, 1u,
+                                                                                   platform_place_g_program_owner, 0)
+                                          : NULL;
         unsigned char *const before_truthy[KNEE_LADDER_OUTPUTS] = {NULL, peaked};
         ok = ok && ((step == 0u) ||
                     ((peaked != NULL) &&
@@ -2515,14 +2563,14 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
             ok = (peaked[body] == 0u) ||
                  knee_magnitudes_add(&magnitudes, &before->magnitudes[(size_t)body * layout.limbs]);
         }
-        free(peaked);
+        platform_cell_released(peaked, platform_place_g_program_owner);
         if (!ok)
         {
-            free(rose);
+            platform_cell_released(rose, platform_place_g_program_owner);
             ended = "a rung did not run";
             break;
         }
-        free(last_rose);
+        platform_cell_released(last_rose, platform_place_g_program_owner);
         last_rose = rose;
         last = here;
         rung_words[(step * 5u) + 0u] = here->orders.order[0];
@@ -2555,9 +2603,9 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
     {
         knee_rung_release(&rungs[at]);
     }
-    free(last_rose);
-    free(magnitudes.words);
-    free(volume);
+    platform_cell_released(last_rose, platform_place_g_program_owner);
+    platform_cell_released(magnitudes.words, platform_place_g_program_owner);
+    platform_cell_released(volume, platform_place_g_program_owner);
     if (left_whole)
     {
         fprintf(stderr,
@@ -2685,11 +2733,13 @@ static int knee_ladder(int argc, char **argv)
         char *line = NULL;
         while ((named != NULL) && ((line = knee_line(named)) != NULL))
         {
-            char **const grown =
-                (line[0] != '\0') ? (char **)realloc(names, ((size_t)count + 1u) * sizeof(char *)) : NULL;
+            char **const grown = (line[0] != '\0') ? (char **)platform_cell_grown(names, (size_t)count * sizeof(char *),
+                                                                                  ((size_t)count + 1u) * sizeof(char *),
+                                                                                  platform_place_g_program_owner, 0)
+                                                   : NULL;
             if (grown == NULL)
             {
-                free(line);
+                platform_cell_released(line, platform_place_g_program_owner);
                 continue;
             }
             names = grown;
@@ -2772,7 +2822,7 @@ static int knee_ladder(int argc, char **argv)
         {
             failed += 1u;
         }
-        free(text.bytes);
+        platform_cell_released(text.bytes, platform_place_g_program_owner);
         if (s_refused != 0)
         {
             stopped = 1;
@@ -2910,7 +2960,9 @@ int program_main(int argc, char **argv)
     {
         char **names = NULL;
         const unsigned int count = engine_set_samples(argv[set], &names);
-        KneeSeries *const grown = (KneeSeries *)realloc(run.series, (size_t)(run.count + count) * sizeof(KneeSeries));
+        KneeSeries *const grown = (KneeSeries *)platform_cell_grown(run.series, (size_t)run.count * sizeof(KneeSeries),
+                                                                    (size_t)(run.count + count) * sizeof(KneeSeries),
+                                                                    platform_place_g_program_owner, 0);
         if (grown == NULL)
         {
             return 1;
@@ -2948,9 +3000,12 @@ int program_main(int argc, char **argv)
             platform_line_out_ended();
         }
     }
-    run.by_name = (KneeSeries **)malloc((size_t)run.count * sizeof(KneeSeries *));
-    run.groups = (KneeGroup *)calloc((size_t)run.count, sizeof(KneeGroup));
-    run.done = (unsigned char *)calloc((size_t)run.count * KNEE_RANK, 1u);
+    run.by_name =
+        (KneeSeries **)platform_cell_taken((size_t)run.count * sizeof(KneeSeries *), platform_place_g_program_owner, 0);
+    run.groups =
+        (KneeGroup *)platform_cell_cleared((size_t)run.count, sizeof(KneeGroup), platform_place_g_program_owner, 0);
+    run.done =
+        (unsigned char *)platform_cell_cleared((size_t)run.count * KNEE_RANK, 1u, platform_place_g_program_owner, 0);
     if ((run.count == 0ull) || (run.by_name == NULL) || (run.groups == NULL) || (run.done == NULL))
     {
         fprintf(stderr, "  no series, or no room to store them\n");
@@ -3068,7 +3123,7 @@ int program_main(int argc, char **argv)
             if (!knee_period_call(series, volume, &root, "knee period draw", draw, NULL, &call) ||
                 !knee_fold(group, call.heights))
             {
-                free(volume);
+                platform_cell_released(volume, platform_place_g_program_owner);
                 return 1;
             }
             fprintf(draws_file, "%s\t%llu", series->name, draw);
@@ -3083,7 +3138,7 @@ int program_main(int argc, char **argv)
             spent += call.microseconds;
             calls += 1ull;
         }
-        free(volume);
+        platform_cell_released(volume, platform_place_g_program_owner);
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  draws ");
@@ -3174,10 +3229,10 @@ int program_main(int argc, char **argv)
         if ((volume == NULL) ||
             !knee_period_call(series, volume, &root, "knee period read", 0ull, run.groups[series->group].top, &call))
         {
-            free(volume);
+            platform_cell_released(volume, platform_place_g_program_owner);
             return 1;
         }
-        free(volume);
+        platform_cell_released(volume, platform_place_g_program_owner);
         fprintf(readings_file, "%s\t%u", series->name, series->group);
         for (unsigned int axis = 0u; axis < KNEE_RANK; axis += 1u)
         {

@@ -2,20 +2,24 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_boundary_test_identity.cu: written, read off, through and the identity
 #include "record_boundary_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // write onto the boundary and read back: the fields are a crystal, T^-1 rebuilds the samples and T the crystal again.
 // Flips of the crystal's bits are T^-1's precision.
 void boundary_written(BoundaryResults *results)
 {
-    BoundaryProgram *const program = (BoundaryProgram *)calloc(1u, sizeof(BoundaryProgram));
-    BoundaryTower *const back = (BoundaryTower *)calloc(1u, sizeof(BoundaryTower));
-    BoundaryTower *const again = (BoundaryTower *)calloc(1u, sizeof(BoundaryTower));
+    BoundaryProgram *const program =
+        (BoundaryProgram *)platform_cell_cleared(1u, sizeof(BoundaryProgram), platform_place_g_program_owner, 0);
+    BoundaryTower *const back =
+        (BoundaryTower *)platform_cell_cleared(1u, sizeof(BoundaryTower), platform_place_g_program_owner, 0);
+    BoundaryTower *const again =
+        (BoundaryTower *)platform_cell_cleared(1u, sizeof(BoundaryTower), platform_place_g_program_owner, 0);
     if ((program == NULL) || (back == NULL) || (again == NULL))
     {
         boundary_check(results, 0, "the written boundary is allocated");
-        free(program);
-        free(back);
-        free(again);
+        platform_cell_released(program, platform_place_g_program_owner);
+        platform_cell_released(back, platform_place_g_program_owner);
+        platform_cell_released(again, platform_place_g_program_owner);
         return;
     }
     unsigned int crystal[BOUNDARY_TEST_SAMPLES];
@@ -45,9 +49,9 @@ void boundary_written(BoundaryResults *results)
         boundary_check(results, range == (int)BOUNDARY_TEST_INVERSE_RANGE, "T^-1's range L + 2 is met on the device");
         boundary_free(&loaded);
     }
-    free(program);
-    free(back);
-    free(again);
+    platform_cell_released(program, platform_place_g_program_owner);
+    platform_cell_released(back, platform_place_g_program_owner);
+    platform_cell_released(again, platform_place_g_program_owner);
 }
 
 // T alone over the samples: its precision, then what passes through it, then the identity null permutations take
@@ -57,13 +61,15 @@ static void boundary_identity(BoundaryResults *results, BoundaryLoaded *loaded, 
 
 void boundary_read_off(BoundaryResults *results)
 {
-    BoundaryProgram *const program = (BoundaryProgram *)calloc(1u, sizeof(BoundaryProgram));
-    BoundaryTower *const tower = (BoundaryTower *)calloc(1u, sizeof(BoundaryTower));
+    BoundaryProgram *const program =
+        (BoundaryProgram *)platform_cell_cleared(1u, sizeof(BoundaryProgram), platform_place_g_program_owner, 0);
+    BoundaryTower *const tower =
+        (BoundaryTower *)platform_cell_cleared(1u, sizeof(BoundaryTower), platform_place_g_program_owner, 0);
     if ((program == NULL) || (tower == NULL))
     {
         boundary_check(results, 0, "the forward tower is allocated");
-        free(program);
-        free(tower);
+        platform_cell_released(program, platform_place_g_program_owner);
+        platform_cell_released(tower, platform_place_g_program_owner);
         return;
     }
     for (unsigned int at = 0u; at < BOUNDARY_TEST_SAMPLES; at += 1u)
@@ -88,8 +94,8 @@ void boundary_read_off(BoundaryResults *results)
         boundary_identity(results, &loaded, program);
         boundary_free(&loaded);
     }
-    free(program);
-    free(tower);
+    platform_cell_released(program, platform_place_g_program_owner);
+    platform_cell_released(tower, platform_place_g_program_owner);
 }
 
 // what passes through T, one type per quarter of the pairs: a constant c added to every sample must move only the
@@ -101,10 +107,14 @@ static void boundary_through(BoundaryResults *results, BoundaryLoaded *loaded, c
     const unsigned int lows = BOUNDARY_TEST_SAMPLES >> BOUNDARY_TEST_LEVELS;
     const unsigned int lanes = 2u * BOUNDARY_TEST_PAIRS;
     const unsigned int out_limbs = loaded->layout.out_limbs;
-    unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * n, sizeof(unsigned int));
-    unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-    unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-    long long *const added = (long long *)calloc((size_t)BOUNDARY_TEST_PAIRS * n, sizeof(long long));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared((size_t)lanes * n, sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    long long *const added = (long long *)platform_cell_cleared((size_t)BOUNDARY_TEST_PAIRS * n, sizeof(long long),
+                                                                platform_place_g_program_owner, 0);
     const int buffers = (atoms != NULL) && (host_out != NULL) && (device_out != NULL) && (added != NULL);
     for (unsigned int pair = 0u; (buffers != 0) && (pair < BOUNDARY_TEST_PAIRS); pair += 1u)
     {
@@ -193,10 +203,10 @@ static void boundary_through(BoundaryResults *results, BoundaryLoaded *loaded, c
     boundary_check(results, passed[0] == each, "a constant on every sample moves only the crystal's lows, each by it");
     boundary_check(results, passed[1] == each, "a vector in 2^(3L) Z^n moves the crystal by M times it exactly");
     boundary_check(results, (passed[2] < each) && (passed[3] < each), "negation and doubling do not pass through T");
-    free(atoms);
-    free(host_out);
-    free(device_out);
-    free(added);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
+    platform_cell_released(added, platform_place_g_program_owner);
 }
 
 // one lane's samples in a complexity class: 0 a ramp, 1 a ramp +-8, 2 a ramp +-1024, 3 noise over the field
@@ -246,9 +256,12 @@ static void boundary_identity(BoundaryResults *results, BoundaryLoaded *loaded, 
     const unsigned int group = 1u + BOUNDARY_TEST_IDENTITY_DRAWS;
     const unsigned int lanes = BOUNDARY_TEST_CLASSES * BOUNDARY_TEST_IDENTITY_BASES * group;
     const unsigned int out_limbs = loaded->layout.out_limbs;
-    unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * n, sizeof(unsigned int));
-    unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-    unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared((size_t)lanes * n, sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
     const int buffers = (atoms != NULL) && (host_out != NULL) && (device_out != NULL);
     for (unsigned int first = 0u; (buffers != 0) && (first < lanes); first += group)
     {
@@ -358,7 +371,7 @@ static void boundary_identity(BoundaryResults *results, BoundaryLoaded *loaded, 
                    "each structured class is identified past the null's bound");
     boundary_check(results, (double)identified[3] <= ceiling,
                    "noise is identified no more often than the null allows, 1 / (draws + 1) within five deviations");
-    free(atoms);
-    free(host_out);
-    free(device_out);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
 }

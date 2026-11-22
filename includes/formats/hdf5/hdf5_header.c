@@ -75,7 +75,7 @@ int hdf5_open(Hdf5File *file, const char *path, const EngineIngestTools *tools)
     (void)hdf5_take(&cursor, old ? file->offset_bytes : 0u);
     const unsigned long long root = old ? hdf5_take(&cursor, file->offset_bytes) : fourth;
     const int sealed = old || hdf5_sealed(block, (size_t)total);
-    free(block);
+    platform_cell_released(block, platform_place_g_program_owner);
     if (cursor.broken || !sealed)
     {
         return hdf5_error(file, "a superblock whose checksum does not match");
@@ -178,14 +178,14 @@ Hdf5Walk hdf5_header_walk(Hdf5File *file, unsigned long long address, Hdf5Messag
     }
     if (modern && !hdf5_sealed(first, (size_t)total))
     {
-        free(first);
+        platform_cell_released(first, platform_place_g_program_owner);
         return hdf5_walk_error(file, "an object header whose checksum does not match");
     }
     Hdf5Continuation chain[HDF5_CONTINUATIONS];
     unsigned int chained = 0u;
     Hdf5Walk step =
         hdf5_header_region(file, &first[start], (size_t)chunk, version, ordered, chain, &chained, visit, state);
-    free(first);
+    platform_cell_released(first, platform_place_g_program_owner);
     for (unsigned int next = 0u; (step == HDF5_WALK_ON) && (next < chained); next += 1u)
     {
         unsigned char *const block = hdf5_load(file, chain[next].address, chain[next].length);
@@ -198,7 +198,7 @@ Hdf5Walk hdf5_header_walk(Hdf5File *file, unsigned long long address, Hdf5Messag
                : modern
                    ? hdf5_header_region(file, &block[4u], length - 8u, version, ordered, chain, &chained, visit, state)
                    : hdf5_header_region(file, block, length, version, ordered, chain, &chained, visit, state);
-        free(block);
+        platform_cell_released(block, platform_place_g_program_owner);
     }
     return step;
 }

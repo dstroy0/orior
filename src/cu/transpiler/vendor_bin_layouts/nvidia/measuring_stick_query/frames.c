@@ -68,7 +68,7 @@ void *msq_pool_worker(void *argument)
     MsqReader reader;
     mmgr_bytes_set(&reader, 0, sizeof(reader));
     reader.output_room = 8ULL << 20u;
-    reader.output = (char *)malloc((size_t)reader.output_room);
+    reader.output = (char *)platform_cell_taken((size_t)reader.output_room, platform_place_g_program_owner, 0);
     if (reader.output == NULL)
     {
         msq_failed(pool, "no memory for a reader's output");
@@ -90,8 +90,8 @@ void *msq_pool_worker(void *argument)
         }
     }
     atomic_fetch_add(&pool->calls, reader.calls);
-    free(reader.output);
-    free(reader.raw);
+    platform_cell_released(reader.output, platform_place_g_program_owner);
+    platform_cell_released(reader.raw, platform_place_g_program_owner);
     return NULL;
 }
 
@@ -114,11 +114,13 @@ int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read)
 {
     mmgr_bytes_set(read, 0, sizeof(*read));
     const size_t instructions = (size_t)(frame->size / 16ULL);
-    unsigned char *const copy = (unsigned char *)malloc((size_t)frame->size + 1u);
-    read->illegal = (unsigned long long *)malloc((instructions + 1u) * sizeof(unsigned long long));
+    unsigned char *const copy =
+        (unsigned char *)platform_cell_taken((size_t)frame->size + 1u, platform_place_g_program_owner, 0);
+    read->illegal = (unsigned long long *)platform_cell_taken((instructions + 1u) * sizeof(unsigned long long),
+                                                              platform_place_g_program_owner, 0);
     if ((copy == NULL) || (read->illegal == NULL))
     {
-        free(copy);
+        platform_cell_released(copy, platform_place_g_program_owner);
         return 0;
     }
     mmgr_bytes_copy(copy, frame->bytes, (size_t)frame->size);
@@ -128,13 +130,13 @@ int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read)
         const int status = msq_read(reader, &run, 1u);
         if (status < 0)
         {
-            free(copy);
+            platform_cell_released(copy, platform_place_g_program_owner);
             return 0;
         }
         if (status == 0)
         {
             read->readable = msq_listing_read(reader->output, (size_t)reader->output_size, &read->listing);
-            free(copy);
+            platform_cell_released(copy, platform_place_g_program_owner);
             return read->readable;
         }
         unsigned long long address = 0ULL;
@@ -146,7 +148,7 @@ int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read)
         }
         if (!stepped)
         {
-            free(copy);
+            platform_cell_released(copy, platform_place_g_program_owner);
             return 1;
         }
         read->illegal[read->illegal_count] = address;
@@ -157,7 +159,7 @@ int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read)
 
 void msq_frame_free(MsqFrame *read)
 {
-    free(read->illegal);
+    platform_cell_released(read->illegal, platform_place_g_program_owner);
     msq_listing_free(&read->listing);
     mmgr_bytes_set(read, 0, sizeof(*read));
 }

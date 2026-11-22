@@ -423,7 +423,7 @@ static int sass_class_lines_put(KscFile *file, Who who)
     const int put_ok = verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_lines_bytes), .at = s_lines_at}) &&
                        kfile_lines_cut(s_lines_bytes, s_lines_at, &lines, &count) &&
                        ((count == 0u) || (kfile_lines_put_by(file, file->lines, lines, count, who) != 0u));
-    free(lines);
+    platform_cell_released(lines, platform_place_g_program_owner);
     return put_ok;
 }
 
@@ -633,7 +633,7 @@ int sass_pipe_write_by(const char *machines, const char *part, Who who)
                         kdm_read(&s_file, path) && (s_file.lines != 0u) &&
                         kdm_pipes_replaced_by(&s_file, s_pipe_comment, comments, pipes, count, who) &&
                         kdm_write_by(&s_file, path, who);
-    free(pipes);
+    platform_cell_released(pipes, platform_place_g_program_owner);
     kdm_free(&s_file);
     if (!written)
     {

@@ -168,7 +168,8 @@ static size_t bracketed_points(const char *binary, const TuringConstants *consta
 {
     size_t capacity = 4096u;
     size_t count = 0u;
-    *points = (BracketedPoint *)demon_memory(malloc(capacity * sizeof(BracketedPoint)));
+    *points = (BracketedPoint *)demon_memory(
+        platform_cell_taken(capacity * sizeof(BracketedPoint), platform_place_g_program_owner, 0));
     for (int64_t nu = first; nu <= last; nu += 1)
     {
         const int64_t p = turing_lattice(nu, 4) + extra;
@@ -203,7 +204,9 @@ static size_t bracketed_points(const char *binary, const TuringConstants *consta
             if (count >= capacity)
             {
                 capacity *= 2u;
-                *points = (BracketedPoint *)demon_memory(realloc(*points, capacity * sizeof(BracketedPoint)));
+                *points = (BracketedPoint *)demon_memory(
+                    platform_cell_grown(*points, (capacity / 2u) * sizeof(BracketedPoint),
+                                        capacity * sizeof(BracketedPoint), platform_place_g_program_owner, 0));
             }
             BracketedPoint *const point = &(*points)[count];
             point->nu = nu;
@@ -288,7 +291,8 @@ static size_t zero_records(const char *binary, const TuringConstants *constants,
     OriorExactInteger one;
     z_two_to(TURING_SCALE_BITS, &one);
     size_t capacity = (end - start) + 64u;
-    *records = (ZeroRecord *)demon_memory(malloc(capacity * sizeof(ZeroRecord)));
+    *records = (ZeroRecord *)demon_memory(
+        platform_cell_taken(capacity * sizeof(ZeroRecord), platform_place_g_program_owner, 0));
     size_t count = 0u;
     int64_t previous = -1;
     for (size_t i = start; i <= end; i += 1u)
@@ -314,7 +318,8 @@ static size_t zero_records(const char *binary, const TuringConstants *constants,
         previous = (int64_t)i;
     }
     const size_t crossings = count;
-    ExactDip *const dips = (ExactDip *)demon_memory(malloc(((end - start) + 1u) * sizeof(ExactDip)));
+    ExactDip *const dips = (ExactDip *)demon_memory(
+        platform_cell_taken(((end - start) + 1u) * sizeof(ExactDip), platform_place_g_program_owner, 0));
     size_t dip_count = 0u;
     for (size_t i = start + 1u; i < end; i += 1u)
     {
@@ -352,13 +357,15 @@ static size_t zero_records(const char *binary, const TuringConstants *constants,
             continue;
         }
         const size_t total = (size_t)2 << FINER;
-        int64_t *const js = (int64_t *)demon_memory(malloc(total * sizeof(int64_t)));
+        int64_t *const js =
+            (int64_t *)demon_memory(platform_cell_taken(total * sizeof(int64_t), platform_place_g_program_owner, 0));
         for (size_t k = 0u; k < total; k += 1u)
         {
             // k is below 128.
             js[k] = ((point->lane - 1) << FINER) + (int64_t)k;
         }
-        TuringPoint *const rows = (TuringPoint *)demon_memory(calloc(total, sizeof(TuringPoint)));
+        TuringPoint *const rows = (TuringPoint *)demon_memory(
+            platform_cell_cleared(total, sizeof(TuringPoint), platform_place_g_program_owner, 0));
         *failed += turing_run_points(binary, constants, point->nu, p + FINER, js, total, 1, rows);
         listed += 1;
         int64_t last = -1;
@@ -373,7 +380,9 @@ static size_t zero_records(const char *binary, const TuringConstants *constants,
                 if (count >= capacity)
                 {
                     capacity *= 2u;
-                    *records = (ZeroRecord *)demon_memory(realloc(*records, capacity * sizeof(ZeroRecord)));
+                    *records = (ZeroRecord *)demon_memory(
+                        platform_cell_grown(*records, (capacity / 2u) * sizeof(ZeroRecord),
+                                            capacity * sizeof(ZeroRecord), platform_place_g_program_owner, 0));
                 }
                 ZeroRecord *const record = &(*records)[count];
                 z_add(&rows[last].extra[0], &one, &record->low);
@@ -388,10 +397,10 @@ static size_t zero_records(const char *binary, const TuringConstants *constants,
             // k is below 128.
             last = (int64_t)k;
         }
-        free(rows);
-        free(js);
+        platform_cell_released(rows, platform_place_g_program_owner);
+        platform_cell_released(js, platform_place_g_program_owner);
     }
-    free(dips);
+    platform_cell_released(dips, platform_place_g_program_owner);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  zeros at a change of certified sign ");
@@ -429,9 +438,11 @@ static int64_t narrowed(const char *binary, const TuringConstants *constants, Ze
     z_two_to(TURING_SCALE_BITS, &one);
     *failed = 0;
     int64_t retained = 0;
-    unsigned char *const grouped = (unsigned char *)demon_memory(calloc(count + 1u, 1u));
+    unsigned char *const grouped =
+        (unsigned char *)demon_memory(platform_cell_cleared(count + 1u, 1u, platform_place_g_program_owner, 0));
     // The original records stay as the source of every group, as the list of Python keeps them.
-    ZeroRecord *const before = (ZeroRecord *)demon_memory(malloc((count + 1u) * sizeof(ZeroRecord)));
+    ZeroRecord *const before = (ZeroRecord *)demon_memory(
+        platform_cell_taken((count + 1u) * sizeof(ZeroRecord), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < count; at += 1u)
     {
         before[at] = records[which[at]];
@@ -452,10 +463,14 @@ static int64_t narrowed(const char *binary, const TuringConstants *constants, Ze
                 total += (size_t)(((before[at].jb - before[at].ja) << NARROW) + 1);
             }
         }
-        int64_t *const js = (int64_t *)demon_memory(malloc((total + 1u) * sizeof(int64_t)));
-        size_t *const members = (size_t *)demon_memory(malloc((count + 1u) * sizeof(size_t)));
-        size_t *const starts = (size_t *)demon_memory(malloc((count + 1u) * sizeof(size_t)));
-        size_t *const spans = (size_t *)demon_memory(malloc((count + 1u) * sizeof(size_t)));
+        int64_t *const js = (int64_t *)demon_memory(
+            platform_cell_taken((total + 1u) * sizeof(int64_t), platform_place_g_program_owner, 0));
+        size_t *const members = (size_t *)demon_memory(
+            platform_cell_taken((count + 1u) * sizeof(size_t), platform_place_g_program_owner, 0));
+        size_t *const starts = (size_t *)demon_memory(
+            platform_cell_taken((count + 1u) * sizeof(size_t), platform_place_g_program_owner, 0));
+        size_t *const spans = (size_t *)demon_memory(
+            platform_cell_taken((count + 1u) * sizeof(size_t), platform_place_g_program_owner, 0));
         size_t member_count = 0u;
         size_t filled = 0u;
         for (size_t at = lead; at < count; at += 1u)
@@ -475,7 +490,8 @@ static int64_t narrowed(const char *binary, const TuringConstants *constants, Ze
             }
             member_count += 1u;
         }
-        TuringPoint *const rows = (TuringPoint *)demon_memory(calloc(total + 1u, sizeof(TuringPoint)));
+        TuringPoint *const rows = (TuringPoint *)demon_memory(
+            platform_cell_cleared(total + 1u, sizeof(TuringPoint), platform_place_g_program_owner, 0));
         *failed += turing_run_points(binary, constants, nu, p + NARROW, js, total, 1, rows);
         for (size_t m = 0u; m < member_count; m += 1u)
         {
@@ -512,14 +528,14 @@ static int64_t narrowed(const char *binary, const TuringConstants *constants, Ze
                 record->jb = js[change_b];
             }
         }
-        free(rows);
-        free(js);
-        free(members);
-        free(starts);
-        free(spans);
+        platform_cell_released(rows, platform_place_g_program_owner);
+        platform_cell_released(js, platform_place_g_program_owner);
+        platform_cell_released(members, platform_place_g_program_owner);
+        platform_cell_released(starts, platform_place_g_program_owner);
+        platform_cell_released(spans, platform_place_g_program_owner);
     }
-    free(grouped);
-    free(before);
+    platform_cell_released(grouped, platform_place_g_program_owner);
+    platform_cell_released(before, platform_place_g_program_owner);
     return retained;
 }
 
@@ -578,7 +594,8 @@ static void curves_of(const OriorExactInteger *positions, size_t count, int64_t 
     curves->n = (int64_t)n;
     OriorExactInteger wide;
     z_two_to(TURING_SCALE_BITS + 2, &wide);
-    OriorExactInteger *const x = (OriorExactInteger *)demon_memory(malloc((n + 1u) * sizeof(OriorExactInteger)));
+    OriorExactInteger *const x = (OriorExactInteger *)demon_memory(
+        platform_cell_taken((n + 1u) * sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
     OriorExactInteger total;
     orior_exact_zero(&total);
     for (size_t k = 0u; k < n; k += 1u)
@@ -643,13 +660,16 @@ static void curves_of(const OriorExactInteger *positions, size_t count, int64_t 
     size_t window_count = 0u;
     OriorExactInteger at = positions[0];
     size_t window_capacity = 1024u;
-    OriorExactInteger *starts = (OriorExactInteger *)demon_memory(malloc(window_capacity * sizeof(OriorExactInteger)));
+    OriorExactInteger *starts = (OriorExactInteger *)demon_memory(
+        platform_cell_taken(window_capacity * sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
     while (z_cmp(&at, &stop) < 0)
     {
         if (window_count >= window_capacity)
         {
             window_capacity *= 2u;
-            starts = (OriorExactInteger *)demon_memory(realloc(starts, window_capacity * sizeof(OriorExactInteger)));
+            starts = (OriorExactInteger *)demon_memory(
+                platform_cell_grown(starts, (window_capacity / 2u) * sizeof(OriorExactInteger),
+                                    window_capacity * sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
         }
         starts[window_count] = at;
         window_count += 1u;
@@ -682,7 +702,7 @@ static void curves_of(const OriorExactInteger *positions, size_t count, int64_t 
         z_mul(&sum_square, &sum_square, &sum_square);
         z_sub(&curves->variances[length], &sum_square, &curves->variances[length]);
     }
-    free(starts);
+    platform_cell_released(starts, platform_place_g_program_owner);
     OriorExactInteger span;
     z_mul_small(&wide, REACH, &span);
     for (size_t i = 0u; i < count; i += 1u)
@@ -699,7 +719,7 @@ static void curves_of(const OriorExactInteger *positions, size_t count, int64_t 
             curves->bins[z_small(&difference)] += 1;
         }
     }
-    free(x);
+    platform_cell_released(x, platform_place_g_program_owner);
 }
 
 /**
@@ -742,7 +762,8 @@ static void permuted(const OriorExactInteger *positions, size_t count, ZetaTwist
                      OriorExactInteger *out)
 {
     const size_t gap_count = count - 1u;
-    OriorExactInteger *const gaps = (OriorExactInteger *)demon_memory(malloc(gap_count * sizeof(OriorExactInteger)));
+    OriorExactInteger *const gaps = (OriorExactInteger *)demon_memory(
+        platform_cell_taken(gap_count * sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
     for (size_t k = 0u; k < gap_count; k += 1u)
     {
         z_sub(&positions[k + 1u], &positions[k], &gaps[k]);
@@ -767,7 +788,7 @@ static void permuted(const OriorExactInteger *positions, size_t count, ZetaTwist
     {
         z_add(&out[k], &gaps[k], &out[k + 1u]);
     }
-    free(gaps);
+    platform_cell_released(gaps, platform_place_g_program_owner);
 }
 
 /**
@@ -793,8 +814,10 @@ static int exact_order(const void *left, const void *right)
  */
 static int runs_kept(const OriorExactInteger *positions, const OriorExactInteger *drawn, size_t count, size_t block)
 {
-    OriorExactInteger *const one = (OriorExactInteger *)demon_memory(malloc((block + 1u) * sizeof(OriorExactInteger)));
-    OriorExactInteger *const two = (OriorExactInteger *)demon_memory(malloc((block + 1u) * sizeof(OriorExactInteger)));
+    OriorExactInteger *const one = (OriorExactInteger *)demon_memory(
+        platform_cell_taken((block + 1u) * sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
+    OriorExactInteger *const two = (OriorExactInteger *)demon_memory(
+        platform_cell_taken((block + 1u) * sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
     int kept = 1;
     for (size_t at = 0u; (at + 1u) < count; at += block)
     {
@@ -812,8 +835,8 @@ static int runs_kept(const OriorExactInteger *positions, const OriorExactInteger
             kept = kept && orior_exact_equal(&one[k], &two[k]);
         }
     }
-    free(one);
-    free(two);
+    platform_cell_released(one, platform_place_g_program_owner);
+    platform_cell_released(two, platform_place_g_program_owner);
     return kept;
 }
 
@@ -838,7 +861,8 @@ static size_t pair_ranges(const ZeroRecord *intervals, size_t count, int64_t dec
     z_two_to(TURING_SCALE_BITS, &one);
     OriorExactInteger reach;
     z_mul_small(&one, REACH, &reach);
-    OriorExactInteger *const lows = (OriorExactInteger *)demon_memory(malloc((count + 1u) * sizeof(OriorExactInteger)));
+    OriorExactInteger *const lows = (OriorExactInteger *)demon_memory(
+        platform_cell_taken((count + 1u) * sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < count; at += 1u)
     {
         lows[at] = intervals[at].low;
@@ -876,7 +900,7 @@ static size_t pair_ranges(const ZeroRecord *intervals, size_t count, int64_t dec
             }
         }
     }
-    free(lows);
+    platform_cell_released(lows, platform_place_g_program_owner);
     size_t total = 0u;
     for (size_t at = 0u; at < count; at += 1u)
     {
@@ -1366,7 +1390,8 @@ int program_main(int argument_count, char **arguments)
     const int has_given = argument_count > 6;
     TuringConstants constants;
     turing_constants(&constants);
-    TuringCell *const cells = (TuringCell *)demon_memory(calloc((size_t)last + 2u, sizeof(TuringCell)));
+    TuringCell *const cells = (TuringCell *)demon_memory(
+        platform_cell_cleared((size_t)last + 2u, sizeof(TuringCell), platform_place_g_program_owner, 0));
     BracketedPoint *points = NULL;
     const size_t point_count = bracketed_points(binary, &constants, first, last, extra, cells, &points);
     int64_t start_nu = first;
@@ -1447,8 +1472,10 @@ int program_main(int argument_count, char **arguments)
     }
     static int64_t decided[REACH * BINS];
     static int64_t across[REACH * BINS];
-    unsigned char *const open = (unsigned char *)demon_memory(calloc(count + 1u, 1u));
-    size_t *const which = (size_t *)demon_memory(malloc((count + 1u) * sizeof(size_t)));
+    unsigned char *const open =
+        (unsigned char *)demon_memory(platform_cell_cleared(count + 1u, 1u, platform_place_g_program_owner, 0));
+    size_t *const which =
+        (size_t *)demon_memory(platform_cell_taken((count + 1u) * sizeof(size_t), platform_place_g_program_owner, 0));
     for (int turn = 0; turn <= ROUNDS; turn += 1)
     {
         const size_t open_count = pair_ranges(records, count, decided, across, open);
@@ -1539,7 +1566,8 @@ int program_main(int argument_count, char **arguments)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    OriorExactInteger *const positions = (OriorExactInteger *)demon_memory(malloc(count * sizeof(OriorExactInteger)));
+    OriorExactInteger *const positions = (OriorExactInteger *)demon_memory(
+        platform_cell_taken(count * sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < count; at += 1u)
     {
         z_add(&records[at].low, &records[at].high, &positions[at]);
@@ -1547,7 +1575,8 @@ int program_main(int argument_count, char **arguments)
     }
     static Curves real;
     curves_of(positions, count, n_start, &real);
-    OriorExactInteger *const drawn = (OriorExactInteger *)demon_memory(malloc(count * sizeof(OriorExactInteger)));
+    OriorExactInteger *const drawn = (OriorExactInteger *)demon_memory(
+        platform_cell_taken(count * sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
     permuted(positions, count, NULL, 1u, drawn);
     static Curves identity_curves;
     curves_of(drawn, count, n_start, &identity_curves);
@@ -1561,7 +1590,8 @@ int program_main(int argument_count, char **arguments)
     int retained = 1;
     for (int arm = 0; arm < 2; arm += 1)
     {
-        arms[arm].draws = (Curves *)demon_memory(malloc(DRAWS * sizeof(Curves)));
+        arms[arm].draws =
+            (Curves *)demon_memory(platform_cell_taken(DRAWS * sizeof(Curves), platform_place_g_program_owner, 0));
         for (int d = 0; d < DRAWS; d += 1)
         {
             permuted(positions, count, &twister, blocks[arm], drawn);
@@ -1589,14 +1619,14 @@ int program_main(int argument_count, char **arguments)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(arms[0].draws);
-    free(arms[1].draws);
-    free(positions);
-    free(drawn);
-    free(records);
-    free(points);
-    free(cells);
-    free(open);
-    free(which);
+    platform_cell_released(arms[0].draws, platform_place_g_program_owner);
+    platform_cell_released(arms[1].draws, platform_place_g_program_owner);
+    platform_cell_released(positions, platform_place_g_program_owner);
+    platform_cell_released(drawn, platform_place_g_program_owner);
+    platform_cell_released(records, platform_place_g_program_owner);
+    platform_cell_released(points, platform_place_g_program_owner);
+    platform_cell_released(cells, platform_place_g_program_owner);
+    platform_cell_released(open, platform_place_g_program_owner);
+    platform_cell_released(which, platform_place_g_program_owner);
     return ((failed != 0) || !identity || !retained) ? 1 : 0;
 }

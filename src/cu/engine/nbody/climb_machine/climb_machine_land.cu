@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_land.cu: land, boxes, maps and rows
 #include "climb_machine_internal.h"
+#include "../../../../platform/platform.h"
 
 __global__ void machine_land_mass_kernel(const unsigned int *climber_side, const unsigned int *side_residents,
                                          const unsigned int *climber_entry_start, const unsigned int *entry_first,
@@ -342,9 +343,9 @@ unsigned int machine_resident_of(const ClimbMachine *machine, unsigned int frame
 
 int machine_grow(void **host, void **device, size_t bytes)
 {
-    free(*host);
+    platform_cell_released(*host, platform_place_g_program_owner);
     cudaFree(*device);
     *device = NULL;
-    *host = malloc(bytes);
+    *host = platform_cell_taken(bytes, platform_place_g_program_owner, 0);
     return ((*host != NULL) && (cudaMalloc(device, bytes) == cudaSuccess)) ? 1 : 0;
 }

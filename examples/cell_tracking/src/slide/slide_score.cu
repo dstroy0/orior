@@ -55,7 +55,8 @@ static int score_slide_frame(const AnswerKey *key, unsigned int time, const Engi
 {
     levels->levels = NULL;
     levels->count = 0u;
-    unsigned int *const key_voxels = (unsigned int *)malloc(((size_t)key->node_count + 1u) * sizeof(unsigned int));
+    unsigned int *const key_voxels = (unsigned int *)platform_cell_taken(
+        ((size_t)key->node_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned int keys = 0u;
     for (unsigned int node = 0u; (key_voxels != NULL) && (node < key->node_count); node += 1u)
     {
@@ -73,13 +74,16 @@ static int score_slide_frame(const AnswerKey *key, unsigned int time, const Engi
     }
     if ((key_voxels == NULL) || (keys == 0u))
     {
-        free(key_voxels);
+        platform_cell_released(key_voxels, platform_place_g_program_owner);
         return (key_voxels != NULL) ? 1 : 0;
     }
     const unsigned int step_capacity = (2u * keys) + 2u;
-    MaxTreeSlideStep *const steps = (MaxTreeSlideStep *)malloc((size_t)step_capacity * sizeof(MaxTreeSlideStep));
-    unsigned int *const partitions = (unsigned int *)malloc((size_t)step_capacity * keys * sizeof(unsigned int));
-    unsigned char *const ever_alone = (unsigned char *)calloc(keys, 1u);
+    MaxTreeSlideStep *const steps = (MaxTreeSlideStep *)platform_cell_taken(
+        (size_t)step_capacity * sizeof(MaxTreeSlideStep), platform_place_g_program_owner, 0);
+    unsigned int *const partitions = (unsigned int *)platform_cell_taken(
+        (size_t)step_capacity * keys * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned char *const ever_alone =
+        (unsigned char *)platform_cell_cleared(keys, 1u, platform_place_g_program_owner, 0);
     unsigned int step_count = 0u;
     unsigned int top = 0u;
     unsigned int threshold = 0u;
@@ -168,7 +172,8 @@ static int score_slide_frame(const AnswerKey *key, unsigned int time, const Engi
         results->separable += separable;
         results->best_alone += best_alone;
         results->labelings += labelings;
-        levels->levels = (unsigned int *)malloc(((size_t)step_count + 1u) * sizeof(unsigned int));
+        levels->levels = (unsigned int *)platform_cell_taken(((size_t)step_count + 1u) * sizeof(unsigned int),
+                                                             platform_place_g_program_owner, 0);
     }
     for (unsigned int step = 0u; (levels->levels != NULL) && (step < step_count); step += 1u)
     {
@@ -179,10 +184,10 @@ static int score_slide_frame(const AnswerKey *key, unsigned int time, const Engi
         levels->levels[step_count] = threshold;
         levels->count = step_count + 1u;
     }
-    free(key_voxels);
-    free(steps);
-    free(partitions);
-    free(ever_alone);
+    platform_cell_released(key_voxels, platform_place_g_program_owner);
+    platform_cell_released(steps, platform_place_g_program_owner);
+    platform_cell_released(partitions, platform_place_g_program_owner);
+    platform_cell_released(ever_alone, platform_place_g_program_owner);
     return steps_succeeded && (levels->levels != NULL);
 }
 
@@ -229,7 +234,8 @@ static int score_peak_levels(const EngineBuffers *buffers, const TreeFrame *fram
 {
     levels->count = 0u;
     // leaf_count widens from unsigned int to size_t; leaf_count + 1 cannot wrap before malloc sees it
-    levels->levels = (unsigned int *)malloc(((size_t)frame->leaf_count + 1u) * sizeof(unsigned int));
+    levels->levels = (unsigned int *)platform_cell_taken(((size_t)frame->leaf_count + 1u) * sizeof(unsigned int),
+                                                         platform_place_g_program_owner, 0);
     MaxTreeSlideStep no_step;
     unsigned int step_count = 0u;
     unsigned int threshold = 0u;
@@ -243,7 +249,7 @@ static int score_peak_levels(const EngineBuffers *buffers, const TreeFrame *fram
         {
             track_error_report("peak levels", &error);
         }
-        free(levels->levels);
+        platform_cell_released(levels->levels, platform_place_g_program_owner);
         levels->levels = NULL;
         return 0;
     }
@@ -286,7 +292,8 @@ static unsigned int *score_key_division_voxels(const ScoreKeyDivisions *division
 {
     const AnswerKey *const key = divisions->key;
     // node_count widens from unsigned int to size_t; (node_count + 1) * 3 cannot wrap before malloc sees it
-    unsigned int *const voxels = (unsigned int *)malloc(((size_t)key->node_count + 1u) * 3u * sizeof(unsigned int));
+    unsigned int *const voxels = (unsigned int *)platform_cell_taken(
+        ((size_t)key->node_count + 1u) * 3u * sizeof(unsigned int), platform_place_g_program_owner, 0);
     *count = 0u;
     for (unsigned int node = 0u; (voxels != NULL) && (node < key->node_count); node += 1u)
     {
@@ -313,7 +320,8 @@ static unsigned int *score_key_cell_voxels(const ScoreKeyDivisions *divisions, u
 {
     const AnswerKey *const key = divisions->key;
     // node_count widens from unsigned int to size_t; node_count + 1 cannot wrap before malloc sees it
-    unsigned int *const voxels = (unsigned int *)malloc(((size_t)key->node_count + 1u) * sizeof(unsigned int));
+    unsigned int *const voxels = (unsigned int *)platform_cell_taken(
+        ((size_t)key->node_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     *count = 0u;
     for (unsigned int node = 0u; (voxels != NULL) && (node < key->node_count); node += 1u)
     {
@@ -387,21 +395,26 @@ static int score_overlap_pair(const TreeFrame *earlier, const TreeFrame *later, 
     const unsigned int step_capacity = earlier_levels->count + later_levels->count;
     if ((division_voxels == NULL) || (key_cell_voxels == NULL) || (step_capacity == 0u))
     {
-        free(division_voxels);
-        free(key_cell_voxels);
+        platform_cell_released(division_voxels, platform_place_g_program_owner);
+        platform_cell_released(key_cell_voxels, platform_place_g_program_owner);
         return (division_voxels != NULL) && (key_cell_voxels != NULL);
     }
     const unsigned int earlier_probes = key_divisions + key_cells;
     const unsigned int later_probes = 2u * key_divisions;
     const size_t probes_a_step = (size_t)earlier_probes + later_probes;
     const unsigned int link_count = 2u * key_divisions;
-    unsigned int *const earlier_voxels = (unsigned int *)malloc(((size_t)earlier_probes + 1u) * sizeof(unsigned int));
-    unsigned int *const later_voxels = (unsigned int *)malloc(((size_t)later_probes + 1u) * sizeof(unsigned int));
-    unsigned int *const links = (unsigned int *)malloc(((size_t)link_count + 1u) * 2u * sizeof(unsigned int));
-    MaxTreeOverlapStep *const steps = (MaxTreeOverlapStep *)malloc((size_t)step_capacity * sizeof(MaxTreeOverlapStep));
-    MaxTreeOverlapProbe *const probes =
-        (MaxTreeOverlapProbe *)malloc(((size_t)step_capacity * probes_a_step + 1u) * sizeof(MaxTreeOverlapProbe));
-    unsigned char *const links_present = (unsigned char *)malloc(((size_t)step_capacity * link_count) + 1u);
+    unsigned int *const earlier_voxels = (unsigned int *)platform_cell_taken(
+        ((size_t)earlier_probes + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const later_voxels = (unsigned int *)platform_cell_taken(
+        ((size_t)later_probes + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const links = (unsigned int *)platform_cell_taken(
+        ((size_t)link_count + 1u) * 2u * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    MaxTreeOverlapStep *const steps = (MaxTreeOverlapStep *)platform_cell_taken(
+        (size_t)step_capacity * sizeof(MaxTreeOverlapStep), platform_place_g_program_owner, 0);
+    MaxTreeOverlapProbe *const probes = (MaxTreeOverlapProbe *)platform_cell_taken(
+        ((size_t)step_capacity * probes_a_step + 1u) * sizeof(MaxTreeOverlapProbe), platform_place_g_program_owner, 0);
+    unsigned char *const links_present = (unsigned char *)platform_cell_taken(((size_t)step_capacity * link_count) + 1u,
+                                                                              platform_place_g_program_owner, 0);
     const int buffers_ok = (earlier_voxels != NULL) && (later_voxels != NULL) && (links != NULL) && (steps != NULL) &&
                            (probes != NULL) && (links_present != NULL);
     for (unsigned int division = 0u; buffers_ok && (division < key_divisions); division += 1u)
@@ -616,14 +629,14 @@ static int score_overlap_pair(const TreeFrame *earlier, const TreeFrame *later, 
             results->threshold_cells_alone += at_threshold.key_cells_alone;
         }
     }
-    free(earlier_voxels);
-    free(later_voxels);
-    free(links);
-    free(steps);
-    free(probes);
-    free(links_present);
-    free(division_voxels);
-    free(key_cell_voxels);
+    platform_cell_released(earlier_voxels, platform_place_g_program_owner);
+    platform_cell_released(later_voxels, platform_place_g_program_owner);
+    platform_cell_released(links, platform_place_g_program_owner);
+    platform_cell_released(steps, platform_place_g_program_owner);
+    platform_cell_released(probes, platform_place_g_program_owner);
+    platform_cell_released(links_present, platform_place_g_program_owner);
+    platform_cell_released(division_voxels, platform_place_g_program_owner);
+    platform_cell_released(key_cell_voxels, platform_place_g_program_owner);
     return steps_succeeded;
 }
 
@@ -638,7 +651,7 @@ unsigned int *const key_successors = (rules->overlap != 0) ? score_key_successor
 ok = ok && ((rules->overlap == 0) || (key_successors != NULL));
 const ScoreKeyDivisions key_divisions = {&key, key_successors, buffers.height, buffers.width};
 
-free(slide_levels[1].levels);
+platform_cell_released(slide_levels[1].levels, platform_place_g_program_owner);
 slide_levels[1].levels = NULL;
 slide_levels[1].count = 0u;
 ok = (ok != 0) &&
@@ -649,7 +662,7 @@ ok = (ok != 0) && ((rules->overlap == 0) ||
                    (score_overlap_pair(&frames[frame - 1u], &frames[frame], &slide_levels[0], &slide_levels[1],
                                        &key_divisions, rules->overlap == 1, &overlap) != 0));
 
-free(slide_levels[0].levels);
+platform_cell_released(slide_levels[0].levels, platform_place_g_program_owner);
 slide_levels[0] = slide_levels[1];
 slide_levels[1].levels = NULL;
 slide_levels[1].count = 0u;
@@ -766,9 +779,9 @@ if ((ok != 0) && (rules->overlap != 0))
         platform_line_out_ended();
     }
 }
-free(slide_levels[0].levels);
-free(slide_levels[1].levels);
-free(key_successors);
+platform_cell_released(slide_levels[0].levels, platform_place_g_program_owner);
+platform_cell_released(slide_levels[1].levels, platform_place_g_program_owner);
+platform_cell_released(key_successors, platform_place_g_program_owner);
 
 int slide;
 int overlap;

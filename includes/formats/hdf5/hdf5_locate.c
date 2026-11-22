@@ -94,7 +94,10 @@ static int hdf5_survey_mark(Hdf5File *file, Hdf5Survey *survey, unsigned long lo
     {
         const size_t grown = (survey->seen_capacity == 0u) ? 64u : (survey->seen_capacity * 2u);
         unsigned long long *const larger =
-            (grown <= HDF5_OBJECTS) ? (unsigned long long *)realloc(survey->seen, grown * sizeof(*larger)) : NULL;
+            (grown <= HDF5_OBJECTS)
+                ? (unsigned long long *)platform_cell_grown(survey->seen, survey->seen_capacity * sizeof(*survey->seen),
+                                                            grown * sizeof(*larger), platform_place_g_program_owner, 0)
+                : NULL;
         if (larger == NULL)
         {
             return (hdf5_error(file, "more objects than the survey supports") - 1);
@@ -168,7 +171,8 @@ static int hdf5_survey_pass(Hdf5File *file, Hdf5Survey *survey, int printing)
 
 static int hdf5_survey(Hdf5File *file, unsigned long long *address)
 {
-    Hdf5Survey *const survey = (Hdf5Survey *)calloc(1u, sizeof(Hdf5Survey));
+    Hdf5Survey *const survey =
+        (Hdf5Survey *)platform_cell_cleared(1u, sizeof(Hdf5Survey), platform_place_g_program_owner, 0);
     if (survey == NULL)
     {
         return hdf5_error(file, "no memory for the survey");
@@ -196,8 +200,8 @@ static int hdf5_survey(Hdf5File *file, unsigned long long *address)
         ok = hdf5_error(file, "more than one dataset of rank 2 or more; name the member");
     }
     *address = survey->chosen;
-    free(survey->seen);
-    free(survey);
+    platform_cell_released(survey->seen, platform_place_g_program_owner);
+    platform_cell_released(survey, platform_place_g_program_owner);
     return ok;
 }
 

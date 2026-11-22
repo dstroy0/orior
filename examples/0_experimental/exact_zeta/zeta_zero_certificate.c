@@ -41,6 +41,7 @@
  *       alone. Their winding is already one circle, and the checker refuses their chords.
  */
 #include "zeta_search.h"
+#include "../../../src/platform/platform.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -164,7 +165,8 @@ static int64_t certify(const ZetaBox *box, Steering *store, Certificate *certifi
     box_list_free(&boxes);
     PointList path;
     refined(store, &store->last_paths[0], &path);
-    certificate->entries = (CertificateEntry *)certificate_memory(malloc((path.count + 1u) * sizeof(CertificateEntry)));
+    certificate->entries = (CertificateEntry *)certificate_memory(
+        platform_cell_taken((path.count + 1u) * sizeof(CertificateEntry), platform_place_g_program_owner, 0));
     certificate->count = path.count;
     for (size_t at = 0u; at < path.count; at += 1u)
     {
@@ -200,7 +202,8 @@ static CheckRecord check(const Steering *store, const Certificate *certificate)
     memset(&record, 0, sizeof(record));
     record.agree = 1;
     const size_t edges = certificate->count;
-    CheckReading *const reads = (CheckReading *)certificate_memory(malloc((edges + 1u) * sizeof(CheckReading)));
+    CheckReading *const reads = (CheckReading *)certificate_memory(
+        platform_cell_taken((edges + 1u) * sizeof(CheckReading), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < edges; at += 1u)
     {
         const CertificateEntry *const entry = &certificate->entries[at];
@@ -267,7 +270,7 @@ static CheckRecord check(const Steering *store, const Certificate *certificate)
         const int step_far = z_cmp(&left, &right);
         record.steps += ((step_near > 0) && (step_far > 0)) ? 1u : 0u;
     }
-    free(reads);
+    platform_cell_released(reads, platform_place_g_program_owner);
     record.whole = (((record.turns % 8) + 8) % 8) == 0;
     record.count = (record.turns >= 0) ? (record.turns / 8) : -((-record.turns + 7) / 8);
     record.verified = record.agree && record.whole && (record.chords == edges) && (record.steps == edges);
@@ -301,7 +304,8 @@ static void fixed_depth(Steering *store, const ZetaBox *box, int refinements, in
         point_list_free(&path);
         path = finer;
     }
-    certificate->entries = (CertificateEntry *)certificate_memory(malloc((path.count + 1u) * sizeof(CertificateEntry)));
+    certificate->entries = (CertificateEntry *)certificate_memory(
+        platform_cell_taken((path.count + 1u) * sizeof(CertificateEntry), platform_place_g_program_owner, 0));
     certificate->count = path.count;
     for (size_t at = 0u; at < path.count; at += 1u)
     {
@@ -375,7 +379,7 @@ static int report_line(FILE *out, int64_t low, int64_t high)
             box_list_free(&pending);
             pending = reordered;
             next = 0u;
-            free(certificate.entries);
+            platform_cell_released(certificate.entries, platform_place_g_program_owner);
             steering_free(&store);
             continue;
         }
@@ -390,7 +394,7 @@ static int report_line(FILE *out, int64_t low, int64_t high)
         pair_text(&box.high, 3, high_text, sizeof(high_text));
         fprintf(out, "  [%s, %s]   %-6lld %-7lld %-9llu %-8llu %s\n", low_text, high_text, (long long)count,
                 (long long)record.turns, (unsigned long long)searched, (unsigned long long)certificate.count, verdict);
-        free(certificate.entries);
+        platform_cell_released(certificate.entries, platform_place_g_program_owner);
         steering_free(&store);
     }
     box_list_free(&pending);
@@ -449,7 +453,8 @@ static int report_rejection(FILE *out)
     const CheckRecord record = check(&store, &certificate);
     Certificate shallow;
     shallow.count = certificate.count;
-    shallow.entries = (CertificateEntry *)certificate_memory(malloc((shallow.count + 1u) * sizeof(CertificateEntry)));
+    shallow.entries = (CertificateEntry *)certificate_memory(
+        platform_cell_taken((shallow.count + 1u) * sizeof(CertificateEntry), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < shallow.count; at += 1u)
     {
         shallow.entries[at].point = certificate.entries[at].point;
@@ -475,8 +480,8 @@ static int report_rejection(FILE *out)
     fputs("  value, caught by the two routes drawing apart. the certificate records only where to read\n", out);
     fputs("  and how deep, never the value found. a fiddled reading has nothing to fiddle: the checker\n", out);
     fputs("  re-derives every octant from zeta itself.\n\n", out);
-    free(shallow.entries);
-    free(certificate.entries);
+    platform_cell_released(shallow.entries, platform_place_g_program_owner);
+    platform_cell_released(certificate.entries, platform_place_g_program_owner);
     steering_free(&store);
     return !shallow_record.verified && record.verified;
 }
@@ -513,7 +518,7 @@ static int report_floor(FILE *out)
         snprintf(steps, sizeof(steps), "%llu/%llu", (unsigned long long)record.steps, (unsigned long long)record.edges);
         fprintf(out, "  %-24s %-7lld %-10s %-10s %s\n", names[refinements], (long long)record.turns, chords, steps,
                 "winding only, unproved");
-        free(certificate.entries);
+        platform_cell_released(certificate.entries, platform_place_g_program_owner);
         steering_free(&store);
     }
     Steering store;
@@ -530,7 +535,7 @@ static int report_floor(FILE *out)
     fputs("\n  the four corners already wind one circle, the group law satisfied, and no chord holds: a\n", out);
     fputs("  half turn at a corner hides its direction from the two ends. only the chord and step\n", out);
     fputs("  verdicts, the order test of the twiddle table, separate a proved count from a lucky one.\n", out);
-    free(certificate.entries);
+    platform_cell_released(certificate.entries, platform_place_g_program_owner);
     steering_free(&store);
     return !four_corner_verified && record.verified && record.whole && (record.count == 1);
 }

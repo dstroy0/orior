@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_boundary_test_floors.cu: floor registers, floors and the top
 #include "record_boundary_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // the registers located at floor k of T then T^-1: at a forward floor l the level-l lows and the highs of levels 1
 // to l, at the mirror floor 2L - l the rebuilt lows and the same highs
@@ -29,15 +30,18 @@ static unsigned int boundary_floor_registers(const BoundaryTower *tower, const B
 // from the device's values, per floor, per class
 void boundary_floors(BoundaryResults *results)
 {
-    BoundaryProgram *const program = (BoundaryProgram *)calloc(1u, sizeof(BoundaryProgram));
-    BoundaryTower *const tower = (BoundaryTower *)calloc(1u, sizeof(BoundaryTower));
-    BoundaryTower *const back = (BoundaryTower *)calloc(1u, sizeof(BoundaryTower));
+    BoundaryProgram *const program =
+        (BoundaryProgram *)platform_cell_cleared(1u, sizeof(BoundaryProgram), platform_place_g_program_owner, 0);
+    BoundaryTower *const tower =
+        (BoundaryTower *)platform_cell_cleared(1u, sizeof(BoundaryTower), platform_place_g_program_owner, 0);
+    BoundaryTower *const back =
+        (BoundaryTower *)platform_cell_cleared(1u, sizeof(BoundaryTower), platform_place_g_program_owner, 0);
     if ((program == NULL) || (tower == NULL) || (back == NULL))
     {
         boundary_check(results, 0, "the floors are allocated");
-        free(program);
-        free(tower);
-        free(back);
+        platform_cell_released(program, platform_place_g_program_owner);
+        platform_cell_released(tower, platform_place_g_program_owner);
+        platform_cell_released(back, platform_place_g_program_owner);
         return;
     }
     const unsigned int n = BOUNDARY_TEST_SAMPLES;
@@ -58,9 +62,9 @@ void boundary_floors(BoundaryResults *results)
     boundary_check(results, twin, "the forward tower encodes alone for its widths");
     if (twin == 0)
     {
-        free(program);
-        free(tower);
-        free(back);
+        platform_cell_released(program, platform_place_g_program_owner);
+        platform_cell_released(tower, platform_place_g_program_owner);
+        platform_cell_released(back, platform_place_g_program_owner);
         return;
     }
     boundary_inverse(program, tower->crystal, tower, &twin_key, back, BOUNDARY_TEST_SAMPLES, BOUNDARY_TEST_LEVELS);
@@ -83,18 +87,22 @@ void boundary_floors(BoundaryResults *results)
     boundary_check(results, loads, "T then T^-1 with mirror wraps, every floor an output, encodes and loads");
     if (loads == 0)
     {
-        free(program);
-        free(tower);
-        free(back);
+        platform_cell_released(program, platform_place_g_program_owner);
+        platform_cell_released(tower, platform_place_g_program_owner);
+        platform_cell_released(back, platform_place_g_program_owner);
         return;
     }
     // each output register's place in the record, by register
-    unsigned int *const place = (unsigned int *)calloc(program->count, sizeof(unsigned int));
+    unsigned int *const place =
+        (unsigned int *)platform_cell_cleared(program->count, sizeof(unsigned int), platform_place_g_program_owner, 0);
     const unsigned int lanes = BOUNDARY_TEST_CLASSES * BOUNDARY_TEST_CLASS_LANES;
     const unsigned int out_limbs = loaded.layout.out_limbs;
-    unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * n, sizeof(unsigned int));
-    unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-    unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared((size_t)lanes * n, sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
     const int buffers = (place != NULL) && (atoms != NULL) && (host_out != NULL) && (device_out != NULL);
     for (unsigned int lane = 0u; (buffers != 0) && (lane < lanes); lane += 1u)
     {
@@ -226,13 +234,13 @@ void boundary_floors(BoundaryResults *results)
     boundary_check(results, ring_mirror, "the ring at floor 2L - l is the ring at floor l and one bit per wrapped low");
     boundary_check(results, ring_widest, "the ring is widest at the crystal");
     boundary_check(results, ordered, "the heap's pinch at the crystal falls from ramp to +-8 to +-1024 to noise");
-    free(place);
-    free(atoms);
-    free(host_out);
-    free(device_out);
-    free(program);
-    free(tower);
-    free(back);
+    platform_cell_released(place, platform_place_g_program_owner);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
+    platform_cell_released(program, platform_place_g_program_owner);
+    platform_cell_released(tower, platform_place_g_program_owner);
+    platform_cell_released(back, platform_place_g_program_owner);
     boundary_free(&loaded);
 }
 
@@ -253,7 +261,8 @@ void boundary_top(BoundaryResults *results)
     int ran_all = 1;
     for (unsigned int setting = 0u; setting < BOUNDARY_TEST_TOP_SETTINGS; setting += 1u)
     {
-        BoundaryProgram *const program = (BoundaryProgram *)calloc(1u, sizeof(BoundaryProgram));
+        BoundaryProgram *const program =
+            (BoundaryProgram *)platform_cell_cleared(1u, sizeof(BoundaryProgram), platform_place_g_program_owner, 0);
         if (program == NULL)
         {
             ran_all = 0;
@@ -285,13 +294,16 @@ void boundary_top(BoundaryResults *results)
         if (boundary_load(program, 2u, &loaded) == 0)
         {
             ran_all = 0;
-            free(program);
+            platform_cell_released(program, platform_place_g_program_owner);
             continue;
         }
         const unsigned int out_limbs = loaded.layout.out_limbs;
-        unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * 2u, sizeof(unsigned int));
-        unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-        unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
+        unsigned int *const atoms = (unsigned int *)platform_cell_cleared((size_t)lanes * 2u, sizeof(unsigned int),
+                                                                          platform_place_g_program_owner, 0);
+        unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+            (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+        unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+            (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
         const int buffers = (atoms != NULL) && (host_out != NULL) && (device_out != NULL);
         for (unsigned int word = 0u; (buffers != 0) && (word < (2u * lanes)); word += 1u)
         {
@@ -315,10 +327,10 @@ void boundary_top(BoundaryResults *results)
             carried += (off != 0ll) ? 1ull : 0ull;
             reversed += ((value[6] != 0ll) && (value[6] == -value[2])) ? 1ull : 0ull;
         }
-        free(atoms);
-        free(host_out);
-        free(device_out);
-        free(program);
+        platform_cell_released(atoms, platform_place_g_program_owner);
+        platform_cell_released(host_out, platform_place_g_program_owner);
+        platform_cell_released(device_out, platform_place_g_program_owner);
+        platform_cell_released(program, platform_place_g_program_owner);
         boundary_free(&loaded);
     }
     const unsigned long long total = (unsigned long long)BOUNDARY_TEST_TOP_SETTINGS * lanes;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_read.c: declarations, statements, the header and the reader
 #include "qasm_internal.h"
+#include "../../../src/platform/platform.h"
 
 static int qasm_declare(QasmParser *parser, int quantum)
 {
@@ -26,9 +27,9 @@ static int qasm_declare(QasmParser *parser, int quantum)
     if ((size == 0u) || (*count == QASM_REGISTERS_MAX) || ((*total + size) > max))
     {
         qasm_error(parser, token,
-                    (quantum != 0) ? "past %u qubits: the index names a record by 32 bits"
-                                   : "past %u clbits: an outcome is one 64-bit word",
-                    max);
+                   (quantum != 0) ? "past %u qubits: the index names a record by 32 bits"
+                                  : "past %u clbits: an outcome is one 64-bit word",
+                   max);
         return 0;
     }
     snprintf(registers[*count].name, QASM_NAME_CAPACITY, "%s", name);
@@ -44,8 +45,9 @@ static int qasm_define(QasmParser *parser)
     if (parser->definition_count == parser->definition_capacity)
     {
         const unsigned int capacity = (parser->definition_capacity == 0u) ? 32u : (parser->definition_capacity * 2u);
-        QasmDefinition *const grown =
-            (QasmDefinition *)realloc(parser->definitions, (size_t)capacity * sizeof(QasmDefinition));
+        QasmDefinition *const grown = (QasmDefinition *)platform_cell_grown(
+            parser->definitions, (size_t)parser->definition_capacity * sizeof(QasmDefinition),
+            (size_t)capacity * sizeof(QasmDefinition), platform_place_g_program_owner, 0);
         if (!QASM_CHECK(grown != NULL, parser, parser->error))
         {
             parser->failed = 1;
@@ -190,9 +192,9 @@ int qasm_statements(QasmParser *parser, const QasmScope *scope, unsigned int end
             char name[QASM_NAME_CAPACITY];
             qasm_token_name(parser, token, name);
             qasm_error(parser, token,
-                        top ? "'%s' is not read: only unitary gates and a final measure are"
-                            : "'%s' is not read inside a gate definition",
-                        name);
+                       top ? "'%s' is not read: only unitary gates and a final measure are"
+                           : "'%s' is not read inside a gate definition",
+                       name);
             return 0;
         }
         if (!qasm_application(parser, scope))
@@ -250,7 +252,7 @@ long qasm_read(const QasmReadRequest *request, QasmCircuit *circuit)
             return QASM_ERROR;
         }
         size_t capacity = 65536u;
-        owned = (char *)malloc(capacity);
+        owned = (char *)platform_cell_taken(capacity, platform_place_g_program_owner, 0);
         length = 0u;
         while (owned != NULL)
         {
@@ -261,10 +263,10 @@ long qasm_read(const QasmReadRequest *request, QasmCircuit *circuit)
                 break;
             }
             capacity *= 2u;
-            char *const grown = (char *)realloc(owned, capacity);
+            char *const grown = (char *)platform_cell_grown(owned, length, capacity, platform_place_g_program_owner, 0);
             if (grown == NULL)
             {
-                free(owned);
+                platform_cell_released(owned, platform_place_g_program_owner);
                 owned = NULL;
             }
             owned = grown;
@@ -276,10 +278,11 @@ long qasm_read(const QasmReadRequest *request, QasmCircuit *circuit)
         }
         text = owned;
     }
-    QasmParser *const parser = (QasmParser *)calloc(1u, sizeof(QasmParser));
+    QasmParser *const parser =
+        (QasmParser *)platform_cell_cleared(1u, sizeof(QasmParser), platform_place_g_program_owner, 0);
     if (!QASM_CHECK(parser != NULL, request, error))
     {
-        free(owned);
+        platform_cell_released(owned, platform_place_g_program_owner);
         return QASM_ERROR;
     }
     parser->path = (request->path != NULL) ? request->path : "<text>";
@@ -315,10 +318,10 @@ long qasm_read(const QasmReadRequest *request, QasmCircuit *circuit)
             circuit->measured_all_by_default = 1u;
         }
     }
-    free(parser->tokens);
-    free(parser->definitions);
-    free(parser);
-    free(owned);
+    platform_cell_released(parser->tokens, platform_place_g_program_owner);
+    platform_cell_released(parser->definitions, platform_place_g_program_owner);
+    platform_cell_released(parser, platform_place_g_program_owner);
+    platform_cell_released(owned, platform_place_g_program_owner);
     if (!ok)
     {
         qasm_release(circuit);
@@ -333,7 +336,7 @@ void qasm_release(QasmCircuit *circuit)
     {
         return;
     }
-    free(circuit->gates);
+    platform_cell_released(circuit->gates, platform_place_g_program_owner);
     circuit->gates = NULL;
     circuit->gate_count = 0u;
     circuit->gate_capacity = 0u;

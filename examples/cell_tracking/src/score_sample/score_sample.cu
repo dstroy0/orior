@@ -82,13 +82,20 @@ static int score_print_match(const char *sample, TreeFrame *frames, unsigned int
         fprintf(stderr, "  %s: %llu candidate pairs are more than one sweep's index can store\n", sample, capacity);
         return 0;
     }
-    unsigned int *const frame_first = (unsigned int *)malloc(((size_t)frame_count + 1u) * sizeof(unsigned int));
-    unsigned int *const pair_start = (unsigned int *)malloc(((size_t)frame_count + 1u) * sizeof(unsigned int));
-    unsigned int *const index = (unsigned int *)malloc(((size_t)capacity + 1u) * 2u * sizeof(unsigned int));
-    unsigned int *const before = (unsigned int *)malloc(((size_t)capacity + 1u) * sizeof(unsigned int));
-    unsigned int *const after = (unsigned int *)malloc(((size_t)capacity + 1u) * sizeof(unsigned int));
-    unsigned int *const weight = (unsigned int *)malloc(((size_t)capacity + 1u) * sizeof(unsigned int));
-    unsigned char *const chosen = (unsigned char *)malloc((size_t)capacity + 1u);
+    unsigned int *const frame_first = (unsigned int *)platform_cell_taken(
+        ((size_t)frame_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const pair_start = (unsigned int *)platform_cell_taken(
+        ((size_t)frame_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const index = (unsigned int *)platform_cell_taken(((size_t)capacity + 1u) * 2u * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
+    unsigned int *const before = (unsigned int *)platform_cell_taken(((size_t)capacity + 1u) * sizeof(unsigned int),
+                                                                     platform_place_g_program_owner, 0);
+    unsigned int *const after = (unsigned int *)platform_cell_taken(((size_t)capacity + 1u) * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
+    unsigned int *const weight = (unsigned int *)platform_cell_taken(((size_t)capacity + 1u) * sizeof(unsigned int),
+                                                                     platform_place_g_program_owner, 0);
+    unsigned char *const chosen =
+        (unsigned char *)platform_cell_taken((size_t)capacity + 1u, platform_place_g_program_owner, 0);
     int ok = (frame_first != NULL) && (pair_start != NULL) && (index != NULL) && (before != NULL) && (after != NULL) &&
              (weight != NULL) && (chosen != NULL);
     unsigned int made = 0u;
@@ -191,13 +198,13 @@ static int score_print_match(const char *sample, TreeFrame *frames, unsigned int
     {
         fprintf(stderr, "  %s: the print match errored\n", sample);
     }
-    free(frame_first);
-    free(pair_start);
-    free(index);
-    free(before);
-    free(after);
-    free(weight);
-    free(chosen);
+    platform_cell_released(frame_first, platform_place_g_program_owner);
+    platform_cell_released(pair_start, platform_place_g_program_owner);
+    platform_cell_released(index, platform_place_g_program_owner);
+    platform_cell_released(before, platform_place_g_program_owner);
+    platform_cell_released(after, platform_place_g_program_owner);
+    platform_cell_released(weight, platform_place_g_program_owner);
+    platform_cell_released(chosen, platform_place_g_program_owner);
     return ok;
 }
 
@@ -218,8 +225,10 @@ static int score_velocity_sweep(const char *sample, const char *pass, const Tree
 {
     const unsigned int out_limbs = cycle_record_out_limbs(rules->velocity_record);
     const size_t words = (size_t)lanes * out_limbs;
-    unsigned int *const device = (unsigned int *)malloc((words + 1u) * sizeof(unsigned int));
-    unsigned int *const host = (unsigned int *)malloc((words + 1u) * sizeof(unsigned int));
+    unsigned int *const device =
+        (unsigned int *)platform_cell_taken((words + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host =
+        (unsigned int *)platform_cell_taken((words + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned long long sweep = 0ull;
     EngineError error;
     memset(&error, 0, sizeof(error));
@@ -285,8 +294,8 @@ static int score_velocity_sweep(const char *sample, const char *pass, const Tree
     {
         fprintf(stderr, "  %s: the velocity %s errored\n", sample, pass);
     }
-    free(device);
-    free(host);
+    platform_cell_released(device, platform_place_g_program_owner);
+    platform_cell_released(host, platform_place_g_program_owner);
     return (ok && (differ == 0u)) ? 1 : 0;
 }
 
@@ -298,12 +307,14 @@ static int score_velocity(const char *sample, const TreeFrame *frames, unsigned 
     {
         return 0;
     }
-    unsigned int *const frame_first = (unsigned int *)malloc(((size_t)frame_count + 1u) * sizeof(unsigned int));
-    unsigned int *const lags = (unsigned int *)malloc(((size_t)bodies * ENGINE_AXES + 1u) * sizeof(unsigned int));
-    unsigned int *const checked =
-        (unsigned int *)malloc(((size_t)bodies * VELOCITY_MEMBERS + 1u) * sizeof(unsigned int));
-    unsigned int *const predicted =
-        (unsigned int *)malloc(((size_t)bodies * VELOCITY_MEMBERS + 1u) * sizeof(unsigned int));
+    unsigned int *const frame_first = (unsigned int *)platform_cell_taken(
+        ((size_t)frame_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const lags = (unsigned int *)platform_cell_taken(
+        ((size_t)bodies * ENGINE_AXES + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const checked = (unsigned int *)platform_cell_taken(
+        ((size_t)bodies * VELOCITY_MEMBERS + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const predicted = (unsigned int *)platform_cell_taken(
+        ((size_t)bodies * VELOCITY_MEMBERS + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     int ok = (frame_first != NULL) && (lags != NULL) && (checked != NULL) && (predicted != NULL);
     unsigned int checks = 0u;
     unsigned int predictions = 0u;
@@ -348,10 +359,10 @@ static int score_velocity(const char *sample, const TreeFrame *frames, unsigned 
                                      lags, checked, checks) != 0);
     ok = ok && (score_velocity_sweep(sample, "prediction, each body's last change against its next climb", rules,
                                      magnitudes, bodies, lags, predicted, predictions) != 0);
-    free(frame_first);
-    free(lags);
-    free(checked);
-    free(predicted);
+    platform_cell_released(frame_first, platform_place_g_program_owner);
+    platform_cell_released(lags, platform_place_g_program_owner);
+    platform_cell_released(checked, platform_place_g_program_owner);
+    platform_cell_released(predicted, platform_place_g_program_owner);
     return ok;
 }
 
@@ -363,8 +374,10 @@ static unsigned long long score_division_capacity(const TreeFrame *frames, unsig
     {
         const TreeFrame *const later = &frames[frame];
         const unsigned int parents = frames[frame - 1u].leaf_count;
-        start[frame] =
-            (later->backward != NULL) ? (unsigned int *)calloc((size_t)parents + 2u, sizeof(unsigned int)) : NULL;
+        start[frame] = (later->backward != NULL)
+                           ? (unsigned int *)platform_cell_cleared((size_t)parents + 2u, sizeof(unsigned int),
+                                                                   platform_place_g_program_owner, 0)
+                           : NULL;
         for (unsigned int leaf = 0u; (start[frame] != NULL) && (leaf < later->leaf_count); leaf += 1u)
         {
             const int parent = later->backward[leaf];
@@ -383,7 +396,8 @@ static unsigned long long score_division_capacity(const TreeFrame *frames, unsig
 static unsigned int *score_key_successors(const AnswerKey *key)
 {
     // node_count widens from unsigned int to size_t; node_count + 1 cannot wrap before calloc sees it
-    unsigned int *const successors = (unsigned int *)calloc((size_t)key->node_count + 1u, 3u * sizeof(unsigned int));
+    unsigned int *const successors = (unsigned int *)platform_cell_cleared(
+        (size_t)key->node_count + 1u, 3u * sizeof(unsigned int), platform_place_g_program_owner, 0);
     for (unsigned int edge = 0u; (successors != NULL) && (edge < key->edge_count); edge += 1u)
     {
         const long source = node_index_of(key, key->edge_ends[2u * edge]);
@@ -410,8 +424,10 @@ static int score_division(const char *sample, const TreeFrame *frames, unsigned 
     {
         return 0;
     }
-    unsigned int *const frame_first = (unsigned int *)malloc(((size_t)frame_count + 1u) * sizeof(unsigned int));
-    unsigned int **const start = (unsigned int **)calloc((size_t)frame_count + 1u, sizeof(unsigned int *));
+    unsigned int *const frame_first = (unsigned int *)platform_cell_taken(
+        ((size_t)frame_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int **const start = (unsigned int **)platform_cell_cleared(
+        (size_t)frame_count + 1u, sizeof(unsigned int *), platform_place_g_program_owner, 0);
     int ok = (frame_first != NULL) && (start != NULL);
     const unsigned long long capacity = ok ? score_division_capacity(frames, frame_count, start) : 0ull;
     if (ok && (capacity > 0x3FFFFFFFull))
@@ -420,8 +436,13 @@ static int score_division(const char *sample, const TreeFrame *frames, unsigned 
         ok = 0;
     }
     unsigned int *const index =
-        ok ? (unsigned int *)malloc(((size_t)capacity * DIVISION_MEMBERS + 1u) * sizeof(unsigned int)) : NULL;
-    unsigned int *const children = ok ? (unsigned int *)malloc(((size_t)bodies + 1u) * sizeof(unsigned int)) : NULL;
+        ok ? (unsigned int *)platform_cell_taken(((size_t)capacity * DIVISION_MEMBERS + 1u) * sizeof(unsigned int),
+                                                 platform_place_g_program_owner, 0)
+           : NULL;
+    unsigned int *const children =
+        ok ? (unsigned int *)platform_cell_taken(((size_t)bodies + 1u) * sizeof(unsigned int),
+                                                 platform_place_g_program_owner, 0)
+           : NULL;
     ok = ok && (index != NULL) && (children != NULL);
     if (ok)
     {
@@ -470,8 +491,12 @@ static int score_division(const char *sample, const TreeFrame *frames, unsigned 
     const unsigned int *const magnitudes = &rules->flattened[first * rules->flattened_limbs];
     const unsigned int out_limbs = cycle_record_out_limbs(rules->division_record);
     const size_t words = (size_t)lanes * out_limbs;
-    unsigned int *const device = ok ? (unsigned int *)malloc((words + 1u) * sizeof(unsigned int)) : NULL;
-    unsigned int *const host = ok ? (unsigned int *)malloc((words + 1u) * sizeof(unsigned int)) : NULL;
+    unsigned int *const device =
+        ok ? (unsigned int *)platform_cell_taken((words + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0)
+           : NULL;
+    unsigned int *const host =
+        ok ? (unsigned int *)platform_cell_taken((words + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0)
+           : NULL;
     unsigned long long sweep = 0ull;
     EngineError error;
     memset(&error, 0, sizeof(error));
@@ -637,15 +662,15 @@ static int score_division(const char *sample, const TreeFrame *frames, unsigned 
     }
     for (unsigned int frame = 0u; (start != NULL) && (frame < frame_count); frame += 1u)
     {
-        free(start[frame]);
+        platform_cell_released(start[frame], platform_place_g_program_owner);
     }
-    free(start);
-    free(frame_first);
-    free(index);
-    free(children);
-    free(device);
-    free(host);
-    free(successors);
+    platform_cell_released(start, platform_place_g_program_owner);
+    platform_cell_released(frame_first, platform_place_g_program_owner);
+    platform_cell_released(index, platform_place_g_program_owner);
+    platform_cell_released(children, platform_place_g_program_owner);
+    platform_cell_released(device, platform_place_g_program_owner);
+    platform_cell_released(host, platform_place_g_program_owner);
+    platform_cell_released(successors, platform_place_g_program_owner);
     return (ok && (differ == 0u)) ? 1 : 0;
 }
 
@@ -680,7 +705,9 @@ static int score_marginal_capacity(ScoreMarginalSet *set, size_t sources, size_t
     if ((set->source_count + sources) > set->source_capacity)
     {
         const size_t capacity = (set->source_count + sources) * 2u;
-        MarginalSource *const grown = (MarginalSource *)realloc(set->sources, capacity * sizeof(MarginalSource));
+        MarginalSource *const grown =
+            (MarginalSource *)platform_cell_grown(set->sources, set->source_capacity * sizeof(MarginalSource),
+                                                  capacity * sizeof(MarginalSource), platform_place_g_program_owner, 0);
         set->sources = (grown != NULL) ? grown : set->sources;
         set->source_capacity = (grown != NULL) ? capacity : set->source_capacity;
         if (grown == NULL)
@@ -691,7 +718,9 @@ static int score_marginal_capacity(ScoreMarginalSet *set, size_t sources, size_t
     if ((set->option_count + options) > set->option_capacity)
     {
         const size_t capacity = (set->option_count + options) * 2u;
-        MarginalOption *const grown = (MarginalOption *)realloc(set->options, capacity * sizeof(MarginalOption));
+        MarginalOption *const grown =
+            (MarginalOption *)platform_cell_grown(set->options, set->option_capacity * sizeof(MarginalOption),
+                                                  capacity * sizeof(MarginalOption), platform_place_g_program_owner, 0);
         set->options = (grown != NULL) ? grown : set->options;
         set->option_capacity = (grown != NULL) ? capacity : set->option_capacity;
         if (grown == NULL)
@@ -818,10 +847,10 @@ typedef struct
 
 static void score_stars_release(ScoreStars *stars)
 {
-    free(stars->choices);
-    free(stars->start);
-    free(stars->target);
-    free(stars->weight);
+    platform_cell_released(stars->choices, platform_place_g_program_owner);
+    platform_cell_released(stars->start, platform_place_g_program_owner);
+    platform_cell_released(stars->target, platform_place_g_program_owner);
+    platform_cell_released(stars->weight, platform_place_g_program_owner);
     memset(stars, 0, sizeof(*stars));
 }
 
@@ -857,12 +886,17 @@ static int score_box(const char *sample, const TreeFrame *frames, unsigned int f
         starts += (size_t)frames[frame].leaf_count + 1u;
     }
     memset(stars, 0, sizeof(*stars));
-    stars->choices = (ScoreChoices *)calloc((size_t)frame_count + 1u, sizeof(ScoreChoices));
-    stars->start = (unsigned int *)calloc(starts + 1u, sizeof(unsigned int));
-    stars->target = (unsigned int *)malloc(((size_t)box.entries + 1u) * sizeof(unsigned int));
-    stars->weight = (unsigned int *)malloc(((size_t)box.entries + 1u) * sizeof(unsigned int));
+    stars->choices = (ScoreChoices *)platform_cell_cleared((size_t)frame_count + 1u, sizeof(ScoreChoices),
+                                                           platform_place_g_program_owner, 0);
+    stars->start =
+        (unsigned int *)platform_cell_cleared(starts + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    stars->target = (unsigned int *)platform_cell_taken(((size_t)box.entries + 1u) * sizeof(unsigned int),
+                                                        platform_place_g_program_owner, 0);
+    stars->weight = (unsigned int *)platform_cell_taken(((size_t)box.entries + 1u) * sizeof(unsigned int),
+                                                        platform_place_g_program_owner, 0);
     int ok = (stars->choices != NULL) && (stars->start != NULL) && (stars->target != NULL) && (stars->weight != NULL);
-    unsigned int *const frame_offset = (unsigned int *)calloc((size_t)frame_count + 1u, sizeof(unsigned int));
+    unsigned int *const frame_offset = (unsigned int *)platform_cell_cleared(
+        (size_t)frame_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = ok && (frame_offset != NULL);
     for (unsigned int frame = 0u; ok && (frame < frame_count); frame += 1u)
     {
@@ -940,7 +974,7 @@ static int score_box(const char *sample, const TreeFrame *frames, unsigned int f
         const unsigned int triples = tree->triple_start[leaf + 1u] - tree->triple_start[leaf];
         drift_differ += ((labeled != triples) || (agreed != triples)) ? 1u : 0u;
     }
-    free(frame_offset);
+    platform_cell_released(frame_offset, platform_place_g_program_owner);
     if (ok)
     {
         {
@@ -1064,7 +1098,8 @@ static int score_box_history(const char *set, const char *sample, const TreeFram
         }
         return 0;
     }
-    unsigned int *const frame_first = (unsigned int *)malloc(((size_t)frame_count + 1u) * sizeof(unsigned int));
+    unsigned int *const frame_first = (unsigned int *)platform_cell_taken(
+        ((size_t)frame_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     int steps_succeeded = (frame_first != NULL);
     unsigned int bodies = 0u;
     for (unsigned int frame = 0u; steps_succeeded && (frame < frame_count); frame += 1u)
@@ -1074,14 +1109,16 @@ static int score_box_history(const char *set, const char *sample, const TreeFram
         steps_succeeded = (frames[frame].extents != NULL) || (frames[frame].leaf_count == 0u);
     }
     const unsigned int windows = (unsigned int)history.windows;
-    unsigned int *const extents =
-        steps_succeeded
-            ? (unsigned int *)malloc(((size_t)bodies + 1u) * BOX_HISTORY_EXTENT_FIELDS * sizeof(unsigned int))
-            : NULL;
-    unsigned int *const counts =
-        steps_succeeded
-            ? (unsigned int *)malloc(((size_t)bodies * windows + 1u) * ENGINE_HISTORY_BITS * sizeof(unsigned int))
-            : NULL;
+    unsigned int *const extents = steps_succeeded
+                                      ? (unsigned int *)platform_cell_taken(
+                                            ((size_t)bodies + 1u) * BOX_HISTORY_EXTENT_FIELDS * sizeof(unsigned int),
+                                            platform_place_g_program_owner, 0)
+                                      : NULL;
+    unsigned int *const counts = steps_succeeded
+                                     ? (unsigned int *)platform_cell_taken(
+                                           ((size_t)bodies * windows + 1u) * ENGINE_HISTORY_BITS * sizeof(unsigned int),
+                                           platform_place_g_program_owner, 0)
+                                     : NULL;
     steps_succeeded = steps_succeeded && (extents != NULL) && (counts != NULL);
     for (unsigned int frame = 0u; steps_succeeded && (frame < frame_count); frame += 1u)
     {
@@ -1173,7 +1210,9 @@ static int score_box_history(const char *set, const char *sample, const TreeFram
         }
     }
     unsigned int *const leaf_node_count =
-        steps_succeeded ? (unsigned int *)calloc((size_t)bodies + 1u, sizeof(unsigned int)) : NULL;
+        steps_succeeded ? (unsigned int *)platform_cell_cleared((size_t)bodies + 1u, sizeof(unsigned int),
+                                                                platform_place_g_program_owner, 0)
+                        : NULL;
     steps_succeeded = steps_succeeded && (leaf_node_count != NULL);
     unsigned int placed_nodes = 0u;
     for (unsigned int node = 0u; steps_succeeded && (node < key->node_count); node += 1u)
@@ -1222,15 +1261,15 @@ static int score_box_history(const char *set, const char *sample, const TreeFram
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(leaf_node_count);
+    platform_cell_released(leaf_node_count, platform_place_g_program_owner);
     if (steps_succeeded == 0)
     {
         fprintf(stderr, "  %s: the box history errored\n", sample);
     }
-    free(successors);
-    free(counts);
-    free(extents);
-    free(frame_first);
+    platform_cell_released(successors, platform_place_g_program_owner);
+    platform_cell_released(counts, platform_place_g_program_owner);
+    platform_cell_released(extents, platform_place_g_program_owner);
+    platform_cell_released(frame_first, platform_place_g_program_owner);
     engine_entropy_history_release(&history);
     return (steps_succeeded && (disagreements == 0ull)) ? 1 : 0;
 }
@@ -1258,16 +1297,20 @@ static int score_core(const char *sample, ClimbMachine *machine, const ClimbMach
         max_widths = (width_count > max_widths) ? width_count : max_widths;
     }
     const size_t capacity = (size_t)max_widths + 1u;
-    unsigned long long *const climbers_at = (unsigned long long *)calloc(capacity, sizeof(unsigned long long));
-    unsigned long long *const mass_at = (unsigned long long *)calloc(capacity, sizeof(unsigned long long));
-    unsigned long long *const pairs_at = (unsigned long long *)calloc(capacity, sizeof(unsigned long long));
-    unsigned long long *const within_half_voxel_at = (unsigned long long *)calloc(capacity, sizeof(unsigned long long));
+    unsigned long long *const climbers_at = (unsigned long long *)platform_cell_cleared(
+        capacity, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned long long *const mass_at = (unsigned long long *)platform_cell_cleared(
+        capacity, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned long long *const pairs_at = (unsigned long long *)platform_cell_cleared(
+        capacity, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned long long *const within_half_voxel_at = (unsigned long long *)platform_cell_cleared(
+        capacity, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     if ((climbers_at == NULL) || (mass_at == NULL) || (pairs_at == NULL) || (within_half_voxel_at == NULL))
     {
-        free(climbers_at);
-        free(mass_at);
-        free(pairs_at);
-        free(within_half_voxel_at);
+        platform_cell_released(climbers_at, platform_place_g_program_owner);
+        platform_cell_released(mass_at, platform_place_g_program_owner);
+        platform_cell_released(pairs_at, platform_place_g_program_owner);
+        platform_cell_released(within_half_voxel_at, platform_place_g_program_owner);
         return 0;
     }
     unsigned int proved = 0u;
@@ -1394,10 +1437,10 @@ static int score_core(const char *sample, ClimbMachine *machine, const ClimbMach
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(climbers_at);
-    free(mass_at);
-    free(pairs_at);
-    free(within_half_voxel_at);
+    platform_cell_released(climbers_at, platform_place_g_program_owner);
+    platform_cell_released(mass_at, platform_place_g_program_owner);
+    platform_cell_released(pairs_at, platform_place_g_program_owner);
+    platform_cell_released(within_half_voxel_at, platform_place_g_program_owner);
     return (differing_climbers == 0u) ? 1 : 0;
 }
 
@@ -1412,10 +1455,14 @@ static int score_marginal(const char *sample, const TreeFrame *frames, unsigned 
     {
         leaves += frames[frame].leaf_count;
     }
-    set.questions = (MarginalQuestion *)malloc(((size_t)leaves + 1u) * sizeof(MarginalQuestion));
-    set.queried_leaf = (unsigned int *)malloc(((size_t)leaves + 1u) * sizeof(unsigned int));
-    set.queried_frame = (unsigned int *)malloc(((size_t)leaves + 1u) * sizeof(unsigned int));
-    unsigned int **const question_of = (unsigned int **)calloc((size_t)frame_count + 1u, sizeof(unsigned int *));
+    set.questions = (MarginalQuestion *)platform_cell_taken(((size_t)leaves + 1u) * sizeof(MarginalQuestion),
+                                                            platform_place_g_program_owner, 0);
+    set.queried_leaf = (unsigned int *)platform_cell_taken(((size_t)leaves + 1u) * sizeof(unsigned int),
+                                                           platform_place_g_program_owner, 0);
+    set.queried_frame = (unsigned int *)platform_cell_taken(((size_t)leaves + 1u) * sizeof(unsigned int),
+                                                            platform_place_g_program_owner, 0);
+    unsigned int **const question_of = (unsigned int **)platform_cell_cleared(
+        (size_t)frame_count + 1u, sizeof(unsigned int *), platform_place_g_program_owner, 0);
     int ok =
         (set.questions != NULL) && (set.queried_leaf != NULL) && (set.queried_frame != NULL) && (question_of != NULL);
     unsigned int in_context = 0u;
@@ -1436,10 +1483,12 @@ static int score_marginal(const char *sample, const TreeFrame *frames, unsigned 
             break;
         }
         const unsigned int targets = frames[frame + 1u].leaf_count;
-        unsigned int *const target_start = (unsigned int *)calloc((size_t)targets + 2u, sizeof(unsigned int));
-        unsigned int *const target_sources =
-            (unsigned int *)malloc(((size_t)choices.count + 1u) * sizeof(unsigned int));
-        question_of[frame] = (unsigned int *)malloc(((size_t)tree->leaf_count + 1u) * sizeof(unsigned int));
+        unsigned int *const target_start = (unsigned int *)platform_cell_cleared(
+            (size_t)targets + 2u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+        unsigned int *const target_sources = (unsigned int *)platform_cell_taken(
+            ((size_t)choices.count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+        question_of[frame] = (unsigned int *)platform_cell_taken(((size_t)tree->leaf_count + 1u) * sizeof(unsigned int),
+                                                                 platform_place_g_program_owner, 0);
         ok = (target_start != NULL) && (target_sources != NULL) && (question_of[frame] != NULL);
         for (unsigned int triple = 0u; ok && (triple < choices.count); triple += 1u)
         {
@@ -1490,17 +1539,27 @@ static int score_marginal(const char *sample, const TreeFrame *frames, unsigned 
                 set.question_count += 1u;
             }
         }
-        free(target_start);
-        free(target_sources);
+        platform_cell_released(target_start, platform_place_g_program_owner);
+        platform_cell_released(target_sources, platform_place_g_program_owner);
     }
     const size_t question_words = (size_t)set.question_count * MARGINAL_SUMS * MARGINAL_LIMBS;
     const size_t option_words = (size_t)set.option_count * MARGINAL_LIMBS;
     unsigned int *const device_questions =
-        ok ? (unsigned int *)malloc((question_words + 1u) * sizeof(unsigned int)) : NULL;
-    unsigned int *const device_options = ok ? (unsigned int *)malloc((option_words + 1u) * sizeof(unsigned int)) : NULL;
+        ok ? (unsigned int *)platform_cell_taken((question_words + 1u) * sizeof(unsigned int),
+                                                 platform_place_g_program_owner, 0)
+           : NULL;
+    unsigned int *const device_options =
+        ok ? (unsigned int *)platform_cell_taken((option_words + 1u) * sizeof(unsigned int),
+                                                 platform_place_g_program_owner, 0)
+           : NULL;
     unsigned int *const host_questions =
-        ok ? (unsigned int *)malloc((question_words + 1u) * sizeof(unsigned int)) : NULL;
-    unsigned int *const host_options = ok ? (unsigned int *)malloc((option_words + 1u) * sizeof(unsigned int)) : NULL;
+        ok ? (unsigned int *)platform_cell_taken((question_words + 1u) * sizeof(unsigned int),
+                                                 platform_place_g_program_owner, 0)
+           : NULL;
+    unsigned int *const host_options =
+        ok ? (unsigned int *)platform_cell_taken((option_words + 1u) * sizeof(unsigned int),
+                                                 platform_place_g_program_owner, 0)
+           : NULL;
     ok = ok && (device_questions != NULL) && (device_options != NULL) && (host_questions != NULL) &&
          (host_options != NULL);
     const MarginalRequest device = {set.questions, set.question_count, set.sources,      set.source_count,
@@ -1613,18 +1672,18 @@ static int score_marginal(const char *sample, const TreeFrame *frames, unsigned 
     }
     for (unsigned int frame = 0u; (question_of != NULL) && (frame < frame_count); frame += 1u)
     {
-        free(question_of[frame]);
+        platform_cell_released(question_of[frame], platform_place_g_program_owner);
     }
-    free(question_of);
-    free(set.questions);
-    free(set.sources);
-    free(set.options);
-    free(set.queried_leaf);
-    free(set.queried_frame);
-    free(device_questions);
-    free(device_options);
-    free(host_questions);
-    free(host_options);
+    platform_cell_released(question_of, platform_place_g_program_owner);
+    platform_cell_released(set.questions, platform_place_g_program_owner);
+    platform_cell_released(set.sources, platform_place_g_program_owner);
+    platform_cell_released(set.options, platform_place_g_program_owner);
+    platform_cell_released(set.queried_leaf, platform_place_g_program_owner);
+    platform_cell_released(set.queried_frame, platform_place_g_program_owner);
+    platform_cell_released(device_questions, platform_place_g_program_owner);
+    platform_cell_released(device_options, platform_place_g_program_owner);
+    platform_cell_released(host_questions, platform_place_g_program_owner);
+    platform_cell_released(host_options, platform_place_g_program_owner);
     return (ok && same) ? 1 : 0;
 }
 
@@ -1642,10 +1701,12 @@ static int score_contact_side(const char *sample, const TreeFrame *frames, unsig
     {
         capacity += (size_t)frames[frame].joined_count;
     }
-    unsigned int *const frame_first = (unsigned int *)malloc(((size_t)frame_count + 1u) * sizeof(unsigned int));
-    unsigned int *const pairs =
-        (unsigned int *)malloc(((capacity * 2u * CONTACT_SIDE_MEMBERS) + 1u) * sizeof(unsigned int));
-    unsigned int *const sides = (unsigned int *)malloc(((capacity * CONTACT_SIDE_MEMBERS) + 1u) * sizeof(unsigned int));
+    unsigned int *const frame_first = (unsigned int *)platform_cell_taken(
+        ((size_t)frame_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const pairs = (unsigned int *)platform_cell_taken(
+        ((capacity * 2u * CONTACT_SIDE_MEMBERS) + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const sides = (unsigned int *)platform_cell_taken(
+        ((capacity * CONTACT_SIDE_MEMBERS) + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     int ok = (frame_first != NULL) && (pairs != NULL) && (sides != NULL) && ((capacity * 2u) <= 0x3FFFFFFFu);
     if (ok)
     {
@@ -1687,12 +1748,21 @@ static int score_contact_side(const char *sample, const TreeFrame *frames, unsig
     const unsigned int differences = 2u * contacts;
     const size_t apart_words = (size_t)differences * apart_limbs;
     const size_t retained_words = (size_t)contacts * retained_limbs;
-    unsigned int *const apart_device = ok ? (unsigned int *)malloc((apart_words + 1u) * sizeof(unsigned int)) : NULL;
-    unsigned int *const apart_host = ok ? (unsigned int *)malloc((apart_words + 1u) * sizeof(unsigned int)) : NULL;
+    unsigned int *const apart_device =
+        ok ? (unsigned int *)platform_cell_taken((apart_words + 1u) * sizeof(unsigned int),
+                                                 platform_place_g_program_owner, 0)
+           : NULL;
+    unsigned int *const apart_host = ok ? (unsigned int *)platform_cell_taken((apart_words + 1u) * sizeof(unsigned int),
+                                                                              platform_place_g_program_owner, 0)
+                                        : NULL;
     unsigned int *const retained_device =
-        ok ? (unsigned int *)malloc((retained_words + 1u) * sizeof(unsigned int)) : NULL;
+        ok ? (unsigned int *)platform_cell_taken((retained_words + 1u) * sizeof(unsigned int),
+                                                 platform_place_g_program_owner, 0)
+           : NULL;
     unsigned int *const retained_host =
-        ok ? (unsigned int *)malloc((retained_words + 1u) * sizeof(unsigned int)) : NULL;
+        ok ? (unsigned int *)platform_cell_taken((retained_words + 1u) * sizeof(unsigned int),
+                                                 platform_place_g_program_owner, 0)
+           : NULL;
     ok = ok && (apart_device != NULL) && (apart_host != NULL) && (retained_device != NULL) && (retained_host != NULL);
     unsigned long long apart_sweep = 0ull;
     unsigned long long retained_sweep = 0ull;
@@ -1777,13 +1847,13 @@ static int score_contact_side(const char *sample, const TreeFrame *frames, unsig
     {
         fprintf(stderr, "  %s: the contact side sweeps errored\n", sample);
     }
-    free(frame_first);
-    free(pairs);
-    free(sides);
-    free(apart_device);
-    free(apart_host);
-    free(retained_device);
-    free(retained_host);
+    platform_cell_released(frame_first, platform_place_g_program_owner);
+    platform_cell_released(pairs, platform_place_g_program_owner);
+    platform_cell_released(sides, platform_place_g_program_owner);
+    platform_cell_released(apart_device, platform_place_g_program_owner);
+    platform_cell_released(apart_host, platform_place_g_program_owner);
+    platform_cell_released(retained_device, platform_place_g_program_owner);
+    platform_cell_released(retained_host, platform_place_g_program_owner);
     return (ok && (differ == 0u) && (retained_differ == 0u)) ? 1 : 0;
 }
 
@@ -1857,7 +1927,7 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         {
             track_error_report("iapx load", &error);
         }
-        free(volume);
+        platform_cell_released(volume, platform_place_g_program_owner);
         release_answer_key(&key);
         return 0;
     }
@@ -1865,13 +1935,15 @@ int score_sample(const char *set, const char *source, const char *sample, const 
                                     (unsigned int)extent[3]};
     const unsigned int volume_frames = header[0];
 
-    unsigned char *const reached = (unsigned char *)calloc((size_t)volume_frames + 1u, 1u);
-    int *const tree_index_of_time = (int *)malloc(((size_t)volume_frames + 1u) * sizeof(int));
+    unsigned char *const reached =
+        (unsigned char *)platform_cell_cleared((size_t)volume_frames + 1u, 1u, platform_place_g_program_owner, 0);
+    int *const tree_index_of_time =
+        (int *)platform_cell_taken(((size_t)volume_frames + 1u) * sizeof(int), platform_place_g_program_owner, 0);
     if ((reached == NULL) || (tree_index_of_time == NULL))
     {
-        free(volume);
-        free(reached);
-        free(tree_index_of_time);
+        platform_cell_released(volume, platform_place_g_program_owner);
+        platform_cell_released(reached, platform_place_g_program_owner);
+        platform_cell_released(tree_index_of_time, platform_place_g_program_owner);
         release_answer_key(&key);
         return 0;
     }
@@ -1885,7 +1957,8 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         tree_index_of_time[time] = (reached[time] != 0u) ? (int)frame_count : -1;
         frame_count += (reached[time] != 0u) ? 1u : 0u;
     }
-    TreeFrame *const frames = (TreeFrame *)calloc((size_t)frame_count + 1u, sizeof(TreeFrame));
+    TreeFrame *const frames = (TreeFrame *)platform_cell_cleared((size_t)frame_count + 1u, sizeof(TreeFrame),
+                                                                 platform_place_g_program_owner, 0);
     if (frames != NULL)
     {
         unsigned int written = 0u;
@@ -1909,28 +1982,43 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     buffers.peak_capacity = ((buffers.depth + 1u) / 2u) * ((buffers.height + 1u) / 2u) * ((buffers.width + 1u) / 2u);
     buffers.pair_capacity = 1u << 18u;
     buffers.overlap_capacity = 1u << 16u;
-    buffers.volume = (unsigned short *)malloc(voxels * sizeof(unsigned short));
-    buffers.peak_indices = (unsigned int *)malloc((size_t)buffers.peak_capacity * sizeof(unsigned int));
-    buffers.sizes = (unsigned int *)malloc((size_t)buffers.peak_capacity * sizeof(unsigned int));
-    buffers.sums = (unsigned long long *)malloc((size_t)buffers.peak_capacity * 3u * sizeof(unsigned long long));
-    buffers.peak_limbs =
-        (unsigned int *)malloc((size_t)buffers.peak_capacity * ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int));
-    buffers.bodies = (EngineBody *)malloc((size_t)buffers.peak_capacity * sizeof(EngineBody));
-    buffers.adjacency = (unsigned int *)malloc((size_t)buffers.pair_capacity * 2u * sizeof(unsigned int));
-    buffers.joined = (unsigned int *)malloc((size_t)buffers.pair_capacity * 2u * sizeof(unsigned int));
-    buffers.overlap_before = (unsigned int *)malloc((size_t)buffers.overlap_capacity * sizeof(unsigned int));
-    buffers.overlap_after = (unsigned int *)malloc((size_t)buffers.overlap_capacity * sizeof(unsigned int));
-    buffers.overlap_shared = (unsigned int *)malloc((size_t)buffers.overlap_capacity * sizeof(unsigned int));
+    buffers.volume =
+        (unsigned short *)platform_cell_taken(voxels * sizeof(unsigned short), platform_place_g_program_owner, 0);
+    buffers.peak_indices = (unsigned int *)platform_cell_taken((size_t)buffers.peak_capacity * sizeof(unsigned int),
+                                                               platform_place_g_program_owner, 0);
+    buffers.sizes = (unsigned int *)platform_cell_taken((size_t)buffers.peak_capacity * sizeof(unsigned int),
+                                                        platform_place_g_program_owner, 0);
+    buffers.sums = (unsigned long long *)platform_cell_taken(
+        (size_t)buffers.peak_capacity * 3u * sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    buffers.peak_limbs = (unsigned int *)platform_cell_taken((size_t)buffers.peak_capacity * ENGINE_RESIDUAL_LIMBS *
+                                                                 sizeof(unsigned int),
+                                                             platform_place_g_program_owner, 0);
+    buffers.bodies = (EngineBody *)platform_cell_taken((size_t)buffers.peak_capacity * sizeof(EngineBody),
+                                                       platform_place_g_program_owner, 0);
+    buffers.adjacency = (unsigned int *)platform_cell_taken((size_t)buffers.pair_capacity * 2u * sizeof(unsigned int),
+                                                            platform_place_g_program_owner, 0);
+    buffers.joined = (unsigned int *)platform_cell_taken((size_t)buffers.pair_capacity * 2u * sizeof(unsigned int),
+                                                         platform_place_g_program_owner, 0);
+    buffers.overlap_before = (unsigned int *)platform_cell_taken(
+        (size_t)buffers.overlap_capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    buffers.overlap_after = (unsigned int *)platform_cell_taken((size_t)buffers.overlap_capacity * sizeof(unsigned int),
+                                                                platform_place_g_program_owner, 0);
+    buffers.overlap_shared = (unsigned int *)platform_cell_taken(
+        (size_t)buffers.overlap_capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     for (unsigned int target_at = 0u; target_at < 2u; target_at += 1u)
     {
-        buffers.labels[target_at] = (unsigned int *)malloc(voxels * sizeof(unsigned int));
-        buffers.positive[target_at] = (unsigned long long *)malloc(((voxels + 63u) / 64u) * sizeof(unsigned long long));
+        buffers.labels[target_at] =
+            (unsigned int *)platform_cell_taken(voxels * sizeof(unsigned int), platform_place_g_program_owner, 0);
+        buffers.positive[target_at] = (unsigned long long *)platform_cell_taken(
+            ((voxels + 63u) / 64u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
         if ((rules->climb != 0) || (rules->cast != 0) || (rules->parallax != 0))
         {
-            buffers.leaf_at_peak[target_at] = (int *)malloc(voxels * sizeof(int));
-            buffers.leaf_start[target_at] =
-                (unsigned int *)malloc(((size_t)buffers.peak_capacity + 2u) * sizeof(unsigned int));
-            buffers.leaf_voxels[target_at] = (unsigned int *)malloc(voxels * sizeof(unsigned int));
+            buffers.leaf_at_peak[target_at] =
+                (int *)platform_cell_taken(voxels * sizeof(int), platform_place_g_program_owner, 0);
+            buffers.leaf_start[target_at] = (unsigned int *)platform_cell_taken(
+                ((size_t)buffers.peak_capacity + 2u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+            buffers.leaf_voxels[target_at] =
+                (unsigned int *)platform_cell_taken(voxels * sizeof(unsigned int), platform_place_g_program_owner, 0);
             for (size_t voxel = 0u; (buffers.leaf_at_peak[target_at] != NULL) && (voxel < voxels); voxel += 1u)
             {
                 buffers.leaf_at_peak[target_at][voxel] = -1;
@@ -1938,7 +2026,8 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         }
     }
 
-    int *const node_leaf = (int *)malloc(((size_t)key.node_count + 1u) * sizeof(int));
+    int *const node_leaf =
+        (int *)platform_cell_taken(((size_t)key.node_count + 1u) * sizeof(int), platform_place_g_program_owner, 0);
     if (node_leaf != NULL)
     {
         for (unsigned int node = 0u; node < key.node_count; node += 1u)
@@ -1968,9 +2057,10 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     size_t object_leaf_capacity = 0u;
     size_t object_leaf_count = 0u;
     unsigned int *object_leaf_runs = NULL;
-    unsigned int *const object_first_run =
-        (unsigned int *)calloc(((size_t)frame_count + 1u) * object, sizeof(unsigned int));
-    unsigned int *const object_leaf_code = (unsigned int *)calloc(voxels * object, sizeof(unsigned int));
+    unsigned int *const object_first_run = (unsigned int *)platform_cell_cleared(
+        ((size_t)frame_count + 1u) * object, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const object_leaf_code =
+        (unsigned int *)platform_cell_cleared(voxels * object, sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = ok && (!object || (object_first_run && object_leaf_code));
     for (unsigned int frame = 0u; (ok != 0) && (frame < frame_count); frame += 1u)
     {
@@ -2030,14 +2120,15 @@ int score_sample(const char *set, const char *source, const char *sample, const 
                 stored.contacts = contacts;
             }
             ok = (ok != 0) && (climb_machine_store(buffers.machine, &stored) != 0);
-            free(contact_start);
-            free(contacts);
+            platform_cell_released(contact_start, platform_place_g_program_owner);
+            platform_cell_released(contacts, platform_place_g_program_owner);
             if ((ok != 0) && (rules->box_history != 0))
             {
                 // leaf_count widens from unsigned int to size_t. (leaf_count + 1) * 6 cannot wrap before malloc sees
                 // it
-                frames[frame].extents = (unsigned int *)malloc(((size_t)frames[frame].leaf_count + 1u) *
-                                                               CLIMB_MACHINE_EXTENT_FIELDS * sizeof(unsigned int));
+                frames[frame].extents = (unsigned int *)platform_cell_taken(
+                    ((size_t)frames[frame].leaf_count + 1u) * CLIMB_MACHINE_EXTENT_FIELDS * sizeof(unsigned int),
+                    platform_place_g_program_owner, 0);
                 const ClimbMachineExtentsRequest extents_request = {frames[frame].time, frames[frame].extents};
                 ok = (frames[frame].extents != NULL) && (climb_machine_extents(buffers.machine, &extents_request) != 0);
             }
@@ -2132,11 +2223,13 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         if (rules->export_directory != NULL)
         {
             TreeFrame *const tree = &frames[frame];
-            free(tree->moments);
-            tree->moments =
-                (unsigned long long *)calloc((size_t)tree->leaf_count * 6u + 1u, sizeof(unsigned long long));
-            tree->exposed = (unsigned int *)calloc((size_t)tree->leaf_count + 1u, sizeof(unsigned int));
-            tree->contact_faces = (unsigned int *)calloc((size_t)tree->joined_count + 1u, sizeof(unsigned int));
+            platform_cell_released(tree->moments, platform_place_g_program_owner);
+            tree->moments = (unsigned long long *)platform_cell_cleared(
+                (size_t)tree->leaf_count * 6u + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+            tree->exposed = (unsigned int *)platform_cell_cleared((size_t)tree->leaf_count + 1u, sizeof(unsigned int),
+                                                                  platform_place_g_program_owner, 0);
+            tree->contact_faces = (unsigned int *)platform_cell_cleared(
+                (size_t)tree->joined_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
             ok = (tree->moments != NULL) && (tree->exposed != NULL) && (tree->contact_faces != NULL);
             const unsigned int plane = buffers.height * buffers.width;
             for (size_t voxel = 0u; (ok != 0) && (voxel < voxels); voxel += 1u)
@@ -2271,10 +2364,11 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         {
             continue;
         }
-        tree->null_final_score =
-            (unsigned int *)calloc(((size_t)tree->leaf_count + 1u) * draw_capacity, sizeof(unsigned int));
-        int **const grown =
-            (int **)realloc(null_scratch, ((size_t)null_scratch_count + (4u * draw_capacity)) * sizeof(int *));
+        tree->null_final_score = (unsigned int *)platform_cell_cleared(
+            ((size_t)tree->leaf_count + 1u) * draw_capacity, sizeof(unsigned int), platform_place_g_program_owner, 0);
+        int **const grown = (int **)platform_cell_grown(
+            null_scratch, (size_t)null_scratch_count * sizeof(int *),
+            ((size_t)null_scratch_count + (4u * draw_capacity)) * sizeof(int *), platform_place_g_program_owner, 0);
         ok = (tree->null_final_score != NULL) && (grown != NULL);
         null_scratch = (grown != NULL) ? grown : null_scratch;
         unsigned int aimed[ENGINE_HISTORY_WINDOWS_MAX];
@@ -2330,10 +2424,14 @@ int score_sample(const char *set, const char *source, const char *sample, const 
             pair.earlier_peaks = tree->peaks;
             pair.later_leaves = null_frame->leaf_count;
             pair.later_peaks = null_frame->peaks;
-            pair.forward_lags = (int *)malloc(((size_t)tree->leaf_count + 1u) * 3u * sizeof(int));
-            pair.forward = (int *)malloc(((size_t)tree->leaf_count + 1u) * sizeof(int));
-            pair.backward_lags = (int *)malloc(((size_t)null_frame->leaf_count + 1u) * 3u * sizeof(int));
-            pair.backward = (int *)malloc(((size_t)null_frame->leaf_count + 1u) * sizeof(int));
+            pair.forward_lags = (int *)platform_cell_taken(((size_t)tree->leaf_count + 1u) * 3u * sizeof(int),
+                                                           platform_place_g_program_owner, 0);
+            pair.forward = (int *)platform_cell_taken(((size_t)tree->leaf_count + 1u) * sizeof(int),
+                                                      platform_place_g_program_owner, 0);
+            pair.backward_lags = (int *)platform_cell_taken(((size_t)null_frame->leaf_count + 1u) * 3u * sizeof(int),
+                                                            platform_place_g_program_owner, 0);
+            pair.backward = (int *)platform_cell_taken(((size_t)null_frame->leaf_count + 1u) * sizeof(int),
+                                                       platform_place_g_program_owner, 0);
             pair.forward_final_score =
                 &tree->null_final_score[(size_t)tree->null_count * ((size_t)tree->leaf_count + 1u)];
             null_scratch[null_scratch_count] = pair.forward_lags;
@@ -2352,9 +2450,11 @@ int score_sample(const char *set, const char *source, const char *sample, const 
          (ok != 0) && (rules->arms != 0u) && (buffers.machine != NULL) && (frame < frame_count); frame += 1u)
     {
         TreeFrame *const tree = &frames[frame];
-        tree->arm_forward = (int *)malloc(((size_t)tree->leaf_count + 1u) * rules->arms * sizeof(int));
-        int **const grown =
-            (int **)realloc(arm_scratch, ((size_t)arm_scratch_count + (3u * rules->arms)) * sizeof(int *));
+        tree->arm_forward = (int *)platform_cell_taken(((size_t)tree->leaf_count + 1u) * rules->arms * sizeof(int),
+                                                       platform_place_g_program_owner, 0);
+        int **const grown = (int **)platform_cell_grown(
+            arm_scratch, (size_t)arm_scratch_count * sizeof(int *),
+            ((size_t)arm_scratch_count + (3u * rules->arms)) * sizeof(int *), platform_place_g_program_owner, 0);
         ok = (tree->arm_forward != NULL) && (grown != NULL);
         arm_scratch = (grown != NULL) ? grown : arm_scratch;
         for (size_t target_at = 0u; (ok != 0) && (target_at < ((size_t)tree->leaf_count + 1u) * rules->arms);
@@ -2382,9 +2482,12 @@ int score_sample(const char *set, const char *source, const char *sample, const 
             pair.earlier_peaks = tree->peaks;
             pair.later_leaves = far->leaf_count;
             pair.later_peaks = far->peaks;
-            pair.forward_lags = (int *)malloc(((size_t)tree->leaf_count + 1u) * 3u * sizeof(int));
-            pair.backward_lags = (int *)malloc(((size_t)far->leaf_count + 1u) * 3u * sizeof(int));
-            pair.backward = (int *)malloc(((size_t)far->leaf_count + 1u) * sizeof(int));
+            pair.forward_lags = (int *)platform_cell_taken(((size_t)tree->leaf_count + 1u) * 3u * sizeof(int),
+                                                           platform_place_g_program_owner, 0);
+            pair.backward_lags = (int *)platform_cell_taken(((size_t)far->leaf_count + 1u) * 3u * sizeof(int),
+                                                            platform_place_g_program_owner, 0);
+            pair.backward = (int *)platform_cell_taken(((size_t)far->leaf_count + 1u) * sizeof(int),
+                                                       platform_place_g_program_owner, 0);
             pair.forward = &tree->arm_forward[(size_t)arm * ((size_t)tree->leaf_count + 1u)];
             arm_scratch[arm_scratch_count] = pair.forward_lags;
             arm_scratch[arm_scratch_count + 1u] = pair.backward_lags;
@@ -2400,14 +2503,14 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     clocks.climb += engine_clock_microseconds() - climbing;
     for (unsigned int scratch = 0u; scratch < null_scratch_count; scratch += 1u)
     {
-        free(null_scratch[scratch]);
+        platform_cell_released(null_scratch[scratch], platform_place_g_program_owner);
     }
-    free(null_scratch);
+    platform_cell_released(null_scratch, platform_place_g_program_owner);
     for (unsigned int scratch = 0u; scratch < arm_scratch_count; scratch += 1u)
     {
-        free(arm_scratch[scratch]);
+        platform_cell_released(arm_scratch[scratch], platform_place_g_program_owner);
     }
-    free(arm_scratch);
+    platform_cell_released(arm_scratch, platform_place_g_program_owner);
     for (unsigned int frame = 0u; (ok != 0) && (rules->climb == 3) && (frame < frame_count); frame += 1u)
     {
         const TreeFrame *const tree = &frames[frame];
@@ -2451,12 +2554,12 @@ int score_sample(const char *set, const char *source, const char *sample, const 
 
     for (unsigned int frame = 0u; (ok != 0) && (rules->tower != 0) && (frame < frame_count); frame += 1u)
     {
-        frames[frame].majority_target =
-            (unsigned int *)malloc(((size_t)frames[frame].leaf_count + 1u) * sizeof(unsigned int));
-        frames[frame].majority_count =
-            (unsigned int *)calloc((size_t)frames[frame].leaf_count + 1u, sizeof(unsigned int));
-        frames[frame].majority_agreed_rounds =
-            (unsigned int *)calloc((size_t)frames[frame].leaf_count + 1u, sizeof(unsigned int));
+        frames[frame].majority_target = (unsigned int *)platform_cell_taken(
+            ((size_t)frames[frame].leaf_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+        frames[frame].majority_count = (unsigned int *)platform_cell_cleared(
+            (size_t)frames[frame].leaf_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+        frames[frame].majority_agreed_rounds = (unsigned int *)platform_cell_cleared(
+            (size_t)frames[frame].leaf_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
         ok = (frames[frame].majority_target != NULL) && (frames[frame].majority_count != NULL) &&
              (frames[frame].majority_agreed_rounds != NULL);
         for (unsigned int leaf = 0u; (ok != 0) && (leaf < frames[frame].leaf_count); leaf += 1u)
@@ -2464,8 +2567,10 @@ int score_sample(const char *set, const char *source, const char *sample, const 
             frames[frame].majority_target[leaf] = 0xFFFFFFFFu;
         }
     }
-    unsigned int **const was_target = (unsigned int **)calloc((size_t)frame_count + 1u, sizeof(unsigned int *));
-    unsigned int *const was_count = (unsigned int *)calloc((size_t)frame_count + 1u, sizeof(unsigned int));
+    unsigned int **const was_target = (unsigned int **)platform_cell_cleared(
+        (size_t)frame_count + 1u, sizeof(unsigned int *), platform_place_g_program_owner, 0);
+    unsigned int *const was_count = (unsigned int *)platform_cell_cleared(
+        (size_t)frame_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
     const unsigned int rounds =
         ((rules->tower != 0) && (was_target != NULL) && (was_count != NULL)) ? TOWER_ROUNDS : 1u;
     unsigned int turned = 0u;
@@ -2475,12 +2580,12 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         turned = round + 1u;
         for (unsigned int frame = 0u; (round != 0u) && (frame < frame_count); frame += 1u)
         {
-            free(frames[frame].link_start);
-            free(frames[frame].link_target);
-            free(frames[frame].pool_start);
-            free(frames[frame].pool_target);
-            free(frames[frame].pool_weight);
-            free(frames[frame].pool_cost);
+            platform_cell_released(frames[frame].link_start, platform_place_g_program_owner);
+            platform_cell_released(frames[frame].link_target, platform_place_g_program_owner);
+            platform_cell_released(frames[frame].pool_start, platform_place_g_program_owner);
+            platform_cell_released(frames[frame].pool_target, platform_place_g_program_owner);
+            platform_cell_released(frames[frame].pool_weight, platform_place_g_program_owner);
+            platform_cell_released(frames[frame].pool_cost, platform_place_g_program_owner);
             frames[frame].link_start = NULL;
             frames[frame].link_target = NULL;
             frames[frame].pool_start = NULL;
@@ -2557,22 +2662,24 @@ int score_sample(const char *set, const char *source, const char *sample, const 
                                                          (size_t)links * sizeof(unsigned int)) == 0)));
             moving += (unsigned int)(same == 0u);
             unsigned int *const retained =
-                (links != 0u) ? (unsigned int *)malloc((size_t)links * sizeof(unsigned int)) : NULL;
+                (links != 0u) ? (unsigned int *)platform_cell_taken((size_t)links * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0)
+                              : NULL;
             if (retained != NULL)
             {
                 memcpy(retained, frames[frame].link_target, (size_t)links * sizeof(unsigned int));
             }
-            free(was_target[frame]);
+            platform_cell_released(was_target[frame], platform_place_g_program_owner);
             was_target[frame] = retained;
             was_count[frame] = links;
         }
     }
     for (unsigned int frame = 0u; (was_target != NULL) && (frame < frame_count); frame += 1u)
     {
-        free(was_target[frame]);
+        platform_cell_released(was_target[frame], platform_place_g_program_owner);
     }
-    free(was_target);
-    free(was_count);
+    platform_cell_released(was_target, platform_place_g_program_owner);
+    platform_cell_released(was_count, platform_place_g_program_owner);
     if ((rules->tower != 0) && (rules->edges != NULL))
     {
         VerbaLinea *const output_line = platform_line_out();
@@ -2599,15 +2706,18 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     memset(&index, 0, sizeof(index));
     index.frame_count = frame_count;
     index.frames = frames;
-    index.node_offset = (unsigned int *)calloc((size_t)frame_count + 1u, sizeof(unsigned int));
+    index.node_offset = (unsigned int *)platform_cell_cleared((size_t)frame_count + 1u, sizeof(unsigned int),
+                                                              platform_place_g_program_owner, 0);
     ok = (ok != 0) && (index.node_offset != NULL);
     for (unsigned int frame = 0u; (ok != 0) && (frame < frame_count); frame += 1u)
     {
         index.node_offset[frame + 1u] = index.node_offset[frame] + frames[frame].object_count;
     }
     index.node_count = (ok != 0) ? index.node_offset[frame_count] : 0u;
-    index.node_frame = (unsigned int *)malloc(((size_t)index.node_count + 1u) * sizeof(unsigned int));
-    unsigned int *const parent = (unsigned int *)malloc(((size_t)index.node_count + 1u) * sizeof(unsigned int));
+    index.node_frame = (unsigned int *)platform_cell_taken(((size_t)index.node_count + 1u) * sizeof(unsigned int),
+                                                           platform_place_g_program_owner, 0);
+    unsigned int *const parent = (unsigned int *)platform_cell_taken(
+        ((size_t)index.node_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = (ok != 0) && (index.node_frame != NULL) && (parent != NULL);
     for (unsigned int frame = 0u; (ok != 0) && (frame < frame_count); frame += 1u)
     {
@@ -2620,7 +2730,8 @@ int score_sample(const char *set, const char *source, const char *sample, const 
 
     unsigned int rejoined = 0u;
     unsigned int visited_capacity = 64u;
-    unsigned int *visited = (unsigned int *)malloc((size_t)visited_capacity * 2u * sizeof(unsigned int));
+    unsigned int *visited = (unsigned int *)platform_cell_taken((size_t)visited_capacity * 2u * sizeof(unsigned int),
+                                                                platform_place_g_program_owner, 0);
     ok = (ok != 0) && (visited != NULL);
     for (unsigned int frame = 0u; (ok != 0) && (rules->resolve != 0) && (frame < frame_count); frame += 1u)
     {
@@ -2670,8 +2781,10 @@ int score_sample(const char *set, const char *source, const char *sample, const 
                         if (steps == visited_capacity)
                         {
                             visited_capacity *= 2u;
-                            unsigned int *const grown =
-                                (unsigned int *)realloc(visited, (size_t)visited_capacity * 2u * sizeof(unsigned int));
+                            unsigned int *const grown = (unsigned int *)platform_cell_grown(
+                                visited, (size_t)visited_capacity * sizeof(unsigned int),
+                                (size_t)visited_capacity * 2u * sizeof(unsigned int), platform_place_g_program_owner,
+                                0);
                             if (grown == NULL)
                             {
                                 ok = 0;
@@ -2700,13 +2813,16 @@ int score_sample(const char *set, const char *source, const char *sample, const 
             }
         }
     }
-    free(visited);
+    platform_cell_released(visited, platform_place_g_program_owner);
 
-    unsigned int *const unified_of = (unsigned int *)malloc(((size_t)index.node_count + 1u) * sizeof(unsigned int));
-    unsigned int *const rank_of_root = (unsigned int *)malloc(((size_t)index.node_count + 1u) * sizeof(unsigned int));
+    unsigned int *const unified_of = (unsigned int *)platform_cell_taken(
+        ((size_t)index.node_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const rank_of_root = (unsigned int *)platform_cell_taken(
+        ((size_t)index.node_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = (ok != 0) && (unified_of != NULL) && (rank_of_root != NULL);
     unsigned int unified_count = 0u;
-    unsigned int *const unified_first = (unsigned int *)calloc((size_t)frame_count + 1u, sizeof(unsigned int));
+    unsigned int *const unified_first = (unsigned int *)platform_cell_cleared(
+        (size_t)frame_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = (ok != 0) && (unified_first != NULL);
     for (unsigned int frame = 0u; (ok != 0) && (frame < frame_count); frame += 1u)
     {
@@ -2736,8 +2852,8 @@ int score_sample(const char *set, const char *source, const char *sample, const 
             link_total += frames[frame].link_start[frames[frame].object_count];
         }
     }
-    unsigned long long *const unified_link =
-        (unsigned long long *)malloc(((size_t)link_total + 1u) * sizeof(unsigned long long));
+    unsigned long long *const unified_link = (unsigned long long *)platform_cell_taken(
+        ((size_t)link_total + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     ok = (ok != 0) && (unified_link != NULL);
     unsigned int unified_links = 0u;
     for (unsigned int frame = 0u; (ok != 0) && (frame < frame_count); frame += 1u)
@@ -2759,7 +2875,8 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         }
     }
     unified_links = (ok != 0) ? engine_sort_unique(unified_link, unified_links) : 0u;
-    unsigned int *const unified_start = (unsigned int *)calloc((size_t)unified_count + 2u, sizeof(unsigned int));
+    unsigned int *const unified_start = (unsigned int *)platform_cell_cleared(
+        (size_t)unified_count + 2u, sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = (ok != 0) && (unified_start != NULL);
     for (unsigned int link = 0u; (ok != 0) && (link < unified_links); link += 1u)
     {
@@ -2770,8 +2887,10 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         unified_start[unified + 1u] += unified_start[unified];
     }
 
-    unsigned int *const successors = (unsigned int *)calloc((size_t)key.node_count + 1u, sizeof(unsigned int));
-    signed char *const edge_status = (signed char *)malloc((size_t)key.edge_count + 1u);
+    unsigned int *const successors = (unsigned int *)platform_cell_cleared(
+        (size_t)key.node_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    signed char *const edge_status =
+        (signed char *)platform_cell_taken((size_t)key.edge_count + 1u, platform_place_g_program_owner, 0);
     ok = (ok != 0) && (successors != NULL) && (edge_status != NULL);
     for (unsigned int edge = 0u; (ok != 0) && (edge < key.edge_count); edge += 1u)
     {
@@ -2879,11 +2998,11 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         const TreeFrame *const next_tree = &frames[tree_index_of_time[to[0]]];
         if ((edge_pair_from != tree_index_of_time[from[0]]) || (edge_pair_to != tree_index_of_time[to[0]]))
         {
-            free(edge_near_start);
-            free(edge_nearby);
-            free(edge_later_near_start);
-            free(edge_later_nearby);
-            free(edge_seen);
+            platform_cell_released(edge_near_start, platform_place_g_program_owner);
+            platform_cell_released(edge_nearby, platform_place_g_program_owner);
+            platform_cell_released(edge_later_near_start, platform_place_g_program_owner);
+            platform_cell_released(edge_later_nearby, platform_place_g_program_owner);
+            platform_cell_released(edge_seen, platform_place_g_program_owner);
             edge_near_start = NULL;
             edge_nearby = NULL;
             edge_later_near_start = NULL;
@@ -2891,14 +3010,15 @@ int score_sample(const char *set, const char *source, const char *sample, const 
             edge_seen = NULL;
             const int joined = (frame_contacts(tree, &edge_near_start, &edge_nearby) != 0) &&
                                (frame_contacts(next_tree, &edge_later_near_start, &edge_later_nearby) != 0);
-            edge_seen = (unsigned int *)calloc((size_t)tree->leaf_count + 2u, sizeof(unsigned int));
+            edge_seen = (unsigned int *)platform_cell_cleared((size_t)tree->leaf_count + 2u, sizeof(unsigned int),
+                                                              platform_place_g_program_owner, 0);
             if ((joined == 0) || (edge_seen == NULL))
             {
-                free(edge_near_start);
-                free(edge_nearby);
-                free(edge_later_near_start);
-                free(edge_later_nearby);
-                free(edge_seen);
+                platform_cell_released(edge_near_start, platform_place_g_program_owner);
+                platform_cell_released(edge_nearby, platform_place_g_program_owner);
+                platform_cell_released(edge_later_near_start, platform_place_g_program_owner);
+                platform_cell_released(edge_later_nearby, platform_place_g_program_owner);
+                platform_cell_released(edge_seen, platform_place_g_program_owner);
                 edge_near_start = NULL;
                 edge_nearby = NULL;
                 edge_later_near_start = NULL;
@@ -3135,11 +3255,11 @@ int score_sample(const char *set, const char *source, const char *sample, const 
             ok = export_object(&buffers, &inputs, object_runs, object_first_run, object_leaf_runs, rules);
         }
     }
-    free(frame_runs);
-    free(object_runs);
-    free(object_leaf_runs);
-    free(object_first_run);
-    free(object_leaf_code);
+    platform_cell_released(frame_runs, platform_place_g_program_owner);
+    platform_cell_released(object_runs, platform_place_g_program_owner);
+    platform_cell_released(object_leaf_runs, platform_place_g_program_owner);
+    platform_cell_released(object_first_run, platform_place_g_program_owner);
+    platform_cell_released(object_leaf_code, platform_place_g_program_owner);
     const unsigned long long finished = engine_clock_microseconds() / 1000ull;
     unsigned int object_total = 0u;
     unsigned int leaf_total = 0u;
@@ -3248,77 +3368,77 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         }
     }
 
-    free(edge_status);
-    free(unified_first);
-    free(successors);
-    free(unified_start);
-    free(unified_link);
-    free(rank_of_root);
-    free(unified_of);
-    free(parent);
-    free(index.node_frame);
-    free(index.node_offset);
+    platform_cell_released(edge_status, platform_place_g_program_owner);
+    platform_cell_released(unified_first, platform_place_g_program_owner);
+    platform_cell_released(successors, platform_place_g_program_owner);
+    platform_cell_released(unified_start, platform_place_g_program_owner);
+    platform_cell_released(unified_link, platform_place_g_program_owner);
+    platform_cell_released(rank_of_root, platform_place_g_program_owner);
+    platform_cell_released(unified_of, platform_place_g_program_owner);
+    platform_cell_released(parent, platform_place_g_program_owner);
+    platform_cell_released(index.node_frame, platform_place_g_program_owner);
+    platform_cell_released(index.node_offset, platform_place_g_program_owner);
     for (unsigned int frame = 0u; (frames != NULL) && (frame < frame_count); frame += 1u)
     {
         TreeFrame *const tree = &frames[frame];
-        free(tree->peaks);
-        free(tree->sizes);
-        free(tree->sums);
-        free(tree->moments);
-        free(tree->exposed);
-        free(tree->touches);
-        free(tree->body_id);
-        free(tree->body_parent);
-        free(tree->body_state);
-        free(tree->contact_faces);
-        free(tree->extents);
-        free(tree->joined);
-        free(tree->forward);
-        free(tree->forward_lag);
-        free(tree->backward_lag);
-        free(tree->check_forward_lag);
-        free(tree->check_backward_lag);
-        free(tree->forward_final_score);
-        free(tree->null_final_score);
-        free(tree->arm_forward);
-        free(tree->backward);
-        free(tree->triple_start);
-        free(tree->triple_after);
-        free(tree->triple_shared);
-        free(tree->triple_still);
-        free(tree->pool_start);
-        free(tree->pool_target);
-        free(tree->pool_weight);
-        free(tree->pool_cost);
-        free(tree->object_of);
-        free(tree->member_start);
-        free(tree->members);
-        free(tree->link_start);
-        free(tree->link_target);
+        platform_cell_released(tree->peaks, platform_place_g_program_owner);
+        platform_cell_released(tree->sizes, platform_place_g_program_owner);
+        platform_cell_released(tree->sums, platform_place_g_program_owner);
+        platform_cell_released(tree->moments, platform_place_g_program_owner);
+        platform_cell_released(tree->exposed, platform_place_g_program_owner);
+        platform_cell_released(tree->touches, platform_place_g_program_owner);
+        platform_cell_released(tree->body_id, platform_place_g_program_owner);
+        platform_cell_released(tree->body_parent, platform_place_g_program_owner);
+        platform_cell_released(tree->body_state, platform_place_g_program_owner);
+        platform_cell_released(tree->contact_faces, platform_place_g_program_owner);
+        platform_cell_released(tree->extents, platform_place_g_program_owner);
+        platform_cell_released(tree->joined, platform_place_g_program_owner);
+        platform_cell_released(tree->forward, platform_place_g_program_owner);
+        platform_cell_released(tree->forward_lag, platform_place_g_program_owner);
+        platform_cell_released(tree->backward_lag, platform_place_g_program_owner);
+        platform_cell_released(tree->check_forward_lag, platform_place_g_program_owner);
+        platform_cell_released(tree->check_backward_lag, platform_place_g_program_owner);
+        platform_cell_released(tree->forward_final_score, platform_place_g_program_owner);
+        platform_cell_released(tree->null_final_score, platform_place_g_program_owner);
+        platform_cell_released(tree->arm_forward, platform_place_g_program_owner);
+        platform_cell_released(tree->backward, platform_place_g_program_owner);
+        platform_cell_released(tree->triple_start, platform_place_g_program_owner);
+        platform_cell_released(tree->triple_after, platform_place_g_program_owner);
+        platform_cell_released(tree->triple_shared, platform_place_g_program_owner);
+        platform_cell_released(tree->triple_still, platform_place_g_program_owner);
+        platform_cell_released(tree->pool_start, platform_place_g_program_owner);
+        platform_cell_released(tree->pool_target, platform_place_g_program_owner);
+        platform_cell_released(tree->pool_weight, platform_place_g_program_owner);
+        platform_cell_released(tree->pool_cost, platform_place_g_program_owner);
+        platform_cell_released(tree->object_of, platform_place_g_program_owner);
+        platform_cell_released(tree->member_start, platform_place_g_program_owner);
+        platform_cell_released(tree->members, platform_place_g_program_owner);
+        platform_cell_released(tree->link_start, platform_place_g_program_owner);
+        platform_cell_released(tree->link_target, platform_place_g_program_owner);
     }
-    free(frames);
-    free(node_leaf);
-    free(tree_index_of_time);
-    free(reached);
-    free(volume);
-    free(buffers.volume);
-    free(buffers.peak_indices);
-    free(buffers.sizes);
-    free(buffers.sums);
-    free(buffers.peak_limbs);
-    free(buffers.bodies);
-    free(buffers.adjacency);
-    free(buffers.joined);
-    free(buffers.overlap_before);
-    free(buffers.overlap_after);
-    free(buffers.overlap_shared);
+    platform_cell_released(frames, platform_place_g_program_owner);
+    platform_cell_released(node_leaf, platform_place_g_program_owner);
+    platform_cell_released(tree_index_of_time, platform_place_g_program_owner);
+    platform_cell_released(reached, platform_place_g_program_owner);
+    platform_cell_released(volume, platform_place_g_program_owner);
+    platform_cell_released(buffers.volume, platform_place_g_program_owner);
+    platform_cell_released(buffers.peak_indices, platform_place_g_program_owner);
+    platform_cell_released(buffers.sizes, platform_place_g_program_owner);
+    platform_cell_released(buffers.sums, platform_place_g_program_owner);
+    platform_cell_released(buffers.peak_limbs, platform_place_g_program_owner);
+    platform_cell_released(buffers.bodies, platform_place_g_program_owner);
+    platform_cell_released(buffers.adjacency, platform_place_g_program_owner);
+    platform_cell_released(buffers.joined, platform_place_g_program_owner);
+    platform_cell_released(buffers.overlap_before, platform_place_g_program_owner);
+    platform_cell_released(buffers.overlap_after, platform_place_g_program_owner);
+    platform_cell_released(buffers.overlap_shared, platform_place_g_program_owner);
     for (unsigned int target_at = 0u; target_at < 2u; target_at += 1u)
     {
-        free(buffers.labels[target_at]);
-        free(buffers.positive[target_at]);
-        free(buffers.leaf_at_peak[target_at]);
-        free(buffers.leaf_start[target_at]);
-        free(buffers.leaf_voxels[target_at]);
+        platform_cell_released(buffers.labels[target_at], platform_place_g_program_owner);
+        platform_cell_released(buffers.positive[target_at], platform_place_g_program_owner);
+        platform_cell_released(buffers.leaf_at_peak[target_at], platform_place_g_program_owner);
+        platform_cell_released(buffers.leaf_start[target_at], platform_place_g_program_owner);
+        platform_cell_released(buffers.leaf_voxels[target_at], platform_place_g_program_owner);
     }
     climb_machine_close(buffers.machine);
     release_answer_key(&key);

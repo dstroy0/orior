@@ -108,11 +108,15 @@ static int check_projection_closes(void)
     // whose mean occupancies differed by a factor of 8.5. Erroring is checked here because a silent
     // degradation is indistinguishable from a good projection at the call site.
     const size_t wide_len = 400u;
-    uint32_t *const wide = (uint32_t *)malloc(wide_len * sizeof(uint32_t));
-    uint8_t *const wide_ranks = (uint8_t *)malloc(wide_len);
-    uint32_t *const wide_class_of = (uint32_t *)malloc(wide_len * sizeof(uint32_t));
-    uint32_t *const wide_members = (uint32_t *)malloc(wide_len * sizeof(uint32_t));
-    uint32_t *const wide_place = (uint32_t *)malloc(wide_len * sizeof(uint32_t));
+    uint32_t *const wide =
+        (uint32_t *)platform_cell_taken(wide_len * sizeof(uint32_t), platform_place_g_program_owner, 0);
+    uint8_t *const wide_ranks = (uint8_t *)platform_cell_taken(wide_len, platform_place_g_program_owner, 0);
+    uint32_t *const wide_class_of =
+        (uint32_t *)platform_cell_taken(wide_len * sizeof(uint32_t), platform_place_g_program_owner, 0);
+    uint32_t *const wide_members =
+        (uint32_t *)platform_cell_taken(wide_len * sizeof(uint32_t), platform_place_g_program_owner, 0);
+    uint32_t *const wide_place =
+        (uint32_t *)platform_cell_taken(wide_len * sizeof(uint32_t), platform_place_g_program_owner, 0);
 
     if ((wide == NULL) || (wide_ranks == NULL) || (wide_class_of == NULL) || (wide_members == NULL) ||
         (wide_place == NULL))
@@ -187,11 +191,11 @@ static int check_projection_closes(void)
         failed += (distinct_ranks == 256u) ? 0 : 1;
     }
 
-    free(wide);
-    free(wide_ranks);
-    free(wide_class_of);
-    free(wide_members);
-    free(wide_place);
+    platform_cell_released(wide, platform_place_g_program_owner);
+    platform_cell_released(wide_ranks, platform_place_g_program_owner);
+    platform_cell_released(wide_class_of, platform_place_g_program_owner);
+    platform_cell_released(wide_members, platform_place_g_program_owner);
+    platform_cell_released(wide_place, platform_place_g_program_owner);
 
     // A ERROR WRITES NOTHING, AND THAT IS CHECKED BY PLANTING A SENTINEL. Fail closed means a
     // request that cannot be met changes no state. The undersize path used to zero `distinct` while
@@ -313,7 +317,7 @@ static int check_any_type_agrees(void)
 
     int failed = 0;
     const size_t length = 16384u;
-    uint8_t *const corpus = (uint8_t *)malloc(length);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(length, platform_place_g_program_owner, 0);
     if (corpus == NULL)
     {
         {
@@ -330,7 +334,7 @@ static int check_any_type_agrees(void)
     memcpy(needle, corpus + 2048u, sizeof(needle));
 
     const size_t alignments = (length - sizeof(needle)) + 1u;
-    uint8_t *const survivors = (uint8_t *)malloc(alignments);
+    uint8_t *const survivors = (uint8_t *)platform_cell_taken(alignments, platform_place_g_program_owner, 0);
     if (survivors == NULL)
     {
         {
@@ -339,7 +343,7 @@ static int check_any_type_agrees(void)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(corpus);
+        platform_cell_released(corpus, platform_place_g_program_owner);
         return 1;
     }
 
@@ -399,7 +403,8 @@ static int check_any_type_agrees(void)
 
     // A field no byte engine can read. Projected to ranks it becomes one that every byte engine can.
     const size_t sample_len = 4096u;
-    uint32_t *const samples = (uint32_t *)malloc(sample_len * sizeof(uint32_t));
+    uint32_t *const samples =
+        (uint32_t *)platform_cell_taken(sample_len * sizeof(uint32_t), platform_place_g_program_owner, 0);
     if (samples == NULL)
     {
         {
@@ -408,8 +413,8 @@ static int check_any_type_agrees(void)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(survivors);
-        free(corpus);
+        platform_cell_released(survivors, platform_place_g_program_owner);
+        platform_cell_released(corpus, platform_place_g_program_owner);
         return 1;
     }
 
@@ -476,10 +481,13 @@ static int check_any_type_agrees(void)
         }
     }
 
-    uint8_t *const ranks = (uint8_t *)malloc(sample_len);
-    uint32_t *const class_of = (uint32_t *)malloc(sample_len * sizeof(uint32_t));
-    uint32_t *const members = (uint32_t *)malloc(sample_len * sizeof(uint32_t));
-    uint32_t *const place = (uint32_t *)malloc(sample_len * sizeof(uint32_t));
+    uint8_t *const ranks = (uint8_t *)platform_cell_taken(sample_len, platform_place_g_program_owner, 0);
+    uint32_t *const class_of =
+        (uint32_t *)platform_cell_taken(sample_len * sizeof(uint32_t), platform_place_g_program_owner, 0);
+    uint32_t *const members =
+        (uint32_t *)platform_cell_taken(sample_len * sizeof(uint32_t), platform_place_g_program_owner, 0);
+    uint32_t *const place =
+        (uint32_t *)platform_cell_taken(sample_len * sizeof(uint32_t), platform_place_g_program_owner, 0);
     size_t classes = 0u;
     if ((ranks == NULL) || (class_of == NULL) || (members == NULL) || (place == NULL))
     {
@@ -489,13 +497,13 @@ static int check_any_type_agrees(void)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(ranks);
-        free(class_of);
-        free(members);
-        free(place);
-        free(samples);
-        free(survivors);
-        free(corpus);
+        platform_cell_released(ranks, platform_place_g_program_owner);
+        platform_cell_released(class_of, platform_place_g_program_owner);
+        platform_cell_released(members, platform_place_g_program_owner);
+        platform_cell_released(place, platform_place_g_program_owner);
+        platform_cell_released(samples, platform_place_g_program_owner);
+        platform_cell_released(survivors, platform_place_g_program_owner);
+        platform_cell_released(corpus, platform_place_g_program_owner);
         return 1;
     }
 
@@ -559,10 +567,10 @@ static int check_any_type_agrees(void)
         failed += (projected >= truth) ? 0 : 1;
     }
 
-    free(ranks);
-    free(samples);
-    free(survivors);
-    free(corpus);
+    platform_cell_released(ranks, platform_place_g_program_owner);
+    platform_cell_released(samples, platform_place_g_program_owner);
+    platform_cell_released(survivors, platform_place_g_program_owner);
+    platform_cell_released(corpus, platform_place_g_program_owner);
     return failed;
 }
 
@@ -570,7 +578,7 @@ int program_main(int argc, char **argv)
 {
     (void)argc;
     (void)argv;
-    uint8_t *corpus = (uint8_t *)malloc(STEER_CORPUS);
+    uint8_t *corpus = (uint8_t *)platform_cell_taken(STEER_CORPUS, platform_place_g_program_owner, 0);
     if (corpus == NULL)
     {
         {
@@ -626,7 +634,7 @@ int program_main(int argc, char **argv)
     // span what a byte field can be: no structure to find, rarity that varies, and a field that
     // repeats. A route that pays on one of them and costs on another is a route with a domain, and
     // the domain is what a reader needs.
-    uint8_t *swept = (uint8_t *)malloc(STEER_CORPUS);
+    uint8_t *swept = (uint8_t *)platform_cell_taken(STEER_CORPUS, platform_place_g_program_owner, 0);
     if (swept == NULL)
     {
         {
@@ -635,7 +643,7 @@ int program_main(int argc, char **argv)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(corpus);
+        platform_cell_released(corpus, platform_place_g_program_owner);
         return 1;
     }
     for (CorpusType type = CORPUS_UNIFORM; type <= CORPUS_PERIODIC; type += 1)
@@ -643,7 +651,7 @@ int program_main(int argc, char **argv)
         bench_build_bytes(swept, STEER_CORPUS, type, 0x5EEDu + (uint64_t)type);
         failed += grade_field(bench_corpus_name(type), swept, STEER_CORPUS);
     }
-    free(swept);
+    platform_cell_released(swept, platform_place_g_program_owner);
 
     /* A REAL NATURAL OBJECT AND NOT A GENERATOR. Everything above runs on bytes this file wrote,
      * which share whatever structure the generator happens to have. English prose is a field
@@ -656,7 +664,7 @@ int program_main(int argc, char **argv)
     if (natural != NULL)
     {
         failed += grade_field("natural, AGPL English text", natural, natural_len);
-        free(natural);
+        platform_cell_released(natural, platform_place_g_program_owner);
     }
     else
     {
@@ -682,6 +690,6 @@ int program_main(int argc, char **argv)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(corpus);
+    platform_cell_released(corpus, platform_place_g_program_owner);
     return (failed == 0) ? 0 : 1;
 }

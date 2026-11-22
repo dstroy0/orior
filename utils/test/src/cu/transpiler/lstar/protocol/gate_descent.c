@@ -245,7 +245,7 @@ static void gate_put(unsigned int anchor, unsigned int alignments, const size_t 
     const int put = verba_finis.ok(&(VerbaFinisCfg){.cap = rows_room, .at = rows}) &&
                     kfile_lines_cut(s_rows_bytes, rows, &lines, &count) &&
                     ((count == 0u) || (kfile_lines_put(&s_rows, 0u, lines, count) != 0u)) && kdm_write(&s_rows, path);
-    free(lines);
+    platform_cell_released(lines, platform_place_g_program_owner);
     kdm_free(&s_rows);
     static char s_cases_bytes[QRY_WRITER_RING_BYTES / 2ull];
     const size_t cases_room = sizeof(s_cases_bytes);

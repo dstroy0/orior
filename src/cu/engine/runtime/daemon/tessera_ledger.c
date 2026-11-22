@@ -5,6 +5,7 @@
 // a decision that can add a job, a tracked peak or a deadline, the ledger grows each array to the max the decision can
 // add. An array that does not grow is left to the core, which errors where it needs the array.
 #include "tessera_ledger.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 #include "tessera_ledger_core.h"
 
@@ -23,7 +24,8 @@ static int tessera_grow(void **items, unsigned long long *capacity, unsigned lon
     {
         grown_capacity *= 2ULL;
     }
-    void *const grown = realloc(*items, (size_t)grown_capacity * size);
+    void *const grown = platform_cell_grown(*items, (size_t)*capacity * size, (size_t)grown_capacity * size,
+                                            platform_place_g_program_owner, 0);
     if (grown == NULL)
     {
         return 0;
@@ -53,9 +55,9 @@ int tessera_ledger_open(TesseraLedger *ledger)
 
 void tessera_ledger_close(TesseraLedger *ledger)
 {
-    free(ledger->jobs);
-    free(ledger->history);
-    free(ledger->heap);
+    platform_cell_released(ledger->jobs, platform_place_g_program_owner);
+    platform_cell_released(ledger->history, platform_place_g_program_owner);
+    platform_cell_released(ledger->heap, platform_place_g_program_owner);
     mmgr_bytes_set(ledger, 0, sizeof(*ledger));
 }
 

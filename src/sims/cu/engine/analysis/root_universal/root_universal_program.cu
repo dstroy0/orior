@@ -103,8 +103,10 @@ int root_volume_open(SimResults *results, RootVolume *volume, const unsigned lon
     volume->scene.bodies = ROOT_FOUNDERS;
     volume->lanes = extent[0] * extent[1] * extent[2] * extent[3];
     volume->floors = root_floors(extent);
-    volume->host = (unsigned short *)malloc((size_t)volume->lanes * sizeof(unsigned short));
-    volume->rebuilt = (unsigned short *)malloc((size_t)volume->lanes * sizeof(unsigned short));
+    volume->host = (unsigned short *)platform_cell_taken((size_t)volume->lanes * sizeof(unsigned short),
+                                                         platform_place_g_program_owner, 0);
+    volume->rebuilt = (unsigned short *)platform_cell_taken((size_t)volume->lanes * sizeof(unsigned short),
+                                                            platform_place_g_program_owner, 0);
     int ok = (volume->host != NULL) && (volume->rebuilt != NULL);
     sim_check(results, ok, "the volume's host lanes were allocated");
     ok = ok && sim_status_check(results, cudaMalloc((void **)&volume->device, volume->lanes * sizeof(unsigned short)),
@@ -115,8 +117,8 @@ int root_volume_open(SimResults *results, RootVolume *volume, const unsigned lon
 void root_volume_close(RootVolume *volume)
 {
     cudaFree(volume->device);
-    free(volume->host);
-    free(volume->rebuilt);
+    platform_cell_released(volume->host, platform_place_g_program_owner);
+    platform_cell_released(volume->rebuilt, platform_place_g_program_owner);
 }
 
 int root_volume_render(SimResults *results, RootVolume *volume, const SimCamera *camera)

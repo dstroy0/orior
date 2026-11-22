@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "blosc.h"
+#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 
@@ -244,7 +245,8 @@ long long blosc_decode(const BloscDecodeRequest *request)
         return ENGINE_BYTES_ERROR;
     }
     const int shuffled = (flags & both_shuffles) != 0u;
-    unsigned char *const scratch = shuffled ? (unsigned char *)malloc((size_t)block_bytes) : NULL;
+    unsigned char *const scratch =
+        shuffled ? (unsigned char *)platform_cell_taken((size_t)block_bytes, platform_place_g_program_owner, 0) : NULL;
     if (shuffled && (scratch == NULL))
     {
         return ENGINE_BYTES_ERROR;
@@ -258,7 +260,7 @@ long long blosc_decode(const BloscDecodeRequest *request)
     {
         decoded = blosc_block(&chunk, block);
     }
-    free(scratch);
+    platform_cell_released(scratch, platform_place_g_program_owner);
     if (!decoded)
     {
         mmgr_bytes_set(bytes->out, 0, (size_t)total_bytes);

@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "run_cfg.h"
+#include "../../../../src/platform/platform.h"
 
 #include "../../../../includes/formats/cfg_json/cfg_json.h"
 #include "../../../../src/cu/engine/engine.h"
@@ -61,7 +62,8 @@ static void cfg_append(CfgText *text, const char *piece, size_t size)
 {
     const size_t wanted = text->length + size + 1u;
     const size_t capacity = text->capacity + ((size_t)(wanted > text->capacity) * ((2u * wanted) - text->capacity));
-    char *const grown = (char *)realloc(text->bytes, capacity);
+    char *const grown =
+        (char *)platform_cell_grown(text->bytes, text->capacity, capacity, platform_place_g_program_owner, 0);
     text->ok = text->ok && grown;
     text->bytes = grown ? grown : text->bytes;
     text->capacity = grown ? capacity : text->capacity;
@@ -98,7 +100,7 @@ static void cfg_append_quoted(CfgText *text, const char *piece)
 char *cfg_copy(const char *piece)
 {
     const size_t size = strlen(piece) + 1u;
-    char *const copy = (char *)malloc(size);
+    char *const copy = (char *)platform_cell_taken(size, platform_place_g_program_owner, 0);
     return copy ? (char *)memcpy(copy, piece, size) : NULL;
 }
 
@@ -106,7 +108,7 @@ char *cfg_copy(const char *piece)
 // made or opened. A run errored at parse changes no file. 0 when the path could not be stored
 bool name_output(TreeRules *rules, RunInputs *inputs, unsigned int output, const char *path)
 {
-    free(inputs->outputs[output]);
+    platform_cell_released(inputs->outputs[output], platform_place_g_program_owner);
     inputs->outputs[output] = path ? cfg_copy(path) : NULL;
     const char *const output_name = inputs->outputs[output];
     rules->export_directory = (output == 2u) ? output_name : rules->export_directory;
@@ -289,9 +291,10 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
     const long size = ftell(file);
     fseek(file, 0L, SEEK_SET);
     const size_t length = (size_t)((size > 0L) ? size : 0L);
-    char *const text = (char *)malloc(length + 1u);
+    char *const text = (char *)platform_cell_taken(length + 1u, platform_place_g_program_owner, 0);
     const unsigned int capacity = (unsigned int)(length / 2u) + 4u;
-    CfgJsonToken *const tokens = (CfgJsonToken *)malloc((size_t)capacity * sizeof(CfgJsonToken));
+    CfgJsonToken *const tokens =
+        (CfgJsonToken *)platform_cell_taken((size_t)capacity * sizeof(CfgJsonToken), platform_place_g_program_owner, 0);
     bool ok = text && tokens && (fread(text, 1u, length, file) == length);
     fclose(file);
     CfgJsonParse parse;
@@ -329,8 +332,8 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
                 ok = (cfg_json_names(text, &tokens[setting], "entropy") ||
                       cfg_error(path, text, tokens[setting].start, "floor takes entropy")) &&
                      (boolean || cfg_error(path, text, value_token->start,
-                                            "entropy is true or false; the noise keys lie "
-                                            "beside each sample in the set"));
+                                           "entropy is true or false; the noise keys lie "
+                                           "beside each sample in the set"));
                 inputs->floor_entropy = ok ? (value_token->type == CFG_JSON_TRUE) : inputs->floor_entropy;
                 setting = tokens[setting + 1u].next;
             }
@@ -398,20 +401,20 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
                                        (unsigned int)!!species + (unsigned int)!!voxel + (unsigned int)!!membrane;
             ok = (named == token->count) ||
                  cfg_error(path, text, token->start,
-                            "input takes source, set, axes, channel, samples, first, species, voxel_pm "
-                            "and membrane_pm");
+                           "input takes source, set, axes, channel, samples, first, species, voxel_pm "
+                           "and membrane_pm");
             if (ok && channel)
             {
                 ok = (cfg_json_unsigned(text, &tokens[channel], &number) && (number < (1ULL << 16u))) ||
                      cfg_error(path, text, tokens[channel].start,
-                                "channel is the place on the source's c axis the lanes are read from");
+                               "channel is the place on the source's c axis the lanes are read from");
                 inputs->channel = ok ? (unsigned int)number : inputs->channel;
             }
             const unsigned int paths[3] = {source, set, axes};
             char **const fields[3] = {&inputs->source, &inputs->set, &inputs->axes};
             const char *const errors[3] = {"source is the dataset's directory, a path or null",
-                                             "set is the directory the engine's .iapx live in, a path or null",
-                                             "axes names the source's axes in order from t z y x c, or null"};
+                                           "set is the directory the engine's .iapx live in, a path or null",
+                                           "axes names the source's axes in order from t z y x c, or null"};
             for (unsigned int at = 0u; ok && (at < 3u); at += 1u)
             {
                 if (paths[at] == 0u)
@@ -421,14 +424,14 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
                 const bool none = (tokens[paths[at]].type == CFG_JSON_NULL);
                 ok = none || cfg_json_string(text, &tokens[paths[at]], word, sizeof(word)) ||
                      cfg_error(path, text, tokens[paths[at]].start, errors[at]);
-                free(*fields[at]);
+                platform_cell_released(*fields[at], platform_place_g_program_owner);
                 *fields[at] = (ok && !none) ? cfg_copy(word) : NULL;
             }
             if (ok && species)
             {
                 ok = cfg_json_string(text, &tokens[species], word, sizeof(word)) ||
                      cfg_error(path, text, tokens[species].start, "species is a name");
-                free(inputs->species);
+                platform_cell_released(inputs->species, platform_place_g_program_owner);
                 inputs->species = ok ? cfg_copy(word) : NULL;
             }
             if (ok && voxel)
@@ -439,7 +442,7 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
                 {
                     ok = cfg_json_unsigned(text, &tokens[voxel + 1u + axis], &inputs->voxel_pm[axis]) ||
                          cfg_error(path, text, tokens[voxel + 1u + axis].start,
-                                    "a voxel size is a whole number of picometers");
+                                   "a voxel size is a whole number of picometers");
                 }
             }
             if (ok && membrane)
@@ -453,11 +456,12 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
                      cfg_error(path, text, tokens[samples].start, "samples is a list");
                 for (unsigned int at = 0u; at < inputs->count; at += 1u)
                 {
-                    free(inputs->samples[at]);
+                    platform_cell_released(inputs->samples[at], platform_place_g_program_owner);
                 }
-                free(inputs->samples);
+                platform_cell_released(inputs->samples, platform_place_g_program_owner);
                 inputs->count = 0u;
-                inputs->samples = (char **)calloc((size_t)tokens[samples].count + 1u, sizeof(char *));
+                inputs->samples = (char **)platform_cell_cleared((size_t)tokens[samples].count + 1u, sizeof(char *),
+                                                                 platform_place_g_program_owner, 0);
                 for (unsigned int at = 0u; ok && (at < tokens[samples].count); at += 1u)
                 {
                     const unsigned int element = samples + 1u + at;
@@ -495,8 +499,9 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
         }
         else if (cfg_json_names(text, &tokens[key], "view") && (token->type == CFG_JSON_OBJECT))
         {
-            free(inputs->view);
-            inputs->view = (char *)malloc(token->end - token->start + 1u);
+            platform_cell_released(inputs->view, platform_place_g_program_owner);
+            inputs->view =
+                (char *)platform_cell_taken(token->end - token->start + 1u, platform_place_g_program_owner, 0);
             ok = inputs->view;
             if (ok)
             {
@@ -507,14 +512,14 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
         else
         {
             ok = cfg_error(path, text, tokens[key].start,
-                            "a .cfg has scheme, version, floor, track, input, output and view, "
-                            "and floor, track, input, output and view are objects");
+                           "a .cfg has scheme, version, floor, track, input, output and view, "
+                           "and floor, track, input, output and view are objects");
         }
         key = tokens[value].next;
     }
     rules->climb += (int)((rules->climb == 0) && (rules->sticky || rules->null_draws)) * 1;
-    free(text);
-    free(tokens);
+    platform_cell_released(text, platform_place_g_program_owner);
+    platform_cell_released(tokens, platform_place_g_program_owner);
     return ok;
 }
 
@@ -528,13 +533,13 @@ bool first_samples(RunInputs *inputs, bool from_source)
     const size_t taken = (count < inputs->first) ? count : inputs->first;
     for (size_t at = taken; at < count; at += 1u)
     {
-        free(names[at]);
+        platform_cell_released(names[at], platform_place_g_program_owner);
     }
     for (unsigned int at = 0u; at < inputs->count; at += 1u)
     {
-        free(inputs->samples[at]);
+        platform_cell_released(inputs->samples[at], platform_place_g_program_owner);
     }
-    free(inputs->samples);
+    platform_cell_released(inputs->samples, platform_place_g_program_owner);
     inputs->samples = names;
     inputs->count = (unsigned int)taken;
     return taken != 0u;

@@ -3,6 +3,7 @@
 // rows.c: the rows: a number's halves, a number read, put and added, the hash, a row passed to the run with its who, a
 // record's row and a text's, the text slots grown, and a text taken
 #include "../../../parsers/who.h"
+#include "../../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 #include "krep_records_internal.h"
 
@@ -181,12 +182,13 @@ static int krep_text_slots_grown(KrepFile *file)
     {
         return 1;
     }
-    unsigned int *const table = (unsigned int *)calloc(slots, sizeof(unsigned int));
+    unsigned int *const table =
+        (unsigned int *)platform_cell_cleared(slots, sizeof(unsigned int), platform_place_g_program_owner, 0);
     if (table == NULL)
     {
         return 0;
     }
-    free(file->text_slot);
+    platform_cell_released(file->text_slot, platform_place_g_program_owner);
     file->text_slot = table;
     file->text_slots = slots;
     for (unsigned int number = 0u; number < file->texts; number += 1u)
@@ -207,14 +209,17 @@ unsigned long long krep_text_taken(KrepFile *file, const char *bytes, unsigned l
     if (file->texts == file->text_room)
     {
         const unsigned int grown = (file->text_room == 0u) ? 256u : (2u * file->text_room);
-        char **const larger = (char **)realloc(file->text, (size_t)grown * sizeof(char *));
+        char **const larger =
+            (char **)platform_cell_grown(file->text, (size_t)file->text_room * sizeof(char *),
+                                         (size_t)grown * sizeof(char *), platform_place_g_program_owner, 0);
         if (larger == NULL)
         {
             return 0ULL;
         }
         file->text = larger;
-        unsigned long long *const lengths =
-            (unsigned long long *)realloc(file->text_length, (size_t)grown * sizeof(unsigned long long));
+        unsigned long long *const lengths = (unsigned long long *)platform_cell_grown(
+            file->text_length, (size_t)file->text_room * sizeof(unsigned long long),
+            (size_t)grown * sizeof(unsigned long long), platform_place_g_program_owner, 0);
         if (lengths == NULL)
         {
             return 0ULL;
@@ -223,7 +228,7 @@ unsigned long long krep_text_taken(KrepFile *file, const char *bytes, unsigned l
         file->text_room = grown;
     }
     // a text is at max the bytes of a file read whole, which a size_t counts
-    char *const copy = (char *)malloc((size_t)length + 1u);
+    char *const copy = (char *)platform_cell_taken((size_t)length + 1u, platform_place_g_program_owner, 0);
     if (copy == NULL)
     {
         return 0ULL;

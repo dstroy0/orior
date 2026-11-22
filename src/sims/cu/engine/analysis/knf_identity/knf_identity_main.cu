@@ -273,13 +273,19 @@ int program_main(int count, char **arguments)
     KnfRecord moved_record;
     record.side = KNF_SIDE;
     record.voxels = voxels;
-    record.history = (unsigned long long *)malloc((size_t)history_words * sizeof(unsigned long long));
-    record.cloud = (unsigned long long *)malloc((size_t)cloud_words * sizeof(unsigned long long));
-    record.centerd = (long long *)malloc((size_t)history_words * sizeof(long long));
+    record.history = (unsigned long long *)platform_cell_taken((size_t)history_words * sizeof(unsigned long long),
+                                                               platform_place_g_program_owner, 0);
+    record.cloud = (unsigned long long *)platform_cell_taken((size_t)cloud_words * sizeof(unsigned long long),
+                                                             platform_place_g_program_owner, 0);
+    record.centerd =
+        (long long *)platform_cell_taken((size_t)history_words * sizeof(long long), platform_place_g_program_owner, 0);
     moved_record = record;
-    moved_record.history = (unsigned long long *)malloc((size_t)history_words * sizeof(unsigned long long));
-    moved_record.cloud = (unsigned long long *)malloc((size_t)cloud_words * sizeof(unsigned long long));
-    moved_record.centerd = (long long *)malloc((size_t)history_words * sizeof(long long));
+    moved_record.history = (unsigned long long *)platform_cell_taken((size_t)history_words * sizeof(unsigned long long),
+                                                                     platform_place_g_program_owner, 0);
+    moved_record.cloud = (unsigned long long *)platform_cell_taken((size_t)cloud_words * sizeof(unsigned long long),
+                                                                   platform_place_g_program_owner, 0);
+    moved_record.centerd =
+        (long long *)platform_cell_taken((size_t)history_words * sizeof(long long), platform_place_g_program_owner, 0);
     unsigned short *device_lanes = NULL;
     int ok = (lanes != NULL) && (moved != NULL) && (map != NULL) && (cells != NULL) && (boxes != NULL) &&
              (record.history != NULL) && (record.cloud != NULL) && (record.centerd != NULL) &&
@@ -344,12 +350,12 @@ int program_main(int count, char **arguments)
     }
 
     cudaFree(device_lanes);
-    free(moved_record.centerd);
-    free(moved_record.cloud);
-    free(moved_record.history);
-    free(record.centerd);
-    free(record.cloud);
-    free(record.history);
+    platform_cell_released(moved_record.centerd, platform_place_g_program_owner);
+    platform_cell_released(moved_record.cloud, platform_place_g_program_owner);
+    platform_cell_released(moved_record.history, platform_place_g_program_owner);
+    platform_cell_released(record.centerd, platform_place_g_program_owner);
+    platform_cell_released(record.cloud, platform_place_g_program_owner);
+    platform_cell_released(record.history, platform_place_g_program_owner);
     platform_cell_released(boxes, (unsigned int)platform_place_g_program_owner);
     platform_cell_released(cells, (unsigned int)platform_place_g_program_owner);
     platform_cell_released(map, (unsigned int)platform_place_g_program_owner);

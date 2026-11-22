@@ -9,6 +9,7 @@
 // lanes and as rows of a double's four lanes, and the coded bits of each are printed against the raw bits.
 // The run is one job on the device's tessera daemon.
 #include "../../../../../src/cu/engine/analysis/compression/compression.h"
+#include "../../../../../src/platform/platform.h"
 #include "../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../src/cu/engine/analysis/keymath/keymath.h"
@@ -73,8 +74,8 @@ static unsigned long long lane_ten(unsigned int power)
 // the limbs Σx is stored in: x is below 2^(53 + 2^11) at the very max, and the count of values is below 2^40
 #define LANE_CHECK_SUM_LIMBS 72u
 
-static const char *const LANE_CHECK_COLUMN_PATH[LANE_CHECK_COLUMNS] = {
-    "precursor_mz", "ms2_mzs.list.element", "ms2_normalized_intensities.list.element"};
+static const char *const LANE_CHECK_COLUMN_PATH[LANE_CHECK_COLUMNS] = {"precursor_mz", "ms2_mzs.list.element",
+                                                                       "ms2_normalized_intensities.list.element"};
 
 static const char *const LANE_CHECK_LAYOUT_NAME[LANE_CHECK_LAYOUTS] = {"one line of lanes", "rows of four lanes"};
 
@@ -139,8 +140,9 @@ static int lane_column_read(const char *path, const char *leaf_path, LaneColumn 
     {
         room += s_footer.row_group[group].chunk[leaf].level_count;
     }
-    out->bytes = (unsigned char *)malloc((size_t)(room * 8ull) + 8u);
-    out->row_start = (unsigned long long *)malloc((size_t)(room * 8ull) + 8u);
+    out->bytes = (unsigned char *)platform_cell_taken((size_t)(room * 8ull) + 8u, platform_place_g_program_owner, 0);
+    out->row_start =
+        (unsigned long long *)platform_cell_taken((size_t)(room * 8ull) + 8u, platform_place_g_program_owner, 0);
     int ok = (out->bytes != NULL) && (out->row_start != NULL);
     for (unsigned int group = 0u; ok && (group < s_footer.row_group_count); group += 1u)
     {
@@ -149,11 +151,23 @@ static int lane_column_read(const char *path, const char *leaf_path, LaneColumn 
         // the leaf is below CASMI_PARQUET_LEAVES_MAX
         const CasmiParquetColumnRead read = {path, &s_footer, group, (unsigned int)leaf, &column};
         ok = casmi_parquet_column_bound(&read) >= 0ll;
-        column.row_start = ok ? (unsigned long long *)malloc((size_t)(column.row_start_room * 8ull) + 8u) : NULL;
-        column.value_bytes = ok ? (unsigned char *)malloc((size_t)column.value_bytes_room + 8u) : NULL;
-        column.value_offset = ok ? (unsigned long long *)malloc((size_t)(column.value_offset_room * 8ull) + 8u) : NULL;
-        column.value_length = ok ? (unsigned long long *)malloc((size_t)(column.value_offset_room * 8ull) + 8u) : NULL;
-        column.scratch = ok ? (unsigned char *)malloc((size_t)column.scratch_room + 8u) : NULL;
+        column.row_start = ok ? (unsigned long long *)platform_cell_taken((size_t)(column.row_start_room * 8ull) + 8u,
+                                                                          platform_place_g_program_owner, 0)
+                              : NULL;
+        column.value_bytes = ok ? (unsigned char *)platform_cell_taken((size_t)column.value_bytes_room + 8u,
+                                                                       platform_place_g_program_owner, 0)
+                                : NULL;
+        column.value_offset =
+            ok ? (unsigned long long *)platform_cell_taken((size_t)(column.value_offset_room * 8ull) + 8u,
+                                                           platform_place_g_program_owner, 0)
+               : NULL;
+        column.value_length =
+            ok ? (unsigned long long *)platform_cell_taken((size_t)(column.value_offset_room * 8ull) + 8u,
+                                                           platform_place_g_program_owner, 0)
+               : NULL;
+        column.scratch = ok ? (unsigned char *)platform_cell_taken((size_t)column.scratch_room + 8u,
+                                                                   platform_place_g_program_owner, 0)
+                            : NULL;
         ok = ok && (column.row_start != NULL) && (column.value_bytes != NULL) && (column.value_offset != NULL) &&
              (column.value_length != NULL) && (column.scratch != NULL) && (casmi_parquet_column_read(&read) >= 0ll) &&
              ((out->values + column.values) <= room) && ((out->rows + column.rows) <= room);
@@ -167,11 +181,11 @@ static int lane_column_read(const char *path, const char *leaf_path, LaneColumn 
             out->rows += column.rows;
             out->values += column.values;
         }
-        free(column.row_start);
-        free(column.value_bytes);
-        free(column.value_offset);
-        free(column.value_length);
-        free(column.scratch);
+        platform_cell_released(column.row_start, platform_place_g_program_owner);
+        platform_cell_released(column.value_bytes, platform_place_g_program_owner);
+        platform_cell_released(column.value_offset, platform_place_g_program_owner);
+        platform_cell_released(column.value_length, platform_place_g_program_owner);
+        platform_cell_released(column.scratch, platform_place_g_program_owner);
     }
     if (ok)
     {
@@ -237,7 +251,8 @@ static int lane_round_trip(SimResults *results, const unsigned short *device_lan
     decode.device_coefficients = decoded;
     decode.error = &error;
     ok = ok && (compression_decode(&decode) == 0L);
-    unsigned short *const rebuilt = (unsigned short *)malloc((size_t)(lanes * 2ull) + 2u);
+    unsigned short *const rebuilt =
+        (unsigned short *)platform_cell_taken((size_t)(lanes * 2ull) + 2u, platform_place_g_program_owner, 0);
     unsigned long long mismatches = ~0ull;
     TowerLowerRequest lower;
     memset(&lower, 0, sizeof(lower));
@@ -254,11 +269,11 @@ static int lane_round_trip(SimResults *results, const unsigned short *device_lan
     if (!ok)
     {
         lane_error_line(results, "decode and lower", &error);
-        free(rebuilt);
+        platform_cell_released(rebuilt, platform_place_g_program_owner);
         return 0;
     }
     const int same = memcmp(rebuilt, host_lanes, (size_t)(lanes * 2ull)) == 0;
-    free(rebuilt);
+    platform_cell_released(rebuilt, platform_place_g_program_owner);
     *bits = stream.bits;
     sim_check(results, (mismatches == 0ull) && same, "the lowered lanes are the stored lanes");
     if (quiet != 0)
@@ -284,9 +299,9 @@ static int lane_load(ExactRecordProgram *program, const unsigned int *outputs, u
 {
     memset(error, 0, sizeof(*error));
     memset(loaded, 0, sizeof(*loaded));
-    const KeymathRecordRequest encode = {program->steps,  program->count, program->field_bits,   program->fields,
-                                         members,         outputs,        output_count,          program->tables,
-                                         program->table_count, &loaded->key, error};
+    const KeymathRecordRequest encode = {
+        program->steps, program->count,  program->field_bits,  program->fields, members, outputs,
+        output_count,   program->tables, program->table_count, &loaded->key,    error};
     if ((program->failed != 0) || (keymath_record_encode(&encode) == KEYMATH_ERROR))
     {
         return 0;
@@ -294,8 +309,8 @@ static int lane_load(ExactRecordProgram *program, const unsigned int *outputs, u
     // every member's records are doubles, `in_limbs` limbs each
     const unsigned int limbs[ENGINE_RECORD_MEMBERS_MAX] = {in_limbs, (members > 1u) ? in_limbs : 0u,
                                                            (members > 2u) ? in_limbs : 0u};
-    const KeyScheduleRecordRequest layout = {&loaded->key, program->field_offset, program->fields, limbs, 1,
-                                             &loaded->layout, error};
+    const KeyScheduleRecordRequest layout = {
+        &loaded->key, program->field_offset, program->fields, limbs, 1, &loaded->layout, error};
     if (key_schedule_record_layout(&layout) == KEY_SCHEDULE_ERROR)
     {
         keymath_record_release(&loaded->key);
@@ -354,12 +369,14 @@ static void lane_exponents(const LaneColumn *column, unsigned long long *least, 
 static int lane_reading(SimResults *results, const LaneColumn *column)
 {
     const unsigned long long values = column->values;
-    unsigned long long *const words = (unsigned long long *)malloc((size_t)(values * 8ull) + 8u);
-    unsigned long long *const tally = (unsigned long long *)calloc(65536u, sizeof(unsigned long long));
+    unsigned long long *const words =
+        (unsigned long long *)platform_cell_taken((size_t)(values * 8ull) + 8u, platform_place_g_program_owner, 0);
+    unsigned long long *const tally = (unsigned long long *)platform_cell_cleared(65536u, sizeof(unsigned long long),
+                                                                                  platform_place_g_program_owner, 0);
     if ((words == NULL) || (tally == NULL) || (values == 0ull))
     {
-        free(words);
-        free(tally);
+        platform_cell_released(words, platform_place_g_program_owner);
+        platform_cell_released(tally, platform_place_g_program_owner);
         return 0;
     }
     memcpy(words, column->bytes, (size_t)(values * 8ull));
@@ -399,8 +416,8 @@ static int lane_reading(SimResults *results, const LaneColumn *column)
         mmgr_line_put(&results->line, " times");
         lane_line_end(results);
     }
-    free(words);
-    free(tally);
+    platform_cell_released(words, platform_place_g_program_owner);
+    platform_cell_released(tally, platform_place_g_program_owner);
     return sorted;
 }
 
@@ -408,7 +425,8 @@ static int lane_reading(SimResults *results, const LaneColumn *column)
 // rank, a permutation of the 2^16 lanes, every lane the plane never contains ranked after every one it does
 static int lane_rank_edge(const unsigned short *plane, unsigned long long values, unsigned int *forward)
 {
-    unsigned long long *const keys = (unsigned long long *)calloc(LANE_CHECK_EDGE_ENTRIES, sizeof(unsigned long long));
+    unsigned long long *const keys = (unsigned long long *)platform_cell_cleared(
+        LANE_CHECK_EDGE_ENTRIES, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     if (keys == NULL)
     {
         return 0;
@@ -427,7 +445,7 @@ static int lane_rank_edge(const unsigned short *plane, unsigned long long values
     {
         forward[keys[rank] & (LANE_CHECK_EDGE_ENTRIES - 1u)] = rank;
     }
-    free(keys);
+    platform_cell_released(keys, platform_place_g_program_owner);
     return sorted;
 }
 
@@ -446,14 +464,16 @@ static unsigned int lane_program(ExactRecordProgram *program, unsigned long long
     const unsigned int one = exact_record_constant(program, 1ull);
     const unsigned int normal = exact_record_above(program, biased, zero);
     const unsigned int mantissa = exact_record_sum(
-        program, fraction, exact_record_product(program, normal, exact_record_power_two(program, LANE_CHECK_MANTISSA_BITS)));
+        program, fraction,
+        exact_record_product(program, normal, exact_record_power_two(program, LANE_CHECK_MANTISSA_BITS)));
     const unsigned int placed = exact_record_sum(program, biased, exact_record_difference(program, one, normal));
     const unsigned int above = exact_record_above(program, mantissa, zero);
     const unsigned int shift = exact_record_product(
         program, above, exact_record_difference(program, placed, exact_record_constant(program, least)));
-    const unsigned int lifted = exact_record_product(program, mantissa, exact_record_two_to(program, shift, shift_bits));
-    const unsigned int signed_one =
-        exact_record_difference(program, one, exact_record_product(program, exact_record_constant(program, 2ull), sign));
+    const unsigned int lifted =
+        exact_record_product(program, mantissa, exact_record_two_to(program, shift, shift_bits));
+    const unsigned int signed_one = exact_record_difference(
+        program, one, exact_record_product(program, exact_record_constant(program, 2ull), sign));
     return exact_record_product(program, lifted, signed_one);
 }
 
@@ -493,10 +513,11 @@ static void lane_double_read(ExactRecordProgram *program, unsigned int fraction,
     const unsigned int two = exact_record_constant(program, 2ull);
     const unsigned int normal = exact_record_above(program, biased, zero);
     *mantissa = exact_record_sum(
-        program, fraction, exact_record_product(program, normal, exact_record_power_two(program, LANE_CHECK_MANTISSA_BITS)));
+        program, fraction,
+        exact_record_product(program, normal, exact_record_power_two(program, LANE_CHECK_MANTISSA_BITS)));
     *placed = exact_record_sum(program, biased, exact_record_difference(program, one, normal));
-    const unsigned int narrow =
-        exact_record_product(program, exact_record_equal(program, fraction, zero), exact_record_above(program, biased, one));
+    const unsigned int narrow = exact_record_product(program, exact_record_equal(program, fraction, zero),
+                                                     exact_record_above(program, biased, one));
     *gap = exact_record_difference(program, two, narrow);
 }
 
@@ -544,8 +565,8 @@ static void lane_preimage_integer(ExactRecordProgram *program, const LanePreimag
                                  &high_floor, &high_ceiling);
     // closed: ceil(low) to floor(high); open: floor(low) + 1 to ceil(high) - 1
     *least = exact_record_select(program, preimage->odd_low, exact_record_sum(program, low_floor, one), low_ceiling);
-    const unsigned int max =
-        exact_record_select(program, preimage->odd_high, exact_record_difference(program, high_ceiling, one), high_floor);
+    const unsigned int max = exact_record_select(program, preimage->odd_high,
+                                                 exact_record_difference(program, high_ceiling, one), high_floor);
     *fit = exact_record_difference(program, one, exact_record_above(program, *least, max));
 }
 
@@ -634,8 +655,8 @@ static void lane_double_at(ExactRecordProgram *program, unsigned int value, unsi
         // closed: floor(v / 2^s); open: ceil(v / 2^s) - 1; below 2^52 it falls into the binade under
         const unsigned int raw =
             exact_record_select(program, open, exact_record_difference(program, ceiling, one), floor);
-        const unsigned int under = exact_record_difference(program, one, exact_record_above(program, raw,
-                                                                  exact_record_difference(program, least_mantissa, one)));
+        const unsigned int under = exact_record_difference(
+            program, one, exact_record_above(program, raw, exact_record_difference(program, least_mantissa, one)));
         *mantissa = exact_record_select(program, under,
                                         exact_record_sum(program, exact_record_product(program, two, raw), one), raw);
         *shift = exact_record_difference(program, s, under);
@@ -648,7 +669,8 @@ static void lane_double_at(ExactRecordProgram *program, unsigned int value, unsi
 // unit u / 4 those ends are (4 M_least - gap) 2^s_least and (4 M_max + 2) 2^s_max, and the places search runs on them.
 // `exists` is 1 where some double D divides to x
 static void lane_divided_program(ExactRecordProgram *program, unsigned long long base, unsigned long long max_placed,
-                                 unsigned int shift_bits, unsigned int *least, unsigned int *chosen, unsigned int *exists)
+                                 unsigned int shift_bits, unsigned int *least, unsigned int *chosen,
+                                 unsigned int *exists)
 {
     const unsigned int fraction_field = exact_record_member_field(program, LANE_CHECK_MANTISSA_BITS, 0u);
     const unsigned int exponent_field =
@@ -673,17 +695,18 @@ static void lane_divided_program(ExactRecordProgram *program, unsigned long long
                    x.odd_high, &max_mantissa, &max_shift);
     const unsigned int least_two = exact_record_two_to(program, least_shift, LANE_CHECK_BASE_DROP_BITS);
     const unsigned int max_two = exact_record_two_to(program, max_shift, LANE_CHECK_BASE_DROP_BITS);
-    *exists = exact_record_difference(program, one,
-                                      exact_record_above(program, exact_record_product(program, least_mantissa, least_two),
-                                                         exact_record_product(program, max_mantissa, max_two)));
-    const unsigned int narrow = exact_record_equal(program, least_mantissa, exact_record_power_two(program,
-                                                                                                   LANE_CHECK_MANTISSA_BITS));
+    *exists =
+        exact_record_difference(program, one,
+                                exact_record_above(program, exact_record_product(program, least_mantissa, least_two),
+                                                   exact_record_product(program, max_mantissa, max_two)));
+    const unsigned int narrow =
+        exact_record_equal(program, least_mantissa, exact_record_power_two(program, LANE_CHECK_MANTISSA_BITS));
     LanePreimage decimal;
-    decimal.low = exact_record_product(
-        program,
-        exact_record_difference(program, exact_record_product(program, four, least_mantissa),
-                                exact_record_difference(program, two, narrow)),
-        least_two);
+    decimal.low =
+        exact_record_product(program,
+                             exact_record_difference(program, exact_record_product(program, four, least_mantissa),
+                                                     exact_record_difference(program, two, narrow)),
+                             least_two);
     decimal.high = exact_record_product(
         program, exact_record_sum(program, exact_record_product(program, four, max_mantissa), two), max_two);
     decimal.odd_low = lane_odd(program, least_mantissa);
@@ -741,24 +764,37 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
     const unsigned long long checked = ((s_host_lanes != 0ull) && (s_host_lanes < values)) ? s_host_lanes : values;
     const size_t words = (size_t)(values * out_limbs);
     unsigned int *device_out = NULL;
-    unsigned int *const device = (unsigned int *)malloc(words * sizeof(unsigned int) + 4u);
-    unsigned int *const host = (unsigned int *)malloc((size_t)(checked * out_limbs) * sizeof(unsigned int) + 4u);
+    unsigned int *const device =
+        (unsigned int *)platform_cell_taken(words * sizeof(unsigned int) + 4u, platform_place_g_program_owner, 0);
+    unsigned int *const host = (unsigned int *)platform_cell_taken(
+        (size_t)(checked * out_limbs) * sizeof(unsigned int) + 4u, platform_place_g_program_owner, 0);
     int ok = (device != NULL) && (host != NULL) &&
              (cudaMalloc((void **)&device_out, words * sizeof(unsigned int)) == cudaSuccess);
     memset(&error, 0, sizeof(error));
     const unsigned long long run_start = engine_clock_microseconds();
     if (ok)
     {
-        const CycleRecordRunRequest run = {loaded.record, {(const unsigned int *)device_rebuilt, NULL, NULL},
-                                           {values, 0ull, 0ull}, NULL, values, device_out, &error};
+        const CycleRecordRunRequest run = {loaded.record,
+                                           {(const unsigned int *)device_rebuilt, NULL, NULL},
+                                           {values, 0ull, 0ull},
+                                           NULL,
+                                           values,
+                                           device_out,
+                                           &error};
         ok = cycle_record_run(&run) != CYCLE_ERROR;
     }
     const unsigned long long run_end = engine_clock_microseconds();
     ok = ok && (cudaMemcpy(device, device_out, words * sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess);
     if (ok)
     {
-        const CycleRecordHostRequest run = {&loaded.layout, {(const unsigned int *)column->bytes, NULL, NULL},
-                                            {values, 0ull, 0ull}, NULL, checked, host, &error, 0ull};
+        const CycleRecordHostRequest run = {&loaded.layout,
+                                            {(const unsigned int *)column->bytes, NULL, NULL},
+                                            {values, 0ull, 0ull},
+                                            NULL,
+                                            checked,
+                                            host,
+                                            &error,
+                                            0ull};
         ok = cycle_record_run_host(&run) != CYCLE_ERROR;
     }
     if (!ok)
@@ -830,8 +866,8 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
     sim_check(results, ok && (apart == 0ull),
               "every represented k e-p reads back, correctly rounded, to the stored double");
     cudaFree(device_out);
-    free(device);
-    free(host);
+    platform_cell_released(device, platform_place_g_program_owner);
+    platform_cell_released(host, platform_place_g_program_owner);
     lane_release(&loaded);
     exact_record_close(&program);
     return ok;
@@ -929,8 +965,10 @@ static int lane_records(SimResults *results, const LaneColumn *column, const uns
     const unsigned long long values = column->values;
     const size_t words = (size_t)(values * out_limbs);
     unsigned int *device_out = NULL;
-    unsigned int *const device = (unsigned int *)malloc(words * sizeof(unsigned int) + 4u);
-    unsigned int *const host = (unsigned int *)malloc(words * sizeof(unsigned int) + 4u);
+    unsigned int *const device =
+        (unsigned int *)platform_cell_taken(words * sizeof(unsigned int) + 4u, platform_place_g_program_owner, 0);
+    unsigned int *const host =
+        (unsigned int *)platform_cell_taken(words * sizeof(unsigned int) + 4u, platform_place_g_program_owner, 0);
     int ok = (device != NULL) && (host != NULL) &&
              (cudaMalloc((void **)&device_out, words * sizeof(unsigned int)) == cudaSuccess);
     memset(&error, 0, sizeof(error));
@@ -938,8 +976,13 @@ static int lane_records(SimResults *results, const LaneColumn *column, const uns
     const unsigned long long run_start = engine_clock_microseconds();
     if (ok)
     {
-        const CycleRecordRunRequest run = {loaded.record, {(const unsigned int *)device_rebuilt, NULL, NULL},
-                                           {values, 0ull, 0ull}, NULL, values, device_out, &error};
+        const CycleRecordRunRequest run = {loaded.record,
+                                           {(const unsigned int *)device_rebuilt, NULL, NULL},
+                                           {values, 0ull, 0ull},
+                                           NULL,
+                                           values,
+                                           device_out,
+                                           &error};
         ok = cycle_record_run(&run) != CYCLE_ERROR;
     }
     const unsigned long long run_end = engine_clock_microseconds();
@@ -952,10 +995,10 @@ static int lane_records(SimResults *results, const LaneColumn *column, const uns
     const unsigned int sum_limbs = ((out_bits + 40u + 31u) / 32u) + 1u;
     if (ok)
     {
-        const CycleRecordSumRequest every = {device_out, values, values, out_limbs, out_offset, out_bits, sum_limbs,
-                                             device_sum, &error};
-        const CycleRecordSumRequest leading = {device_out, checked, checked, out_limbs, out_offset, out_bits, sum_limbs,
-                                               checked_sum, &error};
+        const CycleRecordSumRequest every = {device_out, values,    values,     out_limbs, out_offset,
+                                             out_bits,   sum_limbs, device_sum, &error};
+        const CycleRecordSumRequest leading = {device_out, checked,   checked,     out_limbs, out_offset,
+                                               out_bits,   sum_limbs, checked_sum, &error};
         ok = (sum_limbs <= LANE_CHECK_SUM_LIMBS) && (cycle_record_sum(&every) != CYCLE_ERROR) &&
              (cycle_record_sum(&leading) != CYCLE_ERROR);
     }
@@ -963,15 +1006,21 @@ static int lane_records(SimResults *results, const LaneColumn *column, const uns
     const unsigned long long host_start = engine_clock_microseconds();
     if (ok)
     {
-        const CycleRecordHostRequest run = {&loaded.layout, {(const unsigned int *)column->bytes, NULL, NULL},
-                                            {values, 0ull, 0ull}, NULL, checked, host, &error, 0ull};
+        const CycleRecordHostRequest run = {&loaded.layout,
+                                            {(const unsigned int *)column->bytes, NULL, NULL},
+                                            {values, 0ull, 0ull},
+                                            NULL,
+                                            checked,
+                                            host,
+                                            &error,
+                                            0ull};
         ok = cycle_record_run_host(&run) != CYCLE_ERROR;
     }
     const unsigned long long host_end = engine_clock_microseconds();
     if (ok)
     {
-        const CycleRecordSumRequest sum = {host, checked, checked, out_limbs, out_offset, out_bits, sum_limbs, host_sum,
-                                           &error};
+        const CycleRecordSumRequest sum = {host,     checked,   checked,  out_limbs, out_offset,
+                                           out_bits, sum_limbs, host_sum, &error};
         ok = cycle_record_sum_host(&sum) != CYCLE_ERROR;
     }
     if (!ok)
@@ -1014,8 +1063,8 @@ static int lane_records(SimResults *results, const LaneColumn *column, const uns
     sim_check(results, sums_same, "the device's sum of x equals the host's");
     sim_check(results, ok && (apart == 0ull), "every x equals M 2^(E - E_min) worked out from the stored bits");
     cudaFree(device_out);
-    free(device);
-    free(host);
+    platform_cell_released(device, platform_place_g_program_owner);
+    platform_cell_released(host, platform_place_g_program_owner);
     lane_release(&loaded);
     exact_record_close(&program);
     return ok;
@@ -1049,8 +1098,10 @@ static int lane_unit_code(SimResults *results, const LaneColumn *column, const u
 {
     const unsigned long long values = column->values;
     const unsigned long long raw = values * 64ull;
-    unsigned short *const plane = (unsigned short *)malloc((size_t)(values * 2ull) + 2u);
-    unsigned short *const codes = (unsigned short *)malloc((size_t)(values * 8ull) + 8u);
+    unsigned short *const plane =
+        (unsigned short *)platform_cell_taken((size_t)(values * 2ull) + 2u, platform_place_g_program_owner, 0);
+    unsigned short *const codes =
+        (unsigned short *)platform_cell_taken((size_t)(values * 8ull) + 8u, platform_place_g_program_owner, 0);
     unsigned short *device = NULL;
     int ok =
         (plane != NULL) && (codes != NULL) && (cudaMalloc((void **)&device, (size_t)(values * 8ull)) == cudaSuccess);
@@ -1121,8 +1172,8 @@ static int lane_unit_code(SimResults *results, const LaneColumn *column, const u
         lane_line_end(results);
     }
     cudaFree(device);
-    free(plane);
-    free(codes);
+    platform_cell_released(plane, platform_place_g_program_owner);
+    platform_cell_released(codes, platform_place_g_program_owner);
     return ok;
 }
 
@@ -1138,8 +1189,10 @@ static int lane_decimal_trips(SimResults *results, const LaneColumn *column, con
         ten[power] = ten[power - 1u] * 10ull;
     }
     const unsigned long long values = column->values;
-    unsigned long long *const unit = (unsigned long long *)malloc((size_t)(values * 8ull) + 8u);
-    unsigned char *const forms = (unsigned char *)malloc((size_t)values + 1u);
+    unsigned long long *const unit =
+        (unsigned long long *)platform_cell_taken((size_t)(values * 8ull) + 8u, platform_place_g_program_owner, 0);
+    unsigned char *const forms =
+        (unsigned char *)platform_cell_taken((size_t)values + 1u, platform_place_g_program_owner, 0);
     int ok = (unit != NULL) && (forms != NULL);
     unsigned int max = 0u;
     for (unsigned long long value = 0ull; value < values; value += 1ull)
@@ -1214,8 +1267,8 @@ static int lane_decimal_trips(SimResults *results, const LaneColumn *column, con
         ok = lane_unit_code(results, column, unit, forms, &own);
     }
     sim_check(results, ok, "every unit's planes, flags and retained lanes lift, code, decode and lower");
-    free(unit);
-    free(forms);
+    platform_cell_released(unit, platform_place_g_program_owner);
+    platform_cell_released(forms, platform_place_g_program_owner);
     return ok;
 }
 
@@ -1239,18 +1292,16 @@ static void lane_counts_program(ExactRecordProgram *program, unsigned long long 
     // B is 1 to 2^53 where its biased exponent is 1023 to 1075, and whole where 2^(1075 - E) divides its mantissa
     const unsigned int base_least = exact_record_constant(program, LANE_CHECK_BASE_BIASED_LEAST - 1ull);
     const unsigned int base_max = exact_record_constant(program, LANE_CHECK_BASE_BIASED_MAX);
-    const unsigned int in_range = exact_record_product(program, exact_record_above(program, base_biased, base_least),
-                                                       exact_record_difference(program, one,
-                                                                               exact_record_above(program, base_biased,
-                                                                                                  base_max)));
-    const unsigned int base_mantissa = exact_record_sum(
-        program, base_fraction, exact_record_power_two(program, LANE_CHECK_MANTISSA_BITS));
-    const unsigned int drop = exact_record_select(program, in_range,
-                                                  exact_record_difference(program, base_max, base_biased), zero);
+    const unsigned int in_range =
+        exact_record_product(program, exact_record_above(program, base_biased, base_least),
+                             exact_record_difference(program, one, exact_record_above(program, base_biased, base_max)));
+    const unsigned int base_mantissa =
+        exact_record_sum(program, base_fraction, exact_record_power_two(program, LANE_CHECK_MANTISSA_BITS));
+    const unsigned int drop =
+        exact_record_select(program, in_range, exact_record_difference(program, base_max, base_biased), zero);
     const unsigned int step = exact_record_two_to(program, drop, LANE_CHECK_BASE_DROP_BITS);
     const unsigned int base = exact_record_quotient(program, base_mantissa, step);
-    const unsigned int whole =
-        exact_record_equal(program, exact_record_product(program, base, step), base_mantissa);
+    const unsigned int whole = exact_record_equal(program, exact_record_product(program, base, step), base_mantissa);
     unsigned int least = 0u;
     unsigned int found = 0u;
     lane_preimage_integer(program, &preimage, base, &least, &found);
@@ -1260,8 +1311,9 @@ static void lane_counts_program(ExactRecordProgram *program, unsigned long long 
 
 // Each intensity read against its row's base: the counts program runs on the device over every value, member 0 the
 // lowered lanes and member 1 the base column's stored doubles, the index naming each value's own row's base, and a
-// row with no base reads a 0 positioned past the column's end. The host reference runs the leading values, every represented
-// c is read back through c / B in binary64 against the stored double, and the counts go through lane_unit_code
+// row with no base reads a 0 positioned past the column's end. The host reference runs the leading values, every
+// represented c is read back through c / B in binary64 against the stored double, and the counts go through
+// lane_unit_code
 static int lane_counts(SimResults *results, const LaneColumn *column, const LaneColumn *bases,
                        const unsigned short *device_rebuilt, const unsigned char *const *places_of,
                        const unsigned long long *const *k_of)
@@ -1296,11 +1348,15 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
     const unsigned long long checked = ((s_host_lanes != 0ull) && (s_host_lanes < values)) ? s_host_lanes : values;
     // the bases, and a 0 past them for a row with none; each value's index pair, its own record and its row's base
     const unsigned long long base_records = bases->values + 1ull;
-    unsigned char *const base_bytes = (unsigned char *)calloc((size_t)(base_records * 8ull), 1u);
-    unsigned int *const index = (unsigned int *)malloc((size_t)(values * 2ull) * sizeof(unsigned int) + 8u);
+    unsigned char *const base_bytes =
+        (unsigned char *)platform_cell_cleared((size_t)(base_records * 8ull), 1u, platform_place_g_program_owner, 0);
+    unsigned int *const index = (unsigned int *)platform_cell_taken((size_t)(values * 2ull) * sizeof(unsigned int) + 8u,
+                                                                    platform_place_g_program_owner, 0);
     const size_t words = (size_t)(values * out_limbs);
-    unsigned int *const device = (unsigned int *)malloc(words * sizeof(unsigned int) + 4u);
-    unsigned int *const host = (unsigned int *)malloc((size_t)(checked * out_limbs) * sizeof(unsigned int) + 4u);
+    unsigned int *const device =
+        (unsigned int *)platform_cell_taken(words * sizeof(unsigned int) + 4u, platform_place_g_program_owner, 0);
+    unsigned int *const host = (unsigned int *)platform_cell_taken(
+        (size_t)(checked * out_limbs) * sizeof(unsigned int) + 4u, platform_place_g_program_owner, 0);
     unsigned int *device_out = NULL;
     unsigned int *device_bases = NULL;
     unsigned int *device_index = NULL;
@@ -1312,7 +1368,8 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
         {
             const int present = bases->row_start[row + 1ull] > bases->row_start[row];
             const unsigned int base_record = (unsigned int)(present ? bases->row_start[row] : bases->values);
-            for (unsigned long long value = column->row_start[row]; value < column->row_start[row + 1ull]; value += 1ull)
+            for (unsigned long long value = column->row_start[row]; value < column->row_start[row + 1ull];
+                 value += 1ull)
             {
                 index[value * 2ull] = (unsigned int)value;
                 index[(value * 2ull) + 1ull] = base_record;
@@ -1342,14 +1399,15 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
     ok = ok && (cudaMemcpy(device, device_out, words * sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess);
     if (ok)
     {
-        const CycleRecordHostRequest run = {&loaded.layout,
-                                            {(const unsigned int *)column->bytes, (const unsigned int *)base_bytes, NULL},
-                                            {values, base_records, 0ull},
-                                            index,
-                                            checked,
-                                            host,
-                                            &error,
-                                            0ull};
+        const CycleRecordHostRequest run = {
+            &loaded.layout,
+            {(const unsigned int *)column->bytes, (const unsigned int *)base_bytes, NULL},
+            {values, base_records, 0ull},
+            index,
+            checked,
+            host,
+            &error,
+            0ull};
         ok = cycle_record_run_host(&run) != CYCLE_ERROR;
     }
     if (!ok)
@@ -1357,8 +1415,10 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
         lane_error_line(results, "the counts program's run errored", &error);
     }
     const int same = ok && (memcmp(device, host, (size_t)(checked * out_limbs) * sizeof(unsigned int)) == 0);
-    unsigned long long *const unit = (unsigned long long *)malloc((size_t)(values * 8ull) + 8u);
-    unsigned char *const forms = (unsigned char *)malloc((size_t)values + 1u);
+    unsigned long long *const unit =
+        (unsigned long long *)platform_cell_taken((size_t)(values * 8ull) + 8u, platform_place_g_program_owner, 0);
+    unsigned char *const forms =
+        (unsigned char *)platform_cell_taken((size_t)values + 1u, platform_place_g_program_owner, 0);
     ok = ok && (unit != NULL) && (forms != NULL);
     unsigned long long count = 0ull;
     unsigned long long apart = 0ull;
@@ -1427,8 +1487,10 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
     {
         ten[power] = ten[power - 1u] * 10ull;
     }
-    unsigned long long *const second = (unsigned long long *)malloc((size_t)(values * 8ull) + 8u);
-    unsigned char *const form = (unsigned char *)malloc((size_t)values + 1u);
+    unsigned long long *const second =
+        (unsigned long long *)platform_cell_taken((size_t)(values * 8ull) + 8u, platform_place_g_program_owner, 0);
+    unsigned char *const form =
+        (unsigned char *)platform_cell_taken((size_t)values + 1u, platform_place_g_program_owner, 0);
     ok = ok && (second != NULL) && (form != NULL);
     unsigned long long fewest = ~0ull;
     unsigned int fewest_unit = 0u;
@@ -1491,9 +1553,9 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
             if (places < LANE_CHECK_PLACES)
             {
                 second[value] = k_of[each][value];
-                form[value] = (unsigned char)(((each == 0u) ? LANE_CHECK_FORM_DECIMAL
-                                                            : (LANE_CHECK_FORM_DIVIDED + each - 1u)) +
-                                              (LANE_CHECK_FORMS * places));
+                form[value] =
+                    (unsigned char)(((each == 0u) ? LANE_CHECK_FORM_DECIMAL : (LANE_CHECK_FORM_DIVIDED + each - 1u)) +
+                                    (LANE_CHECK_FORMS * places));
             }
         }
     }
@@ -1509,17 +1571,17 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
         lane_line_end(results);
     }
     sim_check(results, ok, "the counts and decimals' planes, forms and retained lanes lift, code, decode and lower");
-    free(second);
-    free(form);
+    platform_cell_released(second, platform_place_g_program_owner);
+    platform_cell_released(form, platform_place_g_program_owner);
     cudaFree(device_out);
     cudaFree(device_bases);
     cudaFree(device_index);
-    free(base_bytes);
-    free(index);
-    free(device);
-    free(host);
-    free(unit);
-    free(forms);
+    platform_cell_released(base_bytes, platform_place_g_program_owner);
+    platform_cell_released(index, platform_place_g_program_owner);
+    platform_cell_released(device, platform_place_g_program_owner);
+    platform_cell_released(host, platform_place_g_program_owner);
+    platform_cell_released(unit, platform_place_g_program_owner);
+    platform_cell_released(forms, platform_place_g_program_owner);
     lane_release(&loaded);
     exact_record_close(&program);
     return ok;
@@ -1533,10 +1595,10 @@ int program_main(int count, char **arguments)
     if (count < 2)
     {
         mmgr_line_put(&results.line, "usage: lane_check FILE.parquet [HOST_LANES [COLUMN]]\n"
-                                      "  HOST_LANES: the leading records the host reference checks, every one where it"
-                                      " is not given or is 0\n"
-                                      "  COLUMN: 0 precursor_mz, 1 ms2_mzs, 2 the intensities; every column where it"
-                                      " is not given\n");
+                                     "  HOST_LANES: the leading records the host reference checks, every one where it"
+                                     " is not given or is 0\n"
+                                     "  COLUMN: 0 precursor_mz, 1 ms2_mzs, 2 the intensities; every column where it"
+                                     " is not given\n");
         sim_flush(&results);
         return 2;
     }
@@ -1570,8 +1632,9 @@ int program_main(int count, char **arguments)
         return 1;
     }
     const unsigned long long widest_lanes = widest * LANE_CHECK_LANES_PER_VALUE;
-    const unsigned long long declared = (2ull * widest_lanes * sizeof(unsigned short)) + tower_reserve_bytes(widest_lanes) +
-                                        compression_reserve_bytes(widest_lanes) + (widest * 4ull * sizeof(unsigned int));
+    const unsigned long long declared = (2ull * widest_lanes * sizeof(unsigned short)) +
+                                        tower_reserve_bytes(widest_lanes) + compression_reserve_bytes(widest_lanes) +
+                                        (widest * 4ull * sizeof(unsigned int));
     if (sim_job_submit(&results, "lane_check", count, arguments, declared) == 0)
     {
         return sim_close(&results, "lane check");
@@ -1580,8 +1643,8 @@ int program_main(int count, char **arguments)
     {
         if ((s_column < LANE_CHECK_COLUMNS) && (each != s_column))
         {
-            free(columns[each].bytes);
-            free(columns[each].row_start);
+            platform_cell_released(columns[each].bytes, platform_place_g_program_owner);
+            platform_cell_released(columns[each].row_start, platform_place_g_program_owner);
             continue;
         }
         const LaneColumn *const column = &columns[each];
@@ -1594,9 +1657,9 @@ int program_main(int count, char **arguments)
         lane_line_end(&results);
         sim_check(&results, lane_reading(&results, column), "the column's values sort");
         unsigned short *device_lanes = NULL;
-        const int placed = (cudaMalloc((void **)&device_lanes, (size_t)(lanes * 2ull)) == cudaSuccess) &&
-                           (cudaMemcpy(device_lanes, column->bytes, (size_t)(lanes * 2ull), cudaMemcpyHostToDevice) ==
-                            cudaSuccess);
+        const int placed =
+            (cudaMalloc((void **)&device_lanes, (size_t)(lanes * 2ull)) == cudaSuccess) &&
+            (cudaMemcpy(device_lanes, column->bytes, (size_t)(lanes * 2ull), cudaMemcpyHostToDevice) == cudaSuccess);
         sim_check(&results, placed, "the stored lanes reach the device");
         // the places of each value itself, then, for the intensities, of the decimal it is over each divisor
         unsigned char *places_of[1u + LANE_CHECK_DIVISORS];
@@ -1604,8 +1667,10 @@ int program_main(int count, char **arguments)
         int allocated = 1;
         for (unsigned int form = 0u; form <= LANE_CHECK_DIVISORS; form += 1u)
         {
-            places_of[form] = (unsigned char *)malloc((size_t)column->values + 1u);
-            k_of[form] = (unsigned long long *)malloc((size_t)(column->values * 8ull) + 8u);
+            places_of[form] =
+                (unsigned char *)platform_cell_taken((size_t)column->values + 1u, platform_place_g_program_owner, 0);
+            k_of[form] = (unsigned long long *)platform_cell_taken((size_t)(column->values * 8ull) + 8u,
+                                                                   platform_place_g_program_owner, 0);
             allocated = allocated && (places_of[form] != NULL) && (k_of[form] != NULL);
         }
         int places_read = 0;
@@ -1633,9 +1698,9 @@ int program_main(int count, char **arguments)
                         places_read = lane_places(&results, column, device_rebuilt, LANE_CHECK_DIVISOR[divisor],
                                                   places_of[1u + divisor], k_of[1u + divisor]);
                     }
-                    (void)(places_read &&
-                           lane_counts(&results, column, &bases, device_rebuilt, (const unsigned char *const *)places_of,
-                                       (const unsigned long long *const *)k_of));
+                    (void)(places_read && lane_counts(&results, column, &bases, device_rebuilt,
+                                                      (const unsigned char *const *)places_of,
+                                                      (const unsigned long long *const *)k_of));
                 }
             }
         }
@@ -1647,14 +1712,16 @@ int program_main(int count, char **arguments)
         }
         for (unsigned int form = 0u; form <= LANE_CHECK_DIVISORS; form += 1u)
         {
-            free(places_of[form]);
-            free(k_of[form]);
+            platform_cell_released(places_of[form], platform_place_g_program_owner);
+            platform_cell_released(k_of[form], platform_place_g_program_owner);
         }
         // the same lanes as planes: plane j contains lane j of every value, in value order. Each significance lies
         // beside its own type; positioned once as four rows and once as four lattices of their own
-        unsigned short *const planes = (unsigned short *)malloc((size_t)(lanes * 2ull) + 2u);
+        unsigned short *const planes =
+            (unsigned short *)platform_cell_taken((size_t)(lanes * 2ull) + 2u, platform_place_g_program_owner, 0);
         unsigned short *device_planes = NULL;
-        int planar = placed && (planes != NULL) && (cudaMalloc((void **)&device_planes, (size_t)(lanes * 2ull)) == cudaSuccess);
+        int planar =
+            placed && (planes != NULL) && (cudaMalloc((void **)&device_planes, (size_t)(lanes * 2ull)) == cudaSuccess);
         const unsigned short *const stored = (const unsigned short *)column->bytes;
         for (unsigned long long value = 0ull; planar && (value < column->values); value += 1ull)
         {
@@ -1663,7 +1730,8 @@ int program_main(int count, char **arguments)
                 planes[(plane * column->values) + value] = stored[(value * LANE_CHECK_LANES_PER_VALUE) + plane];
             }
         }
-        planar = planar && (cudaMemcpy(device_planes, planes, (size_t)(lanes * 2ull), cudaMemcpyHostToDevice) == cudaSuccess);
+        planar = planar &&
+                 (cudaMemcpy(device_planes, planes, (size_t)(lanes * 2ull), cudaMemcpyHostToDevice) == cudaSuccess);
         if (planar)
         {
             const unsigned long long four_rows[4] = {1ull, 1ull, LANE_CHECK_LANES_PER_VALUE, column->values};
@@ -1671,11 +1739,13 @@ int program_main(int count, char **arguments)
             lane_line_end(&results);
             unsigned long long bits = 0ull;
             const unsigned short *device_rebuilt = NULL;
-            sim_check(&results, lane_round_trip(&results, device_planes, planes, four_rows, &bits, &device_rebuilt, NULL, 0u, 0),
+            sim_check(&results,
+                      lane_round_trip(&results, device_planes, planes, four_rows, &bits, &device_rebuilt, NULL, 0u, 0),
                       "the planes lift, code, decode and lower");
             unsigned long long plane_bits = 0ull;
             unsigned long long better_bits = 0ull;
-            unsigned int *const forward = (unsigned int *)malloc(LANE_CHECK_EDGE_ENTRIES * sizeof(unsigned int));
+            unsigned int *const forward = (unsigned int *)platform_cell_taken(
+                LANE_CHECK_EDGE_ENTRIES * sizeof(unsigned int), platform_place_g_program_owner, 0);
             for (unsigned long long plane = 0ull; plane < LANE_CHECK_LANES_PER_VALUE; plane += 1ull)
             {
                 const unsigned long long alone[4] = {1ull, 1ull, 1ull, column->values};
@@ -1685,7 +1755,8 @@ int program_main(int count, char **arguments)
                 bits = 0ull;
                 sim_check(&results,
                           lane_round_trip(&results, device_planes + (plane * column->values),
-                                          planes + (plane * column->values), alone, &bits, &device_rebuilt, NULL, 0u, 0),
+                                          planes + (plane * column->values), alone, &bits, &device_rebuilt, NULL, 0u,
+                                          0),
                           "a plane alone lifts, codes, decodes and lowers");
                 plane_bits += bits;
                 unsigned long long ranked_bits = ~0ull;
@@ -1707,7 +1778,7 @@ int program_main(int count, char **arguments)
                 }
                 better_bits += (ranked_bits < bits) ? ranked_bits : bits;
             }
-            free(forward);
+            platform_cell_released(forward, platform_place_g_program_owner);
             lane_line_decimal(&results, "   the four planes alone: coded bits ", plane_bits);
             lane_line_decimal(&results, " of raw ", lanes * 16ull);
             lane_line_decimal(&results, ", that is ", (plane_bits * 1000ull) / (lanes * 16ull));
@@ -1719,12 +1790,12 @@ int program_main(int count, char **arguments)
             lane_line_end(&results);
         }
         cudaFree(device_planes);
-        free(planes);
+        platform_cell_released(planes, platform_place_g_program_owner);
         cudaFree(device_lanes);
-        free(columns[each].bytes);
-        free(columns[each].row_start);
+        platform_cell_released(columns[each].bytes, platform_place_g_program_owner);
+        platform_cell_released(columns[each].row_start, platform_place_g_program_owner);
     }
-    free(bases.bytes);
-    free(bases.row_start);
+    platform_cell_released(bases.bytes, platform_place_g_program_owner);
+    platform_cell_released(bases.row_start, platform_place_g_program_owner);
     return sim_close(&results, "lane check");
 }

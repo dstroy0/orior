@@ -95,7 +95,7 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
         project.error = error;
         unsigned long long broken = 0ULL;
         ok = ok && (entropy_history_project(&project, &broken) == 0L);
-        free(volume);
+        platform_cell_released(volume, platform_place_g_program_owner);
         if (ENGINE_CHECK(broken == 0ULL, &broken, error, ENGINE_ERROR_LOGIC) == 0)
         {
             {

@@ -143,12 +143,12 @@ static void points_check_set_free(PointsCheckSet *set)
 {
     for (unsigned int at = 0u; (set->names != NULL) && (at < set->count); at += 1u)
     {
-        free(set->names[at]);
+        platform_cell_released(set->names[at], platform_place_g_program_owner);
     }
-    free(set->names);
-    free(set->totals);
-    free(set->counts);
-    free(set->contrast);
+    platform_cell_released(set->names, platform_place_g_program_owner);
+    platform_cell_released(set->totals, platform_place_g_program_owner);
+    platform_cell_released(set->counts, platform_place_g_program_owner);
+    platform_cell_released(set->contrast, platform_place_g_program_owner);
     memset(set, 0, sizeof(*set));
 }
 
@@ -165,13 +165,16 @@ static int points_check_set_read(const char *root, PointsCheckSet *set)
              points_check_line(file, line, sizeof(line)) && (sscanf(line, "bits %u%c", &set->bits, &rest) == 1) &&
              points_check_line(file, line, sizeof(line)) && (sscanf(line, "samples %u%c", &set->count, &rest) == 1) &&
              (set->count != 0u);
-    set->names = ok ? (char **)calloc(set->count, sizeof(char *)) : NULL;
-    set->totals = ok ? (unsigned long long *)calloc(set->count, sizeof(unsigned long long)) : NULL;
+    set->names =
+        ok ? (char **)platform_cell_cleared(set->count, sizeof(char *), platform_place_g_program_owner, 0) : NULL;
+    set->totals = ok ? (unsigned long long *)platform_cell_cleared(set->count, sizeof(unsigned long long),
+                                                                   platform_place_g_program_owner, 0)
+                     : NULL;
     ok = ok && (set->names != NULL) && (set->totals != NULL);
     for (unsigned int at = 0u; ok && (at < set->count); at += 1u)
     {
         ok = points_check_line(file, line, sizeof(line)) && (line[0] != '\0');
-        set->names[at] = ok ? (char *)malloc(strlen(line) + 1u) : NULL;
+        set->names[at] = ok ? (char *)platform_cell_taken(strlen(line) + 1u, platform_place_g_program_owner, 0) : NULL;
         ok = ok && (set->names[at] != NULL);
         if (ok)
         {
@@ -199,9 +202,12 @@ static int points_check_set_read(const char *root, PointsCheckSet *set)
 // every sample's .readings summed; the set's readings, bits and C rebuilt from the sum; the footings' ranges printed
 static int points_check_rebuild(const char *root, PointsCheckSet *set, unsigned long long *faults)
 {
-    set->counts = (unsigned long long *)calloc(POINTS_CHECK_READINGS, sizeof(unsigned long long));
-    set->contrast = (unsigned long long *)calloc(POINTS_CHECK_READINGS, sizeof(unsigned long long));
-    unsigned long long *const one = (unsigned long long *)malloc(POINTS_CHECK_READINGS * sizeof(unsigned long long));
+    set->counts = (unsigned long long *)platform_cell_cleared(POINTS_CHECK_READINGS, sizeof(unsigned long long),
+                                                              platform_place_g_program_owner, 0);
+    set->contrast = (unsigned long long *)platform_cell_cleared(POINTS_CHECK_READINGS, sizeof(unsigned long long),
+                                                                platform_place_g_program_owner, 0);
+    unsigned long long *const one = (unsigned long long *)platform_cell_taken(
+        POINTS_CHECK_READINGS * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     if ((set->counts == NULL) || (set->contrast == NULL) || (one == NULL))
     {
         {
@@ -210,7 +216,7 @@ static int points_check_rebuild(const char *root, PointsCheckSet *set, unsigned 
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(one);
+        platform_cell_released(one, platform_place_g_program_owner);
         return 0;
     }
     unsigned long long found_count = 0ull;
@@ -267,7 +273,7 @@ static int points_check_rebuild(const char *root, PointsCheckSet *set, unsigned 
             max[word] = (footing[word] > max[word]) ? footing[word] : max[word];
         }
     }
-    free(one);
+    platform_cell_released(one, platform_place_g_program_owner);
     unsigned long long running = 0ull;
     for (unsigned int value = 0u; value < POINTS_CHECK_READINGS; value += 1u)
     {
@@ -334,13 +340,17 @@ static int points_check_reserve(PointsCheckWorkspace *capacity, size_t voxels, s
 {
     if (voxels > capacity->voxel_capacity)
     {
-        unsigned int *const grown = (unsigned int *)realloc(capacity->voxels, (voxels + 1u) * sizeof(unsigned int));
+        unsigned int *const grown = (unsigned int *)platform_cell_grown(
+            capacity->voxels, (capacity->voxel_capacity + 1u) * sizeof(unsigned int),
+            (voxels + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
         capacity->voxels = (grown != NULL) ? grown : capacity->voxels;
         capacity->voxel_capacity = (grown != NULL) ? voxels : capacity->voxel_capacity;
     }
     if (levels > capacity->level_capacity)
     {
-        unsigned int *const grown = (unsigned int *)realloc(capacity->levels, (levels + 1u) * sizeof(unsigned int));
+        unsigned int *const grown = (unsigned int *)platform_cell_grown(
+            capacity->levels, (capacity->level_capacity + 1u) * sizeof(unsigned int),
+            (levels + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
         capacity->levels = (grown != NULL) ? grown : capacity->levels;
         capacity->level_capacity = (grown != NULL) ? levels : capacity->level_capacity;
     }
@@ -364,8 +374,8 @@ static int points_check_sample(const char *root, const char *sample, const Point
     FILE *const file = points_check_path(path, sizeof(path), root, sample, ".points") ? fopen(path, "rb") : NULL;
     unsigned int head[POINTS_CHECK_HEAD_WORDS];
     unsigned long long readings = 0ull;
-    unsigned long long *const contrast =
-        (unsigned long long *)malloc(POINTS_CHECK_READINGS * sizeof(unsigned long long));
+    unsigned long long *const contrast = (unsigned long long *)platform_cell_taken(
+        POINTS_CHECK_READINGS * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     int ok = (file != NULL) && (contrast != NULL) && points_check_read(file, head, sizeof(head)) &&
              points_check_read(file, &readings, sizeof(readings)) &&
              points_check_read(file, contrast, POINTS_CHECK_READINGS * sizeof(unsigned long long));
@@ -385,7 +395,7 @@ static int points_check_sample(const char *root, const char *sample, const Point
         {
             fclose(file);
         }
-        free(contrast);
+        platform_cell_released(contrast, platform_place_g_program_owner);
         return 0;
     }
     unsigned int contrast_differs = POINTS_CHECK_READINGS;
@@ -408,7 +418,7 @@ static int points_check_sample(const char *root, const char *sample, const Point
     const int agrees = (head[4] == first->head[4]) && (head[5] == first->head[5]) && (readings == first->readings) &&
                        (memcmp(contrast, first->contrast, POINTS_CHECK_READINGS * sizeof(unsigned long long)) == 0);
     mine[POINTS_CHECK_HEAD_DIFFERS] += agrees ? 0ull : 1ull;
-    free(contrast);
+    platform_cell_released(contrast, platform_place_g_program_owner);
     const unsigned long long plane = (unsigned long long)head[2] * head[3];
     const unsigned long long view = plane * head[1];
     mine[POINTS_CHECK_EMPTY_VIEW] += ((head[0] == 0u) || (view == 0ull)) ? 1ull : 0ull;
@@ -572,7 +582,8 @@ int program_main(int count, char **arguments)
     (void)points_check_rebuild(root, &set, faults);
     PointsCheckFirst first;
     memset(&first, 0, sizeof(first));
-    first.contrast = (unsigned long long *)malloc(POINTS_CHECK_READINGS * sizeof(unsigned long long));
+    first.contrast = (unsigned long long *)platform_cell_taken(POINTS_CHECK_READINGS * sizeof(unsigned long long),
+                                                               platform_place_g_program_owner, 0);
     PointsCheckWorkspace workspace;
     memset(&workspace, 0, sizeof(workspace));
     if (first.contrast == NULL)
@@ -625,9 +636,9 @@ int program_main(int count, char **arguments)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(first.contrast);
-    free(workspace.voxels);
-    free(workspace.levels);
+    platform_cell_released(first.contrast, platform_place_g_program_owner);
+    platform_cell_released(workspace.voxels, platform_place_g_program_owner);
+    platform_cell_released(workspace.levels, platform_place_g_program_owner);
     points_check_set_free(&set);
     return (total == 0ull) ? 0 : 1;
 }

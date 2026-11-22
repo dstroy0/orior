@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "../../src/cu/engine/nbody/orior/orior.h"
+#include "../../src/platform/platform.h"
 #include "bench_corpora.h"
 
 #if ORIOR_COUNT_READS
@@ -122,8 +123,7 @@ static uint64_t quickest(const Row *row)
     return (row->inorder < row->freed) ? row->inorder : row->freed;
 }
 
-static double cycles_given_up(const Row *rows, size_t count, double flat_share, size_t ceiling,
-                              size_t *agreed)
+static double cycles_given_up(const Row *rows, size_t count, double flat_share, size_t ceiling, size_t *agreed)
 {
     double lost = 0.0;
     size_t right = 0u;
@@ -144,8 +144,8 @@ static double cycles_given_up(const Row *rows, size_t count, double flat_share, 
     return lost;
 }
 
-static uint64_t time_arm(OriorEngine arm, const uint8_t *corpus, size_t corpus_len,
-                         const uint8_t *needles, size_t needle_len, unsigned present, size_t *found)
+static uint64_t time_arm(OriorEngine arm, const uint8_t *corpus, size_t corpus_len, const uint8_t *needles,
+                         size_t needle_len, unsigned present, size_t *found)
 {
     uint64_t best = UINT64_MAX;
 
@@ -156,9 +156,8 @@ static uint64_t time_arm(OriorEngine arm, const uint8_t *corpus, size_t corpus_l
 
         for (size_t draw = 0u; draw < NEEDLES_PER_ROW; draw += 1u)
         {
-            const uint8_t *const needle = (present != 0u)
-                                              ? (corpus + ((draw * 977u) % (corpus_len - needle_len)))
-                                              : (needles + (draw * needle_len));
+            const uint8_t *const needle = (present != 0u) ? (corpus + ((draw * 977u) % (corpus_len - needle_len)))
+                                                          : (needles + (draw * needle_len));
 
             seen += arm(corpus, corpus_len, needle, needle_len);
         }
@@ -197,16 +196,15 @@ static size_t measure_rows(Row *rows, uint8_t *corpus, uint8_t *absent)
                 size_t found_inorder = 0u;
                 size_t found_free = 0u;
 
-                const uint64_t inorder = time_arm(orior_inorder, corpus, CORPUS_BYTES, absent,
-                                                  needle_len, present, &found_inorder);
-                const uint64_t freed = time_arm(orior_free, corpus, CORPUS_BYTES, absent,
-                                                needle_len, present, &found_free);
+                const uint64_t inorder =
+                    time_arm(orior_inorder, corpus, CORPUS_BYTES, absent, needle_len, present, &found_inorder);
+                const uint64_t freed =
+                    time_arm(orior_free, corpus, CORPUS_BYTES, absent, needle_len, present, &found_free);
 
                 if (found_inorder != found_free)
                 {
-                    (void)fprintf(stderr, "  %s at m=%llu: %llu against %llu\n",
-                                  bench_corpus_name(TYPES[which]), (unsigned long long)needle_len,
-                                  (unsigned long long)found_inorder,
+                    (void)fprintf(stderr, "  %s at m=%llu: %llu against %llu\n", bench_corpus_name(TYPES[which]),
+                                  (unsigned long long)needle_len, (unsigned long long)found_inorder,
                                   (unsigned long long)found_free);
                     exit(1);
                 }
@@ -228,8 +226,8 @@ static size_t measure_rows(Row *rows, uint8_t *corpus, uint8_t *absent)
 
 static void print_rows(const Row *rows, size_t count)
 {
-    printf("\n  %-12s %-7s %-9s %-9s %-6s %-4s %-13s %-13s %-9s %s\n", "corpus", "h2", "distinct",
-           "flatness", "m", "in", "inorder", "free", "faster", "by");
+    printf("\n  %-12s %-7s %-9s %-9s %-6s %-4s %-13s %-13s %-9s %s\n", "corpus", "h2", "distinct", "flatness", "m",
+           "in", "inorder", "free", "faster", "by");
     for (size_t at = 0u; at < count; at += 1u)
     {
         const int inorder_wins = rows[at].inorder < rows[at].freed;
@@ -290,14 +288,12 @@ static void recommend_constants(const Row *rows, size_t count)
     name_ceiling(ceiling_text, sizeof ceiling_text, best_ceiling);
 
     printf("\n  Constants swept, not assumed\n");
-    printf("  %-24s %.2f to %.2f, taking %.2f as the midpoint\n", "flatness threshold", lowest,
-           highest, (lowest + highest) / 2.0);
-    printf("  %-24s a structured corpus takes the free order arm at %s\n", "needle length",
-           ceiling_text);
-    printf("  %-24s %llu of %llu rows, giving up %.0f cycles\n", "what that scores",
-           (unsigned long long)best_agreed, (unsigned long long)count, best_lost);
-    printf("  The threshold the kernel carries, %.2f, sits inside that interval. The ceiling of\n",
-           SHIPPED_FLAT_SHARE);
+    printf("  %-24s %.2f to %.2f, taking %.2f as the midpoint\n", "flatness threshold", lowest, highest,
+           (lowest + highest) / 2.0);
+    printf("  %-24s a structured corpus takes the free order arm at %s\n", "needle length", ceiling_text);
+    printf("  %-24s %llu of %llu rows, giving up %.0f cycles\n", "what that scores", (unsigned long long)best_agreed,
+           (unsigned long long)count, best_lost);
+    printf("  The threshold the kernel carries, %.2f, sits inside that interval. The ceiling of\n", SHIPPED_FLAT_SHARE);
     printf("  %llu it used to carry does not survive the sweep at any value.\n",
            (unsigned long long)SHIPPED_FREE_CEILING);
 }
@@ -306,8 +302,8 @@ static void recommend_per_corpus(const Row *rows, size_t count)
 {
     const size_t type_count = sizeof TYPES / sizeof TYPES[0];
 
-    printf("\n  %-12s %-9s %-15s %-15s %-13s %s\n", "corpus", "flatness", "run this",
-           "free arm at", "over the other", "widest row");
+    printf("\n  %-12s %-9s %-15s %-15s %-13s %s\n", "corpus", "flatness", "run this", "free arm at", "over the other",
+           "widest row");
     for (size_t which = 0u; which < type_count; which += 1u)
     {
         const size_t ceiling_count = sizeof CEILINGS / sizeof CEILINGS[0];
@@ -365,8 +361,7 @@ static void recommend_per_corpus(const Row *rows, size_t count)
         }
 
         const int inorder_wins = inorder_total < free_total;
-        const double ratio = inorder_wins ? (free_total / inorder_total)
-                                          : (inorder_total / free_total);
+        const double ratio = inorder_wins ? (free_total / inorder_total) : (inorder_total / free_total);
         char ceiling_text[24];
 
         name_ceiling(ceiling_text, sizeof ceiling_text, best_ceiling);
@@ -409,16 +404,14 @@ static void score_named(const Row *rows, size_t count)
         }
     }
 
-    printf("\n  %-38s %-16s %-18s %s\n", "rule", "picked fastest", "cycles given up",
-           "share of the worst");
+    printf("\n  %-38s %-16s %-18s %s\n", "rule", "picked fastest", "cycles given up", "share of the worst");
     for (size_t at = 0u; at < named_count; at += 1u)
     {
         size_t agreed = 0u;
         const double lost = cycles_given_up(rows, count, NAMED[at].flat_share, NAMED[at].ceiling, &agreed);
         char counted[32];
 
-        (void)snprintf(counted, sizeof counted, "%llu of %llu", (unsigned long long)agreed,
-                       (unsigned long long)count);
+        (void)snprintf(counted, sizeof counted, "%llu of %llu", (unsigned long long)agreed, (unsigned long long)count);
         printf("  %-38s %-16s %-18.0f %.3f\n", NAMED[at].name, counted, lost, (worst > 0.0) ? (lost / worst) : 0.0);
     }
 
@@ -453,17 +446,16 @@ int program_main(int argc, char **argv)
     const size_t needle_count = sizeof NEEDLE_LENGTHS / sizeof NEEDLE_LENGTHS[0];
     const size_t absent_bytes = NEEDLE_LENGTHS[needle_count - 1u] * NEEDLES_PER_ROW;
 
-    uint8_t *const corpus = (uint8_t *)malloc(CORPUS_BYTES);
-    uint8_t *const absent = (uint8_t *)malloc(absent_bytes);
-    Row *const rows = (Row *)malloc(ROW_COUNT * sizeof(Row));
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(CORPUS_BYTES, platform_place_g_program_owner, 0);
+    uint8_t *const absent = (uint8_t *)platform_cell_taken(absent_bytes, platform_place_g_program_owner, 0);
+    Row *const rows = (Row *)platform_cell_taken(ROW_COUNT * sizeof(Row), platform_place_g_program_owner, 0);
 
     if ((corpus == NULL) || (absent == NULL) || (rows == NULL))
     {
-        (void)fprintf(stderr, "  could not take %llu bytes\n",
-                      (unsigned long long)(CORPUS_BYTES + absent_bytes));
-        free(corpus);
-        free(absent);
-        free(rows);
+        (void)fprintf(stderr, "  could not take %llu bytes\n", (unsigned long long)(CORPUS_BYTES + absent_bytes));
+        platform_cell_released(corpus, platform_place_g_program_owner);
+        platform_cell_released(absent, platform_place_g_program_owner);
+        platform_cell_released(rows, platform_place_g_program_owner);
         return 2;
     }
 
@@ -482,8 +474,8 @@ int program_main(int argc, char **argv)
     printf("  row where the arms differ by one percent the same as one where they differ\n");
     printf("  threefold, and the two scores disagree here for exactly that reason.\n");
 
-    free(corpus);
-    free(absent);
-    free(rows);
+    platform_cell_released(corpus, platform_place_g_program_owner);
+    platform_cell_released(absent, platform_place_g_program_owner);
+    platform_cell_released(rows, platform_place_g_program_owner);
     return 0;
 }

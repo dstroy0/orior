@@ -41,7 +41,8 @@ int msq_added(unsigned char **memory, size_t *size_used, size_t *room, const voi
         {
             grown *= 2u;
         }
-        unsigned char *const larger = (unsigned char *)realloc(*memory, grown);
+        unsigned char *const larger =
+            (unsigned char *)platform_cell_grown(*memory, *room, grown, platform_place_g_program_owner, 0);
         if (larger == NULL)
         {
             return 0;
@@ -107,7 +108,8 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
             break;
         }
         const unsigned long long room = answer.output_bytes + 65536ULL;
-        char *const larger = (char *)realloc(reader->output, (size_t)room);
+        char *const larger = (char *)platform_cell_grown(reader->output, reader->output_room, (size_t)room,
+                                                         platform_place_g_program_owner, 0);
         if (larger == NULL)
         {
             return -1;
@@ -152,9 +154,9 @@ void msq_listing_free(MsqListing *listing)
     // a view owns neither room nor text: its lines are another listing's
     if (listing->room != 0u)
     {
-        free(listing->lines);
+        platform_cell_released(listing->lines, platform_place_g_program_owner);
     }
-    free(listing->text);
+    platform_cell_released(listing->text, platform_place_g_program_owner);
     mmgr_bytes_set(listing, 0, sizeof(*listing));
 }
 
@@ -165,7 +167,7 @@ void msq_listing_free(MsqListing *listing)
 int msq_listing_read(const char *printed, size_t length, MsqListing *listing)
 {
     mmgr_bytes_set(listing, 0, sizeof(*listing));
-    char *const text = (char *)malloc(length + 1u);
+    char *const text = (char *)platform_cell_taken(length + 1u, platform_place_g_program_owner, 0);
     if (text == NULL)
     {
         return 0;
@@ -255,7 +257,9 @@ int msq_listing_read(const char *printed, size_t length, MsqListing *listing)
         if (listing->count == listing->room)
         {
             const size_t room = (listing->room != 0u) ? (listing->room * 2u) : 1024u;
-            MsqLine *const larger = (MsqLine *)realloc(listing->lines, room * sizeof(MsqLine));
+            MsqLine *const larger =
+                (MsqLine *)platform_cell_grown(listing->lines, listing->room * sizeof(MsqLine), room * sizeof(MsqLine),
+                                               platform_place_g_program_owner, 0);
             if (larger == NULL)
             {
                 return 0;

@@ -35,7 +35,8 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
                               unsigned long long bodies, EngineError *error)
 {
     const size_t words = (size_t)bodies * layout->limbs;
-    unsigned int *const again = (unsigned int *)malloc((words + 1u) * sizeof(unsigned int));
+    unsigned int *const again =
+        (unsigned int *)platform_cell_taken((words + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     int ok = FLATTEN_CHECK(again != NULL, &again, error, ENGINE_ERROR_RESOURCE);
     const unsigned int head[FLATTEN_HEAD_LIMBS] = {FLATTEN_FORMAT, MAX_TREE_FIELDS, layout->total_bits, layout->limbs,
                                                    count};
@@ -106,7 +107,7 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
     {
         platform_file_close(file);
     }
-    free(again);
+    platform_cell_released(again, platform_place_g_program_owner);
     return ok;
 }
 
@@ -138,9 +139,16 @@ int flatten_read(const char *set, FlattenResident *resident, EngineError *error)
     resident->layout.total_bits = head[2];
     resident->layout.limbs = head[3];
     resident->samples = head[4];
-    resident->names = ok ? (char **)calloc((size_t)resident->samples + 1u, sizeof(char *)) : NULL;
-    resident->orders = ok ? (FlattenOrders *)calloc((size_t)resident->samples + 1u, sizeof(FlattenOrders)) : NULL;
-    resident->offset_halves = ok ? (int *)calloc(((size_t)resident->samples + 1u) * ENGINE_AXES, sizeof(int)) : NULL;
+    resident->names = ok ? (char **)platform_cell_cleared((size_t)resident->samples + 1u, sizeof(char *),
+                                                          platform_place_g_program_owner, 0)
+                         : NULL;
+    resident->orders =
+        ok ? (FlattenOrders *)platform_cell_cleared((size_t)resident->samples + 1u, sizeof(FlattenOrders),
+                                                    platform_place_g_program_owner, 0)
+           : NULL;
+    resident->offset_halves = ok ? (int *)platform_cell_cleared(((size_t)resident->samples + 1u) * ENGINE_AXES,
+                                                                sizeof(int), platform_place_g_program_owner, 0)
+                                 : NULL;
     ok = ok &&
          FLATTEN_CHECK((resident->names != NULL) && (resident->orders != NULL) && (resident->offset_halves != NULL),
                        &resident->names, error, ENGINE_ERROR_RESOURCE);
@@ -149,7 +157,8 @@ int flatten_read(const char *set, FlattenResident *resident, EngineError *error)
         unsigned int length = 0u;
         ok = FLATTEN_IO(krep_limbs_read(file, &length, 1u) != 0, &length, error) &&
              FLATTEN_CHECK(length < 1024u, &length, error, ENGINE_ERROR_LOGIC);
-        resident->names[sample] = ok ? (char *)calloc((size_t)length + 1u, 1u) : NULL;
+        resident->names[sample] =
+            ok ? (char *)platform_cell_cleared((size_t)length + 1u, 1u, platform_place_g_program_owner, 0) : NULL;
         FlattenOrders *const orders = &resident->orders[sample];
         ok = ok &&
              FLATTEN_CHECK(resident->names[sample] != NULL, &resident->names[sample], error, ENGINE_ERROR_RESOURCE) &&
@@ -173,7 +182,9 @@ int flatten_read(const char *set, FlattenResident *resident, EngineError *error)
         FLATTEN_CHECK((resident->layout.limbs != 0u) && (resident->layout.total_bits <= (32u * resident->layout.limbs)),
                       &resident->layout, error, ENGINE_ERROR_LOGIC);
     const size_t words = ok ? (size_t)resident->bodies * resident->layout.limbs : 0u;
-    resident->magnitudes = ok ? (unsigned int *)malloc((words + 1u) * sizeof(unsigned int)) : NULL;
+    resident->magnitudes =
+        ok ? (unsigned int *)platform_cell_taken((words + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0)
+           : NULL;
     ok = ok && FLATTEN_CHECK(resident->magnitudes != NULL, &resident->magnitudes, error, ENGINE_ERROR_RESOURCE) &&
          FLATTEN_IO(krep_limbs_read(file, resident->magnitudes, words) != 0, resident->magnitudes, error) &&
          FLATTEN_CHECK(platform_file_char_get(file) == EOF, file, error, ENGINE_ERROR_LOGIC);
@@ -192,12 +203,12 @@ void flatten_release(FlattenResident *resident)
 {
     for (unsigned int sample = 0u; (resident->names != NULL) && (sample < resident->samples); sample += 1u)
     {
-        free(resident->names[sample]);
+        platform_cell_released(resident->names[sample], platform_place_g_program_owner);
     }
-    free(resident->names);
-    free(resident->orders);
-    free(resident->offset_halves);
-    free(resident->magnitudes);
+    platform_cell_released(resident->names, platform_place_g_program_owner);
+    platform_cell_released(resident->orders, platform_place_g_program_owner);
+    platform_cell_released(resident->offset_halves, platform_place_g_program_owner);
+    platform_cell_released(resident->magnitudes, platform_place_g_program_owner);
     mmgr_bytes_set(resident, 0, sizeof(*resident));
 }
 
@@ -251,7 +262,8 @@ int flatten_set(const FlattenSetRequest *request)
     const char *const set = request->set;
     char *const *const names = request->names;
     const unsigned int count = request->count;
-    FlattenOrders *const orders = (FlattenOrders *)malloc(((size_t)count + 1u) * sizeof(FlattenOrders));
+    FlattenOrders *const orders = (FlattenOrders *)platform_cell_taken(((size_t)count + 1u) * sizeof(FlattenOrders),
+                                                                       platform_place_g_program_owner, 0);
     int ok =
         FLATTEN_CHECK(orders != NULL, &orders, error, ENGINE_ERROR_RESOURCE) && flatten_orders(request, orders, error);
     unsigned int largest[3] = {0u, 0u, 0u};
@@ -270,7 +282,7 @@ int flatten_set(const FlattenSetRequest *request)
     }
     if (ok == 0)
     {
-        free(orders);
+        platform_cell_released(orders, platform_place_g_program_owner);
         return 0;
     }
     MaxTreeLayout layout;
@@ -420,7 +432,7 @@ int flatten_set(const FlattenSetRequest *request)
             proofs += (unsigned long long)proof_count;
             frames_done += ok ? 1ULL : 0ULL;
         }
-        free(volume);
+        platform_cell_released(volume, platform_place_g_program_owner);
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  ");
@@ -520,7 +532,7 @@ int flatten_set(const FlattenSetRequest *request)
         platform_line_out_ended();
     }
     cudaFree(magnitudes);
-    free(gathered);
-    free(orders);
+    platform_cell_released(gathered, platform_place_g_program_owner);
+    platform_cell_released(orders, platform_place_g_program_owner);
     return written;
 }

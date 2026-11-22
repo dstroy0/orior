@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_boundary_test_run.cu: loading, running and reading, precision and bands
 #include "record_boundary_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // each field its own 32-bit word, `fields` words a lane, arranged with register reuse
 int boundary_load(const BoundaryProgram *program, unsigned int fields, BoundaryLoaded *loaded)
@@ -126,11 +127,16 @@ void boundary_precision(BoundaryResults *results, BoundaryLoaded *loaded, const 
     const unsigned int n = BOUNDARY_TEST_SAMPLES;
     const unsigned int lanes = 2u * BOUNDARY_TEST_PAIRS;
     const unsigned int out_limbs = loaded->layout.out_limbs;
-    unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * n, sizeof(unsigned int));
-    unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-    unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-    unsigned int *const flip_at = (unsigned int *)calloc(BOUNDARY_TEST_PAIRS, sizeof(unsigned int));
-    unsigned int *const flip_bit = (unsigned int *)calloc(BOUNDARY_TEST_PAIRS, sizeof(unsigned int));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared((size_t)lanes * n, sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const flip_at = (unsigned int *)platform_cell_cleared(BOUNDARY_TEST_PAIRS, sizeof(unsigned int),
+                                                                        platform_place_g_program_owner, 0);
+    unsigned int *const flip_bit = (unsigned int *)platform_cell_cleared(BOUNDARY_TEST_PAIRS, sizeof(unsigned int),
+                                                                         platform_place_g_program_owner, 0);
     const int buffers =
         (atoms != NULL) && (host_out != NULL) && (device_out != NULL) && (flip_at != NULL) && (flip_bit != NULL);
     for (unsigned int pair = 0u; (buffers != 0) && (pair < BOUNDARY_TEST_PAIRS); pair += 1u)
@@ -262,11 +268,11 @@ void boundary_precision(BoundaryResults *results, BoundaryLoaded *loaded, const 
     boundary_check(results, bounded == BOUNDARY_TEST_PAIRS, "no flip reaches further below itself than the bound");
     boundary_check(results, changed == BOUNDARY_TEST_PAIRS,
                    "every single flipped bit changes the image: the map is one to one");
-    free(atoms);
-    free(host_out);
-    free(device_out);
-    free(flip_at);
-    free(flip_bit);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
+    platform_cell_released(flip_at, platform_place_g_program_owner);
+    platform_cell_released(flip_bit, platform_place_g_program_owner);
 }
 
 // the crystal band a coefficient lies in: 0 for the level-L lows, l for the highs of level l

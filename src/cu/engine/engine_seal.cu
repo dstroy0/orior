@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_seal.cu: side bytes, the seal and the crystal's verification
 #include "engine_internal.h"
+#include "../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 int entry_side_pack(EngineSideSection *section, EngineError *error)
@@ -12,7 +13,7 @@ int entry_side_pack(EngineSideSection *section, EngineError *error)
     }
     const unsigned long long bytes = section->side.byte_start[section->side.leaves];
     const unsigned long long capacity = deflate_raw_bound(bytes);
-    section->packed = (unsigned char *)malloc((size_t)capacity + 1u);
+    section->packed = (unsigned char *)platform_cell_taken((size_t)capacity + 1u, platform_place_g_program_owner, 0);
     if (ENGINE_CHECK(section->packed != NULL, &section->packed, error, ENGINE_ERROR_RESOURCE) == 0)
     {
         return 0;
@@ -35,7 +36,7 @@ static int entry_side_unpack(EngineSideSection *section, EngineError *error)
         return 1;
     }
     const unsigned long long bytes = section->side.byte_start[section->side.leaves];
-    section->side.bytes = (unsigned char *)malloc((size_t)bytes + 1u);
+    section->side.bytes = (unsigned char *)platform_cell_taken((size_t)bytes + 1u, platform_place_g_program_owner, 0);
     if (ENGINE_CHECK(section->side.bytes != NULL, &section->side.bytes, error, ENGINE_ERROR_RESOURCE) == 0)
     {
         return 0;
@@ -166,7 +167,8 @@ static int entry_seal_stream(const EngineStream *stream, const EngineSignum *lea
 {
     const unsigned long long offset_bytes = 8ULL * stream->chunks;
     const unsigned long long bytes = offset_bytes + 8ULL + (ENGINE_SIGNUM_BYTES * stream->chunks);
-    unsigned char *const buffer = (unsigned char *)malloc((size_t)bytes);
+    unsigned char *const buffer =
+        (unsigned char *)platform_cell_taken((size_t)bytes, platform_place_g_program_owner, 0);
     if (ENGINE_CHECK(buffer != NULL, &buffer, error, ENGINE_ERROR_RESOURCE) == 0)
     {
         return 0;
@@ -175,7 +177,7 @@ static int entry_seal_stream(const EngineStream *stream, const EngineSignum *lea
     entry_words_place(&buffer[offset_bytes], &stream->bits, 1ULL);
     mmgr_bytes_copy(&buffer[offset_bytes + 8ULL], leaves, (size_t)(ENGINE_SIGNUM_BYTES * stream->chunks));
     const int ok = entry_keyed(OBSIGNATIO_LEVEL_STREAM, buffer, bytes, root, error);
-    free(buffer);
+    platform_cell_released(buffer, platform_place_g_program_owner);
     return ok;
 }
 
@@ -207,7 +209,8 @@ static int entry_seal_members(const EngineSideSection *section, EngineSignum *ro
     const unsigned long long words = (leaves != 0ULL) ? ((6ULL * leaves) + 2ULL) : 0ULL;
     const unsigned long long names = (leaves != 0ULL) ? side->name_start[leaves] : 0ULL;
     const unsigned long long bytes = (8ULL * words) + names;
-    unsigned char *const buffer = (unsigned char *)malloc((size_t)bytes + 1u);
+    unsigned char *const buffer =
+        (unsigned char *)platform_cell_taken((size_t)bytes + 1u, platform_place_g_program_owner, 0);
     if (ENGINE_CHECK(buffer != NULL, &buffer, error, ENGINE_ERROR_RESOURCE) == 0)
     {
         return 0;
@@ -230,7 +233,7 @@ static int entry_seal_members(const EngineSideSection *section, EngineSignum *ro
         mmgr_bytes_copy(at, side->names, (size_t)names);
     }
     const int ok = entry_keyed(OBSIGNATIO_LEVEL_MEMBERS, buffer, bytes, root, error);
-    free(buffer);
+    platform_cell_released(buffer, platform_place_g_program_owner);
     return ok;
 }
 
@@ -266,8 +269,10 @@ static int entry_seal_open(const EngineStream *stream, EngineSeal *seal, EngineE
     mmgr_bytes_set(seal, 0, sizeof(*seal));
     seal->lane_count = obsignatio_lanes_nodes(stream->extent);
     seal->chunk_count = stream->chunks;
-    seal->lane_nodes = (EngineSignum *)calloc((size_t)seal->lane_count + 1u, sizeof(EngineSignum));
-    seal->chunk_leaves = (EngineSignum *)calloc((size_t)seal->chunk_count + 1u, sizeof(EngineSignum));
+    seal->lane_nodes = (EngineSignum *)platform_cell_cleared((size_t)seal->lane_count + 1u, sizeof(EngineSignum),
+                                                             platform_place_g_program_owner, 0);
+    seal->chunk_leaves = (EngineSignum *)platform_cell_cleared((size_t)seal->chunk_count + 1u, sizeof(EngineSignum),
+                                                               platform_place_g_program_owner, 0);
     return ENGINE_CHECK((seal->lane_count != 0ULL) && (seal->lane_nodes != NULL) && (seal->chunk_leaves != NULL), seal,
                         error, ENGINE_ERROR_RESOURCE);
 }

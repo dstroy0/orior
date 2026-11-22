@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../includes/exact_types/integers/arm.h"
+#include "../../src/platform/platform.h"
 #if defined(ORIOR_EXACT_HAVE_CUDA) && ORIOR_EXACT_HAVE_CUDA
 #include "../../includes/exact_types/integers/arm_cuda.h"
 #endif
@@ -47,9 +48,8 @@ static int plant(OriorExactInteger *positions, uint64_t *values, unsigned int pl
     return 1;
 }
 
-static double sweep(const OriorExactArm *arm, const OriorExactInteger *positions,
-                    const uint64_t *values, const OriorExactInteger *lags, size_t *answers,
-                    unsigned int places)
+static double sweep(const OriorExactArm *arm, const OriorExactInteger *positions, const uint64_t *values,
+                    const OriorExactInteger *lags, size_t *answers, unsigned int places)
 {
     const clock_t started = clock();
     for (unsigned int again = 0u; again < REPEATS; again++)
@@ -122,19 +122,18 @@ int program_main(int argc, char **argv)
         places = (unsigned int)requested;
     }
 
-    OriorExactInteger *const positions =
-        (OriorExactInteger *)malloc((size_t)places * sizeof(OriorExactInteger));
+    OriorExactInteger *const positions = (OriorExactInteger *)platform_cell_taken(
+        (size_t)places * sizeof(OriorExactInteger), platform_place_g_program_owner, 0);
     if (positions == NULL)
     {
-        printf("  %u positions of %u limbs could not be allocated\n", places,
-               (unsigned int)ORIOR_EXACT_LIMBS);
+        printf("  %u positions of %u limbs could not be allocated\n", places, (unsigned int)ORIOR_EXACT_LIMBS);
         return 1;
     }
 
     if (plant(positions, values, places) == 0)
     {
         printf("  the run would not fit the scale\n");
-        free(positions);
+        platform_cell_released(positions, platform_place_g_program_owner);
         return 1;
     }
     for (unsigned int at = 0u; at < LAGS; at++)
@@ -144,19 +143,18 @@ int program_main(int argc, char **argv)
         if (orior_exact_from_decimal(text, strlen(text), PLACES, &lags[at]) != ORIOR_EXACT_OK)
         {
             printf("  lag %u would not fit the scale\n", at);
-            free(positions);
+            platform_cell_released(positions, platform_place_g_program_owner);
             return 1;
         }
     }
 
-    printf("\n  %u positions, %u lags, %u limbs of 32 bits, %u decimal places\n\n", places,
-           LAGS, (unsigned int)ORIOR_EXACT_LIMBS, (unsigned int)PLACES);
+    printf("\n  %u positions, %u lags, %u limbs of 32 bits, %u decimal places\n\n", places, LAGS,
+           (unsigned int)ORIOR_EXACT_LIMBS, (unsigned int)PLACES);
 
     const OriorExactArm *portable = orior_exact_portable_arm();
     const double portable_seconds = sweep(portable, positions, values, lags, reference, places);
     printf("  %-14s %-10s %-12s %s\n", "arm", "seconds", "against", "verdict");
-    printf("  %-14s %-10.3f %-12s %s\n", portable->name, portable_seconds, "itself",
-           "the reference");
+    printf("  %-14s %-10.3f %-12s %s\n", portable->name, portable_seconds, "itself", "the reference");
 
     const OriorExactArm *arms[6];
     unsigned int count = 0u;
@@ -219,8 +217,7 @@ int program_main(int argc, char **argv)
     }
     printf("\n  the same run with the position before every eighth entry repeated\n\n");
     const double repeated_seconds = sweep(portable, positions, values, lags, reference, places);
-    printf("  %-14s %-10.3f %-12s %s\n", portable->name, repeated_seconds, "itself",
-           "the reference");
+    printf("  %-14s %-10.3f %-12s %s\n", portable->name, repeated_seconds, "itself", "the reference");
     if (grade_arms(arms, count, positions, values, lags, reference, matched, places, repeated_seconds,
                    portable->name) != 0)
     {
@@ -230,8 +227,7 @@ int program_main(int argc, char **argv)
 #if defined(ORIOR_EXACT_HAVE_CUDA) && ORIOR_EXACT_HAVE_CUDA
     if (orior_exact_cuda_available() != 0)
     {
-        const size_t device_answer =
-            orior_exact_agreement_cuda(positions, values, (size_t)places, &lags[3]);
+        const size_t device_answer = orior_exact_agreement_cuda(positions, values, (size_t)places, &lags[3]);
         if (device_answer == (size_t)-1)
         {
             printf("\n  the device errored on the run at %u limbs. The cuda row is the portable arm\n",
@@ -252,6 +248,6 @@ int program_main(int argc, char **argv)
 #endif
 
     printf("\n");
-    free(positions);
+    platform_cell_released(positions, platform_place_g_program_owner);
     return wrong;
 }

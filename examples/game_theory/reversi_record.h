@@ -19,6 +19,7 @@
 #define REVERSI_RECORD_H
 
 #include "twister_record.h"
+#include "../../src/platform/platform.h"
 
 /** @brief The side of the board, the squares, and the bits of a square in a record. */
 #define REVERSI_SIDE 8u
@@ -367,14 +368,22 @@ static inline int reversi_play(SimResults *results, const unsigned int *players,
          sim_status_check(results, cudaMalloc((void **)&index, games * 2ULL * 4ULL), "index") &&
          sim_status_check(results, cudaMalloc((void **)&index_one, games * 4ULL), "index of one member") &&
          sim_status_check(results, cudaMalloc((void **)&counted, games * count.layout.out_limbs * 4ULL), "counts");
-    unsigned int *const host = (unsigned int *)calloc((size_t)games * REVERSI_LIMBS, sizeof(unsigned int));
-    unsigned int *const host_index = (unsigned int *)malloc((size_t)games * 2u * sizeof(unsigned int));
-    unsigned int *const host_counted = (unsigned int *)malloc((size_t)games * count.layout.out_limbs * 4u);
-    unsigned int *const host_choices = (unsigned int *)calloc(games, sizeof(unsigned int));
-    unsigned int *const passes = (unsigned int *)calloc(games, sizeof(unsigned int));
-    unsigned int *const which = (unsigned int *)malloc((size_t)games * sizeof(unsigned int));
-    unsigned int *const bounds = (unsigned int *)malloc((size_t)games * sizeof(unsigned int));
-    unsigned int *const draws = (unsigned int *)malloc((size_t)games * sizeof(unsigned int));
+    unsigned int *const host = (unsigned int *)platform_cell_cleared(
+        (size_t)games * REVERSI_LIMBS, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host_index = (unsigned int *)platform_cell_taken((size_t)games * 2u * sizeof(unsigned int),
+                                                                         platform_place_g_program_owner, 0);
+    unsigned int *const host_counted = (unsigned int *)platform_cell_taken((size_t)games * count.layout.out_limbs * 4u,
+                                                                           platform_place_g_program_owner, 0);
+    unsigned int *const host_choices =
+        (unsigned int *)platform_cell_cleared(games, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const passes =
+        (unsigned int *)platform_cell_cleared(games, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const which =
+        (unsigned int *)platform_cell_taken((size_t)games * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const bounds =
+        (unsigned int *)platform_cell_taken((size_t)games * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const draws =
+        (unsigned int *)platform_cell_taken((size_t)games * sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = ok && (host != NULL) && (host_index != NULL) && (host_counted != NULL) && (host_choices != NULL) &&
          (passes != NULL) && (which != NULL) && (bounds != NULL) && (draws != NULL);
     // the opening: white on d4 and e5, black on e4 and d5, and black to move
@@ -506,14 +515,14 @@ static inline int reversi_play(SimResults *results, const unsigned int *players,
     cudaFree(index);
     cudaFree(index_one);
     cudaFree(counted);
-    free(host);
-    free(host_index);
-    free(host_counted);
-    free(host_choices);
-    free(passes);
-    free(which);
-    free(bounds);
-    free(draws);
+    platform_cell_released(host, platform_place_g_program_owner);
+    platform_cell_released(host_index, platform_place_g_program_owner);
+    platform_cell_released(host_counted, platform_place_g_program_owner);
+    platform_cell_released(host_choices, platform_place_g_program_owner);
+    platform_cell_released(passes, platform_place_g_program_owner);
+    platform_cell_released(which, platform_place_g_program_owner);
+    platform_cell_released(bounds, platform_place_g_program_owner);
+    platform_cell_released(draws, platform_place_g_program_owner);
     return ok;
 }
 

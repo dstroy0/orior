@@ -131,9 +131,12 @@ static int sort_ordered(const unsigned int *records, const unsigned int *order, 
 static void sort_records(SortResults *results, unsigned int *records, unsigned int *device_records)
 {
     const size_t words = (size_t)SORT_TEST_RECORDS * SORT_TEST_RECORD_LIMBS;
-    unsigned int *const device_order = (unsigned int *)malloc((size_t)SORT_TEST_RECORDS * sizeof(unsigned int));
-    unsigned int *const host_order = (unsigned int *)malloc((size_t)SORT_TEST_RECORDS * sizeof(unsigned int));
-    unsigned char *const seen = (unsigned char *)malloc((size_t)SORT_TEST_RECORDS);
+    unsigned int *const device_order = (unsigned int *)platform_cell_taken(
+        (size_t)SORT_TEST_RECORDS * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host_order = (unsigned int *)platform_cell_taken(
+        (size_t)SORT_TEST_RECORDS * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned char *const seen =
+        (unsigned char *)platform_cell_taken((size_t)SORT_TEST_RECORDS, platform_place_g_program_owner, 0);
     unsigned int *order_on_device = NULL;
     int ok = (device_order != NULL) && (host_order != NULL) && (seen != NULL) &&
              (cudaMalloc((void **)&order_on_device, (size_t)SORT_TEST_RECORDS * sizeof(unsigned int)) == cudaSuccess);
@@ -200,9 +203,9 @@ static void sort_records(SortResults *results, unsigned int *records, unsigned i
                                  : "the host refuses a field that passes its record");
     }
     cudaFree(order_on_device);
-    free(device_order);
-    free(host_order);
-    free(seen);
+    platform_cell_released(device_order, platform_place_g_program_owner);
+    platform_cell_released(host_order, platform_place_g_program_owner);
+    platform_cell_released(seen, platform_place_g_program_owner);
 }
 
 // the order as an index: a program reads member 0's field 0, 32 bits at bit 32, through the order and writes it out.
@@ -234,8 +237,10 @@ static void sort_index(SortResults *results, unsigned int *records, unsigned int
              (cycle_record_load(&layout, &record, &error) != CYCLE_ERROR);
     sort_check(results, ok, "the index program is encoded, arranged and loaded");
     const unsigned int out_limbs = layout.out_limbs;
-    unsigned int *const order = (unsigned int *)malloc((size_t)SORT_TEST_RECORDS * sizeof(unsigned int));
-    unsigned int *const out = (unsigned int *)malloc((size_t)SORT_TEST_RECORDS * out_limbs * sizeof(unsigned int));
+    unsigned int *const order = (unsigned int *)platform_cell_taken((size_t)SORT_TEST_RECORDS * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
+    unsigned int *const out = (unsigned int *)platform_cell_taken(
+        (size_t)SORT_TEST_RECORDS * out_limbs * sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned int *device_order = NULL;
     unsigned int *device_out = NULL;
     ok = ok && (order != NULL) && (out != NULL) &&
@@ -290,8 +295,8 @@ static void sort_index(SortResults *results, unsigned int *records, unsigned int
     sort_check(results, rising, "each run of 1024 swept outputs rises");
     cudaFree(device_order);
     cudaFree(device_out);
-    free(order);
-    free(out);
+    platform_cell_released(order, platform_place_g_program_owner);
+    platform_cell_released(out, platform_place_g_program_owner);
     if (record != NULL)
     {
         cycle_record_release(record);
@@ -306,7 +311,7 @@ int program_main(int count, char **arguments)
     results.checks = 0ull;
     results.failures = 0ull;
     results.line.capacity = SORT_TEST_LINE;
-    results.line.out = (char *)malloc((size_t)SORT_TEST_LINE);
+    results.line.out = (char *)platform_cell_taken((size_t)SORT_TEST_LINE, platform_place_g_program_owner, 0);
     results.line.at = 0ull;
     if (results.line.out == NULL)
     {
@@ -319,7 +324,8 @@ int program_main(int count, char **arguments)
     if (admitted != 0)
     {
         const size_t words = (size_t)SORT_TEST_RECORDS * SORT_TEST_RECORD_LIMBS;
-        unsigned int *const records = (unsigned int *)malloc(words * sizeof(unsigned int));
+        unsigned int *const records =
+            (unsigned int *)platform_cell_taken(words * sizeof(unsigned int), platform_place_g_program_owner, 0);
         unsigned int *device_records = NULL;
         const int opened =
             (records != NULL) && (cudaMalloc((void **)&device_records, words * sizeof(unsigned int)) == cudaSuccess);
@@ -330,7 +336,7 @@ int program_main(int count, char **arguments)
             sort_index(&results, records, device_records);
         }
         cudaFree(device_records);
-        free(records);
+        platform_cell_released(records, platform_place_g_program_owner);
     }
     sim_job_release(&job);
     sim_flush(&job);
@@ -343,6 +349,6 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " failed\n");
     (void)(mmgr_line_ok(&results.line) &&
            (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
-    free(results.line.out);
+    platform_cell_released(results.line.out, platform_place_g_program_owner);
     return (results.failures == 0ull) ? 0 : 1;
 }

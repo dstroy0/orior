@@ -227,8 +227,10 @@ static int edouble_run(EdoubleResults *results, ExactRecordProgram *program, con
     }
     const unsigned int out_limbs = loaded.layout.out_limbs;
     const size_t words = (size_t)EDOUBLE_TEST_LANES * out_limbs;
-    unsigned int *const host = (unsigned int *)calloc(words, sizeof(unsigned int));
-    unsigned int *const device = (unsigned int *)calloc(words, sizeof(unsigned int));
+    unsigned int *const host =
+        (unsigned int *)platform_cell_cleared(words, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device =
+        (unsigned int *)platform_cell_cleared(words, sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned int *device_atoms = NULL;
     unsigned int *device_out = NULL;
     int ok = (host != NULL) && (device != NULL);
@@ -263,8 +265,8 @@ static int edouble_run(EdoubleResults *results, ExactRecordProgram *program, con
     }
     cudaFree(device_atoms);
     cudaFree(device_out);
-    free(host);
-    free(device);
+    platform_cell_released(host, platform_place_g_program_owner);
+    platform_cell_released(device, platform_place_g_program_owner);
     cycle_record_release(loaded.record);
     key_schedule_record_release(&loaded.layout);
     keymath_record_release(&loaded.key);
@@ -758,7 +760,7 @@ int program_main(int count, char **arguments)
     results.checks = 0ull;
     results.failures = 0ull;
     results.line.capacity = EDOUBLE_TEST_LINE;
-    results.line.out = (char *)malloc((size_t)EDOUBLE_TEST_LINE);
+    results.line.out = (char *)platform_cell_taken((size_t)EDOUBLE_TEST_LINE, platform_place_g_program_owner, 0);
     results.line.at = 0ull;
     if (results.line.out == NULL)
     {
@@ -905,6 +907,6 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " failed\n");
     (void)(mmgr_line_ok(&results.line) &&
            (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
-    free(results.line.out);
+    platform_cell_released(results.line.out, platform_place_g_program_owner);
     return (results.failures == 0ull) ? 0 : 1;
 }

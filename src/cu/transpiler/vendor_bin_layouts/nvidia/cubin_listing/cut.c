@@ -51,7 +51,8 @@ static int cubin_text_added(CubinListingCut *cut, const char *bytes, size_t size
         {
             grown *= 2u;
         }
-        char *const larger = (char *)realloc(cut->text, grown);
+        char *const larger =
+            (char *)platform_cell_grown(cut->text, cut->text_room, grown, platform_place_g_program_owner, 0);
         if (larger == NULL)
         {
             return 0;
@@ -268,7 +269,7 @@ static int cubin_room(void **items, size_t *room, size_t count, size_t size)
         return 1;
     }
     const size_t grown = (*room != 0u) ? (*room * 2u) : 256u;
-    void *const larger = realloc(*items, grown * size);
+    void *const larger = platform_cell_grown(*items, *room * size, grown * size, platform_place_g_program_owner, 0);
     if (larger == NULL)
     {
         return 0;
@@ -282,9 +283,9 @@ int cubin_listing_cut(const char *listing, size_t length, const char *const *nam
                       CubinListingCut *cut)
 {
     mmgr_bytes_set(cut, 0, sizeof(*cut));
-    cut->start = (size_t *)calloc((size_t)count + 1u, sizeof(size_t));
-    cut->size = (size_t *)calloc((size_t)count + 1u, sizeof(size_t));
-    cut->found = (int *)calloc((size_t)count + 1u, sizeof(int));
+    cut->start = (size_t *)platform_cell_cleared((size_t)count + 1u, sizeof(size_t), platform_place_g_program_owner, 0);
+    cut->size = (size_t *)platform_cell_cleared((size_t)count + 1u, sizeof(size_t), platform_place_g_program_owner, 0);
+    cut->found = (int *)platform_cell_cleared((size_t)count + 1u, sizeof(int), platform_place_g_program_owner, 0);
     if ((cut->start == NULL) || (cut->size == NULL) || (cut->found == NULL))
     {
         return 0;
@@ -357,16 +358,16 @@ int cubin_listing_cut(const char *listing, size_t length, const char *const *nam
     {
         written_ok = cubin_section_written(listing, &section, kernel, cut);
     }
-    free(section.lines);
-    free(section.labels);
+    platform_cell_released(section.lines, platform_place_g_program_owner);
+    platform_cell_released(section.labels, platform_place_g_program_owner);
     return written_ok;
 }
 
 void cubin_listing_cut_freed(CubinListingCut *cut)
 {
-    free(cut->text);
-    free(cut->start);
-    free(cut->size);
-    free(cut->found);
+    platform_cell_released(cut->text, platform_place_g_program_owner);
+    platform_cell_released(cut->start, platform_place_g_program_owner);
+    platform_cell_released(cut->size, platform_place_g_program_owner);
+    platform_cell_released(cut->found, platform_place_g_program_owner);
     mmgr_bytes_set(cut, 0, sizeof(*cut));
 }

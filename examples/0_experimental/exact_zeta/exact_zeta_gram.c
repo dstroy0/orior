@@ -42,6 +42,7 @@
  *       routes of theta. Then the routes do not meet at the doublings shown, and the search decides no Gram index.
  */
 #include "zeta_gram_walk.h"
+#include "../../../src/platform/platform.h"
 #include "zeta_search.h"
 #include "zeta_theta.h"
 #include "zeta_shuffle.h"
@@ -100,7 +101,8 @@ static void *gram_memory(void *block)
 static size_t gram_settle(GramSearch *search, const GramBracket *brackets, size_t count, Steering *zeta, int64_t *signs,
                           GramBracket *settled)
 {
-    GramBracket *open = (GramBracket *)gram_memory(malloc((count + 1u) * sizeof(GramBracket)));
+    GramBracket *open = (GramBracket *)gram_memory(
+        platform_cell_taken((count + 1u) * sizeof(GramBracket), platform_place_g_program_owner, 0));
     memcpy(open, brackets, count * sizeof(GramBracket));
     size_t open_count = count;
     size_t cuts = 0u;
@@ -109,7 +111,8 @@ static size_t gram_settle(GramSearch *search, const GramBracket *brackets, size_
     while (open_count > 0u)
     {
         PointList asked = {NULL, 0u, 0u};
-        size_t *const ends = (size_t *)gram_memory(malloc((2u * open_count + 1u) * sizeof(size_t)));
+        size_t *const ends = (size_t *)gram_memory(
+            platform_cell_taken((2u * open_count + 1u) * sizeof(size_t), platform_place_g_program_owner, 0));
         for (size_t at = 0u; at < open_count; at += 1u)
         {
             ZetaPoint point;
@@ -145,12 +148,12 @@ static size_t gram_settle(GramSearch *search, const GramBracket *brackets, size_
             open[next_count] = open[at];
             next_count += 1u;
         }
-        free(ends);
+        platform_cell_released(ends, platform_place_g_program_owner);
         gram_cut(search, open, next_count);
         open_count = next_count;
         cuts += next_count;
     }
-    free(open);
+    platform_cell_released(open, platform_place_g_program_owner);
     return cuts;
 }
 
@@ -242,7 +245,8 @@ int program_main(int argument_count, char **arguments)
     fprintf(out, ", indices 0 to %lld, each alone in its bracket: %s\n", (long long)last_index, truth(consecutive));
     fflush(out);
 
-    GramBracket *const placed = (GramBracket *)gram_memory(malloc(found_count * sizeof(GramBracket)));
+    GramBracket *const placed = (GramBracket *)gram_memory(
+        platform_cell_taken(found_count * sizeof(GramBracket), platform_place_g_program_owner, 0));
     memcpy(placed, found, found_count * sizeof(GramBracket));
     for (int bit = 0; bit < bits; bit += 1)
     {
@@ -269,10 +273,13 @@ int program_main(int argument_count, char **arguments)
     Steering zeta;
     steering_begin(&zeta);
     // The indices run 0 to last_index, one bracket each, as the consecutive verdict checks.
-    int64_t *const signs = (int64_t *)gram_memory(calloc((size_t)last_index + 1u, sizeof(int64_t)));
-    GramBracket *const settled = (GramBracket *)gram_memory(calloc((size_t)last_index + 1u, sizeof(GramBracket)));
+    int64_t *const signs = (int64_t *)gram_memory(
+        platform_cell_cleared((size_t)last_index + 1u, sizeof(int64_t), platform_place_g_program_owner, 0));
+    GramBracket *const settled = (GramBracket *)gram_memory(
+        platform_cell_cleared((size_t)last_index + 1u, sizeof(GramBracket), platform_place_g_program_owner, 0));
     const size_t cuts = gram_settle(&search, placed, found_count, &zeta, signs, settled);
-    int64_t *const ordered = (int64_t *)gram_memory(malloc(found_count * sizeof(int64_t)));
+    int64_t *const ordered =
+        (int64_t *)gram_memory(platform_cell_taken(found_count * sizeof(int64_t), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < found_count; at += 1u)
     {
         ordered[at] = signs[found[at].index];
@@ -319,7 +326,8 @@ int program_main(int argument_count, char **arguments)
     fprintf(out, "  the first failure against the reported index %d: %s\n\n", ZETA_GRAM_FIRST_FAILURE, truth(first));
     fflush(out);
 
-    unsigned char *const seats = (unsigned char *)gram_memory(malloc(found_count + 1u));
+    unsigned char *const seats =
+        (unsigned char *)gram_memory(platform_cell_taken(found_count + 1u, platform_place_g_program_owner, 0));
     size_t plus_count = 0u;
     for (size_t at = 0u; at < found_count; at += 1u)
     {
@@ -330,7 +338,8 @@ int program_main(int argument_count, char **arguments)
     }
     const size_t live_one = zeta_agreement(seats, found_count, 1u);
     const size_t live_two = zeta_agreement(seats, found_count, 2u);
-    unsigned char *const drawn = (unsigned char *)gram_memory(malloc(found_count + 1u));
+    unsigned char *const drawn =
+        (unsigned char *)gram_memory(platform_cell_taken(found_count + 1u, platform_place_g_program_owner, 0));
     size_t reach = 0u;
     size_t most = 0u;
     for (unsigned draw = 0u; draw < DRAWS; draw += 1u)

@@ -44,12 +44,13 @@ static char *take_file(const char *path)
     const long size = platform_file_tell(file);
     platform_file_seek(file, 0L, SEEK_SET);
     // a size the file reported is at least 0, and a byte past it ends the text
-    char *const text = (size >= 0L) ? (char *)malloc((size_t)size + 1u) : NULL;
+    char *const text =
+        (size >= 0L) ? (char *)platform_cell_taken((size_t)size + 1u, platform_place_g_program_owner, 0) : NULL;
     const int read = (text != NULL) && (platform_file_read_items(text, 1u, (size_t)size, file) == (size_t)size);
     platform_file_close(file);
     if (read == 0)
     {
-        free(text);
+        platform_cell_released(text, platform_place_g_program_owner);
         return NULL;
     }
     text[size] = '\0';
@@ -200,7 +201,7 @@ int program_main(int count, char **words)
         }
         return 1;
     }
-    free(output);
+    platform_cell_released(output, platform_place_g_program_owner);
     if (!sass_machine_read(&s_machine, words[2]))
     {
         {

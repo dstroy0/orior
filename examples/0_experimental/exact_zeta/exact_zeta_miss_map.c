@@ -502,7 +502,9 @@ static void doubles_push(Doubles *list, double value)
     if (list->count >= list->capacity)
     {
         list->capacity = (list->capacity == 0u) ? 256u : (list->capacity * 2u);
-        list->values = (double *)map_memory(realloc(list->values, list->capacity * sizeof(double)));
+        list->values = (double *)map_memory(platform_cell_grown(list->values, list->count * sizeof(double),
+                                                                list->capacity * sizeof(double),
+                                                                platform_place_g_program_owner, 0));
     }
     list->values[list->count] = value;
     list->count += 1u;
@@ -534,7 +536,8 @@ static void doubles_sort(Doubles *list)
  */
 static double *sorted_copy(const double *values, size_t count)
 {
-    double *const copy = (double *)map_memory(malloc((count + 1u) * sizeof(double)));
+    double *const copy =
+        (double *)map_memory(platform_cell_taken((count + 1u) * sizeof(double), platform_place_g_program_owner, 0));
     if (count > 0u)
     {
         memcpy(copy, values, count * sizeof(double));
@@ -555,7 +558,7 @@ static double sorted_at(const double *values, size_t count, size_t at)
 {
     double *const copy = sorted_copy(values, count);
     const double result = copy[at];
-    free(copy);
+    platform_cell_released(copy, platform_place_g_program_owner);
     return result;
 }
 
@@ -609,7 +612,9 @@ static void places_push(Places *list, size_t value)
     if (list->count >= list->capacity)
     {
         list->capacity = (list->capacity == 0u) ? 256u : (list->capacity * 2u);
-        list->values = (size_t *)map_memory(realloc(list->values, list->capacity * sizeof(size_t)));
+        list->values = (size_t *)map_memory(platform_cell_grown(list->values, list->count * sizeof(size_t),
+                                                                list->capacity * sizeof(size_t),
+                                                                platform_place_g_program_owner, 0));
     }
     list->values[list->count] = value;
     list->count += 1u;
@@ -739,7 +744,8 @@ static void read_listing(const char *path, int listing, Listing *out)
         zeta_stop("the listing of the cell is gone");
     }
     size_t capacity = 4096u;
-    out->points = (MapPoint *)map_memory(malloc(capacity * sizeof(MapPoint)));
+    out->points =
+        (MapPoint *)map_memory(platform_cell_taken(capacity * sizeof(MapPoint), platform_place_g_program_owner, 0));
     out->count = 0u;
     out->shift = 0;
     static char line[1 << 16];
@@ -764,7 +770,9 @@ static void read_listing(const char *path, int listing, Listing *out)
         if (out->count >= capacity)
         {
             capacity *= 2u;
-            out->points = (MapPoint *)map_memory(realloc(out->points, capacity * sizeof(MapPoint)));
+            out->points = (MapPoint *)map_memory(platform_cell_grown(out->points, (capacity / 2u) * sizeof(MapPoint),
+                                                                     capacity * sizeof(MapPoint),
+                                                                     platform_place_g_program_owner, 0));
         }
         MapPoint *const point = &out->points[out->count];
         memset(point, 0, sizeof(*point));
@@ -805,13 +813,14 @@ static int64_t run_listed(const char *binary, const TuringConstants *constants, 
                           Listing *out)
 {
     platform_line_flushed();
-    TuringCell *const cell = (TuringCell *)map_memory(malloc(sizeof(TuringCell)));
+    TuringCell *const cell =
+        (TuringCell *)map_memory(platform_cell_taken(sizeof(TuringCell), platform_place_g_program_owner, 0));
     OriorExactInteger bound;
     turing_run_cell(binary, constants, nu, bits, TURING_TRANSFORM, 0, listing, cell, &bound);
     read_listing(cell->path, listing, out);
     (void)remove(cell->path);
     const int64_t failed = cell->failed;
-    free(cell);
+    platform_cell_released(cell, platform_place_g_program_owner);
     return failed;
 }
 
@@ -839,7 +848,8 @@ static int64_t coarse_step(int64_t bits, double rate, double rise)
  */
 static double *squares_of(int64_t nu, size_t count)
 {
-    double *const values = (double *)map_memory(malloc((count + 1u) * sizeof(double)));
+    double *const values =
+        (double *)map_memory(platform_cell_taken((count + 1u) * sizeof(double), platform_place_g_program_owner, 0));
     for (size_t lane = 0u; lane < count; lane += 1u)
     {
         // The numerator stays below 2^53, and the quotient rounds once.
@@ -883,7 +893,8 @@ static void zeros_of(const MapPoint *points, size_t count, Zeros *zeros, Places 
             places_push(&kept, lane);
         }
     }
-    zeros->values = (Zero *)map_memory(malloc((kept.count + 1u) * sizeof(Zero)));
+    zeros->values =
+        (Zero *)map_memory(platform_cell_taken((kept.count + 1u) * sizeof(Zero), platform_place_g_program_owner, 0));
     zeros->count = 0u;
     for (size_t at = 0u; (at + 1u) < kept.count; at += 1u)
     {
@@ -900,7 +911,7 @@ static void zeros_of(const MapPoint *points, size_t count, Zeros *zeros, Places 
     }
     else
     {
-        free(kept.values);
+        platform_cell_released(kept.values, platform_place_g_program_owner);
     }
 }
 
@@ -910,7 +921,7 @@ static size_t zero_count(const MapPoint *points, size_t count)
     Zeros zeros = {NULL, 0u};
     zeros_of(points, count, &zeros, NULL);
     const size_t found = zeros.count;
-    free(zeros.values);
+    platform_cell_released(zeros.values, platform_place_g_program_owner);
     return found;
 }
 
@@ -969,13 +980,16 @@ static void hidden_pairs(const MapPoint *coarse, size_t coarse_count, const size
     Zeros coarse_zeros = {NULL, 0u};
     Places certified = {NULL, 0u, 0u};
     zeros_of(coarse, coarse_count, &coarse_zeros, &certified);
-    free(coarse_zeros.values);
+    platform_cell_released(coarse_zeros.values, platform_place_g_program_owner);
     misses->values = NULL;
     misses->count = 0u;
     misses->capacity = 0u;
-    Zero *const inside = (Zero *)map_memory(malloc((fine_zeros.count + 1u) * sizeof(Zero)));
-    Gap *const gaps = (Gap *)map_memory(malloc((fine_zeros.count + 1u) * sizeof(Gap)));
-    unsigned char *const taken = (unsigned char *)map_memory(calloc(fine_zeros.count + 2u, 1u));
+    Zero *const inside = (Zero *)map_memory(
+        platform_cell_taken((fine_zeros.count + 1u) * sizeof(Zero), platform_place_g_program_owner, 0));
+    Gap *const gaps = (Gap *)map_memory(
+        platform_cell_taken((fine_zeros.count + 1u) * sizeof(Gap), platform_place_g_program_owner, 0));
+    unsigned char *const taken = (unsigned char *)map_memory(
+        platform_cell_cleared(fine_zeros.count + 2u, 1u, platform_place_g_program_owner, 0));
     size_t at = 0u;
     for (size_t pair = 0u; (pair + 1u) < certified.count; pair += 1u)
     {
@@ -1026,7 +1040,9 @@ static void hidden_pairs(const MapPoint *coarse, size_t coarse_count, const size
             if (misses->count >= misses->capacity)
             {
                 misses->capacity = (misses->capacity == 0u) ? 64u : (misses->capacity * 2u);
-                misses->values = (Miss *)map_memory(realloc(misses->values, misses->capacity * sizeof(Miss)));
+                misses->values = (Miss *)map_memory(platform_cell_grown(misses->values, misses->count * sizeof(Miss),
+                                                                        misses->capacity * sizeof(Miss),
+                                                                        platform_place_g_program_owner, 0));
             }
             Miss *const miss = &misses->values[misses->count];
             miss->start = start;
@@ -1036,11 +1052,11 @@ static void hidden_pairs(const MapPoint *coarse, size_t coarse_count, const size
             misses->count += 1u;
         }
     }
-    free(inside);
-    free(gaps);
-    free(taken);
-    free(certified.values);
-    free(fine_zeros.values);
+    platform_cell_released(inside, platform_place_g_program_owner);
+    platform_cell_released(gaps, platform_place_g_program_owner);
+    platform_cell_released(taken, platform_place_g_program_owner);
+    platform_cell_released(certified.values, platform_place_g_program_owner);
+    platform_cell_released(fine_zeros.values, platform_place_g_program_owner);
 }
 
 /**
@@ -1056,13 +1072,14 @@ static void hidden_pairs(const MapPoint *coarse, size_t coarse_count, const size
 static void misses_of(const MapPoint *coarse, size_t coarse_count, const MapPoint *fine, size_t fine_count, size_t lift,
                       Misses *misses)
 {
-    size_t *const places = (size_t *)map_memory(malloc((coarse_count + 1u) * sizeof(size_t)));
+    size_t *const places = (size_t *)map_memory(
+        platform_cell_taken((coarse_count + 1u) * sizeof(size_t), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < coarse_count; at += 1u)
     {
         places[at] = at * lift;
     }
     hidden_pairs(coarse, coarse_count, places, fine, fine_count, misses);
-    free(places);
+    platform_cell_released(places, platform_place_g_program_owner);
 }
 
 /**
@@ -1075,13 +1092,14 @@ static void misses_of(const MapPoint *coarse, size_t coarse_count, const MapPoin
  */
 static void misses_on(const Places *places, const MapPoint *fine, size_t fine_count, Misses *misses)
 {
-    MapPoint *const coarse = (MapPoint *)map_memory(malloc((places->count + 1u) * sizeof(MapPoint)));
+    MapPoint *const coarse = (MapPoint *)map_memory(
+        platform_cell_taken((places->count + 1u) * sizeof(MapPoint), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < places->count; at += 1u)
     {
         coarse[at] = fine[places->values[at]];
     }
     hidden_pairs(coarse, places->count, places->values, fine, fine_count, misses);
-    free(coarse);
+    platform_cell_released(coarse, platform_place_g_program_owner);
 }
 
 /**
@@ -1201,7 +1219,9 @@ static void placements_push(Placements *list, const Placed *value)
     if (list->count >= list->capacity)
     {
         list->capacity = (list->capacity == 0u) ? 64u : (list->capacity * 2u);
-        list->values = (Placed *)map_memory(realloc(list->values, list->capacity * sizeof(Placed)));
+        list->values = (Placed *)map_memory(platform_cell_grown(list->values, list->count * sizeof(Placed),
+                                                                list->capacity * sizeof(Placed),
+                                                                platform_place_g_program_owner, 0));
     }
     list->values[list->count] = *value;
     list->count += 1u;
@@ -1212,9 +1232,9 @@ static void placements_free(Placements *list)
 {
     for (size_t at = 0u; at < list->count; at += 1u)
     {
-        free(list->values[at].curve);
+        platform_cell_released(list->values[at].curve, platform_place_g_program_owner);
     }
-    free(list->values);
+    platform_cell_released(list->values, platform_place_g_program_owner);
     list->values = NULL;
     list->count = 0u;
     list->capacity = 0u;
@@ -1229,7 +1249,8 @@ static void placements_free(Placements *list)
  */
 static void field_values(const Placements *misses, PlacedField field, Doubles *out)
 {
-    out->values = (double *)map_memory(malloc((misses->count + 1u) * sizeof(double)));
+    out->values = (double *)map_memory(
+        platform_cell_taken((misses->count + 1u) * sizeof(double), platform_place_g_program_owner, 0));
     out->count = misses->count;
     out->capacity = misses->count + 1u;
     for (size_t at = 0u; at < misses->count; at += 1u)
@@ -1244,7 +1265,7 @@ static double field_median(const Placements *misses, PlacedField field)
     Doubles values = {NULL, 0u, 0u};
     field_values(misses, field, &values);
     const double result = median_of(values.values, values.count);
-    free(values.values);
+    platform_cell_released(values.values, platform_place_g_program_owner);
     return result;
 }
 
@@ -1254,7 +1275,7 @@ static double field_ninety_fifth(const Placements *misses, PlacedField field)
     Doubles values = {NULL, 0u, 0u};
     field_values(misses, field, &values);
     const double result = ninety_fifth(values.values, values.count);
-    free(values.values);
+    platform_cell_released(values.values, platform_place_g_program_owner);
     return result;
 }
 
@@ -1367,7 +1388,8 @@ static void place(int64_t nu, const MapPoint *coarse, const MapPoint *fine, cons
         has_prior = 1;
     }
     placed->curve_count = ((finish - start) * lift) + 1u;
-    placed->curve = (double (*)[3])map_memory(malloc(placed->curve_count * sizeof(double[3])));
+    placed->curve = (double (*)[3])map_memory(
+        platform_cell_taken(placed->curve_count * sizeof(double[3]), platform_place_g_program_owner, 0));
     for (size_t lane = start * lift; lane <= (finish * lift); lane += 1u)
     {
         const Complex shifted = in_frame(&frame, c_sub(fine[lane].w, frame.center));
@@ -1510,7 +1532,7 @@ static void summary(const Placements *misses, const Doubles *radii)
     }
     if (misses->count == 0u)
     {
-        free(ordered);
+        platform_cell_released(ordered, platform_place_g_program_owner);
         return;
     }
     const double tenth = ordered[count / 10u];
@@ -1595,8 +1617,8 @@ static void summary(const Placements *misses, const Doubles *radii)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(taken.values);
-    free(ordered);
+    platform_cell_released(taken.values, platform_place_g_program_owner);
+    platform_cell_released(ordered, platform_place_g_program_owner);
 }
 
 /* ---------------------------------------------------------------- the figures */
@@ -1630,7 +1652,8 @@ static void line_of(Figure *figure, const char *format, ...)
     if ((figure->length + length + 2u) > figure->capacity)
     {
         figure->capacity = (figure->capacity + length + 2u) * 2u;
-        figure->text = (char *)map_memory(realloc(figure->text, figure->capacity));
+        figure->text = (char *)map_memory(platform_cell_grown(figure->text, (figure->capacity / 2u) - length - 2u,
+                                                              figure->capacity, platform_place_g_program_owner, 0));
     }
     if (figure->length > 0u)
     {
@@ -1689,7 +1712,8 @@ static void point_of(Points *points, const char *format, ...)
     if ((points->length + length + 2u) > points->capacity)
     {
         points->capacity = (points->capacity + length + 2u) * 2u;
-        points->text = (char *)map_memory(realloc(points->text, points->capacity));
+        points->text = (char *)map_memory(platform_cell_grown(points->text, (points->capacity / 2u) - length - 2u,
+                                                              points->capacity, platform_place_g_program_owner, 0));
     }
     if (points->length > 0u)
     {
@@ -1892,7 +1916,7 @@ static void draw(const Placements *misses, const Doubles *radii, const char *fol
             tallest = (!any_share || (shares[series][bin] > tallest)) ? shares[series][bin] : tallest;
             any_share = 1;
         }
-        free(values.values);
+        platform_cell_released(values.values, platform_place_g_program_owner);
     }
     tallest = (tallest != 0.0) ? tallest : 1.0;
     for (int series = 0; series < 3; series += 1)
@@ -1907,7 +1931,7 @@ static void draw(const Placements *misses, const Doubles *radii, const char *fol
         }
         line_of(&out, "<polyline points=\"%s\" fill=\"none\" stroke=\"%s\" stroke-width=\"1.6\"/>", points.text,
                 COLORS[series]);
-        free(points.text);
+        platform_cell_released(points.text, platform_place_g_program_owner);
     }
     static const char *const LEGEND[3] = {"every coarse point", "misses' centers", "misses' dips"};
     for (int at = 0; at < 3; at += 1)
@@ -1922,7 +1946,8 @@ static void draw(const Placements *misses, const Doubles *radii, const char *fol
     const size_t displayed = (misses->count < 200u) ? misses->count : 200u;
     double span = 0.0;
     int any = 0;
-    double *const heights = (double *)map_memory(malloc((displayed + 1u) * sizeof(double)));
+    double *const heights =
+        (double *)map_memory(platform_cell_taken((displayed + 1u) * sizeof(double), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < displayed; at += 1u)
     {
         const Placed *const miss = &misses->values[at];
@@ -1945,7 +1970,7 @@ static void draw(const Placements *misses, const Doubles *radii, const char *fol
     const double tripled = ninety_fifth(heights, displayed) * 3.0;
     const double bound = (tripled != 0.0) ? tripled : span;
     span = (span < bound) ? span : bound;
-    free(heights);
+    platform_cell_released(heights, platform_place_g_program_owner);
     const double middle_x = panel_left + (PANEL / 2.0);
     const double middle_y = (panel_top + (PANEL / 2.0)) + 20.0;
     const double scale = ((PANEL / 2.0) - MARGIN) / ((span != 0.0) ? span : 1.0);
@@ -1958,7 +1983,7 @@ static void draw(const Placements *misses, const Doubles *radii, const char *fol
                  middle_y - (scale * (slant[1] * corners[corner][1])));
     }
     line_of(&out, "<polygon points=\"%s\" fill=\"#eef\" stroke=\"#99a\"/>", plane.text);
-    free(plane.text);
+    platform_cell_released(plane.text, platform_place_g_program_owner);
     for (size_t at = 0u; at < displayed; at += 1u)
     {
         const Placed *const miss = &misses->values[at];
@@ -1972,7 +1997,7 @@ static void draw(const Placements *misses, const Doubles *radii, const char *fol
         // The hue is from 0 to 359.
         line_of(&out, "<polyline points=\"%s\" fill=\"none\" stroke=\"hsl(%d,60%%,45%%)\" stroke-width=\"0.7\"/>",
                 points.text, (int)((at * 47u) % 360u));
-        free(points.text);
+        platform_cell_released(points.text, platform_place_g_program_owner);
     }
     line_of(&out,
             "<text x=\"%d\" y=\"%d\" font-size=\"11\">along the heading to the right, across it into the page, up away "
@@ -1981,7 +2006,7 @@ static void draw(const Placements *misses, const Doubles *radii, const char *fol
     line_of(&out, "%s", "</svg>");
     join_path(path, folder, "miss_map.svg");
     figure_write(&out, path);
-    free(out.text);
+    platform_cell_released(out.text, platform_place_g_program_owner);
 }
 
 /** @brief Makes one folder, where it is absent. */
@@ -2129,9 +2154,9 @@ static int main_map(const char *binary, int64_t first, int64_t last, int64_t coa
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(found.values);
-        free(coarse.points);
-        free(fine.points);
+        platform_cell_released(found.values, platform_place_g_program_owner);
+        platform_cell_released(coarse.points, platform_place_g_program_owner);
+        platform_cell_released(fine.points, platform_place_g_program_owner);
     }
     summary(&misses, &radii);
     char path[PATH_BYTES];
@@ -2160,7 +2185,7 @@ static int main_map(const char *binary, int64_t first, int64_t last, int64_t coa
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(miss_spins.values);
+        platform_cell_released(miss_spins.values, platform_place_g_program_owner);
         const double sixth = PI_DOUBLE / 3.0;
         size_t steps_past = 0u;
         for (size_t at = 0u; at < spins.count; at += 1u)
@@ -2192,7 +2217,8 @@ static int main_map(const char *binary, int64_t first, int64_t last, int64_t coa
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        double *const own = (double *)map_memory(malloc((misses.count + 1u) * sizeof(double)));
+        double *const own = (double *)map_memory(
+            platform_cell_taken((misses.count + 1u) * sizeof(double), platform_place_g_program_owner, 0));
         for (size_t at = 0u; at < misses.count; at += 1u)
         {
             own[at] = fabs(misses.values[at].true_turn);
@@ -2220,8 +2246,8 @@ static int main_map(const char *binary, int64_t first, int64_t last, int64_t coa
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(own);
-        free(ordered);
+        platform_cell_released(own, platform_place_g_program_owner);
+        platform_cell_released(ordered, platform_place_g_program_owner);
         join_path(path, folder, "spins.tsv");
         write_column(&spins, path);
     }
@@ -2250,8 +2276,8 @@ static int main_map(const char *binary, int64_t first, int64_t last, int64_t coa
         platform_line_out_ended();
     }
     placements_free(&misses);
-    free(radii.values);
-    free(spins.values);
+    platform_cell_released(radii.values, platform_place_g_program_owner);
+    platform_cell_released(spins.values, platform_place_g_program_owner);
     return (failed == 0) ? 0 : 1;
 }
 
@@ -2297,7 +2323,8 @@ static void fold_cells(const char *binary, const TuringConstants *constants, int
         // The step is a small positive count.
         const size_t lift = (size_t)step;
         const size_t coarse_count = (fine.count + lift - 1u) / lift;
-        MapPoint *const coarse = (MapPoint *)map_memory(malloc((coarse_count + 1u) * sizeof(MapPoint)));
+        MapPoint *const coarse = (MapPoint *)map_memory(
+            platform_cell_taken((coarse_count + 1u) * sizeof(MapPoint), platform_place_g_program_owner, 0));
         for (size_t point = 0u; point < coarse_count; point += 1u)
         {
             coarse[point] = fine.points[point * lift];
@@ -2319,9 +2346,9 @@ static void fold_cells(const char *binary, const TuringConstants *constants, int
             place(at, coarse, fine.points, &found.values[miss], lift, &placed);
             placements_push(&fold->misses, &placed);
         }
-        free(found.values);
-        free(coarse);
-        free(fine.points);
+        platform_cell_released(found.values, platform_place_g_program_owner);
+        platform_cell_released(coarse, platform_place_g_program_owner);
+        platform_cell_released(fine.points, platform_place_g_program_owner);
     }
     Sum harmonic = {0.0, 0.0};
     for (int64_t at = nu; at < (nu + count); at += 1)
@@ -2493,12 +2520,12 @@ static void fold_row(const Fold *fold, char rows[FOLD_ROWS][64])
         snprintf(rows[22], 64u, "-");
     }
     snprintf(rows[23], 64u, "%llu", (unsigned long long)count);
-    free(scatter.values);
-    free(near_steps.values);
-    free(far_steps.values);
-    free(far_radius.values);
-    free(far_spin.values);
-    free(far_dip.values);
+    platform_cell_released(scatter.values, platform_place_g_program_owner);
+    platform_cell_released(near_steps.values, platform_place_g_program_owner);
+    platform_cell_released(far_steps.values, platform_place_g_program_owner);
+    platform_cell_released(far_radius.values, platform_place_g_program_owner);
+    platform_cell_released(far_spin.values, platform_place_g_program_owner);
+    platform_cell_released(far_dip.values, platform_place_g_program_owner);
 }
 
 /**
@@ -2531,7 +2558,7 @@ static void draw_folds(const Fold *folds, size_t count, const char *folder, char
     }
     double reach = ninety_fifth(every_steps.values, every_steps.count);
     reach = (reach != 0.0) ? reach : 1.0;
-    free(every_steps.values);
+    platform_cell_released(every_steps.values, platform_place_g_program_owner);
     line_of(&out, "%s",
             "<text x=\"10\" y=\"18\" font-size=\"13\">from the steady arc, heading at 0, in steps; out to the 95th "
             "percentile</text>");
@@ -2565,7 +2592,8 @@ static void draw_folds(const Fold *folds, size_t count, const char *folder, char
     {
         const Box box = axes(&out, (panel + 1) * PANEL, 0, TITLES[panel], "in the height's own units, to 4", "share");
         const size_t curve_count = 2u * shown;
-        double (*const curves)[40] = (double (*)[40])map_memory(malloc((curve_count + 1u) * sizeof(double[40])));
+        double (*const curves)[40] = (double (*)[40])map_memory(
+            platform_cell_taken((curve_count + 1u) * sizeof(double[40]), platform_place_g_program_owner, 0));
         double tallest = 0.0;
         int any = 0;
         for (size_t fold = 0u; fold < shown; fold += 1u)
@@ -2597,7 +2625,7 @@ static void draw_folds(const Fold *folds, size_t count, const char *folder, char
                     any = 1;
                 }
             }
-            free(ours.values);
+            platform_cell_released(ours.values, platform_place_g_program_owner);
         }
         tallest = (tallest != 0.0) ? tallest : 1.0;
         for (size_t curve = 0u; curve < curve_count; curve += 1u)
@@ -2611,9 +2639,9 @@ static void draw_folds(const Fold *folds, size_t count, const char *folder, char
             const int dashed = (curve % 2u) == 0u;
             line_of(&out, "<polyline points=\"%s\" fill=\"none\" stroke=\"%s\" stroke-width=\"1.4\"%s/>", points.text,
                     COLORS[curve / 2u], dashed ? " stroke-dasharray=\"4,3\"" : "");
-            free(points.text);
+            platform_cell_released(points.text, platform_place_g_program_owner);
         }
-        free(curves);
+        platform_cell_released(curves, platform_place_g_program_owner);
     }
     for (size_t fold = 0u; fold < shown; fold += 1u)
     {
@@ -2624,7 +2652,7 @@ static void draw_folds(const Fold *folds, size_t count, const char *folder, char
     line_of(&out, "%s", "</svg>");
     join_path(path, folder, "folds.svg");
     figure_write(&out, path);
-    free(out.text);
+    platform_cell_released(out.text, platform_place_g_program_owner);
 }
 
 /**
@@ -2646,7 +2674,8 @@ static int main_folds(const char *binary, int64_t base, int64_t count, int64_t f
     turing_constants(&constants);
     // The count of heights is small and positive.
     const size_t height_count = (size_t)folds;
-    Fold *const found = (Fold *)map_memory(calloc(height_count + 1u, sizeof(Fold)));
+    Fold *const found =
+        (Fold *)map_memory(platform_cell_cleared(height_count + 1u, sizeof(Fold), platform_place_g_program_owner, 0));
     int64_t failed = 0;
     for (size_t height = 0u; height < height_count; height += 1u)
     {
@@ -2675,8 +2704,8 @@ static int main_folds(const char *binary, int64_t base, int64_t count, int64_t f
         }
         failed += found[height].failed;
     }
-    char (*const rows)[FOLD_ROWS][64] =
-        (char (*)[FOLD_ROWS][64])map_memory(malloc((height_count + 1u) * sizeof(*rows)));
+    char (*const rows)[FOLD_ROWS][64] = (char (*)[FOLD_ROWS][64])map_memory(
+        platform_cell_taken((height_count + 1u) * sizeof(*rows), platform_place_g_program_owner, 0));
     for (size_t height = 0u; height < height_count; height += 1u)
     {
         fold_row(&found[height], rows[height]);
@@ -2739,11 +2768,11 @@ static int main_folds(const char *binary, int64_t base, int64_t count, int64_t f
     for (size_t height = 0u; height < height_count; height += 1u)
     {
         placements_free(&found[height].misses);
-        free(found[height].radii.values);
-        free(found[height].turns.values);
+        platform_cell_released(found[height].radii.values, platform_place_g_program_owner);
+        platform_cell_released(found[height].turns.values, platform_place_g_program_owner);
     }
-    free(rows);
-    free(found);
+    platform_cell_released(rows, platform_place_g_program_owner);
+    platform_cell_released(found, platform_place_g_program_owner);
     return (failed == 0) ? 0 : 1;
 }
 
@@ -3134,7 +3163,7 @@ static int main_carrier(const char *binary, int64_t base, int64_t count, double 
                 place_on(at, &schemes[scheme], fine.points, &found.values[miss], &placed);
                 placements_push(&tally[scheme], &placed);
             }
-            free(found.values);
+            platform_cell_released(found.values, platform_place_g_program_owner);
             // The count of places fits a machine integer.
             const int64_t size = (int64_t)schemes[scheme].count;
             points[scheme] += size;
@@ -3144,7 +3173,7 @@ static int main_carrier(const char *binary, int64_t base, int64_t count, double 
             {
                 wiggles += wiggles_of(&schemes[scheme], fine.points);
             }
-            free(schemes[scheme].values);
+            platform_cell_released(schemes[scheme].values, platform_place_g_program_owner);
         }
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -3157,7 +3186,7 @@ static int main_carrier(const char *binary, int64_t base, int64_t count, double 
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(fine.points);
+        platform_cell_released(fine.points, platform_place_g_program_owner);
     }
     {
         VerbaLinea *const output_line = platform_line_out();
@@ -3400,7 +3429,7 @@ static void deciles_text(const Doubles *values, const char *format, char *text, 
         // The text holds a few dozen characters.
         used += (size_t)snprintf(text + used, capacity - used, "%s%s", (at > 0) ? " " : "", part);
     }
-    free(ordered);
+    platform_cell_released(ordered, platform_place_g_program_owner);
 }
 
 /**
@@ -3461,10 +3490,10 @@ static int main_ripple(const char *binary, int64_t base, int64_t count, double r
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(found.values);
-        free(idx.values);
-        free(squares);
-        free(fine.points);
+        platform_cell_released(found.values, platform_place_g_program_owner);
+        platform_cell_released(idx.values, platform_place_g_program_owner);
+        platform_cell_released(squares, platform_place_g_program_owner);
+        platform_cell_released(fine.points, platform_place_g_program_owner);
     }
     {
         VerbaLinea *const output_line = platform_line_out();
@@ -3545,11 +3574,11 @@ static int main_ripple(const char *binary, int64_t base, int64_t count, double r
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(times.values);
-    free(dip_drags.values);
-    free(dip_swells.values);
-    free(every_drags.values);
-    free(every_swells.values);
+    platform_cell_released(times.values, platform_place_g_program_owner);
+    platform_cell_released(dip_drags.values, platform_place_g_program_owner);
+    platform_cell_released(dip_swells.values, platform_place_g_program_owner);
+    platform_cell_released(every_drags.values, platform_place_g_program_owner);
+    platform_cell_released(every_swells.values, platform_place_g_program_owner);
     return (failed == 0) ? 0 : 1;
 }
 
@@ -3690,7 +3719,9 @@ static void pulses_of(const MapPoint *fine, size_t count, const double *squares,
         if (out->count >= out->capacity)
         {
             out->capacity = (out->capacity == 0u) ? 64u : (out->capacity * 2u);
-            out->values = (Pulse *)map_memory(realloc(out->values, out->capacity * sizeof(Pulse)));
+            out->values = (Pulse *)map_memory(platform_cell_grown(out->values, out->count * sizeof(Pulse),
+                                                                  out->capacity * sizeof(Pulse),
+                                                                  platform_place_g_program_owner, 0));
         }
         Pulse *const pulse = &out->values[out->count];
         pulse->delta = delta;
@@ -3706,9 +3737,9 @@ static void pulses_of(const MapPoint *fine, size_t count, const double *squares,
         pulse->high = (size_t)(here + span);
         out->count += 1u;
     }
-    free(swells.values);
-    free(twists.values);
-    free(loop.values);
+    platform_cell_released(swells.values, platform_place_g_program_owner);
+    platform_cell_released(twists.values, platform_place_g_program_owner);
+    platform_cell_released(loop.values, platform_place_g_program_owner);
 }
 
 /**
@@ -3748,7 +3779,8 @@ static int main_pulse(const char *binary, int64_t base, int64_t count, double ra
         double *const squares = squares_of(at, fine.count);
         const size_t before = pulses.count;
         pulses_of(fine.points, fine.count, squares, &pulses);
-        unsigned char *const marks = (unsigned char *)map_memory(calloc(fine.count + 1u, 1u));
+        unsigned char *const marks =
+            (unsigned char *)map_memory(platform_cell_cleared(fine.count + 1u, 1u, platform_place_g_program_owner, 0));
         for (size_t pulse = before; pulse < pulses.count; pulse += 1u)
         {
             for (size_t lane = pulses.values[pulse].low; lane <= pulses.values[pulse].high; lane += 1u)
@@ -3804,11 +3836,11 @@ static int main_pulse(const char *binary, int64_t base, int64_t count, double ra
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(found.values);
-        free(idx.values);
-        free(marks);
-        free(squares);
-        free(fine.points);
+        platform_cell_released(found.values, platform_place_g_program_owner);
+        platform_cell_released(idx.values, platform_place_g_program_owner);
+        platform_cell_released(marks, platform_place_g_program_owner);
+        platform_cell_released(squares, platform_place_g_program_owner);
+        platform_cell_released(fine.points, platform_place_g_program_owner);
     }
     int64_t against = 0;
     for (size_t pulse = 0u; pulse < pulses.count; pulse += 1u)
@@ -3867,7 +3899,7 @@ static int main_pulse(const char *binary, int64_t base, int64_t count, double ra
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(values.values);
+        platform_cell_released(values.values, platform_place_g_program_owner);
     }
     const double miss_count = (double)((misses > 1) ? misses : 1);
     const double point_count = (double)((total > 1) ? total : 1);
@@ -3911,7 +3943,7 @@ static int main_pulse(const char *binary, int64_t base, int64_t count, double ra
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(pulses.values);
+    platform_cell_released(pulses.values, platform_place_g_program_owner);
     return (failed == 0) ? 0 : 1;
 }
 
@@ -4017,7 +4049,7 @@ static void fifth_rows(const Doubles *sample, const Doubles *dips, const Doubles
         }
         const size_t place_at = lowest ? (sample->count / 5u) : ((4u * sample->count) / 5u);
         const double cut = sorted_at(measured.values, measured.count, place_at);
-        free(measured.values);
+        platform_cell_released(measured.values, platform_place_g_program_owner);
         int64_t hit_dips = 0;
         for (size_t at = 0u; at < dips->count; at += 1u)
         {
@@ -4129,7 +4161,9 @@ static int main_source(const char *binary, int64_t base, int64_t count, double r
             if (source_count >= source_capacity)
             {
                 source_capacity = (source_capacity == 0u) ? 256u : (source_capacity * 2u);
-                sources = (Source *)map_memory(realloc(sources, source_capacity * sizeof(Source)));
+                sources = (Source *)map_memory(platform_cell_grown(sources, source_count * sizeof(Source),
+                                                                   source_capacity * sizeof(Source),
+                                                                   platform_place_g_program_owner, 0));
             }
             sources[source_count].time = TWO_PI * squares[lane];
             sources[source_count].delta = delta;
@@ -4158,10 +4192,10 @@ static int main_source(const char *binary, int64_t base, int64_t count, double r
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(found.values);
-        free(idx.values);
-        free(squares);
-        free(fine.points);
+        platform_cell_released(found.values, platform_place_g_program_owner);
+        platform_cell_released(idx.values, platform_place_g_program_owner);
+        platform_cell_released(squares, platform_place_g_program_owner);
+        platform_cell_released(fine.points, platform_place_g_program_owner);
     }
     const double zeros = (double)((zeros_total > 1) ? zeros_total : 1);
     {
@@ -4272,10 +4306,10 @@ static int main_source(const char *binary, int64_t base, int64_t count, double r
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(sources);
-    free(dips.values);
-    free(sample.values);
-    free(near.values);
+    platform_cell_released(sources, platform_place_g_program_owner);
+    platform_cell_released(dips.values, platform_place_g_program_owner);
+    platform_cell_released(sample.values, platform_place_g_program_owner);
+    platform_cell_released(near.values, platform_place_g_program_owner);
     return (failed == 0) ? 0 : 1;
 }
 
@@ -4291,8 +4325,10 @@ static double *sieve_mangoldt(int64_t top)
 {
     // The top is a small count, and a negative top holds no values.
     const size_t size = (size_t)((top > 0) ? top : 0) + 1u;
-    double *const out = (double *)map_memory(calloc(size + 1u, sizeof(double)));
-    unsigned char *const composite = (unsigned char *)map_memory(calloc(size + 1u, 1u));
+    double *const out =
+        (double *)map_memory(platform_cell_cleared(size + 1u, sizeof(double), platform_place_g_program_owner, 0));
+    unsigned char *const composite =
+        (unsigned char *)map_memory(platform_cell_cleared(size + 1u, 1u, platform_place_g_program_owner, 0));
     for (size_t prime = 2u; prime < size; prime += 1u)
     {
         if (composite[prime] != 0u)
@@ -4308,7 +4344,7 @@ static double *sieve_mangoldt(int64_t top)
             out[power] = log((double)prime);
         }
     }
-    free(composite);
+    platform_cell_released(composite, platform_place_g_program_owner);
     return out;
 }
 
@@ -4431,7 +4467,7 @@ static void zeros_located(const MapPoint *fine, size_t count, const double *squa
         const double tb = TWO_PI * squares[zeros.values[at].after];
         doubles_push(out, (za != zb) ? (ta + (((tb - ta) * za) / (za - zb))) : ((ta + tb) / 2.0));
     }
-    free(zeros.values);
+    platform_cell_released(zeros.values, platform_place_g_program_owner);
 }
 
 /**
@@ -4494,8 +4530,8 @@ static int main_primes(const char *binary, int64_t base, int64_t count, double r
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(squares);
-        free(fine.points);
+        platform_cell_released(squares, platform_place_g_program_owner);
+        platform_cell_released(fine.points, platform_place_g_program_owner);
     }
     double *const lam_n = sieve_mangoldt(top_n);
     {
@@ -4594,7 +4630,8 @@ static int main_primes(const char *binary, int64_t base, int64_t count, double r
     // The reach is a small positive count.
     const int64_t reach = (int64_t)(span / (4.0 * PI_DOUBLE));
     double *const lam = sieve_mangoldt(reach);
-    double *const weights = (double *)map_memory(malloc((gammas.count + 1u) * sizeof(double)));
+    double *const weights = (double *)map_memory(
+        platform_cell_taken((gammas.count + 1u) * sizeof(double), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < gammas.count; at += 1u)
     {
         weights[at] = pow(sin((PI_DOUBLE * (gammas.values[at] - t_low)) / span), 2.0);
@@ -4614,7 +4651,8 @@ static int main_primes(const char *binary, int64_t base, int64_t count, double r
         platform_line_out_ended();
     }
     // The reach is a small positive count.
-    double *const reading = (double *)map_memory(calloc((size_t)((reach > 0) ? reach : 0) + 2u, sizeof(double)));
+    double *const reading = (double *)map_memory(platform_cell_cleared(
+        (size_t)((reach > 0) ? reach : 0) + 2u, sizeof(double), platform_place_g_program_owner, 0));
     for (int64_t integer = 2; integer <= reach; integer += 1)
     {
         const double lx = log((double)integer);
@@ -4736,7 +4774,7 @@ static int main_primes(const char *binary, int64_t base, int64_t count, double r
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(ratios.values);
+        platform_cell_released(ratios.values, platform_place_g_program_owner);
     }
     {
         VerbaLinea *const output_line = platform_line_out();
@@ -4927,18 +4965,18 @@ static int main_primes(const char *binary, int64_t base, int64_t count, double r
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(lam_n);
-    free(lam);
-    free(weights);
-    free(reading);
-    free(sources.values);
-    free(gammas.values);
-    free(power_z.values);
-    free(other_z.values);
-    free(power_directions.values);
-    free(ratio.values);
-    free(all_ratio.values);
-    free(rest.values);
+    platform_cell_released(lam_n, platform_place_g_program_owner);
+    platform_cell_released(lam, platform_place_g_program_owner);
+    platform_cell_released(weights, platform_place_g_program_owner);
+    platform_cell_released(reading, platform_place_g_program_owner);
+    platform_cell_released(sources.values, platform_place_g_program_owner);
+    platform_cell_released(gammas.values, platform_place_g_program_owner);
+    platform_cell_released(power_z.values, platform_place_g_program_owner);
+    platform_cell_released(other_z.values, platform_place_g_program_owner);
+    platform_cell_released(power_directions.values, platform_place_g_program_owner);
+    platform_cell_released(ratio.values, platform_place_g_program_owner);
+    platform_cell_released(all_ratio.values, platform_place_g_program_owner);
+    platform_cell_released(rest.values, platform_place_g_program_owner);
     return (failed == 0) ? 0 : 1;
 }
 
@@ -5137,9 +5175,12 @@ static double slope_at(const MapPoint *point, double clock)
 static void figure_of(const MapPoint *fine, const double *squares, size_t low, size_t high, Shapes *shapes)
 {
     const size_t count = (high - low) + 1u;
-    Complex *const portrait = (Complex *)map_memory(malloc((count + 1u) * sizeof(Complex)));
-    Complex *const track = (Complex *)map_memory(malloc((count + 1u) * sizeof(Complex)));
-    Complex *const frame = (Complex *)map_memory(malloc((count + 1u) * sizeof(Complex)));
+    Complex *const portrait =
+        (Complex *)map_memory(platform_cell_taken((count + 1u) * sizeof(Complex), platform_place_g_program_owner, 0));
+    Complex *const track =
+        (Complex *)map_memory(platform_cell_taken((count + 1u) * sizeof(Complex), platform_place_g_program_owner, 0));
+    Complex *const frame =
+        (Complex *)map_memory(platform_cell_taken((count + 1u) * sizeof(Complex), platform_place_g_program_owner, 0));
     for (size_t lane = low; lane <= high; lane += 1u)
     {
         const double clock = 0.5 * log(squares[lane]);
@@ -5148,7 +5189,7 @@ static void figure_of(const MapPoint *fine, const double *squares, size_t low, s
         const double phase = -theta_at(TWO_PI * squares[lane]);
         frame[lane - low] = c_mul(fine[lane].w, cx(cos(phase), sin(phase)));
     }
-    char *const signs = (char *)map_memory(malloc(count + 2u));
+    char *const signs = (char *)map_memory(platform_cell_taken(count + 2u, platform_place_g_program_owner, 0));
     size_t sign_count = 0u;
     for (size_t at = 0u; (at + 1u) < count; at += 1u)
     {
@@ -5165,7 +5206,9 @@ static void figure_of(const MapPoint *fine, const double *squares, size_t low, s
     if (shapes->count >= shapes->capacity)
     {
         shapes->capacity = (shapes->capacity == 0u) ? 64u : (shapes->capacity * 2u);
-        shapes->values = (Shape *)map_memory(realloc(shapes->values, shapes->capacity * sizeof(Shape)));
+        shapes->values = (Shape *)map_memory(platform_cell_grown(shapes->values, shapes->count * sizeof(Shape),
+                                                                 shapes->capacity * sizeof(Shape),
+                                                                 platform_place_g_program_owner, 0));
     }
     Shape *const shape = &shapes->values[shapes->count];
     shape->in_w = crossings_of(track, count);
@@ -5173,9 +5216,9 @@ static void figure_of(const MapPoint *fine, const double *squares, size_t low, s
     shape->signs = signs;
     shape->in_portrait = crossings_of(portrait, count);
     shapes->count += 1u;
-    free(portrait);
-    free(track);
-    free(frame);
+    platform_cell_released(portrait, platform_place_g_program_owner);
+    platform_cell_released(track, platform_place_g_program_owner);
+    platform_cell_released(frame, platform_place_g_program_owner);
 }
 
 /** @brief Frees the signs and the array of a list of shapes. */
@@ -5183,9 +5226,9 @@ static void shapes_free(Shapes *shapes)
 {
     for (size_t at = 0u; at < shapes->count; at += 1u)
     {
-        free(shapes->values[at].signs);
+        platform_cell_released(shapes->values[at].signs, platform_place_g_program_owner);
     }
-    free(shapes->values);
+    platform_cell_released(shapes->values, platform_place_g_program_owner);
 }
 
 /** @brief The slip at the dip of a miss, and what goes with it. */
@@ -5240,7 +5283,9 @@ static void complexes_push(Complexes *list, Complex value)
     if (list->count >= list->capacity)
     {
         list->capacity = (list->capacity == 0u) ? 64u : (list->capacity * 2u);
-        list->values = (Complex *)map_memory(realloc(list->values, list->capacity * sizeof(Complex)));
+        list->values = (Complex *)map_memory(platform_cell_grown(list->values, list->count * sizeof(Complex),
+                                                                 list->capacity * sizeof(Complex),
+                                                                 platform_place_g_program_owner, 0));
     }
     list->values[list->count] = value;
     list->count += 1u;
@@ -5294,8 +5339,10 @@ static void shape_rows(const char *label, const Shapes *rows)
     size_t in_w = 0u;
     size_t in_f = 0u;
     size_t in_portrait = 0u;
-    const char **const keys = (const char **)map_memory(malloc((rows->count + 1u) * sizeof(char *)));
-    int64_t *const tallies = (int64_t *)map_memory(malloc((rows->count + 1u) * sizeof(int64_t)));
+    const char **const keys = (const char **)map_memory(
+        platform_cell_taken((rows->count + 1u) * sizeof(char *), platform_place_g_program_owner, 0));
+    int64_t *const tallies = (int64_t *)map_memory(
+        platform_cell_taken((rows->count + 1u) * sizeof(int64_t), platform_place_g_program_owner, 0));
     size_t key_count = 0u;
     for (size_t at = 0u; at < rows->count; at += 1u)
     {
@@ -5335,7 +5382,8 @@ static void shape_rows(const char *label, const Shapes *rows)
         platform_line_out_ended();
     }
     // The usual: the four largest tallies, ties in the order of first sight, as the stable sort of Python leaves them.
-    unsigned char *const shown = (unsigned char *)map_memory(calloc(key_count + 1u, 1u));
+    unsigned char *const shown =
+        (unsigned char *)map_memory(platform_cell_cleared(key_count + 1u, 1u, platform_place_g_program_owner, 0));
     for (size_t rank = 0u; (rank < 4u) && (rank < key_count); rank += 1u)
     {
         size_t best = key_count;
@@ -5362,9 +5410,9 @@ static void shape_rows(const char *label, const Shapes *rows)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(shown);
-    free(keys);
-    free(tallies);
+    platform_cell_released(shown, platform_place_g_program_owner);
+    platform_cell_released(keys, platform_place_g_program_owner);
+    platform_cell_released(tallies, platform_place_g_program_owner);
 }
 
 /** @brief A pass of the half twist: |delta| theta', and the turn over 2 atan(3) sign(delta). */
@@ -5524,7 +5572,7 @@ static void coupling_row(const char *label, const Complexes *values, double rate
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(far.values);
+    platform_cell_released(far.values, platform_place_g_program_owner);
 }
 
 /** @brief Whether a rule marks any coarse step of a miss. */
@@ -5630,7 +5678,9 @@ static void twist_halves(const MapPoint *fine, size_t count, const double *squar
         if (tally->half_count >= tally->half_capacity)
         {
             tally->half_capacity = (tally->half_capacity == 0u) ? 64u : (tally->half_capacity * 2u);
-            tally->halves = (Half *)map_memory(realloc(tally->halves, tally->half_capacity * sizeof(Half)));
+            tally->halves = (Half *)map_memory(platform_cell_grown(tally->halves, tally->half_count * sizeof(Half),
+                                                                   tally->half_capacity * sizeof(Half),
+                                                                   platform_place_g_program_owner, 0));
         }
         Half *const half = &tally->halves[tally->half_count];
         half->depth = fabs(delta) * clock;
@@ -5664,7 +5714,9 @@ static void twist_slips(const MapPoint *fine, size_t count, const double *square
         if (tally->slip_count >= tally->slip_capacity)
         {
             tally->slip_capacity = (tally->slip_capacity == 0u) ? 64u : (tally->slip_capacity * 2u);
-            tally->slips = (Slip *)map_memory(realloc(tally->slips, tally->slip_capacity * sizeof(Slip)));
+            tally->slips = (Slip *)map_memory(platform_cell_grown(tally->slips, tally->slip_count * sizeof(Slip),
+                                                                  tally->slip_capacity * sizeof(Slip),
+                                                                  platform_place_g_program_owner, 0));
         }
         const double size = c_abs(fine[dip].w);
         Slip *const slip = &tally->slips[tally->slip_count];
@@ -5810,8 +5862,8 @@ static int64_t twist_cell(const char *binary, const TuringConstants *constants, 
         const size_t low = (size_t)twister_below(lot, (uint32_t)(count - span - 1u));
         figure_of(fine, squares, low, low + span, &tally->lots);
     }
-    unsigned char (*const marked)[TWIST_RULE_COUNT] =
-        (unsigned char (*)[TWIST_RULE_COUNT])map_memory(calloc(idx.count + 1u, TWIST_RULE_COUNT));
+    unsigned char (*const marked)[TWIST_RULE_COUNT] = (unsigned char (*)[TWIST_RULE_COUNT])map_memory(
+        platform_cell_cleared(idx.count + 1u, TWIST_RULE_COUNT, platform_place_g_program_owner, 0));
     twist_flags(fine, squares, &idx, rate, marked, tally);
     for (int rule = 0; rule < TWIST_RULE_COUNT; rule += 1)
     {
@@ -5840,11 +5892,11 @@ static int64_t twist_cell(const char *binary, const TuringConstants *constants, 
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(marked);
-    free(found.values);
-    free(idx.values);
-    free(squares);
-    free(listed.points);
+    platform_cell_released(marked, platform_place_g_program_owner);
+    platform_cell_released(found.values, platform_place_g_program_owner);
+    platform_cell_released(idx.values, platform_place_g_program_owner);
+    platform_cell_released(squares, platform_place_g_program_owner);
+    platform_cell_released(listed.points, platform_place_g_program_owner);
     return failed;
 }
 
@@ -5951,11 +6003,11 @@ static void slip_rows(TwistTally *tally)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(cosine.values);
-        free(drag.values);
-        free(apart.values);
-        free(level.values);
-        free(over.values);
+        platform_cell_released(cosine.values, platform_place_g_program_owner);
+        platform_cell_released(drag.values, platform_place_g_program_owner);
+        platform_cell_released(apart.values, platform_place_g_program_owner);
+        platform_cell_released(level.values, platform_place_g_program_owner);
+        platform_cell_released(over.values, platform_place_g_program_owner);
     }
 }
 
@@ -6001,7 +6053,7 @@ static void half_rows(const TwistTally *tally)
                 platform_line_out_ended();
             }
         }
-        free(rows.values);
+        platform_cell_released(rows.values, platform_place_g_program_owner);
     }
 }
 
@@ -6159,15 +6211,15 @@ static int main_twist(const char *binary, int64_t base, int64_t count, double ra
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(tally.diffs.values);
-    free(tally.courses.values);
-    free(tally.miss_courses.values);
-    free(tally.coupling.values);
-    free(tally.miss_coupling.values);
+    platform_cell_released(tally.diffs.values, platform_place_g_program_owner);
+    platform_cell_released(tally.courses.values, platform_place_g_program_owner);
+    platform_cell_released(tally.miss_courses.values, platform_place_g_program_owner);
+    platform_cell_released(tally.coupling.values, platform_place_g_program_owner);
+    platform_cell_released(tally.miss_coupling.values, platform_place_g_program_owner);
     shapes_free(&tally.figures);
     shapes_free(&tally.lots);
-    free(tally.halves);
-    free(tally.slips);
+    platform_cell_released(tally.halves, platform_place_g_program_owner);
+    platform_cell_released(tally.slips, platform_place_g_program_owner);
     return (failed == 0) ? 0 : 1;
 }
 

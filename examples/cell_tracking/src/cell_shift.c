@@ -37,8 +37,8 @@ static int shift_read_frame(const char *path, unsigned long long side_y, unsigne
     }
 
     size_t capacity = 1024u;
-    frame->positions = malloc(capacity * sizeof(*frame->positions));
-    frame->values = malloc(capacity * sizeof(*frame->values));
+    frame->positions = platform_cell_taken(capacity * sizeof(*frame->positions), platform_place_g_program_owner, 0);
+    frame->values = platform_cell_taken(capacity * sizeof(*frame->values), platform_place_g_program_owner, 0);
     frame->count = 0u;
     if ((frame->positions == NULL) || (frame->values == NULL))
     {
@@ -55,8 +55,12 @@ static int shift_read_frame(const char *path, unsigned long long side_y, unsigne
         if (frame->count == capacity)
         {
             capacity *= 2u;
-            OriorExactInteger *grown = realloc(frame->positions, capacity * sizeof(*grown));
-            uint64_t *grown_values = realloc(frame->values, capacity * sizeof(*grown_values));
+            OriorExactInteger *grown =
+                platform_cell_grown(frame->positions, frame->count * sizeof(*frame->positions),
+                                    capacity * sizeof(*grown), platform_place_g_program_owner, 0);
+            uint64_t *grown_values =
+                platform_cell_grown(frame->values, frame->count * sizeof(*frame->values),
+                                    capacity * sizeof(*grown_values), platform_place_g_program_owner, 0);
             if ((grown == NULL) || (grown_values == NULL))
             {
                 fclose(handle);
@@ -113,8 +117,8 @@ int program_main(int argc, char **argv)
     }
 
     const size_t total = first.count + second.count;
-    OriorExactInteger *positions = malloc(total * sizeof(*positions));
-    uint64_t *values = malloc(total * sizeof(*values));
+    OriorExactInteger *positions = platform_cell_taken(total * sizeof(*positions), platform_place_g_program_owner, 0);
+    uint64_t *values = platform_cell_taken(total * sizeof(*values), platform_place_g_program_owner, 0);
     if ((positions == NULL) || (values == NULL))
     {
         (void)fprintf(stderr, "  out of memory at %zu positions\n", total);

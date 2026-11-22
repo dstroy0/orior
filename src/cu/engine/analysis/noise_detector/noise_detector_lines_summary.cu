@@ -439,10 +439,12 @@ extern "C" long noise_lines_set(const NoiseSetRequest *request)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    NoiseLineCell *const cells = (NoiseLineCell *)malloc((size_t)NOISE_LINE_CELLS * sizeof(NoiseLineCell));
+    NoiseLineCell *const cells = (NoiseLineCell *)platform_cell_taken((size_t)NOISE_LINE_CELLS * sizeof(NoiseLineCell),
+                                                                      platform_place_g_program_owner, 0);
     ok = ok && NOISE_DETECTOR_CHECK(cells != NULL, &cells, error, ENGINE_ERROR_RESOURCE);
     // four exact integers, stored apart from the stack
-    NoisePlanePool *const pool = (NoisePlanePool *)malloc(sizeof(NoisePlanePool));
+    NoisePlanePool *const pool =
+        (NoisePlanePool *)platform_cell_taken(sizeof(NoisePlanePool), platform_place_g_program_owner, 0);
     ok = ok && NOISE_DETECTOR_CHECK(pool != NULL, &pool, error, ENGINE_ERROR_RESOURCE);
     NoiseStaticPool still;
     mmgr_bytes_set(&still, 0, sizeof(still));
@@ -455,7 +457,7 @@ extern "C" long noise_lines_set(const NoiseSetRequest *request)
         ok = NOISE_DETECTOR_CHECK(request->load(request->set, name, extent, &volume, error) == 0L, name, error,
                                   ENGINE_ERROR_REQUEST) &&
              (noise_lines_sample(volume, extent, cells, pool, &still, plane_table, name, error) == 0L);
-        free(volume);
+        platform_cell_released(volume, platform_place_g_program_owner);
         ok = ok && NOISE_DETECTOR_IO(noise_lines_rows(table, name, cells) != 0, table, error);
         if (ok != 0)
         {
@@ -464,8 +466,8 @@ extern "C" long noise_lines_set(const NoiseSetRequest *request)
             noise_static_summary(&still);
         }
     }
-    free(cells);
-    free(pool);
+    platform_cell_released(cells, platform_place_g_program_owner);
+    platform_cell_released(pool, platform_place_g_program_owner);
     if (table != NULL)
     {
         ok = NOISE_DETECTOR_IO(platform_file_close(table) == 0, path, error) && ok;

@@ -66,8 +66,8 @@ int tiff_reserve(TiffFile *file, unsigned char **buffer, unsigned long long *cap
     {
         return tiff_fail(file, "a buffer larger than this machine can address");
     }
-    free(*buffer);
-    *buffer = (unsigned char *)malloc((size_t)requested);
+    platform_cell_released(*buffer, platform_place_g_program_owner);
+    *buffer = (unsigned char *)platform_cell_taken((size_t)requested, platform_place_g_program_owner, 0);
     *capacity = (*buffer != NULL) ? requested : 0ULL;
     return (*buffer != NULL) ? (file->reason == NULL) : tiff_fail(file, "out of memory");
 }

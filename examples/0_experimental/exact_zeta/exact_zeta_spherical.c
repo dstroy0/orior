@@ -491,7 +491,8 @@ static void run_device(const char *binary, int r_bits, int u_bits, SphericalRun 
     int64_t offsets[3];
     int64_t widths[3];
     size_t place_count = 0u;
-    run->values = (OriorExactInteger(*)[3])spherical_memory(calloc(run->lanes + 1u, sizeof(OriorExactInteger[3])));
+    run->values = (OriorExactInteger(*)[3])spherical_memory(
+        platform_cell_cleared(run->lanes + 1u, sizeof(OriorExactInteger[3]), platform_place_g_program_owner, 0));
     size_t row = 0u;
     run->host = 0;
     run->steps[0] = '\0';
@@ -786,6 +787,6 @@ int program_main(int argument_count, char **arguments)
         platform_line_out_ended();
     }
     platform_line_flushed();
-    free(run.values);
+    platform_cell_released(run.values, platform_place_g_program_owner);
     return held ? 0 : 1;
 }

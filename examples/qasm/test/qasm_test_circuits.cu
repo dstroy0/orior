@@ -55,7 +55,7 @@ static void inverse_fourier(void)
     const unsigned int n = 12u;
     const unsigned int k = 2741u;
     const unsigned int size = 1u << n;
-    char *const text = (char *)malloc(TEXT_CAPACITY);
+    char *const text = (char *)platform_cell_taken(TEXT_CAPACITY, platform_place_g_program_owner, 0);
     Text built = {text, 0u};
     text_add(&built, "%sqreg q[%u];\ncreg c[%u];\n", HEADER, n, n);
     // (|0> + e^{2 pi i k 2^j / N}|1>) / sqrt 2 on qubit j is the Fourier state of k, bit j of x on qubit j
@@ -102,7 +102,7 @@ static void inverse_fourier(void)
     {
         qasm_release(&circuit);
     }
-    free(text);
+    platform_cell_released(text, platform_place_g_program_owner);
 }
 
 // the measure's clbits, measuring part of the register, and no measure at all
@@ -234,7 +234,7 @@ static void device_against_host(void)
     static const char *const TWO_ANGLE[] = {"crx", "cry", "crz", "cu1", "cp", "rzz", "rxx", "ryy"};
     const unsigned int n = 8u;
     const unsigned int gates = 200u;
-    char *const text = (char *)malloc(TEXT_CAPACITY);
+    char *const text = (char *)platform_cell_taken(TEXT_CAPACITY, platform_place_g_program_owner, 0);
     Text built = {text, 0u};
     text_add(&built, "%sqreg q[%u];\ncreg c[%u];\n", HEADER, n, n);
     for (unsigned int gate = 0u; gate < gates; gate += 1u)
@@ -291,8 +291,10 @@ static void device_against_host(void)
     QasmCircuit circuit;
     const int read = read_text("random.qasm", text, &circuit, reason, sizeof(reason));
     const unsigned long long lanes = 1ull << n;
-    unsigned int *const device_state = (unsigned int *)calloc((size_t)(lanes * QASM_STATE_LIMBS), sizeof(unsigned int));
-    unsigned int *const host_state = (unsigned int *)calloc((size_t)(lanes * QASM_STATE_LIMBS), sizeof(unsigned int));
+    unsigned int *const device_state = (unsigned int *)platform_cell_cleared(
+        (size_t)(lanes * QASM_STATE_LIMBS), sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host_state = (unsigned int *)platform_cell_cleared(
+        (size_t)(lanes * QASM_STATE_LIMBS), sizeof(unsigned int), platform_place_g_program_owner, 0);
     QasmOutcome device;
     QasmOutcome host;
     const int ran = read && run(&circuit, 0, &device, device_state) && run(&circuit, 1, &host, host_state);
@@ -315,9 +317,9 @@ static void device_against_host(void)
     {
         qasm_release(&circuit);
     }
-    free(device_state);
-    free(host_state);
-    free(text);
+    platform_cell_released(device_state, platform_place_g_program_owner);
+    platform_cell_released(host_state, platform_place_g_program_owner);
+    platform_cell_released(text, platform_place_g_program_owner);
 }
 
 int program_main(int count, char **arguments)

@@ -9,6 +9,7 @@
  *       A denominator is positive, and shares no divisor with the integers of the value.
  */
 #include "torus_fields.h"
+#include "../../../src/platform/platform.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -247,7 +248,8 @@ static void poly_reserve(PiPoly *poly, size_t count)
         return;
     }
     const size_t grown = (count > (poly->capacity * 2u)) ? count : (poly->capacity * 2u);
-    poly->terms = (PiTerm *)ring_memory(realloc(poly->terms, grown * sizeof(PiTerm)));
+    poly->terms = (PiTerm *)ring_memory(platform_cell_grown(poly->terms, poly->capacity * sizeof(PiTerm),
+                                                            grown * sizeof(PiTerm), platform_place_g_program_owner, 0));
     poly->capacity = grown;
 }
 
@@ -286,7 +288,7 @@ static void poly_empty(PiPoly *poly)
 
 void poly_free(PiPoly *poly)
 {
-    free(poly->terms);
+    platform_cell_released(poly->terms, platform_place_g_program_owner);
     poly_empty(poly);
 }
 
@@ -368,8 +370,10 @@ void poly_mul(const PiPoly *left, const PiPoly *right, PiPoly *product)
     const int32_t highest = left->terms[left->count - 1u].power + right->terms[right->count - 1u].power;
     // The span is at least one, because highest is never below lowest.
     const size_t span = (size_t)(highest - lowest) + 1u;
-    OriorExactInteger *const real = (OriorExactInteger *)ring_memory(calloc(span, sizeof(OriorExactInteger)));
-    OriorExactInteger *const imaginary = (OriorExactInteger *)ring_memory(calloc(span, sizeof(OriorExactInteger)));
+    OriorExactInteger *const real = (OriorExactInteger *)ring_memory(
+        platform_cell_cleared(span, sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
+    OriorExactInteger *const imaginary = (OriorExactInteger *)ring_memory(
+        platform_cell_cleared(span, sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
     for (size_t left_at = 0u; left_at < left->count; left_at += 1u)
     {
         const PiTerm *const one = &left->terms[left_at];
@@ -395,8 +399,8 @@ void poly_mul(const PiPoly *left, const PiPoly *right, PiPoly *product)
         // The offset is below the span, which fits int32_t, because the powers do.
         poly_push(product, lowest + (int32_t)at, &real[at], &imaginary[at]);
     }
-    free(real);
-    free(imaginary);
+    platform_cell_released(real, platform_place_g_program_owner);
+    platform_cell_released(imaginary, platform_place_g_program_owner);
 }
 
 /**
@@ -766,7 +770,9 @@ static void scalar_reserve(TorusScalar *scalar, size_t count)
         return;
     }
     const size_t grown = (count > (scalar->capacity * 2u)) ? count : (scalar->capacity * 2u);
-    scalar->entries = (ModeEntry *)ring_memory(realloc(scalar->entries, grown * sizeof(ModeEntry)));
+    scalar->entries =
+        (ModeEntry *)ring_memory(platform_cell_grown(scalar->entries, scalar->capacity * sizeof(ModeEntry),
+                                                     grown * sizeof(ModeEntry), platform_place_g_program_owner, 0));
     scalar->capacity = grown;
 }
 
@@ -874,7 +880,7 @@ void scalar_free(TorusScalar *scalar)
     {
         poly_free(&scalar->entries[at].poly);
     }
-    free(scalar->entries);
+    platform_cell_released(scalar->entries, platform_place_g_program_owner);
     scalar_begin(scalar);
 }
 
@@ -1035,7 +1041,9 @@ void scalar_times(const TorusScalar *scalar, const RingRatio *ratio, TorusScalar
 static void scalar_mul(const TorusScalar *left, const TorusScalar *right, TorusScalar *product)
 {
     const size_t pairs = left->count * right->count;
-    ModeEntry *const terms = (pairs > 0u) ? (ModeEntry *)ring_memory(malloc(pairs * sizeof(ModeEntry))) : NULL;
+    ModeEntry *const terms = (pairs > 0u) ? (ModeEntry *)ring_memory(platform_cell_taken(
+                                                pairs * sizeof(ModeEntry), platform_place_g_program_owner, 0))
+                                          : NULL;
     size_t made = 0u;
     for (size_t left_at = 0u; left_at < left->count; left_at += 1u)
     {
@@ -1071,7 +1079,7 @@ static void scalar_mul(const TorusScalar *left, const TorusScalar *right, TorusS
         scalar_push(product, terms[at].mode, &total);
         at = next;
     }
-    free(terms);
+    platform_cell_released(terms, platform_place_g_program_owner);
     OriorExactInteger denominator;
     big_mul(&left->denominator, &right->denominator, &denominator);
     scalar_finish(product, &denominator);
@@ -1401,7 +1409,9 @@ void modes_of(const TorusVector *vector, ModeList *list)
     {
         total += vector->axis[axis].count;
     }
-    list->modes = (total > 0u) ? (int32_t (*)[TORUS_AXES])ring_memory(malloc(total * sizeof(*list->modes))) : NULL;
+    list->modes = (total > 0u) ? (int32_t (*)[TORUS_AXES])ring_memory(platform_cell_taken(
+                                     total * sizeof(*list->modes), platform_place_g_program_owner, 0))
+                               : NULL;
     size_t made = 0u;
     for (unsigned axis = 0u; axis < TORUS_AXES; axis += 1u)
     {
@@ -1588,7 +1598,7 @@ void leray(const TorusVector *vector, TorusVector *result)
     {
         scalar_finish(&result->axis[axis], &denominator);
     }
-    free(list.modes);
+    platform_cell_released(list.modes, platform_place_g_program_owner);
     common_free(&numerators);
 }
 
@@ -1633,7 +1643,7 @@ void pressure_of(const TorusVector *nonlinear, TorusScalar *result)
     big_mul(&denominator, &multiple, &denominator);
     scalar_finish(result, &denominator);
     poly_free(&inverse_pi);
-    free(list.modes);
+    platform_cell_released(list.modes, platform_place_g_program_owner);
     common_free(&numerators);
 }
 
@@ -1696,7 +1706,7 @@ void biot_savart(const TorusVector *vorticity, TorusVector *result)
         scalar_finish(&result->axis[axis], &denominator);
     }
     poly_free(&inverse_pi);
-    free(list.modes);
+    platform_cell_released(list.modes, platform_place_g_program_owner);
     common_free(&numerators);
 }
 
@@ -2108,7 +2118,7 @@ int64_t vec_mode_radius(const TorusVector *vector)
         const int64_t size = box_size(list.modes[at]);
         largest = (size > largest) ? size : largest;
     }
-    free(list.modes);
+    platform_cell_released(list.modes, platform_place_g_program_owner);
     return largest;
 }
 
@@ -2121,6 +2131,6 @@ size_t vec_modes_outside(const TorusVector *vector, int64_t radius)
     {
         count += (box_size(list.modes[at]) > radius) ? 1u : 0u;
     }
-    free(list.modes);
+    platform_cell_released(list.modes, platform_place_g_program_owner);
     return count;
 }

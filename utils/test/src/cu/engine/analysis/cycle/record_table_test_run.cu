@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_table_test_run.cu: programs, loading and running on host and device
 #include "record_table_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 static unsigned long long s_table_state = 0xD1CE5EEDF00DCAFEull;
 
@@ -146,13 +147,14 @@ int table_run_device(TableProgram *program, const unsigned int *atoms, unsigned 
 // `value_bits` of the ops' output at input x. This makes the ops the table's oracle.
 int table_fill_from_ops(TableProgram *oracle, unsigned int value_bits, unsigned int *values)
 {
-    unsigned int *const atoms = (unsigned int *)malloc((size_t)TABLE_TEST_ALPHABET * sizeof(unsigned int));
-    unsigned int *const out =
-        (unsigned int *)malloc((size_t)TABLE_TEST_ALPHABET * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
+    unsigned int *const atoms = (unsigned int *)platform_cell_taken((size_t)TABLE_TEST_ALPHABET * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
+    unsigned int *const out = (unsigned int *)platform_cell_taken(
+        (size_t)TABLE_TEST_ALPHABET * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int), platform_place_g_program_owner, 0);
     if ((atoms == NULL) || (out == NULL))
     {
-        free(atoms);
-        free(out);
+        platform_cell_released(atoms, platform_place_g_program_owner);
+        platform_cell_released(out, platform_place_g_program_owner);
         return 0;
     }
     for (unsigned int value = 0u; value < TABLE_TEST_ALPHABET; value += 1u)
@@ -166,8 +168,8 @@ int table_fill_from_ops(TableProgram *oracle, unsigned int value_bits, unsigned 
     {
         values[value] = out[value * out_limbs] & mask;
     }
-    free(atoms);
-    free(out);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(out, platform_place_g_program_owner);
     return ok;
 }
 
@@ -176,16 +178,18 @@ int table_fill_from_ops(TableProgram *oracle, unsigned int value_bits, unsigned 
 // oracle host) to agree word for word.
 void table_case(TableResults *results, const char *name, TableProgram *oracle, unsigned int value_bits)
 {
-    unsigned int *const values = (unsigned int *)malloc((size_t)TABLE_TEST_ALPHABET * sizeof(unsigned int));
-    unsigned int *const atoms = (unsigned int *)malloc((size_t)TABLE_TEST_LANES * sizeof(unsigned int));
-    unsigned int *const oracle_device =
-        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
-    unsigned int *const oracle_host =
-        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
-    unsigned int *const table_device =
-        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
-    unsigned int *const table_host =
-        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
+    unsigned int *const values = (unsigned int *)platform_cell_taken((size_t)TABLE_TEST_ALPHABET * sizeof(unsigned int),
+                                                                     platform_place_g_program_owner, 0);
+    unsigned int *const atoms = (unsigned int *)platform_cell_taken((size_t)TABLE_TEST_LANES * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
+    unsigned int *const oracle_device = (unsigned int *)platform_cell_taken(
+        (size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const oracle_host = (unsigned int *)platform_cell_taken(
+        (size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const table_device = (unsigned int *)platform_cell_taken(
+        (size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const table_host = (unsigned int *)platform_cell_taken(
+        (size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int), platform_place_g_program_owner, 0);
     int ok = (values != NULL) && (atoms != NULL) && (oracle_device != NULL) && (oracle_host != NULL) &&
              (table_device != NULL) && (table_host != NULL);
     ok = ok && table_fill_from_ops(oracle, value_bits, values);
@@ -226,10 +230,10 @@ void table_case(TableResults *results, const char *name, TableProgram *oracle, u
         mmgr_line_decimal(&results->line, TABLE_TEST_LANES, 1u);
         mmgr_line_put(&results->line, " lanes, device and host\n");
     }
-    free(values);
-    free(atoms);
-    free(oracle_device);
-    free(oracle_host);
-    free(table_device);
-    free(table_host);
+    platform_cell_released(values, platform_place_g_program_owner);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(oracle_device, platform_place_g_program_owner);
+    platform_cell_released(oracle_host, platform_place_g_program_owner);
+    platform_cell_released(table_device, platform_place_g_program_owner);
+    platform_cell_released(table_host, platform_place_g_program_owner);
 }

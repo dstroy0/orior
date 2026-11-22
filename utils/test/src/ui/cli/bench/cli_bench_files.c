@@ -4,6 +4,7 @@
 // through the cells or through the system's allocator alone; the view of the tree's files picked as a search picks it;
 // and the tree searched as the window's search does it
 #include "../../../../../../ui/cli/src/code/symbols.h"
+#include "../../../../../../src/platform/platform.h"
 #include "../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "../../../../../../ui/cli/src/editor/files.h"
 #include "../../../../../../ui/cli/src/editor/files_internal.h"
@@ -41,15 +42,21 @@ static void readers_run(void *context)
         if (s_readers.plain)
         {
             // capacity for the whole file from the system's allocator, outside the cells
-            unsigned char *capacity = EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = corpus->paths[index], .size_pointer = &size) ? malloc((size_t)size + 1u) : NULL;
+            unsigned char *capacity = EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx,
+                                                 .path = corpus->paths[index], .size_pointer = &size)
+                                          ? platform_cell_taken((size_t)size + 1u, platform_place_g_program_owner, 0)
+                                          : NULL;
             if (capacity != NULL)
             {
-                (void)EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = corpus->paths[index], .from = 0ull, .bytes_bytes = capacity, .count_u64 = size, .got = &size);
+                (void)EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = corpus->paths[index],
+                                 .from = 0ull, .bytes_bytes = capacity, .count_u64 = size, .got = &size);
             }
-            free(capacity);
+            platform_cell_released(capacity, platform_place_g_program_owner);
             continue;
         }
-        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = corpus->paths[index], .size_pointer = &size, .owner = g_checks_owner);
+        const unsigned char *const bytes =
+            EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = corpus->paths[index], .size_pointer = &size,
+                       .owner = g_checks_owner);
         g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_checks_owner));
     }
     s_readers.running -= 1u;
@@ -107,7 +114,8 @@ BenchMeasure bench_picked(const BenchCorpus *corpus)
         }
         CliPicked picked = {NULL, 0u, 0ULL};
         const unsigned long long began = cli_clock_microseconds();
-        (void)EMBED_CALL(cli_files_picked_internal.pick, CliFilesPickedCtx, .picked = &picked, .root = under, .filter = picked_include, .context = NULL);
+        (void)EMBED_CALL(cli_files_picked_internal.pick, CliFilesPickedCtx, .picked = &picked, .root = under,
+                         .filter = picked_include, .context = NULL);
         const unsigned long long consumed = cli_clock_microseconds() - began;
         EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &picked);
         measure.bytes = corpus->whole;
@@ -135,7 +143,8 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
             cli_tree_forgotten();
         }
         const unsigned long long began = cli_clock_microseconds();
-        (void)EMBED_CALL(cli_files_root_out_err_msg.search, CliFilesRootOutErrMsgCfg, .root = under, .query = needle, .how = (CliSearching){0, 0, 0}, .set = &none, .out = &out, .err_msg = &err_msg);
+        (void)EMBED_CALL(cli_files_root_out_err_msg.search, CliFilesRootOutErrMsgCfg, .root = under, .query = needle,
+                         .how = (CliSearching){0, 0, 0}, .set = &none, .out = &out, .err_msg = &err_msg);
         const unsigned long long consumed = cli_clock_microseconds() - began;
         measure.bytes = corpus->whole;
         measure.min = (consumed < measure.min) ? consumed : measure.min;

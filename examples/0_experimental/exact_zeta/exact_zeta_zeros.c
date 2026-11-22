@@ -30,6 +30,7 @@
  *       N doubles, and no point is ever decided.
  */
 #include "zeta_search.h"
+#include "../../../src/platform/platform.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -116,9 +117,12 @@ int program_main(int argument_count, char **arguments)
     pair_print(&height, height.places, out);
     fputs(", each alone in a box symmetric about Re(s) = 1/2\n", out);
 
-    DecimalPair *const lows = (DecimalPair *)malloc((found.count + 1u) * sizeof(DecimalPair));
-    DecimalPair *const highs = (DecimalPair *)malloc((found.count + 1u) * sizeof(DecimalPair));
-    char **const paths = (char **)malloc((found.count + 1u) * sizeof(char *));
+    DecimalPair *const lows =
+        (DecimalPair *)platform_cell_taken((found.count + 1u) * sizeof(DecimalPair), platform_place_g_program_owner, 0);
+    DecimalPair *const highs =
+        (DecimalPair *)platform_cell_taken((found.count + 1u) * sizeof(DecimalPair), platform_place_g_program_owner, 0);
+    char **const paths =
+        (char **)platform_cell_taken((found.count + 1u) * sizeof(char *), platform_place_g_program_owner, 0);
     if ((lows == NULL) || (highs == NULL) || (paths == NULL))
     {
         zeta_stop("out of memory");

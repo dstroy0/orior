@@ -148,7 +148,7 @@ int program_main(int count, char **arguments)
         mmgr_line_ch(&engine_note.line, '\n');
         engine_note_written(&engine_note);
     }
-    free(watched);
+    platform_cell_released(watched, platform_place_g_program_owner);
     run_channel_close(&channel);
     const unsigned long long ran = run_now() - started;
     if (tessera_job_release(client, &ticket, &error) == 0L)

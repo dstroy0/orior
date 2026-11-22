@@ -80,7 +80,8 @@ int program_main(int count, char **words)
     // carrier reads none, and the list is named so that the round passes the airlock as a live one does
     const char *const carrier[] = {"dry", "--gated", "gated.txt", NULL};
     check_that(run_channel_open(carrier, 1000000ull) == 1, "the dry channel opens");
-    RunQuestion *const pool = (RunQuestion *)calloc(CHECK_QUESTIONS, sizeof(RunQuestion));
+    RunQuestion *const pool =
+        (RunQuestion *)platform_cell_cleared(CHECK_QUESTIONS, sizeof(RunQuestion), platform_place_g_program_owner, 0);
     if (pool == NULL)
     {
         {
@@ -233,7 +234,7 @@ int program_main(int count, char **words)
     }
     check_that((after == 0u) && (stopped == CHECK_QUESTIONS),
                "every question after the stop is refused with the stop's reason");
-    free(pool);
+    platform_cell_released(pool, platform_place_g_program_owner);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "scheduler_check: ");

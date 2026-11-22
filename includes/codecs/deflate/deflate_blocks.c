@@ -316,8 +316,10 @@ long long deflate_raw_encode(const EngineBytesRequest *request)
     DeflateMatcher matcher;
     matcher.in = request->in;
     matcher.in_bytes = in_bytes;
-    matcher.heads = (unsigned long long *)calloc((size_t)slots, sizeof(unsigned long long));
-    matcher.previous = (unsigned long long *)calloc((size_t)in_bytes + 1u, sizeof(unsigned long long));
+    matcher.heads = (unsigned long long *)platform_cell_cleared((size_t)slots, sizeof(unsigned long long),
+                                                                platform_place_g_program_owner, 0);
+    matcher.previous = (unsigned long long *)platform_cell_cleared((size_t)in_bytes + 1u, sizeof(unsigned long long),
+                                                                   platform_place_g_program_owner, 0);
     matcher.mask = slots - 1ULL;
     matcher.key_bits = (key_bits == 0u) ? 1u : key_bits;
     DeflateToken *const tokens =
@@ -360,8 +362,8 @@ long long deflate_raw_encode(const EngineBytesRequest *request)
         deflate_write_dynamic(&writer, tokens, count, trees);
     }
     ok = ok && (writer.overflow == 0) && (writer.written == chosen);
-    free(matcher.heads);
-    free(matcher.previous);
+    platform_cell_released(matcher.heads, platform_place_g_program_owner);
+    platform_cell_released(matcher.previous, platform_place_g_program_owner);
     platform_cell_released(tokens, (unsigned int)platform_place_g_program_owner);
     platform_cell_released(trees, (unsigned int)platform_place_g_program_owner);
     platform_cell_released(fixed, (unsigned int)platform_place_g_program_owner);

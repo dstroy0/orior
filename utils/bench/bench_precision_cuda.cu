@@ -41,6 +41,7 @@
  */
 
 #include <cuda_runtime.h>
+#include "../../src/platform/platform.h"
 
 #include <cmath>
 #include <cstdio>
@@ -352,8 +353,8 @@ static int run_width(const char *name, double digits, const int *live, int live_
                      const int *rotations)
 {
     const size_t bytes = (size_t)ROTATION_COUNT * COEFFICIENT_COUNT * sizeof(T);
-    T *host = (T *)malloc(bytes);
-    T *back = (T *)malloc(bytes);
+    T *host = (T *)platform_cell_taken(bytes, platform_place_g_program_owner, 0);
+    T *back = (T *)platform_cell_taken(bytes, platform_place_g_program_owner, 0);
     T *device = NULL;
     if (!host || !back)
     {
@@ -390,8 +391,8 @@ static int run_width(const char *name, double digits, const int *live, int live_
            ROTATION_COUNT * COEFFICIENT_COUNT, spread);
 
     cudaFree(device);
-    free(host);
-    free(back);
+    platform_cell_released(host, platform_place_g_program_owner);
+    platform_cell_released(back, platform_place_g_program_owner);
     return 0;
 }
 
@@ -401,8 +402,10 @@ static int run_width(const char *name, double digits, const int *live, int live_
  * Machine readable, because `examples/proofing/precision_plot.py` reads it, and puts it on one axis
  * with the arbitrary-precision ladder. For prose, run that tool.
  */
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     int live[PLACEMENT_TOTAL];
     int live_count = 0;
 

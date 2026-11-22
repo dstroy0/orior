@@ -159,10 +159,12 @@ int tessera_device_read(const TesseraDevice *device, TesseraLedger *copy)
     copy->job_capacity = host_ledger.job_count + 1ULL;
     copy->history_capacity = host_ledger.history_count + 1ULL;
     copy->heap_capacity = host_ledger.heap_count + 1ULL;
-    copy->jobs =
-        (TesseraJob *)malloc((size_t)copy->job_capacity * sizeof(TesseraJob));
-    copy->history = (TesseraHistory *)malloc((size_t)copy->history_capacity * sizeof(TesseraHistory));
-    copy->heap = (TesseraDeadline *)malloc((size_t)copy->heap_capacity * sizeof(TesseraDeadline));
+    copy->jobs = (TesseraJob *)platform_cell_taken((size_t)copy->job_capacity * sizeof(TesseraJob),
+                                                   platform_place_g_program_owner, 0);
+    copy->history = (TesseraHistory *)platform_cell_taken((size_t)copy->history_capacity * sizeof(TesseraHistory),
+                                                          platform_place_g_program_owner, 0);
+    copy->heap = (TesseraDeadline *)platform_cell_taken((size_t)copy->heap_capacity * sizeof(TesseraDeadline),
+                                                        platform_place_g_program_owner, 0);
     const int read =
         (copy->jobs != NULL) && (copy->history != NULL) && (copy->heap != NULL) &&
         (cudaMemcpy(copy->jobs, host_ledger.jobs, (size_t)host_ledger.job_count * sizeof(TesseraJob),
@@ -173,9 +175,9 @@ int tessera_device_read(const TesseraDevice *device, TesseraLedger *copy)
                     cudaMemcpyDeviceToHost) == cudaSuccess);
     if (!read)
     {
-        free(copy->jobs);
-        free(copy->history);
-        free(copy->heap);
+        platform_cell_released(copy->jobs, platform_place_g_program_owner);
+        platform_cell_released(copy->history, platform_place_g_program_owner);
+        platform_cell_released(copy->heap, platform_place_g_program_owner);
         mmgr_bytes_set(copy, 0, sizeof(*copy));
     }
     return read;

@@ -68,7 +68,7 @@ static char *file_read(const char *path)
         return NULL;
     }
     // A long that ftell returns non-negative fits a size_t on every target of this tree.
-    char *const text = (char *)malloc((size_t)size + 1u);
+    char *const text = (char *)platform_cell_taken((size_t)size + 1u, platform_place_g_program_owner, 0);
     if (text == NULL)
     {
         fclose(file);
@@ -708,7 +708,7 @@ int program_main(int argument_count, char **arguments)
 
     for (int which = 0; which < 4; which += 1)
     {
-        free(texts[which]);
+        platform_cell_released(texts[which], platform_place_g_program_owner);
     }
     return (complete && (tally.failed == 0u)) ? 0 : 1;
 }

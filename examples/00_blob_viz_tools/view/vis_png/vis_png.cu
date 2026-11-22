@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "vis_png.h"
+#include "../../../../src/platform/platform.h"
 
 #include "track.h"
 
@@ -52,11 +53,11 @@ static int write_png_rgb(const char *path, const unsigned char *rgb, unsigned in
     const size_t raw = row * height;
     const size_t blocks = (raw + 65534u) / 65535u;
     const size_t stream_bytes = 2u + blocks * 5u + raw + 4u;
-    unsigned char *const stream = (unsigned char *)malloc(stream_bytes);
+    unsigned char *const stream = (unsigned char *)platform_cell_taken(stream_bytes, platform_place_g_program_owner, 0);
     FILE *const handle = fopen(path, "wb");
     if ((stream == NULL) || (handle == NULL))
     {
-        free(stream);
+        platform_cell_released(stream, platform_place_g_program_owner);
         if (handle != NULL)
         {
             fclose(handle);
@@ -103,16 +104,25 @@ static int write_png_rgb(const char *path, const unsigned char *rgb, unsigned in
     at += 4u;
     static const unsigned char signature[8] = {137u, 80u, 78u, 71u, 13u, 10u, 26u, 10u};
     fwrite(signature, 1u, 8u, handle);
-    const unsigned char header[13] = {(unsigned char)(width >> 24u), (unsigned char)(width >> 16u),
-                                      (unsigned char)(width >> 8u), (unsigned char)width,
-                                      (unsigned char)(height >> 24u), (unsigned char)(height >> 16u),
-                                      (unsigned char)(height >> 8u), (unsigned char)height, 8u, 2u, 0u, 0u, 0u};
+    const unsigned char header[13] = {(unsigned char)(width >> 24u),
+                                      (unsigned char)(width >> 16u),
+                                      (unsigned char)(width >> 8u),
+                                      (unsigned char)width,
+                                      (unsigned char)(height >> 24u),
+                                      (unsigned char)(height >> 16u),
+                                      (unsigned char)(height >> 8u),
+                                      (unsigned char)height,
+                                      8u,
+                                      2u,
+                                      0u,
+                                      0u,
+                                      0u};
     png_chunk(handle, "IHDR", header, 13u);
     png_chunk(handle, "IDAT", stream, at);
     png_chunk(handle, "IEND", NULL, 0u);
     const int ok = (ferror(handle) == 0);
     fclose(handle);
-    free(stream);
+    platform_cell_released(stream, platform_place_g_program_owner);
     return ok;
 }
 
@@ -135,8 +145,9 @@ static void paint_voxel(unsigned char *rgb, unsigned int width, unsigned int lef
     {
         for (unsigned int across = inset; across < VIS_SCALE - inset; across += 1u)
         {
-            const size_t pixel = ((size_t)((unsigned int)row * VIS_SCALE + down) * width
-                                  + left + (unsigned int)column * VIS_SCALE + across) * 3u;
+            const size_t pixel = ((size_t)((unsigned int)row * VIS_SCALE + down) * width + left +
+                                  (unsigned int)column * VIS_SCALE + across) *
+                                 3u;
             rgb[pixel] = color[0];
             rgb[pixel + 1u] = color[1];
             rgb[pixel + 2u] = color[2];
@@ -161,19 +172,29 @@ int render_case(const EngineBuffers *buffers, const CoherenceInputs *inputs, con
     const unsigned int panel = VIS_CROP * VIS_SCALE;
     const unsigned int width = 2u * panel + VIS_GAP;
     const unsigned int height = panel;
-    unsigned char *const rgb = (unsigned char *)calloc((size_t)width * height * 3u, 1u);
-    unsigned short *const raw[2] = {(unsigned short *)malloc((size_t)plane * sizeof(unsigned short)),
-                                    (unsigned short *)malloc((size_t)plane * sizeof(unsigned short))};
-    unsigned int *const object[2] = {(unsigned int *)malloc((size_t)VIS_CROP * VIS_CROP * sizeof(unsigned int)),
-                                     (unsigned int *)malloc((size_t)VIS_CROP * VIS_CROP * sizeof(unsigned int))};
+    unsigned char *const rgb =
+        (unsigned char *)platform_cell_cleared((size_t)width * height * 3u, 1u, platform_place_g_program_owner, 0);
+    unsigned short *const raw[2] = {(unsigned short *)platform_cell_taken((size_t)plane * sizeof(unsigned short),
+                                                                          platform_place_g_program_owner, 0),
+                                    (unsigned short *)platform_cell_taken((size_t)plane * sizeof(unsigned short),
+                                                                          platform_place_g_program_owner, 0)};
+    unsigned int *const object[2] = {
+        (unsigned int *)platform_cell_taken((size_t)VIS_CROP * VIS_CROP * sizeof(unsigned int),
+                                            platform_place_g_program_owner, 0),
+        (unsigned int *)platform_cell_taken((size_t)VIS_CROP * VIS_CROP * sizeof(unsigned int),
+                                            platform_place_g_program_owner, 0)};
     int ok = (rgb != NULL) && (raw[0] != NULL) && (raw[1] != NULL) && (object[0] != NULL) && (object[1] != NULL);
 
-    const int top = (view->from[2] - (int)(VIS_CROP / 2u) < 0) ? 0
-                  : ((view->from[2] + (int)(VIS_CROP / 2u) > (int)buffers->height) ? (int)buffers->height - (int)VIS_CROP
-                                                                                  : view->from[2] - (int)(VIS_CROP / 2u));
-    const int left_column = (view->from[3] - (int)(VIS_CROP / 2u) < 0) ? 0
-                          : ((view->from[3] + (int)(VIS_CROP / 2u) > (int)buffers->width) ? (int)buffers->width - (int)VIS_CROP
-                                                                                          : view->from[3] - (int)(VIS_CROP / 2u));
+    const int top =
+        (view->from[2] - (int)(VIS_CROP / 2u) < 0)
+            ? 0
+            : ((view->from[2] + (int)(VIS_CROP / 2u) > (int)buffers->height) ? (int)buffers->height - (int)VIS_CROP
+                                                                             : view->from[2] - (int)(VIS_CROP / 2u));
+    const int left_column =
+        (view->from[3] - (int)(VIS_CROP / 2u) < 0)
+            ? 0
+            : ((view->from[3] + (int)(VIS_CROP / 2u) > (int)buffers->width) ? (int)buffers->width - (int)VIS_CROP
+                                                                            : view->from[3] - (int)(VIS_CROP / 2u));
     const int slice[2] = {view->from[1], view->to[1]};
     const unsigned int times[2] = {view->earlier->time, view->later->time};
     const unsigned int offsets[2] = {view->offset_before, view->offset_after};
@@ -181,7 +202,8 @@ int render_case(const EngineBuffers *buffers, const CoherenceInputs *inputs, con
     unsigned int brightest = 1u;
     for (unsigned int side = 0u; (ok != 0) && (side < 2u); side += 1u)
     {
-        ok = (times[side] < inputs->volume_frames) && (slice[side] >= 0) && ((unsigned int)slice[side] < buffers->depth);
+        ok =
+            (times[side] < inputs->volume_frames) && (slice[side] >= 0) && ((unsigned int)slice[side] < buffers->depth);
         if (ok != 0)
         {
             memcpy(raw[side], &inputs->volume[((size_t)times[side] * voxels) + ((size_t)slice[side] * plane)],
@@ -191,7 +213,8 @@ int render_case(const EngineBuffers *buffers, const CoherenceInputs *inputs, con
         {
             for (unsigned int across = 0u; across < VIS_CROP; across += 1u)
             {
-                const unsigned int flat = (unsigned int)(top + (int)down) * buffers->width + (unsigned int)(left_column + (int)across);
+                const unsigned int flat =
+                    (unsigned int)(top + (int)down) * buffers->width + (unsigned int)(left_column + (int)across);
                 const unsigned int voxel = (unsigned int)slice[side] * plane + flat;
                 brightest = (raw[side][flat] > brightest) ? raw[side][flat] : brightest;
                 unsigned int id = VIS_NO_OBJECT;
@@ -221,7 +244,8 @@ int render_case(const EngineBuffers *buffers, const CoherenceInputs *inputs, con
         {
             for (unsigned int across = 0u; across < VIS_CROP; across += 1u)
             {
-                const unsigned int flat = (unsigned int)(top + (int)down) * buffers->width + (unsigned int)(left_column + (int)across);
+                const unsigned int flat =
+                    (unsigned int)(top + (int)down) * buffers->width + (unsigned int)(left_column + (int)across);
                 const unsigned int gray = (unsigned int)raw[side][flat] * 255u / brightest;
                 const unsigned int id = object[side][down * VIS_CROP + across];
                 unsigned char color[3] = {(unsigned char)gray, (unsigned char)gray, (unsigned char)gray};
@@ -235,10 +259,11 @@ int render_case(const EngineBuffers *buffers, const CoherenceInputs *inputs, con
                     {
                         const int near_row = (int)down + neighbors[which][0];
                         const int near_column = (int)across + neighbors[which][1];
-                        const unsigned int near = ((near_row < 0) || (near_column < 0) || (near_row >= (int)VIS_CROP)
-                                                   || (near_column >= (int)VIS_CROP))
-                                                ? id
-                                                : object[side][(unsigned int)near_row * VIS_CROP + (unsigned int)near_column];
+                        const unsigned int near =
+                            ((near_row < 0) || (near_column < 0) || (near_row >= (int)VIS_CROP) ||
+                             (near_column >= (int)VIS_CROP))
+                                ? id
+                                : object[side][(unsigned int)near_row * VIS_CROP + (unsigned int)near_column];
                         boundary = boundary || (near != id);
                     }
                     for (unsigned int channel = 0u; channel < 3u; channel += 1u)
@@ -290,12 +315,14 @@ int render_case(const EngineBuffers *buffers, const CoherenceInputs *inputs, con
     {
         const unsigned int peak = view->earlier->peaks[view->source_leaf];
         const unsigned int peak_rest = peak % plane;
-        const int peak_place[3] = {(int)(peak / plane), (int)(peak_rest / buffers->width), (int)(peak_rest % buffers->width)};
+        const int peak_place[3] = {(int)(peak / plane), (int)(peak_rest / buffers->width),
+                                   (int)(peak_rest % buffers->width)};
         paint_marker(rgb, width, 0u, view->from[2] - top, view->from[3] - left_column, green);
         paint_marker(rgb, width, 0u, peak_place[1] - top, peak_place[2] - left_column, white);
         paint_marker(rgb, width, panel + VIS_GAP, view->to[2] - top, view->to[3] - left_column, green);
-        const int *const lag = (view->earlier->forward_lag != NULL) ? &view->earlier->forward_lag[3u * view->source_leaf]
-                                                                     : view->earlier->lag_to_next;
+        const int *const lag = (view->earlier->forward_lag != NULL)
+                                   ? &view->earlier->forward_lag[3u * view->source_leaf]
+                                   : view->earlier->lag_to_next;
         paint_marker(rgb, width, panel + VIS_GAP, peak_place[1] + lag[1] - top, peak_place[2] + lag[2] - left_column,
                      magenta);
 
@@ -307,11 +334,17 @@ int render_case(const EngineBuffers *buffers, const CoherenceInputs *inputs, con
         int linked_true = 0;
         for (unsigned int link = links_begin[0]; link < links_begin[1]; link += 1u)
         {
-            linked_true = linked_true || ((unsigned int)(inputs->unified_link[link] & 0xFFFFFFFFULL) == view->true_target);
+            linked_true =
+                linked_true || ((unsigned int)(inputs->unified_link[link] & 0xFFFFFFFFULL) == view->true_target);
         }
-        const unsigned long long view_share = (view->cell_size > 0u) ? (view->agree_view * 200ULL + view->cell_size) / (2ULL * view->cell_size) : 0ULL;
-        const unsigned long long true_share = (view->cell_size > 0u) ? (view->agree_true * 200ULL + view->cell_size) / (2ULL * view->cell_size) : 0ULL;
-        const unsigned long long landing_share = (view->agree_view > 0ULL) ? ((unsigned long long)view->land_true * 200ULL + view->agree_view) / (2ULL * view->agree_view) : 0ULL;
+        const unsigned long long view_share =
+            (view->cell_size > 0u) ? (view->agree_view * 200ULL + view->cell_size) / (2ULL * view->cell_size) : 0ULL;
+        const unsigned long long true_share =
+            (view->cell_size > 0u) ? (view->agree_true * 200ULL + view->cell_size) / (2ULL * view->cell_size) : 0ULL;
+        const unsigned long long landing_share =
+            (view->agree_view > 0ULL)
+                ? ((unsigned long long)view->land_true * 200ULL + view->agree_view) / (2ULL * view->agree_view)
+                : 0ULL;
         fprintf(inputs->vis_index,
                 "<figure><img src=\"%s_t%u_edge%u.png\"><figcaption><b>%s</b> %s frame %u&rarr;%u &middot; "
                 "source node z%d y%d x%d, target node z%d y%d x%d (step %d %d %d) &middot; peak z%d y%d x%d carried by "
@@ -323,15 +356,15 @@ int render_case(const EngineBuffers *buffers, const CoherenceInputs *inputs, con
                 view->to[2], view->to[3], view->to[1] - view->from[1], view->to[2] - view->from[2],
                 view->to[3] - view->from[3], peak_place[0], peak_place[1], peak_place[2], lag[0], lag[1], lag[2],
                 peak_place[0] + lag[0], view->earlier->lag_to_next[0], view->earlier->lag_to_next[1],
-                view->earlier->lag_to_next[2], view->cell_size, view->leaves, view->target_size, view_share,
-                true_share, landing_share, view->land_objects, linked_count, (linked_count == 1u) ? "" : "s",
+                view->earlier->lag_to_next[2], view->cell_size, view->leaves, view->target_size, view_share, true_share,
+                landing_share, view->land_objects, linked_count, (linked_count == 1u) ? "" : "s",
                 (linked_true != 0) ? ", including the true target" : "");
         fflush(inputs->vis_index);
     }
-    free(rgb);
-    free(raw[0]);
-    free(raw[1]);
-    free(object[0]);
-    free(object[1]);
+    platform_cell_released(rgb, platform_place_g_program_owner);
+    platform_cell_released(raw[0], platform_place_g_program_owner);
+    platform_cell_released(raw[1], platform_place_g_program_owner);
+    platform_cell_released(object[0], platform_place_g_program_owner);
+    platform_cell_released(object[1], platform_place_g_program_owner);
     return ok;
 }

@@ -22,7 +22,7 @@ int entry_directories_make(const char *path, int include_last, unsigned int *mad
 {
     *made = 0u;
     const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
-    char *const walk = (char *)malloc(length + 1u);
+    char *const walk = (char *)platform_cell_taken(length + 1u, platform_place_g_program_owner, 0);
     if (walk == NULL)
     {
         return 0;
@@ -42,7 +42,7 @@ int entry_directories_make(const char *path, int include_last, unsigned int *mad
         *made += created ? 1u : 0u;
         walk[at] = character;
     }
-    free(walk);
+    platform_cell_released(walk, platform_place_g_program_owner);
     return ok;
 }
 
@@ -53,7 +53,7 @@ void entry_directories_remove(const char *path, int include_last, unsigned int m
         return;
     }
     const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
-    char *const walk = (char *)malloc(length + 1u);
+    char *const walk = (char *)platform_cell_taken(length + 1u, platform_place_g_program_owner, 0);
     if (walk == NULL)
     {
         return;
@@ -70,7 +70,7 @@ void entry_directories_remove(const char *path, int include_last, unsigned int m
         ENGINE_DIRECTORY_REMOVE(walk);
         left -= 1u;
     }
-    free(walk);
+    platform_cell_released(walk, platform_place_g_program_owner);
 }
 
 extern "C" int engine_directories_make(const char *path, int include_last)
@@ -213,7 +213,7 @@ struct EntrySpan
         {
             reader.join();
         }
-        free(bytes);
+        platform_cell_released(bytes, platform_place_g_program_owner);
     }
 };
 
@@ -227,7 +227,7 @@ static void entry_span_release(EntrySpan *span)
     {
         span->reader.join();
     }
-    free(span->bytes);
+    platform_cell_released(span->bytes, platform_place_g_program_owner);
     span->bytes = NULL;
     span->path[0] = '\0';
     span->first = 0ULL;
@@ -331,7 +331,9 @@ extern "C" long engine_source_prefetch(const char *source, const char *sample, E
         end = (past > end) ? past : end;
     }
     end = (end < archive->file_bytes) ? end : archive->file_bytes;
-    at->bytes = (end > begin) ? (unsigned char *)malloc((size_t)(end - begin)) : NULL;
+    at->bytes = (end > begin)
+                    ? (unsigned char *)platform_cell_taken((size_t)(end - begin), platform_place_g_program_owner, 0)
+                    : NULL;
     if (!ENGINE_CHECK(at->bytes != NULL, &at->bytes, error, ENGINE_ERROR_RESOURCE))
     {
         return ENGINE_ERROR;
@@ -413,8 +415,8 @@ int entry_joined(char *out, size_t capacity, const char *root, const char *leaf)
 
 void entry_json_release(EntryJson *json)
 {
-    free(json->text);
-    free(json->tokens);
+    platform_cell_released(json->text, platform_place_g_program_owner);
+    platform_cell_released(json->tokens, platform_place_g_program_owner);
     mmgr_bytes_set(json, 0, sizeof(*json));
 }
 
@@ -425,7 +427,7 @@ static int entry_file_read_all(const char *path, char **bytes, size_t *length)
     {
         return 0;
     }
-    char *const text = (char *)malloc((size_t)size + 1u);
+    char *const text = (char *)platform_cell_taken((size_t)size + 1u, platform_place_g_program_owner, 0);
     EngineFileRange range;
     range.path = path;
     range.offset = 0ULL;
@@ -433,7 +435,7 @@ static int entry_file_read_all(const char *path, char **bytes, size_t *length)
     range.out = (unsigned char *)text;
     if ((text == NULL) || (stack_file_read(&range) != size))
     {
-        free(text);
+        platform_cell_released(text, platform_place_g_program_owner);
         return 0;
     }
     text[size] = '\0';
@@ -450,7 +452,8 @@ int entry_json_load(const char *path, EntryJson *json)
         return 0;
     }
     const unsigned int capacity = (unsigned int)(json->length / 2u) + 4u;
-    json->tokens = (CfgJsonToken *)malloc((size_t)capacity * sizeof(CfgJsonToken));
+    json->tokens =
+        (CfgJsonToken *)platform_cell_taken((size_t)capacity * sizeof(CfgJsonToken), platform_place_g_program_owner, 0);
     CfgJsonParse parse;
     mmgr_bytes_set(&parse, 0, sizeof(parse));
     const int ok = (json->tokens != NULL) &&

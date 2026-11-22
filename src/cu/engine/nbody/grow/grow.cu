@@ -23,24 +23,27 @@ extern "C" long grow_leaves(const EngineBody *bodies, unsigned int count, Engine
     }
     mmgr_bytes_set(leaves, 0, sizeof(*leaves));
     const size_t capacity = (size_t)count + 1u;
-    leaves->peaks = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    leaves->sizes = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    leaves->sums =
-        (unsigned long long *)malloc(capacity * 3u * sizeof(unsigned long long));
-    leaves->moments =
-        (unsigned long long *)malloc(capacity * 6u * sizeof(unsigned long long));
-    leaves->touches = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    leaves->joined = (unsigned int *)malloc(2u * sizeof(unsigned int));
+    leaves->peaks =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    leaves->sizes =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    leaves->sums = (unsigned long long *)platform_cell_taken(capacity * 3u * sizeof(unsigned long long),
+                                                             platform_place_g_program_owner, 0);
+    leaves->moments = (unsigned long long *)platform_cell_taken(capacity * 6u * sizeof(unsigned long long),
+                                                                platform_place_g_program_owner, 0);
+    leaves->touches =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    leaves->joined = (unsigned int *)platform_cell_taken(2u * sizeof(unsigned int), platform_place_g_program_owner, 0);
     if (!GROW_CHECK((leaves->peaks != NULL) && (leaves->sizes != NULL) && (leaves->sums != NULL) &&
                         (leaves->moments != NULL) && (leaves->touches != NULL) && (leaves->joined != NULL),
                     leaves, error, ENGINE_ERROR_RESOURCE))
     {
-        free(leaves->peaks);
-        free(leaves->sizes);
-        free(leaves->sums);
-        free(leaves->moments);
-        free(leaves->touches);
-        free(leaves->joined);
+        platform_cell_released(leaves->peaks, platform_place_g_program_owner);
+        platform_cell_released(leaves->sizes, platform_place_g_program_owner);
+        platform_cell_released(leaves->sums, platform_place_g_program_owner);
+        platform_cell_released(leaves->moments, platform_place_g_program_owner);
+        platform_cell_released(leaves->touches, platform_place_g_program_owner);
+        platform_cell_released(leaves->joined, platform_place_g_program_owner);
         mmgr_bytes_set(leaves, 0, sizeof(*leaves));
         return GROW_ERROR;
     }

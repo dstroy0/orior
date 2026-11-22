@@ -46,6 +46,7 @@
 #include <string.h>
 
 #include "sha256_core.h"
+#include "../../src/platform/platform.h"
 
 /**
  * @brief How many leading zero BITS the digest of a nonce must carry for the collection to keep it.
@@ -243,8 +244,10 @@ static void difference_plant(uint32_t *const winners, const uint32_t sample_coun
     }
 }
 
-int main(void)
+int program_main(int argc, char **argv)
 {
+    (void)argc;
+    (void)argv;
     /* A fixed header. Its contents do not matter. Every winner in the collection must come from the
      * SAME header. Thus the nonce is the only difference between them. */
     uint8_t header[80];
@@ -253,7 +256,8 @@ int main(void)
         header[at] = (uint8_t)((at * 37u) + 11u);
     }
 
-    uint32_t *const winners = (uint32_t *)malloc(sizeof(uint32_t) * WANTED_WINNERS);
+    uint32_t *const winners =
+        (uint32_t *)platform_cell_taken(sizeof(uint32_t) * WANTED_WINNERS, platform_place_g_program_owner, 0);
     if (winners == NULL)
     {
         (void)fprintf(stderr, "no room\n");
@@ -288,7 +292,7 @@ int main(void)
     if (sample_count < 2u)
     {
         (void)printf("  too few winners to compare. Nothing is claimed.\n\n");
-        free(winners);
+        platform_cell_released(winners, platform_place_g_program_owner);
         return 0;
     }
 
@@ -300,11 +304,12 @@ int main(void)
      * arithmetic. Here the same routine gets the same winners, with a one percent departure PLANTED
      * on one bit. Its report is the actual sensitivity of this bench. A null is only worth its
      * positive control. */
-    uint32_t *const planted = (uint32_t *)malloc(sizeof(uint32_t) * sample_count);
+    uint32_t *const planted =
+        (uint32_t *)platform_cell_taken(sizeof(uint32_t) * sample_count, platform_place_g_program_owner, 0);
     if (planted == NULL)
     {
         (void)fprintf(stderr, "no room for the control\n");
-        free(winners);
+        platform_cell_released(winners, platform_place_g_program_owner);
         return 1;
     }
     (void)memcpy(planted, winners, sizeof(uint32_t) * sample_count);
@@ -312,7 +317,7 @@ int main(void)
 
     (void)printf("  %s\n\n", "====================================================");
     const double control = difference_examine("POSITIVE CONTROL, one percent planted on bit 3", planted, sample_count);
-    free(planted);
+    platform_cell_released(planted, platform_place_g_program_owner);
 
     (void)printf("  %s\n", "====================================================");
     (void)printf("  planted one percent came back at %.2f sigma on bit %u\n", control, PLANTED_BIT);
@@ -325,13 +330,13 @@ int main(void)
          * result that it prints is a measurement. */
         (void)printf("  REFUSED. The bench cannot see a signal it was handed, so it has never\n");
         (void)printf("  been able to see one, and every null it has printed is uninformative.\n\n");
-        free(winners);
+        platform_cell_released(winners, platform_place_g_program_owner);
         return 1;
     }
 
     (void)printf("  The bench sees a one percent effect. So the measured reading is a measurement:\n");
     (void)printf("  a structured solution set moves these, and this one does not.\n\n");
 
-    free(winners);
+    platform_cell_released(winners, platform_place_g_program_owner);
     return 0;
 }

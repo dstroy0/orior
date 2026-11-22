@@ -36,12 +36,17 @@
 static int adversarial_case_joint_projection(void)
 {
     const size_t buffer_positions = ADVERSARIAL_PROJECTED + ADVERSARIAL_PROJECTED_NEEDLE;
-    uint32_t *const corpus = (uint32_t *)malloc(ADVERSARIAL_PROJECTED * sizeof(uint32_t));
-    uint8_t *const corpus_ranks = (uint8_t *)malloc(ADVERSARIAL_PROJECTED);
+    uint32_t *const corpus =
+        (uint32_t *)platform_cell_taken(ADVERSARIAL_PROJECTED * sizeof(uint32_t), platform_place_g_program_owner, 0);
+    uint8_t *const corpus_ranks =
+        (uint8_t *)platform_cell_taken(ADVERSARIAL_PROJECTED, platform_place_g_program_owner, 0);
     const AdversarialClassBuffers buffers = {
-        .class_of_position = (uint32_t *)malloc(buffer_positions * sizeof(uint32_t)),
-        .members_in_class = (uint32_t *)malloc(buffer_positions * sizeof(uint32_t)),
-        .rarity_place_of_class = (uint32_t *)malloc(buffer_positions * sizeof(uint32_t)),
+        .class_of_position =
+            (uint32_t *)platform_cell_taken(buffer_positions * sizeof(uint32_t), platform_place_g_program_owner, 0),
+        .members_in_class =
+            (uint32_t *)platform_cell_taken(buffer_positions * sizeof(uint32_t), platform_place_g_program_owner, 0),
+        .rarity_place_of_class =
+            (uint32_t *)platform_cell_taken(buffer_positions * sizeof(uint32_t), platform_place_g_program_owner, 0),
         .classes_length = buffer_positions};
     uint32_t needle[ADVERSARIAL_PROJECTED_NEEDLE];
     uint8_t needle_ranks[ADVERSARIAL_PROJECTED_NEEDLE];
@@ -56,11 +61,11 @@ static int adversarial_case_joint_projection(void)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(corpus);
-        free(corpus_ranks);
-        free(buffers.class_of_position);
-        free(buffers.members_in_class);
-        free(buffers.rarity_place_of_class);
+        platform_cell_released(corpus, platform_place_g_program_owner);
+        platform_cell_released(corpus_ranks, platform_place_g_program_owner);
+        platform_cell_released(buffers.class_of_position, platform_place_g_program_owner);
+        platform_cell_released(buffers.members_in_class, platform_place_g_program_owner);
+        platform_cell_released(buffers.rarity_place_of_class, platform_place_g_program_owner);
         return 1;
     }
 
@@ -409,11 +414,11 @@ static int adversarial_case_joint_projection(void)
         platform_line_out_ended();
     }
 
-    free(corpus);
-    free(corpus_ranks);
-    free(buffers.class_of_position);
-    free(buffers.members_in_class);
-    free(buffers.rarity_place_of_class);
+    platform_cell_released(corpus, platform_place_g_program_owner);
+    platform_cell_released(corpus_ranks, platform_place_g_program_owner);
+    platform_cell_released(buffers.class_of_position, platform_place_g_program_owner);
+    platform_cell_released(buffers.members_in_class, platform_place_g_program_owner);
+    platform_cell_released(buffers.rarity_place_of_class, platform_place_g_program_owner);
     return failed;
 }
 

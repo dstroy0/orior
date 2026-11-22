@@ -32,8 +32,10 @@ static int dicom_open(const EngineIngestTools *tools, const char *path, const ch
         dicom_resident_release();
         return 0;
     }
-    resident->path = (char *)malloc(mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
-    resident->member = (char *)malloc(mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+    resident->path = (char *)platform_cell_taken(mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR) + 1u,
+                                                 platform_place_g_program_owner, 0);
+    resident->member = (char *)platform_cell_taken(mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR) + 1u,
+                                                   platform_place_g_program_owner, 0);
     if (!DICOM_CHECK((resident->path != NULL) && (resident->member != NULL), resident, error, ENGINE_ERROR_RESOURCE))
     {
         dicom_resident_release();
@@ -90,12 +92,13 @@ int dicom_zip_has_member(const EngineIngestTools *tools, const char *path, const
         {
             continue;
         }
-        unsigned char *const member = (unsigned char *)malloc((size_t)entry.uncompressed + 1u);
+        unsigned char *const member =
+            (unsigned char *)platform_cell_taken((size_t)entry.uncompressed + 1u, platform_place_g_program_owner, 0);
         const int read = (member != NULL) && (zip_member_read(tools, path, archive, &entry, member, entry.uncompressed,
                                                               &probe) != ZIP_ERROR);
         const int preamble_valid = read && (entry.uncompressed >= (DICOM_PREAMBLE + 4ULL)) &&
                                    (mmgr_bytes_compare(member + DICOM_PREAMBLE, "DICM", 4u) == 0);
-        free(member);
+        platform_cell_released(member, platform_place_g_program_owner);
         return preamble_valid ? 1 : 0;
     }
     return 0;
@@ -170,14 +173,14 @@ static unsigned long long dicom_sign_extend(const DicomSlice *slice, unsigned ch
 
 static void dicom_side_release(EngineSideBytes *side)
 {
-    free(side->pixel_at);
-    free(side->pixel_stored);
-    free(side->byte_start);
-    free(side->bytes);
-    free(side->name_start);
-    free(side->names);
-    free(side->member_crc);
-    free(side->member_bytes);
+    platform_cell_released(side->pixel_at, platform_place_g_program_owner);
+    platform_cell_released(side->pixel_stored, platform_place_g_program_owner);
+    platform_cell_released(side->byte_start, platform_place_g_program_owner);
+    platform_cell_released(side->bytes, platform_place_g_program_owner);
+    platform_cell_released(side->name_start, platform_place_g_program_owner);
+    platform_cell_released(side->names, platform_place_g_program_owner);
+    platform_cell_released(side->member_crc, platform_place_g_program_owner);
+    platform_cell_released(side->member_bytes, platform_place_g_program_owner);
     mmgr_bytes_set(side, 0, sizeof(*side));
 }
 
@@ -193,14 +196,20 @@ static int dicom_side_fill(EngineSideBytes *side, EngineError *error)
         named += slice->name_length;
     }
     mmgr_bytes_set(side, 0, sizeof(*side));
-    side->pixel_at = (unsigned long long *)calloc((size_t)resident->count + 1u, sizeof(unsigned long long));
-    side->pixel_stored = (unsigned long long *)calloc((size_t)resident->count + 1u, sizeof(unsigned long long));
-    side->byte_start = (unsigned long long *)calloc((size_t)resident->count + 1u, sizeof(unsigned long long));
-    side->bytes = (unsigned char *)malloc((size_t)byte_total + 1u);
-    side->name_start = (unsigned long long *)calloc((size_t)resident->count + 1u, sizeof(unsigned long long));
-    side->names = (char *)malloc((size_t)named + 1u);
-    side->member_crc = (unsigned long long *)calloc((size_t)resident->count + 1u, sizeof(unsigned long long));
-    side->member_bytes = (unsigned long long *)calloc((size_t)resident->count + 1u, sizeof(unsigned long long));
+    side->pixel_at = (unsigned long long *)platform_cell_cleared(
+        (size_t)resident->count + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    side->pixel_stored = (unsigned long long *)platform_cell_cleared(
+        (size_t)resident->count + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    side->byte_start = (unsigned long long *)platform_cell_cleared(
+        (size_t)resident->count + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    side->bytes = (unsigned char *)platform_cell_taken((size_t)byte_total + 1u, platform_place_g_program_owner, 0);
+    side->name_start = (unsigned long long *)platform_cell_cleared(
+        (size_t)resident->count + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    side->names = (char *)platform_cell_taken((size_t)named + 1u, platform_place_g_program_owner, 0);
+    side->member_crc = (unsigned long long *)platform_cell_cleared(
+        (size_t)resident->count + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    side->member_bytes = (unsigned long long *)platform_cell_cleared(
+        (size_t)resident->count + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     if (!DICOM_CHECK((side->pixel_at != NULL) && (side->pixel_stored != NULL) && (side->byte_start != NULL) &&
                          (side->bytes != NULL) && (side->name_start != NULL) && (side->names != NULL) &&
                          (side->member_crc != NULL) && (side->member_bytes != NULL),

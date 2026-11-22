@@ -55,8 +55,12 @@ extern "C" int krep_crystal_read(const KrepCrystalRequest *request)
              krep_seal_read(crystal, head, seal, error);
     const size_t limbs = ok ? (size_t)((stream->bits + 31ULL) / 32ULL) : 0u;
     unsigned long long *const offsets =
-        ok ? (unsigned long long *)calloc((size_t)stream->chunks + 1u, sizeof(unsigned long long)) : NULL;
-    unsigned int *const limb_table = ok ? (unsigned int *)calloc(limbs + 1u, sizeof(unsigned int)) : NULL;
+        ok ? (unsigned long long *)platform_cell_cleared((size_t)stream->chunks + 1u, sizeof(unsigned long long),
+                                                         platform_place_g_program_owner, 0)
+           : NULL;
+    unsigned int *const limb_table =
+        ok ? (unsigned int *)platform_cell_cleared(limbs + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0)
+           : NULL;
     ok = ok && KREP_CHECK(offsets != NULL, &offsets, error, ENGINE_ERROR_RESOURCE) &&
          KREP_CHECK(limb_table != NULL, &limb_table, error, ENGINE_ERROR_RESOURCE) &&
          KREP_IO(krep_words_read(crystal, offsets, (size_t)stream->chunks) != 0, offsets, error) &&
@@ -83,30 +87,30 @@ extern "C" int krep_crystal_read(const KrepCrystalRequest *request)
 
 extern "C" void krep_seal_release(EngineSeal *seal)
 {
-    free(seal->lane_nodes);
-    free(seal->chunk_leaves);
+    platform_cell_released(seal->lane_nodes, platform_place_g_program_owner);
+    platform_cell_released(seal->chunk_leaves, platform_place_g_program_owner);
     mmgr_bytes_set(seal, 0, sizeof(*seal));
 }
 
 extern "C" void krep_side_release(EngineSideSection *section)
 {
     EngineSideBytes *const side = &section->side;
-    free(side->pixel_at);
-    free(side->pixel_stored);
-    free(side->byte_start);
-    free(side->bytes);
-    free(side->name_start);
-    free(side->names);
-    free(side->member_crc);
-    free(side->member_bytes);
-    free(section->packed);
+    platform_cell_released(side->pixel_at, platform_place_g_program_owner);
+    platform_cell_released(side->pixel_stored, platform_place_g_program_owner);
+    platform_cell_released(side->byte_start, platform_place_g_program_owner);
+    platform_cell_released(side->bytes, platform_place_g_program_owner);
+    platform_cell_released(side->name_start, platform_place_g_program_owner);
+    platform_cell_released(side->names, platform_place_g_program_owner);
+    platform_cell_released(side->member_crc, platform_place_g_program_owner);
+    platform_cell_released(side->member_bytes, platform_place_g_program_owner);
+    platform_cell_released(section->packed, platform_place_g_program_owner);
     mmgr_bytes_set(section, 0, sizeof(*section));
 }
 
 extern "C" void krep_crystal_release(EngineStream *stream)
 {
-    free((void *)stream->offsets);
-    free((void *)stream->stream);
+    platform_cell_released((void *)stream->offsets, platform_place_g_program_owner);
+    platform_cell_released((void *)stream->stream, platform_place_g_program_owner);
     stream->offsets = NULL;
     stream->stream = NULL;
 }
@@ -174,7 +178,9 @@ extern "C" int krep_history_read(const char *path, EngineHistory *history, unsig
     history->payload_crc = head[2];
     history->cloud_crc = head[3];
     const size_t entries = (size_t)(history->windows * history->windows);
-    history->cloud = ok ? (unsigned long long *)calloc(entries, sizeof(unsigned long long)) : NULL;
+    history->cloud = ok ? (unsigned long long *)platform_cell_cleared(entries, sizeof(unsigned long long),
+                                                                      platform_place_g_program_owner, 0)
+                        : NULL;
     ok = ok && KREP_CHECK(history->cloud != NULL, &history->cloud, error, ENGINE_ERROR_RESOURCE) &&
          KREP_IO(krep_words_read(back, history->cloud, entries) != 0, history->cloud, error) &&
          KREP_CHECK(crc_words(CRC_TABLE, history->cloud, entries) == history->cloud_crc, &history->cloud_crc, error,
@@ -182,7 +188,8 @@ extern "C" int krep_history_read(const char *path, EngineHistory *history, unsig
     if (ok && (payload != 0u))
     {
         const size_t words = krep_history_words(history);
-        history->history = (unsigned long long *)calloc(words, sizeof(unsigned long long));
+        history->history = (unsigned long long *)platform_cell_cleared(words, sizeof(unsigned long long),
+                                                                       platform_place_g_program_owner, 0);
         ok = KREP_CHECK(history->history != NULL, &history->history, error, ENGINE_ERROR_RESOURCE) &&
              KREP_IO(krep_words_read(back, history->history, words) != 0, history->history, error) &&
              KREP_CHECK(platform_file_char_get(back) == EOF, back, error, ENGINE_ERROR_LOGIC) &&
@@ -202,8 +209,8 @@ extern "C" int krep_history_read(const char *path, EngineHistory *history, unsig
 
 extern "C" void krep_history_release(EngineHistory *history)
 {
-    free(history->cloud);
-    free(history->history);
+    platform_cell_released(history->cloud, platform_place_g_program_owner);
+    platform_cell_released(history->history, platform_place_g_program_owner);
     history->cloud = NULL;
     history->history = NULL;
 }
@@ -257,9 +264,12 @@ extern "C" int krep_bodies_read(const char *path, EngineBodyTable *table, Engine
     table->bodies = ok ? counts[1] : 0ULL;
     table->crc = counts[2];
     table->frame_start =
-        ok ? (unsigned long long *)calloc((size_t)table->frames + 1u, sizeof(unsigned long long)) : NULL;
+        ok ? (unsigned long long *)platform_cell_cleared((size_t)table->frames + 1u, sizeof(unsigned long long),
+                                                         platform_place_g_program_owner, 0)
+           : NULL;
     table->words =
-        ok ? (unsigned long long *)calloc((size_t)(table->bodies * ENGINE_BODY_WORDS) + 1u, sizeof(unsigned long long))
+        ok ? (unsigned long long *)platform_cell_cleared((size_t)(table->bodies * ENGINE_BODY_WORDS) + 1u,
+                                                         sizeof(unsigned long long), platform_place_g_program_owner, 0)
            : NULL;
     ok =
         ok && KREP_CHECK(table->frame_start != NULL, &table->frame_start, error, ENGINE_ERROR_RESOURCE) &&
@@ -285,8 +295,8 @@ extern "C" int krep_bodies_read(const char *path, EngineBodyTable *table, Engine
 
 extern "C" void krep_bodies_release(EngineBodyTable *table)
 {
-    free(table->frame_start);
-    free(table->words);
+    platform_cell_released(table->frame_start, platform_place_g_program_owner);
+    platform_cell_released(table->words, platform_place_g_program_owner);
     table->frame_start = NULL;
     table->words = NULL;
 }
@@ -337,7 +347,8 @@ extern "C" int krep_forms_read(const char *path, KrepFormTable *table, EngineErr
     table->name_words = ok ? counts[1] : 0ULL;
     table->crc = counts[2];
     table->words =
-        ok ? (unsigned long long *)calloc((size_t)(table->forms + table->name_words) + 1u, sizeof(unsigned long long))
+        ok ? (unsigned long long *)platform_cell_cleared((size_t)(table->forms + table->name_words) + 1u,
+                                                         sizeof(unsigned long long), platform_place_g_program_owner, 0)
            : NULL;
     ok = ok && KREP_CHECK(table->words != NULL, &table->words, error, ENGINE_ERROR_RESOURCE) &&
          KREP_IO(krep_words_read(back, table->words, (size_t)(table->forms + table->name_words)) != 0, table->words,
@@ -358,6 +369,6 @@ extern "C" int krep_forms_read(const char *path, KrepFormTable *table, EngineErr
 
 extern "C" void krep_forms_release(KrepFormTable *table)
 {
-    free(table->words);
+    platform_cell_released(table->words, platform_place_g_program_owner);
     table->words = NULL;
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_chunks.c: decoding and placing chunks
 #include "hdf5_internal.h"
+#include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 static long long hdf5_decode(const Hdf5File *file, EngineCodec codec, const unsigned char *in, size_t in_bytes,
@@ -205,8 +206,9 @@ int hdf5_chunk_place(Hdf5Gather *gather, const unsigned long long *origin, unsig
         return hdf5_error(file, "a chunk that lies past the end of the file");
     }
     const size_t capacity = (((size_t)stored > gather->chunk_bytes) ? (size_t)stored : gather->chunk_bytes) + 64u;
-    unsigned char *data = (unsigned char *)malloc(capacity);
-    unsigned char *spare = filtered ? (unsigned char *)malloc(capacity) : NULL;
+    unsigned char *data = (unsigned char *)platform_cell_taken(capacity, platform_place_g_program_owner, 0);
+    unsigned char *spare =
+        filtered ? (unsigned char *)platform_cell_taken(capacity, platform_place_g_program_owner, 0) : NULL;
     int ok = (data != NULL) && (!filtered || (spare != NULL));
     ok = ok ? hdf5_fetch(file, address, stored, data) : hdf5_error(file, "no memory for a chunk");
     size_t length = (size_t)stored;
@@ -216,8 +218,8 @@ int hdf5_chunk_place(Hdf5Gather *gather, const unsigned long long *origin, unsig
     {
         hdf5_chunk_copy(gather, data, origin, low, high);
     }
-    free(data);
-    free(spare);
+    platform_cell_released(data, platform_place_g_program_owner);
+    platform_cell_released(spare, platform_place_g_program_owner);
     return ok;
 }
 
@@ -288,14 +290,14 @@ int hdf5_chunk_tree(Hdf5Gather *gather, unsigned long long address, unsigned int
             ok = !needed || hdf5_chunk_tree(gather, child_address, node_level - 1u, 0, depth + 1u);
         }
     }
-    free(node);
+    platform_cell_released(node, platform_place_g_program_owner);
     return ok;
 }
 
 void hdf5_fixed_close(Hdf5Fixed *fixed)
 {
-    free(fixed->prefix);
-    free(fixed->page);
+    platform_cell_released(fixed->prefix, platform_place_g_program_owner);
+    platform_cell_released(fixed->page, platform_place_g_program_owner);
     fixed->prefix = NULL;
     fixed->page = NULL;
 }
@@ -323,7 +325,7 @@ int hdf5_fixed_open(Hdf5File *file, const Hdf5Object *object, const Hdf5Gather *
     const unsigned int page_bits = header[7u];
     fixed->count = hdf5_little(&header[8u], file->length_bytes);
     fixed->block = hdf5_little(&header[8u + file->length_bytes], offset_bytes);
-    free(header);
+    platform_cell_released(header, platform_place_g_program_owner);
     if (!sound)
     {
         return hdf5_error(file, "a fixed array header whose signature or checksum does not match");
@@ -398,7 +400,7 @@ int hdf5_fixed_entry(Hdf5File *file, Hdf5Fixed *fixed, unsigned long long linear
         }
         if ((fixed->page == NULL) || (fixed->page_loaded != (page + 1ULL)))
         {
-            free(fixed->page);
+            platform_cell_released(fixed->page, platform_place_g_program_owner);
             fixed->page = NULL;
             const unsigned long long elements = ((page + 1ULL) == fixed->page_count)
                                                     ? (fixed->count - (page * fixed->page_elements))
@@ -412,7 +414,7 @@ int hdf5_fixed_entry(Hdf5File *file, Hdf5Fixed *fixed, unsigned long long linear
             }
             if (!hdf5_sealed(fixed->page, (size_t)page_bytes))
             {
-                free(fixed->page);
+                platform_cell_released(fixed->page, platform_place_g_program_owner);
                 fixed->page = NULL;
                 return hdf5_error(file, "a fixed array page whose checksum does not match");
             }

@@ -206,7 +206,8 @@ static Binned pairs(const double *u, size_t m, double reach, size_t low, size_t 
     Binned binned;
     // The reach times 2^10 is small, and a machine integer holds it.
     binned.count = (size_t)(reach * (double)(1 << WIDTH)) + 1u;
-    binned.bins = (int64_t *)form_memory(calloc(binned.count, sizeof(int64_t)));
+    binned.bins =
+        (int64_t *)form_memory(platform_cell_cleared(binned.count, sizeof(int64_t), platform_place_g_program_owner, 0));
     binned.counted = 0;
     for (size_t n = low; n < high; n += 1u)
     {
@@ -250,8 +251,10 @@ static double gauss(double sigma, double x)
 static void smoothed(const Binned *binned, double sigma, const double *taus, size_t count, double *out)
 {
     const double a = (2.0 * (PI_DOUBLE * PI_DOUBLE)) * (sigma * sigma);
-    double *const distances = (double *)form_memory(malloc(binned->count * sizeof(double)));
-    double *const weights = (double *)form_memory(malloc(binned->count * sizeof(double)));
+    double *const distances =
+        (double *)form_memory(platform_cell_taken(binned->count * sizeof(double), platform_place_g_program_owner, 0));
+    double *const weights =
+        (double *)form_memory(platform_cell_taken(binned->count * sizeof(double), platform_place_g_program_owner, 0));
     size_t held = 0u;
     for (size_t b = 0u; b < binned->count; b += 1u)
     {
@@ -274,8 +277,8 @@ static void smoothed(const Binned *binned, double sigma, const double *taus, siz
         }
         out[at] = (1.0 + ((2.0 * total) / (double)binned->counted)) - gauss(sigma, taus[at]);
     }
-    free(distances);
-    free(weights);
+    platform_cell_released(distances, platform_place_g_program_owner);
+    platform_cell_released(weights, platform_place_g_program_owner);
 }
 
 /**
@@ -315,8 +318,10 @@ static void primes_model(double sigma, const double *taus, size_t count, double 
     int64_t (*powers)[2] = NULL;
     // e^L is the height over 2 pi, far below 2^63.
     const size_t power_count = tension_prime_powers((int64_t)exp(length), &powers);
-    double *const weights = (double *)form_memory(malloc((power_count + 1u) * sizeof(double)));
-    double *const places = (double *)form_memory(malloc((power_count + 1u) * sizeof(double)));
+    double *const weights = (double *)form_memory(
+        platform_cell_taken((power_count + 1u) * sizeof(double), platform_place_g_program_owner, 0));
+    double *const places = (double *)form_memory(
+        platform_cell_taken((power_count + 1u) * sizeof(double), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < power_count; at += 1u)
     {
         const double log_p = log((double)powers[at][0]);
@@ -340,9 +345,9 @@ static void primes_model(double sigma, const double *taus, size_t count, double 
         }
         out[at] = total;
     }
-    free(weights);
-    free(places);
-    free(powers);
+    platform_cell_released(weights, platform_place_g_program_owner);
+    platform_cell_released(places, platform_place_g_program_owner);
+    platform_cell_released(powers, platform_place_g_program_owner);
 }
 
 /**
@@ -365,7 +370,7 @@ static int near_whole(double value)
  */
 static int analyse(const double *zeros, size_t m)
 {
-    double *const u = (double *)form_memory(malloc(m * sizeof(double)));
+    double *const u = (double *)form_memory(platform_cell_taken(m * sizeof(double), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < m; at += 1u)
     {
         u[at] = tension_theta_pi(zeros[at]) + 1.0;
@@ -407,7 +412,8 @@ static int analyse(const double *zeros, size_t m)
 
     ZetaTwister twister;
     twister_seed(&twister, FORM_SEED);
-    double *const gaps = (double *)form_memory(malloc(m * sizeof(double)));
+    double *const gaps =
+        (double *)form_memory(platform_cell_taken(m * sizeof(double), platform_place_g_program_owner, 0));
     for (size_t k = 0u; (k + 1u) < m; k += 1u)
     {
         gaps[k] = u[k + 1u] - u[k];
@@ -420,7 +426,8 @@ static int analyse(const double *zeros, size_t m)
         gaps[at] = gaps[other];
         gaps[other] = held;
     }
-    double *const shuffled = (double *)form_memory(malloc(m * sizeof(double)));
+    double *const shuffled =
+        (double *)form_memory(platform_cell_taken(m * sizeof(double), platform_place_g_program_owner, 0));
     shuffled[0] = u[0];
     for (size_t k = 0u; (k + 1u) < m; k += 1u)
     {
@@ -607,15 +614,15 @@ static int analyse(const double *zeros, size_t m)
             platform_line_out_ended();
         }
     }
-    free(whole.bins);
-    free(first.bins);
-    free(second.bins);
-    free(shuffled_pairs.bins);
-    free(wide_pairs.bins);
-    free(wide_shuffled_pairs.bins);
-    free(u);
-    free(gaps);
-    free(shuffled);
+    platform_cell_released(whole.bins, platform_place_g_program_owner);
+    platform_cell_released(first.bins, platform_place_g_program_owner);
+    platform_cell_released(second.bins, platform_place_g_program_owner);
+    platform_cell_released(shuffled_pairs.bins, platform_place_g_program_owner);
+    platform_cell_released(wide_pairs.bins, platform_place_g_program_owner);
+    platform_cell_released(wide_shuffled_pairs.bins, platform_place_g_program_owner);
+    platform_cell_released(u, platform_place_g_program_owner);
+    platform_cell_released(gaps, platform_place_g_program_owner);
+    platform_cell_released(shuffled, platform_place_g_program_owner);
     return 0;
 }
 
@@ -643,6 +650,6 @@ int program_main(int argument_count, char **arguments)
     tension_certified_zeros(arguments[1], atoll(arguments[2]), atoll(arguments[3]), extra, has_given ? given : NULL,
                             &zeros);
     const int code = analyse(zeros.zeros, zeros.count);
-    free(zeros.zeros);
+    platform_cell_released(zeros.zeros, platform_place_g_program_owner);
     return code;
 }

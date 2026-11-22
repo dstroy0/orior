@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // obsignatio_test_properties.cu: every length, bit flips, determinism, errors and the seal
 #include "obsignatio_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #if (defined(__CUDACC__))
 
@@ -56,7 +57,8 @@ void test_bit_flips(const TestVectors *vectors, const unsigned char *device_patt
         {
             continue;
         }
-        unsigned char *const signa = (unsigned char *)malloc((size_t)((flips + 1ull) * OBSIGNATIO_SIGNUM_BYTES));
+        unsigned char *const signa = (unsigned char *)platform_cell_taken(
+            (size_t)((flips + 1ull) * OBSIGNATIO_SIGNUM_BYTES), platform_place_g_program_owner, 0);
         unsigned char *device_flipped = NULL;
         unsigned char *device_signa = NULL;
         int ready =
@@ -93,7 +95,7 @@ void test_bit_flips(const TestVectors *vectors, const unsigned char *device_patt
         test_count(results, distinct);
         cudaFree(device_signa);
         cudaFree(device_flipped);
-        free(signa);
+        platform_cell_released(signa, platform_place_g_program_owner);
     }
 }
 
@@ -101,8 +103,8 @@ void test_determinism(const TestVectors *vectors, const unsigned char *device_pa
 {
     const unsigned long long length = vectors->longest - TEST_PATTERN_PERIOD;
     const size_t bytes = (size_t)(TEST_PATTERN_PERIOD * OBSIGNATIO_SIGNUM_BYTES);
-    unsigned char *const first = (unsigned char *)malloc(bytes);
-    unsigned char *const second = (unsigned char *)malloc(bytes);
+    unsigned char *const first = (unsigned char *)platform_cell_taken(bytes, platform_place_g_program_owner, 0);
+    unsigned char *const second = (unsigned char *)platform_cell_taken(bytes, platform_place_g_program_owner, 0);
     unsigned char *device_signa = NULL;
     const int ran = (first != NULL) && (second != NULL) && (vectors->longest > TEST_PATTERN_PERIOD) &&
                     (cudaMalloc((void **)&device_signa, bytes) == cudaSuccess) &&
@@ -123,12 +125,12 @@ void test_determinism(const TestVectors *vectors, const unsigned char *device_pa
     }
     test_count(results, windows_differ);
     cudaFree(device_signa);
-    free(second);
-    free(first);
+    platform_cell_released(second, platform_place_g_program_owner);
+    platform_cell_released(first, platform_place_g_program_owner);
 }
 
 static int test_error_signum(const ObsignatioSignumRequest *request, const unsigned char *out_before,
-                               const unsigned char *out)
+                             const unsigned char *out)
 {
     const long status = obsignatio_signum(request);
     const int untouched = (out == NULL) || (memcmp(out, out_before, OBSIGNATIO_SIGNUM_BYTES) == 0);
@@ -139,7 +141,7 @@ static int test_error_signum(const ObsignatioSignumRequest *request, const unsig
 }
 
 static int test_error_many(const ObsignatioManyRequest *request, const unsigned char *device_signa,
-                             const unsigned char *signa_before)
+                           const unsigned char *signa_before)
 {
     const long status = obsignatio_many(request);
     unsigned char after[OBSIGNATIO_SIGNUM_BYTES];

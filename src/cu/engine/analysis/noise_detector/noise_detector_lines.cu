@@ -191,12 +191,18 @@ static int noise_planes_rows(PlatformFile *table, const char *name, const NoiseP
 int noise_static_mask(const unsigned short *volume, unsigned long long frames, unsigned long long voxels,
                       unsigned int quiet, unsigned char *mask, unsigned long long *ceiling)
 {
-    unsigned long long *const totals = (unsigned long long *)calloc((size_t)voxels, sizeof(unsigned long long));
-    unsigned short *const least = (unsigned short *)malloc((size_t)voxels * sizeof(unsigned short));
-    unsigned short *const max = (unsigned short *)calloc((size_t)voxels, sizeof(unsigned short));
-    unsigned long long *const counted = (unsigned long long *)calloc(NOISE_VALUES, sizeof(unsigned long long));
+    unsigned long long *const totals = (unsigned long long *)platform_cell_cleared(
+        (size_t)voxels, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned short *const least = (unsigned short *)platform_cell_taken((size_t)voxels * sizeof(unsigned short),
+                                                                        platform_place_g_program_owner, 0);
+    unsigned short *const max = (unsigned short *)platform_cell_cleared((size_t)voxels, sizeof(unsigned short),
+                                                                        platform_place_g_program_owner, 0);
+    unsigned long long *const counted = (unsigned long long *)platform_cell_cleared(
+        NOISE_VALUES, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     unsigned long long *const squares =
-        (quiet != 0u) ? (unsigned long long *)calloc((size_t)voxels, sizeof(unsigned long long)) : NULL;
+        (quiet != 0u) ? (unsigned long long *)platform_cell_cleared((size_t)voxels, sizeof(unsigned long long),
+                                                                    platform_place_g_program_owner, 0)
+                      : NULL;
     // a voxel's squares times the frames is at max the frames squared times 65535 squared, a word to 65536 frames
     const int ok = (totals != NULL) && (least != NULL) && (max != NULL) && (counted != NULL) &&
                    ((quiet == 0u) || ((squares != NULL) && (frames <= 65536ULL)));
@@ -248,11 +254,11 @@ int noise_static_mask(const unsigned short *volume, unsigned long long frames, u
             mask[voxel] = ((mask[voxel] != 0u) && ((totals[voxel] / frames) <= *ceiling)) ? 1u : 0u;
         }
     }
-    free(totals);
-    free(least);
-    free(max);
-    free(counted);
-    free(squares);
+    platform_cell_released(totals, platform_place_g_program_owner);
+    platform_cell_released(least, platform_place_g_program_owner);
+    platform_cell_released(max, platform_place_g_program_owner);
+    platform_cell_released(counted, platform_place_g_program_owner);
+    platform_cell_released(squares, platform_place_g_program_owner);
     return ok;
 }
 
@@ -309,16 +315,22 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
     unsigned long long *device_static_squares = NULL;
     unsigned long long *device_static_members = NULL;
     unsigned long long *device_static_levels = NULL;
-    long long *const sums = (long long *)malloc(line_bytes);
-    unsigned long long *const squares = (unsigned long long *)malloc(line_bytes);
-    unsigned long long *const levels = (unsigned long long *)malloc(line_bytes);
-    long long *const static_sums = (long long *)malloc(line_bytes);
-    unsigned long long *const static_squares = (unsigned long long *)malloc(line_bytes);
-    unsigned long long *const static_members = (unsigned long long *)malloc(line_bytes);
-    unsigned long long *const static_levels = (unsigned long long *)malloc(line_bytes);
-    unsigned char *const mask = (unsigned char *)malloc((size_t)voxels);
+    long long *const sums = (long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, 0);
+    unsigned long long *const squares =
+        (unsigned long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, 0);
+    unsigned long long *const levels =
+        (unsigned long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, 0);
+    long long *const static_sums = (long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, 0);
+    unsigned long long *const static_squares =
+        (unsigned long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, 0);
+    unsigned long long *const static_members =
+        (unsigned long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, 0);
+    unsigned long long *const static_levels =
+        (unsigned long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, 0);
+    unsigned char *const mask = (unsigned char *)platform_cell_taken((size_t)voxels, platform_place_g_program_owner, 0);
     const unsigned long long plane_count = frame_pairs * depth;
-    NoisePlane *const planes = (NoisePlane *)malloc((size_t)plane_count * sizeof(NoisePlane));
+    NoisePlane *const planes =
+        (NoisePlane *)platform_cell_taken((size_t)plane_count * sizeof(NoisePlane), platform_place_g_program_owner, 0);
     int ok =
         NOISE_DETECTOR_CHECK((sums != NULL) && (squares != NULL) && (levels != NULL) && (static_sums != NULL) &&
                                  (static_squares != NULL) && (static_members != NULL) && (static_levels != NULL) &&
@@ -443,14 +455,14 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
     cudaFree(device_static_squares);
     cudaFree(device_static_members);
     cudaFree(device_static_levels);
-    free(sums);
-    free(squares);
-    free(levels);
-    free(static_sums);
-    free(static_squares);
-    free(static_members);
-    free(static_levels);
-    free(mask);
-    free(planes);
+    platform_cell_released(sums, platform_place_g_program_owner);
+    platform_cell_released(squares, platform_place_g_program_owner);
+    platform_cell_released(levels, platform_place_g_program_owner);
+    platform_cell_released(static_sums, platform_place_g_program_owner);
+    platform_cell_released(static_squares, platform_place_g_program_owner);
+    platform_cell_released(static_members, platform_place_g_program_owner);
+    platform_cell_released(static_levels, platform_place_g_program_owner);
+    platform_cell_released(mask, platform_place_g_program_owner);
+    platform_cell_released(planes, platform_place_g_program_owner);
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }

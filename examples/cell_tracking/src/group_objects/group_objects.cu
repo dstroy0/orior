@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "group_objects.h"
+#include "../../../../src/platform/platform.h"
 
 #include "../../../../src/cu/engine/analysis/golden_bands/golden_bands.h"
 #include "../../../../src/cu/engine/runtime/radix_keys/radix_keys.h"
@@ -18,16 +19,20 @@ int group_objects(TreeFrame *frame, const TreeFrame *previous, const TreeFrame *
                   unsigned int width, const TreeRules *rules)
 {
     const unsigned int count = frame->leaf_count;
-    unsigned int *const parent = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-    free(frame->object_of);
-    free(frame->member_start);
-    free(frame->members);
-    frame->object_of = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-    frame->member_start = (unsigned int *)calloc((size_t)count + 2u, sizeof(unsigned int));
-    frame->members = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
+    unsigned int *const parent = (unsigned int *)platform_cell_taken(((size_t)count + 1u) * sizeof(unsigned int),
+                                                                     platform_place_g_program_owner, 0);
+    platform_cell_released(frame->object_of, platform_place_g_program_owner);
+    platform_cell_released(frame->member_start, platform_place_g_program_owner);
+    platform_cell_released(frame->members, platform_place_g_program_owner);
+    frame->object_of = (unsigned int *)platform_cell_taken(((size_t)count + 1u) * sizeof(unsigned int),
+                                                           platform_place_g_program_owner, 0);
+    frame->member_start = (unsigned int *)platform_cell_cleared((size_t)count + 2u, sizeof(unsigned int),
+                                                                platform_place_g_program_owner, 0);
+    frame->members = (unsigned int *)platform_cell_taken(((size_t)count + 1u) * sizeof(unsigned int),
+                                                         platform_place_g_program_owner, 0);
     if ((parent == NULL) || (frame->object_of == NULL) || (frame->member_start == NULL) || (frame->members == NULL))
     {
-        free(parent);
+        platform_cell_released(parent, platform_place_g_program_owner);
         return 0;
     }
     for (unsigned int leaf = 0u; leaf < count; leaf += 1u)
@@ -106,13 +111,15 @@ int group_objects(TreeFrame *frame, const TreeFrame *previous, const TreeFrame *
                 break;
             }
         }
-        unsigned char *const is = (unsigned char *)malloc((size_t)count + 1u);
-        unsigned int *const leans_on = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
+        unsigned char *const is =
+            (unsigned char *)platform_cell_taken((size_t)count + 1u, platform_place_g_program_owner, 0);
+        unsigned int *const leans_on = (unsigned int *)platform_cell_taken(((size_t)count + 1u) * sizeof(unsigned int),
+                                                                           platform_place_g_program_owner, 0);
         if ((is == NULL) || (leans_on == NULL))
         {
-            free(is);
-            free(leans_on);
-            free(parent);
+            platform_cell_released(is, platform_place_g_program_owner);
+            platform_cell_released(leans_on, platform_place_g_program_owner);
+            platform_cell_released(parent, platform_place_g_program_owner);
             return 0;
         }
         for (unsigned int leaf = 0u; leaf < count; leaf += 1u)
@@ -155,17 +162,17 @@ int group_objects(TreeFrame *frame, const TreeFrame *previous, const TreeFrame *
                                 band_or_count((unsigned int)rules->mass_band, frame->sizes[leaf])));
             parent[leaf] = (leans != 0u) ? leans_on[leaf] : leaf;
         }
-        free(is);
-        free(leans_on);
+        platform_cell_released(is, platform_place_g_program_owner);
+        platform_cell_released(leans_on, platform_place_g_program_owner);
     }
     if (((rules->cohere != 0) || (rules->accrue != 0)) && (frame->forward_lag != NULL) && (frame->joined_count != 0u))
     {
         const unsigned int gathered = (unsigned int)((rules->accrue != 0) && (frame->backward_lag != NULL));
-        unsigned long long *const apart =
-            (unsigned long long *)malloc(((size_t)frame->joined_count + 1u) * sizeof(unsigned long long));
+        unsigned long long *const apart = (unsigned long long *)platform_cell_taken(
+            ((size_t)frame->joined_count + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
         if (apart == NULL)
         {
-            free(parent);
+            platform_cell_released(parent, platform_place_g_program_owner);
             return 0;
         }
         const unsigned long long plane = (unsigned long long)height * width;
@@ -205,16 +212,16 @@ int group_objects(TreeFrame *frame, const TreeFrame *previous, const TreeFrame *
             }
             apart[pair] = between;
         }
-        unsigned long long *const order =
-            (unsigned long long *)malloc(((size_t)frame->joined_count + 1u) * sizeof(unsigned long long));
-        unsigned long long *const absorbed =
-            (unsigned long long *)calloc((size_t)count + 1u, sizeof(unsigned long long));
+        unsigned long long *const order = (unsigned long long *)platform_cell_taken(
+            ((size_t)frame->joined_count + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
+        unsigned long long *const absorbed = (unsigned long long *)platform_cell_cleared(
+            (size_t)count + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
         if ((order == NULL) || (absorbed == NULL))
         {
-            free(apart);
-            free(order);
-            free(absorbed);
-            free(parent);
+            platform_cell_released(apart, platform_place_g_program_owner);
+            platform_cell_released(order, platform_place_g_program_owner);
+            platform_cell_released(absorbed, platform_place_g_program_owner);
+            platform_cell_released(parent, platform_place_g_program_owner);
             return 0;
         }
         for (unsigned int pair = 0u; pair < frame->joined_count; pair += 1u)
@@ -223,16 +230,18 @@ int group_objects(TreeFrame *frame, const TreeFrame *previous, const TreeFrame *
             order[pair] = (distance << 32u) | (unsigned long long)pair;
         }
         radix_sort_keys(order, frame->joined_count);
-        long long *const motion = (long long *)calloc(((size_t)count + 1u) * 3u, sizeof(long long));
-        unsigned long long *const mass = (unsigned long long *)calloc((size_t)count + 1u, sizeof(unsigned long long));
+        long long *const motion = (long long *)platform_cell_cleared(((size_t)count + 1u) * 3u, sizeof(long long),
+                                                                     platform_place_g_program_owner, 0);
+        unsigned long long *const mass = (unsigned long long *)platform_cell_cleared(
+            (size_t)count + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
         if ((motion == NULL) || (mass == NULL))
         {
-            free(apart);
-            free(order);
-            free(absorbed);
-            free(motion);
-            free(mass);
-            free(parent);
+            platform_cell_released(apart, platform_place_g_program_owner);
+            platform_cell_released(order, platform_place_g_program_owner);
+            platform_cell_released(absorbed, platform_place_g_program_owner);
+            platform_cell_released(motion, platform_place_g_program_owner);
+            platform_cell_released(mass, platform_place_g_program_owner);
+            platform_cell_released(parent, platform_place_g_program_owner);
             return 0;
         }
         for (unsigned int leaf = 0u; leaf < count; leaf += 1u)
@@ -276,17 +285,18 @@ int group_objects(TreeFrame *frame, const TreeFrame *previous, const TreeFrame *
             parent[second] = (joins != 0u) ? first : parent[second];
             s_cohere_joined += (unsigned long long)(joins != 0u);
         }
-        free(motion);
-        free(mass);
+        platform_cell_released(motion, platform_place_g_program_owner);
+        platform_cell_released(mass, platform_place_g_program_owner);
         s_cohere_pairs += (unsigned long long)frame->joined_count;
-        free(apart);
-        free(order);
-        free(absorbed);
+        platform_cell_released(apart, platform_place_g_program_owner);
+        platform_cell_released(order, platform_place_g_program_owner);
+        platform_cell_released(absorbed, platform_place_g_program_owner);
     }
-    unsigned int *const number_of_root = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
+    unsigned int *const number_of_root = (unsigned int *)platform_cell_taken(
+        ((size_t)count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     if (number_of_root == NULL)
     {
-        free(parent);
+        platform_cell_released(parent, platform_place_g_program_owner);
         return 0;
     }
     unsigned int objects = 0u;
@@ -307,11 +317,12 @@ int group_objects(TreeFrame *frame, const TreeFrame *previous, const TreeFrame *
     {
         frame->member_start[object + 1u] += frame->member_start[object];
     }
-    unsigned int *const fill = (unsigned int *)malloc(((size_t)objects + 1u) * sizeof(unsigned int));
+    unsigned int *const fill = (unsigned int *)platform_cell_taken(((size_t)objects + 1u) * sizeof(unsigned int),
+                                                                   platform_place_g_program_owner, 0);
     if (fill == NULL)
     {
-        free(parent);
-        free(number_of_root);
+        platform_cell_released(parent, platform_place_g_program_owner);
+        platform_cell_released(number_of_root, platform_place_g_program_owner);
         return 0;
     }
     memcpy(fill, frame->member_start, (size_t)objects * sizeof(unsigned int));
@@ -321,8 +332,8 @@ int group_objects(TreeFrame *frame, const TreeFrame *previous, const TreeFrame *
         fill[frame->object_of[leaf]] += 1u;
     }
     frame->object_count = objects;
-    free(fill);
-    free(number_of_root);
-    free(parent);
+    platform_cell_released(fill, platform_place_g_program_owner);
+    platform_cell_released(number_of_root, platform_place_g_program_owner);
+    platform_cell_released(parent, platform_place_g_program_owner);
     return 1;
 }

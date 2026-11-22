@@ -28,19 +28,24 @@ static void boundary_redundant(BoundaryResults *results)
     }
     moduli_valid = moduli_valid && (((unsigned long long)s_boundary_moduli[0] * s_boundary_moduli[1]) >=
                                     (1ull << BOUNDARY_TEST_CODE_BITS));
-    BoundaryProgram *const encoder = (BoundaryProgram *)calloc(1u, sizeof(BoundaryProgram));
-    BoundaryProgram *const decoder = (BoundaryProgram *)calloc(1u, sizeof(BoundaryProgram));
-    BoundaryProgram *const inverse = (BoundaryProgram *)calloc(1u, sizeof(BoundaryProgram));
-    BoundaryTower *const tower = (BoundaryTower *)calloc(1u, sizeof(BoundaryTower));
-    BoundaryTower *const back = (BoundaryTower *)calloc(1u, sizeof(BoundaryTower));
+    BoundaryProgram *const encoder =
+        (BoundaryProgram *)platform_cell_cleared(1u, sizeof(BoundaryProgram), platform_place_g_program_owner, 0);
+    BoundaryProgram *const decoder =
+        (BoundaryProgram *)platform_cell_cleared(1u, sizeof(BoundaryProgram), platform_place_g_program_owner, 0);
+    BoundaryProgram *const inverse =
+        (BoundaryProgram *)platform_cell_cleared(1u, sizeof(BoundaryProgram), platform_place_g_program_owner, 0);
+    BoundaryTower *const tower =
+        (BoundaryTower *)platform_cell_cleared(1u, sizeof(BoundaryTower), platform_place_g_program_owner, 0);
+    BoundaryTower *const back =
+        (BoundaryTower *)platform_cell_cleared(1u, sizeof(BoundaryTower), platform_place_g_program_owner, 0);
     if ((encoder == NULL) || (decoder == NULL) || (inverse == NULL) || (tower == NULL) || (back == NULL))
     {
         boundary_check(results, 0, "the redundant residue code is allocated");
-        free(encoder);
-        free(decoder);
-        free(inverse);
-        free(tower);
-        free(back);
+        platform_cell_released(encoder, platform_place_g_program_owner);
+        platform_cell_released(decoder, platform_place_g_program_owner);
+        platform_cell_released(inverse, platform_place_g_program_owner);
+        platform_cell_released(tower, platform_place_g_program_owner);
+        platform_cell_released(back, platform_place_g_program_owner);
         return;
     }
     // the encoder: T over the samples, then each coefficient's residues, coefficient by coefficient
@@ -139,34 +144,42 @@ static void boundary_redundant(BoundaryResults *results)
         {
             boundary_free(&encoder_loaded);
         }
-        free(encoder);
-        free(decoder);
-        free(inverse);
-        free(tower);
-        free(back);
+        platform_cell_released(encoder, platform_place_g_program_owner);
+        platform_cell_released(decoder, platform_place_g_program_owner);
+        platform_cell_released(inverse, platform_place_g_program_owner);
+        platform_cell_released(tower, platform_place_g_program_owner);
+        platform_cell_released(back, platform_place_g_program_owner);
         return;
     }
     const unsigned int decoder_lanes = BOUNDARY_TEST_CODE_TYPES * coefficients;
     const unsigned int inverse_lanes = 2u * crystals;
-    unsigned int *const samples = (unsigned int *)calloc((size_t)crystals * n, sizeof(unsigned int));
-    long long *const crystal = (long long *)calloc((size_t)coefficients, sizeof(long long));
-    unsigned int *const encoder_host =
-        (unsigned int *)calloc((size_t)crystals * encoder_loaded.layout.out_limbs, sizeof(unsigned int));
-    unsigned int *const encoder_device =
-        (unsigned int *)calloc((size_t)crystals * encoder_loaded.layout.out_limbs, sizeof(unsigned int));
-    unsigned int *const words =
-        (unsigned int *)calloc((size_t)decoder_lanes * BOUNDARY_TEST_CODE_MODULI, sizeof(unsigned int));
+    unsigned int *const samples = (unsigned int *)platform_cell_cleared((size_t)crystals * n, sizeof(unsigned int),
+                                                                        platform_place_g_program_owner, 0);
+    long long *const crystal =
+        (long long *)platform_cell_cleared((size_t)coefficients, sizeof(long long), platform_place_g_program_owner, 0);
+    unsigned int *const encoder_host = (unsigned int *)platform_cell_cleared(
+        (size_t)crystals * encoder_loaded.layout.out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const encoder_device = (unsigned int *)platform_cell_cleared(
+        (size_t)crystals * encoder_loaded.layout.out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const words = (unsigned int *)platform_cell_cleared(
+        (size_t)decoder_lanes * BOUNDARY_TEST_CODE_MODULI, sizeof(unsigned int), platform_place_g_program_owner, 0);
     // which residues each decoder lane corrupted, one bit a modulus
-    unsigned char *const hit = (unsigned char *)calloc(decoder_lanes, sizeof(unsigned char));
+    unsigned char *const hit =
+        (unsigned char *)platform_cell_cleared(decoder_lanes, sizeof(unsigned char), platform_place_g_program_owner, 0);
     unsigned int *const decoder_host =
-        (unsigned int *)calloc((size_t)decoder_lanes * decoder_loaded.layout.out_limbs, sizeof(unsigned int));
+        (unsigned int *)platform_cell_cleared((size_t)decoder_lanes * decoder_loaded.layout.out_limbs,
+                                              sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned int *const decoder_device =
-        (unsigned int *)calloc((size_t)decoder_lanes * decoder_loaded.layout.out_limbs, sizeof(unsigned int));
-    unsigned int *const rebuilt = (unsigned int *)calloc((size_t)inverse_lanes * n, sizeof(unsigned int));
+        (unsigned int *)platform_cell_cleared((size_t)decoder_lanes * decoder_loaded.layout.out_limbs,
+                                              sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const rebuilt = (unsigned int *)platform_cell_cleared((size_t)inverse_lanes * n, sizeof(unsigned int),
+                                                                        platform_place_g_program_owner, 0);
     unsigned int *const inverse_host =
-        (unsigned int *)calloc((size_t)inverse_lanes * inverse_loaded.layout.out_limbs, sizeof(unsigned int));
+        (unsigned int *)platform_cell_cleared((size_t)inverse_lanes * inverse_loaded.layout.out_limbs,
+                                              sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned int *const inverse_device =
-        (unsigned int *)calloc((size_t)inverse_lanes * inverse_loaded.layout.out_limbs, sizeof(unsigned int));
+        (unsigned int *)platform_cell_cleared((size_t)inverse_lanes * inverse_loaded.layout.out_limbs,
+                                              sizeof(unsigned int), platform_place_g_program_owner, 0);
     const int buffers = (samples != NULL) && (crystal != NULL) && (encoder_host != NULL) && (encoder_device != NULL) &&
                         (words != NULL) && (hit != NULL) && (decoder_host != NULL) && (decoder_device != NULL) &&
                         (rebuilt != NULL) && (inverse_host != NULL) && (inverse_device != NULL);
@@ -386,25 +399,25 @@ static void boundary_redundant(BoundaryResults *results)
     boundary_check(
         results, (plain_mapped == crystals) && (plain_other != 0u) && (plain_right == crystals),
         "without the code a corrupted crystal is another crystal: T^-1 returns other samples, no sign of it");
-    free(samples);
-    free(crystal);
-    free(encoder_host);
-    free(encoder_device);
-    free(words);
-    free(hit);
-    free(decoder_host);
-    free(decoder_device);
-    free(rebuilt);
-    free(inverse_host);
-    free(inverse_device);
+    platform_cell_released(samples, platform_place_g_program_owner);
+    platform_cell_released(crystal, platform_place_g_program_owner);
+    platform_cell_released(encoder_host, platform_place_g_program_owner);
+    platform_cell_released(encoder_device, platform_place_g_program_owner);
+    platform_cell_released(words, platform_place_g_program_owner);
+    platform_cell_released(hit, platform_place_g_program_owner);
+    platform_cell_released(decoder_host, platform_place_g_program_owner);
+    platform_cell_released(decoder_device, platform_place_g_program_owner);
+    platform_cell_released(rebuilt, platform_place_g_program_owner);
+    platform_cell_released(inverse_host, platform_place_g_program_owner);
+    platform_cell_released(inverse_device, platform_place_g_program_owner);
     boundary_free(&encoder_loaded);
     boundary_free(&decoder_loaded);
     boundary_free(&inverse_loaded);
-    free(encoder);
-    free(decoder);
-    free(inverse);
-    free(tower);
-    free(back);
+    platform_cell_released(encoder, platform_place_g_program_owner);
+    platform_cell_released(decoder, platform_place_g_program_owner);
+    platform_cell_released(inverse, platform_place_g_program_owner);
+    platform_cell_released(tower, platform_place_g_program_owner);
+    platform_cell_released(back, platform_place_g_program_owner);
 }
 
 static void boundary_counted_forward(BoundaryResults *results)
@@ -454,7 +467,7 @@ int program_main(int count, char **arguments)
     results.checks = 0ull;
     results.failures = 0ull;
     results.line.capacity = BOUNDARY_TEST_LINE;
-    results.line.out = (char *)malloc((size_t)BOUNDARY_TEST_LINE);
+    results.line.out = (char *)platform_cell_taken((size_t)BOUNDARY_TEST_LINE, platform_place_g_program_owner, 0);
     results.line.at = 0ull;
     if (results.line.out == NULL)
     {
@@ -513,6 +526,6 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " failed\n");
     (void)(mmgr_line_ok(&results.line) &&
            (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
-    free(results.line.out);
+    platform_cell_released(results.line.out, platform_place_g_program_owner);
     return (results.failures == 0ull) ? 0 : 1;
 }

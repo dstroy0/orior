@@ -231,12 +231,12 @@ extern "C" void sort_release(void)
 
 extern "C" void sort_links_release(SortLinks *links)
 {
-    free(links->source);
-    free(links->target);
-    free(links->cost);
-    free(links->weight);
-    free(links->component);
-    free(links->flags);
+    platform_cell_released(links->source, platform_place_g_program_owner);
+    platform_cell_released(links->target, platform_place_g_program_owner);
+    platform_cell_released(links->cost, platform_place_g_program_owner);
+    platform_cell_released(links->weight, platform_place_g_program_owner);
+    platform_cell_released(links->component, platform_place_g_program_owner);
+    platform_cell_released(links->flags, platform_place_g_program_owner);
     memset(links, 0, sizeof(*links));
 }
 
@@ -247,17 +247,29 @@ static int sort_links_reserve(SortLinks *links, unsigned int pairs)
         return 1;
     }
     const size_t capacity = (size_t)pairs + 1u;
-    unsigned int *const source = (unsigned int *)realloc(links->source, capacity * sizeof(unsigned int));
+    unsigned int *const source =
+        (unsigned int *)platform_cell_grown(links->source, ((size_t)links->capacity + 1u) * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     links->source = (source != NULL) ? source : links->source;
-    unsigned int *const target = (unsigned int *)realloc(links->target, capacity * sizeof(unsigned int));
+    unsigned int *const target =
+        (unsigned int *)platform_cell_grown(links->target, ((size_t)links->capacity + 1u) * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     links->target = (target != NULL) ? target : links->target;
-    unsigned long long *const cost = (unsigned long long *)realloc(links->cost, capacity * sizeof(unsigned long long));
+    unsigned long long *const cost = (unsigned long long *)platform_cell_grown(
+        links->cost, ((size_t)links->capacity + 1u) * sizeof(unsigned long long), capacity * sizeof(unsigned long long),
+        platform_place_g_program_owner, 0);
     links->cost = (cost != NULL) ? cost : links->cost;
-    unsigned int *const weight = (unsigned int *)realloc(links->weight, capacity * sizeof(unsigned int));
+    unsigned int *const weight =
+        (unsigned int *)platform_cell_grown(links->weight, ((size_t)links->capacity + 1u) * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     links->weight = (weight != NULL) ? weight : links->weight;
-    unsigned int *const component = (unsigned int *)realloc(links->component, capacity * sizeof(unsigned int));
+    unsigned int *const component =
+        (unsigned int *)platform_cell_grown(links->component, ((size_t)links->capacity + 1u) * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     links->component = (component != NULL) ? component : links->component;
-    unsigned int *const flags = (unsigned int *)realloc(links->flags, capacity * sizeof(unsigned int));
+    unsigned int *const flags =
+        (unsigned int *)platform_cell_grown(links->flags, ((size_t)links->capacity + 1u) * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     links->flags = (flags != NULL) ? flags : links->flags;
     const int ok = (source != NULL) && (target != NULL) && (cost != NULL) && (weight != NULL) && (component != NULL) &&
                    (flags != NULL);
@@ -291,22 +303,22 @@ static void sort_scratch_free(SortScratch *scratch)
 {
     for (unsigned int direction = 0u; direction < SORT_DIRECTIONS; direction += 1u)
     {
-        free(scratch->ties[direction]);
-        free(scratch->offsets[direction]);
-        free(scratch->list[direction]);
+        platform_cell_released(scratch->ties[direction], platform_place_g_program_owner);
+        platform_cell_released(scratch->offsets[direction], platform_place_g_program_owner);
+        platform_cell_released(scratch->list[direction], platform_place_g_program_owner);
     }
-    free(scratch->still_ties);
-    free(scratch->still_offsets);
-    free(scratch->still_list);
-    free(scratch->back_start);
-    free(scratch->back_list);
-    free(scratch->parent);
-    free(scratch->label);
-    free(scratch->need);
-    free(scratch->passed);
-    free(scratch->chosen);
-    free(scratch->group_start);
-    free(scratch->group);
+    platform_cell_released(scratch->still_ties, platform_place_g_program_owner);
+    platform_cell_released(scratch->still_offsets, platform_place_g_program_owner);
+    platform_cell_released(scratch->still_list, platform_place_g_program_owner);
+    platform_cell_released(scratch->back_start, platform_place_g_program_owner);
+    platform_cell_released(scratch->back_list, platform_place_g_program_owner);
+    platform_cell_released(scratch->parent, platform_place_g_program_owner);
+    platform_cell_released(scratch->label, platform_place_g_program_owner);
+    platform_cell_released(scratch->need, platform_place_g_program_owner);
+    platform_cell_released(scratch->passed, platform_place_g_program_owner);
+    platform_cell_released(scratch->chosen, platform_place_g_program_owner);
+    platform_cell_released(scratch->group_start, platform_place_g_program_owner);
+    platform_cell_released(scratch->group, platform_place_g_program_owner);
     memset(scratch, 0, sizeof(*scratch));
 }
 
@@ -361,8 +373,10 @@ static int sort_gate_still(const SortPairRequest *request, SortWeights weights, 
     const unsigned int sources = request->sources;
     const unsigned int targets = request->targets;
     *total = 0ull;
-    scratch->still_ties = (unsigned int *)malloc(((size_t)sources + 1u) * sizeof(unsigned int));
-    scratch->still_offsets = (unsigned int *)malloc(((size_t)sources + 1u) * sizeof(unsigned int));
+    scratch->still_ties = (unsigned int *)platform_cell_taken(((size_t)sources + 1u) * sizeof(unsigned int),
+                                                              platform_place_g_program_owner, 0);
+    scratch->still_offsets = (unsigned int *)platform_cell_taken(((size_t)sources + 1u) * sizeof(unsigned int),
+                                                                 platform_place_g_program_owner, 0);
     int ok = (scratch->still_ties != NULL) && (scratch->still_offsets != NULL) &&
              (cudaMemcpy(resident->places[0], request->stills, ENGINE_AXES * (size_t)sources * sizeof(int),
                          cudaMemcpyHostToDevice) == cudaSuccess);
@@ -391,7 +405,8 @@ static int sort_gate_still(const SortPairRequest *request, SortWeights weights, 
         // the running sum is at max the total, below 2^30
         running += scratch->still_ties[item];
     }
-    scratch->still_list = (unsigned int *)malloc(((size_t)*total + 1u) * sizeof(unsigned int));
+    scratch->still_list = (unsigned int *)platform_cell_taken(((size_t)*total + 1u) * sizeof(unsigned int),
+                                                              platform_place_g_program_owner, 0);
     ok = (scratch->still_list != NULL) &&
          (cudaMemcpy(resident->offsets[0], scratch->still_offsets, (size_t)sources * sizeof(unsigned int),
                      cudaMemcpyHostToDevice) == cudaSuccess);
@@ -430,8 +445,10 @@ static int sort_gate(const SortPairRequest *request, SortLinks *links, SortScrat
     int ok = sort_reserve(capacity);
     for (unsigned int direction = 0u; (ok != 0) && (direction < SORT_DIRECTIONS); direction += 1u)
     {
-        scratch->ties[direction] = (unsigned int *)malloc(((size_t)counts[direction] + 1u) * sizeof(unsigned int));
-        scratch->offsets[direction] = (unsigned int *)malloc(((size_t)counts[direction] + 1u) * sizeof(unsigned int));
+        scratch->ties[direction] = (unsigned int *)platform_cell_taken(
+            ((size_t)counts[direction] + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+        scratch->offsets[direction] = (unsigned int *)platform_cell_taken(
+            ((size_t)counts[direction] + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
         ok = (scratch->ties[direction] != NULL) && (scratch->offsets[direction] != NULL) &&
              (cudaMemcpy(resident->places[direction], places[direction],
                          ENGINE_AXES * (size_t)counts[direction] * sizeof(int), cudaMemcpyHostToDevice) == cudaSuccess);
@@ -476,7 +493,8 @@ static int sort_gate(const SortPairRequest *request, SortLinks *links, SortScrat
             // the running sum is at max the total, below 2^30
             running += scratch->ties[direction][item];
         }
-        scratch->list[direction] = (unsigned int *)malloc(((size_t)totals[direction] + 1u) * sizeof(unsigned int));
+        scratch->list[direction] = (unsigned int *)platform_cell_taken(
+            ((size_t)totals[direction] + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
         ok = (scratch->list[direction] != NULL) &&
              (cudaMemcpy(resident->offsets[direction], scratch->offsets[direction],
                          (size_t)counts[direction] * sizeof(unsigned int), cudaMemcpyHostToDevice) == cudaSuccess);
@@ -516,8 +534,13 @@ static int sort_gate(const SortPairRequest *request, SortLinks *links, SortScrat
         return 0;
     }
     const unsigned int sources = counts[0];
-    scratch->back_start = (ok != 0) ? (unsigned int *)calloc((size_t)sources + 2u, sizeof(unsigned int)) : NULL;
-    scratch->back_list = (ok != 0) ? (unsigned int *)malloc(((size_t)totals[1] + 1u) * sizeof(unsigned int)) : NULL;
+    scratch->back_start = (ok != 0) ? (unsigned int *)platform_cell_cleared((size_t)sources + 2u, sizeof(unsigned int),
+                                                                            platform_place_g_program_owner, 0)
+                                    : NULL;
+    scratch->back_list = (ok != 0)
+                             ? (unsigned int *)platform_cell_taken(((size_t)totals[1] + 1u) * sizeof(unsigned int),
+                                                                   platform_place_g_program_owner, 0)
+                             : NULL;
     // the gate's pairs are at max the three totals, below 2^30
     ok = ok && (scratch->back_start != NULL) && (scratch->back_list != NULL) &&
          sort_links_reserve(links, (unsigned int)(totals[0] + totals[1] + still_total));
@@ -605,8 +628,10 @@ static int sort_weigh(const SortPairRequest *request, SortLinks *links, SortScra
     const unsigned int sources = request->sources;
     // the sources and targets are at max 2^30 each. Their nodes fit unsigned int
     const unsigned int nodes = sources + request->targets;
-    scratch->parent = (unsigned int *)malloc(((size_t)nodes + 1u) * sizeof(unsigned int));
-    scratch->label = (unsigned int *)malloc(((size_t)nodes + 1u) * sizeof(unsigned int));
+    scratch->parent = (unsigned int *)platform_cell_taken(((size_t)nodes + 1u) * sizeof(unsigned int),
+                                                          platform_place_g_program_owner, 0);
+    scratch->label = (unsigned int *)platform_cell_taken(((size_t)nodes + 1u) * sizeof(unsigned int),
+                                                         platform_place_g_program_owner, 0);
     if ((scratch->parent == NULL) || (scratch->label == NULL))
     {
         links->why = SORT_WHY_DEVICE;
@@ -638,8 +663,10 @@ static int sort_weigh(const SortPairRequest *request, SortLinks *links, SortScra
         links->component[pair] = scratch->label[root];
     }
     links->components = components;
-    scratch->need = (unsigned long long *)malloc(((size_t)components + 1u) * sizeof(unsigned long long));
-    scratch->passed = (unsigned char *)calloc((size_t)components + 1u, 1u);
+    scratch->need = (unsigned long long *)platform_cell_taken(((size_t)components + 1u) * sizeof(unsigned long long),
+                                                              platform_place_g_program_owner, 0);
+    scratch->passed =
+        (unsigned char *)platform_cell_cleared((size_t)components + 1u, 1u, platform_place_g_program_owner, 0);
     if ((scratch->need == NULL) || (scratch->passed == NULL))
     {
         links->why = SORT_WHY_DEVICE;
@@ -677,7 +704,8 @@ static int sort_weigh(const SortPairRequest *request, SortLinks *links, SortScra
 
 static int sort_match(const SortPairRequest *request, SortLinks *links, SortScratch *scratch)
 {
-    scratch->chosen = (unsigned char *)calloc((size_t)links->pairs + 1u, 1u);
+    scratch->chosen =
+        (unsigned char *)platform_cell_cleared((size_t)links->pairs + 1u, 1u, platform_place_g_program_owner, 0);
     if (scratch->chosen == NULL)
     {
         links->why = SORT_WHY_DEVICE;
@@ -705,8 +733,10 @@ static int sort_match(const SortPairRequest *request, SortLinks *links, SortScra
 // axis's span. Every term and the dot are at max 2^63 - 1 in size
 static int sort_cross(const SortPairRequest *request, SortLinks *links, SortScratch *scratch)
 {
-    scratch->group_start = (unsigned int *)calloc((size_t)links->components + 2u, sizeof(unsigned int));
-    scratch->group = (unsigned int *)malloc(((size_t)links->chosen + 1u) * sizeof(unsigned int));
+    scratch->group_start = (unsigned int *)platform_cell_cleared((size_t)links->components + 2u, sizeof(unsigned int),
+                                                                 platform_place_g_program_owner, 0);
+    scratch->group = (unsigned int *)platform_cell_taken(((size_t)links->chosen + 1u) * sizeof(unsigned int),
+                                                         platform_place_g_program_owner, 0);
     if ((scratch->group_start == NULL) || (scratch->group == NULL))
     {
         links->why = SORT_WHY_DEVICE;
@@ -892,7 +922,9 @@ extern "C" int sort_first_pool(SortFirstCount *counts, unsigned long long count,
              ((at == 0ull) || (counts[at - 1ull].length < counts[at].length)) && (counts[at].pairs <= (~0ull - total));
         total += ok ? counts[at].pairs : 0ull;
     }
-    SortBlock *const stack = ok ? (SortBlock *)malloc(((size_t)count + 1u) * sizeof(SortBlock)) : NULL;
+    SortBlock *const stack = ok ? (SortBlock *)platform_cell_taken(((size_t)count + 1u) * sizeof(SortBlock),
+                                                                   platform_place_g_program_owner, 0)
+                                : NULL;
     if (stack == NULL)
     {
         return 0;
@@ -930,7 +962,7 @@ extern "C" int sort_first_pool(SortFirstCount *counts, unsigned long long count,
     }
     *blocks = depth;
     *levels = (depth == 0ull) ? 0ull : (level + 1ull);
-    free(stack);
+    platform_cell_released(stack, platform_place_g_program_owner);
     return 1;
 }
 
@@ -1054,19 +1086,33 @@ static int sort_frame_reserve(SortFrame *frame, unsigned int count)
         return 1;
     }
     const size_t capacity = (size_t)count + 1u;
-    unsigned int *const voxels = (unsigned int *)realloc(frame->voxels, capacity * sizeof(unsigned int));
+    unsigned int *const voxels =
+        (unsigned int *)platform_cell_grown(frame->voxels, ((size_t)frame->capacity + 1u) * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     frame->voxels = (voxels != NULL) ? voxels : frame->voxels;
-    int *const places = (int *)realloc(frame->places, ENGINE_AXES * capacity * sizeof(int));
+    int *const places =
+        (int *)platform_cell_grown(frame->places, ENGINE_AXES * ((size_t)frame->capacity + 1u) * sizeof(int),
+                                   ENGINE_AXES * capacity * sizeof(int), platform_place_g_program_owner, 0);
     frame->places = (places != NULL) ? places : frame->places;
-    unsigned int *const carried = (unsigned int *)realloc(frame->carried, capacity * sizeof(unsigned int));
+    unsigned int *const carried =
+        (unsigned int *)platform_cell_grown(frame->carried, ((size_t)frame->capacity + 1u) * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     frame->carried = (carried != NULL) ? carried : frame->carried;
-    long long *const motion = (long long *)realloc(frame->motion, ENGINE_AXES * capacity * sizeof(long long));
+    long long *const motion = (long long *)platform_cell_grown(
+        frame->motion, ENGINE_AXES * ((size_t)frame->capacity + 1u) * sizeof(long long),
+        ENGINE_AXES * capacity * sizeof(long long), platform_place_g_program_owner, 0);
     frame->motion = (motion != NULL) ? motion : frame->motion;
-    int *const predictions = (int *)realloc(frame->predictions, ENGINE_AXES * capacity * sizeof(int));
+    int *const predictions =
+        (int *)platform_cell_grown(frame->predictions, ENGINE_AXES * ((size_t)frame->capacity + 1u) * sizeof(int),
+                                   ENGINE_AXES * capacity * sizeof(int), platform_place_g_program_owner, 0);
     frame->predictions = (predictions != NULL) ? predictions : frame->predictions;
-    unsigned int *const flags = (unsigned int *)realloc(frame->flags, capacity * sizeof(unsigned int));
+    unsigned int *const flags =
+        (unsigned int *)platform_cell_grown(frame->flags, ((size_t)frame->capacity + 1u) * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     frame->flags = (flags != NULL) ? flags : frame->flags;
-    int *const stills = (int *)realloc(frame->stills, ENGINE_AXES * capacity * sizeof(int));
+    int *const stills =
+        (int *)platform_cell_grown(frame->stills, ENGINE_AXES * ((size_t)frame->capacity + 1u) * sizeof(int),
+                                   ENGINE_AXES * capacity * sizeof(int), platform_place_g_program_owner, 0);
     frame->stills = (stills != NULL) ? stills : frame->stills;
     const int ok = (voxels != NULL) && (places != NULL) && (carried != NULL) && (motion != NULL) &&
                    (predictions != NULL) && (flags != NULL) && (stills != NULL);
@@ -1076,13 +1122,13 @@ static int sort_frame_reserve(SortFrame *frame, unsigned int count)
 
 static void sort_frame_free(SortFrame *frame)
 {
-    free(frame->voxels);
-    free(frame->places);
-    free(frame->carried);
-    free(frame->motion);
-    free(frame->predictions);
-    free(frame->flags);
-    free(frame->stills);
+    platform_cell_released(frame->voxels, platform_place_g_program_owner);
+    platform_cell_released(frame->places, platform_place_g_program_owner);
+    platform_cell_released(frame->carried, platform_place_g_program_owner);
+    platform_cell_released(frame->motion, platform_place_g_program_owner);
+    platform_cell_released(frame->predictions, platform_place_g_program_owner);
+    platform_cell_released(frame->flags, platform_place_g_program_owner);
+    platform_cell_released(frame->stills, platform_place_g_program_owner);
     memset(frame, 0, sizeof(*frame));
 }
 
@@ -1092,7 +1138,9 @@ static int sort_words_reserve(SortWalk *walk, size_t words)
     {
         return 1;
     }
-    unsigned int *const grown = (unsigned int *)realloc(walk->words, (words + 1u) * sizeof(unsigned int));
+    unsigned int *const grown =
+        (unsigned int *)platform_cell_grown(walk->words, (walk->word_capacity + 1u) * sizeof(unsigned int),
+                                            (words + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     walk->words = (grown != NULL) ? grown : walk->words;
     walk->word_capacity = (grown != NULL) ? words : walk->word_capacity;
     return grown != NULL;
@@ -1107,8 +1155,9 @@ static int sort_first_retain(SortWalk *walk)
     if (wanted > walk->key_capacity)
     {
         const size_t capacity = (wanted > (2u * walk->key_capacity)) ? wanted : (2u * walk->key_capacity);
-        unsigned long long *const grown =
-            (unsigned long long *)realloc(walk->keys, (capacity + 1u) * sizeof(unsigned long long));
+        unsigned long long *const grown = (unsigned long long *)platform_cell_grown(
+            walk->keys, (walk->key_capacity + 1u) * sizeof(unsigned long long),
+            (capacity + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
         if (grown == NULL)
         {
             return 0;
@@ -1443,7 +1492,9 @@ static int sort_first_count(SortWalk *walk, SortResults *results)
     }
     if ((distinct > walk->count_capacity) || (walk->counts == NULL))
     {
-        SortFirstCount *const grown = (SortFirstCount *)realloc(walk->counts, (distinct + 1u) * sizeof(SortFirstCount));
+        SortFirstCount *const grown = (SortFirstCount *)platform_cell_grown(
+            walk->counts, (walk->count_capacity + 1u) * sizeof(SortFirstCount),
+            (distinct + 1u) * sizeof(SortFirstCount), platform_place_g_program_owner, 0);
         if (grown == NULL)
         {
             return 0;
@@ -1835,9 +1886,9 @@ extern "C" long sort_link_set(const SortRequest *request)
     sort_frame_free(&walk.frames[0]);
     sort_frame_free(&walk.frames[1]);
     sort_links_release(&walk.links);
-    free(walk.words);
-    free(walk.keys);
-    free(walk.counts);
+    platform_cell_released(walk.words, platform_place_g_program_owner);
+    platform_cell_released(walk.keys, platform_place_g_program_owner);
+    platform_cell_released(walk.counts, platform_place_g_program_owner);
     sort_release();
     return (failed == 0u) ? 0L : SORT_ERROR;
 }

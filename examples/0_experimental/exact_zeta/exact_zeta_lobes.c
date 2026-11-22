@@ -137,7 +137,8 @@ static void curve_coefficients(ZetaRow gammas[CURVES + 1])
         rs_curve_gamma(&curve, n, TERMS_MAX, &raw);
         memset(&gammas[n], 0, sizeof(gammas[n]));
         size_t last = 0u;
-        OriorExactInteger *const binary = (OriorExactInteger *)lobes_memory(malloc(raw.count * sizeof(*binary)));
+        OriorExactInteger *const binary = (OriorExactInteger *)lobes_memory(
+            platform_cell_taken(raw.count * sizeof(*binary), platform_place_g_program_owner, 0));
         for (size_t j = 0u; j < raw.count; j += 1u)
         {
             OriorExactInteger shifted;
@@ -149,7 +150,7 @@ static void curve_coefficients(ZetaRow gammas[CURVES + 1])
         {
             row_push(&gammas[n], &binary[j]);
         }
-        free(binary);
+        platform_cell_released(binary, platform_place_g_program_owner);
         row_free(&raw);
     }
     rs_curve_free(&curve);
@@ -321,7 +322,8 @@ static void parse(const char *path, Stage *curves, Stage *logs)
             continue;
         }
         Stage *const stage = (strcmp(name, "curves") == 0) ? curves : logs;
-        stage->rows = (OriorExactInteger *)lobes_memory(calloc(LANES, sizeof(OriorExactInteger)));
+        stage->rows = (OriorExactInteger *)lobes_memory(
+            platform_cell_cleared(LANES, sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
         while (fgets(line, sizeof(line), handle) != NULL)
         {
             char field[32] = {0};
@@ -716,7 +718,7 @@ int program_main(int argument_count, char **arguments)
     {
         row_free(&gammas[n]);
     }
-    free(curves.rows);
-    free(logs.rows);
+    platform_cell_released(curves.rows, platform_place_g_program_owner);
+    platform_cell_released(logs.rows, platform_place_g_program_owner);
     return good ? 0 : 1;
 }

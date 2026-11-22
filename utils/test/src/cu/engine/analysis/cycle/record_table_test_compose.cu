@@ -41,14 +41,22 @@ static long table_file_limbs(TableProgram *program)
 // reversed order must not, since a chain collapses onto the floor in order.
 static void table_compose(TableResults *results)
 {
-    unsigned int *const values_f = (unsigned int *)malloc((size_t)TABLE_TEST_ALPHABET * sizeof(unsigned int));
-    unsigned int *const values_g = (unsigned int *)malloc((size_t)TABLE_TEST_ALPHABET * sizeof(unsigned int));
-    unsigned int *const values_h = (unsigned int *)malloc((size_t)TABLE_TEST_ALPHABET * sizeof(unsigned int));
-    unsigned int *const atoms = (unsigned int *)malloc((size_t)TABLE_TEST_LANES * sizeof(unsigned int));
-    unsigned int *const two = (unsigned int *)malloc((size_t)TABLE_TEST_LANES * sizeof(unsigned int));
-    unsigned int *const one = (unsigned int *)malloc((size_t)TABLE_TEST_LANES * sizeof(unsigned int));
-    unsigned int *const oracle = (unsigned int *)malloc((size_t)TABLE_TEST_LANES * sizeof(unsigned int));
-    unsigned int *const reversed = (unsigned int *)malloc((size_t)TABLE_TEST_LANES * sizeof(unsigned int));
+    unsigned int *const values_f = (unsigned int *)platform_cell_taken(
+        (size_t)TABLE_TEST_ALPHABET * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const values_g = (unsigned int *)platform_cell_taken(
+        (size_t)TABLE_TEST_ALPHABET * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const values_h = (unsigned int *)platform_cell_taken(
+        (size_t)TABLE_TEST_ALPHABET * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const atoms = (unsigned int *)platform_cell_taken((size_t)TABLE_TEST_LANES * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
+    unsigned int *const two = (unsigned int *)platform_cell_taken((size_t)TABLE_TEST_LANES * sizeof(unsigned int),
+                                                                  platform_place_g_program_owner, 0);
+    unsigned int *const one = (unsigned int *)platform_cell_taken((size_t)TABLE_TEST_LANES * sizeof(unsigned int),
+                                                                  platform_place_g_program_owner, 0);
+    unsigned int *const oracle = (unsigned int *)platform_cell_taken((size_t)TABLE_TEST_LANES * sizeof(unsigned int),
+                                                                     platform_place_g_program_owner, 0);
+    unsigned int *const reversed = (unsigned int *)platform_cell_taken((size_t)TABLE_TEST_LANES * sizeof(unsigned int),
+                                                                       platform_place_g_program_owner, 0);
     int ok = (values_f != NULL) && (values_g != NULL) && (values_h != NULL) && (atoms != NULL) && (two != NULL) &&
              (one != NULL) && (oracle != NULL) && (reversed != NULL);
 
@@ -144,14 +152,14 @@ static void table_compose(TableResults *results)
         mmgr_line_put(&results->line,
                       "  composition: g(f(x)) as two tables, one composed table and the ops all agree\n");
     }
-    free(values_f);
-    free(values_g);
-    free(values_h);
-    free(atoms);
-    free(two);
-    free(one);
-    free(oracle);
-    free(reversed);
+    platform_cell_released(values_f, platform_place_g_program_owner);
+    platform_cell_released(values_g, platform_place_g_program_owner);
+    platform_cell_released(values_h, platform_place_g_program_owner);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(two, platform_place_g_program_owner);
+    platform_cell_released(one, platform_place_g_program_owner);
+    platform_cell_released(oracle, platform_place_g_program_owner);
+    platform_cell_released(reversed, platform_place_g_program_owner);
 }
 
 // A long additive chain, run with the register reuse on and off: the same output, from a smaller file.
@@ -170,11 +178,12 @@ static void table_reuse(TableResults *results)
     chain.outputs[0] = last;
     chain.output_count = 1u;
 
-    unsigned int *const atoms = (unsigned int *)malloc((size_t)TABLE_TEST_LANES * sizeof(unsigned int));
-    unsigned int *const limbs =
-        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
-    unsigned int *const reused =
-        (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
+    unsigned int *const atoms = (unsigned int *)platform_cell_taken((size_t)TABLE_TEST_LANES * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
+    unsigned int *const limbs = (unsigned int *)platform_cell_taken(
+        (size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const reused = (unsigned int *)platform_cell_taken(
+        (size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int), platform_place_g_program_owner, 0);
     int ok = (atoms != NULL) && (limbs != NULL) && (reused != NULL);
     for (unsigned int lane = 0u; lane < TABLE_TEST_LANES; lane += 1u)
     {
@@ -203,14 +212,15 @@ static void table_reuse(TableResults *results)
         mmgr_line_decimal(&results->line, (unsigned long long)file_limbs, 1u);
         mmgr_line_put(&results->line, " retained\n");
     }
-    free(atoms);
-    free(limbs);
-    free(reused);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(limbs, platform_place_g_program_owner);
+    platform_cell_released(reused, platform_place_g_program_owner);
 }
 
 static void table_errors(TableResults *results)
 {
-    unsigned int *const values = (unsigned int *)calloc(TABLE_TEST_ALPHABET, sizeof(unsigned int));
+    unsigned int *const values = (unsigned int *)platform_cell_cleared(TABLE_TEST_ALPHABET, sizeof(unsigned int),
+                                                                       platform_place_g_program_owner, 0);
     // an index wider than the source register's bits
     TableProgram wide;
     table_program_init(&wide);
@@ -236,7 +246,7 @@ static void table_errors(TableResults *results)
     missing.tables[0].values = values;
     missing.table_count = 1u;
     table_check(results, table_file_limbs(&missing) < 0L, "a table index with no table errors");
-    free(values);
+    platform_cell_released(values, platform_place_g_program_owner);
 }
 
 int program_main(int count, char **arguments)
@@ -245,7 +255,7 @@ int program_main(int count, char **arguments)
     results.checks = 0ull;
     results.failures = 0ull;
     results.line.capacity = TABLE_TEST_LINE;
-    results.line.out = (char *)malloc((size_t)TABLE_TEST_LINE);
+    results.line.out = (char *)platform_cell_taken((size_t)TABLE_TEST_LINE, platform_place_g_program_owner, 0);
     results.line.at = 0ull;
     if (results.line.out == NULL)
     {
@@ -295,6 +305,6 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " failed\n");
     (void)(mmgr_line_ok(&results.line) &&
            (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
-    free(results.line.out);
+    platform_cell_released(results.line.out, platform_place_g_program_owner);
     return (results.failures == 0ull) ? 0 : 1;
 }

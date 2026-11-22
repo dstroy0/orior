@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tiff_page.c: a page's extent, its chunks and their decoders
 #include "tiff_internal.h"
+#include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 static const unsigned long long tiff_tag_numbers[TIFF_TAGS] = {256ULL, 257ULL, 258ULL, 259ULL, 266ULL, 270ULL,
@@ -140,7 +141,8 @@ int tiff_page(TiffFile *file, unsigned long long ifd, TiffPage *page)
         return tiff_fail(file, "an IFD with no tags, or more tags than any image has");
     }
     const unsigned long long table_bytes = (entries * entry_bytes) + value_bytes;
-    unsigned char *const table = (unsigned char *)malloc((size_t)table_bytes);
+    unsigned char *const table =
+        (unsigned char *)platform_cell_taken((size_t)table_bytes, platform_place_g_program_owner, 0);
     if (table == NULL)
     {
         return tiff_fail(file, "out of memory");
@@ -177,7 +179,7 @@ int tiff_page(TiffFile *file, unsigned long long ifd, TiffPage *page)
         }
         page->next = tiff_unpack(file, &table[entries * entry_bytes], value_bytes);
     }
-    free(table);
+    platform_cell_released(table, platform_place_g_program_owner);
     page->description = found[TIFF_TAG_DESCRIPTION];
     return tiff_page_extent(file, page, found);
 }
@@ -201,8 +203,10 @@ int tiff_page_chunks(TiffFile *file, const TiffPage *page, unsigned long long **
     {
         return tiff_fail(file, "more strips or tiles than the file has bytes");
     }
-    *offsets = (unsigned long long *)malloc((size_t)(chunks * sizeof(unsigned long long)));
-    *counts = (unsigned long long *)malloc((size_t)(chunks * sizeof(unsigned long long)));
+    *offsets = (unsigned long long *)platform_cell_taken((size_t)(chunks * sizeof(unsigned long long)),
+                                                         platform_place_g_program_owner, 0);
+    *counts = (unsigned long long *)platform_cell_taken((size_t)(chunks * sizeof(unsigned long long)),
+                                                        platform_place_g_program_owner, 0);
     if ((*offsets == NULL) || (*counts == NULL))
     {
         tiff_fail(file, "out of memory");
@@ -220,8 +224,8 @@ int tiff_page_chunks(TiffFile *file, const TiffPage *page, unsigned long long **
     }
     if (file->reason != NULL)
     {
-        free(*offsets);
-        free(*counts);
+        platform_cell_released(*offsets, platform_place_g_program_owner);
+        platform_cell_released(*counts, platform_place_g_program_owner);
         *offsets = NULL;
         *counts = NULL;
     }

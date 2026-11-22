@@ -189,7 +189,9 @@ int program_main(int count, char **arguments)
             CloseHandle(connecting.hEvent);
         }
         ULONG pid = 0u;
-        TesseraPeer *const peer = connected ? (TesseraPeer *)calloc(1u, sizeof(TesseraPeer)) : NULL;
+        TesseraPeer *const peer =
+            connected ? (TesseraPeer *)platform_cell_cleared(1u, sizeof(TesseraPeer), platform_place_g_program_owner, 0)
+                      : NULL;
         const int named = (peer != NULL) && GetNamedPipeClientProcessId(listening, &pid);
         if (named)
         {
@@ -200,7 +202,7 @@ int program_main(int count, char **arguments)
         {
             DisconnectNamedPipe(listening);
             CloseHandle(listening);
-            free(peer);
+            platform_cell_released(peer, platform_place_g_program_owner);
         }
         listening = CreateNamedPipeA(g_daemon.endpoint, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
                                      PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
@@ -231,7 +233,8 @@ int program_main(int count, char **arguments)
         }
         struct ucred credentials;
         socklen_t length = sizeof(credentials);
-        TesseraPeer *const peer = (TesseraPeer *)calloc(1u, sizeof(TesseraPeer));
+        TesseraPeer *const peer =
+            (TesseraPeer *)platform_cell_cleared(1u, sizeof(TesseraPeer), platform_place_g_program_owner, 0);
         const int named = (peer != NULL) &&
                           (getsockopt(accepted, SOL_SOCKET, SO_PEERCRED, &credentials, &length) == 0) &&
                           (pipe(peer->wake) == 0);
@@ -245,7 +248,7 @@ int program_main(int count, char **arguments)
         if (!named || !daemon_peer_start(peer, (unsigned long long)credentials.pid))
         {
             close(accepted);
-            free(peer);
+            platform_cell_released(peer, platform_place_g_program_owner);
         }
     }
 #endif

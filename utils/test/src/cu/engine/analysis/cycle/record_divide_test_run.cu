@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_divide_test_run.cu: steps, loading, running and narrow division
 #include "record_divide_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 static unsigned long long s_divide_state = 0x5EED0F0D1D1DEull;
 
@@ -193,8 +194,7 @@ void divide_magnitude(OriorExactInteger *value, unsigned int bits, unsigned int 
 
 // the registers of one lane meet the division's identities and agree with the library on the operands
 int divide_valid(const OriorExactInteger *numerator, const OriorExactInteger *divisor,
-                 const OriorExactInteger *quotient, const OriorExactInteger *remainder,
-                 const OriorExactInteger *common)
+                 const OriorExactInteger *quotient, const OriorExactInteger *remainder, const OriorExactInteger *common)
 {
     OriorExactInteger product;
     OriorExactInteger rebuilt;
@@ -255,17 +255,21 @@ void divide_narrow(DivideResults *results)
     const unsigned int lanes = DIVIDE_TEST_NARROW_LANES;
     const unsigned int in_limbs = program.in_limbs[0];
     const unsigned int out_limbs = loaded.layout.out_limbs;
-    unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * in_limbs, sizeof(unsigned int));
-    OriorExactInteger *const operand = (OriorExactInteger *)malloc((size_t)lanes * 3u * sizeof(OriorExactInteger));
-    unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-    unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared((size_t)lanes * in_limbs, sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    OriorExactInteger *const operand = (OriorExactInteger *)platform_cell_taken(
+        (size_t)lanes * 3u * sizeof(OriorExactInteger), platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
     if ((atoms == NULL) || (operand == NULL) || (host_out == NULL) || (device_out == NULL))
     {
         divide_check(results, 0, "the narrow lanes are allocated");
-        free(atoms);
-        free(operand);
-        free(host_out);
-        free(device_out);
+        platform_cell_released(atoms, platform_place_g_program_owner);
+        platform_cell_released(operand, platform_place_g_program_owner);
+        platform_cell_released(host_out, platform_place_g_program_owner);
+        platform_cell_released(device_out, platform_place_g_program_owner);
         divide_free(&loaded);
         return;
     }
@@ -427,8 +431,8 @@ void divide_narrow(DivideResults *results)
     forward.outputs[0] = 1u;
     forward.output_count = 1u;
     divide_check(results, divide_load(&forward, &loaded) == 0, "a quotient reading a later step errors at encode");
-    free(atoms);
-    free(operand);
-    free(host_out);
-    free(device_out);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(operand, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
 }

@@ -28,7 +28,7 @@ static void test_device_error(TestResults *results)
 static int test_staged(VerbaLinea *line, const char *text, unsigned int columns)
 {
     const size_t length = strlen(text);
-    char *const staged = (char *)calloc((length / 8u) + 1u, 8u);
+    char *const staged = (char *)platform_cell_cleared((length / 8u) + 1u, 8u, platform_place_g_program_owner, 0);
     if (staged == NULL)
     {
         line->at = line->capacity;
@@ -43,7 +43,7 @@ static int test_staged(VerbaLinea *line, const char *text, unsigned int columns)
     {
         mmgr_line_put_columns(line, staged, columns);
     }
-    free(staged);
+    platform_cell_released(staged, platform_place_g_program_owner);
     return 1;
 }
 
@@ -51,7 +51,8 @@ static int test_report(const TestResults *tallies, unsigned int count, const cha
 {
     const unsigned long long capacity =
         strlen("  obsignatio against \n") + strlen(vectors_path) + (count * TEST_REPORT_ROW) + 1ull;
-    VerbaLinea line = {(char *)malloc((size_t)capacity), capacity, 0ull};
+    VerbaLinea line = {(char *)platform_cell_taken((size_t)capacity, platform_place_g_program_owner, 0), capacity,
+                       0ull};
     if (line.out == NULL)
     {
         return 0;
@@ -76,7 +77,7 @@ static int test_report(const TestResults *tallies, unsigned int count, const cha
         mmgr_line_ch(&line, '\n');
     }
     const int written = (mmgr_line_ok(&line) && (platform_line_out_put(line.out, mmgr_line_finish(&line)) == line.at));
-    free(line.out);
+    platform_cell_released(line.out, platform_place_g_program_owner);
     return written;
 }
 
@@ -93,7 +94,8 @@ int program_main(int argc, char **argv)
         fputs("  the test vectors could not be read\n", stderr);
         return 2;
     }
-    unsigned char *const pattern = (unsigned char *)malloc((size_t)vectors.longest + 1u);
+    unsigned char *const pattern =
+        (unsigned char *)platform_cell_taken((size_t)vectors.longest + 1u, platform_place_g_program_owner, 0);
     unsigned char context_key[OBSIGNATIO_KEY_BYTES];
 #if defined(__CUDACC__)
     unsigned char *device_pattern = NULL;
@@ -179,7 +181,7 @@ int program_main(int argc, char **argv)
     cudaFree(device_signum);
     cudaFree(device_pattern);
 #endif
-    free(pattern);
+    platform_cell_released(pattern, platform_place_g_program_owner);
     test_vectors_release(&vectors);
     return (failures == 0ull) ? 0 : 1;
 }

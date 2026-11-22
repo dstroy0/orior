@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "crc.h"
+#include "../../../../src/platform/platform.h"
 #include "divide.h"
 #include "faces.h"
 #include "output.h"
@@ -134,7 +135,9 @@ static int output_first_reserve(OutputGraph *graph, unsigned int frames)
     {
         return 1;
     }
-    unsigned long long *const first = (unsigned long long *)realloc(graph->first, wanted * sizeof(unsigned long long));
+    unsigned long long *const first = (unsigned long long *)platform_cell_grown(
+        graph->first, graph->first_capacity * sizeof(unsigned long long), wanted * sizeof(unsigned long long),
+        platform_place_g_program_owner, 0);
     graph->first = (first != NULL) ? first : graph->first;
     graph->first_capacity = (first != NULL) ? wanted : graph->first_capacity;
     return first != NULL;
@@ -154,20 +157,32 @@ static int output_points_reserve(OutputGraph *graph, unsigned long long needed)
         return 0;
     }
     const size_t capacity = (size_t)wanted;
-    unsigned int *const voxels = (unsigned int *)realloc(graph->voxels, capacity * sizeof(unsigned int));
+    unsigned int *const voxels =
+        (unsigned int *)platform_cell_grown(graph->voxels, graph->capacity * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     graph->voxels = (voxels != NULL) ? voxels : graph->voxels;
-    unsigned int *const forward = (unsigned int *)realloc(graph->forward, capacity * sizeof(unsigned int));
+    unsigned int *const forward =
+        (unsigned int *)platform_cell_grown(graph->forward, graph->capacity * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     graph->forward = (forward != NULL) ? forward : graph->forward;
-    unsigned int *const second = (unsigned int *)realloc(graph->second, capacity * sizeof(unsigned int));
+    unsigned int *const second =
+        (unsigned int *)platform_cell_grown(graph->second, graph->capacity * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     graph->second = (second != NULL) ? second : graph->second;
-    unsigned int *const backward = (unsigned int *)realloc(graph->backward, capacity * sizeof(unsigned int));
+    unsigned int *const backward =
+        (unsigned int *)platform_cell_grown(graph->backward, graph->capacity * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     graph->backward = (backward != NULL) ? backward : graph->backward;
-    unsigned long long *const departure =
-        (unsigned long long *)realloc(graph->departure, capacity * sizeof(unsigned long long));
+    unsigned long long *const departure = (unsigned long long *)platform_cell_grown(
+        graph->departure, graph->capacity * sizeof(unsigned long long), capacity * sizeof(unsigned long long),
+        platform_place_g_program_owner, 0);
     graph->departure = (departure != NULL) ? departure : graph->departure;
-    unsigned char *const outside = (unsigned char *)realloc(graph->outside, capacity);
+    unsigned char *const outside = (unsigned char *)platform_cell_grown(graph->outside, graph->capacity, capacity,
+                                                                        platform_place_g_program_owner, 0);
     graph->outside = (outside != NULL) ? outside : graph->outside;
-    unsigned int *const faces = (unsigned int *)realloc(graph->faces, capacity * sizeof(unsigned int));
+    unsigned int *const faces =
+        (unsigned int *)platform_cell_grown(graph->faces, graph->capacity * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     graph->faces = (faces != NULL) ? faces : graph->faces;
     const int ok = (voxels != NULL) && (forward != NULL) && (second != NULL) && (backward != NULL) &&
                    (departure != NULL) && (outside != NULL) && (faces != NULL);
@@ -178,14 +193,14 @@ static int output_points_reserve(OutputGraph *graph, unsigned long long needed)
 
 static void output_graph_free(OutputGraph *graph)
 {
-    free(graph->first);
-    free(graph->voxels);
-    free(graph->forward);
-    free(graph->second);
-    free(graph->backward);
-    free(graph->departure);
-    free(graph->outside);
-    free(graph->faces);
+    platform_cell_released(graph->first, platform_place_g_program_owner);
+    platform_cell_released(graph->voxels, platform_place_g_program_owner);
+    platform_cell_released(graph->forward, platform_place_g_program_owner);
+    platform_cell_released(graph->second, platform_place_g_program_owner);
+    platform_cell_released(graph->backward, platform_place_g_program_owner);
+    platform_cell_released(graph->departure, platform_place_g_program_owner);
+    platform_cell_released(graph->outside, platform_place_g_program_owner);
+    platform_cell_released(graph->faces, platform_place_g_program_owner);
     memset(graph, 0, sizeof(*graph));
 }
 
@@ -927,13 +942,15 @@ extern "C" long output_graph_set(const OutputRequest *request)
         return OUTPUT_ERROR;
     }
     FILE *const report = request->report;
-    unsigned int *const words = (unsigned int *)malloc((size_t)OUTPUT_CHUNK * SORT_GATE_WORDS * sizeof(unsigned int));
-    OutputResults *const tallies = (OutputResults *)calloc(request->count, sizeof(OutputResults));
+    unsigned int *const words = (unsigned int *)platform_cell_taken(
+        (size_t)OUTPUT_CHUNK * SORT_GATE_WORDS * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    OutputResults *const tallies = (OutputResults *)platform_cell_cleared(request->count, sizeof(OutputResults),
+                                                                          platform_place_g_program_owner, 0);
     if ((words == NULL) || (tallies == NULL))
     {
         fprintf(stderr, "  output: the memory for reading could not be reserved\n");
-        free(words);
-        free(tallies);
+        platform_cell_released(words, platform_place_g_program_owner);
+        platform_cell_released(tallies, platform_place_g_program_owner);
         return OUTPUT_ERROR;
     }
     OutputGraph graph;
@@ -1027,8 +1044,8 @@ extern "C" long output_graph_set(const OutputRequest *request)
         fprintf(stderr, "  output: %u of %u samples broke: nothing is written past the headers\n", failed,
                 request->count);
         output_graph_free(&graph);
-        free(words);
-        free(tallies);
+        platform_cell_released(words, platform_place_g_program_owner);
+        platform_cell_released(tallies, platform_place_g_program_owner);
         return OUTPUT_ERROR;
     }
 #ifdef OUTPUT_TEST_FAULTS
@@ -1086,8 +1103,8 @@ extern "C" long output_graph_set(const OutputRequest *request)
         fprintf(report, "  the submission: no output named, none written\n");
     }
     output_graph_free(&graph);
-    free(words);
-    free(tallies);
+    platform_cell_released(words, platform_place_g_program_owner);
+    platform_cell_released(tallies, platform_place_g_program_owner);
     return (ok && nodes_complete && submission_complete) ? 0L : OUTPUT_ERROR;
 }
 

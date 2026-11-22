@@ -249,7 +249,8 @@ static int output_check_next(OutputCheckText *text)
         if ((text->length + taken + 1u) > text->capacity)
         {
             const size_t capacity = 2u * (text->length + taken + 1u);
-            char *const grown = (char *)realloc(text->line, capacity);
+            char *const grown =
+                (char *)platform_cell_grown(text->line, text->capacity, capacity, platform_place_g_program_owner, 0);
             if (grown == NULL)
             {
                 {
@@ -283,9 +284,9 @@ static int output_check_open(OutputCheckText *text, const char *name)
     memset(text, 0, sizeof(*text));
     text->name = name;
     text->file = fopen(name, "rb");
-    text->chunk = (unsigned char *)malloc(OUTPUT_CHECK_CHUNK);
+    text->chunk = (unsigned char *)platform_cell_taken(OUTPUT_CHECK_CHUNK, platform_place_g_program_owner, 0);
     text->capacity = OUTPUT_CHECK_ROW;
-    text->line = (char *)malloc(text->capacity);
+    text->line = (char *)platform_cell_taken(text->capacity, platform_place_g_program_owner, 0);
     return (text->file != NULL) && (text->chunk != NULL) && (text->line != NULL);
 }
 
@@ -295,8 +296,8 @@ static void output_check_close(OutputCheckText *text)
     {
         fclose(text->file);
     }
-    free(text->chunk);
-    free(text->line);
+    platform_cell_released(text->chunk, platform_place_g_program_owner);
+    platform_cell_released(text->line, platform_place_g_program_owner);
     text->file = NULL;
     text->chunk = NULL;
     text->line = NULL;
@@ -336,8 +337,9 @@ static int output_check_reserve(OutputCheckGraph *graph, unsigned long long poin
 {
     if (((size_t)frames + 2u) > graph->first_capacity)
     {
-        unsigned long long *const first =
-            (unsigned long long *)realloc(graph->first, ((size_t)frames + 2u) * sizeof(unsigned long long));
+        unsigned long long *const first = (unsigned long long *)platform_cell_grown(
+            graph->first, graph->first_capacity * sizeof(unsigned long long),
+            ((size_t)frames + 2u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
         graph->first = (first != NULL) ? first : graph->first;
         graph->first_capacity = (first != NULL) ? ((size_t)frames + 2u) : graph->first_capacity;
     }
@@ -350,22 +352,37 @@ static int output_check_reserve(OutputCheckGraph *graph, unsigned long long poin
         return 1;
     }
     const size_t capacity = ((size_t)points > (2u * graph->capacity)) ? (size_t)points : (2u * graph->capacity);
-    unsigned int *const voxels = (unsigned int *)realloc(graph->voxels, (capacity + 1u) * sizeof(unsigned int));
+    unsigned int *const voxels =
+        (unsigned int *)platform_cell_grown(graph->voxels, (graph->capacity + 1u) * sizeof(unsigned int),
+                                            (capacity + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     graph->voxels = (voxels != NULL) ? voxels : graph->voxels;
-    unsigned int *const forward = (unsigned int *)realloc(graph->forward, (capacity + 1u) * sizeof(unsigned int));
+    unsigned int *const forward =
+        (unsigned int *)platform_cell_grown(graph->forward, (graph->capacity + 1u) * sizeof(unsigned int),
+                                            (capacity + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     graph->forward = (forward != NULL) ? forward : graph->forward;
-    unsigned int *const second = (unsigned int *)realloc(graph->second, (capacity + 1u) * sizeof(unsigned int));
+    unsigned int *const second =
+        (unsigned int *)platform_cell_grown(graph->second, (graph->capacity + 1u) * sizeof(unsigned int),
+                                            (capacity + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     graph->second = (second != NULL) ? second : graph->second;
-    unsigned int *const backward = (unsigned int *)realloc(graph->backward, (capacity + 1u) * sizeof(unsigned int));
+    unsigned int *const backward =
+        (unsigned int *)platform_cell_grown(graph->backward, (graph->capacity + 1u) * sizeof(unsigned int),
+                                            (capacity + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     graph->backward = (backward != NULL) ? backward : graph->backward;
-    unsigned long long *const cost =
-        (unsigned long long *)realloc(graph->cost, (capacity + 1u) * sizeof(unsigned long long));
+    unsigned long long *const cost = (unsigned long long *)platform_cell_grown(
+        graph->cost, (graph->capacity + 1u) * sizeof(unsigned long long), (capacity + 1u) * sizeof(unsigned long long),
+        platform_place_g_program_owner, 0);
     graph->cost = (cost != NULL) ? cost : graph->cost;
-    unsigned int *const ahead = (unsigned int *)realloc(graph->ahead, (capacity + 1u) * sizeof(unsigned int));
+    unsigned int *const ahead =
+        (unsigned int *)platform_cell_grown(graph->ahead, (graph->capacity + 1u) * sizeof(unsigned int),
+                                            (capacity + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     graph->ahead = (ahead != NULL) ? ahead : graph->ahead;
-    unsigned int *const outside = (unsigned int *)realloc(graph->outside, (capacity + 1u) * sizeof(unsigned int));
+    unsigned int *const outside =
+        (unsigned int *)platform_cell_grown(graph->outside, (graph->capacity + 1u) * sizeof(unsigned int),
+                                            (capacity + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     graph->outside = (outside != NULL) ? outside : graph->outside;
-    unsigned int *const faces = (unsigned int *)realloc(graph->faces, (capacity + 1u) * sizeof(unsigned int));
+    unsigned int *const faces =
+        (unsigned int *)platform_cell_grown(graph->faces, (graph->capacity + 1u) * sizeof(unsigned int),
+                                            (capacity + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     graph->faces = (faces != NULL) ? faces : graph->faces;
     const int ok = (voxels != NULL) && (forward != NULL) && (second != NULL) && (backward != NULL) && (cost != NULL) &&
                    (ahead != NULL) && (outside != NULL) && (faces != NULL);
@@ -403,12 +420,12 @@ static int output_check_points(const char *set, const char *sample, OutputCheckG
     char path[OUTPUT_CHECK_PATH];
     FILE *const file = output_check_path(path, sizeof(path), set, sample, ".points") ? fopen(path, "rb") : NULL;
     // the readings and C, passed over
-    unsigned long long *const skipped =
-        (unsigned long long *)malloc((1u + OUTPUT_CHECK_READINGS) * sizeof(unsigned long long));
+    unsigned long long *const skipped = (unsigned long long *)platform_cell_taken(
+        (1u + OUTPUT_CHECK_READINGS) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     memset(graph->head, 0, sizeof(graph->head));
     int ok = (file != NULL) && (skipped != NULL) && output_check_read(file, graph->head, sizeof(graph->head)) &&
              output_check_read(file, skipped, (1u + OUTPUT_CHECK_READINGS) * sizeof(unsigned long long));
-    free(skipped);
+    platform_cell_released(skipped, platform_place_g_program_owner);
     const unsigned long long view = (unsigned long long)graph->head[1] * graph->head[2] * graph->head[3];
     graph->points = 0ull;
     ok = ok && output_check_reserve(graph, 0ull, graph->head[0]);
@@ -424,7 +441,9 @@ static int output_check_points(const char *set, const char *sample, OutputCheckG
         const size_t words = (size_t)count * graph->head[4];
         if (ok && (words > level_capacity))
         {
-            unsigned int *const grown = (unsigned int *)realloc(levels, (words + 1u) * sizeof(unsigned int));
+            unsigned int *const grown = (unsigned int *)platform_cell_grown(
+                levels, (level_capacity + 1u) * sizeof(unsigned int), (words + 1u) * sizeof(unsigned int),
+                platform_place_g_program_owner, 0);
             levels = (grown != NULL) ? grown : levels;
             level_capacity = (grown != NULL) ? words : level_capacity;
         }
@@ -455,7 +474,7 @@ static int output_check_points(const char *set, const char *sample, OutputCheckG
     {
         fclose(file);
     }
-    free(levels);
+    platform_cell_released(levels, platform_place_g_program_owner);
     if (ok == 0)
     {
         {
@@ -566,7 +585,8 @@ static int output_check_links(const char *set, const char *sample, OutputCheckGr
 static int output_check_crc(const char *path, unsigned long long *crc)
 {
     FILE *const file = fopen(path, "rb");
-    unsigned char *const chunk = (unsigned char *)malloc(OUTPUT_CHECK_CHUNK);
+    unsigned char *const chunk =
+        (unsigned char *)platform_cell_taken(OUTPUT_CHECK_CHUNK, platform_place_g_program_owner, 0);
     unsigned long long table[256];
     for (unsigned int byte = 0u; byte < 256u; byte += 1u)
     {
@@ -592,7 +612,7 @@ static int output_check_crc(const char *path, unsigned long long *crc)
     {
         fclose(file);
     }
-    free(chunk);
+    platform_cell_released(chunk, platform_place_g_program_owner);
     *crc = ~running;
     return complete;
 }
@@ -824,10 +844,13 @@ static int output_check_faces(const char *set, const char *sample, OutputCheckGr
         output_check_fault(graph, sample, "the .faces was not made from the .links beside it: the CRC-64 differs", 0u);
         ok = 0;
     }
-    int *const lags = (int *)malloc(((size_t)graph->head[0] + 1u) * OUTPUT_CHECK_AXES * sizeof(int));
-    unsigned char *const chunk = (unsigned char *)malloc(OUTPUT_CHECK_CHUNK);
-    unsigned int *const rebuilt =
-        (unsigned int *)malloc(((size_t)graph->points + 1u) * OUTPUT_CHECK_FACES_WORDS * sizeof(unsigned int));
+    int *const lags = (int *)platform_cell_taken(((size_t)graph->head[0] + 1u) * OUTPUT_CHECK_AXES * sizeof(int),
+                                                 platform_place_g_program_owner, 0);
+    unsigned char *const chunk =
+        (unsigned char *)platform_cell_taken(OUTPUT_CHECK_CHUNK, platform_place_g_program_owner, 0);
+    unsigned int *const rebuilt = (unsigned int *)platform_cell_taken(
+        ((size_t)graph->points + 1u) * OUTPUT_CHECK_FACES_WORDS * sizeof(unsigned int), platform_place_g_program_owner,
+        0);
     ok = ok && (lags != NULL) && (chunk != NULL) && (rebuilt != NULL) && output_check_drift(set, sample, graph, lags) &&
          output_check_hessian(set, sample, graph, chunk) && output_check_rebuild(sample, graph, lags, rebuilt);
     for (unsigned int frame = 0u; ok && (frame < graph->head[0]); frame += 1u)
@@ -912,9 +935,9 @@ static int output_check_faces(const char *set, const char *sample, OutputCheckGr
     }
     ok = ok && output_check_ended(file);
     fclose(file);
-    free(lags);
-    free(chunk);
-    free(rebuilt);
+    platform_cell_released(lags, platform_place_g_program_owner);
+    platform_cell_released(chunk, platform_place_g_program_owner);
+    platform_cell_released(rebuilt, platform_place_g_program_owner);
     if (ok == 0)
     {
         {
@@ -1354,14 +1377,14 @@ int program_main(int count, char **arguments)
     }
     output_check_close(&nodes);
     output_check_close(&submission);
-    free(graph.first);
-    free(graph.voxels);
-    free(graph.forward);
-    free(graph.second);
-    free(graph.backward);
-    free(graph.cost);
-    free(graph.ahead);
-    free(graph.outside);
-    free(graph.faces);
+    platform_cell_released(graph.first, platform_place_g_program_owner);
+    platform_cell_released(graph.voxels, platform_place_g_program_owner);
+    platform_cell_released(graph.forward, platform_place_g_program_owner);
+    platform_cell_released(graph.second, platform_place_g_program_owner);
+    platform_cell_released(graph.backward, platform_place_g_program_owner);
+    platform_cell_released(graph.cost, platform_place_g_program_owner);
+    platform_cell_released(graph.ahead, platform_place_g_program_owner);
+    platform_cell_released(graph.outside, platform_place_g_program_owner);
+    platform_cell_released(graph.faces, platform_place_g_program_owner);
     return (problems == 0ull) ? 0 : 1;
 }

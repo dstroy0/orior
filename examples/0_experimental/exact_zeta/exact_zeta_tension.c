@@ -165,7 +165,8 @@ static double number_variance(ZetaTwister *twister, const double *positions, siz
 {
     const double low = positions[0];
     const double high = positions[count - 1u] - length;
-    int64_t *const counts = (int64_t *)analysis_memory(malloc(samples * sizeof(int64_t)));
+    int64_t *const counts =
+        (int64_t *)analysis_memory(platform_cell_taken(samples * sizeof(int64_t), platform_place_g_program_owner, 0));
     int64_t total = 0;
     for (size_t at = 0u; at < samples; at += 1u)
     {
@@ -181,7 +182,7 @@ static double number_variance(ZetaTwister *twister, const double *positions, siz
         const double gap = (double)counts[at] - mean;
         variance += gap * gap;
     }
-    free(counts);
+    platform_cell_released(counts, platform_place_g_program_owner);
     return variance / (double)samples;
 }
 
@@ -197,7 +198,8 @@ static int analyse(const TensionZeros *zeros)
     const double *const s_values = zeros->zeros;
     // The count of zeros fits a machine integer.
     const int64_t n_end = zeros->n_start + (int64_t)count;
-    double *const u = (double *)analysis_memory(malloc(count * sizeof(double)));
+    double *const u =
+        (double *)analysis_memory(platform_cell_taken(count * sizeof(double), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < count; at += 1u)
     {
         u[at] = tension_theta_pi(s_values[at]) + 1.0;
@@ -229,7 +231,8 @@ static int analyse(const TensionZeros *zeros)
         platform_line_out_ended();
     }
     const size_t s_count = count - 1u;
-    double *const s_series = (double *)analysis_memory(malloc(s_count * sizeof(double)));
+    double *const s_series =
+        (double *)analysis_memory(platform_cell_taken(s_count * sizeof(double), platform_place_g_program_owner, 0));
     double mean = 0.0;
     double least = 0.0;
     double most = 0.0;
@@ -267,8 +270,10 @@ static int analyse(const TensionZeros *zeros)
 
     ZetaTwister twister;
     twister_seed(&twister, TENSION_SEED);
-    double *const gaps = (double *)analysis_memory(malloc(s_count * sizeof(double)));
-    double *const shuffled = (double *)analysis_memory(malloc(s_count * sizeof(double)));
+    double *const gaps =
+        (double *)analysis_memory(platform_cell_taken(s_count * sizeof(double), platform_place_g_program_owner, 0));
+    double *const shuffled =
+        (double *)analysis_memory(platform_cell_taken(s_count * sizeof(double), platform_place_g_program_owner, 0));
     for (size_t k = 0u; k < s_count; k += 1u)
     {
         gaps[k] = u[k + 1u] - u[k];
@@ -282,13 +287,15 @@ static int analyse(const TensionZeros *zeros)
         shuffled[at] = shuffled[other];
         shuffled[other] = held;
     }
-    double *const u_shuffled = (double *)analysis_memory(malloc(count * sizeof(double)));
+    double *const u_shuffled =
+        (double *)analysis_memory(platform_cell_taken(count * sizeof(double), platform_place_g_program_owner, 0));
     u_shuffled[0] = u[0];
     for (size_t k = 0u; k < s_count; k += 1u)
     {
         u_shuffled[k + 1u] = u_shuffled[k] + shuffled[k];
     }
-    double *const s_shuffled = (double *)analysis_memory(malloc(s_count * sizeof(double)));
+    double *const s_shuffled =
+        (double *)analysis_memory(platform_cell_taken(s_count * sizeof(double), platform_place_g_program_owner, 0));
     for (size_t k = 0u; k < s_count; k += 1u)
     {
         // k fits a machine integer.
@@ -379,7 +386,8 @@ static int analyse(const TensionZeros *zeros)
         int64_t (*powers)[2] = NULL;
         const size_t power_count = tension_prime_powers(LIMITS[which], &powers);
         double weight = 0.0;
-        double *const sizes = (double *)analysis_memory(malloc(power_count * sizeof(double)));
+        double *const sizes = (double *)analysis_memory(
+            platform_cell_taken(power_count * sizeof(double), platform_place_g_program_owner, 0));
         for (size_t at = 0u; at < power_count; at += 1u)
         {
             int64_t value = 1;
@@ -434,8 +442,8 @@ static int analyse(const TensionZeros *zeros)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(sizes);
-        free(powers);
+        platform_cell_released(sizes, platform_place_g_program_owner);
+        platform_cell_released(powers, platform_place_g_program_owner);
     }
     static const size_t FAR[4] = {100u, 200u, 500u, 1000u};
     for (int at = 0; at < 4; at += 1)
@@ -485,12 +493,12 @@ static int analyse(const TensionZeros *zeros)
             platform_line_out_ended();
         }
     }
-    free(u);
-    free(s_series);
-    free(gaps);
-    free(shuffled);
-    free(u_shuffled);
-    free(s_shuffled);
+    platform_cell_released(u, platform_place_g_program_owner);
+    platform_cell_released(s_series, platform_place_g_program_owner);
+    platform_cell_released(gaps, platform_place_g_program_owner);
+    platform_cell_released(shuffled, platform_place_g_program_owner);
+    platform_cell_released(u_shuffled, platform_place_g_program_owner);
+    platform_cell_released(s_shuffled, platform_place_g_program_owner);
     return 0;
 }
 
@@ -517,6 +525,6 @@ int program_main(int argument_count, char **arguments)
     tension_certified_zeros(arguments[1], atoll(arguments[2]), atoll(arguments[3]), extra, has_given ? given : NULL,
                             &zeros);
     const int code = analyse(&zeros);
-    free(zeros.zeros);
+    platform_cell_released(zeros.zeros, platform_place_g_program_owner);
     return code;
 }

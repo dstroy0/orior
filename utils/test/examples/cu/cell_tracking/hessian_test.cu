@@ -12,6 +12,7 @@
 // after frame as the scan calls it, and both find a drawn set's known shift. Malformed requests error. The test is one
 // job on the device's tessera daemon, submitted before its first device work.
 #include "drift.h"
+#include "../../../../../src/platform/platform.h"
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
 #include "hessian.h"
 #include "../../../../../src/cu/engine/analysis/shift_agreement/shift_agreement.h"
@@ -207,15 +208,17 @@ static int hessian_test_reserve(HessianTestField *field, unsigned int depth, uns
     field->width = width;
     field->voxels = depth * height * width;
     field->limbs = limbs;
-    field->residual = (unsigned int *)malloc(((size_t)field->voxels * limbs + 1u) * sizeof(unsigned int));
-    field->values = (OriorExactInteger *)malloc(((size_t)field->voxels + 1u) * sizeof(OriorExactInteger));
+    field->residual = (unsigned int *)platform_cell_taken(((size_t)field->voxels * limbs + 1u) * sizeof(unsigned int),
+                                                          platform_place_g_program_owner, 0);
+    field->values = (OriorExactInteger *)platform_cell_taken(((size_t)field->voxels + 1u) * sizeof(OriorExactInteger),
+                                                             platform_place_g_program_owner, 0);
     return (field->residual != NULL) && (field->values != NULL);
 }
 
 static void hessian_test_release(HessianTestField *field)
 {
-    free(field->residual);
-    free(field->values);
+    platform_cell_released(field->residual, platform_place_g_program_owner);
+    platform_cell_released(field->values, platform_place_g_program_owner);
     memset(field, 0, sizeof(*field));
 }
 
@@ -235,12 +238,16 @@ static void hessian_test_prove(SimResults *results, HessianTestField *field)
         sim_status_check(results, cudaMalloc((void **)&device, bytes), "the residual is allocated on the device") &&
         sim_status_check(results, cudaMemcpy(device, field->residual, bytes, cudaMemcpyHostToDevice),
                          "the residual reaches the device");
-    unsigned int *const points = (unsigned int *)malloc(((size_t)voxels + 1u) * sizeof(unsigned int));
-    unsigned int *const faces = (unsigned int *)malloc(((size_t)voxels + 1u) * sizeof(unsigned int));
-    unsigned int *const differences =
-        (unsigned int *)malloc((((size_t)voxels * HESSIAN_ENTRIES * wide) + 1u) * sizeof(unsigned int));
-    unsigned long long *const packed = (unsigned long long *)malloc((words + 1u) * sizeof(unsigned long long));
-    unsigned long long *const expected = (unsigned long long *)calloc(words + 1u, sizeof(unsigned long long));
+    unsigned int *const points = (unsigned int *)platform_cell_taken(((size_t)voxels + 1u) * sizeof(unsigned int),
+                                                                     platform_place_g_program_owner, 0);
+    unsigned int *const faces = (unsigned int *)platform_cell_taken(((size_t)voxels + 1u) * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
+    unsigned int *const differences = (unsigned int *)platform_cell_taken(
+        (((size_t)voxels * HESSIAN_ENTRIES * wide) + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned long long *const packed = (unsigned long long *)platform_cell_taken(
+        (words + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned long long *const expected = (unsigned long long *)platform_cell_cleared(
+        words + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     ok = ok && (points != NULL) && (faces != NULL) && (differences != NULL) && (packed != NULL) && (expected != NULL);
     sim_check(results, ok, "the points and their records are allocated on the host");
     for (unsigned int point = 0u; ok && (point < voxels); point += 1u)
@@ -309,13 +316,13 @@ static void hessian_test_prove(SimResults *results, HessianTestField *field)
     mmgr_line_decimal(&results->line, positive_count, 1u);
     mmgr_line_put(&results->line, " positive voxels; ");
     mmgr_line_put(&results->line, (counted && faces_agree && differences_agree && packed_alike) ? "all the host's\n"
-                                                                                                 : "NOT the host's\n");
+                                                                                                : "NOT the host's\n");
     sim_flush(results);
-    free(points);
-    free(faces);
-    free(differences);
-    free(packed);
-    free(expected);
+    platform_cell_released(points, platform_place_g_program_owner);
+    platform_cell_released(faces, platform_place_g_program_owner);
+    platform_cell_released(differences, platform_place_g_program_owner);
+    platform_cell_released(packed, platform_place_g_program_owner);
+    platform_cell_released(expected, platform_place_g_program_owner);
     cudaFree(device);
 }
 
@@ -372,8 +379,10 @@ static int hessian_test_agree(const unsigned int extents[3], const unsigned int 
                               const unsigned long long *before, const unsigned long long *after, int lag[3])
 {
     const size_t total = hessian_test_padded_total(extents);
-    unsigned int *const device_counts = (unsigned int *)malloc((total + 1u) * sizeof(unsigned int));
-    unsigned int *const host_counts = (unsigned int *)malloc((total + 1u) * sizeof(unsigned int));
+    unsigned int *const device_counts =
+        (unsigned int *)platform_cell_taken((total + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host_counts =
+        (unsigned int *)platform_cell_taken((total + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     ShiftAgreementRequest device;
     memset(&device, 0, sizeof(device));
     device.axes = 3u;
@@ -394,8 +403,8 @@ static int hessian_test_agree(const unsigned int extents[3], const unsigned int 
                       (memcmp(device.padded, host.padded, sizeof(device.padded)) == 0) &&
                       (memcmp(device_counts, host_counts, total * sizeof(unsigned int)) == 0);
     memcpy(lag, device.lag, 3u * sizeof(int));
-    free(device_counts);
-    free(host_counts);
+    platform_cell_released(device_counts, platform_place_g_program_owner);
+    platform_cell_released(host_counts, platform_place_g_program_owner);
     return agree;
 }
 
@@ -403,8 +412,8 @@ static void hessian_test_chains(SimResults *results)
 {
     const unsigned int weights[3] = {16u, 1u, 1u};
     const size_t words = (size_t)DRIFT_WORDS(HESSIAN_TEST_VOXELS_MAX);
-    unsigned long long *const frames =
-        (unsigned long long *)malloc(((HESSIAN_TEST_FRAMES * words) + 1u) * sizeof(unsigned long long));
+    unsigned long long *const frames = (unsigned long long *)platform_cell_taken(
+        ((HESSIAN_TEST_FRAMES * words) + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     sim_check(results, frames != NULL, "the drawn frames are allocated on the host");
     unsigned long long pairs = 0ull;
     unsigned long long agreed = 0ull;
@@ -435,13 +444,13 @@ static void hessian_test_chains(SimResults *results)
     pairs += 1ull;
     agreed += (weighed != 0) ? 1ull : 0ull;
     mmgr_line_put(&results->line,
-                   "  the drift on the device is the host's in lag, agreement, padding and every count on ");
+                  "  the drift on the device is the host's in lag, agreement, padding and every count on ");
     mmgr_line_decimal(&results->line, agreed, 1u);
     mmgr_line_put(&results->line, " of ");
     mmgr_line_decimal(&results->line, pairs, 1u);
     mmgr_line_put(&results->line, " frame pairs\n");
     sim_flush(results);
-    free(frames);
+    platform_cell_released(frames, platform_place_g_program_owner);
 }
 
 static void hessian_test_known_shift(SimResults *results)
@@ -451,8 +460,10 @@ static void hessian_test_known_shift(SimResults *results)
     const unsigned int weights[3] = {16u, 1u, 1u};
     const unsigned int voxels = extents[0] * extents[1] * extents[2];
     const size_t words = (size_t)DRIFT_WORDS(voxels);
-    unsigned long long *const before = (unsigned long long *)malloc((words + 1u) * sizeof(unsigned long long));
-    unsigned long long *const after = (unsigned long long *)calloc(words + 1u, sizeof(unsigned long long));
+    unsigned long long *const before = (unsigned long long *)platform_cell_taken(
+        (words + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned long long *const after = (unsigned long long *)platform_cell_cleared(
+        words + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     int ok = (before != NULL) && (after != NULL);
     sim_check(results, ok, "the shifted sets are allocated on the host");
     if (ok)
@@ -488,8 +499,8 @@ static void hessian_test_known_shift(SimResults *results)
     mmgr_line_decimal_signed(&results->line, lag[2]);
     mmgr_line_ch(&results->line, '\n');
     sim_flush(results);
-    free(before);
-    free(after);
+    platform_cell_released(before, platform_place_g_program_owner);
+    platform_cell_released(after, platform_place_g_program_owner);
 }
 
 // the engine's drift retains its last transform and reuses it when the next pair's first set is the last pair's second;
@@ -501,7 +512,8 @@ static void hessian_test_retained(SimResults *results)
     const unsigned int weights[3] = {16u, 1u, 1u};
     const unsigned int voxels = second[0] * second[1] * second[2];
     const size_t words = (size_t)DRIFT_WORDS(voxels);
-    unsigned long long *const sets = (unsigned long long *)malloc(((3u * words) + 1u) * sizeof(unsigned long long));
+    unsigned long long *const sets = (unsigned long long *)platform_cell_taken(
+        ((3u * words) + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     const int ok = (sets != NULL) && (DRIFT_WORDS(first[0] * first[1] * first[2]) == words);
     sim_check(results, ok, "the retained sets are allocated on the host, with one word count for both extents");
     if (ok)
@@ -521,7 +533,7 @@ static void hessian_test_retained(SimResults *results)
     mmgr_line_put(&results->line, ", then ");
     mmgr_line_put(&results->line, (later != 0) ? "the host's\n" : "NOT the host's\n");
     sim_flush(results);
-    free(sets);
+    platform_cell_released(sets, platform_place_g_program_owner);
 }
 
 static void hessian_test_weights(SimResults *results)
@@ -576,8 +588,7 @@ static void hessian_test_errors(SimResults *results)
     sim_check(results, ok && (hessian_find(&flat) == HESSIAN_ERROR), "the hessian: an empty extent errors");
     sim_check(results, ok && (hessian_find(&narrow) == HESSIAN_ERROR), "the hessian: a width of no limbs errors");
     sim_check(results, ok && (hessian_find(&unplaced) == HESSIAN_ERROR), "the hessian: nowhere to write errors");
-    sim_check(results, ok && (hessian_find(&beyond) == HESSIAN_ERROR),
-              "the hessian: a point outside the frame errors");
+    sim_check(results, ok && (hessian_find(&beyond) == HESSIAN_ERROR), "the hessian: a point outside the frame errors");
     sim_check(results, ok && (hessian_find(&crowded) == HESSIAN_ERROR),
               "the hessian: more points than the frame has voxels errors");
     sim_check(results, ok && (hessian_find(&empty) == 0L), "the hessian: no points gives none and writes nothing");

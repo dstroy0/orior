@@ -263,12 +263,14 @@ static int probe_run(const ProbeRecord *record, const unsigned short *lanes, uns
     const unsigned int bounded_rank = (record->rank < ENGINE_ARRAY_RANK) ? record->rank : ENGINE_ARRAY_RANK;
     const unsigned long long entries = period_agreement_entries(bounded_rank, record->extent);
     const unsigned long long band_entries = record->draws * bounded_rank;
-    unsigned long long *const agreement =
-        (unsigned long long *)calloc((size_t)(entries + 1ull), sizeof(unsigned long long));
+    unsigned long long *const agreement = (unsigned long long *)platform_cell_cleared(
+        (size_t)(entries + 1ull), sizeof(unsigned long long), platform_place_g_program_owner, 0);
     // a band past the max this probe supports is passed as none, which only a request in error requests
-    PeriodMargin *const band = (band_entries <= PROBE_BAND_MAX)
-                                   ? (PeriodMargin *)calloc((size_t)(band_entries + 1ull), sizeof(PeriodMargin))
-                                   : NULL;
+    PeriodMargin *const band =
+        (band_entries <= PROBE_BAND_MAX)
+            ? (PeriodMargin *)platform_cell_cleared((size_t)(band_entries + 1ull), sizeof(PeriodMargin),
+                                                    platform_place_g_program_owner, 0)
+            : NULL;
     PeriodMargin heights[ENGINE_ARRAY_RANK];
     memset(heights, 0, sizeof(heights));
     EngineError error;
@@ -352,8 +354,8 @@ static int probe_run(const ProbeRecord *record, const unsigned short *lanes, uns
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(agreement);
-    free(band);
+    platform_cell_released(agreement, platform_place_g_program_owner);
+    platform_cell_released(band, platform_place_g_program_owner);
     cudaFree(device_lanes);
     return 1;
 }
@@ -416,8 +418,8 @@ int program_main(int count, char **arguments)
         {
             break;
         }
-        unsigned short *const lanes =
-            (unsigned short *)malloc((size_t)(record.lane_count + 1ull) * sizeof(unsigned short));
+        unsigned short *const lanes = (unsigned short *)platform_cell_taken(
+            (size_t)(record.lane_count + 1ull) * sizeof(unsigned short), platform_place_g_program_owner, 0);
         if ((read < 0) || (lanes == NULL) ||
             !probe_take(file, lanes, (size_t)record.lane_count * sizeof(unsigned short)))
         {
@@ -429,12 +431,12 @@ int program_main(int count, char **arguments)
                 mmgr_line_ch(output_line, '\n');
                 platform_line_out_ended();
             }
-            free(lanes);
+            platform_cell_released(lanes, platform_place_g_program_owner);
             ok = 0;
             break;
         }
         ok = probe_run(&record, lanes, number) && ok;
-        free(lanes);
+        platform_cell_released(lanes, platform_place_g_program_owner);
         number += 1ull;
         platform_line_flushed();
     }

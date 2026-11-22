@@ -65,7 +65,8 @@ static unsigned int ladder_draw(void)
 
 static OriorExactInteger *ladder_value(void)
 {
-    OriorExactInteger *const value = (OriorExactInteger *)malloc(sizeof(OriorExactInteger));
+    OriorExactInteger *const value =
+        (OriorExactInteger *)platform_cell_taken(sizeof(OriorExactInteger), platform_place_g_program_owner, 0);
     if (value == NULL)
     {
         {
@@ -108,7 +109,8 @@ static int ladder_matches(const OriorExactInteger *left, const OriorExactInteger
 {
     const size_t left_used = ladder_used(left);
     const size_t right_used = ladder_used(right);
-    uint32_t *const wide = (uint32_t *)calloc(left_used + right_used + 1u, sizeof(uint32_t));
+    uint32_t *const wide = (uint32_t *)platform_cell_cleared(left_used + right_used + 1u, sizeof(uint32_t),
+                                                             platform_place_g_program_owner, 0);
     if (wide == NULL)
     {
         return 0;
@@ -133,7 +135,7 @@ static int ladder_matches(const OriorExactInteger *left, const OriorExactInteger
         const uint32_t expected = (at < (left_used + right_used)) ? wide[at] : 0u;
         same = (product->limb[at] == expected);
     }
-    free(wide);
+    platform_cell_released(wide, platform_place_g_program_owner);
     return same;
 }
 
@@ -416,15 +418,15 @@ int program_main(int argc, char **argv)
         }
     }
 
-    free(newton_quotient);
-    free(newton_remainder);
-    free(rebuilt);
-    free(left);
-    free(right);
-    free(product);
-    free(quotient);
-    free(remainder);
-    free(common);
+    platform_cell_released(newton_quotient, platform_place_g_program_owner);
+    platform_cell_released(newton_remainder, platform_place_g_program_owner);
+    platform_cell_released(rebuilt, platform_place_g_program_owner);
+    platform_cell_released(left, platform_place_g_program_owner);
+    platform_cell_released(right, platform_place_g_program_owner);
+    platform_cell_released(product, platform_place_g_program_owner);
+    platform_cell_released(quotient, platform_place_g_program_owner);
+    platform_cell_released(remainder, platform_place_g_program_owner);
+    platform_cell_released(common, platform_place_g_program_owner);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  exact transform test: ");

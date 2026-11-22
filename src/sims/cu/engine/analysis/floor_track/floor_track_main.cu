@@ -259,19 +259,32 @@ int program_main(int count, char **arguments)
     SimResults results;
     sim_open(&results, line_buffer);
     TrackHost host;
-    host.lanes = (unsigned short *)malloc((size_t)(TRACK_FRAMES_MAX * TRACK_SAMPLES) * sizeof(unsigned short));
-    host.crystal = (int *)malloc((size_t)TRACK_SAMPLES * sizeof(int));
-    host.corner = (int *)malloc((size_t)TRACK_FLOOR_VALUES * sizeof(int));
-    host.floors = (unsigned short *)malloc((size_t)(TRACK_FRAMES_MAX * TRACK_FLOOR_VALUES) * sizeof(unsigned short));
-    host.work = (long long *)malloc((size_t)TRACK_SAMPLES * sizeof(long long));
-    host.before = (long long *)malloc((size_t)TRACK_SAMPLES * sizeof(long long));
-    host.floor_host = (long long *)malloc((size_t)TRACK_FLOOR_VALUES * sizeof(long long));
-    host.planes = (unsigned int *)malloc((size_t)(TRACK_FRAMES_MAX * TRACK_BITS * TRACK_WORDS) * sizeof(unsigned int));
-    host.queries = (TrackQuery *)malloc((size_t)TRACK_QUERIES_MAX * sizeof(TrackQuery));
-    host.truths = (TrackTruth *)malloc((size_t)TRACK_QUERIES_MAX * sizeof(TrackTruth));
-    host.candidates = (unsigned int *)malloc((size_t)(TRACK_QUERIES_MAX * TRACK_WORDS) * sizeof(unsigned int));
-    host.reads = (unsigned int *)malloc((size_t)(TRACK_QUERIES_MAX * TRACK_WORDS) * sizeof(unsigned int));
-    host.expected = (unsigned int *)malloc((size_t)TRACK_WORDS * sizeof(unsigned int));
+    host.lanes = (unsigned short *)platform_cell_taken(
+        (size_t)(TRACK_FRAMES_MAX * TRACK_SAMPLES) * sizeof(unsigned short), platform_place_g_program_owner, 0);
+    host.crystal = (int *)platform_cell_taken((size_t)TRACK_SAMPLES * sizeof(int), platform_place_g_program_owner, 0);
+    host.corner =
+        (int *)platform_cell_taken((size_t)TRACK_FLOOR_VALUES * sizeof(int), platform_place_g_program_owner, 0);
+    host.floors = (unsigned short *)platform_cell_taken(
+        (size_t)(TRACK_FRAMES_MAX * TRACK_FLOOR_VALUES) * sizeof(unsigned short), platform_place_g_program_owner, 0);
+    host.work =
+        (long long *)platform_cell_taken((size_t)TRACK_SAMPLES * sizeof(long long), platform_place_g_program_owner, 0);
+    host.before =
+        (long long *)platform_cell_taken((size_t)TRACK_SAMPLES * sizeof(long long), platform_place_g_program_owner, 0);
+    host.floor_host = (long long *)platform_cell_taken((size_t)TRACK_FLOOR_VALUES * sizeof(long long),
+                                                       platform_place_g_program_owner, 0);
+    host.planes = (unsigned int *)platform_cell_taken((size_t)(TRACK_FRAMES_MAX * TRACK_BITS * TRACK_WORDS) *
+                                                          sizeof(unsigned int),
+                                                      platform_place_g_program_owner, 0);
+    host.queries = (TrackQuery *)platform_cell_taken((size_t)TRACK_QUERIES_MAX * sizeof(TrackQuery),
+                                                     platform_place_g_program_owner, 0);
+    host.truths = (TrackTruth *)platform_cell_taken((size_t)TRACK_QUERIES_MAX * sizeof(TrackTruth),
+                                                    platform_place_g_program_owner, 0);
+    host.candidates = (unsigned int *)platform_cell_taken(
+        (size_t)(TRACK_QUERIES_MAX * TRACK_WORDS) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    host.reads = (unsigned int *)platform_cell_taken((size_t)(TRACK_QUERIES_MAX * TRACK_WORDS) * sizeof(unsigned int),
+                                                     platform_place_g_program_owner, 0);
+    host.expected = (unsigned int *)platform_cell_taken((size_t)TRACK_WORDS * sizeof(unsigned int),
+                                                        platform_place_g_program_owner, 0);
     int ok = (host.lanes != NULL) && (host.crystal != NULL) && (host.corner != NULL) && (host.floors != NULL) &&
              (host.work != NULL) && (host.before != NULL) && (host.floor_host != NULL) && (host.planes != NULL) &&
              (host.queries != NULL) && (host.truths != NULL) && (host.candidates != NULL) && (host.reads != NULL) &&
@@ -435,18 +448,18 @@ int program_main(int count, char **arguments)
     cudaFree(device.planes);
     cudaFree(device.floors);
     cudaFree(device.lanes);
-    free(host.expected);
-    free(host.reads);
-    free(host.candidates);
-    free(host.truths);
-    free(host.queries);
-    free(host.planes);
-    free(host.floor_host);
-    free(host.before);
-    free(host.work);
-    free(host.floors);
-    free(host.corner);
-    free(host.crystal);
-    free(host.lanes);
+    platform_cell_released(host.expected, platform_place_g_program_owner);
+    platform_cell_released(host.reads, platform_place_g_program_owner);
+    platform_cell_released(host.candidates, platform_place_g_program_owner);
+    platform_cell_released(host.truths, platform_place_g_program_owner);
+    platform_cell_released(host.queries, platform_place_g_program_owner);
+    platform_cell_released(host.planes, platform_place_g_program_owner);
+    platform_cell_released(host.floor_host, platform_place_g_program_owner);
+    platform_cell_released(host.before, platform_place_g_program_owner);
+    platform_cell_released(host.work, platform_place_g_program_owner);
+    platform_cell_released(host.floors, platform_place_g_program_owner);
+    platform_cell_released(host.corner, platform_place_g_program_owner);
+    platform_cell_released(host.crystal, platform_place_g_program_owner);
+    platform_cell_released(host.lanes, platform_place_g_program_owner);
     return sim_close(&results, "floor track");
 }

@@ -70,6 +70,7 @@
  * @note Drawn null: R left out, and the Gram signs and the gap read again.
  */
 #include "zeta_gram_walk.h"
+#include "../../../src/platform/platform.h"
 #include "zeta_riemann_siegel.h"
 #include "zeta_shuffle.h"
 #include "zeta_theta.h"
@@ -322,8 +323,10 @@ static size_t riemann_point(Riemann *riemann, const DecimalPair *u)
     if (index >= riemann->capacity)
     {
         const size_t grown = (riemann->capacity == 0u) ? 256u : (riemann->capacity * 2u);
-        riemann->sign = (int *)siegel_memory(realloc(riemann->sign, grown * sizeof(int)));
-        riemann->reach = (int *)siegel_memory(realloc(riemann->reach, grown * sizeof(int)));
+        riemann->sign = (int *)siegel_memory(platform_cell_grown(
+            riemann->sign, riemann->capacity * sizeof(int), grown * sizeof(int), platform_place_g_program_owner, 0));
+        riemann->reach = (int *)siegel_memory(platform_cell_grown(
+            riemann->reach, riemann->capacity * sizeof(int), grown * sizeof(int), platform_place_g_program_owner, 0));
         memset(riemann->sign + riemann->capacity, 0, (grown - riemann->capacity) * sizeof(int));
         memset(riemann->reach + riemann->capacity, 0, (grown - riemann->capacity) * sizeof(int));
         riemann->capacity = grown;
@@ -340,9 +343,12 @@ static size_t riemann_point(Riemann *riemann, const DecimalPair *u)
  */
 static void riemann_sweep(Riemann *riemann, const size_t *indices, size_t count)
 {
-    size_t *const open = (size_t *)siegel_memory(malloc((count + 1u) * sizeof(size_t)));
-    int32_t *const places = (int32_t *)siegel_memory(malloc((count + 1u) * sizeof(int32_t)));
-    unsigned char *const seen = (unsigned char *)siegel_memory(calloc(riemann->points.count + 1u, 1u));
+    size_t *const open =
+        (size_t *)siegel_memory(platform_cell_taken((count + 1u) * sizeof(size_t), platform_place_g_program_owner, 0));
+    int32_t *const places = (int32_t *)siegel_memory(
+        platform_cell_taken((count + 1u) * sizeof(int32_t), platform_place_g_program_owner, 0));
+    unsigned char *const seen = (unsigned char *)siegel_memory(
+        platform_cell_cleared(riemann->points.count + 1u, 1u, platform_place_g_program_owner, 0));
     size_t open_count = 0u;
     for (size_t at = 0u; at < count; at += 1u)
     {
@@ -354,7 +360,7 @@ static void riemann_sweep(Riemann *riemann, const size_t *indices, size_t count)
         }
         seen[indices[at]] = 1u;
     }
-    free(seen);
+    platform_cell_released(seen, platform_place_g_program_owner);
     while (open_count > 0u)
     {
         size_t next = 0u;
@@ -385,8 +391,8 @@ static void riemann_sweep(Riemann *riemann, const size_t *indices, size_t count)
         }
         open_count = next;
     }
-    free(open);
-    free(places);
+    platform_cell_released(open, platform_place_g_program_owner);
+    platform_cell_released(places, platform_place_g_program_owner);
 }
 
 /**
@@ -403,13 +409,15 @@ static void riemann_sweep(Riemann *riemann, const size_t *indices, size_t count)
 static size_t riemann_settle(Riemann *riemann, const GramBracket *brackets, size_t count, GramSearch *walk, int *signs,
                              GramBracket *settled)
 {
-    GramBracket *const open = (GramBracket *)siegel_memory(malloc((count + 1u) * sizeof(GramBracket)));
+    GramBracket *const open = (GramBracket *)siegel_memory(
+        platform_cell_taken((count + 1u) * sizeof(GramBracket), platform_place_g_program_owner, 0));
     memcpy(open, brackets, count * sizeof(GramBracket));
     size_t open_count = count;
     size_t cuts = 0u;
     while (open_count > 0u)
     {
-        size_t *const ends = (size_t *)siegel_memory(malloc((2u * open_count + 1u) * sizeof(size_t)));
+        size_t *const ends = (size_t *)siegel_memory(
+            platform_cell_taken((2u * open_count + 1u) * sizeof(size_t), platform_place_g_program_owner, 0));
         for (size_t at = 0u; at < open_count; at += 1u)
         {
             ends[2u * at] = riemann_point(riemann, &open[at].low);
@@ -431,12 +439,12 @@ static size_t riemann_settle(Riemann *riemann, const GramBracket *brackets, size
             open[next] = open[at];
             next += 1u;
         }
-        free(ends);
+        platform_cell_released(ends, platform_place_g_program_owner);
         gram_cut(walk, open, next);
         open_count = next;
         cuts += next;
     }
-    free(open);
+    platform_cell_released(open, platform_place_g_program_owner);
     return cuts;
 }
 
@@ -638,7 +646,8 @@ static SignEntry *curve_sign_entry(CurveSigns *signs, const char *key)
     if ((signs->count * 2u) >= signs->bucket_count)
     {
         const size_t grown = (signs->bucket_count == 0u) ? 4096u : (signs->bucket_count * 2u);
-        SignEntry *const entries = (SignEntry *)siegel_memory(calloc(grown, sizeof(SignEntry)));
+        SignEntry *const entries = (SignEntry *)siegel_memory(
+            platform_cell_cleared(grown, sizeof(SignEntry), platform_place_g_program_owner, 0));
         for (size_t at = 0u; at < signs->bucket_count; at += 1u)
         {
             if (signs->entries[at].key == NULL)
@@ -652,7 +661,7 @@ static SignEntry *curve_sign_entry(CurveSigns *signs, const char *key)
             }
             entries[place] = signs->entries[at];
         }
-        free(signs->entries);
+        platform_cell_released(signs->entries, platform_place_g_program_owner);
         signs->entries = entries;
         signs->bucket_count = grown;
     }
@@ -697,7 +706,7 @@ static int sign_at(CurveSigns *signs, int64_t n, const OriorExactInteger *a, int
     rs_c_verdict(n, &value, bits, &places, &read);
     if (entry->key == NULL)
     {
-        entry->key = (char *)siegel_memory(malloc(strlen(key) + 1u));
+        entry->key = (char *)siegel_memory(platform_cell_taken(strlen(key) + 1u, platform_place_g_program_owner, 0));
         memcpy(entry->key, key, strlen(key) + 1u);
         signs->count += 1u;
     }
@@ -796,20 +805,24 @@ static size_t sign_changes(const int *row, size_t count, int64_t *changes)
 static size_t curve_zeros(CurveSigns *signs, int64_t n, int64_t bits, OriorExactInteger *found, int64_t *parts)
 {
     int64_t m = 6;
-    int *row = (int *)siegel_memory(malloc((((size_t)1 << m) + 1u) * sizeof(int)));
-    int *finer = (int *)siegel_memory(malloc((((size_t)1 << (m + 1)) + 1u) * sizeof(int)));
+    int *row = (int *)siegel_memory(
+        platform_cell_taken((((size_t)1 << m) + 1u) * sizeof(int), platform_place_g_program_owner, 0));
+    int *finer = (int *)siegel_memory(
+        platform_cell_taken((((size_t)1 << (m + 1)) + 1u) * sizeof(int), platform_place_g_program_owner, 0));
     sign_row(signs, n, m, row);
     sign_row(signs, n, m + 1, finer);
     while (sign_changes(row, ((size_t)1 << m) + 1u, NULL) != sign_changes(finer, ((size_t)1 << (m + 1)) + 1u, NULL))
     {
         m += 1;
-        free(row);
+        platform_cell_released(row, platform_place_g_program_owner);
         row = finer;
-        finer = (int *)siegel_memory(malloc((((size_t)1 << (m + 1)) + 1u) * sizeof(int)));
+        finer = (int *)siegel_memory(
+            platform_cell_taken((((size_t)1 << (m + 1)) + 1u) * sizeof(int), platform_place_g_program_owner, 0));
         sign_row(signs, n, m + 1, finer);
     }
     const size_t length = ((size_t)1 << (m + 1)) + 1u;
-    int64_t *const changes = (int64_t *)siegel_memory(malloc(length * sizeof(int64_t)));
+    int64_t *const changes =
+        (int64_t *)siegel_memory(platform_cell_taken(length * sizeof(int64_t), platform_place_g_program_owner, 0));
     const size_t count = sign_changes(finer, length, changes);
     if (count > 64u)
     {
@@ -836,9 +849,9 @@ static size_t curve_zeros(CurveSigns *signs, int64_t n, int64_t bits, OriorExact
         }
         found[at] = low;
     }
-    free(changes);
-    free(row);
-    free(finer);
+    platform_cell_released(changes, platform_place_g_program_owner);
+    platform_cell_released(row, platform_place_g_program_owner);
+    platform_cell_released(finer, platform_place_g_program_owner);
     *parts = m + 1;
     return count;
 }
@@ -858,7 +871,8 @@ static void curve_edge(CurveSigns *signs, int64_t n, int64_t counts[2])
     {
         const int64_t base = ((int64_t)1 << m) - ((int64_t)1 << (m - 6));
         const size_t length = ((size_t)1 << (m - 6)) + 1u;
-        int *const row = (int *)siegel_memory(malloc(length * sizeof(int)));
+        int *const row =
+            (int *)siegel_memory(platform_cell_taken(length * sizeof(int), platform_place_g_program_owner, 0));
         for (size_t j = 0u; j < length; j += 1u)
         {
             OriorExactInteger a;
@@ -868,7 +882,7 @@ static void curve_edge(CurveSigns *signs, int64_t n, int64_t counts[2])
         }
         // The count of changes is below the length of the row.
         counts[m - 14] = (int64_t)sign_changes(row, length, NULL);
-        free(row);
+        platform_cell_released(row, platform_place_g_program_owner);
     }
 }
 
@@ -1016,7 +1030,8 @@ static int main_report(const char *height_text, int bits)
     }
     const int64_t last_index = found[found_count - 1u].index;
     const int64_t consecutive = ((int64_t)found_count == (last_index + 1)) && (found[0].index == 0);
-    GramBracket *const placed = (GramBracket *)siegel_memory(malloc(found_count * sizeof(GramBracket)));
+    GramBracket *const placed = (GramBracket *)siegel_memory(
+        platform_cell_taken(found_count * sizeof(GramBracket), platform_place_g_program_owner, 0));
     memcpy(placed, found, found_count * sizeof(GramBracket));
     for (int bit = 0; bit < bits; bit += 1)
     {
@@ -1049,8 +1064,10 @@ static int main_report(const char *height_text, int bits)
     memset(&riemann, 0, sizeof(riemann));
     riemann.remainder = 1;
     // The indices run 0 to last_index, one bracket each, as the consecutive verdict checks.
-    int *const signs = (int *)siegel_memory(calloc((size_t)last_index + 1u, sizeof(int)));
-    GramBracket *const settled = (GramBracket *)siegel_memory(calloc((size_t)last_index + 1u, sizeof(GramBracket)));
+    int *const signs = (int *)siegel_memory(
+        platform_cell_cleared((size_t)last_index + 1u, sizeof(int), platform_place_g_program_owner, 0));
+    GramBracket *const settled = (GramBracket *)siegel_memory(
+        platform_cell_cleared((size_t)last_index + 1u, sizeof(GramBracket), platform_place_g_program_owner, 0));
     const size_t cuts = riemann_settle(&riemann, placed, found_count, &walk, signs, settled);
     const int64_t spent = now_ms() - begun;
     fputs("  the sign of (-1)^n Z(g_n) by Riemann-Siegel:\n", out);
@@ -1149,9 +1166,10 @@ static int main_report(const char *height_text, int bits)
     Riemann null;
     memset(&null, 0, sizeof(null));
     null.remainder = 0;
-    int *const null_signs = (int *)siegel_memory(calloc((size_t)last_index + 1u, sizeof(int)));
-    GramBracket *const null_settled =
-        (GramBracket *)siegel_memory(calloc((size_t)last_index + 1u, sizeof(GramBracket)));
+    int *const null_signs = (int *)siegel_memory(
+        platform_cell_cleared((size_t)last_index + 1u, sizeof(int), platform_place_g_program_owner, 0));
+    GramBracket *const null_settled = (GramBracket *)siegel_memory(
+        platform_cell_cleared((size_t)last_index + 1u, sizeof(GramBracket), platform_place_g_program_owner, 0));
     (void)riemann_settle(&null, placed, found_count, &walk, null_signs, null_settled);
     fputs("  drawn null, R left out: the sign of (-1)^n Z(g_n) differs at n = ", out);
     size_t flipped = 0u;
@@ -1689,7 +1707,8 @@ static void omitted_side(int64_t nu, int64_t cut, int64_t terms, int64_t m, int3
     z_ten_to(digits + ZETA_GUARD, &scale);
     OriorExactInteger unit;
     z_set(&unit, steps);
-    OriorExactInteger *const f = (OriorExactInteger *)siegel_memory(malloc(((size_t)steps + 1u) * sizeof(*f)));
+    OriorExactInteger *const f = (OriorExactInteger *)siegel_memory(
+        platform_cell_taken(((size_t)steps + 1u) * sizeof(*f), platform_place_g_program_owner, 0));
     orior_exact_zero(result);
     for (int64_t j = 0; j <= steps; j += 1)
     {
@@ -1717,7 +1736,7 @@ static void omitted_side(int64_t nu, int64_t cut, int64_t terms, int64_t m, int3
         corner(&f[j], &f[j + 1], &fixed);
         z_sub(result, &fixed, result);
     }
-    free(f);
+    platform_cell_released(f, platform_place_g_program_owner);
 }
 
 /** @brief The omitted curves over one cell as one power series in z = 1 - 2p, and its antiderivative. */
@@ -1750,8 +1769,10 @@ static void omitted_begin(Omitted *omitted, int64_t nu, int64_t cut, int64_t ter
     omitted->nu = nu;
     z_ten_to(work, &omitted->scale);
     const OriorExactInteger *const scale = &omitted->scale;
-    OriorExactInteger *const series = (OriorExactInteger *)siegel_memory(calloc((size_t)count, sizeof(*series)));
-    OriorExactInteger *const weight = (OriorExactInteger *)siegel_memory(calloc((size_t)count, sizeof(*weight)));
+    OriorExactInteger *const series = (OriorExactInteger *)siegel_memory(
+        platform_cell_cleared((size_t)count, sizeof(*series), platform_place_g_program_owner, 0));
+    OriorExactInteger *const weight = (OriorExactInteger *)siegel_memory(
+        platform_cell_cleared((size_t)count, sizeof(*weight), platform_place_g_program_owner, 0));
     for (int64_t k = cut + 1; k < (cut + 1 + terms); k += 1)
     {
         const ZetaRow *const g = rs_gamma(k, count, work);
@@ -1798,8 +1819,8 @@ static void omitted_begin(Omitted *omitted, int64_t nu, int64_t cut, int64_t ter
         z_floor_div(&series[n], &under, &lifted);
         row_push(&omitted->lifted, &lifted);
     }
-    free(series);
-    free(weight);
+    platform_cell_released(series, platform_place_g_program_owner);
+    platform_cell_released(weight, platform_place_g_program_owner);
 }
 
 /**
@@ -1896,20 +1917,24 @@ static void omitted_row(const Omitted *omitted, int64_t depth, int *row)
 static size_t omitted_zeros(const Omitted *omitted, int64_t bits, OriorExactInteger *found)
 {
     int64_t m = 6;
-    int *row = (int *)siegel_memory(malloc((((size_t)2 << m) + 1u) * sizeof(int)));
-    int *finer = (int *)siegel_memory(malloc((((size_t)4 << m) + 1u) * sizeof(int)));
+    int *row = (int *)siegel_memory(
+        platform_cell_taken((((size_t)2 << m) + 1u) * sizeof(int), platform_place_g_program_owner, 0));
+    int *finer = (int *)siegel_memory(
+        platform_cell_taken((((size_t)4 << m) + 1u) * sizeof(int), platform_place_g_program_owner, 0));
     omitted_row(omitted, m, row);
     omitted_row(omitted, m + 1, finer);
     while (sign_changes(row, ((size_t)2 << m) + 1u, NULL) != sign_changes(finer, ((size_t)4 << m) + 1u, NULL))
     {
         m += 1;
-        free(row);
+        platform_cell_released(row, platform_place_g_program_owner);
         row = finer;
-        finer = (int *)siegel_memory(malloc((((size_t)4 << m) + 1u) * sizeof(int)));
+        finer = (int *)siegel_memory(
+            platform_cell_taken((((size_t)4 << m) + 1u) * sizeof(int), platform_place_g_program_owner, 0));
         omitted_row(omitted, m + 1, finer);
     }
     const size_t length = ((size_t)4 << m) + 1u;
-    int64_t *const changes = (int64_t *)siegel_memory(malloc(length * sizeof(int64_t)));
+    int64_t *const changes =
+        (int64_t *)siegel_memory(platform_cell_taken(length * sizeof(int64_t), platform_place_g_program_owner, 0));
     const size_t count = sign_changes(finer, length, changes);
     if (count > 64u)
     {
@@ -1936,9 +1961,9 @@ static size_t omitted_zeros(const Omitted *omitted, int64_t bits, OriorExactInte
         }
         found[at] = low;
     }
-    free(changes);
-    free(row);
-    free(finer);
+    platform_cell_released(changes, platform_place_g_program_owner);
+    platform_cell_released(row, platform_place_g_program_owner);
+    platform_cell_released(finer, platform_place_g_program_owner);
     return count;
 }
 
@@ -2001,8 +2026,8 @@ static int omitted_main(int64_t first, int64_t last, int64_t cut, int64_t terms,
 {
     FILE *const out = stdout;
     const int64_t bits = 4 * (digits + ZETA_GUARD);
-    OriorExactInteger *const sides =
-        (OriorExactInteger *)siegel_memory(calloc((size_t)(last - first) + 2u, sizeof(OriorExactInteger)));
+    OriorExactInteger *const sides = (OriorExactInteger *)siegel_memory(platform_cell_cleared(
+        (size_t)(last - first) + 2u, sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
     for (int64_t nu = first; nu <= last; nu += 1)
     {
         const int64_t begun = now_ms();
@@ -2066,7 +2091,7 @@ static int omitted_main(int64_t first, int64_t last, int64_t cut, int64_t terms,
         fprintf(out, "  cut %lld  cells %lld-%lld  exponent of a from the %lld omitted curves %.3f\n", (long long)cut,
                 (long long)nu, (long long)(nu + 1), (long long)terms, exponent);
     }
-    free(sides);
+    platform_cell_released(sides, platform_place_g_program_owner);
     return 0;
 }
 
@@ -2257,8 +2282,8 @@ static void functional(int64_t nu, const DecimalPair *p, int64_t cut, int32_t pl
     OriorExactInteger drift;
     theta_floor(&t, n_sum, work, &drift);
     // The unit wave of each prime, indexed by the prime.
-    OriorExactInteger(*const waves)[2] =
-        (OriorExactInteger(*)[2])siegel_memory(calloc((size_t)nu + 1u, sizeof(OriorExactInteger[2])));
+    OriorExactInteger(*const waves)[2] = (OriorExactInteger(*)[2])siegel_memory(
+        platform_cell_cleared((size_t)nu + 1u, sizeof(OriorExactInteger[2]), platform_place_g_program_owner, 0));
     for (int64_t prime = 2; prime <= nu; prime += 1)
     {
         if (!is_prime(prime))
@@ -2335,7 +2360,7 @@ static void functional(int64_t nu, const DecimalPair *p, int64_t cut, int32_t pl
         z_mul_small(&part, 2, &part);
         z_add(&error, &part, &error);
     }
-    free(waves);
+    platform_cell_released(waves, platform_place_g_program_owner);
     OriorExactInteger unit;
     OriorExactInteger big_x;
     point_of(nu, p, &unit, &big_x);
@@ -2767,8 +2792,10 @@ static int sphere_main(int64_t first, int64_t last, int64_t cut, int64_t m, int3
         zeta_stop("cannot write the trace");
     }
     fputs("x\tradius_squared_less_h\tD\tE\tZ\tL\tenergy\tW_re\tW_im\n", trace);
-    Ball *const rows = (Ball *)siegel_memory(malloc(((size_t)steps + 1u) * sizeof(Ball)));
-    int *const flags = (int *)siegel_memory(malloc((((size_t)steps * 2u) + 2u) * sizeof(int)));
+    Ball *const rows = (Ball *)siegel_memory(
+        platform_cell_taken(((size_t)steps + 1u) * sizeof(Ball), platform_place_g_program_owner, 0));
+    int *const flags = (int *)siegel_memory(
+        platform_cell_taken((((size_t)steps * 2u) + 2u) * sizeof(int), platform_place_g_program_owner, 0));
     for (int64_t nu = first; nu <= last; nu += 1)
     {
         const int64_t begun = now_ms();
@@ -2857,8 +2884,8 @@ static int sphere_main(int64_t first, int64_t last, int64_t cut, int64_t m, int3
         fflush(out);
     }
     fclose(trace);
-    free(rows);
-    free(flags);
+    platform_cell_released(rows, platform_place_g_program_owner);
+    platform_cell_released(flags, platform_place_g_program_owner);
     fprintf(out, "  the trace: %s\n", path);
     return 0;
 }
@@ -2914,7 +2941,8 @@ typedef struct
 static void null_turns(const OriorExactInteger (*heads)[2], int64_t nu, int locked, uint32_t seed,
                        const OriorExactInteger *scale, OriorExactInteger (*turns)[2])
 {
-    int64_t *const seats = (int64_t *)siegel_memory(malloc(((size_t)nu + 1u) * sizeof(int64_t)));
+    int64_t *const seats = (int64_t *)siegel_memory(
+        platform_cell_taken(((size_t)nu + 1u) * sizeof(int64_t), platform_place_g_program_owner, 0));
     size_t count = 0u;
     for (int64_t n = 2; n <= nu; n += 1)
     {
@@ -2924,7 +2952,8 @@ static void null_turns(const OriorExactInteger (*heads)[2], int64_t nu, int lock
             count += 1u;
         }
     }
-    unsigned char *const order = (unsigned char *)siegel_memory(malloc(count + 1u));
+    unsigned char *const order =
+        (unsigned char *)siegel_memory(platform_cell_taken(count + 1u, platform_place_g_program_owner, 0));
     for (;;)
     {
         for (size_t at = 0u; at < count; at += 1u)
@@ -2944,8 +2973,8 @@ static void null_turns(const OriorExactInteger (*heads)[2], int64_t nu, int lock
         }
         seed += 1u << 16;
     }
-    OriorExactInteger(*const sent)[2] =
-        (OriorExactInteger(*)[2])siegel_memory(calloc((size_t)nu + 1u, sizeof(OriorExactInteger[2])));
+    OriorExactInteger(*const sent)[2] = (OriorExactInteger(*)[2])siegel_memory(
+        platform_cell_cleared((size_t)nu + 1u, sizeof(OriorExactInteger[2]), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < count; at += 1u)
     {
         const int64_t n = seats[at];
@@ -2981,9 +3010,9 @@ static void null_turns(const OriorExactInteger (*heads)[2], int64_t nu, int lock
         turns[n - 1][0] = turn[0];
         turns[n - 1][1] = turn[1];
     }
-    free(sent);
-    free(order);
-    free(seats);
+    platform_cell_released(sent, platform_place_g_program_owner);
+    platform_cell_released(order, platform_place_g_program_owner);
+    platform_cell_released(seats, platform_place_g_program_owner);
 }
 
 /**
@@ -3249,8 +3278,8 @@ static void motion_point(MotionCell *cell, const OriorExactInteger *j, int64_t d
     ZetaPoint at_point;
     pair_small(5, 1, &at_point.sigma);
     at_point.t = t;
-    OriorExactInteger(*const waves)[2] =
-        (OriorExactInteger(*)[2])siegel_memory(malloc((size_t)nu * sizeof(OriorExactInteger[2])));
+    OriorExactInteger(*const waves)[2] = (OriorExactInteger(*)[2])siegel_memory(
+        platform_cell_taken((size_t)nu * sizeof(OriorExactInteger[2]), platform_place_g_program_owner, 0));
     for (int64_t n = 1; n <= nu; n += 1)
     {
         OriorExactInteger wave[4];
@@ -3268,7 +3297,8 @@ static void motion_point(MotionCell *cell, const OriorExactInteger *j, int64_t d
     }
     OriorExactInteger turn;
     theta_prime_at(&t, work, &turn);
-    OriorExactInteger *const rates = (OriorExactInteger *)siegel_memory(malloc((size_t)nu * sizeof(*rates)));
+    OriorExactInteger *const rates = (OriorExactInteger *)siegel_memory(
+        platform_cell_taken((size_t)nu * sizeof(*rates), platform_place_g_program_owner, 0));
     orior_exact_zero(&point->rate_sum);
     for (int64_t n = 1; n <= nu; n += 1)
     {
@@ -3282,8 +3312,10 @@ static void motion_point(MotionCell *cell, const OriorExactInteger *j, int64_t d
     }
     OriorExactInteger r;
     rs_remainder_at(nu, &p, 1, cell->digits, &r);
-    point->m = (OriorExactInteger *)siegel_memory(malloc(cell->ball_count * sizeof(OriorExactInteger)));
-    point->d = (OriorExactInteger *)siegel_memory(malloc(cell->ball_count * sizeof(OriorExactInteger)));
+    point->m = (OriorExactInteger *)siegel_memory(
+        platform_cell_taken(cell->ball_count * sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
+    point->d = (OriorExactInteger *)siegel_memory(
+        platform_cell_taken(cell->ball_count * sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
     for (size_t ball = 0u; ball < cell->ball_count; ball += 1u)
     {
         OriorExactInteger re_sum;
@@ -3331,8 +3363,8 @@ static void motion_point(MotionCell *cell, const OriorExactInteger *j, int64_t d
     z_mul_small(&point->e, length + 2, &point->e_d);
     z_mul_small(&drift, 2 * nu, &part);
     z_add(&point->e_d, &part, &point->e_d);
-    free(rates);
-    free(waves);
+    platform_cell_released(rates, platform_place_g_program_owner);
+    platform_cell_released(waves, platform_place_g_program_owner);
 }
 
 /**
@@ -3342,8 +3374,8 @@ static void motion_point(MotionCell *cell, const OriorExactInteger *j, int64_t d
  */
 static void motion_point_free(MotionPoint *point)
 {
-    free(point->m);
-    free(point->d);
+    platform_cell_released(point->m, platform_place_g_program_owner);
+    platform_cell_released(point->d, platform_place_g_program_owner);
 }
 
 /** @brief The verdicts of settle: none of the budgets decides, no zero, or one zero. */
@@ -3431,7 +3463,8 @@ static int motion_settle(const MotionPoint *left, const MotionPoint *right, size
 static void motion_walk(MotionCell *cell, const OriorExactInteger *j, int64_t depth, const MotionPoint *left,
                         const MotionPoint *right, const size_t *pending, size_t count)
 {
-    size_t *const unsure = (size_t *)siegel_memory(malloc((count + 1u) * sizeof(size_t)));
+    size_t *const unsure =
+        (size_t *)siegel_memory(platform_cell_taken((count + 1u) * sizeof(size_t), platform_place_g_program_owner, 0));
     size_t unsure_count = 0u;
     OriorExactInteger zero;
     orior_exact_zero(&zero);
@@ -3473,7 +3506,7 @@ static void motion_walk(MotionCell *cell, const OriorExactInteger *j, int64_t de
             cell->open[unsure[at]] += 1;
         }
     }
-    free(unsure);
+    platform_cell_released(unsure, platform_place_g_program_owner);
 }
 
 /** @brief The certified sign of M at each Gram index, per ball: -1 absent, 0 negative, 1 positive. */
@@ -3501,7 +3534,8 @@ static void gram_signs_set(GramSigns *signs, int64_t index, int value)
         {
             grown *= 2u;
         }
-        signs->sign = (int *)siegel_memory(realloc(signs->sign, grown * sizeof(int)));
+        signs->sign = (int *)siegel_memory(platform_cell_grown(signs->sign, signs->capacity * sizeof(int),
+                                                               grown * sizeof(int), platform_place_g_program_owner, 0));
         for (size_t fill = signs->capacity; fill < grown; fill += 1u)
         {
             signs->sign[fill] = -1;
@@ -3520,7 +3554,8 @@ static void gram_signs_set(GramSigns *signs, int64_t index, int value)
  */
 static int64_t middle_of(const int64_t *values, size_t count)
 {
-    int64_t *const sorted = (int64_t *)siegel_memory(malloc((count + 1u) * sizeof(int64_t)));
+    int64_t *const sorted = (int64_t *)siegel_memory(
+        platform_cell_taken((count + 1u) * sizeof(int64_t), platform_place_g_program_owner, 0));
     memcpy(sorted, values, count * sizeof(int64_t));
     for (size_t at = 1u; at < count; at += 1u)
     {
@@ -3534,7 +3569,7 @@ static int64_t middle_of(const int64_t *values, size_t count)
         sorted[place] = moving;
     }
     const int64_t result = sorted[count / 2u];
-    free(sorted);
+    platform_cell_released(sorted, platform_place_g_program_owner);
     return result;
 }
 
@@ -3582,8 +3617,10 @@ static int motion_main(int64_t first, int64_t last, int64_t bits, int64_t draws,
     const int32_t work = digits + ZETA_GUARD;
     first = (first > 6) ? first : 6;
     const size_t ball_count = 1u + (2u * (size_t)draws);
-    int64_t *const totals = (int64_t *)siegel_memory(calloc(ball_count, sizeof(int64_t)));
-    GramSigns *const gram = (GramSigns *)siegel_memory(calloc(ball_count, sizeof(GramSigns)));
+    int64_t *const totals =
+        (int64_t *)siegel_memory(platform_cell_cleared(ball_count, sizeof(int64_t), platform_place_g_program_owner, 0));
+    GramSigns *const gram = (GramSigns *)siegel_memory(
+        platform_cell_cleared(ball_count, sizeof(GramSigns), platform_place_g_program_owner, 0));
     OriorExactInteger big_pi;
     zeta_pi(work, &big_pi);
     for (int64_t nu = first; nu <= last; nu += 1)
@@ -3597,7 +3634,8 @@ static int motion_main(int64_t first, int64_t last, int64_t bits, int64_t draws,
         cell.bits = bits;
         cell.deepest = 12;
         z_ten_to(work, &cell.scale);
-        OriorExactInteger *const logs = (OriorExactInteger *)siegel_memory(malloc((size_t)nu * sizeof(*logs)));
+        OriorExactInteger *const logs = (OriorExactInteger *)siegel_memory(
+            platform_cell_taken((size_t)nu * sizeof(*logs), platform_place_g_program_owner, 0));
         for (int64_t n = 1; n <= nu; n += 1)
         {
             zeta_ln(n, work, &logs[n - 1]);
@@ -3617,8 +3655,8 @@ static int motion_main(int64_t first, int64_t last, int64_t bits, int64_t draws,
         ZetaPoint at_point;
         pair_small(5, 1, &at_point.sigma);
         at_point.t = t;
-        OriorExactInteger(*const heads)[2] =
-            (OriorExactInteger(*)[2])siegel_memory(malloc((size_t)nu * sizeof(OriorExactInteger[2])));
+        OriorExactInteger(*const heads)[2] = (OriorExactInteger(*)[2])siegel_memory(
+            platform_cell_taken((size_t)nu * sizeof(OriorExactInteger[2]), platform_place_g_program_owner, 0));
         for (int64_t n = 1; n <= nu; n += 1)
         {
             OriorExactInteger wave[4];
@@ -3643,11 +3681,12 @@ static int motion_main(int64_t first, int64_t last, int64_t bits, int64_t draws,
             times_over(&re, &root, &cell.scale, &heads[n - 1][0]);
             times_over(&im, &root, &cell.scale, &heads[n - 1][1]);
         }
-        OriorExactInteger(**const balls)[2] =
-            (OriorExactInteger(**)[2])siegel_memory(malloc(ball_count * sizeof(OriorExactInteger(*)[2])));
+        OriorExactInteger(**const balls)[2] = (OriorExactInteger(**)[2])siegel_memory(
+            platform_cell_taken(ball_count * sizeof(OriorExactInteger(*)[2]), platform_place_g_program_owner, 0));
         for (size_t ball = 0u; ball < ball_count; ball += 1u)
         {
-            balls[ball] = (OriorExactInteger(*)[2])siegel_memory(malloc((size_t)nu * sizeof(OriorExactInteger[2])));
+            balls[ball] = (OriorExactInteger(*)[2])siegel_memory(
+                platform_cell_taken((size_t)nu * sizeof(OriorExactInteger[2]), platform_place_g_program_owner, 0));
         }
         for (int64_t n = 0; n < nu; n += 1)
         {
@@ -3665,10 +3704,13 @@ static int motion_main(int64_t first, int64_t last, int64_t bits, int64_t draws,
         }
         cell.balls = balls;
         budgets(nu, work, cell.bounds, &cell.rho);
-        cell.zeros = (int64_t *)siegel_memory(calloc(ball_count, sizeof(int64_t)));
-        cell.open = (int64_t *)siegel_memory(calloc(ball_count, sizeof(int64_t)));
+        cell.zeros = (int64_t *)siegel_memory(
+            platform_cell_cleared(ball_count, sizeof(int64_t), platform_place_g_program_owner, 0));
+        cell.open = (int64_t *)siegel_memory(
+            platform_cell_cleared(ball_count, sizeof(int64_t), platform_place_g_program_owner, 0));
         const size_t grid_count = ((size_t)1 << bits) + 1u;
-        MotionPoint *const grid = (MotionPoint *)siegel_memory(malloc(grid_count * sizeof(MotionPoint)));
+        MotionPoint *const grid = (MotionPoint *)siegel_memory(
+            platform_cell_taken(grid_count * sizeof(MotionPoint), platform_place_g_program_owner, 0));
         for (size_t j = 0u; j < grid_count; j += 1u)
         {
             OriorExactInteger numerator;
@@ -3676,7 +3718,8 @@ static int motion_main(int64_t first, int64_t last, int64_t bits, int64_t draws,
             z_set(&numerator, (int64_t)j);
             motion_point(&cell, &numerator, bits, &grid[j]);
         }
-        size_t *const all = (size_t *)siegel_memory(malloc(ball_count * sizeof(size_t)));
+        size_t *const all = (size_t *)siegel_memory(
+            platform_cell_taken(ball_count * sizeof(size_t), platform_place_g_program_owner, 0));
         for (size_t ball = 0u; ball < ball_count; ball += 1u)
         {
             all[ball] = ball;
@@ -3688,7 +3731,8 @@ static int motion_main(int64_t first, int64_t last, int64_t bits, int64_t draws,
             z_set(&numerator, (int64_t)j);
             motion_walk(&cell, &numerator, bits, &grid[j], &grid[j + 1u], all, ball_count);
         }
-        int64_t *const index = (int64_t *)siegel_memory(malloc(grid_count * sizeof(int64_t)));
+        int64_t *const index = (int64_t *)siegel_memory(
+            platform_cell_taken(grid_count * sizeof(int64_t), platform_place_g_program_owner, 0));
         for (size_t j = 0u; j < grid_count; j += 1u)
         {
             OriorExactInteger ratio;
@@ -3760,7 +3804,8 @@ static int motion_main(int64_t first, int64_t last, int64_t bits, int64_t draws,
             z_add(&expected, &value, &expected);
         }
         floor_bits(&expected, bits + 1, &expected);
-        int64_t *const excess = (int64_t *)siegel_memory(malloc(ball_count * sizeof(int64_t)));
+        int64_t *const excess = (int64_t *)siegel_memory(
+            platform_cell_taken(ball_count * sizeof(int64_t), platform_place_g_program_owner, 0));
         int64_t open_nulls = 0;
         for (size_t ball = 0u; ball < ball_count; ball += 1u)
         {
@@ -3794,26 +3839,28 @@ static int motion_main(int64_t first, int64_t last, int64_t bits, int64_t draws,
             (long long)largest_of(excess + 1 + draw_count, draw_count), (long long)cell.open[0], (long long)open_nulls,
             texts[0], texts[1], texts[2], texts[3], (unsigned long long)cell.asked, (long long)(now_ms() - begun));
         fflush(out);
-        free(excess);
-        free(index);
+        platform_cell_released(excess, platform_place_g_program_owner);
+        platform_cell_released(index, platform_place_g_program_owner);
         for (size_t j = 0u; j < grid_count; j += 1u)
         {
             motion_point_free(&grid[j]);
         }
-        free(grid);
-        free(all);
+        platform_cell_released(grid, platform_place_g_program_owner);
+        platform_cell_released(all, platform_place_g_program_owner);
         for (size_t ball = 0u; ball < ball_count; ball += 1u)
         {
-            free(balls[ball]);
+            platform_cell_released(balls[ball], platform_place_g_program_owner);
         }
-        free(balls);
-        free(heads);
-        free(logs);
-        free(cell.zeros);
-        free(cell.open);
+        platform_cell_released(balls, platform_place_g_program_owner);
+        platform_cell_released(heads, platform_place_g_program_owner);
+        platform_cell_released(logs, platform_place_g_program_owner);
+        platform_cell_released(cell.zeros, platform_place_g_program_owner);
+        platform_cell_released(cell.open, platform_place_g_program_owner);
     }
-    int64_t *const agree = (int64_t *)siegel_memory(calloc(ball_count, sizeof(int64_t)));
-    int64_t *const pairs = (int64_t *)siegel_memory(calloc(ball_count, sizeof(int64_t)));
+    int64_t *const agree =
+        (int64_t *)siegel_memory(platform_cell_cleared(ball_count, sizeof(int64_t), platform_place_g_program_owner, 0));
+    int64_t *const pairs =
+        (int64_t *)siegel_memory(platform_cell_cleared(ball_count, sizeof(int64_t), platform_place_g_program_owner, 0));
     for (size_t ball = 0u; ball < ball_count; ball += 1u)
     {
         const GramSigns *const signs = &gram[ball];
@@ -3841,12 +3888,12 @@ static int motion_main(int64_t first, int64_t last, int64_t bits, int64_t draws,
             (long long)middle_of(pairs + 1 + draw_count, draw_count));
     for (size_t ball = 0u; ball < ball_count; ball += 1u)
     {
-        free(gram[ball].sign);
+        platform_cell_released(gram[ball].sign, platform_place_g_program_owner);
     }
-    free(gram);
-    free(agree);
-    free(pairs);
-    free(totals);
+    platform_cell_released(gram, platform_place_g_program_owner);
+    platform_cell_released(agree, platform_place_g_program_owner);
+    platform_cell_released(pairs, platform_place_g_program_owner);
+    platform_cell_released(totals, platform_place_g_program_owner);
     return 0;
 }
 
@@ -3992,7 +4039,8 @@ static int tail_coefficients(DeviceTail *tail, const DecimalPair *ts, size_t cou
     }
     OriorExactInteger scale;
     z_ten_to(digits, &scale);
-    OriorExactInteger *const big_ts = (OriorExactInteger *)siegel_memory(malloc((count + 1u) * sizeof(*big_ts)));
+    OriorExactInteger *const big_ts = (OriorExactInteger *)siegel_memory(
+        platform_cell_taken((count + 1u) * sizeof(*big_ts), platform_place_g_program_owner, 0));
     OriorExactInteger widest_t;
     orior_exact_zero(&widest_t);
     for (size_t at = 0u; at < count; at += 1u)
@@ -4011,8 +4059,8 @@ static int tail_coefficients(DeviceTail *tail, const DecimalPair *ts, size_t cou
     z_add(&top, &one, &top);
     z_two_to(z_bit_length(&top), &top);
     const int64_t top_small = z_small(&top);
-    OriorExactInteger *const rho =
-        (OriorExactInteger *)siegel_memory(calloc((size_t)n_sum + 1u, sizeof(OriorExactInteger)));
+    OriorExactInteger *const rho = (OriorExactInteger *)siegel_memory(
+        platform_cell_cleared((size_t)n_sum + 1u, sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
     OriorExactInteger n_square;
     z_set(&n_square, n_sum * n_sum);
     for (int64_t k = 2; k <= n_sum; k += 1)
@@ -4063,8 +4111,10 @@ static int tail_coefficients(DeviceTail *tail, const DecimalPair *ts, size_t cou
     }
     const int64_t width = signed_bits(&widest) + 2;
     const size_t field_count = 3u + (size_t)(n_sum - 1);
-    int64_t *const bits = (int64_t *)siegel_memory(malloc(field_count * sizeof(int64_t)));
-    int64_t *const offsets = (int64_t *)siegel_memory(malloc(field_count * sizeof(int64_t)));
+    int64_t *const bits =
+        (int64_t *)siegel_memory(platform_cell_taken(field_count * sizeof(int64_t), platform_place_g_program_owner, 0));
+    int64_t *const offsets =
+        (int64_t *)siegel_memory(platform_cell_taken(field_count * sizeof(int64_t), platform_place_g_program_owner, 0));
     OriorExactInteger value;
     z_mul(&top, &scale, &value);
     bits[0] = signed_bits(&value);
@@ -4200,10 +4250,10 @@ static int tail_coefficients(DeviceTail *tail, const DecimalPair *ts, size_t cou
     }
     fclose(output);
     tail->swept += count;
-    free(big_ts);
-    free(rho);
-    free(bits);
-    free(offsets);
+    platform_cell_released(big_ts, platform_place_g_program_owner);
+    platform_cell_released(rho, platform_place_g_program_owner);
+    platform_cell_released(bits, platform_place_g_program_owner);
+    platform_cell_released(offsets, platform_place_g_program_owner);
     return same && (status == 0);
 }
 
@@ -4258,7 +4308,8 @@ static KeptPair *kept_at(KeptTable *table, const CellKey *key, int create)
     if (create && ((table->count * 2u) >= table->bucket_count))
     {
         const size_t grown = (table->bucket_count == 0u) ? 1024u : (table->bucket_count * 2u);
-        KeptPair *const entries = (KeptPair *)siegel_memory(calloc(grown, sizeof(KeptPair)));
+        KeptPair *const entries = (KeptPair *)siegel_memory(
+            platform_cell_cleared(grown, sizeof(KeptPair), platform_place_g_program_owner, 0));
         for (size_t at = 0u; at < table->bucket_count; at += 1u)
         {
             if (table->entries[at].key == NULL)
@@ -4272,7 +4323,7 @@ static KeptPair *kept_at(KeptTable *table, const CellKey *key, int create)
             }
             entries[place] = table->entries[at];
         }
-        free(table->entries);
+        platform_cell_released(table->entries, platform_place_g_program_owner);
         table->entries = entries;
         table->bucket_count = grown;
     }
@@ -4295,7 +4346,8 @@ static KeptPair *kept_at(KeptTable *table, const CellKey *key, int create)
     {
         return NULL;
     }
-    table->entries[place].key = (char *)siegel_memory(malloc(strlen(text) + 1u));
+    table->entries[place].key =
+        (char *)siegel_memory(platform_cell_taken(strlen(text) + 1u, platform_place_g_program_owner, 0));
     memcpy(table->entries[place].key, text, strlen(text) + 1u);
     table->count += 1u;
     return &table->entries[place];
@@ -4319,9 +4371,10 @@ static int em_on_device(DeviceTail *tail, const CellKey *keys, size_t count, Kep
     const int32_t work = digits + ZETA_GUARD;
     OriorExactInteger scale;
     z_ten_to(work, &scale);
-    DecimalPair *const ts = (DecimalPair *)siegel_memory(malloc((count + 1u) * sizeof(DecimalPair)));
-    OriorExactInteger(*const turns)[2] =
-        (OriorExactInteger(*)[2])siegel_memory(malloc((count + 1u) * sizeof(OriorExactInteger[2])));
+    DecimalPair *const ts = (DecimalPair *)siegel_memory(
+        platform_cell_taken((count + 1u) * sizeof(DecimalPair), platform_place_g_program_owner, 0));
+    OriorExactInteger(*const turns)[2] = (OriorExactInteger(*)[2])siegel_memory(
+        platform_cell_taken((count + 1u) * sizeof(OriorExactInteger[2]), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < count; at += 1u)
     {
         rs_time_at(keys[at].nu, &keys[at].p, work, &ts[at]);
@@ -4329,7 +4382,8 @@ static int em_on_device(DeviceTail *tail, const CellKey *keys, size_t count, Kep
         (void)rs_theta_at(&ts[at], work, &theta);
         zeta_cos_sin(&theta, work, &turns[at][0], &turns[at][1]);
     }
-    size_t *open = (size_t *)siegel_memory(malloc((count + 1u) * sizeof(size_t)));
+    size_t *open =
+        (size_t *)siegel_memory(platform_cell_taken((count + 1u) * sizeof(size_t), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < count; at += 1u)
     {
         open[at] = at;
@@ -4337,10 +4391,13 @@ static int em_on_device(DeviceTail *tail, const CellKey *keys, size_t count, Kep
     size_t open_count = count;
     int64_t n_sum = 1;
     int same = 1;
-    DecimalPair *const asked = (DecimalPair *)siegel_memory(malloc((count + 1u) * sizeof(DecimalPair)));
+    DecimalPair *const asked = (DecimalPair *)siegel_memory(
+        platform_cell_taken((count + 1u) * sizeof(DecimalPair), platform_place_g_program_owner, 0));
     OriorExactInteger(*const routes[2])[2] = {
-        (OriorExactInteger(*)[2])siegel_memory(malloc((count + 1u) * sizeof(OriorExactInteger[2]))),
-        (OriorExactInteger(*)[2])siegel_memory(malloc((count + 1u) * sizeof(OriorExactInteger[2])))};
+        (OriorExactInteger(*)[2])siegel_memory(
+            platform_cell_taken((count + 1u) * sizeof(OriorExactInteger[2]), platform_place_g_program_owner, 0)),
+        (OriorExactInteger(*)[2])siegel_memory(
+            platform_cell_taken((count + 1u) * sizeof(OriorExactInteger[2]), platform_place_g_program_owner, 0))};
     while (open_count > 0u)
     {
         for (size_t at = 0u; at < open_count; at += 1u)
@@ -4413,12 +4470,12 @@ static int em_on_device(DeviceTail *tail, const CellKey *keys, size_t count, Kep
         open_count = next;
         n_sum *= 2;
     }
-    free(routes[0]);
-    free(routes[1]);
-    free(asked);
-    free(open);
-    free(turns);
-    free(ts);
+    platform_cell_released(routes[0], platform_place_g_program_owner);
+    platform_cell_released(routes[1], platform_place_g_program_owner);
+    platform_cell_released(asked, platform_place_g_program_owner);
+    platform_cell_released(open, platform_place_g_program_owner);
+    platform_cell_released(turns, platform_place_g_program_owner);
+    platform_cell_released(ts, platform_place_g_program_owner);
     return same;
 }
 
@@ -4618,7 +4675,8 @@ static const KeptPair *triangle_rs(Triangle *triangle, const CellKey *key)
  */
 static void triangle_fill(Triangle *triangle, const CellKey *keys, size_t count)
 {
-    CellKey *const fresh = (CellKey *)siegel_memory(malloc((count + 1u) * sizeof(CellKey)));
+    CellKey *const fresh = (CellKey *)siegel_memory(
+        platform_cell_taken((count + 1u) * sizeof(CellKey), platform_place_g_program_owner, 0));
     size_t fresh_count = 0u;
     KeptTable seen;
     memset(&seen, 0, sizeof(seen));
@@ -4637,9 +4695,9 @@ static void triangle_fill(Triangle *triangle, const CellKey *keys, size_t count)
     }
     for (size_t at = 0u; at < seen.bucket_count; at += 1u)
     {
-        free(seen.entries[at].key);
+        platform_cell_released(seen.entries[at].key, platform_place_g_program_owner);
     }
-    free(seen.entries);
+    platform_cell_released(seen.entries, platform_place_g_program_owner);
     if (fresh_count > 0u)
     {
         triangle->same = em_on_device(triangle->tail, fresh, fresh_count, triangle->em) && triangle->same;
@@ -4648,7 +4706,7 @@ static void triangle_fill(Triangle *triangle, const CellKey *keys, size_t count)
     {
         (void)triangle_rs(triangle, &keys[at]);
     }
-    free(fresh);
+    platform_cell_released(fresh, platform_place_g_program_owner);
 }
 
 /**
@@ -4730,24 +4788,30 @@ static void triangle_crossings(Triangle *triangle, int64_t nu, int32_t digits)
         return;
     }
     int64_t m = 8;
-    int *row = (int *)siegel_memory(malloc((((size_t)1 << m) + 1u) * sizeof(int)));
-    int *finer = (int *)siegel_memory(malloc((((size_t)2 << m) + 1u) * sizeof(int)));
+    int *row = (int *)siegel_memory(
+        platform_cell_taken((((size_t)1 << m) + 1u) * sizeof(int), platform_place_g_program_owner, 0));
+    int *finer = (int *)siegel_memory(
+        platform_cell_taken((((size_t)2 << m) + 1u) * sizeof(int), platform_place_g_program_owner, 0));
     triangle_row(triangle, nu, m, digits, row);
     triangle_row(triangle, nu, m + 1, digits, finer);
     while (sign_changes(row, ((size_t)1 << m) + 1u, NULL) != sign_changes(finer, ((size_t)2 << m) + 1u, NULL))
     {
         m += 1;
-        free(row);
+        platform_cell_released(row, platform_place_g_program_owner);
         row = finer;
-        finer = (int *)siegel_memory(malloc((((size_t)2 << m) + 1u) * sizeof(int)));
+        finer = (int *)siegel_memory(
+            platform_cell_taken((((size_t)2 << m) + 1u) * sizeof(int), platform_place_g_program_owner, 0));
         triangle_row(triangle, nu, m + 1, digits, finer);
     }
     const size_t length = ((size_t)2 << m) + 1u;
-    int64_t *const changes = (int64_t *)siegel_memory(malloc(length * sizeof(int64_t)));
+    int64_t *const changes =
+        (int64_t *)siegel_memory(platform_cell_taken(length * sizeof(int64_t), platform_place_g_program_owner, 0));
     const size_t count = sign_changes(finer, length, changes);
-    free(triangle->crossings);
-    triangle->crossings = (Crossing *)siegel_memory(calloc(count + 1u, sizeof(Crossing)));
-    CellKey *const keys = (CellKey *)siegel_memory(malloc((count + 1u) * sizeof(CellKey)));
+    platform_cell_released(triangle->crossings, platform_place_g_program_owner);
+    triangle->crossings = (Crossing *)siegel_memory(
+        platform_cell_cleared(count + 1u, sizeof(Crossing), platform_place_g_program_owner, 0));
+    CellKey *const keys = (CellKey *)siegel_memory(
+        platform_cell_taken((count + 1u) * sizeof(CellKey), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < count; at += 1u)
     {
         OriorExactInteger low;
@@ -4794,10 +4858,10 @@ static void triangle_crossings(Triangle *triangle, int64_t nu, int32_t digits)
     triangle->crossing_count = count;
     triangle->crossed_nu = nu;
     triangle->crossed_digits = digits;
-    free(keys);
-    free(changes);
-    free(row);
-    free(finer);
+    platform_cell_released(keys, platform_place_g_program_owner);
+    platform_cell_released(changes, platform_place_g_program_owner);
+    platform_cell_released(row, platform_place_g_program_owner);
+    platform_cell_released(finer, platform_place_g_program_owner);
 }
 
 /**
@@ -4822,7 +4886,8 @@ static void triangle_sides(Triangle *triangle, int64_t nu, int32_t digits, int64
     z_ten_to(digits, &scale);
     triangle_crossings(triangle, nu, digits);
     const int64_t steps = (int64_t)1 << m;
-    CellKey *const keys = (CellKey *)siegel_memory(malloc(((size_t)steps + 1u) * sizeof(CellKey)));
+    CellKey *const keys = (CellKey *)siegel_memory(
+        platform_cell_taken(((size_t)steps + 1u) * sizeof(CellKey), platform_place_g_program_owner, 0));
     for (int64_t j = 0; j <= steps; j += 1)
     {
         OriorExactInteger numerator;
@@ -4836,8 +4901,10 @@ static void triangle_sides(Triangle *triangle, int64_t nu, int32_t digits, int64
     orior_exact_zero(&a);
     orior_exact_zero(&b);
     orior_exact_zero(&delta);
-    OriorExactInteger *const ds = (OriorExactInteger *)siegel_memory(malloc(((size_t)steps + 1u) * sizeof(*ds)));
-    OriorExactInteger *const es = (OriorExactInteger *)siegel_memory(malloc(((size_t)steps + 1u) * sizeof(*es)));
+    OriorExactInteger *const ds = (OriorExactInteger *)siegel_memory(
+        platform_cell_taken(((size_t)steps + 1u) * sizeof(*ds), platform_place_g_program_owner, 0));
+    OriorExactInteger *const es = (OriorExactInteger *)siegel_memory(
+        platform_cell_taken(((size_t)steps + 1u) * sizeof(*es), platform_place_g_program_owner, 0));
     OriorExactInteger spike_unit;
     z_two_to(SPIKE_BITS, &spike_unit);
     for (int64_t j = 0; j <= steps; j += 1)
@@ -4921,9 +4988,9 @@ static void triangle_sides(Triangle *triangle, int64_t nu, int32_t digits, int64
     z_floor_div(&b, &under, &sides[1]);
     z_floor_div(&delta, &under, &sides[2]);
     z_add(&sides[2], &exact, &sides[2]);
-    free(ds);
-    free(es);
-    free(keys);
+    platform_cell_released(ds, platform_place_g_program_owner);
+    platform_cell_released(es, platform_place_g_program_owner);
+    platform_cell_released(keys, platform_place_g_program_owner);
 }
 
 /**

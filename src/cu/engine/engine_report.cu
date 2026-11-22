@@ -8,7 +8,7 @@
 static int entry_report_write(VerbaLinea *line, VerbaLinea *out)
 {
     const int written = (mmgr_line_ok(line) && (mmgr_line_put_n(out, line->out, mmgr_line_finish(line)) == line->at));
-    free(line->out);
+    platform_cell_released(line->out, platform_place_g_program_owner);
     return written;
 }
 
@@ -21,7 +21,7 @@ extern "C" int engine_ingest_print(const EngineIngestRequest *request, VerbaLine
     }
     VerbaLinea line;
     line.capacity = entry_report_capacity(request->samples, report->reached, request->source, request->set);
-    line.out = (char *)malloc((size_t)line.capacity);
+    line.out = (char *)platform_cell_taken((size_t)line.capacity, platform_place_g_program_owner, 0);
     line.at = 0ULL;
     if (line.out == NULL)
     {
@@ -92,7 +92,7 @@ extern "C" int engine_prove_print(const EngineSetRequest *request, VerbaLinea *o
     }
     VerbaLinea line;
     line.capacity = entry_report_capacity(request->samples, report->reached, "", request->set);
-    line.out = (char *)malloc((size_t)line.capacity);
+    line.out = (char *)platform_cell_taken((size_t)line.capacity, platform_place_g_program_owner, 0);
     line.at = 0ULL;
     if (line.out == NULL)
     {
@@ -148,7 +148,8 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
     mmgr_bytes_set(report, 0, sizeof(*report));
     report->samples = records;
     const unsigned long long began = engine_clock_microseconds();
-    EngineSignum *const sample_roots = (EngineSignum *)calloc((size_t)request->count + 1u, sizeof(EngineSignum));
+    EngineSignum *const sample_roots = (EngineSignum *)platform_cell_cleared(
+        (size_t)request->count + 1u, sizeof(EngineSignum), platform_place_g_program_owner, 0);
     int ok = ENGINE_CHECK(sample_roots != NULL, &sample_roots, error, ENGINE_ERROR_RESOURCE);
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
     {
@@ -248,7 +249,7 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
             }
         }
         ok = ok && ENGINE_CHECK(pixels_differ == 0ULL, &pixels_differ, error, ENGINE_ERROR_LOGIC);
-        free(host_lanes);
+        platform_cell_released(host_lanes, platform_place_g_program_owner);
         record->floors = floors;
         record->crystal_bytes = krep_crystal_bytes(&written, &section, &seal);
         record->raw_bytes = lanes * 2ULL;
@@ -270,7 +271,7 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         report->voxels += lanes;
     }
     ok = ok && entry_set_root(sample_roots, report->sealed, &report->set_root, error);
-    free(sample_roots);
+    platform_cell_released(sample_roots, platform_place_g_program_owner);
     report->microseconds = engine_clock_microseconds() - began;
     if ((ok == 0) || (report->sealed != request->count))
     {
@@ -302,7 +303,8 @@ extern "C" long engine_iapx_prove_set(const EngineSetRequest *request)
     mmgr_bytes_set(report, 0, sizeof(*report));
     report->samples = records;
     const unsigned long long began = engine_clock_microseconds();
-    EngineSignum *const sample_roots = (EngineSignum *)calloc((size_t)request->count + 1u, sizeof(EngineSignum));
+    EngineSignum *const sample_roots = (EngineSignum *)platform_cell_cleared(
+        (size_t)request->count + 1u, sizeof(EngineSignum), platform_place_g_program_owner, 0);
     const int rooted = ENGINE_CHECK(sample_roots != NULL, &sample_roots, error, ENGINE_ERROR_RESOURCE);
     for (unsigned int sample = 0u; rooted && (sample < request->count); sample += 1u)
     {
@@ -342,7 +344,7 @@ extern "C" long engine_iapx_prove_set(const EngineSetRequest *request)
         report->voxels += lanes;
     }
     const int sealed = rooted && entry_set_root(sample_roots, report->sealed, &report->set_root, error);
-    free(sample_roots);
+    platform_cell_released(sample_roots, platform_place_g_program_owner);
     report->microseconds = engine_clock_microseconds() - began;
     if ((sealed == 0) || (report->sealed != request->count))
     {
@@ -391,18 +393,20 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
                           sample, error, ENGINE_ERROR_REQUEST) &&
              krep_crystal_read(&read);
     const unsigned long long lanes = ok ? entry_lanes(file.extent) : 0ULL;
-    unsigned short *const rebuilt = ok ? (unsigned short *)malloc((size_t)lanes * sizeof(unsigned short)) : NULL;
+    unsigned short *const rebuilt = ok ? (unsigned short *)platform_cell_taken((size_t)lanes * sizeof(unsigned short),
+                                                                               platform_place_g_program_owner, 0)
+                                       : NULL;
     ok = ok && ENGINE_CHECK(rebuilt != NULL, &rebuilt, error, ENGINE_ERROR_RESOURCE) &&
          entry_crystal_verify(&file, &section, &seal, NULL, rebuilt, &record, error);
     krep_crystal_release(&file);
     krep_seal_release(&seal);
     if (ok == 0)
     {
-        free(rebuilt);
+        platform_cell_released(rebuilt, platform_place_g_program_owner);
         krep_side_release(&section);
         VerbaLinea line;
         line.capacity = ENTRY_ROW_TEXT + strnlen(sample, ENTRY_PATH_CAPACITY);
-        line.out = (char *)malloc((size_t)line.capacity);
+        line.out = (char *)platform_cell_taken((size_t)line.capacity, platform_place_g_program_owner, 0);
         line.at = 0ULL;
         if (line.out != NULL)
         {
@@ -415,7 +419,7 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
             {
                 platform_terminal_write(1, line.out, mmgr_line_finish(&line));
             }
-            free(line.out);
+            platform_cell_released(line.out, platform_place_g_program_owner);
         }
         engine_error_frame(error);
         engine_error_latch(error);
@@ -428,7 +432,7 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
     {
         *side = section.side;
         side->lane_offset = file.lane_offset;
-        free(section.packed);
+        platform_cell_released(section.packed, platform_place_g_program_owner);
     }
     else
     {

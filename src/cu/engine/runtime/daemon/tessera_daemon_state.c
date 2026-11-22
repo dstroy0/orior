@@ -212,7 +212,8 @@ int daemon_history_load(void)
          (platform_file_seek(file, 0L, SEEK_SET) == 0);
     // a length checked non-negative above is the file's byte count
     const unsigned long long total = ok ? (unsigned long long)length : 0ULL;
-    unsigned char *const bytes = ok ? (unsigned char *)malloc((size_t)total) : NULL;
+    unsigned char *const bytes =
+        ok ? (unsigned char *)platform_cell_taken((size_t)total, platform_place_g_program_owner, 0) : NULL;
     ok = ok && (bytes != NULL) && (platform_file_read_items(bytes, 1u, (size_t)total, file) == (size_t)total);
     platform_file_close(file);
     const unsigned long long sealed = total - OBSIGNATIO_SIGNUM_BYTES;
@@ -228,7 +229,7 @@ int daemon_history_load(void)
         entry.duration = daemon_get_long(bytes + at + ENGINE_SIGNUM_BYTES + 8u);
         ok = tessera_ledger_remember(&g_daemon.ledger, &entry);
     }
-    free(bytes);
+    platform_cell_released(bytes, platform_place_g_program_owner);
     if (!ok)
     {
         EngineNote engine_note;
@@ -252,7 +253,7 @@ int daemon_history_save(void)
     // every record, then the seal over them all; a history that is not saved is reported, never dropped silently
     const unsigned long long sealed = g_daemon.ledger.history_count * TESSERA_HISTORY_RECORD;
     const unsigned long long total = sealed + OBSIGNATIO_SIGNUM_BYTES;
-    unsigned char *const bytes = (unsigned char *)malloc((size_t)total);
+    unsigned char *const bytes = (unsigned char *)platform_cell_taken((size_t)total, platform_place_g_program_owner, 0);
     if (bytes == NULL)
     {
         {
@@ -280,7 +281,7 @@ int daemon_history_save(void)
     PlatformFile *const file = ok ? platform_file_open(fresh, "wb") : NULL;
     ok = ok && (file != NULL) && (platform_file_write_items(bytes, 1u, (size_t)total, file) == (size_t)total);
     ok = (file != NULL) && (platform_file_close(file) == 0) && ok;
-    free(bytes);
+    platform_cell_released(bytes, platform_place_g_program_owner);
 #if defined(_WIN32)
     ok = ok && (MoveFileExA(fresh, path, MOVEFILE_REPLACE_EXISTING) != 0);
 #else

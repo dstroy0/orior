@@ -39,7 +39,7 @@ int adversarial_case_trichotomy(void)
         platform_line_out_ended();
     }
 
-    uint8_t *const corpus = (uint8_t *)malloc(ADVERSARIAL_CORPUS);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(ADVERSARIAL_CORPUS, platform_place_g_program_owner, 0);
     uint8_t needle[16];
     int failed = 0;
 
@@ -59,7 +59,7 @@ int adversarial_case_trichotomy(void)
     memcpy(needle, corpus + 128u, sizeof(needle));
 
     const size_t alignments = (ADVERSARIAL_CORPUS - sizeof(needle)) + 1u;
-    uint8_t *const survivors = (uint8_t *)malloc(alignments);
+    uint8_t *const survivors = (uint8_t *)platform_cell_taken(alignments, platform_place_g_program_owner, 0);
     if (survivors == NULL)
     {
         {
@@ -68,7 +68,7 @@ int adversarial_case_trichotomy(void)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(corpus);
+        platform_cell_released(corpus, platform_place_g_program_owner);
         return 1;
     }
 
@@ -267,8 +267,8 @@ int adversarial_case_trichotomy(void)
         platform_line_out_ended();
     }
 
-    free(survivors);
-    free(corpus);
+    platform_cell_released(survivors, platform_place_g_program_owner);
+    platform_cell_released(corpus, platform_place_g_program_owner);
     return failed;
 }
 

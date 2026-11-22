@@ -126,7 +126,7 @@ static unsigned char *job_file_read(const char *path, unsigned long long *length
     const long size = (fseek(file, 0L, SEEK_END) == 0) ? ftell(file) : -1L;
     if ((size > 0L) && (fseek(file, 0L, SEEK_SET) == 0))
     {
-        bytes = (unsigned char *)malloc((size_t)size);
+        bytes = (unsigned char *)platform_cell_taken((size_t)size, platform_place_g_program_owner, 0);
         if ((bytes != NULL) && (fread(bytes, 1u, (size_t)size, file) == (size_t)size))
         {
             *length = (unsigned long long)size;
@@ -135,7 +135,7 @@ static unsigned char *job_file_read(const char *path, unsigned long long *length
     fclose(file);
     if (*length == 0ull)
     {
-        free(bytes);
+        platform_cell_released(bytes, platform_place_g_program_owner);
         return NULL;
     }
     return bytes;
@@ -184,7 +184,7 @@ static int job_ticket_sealed(const char *lost_path)
     memset(&error, 0, sizeof(error));
     const ObsignatioSealRequest seal = {text, body, signum, &error};
     passed = passed && (obsignatio_seal_verify(&seal) == 1L);
-    free(text);
+    platform_cell_released(text, platform_place_g_program_owner);
     return passed;
 }
 
@@ -344,7 +344,8 @@ int program_main(int count, char **arguments)
     submit.declared = peak;
     if (sealed != NULL)
     {
-        unsigned char *const damaged = (unsigned char *)malloc((size_t)length);
+        unsigned char *const damaged =
+            (unsigned char *)platform_cell_taken((size_t)length, platform_place_g_program_owner, 0);
         memcpy(damaged, sealed, (size_t)length);
         // one byte of the first record's peak
         damaged[ENGINE_SIGNUM_BYTES] ^= 0x01u;
@@ -356,7 +357,7 @@ int program_main(int count, char **arguments)
         job_check(job_file_write(history, sealed, length - OBSIGNATIO_SIGNUM_BYTES) &&
                       (tessera_job_submit(&submit, &client, &ticket) != 0L),
                   "a history with no seal errors");
-        free(damaged);
+        platform_cell_released(damaged, platform_place_g_program_owner);
         // a signum the history had lost would be admitted on its declaration; only the recorded peak prompts this
         submit.declared = 4ull * peak;
         answer = job_file_write(history, sealed, length) ? tessera_job_submit(&submit, &client, &ticket) : -1L;
@@ -381,7 +382,7 @@ int program_main(int count, char **arguments)
         answer = (answer == 0L) ? tessera_job_override(client, &ticket, &error) : -1L;
         answer = (answer == 0L) ? tessera_job_release(client, &ticket, &error) : -1L;
         job_check(answer == 0L, "that job is overridden and releases");
-        free(sealed);
+        platform_cell_released(sealed, platform_place_g_program_owner);
     }
 
     cudaFree(device_memory);

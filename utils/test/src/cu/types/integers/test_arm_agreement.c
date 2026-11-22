@@ -122,7 +122,7 @@ int program_main(int argc, char **argv)
 {
     (void)argc;
     (void)argv;
-    uint8_t *const corpus = (uint8_t *)malloc(AGREEMENT_CORPUS_BYTES);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(AGREEMENT_CORPUS_BYTES, platform_place_g_program_owner, 0);
 
     if (corpus == NULL)
     {
@@ -193,7 +193,7 @@ int program_main(int argc, char **argv)
         grade("orior_run on a null plan", orior_run(NULL, corpus, AGREEMENT_CORPUS_BYTES, needle, 16u), expected);
     }
 
-    free(corpus);
+    platform_cell_released(corpus, platform_place_g_program_owner);
 
     {
         VerbaLinea *const output_line = platform_line_out();

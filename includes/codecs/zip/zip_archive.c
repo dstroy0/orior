@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zip_archive.c: opening an archive and walking its entries
 #include "zip_internal.h"
+#include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 #include "zip_crc_tables.h"
 
@@ -89,7 +90,7 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
     // a non-negative long long size converts to unsigned long long exactly
     const unsigned long long file_bytes = (unsigned long long)size;
     const unsigned long long tail_bytes = (file_bytes < ZIP_TAIL_CAPACITY) ? file_bytes : ZIP_TAIL_CAPACITY;
-    unsigned char *const tail = malloc((size_t)tail_bytes);
+    unsigned char *const tail = platform_cell_taken((size_t)tail_bytes, platform_place_g_program_owner, 0);
     if (!ZIP_CHECK(tail != NULL, &tail_bytes, error, ENGINE_ERROR_RESOURCE))
     {
         return 0;
@@ -98,7 +99,7 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
     unsigned long long record = tail_bytes;
     if (!ZIP_IO(zip_fetch(tools, path, tail_start, tail_bytes, tail), tail, error))
     {
-        free(tail);
+        platform_cell_released(tail, platform_place_g_program_owner);
         return 0;
     }
     for (unsigned long long at = tail_bytes - 21ULL; (record == tail_bytes) && (at > 0ULL); at -= 1ULL)
@@ -110,7 +111,7 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
     }
     if (!ZIP_CHECK(record != tail_bytes, path, error, ENGINE_ERROR_REQUEST))
     {
-        free(tail);
+        platform_cell_released(tail, platform_place_g_program_owner);
         return 0;
     }
     const unsigned char *const end = tail + record;
@@ -121,7 +122,7 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
     unsigned long long directory_bytes = zip_load(end + 12u, 4u);
     unsigned long long directory_offset = zip_load(end + 16u, 4u);
     const unsigned long long end_offset = tail_start + record;
-    free(tail);
+    platform_cell_released(tail, platform_place_g_program_owner);
     unsigned char locator[20u];
     const int located = (end_offset >= 20ULL) && zip_fetch(tools, path, end_offset - 20ULL, 20ULL, locator) &&
                         (mmgr_bytes_compare(locator, zip_wide_locator, sizeof zip_wide_locator) == 0);
@@ -158,14 +159,15 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
     {
         return 0;
     }
-    unsigned char *const directory = malloc((size_t)directory_bytes + 1u);
+    unsigned char *const directory =
+        platform_cell_taken((size_t)directory_bytes + 1u, platform_place_g_program_owner, 0);
     if (!ZIP_CHECK(directory != NULL, &directory_bytes, error, ENGINE_ERROR_RESOURCE))
     {
         return 0;
     }
     if (!ZIP_IO(zip_fetch(tools, path, directory_offset, directory_bytes, directory), directory, error))
     {
-        free(directory);
+        platform_cell_released(directory, platform_place_g_program_owner);
         return 0;
     }
     archive->directory = directory;
@@ -177,8 +179,8 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
 
 void zip_archive_release(ZipArchive *archive)
 {
-    free(archive->directory);
-    free(archive->entry_at);
+    platform_cell_released(archive->directory, platform_place_g_program_owner);
+    platform_cell_released(archive->entry_at, platform_place_g_program_owner);
     mmgr_bytes_set(archive, 0, sizeof(*archive));
 }
 

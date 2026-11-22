@@ -86,20 +86,26 @@ static void order_window_cpu(const unsigned int *table, const unsigned int *halt
 // the order omega on a finite window, forward by pi and backward by pi^-1, against each lane's whole cycle
 static void order_omega(OrderResults *results)
 {
-    unsigned int *const shuffled = (unsigned int *)malloc((size_t)ORDER_TEST_STATES * sizeof(unsigned int));
-    unsigned int *const forward = (unsigned int *)malloc((size_t)ORDER_TEST_STATES * sizeof(unsigned int));
-    unsigned int *const inverse = (unsigned int *)malloc((size_t)ORDER_TEST_STATES * sizeof(unsigned int));
-    unsigned int *const halt = (unsigned int *)calloc(ORDER_TEST_STATES, sizeof(unsigned int));
+    unsigned int *const shuffled = (unsigned int *)platform_cell_taken((size_t)ORDER_TEST_STATES * sizeof(unsigned int),
+                                                                       platform_place_g_program_owner, 0);
+    unsigned int *const forward = (unsigned int *)platform_cell_taken((size_t)ORDER_TEST_STATES * sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    unsigned int *const inverse = (unsigned int *)platform_cell_taken((size_t)ORDER_TEST_STATES * sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    unsigned int *const halt = (unsigned int *)platform_cell_cleared(ORDER_TEST_STATES, sizeof(unsigned int),
+                                                                     platform_place_g_program_owner, 0);
     const unsigned int count = 3u + ((ORDER_TEST_RUN - 1u) * ORDER_TEST_OMEGA_STEPS);
-    OrderStack stack = {(EngineRecordStep *)calloc(count, sizeof(EngineRecordStep)), 0u};
+    OrderStack stack = {
+        (EngineRecordStep *)platform_cell_cleared(count, sizeof(EngineRecordStep), platform_place_g_program_owner, 0),
+        0u};
     if ((shuffled == NULL) || (forward == NULL) || (inverse == NULL) || (halt == NULL) || (stack.steps == NULL))
     {
         order_check(results, 0, "the omega run is allocated");
-        free(shuffled);
-        free(forward);
-        free(inverse);
-        free(halt);
-        free(stack.steps);
+        platform_cell_released(shuffled, platform_place_g_program_owner);
+        platform_cell_released(forward, platform_place_g_program_owner);
+        platform_cell_released(inverse, platform_place_g_program_owner);
+        platform_cell_released(halt, platform_place_g_program_owner);
+        platform_cell_released(stack.steps, platform_place_g_program_owner);
         return;
     }
     order_permutation(shuffled, forward, inverse);
@@ -151,21 +157,26 @@ static void order_omega(OrderResults *results)
         {
             order_free(&downward);
         }
-        free(shuffled);
-        free(forward);
-        free(inverse);
-        free(halt);
-        free(stack.steps);
+        platform_cell_released(shuffled, platform_place_g_program_owner);
+        platform_cell_released(forward, platform_place_g_program_owner);
+        platform_cell_released(inverse, platform_place_g_program_owner);
+        platform_cell_released(halt, platform_place_g_program_owner);
+        platform_cell_released(stack.steps, platform_place_g_program_owner);
         return;
     }
     const unsigned int lanes = ORDER_TEST_OMEGA_LANES;
     const unsigned int up_limbs = upward.layout.out_limbs;
     const unsigned int down_limbs = downward.layout.out_limbs;
-    unsigned int *const atoms = (unsigned int *)malloc((size_t)lanes * sizeof(unsigned int));
-    unsigned int *const up_host = (unsigned int *)calloc((size_t)lanes * up_limbs, sizeof(unsigned int));
-    unsigned int *const up_device = (unsigned int *)calloc((size_t)lanes * up_limbs, sizeof(unsigned int));
-    unsigned int *const down_host = (unsigned int *)calloc((size_t)lanes * down_limbs, sizeof(unsigned int));
-    unsigned int *const down_device = (unsigned int *)calloc((size_t)lanes * down_limbs, sizeof(unsigned int));
+    unsigned int *const atoms =
+        (unsigned int *)platform_cell_taken((size_t)lanes * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const up_host = (unsigned int *)platform_cell_cleared((size_t)lanes * up_limbs, sizeof(unsigned int),
+                                                                        platform_place_g_program_owner, 0);
+    unsigned int *const up_device = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * up_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const down_host = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * down_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const down_device = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * down_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
     const int buffers =
         (atoms != NULL) && (up_host != NULL) && (up_device != NULL) && (down_host != NULL) && (down_device != NULL);
     for (unsigned int lane = 0u; (buffers != 0) && (lane < lanes); lane += 1u)
@@ -290,18 +301,18 @@ static void order_omega(OrderResults *results)
     order_check(results, (decided_halting != 0u) && (decided_halting != decided),
                 "the decided lanes contain both answers, halting and running forever");
     order_check(results, seen_true == open, "past the run, every set flag is a halt on the lane's own cycle");
-    free(atoms);
-    free(up_host);
-    free(up_device);
-    free(down_host);
-    free(down_device);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(up_host, platform_place_g_program_owner);
+    platform_cell_released(up_device, platform_place_g_program_owner);
+    platform_cell_released(down_host, platform_place_g_program_owner);
+    platform_cell_released(down_device, platform_place_g_program_owner);
     order_free(&upward);
     order_free(&downward);
-    free(shuffled);
-    free(forward);
-    free(inverse);
-    free(halt);
-    free(stack.steps);
+    platform_cell_released(shuffled, platform_place_g_program_owner);
+    platform_cell_released(forward, platform_place_g_program_owner);
+    platform_cell_released(inverse, platform_place_g_program_owner);
+    platform_cell_released(halt, platform_place_g_program_owner);
+    platform_cell_released(stack.steps, platform_place_g_program_owner);
 }
 
 // the pool of the test. The check of the compiled run against the interpreter takes cells of up to 56 MiB on the
@@ -314,7 +325,7 @@ int program_main(int count, char **arguments)
     results.checks = 0ull;
     results.failures = 0ull;
     results.line.capacity = ORDER_TEST_LINE;
-    results.line.out = (char *)malloc((size_t)ORDER_TEST_LINE);
+    results.line.out = (char *)platform_cell_taken((size_t)ORDER_TEST_LINE, platform_place_g_program_owner, 0);
     results.line.at = 0ull;
     if (results.line.out == NULL)
     {
@@ -340,6 +351,6 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " failed\n");
     (void)(mmgr_line_ok(&results.line) &&
            (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
-    free(results.line.out);
+    platform_cell_released(results.line.out, platform_place_g_program_owner);
     return (results.failures == 0ull) ? 0 : 1;
 }

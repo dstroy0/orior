@@ -78,7 +78,7 @@ int program_main(int count, char **arguments)
     results.checks = 0ull;
     results.failures = 0ull;
     results.line.capacity = GUIDE_TEST_LINE;
-    results.line.out = (char *)malloc((size_t)GUIDE_TEST_LINE);
+    results.line.out = (char *)platform_cell_taken((size_t)GUIDE_TEST_LINE, platform_place_g_program_owner, 0);
     results.line.at = 0ull;
     if (results.line.out == NULL)
     {
@@ -156,11 +156,15 @@ int program_main(int count, char **arguments)
     guide_check(&results, ok, "the example program loads");
 
     // the bodies (member 0) and the one time step (member 1), paired by the index
-    unsigned int *const bodies = (unsigned int *)calloc((size_t)GUIDE_TEST_BODIES * 2u, sizeof(unsigned int));
+    unsigned int *const bodies = (unsigned int *)platform_cell_cleared(
+        (size_t)GUIDE_TEST_BODIES * 2u, sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned int step_record[1] = {0u};
-    unsigned int *const index = (unsigned int *)malloc((size_t)GUIDE_TEST_BODIES * 2u * sizeof(unsigned int));
-    unsigned int *const host_out = (unsigned int *)calloc((size_t)GUIDE_TEST_BODIES * 2u, sizeof(unsigned int));
-    unsigned int *const device_out = (unsigned int *)calloc((size_t)GUIDE_TEST_BODIES * 2u, sizeof(unsigned int));
+    unsigned int *const index = (unsigned int *)platform_cell_taken(
+        (size_t)GUIDE_TEST_BODIES * 2u * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)GUIDE_TEST_BODIES * 2u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+        (size_t)GUIDE_TEST_BODIES * 2u, sizeof(unsigned int), platform_place_g_program_owner, 0);
     const long long dt = 37;
     guide_put(step_record, 0u, 16u, dt);
     for (unsigned int body = 0u; body < GUIDE_TEST_BODIES; body += 1u)
@@ -241,10 +245,10 @@ int program_main(int count, char **arguments)
     cudaFree(device_step);
     cudaFree(device_index);
     cudaFree(device_record);
-    free(bodies);
-    free(index);
-    free(host_out);
-    free(device_out);
+    platform_cell_released(bodies, platform_place_g_program_owner);
+    platform_cell_released(index, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
     if (record != NULL)
     {
         cycle_record_release(record);
@@ -262,6 +266,6 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " failed\n");
     (void)(mmgr_line_ok(&results.line) &&
            (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
-    free(results.line.out);
+    platform_cell_released(results.line.out, platform_place_g_program_owner);
     return (results.failures == 0ull) ? 0 : 1;
 }

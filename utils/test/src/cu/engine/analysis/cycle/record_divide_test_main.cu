@@ -40,19 +40,23 @@ static void divide_wide(DivideResults *results)
     exact.output_count = 1u;
 
     const unsigned int lanes = DIVIDE_TEST_WIDE_LANES;
-    unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * 96u, sizeof(unsigned int));
-    OriorExactInteger *const operand = (OriorExactInteger *)malloc((size_t)lanes * 2u * sizeof(OriorExactInteger));
-    unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * 256u, sizeof(unsigned int));
-    unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * 256u, sizeof(unsigned int));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared((size_t)lanes * 96u, sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    OriorExactInteger *const operand = (OriorExactInteger *)platform_cell_taken(
+        (size_t)lanes * 2u * sizeof(OriorExactInteger), platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared((size_t)lanes * 256u, sizeof(unsigned int),
+                                                                         platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared((size_t)lanes * 256u, sizeof(unsigned int),
+                                                                           platform_place_g_program_owner, 0);
     DivideLoaded loaded;
     if ((atoms == NULL) || (operand == NULL) || (host_out == NULL) || (device_out == NULL) ||
         (divide_load(&program, &loaded) == 0))
     {
         divide_check(results, 0, "the wide division program loads");
-        free(atoms);
-        free(operand);
-        free(host_out);
-        free(device_out);
+        platform_cell_released(atoms, platform_place_g_program_owner);
+        platform_cell_released(operand, platform_place_g_program_owner);
+        platform_cell_released(host_out, platform_place_g_program_owner);
+        platform_cell_released(device_out, platform_place_g_program_owner);
         return;
     }
     divide_check(results, loaded.layout.file_limbs > 64u, "the wide division program takes the 256-limb file");
@@ -143,10 +147,10 @@ static void divide_wide(DivideResults *results)
         divide_check(results, factors, "wide: the exact quotient of factor . divisor by the divisor is the factor");
         divide_free(&loaded);
     }
-    free(atoms);
-    free(operand);
-    free(host_out);
-    free(device_out);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(operand, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
 }
 
 // a constant divisor narrows its quotient by floor(log2 c) bits. Signed 40-bit factors multiplied by 3, 12 and
@@ -195,17 +199,21 @@ static void divide_constant(DivideResults *results)
     const unsigned int lanes = DIVIDE_TEST_NARROW_LANES;
     const unsigned int in_limbs = program.in_limbs[0];
     const unsigned int out_limbs = loaded.layout.out_limbs;
-    unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * in_limbs, sizeof(unsigned int));
-    OriorExactInteger *const operand = (OriorExactInteger *)malloc((size_t)lanes * 2u * sizeof(OriorExactInteger));
-    unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-    unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared((size_t)lanes * in_limbs, sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    OriorExactInteger *const operand = (OriorExactInteger *)platform_cell_taken(
+        (size_t)lanes * 2u * sizeof(OriorExactInteger), platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
     if ((atoms == NULL) || (operand == NULL) || (host_out == NULL) || (device_out == NULL))
     {
         divide_check(results, 0, "the constant lanes are allocated");
-        free(atoms);
-        free(operand);
-        free(host_out);
-        free(device_out);
+        platform_cell_released(atoms, platform_place_g_program_owner);
+        platform_cell_released(operand, platform_place_g_program_owner);
+        platform_cell_released(host_out, platform_place_g_program_owner);
+        platform_cell_released(device_out, platform_place_g_program_owner);
         divide_free(&loaded);
         return;
     }
@@ -256,10 +264,10 @@ static void divide_constant(DivideResults *results)
     }
     divide_check(results, factors, "factor . c divides back exactly by 3, 12 and 2^32 + 7, the last narrowed a limb");
     divide_check(results, quotients, "a 64-bit value over 2^32 + 7 is the library's quotient in 32 bits");
-    free(atoms);
-    free(operand);
-    free(host_out);
-    free(device_out);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(operand, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
     divide_free(&loaded);
 }
 
@@ -269,7 +277,7 @@ int program_main(int count, char **arguments)
     results.checks = 0ull;
     results.failures = 0ull;
     results.line.capacity = DIVIDE_TEST_LINE;
-    results.line.out = (char *)malloc((size_t)DIVIDE_TEST_LINE);
+    results.line.out = (char *)platform_cell_taken((size_t)DIVIDE_TEST_LINE, platform_place_g_program_owner, 0);
     results.line.at = 0ull;
     if (results.line.out == NULL)
     {
@@ -296,6 +304,6 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " failed\n");
     (void)(mmgr_line_ok(&results.line) &&
            (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
-    free(results.line.out);
+    platform_cell_released(results.line.out, platform_place_g_program_owner);
     return (results.failures == 0ull) ? 0 : 1;
 }

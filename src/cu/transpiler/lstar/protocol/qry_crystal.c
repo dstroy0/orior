@@ -96,7 +96,8 @@ static int qry_crystal_npy_written(const char *path, const unsigned char *bytes,
 static int qry_crystal_written(const char *qry, const char *set)
 {
     PlatformFile *const file = platform_file_open(qry, "rb");
-    unsigned char *const bytes = (unsigned char *)malloc((size_t)QRY_CRYSTAL_PART);
+    unsigned char *const bytes =
+        (unsigned char *)platform_cell_taken((size_t)QRY_CRYSTAL_PART, platform_place_g_program_owner, 0);
     char source[1024];
     {
         VerbaLinea buffer_line = mmgr_line_over(source, sizeof(source));
@@ -118,7 +119,7 @@ static int qry_crystal_written(const char *qry, const char *set)
             mmgr_line_ch(&engine_note.line, '\n');
             engine_note_written(&engine_note);
         }
-        free(bytes);
+        platform_cell_released(bytes, platform_place_g_program_owner);
         if (file != NULL)
         {
             platform_file_close(file);
@@ -175,7 +176,7 @@ static int qry_crystal_written(const char *qry, const char *set)
             mmgr_line_ch(&engine_note.line, '\n');
             engine_note_written(&engine_note);
         }
-        free(bytes);
+        platform_cell_released(bytes, platform_place_g_program_owner);
         return 0;
     }
     // the samples lifted, coded and sealed on the device, each read back and checked against its source by the engine
@@ -213,7 +214,7 @@ static int qry_crystal_written(const char *qry, const char *set)
         {
             differ += (lanes[at] != (unsigned short)bytes[at]) ? 1ULL : 0ULL;
         }
-        free(lanes);
+        platform_cell_released(lanes, platform_place_g_program_owner);
         if (!whole)
         {
             qry_crystal_error_printed("a sample did not match", &error);
@@ -223,7 +224,7 @@ static int qry_crystal_written(const char *qry, const char *set)
     {
         platform_file_close(again);
     }
-    free(bytes);
+    platform_cell_released(bytes, platform_place_g_program_owner);
     // the sources let go, whether the set matched or not
     for (unsigned int part = 0u; part < parts; part += 1u)
     {
@@ -293,6 +294,8 @@ static int qry_crystal_read(const char *set, const char *qry)
     unsigned int parts = 0u;
     unsigned long long total = 0ULL;
     unsigned char *bytes = NULL;
+    // the bytes of the cell that `bytes` names, which the next grow copies
+    unsigned long long bytes_room = 0ULL;
     for (; whole && (parts < QRY_CRYSTAL_PARTS); parts += 1u)
     {
         char name[16];
@@ -317,9 +320,12 @@ static int qry_crystal_read(const char *set, const char *qry)
         mmgr_bytes_set(&error, 0, sizeof(error));
         whole = (engine_iapx_load(set, name, extent, &lanes, &root, NULL, &error) != ENGINE_ERROR);
         const unsigned long long count = extent[0] * extent[1] * extent[2] * extent[3];
-        unsigned char *const larger = whole ? (unsigned char *)realloc(bytes, (size_t)count + 1u) : NULL;
+        unsigned char *const larger = whole ? (unsigned char *)platform_cell_grown(bytes, bytes_room, count + 1ULL,
+                                                                                   platform_place_g_program_owner, 0)
+                                            : NULL;
         whole = whole && (larger != NULL);
         bytes = (larger != NULL) ? larger : bytes;
+        bytes_room = (larger != NULL) ? (count + 1ULL) : bytes_room;
         for (unsigned long long at = 0ULL; whole && (at < count); at += 1ULL)
         {
             // a lane of an unsigned byte represents that byte
@@ -327,13 +333,13 @@ static int qry_crystal_read(const char *set, const char *qry)
         }
         whole = whole && (platform_file_write_items(bytes, 1u, (size_t)count, file) == (size_t)count);
         total += whole ? count : 0ULL;
-        free(lanes);
+        platform_cell_released(lanes, platform_place_g_program_owner);
         if (!whole)
         {
             qry_crystal_error_printed("a sample could not be loaded", &error);
         }
     }
-    free(bytes);
+    platform_cell_released(bytes, platform_place_g_program_owner);
     whole = (platform_file_close(file) == 0) && whole && (parts != 0u);
     if (!whole)
     {

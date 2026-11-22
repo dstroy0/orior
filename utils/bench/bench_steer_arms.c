@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../src/cu/engine/nbody/orior/orior.h"
+#include "../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,10 +23,22 @@ static void build_field(uint8_t *corpus, size_t length)
         state ^= state << 5;
 
         const uint32_t roll = state % 1000u;
-        if (roll < 400u)      { corpus[at] = 0x41u; }
-        else if (roll < 700u) { corpus[at] = 0x42u; }
-        else if (roll < 900u) { corpus[at] = 0x43u; }
-        else                  { corpus[at] = (uint8_t)(0x50u + (state % 40u)); }
+        if (roll < 400u)
+        {
+            corpus[at] = 0x41u;
+        }
+        else if (roll < 700u)
+        {
+            corpus[at] = 0x42u;
+        }
+        else if (roll < 900u)
+        {
+            corpus[at] = 0x43u;
+        }
+        else
+        {
+            corpus[at] = (uint8_t)(0x50u + (state % 40u));
+        }
     }
 }
 
@@ -41,11 +54,21 @@ static const char *mask_name(MaskType type)
 {
     switch (type)
     {
-        case MASK_ALL_ALIVE:   { return "all alive"; }
-        case MASK_NONE_ALIVE:  { return "none alive"; }
-        case MASK_ALTERNATING: { return "alternating"; }
-        case MASK_SPARSE:      { return "sparse"; }
-        default:               { return "unknown"; }
+    case MASK_ALL_ALIVE: {
+        return "all alive";
+    }
+    case MASK_NONE_ALIVE: {
+        return "none alive";
+    }
+    case MASK_ALTERNATING: {
+        return "alternating";
+    }
+    case MASK_SPARSE: {
+        return "sparse";
+    }
+    default: {
+        return "unknown";
+    }
     }
 }
 
@@ -55,11 +78,23 @@ static void build_mask(uint8_t *alive, size_t alignments, MaskType type)
     {
         switch (type)
         {
-            case MASK_NONE_ALIVE:  { alive[at] = 0u; break; }
-            case MASK_ALTERNATING: { alive[at] = (uint8_t)(at % 2u); break; }
-            case MASK_SPARSE:      { alive[at] = (uint8_t)(((at % 97u) == 0u) ? 1u : 0u); break; }
-            case MASK_ALL_ALIVE:
-            default:               { alive[at] = 1u; break; }
+        case MASK_NONE_ALIVE: {
+            alive[at] = 0u;
+            break;
+        }
+        case MASK_ALTERNATING: {
+            alive[at] = (uint8_t)(at % 2u);
+            break;
+        }
+        case MASK_SPARSE: {
+            alive[at] = (uint8_t)(((at % 97u) == 0u) ? 1u : 0u);
+            break;
+        }
+        case MASK_ALL_ALIVE:
+        default: {
+            alive[at] = 1u;
+            break;
+        }
         }
     }
 }
@@ -151,12 +186,13 @@ int program_main(int argc, char **argv)
     }
 #endif
 
-    uint8_t *corpus = (uint8_t *)malloc(ARMS_CORPUS);
-    uint8_t *alive = (uint8_t *)malloc(ARMS_CORPUS);
+    uint8_t *corpus = (uint8_t *)platform_cell_taken(ARMS_CORPUS, platform_place_g_program_owner, 0);
+    uint8_t *alive = (uint8_t *)platform_cell_taken(ARMS_CORPUS, platform_place_g_program_owner, 0);
     if ((corpus == NULL) || (alive == NULL))
     {
         printf("  allocation failed\n");
-        free(corpus); free(alive);
+        platform_cell_released(corpus, platform_place_g_program_owner);
+        platform_cell_released(alive, platform_place_g_program_owner);
         return 1;
     }
     build_field(corpus, ARMS_CORPUS);
@@ -169,7 +205,7 @@ int program_main(int argc, char **argv)
     }
     printf("\n\n");
 
-    const size_t lengths[] = { 1u, 2u, 31u, 32u, 33u, 63u, 64u, 65u, 1000u, 65536u };
+    const size_t lengths[] = {1u, 2u, 31u, 32u, 33u, 63u, 64u, 65u, 1000u, 65536u};
     const size_t length_count = sizeof(lengths) / sizeof(lengths[0]);
 
     printf("  %10s %14s %8s %14s %10s\n", "alignments", "mask", "offset", "count", "verdict");
@@ -182,7 +218,7 @@ int program_main(int argc, char **argv)
         {
             build_mask(alive, alignments, (MaskType)which_mask);
 
-            const size_t offsets[] = { 0u, 7u };
+            const size_t offsets[] = {0u, 7u};
             for (unsigned int which_offset = 0u; which_offset < 2u; which_offset += 1u)
             {
                 const size_t offset = offsets[which_offset];
@@ -192,21 +228,19 @@ int program_main(int argc, char **argv)
                 int agreed = 1;
                 for (size_t which_arm = 1u; which_arm < arm_count; which_arm += 1u)
                 {
-                    const size_t got = arms[which_arm]->count(corpus, alignments, alive, wanted,
-                                                              offset);
+                    const size_t got = arms[which_arm]->count(corpus, alignments, alive, wanted, offset);
                     if (got != want)
                     {
                         printf("  %10zu %14s %8zu %14zu %10s  %s returned %zu\n", alignments,
-                               mask_name((MaskType)which_mask), offset, want, "FAILS",
-                               arms[which_arm]->name, got);
+                               mask_name((MaskType)which_mask), offset, want, "FAILS", arms[which_arm]->name, got);
                         agreed = 0;
                         failed += 1;
                     }
                 }
                 if (agreed != 0)
                 {
-                    printf("  %10zu %14s %8zu %14zu %10s\n", alignments,
-                           mask_name((MaskType)which_mask), offset, want, "ok");
+                    printf("  %10zu %14s %8zu %14zu %10s\n", alignments, mask_name((MaskType)which_mask), offset, want,
+                           "ok");
                 }
             }
         }
@@ -240,9 +274,7 @@ int program_main(int argc, char **argv)
         {
             portable_seconds = seconds;
         }
-        const double rate = (seconds > 0.0)
-                          ? (((double)passes * (double)(ARMS_CORPUS - 8u)) / seconds)
-                          : 0.0;
+        const double rate = (seconds > 0.0) ? (((double)passes * (double)(ARMS_CORPUS - 8u)) / seconds) : 0.0;
         printf("  %12s %12zu %12.3f %16.3e", arms[which]->name, passes, seconds, rate);
         if ((which > 0u) && (seconds > 0.0))
         {
@@ -252,6 +284,7 @@ int program_main(int argc, char **argv)
     }
 
     printf("\n  %d check(s) failed\n", failed);
-    free(corpus); free(alive);
+    platform_cell_released(corpus, platform_place_g_program_owner);
+    platform_cell_released(alive, platform_place_g_program_owner);
     return (failed == 0) ? 0 : 1;
 }

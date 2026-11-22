@@ -35,10 +35,11 @@ int cubin_safe_tables_read(const char *part)
         if (length == room)
         {
             room = (room == 0u) ? (1u << 20u) : (room * 2u);
-            unsigned char *const grown = (unsigned char *)realloc(text, room);
+            unsigned char *const grown =
+                (unsigned char *)platform_cell_grown(text, length, room, platform_place_g_program_owner, 0);
             if (grown == NULL)
             {
-                free(text);
+                platform_cell_released(text, platform_place_g_program_owner);
                 platform_file_close(file);
                 return 0;
             }
@@ -54,7 +55,7 @@ int cubin_safe_tables_read(const char *part)
     platform_file_close(file);
     tables_set_freed(&s_tables);
     const int read = tables_set_read(&s_tables, text, length);
-    free(text);
+    platform_cell_released(text, platform_place_g_program_owner);
     s_tables_ready = read && (s_tables.count != 0u);
     return s_tables_ready;
 }

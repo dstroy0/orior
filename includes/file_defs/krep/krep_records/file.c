@@ -70,9 +70,11 @@ int krep_read(KrepFile *file, const char *path, const char *type, char *error, s
             stopped = "contains a record that runs past its end";
             break;
         }
-        unsigned long long *const owned = (count > (sizeof(s_words) / sizeof(s_words[0])))
-                                              ? (unsigned long long *)malloc((size_t)count * sizeof(unsigned long long))
-                                              : NULL;
+        unsigned long long *const owned =
+            (count > (sizeof(s_words) / sizeof(s_words[0])))
+                ? (unsigned long long *)platform_cell_taken((size_t)count * sizeof(unsigned long long),
+                                                            platform_place_g_program_owner, 0)
+                : NULL;
         unsigned long long *const words = (owned != NULL) ? owned : s_words;
         if ((count > (sizeof(s_words) / sizeof(s_words[0]))) && (owned == NULL))
         {
@@ -89,7 +91,7 @@ int krep_read(KrepFile *file, const char *path, const char *type, char *error, s
         {
             stopped = "has a record there was no memory for";
         }
-        free(owned);
+        platform_cell_released(owned, platform_place_g_program_owner);
     }
     if (stopped != NULL)
     {
@@ -177,16 +179,16 @@ void krep_free(KrepFile *file)
 {
     for (unsigned int at = 0u; at < file->records; at += 1u)
     {
-        free(file->record[at].word);
+        platform_cell_released(file->record[at].word, platform_place_g_program_owner);
     }
     for (unsigned int number = 0u; number < file->texts; number += 1u)
     {
-        free(file->text[number]);
+        platform_cell_released(file->text[number], platform_place_g_program_owner);
     }
-    free(file->record);
-    free(file->text);
-    free(file->text_length);
-    free(file->text_slot);
+    platform_cell_released(file->record, platform_place_g_program_owner);
+    platform_cell_released(file->text, platform_place_g_program_owner);
+    platform_cell_released(file->text_length, platform_place_g_program_owner);
+    platform_cell_released(file->text_slot, platform_place_g_program_owner);
     mmgr_bytes_set(file, 0, sizeof(*file));
 }
 
@@ -200,7 +202,9 @@ int krep_record_put(KrepFile *file, unsigned int at, unsigned int code, const un
     if (file->records == file->room)
     {
         const unsigned int grown = (file->room == 0u) ? 1024u : (2u * file->room);
-        KrepRecord *const larger = (KrepRecord *)realloc(file->record, (size_t)grown * sizeof(KrepRecord));
+        KrepRecord *const larger =
+            (KrepRecord *)platform_cell_grown(file->record, (size_t)file->room * sizeof(KrepRecord),
+                                              (size_t)grown * sizeof(KrepRecord), platform_place_g_program_owner, 0);
         if (larger == NULL)
         {
             return 0;
@@ -208,7 +212,8 @@ int krep_record_put(KrepFile *file, unsigned int at, unsigned int code, const un
         file->record = larger;
         file->room = grown;
     }
-    unsigned long long *const copy = (unsigned long long *)malloc(((size_t)count + 1u) * sizeof(unsigned long long));
+    unsigned long long *const copy = (unsigned long long *)platform_cell_taken(
+        ((size_t)count + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     if (copy == NULL)
     {
         return 0;
@@ -249,7 +254,7 @@ void krep_record_drop(KrepFile *file, unsigned int at)
         const unsigned long long numbers[1] = {at};
         krep_row_passed(file, file->key, who, KREP_ROW_DROP, numbers, 1u, NULL, 0ULL, QRY_ORDINARY);
     }
-    free(file->record[at].word);
+    platform_cell_released(file->record[at].word, platform_place_g_program_owner);
     mmgr_bytes_move(&file->record[at], &file->record[at + 1u], (size_t)(file->records - at - 1u) * sizeof(KrepRecord));
     file->records -= 1u;
 }
@@ -260,7 +265,8 @@ int krep_record_set(KrepFile *file, unsigned int at, const unsigned long long *w
     {
         return 0;
     }
-    unsigned long long *const copy = (unsigned long long *)malloc(((size_t)count + 1u) * sizeof(unsigned long long));
+    unsigned long long *const copy = (unsigned long long *)platform_cell_taken(
+        ((size_t)count + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     if (copy == NULL)
     {
         return 0;
@@ -269,7 +275,7 @@ int krep_record_set(KrepFile *file, unsigned int at, const unsigned long long *w
     {
         mmgr_bytes_copy(copy, words, (size_t)count * sizeof(unsigned long long));
     }
-    free(file->record[at].word);
+    platform_cell_released(file->record[at].word, platform_place_g_program_owner);
     file->record[at].word = copy;
     file->record[at].count = count;
     if (file->key != 0ULL)

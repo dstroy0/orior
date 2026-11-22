@@ -17,6 +17,7 @@
  * @note Run build_exact_navier_stokes.sh cascade, beside this file.
  */
 #include "torus_fields.h"
+#include "../../../src/platform/platform.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -90,7 +91,7 @@ static int64_t front_of(const TorusVector *vector)
         const int64_t shell = l1_shell(list.modes[at]);
         largest = (shell > largest) ? shell : largest;
     }
-    free(list.modes);
+    platform_cell_released(list.modes, platform_place_g_program_owner);
     return largest;
 }
 
@@ -144,7 +145,7 @@ static size_t energy_shells(const TorusVector *vector, int64_t shells[SHELL_LIMI
         shells[place] = norm;
         count += 1u;
     }
-    free(list.modes);
+    platform_cell_released(list.modes, platform_place_g_program_owner);
     return count;
 }
 
@@ -234,7 +235,7 @@ static int report_front(FILE *out, const TorusVector *generic_velocity, const To
             fprintf(out, "  %6lld", tally);
         }
         fputs("\n", out);
-        free(list.modes);
+        platform_cell_released(list.modes, platform_place_g_program_owner);
     }
 
     // The front advances by exactly one shell per order: energy reaches the next finer scale each step.

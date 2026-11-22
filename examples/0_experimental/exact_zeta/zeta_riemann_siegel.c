@@ -5,6 +5,7 @@
  * @brief Z(t) by the formula of Riemann and Siegel, and every C_n of Gabcke, as zeta_riemann_siegel.h states them.
  */
 #include "zeta_riemann_siegel.h"
+#include "../../../src/platform/platform.h"
 #include "zeta_theta.h"
 
 #include <stdlib.h>
@@ -51,7 +52,9 @@ void row_push(ZetaRow *row, const OriorExactInteger *value)
     if (row->count >= row->capacity)
     {
         row->capacity = (row->capacity == 0u) ? 16u : (row->capacity * 2u);
-        row->values = (OriorExactInteger *)rs_memory(realloc(row->values, row->capacity * sizeof(OriorExactInteger)));
+        row->values = (OriorExactInteger *)rs_memory(
+            platform_cell_grown(row->values, row->count * sizeof(OriorExactInteger),
+                                row->capacity * sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
     }
     row->values[row->count] = *value;
     row->count += 1u;
@@ -59,7 +62,7 @@ void row_push(ZetaRow *row, const OriorExactInteger *value)
 
 void row_free(ZetaRow *row)
 {
-    free(row->values);
+    platform_cell_released(row->values, platform_place_g_program_owner);
     row->values = NULL;
     row->count = 0u;
     row->capacity = 0u;
@@ -646,7 +649,7 @@ const ZetaRow *rs_d_row(int64_t n)
 {
     if (d_row_count == 0u)
     {
-        d_rows = (ZetaRow *)rs_memory(calloc(1u, sizeof(ZetaRow)));
+        d_rows = (ZetaRow *)rs_memory(platform_cell_cleared(1u, sizeof(ZetaRow), platform_place_g_program_owner, 0));
         OriorExactInteger one;
         z_set(&one, 1);
         row_push(&d_rows[0], &one);
@@ -655,7 +658,9 @@ const ZetaRow *rs_d_row(int64_t n)
     while ((int64_t)d_row_count <= n)
     {
         const int64_t m = (int64_t)d_row_count - 1;
-        d_rows = (ZetaRow *)rs_memory(realloc(d_rows, (d_row_count + 1u) * sizeof(ZetaRow)));
+        d_rows = (ZetaRow *)rs_memory(platform_cell_grown(d_rows, d_row_count * sizeof(ZetaRow),
+                                                          (d_row_count + 1u) * sizeof(ZetaRow),
+                                                          platform_place_g_program_owner, 0));
         ZetaRow *const row = &d_rows[d_row_count];
         memset(row, 0, sizeof(*row));
         const ZetaRow *const before = &d_rows[d_row_count - 1u];
@@ -738,8 +743,11 @@ ZetaCurve *rs_curve(int32_t digits)
             return curves[at];
         }
     }
-    curves = (ZetaCurve **)rs_memory(realloc(curves, (curve_count + 1u) * sizeof(ZetaCurve *)));
-    curves[curve_count] = (ZetaCurve *)rs_memory(malloc(sizeof(ZetaCurve)));
+    curves = (ZetaCurve **)rs_memory(platform_cell_grown(curves, curve_count * sizeof(ZetaCurve *),
+                                                         (curve_count + 1u) * sizeof(ZetaCurve *),
+                                                         platform_place_g_program_owner, 0));
+    curves[curve_count] =
+        (ZetaCurve *)rs_memory(platform_cell_taken(sizeof(ZetaCurve), platform_place_g_program_owner, 0));
     rs_curve_begin(curves[curve_count], digits);
     curve_count += 1u;
     return curves[curve_count - 1u];
@@ -873,7 +881,9 @@ const ZetaRow *rs_gamma(int64_t n, int64_t count, int32_t digits)
     if (gamma_count >= gamma_capacity)
     {
         gamma_capacity = (gamma_capacity == 0u) ? 64u : (gamma_capacity * 2u);
-        gammas = (GammaEntry *)rs_memory(realloc(gammas, gamma_capacity * sizeof(GammaEntry)));
+        gammas = (GammaEntry *)rs_memory(platform_cell_grown(gammas, gamma_count * sizeof(GammaEntry),
+                                                             gamma_capacity * sizeof(GammaEntry),
+                                                             platform_place_g_program_owner, 0));
     }
     GammaEntry *const entry = &gammas[gamma_count];
     entry->n = n;

@@ -12,6 +12,7 @@
 // On a lattice of 30 x 640 x 640 it prints the microseconds of the reading and of one draw on each route. The test is
 // one job on the device's tessera daemon.
 #include "../../../../../../../src/cu/engine/analysis/period/period_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/period/period.h"
 #include "sim.h"
 
@@ -37,7 +38,7 @@
 // record programs' compiled modules beside them. It stays under the job's recorded peak, which the daemon checks a
 // declaration to
 #define RECORD_TEST_DECLARED(voxels_, entries_)                                                                        \
-    (((voxels_) * sizeof(unsigned short)) + period_reserve_bytes((voxels_), (entries_)) +                             \
+    (((voxels_) * sizeof(unsigned short)) + period_reserve_bytes((voxels_), (entries_)) +                              \
      period_record_reserve_bytes(voxels_) + (8ull << 20u))
 
 typedef struct
@@ -64,8 +65,8 @@ static unsigned int ref_line_random(const PeriodShuffle *shuffle, unsigned long 
     return ref_round(hash ^ step, shuffle->keys[3]);
 }
 
-// the agreement along an axis of `data` positioned with `stride`, as the kernel counts it: each usable place and the place a
-// lag on
+// the agreement along an axis of `data` positioned with `stride`, as the kernel counts it: each usable place and the
+// place a lag on
 static void ref_agreement(const unsigned short *data, unsigned long long voxels, unsigned long long stride,
                           unsigned long long extent, unsigned long long *same)
 {
@@ -116,14 +117,17 @@ static int ref_null(const unsigned short *lanes, const PeriodLattice *lattice, c
     const unsigned long long extent = lattice->extent[axis];
     const unsigned long long stride = lattice->stride[axis];
     const unsigned long long lines = voxels / extent;
-    unsigned short *const shuffled = (unsigned short *)malloc((size_t)voxels * sizeof(unsigned short));
-    RefKeyed *const keyed = (RefKeyed *)malloc((size_t)extent * sizeof(RefKeyed));
-    unsigned long long *const same = (unsigned long long *)calloc((size_t)(extent / 2ull) + 1u, sizeof(unsigned long long));
+    unsigned short *const shuffled = (unsigned short *)platform_cell_taken((size_t)voxels * sizeof(unsigned short),
+                                                                           platform_place_g_program_owner, 0);
+    RefKeyed *const keyed =
+        (RefKeyed *)platform_cell_taken((size_t)extent * sizeof(RefKeyed), platform_place_g_program_owner, 0);
+    unsigned long long *const same = (unsigned long long *)platform_cell_cleared(
+        (size_t)(extent / 2ull) + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     if ((shuffled == NULL) || (keyed == NULL) || (same == NULL))
     {
-        free(shuffled);
-        free(keyed);
-        free(same);
+        platform_cell_released(shuffled, platform_place_g_program_owner);
+        platform_cell_released(keyed, platform_place_g_program_owner);
+        platform_cell_released(same, platform_place_g_program_owner);
         return 0;
     }
     PeriodShuffle shuffle;
@@ -150,9 +154,9 @@ static int ref_null(const unsigned short *lanes, const PeriodLattice *lattice, c
     period_strongest(same, &drawn);
     height->numerator = (drawn.candidate != 0ull) ? drawn.margin.numerator : 0ull;
     height->denominator = drawn.pairs_per_lag;
-    free(shuffled);
-    free(keyed);
-    free(same);
+    platform_cell_released(shuffled, platform_place_g_program_owner);
+    platform_cell_released(keyed, platform_place_g_program_owner);
+    platform_cell_released(same, platform_place_g_program_owner);
     return 1;
 }
 
@@ -165,8 +169,8 @@ static void record_fill(const RecordShape *shape, unsigned short *lanes)
     {
         const unsigned long long place[3] = {voxel / (shape->extent[1] * shape->extent[2]),
                                              (voxel / shape->extent[2]) % shape->extent[1], voxel % shape->extent[2]};
-        const unsigned long long noise = (shape->planted_period == 0ull) ? (sim_draw(RECORD_TEST_KEY, voxel) % 3ull)
-                                                                         : 0ull;
+        const unsigned long long noise =
+            (shape->planted_period == 0ull) ? (sim_draw(RECORD_TEST_KEY, voxel) % 3ull) : 0ull;
         const unsigned long long phase =
             (shape->planted_period != 0ull) ? (place[shape->planted_axis] % shape->planted_period) : 0ull;
         // a phase and a noise below 256 make a 16-bit lane
@@ -200,7 +204,8 @@ static unsigned long long record_now(void)
 static void record_shape(SimResults *results, const RecordShape *shape)
 {
     const unsigned long long voxels = shape->extent[0] * shape->extent[1] * shape->extent[2];
-    unsigned short *const lanes = (unsigned short *)malloc((size_t)voxels * sizeof(unsigned short));
+    unsigned short *const lanes = (unsigned short *)platform_cell_taken((size_t)voxels * sizeof(unsigned short),
+                                                                        platform_place_g_program_owner, 0);
     unsigned short *device_lanes = NULL;
     int ok = (lanes != NULL) &&
              sim_status_check(results, cudaMalloc((void **)&device_lanes, voxels * sizeof(unsigned short)),
@@ -214,8 +219,10 @@ static void record_shape(SimResults *results, const RecordShape *shape)
     }
     const EngineSignum content = sim_content(lanes, voxels, RECORD_TEST_KEY);
     const unsigned long long entries = period_agreement_entries(3u, shape->extent);
-    unsigned long long *const kernel_agreement = (unsigned long long *)calloc((size_t)entries + 1u, 8u);
-    unsigned long long *const record_agreement = (unsigned long long *)calloc((size_t)entries + 1u, 8u);
+    unsigned long long *const kernel_agreement =
+        (unsigned long long *)platform_cell_cleared((size_t)entries + 1u, 8u, platform_place_g_program_owner, 0);
+    unsigned long long *const record_agreement =
+        (unsigned long long *)platform_cell_cleared((size_t)entries + 1u, 8u, platform_place_g_program_owner, 0);
     PeriodMargin record_band[RECORD_TEST_DRAWS * 3ull];
     ok = ok && (kernel_agreement != NULL) && (record_agreement != NULL);
     char what[256];
@@ -259,8 +266,7 @@ static void record_shape(SimResults *results, const RecordShape *shape)
         if ((kernel_read != 0) && (record_read != 0) && (shape->planted_period != 0ull))
         {
             snprintf(what, sizeof(what), "%llu x %llu x %llu: the planted period %llu is read along axis %u",
-                     shape->extent[0], shape->extent[1], shape->extent[2], shape->planted_period,
-                     shape->planted_axis);
+                     shape->extent[0], shape->extent[1], shape->extent[2], shape->planted_period, shape->planted_axis);
             sim_check(results, record_measurement.axis[shape->planted_axis].period == shape->planted_period, what);
         }
     }
@@ -323,9 +329,9 @@ static void record_shape(SimResults *results, const RecordShape *shape)
         sim_check(results, band_same, what);
     }
     cudaFree(device_lanes);
-    free(lanes);
-    free(kernel_agreement);
-    free(record_agreement);
+    platform_cell_released(lanes, platform_place_g_program_owner);
+    platform_cell_released(kernel_agreement, platform_place_g_program_owner);
+    platform_cell_released(record_agreement, platform_place_g_program_owner);
 }
 
 // the reading and one draw on each route over a lattice of 30 x 640 x 640, in microseconds
@@ -333,7 +339,8 @@ static void record_timed(SimResults *results)
 {
     const RecordShape shape = {{RECORD_TEST_TIMED_Z, RECORD_TEST_TIMED_YX, RECORD_TEST_TIMED_YX}, 2u, 4ull};
     const unsigned long long voxels = shape.extent[0] * shape.extent[1] * shape.extent[2];
-    unsigned short *const lanes = (unsigned short *)malloc((size_t)voxels * sizeof(unsigned short));
+    unsigned short *const lanes = (unsigned short *)platform_cell_taken((size_t)voxels * sizeof(unsigned short),
+                                                                        platform_place_g_program_owner, 0);
     unsigned short *device_lanes = NULL;
     int ok = (lanes != NULL) &&
              sim_status_check(results, cudaMalloc((void **)&device_lanes, voxels * sizeof(unsigned short)),
@@ -381,7 +388,7 @@ static void record_timed(SimResults *results)
         mmgr_line_put(line, " us\n");
     }
     cudaFree(device_lanes);
-    free(lanes);
+    platform_cell_released(lanes, platform_place_g_program_owner);
 }
 
 int program_main(int count, char **arguments)
@@ -392,14 +399,11 @@ int program_main(int count, char **arguments)
     const unsigned long long timed = RECORD_TEST_TIMED_Z * RECORD_TEST_TIMED_YX * RECORD_TEST_TIMED_YX;
     const unsigned long long timed_extent[3] = {RECORD_TEST_TIMED_Z, RECORD_TEST_TIMED_YX, RECORD_TEST_TIMED_YX};
     const unsigned long long timed_entries = period_agreement_entries(3u, timed_extent);
-    int ok = sim_job_submit(&results, "period_record_test", count, arguments,
-                            RECORD_TEST_DECLARED(timed, timed_entries));
-    const RecordShape shapes[RECORD_TEST_SHAPES] = {{{24ull, 64ull, 80ull}, 2u, 5ull},
-                                                    {{7ull, 33ull, 129ull}, 1u, 3ull},
-                                                    {{1ull, 50ull, 50ull}, 2u, 0ull},
-                                                    {{12ull, 9ull, 31ull}, 0u, 2ull},
-                                                    {{9ull, 40ull, 41ull}, 0u, 0ull},
-                                                    {{1ull, 2ull, 20000ull}, 2u, 7ull}};
+    int ok =
+        sim_job_submit(&results, "period_record_test", count, arguments, RECORD_TEST_DECLARED(timed, timed_entries));
+    const RecordShape shapes[RECORD_TEST_SHAPES] = {
+        {{24ull, 64ull, 80ull}, 2u, 5ull}, {{7ull, 33ull, 129ull}, 1u, 3ull}, {{1ull, 50ull, 50ull}, 2u, 0ull},
+        {{12ull, 9ull, 31ull}, 0u, 2ull},  {{9ull, 40ull, 41ull}, 0u, 0ull},  {{1ull, 2ull, 20000ull}, 2u, 7ull}};
     for (unsigned int shape = 0u; (ok != 0) && (shape < RECORD_TEST_SHAPES); shape += 1u)
     {
         record_shape(&results, &shapes[shape]);

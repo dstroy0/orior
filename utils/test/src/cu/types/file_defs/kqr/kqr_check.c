@@ -68,7 +68,8 @@ static int room_fits(unsigned int room, size_t bytes)
     {
         return 1;
     }
-    char *const larger = (char *)realloc(s_room[room], bytes);
+    char *const larger =
+        (char *)platform_cell_grown(s_room[room], s_room_bytes[room], bytes, platform_place_g_program_owner, 0);
     if (larger == NULL)
     {
         return 0;

@@ -187,7 +187,8 @@ static void listed(const char *binary, const TuringConstants *constants, int64_t
 {
     // The bits of a lattice are small.
     const int64_t p = (int64_t)ceil(log2(16.0 * turing_rises(nu)));
-    TuringCell *const cell = (TuringCell *)carrier_memory(malloc(sizeof(TuringCell)));
+    TuringCell *const cell =
+        (TuringCell *)carrier_memory(platform_cell_taken(sizeof(TuringCell), platform_place_g_program_owner, 0));
     OriorExactInteger bound;
     turing_run_cell(binary, constants, nu, p, TURING_TRANSFORM, 0, 3, cell, &bound);
     FILE *const handle = fopen(cell->path, "r");
@@ -196,8 +197,10 @@ static void listed(const char *binary, const TuringConstants *constants, int64_t
         zeta_stop("the listing of the cell is gone");
     }
     size_t capacity = 1024u;
-    listing->ws = (OriorExactInteger(*)[2])carrier_memory(malloc(capacity * sizeof(OriorExactInteger[2])));
-    listing->lows = (OriorExactInteger *)carrier_memory(malloc(capacity * sizeof(OriorExactInteger)));
+    listing->ws = (OriorExactInteger(*)[2])carrier_memory(
+        platform_cell_taken(capacity * sizeof(OriorExactInteger[2]), platform_place_g_program_owner, 0));
+    listing->lows = (OriorExactInteger *)carrier_memory(
+        platform_cell_taken(capacity * sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
     listing->count = 0u;
     static char line[1 << 16];
     while (fgets(line, sizeof(line), handle) != NULL)
@@ -222,10 +225,12 @@ static void listed(const char *binary, const TuringConstants *constants, int64_t
         if (listing->count >= capacity)
         {
             capacity *= 2u;
-            listing->ws =
-                (OriorExactInteger(*)[2])carrier_memory(realloc(listing->ws, capacity * sizeof(OriorExactInteger[2])));
-            listing->lows =
-                (OriorExactInteger *)carrier_memory(realloc(listing->lows, capacity * sizeof(OriorExactInteger)));
+            listing->ws = (OriorExactInteger(*)[2])carrier_memory(
+                platform_cell_grown(listing->ws, (capacity / 2u) * sizeof(OriorExactInteger[2]),
+                                    capacity * sizeof(OriorExactInteger[2]), platform_place_g_program_owner, 0));
+            listing->lows = (OriorExactInteger *)carrier_memory(
+                platform_cell_grown(listing->lows, (capacity / 2u) * sizeof(OriorExactInteger),
+                                    capacity * sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
         }
         turing_parse_hex(words[3], &listing->ws[listing->count][0]);
         turing_parse_hex(words[4], &listing->ws[listing->count][1]);
@@ -235,7 +240,7 @@ static void listed(const char *binary, const TuringConstants *constants, int64_t
     fclose(handle);
     (void)remove(cell->path);
     listing->failed = cell->failed;
-    free(cell);
+    platform_cell_released(cell, platform_place_g_program_owner);
 }
 
 /** @brief A carrier: its marks as a test of reach. */
@@ -264,7 +269,8 @@ static void carrier_begin(Carrier *carrier, int which, double rate, const ZetaRa
     carrier->den = exact->under;
     // The count of marks is small, and a double holds it.
     carrier->count = ((size_t)((double)span * rate) * 2u) + 8u;
-    carrier->characters = (unsigned char *)carrier_memory(calloc(carrier->count + 1u, 1u));
+    carrier->characters = (unsigned char *)carrier_memory(
+        platform_cell_cleared(carrier->count + 1u, 1u, platform_place_g_program_owner, 0));
     for (size_t k = 0u; k < carrier->count; k += 1u)
     {
         if (carrier->n != 0)
@@ -628,9 +634,12 @@ int program_main(int argument_count, char **arguments)
         {
             Carrier carrier;
             carrier_begin(&carrier, which, rate, &exact_rate, span);
-            size_t *const idx = (size_t *)carrier_memory(malloc((carrier.count + 2u) * sizeof(size_t)));
-            size_t *const drawn = (size_t *)carrier_memory(malloc((carrier.count + 2u) * sizeof(size_t)));
-            unsigned char *const characters = (unsigned char *)carrier_memory(malloc(carrier.count + 1u));
+            size_t *const idx = (size_t *)carrier_memory(
+                platform_cell_taken((carrier.count + 2u) * sizeof(size_t), platform_place_g_program_owner, 0));
+            size_t *const drawn = (size_t *)carrier_memory(
+                platform_cell_taken((carrier.count + 2u) * sizeof(size_t), platform_place_g_program_owner, 0));
+            unsigned char *const characters = (unsigned char *)carrier_memory(
+                platform_cell_taken(carrier.count + 1u, platform_place_g_program_owner, 0));
             ZetaRational zero;
             rational_small(0, 1, &zero);
             const size_t idx_count = carrier_points(&carrier, &listing, carrier.characters, &zero, idx);
@@ -655,10 +664,10 @@ int program_main(int argument_count, char **arguments)
                 add_moments(&listing, drawn, moved_count, arms[1][which][d]);
                 arm_counts[1][which][d] += (int64_t)moved_count;
             }
-            free(idx);
-            free(drawn);
-            free(characters);
-            free(carrier.characters);
+            platform_cell_released(idx, platform_place_g_program_owner);
+            platform_cell_released(drawn, platform_place_g_program_owner);
+            platform_cell_released(characters, platform_place_g_program_owner);
+            platform_cell_released(carrier.characters, platform_place_g_program_owner);
         }
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -685,8 +694,8 @@ int program_main(int argument_count, char **arguments)
             platform_line_out_ended();
         }
         platform_line_flushed();
-        free(listing.ws);
-        free(listing.lows);
+        platform_cell_released(listing.ws, platform_place_g_program_owner);
+        platform_cell_released(listing.lows, platform_place_g_program_owner);
     }
     {
         VerbaLinea *const output_line = platform_line_out();

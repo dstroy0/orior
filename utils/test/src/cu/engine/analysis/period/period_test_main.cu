@@ -9,10 +9,14 @@ static void test_volume(SimResults *results, const char *name, const unsigned sh
 {
     const unsigned long long entries = period_agreement_entries(rank, extent);
     const size_t entry_count = (size_t)((entries != 0ull) ? entries : 1ull);
-    unsigned long long *const counts = (unsigned long long *)calloc(entry_count, sizeof(unsigned long long));
-    unsigned long long *const reference = (unsigned long long *)calloc(entry_count, sizeof(unsigned long long));
-    PeriodMargin *const band = (PeriodMargin *)calloc((size_t)(TEST_DRAWS * rank), sizeof(PeriodMargin));
-    PeriodMargin *const band_again = (PeriodMargin *)calloc((size_t)(TEST_DRAWS * rank), sizeof(PeriodMargin));
+    unsigned long long *const counts = (unsigned long long *)platform_cell_cleared(
+        entry_count, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned long long *const reference = (unsigned long long *)platform_cell_cleared(
+        entry_count, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    PeriodMargin *const band = (PeriodMargin *)platform_cell_cleared((size_t)(TEST_DRAWS * rank), sizeof(PeriodMargin),
+                                                                     platform_place_g_program_owner, 0);
+    PeriodMargin *const band_again = (PeriodMargin *)platform_cell_cleared(
+        (size_t)(TEST_DRAWS * rank), sizeof(PeriodMargin), platform_place_g_program_owner, 0);
     PeriodMeasurement measurement;
     PeriodMeasurement measurement_again;
     EngineError error;
@@ -41,7 +45,8 @@ static void test_volume(SimResults *results, const char *name, const unsigned sh
         {
             voxels *= extent[axis];
         }
-        unsigned int *const histogram = (unsigned int *)calloc(65536u, sizeof(unsigned int));
+        unsigned int *const histogram =
+            (unsigned int *)platform_cell_cleared(65536u, sizeof(unsigned int), platform_place_g_program_owner, 0);
         for (unsigned long long voxel = 0ull; (histogram != NULL) && (voxel < voxels); voxel += 1ull)
         {
             histogram[volume[voxel]] += 1u;
@@ -50,7 +55,7 @@ static void test_volume(SimResults *results, const char *name, const unsigned sh
         {
             histogram_check += (unsigned long long)histogram[value] * histogram[value];
         }
-        free(histogram);
+        platform_cell_released(histogram, platform_place_g_program_owner);
         sim_check(results, (measurement.voxels == voxels) && (measurement.collisions == histogram_check), name);
         unsigned long long first = 0ull;
         for (unsigned int axis = 0u; axis < rank; axis += 1u)
@@ -94,10 +99,10 @@ static void test_volume(SimResults *results, const char *name, const unsigned sh
             platform_line_out_ended();
         }
     }
-    free(counts);
-    free(reference);
-    free(band);
-    free(band_again);
+    platform_cell_released(counts, platform_place_g_program_owner);
+    platform_cell_released(reference, platform_place_g_program_owner);
+    platform_cell_released(band, platform_place_g_program_owner);
+    platform_cell_released(band_again, platform_place_g_program_owner);
 }
 
 static void test_error(SimResults *results, const char *name, const unsigned short *device_lanes, unsigned int rank,

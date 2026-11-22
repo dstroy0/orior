@@ -228,7 +228,7 @@ static int scan_load(const ScanRequest *request, const char *sample, ScanVolume 
     {
         fprintf(stderr, "  scan: %s: its .iapx in %s did not load, or its frames are too wide to scan\n", sample,
                 request->set);
-        free(volume->lanes);
+        platform_cell_released(volume->lanes, platform_place_g_program_owner);
         volume->lanes = NULL;
     }
     return summed;
@@ -236,12 +236,15 @@ static int scan_load(const ScanRequest *request, const char *sample, ScanVolume 
 
 static int scan_points_reserve(ScanPoints *points, unsigned int capacity, unsigned int limbs)
 {
-    unsigned int *const voxels =
-        (unsigned int *)realloc(points->voxels, ((size_t)capacity + 1u) * sizeof(unsigned int));
+    unsigned int *const voxels = (unsigned int *)platform_cell_grown(
+        points->voxels, ((size_t)points->capacity + 1u) * sizeof(unsigned int),
+        ((size_t)capacity + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     points->voxels = (voxels != NULL) ? voxels : points->voxels;
     unsigned int *const levels =
         (voxels != NULL)
-            ? (unsigned int *)realloc(points->levels, (((size_t)capacity * limbs) + 1u) * sizeof(unsigned int))
+            ? (unsigned int *)platform_cell_grown(
+                  points->levels, (((size_t)points->capacity * limbs) + 1u) * sizeof(unsigned int),
+                  (((size_t)capacity * limbs) + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0)
             : NULL;
     points->levels = (levels != NULL) ? levels : points->levels;
     points->capacity = (levels != NULL) ? capacity : points->capacity;
@@ -254,11 +257,18 @@ static int scan_hessian_reserve(ScanPoints *points, unsigned int count, unsigned
     {
         return 1;
     }
-    unsigned int *const faces = (unsigned int *)realloc(points->faces, ((size_t)count + 1u) * sizeof(unsigned int));
+    unsigned int *const faces = (unsigned int *)platform_cell_grown(
+        points->faces, ((size_t)points->hessian_capacity + 1u) * sizeof(unsigned int),
+        ((size_t)count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     points->faces = (faces != NULL) ? faces : points->faces;
     const size_t words = ((size_t)count * HESSIAN_ENTRIES * ((size_t)limbs + 1u)) + 1u;
     unsigned int *const differences =
-        (faces != NULL) ? (unsigned int *)realloc(points->differences, words * sizeof(unsigned int)) : NULL;
+        (faces != NULL) ? (unsigned int *)platform_cell_grown(
+                              points->differences,
+                              (((size_t)points->hessian_capacity * HESSIAN_ENTRIES * ((size_t)limbs + 1u)) + 1u) *
+                                  sizeof(unsigned int),
+                              words * sizeof(unsigned int), platform_place_g_program_owner, 0)
+                        : NULL;
     points->differences = (differences != NULL) ? differences : points->differences;
     points->hessian_capacity = (differences != NULL) ? count : points->hessian_capacity;
     return differences != NULL;
@@ -270,10 +280,12 @@ static int scan_positive_reserve(ScanPoints *points, size_t words)
     {
         return 1;
     }
-    free(points->before);
-    free(points->after);
-    points->before = (unsigned long long *)malloc(words * sizeof(unsigned long long));
-    points->after = (unsigned long long *)malloc(words * sizeof(unsigned long long));
+    platform_cell_released(points->before, platform_place_g_program_owner);
+    platform_cell_released(points->after, platform_place_g_program_owner);
+    points->before = (unsigned long long *)platform_cell_taken(words * sizeof(unsigned long long),
+                                                               platform_place_g_program_owner, 0);
+    points->after = (unsigned long long *)platform_cell_taken(words * sizeof(unsigned long long),
+                                                              platform_place_g_program_owner, 0);
     const int ok = (points->before != NULL) && (points->after != NULL);
     points->positive_capacity = ok ? words : 0u;
     return ok;
@@ -358,7 +370,7 @@ static int scan_ingest(const ScanRequest *request, const char *sample, unsigned 
     {
         sample_counts[volume.lanes[measurement]] += 1ull;
     }
-    free(volume.lanes);
+    platform_cell_released(volume.lanes, platform_place_g_program_owner);
     ScanFooting footing;
     scan_footing(sample_counts, total, &footing);
     const int counted = (total <= (0xFFFFFFFFFFFFFFFFull - *readings)) &&
@@ -428,9 +440,11 @@ static int scan_frames(const ScanRequest *request, const char *sample, const Sca
         header[0], header[1], header[2], header[3], contrast->weights[0], contrast->weights[1], contrast->weights[2]};
     const size_t voxels = (size_t)volume->voxels;
     const size_t plane_words = voxels * contrast->input_limbs;
-    unsigned int *const planes = (plane_words > contrast->plane_capacity)
-                                     ? (unsigned int *)realloc(contrast->planes, plane_words * sizeof(unsigned int))
-                                     : contrast->planes;
+    unsigned int *const planes =
+        (plane_words > contrast->plane_capacity)
+            ? (unsigned int *)platform_cell_grown(contrast->planes, contrast->plane_capacity * sizeof(unsigned int),
+                                                  plane_words * sizeof(unsigned int), platform_place_g_program_owner, 0)
+            : contrast->planes;
     contrast->planes = (planes != NULL) ? planes : contrast->planes;
     contrast->plane_capacity =
         ((planes != NULL) && (plane_words > contrast->plane_capacity)) ? plane_words : contrast->plane_capacity;
@@ -591,7 +605,7 @@ static int scan_sample(const ScanRequest *request, const char *sample, ScanContr
     ScanVolume volume;
     const int ok = (scan_load(request, sample, &volume) != 0) &&
                    (scan_frames(request, sample, &volume, contrast, points, results) != 0);
-    free(volume.lanes);
+    platform_cell_released(volume.lanes, platform_place_g_program_owner);
     return ok;
 }
 
@@ -642,8 +656,10 @@ extern "C" long scan_set(const ScanRequest *request)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    unsigned long long *const cumulative = (unsigned long long *)calloc(SCAN_READINGS, sizeof(unsigned long long));
-    unsigned long long *const sample_counts = (unsigned long long *)malloc(SCAN_READINGS * sizeof(unsigned long long));
+    unsigned long long *const cumulative = (unsigned long long *)platform_cell_cleared(
+        SCAN_READINGS, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned long long *const sample_counts = (unsigned long long *)platform_cell_taken(
+        SCAN_READINGS * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     int ok = (cumulative != NULL) && (sample_counts != NULL);
     for (unsigned int at = 0u; ok && (at < request->count); at += 1u)
     {
@@ -666,8 +682,8 @@ extern "C" long scan_set(const ScanRequest *request)
     if (ok == 0)
     {
         fprintf(stderr, "  scan: the set was not ingested whole, so no frame is scanned\n");
-        free(cumulative);
-        free(sample_counts);
+        platform_cell_released(cumulative, platform_place_g_program_owner);
+        platform_cell_released(sample_counts, platform_place_g_program_owner);
         return SCAN_ERROR;
     }
     {
@@ -787,14 +803,14 @@ extern "C" long scan_set(const ScanRequest *request)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(cumulative);
-    free(sample_counts);
-    free(contrast.planes);
-    free(points.voxels);
-    free(points.levels);
-    free(points.faces);
-    free(points.differences);
-    free(points.before);
-    free(points.after);
+    platform_cell_released(cumulative, platform_place_g_program_owner);
+    platform_cell_released(sample_counts, platform_place_g_program_owner);
+    platform_cell_released(contrast.planes, platform_place_g_program_owner);
+    platform_cell_released(points.voxels, platform_place_g_program_owner);
+    platform_cell_released(points.levels, platform_place_g_program_owner);
+    platform_cell_released(points.faces, platform_place_g_program_owner);
+    platform_cell_released(points.differences, platform_place_g_program_owner);
+    platform_cell_released(points.before, platform_place_g_program_owner);
+    platform_cell_released(points.after, platform_place_g_program_owner);
     return (failed == 0u) ? 0L : SCAN_ERROR;
 }

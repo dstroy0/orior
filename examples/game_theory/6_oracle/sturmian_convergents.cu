@@ -24,6 +24,7 @@
  *       that the ends agree at every term.
  */
 #include "../period_detector.h"
+#include "../../../src/platform/platform.h"
 #include "../twister_record.h"
 
 #include "../../0_experimental/exact_zeta/zeta_shuffle.h"
@@ -485,9 +486,12 @@ int program_main(int argc, char **argv)
          sim_status_check(&results, cudaMalloc((void **)&device_index, lanes * 2ULL * 4ULL), "index") &&
          sim_status_check(&results, cudaMalloc((void **)&device_out, lanes * out_limbs * 4ULL), "out") &&
          sim_status_check(&results, cudaMemset(device_values, 0, values * 4ULL), "values cleared");
-    unsigned int *const host_index = (unsigned int *)malloc((size_t)(lanes * 2ULL * 4ULL));
-    unsigned int *const host_words = (unsigned int *)malloc((size_t)(words * 4ULL));
-    unsigned int *const sums = (unsigned int *)malloc((size_t)(series * (DETECTOR_LAGS_MAX + 1ULL) * 2ULL * 4ULL));
+    unsigned int *const host_index =
+        (unsigned int *)platform_cell_taken((size_t)(lanes * 2ULL * 4ULL), platform_place_g_program_owner, 0);
+    unsigned int *const host_words =
+        (unsigned int *)platform_cell_taken((size_t)(words * 4ULL), platform_place_g_program_owner, 0);
+    unsigned int *const sums = (unsigned int *)platform_cell_taken(
+        (size_t)(series * (DETECTOR_LAGS_MAX + 1ULL) * 2ULL * 4ULL), platform_place_g_program_owner, 0);
     ok = ok && (host_index != NULL) && (host_words != NULL) && (sums != NULL);
     // the slopes, the low and the high end each in two limbs; each is below 2^63
     unsigned int records[STURMIAN_SLOPES * 4u];
@@ -533,12 +537,14 @@ int program_main(int argc, char **argv)
     {
         seeds[draw] = draw;
     }
-    unsigned int *const orders = (unsigned int *)malloc((size_t)(STURMIAN_DRAWS * terms * sizeof(unsigned int)));
+    unsigned int *const orders = (unsigned int *)platform_cell_taken(
+        (size_t)(STURMIAN_DRAWS * terms * sizeof(unsigned int)), platform_place_g_program_owner, 0);
     TwisterSet twister;
     ok = ok && (orders != NULL) && twister_open(&results, &twister, seeds, STURMIAN_DRAWS) &&
          twister_shuffle(&results, &twister, STURMIAN_TERMS, orders);
     // the twister of the host, as a second route: every order of the device equals its order
-    unsigned int *const order = (unsigned int *)malloc((size_t)(terms * sizeof(unsigned int)));
+    unsigned int *const order =
+        (unsigned int *)platform_cell_taken((size_t)(terms * sizeof(unsigned int)), platform_place_g_program_owner, 0);
     unsigned long long mismatches = 0ULL;
     ok = ok && (order != NULL);
     for (unsigned int draw = 0u; ok && (draw < STURMIAN_DRAWS); draw += 1u)
@@ -577,7 +583,7 @@ int program_main(int argc, char **argv)
         written += terms;
     }
     twister_close(&twister);
-    free(orders);
+    platform_cell_released(orders, platform_place_g_program_owner);
     ok = ok && sim_status_check(&results, cudaMemcpy(device_index, host_index, written * 4ULL, cudaMemcpyHostToDevice),
                                 "gather index sent");
     const CycleRecordRunRequest run_gather = {
@@ -585,8 +591,8 @@ int program_main(int argc, char **argv)
     ok = ok && (cycle_record_run(&run_gather) == (long)written);
     sim_check(&results, ok, "the words and their shuffles are written on the device");
     const unsigned int widest = STURMIAN_WINDOWS[STURMIAN_WINDOW_COUNT - 1u];
-    DetectorLagSums *const lag_sums =
-        (DetectorLagSums *)calloc((size_t)(series * (widest + 1ULL)), sizeof(DetectorLagSums));
+    DetectorLagSums *const lag_sums = (DetectorLagSums *)platform_cell_cleared(
+        (size_t)(series * (widest + 1ULL)), sizeof(DetectorLagSums), platform_place_g_program_owner, 0);
     ok = ok && (lag_sums != NULL);
     const DetectorSweep sweep = {&lag,   lag_steps,  device_values, series,     terms,
                                  widest, host_index, device_index,  device_out, sums};
@@ -734,10 +740,10 @@ int program_main(int argc, char **argv)
     game_release(&gather);
     game_release(&lag);
     cycle_record_sum_release();
-    free(host_index);
-    free(host_words);
-    free(sums);
-    free(order);
-    free(lag_sums);
+    platform_cell_released(host_index, platform_place_g_program_owner);
+    platform_cell_released(host_words, platform_place_g_program_owner);
+    platform_cell_released(sums, platform_place_g_program_owner);
+    platform_cell_released(order, platform_place_g_program_owner);
+    platform_cell_released(lag_sums, platform_place_g_program_owner);
     return sim_close(&results, "sturmian convergents");
 }

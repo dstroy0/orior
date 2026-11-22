@@ -101,7 +101,7 @@ static void daemon_peer_gone(TesseraPeer *peer)
     close(peer->wake[0]);
     close(peer->wake[1]);
 #endif
-    free(peer);
+    platform_cell_released(peer, platform_place_g_program_owner);
 }
 
 static void daemon_frame_arrived(TesseraPeer *peer, const unsigned char bytes[TESSERA_FRAME_BYTES], int *open)

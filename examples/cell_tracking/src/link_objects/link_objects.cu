@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "link_objects.h"
+#include "../../../../src/platform/platform.h"
 
 #include "../../../../src/cu/engine/analysis/golden_bands/golden_bands.h"
 #include "../../../../src/cu/engine/runtime/radix_keys/radix_keys.h"
@@ -146,8 +147,8 @@ unsigned int focus_links(TreeFrame *frames, unsigned int frame_count, unsigned i
                     const unsigned int candidate = tree->pool_target[entry];
                     const unsigned int agrees = (unsigned int)(onward_of(later, candidate) == reached);
                     const unsigned int level = (unsigned int)((tree->pool_weight[entry] * 2u) >= target_weight);
-                    const int ahead = (agrees != 0u) && (level != 0u) &&
-                                      ((tree->pool_weight[entry] > max) || (found == 0xFFFFFFFFu));
+                    const int ahead =
+                        (agrees != 0u) && (level != 0u) && ((tree->pool_weight[entry] > max) || (found == 0xFFFFFFFFu));
                     max = (ahead != 0) ? tree->pool_weight[entry] : max;
                     found = (ahead != 0) ? candidate : found;
                 }
@@ -175,17 +176,20 @@ static int settle_links(TreeFrame *earlier, const TreeFrame *later)
     {
         return 1;
     }
-    unsigned int *const object_entry = (unsigned int *)malloc(((size_t)objects + 1u) * sizeof(unsigned int));
-    unsigned char *const turned = (unsigned char *)calloc((size_t)earlier->pool_start[objects] + 1u, 1u);
-    unsigned int *const survivor = (unsigned int *)malloc(((size_t)later->object_count + 1u) * sizeof(unsigned int));
-    unsigned long long *const located =
-        (unsigned long long *)malloc(((size_t)later->object_count + 1u) * sizeof(unsigned long long));
+    unsigned int *const object_entry = (unsigned int *)platform_cell_taken(
+        ((size_t)objects + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned char *const turned = (unsigned char *)platform_cell_cleared((size_t)earlier->pool_start[objects] + 1u, 1u,
+                                                                         platform_place_g_program_owner, 0);
+    unsigned int *const survivor = (unsigned int *)platform_cell_taken(
+        ((size_t)later->object_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned long long *const located = (unsigned long long *)platform_cell_taken(
+        ((size_t)later->object_count + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     if ((object_entry == NULL) || (turned == NULL) || (survivor == NULL) || (located == NULL))
     {
-        free(object_entry);
-        free(turned);
-        free(survivor);
-        free(located);
+        platform_cell_released(object_entry, platform_place_g_program_owner);
+        platform_cell_released(turned, platform_place_g_program_owner);
+        platform_cell_released(survivor, platform_place_g_program_owner);
+        platform_cell_released(located, platform_place_g_program_owner);
         return 0;
     }
     for (unsigned int object = 0u; object < objects; object += 1u)
@@ -251,8 +255,8 @@ static int settle_links(TreeFrame *earlier, const TreeFrame *later)
                  other += 1u)
             {
                 const int open = (turned[other] == 0u);
-                const int better = (open != 0) && (((unsigned long long)earlier->pool_weight[other] > max) ||
-                                                   (next == 0xFFFFFFFFu));
+                const int better =
+                    (open != 0) && (((unsigned long long)earlier->pool_weight[other] > max) || (next == 0xFFFFFFFFu));
                 max = (better != 0) ? (unsigned long long)earlier->pool_weight[other] : max;
                 next = (better != 0) ? other : next;
             }
@@ -269,10 +273,10 @@ static int settle_links(TreeFrame *earlier, const TreeFrame *later)
         written += (unsigned int)(entry != 0xFFFFFFFFu);
         earlier->link_start[object + 1u] = written;
     }
-    free(object_entry);
-    free(turned);
-    free(survivor);
-    free(located);
+    platform_cell_released(object_entry, platform_place_g_program_owner);
+    platform_cell_released(turned, platform_place_g_program_owner);
+    platform_cell_released(survivor, platform_place_g_program_owner);
+    platform_cell_released(located, platform_place_g_program_owner);
     return 1;
 }
 
@@ -281,21 +285,25 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
 {
     const unsigned int objects = earlier->object_count;
     const size_t capacity = (size_t)earlier->triple_count + (size_t)earlier->leaf_count + 1u;
-    unsigned int *const pool = (unsigned int *)malloc(((size_t)later->object_count + 1u) * sizeof(unsigned int));
-    unsigned long long *const cost =
-        (unsigned long long *)malloc(((size_t)later->object_count + 1u) * sizeof(unsigned long long));
-    unsigned long long *const weight =
-        (unsigned long long *)malloc(((size_t)later->object_count + 1u) * sizeof(unsigned long long));
-    unsigned long long *const under =
-        (unsigned long long *)malloc(((size_t)later->object_count + 1u) * sizeof(unsigned long long));
-    unsigned int *const stamp = (unsigned int *)calloc((size_t)later->object_count + 1u, sizeof(unsigned int));
-    unsigned int *const place = (unsigned int *)calloc((size_t)later->object_count + 1u, sizeof(unsigned int));
+    unsigned int *const pool = (unsigned int *)platform_cell_taken(
+        ((size_t)later->object_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned long long *const cost = (unsigned long long *)platform_cell_taken(
+        ((size_t)later->object_count + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned long long *const weight = (unsigned long long *)platform_cell_taken(
+        ((size_t)later->object_count + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned long long *const under = (unsigned long long *)platform_cell_taken(
+        ((size_t)later->object_count + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned int *const stamp = (unsigned int *)platform_cell_cleared(
+        (size_t)later->object_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const place = (unsigned int *)platform_cell_cleared(
+        (size_t)later->object_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned long long *const votes =
         (rules->vote != 0)
-            ? (unsigned long long *)malloc(((size_t)later->object_count + 1u) * sizeof(unsigned long long))
+            ? (unsigned long long *)platform_cell_taken(((size_t)later->object_count + 1u) * sizeof(unsigned long long),
+                                                        platform_place_g_program_owner, 0)
             : NULL;
-    unsigned long long *const target_voxels =
-        (unsigned long long *)calloc((size_t)later->object_count + 1u, sizeof(unsigned long long));
+    unsigned long long *const target_voxels = (unsigned long long *)platform_cell_cleared(
+        (size_t)later->object_count + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     for (unsigned int leaf = 0u; (target_voxels != NULL) && (leaf < later->leaf_count); leaf += 1u)
     {
         target_voxels[later->object_of[leaf]] += (unsigned long long)later->sizes[leaf];
@@ -310,14 +318,15 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
     {
         const int joined = (frame_contacts(earlier, &near_start, &nearby) != 0) &&
                            (frame_contacts(later, &later_near_start, &later_nearby) != 0);
-        seen = (unsigned int *)calloc((size_t)earlier->leaf_count + 2u, sizeof(unsigned int));
+        seen = (unsigned int *)platform_cell_cleared((size_t)earlier->leaf_count + 2u, sizeof(unsigned int),
+                                                     platform_place_g_program_owner, 0);
         if ((joined == 0) || (seen == NULL))
         {
-            free(near_start);
-            free(nearby);
-            free(later_near_start);
-            free(later_nearby);
-            free(seen);
+            platform_cell_released(near_start, platform_place_g_program_owner);
+            platform_cell_released(nearby, platform_place_g_program_owner);
+            platform_cell_released(later_near_start, platform_place_g_program_owner);
+            platform_cell_released(later_nearby, platform_place_g_program_owner);
+            platform_cell_released(seen, platform_place_g_program_owner);
             near_start = NULL;
             nearby = NULL;
             later_near_start = NULL;
@@ -325,37 +334,43 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
             seen = NULL;
         }
     }
-    earlier->link_start = (unsigned int *)calloc((size_t)objects + 2u, sizeof(unsigned int));
-    earlier->link_target = (unsigned int *)malloc(capacity * sizeof(unsigned int));
+    earlier->link_start = (unsigned int *)platform_cell_cleared((size_t)objects + 2u, sizeof(unsigned int),
+                                                                platform_place_g_program_owner, 0);
+    earlier->link_target =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     if ((pool == NULL) || (cost == NULL) || (weight == NULL) || (under == NULL) || (stamp == NULL) || (place == NULL) ||
         (target_voxels == NULL) || (earlier->link_start == NULL) || (earlier->link_target == NULL))
     {
-        free(pool);
-        free(cost);
-        free(weight);
-        free(under);
-        free(stamp);
-        free(place);
-        free(target_voxels);
-        free(votes);
-        free(near_start);
-        free(nearby);
-        free(later_near_start);
-        free(later_nearby);
-        free(seen);
+        platform_cell_released(pool, platform_place_g_program_owner);
+        platform_cell_released(cost, platform_place_g_program_owner);
+        platform_cell_released(weight, platform_place_g_program_owner);
+        platform_cell_released(under, platform_place_g_program_owner);
+        platform_cell_released(stamp, platform_place_g_program_owner);
+        platform_cell_released(place, platform_place_g_program_owner);
+        platform_cell_released(target_voxels, platform_place_g_program_owner);
+        platform_cell_released(votes, platform_place_g_program_owner);
+        platform_cell_released(near_start, platform_place_g_program_owner);
+        platform_cell_released(nearby, platform_place_g_program_owner);
+        platform_cell_released(later_near_start, platform_place_g_program_owner);
+        platform_cell_released(later_nearby, platform_place_g_program_owner);
+        platform_cell_released(seen, platform_place_g_program_owner);
         return 0;
     }
-    earlier->pool_start = (unsigned int *)calloc((size_t)objects + 2u, sizeof(unsigned int));
-    earlier->pool_target = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    earlier->pool_weight = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    earlier->pool_cost = (unsigned long long *)malloc(capacity * sizeof(unsigned long long));
+    earlier->pool_start = (unsigned int *)platform_cell_cleared((size_t)objects + 2u, sizeof(unsigned int),
+                                                                platform_place_g_program_owner, 0);
+    earlier->pool_target =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    earlier->pool_weight =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    earlier->pool_cost = (unsigned long long *)platform_cell_taken(capacity * sizeof(unsigned long long),
+                                                                   platform_place_g_program_owner, 0);
     if ((earlier->pool_start == NULL) || (earlier->pool_target == NULL) || (earlier->pool_weight == NULL) ||
         (earlier->pool_cost == NULL))
     {
-        free(earlier->pool_start);
-        free(earlier->pool_target);
-        free(earlier->pool_weight);
-        free(earlier->pool_cost);
+        platform_cell_released(earlier->pool_start, platform_place_g_program_owner);
+        platform_cell_released(earlier->pool_target, platform_place_g_program_owner);
+        platform_cell_released(earlier->pool_weight, platform_place_g_program_owner);
+        platform_cell_released(earlier->pool_cost, platform_place_g_program_owner);
         earlier->pool_start = NULL;
         earlier->pool_target = NULL;
         earlier->pool_weight = NULL;
@@ -364,13 +379,17 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
     unsigned int *level = NULL;
     if ((rules->damp != 0) && (earlier->forward_lag != NULL) && (earlier->leaf_count != 0u))
     {
-        level = (unsigned int *)calloc((size_t)earlier->leaf_count + 2u, sizeof(unsigned int));
+        level = (unsigned int *)platform_cell_cleared((size_t)earlier->leaf_count + 2u, sizeof(unsigned int),
+                                                      platform_place_g_program_owner, 0);
     }
     unsigned int *spectrum =
-        (level != NULL) ? (unsigned int *)calloc((size_t)DAMP_DIMENSIONS * DAMP_BANDS, sizeof(unsigned int)) : NULL;
+        (level != NULL) ? (unsigned int *)platform_cell_cleared((size_t)DAMP_DIMENSIONS * DAMP_BANDS,
+                                                                sizeof(unsigned int), platform_place_g_program_owner, 0)
+                        : NULL;
     unsigned int *gain =
         (spectrum != NULL)
-            ? (unsigned int *)calloc(((size_t)earlier->leaf_count + 2u) * DAMP_DIMENSIONS, sizeof(unsigned int))
+            ? (unsigned int *)platform_cell_cleared(((size_t)earlier->leaf_count + 2u) * DAMP_DIMENSIONS,
+                                                    sizeof(unsigned int), platform_place_g_program_owner, 0)
             : NULL;
     if (gain != NULL)
     {
@@ -493,8 +512,8 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
         if (queries_web != 0)
         {
             mark += 1u;
-            max = web_count(earlier, object, later, pool[leader], near_start, nearby, later_near_start,
-                                later_nearby, seen, mark);
+            max = web_count(earlier, object, later, pool[leader], near_start, nearby, later_near_start, later_nearby,
+                            seen, mark);
         }
         for (unsigned int entry = 0u; (queries_web != 0) && (entry < filled); entry += 1u)
         {
@@ -593,10 +612,12 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
     if ((rules->mutual != 0) && (earlier->pool_start != NULL) && (later->backward != NULL) &&
         (later->member_start != NULL))
     {
-        unsigned int *const chooses = (unsigned int *)malloc(((size_t)later->object_count + 1u) * sizeof(unsigned int));
-        unsigned long long *const reached =
-            (unsigned long long *)calloc((size_t)objects + 2u, sizeof(unsigned long long));
-        unsigned char *const claimed = (unsigned char *)calloc((size_t)later->object_count + 2u, 1u);
+        unsigned int *const chooses = (unsigned int *)platform_cell_taken(
+            ((size_t)later->object_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+        unsigned long long *const reached = (unsigned long long *)platform_cell_cleared(
+            (size_t)objects + 2u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+        unsigned char *const claimed = (unsigned char *)platform_cell_cleared((size_t)later->object_count + 2u, 1u,
+                                                                              platform_place_g_program_owner, 0);
         if ((chooses != NULL) && (reached != NULL) && (claimed != NULL))
         {
             for (unsigned int target = 0u; target < later->object_count; target += 1u)
@@ -668,17 +689,19 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
                 }
             }
         }
-        free(chooses);
-        free(reached);
-        free(claimed);
+        platform_cell_released(chooses, platform_place_g_program_owner);
+        platform_cell_released(reached, platform_place_g_program_owner);
+        platform_cell_released(claimed, platform_place_g_program_owner);
     }
     if ((rules->forest != 0) && (earlier->pool_start != NULL) && (earlier->link_start != NULL))
     {
         const unsigned int capacity = earlier->pool_start[objects];
-        unsigned long long *const order =
-            (unsigned long long *)malloc(((size_t)capacity + 1u) * sizeof(unsigned long long));
-        unsigned char *const taken = (unsigned char *)calloc((size_t)later->object_count + 2u, 1u);
-        unsigned char *const settled = (unsigned char *)calloc((size_t)objects + 2u, 1u);
+        unsigned long long *const order = (unsigned long long *)platform_cell_taken(
+            ((size_t)capacity + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
+        unsigned char *const taken = (unsigned char *)platform_cell_cleared((size_t)later->object_count + 2u, 1u,
+                                                                            platform_place_g_program_owner, 0);
+        unsigned char *const settled =
+            (unsigned char *)platform_cell_cleared((size_t)objects + 2u, 1u, platform_place_g_program_owner, 0);
         if ((order != NULL) && (taken != NULL) && (settled != NULL))
         {
             unsigned int order_count = 0u;
@@ -721,53 +744,57 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
                 s_forest_retained += (unsigned long long)((links == 1u) && (settled[own] == 0u));
             }
         }
-        free(order);
-        free(taken);
-        free(settled);
+        platform_cell_released(order, platform_place_g_program_owner);
+        platform_cell_released(taken, platform_place_g_program_owner);
+        platform_cell_released(settled, platform_place_g_program_owner);
     }
     const int settled = (rules->settle != 0) ? settle_links(earlier, later) : 1;
-    free(pool);
-    free(cost);
-    free(weight);
-    free(under);
-    free(stamp);
-    free(place);
-    free(target_voxels);
-    free(votes);
-    free(near_start);
-    free(nearby);
-    free(later_near_start);
-    free(later_nearby);
-    free(seen);
-    free(level);
-    free(spectrum);
-    free(gain);
+    platform_cell_released(pool, platform_place_g_program_owner);
+    platform_cell_released(cost, platform_place_g_program_owner);
+    platform_cell_released(weight, platform_place_g_program_owner);
+    platform_cell_released(under, platform_place_g_program_owner);
+    platform_cell_released(stamp, platform_place_g_program_owner);
+    platform_cell_released(place, platform_place_g_program_owner);
+    platform_cell_released(target_voxels, platform_place_g_program_owner);
+    platform_cell_released(votes, platform_place_g_program_owner);
+    platform_cell_released(near_start, platform_place_g_program_owner);
+    platform_cell_released(nearby, platform_place_g_program_owner);
+    platform_cell_released(later_near_start, platform_place_g_program_owner);
+    platform_cell_released(later_nearby, platform_place_g_program_owner);
+    platform_cell_released(seen, platform_place_g_program_owner);
+    platform_cell_released(level, platform_place_g_program_owner);
+    platform_cell_released(spectrum, platform_place_g_program_owner);
+    platform_cell_released(gain, platform_place_g_program_owner);
     return settled;
 }
 
 int link_objects(TreeFrame *earlier, const TreeFrame *later, const TreeRules *rules)
 {
-    unsigned long long *const candidate =
-        (unsigned long long *)malloc(((size_t)earlier->leaf_count + 1u) * sizeof(unsigned long long));
-    unsigned long long *const confirmed =
-        (unsigned long long *)malloc(((size_t)later->leaf_count + 1u) * sizeof(unsigned long long));
-    unsigned int *const incoming = (unsigned int *)calloc((size_t)later->object_count + 1u, sizeof(unsigned int));
-    earlier->link_start = (unsigned int *)calloc((size_t)earlier->object_count + 2u, sizeof(unsigned int));
-    earlier->link_target = (unsigned int *)malloc(((size_t)earlier->leaf_count + 1u) * sizeof(unsigned int));
-    unsigned int *const mutual = (unsigned int *)malloc(((size_t)later->object_count + 1u) * sizeof(unsigned int));
-    unsigned long long *const weight =
-        (unsigned long long *)malloc(((size_t)later->object_count + 1u) * sizeof(unsigned long long));
-    unsigned long long *const under =
-        (unsigned long long *)malloc(((size_t)later->object_count + 1u) * sizeof(unsigned long long));
+    unsigned long long *const candidate = (unsigned long long *)platform_cell_taken(
+        ((size_t)earlier->leaf_count + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned long long *const confirmed = (unsigned long long *)platform_cell_taken(
+        ((size_t)later->leaf_count + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned int *const incoming = (unsigned int *)platform_cell_cleared(
+        (size_t)later->object_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    earlier->link_start = (unsigned int *)platform_cell_cleared(
+        (size_t)earlier->object_count + 2u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    earlier->link_target = (unsigned int *)platform_cell_taken(
+        ((size_t)earlier->leaf_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const mutual = (unsigned int *)platform_cell_taken(
+        ((size_t)later->object_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned long long *const weight = (unsigned long long *)platform_cell_taken(
+        ((size_t)later->object_count + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned long long *const under = (unsigned long long *)platform_cell_taken(
+        ((size_t)later->object_count + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     if ((candidate == NULL) || (confirmed == NULL) || (incoming == NULL) || (earlier->link_start == NULL) ||
         (earlier->link_target == NULL) || (mutual == NULL) || (weight == NULL) || (under == NULL))
     {
-        free(candidate);
-        free(confirmed);
-        free(incoming);
-        free(mutual);
-        free(weight);
-        free(under);
+        platform_cell_released(candidate, platform_place_g_program_owner);
+        platform_cell_released(confirmed, platform_place_g_program_owner);
+        platform_cell_released(incoming, platform_place_g_program_owner);
+        platform_cell_released(mutual, platform_place_g_program_owner);
+        platform_cell_released(weight, platform_place_g_program_owner);
+        platform_cell_released(under, platform_place_g_program_owner);
         return 0;
     }
     unsigned int candidates = 0u;
@@ -903,11 +930,11 @@ int link_objects(TreeFrame *earlier, const TreeFrame *later, const TreeRules *ru
     {
         earlier->link_start[object + 1u] += earlier->link_start[object];
     }
-    free(candidate);
-    free(confirmed);
-    free(incoming);
-    free(mutual);
-    free(weight);
-    free(under);
+    platform_cell_released(candidate, platform_place_g_program_owner);
+    platform_cell_released(confirmed, platform_place_g_program_owner);
+    platform_cell_released(incoming, platform_place_g_program_owner);
+    platform_cell_released(mutual, platform_place_g_program_owner);
+    platform_cell_released(weight, platform_place_g_program_owner);
+    platform_cell_released(under, platform_place_g_program_owner);
     return 1;
 }

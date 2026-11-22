@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // obsignatio_test_streams.cu: lanes and bit streams
 #include "obsignatio_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 #if (defined(__CUDACC__))
 static int test_lanes_host(const unsigned char *lane_bytes, const unsigned long long *extent, unsigned char *nodes)
@@ -65,9 +66,12 @@ void test_lanes_reference(TestResults *results)
         const unsigned long long bytes = lanes * sizeof(unsigned short);
         const unsigned long long nodes = obsignatio_lanes_nodes(extent);
         const unsigned long long node_bytes = nodes * OBSIGNATIO_SIGNUM_BYTES;
-        unsigned char *const lane_bytes = (unsigned char *)malloc((size_t)bytes);
-        unsigned char *const host = (unsigned char *)malloc((size_t)node_bytes);
-        unsigned char *const device = (unsigned char *)malloc((size_t)node_bytes);
+        unsigned char *const lane_bytes =
+            (unsigned char *)platform_cell_taken((size_t)bytes, platform_place_g_program_owner, 0);
+        unsigned char *const host =
+            (unsigned char *)platform_cell_taken((size_t)node_bytes, platform_place_g_program_owner, 0);
+        unsigned char *const device =
+            (unsigned char *)platform_cell_taken((size_t)node_bytes, platform_place_g_program_owner, 0);
         unsigned short *device_lanes = NULL;
         unsigned char *device_nodes = NULL;
         int ready = (lane_bytes != NULL) && (host != NULL) && (device != NULL) && (nodes != 0ull);
@@ -85,9 +89,9 @@ void test_lanes_reference(TestResults *results)
         test_count(results, ready && (memcmp(host, device, (size_t)node_bytes) == 0));
         cudaFree(device_nodes);
         cudaFree(device_lanes);
-        free(device);
-        free(host);
-        free(lane_bytes);
+        platform_cell_released(device, platform_place_g_program_owner);
+        platform_cell_released(host, platform_place_g_program_owner);
+        platform_cell_released(lane_bytes, platform_place_g_program_owner);
     }
 }
 
@@ -99,9 +103,10 @@ void test_lanes_locality(TestResults *results)
     const unsigned long long planes = extent[0] * extent[1];
     const unsigned long long nodes = obsignatio_lanes_nodes(extent);
     const size_t node_bytes = (size_t)(nodes * OBSIGNATIO_SIGNUM_BYTES);
-    unsigned short *const host_lanes = (unsigned short *)malloc((size_t)lanes * sizeof(unsigned short));
-    unsigned char *const base = (unsigned char *)malloc(node_bytes);
-    unsigned char *const flipped = (unsigned char *)malloc(node_bytes);
+    unsigned short *const host_lanes = (unsigned short *)platform_cell_taken((size_t)lanes * sizeof(unsigned short),
+                                                                             platform_place_g_program_owner, 0);
+    unsigned char *const base = (unsigned char *)platform_cell_taken(node_bytes, platform_place_g_program_owner, 0);
+    unsigned char *const flipped = (unsigned char *)platform_cell_taken(node_bytes, platform_place_g_program_owner, 0);
     unsigned short *device_lanes = NULL;
     unsigned char *device_nodes = NULL;
     int ready = (host_lanes != NULL) && (base != NULL) && (flipped != NULL);
@@ -144,9 +149,9 @@ void test_lanes_locality(TestResults *results)
     }
     cudaFree(device_nodes);
     cudaFree(device_lanes);
-    free(flipped);
-    free(base);
-    free(host_lanes);
+    platform_cell_released(flipped, platform_place_g_program_owner);
+    platform_cell_released(base, platform_place_g_program_owner);
+    platform_cell_released(host_lanes, platform_place_g_program_owner);
 }
 
 void test_lanes_closed(TestResults *results)
@@ -195,8 +200,8 @@ void test_lanes_closed(TestResults *results)
 
 static void test_bit_stream_release(TestBitStream *stream)
 {
-    free(stream->limbs);
-    free(stream->offsets);
+    platform_cell_released(stream->limbs, platform_place_g_program_owner);
+    platform_cell_released(stream->offsets, platform_place_g_program_owner);
     memset(stream, 0, sizeof(*stream));
 }
 
@@ -228,8 +233,10 @@ static int test_bit_stream_make(TestBitStream *stream)
     }
     stream->bits = end;
     stream->limb_count = (end + 31ull) / 32ull;
-    stream->limbs = (unsigned int *)calloc((size_t)stream->limb_count, sizeof(unsigned int));
-    stream->offsets = (unsigned long long *)calloc((size_t)stream->messages, sizeof(unsigned long long));
+    stream->limbs = (unsigned int *)platform_cell_cleared((size_t)stream->limb_count, sizeof(unsigned int),
+                                                          platform_place_g_program_owner, 0);
+    stream->offsets = (unsigned long long *)platform_cell_cleared((size_t)stream->messages, sizeof(unsigned long long),
+                                                                  platform_place_g_program_owner, 0);
     if ((stream->limbs == NULL) || (stream->offsets == NULL))
     {
         test_bit_stream_release(stream);
@@ -258,7 +265,8 @@ static int test_bits_host(const TestBitStream *stream, const unsigned char *key,
             ((message + 1ull) < stream->messages) ? stream->offsets[message + 1ull] : stream->bits;
         const unsigned long long length = end - stream->offsets[message];
         const unsigned long long count = TEST_LENGTH_BYTES + ((length + 7ull) / 8ull);
-        unsigned char *const bytes = (unsigned char *)calloc((size_t)count + 1u, 1u);
+        unsigned char *const bytes =
+            (unsigned char *)platform_cell_cleared((size_t)count + 1u, 1u, platform_place_g_program_owner, 0);
         if (bytes == NULL)
         {
             return 0;
@@ -277,7 +285,7 @@ static int test_bits_host(const TestBitStream *stream, const unsigned char *key,
         }
         const long hashed =
             test_signum(bytes, count, key, mode, &signa[message * OBSIGNATIO_SIGNUM_BYTES], OBSIGNATIO_SIGNUM_BYTES);
-        free(bytes);
+        platform_cell_released(bytes, platform_place_g_program_owner);
         if (hashed != 0L)
         {
             return 0;
@@ -324,8 +332,10 @@ void test_bits_reference(const TestVectors *vectors, TestResults *results)
     TestBitDevice device;
     int ready = test_bit_stream_make(&stream) && test_bit_device_place(&stream, &device);
     const size_t signa_bytes = (size_t)(stream.messages * OBSIGNATIO_SIGNUM_BYTES);
-    unsigned char *const host = ready ? (unsigned char *)malloc(signa_bytes) : NULL;
-    unsigned char *const read = ready ? (unsigned char *)malloc(signa_bytes) : NULL;
+    unsigned char *const host =
+        ready ? (unsigned char *)platform_cell_taken(signa_bytes, platform_place_g_program_owner, 0) : NULL;
+    unsigned char *const read =
+        ready ? (unsigned char *)platform_cell_taken(signa_bytes, platform_place_g_program_owner, 0) : NULL;
     ready = ready && (host != NULL) && (read != NULL);
     const unsigned int modes[2] = {OBSIGNATIO_MODE_HASH, OBSIGNATIO_MODE_KEYED};
     for (unsigned int mode = 0u; mode < 2u; mode += 1u)
@@ -342,8 +352,8 @@ void test_bits_reference(const TestVectors *vectors, TestResults *results)
                                       &read[message * OBSIGNATIO_SIGNUM_BYTES], OBSIGNATIO_SIGNUM_BYTES) == 0));
         }
     }
-    free(read);
-    free(host);
+    platform_cell_released(read, platform_place_g_program_owner);
+    platform_cell_released(host, platform_place_g_program_owner);
     test_bit_device_release(&device);
     test_bit_stream_release(&stream);
 }
@@ -354,8 +364,10 @@ void test_bits_locality(TestResults *results)
     TestBitDevice device;
     int ready = test_bit_stream_make(&stream) && test_bit_device_place(&stream, &device);
     const size_t signa_bytes = (size_t)(stream.messages * OBSIGNATIO_SIGNUM_BYTES);
-    unsigned char *const base = ready ? (unsigned char *)malloc(signa_bytes) : NULL;
-    unsigned char *const flipped = ready ? (unsigned char *)malloc(signa_bytes) : NULL;
+    unsigned char *const base =
+        ready ? (unsigned char *)platform_cell_taken(signa_bytes, platform_place_g_program_owner, 0) : NULL;
+    unsigned char *const flipped =
+        ready ? (unsigned char *)platform_cell_taken(signa_bytes, platform_place_g_program_owner, 0) : NULL;
     ready = ready && (base != NULL) && (flipped != NULL) &&
             (test_bits_device(device.limbs, device.offsets, &stream, NULL, OBSIGNATIO_MODE_HASH, device.signa) == 0L) &&
             (cudaMemcpy(base, device.signa, signa_bytes, cudaMemcpyDeviceToHost) == cudaSuccess);
@@ -382,8 +394,8 @@ void test_bits_locality(TestResults *results)
         }
         test_count(results, local);
     }
-    free(flipped);
-    free(base);
+    platform_cell_released(flipped, platform_place_g_program_owner);
+    platform_cell_released(base, platform_place_g_program_owner);
     test_bit_device_release(&device);
     test_bit_stream_release(&stream);
 }
@@ -402,11 +414,15 @@ void test_bits_closed(const TestVectors *vectors, TestResults *results)
         return;
     }
     const size_t signa_bytes = (size_t)(stream.messages * OBSIGNATIO_SIGNUM_BYTES);
-    unsigned char *const before = placed ? (unsigned char *)malloc(signa_bytes) : NULL;
-    unsigned char *const after = placed ? (unsigned char *)malloc(signa_bytes) : NULL;
+    unsigned char *const before =
+        placed ? (unsigned char *)platform_cell_taken(signa_bytes, platform_place_g_program_owner, 0) : NULL;
+    unsigned char *const after =
+        placed ? (unsigned char *)platform_cell_taken(signa_bytes, platform_place_g_program_owner, 0) : NULL;
     unsigned long long *device_backward = NULL;
     unsigned long long *const backward =
-        placed ? (unsigned long long *)malloc((size_t)stream.messages * sizeof(unsigned long long)) : NULL;
+        placed ? (unsigned long long *)platform_cell_taken((size_t)stream.messages * sizeof(unsigned long long),
+                                                           platform_place_g_program_owner, 0)
+               : NULL;
     int ready = placed && (before != NULL) && (after != NULL) && (backward != NULL);
     if (ready)
     {
@@ -447,9 +463,9 @@ void test_bits_closed(const TestVectors *vectors, TestResults *results)
     const ObsignatioBitsRequest nothing = {NULL, NULL, 0ull, 0ull, NULL, OBSIGNATIO_MODE_HASH, NULL, &error};
     test_count(results, (obsignatio_bits(&nothing) == 0L) && (error.type == ENGINE_ERROR_NONE));
     cudaFree(device_backward);
-    free(backward);
-    free(after);
-    free(before);
+    platform_cell_released(backward, platform_place_g_program_owner);
+    platform_cell_released(after, platform_place_g_program_owner);
+    platform_cell_released(before, platform_place_g_program_owner);
     test_bit_device_release(&device);
     test_bit_stream_release(&stream);
 }

@@ -199,7 +199,8 @@ int program_main(int count, char **word)
         run_channel_close();
         return 1;
     }
-    s_pool = (RunQuestion *)calloc(SCHEDULER_ROUND_MAX, sizeof(RunQuestion));
+    s_pool = (RunQuestion *)platform_cell_cleared(SCHEDULER_ROUND_MAX, sizeof(RunQuestion),
+                                                  platform_place_g_program_owner, 0);
     if (s_pool == NULL)
     {
         {

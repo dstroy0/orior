@@ -66,7 +66,8 @@ static int seed_accepted(unsigned long long low, unsigned long long high, int mo
     if (s_seeds == s_room)
     {
         const unsigned int room = (s_room != 0u) ? (s_room * 2u) : 256u;
-        Seed *const grown = (Seed *)realloc(s_seed, (size_t)room * sizeof(Seed));
+        Seed *const grown = (Seed *)platform_cell_grown(s_seed, (size_t)s_room * sizeof(Seed),
+                                                        (size_t)room * sizeof(Seed), platform_place_g_program_owner, 0);
         if (grown == NULL)
         {
             return 0;
@@ -151,6 +152,6 @@ int program_main(int count, char **word)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(s_seed);
+    platform_cell_released(s_seed, platform_place_g_program_owner);
     return 0;
 }

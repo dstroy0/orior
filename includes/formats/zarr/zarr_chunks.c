@@ -61,7 +61,8 @@ int zarr_reserve(unsigned char **buffer, unsigned long long *capacity, unsigned 
     {
         return 1;
     }
-    unsigned char *const grown = (unsigned char *)realloc(*buffer, (size_t)wanted);
+    unsigned char *const grown =
+        (unsigned char *)platform_cell_grown(*buffer, *capacity, (size_t)wanted, platform_place_g_program_owner, 0);
     if (grown == NULL)
     {
         return 0;

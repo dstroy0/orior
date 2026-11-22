@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "answer_key.h"
+#include "../../../../src/platform/platform.h"
 
 #include "track.h"
 
@@ -46,7 +47,9 @@ int answer_key_build(const AnswerKeyTruth *truth, AnswerKey *key)
     const unsigned long long identity_limit = 0x7FFFFFFFFFFFFFFFull;
     int ok = (truth->nodes < 0xFFFFFFFFull) && (truth->edges < 0xFFFFFFFFull);
     AnswerKeyNode *const nodes =
-        ok ? (AnswerKeyNode *)malloc(((size_t)truth->nodes + 1u) * sizeof(AnswerKeyNode)) : NULL;
+        ok ? (AnswerKeyNode *)platform_cell_taken(((size_t)truth->nodes + 1u) * sizeof(AnswerKeyNode),
+                                                  platform_place_g_program_owner, 0)
+           : NULL;
     ok = ok && (nodes != NULL);
     for (unsigned long long node = 0ull; ok && (node < truth->nodes); node += 1ull)
     {
@@ -69,9 +72,15 @@ int answer_key_build(const AnswerKeyTruth *truth, AnswerKey *key)
     }
     key->node_count = ok ? (unsigned int)truth->nodes : 0u;
     key->edge_count = ok ? (unsigned int)truth->edges : 0u;
-    key->node_identity = ok ? (long long *)malloc(((size_t)key->node_count + 1u) * sizeof(long long)) : NULL;
-    key->node_coordinates = ok ? (int *)malloc(((size_t)key->node_count + 1u) * 4u * sizeof(int)) : NULL;
-    key->edge_ends = ok ? (long long *)malloc(((size_t)key->edge_count + 1u) * 2u * sizeof(long long)) : NULL;
+    key->node_identity = ok ? (long long *)platform_cell_taken(((size_t)key->node_count + 1u) * sizeof(long long),
+                                                               platform_place_g_program_owner, 0)
+                            : NULL;
+    key->node_coordinates = ok ? (int *)platform_cell_taken(((size_t)key->node_count + 1u) * 4u * sizeof(int),
+                                                            platform_place_g_program_owner, 0)
+                               : NULL;
+    key->edge_ends = ok ? (long long *)platform_cell_taken(((size_t)key->edge_count + 1u) * 2u * sizeof(long long),
+                                                           platform_place_g_program_owner, 0)
+                        : NULL;
     ok = ok && (key->node_identity != NULL) && (key->node_coordinates != NULL) && (key->edge_ends != NULL);
     for (unsigned int node = 0u; ok && (node < key->node_count); node += 1u)
     {
@@ -83,7 +92,7 @@ int answer_key_build(const AnswerKeyTruth *truth, AnswerKey *key)
         ok = (truth->edge_ends[end] <= identity_limit);
         key->edge_ends[end] = (long long)truth->edge_ends[end];
     }
-    free(nodes);
+    platform_cell_released(nodes, platform_place_g_program_owner);
     if (ok == 0)
     {
         release_answer_key(key);
@@ -93,8 +102,8 @@ int answer_key_build(const AnswerKeyTruth *truth, AnswerKey *key)
 
 void release_answer_key(AnswerKey *key)
 {
-    free(key->node_identity);
-    free(key->node_coordinates);
-    free(key->edge_ends);
+    platform_cell_released(key->node_identity, platform_place_g_program_owner);
+    platform_cell_released(key->node_coordinates, platform_place_g_program_owner);
+    platform_cell_released(key->edge_ends, platform_place_g_program_owner);
     memset(key, 0, sizeof(*key));
 }

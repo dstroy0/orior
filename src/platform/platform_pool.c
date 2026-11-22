@@ -236,6 +236,23 @@ unsigned long long platform_line_out_put(const char *bytes, unsigned long long l
 
 // a note on the error stream that the pool did not meet a cell. It names the bytes of the cell, its tier, and the bytes
 // of the pool. A program that needs more defines g_program_pool_bytes
+// MMgr tells the port of each give or growth that names an owner other than the cell's. The cell stays taken. The note
+// names both owners, and a reader then finds the give in the wrong place
+void mmgr_carcer_hw_misnamed(const CellOwner *named, const CellOwner *cell_owner, size_t bytes)
+{
+    EMBED_ALIGN(MMGR_ALIGN_BYTES) char text[192];
+    VerbaLinea line = mmgr_line_over(text, sizeof(text));
+    mmgr_line_put(&line, "  platform: a cell of ");
+    mmgr_line_decimal(&line, bytes, 1u);
+    mmgr_line_put(&line, " bytes went back as a cell of ");
+    mmgr_line_put(&line, (named != NULL) ? named->name : "no owner");
+    mmgr_line_put(&line, ", and it counts to ");
+    mmgr_line_put(&line, (cell_owner != NULL) ? cell_owner->name : "no owner");
+    mmgr_line_ch(&line, '\n');
+    const size_t length = mmgr_line_finish(&line);
+    platform_terminal_write(1, text, (unsigned long long)length);
+}
+
 static void platform_cell_refused(unsigned long long bytes, int ephemeral)
 {
     EMBED_ALIGN(MMGR_ALIGN_BYTES) char text[192];
@@ -283,7 +300,9 @@ void *platform_cell_cleared(unsigned long long count, unsigned long long size, u
 
 void platform_cell_released(void *cell, unsigned int place)
 {
-    if ((cell != NULL) && (place < (unsigned int)platform_place_count))
+    // platform_close gave the pages back, and every cell went with them. A destructor of a static that runs after
+    // main returns gives back nothing
+    if ((cell != NULL) && (place < (unsigned int)platform_place_count) && (s_pool_bytes != 0ULL))
     {
         g_platform_guard->persistent_buf_release(cell, &mmgr_owner_table[place]);
     }

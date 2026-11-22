@@ -5,6 +5,7 @@
  * @brief The exact arithmetic of the zeta examples. zeta_exact.h states each rule.
  */
 #include "zeta_exact.h"
+#include "../../../src/platform/platform.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -815,7 +816,8 @@ static ConstantEntry *constant_slot(ConstantTable *table, int64_t number, const 
     if ((table->count * 2u) >= table->capacity)
     {
         const size_t grown = (table->capacity == 0u) ? 256u : (table->capacity * 2u);
-        ConstantEntry *const entries = (ConstantEntry *)zeta_memory(calloc(grown, sizeof(ConstantEntry)));
+        ConstantEntry *const entries = (ConstantEntry *)zeta_memory(
+            platform_cell_cleared(grown, sizeof(ConstantEntry), platform_place_g_program_owner, 0));
         for (size_t at = 0u; at < table->capacity; at += 1u)
         {
             if (table->entries[at].used)
@@ -829,7 +831,7 @@ static ConstantEntry *constant_slot(ConstantTable *table, int64_t number, const 
                 entries[place] = *old;
             }
         }
-        free(table->entries);
+        platform_cell_released(table->entries, platform_place_g_program_owner);
         table->entries = entries;
         table->capacity = grown;
     }
@@ -856,7 +858,8 @@ static void constant_fill(ConstantTable *table, ConstantEntry *entry, int64_t nu
     entry->key_text = NULL;
     if (text != NULL)
     {
-        entry->key_text = (char *)zeta_memory(malloc(strlen(text) + 1u));
+        entry->key_text =
+            (char *)zeta_memory(platform_cell_taken(strlen(text) + 1u, platform_place_g_program_owner, 0));
         memcpy(entry->key_text, text, strlen(text) + 1u);
     }
     entry->key_places = places;
@@ -1062,7 +1065,8 @@ void zeta_bernoulli(int64_t k, ZetaRational *result)
 {
     if (bernoulli_values == NULL)
     {
-        bernoulli_values = (ZetaRational *)zeta_memory(malloc(sizeof(ZetaRational)));
+        bernoulli_values =
+            (ZetaRational *)zeta_memory(platform_cell_taken(sizeof(ZetaRational), platform_place_g_program_owner, 0));
         z_set(&bernoulli_values[0].top, 1);
         z_set(&bernoulli_values[0].under, 1);
         bernoulli_count = 1u;
@@ -1100,8 +1104,9 @@ void zeta_bernoulli(int64_t k, ZetaRational *result)
         z_mul_small(&under, n + 1, &wide);
         OriorExactInteger divisor;
         z_gcd(&top, &wide, &divisor);
-        bernoulli_values =
-            (ZetaRational *)zeta_memory(realloc(bernoulli_values, (bernoulli_count + 1u) * sizeof(ZetaRational)));
+        bernoulli_values = (ZetaRational *)zeta_memory(
+            platform_cell_grown(bernoulli_values, bernoulli_count * sizeof(ZetaRational),
+                                (bernoulli_count + 1u) * sizeof(ZetaRational), platform_place_g_program_owner, 0));
         z_neg(&top, &top);
         z_floor_div(&top, &divisor, &bernoulli_values[bernoulli_count].top);
         z_floor_div(&wide, &divisor, &bernoulli_values[bernoulli_count].under);
@@ -1334,15 +1339,15 @@ void zeta_routes(const ZetaPoint *point, int32_t places, int64_t n_sum, int inte
     const int32_t digits = places + ZETA_GUARD;
     // The count of powers is 2N, which fits size_t.
     const size_t count = (size_t)(2 * n_sum);
-    OriorExactInteger(*const powers)[4] =
-        (OriorExactInteger(*)[4])zeta_memory(malloc(count * sizeof(OriorExactInteger[4])));
+    OriorExactInteger(*const powers)[4] = (OriorExactInteger(*)[4])zeta_memory(
+        platform_cell_taken(count * sizeof(OriorExactInteger[4]), platform_place_g_program_owner, 0));
     for (int64_t n = 1; n <= (2 * n_sum); n += 1)
     {
         zeta_power_minus_s(n, point, digits, powers[n - 1]);
     }
     zeta_at(point, n_sum, integral, (const OriorExactInteger(*)[4])powers, &values[0]);
     zeta_at(point, 2 * n_sum, integral, (const OriorExactInteger(*)[4])powers, &values[4]);
-    free(powers);
+    platform_cell_released(powers, platform_place_g_program_owner);
     OriorExactInteger drop;
     z_ten_to(ZETA_GUARD, &drop);
     for (unsigned at = 0u; at < 8u; at += 1u)

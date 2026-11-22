@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_boundary_test_codes.cu: counts, primes, determinants and codes
 #include "record_boundary_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 // Haar measure counted: a tower of 4 samples and one level, whose range each way is 3 bits. Every input quantum at
 // level w + 3 runs through the map and the output's quantum at level w is tallied. The map's low w bits read only the
@@ -15,8 +16,10 @@ void boundary_counted(BoundaryResults *results, unsigned int inverse)
     unsigned int runs = 0u;
     unsigned int balanced = 0u;
     int ran_all = 1;
-    BoundaryProgram *const program = (BoundaryProgram *)calloc(1u, sizeof(BoundaryProgram));
-    BoundaryTower *const tower = (BoundaryTower *)calloc(1u, sizeof(BoundaryTower));
+    BoundaryProgram *const program =
+        (BoundaryProgram *)platform_cell_cleared(1u, sizeof(BoundaryProgram), platform_place_g_program_owner, 0);
+    BoundaryTower *const tower =
+        (BoundaryTower *)platform_cell_cleared(1u, sizeof(BoundaryTower), platform_place_g_program_owner, 0);
     // a single pass, left early where a buffer or the load fails
     do
     {
@@ -61,11 +64,14 @@ void boundary_counted(BoundaryResults *results, unsigned int inverse)
             {
                 // representatives from [0, 2^(w+3)) or from [-2^(w+2), 2^(w+2))
                 const long long window = (shifted == 0u) ? 0ll : -(1ll << (digit - 1u));
-                unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * samples, sizeof(unsigned int));
-                unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-                unsigned int *const device_out =
-                    (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-                unsigned int *const tallied = (unsigned int *)calloc(buckets, sizeof(unsigned int));
+                unsigned int *const atoms = (unsigned int *)platform_cell_cleared(
+                    (size_t)lanes * samples, sizeof(unsigned int), platform_place_g_program_owner, 0);
+                unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+                    (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+                unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+                    (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+                unsigned int *const tallied = (unsigned int *)platform_cell_cleared(buckets, sizeof(unsigned int),
+                                                                                    platform_place_g_program_owner, 0);
                 const int buffers = (atoms != NULL) && (host_out != NULL) && (device_out != NULL) && (tallied != NULL);
                 for (unsigned int lane = 0u; (buffers != 0) && (lane < lanes); lane += 1u)
                 {
@@ -98,21 +104,21 @@ void boundary_counted(BoundaryResults *results, unsigned int inverse)
                 }
                 runs += 1u;
                 balanced += (even != 0) ? 1u : 0u;
-                free(atoms);
-                free(host_out);
-                free(device_out);
-                free(tallied);
+                platform_cell_released(atoms, platform_place_g_program_owner);
+                platform_cell_released(host_out, platform_place_g_program_owner);
+                platform_cell_released(device_out, platform_place_g_program_owner);
+                platform_cell_released(tallied, platform_place_g_program_owner);
             }
         }
         boundary_free(&loaded);
     } while (0);
-    free(program);
-    free(tower);
+    platform_cell_released(program, platform_place_g_program_owner);
+    platform_cell_released(tower, platform_place_g_program_owner);
     mmgr_line_put(&results->line, "  counted: ");
     mmgr_line_put(&results->line, map);
     mmgr_line_put(&results->line,
-                   " over 4 samples and one level, every input quantum at level w + 3 for w = 1 and 2, from two "
-                   "windows; ");
+                  " over 4 samples and one level, every input quantum at level w + 3 for w = 1 and 2, from two "
+                  "windows; ");
     mmgr_line_decimal(&results->line, balanced, 1u);
     mmgr_line_put(&results->line, " of ");
     mmgr_line_decimal(&results->line, runs, 1u);

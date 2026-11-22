@@ -5,6 +5,7 @@
  * @brief The theta function of Riemann and Siegel, by the series of Stirling. zeta_theta.h states the rules.
  */
 #include "zeta_theta.h"
+#include "../../../src/platform/platform.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -46,7 +47,8 @@ static void pi_route(int32_t digits, int machin, OriorExactInteger *result)
     }
     if (kept[machin][digits] == NULL)
     {
-        kept[machin][digits] = (OriorExactInteger *)theta_memory(malloc(sizeof(OriorExactInteger)));
+        kept[machin][digits] = (OriorExactInteger *)theta_memory(
+            platform_cell_taken(sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
         OriorExactInteger scale;
         z_ten_to(digits, &scale);
         if (machin)
@@ -249,7 +251,8 @@ static KeptValue *kept_find(KeptTable *table, const char *key)
     if ((table->count * 2u) >= table->capacity)
     {
         const size_t grown = (table->capacity == 0u) ? 256u : (table->capacity * 2u);
-        KeptValue *const entries = (KeptValue *)theta_memory(calloc(grown, sizeof(KeptValue)));
+        KeptValue *const entries = (KeptValue *)theta_memory(
+            platform_cell_cleared(grown, sizeof(KeptValue), platform_place_g_program_owner, 0));
         for (size_t at = 0u; at < table->capacity; at += 1u)
         {
             if (table->entries[at].key != NULL)
@@ -262,7 +265,7 @@ static KeptValue *kept_find(KeptTable *table, const char *key)
                 entries[place] = table->entries[at];
             }
         }
-        free(table->entries);
+        platform_cell_released(table->entries, platform_place_g_program_owner);
         table->entries = entries;
         table->capacity = grown;
     }
@@ -284,7 +287,7 @@ static KeptValue *kept_find(KeptTable *table, const char *key)
  */
 static void kept_store(KeptTable *table, KeptValue *entry, const char *key, const OriorExactInteger *value)
 {
-    entry->key = (char *)theta_memory(malloc(strlen(key) + 1u));
+    entry->key = (char *)theta_memory(platform_cell_taken(strlen(key) + 1u, platform_place_g_program_owner, 0));
     memcpy(entry->key, key, strlen(key) + 1u);
     entry->value = *value;
     table->count += 1u;

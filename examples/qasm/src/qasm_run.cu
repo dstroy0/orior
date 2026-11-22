@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_run.cu: the sweep, the run and the job
 #include "qasm_device_internal.h"
+#include "../../../src/platform/platform.h"
 
 // one gate: its index, its program's sweep, and the outputs narrowed back into the state
 static int qasm_sweep(QasmSpace *space, const QasmProgram *programs, const QasmGate *gate, EngineError *error)
@@ -139,7 +140,8 @@ static int qasm_probabilities(QasmSpace *space, const QasmProgram *program, Qasm
         return 0;
     }
     const unsigned long long chunk = (lanes < QASM_CHUNK_LANES) ? lanes : QASM_CHUNK_LANES;
-    unsigned int *const staging = (unsigned int *)malloc((size_t)(chunk * limbs * sizeof(unsigned int)));
+    unsigned int *const staging = (unsigned int *)platform_cell_taken((size_t)(chunk * limbs * sizeof(unsigned int)),
+                                                                      platform_place_g_program_owner, 0);
     if (!QASM_CHECK(staging != NULL, space, error, ENGINE_ERROR_RESOURCE))
     {
         return 0;
@@ -156,7 +158,7 @@ static int qasm_probabilities(QasmSpace *space, const QasmProgram *program, Qasm
             qasm_results_lanes(results, staging, limbs, bits, first, count);
         }
     }
-    free(staging);
+    platform_cell_released(staging, platform_place_g_program_owner);
     return ok;
 }
 
@@ -227,7 +229,8 @@ long qasm_run(const QasmRunRequest *request, QasmOutcome *outcome)
     results.full = (results.measured_count == circuit->qubits);
     if (ok && (results.full == 0))
     {
-        results.bins = (QasmWide *)calloc((size_t)(1ull << results.measured_count), sizeof(QasmWide));
+        results.bins = (QasmWide *)platform_cell_cleared((size_t)(1ull << results.measured_count), sizeof(QasmWide),
+                                                         platform_place_g_program_owner, 0);
         ok = QASM_CHECK(results.bins != NULL, &results, error, ENGINE_ERROR_RESOURCE);
     }
     ok = ok && qasm_probabilities(&space, &programs[QASM_PROGRAM_PROBABILITY], &results, error);
@@ -244,7 +247,7 @@ long qasm_run(const QasmRunRequest *request, QasmOutcome *outcome)
         outcome->sweeps = circuit->gate_count + 1u;
         outcome->lanes = space.lanes;
     }
-    free(results.bins);
+    platform_cell_released(results.bins, platform_place_g_program_owner);
     qasm_space_release(&space);
     for (unsigned int which = 0u; which < QASM_PROGRAMS; which += 1u)
     {
@@ -362,7 +365,7 @@ long qasm_job_submit(const unsigned char *request, unsigned long long bytes, uns
             return QASM_ERROR;
         }
     }
-    QasmJob *const new_job = (QasmJob *)calloc(1u, sizeof(QasmJob));
+    QasmJob *const new_job = (QasmJob *)platform_cell_cleared(1u, sizeof(QasmJob), platform_place_g_program_owner, 0);
     if (!QASM_CHECK(new_job != NULL, job, error, ENGINE_ERROR_RESOURCE))
     {
         TesseraTicket released;
@@ -390,6 +393,6 @@ long qasm_job_release(QasmJob *job, EngineError *error)
         fprintf(stderr, "tessera: released, peak %llu bytes%s\n", ticket.last_peak,
                 (ticket.last_peak > job->declared) ? ", more than it declared" : "");
     }
-    free(job);
+    platform_cell_released(job, platform_place_g_program_owner);
     return (released == 0L) ? 0L : QASM_ERROR;
 }

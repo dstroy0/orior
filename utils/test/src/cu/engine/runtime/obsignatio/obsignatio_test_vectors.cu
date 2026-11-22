@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // obsignatio_test_vectors.cu: files, hex and the test vectors
 #include "obsignatio_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 void test_count(TestResults *results, int passed)
 {
@@ -23,7 +24,8 @@ static char *test_file_read(const char *path)
     const int sought = fseek(file, 0L, SEEK_END);
     const long size = (sought == 0) ? ftell(file) : -1L;
     // a size of zero or more from ftell converts to size_t exactly
-    char *const text = (size >= 0L) ? (char *)malloc((size_t)size + 1u) : NULL;
+    char *const text =
+        (size >= 0L) ? (char *)platform_cell_taken((size_t)size + 1u, platform_place_g_program_owner, 0) : NULL;
     const int rewound = (text != NULL) ? fseek(file, 0L, SEEK_SET) : -1;
     // a size of zero or more from ftell converts to size_t exactly
     const size_t read = (rewound == 0) ? fread(text, 1u, (size_t)size, file) : 0u;
@@ -31,7 +33,7 @@ static char *test_file_read(const char *path)
     // a size of zero or more from ftell converts to size_t exactly
     if ((text == NULL) || (read != (size_t)size))
     {
-        free(text);
+        platform_cell_released(text, platform_place_g_program_owner);
         return NULL;
     }
     text[read] = '\0';
@@ -79,7 +81,8 @@ static unsigned char *test_hex_decode(const char *hex, unsigned long long digits
     {
         return NULL;
     }
-    unsigned char *const bytes = (unsigned char *)malloc((size_t)(digits / 2ull) + 1u);
+    unsigned char *const bytes =
+        (unsigned char *)platform_cell_taken((size_t)(digits / 2ull) + 1u, platform_place_g_program_owner, 0);
     if (bytes == NULL)
     {
         return NULL;
@@ -90,7 +93,7 @@ static unsigned char *test_hex_decode(const char *hex, unsigned long long digits
         unsigned int low = 0u;
         if ((test_hex_nibble(hex[2ull * byte], &high) == 0) || (test_hex_nibble(hex[(2ull * byte) + 1ull], &low) == 0))
         {
-            free(bytes);
+            platform_cell_released(bytes, platform_place_g_program_owner);
             return NULL;
         }
         // two nibbles make one byte below 256
@@ -103,12 +106,12 @@ void test_vectors_release(TestVectors *vectors)
 {
     for (unsigned int index = 0u; index < vectors->count; index += 1u)
     {
-        free(vectors->cases[index].hash);
-        free(vectors->cases[index].keyed);
-        free(vectors->cases[index].derived);
+        platform_cell_released(vectors->cases[index].hash, platform_place_g_program_owner);
+        platform_cell_released(vectors->cases[index].keyed, platform_place_g_program_owner);
+        platform_cell_released(vectors->cases[index].derived, platform_place_g_program_owner);
     }
-    free(vectors->cases);
-    free(vectors->context);
+    platform_cell_released(vectors->cases, platform_place_g_program_owner);
+    platform_cell_released(vectors->context, platform_place_g_program_owner);
     memset(vectors, 0, sizeof(*vectors));
 }
 
@@ -130,8 +133,10 @@ int test_vectors_load(const char *path, TestVectors *vectors)
         count += 1u;
     }
     int ok = (key != NULL) && (key_length == OBSIGNATIO_KEY_BYTES) && (context != NULL) && (count != 0u);
-    vectors->cases = ok ? (TestCase *)calloc(count, sizeof(TestCase)) : NULL;
-    vectors->context = ok ? (char *)malloc((size_t)context_length + 1u) : NULL;
+    vectors->cases =
+        ok ? (TestCase *)platform_cell_cleared(count, sizeof(TestCase), platform_place_g_program_owner, 0) : NULL;
+    vectors->context =
+        ok ? (char *)platform_cell_taken((size_t)context_length + 1u, platform_place_g_program_owner, 0) : NULL;
     ok = ok && (vectors->cases != NULL) && (vectors->context != NULL);
     if (ok)
     {
@@ -163,7 +168,7 @@ int test_vectors_load(const char *path, TestVectors *vectors)
         vectors->longest = (one->length > vectors->longest) ? one->length : vectors->longest;
         at = after;
     }
-    free(text);
+    platform_cell_released(text, platform_place_g_program_owner);
     if (ok == 0)
     {
         test_vectors_release(vectors);
@@ -214,7 +219,8 @@ void test_host_vectors(const TestVectors *vectors, const unsigned char *pattern,
     for (unsigned int index = 0u; index < vectors->count; index += 1u)
     {
         const TestCase *const one = &vectors->cases[index];
-        unsigned char *const out = (unsigned char *)malloc((size_t)one->out_bytes);
+        unsigned char *const out =
+            (unsigned char *)platform_cell_taken((size_t)one->out_bytes, platform_place_g_program_owner, 0);
         for (unsigned int mode = 0u; mode < 3u; mode += 1u)
         {
             const unsigned char *const key = test_mode_key(test_modes[mode], vectors, context_key);
@@ -228,7 +234,7 @@ void test_host_vectors(const TestVectors *vectors, const unsigned char *pattern,
                 test_signum(pattern, one->length, key, test_modes[mode], signum, OBSIGNATIO_SIGNUM_BYTES);
             test_count(results, (plain == 0L) && (memcmp(signum, expected, OBSIGNATIO_SIGNUM_BYTES) == 0));
         }
-        free(out);
+        platform_cell_released(out, platform_place_g_program_owner);
     }
 }
 #if (defined(__CUDACC__))
@@ -244,7 +250,8 @@ void test_device_vectors(const TestVectors *vectors, const unsigned char *patter
             {
                 const unsigned long long stride = one->length + gap;
                 const unsigned long long capacity = offset + (stride * TEST_LAYOUT_MESSAGES) + 1ull;
-                unsigned char *const host_messages = (unsigned char *)malloc((size_t)capacity);
+                unsigned char *const host_messages =
+                    (unsigned char *)platform_cell_taken((size_t)capacity, platform_place_g_program_owner, 0);
                 unsigned char *device_messages = NULL;
                 unsigned char *device_signa = NULL;
                 unsigned char signa[TEST_LAYOUT_MESSAGES * OBSIGNATIO_SIGNUM_BYTES];
@@ -279,7 +286,7 @@ void test_device_vectors(const TestVectors *vectors, const unsigned char *patter
                 }
                 cudaFree(device_signa);
                 cudaFree(device_messages);
-                free(host_messages);
+                platform_cell_released(host_messages, platform_place_g_program_owner);
             }
         }
     }

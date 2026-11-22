@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_lens_rank.c: rows, rank, the clock, the seal and the read
 #include "qasm_lens_internal.h"
+#include "../../../src/platform/platform.h"
 
 static unsigned int qasm_lens_row_bit(const QasmLensRow *row, unsigned int column)
 {
@@ -177,19 +178,24 @@ long qasm_lens_read(const QasmLensRequest *request, QasmLensMeasurement *measure
     }
     const unsigned int size = 1u << request->bits;
     const unsigned int generators = 2u * (size - 1u);
-    QasmLensState *const forward_table = (QasmLensState *)calloc(size, sizeof(QasmLensState));
-    QasmLensState *const backward_table = (QasmLensState *)calloc(size, sizeof(QasmLensState));
+    QasmLensState *const forward_table =
+        (QasmLensState *)platform_cell_cleared(size, sizeof(QasmLensState), platform_place_g_program_owner, 0);
+    QasmLensState *const backward_table =
+        (QasmLensState *)platform_cell_cleared(size, sizeof(QasmLensState), platform_place_g_program_owner, 0);
     unsigned char *const generator_bytes =
-        (generators != 0u) ? (unsigned char *)calloc(generators, QASM_LENS_GENERATOR_BYTES) : NULL;
-    QasmLensBasis *const basis = (QasmLensBasis *)calloc(1u, sizeof(QasmLensBasis));
+        (generators != 0u) ? (unsigned char *)platform_cell_cleared(generators, QASM_LENS_GENERATOR_BYTES,
+                                                                    platform_place_g_program_owner, 0)
+                           : NULL;
+    QasmLensBasis *const basis =
+        (QasmLensBasis *)platform_cell_cleared(1u, sizeof(QasmLensBasis), platform_place_g_program_owner, 0);
     if (!QASM_HAD((forward_table != NULL) && (backward_table != NULL) &&
                       ((generators == 0u) || (generator_bytes != NULL)) && (basis != NULL),
                   request, error))
     {
-        free(forward_table);
-        free(backward_table);
-        free(generator_bytes);
-        free(basis);
+        platform_cell_released(forward_table, platform_place_g_program_owner);
+        platform_cell_released(backward_table, platform_place_g_program_owner);
+        platform_cell_released(generator_bytes, platform_place_g_program_owner);
+        platform_cell_released(basis, platform_place_g_program_owner);
         return QASM_ERROR;
     }
     QasmLensState anchor;
@@ -215,10 +221,10 @@ long qasm_lens_read(const QasmLensRequest *request, QasmLensMeasurement *measure
     const unsigned int backward_vanish = qasm_lens_curvature_vanish(backward_table, request->bits, &backward_draws);
     const unsigned long long forward_fiber = qasm_lens_fiber_count(forward_table, size);
     const unsigned long long backward_fiber = qasm_lens_fiber_count(backward_table, size);
-    free(forward_table);
-    free(backward_table);
-    free(generator_bytes);
-    free(basis);
+    platform_cell_released(forward_table, platform_place_g_program_owner);
+    platform_cell_released(backward_table, platform_place_g_program_owner);
+    platform_cell_released(generator_bytes, platform_place_g_program_owner);
+    platform_cell_released(basis, platform_place_g_program_owner);
     if (!sealed)
     {
         return QASM_ERROR;
@@ -253,12 +259,14 @@ long qasm_lens_seal_check(const QasmLensRequest *request, unsigned char *clean, 
     }
     const unsigned int size = 1u << request->bits;
     const unsigned int generators = size - 1u;
-    QasmLensState *const table = (QasmLensState *)calloc(size, sizeof(QasmLensState));
-    unsigned char *const generator_bytes = (unsigned char *)calloc(generators, QASM_LENS_GENERATOR_BYTES);
+    QasmLensState *const table =
+        (QasmLensState *)platform_cell_cleared(size, sizeof(QasmLensState), platform_place_g_program_owner, 0);
+    unsigned char *const generator_bytes = (unsigned char *)platform_cell_cleared(generators, QASM_LENS_GENERATOR_BYTES,
+                                                                                  platform_place_g_program_owner, 0);
     if (!QASM_HAD((table != NULL) && (generator_bytes != NULL), request, error))
     {
-        free(table);
-        free(generator_bytes);
+        platform_cell_released(table, platform_place_g_program_owner);
+        platform_cell_released(generator_bytes, platform_place_g_program_owner);
         return QASM_ERROR;
     }
     QasmLensState anchor;
@@ -272,8 +280,8 @@ long qasm_lens_seal_check(const QasmLensRequest *request, unsigned char *clean, 
     // one bit, the lowest of the first generator
     generator_bytes[0] ^= 1u;
     const int sealed = clean_sealed && (qasm_lens_seal(generator_bytes, generators, flipped_root, error) == 0L);
-    free(table);
-    free(generator_bytes);
+    platform_cell_released(table, platform_place_g_program_owner);
+    platform_cell_released(generator_bytes, platform_place_g_program_owner);
     if (!sealed)
     {
         return QASM_ERROR;

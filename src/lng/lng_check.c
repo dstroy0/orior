@@ -235,8 +235,10 @@ int program_main(int argc, char **argv)
 
     // each target table: a file of the walk that ends in _lng.tsv and has a witness column
     const LngList tables = found[3];
-    LngTable *const targets = (LngTable *)calloc((size_t)tables.count + 1u, sizeof(LngTable));
-    const LngTable **const checked = (const LngTable **)calloc((size_t)tables.count + 1u, sizeof(LngTable *));
+    LngTable *const targets = (LngTable *)platform_cell_cleared((size_t)tables.count + 1u, sizeof(LngTable),
+                                                                platform_place_g_program_owner, 0);
+    const LngTable **const checked = (const LngTable **)platform_cell_cleared(
+        (size_t)tables.count + 1u, sizeof(LngTable *), platform_place_g_program_owner, 0);
     LngList target_names = {NULL, 0u, 0u};
     if ((targets == NULL) || (checked == NULL))
     {
@@ -461,8 +463,8 @@ int program_main(int argc, char **argv)
     {
         lng_table_free(&targets[at]);
     }
-    free(targets);
-    free((void *)checked);
+    platform_cell_released(targets, platform_place_g_program_owner);
+    platform_cell_released((void *)checked, platform_place_g_program_owner);
     lng_list_free(&target_names);
     lng_table_free(&asm_table);
     lng_table_free(&hol);

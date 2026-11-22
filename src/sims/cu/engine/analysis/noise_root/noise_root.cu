@@ -201,12 +201,13 @@ int program_main(int argc, char **argv)
     const unsigned long long declared =
         lane_bytes + (voxels * sizeof(int)) + tower_reserve_bytes(voxels) + compression_reserve_bytes(voxels);
     int ok = sim_job_submit(&results, "noise_root", 0, NULL, declared);
-    unsigned short *const lanes = (unsigned short *)malloc((size_t)lane_bytes);
+    unsigned short *const lanes =
+        (unsigned short *)platform_cell_taken((size_t)lane_bytes, platform_place_g_program_owner, 0);
     int *const values = (int *)platform_cell_taken((unsigned long long)((size_t)voxels * sizeof(int)),
                                                    (unsigned int)platform_place_g_program_owner, 0);
-    int *const residual = (int *)malloc((size_t)voxels * sizeof(int));
-    int *const pattern = (int *)malloc((size_t)voxels * sizeof(int));
-    int *const returned = (int *)malloc((size_t)voxels * sizeof(int));
+    int *const residual = (int *)platform_cell_taken((size_t)voxels * sizeof(int), platform_place_g_program_owner, 0);
+    int *const pattern = (int *)platform_cell_taken((size_t)voxels * sizeof(int), platform_place_g_program_owner, 0);
+    int *const returned = (int *)platform_cell_taken((size_t)voxels * sizeof(int), platform_place_g_program_owner, 0);
     unsigned short *device_lanes = NULL;
     ok = ok && (lanes != NULL) && (values != NULL) && (residual != NULL) && (pattern != NULL) && (returned != NULL) &&
          sim_status_check(&results, cudaMalloc((void **)&device_lanes, (size_t)lane_bytes), "lanes");
@@ -341,10 +342,10 @@ int program_main(int argc, char **argv)
         sim_check(&results, exact != 0, "the root's residual and pattern return the box exactly");
     }
     cudaFree(device_lanes);
-    free(lanes);
+    platform_cell_released(lanes, platform_place_g_program_owner);
     platform_cell_released(values, (unsigned int)platform_place_g_program_owner);
-    free(residual);
-    free(pattern);
-    free(returned);
+    platform_cell_released(residual, platform_place_g_program_owner);
+    platform_cell_released(pattern, platform_place_g_program_owner);
+    platform_cell_released(returned, platform_place_g_program_owner);
     return sim_close(&results, "noise root");
 }

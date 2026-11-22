@@ -66,7 +66,8 @@ static int host_run(HostResults *results, const HostProgram *program, int reuse,
         return 0;
     }
     const unsigned int out_limbs = loaded.layout.out_limbs;
-    unsigned int *const out = (unsigned int *)calloc((size_t)HOST_TEST_LANES * out_limbs, sizeof(unsigned int));
+    unsigned int *const out = (unsigned int *)platform_cell_cleared(
+        (size_t)HOST_TEST_LANES * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
     CycleRecordHostRequest request;
     memset(&request, 0, sizeof(request));
     request.layout = &loaded.layout;
@@ -119,7 +120,9 @@ static void host_error(HostResults *results, const HostProgram *program, const u
     HostLoaded loaded;
     int ok = host_load(program, 0, &loaded);
     unsigned int *const out =
-        ok ? (unsigned int *)calloc((size_t)HOST_TEST_LANES * loaded.layout.out_limbs, sizeof(unsigned int)) : NULL;
+        ok ? (unsigned int *)platform_cell_cleared((size_t)HOST_TEST_LANES * loaded.layout.out_limbs,
+                                                   sizeof(unsigned int), platform_place_g_program_owner, 0)
+           : NULL;
     if (ok)
     {
         CycleRecordHostRequest request;
@@ -134,7 +137,7 @@ static void host_error(HostResults *results, const HostProgram *program, const u
              (loaded.error.type == ENGINE_ERROR_REQUEST) && (loaded.error.module == ENGINE_MODULE_CYCLE);
         host_free(&loaded);
     }
-    free(out);
+    platform_cell_released(out, platform_place_g_program_owner);
     host_check(results, ok, what);
 }
 
@@ -164,14 +167,14 @@ int program_main(int argc, char **argv)
     // both layouts write the same record width, the outputs being the same steps
     host_check(&results, ran && reran && (memcmp(records, reused, (size_t)HOST_TEST_LANES * sizeof(unsigned int)) == 0),
                "the reused registers write the records the unreused ones do");
-    free(records);
-    free(reused);
-    free(atoms[0]);
+    platform_cell_released(records, platform_place_g_program_owner);
+    platform_cell_released(reused, platform_place_g_program_owner);
+    platform_cell_released(atoms[0], platform_place_g_program_owner);
 
     host_division(&program);
     atoms[0] = host_atoms(program.in_limbs[0], HOST_TEST_LANES);
     ran = host_run(&results, &program, 0, atoms, one_body, NULL, &records);
-    free(records);
+    platform_cell_released(records, platform_place_g_program_owner);
     // the divisor taken bare errors once a lane's is zero. The numerator divided exactly by the divisor plus one
     // errors once a lane's does not divide
     HostProgram bare;
@@ -181,29 +184,32 @@ int program_main(int argc, char **argv)
     HostProgram inexact;
     host_inexact(&inexact, &bare);
     host_error(&results, &inexact, atoms[0], "an exact quotient that does not divide errors on the run");
-    free(atoms[0]);
+    platform_cell_released(atoms[0], platform_place_g_program_owner);
 
     host_bitwise(&program);
     atoms[0] = host_atoms(program.in_limbs[0], HOST_TEST_LANES);
     ran = host_run(&results, &program, 0, atoms, one_body, NULL, &records);
-    free(records);
-    free(atoms[0]);
+    platform_cell_released(records, platform_place_g_program_owner);
+    platform_cell_released(atoms[0], platform_place_g_program_owner);
 
-    unsigned int *const wide = (unsigned int *)malloc(512u * sizeof(unsigned int));
-    unsigned int *const narrow = (unsigned int *)malloc(4096u * sizeof(unsigned int));
+    unsigned int *const wide =
+        (unsigned int *)platform_cell_taken(512u * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const narrow =
+        (unsigned int *)platform_cell_taken(4096u * sizeof(unsigned int), platform_place_g_program_owner, 0);
     host_tables(&program, wide, narrow);
     atoms[0] = host_atoms(program.in_limbs[0], HOST_TEST_LANES);
     ran = host_run(&results, &program, 0, atoms, one_body, NULL, &records);
-    free(records);
-    free(atoms[0]);
-    free(wide);
-    free(narrow);
+    platform_cell_released(records, platform_place_g_program_owner);
+    platform_cell_released(atoms[0], platform_place_g_program_owner);
+    platform_cell_released(wide, platform_place_g_program_owner);
+    platform_cell_released(narrow, platform_place_g_program_owner);
 
     host_members(&program);
     atoms[0] = host_atoms(program.in_limbs[0], HOST_TEST_FIRST_BODIES);
     atoms[1] = host_atoms(program.in_limbs[1], HOST_TEST_SECOND_BODIES);
     const unsigned long long bodies[2] = {HOST_TEST_FIRST_BODIES, HOST_TEST_SECOND_BODIES};
-    unsigned int *const index = (unsigned int *)malloc((size_t)HOST_TEST_LANES * 2u * sizeof(unsigned int));
+    unsigned int *const index = (unsigned int *)platform_cell_taken((size_t)HOST_TEST_LANES * 2u * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
     for (unsigned int lane = 0u; (index != NULL) && (lane < HOST_TEST_LANES); lane += 1u)
     {
         index[2u * lane] = host_random() % HOST_TEST_FIRST_BODIES;
@@ -219,10 +225,10 @@ int program_main(int argc, char **argv)
         platform_line_out_ended();
     }
     (void)ran;
-    free(records);
-    free(index);
-    free(atoms[0]);
-    free(atoms[1]);
+    platform_cell_released(records, platform_place_g_program_owner);
+    platform_cell_released(index, platform_place_g_program_owner);
+    platform_cell_released(atoms[0], platform_place_g_program_owner);
+    platform_cell_released(atoms[1], platform_place_g_program_owner);
 
     // drawn last and from no stream: every digest above stays as it was
     host_affine_limit(&program);
@@ -245,10 +251,11 @@ int program_main(int argc, char **argv)
     }
     host_check(&results, (doubled_bits >= 65u) && (tripled_bits >= 66u),
                "a sum past the linear forms' limit takes the bits its value needs");
-    atoms[0] = (unsigned int *)calloc(HOST_TEST_LANES, sizeof(unsigned int));
+    atoms[0] =
+        (unsigned int *)platform_cell_cleared(HOST_TEST_LANES, sizeof(unsigned int), platform_place_g_program_owner, 0);
     ran = (atoms[0] != NULL) && host_run(&results, &program, 0, atoms, one_body, NULL, &records);
-    free(records);
-    free(atoms[0]);
+    platform_cell_released(records, platform_place_g_program_owner);
+    platform_cell_released(atoms[0], platform_place_g_program_owner);
 
     {
         VerbaLinea *const output_line = platform_line_out();

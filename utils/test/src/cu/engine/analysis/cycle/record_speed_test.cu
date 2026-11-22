@@ -11,6 +11,7 @@
 //   ladder of the last pair
 // The test is one job on the device's tessera daemon, submitted before the first program is loaded onto the device.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "sim.h"
@@ -188,12 +189,12 @@ int program_main(int count, char **arguments)
                                         ((unsigned long long)SPEED_TEST_STEPS_MAX * sizeof(DeviceRecordStep));
     ok = ok && sim_job_submit(&results, "record_speed_test", count, arguments, declared);
 
-    unsigned int *const atoms =
-        (unsigned int *)calloc((size_t)SPEED_TEST_LANES * in_limbs_max + 1u, sizeof(unsigned int));
-    unsigned int *const host_out =
-        (unsigned int *)calloc((size_t)SPEED_TEST_CHECKED * out_limbs_max + 1u, sizeof(unsigned int));
-    unsigned int *const device_out =
-        (unsigned int *)calloc((size_t)SPEED_TEST_CHECKED * out_limbs_max + 1u, sizeof(unsigned int));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared(
+        (size_t)SPEED_TEST_LANES * in_limbs_max + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)SPEED_TEST_CHECKED * out_limbs_max + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+        (size_t)SPEED_TEST_CHECKED * out_limbs_max + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = ok && (atoms != NULL) && (host_out != NULL) && (device_out != NULL);
     for (unsigned long long word = 0ull; (ok != 0) && (word < ((unsigned long long)SPEED_TEST_LANES * in_limbs_max));
          word += 1ull)
@@ -281,9 +282,9 @@ int program_main(int count, char **arguments)
 
     cudaFree(device_atoms);
     cudaFree(device_record);
-    free(atoms);
-    free(host_out);
-    free(device_out);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
     for (unsigned int at = 0u; at < SPEED_TEST_PROGRAMS; at += 1u)
     {
         key_schedule_record_release(&layouts[at]);

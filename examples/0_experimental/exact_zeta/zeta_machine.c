@@ -502,7 +502,8 @@ static ZetaRational transform_error(int64_t nu, int64_t p, ZetaRational e_theta,
     const ZetaRational leaf_norm = qadd(qk(qadd(e_q, qn(2, 1)), 2), qk(geometric, 4));
     // The poles lie in pos within [0, (2 nu + 1) ln nu], and at level l in at most this many boxes.
     const ZetaRational reach = qk(ln_high(qn(nu, 1)), (2 * nu) + 1);
-    int64_t *const holding = (int64_t *)turing_memory(calloc((size_t)(top + 2), sizeof(int64_t)));
+    int64_t *const holding = (int64_t *)turing_memory(
+        platform_cell_cleared((size_t)(top + 2), sizeof(int64_t), platform_place_g_program_owner, 0));
     for (int64_t level = 0; level <= top; level += 1)
     {
         OriorExactInteger value;
@@ -531,7 +532,7 @@ static ZetaRational transform_error(int64_t nu, int64_t p, ZetaRational e_theta,
         arithmetic_sum =
             qadd(arithmetic_sum, qadd(qk(qmul(qn(points, (int64_t)1 << level), across), 6), qn(points * 8 * ORDER, 1)));
     }
-    free(holding);
+    platform_cell_released(holding, platform_place_g_program_owner);
     const ZetaRational near_field = qk(qadd(e_cos, qn(40, 1)), 5 * ((width / 2) + 1));
     arithmetic_sum = qadd(arithmetic_sum, qk(qadd(qn(2 * ORDER, 1), near_field), points));
     const ZetaRational spread = qk(qadd(qk(ln_two_high(), p), qn(3, 1)), 2 * root_nu);
@@ -654,8 +655,8 @@ void turing_em_bounds(int64_t nu, int64_t heads, int64_t terms, OriorExactIntege
     ZetaRational e_tau = qadd(qn(2, 1), qdiv(e_t, qn(12 * heads, 1)));
     held = qadd(held, a);
     ZetaRational e_c = qadd(qk(e_inverse, heads), e_tau);
-    OriorExactInteger *const ratios =
-        (OriorExactInteger *)turing_memory(calloc((size_t)terms + 1u, sizeof(OriorExactInteger)));
+    OriorExactInteger *const ratios = (OriorExactInteger *)turing_memory(
+        platform_cell_cleared((size_t)terms + 1u, sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
     em_ratios(terms, ratios);
     const ZetaRational heads_q = qn(heads, 1);
     for (int64_t k = 2; k <= terms; k += 1)
@@ -681,7 +682,7 @@ void turing_em_bounds(int64_t nu, int64_t heads, int64_t terms, OriorExactIntege
         held = qadd(held, a);
         e_c = qadd(e_c, e_tau);
     }
-    free(ratios);
+    platform_cell_released(ratios, platform_place_g_program_owner);
     const ZetaRational e_rotated = qadd(qadd(qmul(qk(e_cs, 2), held), e_c), qn(2, 1));
     const ZetaRational e_em = qadd(qadd(qmul(qn(101, 100), e_rotated), qk(held, newton_error(heads))), qn(1, 1));
     const ZetaRational e_term =
@@ -770,10 +771,12 @@ void turing_constants(TuringConstants *constants)
         (int32_t)(((TURING_SCALE_BITS * 30103) / 100000) + ((61 * GAMMA_TERMS) / 100) + (3 * curves) + 40);
     ZetaCurve curve;
     rs_curve_begin(&curve, places);
-    constants->gamma =
-        (OriorExactInteger *)turing_memory(calloc((size_t)(curves * GAMMA_TERMS), sizeof(OriorExactInteger)));
-    constants->sizes = (ZetaRational *)turing_memory(calloc((size_t)curves, sizeof(ZetaRational)));
-    constants->slopes = (ZetaRational *)turing_memory(calloc((size_t)curves, sizeof(ZetaRational)));
+    constants->gamma = (OriorExactInteger *)turing_memory(platform_cell_cleared(
+        (size_t)(curves * GAMMA_TERMS), sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
+    constants->sizes = (ZetaRational *)turing_memory(
+        platform_cell_cleared((size_t)curves, sizeof(ZetaRational), platform_place_g_program_owner, 0));
+    constants->slopes = (ZetaRational *)turing_memory(
+        platform_cell_cleared((size_t)curves, sizeof(ZetaRational), platform_place_g_program_owner, 0));
     OriorExactInteger scale;
     z_ten_to(places, &scale);
     OriorExactInteger unit;
@@ -1674,14 +1677,14 @@ void turing_run_cell(const char *binary, const TuringConstants *constants, int64
     put_constants(handle, constants, bound, &theta_bound);
     if (method == TURING_EM)
     {
-        OriorExactInteger *const ratios =
-            (OriorExactInteger *)turing_memory(calloc((size_t)terms + 1u, sizeof(OriorExactInteger)));
+        OriorExactInteger *const ratios = (OriorExactInteger *)turing_memory(
+            platform_cell_cleared((size_t)terms + 1u, sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
         em_ratios(terms, ratios);
         for (int64_t k = 0; k < (terms - 1); k += 1)
         {
             put(handle, &ratios[k]);
         }
-        free(ratios);
+        platform_cell_released(ratios, platform_place_g_program_owner);
     }
     if (listing == 2)
     {

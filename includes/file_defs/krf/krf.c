@@ -150,7 +150,8 @@ int krf_removed_by(const char *path, const char *type, const char *reason, const
     }
     char query[KRF_QUERY];
     krf_query_named(query, sizeof(query));
-    char **const lines = (count == 0u) ? NULL : calloc(count, sizeof(char *));
+    char **const lines =
+        (count == 0u) ? NULL : platform_cell_cleared(count, sizeof(char *), platform_place_g_program_owner, 0);
     int made = (count == 0u) || (lines != NULL);
     for (unsigned int at = 0u; made && (at < count); at += 1u)
     {
@@ -159,7 +160,7 @@ int krf_removed_by(const char *path, const char *type, const char *reason, const
                               mmgr_text_length(query, PLATFORM_TEXT_TO_TERMINATOR) +
                               mmgr_text_length(reason, PLATFORM_TEXT_TO_TERMINATOR) +
                               mmgr_text_length(rows[at], PLATFORM_TEXT_TO_TERMINATOR) + 4u;
-        lines[at] = malloc(length);
+        lines[at] = platform_cell_taken(length, platform_place_g_program_owner, 0);
         made = lines[at] != NULL;
         if (made)
         {
@@ -179,9 +180,9 @@ int krf_removed_by(const char *path, const char *type, const char *reason, const
     const int written = made && ((put != 0u) || (count == 0u)) && kfile_lines_write_by(&file, path, who);
     for (unsigned int at = 0u; (lines != NULL) && (at < count); at += 1u)
     {
-        free(lines[at]);
+        platform_cell_released(lines[at], platform_place_g_program_owner);
     }
-    free(lines);
+    platform_cell_released(lines, platform_place_g_program_owner);
     kfile_lines_free(&file);
     return written;
 }

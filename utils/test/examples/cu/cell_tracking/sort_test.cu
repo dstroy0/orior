@@ -140,17 +140,20 @@ static int sort_test_pair_reserve(SortTestPair *pair, unsigned int sources, unsi
     memcpy(pair->weights, weights, sizeof(pair->weights));
     pair->sources = sources;
     pair->targets = targets;
-    pair->source_places = (int *)malloc((ENGINE_AXES * (size_t)sources + 1u) * sizeof(int));
-    pair->predictions = (int *)malloc((ENGINE_AXES * (size_t)sources + 1u) * sizeof(int));
-    pair->target_places = (int *)malloc((ENGINE_AXES * (size_t)targets + 1u) * sizeof(int));
+    pair->source_places = (int *)platform_cell_taken((ENGINE_AXES * (size_t)sources + 1u) * sizeof(int),
+                                                     platform_place_g_program_owner, 0);
+    pair->predictions = (int *)platform_cell_taken((ENGINE_AXES * (size_t)sources + 1u) * sizeof(int),
+                                                   platform_place_g_program_owner, 0);
+    pair->target_places = (int *)platform_cell_taken((ENGINE_AXES * (size_t)targets + 1u) * sizeof(int),
+                                                     platform_place_g_program_owner, 0);
     return (pair->source_places != NULL) && (pair->predictions != NULL) && (pair->target_places != NULL);
 }
 
 static void sort_test_pair_release(SortTestPair *pair)
 {
-    free(pair->source_places);
-    free(pair->predictions);
-    free(pair->target_places);
+    platform_cell_released(pair->source_places, platform_place_g_program_owner);
+    platform_cell_released(pair->predictions, platform_place_g_program_owner);
+    platform_cell_released(pair->target_places, platform_place_g_program_owner);
     memset(pair, 0, sizeof(*pair));
 }
 
@@ -237,9 +240,12 @@ static int sort_test_augment(SortTestAugment *augment, unsigned int source, unsi
 // the max links any matching of the gate admits, by augmenting paths; the gate is in source order
 static unsigned int sort_test_max_links(const SortLinks *links, unsigned int sources, unsigned int targets)
 {
-    unsigned int *const start = (unsigned int *)calloc((size_t)sources + 2u, sizeof(unsigned int));
-    unsigned int *const matched = (unsigned int *)malloc(((size_t)targets + 1u) * sizeof(unsigned int));
-    unsigned int *const seen = (unsigned int *)malloc(((size_t)targets + 1u) * sizeof(unsigned int));
+    unsigned int *const start = (unsigned int *)platform_cell_cleared((size_t)sources + 2u, sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    unsigned int *const matched = (unsigned int *)platform_cell_taken(((size_t)targets + 1u) * sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    unsigned int *const seen = (unsigned int *)platform_cell_taken(((size_t)targets + 1u) * sizeof(unsigned int),
+                                                                   platform_place_g_program_owner, 0);
     unsigned int max = SORT_TEST_NONE;
     if ((start != NULL) && (matched != NULL) && (seen != NULL))
     {
@@ -263,9 +269,9 @@ static unsigned int sort_test_max_links(const SortLinks *links, unsigned int sou
             max += (unsigned int)sort_test_augment(&augment, source, source);
         }
     }
-    free(start);
-    free(matched);
-    free(seen);
+    platform_cell_released(start, platform_place_g_program_owner);
+    platform_cell_released(matched, platform_place_g_program_owner);
+    platform_cell_released(seen, platform_place_g_program_owner);
     return max;
 }
 
@@ -282,10 +288,10 @@ static int sort_test_prove(const SortTestPair *pair, SortLinks *links, SortTestS
     const long chosen = sort_link_pair(&request, links);
     const unsigned int sources = pair->sources;
     const unsigned int targets = pair->targets;
-    unsigned long long *const forward =
-        (unsigned long long *)malloc(((size_t)sources + 1u) * sizeof(unsigned long long));
-    unsigned long long *const backward =
-        (unsigned long long *)malloc(((size_t)targets + 1u) * sizeof(unsigned long long));
+    unsigned long long *const forward = (unsigned long long *)platform_cell_taken(
+        ((size_t)sources + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned long long *const backward = (unsigned long long *)platform_cell_taken(
+        ((size_t)targets + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     int ok = (chosen >= 0L) && (forward != NULL) && (backward != NULL);
     for (unsigned int source = 0u; ok && (source < sources); source += 1u)
     {
@@ -331,15 +337,20 @@ static int sort_test_prove(const SortTestPair *pair, SortLinks *links, SortTestS
         }
     }
     ok = ok && (at == links->pairs);
-    free(forward);
-    free(backward);
+    platform_cell_released(forward, platform_place_g_program_owner);
+    platform_cell_released(backward, platform_place_g_program_owner);
     // the components by a breadth first walk from each gate pair's source in gate order
     const unsigned int nodes = sources + targets;
-    unsigned int *const label = (unsigned int *)malloc(((size_t)nodes + 1u) * sizeof(unsigned int));
-    unsigned int *const queue = (unsigned int *)malloc(((size_t)nodes + 1u) * sizeof(unsigned int));
-    unsigned int *const by_source = (unsigned int *)calloc((size_t)sources + 2u, sizeof(unsigned int));
-    unsigned int *const by_target = (unsigned int *)calloc((size_t)targets + 2u, sizeof(unsigned int));
-    unsigned int *const target_pairs = (unsigned int *)malloc(((size_t)links->pairs + 1u) * sizeof(unsigned int));
+    unsigned int *const label = (unsigned int *)platform_cell_taken(((size_t)nodes + 1u) * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
+    unsigned int *const queue = (unsigned int *)platform_cell_taken(((size_t)nodes + 1u) * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
+    unsigned int *const by_source = (unsigned int *)platform_cell_cleared((size_t)sources + 2u, sizeof(unsigned int),
+                                                                          platform_place_g_program_owner, 0);
+    unsigned int *const by_target = (unsigned int *)platform_cell_cleared((size_t)targets + 2u, sizeof(unsigned int),
+                                                                          platform_place_g_program_owner, 0);
+    unsigned int *const target_pairs = (unsigned int *)platform_cell_taken(
+        ((size_t)links->pairs + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = ok && (label != NULL) && (queue != NULL) && (by_source != NULL) && (by_target != NULL) &&
          (target_pairs != NULL);
     for (unsigned int pair_at = 0u; ok && (pair_at < links->pairs); pair_at += 1u)
@@ -396,8 +407,8 @@ static int sort_test_prove(const SortTestPair *pair, SortLinks *links, SortTestS
         components += 1u;
     }
     ok = ok && (components == links->components);
-    unsigned long long *const need =
-        (unsigned long long *)malloc(((size_t)components + 1u) * sizeof(unsigned long long));
+    unsigned long long *const need = (unsigned long long *)platform_cell_taken(
+        ((size_t)components + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     ok = ok && (need != NULL);
     for (unsigned int component = 0u; ok && (component < components); component += 1u)
     {
@@ -415,8 +426,10 @@ static int sort_test_prove(const SortTestPair *pair, SortLinks *links, SortTestS
              (links->weight[pair_at] == weight);
     }
     // the chosen links: one to one, as many as the sort reports, and as many as any matching of the gate admits
-    unsigned char *const source_used = (unsigned char *)calloc((size_t)sources + 1u, 1u);
-    unsigned char *const target_used = (unsigned char *)calloc((size_t)targets + 1u, 1u);
+    unsigned char *const source_used =
+        (unsigned char *)platform_cell_cleared((size_t)sources + 1u, 1u, platform_place_g_program_owner, 0);
+    unsigned char *const target_used =
+        (unsigned char *)platform_cell_cleared((size_t)targets + 1u, 1u, platform_place_g_program_owner, 0);
     ok = ok && (source_used != NULL) && (target_used != NULL);
     unsigned int counted = 0u;
     for (unsigned int pair_at = 0u; ok && (pair_at < links->pairs); pair_at += 1u)
@@ -434,8 +447,10 @@ static int sort_test_prove(const SortTestPair *pair, SortLinks *links, SortTestS
     ok = ok && (counted == links->chosen) && ((unsigned long long)chosen == counted) &&
          (sort_test_max_links(links, sources, targets) == counted);
     // each component's gate pairs and chosen links, grouped by the host's labels
-    unsigned int *const group_start = (unsigned int *)calloc((size_t)components + 2u, sizeof(unsigned int));
-    unsigned int *const group = (unsigned int *)malloc(((size_t)links->pairs + 1u) * sizeof(unsigned int));
+    unsigned int *const group_start = (unsigned int *)platform_cell_cleared(
+        (size_t)components + 2u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const group = (unsigned int *)platform_cell_taken(((size_t)links->pairs + 1u) * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
     ok = ok && (group_start != NULL) && (group != NULL);
     for (unsigned int pair_at = 0u; ok && (pair_at < links->pairs); pair_at += 1u)
     {
@@ -502,16 +517,16 @@ static int sort_test_prove(const SortTestPair *pair, SortLinks *links, SortTestS
         }
     }
     ok = ok && (retained == links->retained) && (level == links->level) && (crossed == links->crossed);
-    free(label);
-    free(queue);
-    free(by_source);
-    free(by_target);
-    free(target_pairs);
-    free(need);
-    free(source_used);
-    free(target_used);
-    free(group_start);
-    free(group);
+    platform_cell_released(label, platform_place_g_program_owner);
+    platform_cell_released(queue, platform_place_g_program_owner);
+    platform_cell_released(by_source, platform_place_g_program_owner);
+    platform_cell_released(by_target, platform_place_g_program_owner);
+    platform_cell_released(target_pairs, platform_place_g_program_owner);
+    platform_cell_released(need, platform_place_g_program_owner);
+    platform_cell_released(source_used, platform_place_g_program_owner);
+    platform_cell_released(target_used, platform_place_g_program_owner);
+    platform_cell_released(group_start, platform_place_g_program_owner);
+    platform_cell_released(group, platform_place_g_program_owner);
     sums->cases += 1ull;
     sums->agreed += (ok != 0) ? 1ull : 0ull;
     sums->gate += links->pairs;
@@ -1209,9 +1224,12 @@ static void sort_test_walk(SimResults *results, const char *set)
     SortTestWords words;
     words.capacity = SORT_TEST_POINTS_HEAD_WORDS + 64u;
     words.count = 0u;
-    words.words = (unsigned int *)malloc(words.capacity * sizeof(unsigned int));
-    unsigned int *const read = (unsigned int *)malloc(4096u * sizeof(unsigned int));
-    unsigned int *const again = (unsigned int *)malloc(4096u * sizeof(unsigned int));
+    words.words =
+        (unsigned int *)platform_cell_taken(words.capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const read =
+        (unsigned int *)platform_cell_taken(4096u * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const again =
+        (unsigned int *)platform_cell_taken(4096u * sizeof(unsigned int), platform_place_g_program_owner, 0);
     const char *const names[3] = {"chain", "weighed", "wide"};
     int ok = (set != NULL) && (words.words != NULL) && (read != NULL) && (again != NULL);
     for (unsigned int at = 0u; ok && (at < 3u); at += 1u)
@@ -1272,9 +1290,9 @@ static void sort_test_walk(SimResults *results, const char *set)
     request.count = 0u;
     sim_check(results, sort_link_set(&request) == SORT_ERROR, "a set of no samples errors");
     sim_check(results, sort_link_set(NULL) == SORT_ERROR, "no request errors");
-    free(words.words);
-    free(read);
-    free(again);
+    platform_cell_released(words.words, platform_place_g_program_owner);
+    platform_cell_released(read, platform_place_g_program_owner);
+    platform_cell_released(again, platform_place_g_program_owner);
 }
 
 // the distances' levels as the host works them, apart from the pooling: a distance's pooled share is the least, over
@@ -1724,16 +1742,21 @@ static int sort_test_first_pair(const SortTestDrawn *drawn, unsigned int frame, 
 // errors in its first pass still leaves no .links with O7 on
 static void sort_test_first_walk(SimResults *results, const char *set)
 {
-    SortTestDrawn *const drawn = (SortTestDrawn *)malloc(sizeof(SortTestDrawn));
+    SortTestDrawn *const drawn =
+        (SortTestDrawn *)platform_cell_taken(sizeof(SortTestDrawn), platform_place_g_program_owner, 0);
     SortTestWords words;
     words.capacity = SORT_TEST_POINTS_HEAD_WORDS + 1024u;
     words.count = 0u;
-    words.words = (unsigned int *)malloc(words.capacity * sizeof(unsigned int));
-    unsigned int *const plain = (unsigned int *)malloc(SORT_TEST_LINKS_CAPACITY * sizeof(unsigned int));
-    unsigned int *const pooled = (unsigned int *)malloc(SORT_TEST_LINKS_CAPACITY * sizeof(unsigned int));
-    SortFirstCount *const counts = (SortFirstCount *)malloc(SORT_TEST_DISTANCES_MAX * sizeof(SortFirstCount));
-    unsigned long long *const levels =
-        (unsigned long long *)malloc(SORT_TEST_DISTANCES_MAX * sizeof(unsigned long long));
+    words.words =
+        (unsigned int *)platform_cell_taken(words.capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const plain = (unsigned int *)platform_cell_taken(SORT_TEST_LINKS_CAPACITY * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
+    unsigned int *const pooled = (unsigned int *)platform_cell_taken(SORT_TEST_LINKS_CAPACITY * sizeof(unsigned int),
+                                                                     platform_place_g_program_owner, 0);
+    SortFirstCount *const counts = (SortFirstCount *)platform_cell_taken(
+        SORT_TEST_DISTANCES_MAX * sizeof(SortFirstCount), platform_place_g_program_owner, 0);
+    unsigned long long *const levels = (unsigned long long *)platform_cell_taken(
+        SORT_TEST_DISTANCES_MAX * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     int ok = (set != NULL) && (drawn != NULL) && (words.words != NULL) && (plain != NULL) && (pooled != NULL) &&
              (counts != NULL) && (levels != NULL);
     if (ok)
@@ -1824,12 +1847,12 @@ static void sort_test_first_walk(SimResults *results, const char *set)
     fflush(stderr);
     sim_check(results, stale && (wide == SORT_ERROR) && (sort_test_exists(set, "wide", ".links") == 0),
               "with O7 on, a component needing K = 10000000001 errors in the first pass and leaves no .links");
-    free(drawn);
-    free(words.words);
-    free(plain);
-    free(pooled);
-    free(counts);
-    free(levels);
+    platform_cell_released(drawn, platform_place_g_program_owner);
+    platform_cell_released(words.words, platform_place_g_program_owner);
+    platform_cell_released(plain, platform_place_g_program_owner);
+    platform_cell_released(pooled, platform_place_g_program_owner);
+    platform_cell_released(counts, platform_place_g_program_owner);
+    platform_cell_released(levels, platform_place_g_program_owner);
 }
 
 int program_main(int count, char **arguments)

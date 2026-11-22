@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "../../src/cu/engine/nbody/orior/orior.h"
+#include "../../src/platform/platform.h"
 #include "bench_corpora.h"
 
 #if !ORIOR_COUNT_READS
@@ -69,21 +70,22 @@ int program_main(int argc, char **argv)
     (void)argc;
     (void)argv;
     const size_t type_count = sizeof TYPES / sizeof TYPES[0];
-    uint8_t *const corpus = (uint8_t *)malloc(CORPUS_BYTES);
-    uint8_t *const absent = (uint8_t *)malloc(NEEDLE_BYTES * NEEDLES_PER_ROW);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(CORPUS_BYTES, platform_place_g_program_owner, 0);
+    uint8_t *const absent =
+        (uint8_t *)platform_cell_taken(NEEDLE_BYTES * NEEDLES_PER_ROW, platform_place_g_program_owner, 0);
 
     if ((corpus == NULL) || (absent == NULL))
     {
         (void)fprintf(stderr, "  could not take %llu bytes\n", (unsigned long long)CORPUS_BYTES);
-        free(corpus);
-        free(absent);
+        platform_cell_released(corpus, platform_place_g_program_owner);
+        platform_cell_released(absent, platform_place_g_program_owner);
         return 2;
     }
 
-    printf("  Coherence read before the search, at N=%llu with %llu byte needles.\n",
-           (unsigned long long)CORPUS_BYTES, (unsigned long long)NEEDLE_BYTES);
-    printf("\n  %-12s %-7s %-8s %-9s %-9s %-8s %s\n", "corpus", "h2", "period", "agrees",
-           "at chance", "margin", "spacing");
+    printf("  Coherence read before the search, at N=%llu with %llu byte needles.\n", (unsigned long long)CORPUS_BYTES,
+           (unsigned long long)NEEDLE_BYTES);
+    printf("\n  %-12s %-7s %-8s %-9s %-9s %-8s %s\n", "corpus", "h2", "period", "agrees", "at chance", "margin",
+           "spacing");
 
     double predicted_flat[3];
     double predicted_coherent[3];
@@ -112,12 +114,11 @@ int program_main(int argc, char **argv)
         }
         else
         {
-            (void)snprintf(period_text, sizeof period_text, "%llu",
-                           (unsigned long long)found.period);
+            (void)snprintf(period_text, sizeof period_text, "%llu", (unsigned long long)found.period);
         }
 
-        printf("  %-12s %-7.3f %-8s %-9.4f %-9.4f %-8.4f %llu\n", bench_corpus_name(TYPES[which]),
-               entropy, period_text, found.agreement, found.at_chance, found.margin,
+        printf("  %-12s %-7.3f %-8s %-9.4f %-9.4f %-8.4f %llu\n", bench_corpus_name(TYPES[which]), entropy, period_text,
+               found.agreement, found.at_chance, found.margin,
                (unsigned long long)spacing_for(&found, NEEDLE_BYTES, ORIOR_ANCHORS));
     }
 
@@ -158,19 +159,15 @@ int program_main(int argc, char **argv)
             disagreed = 1;
         }
 
-        const double alignments = (double)(CORPUS_BYTES - NEEDLE_BYTES + 1u)
-                                  * (double)NEEDLES_PER_ROW;
+        const double alignments = (double)(CORPUS_BYTES - NEEDLE_BYTES + 1u) * (double)NEEDLES_PER_ROW;
         const double measured = (double)survivors / alignments;
-        const double off_flat = (predicted_flat[which] > 0.0)
-            ? (measured / predicted_flat[which]) : 0.0;
-        const double off_coherent = (predicted_coherent[which] > 0.0)
-            ? (measured / predicted_coherent[which]) : 0.0;
+        const double off_flat = (predicted_flat[which] > 0.0) ? (measured / predicted_flat[which]) : 0.0;
+        const double off_coherent = (predicted_coherent[which] > 0.0) ? (measured / predicted_coherent[which]) : 0.0;
 
         printf("  %-12s %-9.0f %-15.9f %-15.9f %-15.9f %s\n", bench_corpus_name(TYPES[which]), independent[which],
                predicted_flat[which], predicted_coherent[which], measured,
                (periods[which].period != 0u) ? "coherence" : "they agree");
-        printf("  %-12s %-9s off the histogram by %.1f, off coherence by %.2f\n", "", "",
-               off_flat, off_coherent);
+        printf("  %-12s %-9s off the histogram by %.1f, off coherence by %.2f\n", "", "", off_flat, off_coherent);
     }
 
     printf("\n  Where a period is found the histogram overstates the filter by 2^((k-1) * H2),\n");
@@ -178,8 +175,8 @@ int program_main(int argc, char **argv)
     printf("  lags and is available before any search. The miss is computed and not met.\n");
 
     printf("\n  What setting the anchor count from the recovered size is worth\n");
-    printf("  %-12s %-9s %-15s %-15s %-9s %s\n", "corpus", "anchors", "probes/align 4",
-           "probes/align k", "saved", "survivors move");
+    printf("  %-12s %-9s %-15s %-15s %-9s %s\n", "corpus", "anchors", "probes/align 4", "probes/align k", "saved",
+           "survivors move");
 
     for (size_t which = 0u; which < type_count; which += 1u)
     {
@@ -190,14 +187,12 @@ int program_main(int argc, char **argv)
         orior_field_census(corpus, CORPUS_BYTES, &census);
         const OriorPlan plan = {&census, NEEDLE_BYTES, periods[which].period};
         const OriorPlan flat_plan = {&census, NEEDLE_BYTES, 0u};
-        const double alignments = (double)(CORPUS_BYTES - NEEDLE_BYTES + 1u)
-                                  * (double)NEEDLES_PER_ROW;
+        const double alignments = (double)(CORPUS_BYTES - NEEDLE_BYTES + 1u) * (double)NEEDLES_PER_ROW;
 
         orior_counters_reset();
         for (size_t draw = 0u; draw < NEEDLES_PER_ROW; draw += 1u)
         {
-            (void)orior_run(&flat_plan, corpus, CORPUS_BYTES, absent + (draw * NEEDLE_BYTES),
-                                  NEEDLE_BYTES);
+            (void)orior_run(&flat_plan, corpus, CORPUS_BYTES, absent + (draw * NEEDLE_BYTES), NEEDLE_BYTES);
         }
         const double probes_four = (double)orior_probes / alignments;
         const double survivors_four = (double)orior_verifications / alignments;
@@ -205,8 +200,7 @@ int program_main(int argc, char **argv)
         orior_counters_reset();
         for (size_t draw = 0u; draw < NEEDLES_PER_ROW; draw += 1u)
         {
-            (void)orior_run(&plan, corpus, CORPUS_BYTES, absent + (draw * NEEDLE_BYTES),
-                                  NEEDLE_BYTES);
+            (void)orior_run(&plan, corpus, CORPUS_BYTES, absent + (draw * NEEDLE_BYTES), NEEDLE_BYTES);
         }
         const double probes_chosen = (double)orior_probes / alignments;
         const double survivors_chosen = (double)orior_verifications / alignments;
@@ -220,7 +214,7 @@ int program_main(int argc, char **argv)
     printf("  Survivors have to stay put. The anchors dropped were refuting nothing. Dropping\n");
     printf("  them may not let one alignment through that four anchors blocked.\n");
 
-    free(corpus);
-    free(absent);
+    platform_cell_released(corpus, platform_place_g_program_owner);
+    platform_cell_released(absent, platform_place_g_program_owner);
     return disagreed;
 }

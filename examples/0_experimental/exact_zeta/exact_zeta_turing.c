@@ -424,7 +424,8 @@ static size_t flagged_spans(const TuringCell *cell, int check, Span **spans, int
     }
     size_t row_count = 0u;
     size_t capacity = 1024u;
-    ListedRow *rows = (ListedRow *)machine_memory(malloc(capacity * sizeof(ListedRow)));
+    ListedRow *rows = (ListedRow *)machine_memory(
+        platform_cell_taken(capacity * sizeof(ListedRow), platform_place_g_program_owner, 0));
     static char line[1 << 16];
     while (fgets(line, sizeof(line), handle) != NULL)
     {
@@ -459,7 +460,9 @@ static size_t flagged_spans(const TuringCell *cell, int check, Span **spans, int
         if (row_count >= capacity)
         {
             capacity *= 2u;
-            rows = (ListedRow *)machine_memory(realloc(rows, capacity * sizeof(ListedRow)));
+            rows = (ListedRow *)machine_memory(platform_cell_grown(rows, (capacity / 2u) * sizeof(ListedRow),
+                                                                   capacity * sizeof(ListedRow),
+                                                                   platform_place_g_program_owner, 0));
         }
         OriorExactInteger flag;
         z_set(&rows[row_count].sign, strtoll(words[0], NULL, 16));
@@ -472,8 +475,10 @@ static size_t flagged_spans(const TuringCell *cell, int check, Span **spans, int
         row_count += 1u;
     }
     fclose(handle);
-    *spans = (Span *)machine_memory(calloc(row_count + 1u, sizeof(Span)));
-    *counters = (int64_t *)machine_memory(calloc(row_count + 1u, sizeof(int64_t)));
+    *spans =
+        (Span *)machine_memory(platform_cell_cleared(row_count + 1u, sizeof(Span), platform_place_g_program_owner, 0));
+    *counters = (int64_t *)machine_memory(
+        platform_cell_cleared(row_count + 1u, sizeof(int64_t), platform_place_g_program_owner, 0));
     size_t found = 0u;
     int64_t previous = -1;
     for (int64_t j = cell->first; j < (int64_t)row_count; j += 1)
@@ -508,7 +513,7 @@ static size_t flagged_spans(const TuringCell *cell, int check, Span **spans, int
         }
         previous = j;
     }
-    free(rows);
+    platform_cell_released(rows, platform_place_g_program_owner);
     return found;
 }
 
@@ -571,7 +576,8 @@ static void refine(const char *binary, const TuringConstants *constants, TuringC
     int64_t listed = 0;
     int64_t added = 0;
     int64_t failed = 0;
-    Span *open = (Span *)machine_memory(malloc((count + 1u) * sizeof(Span)));
+    Span *open =
+        (Span *)machine_memory(platform_cell_taken((count + 1u) * sizeof(Span), platform_place_g_program_owner, 0));
     memcpy(open, spans, count * sizeof(Span));
     size_t open_count = count;
     int64_t p = cell->p;
@@ -584,9 +590,12 @@ static void refine(const char *binary, const TuringConstants *constants, TuringC
         {
             total += (size_t)(((open[at].b - open[at].a) << REFINE_BITS) + 1);
         }
-        int64_t *const js = (int64_t *)machine_memory(malloc((total + 1u) * sizeof(int64_t)));
-        size_t *const lows = (size_t *)machine_memory(malloc((open_count + 1u) * sizeof(size_t)));
-        size_t *const highs = (size_t *)machine_memory(malloc((open_count + 1u) * sizeof(size_t)));
+        int64_t *const js = (int64_t *)machine_memory(
+            platform_cell_taken((total + 1u) * sizeof(int64_t), platform_place_g_program_owner, 0));
+        size_t *const lows = (size_t *)machine_memory(
+            platform_cell_taken((open_count + 1u) * sizeof(size_t), platform_place_g_program_owner, 0));
+        size_t *const highs = (size_t *)machine_memory(
+            platform_cell_taken((open_count + 1u) * sizeof(size_t), platform_place_g_program_owner, 0));
         size_t filled = 0u;
         for (size_t at = 0u; at < open_count; at += 1u)
         {
@@ -598,18 +607,21 @@ static void refine(const char *binary, const TuringConstants *constants, TuringC
             }
             highs[at] = filled;
         }
-        TuringPoint *const rows = (TuringPoint *)machine_memory(calloc(total + 1u, sizeof(TuringPoint)));
+        TuringPoint *const rows = (TuringPoint *)machine_memory(
+            platform_cell_cleared(total + 1u, sizeof(TuringPoint), platform_place_g_program_owner, 0));
         failed += turing_run_points(binary, constants, cell->nu, p, js, total, 0, rows);
         // The count of listed points fits a machine integer.
         listed += (int64_t)total;
-        Span *const opened = (Span *)machine_memory(malloc((total + 1u) * sizeof(Span)));
+        Span *const opened =
+            (Span *)machine_memory(platform_cell_taken((total + 1u) * sizeof(Span), platform_place_g_program_owner, 0));
         size_t opened_count = 0u;
         for (size_t at = 0u; at < open_count; at += 1u)
         {
             const Span *const span = &open[at];
             const size_t length = highs[at] - lows[at];
             // The coarser run already certified the ends of the span.
-            ListedRow *const run = (ListedRow *)machine_memory(malloc((length + 1u) * sizeof(ListedRow)));
+            ListedRow *const run = (ListedRow *)machine_memory(
+                platform_cell_taken((length + 1u) * sizeof(ListedRow), platform_place_g_program_owner, 0));
             OriorExactInteger lifted;
             OriorExactInteger power;
             z_two_to(REFINE_BITS, &power);
@@ -663,15 +675,15 @@ static void refine(const char *binary, const TuringConstants *constants, TuringC
                 }
                 previous = (int64_t)q;
             }
-            free(run);
+            platform_cell_released(run, platform_place_g_program_owner);
         }
-        free(open);
+        platform_cell_released(open, platform_place_g_program_owner);
         open = opened;
         open_count = opened_count;
-        free(rows);
-        free(js);
-        free(lows);
-        free(highs);
+        platform_cell_released(rows, platform_place_g_program_owner);
+        platform_cell_released(js, platform_place_g_program_owner);
+        platform_cell_released(lows, platform_place_g_program_owner);
+        platform_cell_released(highs, platform_place_g_program_owner);
     }
     for (size_t at = 0u; at < open_count; at += 1u)
     {
@@ -685,7 +697,7 @@ static void refine(const char *binary, const TuringConstants *constants, TuringC
     // The spans still open fit a machine integer.
     results[2] = (int64_t)open_count;
     results[3] = failed;
-    free(open);
+    platform_cell_released(open, platform_place_g_program_owner);
 }
 
 /* ---------------------------------------------------------------- the choice of the lattice */
@@ -885,8 +897,8 @@ static void fetch(Machine *machine, int64_t nu, int64_t p)
         cell->refined[3] = results[2];
         cell->refined[4] = z_small(&cell->margins[2]);
         cell->refined[5] = z_small(&cell->sums[SUM_ZEROS_AFTER]);
-        free(spans);
-        free(counters);
+        platform_cell_released(spans, platform_place_g_program_owner);
+        platform_cell_released(counters, platform_place_g_program_owner);
     }
     machine->present[nu] = 1;
     if ((machine->control != NULL) && (machine->control->timed < 512u))
@@ -953,7 +965,8 @@ static int main_em(const char *binary, int64_t first, int64_t last, int64_t rate
 {
     TuringConstants constants;
     turing_constants(&constants);
-    TuringCell *const above_cells = (TuringCell *)machine_memory(calloc(3u, sizeof(TuringCell)));
+    TuringCell *const above_cells =
+        (TuringCell *)machine_memory(platform_cell_cleared(3u, sizeof(TuringCell), platform_place_g_program_owner, 0));
     OriorExactInteger bound;
     for (int64_t at = 0; at < 3; at += 1)
     {
@@ -983,8 +996,10 @@ static int main_em(const char *binary, int64_t first, int64_t last, int64_t rate
         platform_line_out_ended();
     }
     platform_line_flushed();
-    TuringCell *const cells = (TuringCell *)machine_memory(calloc((size_t)last + 2u, sizeof(TuringCell)));
-    int64_t *const levels = (int64_t *)machine_memory(calloc((size_t)last + 2u, sizeof(int64_t)));
+    TuringCell *const cells = (TuringCell *)machine_memory(
+        platform_cell_cleared((size_t)last + 2u, sizeof(TuringCell), platform_place_g_program_owner, 0));
+    int64_t *const levels = (int64_t *)machine_memory(
+        platform_cell_cleared((size_t)last + 2u, sizeof(int64_t), platform_place_g_program_owner, 0));
     for (int64_t nu = first; nu <= last; nu += 1)
     {
         turing_run_cell(binary, &constants, nu, turing_lattice(nu, rate), TURING_EM, 0, 0, &cells[nu], &bound);
@@ -1110,9 +1125,9 @@ static int main_em(const char *binary, int64_t first, int64_t last, int64_t rate
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(cells);
-    free(levels);
-    free(above_cells);
+    platform_cell_released(cells, platform_place_g_program_owner);
+    platform_cell_released(levels, platform_place_g_program_owner);
+    platform_cell_released(above_cells, platform_place_g_program_owner);
     return proven ? 0 : 1;
 }
 
@@ -1141,8 +1156,10 @@ static int main_machine(const char *binary, int64_t first, int64_t last, int64_t
     machine.method = method;
     machine.check = check;
     machine.control = (rate == 0) ? &control_state : NULL;
-    machine.cells = (TuringCell *)machine_memory(calloc((size_t)last + 3u, sizeof(TuringCell)));
-    machine.present = (int *)machine_memory(calloc((size_t)last + 3u, sizeof(int)));
+    machine.cells = (TuringCell *)machine_memory(
+        platform_cell_cleared((size_t)last + 3u, sizeof(TuringCell), platform_place_g_program_owner, 0));
+    machine.present =
+        (int *)machine_memory(platform_cell_cleared((size_t)last + 3u, sizeof(int), platform_place_g_program_owner, 0));
     for (int64_t nu = first; nu <= last; nu += 1)
     {
         const int64_t p =
@@ -1233,7 +1250,8 @@ static int main_machine(const char *binary, int64_t first, int64_t last, int64_t
         }
         platform_line_flushed();
     }
-    int64_t (*const window)[2] = (int64_t (*)[2])machine_memory(calloc((size_t)last + 3u, sizeof(int64_t[2])));
+    int64_t (*const window)[2] = (int64_t (*)[2])machine_memory(
+        platform_cell_cleared((size_t)last + 3u, sizeof(int64_t[2]), platform_place_g_program_owner, 0));
     int64_t count = 0;
     for (int64_t round = 0; round <= TURING_ROUNDS; round += 1)
     {
@@ -1290,7 +1308,8 @@ static int main_machine(const char *binary, int64_t first, int64_t last, int64_t
         {
             break;
         }
-        unsigned char *const coarse = (unsigned char *)machine_memory(calloc((size_t)last + 3u, 1u));
+        unsigned char *const coarse = (unsigned char *)machine_memory(
+            platform_cell_cleared((size_t)last + 3u, 1u, platform_place_g_program_owner, 0));
         for (size_t at = 0u; at < short_count; at += 1u)
         {
             coarse[short_list[at]] = 1u;
@@ -1325,7 +1344,7 @@ static int main_machine(const char *binary, int64_t first, int64_t last, int64_t
                 fetch(&machine, nu, control_choose(machine.control, nu, p));
             }
         }
-        free(coarse);
+        platform_cell_released(coarse, platform_place_g_program_owner);
     }
     int64_t failed = 0;
     for (int64_t nu = first; nu <= last; nu += 1)
@@ -1388,9 +1407,9 @@ static int main_machine(const char *binary, int64_t first, int64_t last, int64_t
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(window);
-    free(machine.cells);
-    free(machine.present);
+    platform_cell_released(window, platform_place_g_program_owner);
+    platform_cell_released(machine.cells, platform_place_g_program_owner);
+    platform_cell_released(machine.present, platform_place_g_program_owner);
     return proven ? 0 : 1;
 }
 

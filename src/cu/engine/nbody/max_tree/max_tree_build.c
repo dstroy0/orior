@@ -104,14 +104,15 @@ static long max_tree_grow(const unsigned int *residual, unsigned int depth, unsi
     tree->depth = depth;
     tree->height = height;
     tree->width = width;
-    tree->parent = (unsigned int *)malloc(voxels * sizeof(unsigned int));
+    tree->parent =
+        (unsigned int *)platform_cell_taken(voxels * sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned int *const zpar = (unsigned int *)platform_cell_taken((unsigned long long)(voxels * sizeof(unsigned int)),
                                                                    (unsigned int)platform_place_g_engine_owner, 0);
     unsigned char *const arrived = (unsigned char *)platform_cell_cleared(
         (unsigned long long)(voxels), (unsigned long long)(1u), (unsigned int)platform_place_g_engine_owner, 0);
     if ((tree->parent == NULL) || (zpar == NULL) || (arrived == NULL))
     {
-        free(tree->parent);
+        platform_cell_released(tree->parent, platform_place_g_program_owner);
         platform_cell_released(zpar, (unsigned int)platform_place_g_engine_owner);
         platform_cell_released(arrived, (unsigned int)platform_place_g_engine_owner);
         mmgr_bytes_set(tree, 0, sizeof(*tree));
@@ -124,11 +125,11 @@ static long max_tree_grow(const unsigned int *residual, unsigned int depth, unsi
         admitted += (unsigned int)max_tree_selects(residual, (unsigned int)voxel);
     }
     tree->admitted = admitted;
-    tree->order =
-        (unsigned int *)malloc(((size_t)admitted + 1u) * sizeof(unsigned int));
+    tree->order = (unsigned int *)platform_cell_taken(((size_t)admitted + 1u) * sizeof(unsigned int),
+                                                      platform_place_g_program_owner, 0);
     if (tree->order == NULL)
     {
-        free(tree->parent);
+        platform_cell_released(tree->parent, platform_place_g_program_owner);
         platform_cell_released(zpar, (unsigned int)platform_place_g_engine_owner);
         platform_cell_released(arrived, (unsigned int)platform_place_g_engine_owner);
         mmgr_bytes_set(tree, 0, sizeof(*tree));
@@ -237,8 +238,8 @@ void max_tree_release(MaxTree *tree)
     {
         return;
     }
-    free(tree->parent);
-    free(tree->order);
+    platform_cell_released(tree->parent, platform_place_g_program_owner);
+    platform_cell_released(tree->order, platform_place_g_program_owner);
     mmgr_bytes_set(tree, 0, sizeof(*tree));
 }
 

@@ -59,13 +59,14 @@ int program_main(int argc, char **argv)
     mmgr_bytes_set(&program, 0, sizeof(program));
     for (unsigned int at = 0u; at < ROOT_EDGES_MAX; at += 1u)
     {
-        program.table[at] = (unsigned int *)malloc((size_t)ROOT_TABLE_CAPACITY * sizeof(unsigned int));
+        program.table[at] = (unsigned int *)platform_cell_taken((size_t)ROOT_TABLE_CAPACITY * sizeof(unsigned int),
+                                                                platform_place_g_program_owner, 0);
         ok = ok && (program.table[at] != NULL);
     }
     int *crystal[4];
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        crystal[at] = (int *)malloc((size_t)lanes_max * sizeof(int));
+        crystal[at] = (int *)platform_cell_taken((size_t)lanes_max * sizeof(int), platform_place_g_program_owner, 0);
         ok = ok && (crystal[at] != NULL);
     }
     sim_check(&results, ok, "the sim's tables and crystals were allocated");
@@ -248,11 +249,11 @@ int program_main(int argc, char **argv)
     sim_check(&results, ok, "every volume rendered, lifted, coded and lowered");
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        free(crystal[at]);
+        platform_cell_released(crystal[at], platform_place_g_program_owner);
     }
     for (unsigned int at = 0u; at < ROOT_EDGES_MAX; at += 1u)
     {
-        free(program.table[at]);
+        platform_cell_released(program.table[at], platform_place_g_program_owner);
     }
     for (unsigned int shaped = 0u; shaped < ROOT_EXTENTS; shaped += 1u)
     {

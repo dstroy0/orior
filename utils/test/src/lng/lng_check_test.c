@@ -331,7 +331,7 @@ static void asm_row(LngList *lines, const char *const *cells, unsigned int count
     }
     char *const joined = lng_list_joined(&row, "\t");
     lng_list_add(lines, joined);
-    free(joined);
+    platform_cell_released(joined, platform_place_g_program_owner);
     lng_list_free(&row);
 }
 

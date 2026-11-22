@@ -9,6 +9,7 @@
 // digest that two parts' lines compare. It compiles as C and as C++
 
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../../../includes/exact_types/integers/exact_integer.h"
@@ -133,7 +134,8 @@ static void host_free(HostLoaded *loaded)
 
 static unsigned int *host_atoms(unsigned int limbs, unsigned int bodies)
 {
-    unsigned int *const atoms = (unsigned int *)malloc((size_t)limbs * bodies * sizeof(unsigned int));
+    unsigned int *const atoms = (unsigned int *)platform_cell_taken((size_t)limbs * bodies * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
     for (unsigned long long at = 0ull; (atoms != NULL) && (at < ((unsigned long long)limbs * bodies)); at += 1ull)
     {
         atoms[at] = host_random();

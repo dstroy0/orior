@@ -260,9 +260,10 @@ static unsigned long long qasm_test_host(QasmResults *results)
         EngineError error;
         memset(&error, 0, sizeof(error));
         // widening: at max 2^10 numbers
-        QasmNumber *const outputs = (QasmNumber *)calloc((size_t)amplitudes * amplitudes, sizeof(QasmNumber));
-        QasmNumber *const general =
-            (QasmNumber *)calloc((size_t)QASM_TEST_GENERAL_LANES * amplitudes, sizeof(QasmNumber));
+        QasmNumber *const outputs = (QasmNumber *)platform_cell_cleared(
+            (size_t)amplitudes * amplitudes, sizeof(QasmNumber), platform_place_g_program_owner, 0);
+        QasmNumber *const general = (QasmNumber *)platform_cell_cleared(
+            (size_t)QASM_TEST_GENERAL_LANES * amplitudes, sizeof(QasmNumber), platform_place_g_program_owner, 0);
         QasmSelfMeasurement measurement;
         memset(&measurement, 0, sizeof(measurement));
         const int basis = (outputs != NULL) && (general != NULL) &&
@@ -302,8 +303,8 @@ static unsigned long long qasm_test_host(QasmResults *results)
                  "self: %s: %u general lanes on the host equal the dense port from the same states", circuit->name,
                  QASM_TEST_GENERAL_LANES);
         qasm_test_check(results, moved, claim);
-        free(outputs);
-        free(general);
+        platform_cell_released(outputs, platform_place_g_program_owner);
+        platform_cell_released(general, platform_place_g_program_owner);
     }
     return widest;
 }
@@ -316,8 +317,10 @@ static void qasm_test_agree(QasmResults *results, const QasmTestCircuit *circuit
     const unsigned int amplitudes = 1u << circuit->qubits;
     // the lanes are at max 2^5: the numbers are at max 2^10, represented by a size_t
     const size_t numbers = (size_t)(lanes * amplitudes);
-    QasmNumber *const host_outputs = (QasmNumber *)calloc(numbers, sizeof(QasmNumber));
-    QasmNumber *const device_outputs = (QasmNumber *)calloc(numbers, sizeof(QasmNumber));
+    QasmNumber *const host_outputs =
+        (QasmNumber *)platform_cell_cleared(numbers, sizeof(QasmNumber), platform_place_g_program_owner, 0);
+    QasmNumber *const device_outputs =
+        (QasmNumber *)platform_cell_cleared(numbers, sizeof(QasmNumber), platform_place_g_program_owner, 0);
     QasmSelfMeasurement host;
     QasmSelfMeasurement device;
     memset(&host, 0, sizeof(host));
@@ -327,8 +330,14 @@ static void qasm_test_agree(QasmResults *results, const QasmTestCircuit *circuit
     // widening: the out limbs are an unsigned int
     const unsigned long long capacity = lanes * (unsigned long long)host.out_limbs;
     // at max 2^5 records of a layout the host just arranged, represented by a size_t
-    unsigned int *const host_records = agree ? (unsigned int *)calloc((size_t)capacity, sizeof(unsigned int)) : NULL;
-    unsigned int *const device_records = agree ? (unsigned int *)calloc((size_t)capacity, sizeof(unsigned int)) : NULL;
+    unsigned int *const host_records =
+        agree ? (unsigned int *)platform_cell_cleared((size_t)capacity, sizeof(unsigned int),
+                                                      platform_place_g_program_owner, 0)
+              : NULL;
+    unsigned int *const device_records =
+        agree ? (unsigned int *)platform_cell_cleared((size_t)capacity, sizeof(unsigned int),
+                                                      platform_place_g_program_owner, 0)
+              : NULL;
     agree = agree && (host_records != NULL) && (device_records != NULL) &&
             qasm_test_run(circuit, inputs, lanes, 1, host_outputs, host_records, capacity, &host) &&
             qasm_test_run(circuit, inputs, lanes, 0, device_outputs, device_records, capacity, &device) &&
@@ -353,10 +362,10 @@ static void qasm_test_agree(QasmResults *results, const QasmTestCircuit *circuit
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(host_outputs);
-    free(device_outputs);
-    free(host_records);
-    free(device_records);
+    platform_cell_released(host_outputs, platform_place_g_program_owner);
+    platform_cell_released(device_outputs, platform_place_g_program_owner);
+    platform_cell_released(host_records, platform_place_g_program_owner);
+    platform_cell_released(device_records, platform_place_g_program_owner);
 }
 
 static void qasm_test_device(QasmResults *results)
@@ -369,8 +378,8 @@ static void qasm_test_device(QasmResults *results)
         memset(&error, 0, sizeof(error));
         qasm_test_agree(results, circuit, NULL, amplitudes, "basis");
         // widening: at max 2^5 amplitudes a lane
-        QasmNumber *const general =
-            (QasmNumber *)calloc((size_t)QASM_TEST_GENERAL_LANES * amplitudes, sizeof(QasmNumber));
+        QasmNumber *const general = (QasmNumber *)platform_cell_cleared(
+            (size_t)QASM_TEST_GENERAL_LANES * amplitudes, sizeof(QasmNumber), platform_place_g_program_owner, 0);
         if ((general != NULL) && qasm_test_general(circuit->qubits, general, &error))
         {
             qasm_test_agree(results, circuit, general, QASM_TEST_GENERAL_LANES, "general");
@@ -379,7 +388,7 @@ static void qasm_test_device(QasmResults *results)
         {
             qasm_test_check(results, 0, "self: the general lanes build for the device");
         }
-        free(general);
+        platform_cell_released(general, platform_place_g_program_owner);
     }
 }
 
@@ -414,8 +423,10 @@ static void qasm_test_errors(QasmResults *results)
     // A state whose fields are 201 bits wide: 128 of them take 7 limbs each, past the register file's 256, and the
     // layout errors on the program before any lane runs.
     const unsigned int amplitudes = 1u << QASM_SELF_QUBITS_MAX;
-    QasmNumber *const wide = (QasmNumber *)calloc(amplitudes, sizeof(QasmNumber));
-    QasmNumber *const landed = (QasmNumber *)calloc(amplitudes, sizeof(QasmNumber));
+    QasmNumber *const wide =
+        (QasmNumber *)platform_cell_cleared(amplitudes, sizeof(QasmNumber), platform_place_g_program_owner, 0);
+    QasmNumber *const landed =
+        (QasmNumber *)platform_cell_cleared(amplitudes, sizeof(QasmNumber), platform_place_g_program_owner, 0);
     int errored = 0;
     if ((wide != NULL) && (landed != NULL))
     {
@@ -444,8 +455,8 @@ static void qasm_test_errors(QasmResults *results)
     qasm_test_check(
         results, errored,
         "self: 2^200 in a 5-qubit lane is past the register file, and the layout errors on it before any run");
-    free(wide);
-    free(landed);
+    platform_cell_released(wide, platform_place_g_program_owner);
+    platform_cell_released(landed, platform_place_g_program_owner);
 }
 
 int program_main(int argc, char **argv)

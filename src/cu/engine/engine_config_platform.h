@@ -6,6 +6,7 @@
 #define ENGINE_CONFIG_PLATFORM_H
 
 #include <errno.h>
+#include "../../platform/platform.h"
 #include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -93,8 +94,10 @@ extern "C"
 
     static inline bool engine_object_reserve(unsigned int **words, size_t *capacity, size_t wanted, size_t width)
     {
+        const size_t held = (*capacity + 1u) * width * sizeof(unsigned int);
         *capacity += (size_t)(wanted > *capacity) * ((2u * wanted) - *capacity);
-        unsigned int *const grown = (unsigned int *)realloc(*words, (*capacity + 1u) * width * sizeof(unsigned int));
+        unsigned int *const grown = (unsigned int *)platform_cell_grown(
+            *words, held, (*capacity + 1u) * width * sizeof(unsigned int), platform_place_g_program_owner, 0);
         *words = grown ? grown : *words;
         return !!grown;
     }

@@ -148,7 +148,8 @@ static long tower_test_trip(const TowerRig *rig, const TowerEdge *edges, unsigne
     {
         cudaMemcpy(crystal, coefficients, (size_t)rig->lanes * sizeof(int), cudaMemcpyDeviceToHost);
     }
-    unsigned short *const rebuilt = (unsigned short *)malloc((size_t)rig->lanes * sizeof(unsigned short));
+    unsigned short *const rebuilt = (unsigned short *)platform_cell_taken((size_t)rig->lanes * sizeof(unsigned short),
+                                                                          platform_place_g_program_owner, 0);
     const unsigned short *device_rebuilt = NULL;
     unsigned long long miss = 1ull;
     TowerLowerRequest lower;
@@ -164,7 +165,7 @@ static long tower_test_trip(const TowerRig *rig, const TowerEdge *edges, unsigne
     const long lowered = tower_lower(&lower);
     if (lowered != 0L)
     {
-        free(rebuilt);
+        platform_cell_released(rebuilt, platform_place_g_program_owner);
         return lowered;
     }
     *mismatches = miss;
@@ -177,7 +178,7 @@ static long tower_test_trip(const TowerRig *rig, const TowerEdge *edges, unsigne
         }
     }
     *rebuilt_ok = same;
-    free(rebuilt);
+    platform_cell_released(rebuilt, platform_place_g_program_owner);
     return 0L;
 }
 
@@ -192,7 +193,8 @@ int program_main(int count, char **arguments)
     rig.extent[2] = 8ull;
     rig.extent[3] = 8ull;
     rig.lanes = rig.extent[0] * rig.extent[1] * rig.extent[2] * rig.extent[3];
-    rig.host = (unsigned short *)malloc((size_t)rig.lanes * sizeof(unsigned short));
+    rig.host = (unsigned short *)platform_cell_taken((size_t)rig.lanes * sizeof(unsigned short),
+                                                     platform_place_g_program_owner, 0);
     tower_test_lanes(rig.host, rig.lanes, 0x0123456789ABCDEFull);
     if (cudaMalloc((void **)&rig.device_lanes, (size_t)rig.lanes * sizeof(unsigned short)) != cudaSuccess)
     {
@@ -233,8 +235,8 @@ int program_main(int count, char **arguments)
     check("single edge rebuilt matches lanes", rebuilt_ok != 0);
 
     // the edge must actually change the collapsed crystal, or it is doing nothing
-    int *const plain = (int *)malloc((size_t)rig.lanes * sizeof(int));
-    int *const edged = (int *)malloc((size_t)rig.lanes * sizeof(int));
+    int *const plain = (int *)platform_cell_taken((size_t)rig.lanes * sizeof(int), platform_place_g_program_owner, 0);
+    int *const edged = (int *)platform_cell_taken((size_t)rig.lanes * sizeof(int), platform_place_g_program_owner, 0);
     tower_test_trip(&rig, NULL, 0u, &mismatches, &rebuilt_ok, plain);
     tower_test_trip(&rig, &one, 1u, &mismatches, &rebuilt_ok, edged);
     int differ = 0;
@@ -246,8 +248,8 @@ int program_main(int count, char **arguments)
         }
     }
     check("edge changes the crystal", differ > 0);
-    free(plain);
-    free(edged);
+    platform_cell_released(plain, platform_place_g_program_owner);
+    platform_cell_released(edged, platform_place_g_program_owner);
 
     // two edges stacked on one floor plus one on another: the reverse-order inverse must unwind the stack
     TowerEdge stack[3];
@@ -319,11 +321,16 @@ int program_main(int count, char **arguments)
     check("clean edge after errors rebuilt matches lanes", rebuilt_ok != 0);
 
     // Bennett edges: a lossy function carried as a permutation of the widened pair (x, y) -> (x, y xor f(x))
-    unsigned int *const absolute = (unsigned int *)malloc((size_t)BENNETT_SIZE * sizeof(unsigned int));
-    unsigned int *const compare = (unsigned int *)malloc((size_t)BENNETT_SIZE * sizeof(unsigned int));
-    unsigned int *const bare = (unsigned int *)malloc((size_t)BENNETT_SIZE * sizeof(unsigned int));
-    int *const plain_crystal = (int *)malloc((size_t)rig.lanes * sizeof(int));
-    int *const edged_crystal = (int *)malloc((size_t)rig.lanes * sizeof(int));
+    unsigned int *const absolute = (unsigned int *)platform_cell_taken((size_t)BENNETT_SIZE * sizeof(unsigned int),
+                                                                       platform_place_g_program_owner, 0);
+    unsigned int *const compare = (unsigned int *)platform_cell_taken((size_t)BENNETT_SIZE * sizeof(unsigned int),
+                                                                      platform_place_g_program_owner, 0);
+    unsigned int *const bare = (unsigned int *)platform_cell_taken((size_t)BENNETT_SIZE * sizeof(unsigned int),
+                                                                   platform_place_g_program_owner, 0);
+    int *const plain_crystal =
+        (int *)platform_cell_taken((size_t)rig.lanes * sizeof(int), platform_place_g_program_owner, 0);
+    int *const edged_crystal =
+        (int *)platform_cell_taken((size_t)rig.lanes * sizeof(int), platform_place_g_program_owner, 0);
     tower_test_bennett(absolute, tower_test_absolute);
     tower_test_bennett(compare, tower_test_compare);
     unsigned int exact_trips = 0u;
@@ -373,14 +380,14 @@ int program_main(int count, char **arguments)
     lossy.forward = bare;
     trip = tower_test_trip(&rig, &lossy, 1u, &mismatches, &rebuilt_ok, NULL);
     check("|x| applied bare, not embedded, errors", trip != 0L);
-    free(absolute);
-    free(compare);
-    free(bare);
-    free(plain_crystal);
-    free(edged_crystal);
+    platform_cell_released(absolute, platform_place_g_program_owner);
+    platform_cell_released(compare, platform_place_g_program_owner);
+    platform_cell_released(bare, platform_place_g_program_owner);
+    platform_cell_released(plain_crystal, platform_place_g_program_owner);
+    platform_cell_released(edged_crystal, platform_place_g_program_owner);
 
     cudaFree(rig.device_lanes);
-    free(rig.host);
+    platform_cell_released(rig.host, platform_place_g_program_owner);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  tower edge test: ");

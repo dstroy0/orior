@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_core.cu: painting, reach and the core
 #include "climb_machine_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 __global__ static void machine_paint_kernel(const unsigned int *run_start, const unsigned int *run_length,
@@ -155,14 +156,14 @@ __global__ static void machine_core_kernel(unsigned int items, const unsigned in
 
 void machine_core_release(ClimbMachine *machine)
 {
-    free(machine->core_earlier);
-    free(machine->core_later);
-    free(machine->core_side);
-    free(machine->core_leaf);
-    free(machine->core_match);
-    free(machine->core_lag);
-    free(machine->core_width_first);
-    free(machine->core_fields);
+    platform_cell_released(machine->core_earlier, platform_place_g_program_owner);
+    platform_cell_released(machine->core_later, platform_place_g_program_owner);
+    platform_cell_released(machine->core_side, platform_place_g_program_owner);
+    platform_cell_released(machine->core_leaf, platform_place_g_program_owner);
+    platform_cell_released(machine->core_match, platform_place_g_program_owner);
+    platform_cell_released(machine->core_lag, platform_place_g_program_owner);
+    platform_cell_released(machine->core_width_first, platform_place_g_program_owner);
+    platform_cell_released(machine->core_fields, platform_place_g_program_owner);
     machine->core_earlier = NULL;
     machine->core_later = NULL;
     machine->core_side = NULL;
@@ -196,21 +197,35 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     // listed_count widens from unsigned int to size_t. Listed_count + 1 cannot wrap in 32 bits
     const size_t capacity = (size_t)listed_count + 1u;
     const size_t residents = machine->capacity;
-    machine->core_earlier = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    machine->core_later = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    machine->core_side = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    machine->core_leaf = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    machine->core_match = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    machine->core_lag = (int *)malloc(capacity * 3u * sizeof(int));
-    machine->core_width_first = (unsigned int *)malloc((capacity + 1u) * sizeof(unsigned int));
-    unsigned int *const listed_resident = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    unsigned int *const listed_run_first = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    unsigned int *const listed_run_end = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    int *const listed_center = (int *)malloc(capacity * 3u * sizeof(int));
-    unsigned int *const widths = (unsigned int *)calloc(capacity, sizeof(unsigned int));
-    size_t *const staged_at = (size_t *)calloc(capacity, sizeof(size_t));
-    unsigned int *const resident_first = (unsigned int *)calloc(residents + 1u, sizeof(unsigned int));
-    unsigned int *const resident_order = (unsigned int *)malloc(capacity * sizeof(unsigned int));
+    machine->core_earlier =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    machine->core_later =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    machine->core_side =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    machine->core_leaf =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    machine->core_match =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    machine->core_lag = (int *)platform_cell_taken(capacity * 3u * sizeof(int), platform_place_g_program_owner, 0);
+    machine->core_width_first =
+        (unsigned int *)platform_cell_taken((capacity + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const listed_resident =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const listed_run_first =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const listed_run_end =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    int *const listed_center =
+        (int *)platform_cell_taken(capacity * 3u * sizeof(int), platform_place_g_program_owner, 0);
+    unsigned int *const widths =
+        (unsigned int *)platform_cell_cleared(capacity, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    size_t *const staged_at =
+        (size_t *)platform_cell_cleared(capacity, sizeof(size_t), platform_place_g_program_owner, 0);
+    unsigned int *const resident_first =
+        (unsigned int *)platform_cell_cleared(residents + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const resident_order =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     int steps_succeeded =
         (widest != 0u) && (machine->core_earlier != NULL) && (machine->core_later != NULL) &&
         (machine->core_side != NULL) && (machine->core_leaf != NULL) && (machine->core_match != NULL) &&
@@ -267,7 +282,9 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
         resident_first[resident + 1u] += resident_first[resident];
     }
     unsigned int *const resident_fill =
-        steps_succeeded ? (unsigned int *)malloc((residents + 1u) * sizeof(unsigned int)) : NULL;
+        steps_succeeded ? (unsigned int *)platform_cell_taken((residents + 1u) * sizeof(unsigned int),
+                                                              platform_place_g_program_owner, 0)
+                        : NULL;
     steps_succeeded = steps_succeeded && (resident_fill != NULL);
     if (steps_succeeded)
     {
@@ -305,15 +322,25 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     unsigned int *device_match = NULL;
     unsigned long long *device_bins = NULL;
     unsigned int *device_error = NULL;
-    unsigned int *const item_run_first =
-        steps_succeeded ? (unsigned int *)malloc(item_capacity * sizeof(unsigned int)) : NULL;
-    unsigned int *const item_run_end =
-        steps_succeeded ? (unsigned int *)malloc(item_capacity * sizeof(unsigned int)) : NULL;
-    int *const item_center = steps_succeeded ? (int *)malloc(item_capacity * 3u * sizeof(int)) : NULL;
-    unsigned int *const item_match =
-        steps_succeeded ? (unsigned int *)malloc(item_capacity * sizeof(unsigned int)) : NULL;
+    unsigned int *const item_run_first = steps_succeeded
+                                             ? (unsigned int *)platform_cell_taken(item_capacity * sizeof(unsigned int),
+                                                                                   platform_place_g_program_owner, 0)
+                                             : NULL;
+    unsigned int *const item_run_end = steps_succeeded
+                                           ? (unsigned int *)platform_cell_taken(item_capacity * sizeof(unsigned int),
+                                                                                 platform_place_g_program_owner, 0)
+                                           : NULL;
+    int *const item_center = steps_succeeded ? (int *)platform_cell_taken(item_capacity * 3u * sizeof(int),
+                                                                          platform_place_g_program_owner, 0)
+                                             : NULL;
+    unsigned int *const item_match = steps_succeeded
+                                         ? (unsigned int *)platform_cell_taken(item_capacity * sizeof(unsigned int),
+                                                                               platform_place_g_program_owner, 0)
+                                         : NULL;
     unsigned long long *const host_bins =
-        steps_succeeded ? (unsigned long long *)malloc((bins + 1u) * sizeof(unsigned long long)) : NULL;
+        steps_succeeded ? (unsigned long long *)platform_cell_taken((bins + 1u) * sizeof(unsigned long long),
+                                                                    platform_place_g_program_owner, 0)
+                        : NULL;
     steps_succeeded = steps_succeeded && (item_run_first != NULL) && (item_run_end != NULL) && (item_center != NULL) &&
                       (item_match != NULL) && (host_bins != NULL) &&
                       (cudaMalloc((void **)&painted, voxels * sizeof(unsigned int)) == cudaSuccess) &&
@@ -402,8 +429,10 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
             if ((staged_count + top_width) > staged_capacity)
             {
                 const size_t grown_capacity = ((staged_count + top_width) * 2u) + 1u;
-                unsigned long long *const grown = (unsigned long long *)realloc(
-                    staged, grown_capacity * CLIMB_MACHINE_CORE_FIELDS * sizeof(unsigned long long));
+                unsigned long long *const grown = (unsigned long long *)platform_cell_grown(
+                    staged, staged_capacity * CLIMB_MACHINE_CORE_FIELDS * sizeof(unsigned long long),
+                    grown_capacity * CLIMB_MACHINE_CORE_FIELDS * sizeof(unsigned long long),
+                    platform_place_g_program_owner, 0);
                 steps_succeeded = (grown != NULL);
                 staged = steps_succeeded ? grown : staged;
                 staged_capacity = steps_succeeded ? grown_capacity : staged_capacity;
@@ -429,10 +458,11 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     steps_succeeded = steps_succeeded &&
                       (cudaMemcpy(&error, device_error, sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess) &&
                       (error == 0u) && (staged_count <= 0xFFFFFFFFULL);
-    machine->core_fields =
-        steps_succeeded
-            ? (unsigned long long *)malloc((staged_count + 1u) * CLIMB_MACHINE_CORE_FIELDS * sizeof(unsigned long long))
-            : NULL;
+    machine->core_fields = steps_succeeded
+                               ? (unsigned long long *)platform_cell_taken(
+                                     (staged_count + 1u) * CLIMB_MACHINE_CORE_FIELDS * sizeof(unsigned long long),
+                                     platform_place_g_program_owner, 0)
+                               : NULL;
     steps_succeeded = steps_succeeded && (machine->core_fields != NULL);
     size_t widths_written = 0u;
     for (unsigned int listed_place = 0u; steps_succeeded && (listed_place < listed_count); listed_place += 1u)
@@ -460,21 +490,21 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     cudaFree(device_match);
     cudaFree(device_bins);
     cudaFree(device_error);
-    free(item_run_first);
-    free(item_run_end);
-    free(item_center);
-    free(item_match);
-    free(host_bins);
-    free(staged);
-    free(resident_fill);
-    free(resident_order);
-    free(resident_first);
-    free(staged_at);
-    free(widths);
-    free(listed_center);
-    free(listed_run_end);
-    free(listed_run_first);
-    free(listed_resident);
+    platform_cell_released(item_run_first, platform_place_g_program_owner);
+    platform_cell_released(item_run_end, platform_place_g_program_owner);
+    platform_cell_released(item_center, platform_place_g_program_owner);
+    platform_cell_released(item_match, platform_place_g_program_owner);
+    platform_cell_released(host_bins, platform_place_g_program_owner);
+    platform_cell_released(staged, platform_place_g_program_owner);
+    platform_cell_released(resident_fill, platform_place_g_program_owner);
+    platform_cell_released(resident_order, platform_place_g_program_owner);
+    platform_cell_released(resident_first, platform_place_g_program_owner);
+    platform_cell_released(staged_at, platform_place_g_program_owner);
+    platform_cell_released(widths, platform_place_g_program_owner);
+    platform_cell_released(listed_center, platform_place_g_program_owner);
+    platform_cell_released(listed_run_end, platform_place_g_program_owner);
+    platform_cell_released(listed_run_first, platform_place_g_program_owner);
+    platform_cell_released(listed_resident, platform_place_g_program_owner);
     if (steps_succeeded == 0)
     {
         machine_core_release(machine);

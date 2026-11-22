@@ -103,7 +103,7 @@ int adversarial_case_family_guard(void)
  */
 int adversarial_case_sampling_cost(void)
 {
-    uint8_t *const corpus = (uint8_t *)malloc(ADVERSARIAL_CORPUS);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(ADVERSARIAL_CORPUS, platform_place_g_program_owner, 0);
     uint8_t needle[12];
     int failed = 0;
 
@@ -170,7 +170,7 @@ int adversarial_case_sampling_cost(void)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(corpus);
+    platform_cell_released(corpus, platform_place_g_program_owner);
     return failed;
 }
 
@@ -188,7 +188,7 @@ int adversarial_case_sampling_cost(void)
  */
 int adversarial_case_permutation_null(void)
 {
-    uint8_t *const corpus = (uint8_t *)malloc(ADVERSARIAL_CORPUS);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(ADVERSARIAL_CORPUS, platform_place_g_program_owner, 0);
     uint8_t needle[16];
     int failed = 0;
 
@@ -243,7 +243,7 @@ int adversarial_case_permutation_null(void)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(corpus);
+    platform_cell_released(corpus, platform_place_g_program_owner);
     return failed;
 }
 
@@ -261,7 +261,7 @@ int adversarial_case_permutation_null(void)
  */
 int adversarial_case_empty_plan(void)
 {
-    uint8_t *const corpus = (uint8_t *)malloc(ADVERSARIAL_CORPUS);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(ADVERSARIAL_CORPUS, platform_place_g_program_owner, 0);
     uint8_t needle[12];
     int failed = 0;
 
@@ -323,7 +323,7 @@ int adversarial_case_empty_plan(void)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(corpus);
+    platform_cell_released(corpus, platform_place_g_program_owner);
     return failed;
 }
 
@@ -340,7 +340,7 @@ int adversarial_case_empty_plan(void)
  */
 int adversarial_case_growing_plan(void)
 {
-    uint8_t *const corpus = (uint8_t *)malloc(ADVERSARIAL_CORPUS);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(ADVERSARIAL_CORPUS, platform_place_g_program_owner, 0);
     uint8_t needle[20];
     int failed = 0;
 
@@ -443,7 +443,7 @@ int adversarial_case_growing_plan(void)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(corpus);
+    platform_cell_released(corpus, platform_place_g_program_owner);
     return failed;
 }
 
@@ -463,7 +463,7 @@ int adversarial_case_growing_plan(void)
  */
 int adversarial_case_stop_equals_continue(void)
 {
-    uint8_t *const corpus = (uint8_t *)malloc(ADVERSARIAL_CORPUS);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(ADVERSARIAL_CORPUS, platform_place_g_program_owner, 0);
     uint8_t needle[16];
     size_t shallow[ORIOR_STEER_ANCHORS];
     size_t deep[ORIOR_STEER_ANCHORS];
@@ -485,7 +485,7 @@ int adversarial_case_stop_equals_continue(void)
     memset(needle, 'm', sizeof(needle));
 
     const size_t alignments = ADVERSARIAL_CORPUS - sizeof(needle) + 1u;
-    uint8_t *const survivors = (uint8_t *)malloc(alignments);
+    uint8_t *const survivors = (uint8_t *)platform_cell_taken(alignments, platform_place_g_program_owner, 0);
 
     if (survivors == NULL)
     {
@@ -495,7 +495,7 @@ int adversarial_case_stop_equals_continue(void)
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(corpus);
+        platform_cell_released(corpus, platform_place_g_program_owner);
         return 1;
     }
 
@@ -571,7 +571,7 @@ int adversarial_case_stop_equals_continue(void)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(survivors);
-    free(corpus);
+    platform_cell_released(survivors, platform_place_g_program_owner);
+    platform_cell_released(corpus, platform_place_g_program_owner);
     return failed;
 }

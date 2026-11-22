@@ -229,12 +229,12 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
     unsigned int count = shape->threads * shape->blocks;
     const size_t in_bytes = (size_t)count * sizeof(s_cases[0]);
     const size_t out_bytes = (size_t)count * CUBIN_RUN_OUT_ROOM * sizeof(unsigned int);
-    unsigned int (*const given)[CUBIN_RUN_IN_WORDS] = malloc(in_bytes);
-    unsigned int *const written = malloc(out_bytes);
+    unsigned int (*const given)[CUBIN_RUN_IN_WORDS] = platform_cell_taken(in_bytes, platform_place_g_program_owner, 0);
+    unsigned int *const written = platform_cell_taken(out_bytes, platform_place_g_program_owner, 0);
     if ((given == NULL) || (written == NULL))
     {
-        free(given);
-        free(written);
+        platform_cell_released(given, platform_place_g_program_owner);
+        platform_cell_released(written, platform_place_g_program_owner);
         return -1;
     }
     for (unsigned int thread = 0u; thread < count; thread += 1u)
@@ -264,7 +264,7 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
     status = (status == 0) ? cubin_run_room(driver, &s_in, &s_in_room, in_bytes) : status;
     status = (status == 0) ? cubin_run_room(driver, &s_out, &s_out_room, out_bytes) : status;
     status = (status == 0) ? driver->copy_in(s_in, given, in_bytes) : status;
-    free(given);
+    platform_cell_released(given, platform_place_g_program_owner);
     status = (status == 0) ? driver->clear(s_out, CUBIN_RUN_FILL, out_bytes) : status;
     s_clocks.memory += cubin_run_host_now() - memory_began;
     void *arguments[] = {&s_in, &s_out, &count};
@@ -272,7 +272,7 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
     status = (status == 0) ? cubin_run_bounded(driver, function, arguments, shape, &answered_latency) : status;
     if (s_launch_timed_out)
     {
-        free(written);
+        platform_cell_released(written, platform_place_g_program_owner);
         *nanoseconds = 0ULL;
         return status;
     }
@@ -282,7 +282,7 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
     {
         cubin_run_answers_read(written, count);
     }
-    free(written);
+    platform_cell_released(written, platform_place_g_program_owner);
     s_clocks.memory += cubin_run_host_now() - read_began;
     *nanoseconds = 0ULL;
     status = ((status == 0) && (launches != 0u))

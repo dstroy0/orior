@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_client_jobs.c: self reports, submitting, waiting and releasing jobs
 #include "tessera_client_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 #if !defined(_WIN32)
@@ -104,7 +105,7 @@ static void tessera_client_end(TesseraClient *client)
     pthread_mutex_destroy(&client->watch);
     pthread_mutex_destroy(&client->sending);
 #endif
-    free(client);
+    platform_cell_released(client, platform_place_g_program_owner);
 }
 
 // the daemon's answer, waited for until `deadline` where it is not 0
@@ -164,7 +165,8 @@ long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client, 
     {
         return TESSERA_ERROR;
     }
-    TesseraClient *const made = (TesseraClient *)calloc(1u, sizeof(TesseraClient));
+    TesseraClient *const made =
+        (TesseraClient *)platform_cell_cleared(1u, sizeof(TesseraClient), platform_place_g_program_owner, 0);
     if (!TESSERA_CHECK(made != NULL, submit, submit->error, ENGINE_ERROR_RESOURCE))
     {
         return TESSERA_ERROR;

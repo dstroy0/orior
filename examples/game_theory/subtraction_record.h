@@ -19,6 +19,7 @@
 #define SUBTRACTION_RECORD_H
 
 #include "game_record.h"
+#include "../../src/platform/platform.h"
 
 /** @brief The games of a sweep on the device, and the state of each after each position. */
 typedef struct
@@ -184,8 +185,8 @@ static inline void subtraction_close(SubtractionGames *set)
     cudaFree(set->history);
     cudaFree(set->index);
     cudaFree(set->out);
-    free(set->host_index);
-    free(set->sums);
+    platform_cell_released(set->host_index, platform_place_g_program_owner);
+    platform_cell_released(set->sums, platform_place_g_program_owner);
     memset(set, 0, sizeof(*set));
 }
 
@@ -229,9 +230,12 @@ static inline int subtraction_open(SimResults *results, SubtractionGames *set, c
          sim_status_check(results, cudaMalloc((void **)&set->history, records * set->state_limbs * 4ULL), "history") &&
          sim_status_check(results, cudaMalloc((void **)&set->index, set->room * 3ULL * 4ULL), "index") &&
          sim_status_check(results, cudaMalloc((void **)&set->out, set->room * 4ULL * 4ULL), "out");
-    set->host_index = (unsigned int *)malloc((size_t)(set->room * 3ULL * 4ULL));
-    set->sums = (unsigned int *)malloc((size_t)((games + 1ULL) * 2ULL * 4ULL));
-    unsigned int *const places = (unsigned int *)malloc((size_t)(positions * 4ULL));
+    set->host_index =
+        (unsigned int *)platform_cell_taken((size_t)(set->room * 3ULL * 4ULL), platform_place_g_program_owner, 0);
+    set->sums =
+        (unsigned int *)platform_cell_taken((size_t)((games + 1ULL) * 2ULL * 4ULL), platform_place_g_program_owner, 0);
+    unsigned int *const places =
+        (unsigned int *)platform_cell_taken((size_t)(positions * 4ULL), platform_place_g_program_owner, 0);
     ok = ok && (set->host_index != NULL) && (set->sums != NULL) && (places != NULL);
     for (unsigned int place = 0u; ok && (place < positions); place += 1u)
     {
@@ -243,7 +247,7 @@ static inline int subtraction_open(SimResults *results, SubtractionGames *set, c
                           "places sent") &&
          sim_status_check(results, cudaMemset(set->zero, 0, set->state_limbs * 4ULL), "zero state set") &&
          sim_status_check(results, cudaMemset(set->history, 0, records * set->state_limbs * 4ULL), "history cleared");
-    free(places);
+    platform_cell_released(places, platform_place_g_program_owner);
     // one sweep a position: lane g reads its state, its game and the position. The first position reads one state of
     // zeros for every game.
     for (unsigned int game = 0u; ok && (game < games); game += 1u)
@@ -293,7 +297,8 @@ static inline int subtraction_periods(SimResults *results, SubtractionGames *set
     const unsigned int games = set->games;
     const unsigned int length = set->positions;
     const unsigned long long records = (unsigned long long)length * games;
-    unsigned int *const open = (unsigned int *)malloc((games + 1u) * sizeof(unsigned int));
+    unsigned int *const open =
+        (unsigned int *)platform_cell_taken((games + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     int ok = open != NULL;
     memset(periods, 0, games * sizeof(unsigned int));
     unsigned int settled = 0u;
@@ -353,7 +358,7 @@ static inline int subtraction_periods(SimResults *results, SubtractionGames *set
         }
     }
     sim_check(results, ok, "the shifts sweep and sum on the device");
-    free(open);
+    platform_cell_released(open, platform_place_g_program_owner);
     return ok;
 }
 

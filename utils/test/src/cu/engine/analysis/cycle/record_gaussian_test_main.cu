@@ -82,13 +82,16 @@ int program_main(int count, char **arguments)
               "the encoding widens the pair a bit every second floor: floor k is 24 + ceil(k / 2) bits");
 
     const unsigned int out_limbs = layout.out_limbs;
-    unsigned int *const atoms = (unsigned int *)calloc((size_t)GAUSSIAN_TEST_LANES * 2u, sizeof(unsigned int));
-    long long *const real = (long long *)malloc((size_t)GAUSSIAN_TEST_LANES * sizeof(long long));
-    long long *const imaginary = (long long *)malloc((size_t)GAUSSIAN_TEST_LANES * sizeof(long long));
-    unsigned int *const host_out =
-        (unsigned int *)calloc((size_t)GAUSSIAN_TEST_LANES * out_limbs + 1u, sizeof(unsigned int));
-    unsigned int *const device_out =
-        (unsigned int *)calloc((size_t)GAUSSIAN_TEST_LANES * out_limbs + 1u, sizeof(unsigned int));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared(
+        (size_t)GAUSSIAN_TEST_LANES * 2u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    long long *const real = (long long *)platform_cell_taken((size_t)GAUSSIAN_TEST_LANES * sizeof(long long),
+                                                             platform_place_g_program_owner, 0);
+    long long *const imaginary = (long long *)platform_cell_taken((size_t)GAUSSIAN_TEST_LANES * sizeof(long long),
+                                                                  platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)GAUSSIAN_TEST_LANES * out_limbs + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+        (size_t)GAUSSIAN_TEST_LANES * out_limbs + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = ok && (atoms != NULL) && (real != NULL) && (imaginary != NULL) && (host_out != NULL) && (device_out != NULL);
     for (unsigned int lane = 0u; (ok != 0) && (lane < GAUSSIAN_TEST_LANES); lane += 1u)
     {
@@ -191,11 +194,12 @@ int program_main(int count, char **arguments)
 
     // eight inverse floors take floor 8's 16 z back through z (1 + i)^(8 - k) to z, on every lane
     const unsigned int inverse_limbs = (ok != 0) ? inverse[GAUSSIAN_TEST_FLOORS].layout.out_limbs : 0u;
-    unsigned int *const eight = (unsigned int *)calloc((size_t)GAUSSIAN_TEST_LANES * 2u, sizeof(unsigned int));
-    unsigned int *const inverse_host =
-        (unsigned int *)calloc((size_t)GAUSSIAN_TEST_LANES * inverse_limbs + 1u, sizeof(unsigned int));
-    unsigned int *const inverse_device =
-        (unsigned int *)calloc((size_t)GAUSSIAN_TEST_LANES * inverse_limbs + 1u, sizeof(unsigned int));
+    unsigned int *const eight = (unsigned int *)platform_cell_cleared(
+        (size_t)GAUSSIAN_TEST_LANES * 2u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const inverse_host = (unsigned int *)platform_cell_cleared(
+        (size_t)GAUSSIAN_TEST_LANES * inverse_limbs + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const inverse_device = (unsigned int *)platform_cell_cleared(
+        (size_t)GAUSSIAN_TEST_LANES * inverse_limbs + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
     int returned = (host_ran != 0) && (eight != NULL) && (inverse_host != NULL) && (inverse_device != NULL);
     const DeviceRecordStep *const eighth_real = &layout.step_table[2u * GAUSSIAN_TEST_FLOORS];
     const DeviceRecordStep *const eighth_imaginary = &layout.step_table[(2u * GAUSSIAN_TEST_FLOORS) + 1u];
@@ -310,9 +314,9 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " runs, ");
     mmgr_line_decimal(&results.line, error_count, 1u);
     mmgr_line_put(&results.line, " errored\n");
-    free(eight);
-    free(inverse_host);
-    free(inverse_device);
+    platform_cell_released(eight, platform_place_g_program_owner);
+    platform_cell_released(inverse_host, platform_place_g_program_owner);
+    platform_cell_released(inverse_device, platform_place_g_program_owner);
     for (unsigned int floors = 1u; floors <= GAUSSIAN_TEST_FLOORS; floors += 1u)
     {
         gaussian_inverse_release(&inverse[floors]);
@@ -320,11 +324,11 @@ int program_main(int count, char **arguments)
 
     cudaFree(device_atoms);
     cudaFree(device_record);
-    free(atoms);
-    free(real);
-    free(imaginary);
-    free(host_out);
-    free(device_out);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(real, platform_place_g_program_owner);
+    platform_cell_released(imaginary, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
     if (record != NULL)
     {
         cycle_record_release(record);

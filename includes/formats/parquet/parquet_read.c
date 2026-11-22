@@ -32,9 +32,9 @@ static ParquetResident s_parquet_resident;
 static void parquet_resident_release(void)
 {
     ParquetResident *const resident = &s_parquet_resident;
-    free(resident->path);
-    free(resident->member);
-    free(resident->footer);
+    platform_cell_released(resident->path, platform_place_g_program_owner);
+    platform_cell_released(resident->member, platform_place_g_program_owner);
+    platform_cell_released(resident->footer, platform_place_g_program_owner);
     parquet_column_release(&resident->column);
     mmgr_bytes_set(resident, 0, sizeof(*resident));
 }
@@ -70,7 +70,7 @@ static int parquet_member_find(const ParquetFooter *footer, const char *member, 
 static char *parquet_copy(const char *text)
 {
     const size_t size = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR) + 1u;
-    char *const copy = (char *)malloc(size);
+    char *const copy = (char *)platform_cell_taken(size, platform_place_g_program_owner, 0);
     if (copy != NULL)
     {
         mmgr_bytes_copy(copy, text, size);
@@ -91,7 +91,7 @@ static int parquet_open(const EngineIngestTools *tools, const char *path, const 
         return 1;
     }
     parquet_resident_release();
-    resident->footer = (ParquetFooter *)malloc(sizeof(ParquetFooter));
+    resident->footer = (ParquetFooter *)platform_cell_taken(sizeof(ParquetFooter), platform_place_g_program_owner, 0);
     resident->path = parquet_copy(path);
     resident->member = parquet_copy(member);
     if (!PARQUET_CHECK((resident->footer != NULL) && (resident->path != NULL) && (resident->member != NULL), resident,
@@ -106,7 +106,7 @@ static int parquet_open(const EngineIngestTools *tools, const char *path, const 
     {
         ParquetBytes *const values = &resident->column.values;
         values->room = resident->footer->footer_bytes + 1ULL;
-        values->bytes = (unsigned char *)malloc((size_t)values->room);
+        values->bytes = (unsigned char *)platform_cell_taken((size_t)values->room, platform_place_g_program_owner, 0);
         ok = PARQUET_CHECK(values->bytes != NULL, values, error, ENGINE_ERROR_RESOURCE);
         if (ok)
         {
@@ -171,14 +171,14 @@ long parquet_describe(const EngineDescribeRequest *request)
 
 static void parquet_side_release(EngineSideBytes *side)
 {
-    free(side->pixel_at);
-    free(side->pixel_stored);
-    free(side->byte_start);
-    free(side->bytes);
-    free(side->name_start);
-    free(side->names);
-    free(side->member_crc);
-    free(side->member_bytes);
+    platform_cell_released(side->pixel_at, platform_place_g_program_owner);
+    platform_cell_released(side->pixel_stored, platform_place_g_program_owner);
+    platform_cell_released(side->byte_start, platform_place_g_program_owner);
+    platform_cell_released(side->bytes, platform_place_g_program_owner);
+    platform_cell_released(side->name_start, platform_place_g_program_owner);
+    platform_cell_released(side->names, platform_place_g_program_owner);
+    platform_cell_released(side->member_crc, platform_place_g_program_owner);
+    platform_cell_released(side->member_bytes, platform_place_g_program_owner);
     mmgr_bytes_set(side, 0, sizeof(*side));
 }
 
@@ -210,14 +210,20 @@ static int parquet_side_fill(EngineSideBytes *side, EngineError *error)
         named += mmgr_text_length(PARQUET_SIDE_NAMES[leaf], PLATFORM_TEXT_TO_TERMINATOR);
     }
     mmgr_bytes_set(side, 0, sizeof(*side));
-    side->pixel_at = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
-    side->pixel_stored = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
-    side->byte_start = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
-    side->bytes = (unsigned char *)malloc((size_t)byte_total + 1u);
-    side->name_start = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
-    side->names = (char *)malloc((size_t)named + 1u);
-    side->member_crc = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
-    side->member_bytes = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
+    side->pixel_at = (unsigned long long *)platform_cell_cleared((size_t)leaves + 1u, sizeof(unsigned long long),
+                                                                 platform_place_g_program_owner, 0);
+    side->pixel_stored = (unsigned long long *)platform_cell_cleared((size_t)leaves + 1u, sizeof(unsigned long long),
+                                                                     platform_place_g_program_owner, 0);
+    side->byte_start = (unsigned long long *)platform_cell_cleared((size_t)leaves + 1u, sizeof(unsigned long long),
+                                                                   platform_place_g_program_owner, 0);
+    side->bytes = (unsigned char *)platform_cell_taken((size_t)byte_total + 1u, platform_place_g_program_owner, 0);
+    side->name_start = (unsigned long long *)platform_cell_cleared((size_t)leaves + 1u, sizeof(unsigned long long),
+                                                                   platform_place_g_program_owner, 0);
+    side->names = (char *)platform_cell_taken((size_t)named + 1u, platform_place_g_program_owner, 0);
+    side->member_crc = (unsigned long long *)platform_cell_cleared((size_t)leaves + 1u, sizeof(unsigned long long),
+                                                                   platform_place_g_program_owner, 0);
+    side->member_bytes = (unsigned long long *)platform_cell_cleared((size_t)leaves + 1u, sizeof(unsigned long long),
+                                                                     platform_place_g_program_owner, 0);
     if (!PARQUET_CHECK((side->pixel_at != NULL) && (side->pixel_stored != NULL) && (side->byte_start != NULL) &&
                            (side->bytes != NULL) && (side->name_start != NULL) && (side->names != NULL) &&
                            (side->member_crc != NULL) && (side->member_bytes != NULL),
@@ -290,15 +296,17 @@ unsigned int parquet_members(const EngineIngestTools *tools, const char *path, c
     *names = NULL;
     EngineError probe;
     mmgr_bytes_set(&probe, 0, sizeof(probe));
-    ParquetFooter *const footer = (ParquetFooter *)malloc(sizeof(ParquetFooter));
+    ParquetFooter *const footer =
+        (ParquetFooter *)platform_cell_taken(sizeof(ParquetFooter), platform_place_g_program_owner, 0);
     if ((footer == NULL) || !parquet_footer_read(tools, path, footer, &probe))
     {
-        free(footer);
+        platform_cell_released(footer, platform_place_g_program_owner);
         return 0u;
     }
     // at max 256 row groups of 64 leaves each and the footer, a count far below an unsigned int's ceiling
     const unsigned int count = 1u + (footer->row_group_count * footer->leaf_count);
-    char **const listed = (char **)calloc((size_t)count + 1u, sizeof(char *));
+    char **const listed =
+        (char **)platform_cell_cleared((size_t)count + 1u, sizeof(char *), platform_place_g_program_owner, 0);
     int ok = (listed != NULL);
     if (ok)
     {
@@ -312,7 +320,7 @@ unsigned int parquet_members(const EngineIngestTools *tools, const char *path, c
         {
             // a row group's decimal, a slash, the leaf's path and its terminator
             const size_t size = 12u + mmgr_text_length(footer->leaf[leaf].path, PLATFORM_TEXT_TO_TERMINATOR);
-            listed[at] = (char *)malloc(size);
+            listed[at] = (char *)platform_cell_taken(size, platform_place_g_program_owner, 0);
             VerbaLinea formed_line_1;
             ok = (listed[at] != NULL) &&
                  ((formed_line_1 = mmgr_line_over(listed[at], size), mmgr_line_decimal(&formed_line_1, group, 1u),
@@ -321,14 +329,14 @@ unsigned int parquet_members(const EngineIngestTools *tools, const char *path, c
             at += 1u;
         }
     }
-    free(footer);
+    platform_cell_released(footer, platform_place_g_program_owner);
     if (!ok)
     {
         for (unsigned int index = 0u; (listed != NULL) && (index < count); index += 1u)
         {
-            free(listed[index]);
+            platform_cell_released(listed[index], platform_place_g_program_owner);
         }
-        free(listed);
+        platform_cell_released(listed, platform_place_g_program_owner);
         return 0u;
     }
     *names = listed;

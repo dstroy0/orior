@@ -191,7 +191,7 @@ static const KnownAnswer KNOWN[] = {
 
 void known_answers(void)
 {
-    char *const text = (char *)malloc(TEXT_CAPACITY);
+    char *const text = (char *)platform_cell_taken(TEXT_CAPACITY, platform_place_g_program_owner, 0);
     char reason[QASM_REASON_CAPACITY];
     for (size_t at = 0u; at < (sizeof(KNOWN) / sizeof(KNOWN[0])); at += 1u)
     {
@@ -208,10 +208,10 @@ void known_answers(void)
         QasmOutcome device;
         QasmOutcome host;
         const unsigned long long lanes = 1ull << circuit.qubits;
-        unsigned int *const device_state =
-            (unsigned int *)calloc((size_t)(lanes * QASM_STATE_LIMBS), sizeof(unsigned int));
-        unsigned int *const host_state =
-            (unsigned int *)calloc((size_t)(lanes * QASM_STATE_LIMBS), sizeof(unsigned int));
+        unsigned int *const device_state = (unsigned int *)platform_cell_cleared(
+            (size_t)(lanes * QASM_STATE_LIMBS), sizeof(unsigned int), platform_place_g_program_owner, 0);
+        unsigned int *const host_state = (unsigned int *)platform_cell_cleared(
+            (size_t)(lanes * QASM_STATE_LIMBS), sizeof(unsigned int), platform_place_g_program_owner, 0);
         const int ran = run(&circuit, 0, &device, device_state) && run(&circuit, 1, &host, host_state);
         char bitstring[QASM_CLBITS_MAX + 1u];
         qasm_bitstring(&circuit, ran ? device.peak : 0ull, bitstring, sizeof(bitstring));
@@ -220,11 +220,11 @@ void known_answers(void)
                   (host.peak == device.peak) && (host.proved == device.proved),
               "known answer %-78s -> %s (wanted %s, %s, device = host)", known->body, bitstring, known->expected,
               (ran && device.proved) ? "proved" : "not proved");
-        free(device_state);
-        free(host_state);
+        platform_cell_released(device_state, platform_place_g_program_owner);
+        platform_cell_released(host_state, platform_place_g_program_owner);
         qasm_release(&circuit);
     }
-    free(text);
+    platform_cell_released(text, platform_place_g_program_owner);
 }
 
 void errors(void)
@@ -286,7 +286,7 @@ void ties(void)
         {"h q[0]; cx q[0],q[1];", 2u, "00", "11"},
         {"h q[0]; cx q[0],q[1]; cx q[1],q[2]; cx q[2],q[3]; cx q[3],q[4];", 5u, "00000", "11111"},
     };
-    char *const text = (char *)malloc(TEXT_CAPACITY);
+    char *const text = (char *)platform_cell_taken(TEXT_CAPACITY, platform_place_g_program_owner, 0);
     char reason[QASM_REASON_CAPACITY];
     for (size_t at = 0u; at < (sizeof(TIES) / sizeof(TIES[0])); at += 1u)
     {
@@ -312,7 +312,7 @@ void ties(void)
             qasm_release(&circuit);
         }
     }
-    free(text);
+    platform_cell_released(text, platform_place_g_program_owner);
 }
 
 // the bound's formula: a Bell pair has one rounded gate at n = 2. E' = (3 + 2^ceil(3/2)) 2^F = 7 2^60

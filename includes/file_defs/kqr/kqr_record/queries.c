@@ -3,11 +3,11 @@
 // queries.c: a query and a sample as the record stores them: an answer's name, a query's identity read, written, hashed
 // and stored, the slot of an identity, a query's and a sample's words, a row put with its who, the marks written, the
 // record opened, and the queries indexed
-#include "../../../parsers/who.h"
 #include "../../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "../../../parsers/who.h"
 #include "cellularum_laboro/cellularum_linea.h"
 #include "kqr_internal.h"
+#include "memoria_operor/memoria_linea.h"
 
 // what came back of a query, each as the text form writes it, by its code
 static const char *const s_answers[KQR_ANSWER_COUNT] = {"answers", "illegal", "nothing", "timed_out", "censored"};
@@ -354,7 +354,8 @@ int kqr_opened(KqrRecord *record, const char *member)
 {
     kqr_free(record);
     krep_open(&record->file, KQR_TYPE);
-    record->slot = (unsigned int *)calloc(KQR_SLOTS, sizeof(unsigned int));
+    record->slot =
+        (unsigned int *)platform_cell_cleared(KQR_SLOTS, sizeof(unsigned int), platform_place_g_program_owner, 0);
     record->open = (record->slot != NULL);
     const unsigned long long named =
         krep_text_number(&record->file, member, mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR));
@@ -367,7 +368,9 @@ int kqr_sample_take(KqrRecord *record, unsigned int at)
     if (record->samples == record->sample_room)
     {
         const unsigned int grown = (record->sample_room == 0u) ? 256u : (2u * record->sample_room);
-        unsigned int *const larger = (unsigned int *)realloc(record->sample, (size_t)grown * sizeof(unsigned int));
+        unsigned int *const larger = (unsigned int *)platform_cell_grown(
+            record->sample, (size_t)record->sample_room * sizeof(unsigned int), (size_t)grown * sizeof(unsigned int),
+            platform_place_g_program_owner, 0);
         if (larger == NULL)
         {
             return 0;

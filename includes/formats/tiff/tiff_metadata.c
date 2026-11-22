@@ -48,8 +48,8 @@ int tiff_page_rows(TiffFile *file, const TiffPage *page, TiffScratch *scratch, u
             }
         }
     }
-    free(offsets);
-    free(counts);
+    platform_cell_released(offsets, platform_place_g_program_owner);
+    platform_cell_released(counts, platform_place_g_program_owner);
     return file->reason == NULL;
 }
 
@@ -78,7 +78,9 @@ int tiff_chain_add(TiffFile *file, TiffChain *chain, unsigned long long offset)
         {
             return tiff_fail(file, "more pages than the file can contain");
         }
-        unsigned long long *const grown = (unsigned long long *)realloc(chain->offsets, (size_t)bytes);
+        unsigned long long *const grown = (unsigned long long *)platform_cell_grown(
+            chain->offsets, (size_t)chain->capacity * sizeof(unsigned long long), (size_t)bytes,
+            platform_place_g_program_owner, 0);
         if (grown == NULL)
         {
             return tiff_fail(file, "out of memory");
@@ -108,7 +110,7 @@ char *tiff_description(TiffFile *file, const TiffEntry *entry)
         tiff_fail(file, "an ImageDescription longer than the file");
         return NULL;
     }
-    char *const text = (char *)malloc((size_t)(entry->count + 1ULL));
+    char *const text = (char *)platform_cell_taken((size_t)(entry->count + 1ULL), platform_place_g_program_owner, 0);
     if (text == NULL)
     {
         tiff_fail(file, "out of memory");
@@ -116,7 +118,7 @@ char *tiff_description(TiffFile *file, const TiffEntry *entry)
     }
     if (!tiff_entry_bytes(file, entry, entry->count, (unsigned char *)text))
     {
-        free(text);
+        platform_cell_released(text, platform_place_g_program_owner);
         return NULL;
     }
     text[entry->count] = '\0';

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_statements.c: definitions, registers, application and measurement
 #include "qasm_internal.h"
+#include "../../../src/platform/platform.h"
 
 // ---------------------------------------------------------------------------------------------------------------
 // statements
@@ -39,7 +40,7 @@ static int qasm_apply(QasmParser *parser, const char *name, const QasmToken *tok
         if (parser->measured_qubit[qubits[one]] != 0u)
         {
             qasm_error(parser, token, "a gate follows the measure of qubit %u: only a final measure is read",
-                        qubits[one]);
+                       qubits[one]);
             return 0;
         }
         for (unsigned int two = one + 1u; two < qubit_count; two += 1u)
@@ -57,7 +58,7 @@ static int qasm_apply(QasmParser *parser, const char *name, const QasmToken *tok
         if ((angle_count != definition->params) || (qubit_count != definition->args))
         {
             qasm_error(parser, token, "the gate '%s' takes %u parameters and %u qubits", name, definition->params,
-                        definition->args);
+                       definition->args);
             return 0;
         }
         if (parser->depth >= QASM_EXPAND_DEPTH_MAX)
@@ -83,7 +84,7 @@ static int qasm_apply(QasmParser *parser, const char *name, const QasmToken *tok
     if ((angle_count != builtin->params) || (qubit_count != builtin->qubits))
     {
         qasm_error(parser, token, "the gate '%s' takes %u parameters and %u qubits", name, builtin->params,
-                    builtin->qubits);
+                   builtin->qubits);
         return 0;
     }
     return qasm_lower_gate(parser, name, angles, qubits, token);
@@ -130,7 +131,8 @@ int qasm_application(QasmParser *parser, const QasmScope *scope)
     {
         return 0;
     }
-    QasmAngle *const angles = (QasmAngle *)malloc(QASM_GATE_PARAMS_MAX * sizeof(QasmAngle));
+    QasmAngle *const angles =
+        (QasmAngle *)platform_cell_taken(QASM_GATE_PARAMS_MAX * sizeof(QasmAngle), platform_place_g_program_owner, 0);
     if (!QASM_CHECK(angles != NULL, parser, parser->error))
     {
         parser->failed = 1;
@@ -189,7 +191,7 @@ int qasm_application(QasmParser *parser, const QasmScope *scope)
         } while (qasm_accept(parser, ","));
         ok =
             ok && qasm_expect(parser, ";") && qasm_apply(parser, name, token, angles, angle_count, qubits, qubit_count);
-        free(angles);
+        platform_cell_released(angles, platform_place_g_program_owner);
         return ok;
     }
     // at the top: register bits, or whole registers broadcast over their common size
@@ -236,7 +238,7 @@ int qasm_application(QasmParser *parser, const QasmScope *scope)
         }
         ok = qasm_apply(parser, name, token, angles, angle_count, qubits, argument_count);
     }
-    free(angles);
+    platform_cell_released(angles, platform_place_g_program_owner);
     return ok;
 }
 

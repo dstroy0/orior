@@ -4,6 +4,7 @@
 // samples: the footer, then every leaf of every row group, as engine_source_samples lists them. engine_ingest_set seals
 // each member whole as a crystal of the set and rebuilds it against the lanes the file gave, lane for lane
 #include "../../../../../src/cu/engine/analysis/compression/compression.h"
+#include "../../../../../src/platform/platform.h"
 #include "../../../../../src/cu/engine/analysis/tower/tower.h"
 #include "../../../../../src/cu/engine/engine.h"
 #include "verba_scribo/verba_linea.h"
@@ -41,9 +42,9 @@ static void ingest_names_release(char **names, unsigned int count)
 {
     for (unsigned int at = 0u; (names != NULL) && (at < count); at += 1u)
     {
-        free(names[at]);
+        platform_cell_released(names[at], platform_place_g_program_owner);
     }
-    free(names);
+    platform_cell_released(names, platform_place_g_program_owner);
 }
 
 int ingest_run(SimResults *results, int count, char **arguments)
@@ -91,7 +92,9 @@ int ingest_run(SimResults *results, int count, char **arguments)
     memset(&error, 0, sizeof(error));
     EngineSetReport report;
     memset(&report, 0, sizeof(report));
-    report.samples = ok ? (EngineSampleRecord *)calloc((size_t)members + 1u, sizeof(EngineSampleRecord)) : NULL;
+    report.samples = ok ? (EngineSampleRecord *)platform_cell_cleared((size_t)members + 1u, sizeof(EngineSampleRecord),
+                                                                      platform_place_g_program_owner, 0)
+                        : NULL;
     ok = ok && (report.samples != NULL);
     const EngineIngestRequest ingest = {path, set, names, members, NULL, 0u, &error, &report};
     const long ingested = ok ? engine_ingest_set(&ingest) : ENGINE_ERROR;
@@ -106,7 +109,7 @@ int ingest_run(SimResults *results, int count, char **arguments)
     }
     ok = ok && (ingested == 0L);
     sim_check(results, ok, "every member of the file seals as a crystal of the set and rebuilds to the file's lanes");
-    free(report.samples);
+    platform_cell_released(report.samples, platform_place_g_program_owner);
     ingest_names_release(names, members);
     return ok;
 }

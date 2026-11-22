@@ -76,7 +76,7 @@ done
 tessera_build hessian "${LINEA_OBJECTS[@]}" || exit 1
 
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
-    "$TEST/hessian_test.cu" "$ENGINE/../../engine/sims/sim_job.cu" "$PEAKS/hessian.cu" "$SCAN/drift.cu" \
+    "$TEST/hessian_test.cu" "$ENGINE/../../sims/cu/sim_job.cu" "$PEAKS/hessian.cu" "$SCAN/drift.cu" \
     "$SHIFT_CU/shift_agreement.cu" "$SHIFT_CU/shift_agreement_run.cu" \
     "$DEVICE_POOL_CU/device_pool.cu" "${OBJECTS[@]}" "${TESSERA_OBJECTS[@]}" "${TESSERA_SEAL[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }

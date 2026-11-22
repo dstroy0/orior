@@ -17,8 +17,8 @@ static int s_verdict_ready = 0;
 // loads whole
 static void cubin_safe_verdict_clear(void)
 {
-    free(s_gated_low);
-    free(s_gated_high);
+    platform_cell_released(s_gated_low, platform_place_g_program_owner);
+    platform_cell_released(s_gated_high, platform_place_g_program_owner);
     s_gated_low = NULL;
     s_gated_high = NULL;
     s_gated_count = 0u;
@@ -51,10 +51,12 @@ static int cubin_safe_verdict_lines(const char *bytes, unsigned long long size)
         if (s_gated_count == s_gated_room)
         {
             const unsigned int room = (s_gated_room != 0u) ? (s_gated_room * 2u) : CUBIN_SAFE_GATED_FIRST;
-            unsigned long long *const low_room =
-                (unsigned long long *)realloc(s_gated_low, (size_t)room * sizeof(*s_gated_low));
-            unsigned long long *const high_room =
-                (unsigned long long *)realloc(s_gated_high, (size_t)room * sizeof(*s_gated_high));
+            unsigned long long *const low_room = (unsigned long long *)platform_cell_grown(
+                s_gated_low, (size_t)s_gated_room * sizeof(*s_gated_low), (size_t)room * sizeof(*s_gated_low),
+                platform_place_g_program_owner, 0);
+            unsigned long long *const high_room = (unsigned long long *)platform_cell_grown(
+                s_gated_high, (size_t)s_gated_room * sizeof(*s_gated_high), (size_t)room * sizeof(*s_gated_high),
+                platform_place_g_program_owner, 0);
             // whichever grew is retained so the clear below frees it; the list grows only where both did
             s_gated_low = (low_room != NULL) ? low_room : s_gated_low;
             s_gated_high = (high_room != NULL) ? high_room : s_gated_high;
@@ -113,7 +115,7 @@ int cubin_safe_verdict_load(const char *path)
         if (size == room)
         {
             room = (room != 0u) ? (room * 2u) : 65536u;
-            char *const larger = (char *)realloc(bytes, room);
+            char *const larger = (char *)platform_cell_grown(bytes, size, room, platform_place_g_program_owner, 0);
             whole = (larger != NULL);
             bytes = (larger != NULL) ? larger : bytes;
             if (!whole)
@@ -131,7 +133,7 @@ int cubin_safe_verdict_load(const char *path)
     whole = whole && (platform_file_failed(file) == 0);
     platform_file_close(file);
     const int loaded = whole && cubin_safe_verdict_read(bytes, (unsigned long long)size);
-    free(bytes);
+    platform_cell_released(bytes, platform_place_g_program_owner);
     if (!loaded)
     {
         cubin_safe_verdict_clear();
@@ -168,8 +170,8 @@ static unsigned int s_admitted_room = 0u;
 
 static void cubin_safe_admitted_clear(void)
 {
-    free(s_admitted_low);
-    free(s_admitted_high);
+    platform_cell_released(s_admitted_low, platform_place_g_program_owner);
+    platform_cell_released(s_admitted_high, platform_place_g_program_owner);
     s_admitted_low = NULL;
     s_admitted_high = NULL;
     s_admitted_count = 0u;
@@ -201,10 +203,12 @@ int cubin_safe_admitted_read(const char *bytes, unsigned long long size)
         if (s_admitted_count == s_admitted_room)
         {
             const unsigned int room = (s_admitted_room != 0u) ? (s_admitted_room * 2u) : CUBIN_SAFE_GATED_FIRST;
-            unsigned long long *const low_room =
-                (unsigned long long *)realloc(s_admitted_low, (size_t)room * sizeof(*s_admitted_low));
-            unsigned long long *const high_room =
-                (unsigned long long *)realloc(s_admitted_high, (size_t)room * sizeof(*s_admitted_high));
+            unsigned long long *const low_room = (unsigned long long *)platform_cell_grown(
+                s_admitted_low, (size_t)s_admitted_room * sizeof(*s_admitted_low),
+                (size_t)room * sizeof(*s_admitted_low), platform_place_g_program_owner, 0);
+            unsigned long long *const high_room = (unsigned long long *)platform_cell_grown(
+                s_admitted_high, (size_t)s_admitted_room * sizeof(*s_admitted_high),
+                (size_t)room * sizeof(*s_admitted_high), platform_place_g_program_owner, 0);
             s_admitted_low = (low_room != NULL) ? low_room : s_admitted_low;
             s_admitted_high = (high_room != NULL) ? high_room : s_admitted_high;
             // a list that did not fit admits nothing: rule 3 blocks every unknown key as before

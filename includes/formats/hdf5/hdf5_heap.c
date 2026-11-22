@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_heap.c: the fractal heap, version 2 B-trees and dense links
 #include "hdf5_internal.h"
+#include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 static int hdf5_heap_open(Hdf5File *file, unsigned long long address, Hdf5Heap *heap)
@@ -39,7 +40,7 @@ static int hdf5_heap_open(Hdf5File *file, unsigned long long address, Hdf5Heap *
     heap->root_rows = (unsigned int)hdf5_take(&cursor, 2u);
     const int signed_right = (mmgr_bytes_compare(header, "FRHP", 4u) == 0) && (version == 0u);
     const int sealed = (filter_length == 0u) && hdf5_sealed(header, (size_t)total);
-    free(header);
+    platform_cell_released(header, platform_place_g_program_owner);
     if (filter_length != 0u)
     {
         return hdf5_error(file, "a filtered fractal heap for dense links");
@@ -122,7 +123,7 @@ static int hdf5_heap_locate(Hdf5File *file, const Hdf5Heap *heap, unsigned long 
         const unsigned long long entry = ((unsigned long long)row * heap->width) + column;
         const unsigned long long child =
             sound ? hdf5_little(&node[head + (size_t)(entry * file->offset_bytes)], file->offset_bytes) : 0ULL;
-        free(node);
+        platform_cell_released(node, platform_place_g_program_owner);
         if (!sound || hdf5_undefined(file, child))
         {
             return hdf5_error(file, "a fractal heap indirect block whose signature, checksum or entry is wrong");
@@ -150,7 +151,7 @@ static int hdf5_heap_block(Hdf5File *file, Hdf5Heap *heap, unsigned long long ad
     {
         return 1;
     }
-    free(heap->block);
+    platform_cell_released(heap->block, platform_place_g_program_owner);
     heap->block = NULL;
     unsigned char *const block = hdf5_load(file, address, bytes);
     if (block == NULL)
@@ -171,7 +172,7 @@ static int hdf5_heap_block(Hdf5File *file, Hdf5Heap *heap, unsigned long long ad
     }
     if (!sound)
     {
-        free(block);
+        platform_cell_released(block, platform_place_g_program_owner);
         return hdf5_error(file, "a fractal heap direct block whose signature, offset or checksum does not match");
     }
     heap->block = block;
@@ -314,7 +315,7 @@ static Hdf5Walk hdf5_tree2_node(Hdf5File *file, Hdf5Tree2 *tree, unsigned long l
                        : hdf5_walk_error(file, "version 2 B-tree records that repeat or run out of order");
         }
     }
-    free(node);
+    platform_cell_released(node, platform_place_g_program_owner);
     return step;
 }
 
@@ -349,7 +350,7 @@ static Hdf5Walk hdf5_tree2_walk(Hdf5File *file, unsigned long long address, unsi
     const unsigned long long root_records = hdf5_take(&cursor, 2u);
     const int sound = !cursor.broken && (mmgr_bytes_compare(header, "BTHD", 4u) == 0) && (version == 0u) &&
                       (stated_type == type) && hdf5_sealed(header, (size_t)total);
-    free(header);
+    platform_cell_released(header, platform_place_g_program_owner);
     if (!sound)
     {
         return hdf5_walk_error(file, "a version 2 B-tree header whose signature, type or checksum does not match");
@@ -404,6 +405,6 @@ Hdf5Walk hdf5_dense_links(Hdf5File *file, const Hdf5GroupWalk *walk)
     Hdf5DenseWalk dense = {walk, &heap};
     const Hdf5Walk step =
         hdf5_tree2_walk(file, walk->dense_names, 5u, hdf5_dense_record, &dense, walk->hashed, walk->hash);
-    free(heap.block);
+    platform_cell_released(heap.block, platform_place_g_program_owner);
     return step;
 }

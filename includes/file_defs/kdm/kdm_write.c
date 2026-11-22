@@ -299,7 +299,7 @@ int program_main(int count, char **word)
     const int put = verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_section_bytes), .at = s_section_at}) &&
                     kfile_lines_cut(s_section_bytes, s_section_at, &lines, &line_count) &&
                     kdm_section_written(&s_file, part, lines, line_count) && kdm_write(&s_file, word[2]);
-    free(lines);
+    platform_cell_released(lines, platform_place_g_program_owner);
     kdm_free(&s_file);
     if (!put)
     {

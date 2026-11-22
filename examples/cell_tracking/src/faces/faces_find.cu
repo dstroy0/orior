@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "crc.h"
+#include "../../../../src/platform/platform.h"
 #include "faces.h"
 #include "hessian.h"
 #include "scan.h"
@@ -118,17 +119,29 @@ static int faces_frame_reserve(FacesFrame *frame, unsigned int count)
         return 1;
     }
     const size_t capacity = (size_t)count + 1u;
-    unsigned int *const voxels = (unsigned int *)realloc(frame->voxels, capacity * sizeof(unsigned int));
+    unsigned int *const voxels =
+        (unsigned int *)platform_cell_grown(frame->voxels, ((size_t)frame->capacity + 1u) * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     frame->voxels = (voxels != NULL) ? voxels : frame->voxels;
-    int *const places = (int *)realloc(frame->places, ENGINE_AXES * capacity * sizeof(int));
+    int *const places =
+        (int *)platform_cell_grown(frame->places, ENGINE_AXES * ((size_t)frame->capacity + 1u) * sizeof(int),
+                                   ENGINE_AXES * capacity * sizeof(int), platform_place_g_program_owner, 0);
     frame->places = (places != NULL) ? places : frame->places;
-    unsigned int *const hessian = (unsigned int *)realloc(frame->hessian, capacity * sizeof(unsigned int));
+    unsigned int *const hessian =
+        (unsigned int *)platform_cell_grown(frame->hessian, ((size_t)frame->capacity + 1u) * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     frame->hessian = (hessian != NULL) ? hessian : frame->hessian;
-    unsigned int *const in = (unsigned int *)realloc(frame->in, capacity * sizeof(unsigned int));
+    unsigned int *const in =
+        (unsigned int *)platform_cell_grown(frame->in, ((size_t)frame->capacity + 1u) * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     frame->in = (in != NULL) ? in : frame->in;
-    unsigned int *const out = (unsigned int *)realloc(frame->out, capacity * sizeof(unsigned int));
+    unsigned int *const out =
+        (unsigned int *)platform_cell_grown(frame->out, ((size_t)frame->capacity + 1u) * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     frame->out = (out != NULL) ? out : frame->out;
-    unsigned int *const ahead = (unsigned int *)realloc(frame->ahead, capacity * sizeof(unsigned int));
+    unsigned int *const ahead =
+        (unsigned int *)platform_cell_grown(frame->ahead, ((size_t)frame->capacity + 1u) * sizeof(unsigned int),
+                                            capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     frame->ahead = (ahead != NULL) ? ahead : frame->ahead;
     const int ok =
         (voxels != NULL) && (places != NULL) && (hessian != NULL) && (in != NULL) && (out != NULL) && (ahead != NULL);
@@ -138,12 +151,12 @@ static int faces_frame_reserve(FacesFrame *frame, unsigned int count)
 
 static void faces_frame_free(FacesFrame *frame)
 {
-    free(frame->voxels);
-    free(frame->places);
-    free(frame->hessian);
-    free(frame->in);
-    free(frame->out);
-    free(frame->ahead);
+    platform_cell_released(frame->voxels, platform_place_g_program_owner);
+    platform_cell_released(frame->places, platform_place_g_program_owner);
+    platform_cell_released(frame->hessian, platform_place_g_program_owner);
+    platform_cell_released(frame->in, platform_place_g_program_owner);
+    platform_cell_released(frame->out, platform_place_g_program_owner);
+    platform_cell_released(frame->ahead, platform_place_g_program_owner);
     memset(frame, 0, sizeof(*frame));
 }
 
@@ -153,7 +166,9 @@ static int faces_words_reserve(FacesWalk *walk, size_t words)
     {
         return 1;
     }
-    unsigned int *const grown = (unsigned int *)realloc(walk->words, (words + 1u) * sizeof(unsigned int));
+    unsigned int *const grown =
+        (unsigned int *)platform_cell_grown(walk->words, (walk->word_capacity + 1u) * sizeof(unsigned int),
+                                            (words + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     walk->words = (grown != NULL) ? grown : walk->words;
     walk->word_capacity = (grown != NULL) ? words : walk->word_capacity;
     return grown != NULL;
@@ -542,7 +557,8 @@ extern "C" long faces_find_set(const FacesRequest *request)
     FILE *const report = request->report;
     FacesWalk walk;
     memset(&walk, 0, sizeof(walk));
-    walk.chunk = (unsigned int *)malloc((size_t)FACES_CHUNK * sizeof(unsigned int));
+    walk.chunk = (unsigned int *)platform_cell_taken((size_t)FACES_CHUNK * sizeof(unsigned int),
+                                                     platform_place_g_program_owner, 0);
     if (walk.chunk == NULL)
     {
         fprintf(stderr, "  faces: the memory for reading could not be reserved\n");
@@ -584,7 +600,7 @@ extern "C" long faces_find_set(const FacesRequest *request)
             totals.ends, totals.leaving, totals.first, totals.last, totals.carried);
     faces_frame_free(&walk.frames[0]);
     faces_frame_free(&walk.frames[1]);
-    free(walk.words);
-    free(walk.chunk);
+    platform_cell_released(walk.words, platform_place_g_program_owner);
+    platform_cell_released(walk.chunk, platform_place_g_program_owner);
     return (failed == 0u) ? 0L : FACES_ERROR;
 }

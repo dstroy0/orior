@@ -229,7 +229,8 @@ static int run_job_submit(const char *name, const CfgText *effective, const RunI
 #endif
     const size_t named = strlen(name) + 1u;
     const size_t request_bytes = named + effective->length;
-    unsigned char *const request = (unsigned char *)malloc(request_bytes);
+    unsigned char *const request =
+        (unsigned char *)platform_cell_taken(request_bytes, platform_place_g_program_owner, 0);
     if (request == NULL)
     {
         return 0;
@@ -239,7 +240,7 @@ static int run_job_submit(const char *name, const CfgText *effective, const RunI
     const ObsignatioSignumRequest signum = {
         request, request_bytes, NULL, OBSIGNATIO_MODE_HASH, submit.signum.bytes, ENGINE_SIGNUM_BYTES, &error};
     const long hashed = obsignatio_signum(&signum);
-    free(request);
+    platform_cell_released(request, platform_place_g_program_owner);
     job->declared = run_job_declared(inputs, name, lattice, tower, drift, gate);
     char daemon[ENGINE_PATH_CAPACITY];
     const int placed = engine_program_directory(daemon, sizeof(daemon)) &&
@@ -425,8 +426,10 @@ static int run_pair_proof(const FlattenResident *flattened, const unsigned int *
 {
     CycleRecord *record = NULL;
     const size_t lanes = (size_t)flattened->bodies;
-    unsigned int *const index = (unsigned int *)malloc((2u * lanes + 1u) * sizeof(unsigned int));
-    unsigned int *const weight = (unsigned int *)malloc((2u * lanes + 1u) * sizeof(unsigned int));
+    unsigned int *const index = (unsigned int *)platform_cell_taken((2u * lanes + 1u) * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
+    unsigned int *const weight = (unsigned int *)platform_cell_taken((2u * lanes + 1u) * sizeof(unsigned int),
+                                                                     platform_place_g_program_owner, 0);
     EngineError error;
     memset(&error, 0, sizeof(error));
     int ok = (run_pair_encode(fields, &record, &error) != ENGINE_ERROR) && (index != NULL) && (weight != NULL) &&
@@ -450,7 +453,9 @@ static int run_pair_proof(const FlattenResident *flattened, const unsigned int *
     {
         index[(2u * lane) + 1u] = (unsigned int)(lanes - 1u - lane);
     }
-    unsigned int *const host = ok ? (unsigned int *)malloc((lanes + 1u) * sizeof(unsigned int)) : NULL;
+    unsigned int *const host =
+        ok ? (unsigned int *)platform_cell_taken((lanes + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0)
+           : NULL;
     EngineRecordStep program[PRINT_PAIR_STEPS];
     unsigned int outputs[PRINT_PAIR_OUTPUTS];
     EngineRecordRequest encode_request;
@@ -499,9 +504,9 @@ static int run_pair_proof(const FlattenResident *flattened, const unsigned int *
         fprintf(stderr, "  run fingerprint: the print pairs errored\n");
         track_error_report("print pairs", &error);
     }
-    free(index);
-    free(weight);
-    free(host);
+    platform_cell_released(index, platform_place_g_program_owner);
+    platform_cell_released(weight, platform_place_g_program_owner);
+    platform_cell_released(host, platform_place_g_program_owner);
     cycle_record_release(record);
     return (ok && (short_of_ceiling == 0ull) && (differ == 0ull)) ? 0 : 1;
 }
@@ -539,8 +544,12 @@ static int run_steer_proof(const FlattenResident *flattened, const unsigned int 
     memset(&error, 0, sizeof(error));
     int ok = (engine_record_encode(&encode_request, &record, &error) != ENGINE_ERROR) &&
              (cycle_record_out_limbs(record) == 1u);
-    unsigned int *const verdict = ok ? (unsigned int *)malloc((lanes + 1u) * sizeof(unsigned int)) : NULL;
-    unsigned int *const host = ok ? (unsigned int *)malloc((lanes + 1u) * sizeof(unsigned int)) : NULL;
+    unsigned int *const verdict =
+        ok ? (unsigned int *)platform_cell_taken((lanes + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0)
+           : NULL;
+    unsigned int *const host =
+        ok ? (unsigned int *)platform_cell_taken((lanes + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0)
+           : NULL;
     unsigned long long sweep = 0ull;
     const EngineRecordSweep run = {record,
                                    {flattened->magnitudes, prints},
@@ -589,8 +598,8 @@ static int run_steer_proof(const FlattenResident *flattened, const unsigned int 
         fprintf(stderr, "  run fingerprint: the body beside its print errored\n");
         track_error_report("body beside its print", &error);
     }
-    free(verdict);
-    free(host);
+    platform_cell_released(verdict, platform_place_g_program_owner);
+    platform_cell_released(host, platform_place_g_program_owner);
     cycle_record_release(record);
     return (ok && (truthy == flattened->bodies) && (differ == 0ull)) ? 0 : 1;
 }
@@ -619,8 +628,10 @@ static int run_vocabulary_proof(const FlattenResident *flattened, const unsigned
     }
     const unsigned int out_limbs = cycle_record_out_limbs(record);
     const size_t words = (size_t)flattened->bodies * out_limbs;
-    unsigned int *const device = (unsigned int *)malloc((words + 1u) * sizeof(unsigned int));
-    unsigned int *const host = (unsigned int *)malloc((words + 1u) * sizeof(unsigned int));
+    unsigned int *const device =
+        (unsigned int *)platform_cell_taken((words + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host =
+        (unsigned int *)platform_cell_taken((words + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned long long sweep = 0ull;
     const EngineRecordSweep run = {
         record, {flattened->magnitudes}, {flattened->bodies}, NULL, flattened->bodies, device, &sweep, &error};
@@ -674,8 +685,8 @@ static int run_vocabulary_proof(const FlattenResident *flattened, const unsigned
         fprintf(stderr, "  run fingerprint: absolute and compare errored\n");
         track_error_report("absolute and compare", &error);
     }
-    free(device);
-    free(host);
+    platform_cell_released(device, platform_place_g_program_owner);
+    platform_cell_released(host, platform_place_g_program_owner);
     cycle_record_release(record);
     return (ok && (broken == 0ull) && (against_print == 0ull) && (differ == 0ull)) ? 0 : 1;
 }
@@ -739,8 +750,8 @@ static int run_fingerprint(const RunInputs *inputs)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    unsigned int *const records =
-        (unsigned int *)malloc(((size_t)flattened.bodies * out_limbs + 1u) * sizeof(unsigned int));
+    unsigned int *const records = (unsigned int *)platform_cell_taken(
+        ((size_t)flattened.bodies * out_limbs + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned long long sweep = 0ull;
     const unsigned long long started = engine_clock_microseconds();
     const EngineRecordSweep run = {
@@ -782,9 +793,14 @@ static int run_fingerprint(const RunInputs *inputs)
     }
     const int indexed = ok && (flattened.bodies <= 0xFFFFFFFFull);
     unsigned int *const reversed =
-        indexed ? (unsigned int *)malloc(((size_t)flattened.bodies + 1u) * sizeof(unsigned int)) : NULL;
+        indexed ? (unsigned int *)platform_cell_taken(((size_t)flattened.bodies + 1u) * sizeof(unsigned int),
+                                                      platform_place_g_program_owner, 0)
+                : NULL;
     unsigned int *const gathered =
-        indexed ? (unsigned int *)malloc(((size_t)flattened.bodies * out_limbs + 1u) * sizeof(unsigned int)) : NULL;
+        indexed
+            ? (unsigned int *)platform_cell_taken(((size_t)flattened.bodies * out_limbs + 1u) * sizeof(unsigned int),
+                                                  platform_place_g_program_owner, 0)
+            : NULL;
     for (unsigned long long lane = 0ull; (reversed != NULL) && (lane < flattened.bodies); lane += 1ull)
     {
         reversed[lane] = (unsigned int)(flattened.bodies - 1ull - lane);
@@ -822,10 +838,12 @@ static int run_fingerprint(const RunInputs *inputs)
         fprintf(stderr, "  run fingerprint: the sweep through the index errored\n");
         track_error_report("fingerprint through the index", &error);
     }
-    free(reversed);
-    free(gathered);
+    platform_cell_released(reversed, platform_place_g_program_owner);
+    platform_cell_released(gathered, platform_place_g_program_owner);
     unsigned int *const host =
-        ok ? (unsigned int *)malloc(((size_t)flattened.bodies * out_limbs + 1u) * sizeof(unsigned int)) : NULL;
+        ok ? (unsigned int *)platform_cell_taken(((size_t)flattened.bodies * out_limbs + 1u) * sizeof(unsigned int),
+                                                 platform_place_g_program_owner, 0)
+           : NULL;
     const unsigned long long host_started = engine_clock_microseconds();
     const EngineRecordSweep host_run = {
         NULL, {flattened.magnitudes}, {flattened.bodies}, NULL, flattened.bodies, host, NULL, &error};
@@ -859,8 +877,8 @@ static int run_fingerprint(const RunInputs *inputs)
     const int vocabulary = ok ? run_vocabulary_proof(&flattened, records, &fields) : 1;
     const int paired = ok ? run_pair_proof(&flattened, records, &fields) : 1;
     const int steered = ok ? run_steer_proof(&flattened, records, &fields) : 1;
-    free(host);
-    free(records);
+    platform_cell_released(host, platform_place_g_program_owner);
+    platform_cell_released(records, platform_place_g_program_owner);
     cycle_record_release(record);
     flatten_release(&flattened);
     return (ok && gather && (misplaced == 0ull) && ported && (differ == 0ull) && (vocabulary == 0) && (paired == 0) &&
@@ -881,7 +899,8 @@ static int run_flattened_prepare(const RunInputs *inputs, FlattenResident *flatt
     }
     const unsigned int sample_bits = flattened_set->layout.bits[MAX_TREE_FIELD_SAMPLE];
     const unsigned int sample_offset = flattened_set->layout.offset[MAX_TREE_FIELD_SAMPLE];
-    *starts = (unsigned long long *)calloc((size_t)flattened_set->samples + 2u, sizeof(unsigned long long));
+    *starts = (unsigned long long *)platform_cell_cleared(
+        (size_t)flattened_set->samples + 2u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     int ok = (*starts != NULL) && (sample_bits <= 32u);
     unsigned int previous = 0u;
     for (unsigned long long body = 0ull; ok && (body < flattened_set->bodies); body += 1ull)
@@ -1184,7 +1203,9 @@ static int run_print_match_prepare(const RunInputs *inputs, const FlattenResiden
              (engine_record_encode(&encode_request, &record, &error) != ENGINE_ERROR);
     const unsigned int limbs = ok ? cycle_record_out_limbs(record) : 0u;
     fields.limbs = limbs;
-    *prints = ok ? (unsigned int *)malloc(((size_t)flattened->bodies * limbs + 1u) * sizeof(unsigned int)) : NULL;
+    *prints = ok ? (unsigned int *)platform_cell_taken(((size_t)flattened->bodies * limbs + 1u) * sizeof(unsigned int),
+                                                       platform_place_g_program_owner, 0)
+                 : NULL;
     unsigned long long sweep = 0ull;
     const EngineRecordSweep run = {
         record, {flattened->magnitudes}, {flattened->bodies}, NULL, flattened->bodies, *prints, &sweep, &error};
@@ -1225,11 +1246,14 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
     CycleRecord *pair = NULL;
     CycleRecord *velocity_record = NULL;
     CycleRecord *division_record = NULL;
-    RunVelocity *const velocity = (RunVelocity *)calloc(1u, sizeof(RunVelocity));
-    RunDivision *const division = (RunDivision *)calloc(1u, sizeof(RunDivision));
+    RunVelocity *const velocity =
+        (RunVelocity *)platform_cell_cleared(1u, sizeof(RunVelocity), platform_place_g_program_owner, 0);
+    RunDivision *const division =
+        (RunDivision *)platform_cell_cleared(1u, sizeof(RunDivision), platform_place_g_program_owner, 0);
     CycleRecord *difference_record = NULL;
     CycleRecord *retained_record = NULL;
-    RunContactSide *const side = (RunContactSide *)calloc(1u, sizeof(RunContactSide));
+    RunContactSide *const side =
+        (RunContactSide *)platform_cell_cleared(1u, sizeof(RunContactSide), platform_place_g_program_owner, 0);
     int ready = (velocity != NULL) && (division != NULL) && (side != NULL) &&
                 (((rules->print_match == 0) && (rules->velocity == 0) && (rules->division == 0) &&
                   (rules->contact_side == 0)) ||
@@ -1245,16 +1269,16 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
              (run_contact_side_prepare(inputs, &flattened, side, &difference_record, &retained_record, &matched) != 0));
     if (ready == 0)
     {
-        free(prints);
-        free(starts);
+        platform_cell_released(prints, platform_place_g_program_owner);
+        platform_cell_released(starts, platform_place_g_program_owner);
         cycle_record_release(pair);
         cycle_record_release(velocity_record);
         cycle_record_release(division_record);
         cycle_record_release(difference_record);
         cycle_record_release(retained_record);
-        free(velocity);
-        free(division);
-        free(side);
+        platform_cell_released(velocity, platform_place_g_program_owner);
+        platform_cell_released(division, platform_place_g_program_owner);
+        platform_cell_released(side, platform_place_g_program_owner);
         flatten_release(&flattened);
         return 1;
     }
@@ -1425,16 +1449,16 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
                 g_damp_leaves, g_damp_landings, (unsigned long long)DAMP_DEVIATIONS);
         fclose(log);
     }
-    free(prints);
-    free(starts);
+    platform_cell_released(prints, platform_place_g_program_owner);
+    platform_cell_released(starts, platform_place_g_program_owner);
     cycle_record_release(pair);
     cycle_record_release(velocity_record);
     cycle_record_release(division_record);
     cycle_record_release(difference_record);
     cycle_record_release(retained_record);
-    free(velocity);
-    free(division);
-    free(side);
+    platform_cell_released(velocity, platform_place_g_program_owner);
+    platform_cell_released(division, platform_place_g_program_owner);
+    platform_cell_released(side, platform_place_g_program_owner);
     flatten_release(&flattened);
     return failures;
 }
@@ -1556,7 +1580,7 @@ int program_main(int argc, char **argv)
             char **const path_field =
                 (flag[2] == 's') ? ((flag[3] == 'o') ? &inputs.source : &inputs.set) : &inputs.axes;
             argument += 1;
-            free(*path_field);
+            platform_cell_released(*path_field, platform_place_g_program_owner);
             *path_field = cfg_copy(argv[argument]);
         }
         else if ((strcmp(flag, "--channel") == 0) && (argument + 1 < argc))
@@ -1802,7 +1826,7 @@ int program_main(int argc, char **argv)
     }
     if (argument < argc)
     {
-        free(inputs.set);
+        platform_cell_released(inputs.set, platform_place_g_program_owner);
         inputs.set = cfg_copy(argv[argument]);
         argument += 1;
     }
@@ -1810,11 +1834,12 @@ int program_main(int argc, char **argv)
     {
         for (unsigned int index = 0u; index < inputs.count; index += 1u)
         {
-            free(inputs.samples[index]);
+            platform_cell_released(inputs.samples[index], platform_place_g_program_owner);
         }
-        free(inputs.samples);
+        platform_cell_released(inputs.samples, platform_place_g_program_owner);
         inputs.count = (unsigned int)(argc - argument);
-        inputs.samples = (char **)calloc((size_t)inputs.count + 1u, sizeof(char *));
+        inputs.samples = (char **)platform_cell_cleared((size_t)inputs.count + 1u, sizeof(char *),
+                                                        platform_place_g_program_owner, 0);
         for (unsigned int index = 0u; inputs.samples && (index < inputs.count); index += 1u)
         {
             inputs.samples[index] = cfg_copy(argv[argument + (int)index]);
@@ -1930,14 +1955,15 @@ int program_main(int argc, char **argv)
         memset(&error, 0, sizeof(error));
         EngineSetReport report;
         memset(&report, 0, sizeof(report));
-        report.samples = (EngineSampleRecord *)calloc((size_t)inputs.count + 1u, sizeof(EngineSampleRecord));
+        report.samples = (EngineSampleRecord *)platform_cell_cleared(
+            (size_t)inputs.count + 1u, sizeof(EngineSampleRecord), platform_place_g_program_owner, 0);
         const EngineIngestRequest ingest = {inputs.source, inputs.set,     inputs.samples, inputs.count,
                                             inputs.axes,   inputs.channel, &error,         &report};
         const long ingested = engine_ingest_set(&ingest);
         run_job_release("ingest", &job);
         engine_ingest_print(&ingest, platform_line_out());
         platform_line_out_ended();
-        free(report.samples);
+        platform_cell_released(report.samples, platform_place_g_program_owner);
         if (ingested != 0L)
         {
             track_error_report("ingest", &error);
@@ -1988,14 +2014,15 @@ int program_main(int argc, char **argv)
             memset(&error, 0, sizeof(error));
             EngineSetReport report;
             memset(&report, 0, sizeof(report));
-            report.samples = (EngineSampleRecord *)calloc((size_t)inputs.count + 1u, sizeof(EngineSampleRecord));
+            report.samples = (EngineSampleRecord *)platform_cell_cleared(
+                (size_t)inputs.count + 1u, sizeof(EngineSampleRecord), platform_place_g_program_owner, 0);
             EngineSetRequest prove = iapx;
             prove.error = &error;
             prove.report = &report;
             failures = (engine_iapx_prove_set(&prove) == 0L) ? 0 : 1;
             engine_prove_print(&prove, platform_line_out());
             platform_line_out_ended();
-            free(report.samples);
+            platform_cell_released(report.samples, platform_place_g_program_owner);
             if (failures != 0)
             {
                 track_error_report("iapx prove", &error);
@@ -2188,18 +2215,18 @@ int program_main(int argc, char **argv)
     }
     for (unsigned int index = 0u; index < inputs.count; index += 1u)
     {
-        free(inputs.samples[index]);
+        platform_cell_released(inputs.samples[index], platform_place_g_program_owner);
     }
     for (unsigned int index = 0u; index < RUN_OUTPUTS; index += 1u)
     {
-        free(inputs.outputs[index]);
+        platform_cell_released(inputs.outputs[index], platform_place_g_program_owner);
     }
-    free(inputs.samples);
-    free(inputs.source);
-    free(inputs.set);
-    free(inputs.axes);
-    free(inputs.species);
-    free(inputs.view);
-    free(effective.bytes);
+    platform_cell_released(inputs.samples, platform_place_g_program_owner);
+    platform_cell_released(inputs.source, platform_place_g_program_owner);
+    platform_cell_released(inputs.set, platform_place_g_program_owner);
+    platform_cell_released(inputs.axes, platform_place_g_program_owner);
+    platform_cell_released(inputs.species, platform_place_g_program_owner);
+    platform_cell_released(inputs.view, platform_place_g_program_owner);
+    platform_cell_released(effective.bytes, platform_place_g_program_owner);
     return (failures == 0) ? 0 : 1;
 }

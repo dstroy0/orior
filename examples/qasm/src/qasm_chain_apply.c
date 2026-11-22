@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_chain_apply.c: two-qubit application, amplitudes, expectation and the seal
 #include "qasm_chain_internal.h"
+#include "../../../src/platform/platform.h"
 
 long qasm_chain_apply_two(QasmChain *chain, const void *gate, unsigned int site, EngineError *error)
 {
@@ -227,7 +228,8 @@ long qasm_chain_norm(const QasmChain *chain, void *norm, EngineError *error)
     const QasmField *const field = chain->field;
     // the sites widen to size_t exactly. Four entries a site cannot wrap an unsigned int
     const size_t count = 4u * (size_t)chain->sites;
-    unsigned char *const identities = (unsigned char *)calloc(count, field->element_bytes);
+    unsigned char *const identities =
+        (unsigned char *)platform_cell_cleared(count, field->element_bytes, platform_place_g_program_owner, 0);
     if (QASM_CHECK(identities != NULL, chain, error, ENGINE_ERROR_RESOURCE) == 0)
     {
         return QASM_ERROR;
@@ -244,7 +246,7 @@ long qasm_chain_norm(const QasmChain *chain, void *norm, EngineError *error)
     {
         field->release(&identities[index * field->element_bytes]);
     }
-    free(identities);
+    platform_cell_released(identities, platform_place_g_program_owner);
     return status;
 }
 
@@ -292,7 +294,8 @@ long qasm_chain_seal(const QasmChain *chain, unsigned char *signum, EngineError 
         }
     }
     // a chain whose every bond fell to rank 0 contains no entries and seals an empty stream, as the Python digests one
-    unsigned char *const bytes = (unsigned char *)malloc((total > 0u) ? total : 1u);
+    unsigned char *const bytes =
+        (unsigned char *)platform_cell_taken((total > 0u) ? total : 1u, platform_place_g_program_owner, 0);
     if (QASM_CHECK(bytes != NULL, chain, error, ENGINE_ERROR_RESOURCE) == 0)
     {
         return QASM_ERROR;
@@ -310,6 +313,6 @@ long qasm_chain_seal(const QasmChain *chain, unsigned char *signum, EngineError 
     }
     const ObsignatioSealRequest request = {bytes, total, signum, error};
     const long sealed = obsignatio_seal(&request);
-    free(bytes);
+    platform_cell_released(bytes, platform_place_g_program_owner);
     return (sealed == 0L) ? 0L : QASM_ERROR;
 }

@@ -3,6 +3,7 @@
 // funnel.c: the vendor's tables read off a capture of its disassembler: the records, the instruction set unpacked
 // from its LZ4 archive, and the latencies gathered from the copies out of their buffer
 #include "funnel.h"
+#include "../../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 #include "../../../../../../includes/parsers/line_read.h"
 
@@ -22,7 +23,8 @@ int tables_text_added(TablesText *text, const void *bytes, size_t count)
         {
             room *= 2u;
         }
-        unsigned char *const grown = (unsigned char *)realloc(text->bytes, room);
+        unsigned char *const grown =
+            (unsigned char *)platform_cell_grown(text->bytes, text->room, room, platform_place_g_program_owner, 0);
         if (grown == NULL)
         {
             return 0;
@@ -37,7 +39,7 @@ int tables_text_added(TablesText *text, const void *bytes, size_t count)
 
 void tables_text_freed(TablesText *text)
 {
-    free(text->bytes);
+    platform_cell_released(text->bytes, platform_place_g_program_owner);
     text->bytes = NULL;
     text->length = 0u;
     text->room = 0u;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_coherence_test_programs.cu: draws, builds and programs
 #include "record_coherence_test_internal.h"
+#include "../../../../../../../src/platform/platform.h"
 
 static unsigned long long s_coherence_state = 0x2AD1C0DE5EED0001ull;
 
@@ -255,13 +256,15 @@ long long coherence_signed_input(unsigned int raw)
 void coherence_programs(CoherenceResults *results)
 {
     const unsigned int lanes = COHERENCE_TEST_LANES;
-    unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * COHERENCE_TEST_INPUTS, sizeof(unsigned int));
-    CoherenceProgram *const program = (CoherenceProgram *)calloc(1u, sizeof(CoherenceProgram));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * COHERENCE_TEST_INPUTS, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    CoherenceProgram *const program =
+        (CoherenceProgram *)platform_cell_cleared(1u, sizeof(CoherenceProgram), platform_place_g_program_owner, 0);
     if ((atoms == NULL) || (program == NULL))
     {
         coherence_check(results, 0, "the coherence lanes are allocated");
-        free(atoms);
-        free(program);
+        platform_cell_released(atoms, platform_place_g_program_owner);
+        platform_cell_released(program, platform_place_g_program_owner);
         return;
     }
     unsigned int loaded_all = 1u;
@@ -289,8 +292,10 @@ void coherence_programs(CoherenceResults *results)
             atoms[at] = coherence_input(coherence_random());
         }
         const unsigned int out_limbs = loaded.layout.out_limbs;
-        unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-        unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
+        unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+            (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+        unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+            (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
         int host_ran = 0;
         int device_ran = 0;
         if ((host_out != NULL) && (device_out != NULL))
@@ -326,8 +331,8 @@ void coherence_programs(CoherenceResults *results)
                 agreements += ((projected == expected) && (stepped == expected)) ? 1ull : 0ull;
             }
         }
-        free(host_out);
-        free(device_out);
+        platform_cell_released(host_out, platform_place_g_program_owner);
+        platform_cell_released(device_out, platform_place_g_program_owner);
         coherence_free(&loaded);
     }
     mmgr_line_put(&results->line, "  coherence: ");
@@ -346,6 +351,6 @@ void coherence_programs(CoherenceResults *results)
     coherence_check(results, (comparisons != 0ull) && (agreements == comparisons),
                     "wrapping the exact run, running wrapped at every step and native 64-bit two's complement agree at "
                     "every width on every lane");
-    free(atoms);
-    free(program);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(program, platform_place_g_program_owner);
 }

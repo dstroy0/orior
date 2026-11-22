@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "relate_frames.h"
+#include "../../../../src/platform/platform.h"
 
 #include "../../../../src/cu/engine/nbody/body_overlap/body_overlap.h"
 #include "../../../../src/cu/engine/nbody/climb_machine/climb_machine.h"
@@ -125,8 +126,10 @@ static void climb_lag(const EngineBuffers *buffers, unsigned int buffer_at, unsi
 
 int frame_contacts(const TreeFrame *tree, unsigned int **contact_start, unsigned int **contacts)
 {
-    *contact_start = (unsigned int *)calloc((size_t)tree->leaf_count + 2u, sizeof(unsigned int));
-    *contacts = (unsigned int *)malloc(((size_t)tree->joined_count + 1u) * 2u * sizeof(unsigned int));
+    *contact_start = (unsigned int *)platform_cell_cleared((size_t)tree->leaf_count + 2u, sizeof(unsigned int),
+                                                           platform_place_g_program_owner, 0);
+    *contacts = (unsigned int *)platform_cell_taken(((size_t)tree->joined_count + 1u) * 2u * sizeof(unsigned int),
+                                                    platform_place_g_program_owner, 0);
     if ((*contact_start == NULL) || (*contacts == NULL))
     {
         return 0;
@@ -195,8 +198,10 @@ int relate_frames(EngineBuffers *buffers, TreeFrame *earlier, TreeFrame *later, 
         }
         if (rules->motion_check != 0)
         {
-            motion.counts = (unsigned int *)malloc(padded_total * sizeof(unsigned int));
-            again.counts = (unsigned int *)malloc(padded_total * sizeof(unsigned int));
+            motion.counts = (unsigned int *)platform_cell_taken(padded_total * sizeof(unsigned int),
+                                                                platform_place_g_program_owner, 0);
+            again.counts = (unsigned int *)platform_cell_taken(padded_total * sizeof(unsigned int),
+                                                               platform_place_g_program_owner, 0);
         }
         int moved_ok = ((rules->motion_check == 0) || ((motion.counts != NULL) && (again.counts != NULL))) &&
                        (shift_agreement_run(&motion) == 0L);
@@ -210,8 +215,8 @@ int relate_frames(EngineBuffers *buffers, TreeFrame *earlier, TreeFrame *later, 
                 fprintf(stderr, "    motion disagrees: frame %u\n", earlier->time);
             }
         }
-        free(motion.counts);
-        free(again.counts);
+        platform_cell_released(motion.counts, platform_place_g_program_owner);
+        platform_cell_released(again.counts, platform_place_g_program_owner);
         if (moved_ok == 0)
         {
             return 0;
@@ -231,8 +236,10 @@ int relate_frames(EngineBuffers *buffers, TreeFrame *earlier, TreeFrame *later, 
     clocks->motion += engine_clock_microseconds() - mark;
     mark = engine_clock_microseconds();
 
-    earlier->forward = (int *)malloc(((size_t)earlier->leaf_count + 1u) * sizeof(int));
-    later->backward = (int *)malloc(((size_t)later->leaf_count + 1u) * sizeof(int));
+    earlier->forward =
+        (int *)platform_cell_taken(((size_t)earlier->leaf_count + 1u) * sizeof(int), platform_place_g_program_owner, 0);
+    later->backward =
+        (int *)platform_cell_taken(((size_t)later->leaf_count + 1u) * sizeof(int), platform_place_g_program_owner, 0);
     if ((earlier->forward == NULL) || (later->backward == NULL))
     {
         return 0;
@@ -250,8 +257,10 @@ int relate_frames(EngineBuffers *buffers, TreeFrame *earlier, TreeFrame *later, 
     }
     else
     {
-        earlier->forward_lag = (int *)malloc(((size_t)earlier->leaf_count + 1u) * 3u * sizeof(int));
-        later->backward_lag = (int *)malloc(((size_t)later->leaf_count + 1u) * 3u * sizeof(int));
+        earlier->forward_lag = (int *)platform_cell_taken(((size_t)earlier->leaf_count + 1u) * 3u * sizeof(int),
+                                                          platform_place_g_program_owner, 0);
+        later->backward_lag = (int *)platform_cell_taken(((size_t)later->leaf_count + 1u) * 3u * sizeof(int),
+                                                         platform_place_g_program_owner, 0);
         int climbed = (earlier->forward_lag != NULL) && (later->backward_lag != NULL);
         if ((climbed != 0) && (rules->climb != 2))
         {
@@ -271,19 +280,21 @@ int relate_frames(EngineBuffers *buffers, TreeFrame *earlier, TreeFrame *later, 
             pair.forward = earlier->forward;
             pair.backward_lags = later->backward_lag;
             pair.backward = later->backward;
-            earlier->forward_final_score =
-                (unsigned int *)malloc(((size_t)earlier->leaf_count + 1u) * sizeof(unsigned int));
+            earlier->forward_final_score = (unsigned int *)platform_cell_taken(
+                ((size_t)earlier->leaf_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
             pair.forward_final_score = earlier->forward_final_score;
             climbed = (earlier->forward_final_score != NULL) && (climb_machine_pend(buffers->machine, &pair) != 0);
         }
         if ((climbed != 0) && (rules->climb >= 2))
         {
-            int *const forward_lags = (rules->climb == 2)
-                                          ? earlier->forward_lag
-                                          : (int *)malloc(((size_t)earlier->leaf_count + 1u) * 3u * sizeof(int));
-            int *const backward_lags = (rules->climb == 2)
-                                           ? later->backward_lag
-                                           : (int *)malloc(((size_t)later->leaf_count + 1u) * 3u * sizeof(int));
+            int *const forward_lags =
+                (rules->climb == 2) ? earlier->forward_lag
+                                    : (int *)platform_cell_taken(((size_t)earlier->leaf_count + 1u) * 3u * sizeof(int),
+                                                                 platform_place_g_program_owner, 0);
+            int *const backward_lags =
+                (rules->climb == 2) ? later->backward_lag
+                                    : (int *)platform_cell_taken(((size_t)later->leaf_count + 1u) * 3u * sizeof(int),
+                                                                 platform_place_g_program_owner, 0);
             earlier->check_forward_lag = (rules->climb == 3) ? forward_lags : NULL;
             later->check_backward_lag = (rules->climb == 3) ? backward_lags : NULL;
             unsigned int *contact_start[2] = {NULL, NULL};
@@ -314,10 +325,10 @@ int relate_frames(EngineBuffers *buffers, TreeFrame *earlier, TreeFrame *later, 
                 later->backward[leaf] =
                     land_peak(buffers, later->peaks[leaf], &backward_lags[3u * leaf], buffers->labels[0], earlier);
             }
-            free(contact_start[0]);
-            free(contact_start[1]);
-            free(contacts[0]);
-            free(contacts[1]);
+            platform_cell_released(contact_start[0], platform_place_g_program_owner);
+            platform_cell_released(contact_start[1], platform_place_g_program_owner);
+            platform_cell_released(contacts[0], platform_place_g_program_owner);
+            platform_cell_released(contacts[1], platform_place_g_program_owner);
         }
         if (climbed == 0)
         {
@@ -363,21 +374,27 @@ int relate_frames(EngineBuffers *buffers, TreeFrame *earlier, TreeFrame *later, 
             break;
         }
         buffers->overlap_capacity = (unsigned int)total;
-        free(buffers->overlap_before);
-        free(buffers->overlap_after);
-        free(buffers->overlap_shared);
-        buffers->overlap_before = (unsigned int *)malloc((size_t)buffers->overlap_capacity * sizeof(unsigned int));
-        buffers->overlap_after = (unsigned int *)malloc((size_t)buffers->overlap_capacity * sizeof(unsigned int));
-        buffers->overlap_shared = (unsigned int *)malloc((size_t)buffers->overlap_capacity * sizeof(unsigned int));
+        platform_cell_released(buffers->overlap_before, platform_place_g_program_owner);
+        platform_cell_released(buffers->overlap_after, platform_place_g_program_owner);
+        platform_cell_released(buffers->overlap_shared, platform_place_g_program_owner);
+        buffers->overlap_before = (unsigned int *)platform_cell_taken(
+            (size_t)buffers->overlap_capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+        buffers->overlap_after = (unsigned int *)platform_cell_taken(
+            (size_t)buffers->overlap_capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+        buffers->overlap_shared = (unsigned int *)platform_cell_taken(
+            (size_t)buffers->overlap_capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
         if ((buffers->overlap_before == NULL) || (buffers->overlap_after == NULL) || (buffers->overlap_shared == NULL))
         {
             return 0;
         }
     }
     const unsigned int pairs = (unsigned int)total;
-    earlier->triple_start = (unsigned int *)calloc((size_t)earlier->leaf_count + 1u, sizeof(unsigned int));
-    earlier->triple_after = (unsigned int *)malloc(((size_t)pairs + 1u) * sizeof(unsigned int));
-    earlier->triple_shared = (unsigned int *)malloc(((size_t)pairs + 1u) * sizeof(unsigned int));
+    earlier->triple_start = (unsigned int *)platform_cell_cleared(
+        (size_t)earlier->leaf_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    earlier->triple_after = (unsigned int *)platform_cell_taken(((size_t)pairs + 1u) * sizeof(unsigned int),
+                                                                platform_place_g_program_owner, 0);
+    earlier->triple_shared = (unsigned int *)platform_cell_taken(((size_t)pairs + 1u) * sizeof(unsigned int),
+                                                                 platform_place_g_program_owner, 0);
     if ((earlier->triple_start == NULL) || (earlier->triple_after == NULL) || (earlier->triple_shared == NULL))
     {
         return 0;
@@ -477,14 +494,21 @@ static int cast_triples(EngineBuffers *buffers, TreeFrame *earlier, const TreeFr
     const unsigned int plane = buffers->height * buffers->width;
     const unsigned int *const labels = buffers->labels[1];
     int *const leaf_at_peak = buffers->leaf_at_peak[1];
-    unsigned int *const counts = (unsigned int *)calloc((size_t)later->leaf_count + 1u, sizeof(unsigned int));
-    unsigned int *const largest_shared = (unsigned int *)calloc((size_t)later->leaf_count + 1u, sizeof(unsigned int));
-    unsigned int *const stamp = (unsigned int *)calloc((size_t)later->leaf_count + 1u, sizeof(unsigned int));
-    unsigned int *const touched = (unsigned int *)malloc(((size_t)later->leaf_count + 1u) * sizeof(unsigned int));
+    unsigned int *const counts = (unsigned int *)platform_cell_cleared(
+        (size_t)later->leaf_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const largest_shared = (unsigned int *)platform_cell_cleared(
+        (size_t)later->leaf_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const stamp = (unsigned int *)platform_cell_cleared(
+        (size_t)later->leaf_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const touched = (unsigned int *)platform_cell_taken(
+        ((size_t)later->leaf_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     size_t capacity = (size_t)earlier->leaf_count * 8u + 16u;
-    unsigned int *const starts = (unsigned int *)calloc((size_t)earlier->leaf_count + 2u, sizeof(unsigned int));
-    unsigned int *after = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    unsigned int *shared = (unsigned int *)malloc(capacity * sizeof(unsigned int));
+    unsigned int *const starts = (unsigned int *)platform_cell_cleared(
+        (size_t)earlier->leaf_count + 2u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *after =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *shared =
+        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     int ok = (counts != NULL) && (largest_shared != NULL) && (stamp != NULL) && (touched != NULL) && (starts != NULL) &&
              (after != NULL) && (shared != NULL);
     for (unsigned int leaf = 0u; (ok != 0) && (leaf < later->leaf_count); leaf += 1u)
@@ -538,8 +562,12 @@ static int cast_triples(EngineBuffers *buffers, TreeFrame *earlier, const TreeFr
         if ((retained + met) > capacity)
         {
             const size_t grown = (retained + met) * 2u;
-            unsigned int *const wider_after = (unsigned int *)realloc(after, grown * sizeof(unsigned int));
-            unsigned int *const wider_shared = (unsigned int *)realloc(shared, grown * sizeof(unsigned int));
+            unsigned int *const wider_after =
+                (unsigned int *)platform_cell_grown(after, capacity * sizeof(unsigned int),
+                                                    grown * sizeof(unsigned int), platform_place_g_program_owner, 0);
+            unsigned int *const wider_shared =
+                (unsigned int *)platform_cell_grown(shared, capacity * sizeof(unsigned int),
+                                                    grown * sizeof(unsigned int), platform_place_g_program_owner, 0);
             after = (wider_after != NULL) ? wider_after : after;
             shared = (wider_shared != NULL) ? wider_shared : shared;
             ok = (wider_after != NULL) && (wider_shared != NULL);
@@ -575,20 +603,20 @@ static int cast_triples(EngineBuffers *buffers, TreeFrame *earlier, const TreeFr
     {
         leaf_at_peak[later->peaks[leaf]] = -1;
     }
-    free(counts);
-    free(largest_shared);
-    free(stamp);
-    free(touched);
+    platform_cell_released(counts, platform_place_g_program_owner);
+    platform_cell_released(largest_shared, platform_place_g_program_owner);
+    platform_cell_released(stamp, platform_place_g_program_owner);
+    platform_cell_released(touched, platform_place_g_program_owner);
     if (ok == 0)
     {
-        free(starts);
-        free(after);
-        free(shared);
+        platform_cell_released(starts, platform_place_g_program_owner);
+        platform_cell_released(after, platform_place_g_program_owner);
+        platform_cell_released(shared, platform_place_g_program_owner);
         return 0;
     }
-    free(earlier->triple_start);
-    free(earlier->triple_after);
-    free(earlier->triple_shared);
+    platform_cell_released(earlier->triple_start, platform_place_g_program_owner);
+    platform_cell_released(earlier->triple_after, platform_place_g_program_owner);
+    platform_cell_released(earlier->triple_shared, platform_place_g_program_owner);
     earlier->triple_start = starts;
     earlier->triple_after = after;
     earlier->triple_shared = shared;
@@ -677,8 +705,9 @@ static int still_triples(EngineBuffers *buffers, TreeFrame *earlier, const TreeF
     const unsigned int plane = buffers->height * buffers->width;
     const unsigned int *const labels = buffers->labels[1];
     int *const leaf_at_peak = buffers->leaf_at_peak[1];
-    free(earlier->triple_still);
-    earlier->triple_still = (unsigned int *)calloc((size_t)earlier->triple_count + 1u, sizeof(unsigned int));
+    platform_cell_released(earlier->triple_still, platform_place_g_program_owner);
+    earlier->triple_still = (unsigned int *)platform_cell_cleared(
+        (size_t)earlier->triple_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
     int ok = (earlier->triple_still != NULL) ? 1 : 0;
     for (unsigned int leaf = 0u; (ok != 0) && (leaf < later->leaf_count); leaf += 1u)
     {

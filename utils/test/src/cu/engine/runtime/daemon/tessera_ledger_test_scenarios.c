@@ -139,7 +139,8 @@ static void test_scenario(TestResults *head_results, TestResults *finished, cons
 {
     TesseraLedger ledger;
     tessera_ledger_open(&ledger);
-    ledger.history = (TesseraHistory *)calloc(count, sizeof(TesseraHistory));
+    ledger.history =
+        (TesseraHistory *)platform_cell_cleared(count, sizeof(TesseraHistory), platform_place_g_program_owner, 0);
     ledger.history_capacity = count;
     for (unsigned int job = 0u; job < count; job += 1u)
     {

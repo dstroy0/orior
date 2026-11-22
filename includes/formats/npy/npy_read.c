@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // npy_read.c: the layout, zip archives and the read
 #include "npy_internal.h"
+#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -58,7 +59,7 @@ static unsigned int npy_layout(const NpySource *source, NpyLayout *layout)
     {
         return 0u;
     }
-    unsigned char *const header = malloc((size_t)header_length + 1u);
+    unsigned char *const header = platform_cell_taken((size_t)header_length + 1u, platform_place_g_program_owner, 0);
     if (header == NULL)
     {
         return 0u;
@@ -66,7 +67,7 @@ static unsigned int npy_layout(const NpySource *source, NpyLayout *layout)
     NpyLayout parsed = npy_empty_layout;
     const int understood =
         npy_source_fetch(source, header_start, header_length, header) && npy_dictionary(header, header_length, &parsed);
-    free(header);
+    platform_cell_released(header, platform_place_g_program_owner);
     unsigned long long data_bytes = 0ULL;
     if (!understood || !npy_total(&parsed.extent, 0u, &data_bytes))
     {
@@ -98,14 +99,16 @@ static unsigned int npy_zip_open(const EngineIngestTools *tools, const char *pat
         return 1u;
     }
     unsigned char *const unpacked =
-        npy_fits_memory(entry->uncompressed + 1ULL) ? malloc((size_t)entry->uncompressed + 1u) : NULL;
+        npy_fits_memory(entry->uncompressed + 1ULL)
+            ? platform_cell_taken((size_t)entry->uncompressed + 1u, platform_place_g_program_owner, 0)
+            : NULL;
     if (!NPY_CHECK(unpacked != NULL, entry, error, ENGINE_ERROR_RESOURCE))
     {
         return 0u;
     }
     if (zip_member_read(tools, path, archive, entry, unpacked, entry->uncompressed, error) == ZIP_ERROR)
     {
-        free(unpacked);
+        platform_cell_released(unpacked, platform_place_g_program_owner);
         return 0u;
     }
     const NpySource inflated = {tools, path, 0ULL, entry->uncompressed, unpacked};
@@ -170,7 +173,7 @@ static void npy_zip_list(const EngineIngestTools *tools, const char *path, const
         NpyLayout layout = npy_empty_layout;
         const int parsed =
             npy_zip_open(tools, path, archive, &entry, &source, &owned, &probe) && npy_layout(&source, &layout);
-        free(owned);
+        platform_cell_released(owned, platform_place_g_program_owner);
         {
             EngineNote engine_note;
             engine_note_begun(&engine_note);
@@ -275,7 +278,7 @@ static unsigned int npy_resolve(const char *path, const char *member, const Engi
     zip_archive_release(&archive);
     if (!ok)
     {
-        free(*owned);
+        platform_cell_released(*owned, platform_place_g_program_owner);
         *owned = NULL;
     }
     return ok ? 1u : 0u;
@@ -316,7 +319,8 @@ static unsigned int npy_fortran_copy(const NpySource *source, const NpyLayout *l
     const unsigned long long range =
         (run < NPY_FORTRAN_BLOCK) ? (1ULL + ((NPY_FORTRAN_BLOCK - run) / column_bytes)) : 1ULL;
     const unsigned long long group = (range < columns) ? range : columns;
-    unsigned char *const block = malloc((size_t)(((group - 1ULL) * column_bytes) + run));
+    unsigned char *const block =
+        platform_cell_taken((size_t)(((group - 1ULL) * column_bytes) + run), platform_place_g_program_owner, 0);
     if (block == NULL)
     {
         return 0u;
@@ -350,7 +354,7 @@ static unsigned int npy_fortran_copy(const NpySource *source, const NpyLayout *l
         }
         column += taken;
     }
-    free(block);
+    platform_cell_released(block, platform_place_g_program_owner);
     return ok;
 }
 
@@ -365,7 +369,7 @@ long npy_describe(const EngineDescribeRequest *request)
     NpyLayout layout = npy_empty_layout;
     const unsigned int resolved =
         npy_resolve(request->path, request->member, request->tools, &source, &owned, &layout, request->error);
-    free(owned);
+    platform_cell_released(owned, platform_place_g_program_owner);
     if (!resolved)
     {
         return -1L;
@@ -393,19 +397,19 @@ long long npy_read(const EngineArrayRead *request)
     const unsigned long long wanted = count * row_bytes;
     if (!agrees || (wanted > request->out_capacity) || !npy_fits_memory(wanted))
     {
-        free(owned);
+        platform_cell_released(owned, platform_place_g_program_owner);
         return -1LL;
     }
     if (wanted == 0ULL)
     {
-        free(owned);
+        platform_cell_released(owned, platform_place_g_program_owner);
         return 0LL;
     }
     const unsigned int copied =
         (layout.fortran_order != 0u)
             ? npy_fortran_copy(&source, &layout, request->first, count, request->out)
             : npy_source_fetch(&source, layout.data_offset + (request->first * row_bytes), wanted, request->out);
-    free(owned);
+    platform_cell_released(owned, platform_place_g_program_owner);
     if (!copied)
     {
         mmgr_bytes_set(request->out, 0, (size_t)wanted);

@@ -245,12 +245,12 @@ void max_tree_nodes_release(MaxTreeNodes *nodes)
     {
         return;
     }
-    free(nodes->voxel);
-    free(nodes->parent);
-    free(nodes->level);
-    free(nodes->subtree_end);
-    free(nodes->root);
-    free(nodes->own);
+    platform_cell_released(nodes->voxel, platform_place_g_program_owner);
+    platform_cell_released(nodes->parent, platform_place_g_program_owner);
+    platform_cell_released(nodes->level, platform_place_g_program_owner);
+    platform_cell_released(nodes->subtree_end, platform_place_g_program_owner);
+    platform_cell_released(nodes->root, platform_place_g_program_owner);
+    platform_cell_released(nodes->own, platform_place_g_program_owner);
     mmgr_bytes_set(nodes, 0, sizeof(*nodes));
 }
 
@@ -428,12 +428,18 @@ long max_tree_nodes(const MaxTreeNodesRequest *request)
     }
     if (ok != 0)
     {
-        nodes->voxel = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-        nodes->parent = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-        nodes->level = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-        nodes->subtree_end = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-        nodes->root = (unsigned int *)malloc(((size_t)count + 1u) * sizeof(unsigned int));
-        nodes->own = (unsigned int *)malloc((voxels + 1u) * sizeof(unsigned int));
+        nodes->voxel = (unsigned int *)platform_cell_taken(((size_t)count + 1u) * sizeof(unsigned int),
+                                                           platform_place_g_program_owner, 0);
+        nodes->parent = (unsigned int *)platform_cell_taken(((size_t)count + 1u) * sizeof(unsigned int),
+                                                            platform_place_g_program_owner, 0);
+        nodes->level = (unsigned int *)platform_cell_taken(((size_t)count + 1u) * sizeof(unsigned int),
+                                                           platform_place_g_program_owner, 0);
+        nodes->subtree_end = (unsigned int *)platform_cell_taken(((size_t)count + 1u) * sizeof(unsigned int),
+                                                                 platform_place_g_program_owner, 0);
+        nodes->root = (unsigned int *)platform_cell_taken(((size_t)count + 1u) * sizeof(unsigned int),
+                                                          platform_place_g_program_owner, 0);
+        nodes->own = (unsigned int *)platform_cell_taken((voxels + 1u) * sizeof(unsigned int),
+                                                         platform_place_g_program_owner, 0);
         ok = MAX_TREE_HOST_CHECK((nodes->voxel != NULL) && (nodes->parent != NULL) && (nodes->level != NULL) &&
                                      (nodes->subtree_end != NULL) && (nodes->root != NULL) && (nodes->own != NULL),
                                  request, error, ENGINE_ERROR_RESOURCE);

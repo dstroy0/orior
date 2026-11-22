@@ -13,6 +13,7 @@
 #include <windows.h>
 #else
 #include <fcntl.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #endif
@@ -46,7 +47,8 @@ extern "C" int stack_upload(const char *path, unsigned long long extent[4], unsi
         extent[axis] = header[axis];
     }
     const size_t lanes = (size_t)(extent[0] * extent[1] * extent[2] * extent[3]);
-    unsigned short *const volume = (unsigned short *)malloc((lanes + 1u) * sizeof(unsigned short));
+    unsigned short *const volume =
+        (unsigned short *)platform_cell_taken((lanes + 1u) * sizeof(unsigned short), platform_place_g_program_owner, 0);
     *device_lanes = NULL;
     const int ok =
         (stack != NULL) && (volume != NULL) &&
@@ -57,7 +59,7 @@ extern "C" int stack_upload(const char *path, unsigned long long extent[4], unsi
     {
         platform_file_close(stack);
     }
-    free(volume);
+    platform_cell_released(volume, platform_place_g_program_owner);
     return ok;
 }
 
@@ -113,9 +115,10 @@ extern "C" long long stack_file_read(const EngineFileRange *range)
             (void)posix_fadvise(descriptor, 0, 0, POSIX_FADV_DONTNEED);
         }
     }
-    void *aligned = NULL;
-    int ok = (descriptor >= 0) && (posix_memalign(&aligned, (size_t)STACK_UNCACHED_ALIGN, (size_t)block) == 0);
-    unsigned char *const buffer = (unsigned char *)aligned;
+    // pages of the system, as VirtualAlloc gives them on Windows: a page start meets the alignment of a direct read
+    void *const pages = mmap(NULL, (size_t)block, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    int ok = (descriptor >= 0) && (pages != MAP_FAILED);
+    unsigned char *const buffer = (unsigned char *)pages;
 #endif
     unsigned long long copied = 0ULL;
     int ended = 0;
@@ -150,7 +153,10 @@ extern "C" long long stack_file_read(const EngineFileRange *range)
         CloseHandle(file);
     }
 #else
-    free(aligned);
+    if (pages != MAP_FAILED)
+    {
+        (void)munmap(pages, (size_t)block);
+    }
     if (descriptor >= 0)
     {
         close(descriptor);
@@ -182,11 +188,13 @@ extern "C" int stack_read_uncached(const char *path, unsigned long long lanes, u
             (void)posix_fadvise(descriptor, 0, 0, POSIX_FADV_DONTNEED);
         }
     }
-    void *aligned = NULL;
     struct stat status;
-    int ok = (descriptor >= 0) && (fstat(descriptor, &status) == 0) && ((unsigned long long)status.st_size == last) &&
-             (posix_memalign(&aligned, (size_t)STACK_UNCACHED_ALIGN, (size_t)STACK_UNCACHED_BLOCK) == 0);
-    unsigned char *const buffer = (unsigned char *)aligned;
+    // pages of the system, as VirtualAlloc gives them on Windows: a page start meets the alignment of a direct read
+    void *const pages =
+        mmap(NULL, (size_t)STACK_UNCACHED_BLOCK, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    int ok = (descriptor >= 0) && (pages != MAP_FAILED) && (fstat(descriptor, &status) == 0) &&
+             ((unsigned long long)status.st_size == last);
+    unsigned char *const buffer = (unsigned char *)pages;
 #endif
     for (unsigned long long offset = 0ULL; ok && (offset < last); offset += STACK_UNCACHED_BLOCK)
     {
@@ -218,7 +226,10 @@ extern "C" int stack_read_uncached(const char *path, unsigned long long lanes, u
         CloseHandle(file);
     }
 #else
-    free(aligned);
+    if (pages != MAP_FAILED)
+    {
+        (void)munmap(pages, (size_t)STACK_UNCACHED_BLOCK);
+    }
     if (descriptor >= 0)
     {
         close(descriptor);

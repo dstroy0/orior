@@ -37,7 +37,7 @@ void *stick_allocated(void *pointer)
 // `length` characters at `text` copied into an allocation of their own, ended
 char *stick_copy(const char *text, size_t length)
 {
-    char *const copy = (char *)stick_allocated(malloc(length + 1u));
+    char *const copy = (char *)stick_allocated(platform_cell_taken(length + 1u, platform_place_g_program_owner, 0));
     mmgr_bytes_copy(copy, text, length);
     copy[length] = '\0';
     return copy;
@@ -49,8 +49,9 @@ void stick_number_add(StickNumbers *numbers, unsigned int number)
     if (numbers->count == numbers->room)
     {
         numbers->room = (numbers->room == 0u) ? 64u : (numbers->room * 2u);
-        numbers->number =
-            (unsigned int *)stick_allocated(realloc(numbers->number, numbers->room * sizeof(unsigned int)));
+        numbers->number = (unsigned int *)stick_allocated(
+            platform_cell_grown(numbers->number, numbers->count * sizeof(unsigned int),
+                                numbers->room * sizeof(unsigned int), platform_place_g_program_owner, 0));
     }
     numbers->number[numbers->count] = number;
     numbers->count += 1u;
@@ -87,7 +88,8 @@ unsigned int stick_named(const char *text, size_t length)
     if (s_names == s_name_room)
     {
         s_name_room = (s_name_room == 0u) ? 256u : (s_name_room * 2u);
-        s_name = (char **)stick_allocated(realloc(s_name, s_name_room * sizeof(char *)));
+        s_name = (char **)stick_allocated(platform_cell_grown(
+            s_name, s_names * sizeof(char *), s_name_room * sizeof(char *), platform_place_g_program_owner, 0));
     }
     s_name[s_names] = stick_copy(text, length);
     s_names += 1u;
@@ -199,6 +201,6 @@ int stick_operation_of(const char *line, unsigned int *operation)
     {
         *operation = stick_named(text, word);
     }
-    free(instruction);
+    platform_cell_released(instruction, platform_place_g_program_owner);
     return found;
 }

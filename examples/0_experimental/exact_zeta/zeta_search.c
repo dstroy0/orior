@@ -11,6 +11,7 @@
  *       the midpoint into the path. An edge is final where the readings agree and every verdict is positive.
  */
 #include "zeta_search.h"
+#include "../../../src/platform/platform.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -54,7 +55,7 @@ static char *point_key(const ZetaPoint *point)
     z_text(&point->sigma.numerator, sigma, sizeof(sigma));
     z_text(&point->t.numerator, t, sizeof(t));
     const size_t length = strlen(sigma) + strlen(t) + 64u;
-    char *const key = (char *)steering_memory(malloc(length));
+    char *const key = (char *)steering_memory(platform_cell_taken(length, platform_place_g_program_owner, 0));
     snprintf(key, length, "%s/%d,%s/%d", sigma, (int)point->sigma.places, t, (int)point->t.places);
     return key;
 }
@@ -85,15 +86,15 @@ void steering_free(Steering *steering)
 {
     for (size_t at = 0u; at < steering->count; at += 1u)
     {
-        free(steering->records[at].key);
+        platform_cell_released(steering->records[at].key, platform_place_g_program_owner);
     }
-    free(steering->records);
-    free(steering->buckets);
+    platform_cell_released(steering->records, platform_place_g_program_owner);
+    platform_cell_released(steering->buckets, platform_place_g_program_owner);
     for (size_t at = 0u; at < steering->last_count; at += 1u)
     {
         point_list_free(&steering->last_paths[at]);
     }
-    free(steering->last_paths);
+    platform_cell_released(steering->last_paths, platform_place_g_program_owner);
     memset(steering, 0, sizeof(*steering));
 }
 
@@ -102,7 +103,8 @@ size_t steering_intern(Steering *steering, const ZetaPoint *point)
     if ((steering->count * 2u) >= steering->bucket_capacity)
     {
         const size_t grown = (steering->bucket_capacity == 0u) ? 4096u : (steering->bucket_capacity * 2u);
-        size_t *const buckets = (size_t *)steering_memory(calloc(grown, sizeof(size_t)));
+        size_t *const buckets =
+            (size_t *)steering_memory(platform_cell_cleared(grown, sizeof(size_t), platform_place_g_program_owner, 0));
         for (size_t at = 0u; at < steering->count; at += 1u)
         {
             size_t place = (size_t)(key_hash(steering->records[at].key) & (grown - 1u));
@@ -112,7 +114,7 @@ size_t steering_intern(Steering *steering, const ZetaPoint *point)
             }
             buckets[place] = at + 1u;
         }
-        free(steering->buckets);
+        platform_cell_released(steering->buckets, platform_place_g_program_owner);
         steering->buckets = buckets;
         steering->bucket_capacity = grown;
     }
@@ -123,7 +125,7 @@ size_t steering_intern(Steering *steering, const ZetaPoint *point)
         const size_t index = steering->buckets[place] - 1u;
         if (strcmp(steering->records[index].key, key) == 0)
         {
-            free(key);
+            platform_cell_released(key, platform_place_g_program_owner);
             return index;
         }
         place = (place + 1u) & (steering->bucket_capacity - 1u);
@@ -131,8 +133,9 @@ size_t steering_intern(Steering *steering, const ZetaPoint *point)
     if (steering->count >= steering->capacity)
     {
         steering->capacity = (steering->capacity == 0u) ? 1024u : (steering->capacity * 2u);
-        steering->records =
-            (PointRecord *)steering_memory(realloc(steering->records, steering->capacity * sizeof(PointRecord)));
+        steering->records = (PointRecord *)steering_memory(
+            platform_cell_grown(steering->records, steering->count * sizeof(PointRecord),
+                                steering->capacity * sizeof(PointRecord), platform_place_g_program_owner, 0));
     }
     PointRecord *const record = &steering->records[steering->count];
     memset(record, 0, sizeof(*record));
@@ -149,7 +152,9 @@ void point_list_push(PointList *list, size_t index)
     if (list->count >= list->capacity)
     {
         list->capacity = (list->capacity == 0u) ? 16u : (list->capacity * 2u);
-        list->at = (size_t *)steering_memory(realloc(list->at, list->capacity * sizeof(size_t)));
+        list->at = (size_t *)steering_memory(platform_cell_grown(list->at, list->count * sizeof(size_t),
+                                                                 list->capacity * sizeof(size_t),
+                                                                 platform_place_g_program_owner, 0));
     }
     list->at[list->count] = index;
     list->count += 1u;
@@ -157,7 +162,7 @@ void point_list_push(PointList *list, size_t index)
 
 void point_list_free(PointList *list)
 {
-    free(list->at);
+    platform_cell_released(list->at, platform_place_g_program_owner);
     list->at = NULL;
     list->count = 0u;
     list->capacity = 0u;
@@ -168,7 +173,9 @@ void box_list_push(BoxList *list, const ZetaBox *box)
     if (list->count >= list->capacity)
     {
         list->capacity = (list->capacity == 0u) ? 8u : (list->capacity * 2u);
-        list->boxes = (ZetaBox *)steering_memory(realloc(list->boxes, list->capacity * sizeof(ZetaBox)));
+        list->boxes = (ZetaBox *)steering_memory(platform_cell_grown(list->boxes, list->count * sizeof(ZetaBox),
+                                                                     list->capacity * sizeof(ZetaBox),
+                                                                     platform_place_g_program_owner, 0));
     }
     list->boxes[list->count] = *box;
     list->count += 1u;
@@ -176,7 +183,7 @@ void box_list_push(BoxList *list, const ZetaBox *box)
 
 void box_list_free(BoxList *list)
 {
-    free(list->boxes);
+    platform_cell_released(list->boxes, platform_place_g_program_owner);
     list->boxes = NULL;
     list->count = 0u;
     list->capacity = 0u;
@@ -193,8 +200,10 @@ typedef struct
 void steering_sweep(Steering *steering, const PointList *points)
 {
     // The points in their first order, each once.
-    unsigned char *const seen = (unsigned char *)steering_memory(calloc(steering->count + 1u, 1u));
-    OpenPoint *open = (OpenPoint *)steering_memory(malloc((points->count + 1u) * sizeof(OpenPoint)));
+    unsigned char *const seen = (unsigned char *)steering_memory(
+        platform_cell_cleared(steering->count + 1u, 1u, platform_place_g_program_owner, 0));
+    OpenPoint *open = (OpenPoint *)steering_memory(
+        platform_cell_taken((points->count + 1u) * sizeof(OpenPoint), platform_place_g_program_owner, 0));
     size_t open_count = 0u;
     for (size_t at = 0u; at < points->count; at += 1u)
     {
@@ -215,7 +224,7 @@ void steering_sweep(Steering *steering, const PointList *points)
             open_count += 1u;
         }
     }
-    free(seen);
+    platform_cell_released(seen, platform_place_g_program_owner);
     while (open_count > 0u)
     {
         size_t next_count = 0u;
@@ -262,7 +271,7 @@ void steering_sweep(Steering *steering, const PointList *points)
         }
         open_count = next_count;
     }
-    free(open);
+    platform_cell_released(open, platform_place_g_program_owner);
 }
 
 /**
@@ -409,7 +418,8 @@ typedef struct
 void steering_count(Steering *steering, const BoxList *boxes, int64_t *counts)
 {
     const size_t total = boxes->count;
-    PointList *const paths = (PointList *)steering_memory(calloc(total + 1u, sizeof(PointList)));
+    PointList *const paths = (PointList *)steering_memory(
+        platform_cell_cleared(total + 1u, sizeof(PointList), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < total; at += 1u)
     {
         ZetaPoint corners[4];
@@ -420,7 +430,8 @@ void steering_count(Steering *steering, const BoxList *boxes, int64_t *counts)
         }
         counts[at] = 0;
     }
-    size_t *active = (size_t *)steering_memory(malloc((total + 1u) * sizeof(size_t)));
+    size_t *active = (size_t *)steering_memory(
+        platform_cell_taken((total + 1u) * sizeof(size_t), platform_place_g_program_owner, 0));
     size_t active_count = total;
     for (size_t at = 0u; at < total; at += 1u)
     {
@@ -428,12 +439,14 @@ void steering_count(Steering *steering, const BoxList *boxes, int64_t *counts)
     }
     while (active_count > 0u)
     {
-        PathEdge **const edges = (PathEdge **)steering_memory(calloc(active_count, sizeof(PathEdge *)));
+        PathEdge **const edges = (PathEdge **)steering_memory(
+            platform_cell_cleared(active_count, sizeof(PathEdge *), platform_place_g_program_owner, 0));
         PointList asked = {NULL, 0u, 0u};
         for (size_t which = 0u; which < active_count; which += 1u)
         {
             const PointList *const path = &paths[active[which]];
-            edges[which] = (PathEdge *)steering_memory(malloc(path->count * sizeof(PathEdge)));
+            edges[which] = (PathEdge *)steering_memory(
+                platform_cell_taken(path->count * sizeof(PathEdge), platform_place_g_program_owner, 0));
             for (size_t at = 0u; at < path->count; at += 1u)
             {
                 const size_t from = path->at[at];
@@ -518,17 +531,17 @@ void steering_count(Steering *steering, const BoxList *boxes, int64_t *counts)
                 active[next_count] = box;
                 next_count += 1u;
             }
-            free(edges[which]);
+            platform_cell_released(edges[which], platform_place_g_program_owner);
         }
-        free(edges);
+        platform_cell_released(edges, platform_place_g_program_owner);
         active_count = next_count;
     }
-    free(active);
+    platform_cell_released(active, platform_place_g_program_owner);
     for (size_t at = 0u; at < steering->last_count; at += 1u)
     {
         point_list_free(&steering->last_paths[at]);
     }
-    free(steering->last_paths);
+    platform_cell_released(steering->last_paths, platform_place_g_program_owner);
     steering->last_paths = paths;
     steering->last_count = total;
 }
@@ -579,7 +592,8 @@ void steering_walk(Steering *steering, const DecimalPair *height, BoxList *found
             fresh.high = high;
             box_list_push(&asked, &fresh);
         }
-        int64_t *const counts = (int64_t *)steering_memory(malloc((asked.count + 1u) * sizeof(int64_t)));
+        int64_t *const counts = (int64_t *)steering_memory(
+            platform_cell_taken((asked.count + 1u) * sizeof(int64_t), platform_place_g_program_owner, 0));
         steering_count(steering, &asked, counts);
         box_list_free(&boxes);
         for (size_t at = 0u; at < asked.count; at += 1u)
@@ -597,7 +611,7 @@ void steering_walk(Steering *steering, const DecimalPair *height, BoxList *found
             }
         }
         const int64_t last = counts[asked.count - 1u] * top;
-        free(counts);
+        platform_cell_released(counts, platform_place_g_program_owner);
         box_list_free(&asked);
         DecimalPair next_step;
         if (last == 0)
@@ -641,11 +655,13 @@ void steering_place(Steering *steering, const BoxList *found, int bits, DecimalP
     {
         lows[at] = found->boxes[at].low;
         highs[at] = found->boxes[at].high;
-        paths[at] = (char *)steering_memory(calloc((size_t)bits + 1u, 1u));
+        paths[at] =
+            (char *)steering_memory(platform_cell_cleared((size_t)bits + 1u, 1u, platform_place_g_program_owner, 0));
     }
     DecimalPair line;
     pair_small(5, 1, &line);
-    int64_t *const counts = (int64_t *)steering_memory(malloc((count + 1u) * sizeof(int64_t)));
+    int64_t *const counts = (int64_t *)steering_memory(
+        platform_cell_taken((count + 1u) * sizeof(int64_t), platform_place_g_program_owner, 0));
     for (int bit = 0; bit < bits; bit += 1)
     {
         BoxList squares = {NULL, 0u, 0u};
@@ -682,5 +698,5 @@ void steering_place(Steering *steering, const BoxList *found, int bits, DecimalP
             paths[at][bit] = lower ? '0' : '1';
         }
     }
-    free(counts);
+    platform_cell_released(counts, platform_place_g_program_owner);
 }

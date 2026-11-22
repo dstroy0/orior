@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_open.cu: the runs cut, the machine opened and a frame stored
 #include "climb_machine_internal.h"
+#include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 static int machine_split_runs(ClimbMachine *machine, unsigned int resident, const unsigned int *labels,
@@ -52,8 +53,9 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int resident, cons
             ok && (cudaMalloc((void **)&machine->device_unsorted_leaf, capacity * sizeof(unsigned int)) == cudaSuccess);
         ok = ok &&
              machine_grow((void **)&machine->order, (void **)&machine->device_order, capacity * sizeof(unsigned int));
-        free(machine->unsorted_leaf);
-        machine->unsorted_leaf = (unsigned int *)malloc(capacity * sizeof(unsigned int));
+        platform_cell_released(machine->unsorted_leaf, platform_place_g_program_owner);
+        machine->unsorted_leaf =
+            (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
         ok = ok && (machine->unsorted_leaf != NULL);
         machine->unsorted_capacity = (ok != 0) ? capacity : 0u;
     }
@@ -160,13 +162,16 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int resident, cons
                                cudaMemcpyHostToDevice) == cudaSuccess);
     }
 
-    free(machine->resident_leaf_bundles[resident]);
-    free(machine->resident_bundle_first[resident]);
-    free(machine->resident_bundle_end[resident]);
-    machine->resident_leaf_bundles[resident] = (unsigned int *)malloc(((size_t)leaves + 1u) * sizeof(unsigned int));
+    platform_cell_released(machine->resident_leaf_bundles[resident], platform_place_g_program_owner);
+    platform_cell_released(machine->resident_bundle_first[resident], platform_place_g_program_owner);
+    platform_cell_released(machine->resident_bundle_end[resident], platform_place_g_program_owner);
+    machine->resident_leaf_bundles[resident] = (unsigned int *)platform_cell_taken(
+        ((size_t)leaves + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     const size_t bundle_capacity = (runs / CLIMB_MACHINE_BUNDLE) + (size_t)leaves + 1u;
-    machine->resident_bundle_first[resident] = (unsigned int *)malloc(bundle_capacity * sizeof(unsigned int));
-    machine->resident_bundle_end[resident] = (unsigned int *)malloc(bundle_capacity * sizeof(unsigned int));
+    machine->resident_bundle_first[resident] =
+        (unsigned int *)platform_cell_taken(bundle_capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    machine->resident_bundle_end[resident] =
+        (unsigned int *)platform_cell_taken(bundle_capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = ok && (machine->resident_leaf_bundles[resident] != NULL) &&
          (machine->resident_bundle_first[resident] != NULL) && (machine->resident_bundle_end[resident] != NULL);
     unsigned int bundles = 0u;
@@ -198,7 +203,8 @@ extern "C" ClimbMachine *climb_machine_open(const ClimbMachineExtent *extent)
     {
         return NULL;
     }
-    ClimbMachine *const machine = (ClimbMachine *)calloc(1u, sizeof(ClimbMachine));
+    ClimbMachine *const machine =
+        (ClimbMachine *)platform_cell_cleared(1u, sizeof(ClimbMachine), platform_place_g_program_owner, 0);
     if (machine == NULL)
     {
         return NULL;
@@ -222,14 +228,22 @@ extern "C" ClimbMachine *climb_machine_open(const ClimbMachineExtent *extent)
                            residents * (size_t)geometry->words * sizeof(unsigned long long)) == cudaSuccess);
     ok = ok && (cudaMalloc((void **)&machine->row_first, residents * (((size_t)extent->depth * extent->height) + 1u) *
                                                              sizeof(unsigned int)) == cudaSuccess);
-    machine->resident_frame = (unsigned int *)malloc(residents * sizeof(unsigned int));
-    machine->resident_leaves = (unsigned int *)calloc(residents, sizeof(unsigned int));
-    machine->resident_runs = (unsigned int *)calloc(residents, sizeof(unsigned int));
-    machine->resident_leaf_bundles = (unsigned int **)calloc(residents, sizeof(unsigned int *));
-    machine->resident_bundle_first = (unsigned int **)calloc(residents, sizeof(unsigned int *));
-    machine->resident_bundle_end = (unsigned int **)calloc(residents, sizeof(unsigned int *));
-    machine->resident_contact_start = (unsigned int **)calloc(residents, sizeof(unsigned int *));
-    machine->resident_contacts = (unsigned int **)calloc(residents, sizeof(unsigned int *));
+    machine->resident_frame =
+        (unsigned int *)platform_cell_taken(residents * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    machine->resident_leaves =
+        (unsigned int *)platform_cell_cleared(residents, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    machine->resident_runs =
+        (unsigned int *)platform_cell_cleared(residents, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    machine->resident_leaf_bundles =
+        (unsigned int **)platform_cell_cleared(residents, sizeof(unsigned int *), platform_place_g_program_owner, 0);
+    machine->resident_bundle_first =
+        (unsigned int **)platform_cell_cleared(residents, sizeof(unsigned int *), platform_place_g_program_owner, 0);
+    machine->resident_bundle_end =
+        (unsigned int **)platform_cell_cleared(residents, sizeof(unsigned int *), platform_place_g_program_owner, 0);
+    machine->resident_contact_start =
+        (unsigned int **)platform_cell_cleared(residents, sizeof(unsigned int *), platform_place_g_program_owner, 0);
+    machine->resident_contacts =
+        (unsigned int **)platform_cell_cleared(residents, sizeof(unsigned int *), platform_place_g_program_owner, 0);
     ok = ok && (machine->resident_frame != NULL) && (machine->resident_leaves != NULL) &&
          (machine->resident_runs != NULL) && (machine->resident_leaf_bundles != NULL) &&
          (machine->resident_bundle_first != NULL) && (machine->resident_bundle_end != NULL) &&
@@ -246,7 +260,8 @@ extern "C" ClimbMachine *climb_machine_open(const ClimbMachineExtent *extent)
     ok = ok &&
          machine_grow((void **)&machine->row_counts, (void **)&machine->device_row_counts, rows * sizeof(unsigned int));
     ok = ok && (cudaMalloc((void **)&machine->device_row_offsets, rows * sizeof(unsigned int)) == cudaSuccess);
-    machine->leaf_counts = (unsigned int *)malloc(((size_t)extent->peak_capacity + 2u) * sizeof(unsigned int));
+    machine->leaf_counts = (unsigned int *)platform_cell_taken(
+        ((size_t)extent->peak_capacity + 2u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = ok && (machine->leaf_counts != NULL);
     ok = ok && (cudaMalloc((void **)&machine->device_moved, 2u * sizeof(unsigned int)) == cudaSuccess);
     ok = ok && (cudaMallocHost((void **)&machine->pinned_moved, 2u * sizeof(unsigned int)) == cudaSuccess);
@@ -301,13 +316,13 @@ extern "C" int climb_machine_store(ClimbMachine *machine, const ClimbMachineFram
     ok =
         ok && (cudaMemcpy(&machine->positive[at * (size_t)geometry->words], frame->positive,
                           (size_t)geometry->words * sizeof(unsigned long long), cudaMemcpyHostToDevice) == cudaSuccess);
-    free(machine->resident_contact_start[resident]);
-    free(machine->resident_contacts[resident]);
+    platform_cell_released(machine->resident_contact_start[resident], platform_place_g_program_owner);
+    platform_cell_released(machine->resident_contacts[resident], platform_place_g_program_owner);
     machine->resident_contact_start[resident] = NULL;
     machine->resident_contacts[resident] = NULL;
     machine->resident_leaves[resident] = frame->leaf_count;
     machine->resident_runs[resident] = 0u;
-    free(machine->resident_leaf_bundles[resident]);
+    platform_cell_released(machine->resident_leaf_bundles[resident], platform_place_g_program_owner);
     machine->resident_leaf_bundles[resident] = NULL;
     if ((ok != 0) && (frame->peaks != NULL))
     {
@@ -316,9 +331,10 @@ extern "C" int climb_machine_store(ClimbMachine *machine, const ClimbMachineFram
     if ((ok != 0) && (frame->contact_start != NULL) && (frame->contacts != NULL))
     {
         const size_t contacts = (size_t)frame->contact_start[frame->leaf_count];
-        machine->resident_contact_start[resident] =
-            (unsigned int *)malloc(((size_t)frame->leaf_count + 1u) * sizeof(unsigned int));
-        machine->resident_contacts[resident] = (unsigned int *)malloc((contacts + 1u) * sizeof(unsigned int));
+        machine->resident_contact_start[resident] = (unsigned int *)platform_cell_taken(
+            ((size_t)frame->leaf_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+        machine->resident_contacts[resident] = (unsigned int *)platform_cell_taken(
+            (contacts + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
         ok = (machine->resident_contact_start[resident] != NULL) && (machine->resident_contacts[resident] != NULL);
         if (ok != 0)
         {

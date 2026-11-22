@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_run.cu: the landing options, the spiral, pending pairs and the run
 #include "climb_machine_internal.h"
+#include "../../../../platform/platform.h"
 
 extern "C" void climb_machine_land_by_mass(ClimbMachine *machine, unsigned int by_mass)
 {
@@ -59,8 +60,9 @@ extern "C" int climb_machine_pend(ClimbMachine *machine, const ClimbMachinePair 
     if (machine->pending_count == machine->pending_capacity)
     {
         const unsigned int capacity = (machine->pending_capacity * 2u) + 8u;
-        ClimbMachinePair *const grown =
-            (ClimbMachinePair *)realloc(machine->pending, (size_t)capacity * sizeof(ClimbMachinePair));
+        ClimbMachinePair *const grown = (ClimbMachinePair *)platform_cell_grown(
+            machine->pending, (size_t)machine->pending_capacity * sizeof(ClimbMachinePair),
+            (size_t)capacity * sizeof(ClimbMachinePair), platform_place_g_program_owner, 0);
         if (grown == NULL)
         {
             return 0;

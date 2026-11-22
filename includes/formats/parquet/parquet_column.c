@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // parquet_column.c: one column chunk's pages, decoded to its values' bytes and its levels
 #include "parquet_internal.h"
+#include "../../../src/platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
 // page types
@@ -288,13 +289,14 @@ static int parquet_dictionary_page_decode(ParquetColumnWalk *walk, const Parquet
     {
         return 0;
     }
-    free(walk->dictionary_bytes);
-    free(walk->dictionary_offset);
-    free(walk->dictionary_length);
+    platform_cell_released(walk->dictionary_bytes, platform_place_g_program_owner);
+    platform_cell_released(walk->dictionary_offset, platform_place_g_program_owner);
+    platform_cell_released(walk->dictionary_length, platform_place_g_program_owner);
     walk->dictionary_offset = NULL;
     walk->dictionary_length = NULL;
     walk->dictionary_count = 0ULL;
-    walk->dictionary_bytes = (unsigned char *)malloc((size_t)header->uncompressed_bytes + 1u);
+    walk->dictionary_bytes = (unsigned char *)platform_cell_taken((size_t)header->uncompressed_bytes + 1u,
+                                                                  platform_place_g_program_owner, 0);
     if (walk->dictionary_bytes == NULL)
     {
         return 0;
@@ -318,8 +320,10 @@ static int parquet_dictionary_page_decode(ParquetColumnWalk *walk, const Parquet
     {
         return 0;
     }
-    walk->dictionary_offset = (unsigned long long *)malloc(((size_t)entries + 1u) * sizeof(unsigned long long));
-    walk->dictionary_length = (unsigned long long *)malloc(((size_t)entries + 1u) * sizeof(unsigned long long));
+    walk->dictionary_offset = (unsigned long long *)platform_cell_taken(
+        ((size_t)entries + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    walk->dictionary_length = (unsigned long long *)platform_cell_taken(
+        ((size_t)entries + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     if ((walk->dictionary_offset == NULL) || (walk->dictionary_length == NULL))
     {
         return 0;
@@ -613,10 +617,10 @@ static int parquet_pages_decode(ParquetColumnWalk *walk, const unsigned char *ch
 
 void parquet_column_release(ParquetColumn *column)
 {
-    free(column->values.bytes);
-    free(column->lengths.bytes);
-    free(column->definition);
-    free(column->repetition);
+    platform_cell_released(column->values.bytes, platform_place_g_program_owner);
+    platform_cell_released(column->lengths.bytes, platform_place_g_program_owner);
+    platform_cell_released(column->definition, platform_place_g_program_owner);
+    platform_cell_released(column->repetition, platform_place_g_program_owner);
     mmgr_bytes_set(column, 0, sizeof(*column));
 }
 
@@ -647,15 +651,22 @@ int parquet_column_read(const EngineIngestTools *tools, const char *path, const 
     // the code stores the levels a byte each. The values and lengths grow from the room that the chunk states. The
     // code decodes the levels or indices of a page a word each into the scratch
     const size_t levels = (size_t)chunk->level_count + 1u;
-    unsigned char *const chunk_bytes = (unsigned char *)malloc((size_t)chunk->compressed_bytes + 1u);
-    walk.page_bytes = (unsigned char *)malloc((size_t)chunk->uncompressed_bytes + 1u);
-    walk.scratch = (unsigned int *)malloc(levels * sizeof(unsigned int));
-    column->definition = (unsigned char *)malloc(levels);
-    column->repetition = (unsigned char *)malloc(levels);
+    unsigned char *const chunk_bytes =
+        (unsigned char *)platform_cell_taken((size_t)chunk->compressed_bytes + 1u, platform_place_g_program_owner, 0);
+    walk.page_bytes =
+        (unsigned char *)platform_cell_taken((size_t)chunk->uncompressed_bytes + 1u, platform_place_g_program_owner, 0);
+    walk.scratch =
+        (unsigned int *)platform_cell_taken(levels * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    column->definition = (unsigned char *)platform_cell_taken(levels, platform_place_g_program_owner, 0);
+    column->repetition = (unsigned char *)platform_cell_taken(levels, platform_place_g_program_owner, 0);
     column->values.room = chunk->uncompressed_bytes + 1ULL;
-    column->values.bytes = (unsigned char *)malloc((size_t)column->values.room);
+    column->values.bytes =
+        (unsigned char *)platform_cell_taken((size_t)column->values.room, platform_place_g_program_owner, 0);
     column->lengths.room = (walk.value_width == 0u) ? ((4ULL * chunk->level_count) + 4ULL) : 0ULL;
-    column->lengths.bytes = (walk.value_width == 0u) ? (unsigned char *)malloc((size_t)column->lengths.room) : NULL;
+    column->lengths.bytes =
+        (walk.value_width == 0u)
+            ? (unsigned char *)platform_cell_taken((size_t)column->lengths.room, platform_place_g_program_owner, 0)
+            : NULL;
     int ok = PARQUET_CHECK((chunk_bytes != NULL) && (walk.page_bytes != NULL) && (walk.scratch != NULL) &&
                                (column->definition != NULL) && (column->repetition != NULL) &&
                                (column->values.bytes != NULL) &&
@@ -675,12 +686,12 @@ int parquet_column_read(const EngineIngestTools *tools, const char *path, const 
              PARQUET_CHECK(column->rows == walk.group_rows, &column->rows, error, ENGINE_ERROR_REQUEST);
     }
     column->levels = walk.levels_done;
-    free(chunk_bytes);
-    free(walk.page_bytes);
-    free(walk.scratch);
-    free(walk.dictionary_bytes);
-    free(walk.dictionary_offset);
-    free(walk.dictionary_length);
+    platform_cell_released(chunk_bytes, platform_place_g_program_owner);
+    platform_cell_released(walk.page_bytes, platform_place_g_program_owner);
+    platform_cell_released(walk.scratch, platform_place_g_program_owner);
+    platform_cell_released(walk.dictionary_bytes, platform_place_g_program_owner);
+    platform_cell_released(walk.dictionary_offset, platform_place_g_program_owner);
+    platform_cell_released(walk.dictionary_length, platform_place_g_program_owner);
     if (!ok)
     {
         parquet_column_release(column);

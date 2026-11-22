@@ -157,7 +157,8 @@ extern "C" long max_tree_slide(const MaxTreeSlideRequest *request)
     const size_t voxels = resident->voxels;
     const size_t probe_capacity = (size_t)request->probe_count + 1u;
     unsigned int *device_probes = NULL;
-    slide.raw = (unsigned int *)malloc(probe_capacity * sizeof(unsigned int));
+    slide.raw =
+        (unsigned int *)platform_cell_taken(probe_capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned int *const low_partition = (unsigned int *)platform_cell_taken(
         (unsigned long long)(probe_capacity * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
     unsigned int *const high_partition = (unsigned int *)platform_cell_taken(
@@ -205,7 +206,7 @@ extern "C" long max_tree_slide(const MaxTreeSlideRequest *request)
     {
         cudaEventDestroy(slide.blocks_done[1]);
     }
-    free(slide.raw);
+    platform_cell_released(slide.raw, platform_place_g_program_owner);
     platform_cell_released(low_partition, (unsigned int)platform_place_g_engine_owner);
     platform_cell_released(high_partition, (unsigned int)platform_place_g_engine_owner);
     if (ok == 0)

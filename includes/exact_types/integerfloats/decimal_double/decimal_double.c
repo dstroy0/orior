@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "decimal_double.h"
+#include "../../../../src/platform/platform.h"
 
 #include <limits.h>
 #include <stdint.h>
@@ -363,7 +364,8 @@ int decimal_double_expand(const DecimalDoubleRequest *request)
         return 0;
     }
     // the code above bounded the capacity below SIZE_MAX over the limb size. It narrows to size_t exactly
-    DecimalDoubleWork work = {.limb = (uint32_t *)malloc((size_t)capacity_limbs * sizeof(uint32_t)),
+    DecimalDoubleWork work = {.limb = (uint32_t *)platform_cell_taken((size_t)capacity_limbs * sizeof(uint32_t),
+                                                                      platform_place_g_program_owner, 0),
                               .capacity = (size_t)capacity_limbs,
                               .used = 0u};
     if (!DECIMAL_DOUBLE_CHECK(work.limb != NULL, &work, error, ENGINE_ERROR_RESOURCE))
@@ -371,6 +373,6 @@ int decimal_double_expand(const DecimalDoubleRequest *request)
         return 0;
     }
     const int expanded = decimal_double_expand_work(request, &work);
-    free(work.limb);
+    platform_cell_released(work.limb, platform_place_g_program_owner);
     return expanded;
 }

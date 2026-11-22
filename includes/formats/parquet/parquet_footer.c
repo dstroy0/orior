@@ -395,7 +395,8 @@ int parquet_footer_read(const EngineIngestTools *tools, const char *path, Parque
     {
         return 0;
     }
-    unsigned char *const text = (unsigned char *)malloc((size_t)footer_bytes + 1u);
+    unsigned char *const text =
+        (unsigned char *)platform_cell_taken((size_t)footer_bytes + 1u, platform_place_g_program_owner, 0);
     if (!PARQUET_CHECK(text != NULL, &text, error, ENGINE_ERROR_RESOURCE))
     {
         return 0;
@@ -407,7 +408,7 @@ int parquet_footer_read(const EngineIngestTools *tools, const char *path, Parque
     // the code above limits the bytes of the footer to 16 MiB, and the count converts exactly
     const int read = (tools->read(&range) == (long long)footer_bytes);
     const int decoded = read && parquet_file_metadata_read(&cursor, footer) && (cursor.broken == 0u);
-    free(text);
+    platform_cell_released(text, platform_place_g_program_owner);
     footer->footer_at = range.offset;
     footer->footer_bytes = footer_bytes;
     return PARQUET_CHECK(read, path, error, ENGINE_ERROR_REQUEST) &&

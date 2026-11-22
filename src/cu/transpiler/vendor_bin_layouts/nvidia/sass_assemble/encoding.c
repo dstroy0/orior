@@ -187,7 +187,8 @@ static int sass_holder_named(const SassHolder *holder, const SassHolder *sibling
 
 int sass_encoding_places_built(SassMachine *machine)
 {
-    SassFormPlaced *const placed_all = malloc((size_t)machine->forms * sizeof(SassFormPlaced) + 1u);
+    SassFormPlaced *const placed_all =
+        platform_cell_taken((size_t)machine->forms * sizeof(SassFormPlaced) + 1u, platform_place_g_program_owner, 0);
     if (placed_all == NULL)
     {
         return 0;

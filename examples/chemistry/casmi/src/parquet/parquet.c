@@ -9,6 +9,7 @@
  * Snappy and Zstd bodies. A refusal is a return of ENGINE_BYTES_ERROR, never a partial column.
  */
 #include "casmi_config.h"
+#include "../../../../../src/platform/platform.h"
 
 #include "parquet.h"
 #include "snappy.h"
@@ -188,7 +189,8 @@ CASMI_ALWAYS_INLINE unsigned long long parquet_varint_read(ParquetCursor *cursor
     {
         const unsigned int byte = parquet_byte_read(cursor);
         const unsigned int group_bits = byte & 0x7Fu;
-        if ((group == (CASMI_THRIFT_VARINT_BYTES_MAX - 1u)) && ((group_bits >> CASMI_THRIFT_VARINT_LAST_GROUP_BITS) != 0u))
+        if ((group == (CASMI_THRIFT_VARINT_BYTES_MAX - 1u)) &&
+            ((group_bits >> CASMI_THRIFT_VARINT_LAST_GROUP_BITS) != 0u))
         {
             cursor->broken = 1u;
             return 0ull;
@@ -283,41 +285,35 @@ CASMI_ALWAYS_INLINE void parquet_scalar_skip(ParquetCursor *cursor, unsigned int
 {
     switch (type)
     {
-        case CASMI_THRIFT_TRUE:
-        case CASMI_THRIFT_FALSE:
-        {
-            // A struct field's boolean is carried in its type code and occupies no byte.
-            break;
-        }
-        case CASMI_THRIFT_BYTE:
-        {
-            parquet_byte_read(cursor);
-            break;
-        }
-        case CASMI_THRIFT_I16:
-        case CASMI_THRIFT_I32:
-        case CASMI_THRIFT_I64:
-        {
-            parquet_varint_read(cursor);
-            break;
-        }
-        case CASMI_THRIFT_DOUBLE:
-        {
-            cursor->broken |= ((cursor->byte_count - cursor->position) < 8ull) ? 1u : 0u;
-            cursor->position += cursor->broken ? 0ull : 8ull;
-            break;
-        }
-        case CASMI_THRIFT_BINARY:
-        {
-            unsigned long long length = 0ull;
-            parquet_binary_read(cursor, &length);
-            break;
-        }
-        default:
-        {
-            cursor->broken = 1u;
-            break;
-        }
+    case CASMI_THRIFT_TRUE:
+    case CASMI_THRIFT_FALSE: {
+        // A struct field's boolean is carried in its type code and occupies no byte.
+        break;
+    }
+    case CASMI_THRIFT_BYTE: {
+        parquet_byte_read(cursor);
+        break;
+    }
+    case CASMI_THRIFT_I16:
+    case CASMI_THRIFT_I32:
+    case CASMI_THRIFT_I64: {
+        parquet_varint_read(cursor);
+        break;
+    }
+    case CASMI_THRIFT_DOUBLE: {
+        cursor->broken |= ((cursor->byte_count - cursor->position) < 8ull) ? 1u : 0u;
+        cursor->position += cursor->broken ? 0ull : 8ull;
+        break;
+    }
+    case CASMI_THRIFT_BINARY: {
+        unsigned long long length = 0ull;
+        parquet_binary_read(cursor, &length);
+        break;
+    }
+    default: {
+        cursor->broken = 1u;
+        break;
+    }
     }
 }
 
@@ -383,9 +379,11 @@ CASMI_ALWAYS_INLINE void parquet_value_skip(ParquetCursor *cursor, unsigned int 
             {
                 innermost_frame->values_left -= 1ull;
                 // A map counts down from an even total; an odd count left means a key comes next.
-                next_type = ((innermost_frame->values_left & 1ull) != 0ull) ? innermost_frame->key_type : innermost_frame->value_type;
+                next_type = ((innermost_frame->values_left & 1ull) != 0ull) ? innermost_frame->key_type
+                                                                            : innermost_frame->value_type;
                 // A boolean inside a list or map is one byte, not a type code carrying the value.
-                next_type = ((next_type == CASMI_THRIFT_TRUE) || (next_type == CASMI_THRIFT_FALSE)) ? CASMI_THRIFT_BYTE : next_type;
+                next_type = ((next_type == CASMI_THRIFT_TRUE) || (next_type == CASMI_THRIFT_FALSE)) ? CASMI_THRIFT_BYTE
+                                                                                                    : next_type;
                 cursor->broken |= (next_type == CASMI_THRIFT_STOP) ? 1u : 0u;
             }
             if ((next_type == CASMI_THRIFT_STOP) && !cursor->broken)
@@ -456,28 +454,23 @@ CASMI_ALWAYS_INLINE unsigned int parquet_value_width_measure(const CasmiParquetL
 {
     switch (leaf->physical)
     {
-        case CASMI_PARQUET_INT32:
-        case CASMI_PARQUET_FLOAT:
-        {
-            return 4u;
-        }
-        case CASMI_PARQUET_INT64:
-        case CASMI_PARQUET_DOUBLE:
-        {
-            return 8u;
-        }
-        case CASMI_PARQUET_INT96:
-        {
-            return 12u;
-        }
-        case CASMI_PARQUET_FIXED_LEN_BYTE_ARRAY:
-        {
-            return leaf->fixed_bytes;
-        }
-        default:
-        {
-            return 0u;
-        }
+    case CASMI_PARQUET_INT32:
+    case CASMI_PARQUET_FLOAT: {
+        return 4u;
+    }
+    case CASMI_PARQUET_INT64:
+    case CASMI_PARQUET_DOUBLE: {
+        return 8u;
+    }
+    case CASMI_PARQUET_INT96: {
+        return 12u;
+    }
+    case CASMI_PARQUET_FIXED_LEN_BYTE_ARRAY: {
+        return leaf->fixed_bytes;
+    }
+    default: {
+        return 0u;
+    }
     }
 }
 
@@ -834,7 +827,8 @@ CASMI_ALWAYS_INLINE long long parquet_footer_decode(const CasmiParquetFooterRead
     // file_bytes was checked positive above; the conversion is exact.
     const unsigned long long file_size = (unsigned long long)file_bytes;
     unsigned char trailer[CASMI_PARQUET_TRAILER_BYTES];
-    const ParquetFileRange trailer_range = {args->path, file_size - CASMI_PARQUET_TRAILER_BYTES, CASMI_PARQUET_TRAILER_BYTES, trailer};
+    const ParquetFileRange trailer_range = {args->path, file_size - CASMI_PARQUET_TRAILER_BYTES,
+                                            CASMI_PARQUET_TRAILER_BYTES, trailer};
     if (!parquet_range_read(&trailer_range) ||
         (memcmp(trailer + CASMI_PARQUET_MAGIC_BYTES, CASMI_PARQUET_MAGIC, CASMI_PARQUET_MAGIC_BYTES) != 0))
     {
@@ -846,14 +840,15 @@ CASMI_ALWAYS_INLINE long long parquet_footer_decode(const CasmiParquetFooterRead
     {
         return ENGINE_BYTES_ERROR;
     }
-    unsigned char *const footer_text = malloc(footer_bytes);
+    unsigned char *const footer_text = platform_cell_taken(footer_bytes, platform_place_g_program_owner, 0);
     if (footer_text == NULL)
     {
         return ENGINE_BYTES_ERROR;
     }
     // The footer is decoded into a local copy first; a refusal leaves the caller's footer untouched.
-    CasmiParquetFooter *const decoded = malloc(sizeof(*decoded));
-    const ParquetFileRange footer_range = {args->path, file_size - CASMI_PARQUET_TRAILER_BYTES - footer_bytes, footer_bytes, footer_text};
+    CasmiParquetFooter *const decoded = platform_cell_taken(sizeof(*decoded), platform_place_g_program_owner, 0);
+    const ParquetFileRange footer_range = {args->path, file_size - CASMI_PARQUET_TRAILER_BYTES - footer_bytes,
+                                           footer_bytes, footer_text};
     ParquetCursor cursor = {footer_text, footer_bytes, 0ull, 0u};
     int good = (decoded != NULL) && parquet_range_read(&footer_range);
     if (good)
@@ -865,8 +860,8 @@ CASMI_ALWAYS_INLINE long long parquet_footer_decode(const CasmiParquetFooterRead
     {
         memcpy(args->footer, decoded, sizeof(*decoded));
     }
-    free(decoded);
-    free(footer_text);
+    platform_cell_released(decoded, platform_place_g_program_owner);
+    platform_cell_released(footer_text, platform_place_g_program_owner);
     // leaf_count is at max CASMI_PARQUET_LEAVES_MAX; it fits long long.
     return good ? (long long)args->footer->leaf_count : ENGINE_BYTES_ERROR;
 }
@@ -919,7 +914,8 @@ CASMI_ALWAYS_INLINE long long parquet_column_measure(const CasmiParquetColumnRea
 {
     // A column's scratch room is bounded by the chunk's stated sizes, far below 2^63; the
     // conversion to long long is exact.
-    return parquet_column_rooms_measure(args, args->column) ? (long long)args->column->scratch_room : ENGINE_BYTES_ERROR;
+    return parquet_column_rooms_measure(args, args->column) ? (long long)args->column->scratch_room
+                                                            : ENGINE_BYTES_ERROR;
 }
 
 /**
@@ -1131,7 +1127,8 @@ CASMI_ALWAYS_INLINE int parquet_dictionary_page_decode(ParquetColumnWalk *walk, 
 {
     CasmiParquetColumn *const column = walk->args->column;
     const int variable = (walk->leaf->physical == CASMI_PARQUET_BYTE_ARRAY);
-    const unsigned long long room = variable ? (column->value_bytes_room - walk->value_bytes_used) : walk->chunk->uncompressed_bytes;
+    const unsigned long long room =
+        variable ? (column->value_bytes_room - walk->value_bytes_used) : walk->chunk->uncompressed_bytes;
     if (((header->encoding != CASMI_PARQUET_PLAIN) && (header->encoding != CASMI_PARQUET_PLAIN_DICTIONARY)) ||
         (header->uncompressed_bytes > room) || (header->level_count > walk->chunk->level_count))
     {
@@ -1191,7 +1188,8 @@ CASMI_ALWAYS_INLINE int parquet_levels_v1_decode(ParquetCursor *page, unsigned i
     {
         return 0;
     }
-    const ParquetHybridRead read = {page->bytes + page->position, length, parquet_level_width_measure(level_max), level_count, out};
+    const ParquetHybridRead read = {page->bytes + page->position, length, parquet_level_width_measure(level_max),
+                                    level_count, out};
     page->position += length;
     return parquet_hybrid_decode(&read);
 }
@@ -1217,7 +1215,8 @@ CASMI_ALWAYS_INLINE int parquet_values_decode(ParquetColumnWalk *walk, unsigned 
             return 0;
         }
         // The first byte is the index bit width; the hybrid decoder refuses one past 32 bits.
-        const ParquetHybridRead read = {values->bytes + 1u, values->byte_count - 1ull, values->bytes[0], present, walk->dictionary_index};
+        const ParquetHybridRead read = {values->bytes + 1u, values->byte_count - 1ull, values->bytes[0], present,
+                                        walk->dictionary_index};
         if (!parquet_hybrid_decode(&read))
         {
             return 0;
@@ -1268,7 +1267,8 @@ CASMI_ALWAYS_INLINE int parquet_values_decode(ParquetColumnWalk *walk, unsigned 
         }
         const unsigned long long length = parquet_little_endian_read(plain.bytes + plain.position, 4u);
         plain.position += 4ull;
-        if ((length > (plain.byte_count - plain.position)) || (length > (column->value_bytes_room - walk->value_bytes_used)))
+        if ((length > (plain.byte_count - plain.position)) ||
+            (length > (column->value_bytes_room - walk->value_bytes_used)))
         {
             return 0;
         }
@@ -1332,7 +1332,8 @@ CASMI_ALWAYS_INLINE int parquet_data_page_decode(ParquetColumnWalk *walk, const 
     ParquetCursor values = {walk->page_bytes, 0ull, 0ull, 0u};
     if (header->page_type == CASMI_PARQUET_DATA_PAGE)
     {
-        const EngineBytesRequest request = {body, header->compressed_bytes, walk->page_bytes, header->uncompressed_bytes};
+        const EngineBytesRequest request = {body, header->compressed_bytes, walk->page_bytes,
+                                            header->uncompressed_bytes};
         if (((walk->leaf->definition_max != 0u) && (header->definition_encoding != CASMI_PARQUET_RLE)) ||
             ((walk->leaf->repetition_max != 0u) && (header->repetition_encoding != CASMI_PARQUET_RLE)) ||
             !parquet_body_inflate(&request, walk->chunk->codec))
@@ -1357,11 +1358,12 @@ CASMI_ALWAYS_INLINE int parquet_data_page_decode(ParquetColumnWalk *walk, const 
         {
             return 0;
         }
-        const ParquetHybridRead repetition = {body, header->repetition_bytes, parquet_level_width_measure(walk->leaf->repetition_max),
+        const ParquetHybridRead repetition = {body, header->repetition_bytes,
+                                              parquet_level_width_measure(walk->leaf->repetition_max),
                                               header->level_count, walk->repetition_level};
         const ParquetHybridRead definition = {body + header->repetition_bytes, header->definition_bytes,
-                                              parquet_level_width_measure(walk->leaf->definition_max), header->level_count,
-                                              walk->definition_level};
+                                              parquet_level_width_measure(walk->leaf->definition_max),
+                                              header->level_count, walk->definition_level};
         if (walk->leaf->repetition_max == 0u)
         {
             memset(walk->repetition_level, 0, header->level_count * sizeof(*walk->repetition_level));
@@ -1378,9 +1380,10 @@ CASMI_ALWAYS_INLINE int parquet_data_page_decode(ParquetColumnWalk *walk, const 
         {
             return 0;
         }
-        const EngineBytesRequest request = {body + level_bytes, header->compressed_bytes - level_bytes, walk->page_bytes,
-                                            header->uncompressed_bytes - level_bytes};
-        const CasmiParquetCodec codec = (header->values_compressed != 0u) ? walk->chunk->codec : CASMI_PARQUET_UNCOMPRESSED;
+        const EngineBytesRequest request = {body + level_bytes, header->compressed_bytes - level_bytes,
+                                            walk->page_bytes, header->uncompressed_bytes - level_bytes};
+        const CasmiParquetCodec codec =
+            (header->values_compressed != 0u) ? walk->chunk->codec : CASMI_PARQUET_UNCOMPRESSED;
         if (!parquet_body_inflate(&request, codec))
         {
             return 0;
@@ -1404,7 +1407,8 @@ CASMI_ALWAYS_INLINE int parquet_pages_decode(ParquetColumnWalk *walk)
     while (walk->levels_done < walk->chunk->level_count)
     {
         ParquetPageHeader header;
-        if (!parquet_page_header_read(&pages, &header) || (header.compressed_bytes > (pages.byte_count - pages.position)))
+        if (!parquet_page_header_read(&pages, &header) ||
+            (header.compressed_bytes > (pages.byte_count - pages.position)))
         {
             return 0;
         }
@@ -1433,7 +1437,8 @@ CASMI_ALWAYS_INLINE long long parquet_column_decode(const CasmiParquetColumnRead
 {
     CasmiParquetColumn rooms = {0};
     if (!parquet_column_rooms_measure(args, &rooms) || (args->column->scratch_room < rooms.scratch_room) ||
-        (args->column->row_start_room < rooms.row_start_room) || (args->column->value_bytes_room < rooms.value_bytes_room) ||
+        (args->column->row_start_room < rooms.row_start_room) ||
+        (args->column->value_bytes_room < rooms.value_bytes_room) ||
         (args->column->value_offset_room < rooms.value_offset_room))
     {
         return ENGINE_BYTES_ERROR;

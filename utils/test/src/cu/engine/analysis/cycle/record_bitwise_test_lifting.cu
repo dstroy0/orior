@@ -10,13 +10,15 @@
 static void bitwise_stack(BitwiseResults *results)
 {
     const unsigned int count = BITWISE_TEST_STACK_WORDS + (BITWISE_TEST_FLOORS * BITWISE_TEST_FLOOR_STEPS);
-    EngineRecordStep *const steps = (EngineRecordStep *)calloc(count, sizeof(EngineRecordStep));
-    long long *const oracle = (long long *)malloc((size_t)count * sizeof(long long));
+    EngineRecordStep *const steps =
+        (EngineRecordStep *)platform_cell_cleared(count, sizeof(EngineRecordStep), platform_place_g_program_owner, 0);
+    long long *const oracle =
+        (long long *)platform_cell_taken((size_t)count * sizeof(long long), platform_place_g_program_owner, 0);
     if ((steps == NULL) || (oracle == NULL))
     {
         bitwise_check(results, 0, "the stack is allocated");
-        free(steps);
-        free(oracle);
+        platform_cell_released(steps, platform_place_g_program_owner);
+        platform_cell_released(oracle, platform_place_g_program_owner);
         return;
     }
     unsigned int field_bits[BITWISE_TEST_STACK_WORDS];
@@ -67,15 +69,18 @@ static void bitwise_stack(BitwiseResults *results)
     bitwise_check(results, loads, "a stack of 4204 steps encodes, arranges with reuse and loads");
     if (loads == 0)
     {
-        free(steps);
-        free(oracle);
+        platform_cell_released(steps, platform_place_g_program_owner);
+        platform_cell_released(oracle, platform_place_g_program_owner);
         return;
     }
     const unsigned int lanes = BITWISE_TEST_STACK_LANES;
     const unsigned int out_limbs = loaded.layout.out_limbs;
-    unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * BITWISE_TEST_STACK_WORDS, sizeof(unsigned int));
-    unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-    unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * BITWISE_TEST_STACK_WORDS, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
     int host_ran = 0;
     int device_ran = 0;
     unsigned int lanes_equal = 0u;
@@ -154,11 +159,11 @@ static void bitwise_stack(BitwiseResults *results)
                       (memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0),
                   "the stack's device records equal the host's word for word");
     bitwise_check(results, lanes_equal == lanes, "every lane's tapped floors equal the CPU's rounds");
-    free(atoms);
-    free(host_out);
-    free(device_out);
-    free(steps);
-    free(oracle);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
+    platform_cell_released(steps, platform_place_g_program_owner);
+    platform_cell_released(oracle, platform_place_g_program_owner);
     bitwise_free(&loaded);
 }
 
@@ -202,7 +207,8 @@ static void bitwise_lifting(BitwiseResults *results)
     const unsigned int count = BITWISE_TEST_LIFT_SAMPLES;
     const unsigned int lows = (count + 1u) / 2u;
     const unsigned int highs = count / 2u;
-    BitwiseLift *const steps = (BitwiseLift *)calloc(1u, sizeof(BitwiseLift));
+    BitwiseLift *const steps =
+        (BitwiseLift *)platform_cell_cleared(1u, sizeof(BitwiseLift), platform_place_g_program_owner, 0);
     if (steps == NULL)
     {
         bitwise_check(results, 0, "the lifting is allocated");
@@ -290,15 +296,18 @@ static void bitwise_lifting(BitwiseResults *results)
     bitwise_check(results, loads, "one 5/3 lifting level and its inverse encode as one stack");
     if (loads == 0)
     {
-        free(steps);
+        platform_cell_released(steps, platform_place_g_program_owner);
         return;
     }
     const unsigned int lanes = BITWISE_TEST_LIFT_LANES;
     const unsigned int record_limbs = in_limbs[0];
     const unsigned int out_limbs = loaded.layout.out_limbs;
-    unsigned int *const atoms = (unsigned int *)calloc((size_t)lanes * record_limbs, sizeof(unsigned int));
-    unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-    unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
+    unsigned int *const atoms = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * record_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
     const int buffers = (atoms != NULL) && (host_out != NULL) && (device_out != NULL);
     for (unsigned int lane = 0u; (buffers != 0) && (lane < lanes); lane += 1u)
     {
@@ -382,10 +391,10 @@ static void bitwise_lifting(BitwiseResults *results)
                   "the lifting's device records equal the host's word for word");
     bitwise_check(results, coefficients_ok == lanes, "the record floor's coefficients equal tower_*.cu's 5/3 lifting");
     bitwise_check(results, rebuilt_ok == lanes, "the inverse floor returns every sample exactly");
-    free(atoms);
-    free(host_out);
-    free(device_out);
-    free(steps);
+    platform_cell_released(atoms, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_out, platform_place_g_program_owner);
+    platform_cell_released(steps, platform_place_g_program_owner);
     bitwise_free(&loaded);
 }
 
@@ -395,7 +404,7 @@ int program_main(int count, char **arguments)
     results.checks = 0ull;
     results.failures = 0ull;
     results.line.capacity = BITWISE_TEST_LINE;
-    results.line.out = (char *)malloc((size_t)BITWISE_TEST_LINE);
+    results.line.out = (char *)platform_cell_taken((size_t)BITWISE_TEST_LINE, platform_place_g_program_owner, 0);
     results.line.at = 0ull;
     if (results.line.out == NULL)
     {
@@ -426,6 +435,6 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " failed\n");
     (void)(mmgr_line_ok(&results.line) &&
            (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
-    free(results.line.out);
+    platform_cell_released(results.line.out, platform_place_g_program_owner);
     return (results.failures == 0ull) ? 0 : 1;
 }

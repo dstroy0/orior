@@ -32,8 +32,9 @@ void stick_nvcc_read(const char *path)
                 }
                 if (at == s_kernels)
                 {
-                    s_kernel =
-                        (StickKernel *)stick_allocated(realloc(s_kernel, (s_kernels + 1u) * sizeof(StickKernel)));
+                    s_kernel = (StickKernel *)stick_allocated(
+                        platform_cell_grown(s_kernel, s_kernels * sizeof(StickKernel),
+                                            (s_kernels + 1u) * sizeof(StickKernel), platform_place_g_program_owner, 0));
                     mmgr_bytes_set(&s_kernel[at], 0, sizeof(StickKernel));
                     s_kernel[at].name = stick_copy(name, length);
                     s_kernels += 1u;
@@ -149,14 +150,16 @@ void stick_engine_read(const char *table, const char *directory)
             }
             if (at == s_engines)
             {
-                s_engine = (StickEngine *)stick_allocated(realloc(s_engine, (s_engines + 1u) * sizeof(StickEngine)));
+                s_engine = (StickEngine *)stick_allocated(platform_cell_grown(s_engine, s_engines * sizeof(StickEngine),
+                                                                              (s_engines + 1u) * sizeof(StickEngine),
+                                                                              platform_place_g_program_owner, 0));
                 mmgr_bytes_set(&s_engine[at], 0, sizeof(StickEngine));
                 s_engine[at].name = stick_copy(name, mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR));
                 s_engines += 1u;
             }
             StickEngine *const entry = &s_engine[at];
-            free(entry->answer);
-            free(entry->note);
+            platform_cell_released(entry->answer, platform_place_g_program_owner);
+            platform_cell_released(entry->note, platform_place_g_program_owner);
             entry->answer = stick_copy(cell[1], mmgr_text_length(cell[1], PLATFORM_TEXT_TO_TERMINATOR));
             entry->steps = (unsigned int)strtoul(cell[2], NULL, 10);
             entry->note = stick_copy(cell[4], mmgr_text_length(cell[4], PLATFORM_TEXT_TO_TERMINATOR));
@@ -190,12 +193,12 @@ void stick_engine_read(const char *table, const char *directory)
                     entry->agree += (text.number[one] == entry->operations.number[one]) ? 1u : 0u;
                 }
                 entry->text = text.count;
-                free(text.number);
+                platform_cell_released(text.number, platform_place_g_program_owner);
             }
         }
         for (unsigned int one = 0u; one < cells; one += 1u)
         {
-            free(cell[one]);
+            platform_cell_released(cell[one], platform_place_g_program_owner);
         }
     }
     kfile_lines_free(&lines);
@@ -299,13 +302,14 @@ void stick_ruleset_operations(const char *path, unsigned char **buffer, unsigned
                         if (operation >= *room)
                         {
                             const unsigned int grown = (operation + 1u) * 2u;
-                            *buffer = (unsigned char *)stick_allocated(realloc(*buffer, grown));
+                            *buffer = (unsigned char *)stick_allocated(
+                                platform_cell_grown(*buffer, *room, grown, platform_place_g_program_owner, 0));
                             mmgr_bytes_set(&(*buffer)[*room], 0, grown - *room);
                             *room = grown;
                         }
                         (*buffer)[operation] = 1u;
                     }
-                    free(cut);
+                    platform_cell_released(cut, platform_place_g_program_owner);
                     if (newline == NULL)
                     {
                         break;

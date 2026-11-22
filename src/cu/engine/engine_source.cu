@@ -276,11 +276,12 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
     }
     EngineError *const error = request->error;
     *volume = NULL;
-    EntrySource *const source = (EntrySource *)calloc(1u, sizeof(EntrySource));
+    EntrySource *const source =
+        (EntrySource *)platform_cell_cleared(1u, sizeof(EntrySource), platform_place_g_program_owner, 0);
     if ((ENGINE_CHECK(source != NULL, &source, error, ENGINE_ERROR_RESOURCE) == 0) ||
         (entry_source_describe(request->path, request->member, source, error) == 0))
     {
-        free(source);
+        platform_cell_released(source, platform_place_g_program_owner);
         return ENGINE_ERROR;
     }
     const EngineArrayExtent *const array_extent = &source->extent;
@@ -313,7 +314,7 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
             mmgr_line_ch(&engine_note.line, '\n');
             engine_note_written(&engine_note);
         }
-        free(source);
+        platform_cell_released(source, platform_place_g_program_owner);
         return ENGINE_ERROR;
     }
     const int one_channel = (channel_axis < 0) || (array_extent->sizes[channel_axis] == 1ULL);
@@ -337,7 +338,7 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
             mmgr_line_ch(&engine_note.line, '\n');
             engine_note_written(&engine_note);
         }
-        free(source);
+        platform_cell_released(source, platform_place_g_program_owner);
         return ENGINE_ERROR;
     }
     int placed[4] = {-1, -1, -1, -1};
@@ -365,7 +366,8 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
         last = (placed[target] >= 0) ? placed[target] : last;
     }
     const unsigned long long bytes = elements * array_extent->element_bytes;
-    unsigned char *const raw = ok ? (unsigned char *)malloc((size_t)bytes + 1u) : NULL;
+    unsigned char *const raw =
+        ok ? (unsigned char *)platform_cell_taken((size_t)bytes + 1u, platform_place_g_program_owner, 0) : NULL;
     ok = ok && (raw != NULL) && (entry_source_bytes(source, raw, bytes, request->side, error) == (long long)bytes);
     if (ok == 0)
     {
@@ -378,8 +380,8 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
             mmgr_line_ch(&engine_note.line, '\n');
             engine_note_written(&engine_note);
         }
-        free(raw);
-        free(source);
+        platform_cell_released(raw, platform_place_g_program_owner);
+        platform_cell_released(source, platform_place_g_program_owner);
         return ENGINE_ERROR;
     }
     const int signed_lanes = (array_extent->element_type == ENGINE_ELEMENT_SIGNED);
@@ -397,14 +399,15 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
             words[word] = (unsigned short)(words[word] ^ 0x8000u);
         }
         *volume = words;
-        free(source);
+        platform_cell_released(source, platform_place_g_program_owner);
         return 0L;
     }
-    unsigned short *const lanes = (unsigned short *)malloc((size_t)elements * sizeof(unsigned short));
+    unsigned short *const lanes = (unsigned short *)platform_cell_taken((size_t)elements * sizeof(unsigned short),
+                                                                        platform_place_g_program_owner, 0);
     if (lanes == NULL)
     {
-        free(raw);
-        free(source);
+        platform_cell_released(raw, platform_place_g_program_owner);
+        platform_cell_released(source, platform_place_g_program_owner);
         return ENGINE_ERROR;
     }
     unsigned long long at = 0ULL;
@@ -439,8 +442,8 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
             }
         }
     }
-    free(raw);
-    free(source);
+    platform_cell_released(raw, platform_place_g_program_owner);
+    platform_cell_released(source, platform_place_g_program_owner);
     *volume = lanes;
     return 0L;
 }
@@ -485,7 +488,9 @@ extern "C" long engine_source_lanes(const char *source, const char *sample, unsi
         (archived ? ((formed_line_8 = mmgr_line_over(path, sizeof(path)), mmgr_line_put(&formed_line_8, source),
                       (void)mmgr_line_finish(&formed_line_8), (int)formed_line_8.at) > 0)
                   : engine_source_find(source, sample, path, sizeof(path)));
-    EntrySource *const described = placed ? (EntrySource *)calloc(1u, sizeof(EntrySource)) : NULL;
+    EntrySource *const described =
+        placed ? (EntrySource *)platform_cell_cleared(1u, sizeof(EntrySource), platform_place_g_program_owner, 0)
+               : NULL;
     int ok = ENGINE_CHECK(placed != 0, sample, error, ENGINE_ERROR_REQUEST) &&
              ENGINE_CHECK(described != NULL, &described, error, ENGINE_ERROR_RESOURCE) &&
              entry_source_describe(path, archived ? sample : NULL, described, error);
@@ -496,7 +501,7 @@ extern "C" long engine_source_lanes(const char *source, const char *sample, unsi
         ok = (extent != 0ULL) && (elements <= (~0ULL / extent));
         elements = ok ? (elements * extent) : 0ULL;
     }
-    free(described);
+    platform_cell_released(described, platform_place_g_program_owner);
     *lanes = elements;
     return (ok && (elements != 0ULL)) ? 0L : ENGINE_ERROR;
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // nrrd_read.c: the data file, the layout and the read
 #include "nrrd_internal.h"
+#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 
@@ -227,7 +228,8 @@ static char *nrrd_join(const char *header_path, NrrdSpan name)
     {
         directory_length = ((header_path[at] == '/') || (header_path[at] == '\\')) ? (at + 1u) : directory_length;
     }
-    char *const joined = malloc(directory_length + (size_t)name.length + 1u);
+    char *const joined =
+        platform_cell_taken(directory_length + (size_t)name.length + 1u, platform_place_g_program_owner, 0);
     if (joined == NULL)
     {
         return NULL;
@@ -343,8 +345,8 @@ static unsigned int nrrd_layout(const char *path, const char *member, const Engi
     for (;;)
     {
         header_bytes = (header_bytes < file_bytes) ? header_bytes : file_bytes;
-        free(header);
-        header = malloc((size_t)header_bytes + 1u);
+        platform_cell_released(header, platform_place_g_program_owner);
+        header = platform_cell_taken((size_t)header_bytes + 1u, platform_place_g_program_owner, 0);
         if (header == NULL)
         {
             return 0u;
@@ -371,13 +373,13 @@ static unsigned int nrrd_layout(const char *path, const char *member, const Engi
         built.data_path = nrrd_join(path, fields.data_file);
         ok = (built.data_path != NULL);
     }
-    free(header);
+    platform_cell_released(header, platform_place_g_program_owner);
     const char *const data_path = (built.data_path != NULL) ? built.data_path : path;
     const unsigned long long start = (built.data_path != NULL) ? 0ULL : fields.header_end;
     ok = ok && nrrd_locate(tools, &fields, data_path, start, &built);
     if (!ok)
     {
-        free(built.data_path);
+        platform_cell_released(built.data_path, platform_place_g_program_owner);
         return 0u;
     }
     built.big_endian = ((fields.endian == NRRD_BIG) && (fields.element_bytes > 1u)) ? 1u : 0u;
@@ -406,8 +408,8 @@ static unsigned int nrrd_inflate(const EngineIngestTools *tools, const char *dat
     {
         return 0u;
     }
-    unsigned char *const packed = malloc((size_t)compressed);
-    unsigned char *const unpacked = malloc((size_t)expected);
+    unsigned char *const packed = platform_cell_taken((size_t)compressed, platform_place_g_program_owner, 0);
+    unsigned char *const unpacked = platform_cell_taken((size_t)expected, platform_place_g_program_owner, 0);
     int ok =
         (packed != NULL) && (unpacked != NULL) && nrrd_fetch(tools, data_path, layout->data_offset, compressed, packed);
     if (ok)
@@ -416,12 +418,12 @@ static unsigned int nrrd_inflate(const EngineIngestTools *tools, const char *dat
         const long long made = decode(&request);
         ok = (made >= 0LL) && ((unsigned long long)made == expected);
     }
-    free(packed);
+    platform_cell_released(packed, platform_place_g_program_owner);
     if (ok)
     {
         mmgr_bytes_copy(out, unpacked + layout->byte_skip + offset, (size_t)wanted);
     }
-    free(unpacked);
+    platform_cell_released(unpacked, platform_place_g_program_owner);
     return ok ? 1u : 0u;
 }
 
@@ -432,7 +434,7 @@ long nrrd_describe(const EngineDescribeRequest *request)
     {
         return -1L;
     }
-    free(layout.data_path);
+    platform_cell_released(layout.data_path, platform_place_g_program_owner);
     *request->extent = layout.extent;
     return 0L;
 }
@@ -451,7 +453,7 @@ long long nrrd_read(const EngineArrayRead *request)
     const unsigned long long wanted = agrees ? ((request->end - request->first) * row_bytes) : 0ULL;
     if (!agrees || (wanted > request->out_capacity) || !nrrd_fits_memory(wanted))
     {
-        free(layout.data_path);
+        platform_cell_released(layout.data_path, platform_place_g_program_owner);
         return -1LL;
     }
     const char *const data_path = (layout.data_path != NULL) ? layout.data_path : request->path;
@@ -460,7 +462,7 @@ long long nrrd_read(const EngineArrayRead *request)
         : (layout.gzip != 0u)
             ? nrrd_inflate(request->tools, data_path, &layout, offset, wanted, request->out)
             : nrrd_fetch(request->tools, data_path, layout.data_offset + offset, wanted, request->out);
-    free(layout.data_path);
+    platform_cell_released(layout.data_path, platform_place_g_program_owner);
     if (!copied)
     {
         mmgr_bytes_set(request->out, 0, (size_t)wanted);

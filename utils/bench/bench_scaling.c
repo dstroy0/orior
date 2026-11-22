@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "../../src/cu/engine/nbody/orior/orior.h"
+#include "../../src/platform/platform.h"
 #include "bench_corpora.h"
 
 #if !ORIOR_COUNT_READS
@@ -21,8 +22,7 @@
 #endif
 #endif
 
-static const size_t CORPUS_LENGTHS[] = {
-    4096u, 16384u, 65536u, 262144u, 1048576u, 4194304u};
+static const size_t CORPUS_LENGTHS[] = {4096u, 16384u, 65536u, 262144u, 1048576u, 4194304u};
 
 #define NEEDLES_PER_ROW 32u
 
@@ -81,16 +81,16 @@ int program_main(int argc, char **argv)
     const size_t needle_count = sizeof NEEDLE_LENGTHS / sizeof NEEDLE_LENGTHS[0];
     const size_t longest = CORPUS_LENGTHS[length_count - 1u];
 
-    uint8_t *const corpus = (uint8_t *)malloc(longest);
-    uint8_t *const absent = (uint8_t *)malloc(NEEDLE_LENGTHS[needle_count - 1u] * NEEDLES_PER_ROW);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(longest, platform_place_g_program_owner, 0);
+    uint8_t *const absent = (uint8_t *)platform_cell_taken(NEEDLE_LENGTHS[needle_count - 1u] * NEEDLES_PER_ROW,
+                                                           platform_place_g_program_owner, 0);
     int disagreed = 0;
 
     if ((corpus == NULL) || (absent == NULL))
     {
-        (void)fprintf(stderr, "  could not take %llu bytes for the longest corpus\n",
-                      (unsigned long long)longest);
-        free(corpus);
-        free(absent);
+        (void)fprintf(stderr, "  could not take %llu bytes for the longest corpus\n", (unsigned long long)longest);
+        platform_cell_released(corpus, platform_place_g_program_owner);
+        platform_cell_released(absent, platform_place_g_program_owner);
         return 2;
     }
     const size_t absent_bytes = NEEDLE_LENGTHS[needle_count - 1u] * NEEDLES_PER_ROW;
@@ -173,9 +173,9 @@ int program_main(int argc, char **argv)
 
                             for (size_t draw = 0u; draw < needles; draw += 1u)
                             {
-                                const uint8_t *const needle = (present != 0u)
-                                                                  ? (corpus + ((draw * 977u) % (corpus_len - needle_len)))
-                                                                  : (absent + (draw * needle_len));
+                                const uint8_t *const needle =
+                                    (present != 0u) ? (corpus + ((draw * 977u) % (corpus_len - needle_len)))
+                                                    : (absent + (draw * needle_len));
 
                                 seen += ARMS[at].run(corpus, corpus_len, needle, needle_len);
                             }
@@ -212,7 +212,7 @@ int program_main(int argc, char **argv)
         }
     }
 
-    free(corpus);
-    free(absent);
+    platform_cell_released(corpus, platform_place_g_program_owner);
+    platform_cell_released(absent, platform_place_g_program_owner);
     return disagreed;
 }

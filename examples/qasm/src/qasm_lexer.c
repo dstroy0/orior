@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_lexer.c: the lexer and tokens
 #include "qasm_internal.h"
+#include "../../../src/platform/platform.h"
 
 // ---------------------------------------------------------------------------------------------------------------
 // the lexer
@@ -21,7 +22,7 @@ int qasm_lex(QasmParser *parser)
     const char *const text = parser->text;
     const size_t length = parser->length;
     size_t capacity = 1024u;
-    parser->tokens = (QasmToken *)malloc(capacity * sizeof(QasmToken));
+    parser->tokens = (QasmToken *)platform_cell_taken(capacity * sizeof(QasmToken), platform_place_g_program_owner, 0);
     if (!QASM_CHECK(parser->tokens != NULL, parser, parser->error))
     {
         parser->failed = 1;
@@ -82,7 +83,9 @@ int qasm_lex(QasmParser *parser)
         if (parser->token_count + 1u >= capacity)
         {
             capacity *= 2u;
-            QasmToken *const grown = (QasmToken *)realloc(parser->tokens, capacity * sizeof(QasmToken));
+            QasmToken *const grown =
+                (QasmToken *)platform_cell_grown(parser->tokens, (capacity / 2u) * sizeof(QasmToken),
+                                                 capacity * sizeof(QasmToken), platform_place_g_program_owner, 0);
             if (!QASM_CHECK(grown != NULL, parser, parser->error))
             {
                 parser->failed = 1;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_chain_matrix.c: matrices and one-qubit application
 #include "qasm_chain_internal.h"
+#include "../../../src/platform/platform.h"
 
 unsigned char *qasm_matrix_at(const QasmMatrix *matrix, unsigned int row, unsigned int column)
 {
@@ -25,7 +26,7 @@ void qasm_matrix_release(QasmMatrix *matrix)
         {
             matrix->field->release(&matrix->elements[index * matrix->field->element_bytes]);
         }
-        free(matrix->elements);
+        platform_cell_released(matrix->elements, platform_place_g_program_owner);
         matrix->elements = NULL;
     }
 }
@@ -40,7 +41,8 @@ long qasm_matrix_alloc(const QasmField *field, unsigned int rows, unsigned int c
     matrix->rows = rows;
     matrix->columns = columns;
     // an empty matrix still contains one zero-byte element. Its storage is never a zero-byte allocation
-    matrix->elements = (unsigned char *)calloc((count > 0u) ? count : 1u, field->element_bytes);
+    matrix->elements = (unsigned char *)platform_cell_cleared((count > 0u) ? count : 1u, field->element_bytes,
+                                                              platform_place_g_program_owner, 0);
     if (QASM_CHECK(matrix->elements != NULL, matrix, error, ENGINE_ERROR_RESOURCE) == 0)
     {
         return QASM_ERROR;
@@ -182,8 +184,10 @@ long qasm_matrix_factor(const QasmMatrix *matrix, QasmMatrix *pivot_columns, Qas
     const unsigned int height = matrix->rows;
     const unsigned int width = matrix->columns;
     QasmMatrix rows = QASM_MATRIX_EMPTY;
-    unsigned int *const pivots = (unsigned int *)malloc(((width > 0u) ? width : 1u) * sizeof(unsigned int));
-    unsigned char *const swap_row = (unsigned char *)malloc(((width > 0u) ? width : 1u) * field->element_bytes);
+    unsigned int *const pivots = (unsigned int *)platform_cell_taken(((width > 0u) ? width : 1u) * sizeof(unsigned int),
+                                                                     platform_place_g_program_owner, 0);
+    unsigned char *const swap_row = (unsigned char *)platform_cell_taken(
+        ((width > 0u) ? width : 1u) * field->element_bytes, platform_place_g_program_owner, 0);
     long status = (QASM_CHECK((pivots != NULL) && (swap_row != NULL), matrix, error, ENGINE_ERROR_RESOURCE) != 0)
                       ? qasm_matrix_copy(matrix, &rows, error)
                       : QASM_ERROR;
@@ -224,8 +228,8 @@ long qasm_matrix_factor(const QasmMatrix *matrix, QasmMatrix *pivot_columns, Qas
         }
     }
     qasm_matrix_release(&rows);
-    free(pivots);
-    free(swap_row);
+    platform_cell_released(pivots, platform_place_g_program_owner);
+    platform_cell_released(swap_row, platform_place_g_program_owner);
     return status;
 }
 
@@ -237,7 +241,7 @@ void qasm_chain_release(QasmChain *chain)
         {
             qasm_matrix_release(&chain->tensors[tensor]);
         }
-        free(chain->tensors);
+        platform_cell_released(chain->tensors, platform_place_g_program_owner);
         chain->tensors = NULL;
         chain->sites = 0u;
     }
@@ -256,7 +260,8 @@ long qasm_chain_alloc(QasmChain *chain, const QasmField *field, unsigned int sit
         return QASM_ERROR;
     }
     // the sites widen to size_t exactly
-    QasmMatrix *const tensors = (QasmMatrix *)calloc(2u * (size_t)sites, sizeof(QasmMatrix));
+    QasmMatrix *const tensors =
+        (QasmMatrix *)platform_cell_cleared(2u * (size_t)sites, sizeof(QasmMatrix), platform_place_g_program_owner, 0);
     if (QASM_CHECK(tensors != NULL, chain, error, ENGINE_ERROR_RESOURCE) == 0)
     {
         return QASM_ERROR;

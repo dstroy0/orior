@@ -263,7 +263,7 @@ unsigned char *hdf5_load(Hdf5File *file, unsigned long long address, unsigned lo
         (void)hdf5_error(file, "a structure that lies past the end of the file");
         return NULL;
     }
-    unsigned char *const buffer = (unsigned char *)malloc(length);
+    unsigned char *const buffer = (unsigned char *)platform_cell_taken(length, platform_place_g_program_owner, 0);
     if (buffer == NULL)
     {
         (void)hdf5_error(file, "no memory for a structure");
@@ -271,7 +271,7 @@ unsigned char *hdf5_load(Hdf5File *file, unsigned long long address, unsigned lo
     }
     if (!hdf5_fetch(file, address, bytes, buffer))
     {
-        free(buffer);
+        platform_cell_released(buffer, platform_place_g_program_owner);
         return NULL;
     }
     return buffer;

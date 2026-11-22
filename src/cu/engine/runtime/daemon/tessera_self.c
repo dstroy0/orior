@@ -141,12 +141,13 @@ static unsigned int tessera_self_cores(unsigned long long cores[TESSERA_SELF_COR
 #if defined(_WIN32)
     DWORD length = 0u;
     GetLogicalProcessorInformationEx(RelationProcessorCore, NULL, &length);
-    unsigned char *const bytes = (length != 0u) ? (unsigned char *)malloc(length) : NULL;
+    unsigned char *const bytes =
+        (length != 0u) ? (unsigned char *)platform_cell_taken(length, platform_place_g_program_owner, 0) : NULL;
     // the buffer is walked as the records it was filled with, each its own Size long
     if ((bytes == NULL) || !GetLogicalProcessorInformationEx(RelationProcessorCore,
                                                              (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)bytes, &length))
     {
-        free(bytes);
+        platform_cell_released(bytes, platform_place_g_program_owner);
         return 0u;
     }
     for (DWORD at = 0u; (at < length) && (count < TESSERA_SELF_CORES);)
@@ -166,7 +167,7 @@ static unsigned int tessera_self_cores(unsigned long long cores[TESSERA_SELF_COR
         }
         at += core->Size;
     }
-    free(bytes);
+    platform_cell_released(bytes, platform_place_g_program_owner);
 #else
     for (unsigned int processor = 0u; (processor < TESSERA_SELF_CORES) && (count < TESSERA_SELF_CORES); processor += 1u)
     {

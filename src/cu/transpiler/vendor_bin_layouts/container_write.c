@@ -179,7 +179,8 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
         return 0;
     }
     // every part's place, and the room its rewritten attributes take: what they took, and four bytes an exit more
-    PartPlace *const place = (PartPlace *)calloc((size_t)args->part_count + 1u, sizeof(PartPlace));
+    PartPlace *const place = (PartPlace *)platform_cell_cleared((size_t)args->part_count + 1u, sizeof(PartPlace),
+                                                                platform_place_g_program_owner, 0);
     if (place == NULL)
     {
         {
@@ -247,7 +248,9 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
     }
     // one block of memory for the program's attributes and every part's own, each part's after the last
     unsigned char *const block =
-        found ? (unsigned char *)malloc((size_t)(section_list[all_info].size + attribute_room + 1ULL)) : NULL;
+        found ? (unsigned char *)platform_cell_taken((size_t)(section_list[all_info].size + attribute_room + 1ULL),
+                                                     platform_place_g_program_owner, 0)
+              : NULL;
     if (block == NULL)
     {
         {
@@ -258,7 +261,7 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(place);
+        platform_cell_released(place, platform_place_g_program_owner);
         return 0;
     }
     unsigned char *const all = block;
@@ -297,8 +300,8 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
     }
     if (!found)
     {
-        free(block);
-        free(place);
+        platform_cell_released(block, platform_place_g_program_owner);
+        platform_cell_released(place, platform_place_g_program_owner);
         return 0;
     }
 
@@ -322,8 +325,8 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        free(block);
-        free(place);
+        platform_cell_released(block, platform_place_g_program_owner);
+        platform_cell_released(place, platform_place_g_program_owner);
         return 0;
     }
     mmgr_bytes_set(written, 0, whole);
@@ -395,8 +398,8 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
             value_put(&header[places.segment_memory_size], places.segment_memory_width, last - first);
         }
     }
-    free(block);
-    free(place);
+    platform_cell_released(block, platform_place_g_program_owner);
+    platform_cell_released(place, platform_place_g_program_owner);
     *size = whole;
     return 1;
 }

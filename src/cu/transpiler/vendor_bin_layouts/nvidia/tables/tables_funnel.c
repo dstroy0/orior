@@ -29,10 +29,11 @@ static unsigned char *tables_file_read(const char *path, size_t *size)
         if (length == room)
         {
             room = (room == 0u) ? (1u << 20u) : (room * 2u);
-            unsigned char *const grown = (unsigned char *)realloc(bytes, room);
+            unsigned char *const grown =
+                (unsigned char *)platform_cell_grown(bytes, length, room, platform_place_g_program_owner, 0);
             if (grown == NULL)
             {
-                free(bytes);
+                platform_cell_released(bytes, platform_place_g_program_owner);
                 platform_file_close(file);
                 return NULL;
             }
@@ -93,7 +94,7 @@ int program_main(int count, char **words)
     TablesText instructions = {NULL, 0u, 0u};
     TablesText latencies = {NULL, 0u, 0u};
     tables_funnelled(bytes, size, &instructions, &latencies);
-    free(bytes);
+    platform_cell_released(bytes, platform_place_g_program_owner);
     int code = 0;
     if (instructions.length == 0u)
     {

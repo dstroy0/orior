@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm.cu: the kernels, probabilities and outcomes
 #include "qasm_device_internal.h"
+#include "../../../src/platform/platform.h"
 
 unsigned int qasm_blocks(unsigned long long count)
 {
@@ -242,13 +243,13 @@ void qasm_space_release(QasmSpace *space)
     }
     if (space->on_host != 0)
     {
-        free(space->state);
-        free(space->out);
-        free(space->index);
-        free(space->pair_rows);
-        free(space->diagonal_entries);
-        free(space->phases);
-        free(space->overflow);
+        platform_cell_released(space->state, platform_place_g_program_owner);
+        platform_cell_released(space->out, platform_place_g_program_owner);
+        platform_cell_released(space->index, platform_place_g_program_owner);
+        platform_cell_released(space->pair_rows, platform_place_g_program_owner);
+        platform_cell_released(space->diagonal_entries, platform_place_g_program_owner);
+        platform_cell_released(space->phases, platform_place_g_program_owner);
+        platform_cell_released(space->overflow, platform_place_g_program_owner);
     }
     else
     {
@@ -293,7 +294,7 @@ int qasm_space_reserve(QasmSpace *space, const QasmCircuit *circuit, int on_host
     {
         if (on_host != 0)
         {
-            *buffers[at] = (unsigned int *)calloc(1u, sizes[at]);
+            *buffers[at] = (unsigned int *)platform_cell_cleared(1u, sizes[at], platform_place_g_program_owner, 0);
             if (!QASM_CHECK(*buffers[at] != NULL, buffers[at], error, ENGINE_ERROR_RESOURCE))
             {
                 qasm_space_release(space);

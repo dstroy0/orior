@@ -99,7 +99,7 @@ static void *lng_allocated(void *pointer)
 // `length` characters at `text` copied into an allocation of their own, ended
 static char *lng_copy(const char *text, size_t length)
 {
-    char *const copy = (char *)lng_allocated(malloc(length + 1u));
+    char *const copy = (char *)lng_allocated(platform_cell_taken(length + 1u, platform_place_g_program_owner, 0));
     mmgr_bytes_copy(copy, text, length);
     copy[length] = '\0';
     return copy;
@@ -113,7 +113,9 @@ static void lng_list_room(LngList *list)
         return;
     }
     const unsigned int room = (list->room == 0u) ? 16u : (list->room * 2u);
-    list->text = (char **)lng_allocated(realloc(list->text, (size_t)room * sizeof(char *)));
+    list->text =
+        (char **)lng_allocated(platform_cell_grown(list->text, (size_t)list->room * sizeof(char *),
+                                                   (size_t)room * sizeof(char *), platform_place_g_program_owner, 0));
     list->room = room;
 }
 
@@ -135,7 +137,8 @@ void lng_list_add(LngList *list, const char *text)
 static int lng_note_passed(void *context, const char *bytes, size_t length)
 {
     LngNote *const note = (LngNote *)context;
-    note->text = (char *)lng_allocated(realloc(note->text, note->length + length + 1u));
+    note->text = (char *)lng_allocated(platform_cell_grown(note->text, note->length + 1u, note->length + length + 1u,
+                                                           platform_place_g_program_owner, 0));
     mmgr_bytes_copy(&note->text[note->length], bytes, length);
     note->length += length;
     note->text[note->length] = '\0';
@@ -154,7 +157,9 @@ void lng_note_written(LngNote *note)
 {
     (void)mmgr_line_flush(&note->line);
     // a note that wrote nothing is the empty text
-    char *const text = (note->text != NULL) ? note->text : (char *)lng_allocated(calloc(1u, 1u));
+    char *const text = (note->text != NULL)
+                           ? note->text
+                           : (char *)lng_allocated(platform_cell_cleared(1u, 1u, platform_place_g_program_owner, 0));
     lng_list_room(note->list);
     note->list->text[note->list->count] = text;
     note->list->count += 1u;
@@ -229,7 +234,7 @@ char *lng_list_joined(const LngList *list, const char *between)
     {
         length += mmgr_text_length(list->text[at], PLATFORM_TEXT_TO_TERMINATOR) + ((at == 0u) ? 0u : gap);
     }
-    char *const joined = (char *)lng_allocated(malloc(length + 1u));
+    char *const joined = (char *)lng_allocated(platform_cell_taken(length + 1u, platform_place_g_program_owner, 0));
     size_t written = 0u;
     for (unsigned int at = 0u; at < list->count; at += 1u)
     {
@@ -250,9 +255,9 @@ void lng_list_free(LngList *list)
 {
     for (unsigned int at = 0u; at < list->count; at += 1u)
     {
-        free(list->text[at]);
+        platform_cell_released(list->text[at], platform_place_g_program_owner);
     }
-    free(list->text);
+    platform_cell_released(list->text, platform_place_g_program_owner);
     list->text = NULL;
     list->count = 0u;
     list->room = 0u;
@@ -293,7 +298,9 @@ static LngList *lng_sets_at(LngSets *sets, const char *key)
     if (sets->key.count == sets->room)
     {
         sets->room = (sets->room == 0u) ? 16u : (sets->room * 2u);
-        sets->set = (LngList *)lng_allocated(realloc(sets->set, (size_t)sets->room * sizeof(LngList)));
+        sets->set = (LngList *)lng_allocated(platform_cell_grown(sets->set, (size_t)sets->key.count * sizeof(LngList),
+                                                                 (size_t)sets->room * sizeof(LngList),
+                                                                 platform_place_g_program_owner, 0));
     }
     mmgr_bytes_move(&sets->set[at + 1u], &sets->set[at], (size_t)(sets->key.count - at) * sizeof(LngList));
     mmgr_bytes_set(&sets->set[at], 0, sizeof(LngList));
@@ -315,7 +322,7 @@ static void lng_sets_free(LngSets *sets)
     {
         lng_list_free(&sets->set[at]);
     }
-    free(sets->set);
+    platform_cell_released(sets->set, platform_place_g_program_owner);
     lng_list_free(&sets->key);
     sets->set = NULL;
     sets->room = 0u;
@@ -413,7 +420,9 @@ void lng_table_read(const char *const *line, unsigned int lines, LngTable *table
         if (table->rows == table->room)
         {
             table->room = (table->room == 0u) ? 64u : (table->room * 2u);
-            table->row = (char ***)lng_allocated(realloc(table->row, (size_t)table->room * sizeof(char **)));
+            table->row = (char ***)lng_allocated(platform_cell_grown(table->row, (size_t)table->rows * sizeof(char **),
+                                                                     (size_t)table->room * sizeof(char **),
+                                                                     platform_place_g_program_owner, 0));
         }
         table->row[table->rows] = cells.text;
         table->rows += 1u;
@@ -426,11 +435,11 @@ void lng_table_free(LngTable *table)
     {
         for (unsigned int cell = 0u; cell < table->head.count; cell += 1u)
         {
-            free(table->row[row][cell]);
+            platform_cell_released(table->row[row][cell], platform_place_g_program_owner);
         }
-        free(table->row[row]);
+        platform_cell_released(table->row[row], platform_place_g_program_owner);
     }
-    free(table->row);
+    platform_cell_released(table->row, platform_place_g_program_owner);
     lng_list_free(&table->head);
     table->row = NULL;
     table->rows = 0u;
@@ -575,7 +584,8 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
 
     // each word whose row has a complement, in the order the words first are, and the last row of it
     LngList order = {NULL, 0u, 0u};
-    unsigned int *const last = (unsigned int *)lng_allocated(calloc((size_t)table->rows + 1u, sizeof(unsigned int)));
+    unsigned int *const last = (unsigned int *)lng_allocated(
+        platform_cell_cleared((size_t)table->rows + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0));
     for (unsigned int row = 0u; row < table->rows; row += 1u)
     {
         if (lng_cell_or_none(table, row, "complement")[0] == '\0')
@@ -654,14 +664,14 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
                 mmgr_line_put(&lng_note.line, my_text);
                 lng_note_written(&lng_note);
             }
-            free(their_text);
-            free(my_text);
+            platform_cell_released(their_text, platform_place_g_program_owner);
+            platform_cell_released(my_text, platform_place_g_program_owner);
         }
         lng_list_free(&mine);
         lng_list_free(&theirs);
         lng_list_free(&negated);
     }
-    free(last);
+    platform_cell_released(last, platform_place_g_program_owner);
     lng_list_free(&order);
 }
 
@@ -677,7 +687,8 @@ typedef struct
 
 void lng_table_findings(const LngTable *table, LngList *findings)
 {
-    LngGroup *const group = (LngGroup *)lng_allocated(calloc((size_t)table->rows + 1u, sizeof(LngGroup)));
+    LngGroup *const group = (LngGroup *)lng_allocated(
+        platform_cell_cleared((size_t)table->rows + 1u, sizeof(LngGroup), platform_place_g_program_owner, 0));
     unsigned int groups = 0u;
     for (unsigned int row = 0u; row < table->rows; row += 1u)
     {
@@ -703,7 +714,7 @@ void lng_table_findings(const LngTable *table, LngList *findings)
             mmgr_line_put(&lng_note.line, lng_cell_or_none(table, row, "c_type"));
             lng_note_written(&lng_note);
         }
-        free(marked);
+        platform_cell_released(marked, platform_place_g_program_owner);
         unsigned int at = 0u;
         while ((at < groups) && (!mmgr_text_equal(group[at].key, key.text[0], PLATFORM_TEXT_TO_TERMINATOR)))
         {
@@ -751,14 +762,14 @@ void lng_table_findings(const LngTable *table, LngList *findings)
                 mmgr_line_put(&lng_note.line, operators);
                 lng_note_written(&lng_note);
             }
-            free(words);
-            free(operators);
+            platform_cell_released(words, platform_place_g_program_owner);
+            platform_cell_released(operators, platform_place_g_program_owner);
         }
-        free(group[at].key);
+        platform_cell_released(group[at].key, platform_place_g_program_owner);
         lng_list_free(&group[at].operators);
         lng_list_free(&group[at].words);
     }
-    free(group);
+    platform_cell_released(group, platform_place_g_program_owner);
 
     // a word of the transpiler and a target's word of the same letters are two words. The check reads each word in
     // its target
@@ -803,7 +814,7 @@ void lng_table_findings(const LngTable *table, LngList *findings)
                 mmgr_line_put(&lng_note.line, (meant[0] != '\0') ? meant : "no operator");
                 lng_note_written(&lng_note);
             }
-            free(meant);
+            platform_cell_released(meant, platform_place_g_program_owner);
             lng_list_free(&operators);
         }
         if (meanings.count > 1u)
@@ -819,7 +830,7 @@ void lng_table_findings(const LngTable *table, LngList *findings)
                 mmgr_line_put(&lng_note.line, meaning);
                 lng_note_written(&lng_note);
             }
-            free(meaning);
+            platform_cell_released(meaning, platform_place_g_program_owner);
         }
         lng_list_free(&meanings);
     }
@@ -997,7 +1008,8 @@ static void lng_block_parts(const KfileLines *file, LngList *inside, LngList *ou
     // the lines joined, each ended by a newline, and where each starts
     static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     size_t length = 0u;
-    size_t *const starts = (size_t *)lng_allocated(calloc((size_t)file->lines + 1u, sizeof(size_t)));
+    size_t *const starts = (size_t *)lng_allocated(
+        platform_cell_cleared((size_t)file->lines + 1u, sizeof(size_t), platform_place_g_program_owner, 0));
     for (unsigned int at = 0u; at < file->lines; at += 1u)
     {
         starts[at] = length;
@@ -1016,7 +1028,9 @@ static void lng_block_parts(const KfileLines *file, LngList *inside, LngList *ou
     KlangBlock found;
     while (klang_block_find(s_text_bytes, length, from, "krs", &found))
     {
-        block = (KlangBlock *)lng_allocated(realloc(block, ((size_t)blocks + 1u) * sizeof(KlangBlock)));
+        block = (KlangBlock *)lng_allocated(platform_cell_grown(block, (size_t)blocks * sizeof(KlangBlock),
+                                                                ((size_t)blocks + 1u) * sizeof(KlangBlock),
+                                                                platform_place_g_program_owner, 0));
         block[blocks] = found;
         blocks += 1u;
         from = found.closed;
@@ -1072,8 +1086,8 @@ static void lng_block_parts(const KfileLines *file, LngList *inside, LngList *ou
         lng_list_insert(inside, inside->count, s_in_bytes, in);
         lng_list_insert(outside, outside->count, s_out_bytes, out);
     }
-    free(block);
-    free(starts);
+    platform_cell_released(block, platform_place_g_program_owner);
+    platform_cell_released(starts, platform_place_g_program_owner);
 }
 
 void lng_ruleset_lines(const KfileLines *file, LngList *lines)
@@ -1195,7 +1209,7 @@ static void lng_ticked(const char *text, size_t length, LngList *set)
         {
             char *const name = lng_copy(&text[at + 1u], characters);
             lng_set_add(set, name);
-            free(name);
+            platform_cell_released(name, platform_place_g_program_owner);
             at += characters + 2u;
         }
         else
@@ -1256,7 +1270,7 @@ void lng_gnascor_lists(const char *text, LngList *thing, LngList *doing, LngList
         {
             lng_ticked(&line_copy[start], size, thing);
         }
-        free(line_copy);
+        platform_cell_released(line_copy, platform_place_g_program_owner);
         line += length + 1u;
     }
     if (gluings > doings)
@@ -1287,7 +1301,7 @@ static void lng_punctuator_added(const char *punctuator, LngList *found)
         }
         char *const operator_text = lng_copy(punctuator, length_used);
         lng_set_add(found, operator_text);
-        free(operator_text);
+        platform_cell_released(operator_text, platform_place_g_program_owner);
         return;
     }
     lng_set_add(found, punctuator);
@@ -1339,7 +1353,7 @@ void lng_c_operators(const char *text, LngList *operators)
     const size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
     // the text with each written newline a newline, then each note from `//` to the next backslash cut, then each
     // literal and name a space
-    char *const unescaped = (char *)lng_allocated(malloc(length + 1u));
+    char *const unescaped = (char *)lng_allocated(platform_cell_taken(length + 1u, platform_place_g_program_owner, 0));
     size_t size = 0u;
     for (size_t at = 0u; at < length; at += 1u)
     {
@@ -1349,7 +1363,7 @@ void lng_c_operators(const char *text, LngList *operators)
         at += newline ? 1u : 0u;
     }
     unescaped[size] = '\0';
-    char *const unnoted = (char *)lng_allocated(malloc(size + 1u));
+    char *const unnoted = (char *)lng_allocated(platform_cell_taken(size + 1u, platform_place_g_program_owner, 0));
     size_t copied = 0u;
     for (size_t at = 0u; at < size;)
     {
@@ -1363,7 +1377,7 @@ void lng_c_operators(const char *text, LngList *operators)
         at += 1u;
     }
     unnoted[copied] = '\0';
-    char *const stripped = (char *)lng_allocated(malloc(copied + 1u));
+    char *const stripped = (char *)lng_allocated(platform_cell_taken(copied + 1u, platform_place_g_program_owner, 0));
     size_t left = 0u;
     for (size_t at = 0u; at < copied;)
     {
@@ -1405,9 +1419,9 @@ void lng_c_operators(const char *text, LngList *operators)
         }
     }
     lng_list_free(&found);
-    free(stripped);
-    free(unnoted);
-    free(unescaped);
+    platform_cell_released(stripped, platform_place_g_program_owner);
+    platform_cell_released(unnoted, platform_place_g_program_owner);
+    platform_cell_released(unescaped, platform_place_g_program_owner);
 }
 
 // the operator C writes for `operator_text`
@@ -1496,7 +1510,7 @@ void lng_form_findings(const LngTable *table, const LngList *names, const LngLis
                     mmgr_line_put(&lng_note.line, ", and its form writes none of it");
                     lng_note_written(&lng_note);
                 }
-                free(claim);
+                platform_cell_released(claim, platform_place_g_program_owner);
             }
             lng_list_free(&checked);
         }
@@ -1520,7 +1534,7 @@ void lng_form_findings(const LngTable *table, const LngList *names, const LngLis
                 mmgr_line_put(&lng_note.line, ", which no word of its name claims");
                 lng_note_written(&lng_note);
             }
-            free(unclaimed_text);
+            platform_cell_released(unclaimed_text, platform_place_g_program_owner);
         }
         lng_list_free(&unclaimed);
         lng_list_free(&written);
@@ -1696,7 +1710,7 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
                 mmgr_line_put(&lng_note.line, meant);
                 lng_note_written(&lng_note);
             }
-            free(meant);
+            platform_cell_released(meant, platform_place_g_program_owner);
         }
     }
     for (unsigned int row = 0u; row < transpiler->rows; row += 1u)
@@ -1725,7 +1739,7 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
                     mmgr_line_put(&lng_note.line, named);
                     lng_note_written(&lng_note);
                 }
-                free(named);
+                platform_cell_released(named, platform_place_g_program_owner);
             }
         }
         lng_list_free(&operators);
@@ -1841,7 +1855,7 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
             mmgr_line_put(&lng_note.line, joined);
             lng_note_written(&lng_note);
         }
-        free(joined);
+        platform_cell_released(joined, platform_place_g_program_owner);
         lng_list_free(&transitions);
     }
 
@@ -1904,7 +1918,7 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
                 mmgr_line_put(&lng_note.line, both);
                 lng_note_written(&lng_note);
             }
-            free(both);
+            platform_cell_released(both, platform_place_g_program_owner);
         }
         if ((mmgr_text_equal(table_name, s_matrix, PLATFORM_TEXT_TO_TERMINATOR)) ||
             (mmgr_text_equal(table_name, s_high_energy_matrix, PLATFORM_TEXT_TO_TERMINATOR)))
@@ -1921,9 +1935,9 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
             lng_set_add(lng_sets_at(&across, key.text[0]), table_name);
             lng_list_free(&key);
         }
-        free(table_name);
-        free(past);
-        free(present);
+        platform_cell_released(table_name, platform_place_g_program_owner);
+        platform_cell_released(past, platform_place_g_program_owner);
+        platform_cell_released(present, platform_place_g_program_owner);
     }
     for (unsigned int at = 0u; at < across.key.count; at += 1u)
     {
@@ -1951,7 +1965,7 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
             }
             char *const joined = lng_list_joined(its, " ");
             lng_list_add(&each, joined);
-            free(joined);
+            platform_cell_released(joined, platform_place_g_program_owner);
             lng_list_free(&key);
         }
         if ((across.set[at].count > 1u) && (names.count > 1u) && !lng_set_has(&names, "sync"))
@@ -1967,12 +1981,12 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
                 mmgr_line_put(&lng_note.line, joined);
                 lng_note_written(&lng_note);
             }
-            free(joined);
+            platform_cell_released(joined, platform_place_g_program_owner);
         }
         lng_list_free(&each);
         lng_list_free(&names);
-        free(past);
-        free(present);
+        platform_cell_released(past, platform_place_g_program_owner);
+        platform_cell_released(present, platform_place_g_program_owner);
     }
     for (unsigned int at = 0u; at < doing.key.count; at += 1u)
     {
@@ -1994,8 +2008,8 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
                 mmgr_line_put(&lng_note.line, right);
                 lng_note_written(&lng_note);
             }
-            free(left);
-            free(right);
+            platform_cell_released(left, platform_place_g_program_owner);
+            platform_cell_released(right, platform_place_g_program_owner);
         }
         char *const joined = lng_list_joined(&pairs, ", ");
         {
@@ -2007,7 +2021,7 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
             mmgr_line_put(&lng_note.line, " to the pair");
             lng_note_written(&lng_note);
         }
-        free(joined);
+        platform_cell_released(joined, platform_place_g_program_owner);
         lng_list_free(&pairs);
     }
     for (unsigned int at = 0u; at < named.key.count; at += 1u)
@@ -2055,13 +2069,13 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
                 mmgr_line_put(&lng_note.line, theirs);
                 lng_note_written(&lng_note);
             }
-            free(mine);
-            free(theirs);
+            platform_cell_released(mine, platform_place_g_program_owner);
+            platform_cell_released(theirs, platform_place_g_program_owner);
         }
         lng_list_free(&key);
-        free(table_name);
-        free(past);
-        free(present);
+        platform_cell_released(table_name, platform_place_g_program_owner);
+        platform_cell_released(past, platform_place_g_program_owner);
+        platform_cell_released(present, platform_place_g_program_owner);
     }
     lng_sets_free(&across);
     lng_sets_free(&doing);

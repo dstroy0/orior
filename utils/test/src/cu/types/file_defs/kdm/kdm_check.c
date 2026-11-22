@@ -294,7 +294,8 @@ int program_main(int count, char **words)
         const char *const before = joined(&s_file, 0u, s_before_bytes, sizeof(s_before_bytes));
         const unsigned int lines = s_file.lines;
         const unsigned int tail = kdm_tail_at(&s_file);
-        const char **const part_lines = (const char **)calloc((size_t)tail + 1u, sizeof(char *));
+        const char **const part_lines =
+            (const char **)platform_cell_cleared((size_t)tail + 1u, sizeof(char *), platform_place_g_program_owner, 0);
         unsigned int section_lines = 0u;
         for (unsigned int at = 1u; (part_lines != NULL) && (at < tail); at += 1u)
         {
@@ -340,8 +341,8 @@ int program_main(int count, char **words)
         }
         check_that(same, "a part's section written again as it contains it leaves it as it was, a who line after its "
                          "first");
-        free(cut);
-        free(part_lines);
+        platform_cell_released(cut, platform_place_g_program_owner);
+        platform_cell_released(part_lines, platform_place_g_program_owner);
         kdm_free(&s_file);
     }
 

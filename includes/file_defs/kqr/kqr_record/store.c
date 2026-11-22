@@ -21,8 +21,8 @@ int kqr_write_by(const KqrRecord *record, const char *path, Who who)
 void kqr_free(KqrRecord *record)
 {
     krep_free(&record->file);
-    free(record->slot);
-    free(record->sample);
+    platform_cell_released(record->slot, platform_place_g_program_owner);
+    platform_cell_released(record->sample, platform_place_g_program_owner);
     mmgr_bytes_set(record, 0, sizeof(*record));
 }
 

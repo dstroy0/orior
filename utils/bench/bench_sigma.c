@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../src/cu/engine/nbody/orior/orior.h"
+#include "../../src/platform/platform.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,10 +42,11 @@ static double bench_elapsed_milliseconds(clock_t since)
     return (double)(clock() - since) * 1000.0 / (double)CLOCKS_PER_SEC;
 }
 
-static int bench_table_once(const uint32_t *corpus, size_t corpus_len, const uint32_t *needle,
-                            size_t sigma, size_t *order_out)
+static int bench_table_once(const uint32_t *corpus, size_t corpus_len, const uint32_t *needle, size_t sigma,
+                            size_t *order_out)
 {
-    uint32_t *const counts = (uint32_t *)calloc(sigma, sizeof(uint32_t));
+    uint32_t *const counts =
+        (uint32_t *)platform_cell_cleared(sigma, sizeof(uint32_t), platform_place_g_program_owner, 0);
 
     if (counts == NULL)
     {
@@ -68,7 +70,8 @@ static int bench_table_once(const uint32_t *corpus, size_t corpus_len, const uin
             {
                 continue;
             }
-            if ((rarest == BENCH_CANDIDATES) || (counts[needle[candidate_offsets[candidate]]] < counts[needle[candidate_offsets[rarest]]]))
+            if ((rarest == BENCH_CANDIDATES) ||
+                (counts[needle[candidate_offsets[candidate]]] < counts[needle[candidate_offsets[rarest]]]))
             {
                 rarest = candidate;
             }
@@ -76,12 +79,12 @@ static int bench_table_once(const uint32_t *corpus, size_t corpus_len, const uin
         taken[rarest] = 1;
         order_out[place] = candidate_offsets[rarest];
     }
-    free(counts);
+    platform_cell_released(counts, platform_place_g_program_owner);
     return 1;
 }
 
-static size_t bench_oracle_once(const uint32_t *corpus, size_t corpus_len, const uint32_t *needle,
-                                size_t *order_out, uint8_t *survivors)
+static size_t bench_oracle_once(const uint32_t *corpus, size_t corpus_len, const uint32_t *needle, size_t *order_out,
+                                uint8_t *survivors)
 {
     const size_t alignments = (corpus_len - BENCH_NEEDLE_LEN) + 1u;
 
@@ -92,23 +95,19 @@ static size_t bench_oracle_once(const uint32_t *corpus, size_t corpus_len, const
 
     const BenchSymbolField pair = {corpus, needle};
     const OriorField any = {
-        .same = bench_same_symbol,
-        .field = &pair,
-        .alignments = alignments,
-        .needle_len = BENCH_NEEDLE_LEN};
+        .same = bench_same_symbol, .field = &pair, .alignments = alignments, .needle_len = BENCH_NEEDLE_LEN};
 
-    const OriorSteerDescent args = {
-        .offsets = order_out,
-        .count = BENCH_CANDIDATES,
-        .survivors = survivors,
-        .survivors_length = alignments,
-        .any = &any};
+    const OriorSteerDescent args = {.offsets = order_out,
+                                    .count = BENCH_CANDIDATES,
+                                    .survivors = survivors,
+                                    .survivors_length = alignments,
+                                    .any = &any};
 
     return orior_steer_plan_recursive(&args);
 }
 
-static double bench_time_table(const uint32_t *corpus, size_t corpus_len, const uint32_t *needle,
-                               size_t sigma, size_t *order_out)
+static double bench_time_table(const uint32_t *corpus, size_t corpus_len, const uint32_t *needle, size_t sigma,
+                               size_t *order_out)
 {
     const clock_t start = clock();
     size_t runs = 0u;
@@ -128,8 +127,8 @@ static double bench_time_table(const uint32_t *corpus, size_t corpus_len, const 
     return bench_elapsed_milliseconds(start) / (double)runs;
 }
 
-static double bench_time_oracle(const uint32_t *corpus, size_t corpus_len, const uint32_t *needle,
-                                size_t *order_out, uint8_t *survivors, size_t *placed_out)
+static double bench_time_oracle(const uint32_t *corpus, size_t corpus_len, const uint32_t *needle, size_t *order_out,
+                                uint8_t *survivors, size_t *placed_out)
 {
     const clock_t start = clock();
     size_t runs = 0u;
@@ -146,8 +145,7 @@ static double bench_time_oracle(const uint32_t *corpus, size_t corpus_len, const
     return bench_elapsed_milliseconds(start) / (double)runs;
 }
 
-static void bench_fill(uint32_t *corpus, size_t corpus_len, size_t sigma, uint32_t *needle,
-                       size_t needle_from)
+static void bench_fill(uint32_t *corpus, size_t corpus_len, size_t sigma, uint32_t *needle, size_t needle_from)
 {
     for (size_t at = 0u; at < corpus_len; at += 1u)
     {
@@ -164,27 +162,27 @@ int program_main(int argc, char **argv)
     (void)argc;
     (void)argv;
     const size_t corpus_cap = 1u << 17;
-    uint32_t *const corpus = (uint32_t *)malloc(corpus_cap * sizeof(uint32_t));
-    uint8_t *const survivors = (uint8_t *)malloc(corpus_cap);
+    uint32_t *const corpus =
+        (uint32_t *)platform_cell_taken(corpus_cap * sizeof(uint32_t), platform_place_g_program_owner, 0);
+    uint8_t *const survivors = (uint8_t *)platform_cell_taken(corpus_cap, platform_place_g_program_owner, 0);
     uint32_t needle[BENCH_NEEDLE_LEN];
     size_t order[BENCH_CANDIDATES];
 
     if ((corpus == NULL) || (survivors == NULL))
     {
         printf("  allocation errored, nothing measured\n");
-        free(corpus);
-        free(survivors);
+        platform_cell_released(corpus, platform_place_g_program_owner);
+        platform_cell_released(survivors, platform_place_g_program_owner);
         return 1;
     }
 
-    printf("  corpus %zu symbols of 4 bytes, needle %u, %u candidates ordered by rarity on both\n",
-           corpus_cap, BENCH_NEEDLE_LEN, BENCH_CANDIDATES);
-    printf("  routes. Milliseconds are per iteration, repeated to at least %.0fms.\n\n",
-           BENCH_MIN_MILLISECONDS);
+    printf("  corpus %zu symbols of 4 bytes, needle %u, %u candidates ordered by rarity on both\n", corpus_cap,
+           BENCH_NEEDLE_LEN, BENCH_CANDIDATES);
+    printf("  routes. Milliseconds are per iteration, repeated to at least %.0fms.\n\n", BENCH_MIN_MILLISECONDS);
 
     printf("  alphabet grows, corpus fixed at %zu\n", corpus_cap);
-    printf("  %-10s %-12s %-14s %-12s %-14s %s\n",
-           "sigma", "table ms", "table bytes", "oracle ms", "oracle bytes", "placed");
+    printf("  %-10s %-12s %-14s %-12s %-14s %s\n", "sigma", "table ms", "table bytes", "oracle ms", "oracle bytes",
+           "placed");
 
     static const unsigned int shifts[] = {8u, 12u, 16u, 20u, 22u, 24u};
 
@@ -196,12 +194,10 @@ int program_main(int argc, char **argv)
 
         const double table_ms = bench_time_table(corpus, corpus_cap, needle, sigma, order);
         size_t placed = 0u;
-        const double oracle_ms = bench_time_oracle(corpus, corpus_cap, needle, order, survivors,
-                                                   &placed);
+        const double oracle_ms = bench_time_oracle(corpus, corpus_cap, needle, order, survivors, &placed);
 
-        printf("  2^%-8u %-12.3f %-14zu %-12.3f %-14zu %zu\n",
-               shifts[which], table_ms, sigma * sizeof(uint32_t), oracle_ms,
-               (corpus_cap - BENCH_NEEDLE_LEN) + 1u, placed);
+        printf("  2^%-8u %-12.3f %-14zu %-12.3f %-14zu %zu\n", shifts[which], table_ms, sigma * sizeof(uint32_t),
+               oracle_ms, (corpus_cap - BENCH_NEEDLE_LEN) + 1u, placed);
     }
 
     printf("\n  A four byte symbol over its whole range is NOT MEASURED here. The table would want\n");
@@ -210,8 +206,8 @@ int program_main(int argc, char **argv)
     printf("  nothing in it is indexed by a symbol.\n\n");
 
     printf("  corpus grows, alphabet fixed at 2^16\n");
-    printf("  %-10s %-12s %-14s %-12s %-14s %s\n",
-           "corpus", "table ms", "table bytes", "oracle ms", "oracle bytes", "placed");
+    printf("  %-10s %-12s %-14s %-12s %-14s %s\n", "corpus", "table ms", "table bytes", "oracle ms", "oracle bytes",
+           "placed");
 
     static const size_t lengths[] = {4096u, 16384u, 65536u, 131072u};
     const size_t sigma_fixed = 1u << 16;
@@ -224,15 +220,13 @@ int program_main(int argc, char **argv)
 
         const double table_ms = bench_time_table(corpus, corpus_len, needle, sigma_fixed, order);
         size_t placed = 0u;
-        const double oracle_ms = bench_time_oracle(corpus, corpus_len, needle, order, survivors,
-                                                   &placed);
+        const double oracle_ms = bench_time_oracle(corpus, corpus_len, needle, order, survivors, &placed);
 
-        printf("  %-10zu %-12.3f %-14zu %-12.3f %-14zu %zu\n",
-               corpus_len, table_ms, sigma_fixed * sizeof(uint32_t), oracle_ms,
-               (corpus_len - BENCH_NEEDLE_LEN) + 1u, placed);
+        printf("  %-10zu %-12.3f %-14zu %-12.3f %-14zu %zu\n", corpus_len, table_ms, sigma_fixed * sizeof(uint32_t),
+               oracle_ms, (corpus_len - BENCH_NEEDLE_LEN) + 1u, placed);
     }
 
-    free(corpus);
-    free(survivors);
+    platform_cell_released(corpus, platform_place_g_program_owner);
+    platform_cell_released(survivors, platform_place_g_program_owner);
     return 0;
 }

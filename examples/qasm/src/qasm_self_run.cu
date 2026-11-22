@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_self_run.cu: inputs, the device and the run
 #include "qasm_self_internal.h"
+#include "../../../src/platform/platform.h"
 
 // an output of `bits` bits of two's complement at bit `offset`, as a signed magnitude; 0 where the width cannot
 // represent it
@@ -92,7 +93,7 @@ static void qasm_self_program_release(QasmSelfProgram *program)
         keymath_record_release(&program->key);
         program->layout_built = 0u;
     }
-    free(program->outputs);
+    platform_cell_released(program->outputs, platform_place_g_program_owner);
     program->outputs = NULL;
 }
 
@@ -113,7 +114,9 @@ static int qasm_self_program(const QasmSelfRequest *request, QasmSelfBuild *buil
     {
         ok = qasm_self_floor(build, request->qubits, &request->gates[gate]);
     }
-    program->outputs = ok ? (unsigned int *)calloc(fields, sizeof(unsigned int)) : NULL;
+    program->outputs =
+        ok ? (unsigned int *)platform_cell_cleared(fields, sizeof(unsigned int), platform_place_g_program_owner, 0)
+           : NULL;
     ok = ok && QASM_CHECK(program->outputs != NULL, program, error, ENGINE_ERROR_RESOURCE);
     for (unsigned int field = 0u; ok && (field < fields); field += 1u)
     {
@@ -127,8 +130,12 @@ static int qasm_self_program(const QasmSelfRequest *request, QasmSelfBuild *buil
         program->outputs[field] = step;
     }
     ok = ok && QASM_CHECK(build->list.spent == 0, &build->list, error, ENGINE_ERROR_RESOURCE);
-    unsigned int *const field_bits = ok ? (unsigned int *)calloc(fields, sizeof(unsigned int)) : NULL;
-    unsigned int *const field_offset = ok ? (unsigned int *)calloc(fields, sizeof(unsigned int)) : NULL;
+    unsigned int *const field_bits =
+        ok ? (unsigned int *)platform_cell_cleared(fields, sizeof(unsigned int), platform_place_g_program_owner, 0)
+           : NULL;
+    unsigned int *const field_offset =
+        ok ? (unsigned int *)platform_cell_cleared(fields, sizeof(unsigned int), platform_place_g_program_owner, 0)
+           : NULL;
     ok = ok && QASM_CHECK((field_bits != NULL) && (field_offset != NULL), program, error, ENGINE_ERROR_RESOURCE);
     for (unsigned int field = 0u; ok && (field < fields); field += 1u)
     {
@@ -163,8 +170,8 @@ static int qasm_self_program(const QasmSelfRequest *request, QasmSelfBuild *buil
         }
         program->layout_built = ok ? 1u : 0u;
     }
-    free(field_bits);
-    free(field_offset);
+    platform_cell_released(field_bits, platform_place_g_program_owner);
+    platform_cell_released(field_offset, platform_place_g_program_owner);
     return ok;
 }
 
@@ -254,7 +261,9 @@ long qasm_self_run(const QasmSelfRequest *request, QasmSelfMeasurement *measurem
     OriorExactInteger input_denominator;
     unsigned int bits = 0u;
     int ok = qasm_self_inputs(request, amplitudes, &input_denominator, &bits, NULL, 0u);
-    QasmSelfBuild *const build = ok ? (QasmSelfBuild *)calloc(1u, sizeof(QasmSelfBuild)) : NULL;
+    QasmSelfBuild *const build =
+        ok ? (QasmSelfBuild *)platform_cell_cleared(1u, sizeof(QasmSelfBuild), platform_place_g_program_owner, 0)
+           : NULL;
     // widening: at max 2^10 entries, represented by any size_t
     const size_t entries = (size_t)amplitudes * amplitudes;
     if (build != NULL)
@@ -262,10 +271,14 @@ long qasm_self_run(const QasmSelfRequest *request, QasmSelfMeasurement *measurem
         build->amplitudes = amplitudes;
         build->error = error;
         build->denominator = input_denominator;
-        build->below = (unsigned int *)calloc(QASM_SELF_PARTS * amplitudes, sizeof(unsigned int));
-        build->built = (unsigned int *)calloc(QASM_SELF_PARTS * amplitudes, sizeof(unsigned int));
-        build->columns = (QasmNumber *)calloc(entries, sizeof(QasmNumber));
-        build->numerators = (OriorExactInteger *)calloc(QASM_SELF_PARTS * entries, sizeof(OriorExactInteger));
+        build->below = (unsigned int *)platform_cell_cleared(QASM_SELF_PARTS * amplitudes, sizeof(unsigned int),
+                                                             platform_place_g_program_owner, 0);
+        build->built = (unsigned int *)platform_cell_cleared(QASM_SELF_PARTS * amplitudes, sizeof(unsigned int),
+                                                             platform_place_g_program_owner, 0);
+        build->columns =
+            (QasmNumber *)platform_cell_cleared(entries, sizeof(QasmNumber), platform_place_g_program_owner, 0);
+        build->numerators = (OriorExactInteger *)platform_cell_cleared(
+            QASM_SELF_PARTS * entries, sizeof(OriorExactInteger), platform_place_g_program_owner, 0);
     }
     ok = ok && QASM_CHECK((build != NULL) && (build->below != NULL) && (build->built != NULL) &&
                               (build->columns != NULL) && (build->numerators != NULL),
@@ -282,9 +295,13 @@ long qasm_self_run(const QasmSelfRequest *request, QasmSelfMeasurement *measurem
                     error, ENGINE_ERROR_REQUEST);
     // the limb counts were just bounded by SIZE_MAX over a limb's bytes
     unsigned int *const in =
-        ok ? (unsigned int *)calloc((size_t)(request->lanes * in_limbs), sizeof(unsigned int)) : NULL;
+        ok ? (unsigned int *)platform_cell_cleared((size_t)(request->lanes * in_limbs), sizeof(unsigned int),
+                                                   platform_place_g_program_owner, 0)
+           : NULL;
     unsigned int *const out =
-        ok ? (unsigned int *)calloc((size_t)(request->lanes * out_limbs), sizeof(unsigned int)) : NULL;
+        ok ? (unsigned int *)platform_cell_cleared((size_t)(request->lanes * out_limbs), sizeof(unsigned int),
+                                                   platform_place_g_program_owner, 0)
+           : NULL;
     ok = ok && QASM_CHECK((in != NULL) && (out != NULL), request, error, ENGINE_ERROR_RESOURCE) &&
          qasm_self_inputs(request, amplitudes, &input_denominator, &bits, in, in_limbs);
     if (ok && (request->on_host != 0))
@@ -320,17 +337,17 @@ long qasm_self_run(const QasmSelfRequest *request, QasmSelfMeasurement *measurem
         measurement->device_bytes = (record_limbs * sizeof(unsigned int)) +
                                     ((unsigned long long)program.layout.steps * sizeof(DeviceRecordStep));
     }
-    free(in);
-    free(out);
+    platform_cell_released(in, platform_place_g_program_owner);
+    platform_cell_released(out, platform_place_g_program_owner);
     qasm_self_program_release(&program);
     if (build != NULL)
     {
-        free(build->list.steps);
-        free(build->below);
-        free(build->built);
-        free(build->columns);
-        free(build->numerators);
-        free(build);
+        platform_cell_released(build->list.steps, platform_place_g_program_owner);
+        platform_cell_released(build->below, platform_place_g_program_owner);
+        platform_cell_released(build->built, platform_place_g_program_owner);
+        platform_cell_released(build->columns, platform_place_g_program_owner);
+        platform_cell_released(build->numerators, platform_place_g_program_owner);
+        platform_cell_released(build, platform_place_g_program_owner);
     }
     measurement->microseconds = engine_clock_microseconds() - start;
     if (!ok)

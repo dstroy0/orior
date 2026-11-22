@@ -1185,7 +1185,7 @@ utils/test/examples/cu/cell_tracking/faces_test.sh	1
 utils/test/examples/cu/cell_tracking/hessian_test.cu	9
 utils/test/examples/cu/cell_tracking/output_test.sh	1
 utils/test/examples/cu/cell_tracking/peaks_test.cu	7
-utils/test/examples/cu/cell_tracking/sort_test.cu	42
+utils/test/examples/cu/cell_tracking/sort_test.cu	41
 utils/test/examples/cu/cell_tracking/sort_test.sh	1
 utils/test/examples/python/cell_tracking/score_metric_test.py	4
 utils/test/harness.py	2

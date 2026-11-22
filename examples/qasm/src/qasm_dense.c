@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
+#include "../../../src/platform/platform.h"
 #include "qasm.h"
 
 #include <stdint.h>
@@ -24,7 +25,9 @@ long qasm_dense_alloc(QasmDense *state, unsigned int qubits, EngineError *error)
     const unsigned long long count = 1ull << qubits;
     // the count is at max 2^30. It fits in a size_t on every target the capacity test admits
     const int fits = (count <= (SIZE_MAX / sizeof(QasmNumber)));
-    QasmNumber *const amplitudes = fits ? (QasmNumber *)malloc((size_t)count * sizeof(QasmNumber)) : NULL;
+    QasmNumber *const amplitudes =
+        fits ? (QasmNumber *)platform_cell_taken((size_t)count * sizeof(QasmNumber), platform_place_g_program_owner, 0)
+             : NULL;
     if (QASM_CHECK(amplitudes != NULL, state, error, ENGINE_ERROR_RESOURCE) == 0)
     {
         return QASM_ERROR;
@@ -43,7 +46,7 @@ void qasm_dense_release(QasmDense *state)
 {
     if (state != NULL)
     {
-        free(state->amplitudes);
+        platform_cell_released(state->amplitudes, platform_place_g_program_owner);
         state->amplitudes = NULL;
         state->qubits = 0u;
     }
@@ -320,7 +323,7 @@ long qasm_dense_seal(const QasmDense *state, unsigned char *signum, EngineError 
     {
         total += qasm_number_bytes(&state->amplitudes[index], NULL);
     }
-    unsigned char *const bytes = (unsigned char *)malloc(total);
+    unsigned char *const bytes = (unsigned char *)platform_cell_taken(total, platform_place_g_program_owner, 0);
     if (QASM_CHECK(bytes != NULL, state, error, ENGINE_ERROR_RESOURCE) == 0)
     {
         return QASM_ERROR;
@@ -332,6 +335,6 @@ long qasm_dense_seal(const QasmDense *state, unsigned char *signum, EngineError 
     }
     const ObsignatioSealRequest request = {bytes, total, signum, error};
     const long sealed = obsignatio_seal(&request);
-    free(bytes);
+    platform_cell_released(bytes, platform_place_g_program_owner);
     return (sealed == 0L) ? 0L : QASM_ERROR;
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tiff_read.c: the layout and the entry points
 #include "tiff_internal.h"
+#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
 #include "memoria_operor/memoria_linea.h"
 #include "cellularum_laboro/cellularum_linea.h"
@@ -94,8 +95,8 @@ long tiff_describe(const EngineDescribeRequest *request)
         tiff_chain_add(&file, &chain, offset);
         tiff_page(&file, offset, &page);
         tiff_page_chunks(&file, &page, &offsets, &counts);
-        free(offsets);
-        free(counts);
+        platform_cell_released(offsets, platform_place_g_program_owner);
+        platform_cell_released(counts, platform_place_g_program_owner);
         if (chain.count == 1ULL)
         {
             first = page;
@@ -109,8 +110,8 @@ long tiff_describe(const EngineDescribeRequest *request)
     char *const text = tiff_description(&file, &first.description);
     TiffLayout layout;
     tiff_layout(&file, &first, text, chain.count, 1u, &layout);
-    free(text);
-    free(chain.offsets);
+    platform_cell_released(text, platform_place_g_program_owner);
+    platform_cell_released(chain.offsets, platform_place_g_program_owner);
     if (file.reason != NULL)
     {
         tiff_report(&file);
@@ -179,7 +180,7 @@ long long tiff_read(const EngineArrayRead *request)
     char *const text = tiff_description(&file, &first.description);
     const unsigned long long pages = (first.next == 0ULL) ? 1ULL : ((given->rank == 3u) ? given->sizes[0u] : 0ULL);
     tiff_layout(&file, &first, text, pages, 0u, &layout);
-    free(text);
+    platform_cell_released(text, platform_place_g_program_owner);
     tiff_extent(&first, &layout, &expected);
     if ((file.reason == NULL) && !tiff_extent_equal(&expected, given))
     {
@@ -208,9 +209,9 @@ long long tiff_read(const EngineArrayRead *request)
     {
         tiff_read_planes(&file, request, &first, &layout, &scratch, &chain);
     }
-    free(scratch.packed);
-    free(scratch.chunk);
-    free(chain.offsets);
+    platform_cell_released(scratch.packed, platform_place_g_program_owner);
+    platform_cell_released(scratch.chunk, platform_place_g_program_owner);
+    platform_cell_released(chain.offsets, platform_place_g_program_owner);
     if (file.reason != NULL)
     {
         if (writing && (total > 0ULL))

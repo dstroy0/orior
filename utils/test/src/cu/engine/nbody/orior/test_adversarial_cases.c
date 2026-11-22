@@ -111,7 +111,7 @@ static int adversarial_grade_against_reference(const uint8_t *const corpus, cons
  */
 int adversarial_case_differential_net(void)
 {
-    uint8_t *const corpus = (uint8_t *)malloc(ADVERSARIAL_CORPUS);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(ADVERSARIAL_CORPUS, platform_place_g_program_owner, 0);
     uint8_t needle[ADVERSARIAL_NEEDLE];
     int failed = 0;
 
@@ -153,7 +153,7 @@ int adversarial_case_differential_net(void)
         failed += adversarial_grade_against_reference(corpus, ADVERSARIAL_CORPUS, needle, needle_len, label);
     }
 
-    free(corpus);
+    platform_cell_released(corpus, platform_place_g_program_owner);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  ");
@@ -336,7 +336,7 @@ int adversarial_case_boundaries(void)
  */
 int adversarial_case_absent_symbol(void)
 {
-    uint8_t *const corpus = (uint8_t *)malloc(ADVERSARIAL_CORPUS);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(ADVERSARIAL_CORPUS, platform_place_g_program_owner, 0);
     static const uint8_t needle[] = {'a', 'b', 'c', 0xFFu};
     int failed = 0;
 
@@ -413,7 +413,7 @@ int adversarial_case_absent_symbol(void)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(corpus);
+    platform_cell_released(corpus, platform_place_g_program_owner);
     return failed;
 }
 
@@ -437,7 +437,7 @@ int adversarial_case_absent_symbol(void)
  */
 int adversarial_case_all_survivors_false(void)
 {
-    uint8_t *const corpus = (uint8_t *)malloc(ADVERSARIAL_CORPUS);
+    uint8_t *const corpus = (uint8_t *)platform_cell_taken(ADVERSARIAL_CORPUS, platform_place_g_program_owner, 0);
     uint8_t needle[32];
     int failed = 0;
 
@@ -505,6 +505,6 @@ int adversarial_case_all_survivors_false(void)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(corpus);
+    platform_cell_released(corpus, platform_place_g_program_owner);
     return failed;
 }

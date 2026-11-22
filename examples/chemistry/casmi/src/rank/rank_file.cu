@@ -4,6 +4,7 @@
 // codecs through the CASMI parquet reader. Each double preserves the 64 bits it is stored as; each text column's
 // strings are merged over every row group of every file read into one table a column, each row's id read into it
 #include "rank_internal.h"
+#include "../../../../../src/platform/platform.h"
 
 #include "../parquet/parquet.h"
 
@@ -14,9 +15,8 @@
 static const char *const RANK_PRECURSOR_PATH = "precursor_mz";
 static const char *const RANK_MZ_PATH = "ms2_mzs.list.element";
 static const char *const RANK_INTENSITY_PATH = "ms2_normalized_intensities.list.element";
-static const char *const RANK_TEXT_PATH[RANK_TEXTS] = {"ingest_lib",        "ionization_mode", "adduct",
-                                                       "molecular_formula", "inchikey14",      "normalized_smiles",
-                                                       "molecule_id"};
+static const char *const RANK_TEXT_PATH[RANK_TEXTS] = {
+    "ingest_lib", "ionization_mode", "adduct", "molecular_formula", "inchikey14", "normalized_smiles", "molecule_id"};
 
 static CasmiParquetFooter s_footer;
 
@@ -50,11 +50,21 @@ static int rank_leaf_read(const char *path, unsigned int group, long long leaf, 
     // the leaf is below CASMI_PARQUET_LEAVES_MAX
     const CasmiParquetColumnRead read = {path, &s_footer, group, (unsigned int)leaf, column};
     int ok = casmi_parquet_column_bound(&read) >= 0ll;
-    column->row_start = ok ? (unsigned long long *)malloc((size_t)(column->row_start_room * 8ull) + 8u) : NULL;
-    column->value_bytes = ok ? (unsigned char *)malloc((size_t)column->value_bytes_room + 8u) : NULL;
-    column->value_offset = ok ? (unsigned long long *)malloc((size_t)(column->value_offset_room * 8ull) + 8u) : NULL;
-    column->value_length = ok ? (unsigned long long *)malloc((size_t)(column->value_offset_room * 8ull) + 8u) : NULL;
-    column->scratch = ok ? (unsigned char *)malloc((size_t)column->scratch_room + 8u) : NULL;
+    column->row_start = ok ? (unsigned long long *)platform_cell_taken((size_t)(column->row_start_room * 8ull) + 8u,
+                                                                       platform_place_g_program_owner, 0)
+                           : NULL;
+    column->value_bytes = ok ? (unsigned char *)platform_cell_taken((size_t)column->value_bytes_room + 8u,
+                                                                    platform_place_g_program_owner, 0)
+                             : NULL;
+    column->value_offset = ok ? (unsigned long long *)platform_cell_taken(
+                                    (size_t)(column->value_offset_room * 8ull) + 8u, platform_place_g_program_owner, 0)
+                              : NULL;
+    column->value_length = ok ? (unsigned long long *)platform_cell_taken(
+                                    (size_t)(column->value_offset_room * 8ull) + 8u, platform_place_g_program_owner, 0)
+                              : NULL;
+    column->scratch =
+        ok ? (unsigned char *)platform_cell_taken((size_t)column->scratch_room + 8u, platform_place_g_program_owner, 0)
+           : NULL;
     ok = ok && (column->row_start != NULL) && (column->value_bytes != NULL) && (column->value_offset != NULL) &&
          (column->value_length != NULL) && (column->scratch != NULL) && (casmi_parquet_column_read(&read) >= 0ll);
     if (ok)
@@ -66,11 +76,11 @@ static int rank_leaf_read(const char *path, unsigned int group, long long leaf, 
 
 static void rank_leaf_release(CasmiParquetColumn *column)
 {
-    free(column->row_start);
-    free(column->value_bytes);
-    free(column->value_offset);
-    free(column->value_length);
-    free(column->scratch);
+    platform_cell_released(column->row_start, platform_place_g_program_owner);
+    platform_cell_released(column->value_bytes, platform_place_g_program_owner);
+    platform_cell_released(column->value_offset, platform_place_g_program_owner);
+    platform_cell_released(column->value_length, platform_place_g_program_owner);
+    platform_cell_released(column->scratch, platform_place_g_program_owner);
     memset(column, 0, sizeof(*column));
 }
 
@@ -183,7 +193,8 @@ int rank_file_load(SimResults *results, const char *path, RankSet *out)
         if (!ok)
         {
             rank_line_decimal(results, "  row group ", group);
-            mmgr_line_put(&results->line, " did not read, or a row is not one precursor and as many intensities as m/z: ");
+            mmgr_line_put(&results->line,
+                          " did not read, or a row is not one precursor and as many intensities as m/z: ");
             mmgr_line_put(&results->line, path);
             rank_line_end(results);
         }

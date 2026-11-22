@@ -19,7 +19,8 @@ extern "C"
         {
             return 1;
         }
-        unsigned long long *const scratch = (unsigned long long *)malloc(count * sizeof(unsigned long long));
+        unsigned long long *const scratch = (unsigned long long *)platform_cell_taken(
+            count * sizeof(unsigned long long), platform_place_g_program_owner, 0);
         if (scratch == NULL)
         {
             return 0;
@@ -59,7 +60,7 @@ extern "C"
         {
             mmgr_bytes_copy(keys, source, count * sizeof(unsigned long long));
         }
-        free(scratch);
+        platform_cell_released(scratch, platform_place_g_program_owner);
         return 1;
     }
 
@@ -69,12 +70,14 @@ extern "C"
         {
             return 1;
         }
-        unsigned long long *const scratch_keys = (unsigned long long *)malloc(count * sizeof(unsigned long long));
-        unsigned int *const scratch_values = (unsigned int *)malloc(count * sizeof(unsigned int));
+        unsigned long long *const scratch_keys = (unsigned long long *)platform_cell_taken(
+            count * sizeof(unsigned long long), platform_place_g_program_owner, 0);
+        unsigned int *const scratch_values =
+            (unsigned int *)platform_cell_taken(count * sizeof(unsigned int), platform_place_g_program_owner, 0);
         if ((scratch_keys == NULL) || (scratch_values == NULL))
         {
-            free(scratch_keys);
-            free(scratch_values);
+            platform_cell_released(scratch_keys, platform_place_g_program_owner);
+            platform_cell_released(scratch_values, platform_place_g_program_owner);
             return 0;
         }
         unsigned long long *source_keys = keys;
@@ -119,8 +122,8 @@ extern "C"
             mmgr_bytes_copy(keys, source_keys, count * sizeof(unsigned long long));
             mmgr_bytes_copy(values, source_values, count * sizeof(unsigned int));
         }
-        free(scratch_keys);
-        free(scratch_values);
+        platform_cell_released(scratch_keys, platform_place_g_program_owner);
+        platform_cell_released(scratch_values, platform_place_g_program_owner);
         return 1;
     }
 

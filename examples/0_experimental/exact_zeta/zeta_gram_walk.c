@@ -5,6 +5,7 @@
  * @brief The search of the Gram index, as zeta_gram_walk.h states it.
  */
 #include "zeta_gram_walk.h"
+#include "../../../src/platform/platform.h"
 #include "zeta_theta.h"
 
 #include <stdlib.h>
@@ -60,7 +61,8 @@ size_t gram_intern(GramSearch *search, const DecimalPair *t)
     if ((search->count * 2u) >= search->bucket_count)
     {
         const size_t grown = (search->bucket_count == 0u) ? 1024u : (search->bucket_count * 2u);
-        size_t *const buckets = (size_t *)walk_memory(calloc(grown, sizeof(size_t)));
+        size_t *const buckets =
+            (size_t *)walk_memory(platform_cell_cleared(grown, sizeof(size_t), platform_place_g_program_owner, 0));
         for (size_t at = 0u; at < search->count; at += 1u)
         {
             size_t place = (size_t)(walk_text_hash(search->points[at].key) & (grown - 1u));
@@ -70,7 +72,7 @@ size_t gram_intern(GramSearch *search, const DecimalPair *t)
             }
             buckets[place] = at + 1u;
         }
-        free(search->buckets);
+        platform_cell_released(search->buckets, platform_place_g_program_owner);
         search->buckets = buckets;
         search->bucket_count = grown;
     }
@@ -91,12 +93,14 @@ size_t gram_intern(GramSearch *search, const DecimalPair *t)
     if (search->count >= search->capacity)
     {
         search->capacity = (search->capacity == 0u) ? 256u : (search->capacity * 2u);
-        search->points = (GramPoint *)walk_memory(realloc(search->points, search->capacity * sizeof(GramPoint)));
+        search->points = (GramPoint *)walk_memory(platform_cell_grown(search->points, search->count * sizeof(GramPoint),
+                                                                      search->capacity * sizeof(GramPoint),
+                                                                      platform_place_g_program_owner, 0));
     }
     GramPoint *const point = &search->points[search->count];
     memset(point, 0, sizeof(*point));
     point->t = *t;
-    point->key = (char *)walk_memory(malloc(strlen(key) + 1u));
+    point->key = (char *)walk_memory(platform_cell_taken(strlen(key) + 1u, platform_place_g_program_owner, 0));
     memcpy(point->key, key, strlen(key) + 1u);
     search->buckets[place] = search->count + 1u;
     search->count += 1u;
@@ -120,8 +124,10 @@ typedef struct
  */
 void gram_sweep(GramSearch *search, const size_t *points, size_t count)
 {
-    unsigned char *const seen = (unsigned char *)walk_memory(calloc(search->count + 1u, 1u));
-    GramOpen *const open = (GramOpen *)walk_memory(malloc((count + 1u) * sizeof(GramOpen)));
+    unsigned char *const seen =
+        (unsigned char *)walk_memory(platform_cell_cleared(search->count + 1u, 1u, platform_place_g_program_owner, 0));
+    GramOpen *const open = (GramOpen *)walk_memory(
+        platform_cell_taken((count + 1u) * sizeof(GramOpen), platform_place_g_program_owner, 0));
     size_t open_count = 0u;
     for (size_t at = 0u; at < count; at += 1u)
     {
@@ -138,7 +144,7 @@ void gram_sweep(GramSearch *search, const size_t *points, size_t count)
             open_count += 1u;
         }
     }
-    free(seen);
+    platform_cell_released(seen, platform_place_g_program_owner);
     while (open_count > 0u)
     {
         size_t next_count = 0u;
@@ -179,7 +185,7 @@ void gram_sweep(GramSearch *search, const size_t *points, size_t count)
         }
         open_count = next_count;
     }
-    free(open);
+    platform_cell_released(open, platform_place_g_program_owner);
 }
 
 /**
@@ -194,7 +200,8 @@ size_t gram_walk(GramSearch *search, const DecimalPair *height, GramBracket **fo
 {
     size_t found_count = 0u;
     size_t found_capacity = 16u;
-    *found = (GramBracket *)walk_memory(malloc(found_capacity * sizeof(GramBracket)));
+    *found = (GramBracket *)walk_memory(
+        platform_cell_taken(found_capacity * sizeof(GramBracket), platform_place_g_program_owner, 0));
     DecimalPair *cells = NULL;
     size_t cell_count = 0u;
     DecimalPair low;
@@ -208,23 +215,26 @@ size_t gram_walk(GramSearch *search, const DecimalPair *height, GramBracket **fo
         pair_plus(&low, &step, &reach);
         const DecimalPair high = pair_below(&reach, height) ? reach : *height;
         const size_t asked_count = cell_count + (top ? 1u : 0u);
-        DecimalPair *const asked = (DecimalPair *)walk_memory(malloc((2u * asked_count + 2u) * sizeof(DecimalPair)));
+        DecimalPair *const asked = (DecimalPair *)walk_memory(
+            platform_cell_taken((2u * asked_count + 2u) * sizeof(DecimalPair), platform_place_g_program_owner, 0));
         memcpy(asked, cells, 2u * cell_count * sizeof(DecimalPair));
         if (top)
         {
             asked[2u * cell_count] = low;
             asked[(2u * cell_count) + 1u] = high;
         }
-        free(cells);
+        platform_cell_released(cells, platform_place_g_program_owner);
         cells = NULL;
-        size_t *const indices = (size_t *)walk_memory(malloc((2u * asked_count + 1u) * sizeof(size_t)));
+        size_t *const indices = (size_t *)walk_memory(
+            platform_cell_taken((2u * asked_count + 1u) * sizeof(size_t), platform_place_g_program_owner, 0));
         for (size_t at = 0u; at < (2u * asked_count); at += 1u)
         {
             indices[at] = gram_intern(search, &asked[at]);
         }
         gram_sweep(search, indices, 2u * asked_count);
         size_t next_cells = 0u;
-        cells = (DecimalPair *)walk_memory(malloc((4u * asked_count + 2u) * sizeof(DecimalPair)));
+        cells = (DecimalPair *)walk_memory(
+            platform_cell_taken((4u * asked_count + 2u) * sizeof(DecimalPair), platform_place_g_program_owner, 0));
         int64_t last = 0;
         for (size_t cell = 0u; cell < asked_count; cell += 1u)
         {
@@ -237,7 +247,9 @@ size_t gram_walk(GramSearch *search, const DecimalPair *height, GramBracket **fo
                 if (found_count >= found_capacity)
                 {
                     found_capacity *= 2u;
-                    *found = (GramBracket *)walk_memory(realloc(*found, found_capacity * sizeof(GramBracket)));
+                    *found = (GramBracket *)walk_memory(
+                        platform_cell_grown(*found, (found_capacity / 2u) * sizeof(GramBracket),
+                                            found_capacity * sizeof(GramBracket), platform_place_g_program_owner, 0));
                 }
                 (*found)[found_count].low = asked[2u * cell];
                 (*found)[found_count].high = asked[(2u * cell) + 1u];
@@ -256,8 +268,8 @@ size_t gram_walk(GramSearch *search, const DecimalPair *height, GramBracket **fo
             }
         }
         cell_count = next_cells;
-        free(indices);
-        free(asked);
+        platform_cell_released(indices, platform_place_g_program_owner);
+        platform_cell_released(asked, platform_place_g_program_owner);
         last *= top;
         DecimalPair next_step;
         if (last == 0)
@@ -278,7 +290,7 @@ size_t gram_walk(GramSearch *search, const DecimalPair *height, GramBracket **fo
             low = high;
         }
     }
-    free(cells);
+    platform_cell_released(cells, platform_place_g_program_owner);
     // A stable sort by index.
     for (size_t at = 1u; at < found_count; at += 1u)
     {
@@ -303,7 +315,8 @@ size_t gram_walk(GramSearch *search, const DecimalPair *height, GramBracket **fo
  */
 void gram_cut(GramSearch *search, GramBracket *brackets, size_t count)
 {
-    size_t *const mids = (size_t *)walk_memory(calloc(count + 1u, sizeof(size_t)));
+    size_t *const mids =
+        (size_t *)walk_memory(platform_cell_cleared(count + 1u, sizeof(size_t), platform_place_g_program_owner, 0));
     for (size_t at = 0u; at < count; at += 1u)
     {
         DecimalPair centre;
@@ -323,5 +336,5 @@ void gram_cut(GramSearch *search, GramBracket *brackets, size_t count)
             brackets[at].low = middle->t;
         }
     }
-    free(mids);
+    platform_cell_released(mids, platform_place_g_program_owner);
 }

@@ -100,7 +100,7 @@ int program_main(int count, char **arguments)
     results.checks = 0ull;
     results.failures = 0ull;
     results.line.capacity = DOUBLE_FIELDS_TEST_LINE;
-    results.line.out = (char *)malloc((size_t)DOUBLE_FIELDS_TEST_LINE);
+    results.line.out = (char *)platform_cell_taken((size_t)DOUBLE_FIELDS_TEST_LINE, platform_place_g_program_owner, 0);
     results.line.at = 0ull;
     if (results.line.out == NULL)
     {
@@ -155,15 +155,18 @@ int program_main(int count, char **arguments)
         0x0000000000000001ull, 0x000FFFFFFFFFFFFFull, 0x0010000000000000ull, 0x7FEFFFFFFFFFFFFFull,
         0xFFFFFFFFFFFFFFFFull, 0x00000000FFFFFFFFull};
     const unsigned int out_limbs = layout.out_limbs;
-    unsigned int *const bits = (unsigned int *)calloc((size_t)DOUBLE_FIELDS_TEST_LANES * 2u, sizeof(unsigned int));
-    unsigned int *const merges = (unsigned int *)calloc((size_t)DOUBLE_FIELDS_TEST_LANES * 4u, sizeof(unsigned int));
-    unsigned int *const index = (unsigned int *)calloc((size_t)DOUBLE_FIELDS_TEST_LANES * 2u, sizeof(unsigned int));
-    unsigned int *const host_out =
-        (unsigned int *)calloc((size_t)DOUBLE_FIELDS_TEST_LANES * (out_limbs + 1u), sizeof(unsigned int));
-    unsigned int *const device_answer =
-        (unsigned int *)calloc((size_t)DOUBLE_FIELDS_TEST_LANES * (out_limbs + 1u), sizeof(unsigned int));
-    unsigned long long *const words =
-        (unsigned long long *)calloc((size_t)DOUBLE_FIELDS_TEST_LANES * 4u, sizeof(unsigned long long));
+    unsigned int *const bits = (unsigned int *)platform_cell_cleared(
+        (size_t)DOUBLE_FIELDS_TEST_LANES * 2u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const merges = (unsigned int *)platform_cell_cleared(
+        (size_t)DOUBLE_FIELDS_TEST_LANES * 4u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const index = (unsigned int *)platform_cell_cleared(
+        (size_t)DOUBLE_FIELDS_TEST_LANES * 2u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)DOUBLE_FIELDS_TEST_LANES * (out_limbs + 1u), sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_answer = (unsigned int *)platform_cell_cleared(
+        (size_t)DOUBLE_FIELDS_TEST_LANES * (out_limbs + 1u), sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned long long *const words = (unsigned long long *)platform_cell_cleared(
+        (size_t)DOUBLE_FIELDS_TEST_LANES * 4u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     ok = ok && (bits != NULL) && (merges != NULL) && (index != NULL) && (host_out != NULL) && (device_answer != NULL) &&
          (words != NULL);
     unsigned long long state = 0x9E3779B97F4A7C15ull;
@@ -263,12 +266,12 @@ int program_main(int count, char **arguments)
     cudaFree(device_merges);
     cudaFree(device_index);
     cudaFree(device_out);
-    free(bits);
-    free(merges);
-    free(index);
-    free(host_out);
-    free(device_answer);
-    free(words);
+    platform_cell_released(bits, platform_place_g_program_owner);
+    platform_cell_released(merges, platform_place_g_program_owner);
+    platform_cell_released(index, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_answer, platform_place_g_program_owner);
+    platform_cell_released(words, platform_place_g_program_owner);
     if (record != NULL)
     {
         cycle_record_release(record);
@@ -285,6 +288,6 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " failed\n");
     (void)(mmgr_line_ok(&results.line) &&
            (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
-    free(results.line.out);
+    platform_cell_released(results.line.out, platform_place_g_program_owner);
     return (results.failures == 0ull) ? 0 : 1;
 }

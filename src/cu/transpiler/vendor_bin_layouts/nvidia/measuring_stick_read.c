@@ -67,7 +67,8 @@ int program_main(int argc, char **argv)
     }
     stick_nvcc_read(argv[1]);
     stick_read(argv[2]);
-    StickManifest *const manifest = (StickManifest *)stick_allocated(calloc(s_file.lines + 1u, sizeof(StickManifest)));
+    StickManifest *const manifest = (StickManifest *)stick_allocated(
+        platform_cell_cleared(s_file.lines + 1u, sizeof(StickManifest), platform_place_g_program_owner, 0));
     unsigned int manifests = 0u;
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
@@ -92,8 +93,8 @@ int program_main(int argc, char **argv)
                 manifest[at].name = stick_copy(name, mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR));
                 manifests += 1u;
             }
-            free(manifest[at].category);
-            free(manifest[at].function);
+            platform_cell_released(manifest[at].category, platform_place_g_program_owner);
+            platform_cell_released(manifest[at].function, platform_place_g_program_owner);
             manifest[at].category = cell[1];
             manifest[at].function = cell[2];
             cell[1] = NULL;
@@ -101,7 +102,7 @@ int program_main(int argc, char **argv)
         }
         for (unsigned int one = 0u; one < cells; one += 1u)
         {
-            free(cell[one]);
+            platform_cell_released(cell[one], platform_place_g_program_owner);
         }
     }
     unsigned char *operations = NULL;
@@ -109,7 +110,8 @@ int program_main(int argc, char **argv)
     stick_ruleset_operations(argv[3], &operations, &operations_room);
 
     // the stick: every kernel of nvcc's listing the manifest names, in the order of their names
-    StickKernel *const stick = (StickKernel *)stick_allocated(calloc(s_kernels + 1u, sizeof(StickKernel)));
+    StickKernel *const stick = (StickKernel *)stick_allocated(
+        platform_cell_cleared(s_kernels + 1u, sizeof(StickKernel), platform_place_g_program_owner, 0));
     unsigned int sticks = 0u;
     for (unsigned int at = 0u; at < s_kernels; at += 1u)
     {
@@ -127,7 +129,8 @@ int program_main(int argc, char **argv)
     }
     qsort(stick, sticks, sizeof(StickKernel), stick_kernel_order);
     // every name the table contains, in the order of the names, and each operation stored where it is past the room
-    unsigned int *const order = (unsigned int *)stick_allocated(calloc(s_names + 1u, sizeof(unsigned int)));
+    unsigned int *const order = (unsigned int *)stick_allocated(
+        platform_cell_cleared(s_names + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0));
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {
         order[at] = at;
@@ -135,22 +138,30 @@ int program_main(int argc, char **argv)
     qsort(order, s_names, sizeof(unsigned int), stick_name_order);
     if (operations_room < s_names)
     {
-        operations = (unsigned char *)stick_allocated(realloc(operations, s_names + 1u));
+        operations = (unsigned char *)stick_allocated(
+            platform_cell_grown(operations, operations_room, s_names + 1u, platform_place_g_program_owner, 0));
         mmgr_bytes_set(&operations[operations_room], 0, (s_names + 1u) - operations_room);
         operations_room = s_names + 1u;
     }
 
     // by category, in the order each first is; and each operation no form writes, the kernels it is in
-    const char **const category = (const char **)stick_allocated(calloc(sticks + 1u, sizeof(char *)));
-    unsigned int *const category_kernels = (unsigned int *)stick_allocated(calloc(sticks + 1u, sizeof(unsigned int)));
-    unsigned int *const category_instructions =
-        (unsigned int *)stick_allocated(calloc(sticks + 1u, sizeof(unsigned int)));
+    const char **const category = (const char **)stick_allocated(
+        platform_cell_cleared(sticks + 1u, sizeof(char *), platform_place_g_program_owner, 0));
+    unsigned int *const category_kernels = (unsigned int *)stick_allocated(
+        platform_cell_cleared(sticks + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0));
+    unsigned int *const category_instructions = (unsigned int *)stick_allocated(
+        platform_cell_cleared(sticks + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0));
     unsigned int categories = 0u;
-    unsigned int *const missing = (unsigned int *)stick_allocated(calloc(s_names + 1u, sizeof(unsigned int)));
-    unsigned int *const missing_first = (unsigned int *)stick_allocated(calloc(s_names + 1u, sizeof(unsigned int)));
-    unsigned char *const written = (unsigned char *)stick_allocated(calloc(s_names + 1u, 1u));
-    unsigned int *const count = (unsigned int *)stick_allocated(calloc(s_names + 1u, sizeof(unsigned int)));
-    unsigned int *const other = (unsigned int *)stick_allocated(calloc(s_names + 1u, sizeof(unsigned int)));
+    unsigned int *const missing = (unsigned int *)stick_allocated(
+        platform_cell_cleared(s_names + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0));
+    unsigned int *const missing_first = (unsigned int *)stick_allocated(
+        platform_cell_cleared(s_names + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0));
+    unsigned char *const written =
+        (unsigned char *)stick_allocated(platform_cell_cleared(s_names + 1u, 1u, platform_place_g_program_owner, 0));
+    unsigned int *const count = (unsigned int *)stick_allocated(
+        platform_cell_cleared(s_names + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0));
+    unsigned int *const other = (unsigned int *)stick_allocated(
+        platform_cell_cleared(s_names + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0));
     unsigned int instructions = 0u;
     for (unsigned int at = 0u; at < sticks; at += 1u)
     {
@@ -272,9 +283,12 @@ int program_main(int argc, char **argv)
             record_text(" |\n");
         }
         // the questions the engine puts: each note, the kernels that put it and the first of them, the max first
-        char **const note = (char **)stick_allocated(calloc(sticks + 1u, sizeof(char *)));
-        unsigned int *const note_kernels = (unsigned int *)stick_allocated(calloc(sticks + 1u, sizeof(unsigned int)));
-        unsigned int *const note_first = (unsigned int *)stick_allocated(calloc(sticks + 1u, sizeof(unsigned int)));
+        char **const note = (char **)stick_allocated(
+            platform_cell_cleared(sticks + 1u, sizeof(char *), platform_place_g_program_owner, 0));
+        unsigned int *const note_kernels = (unsigned int *)stick_allocated(
+            platform_cell_cleared(sticks + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0));
+        unsigned int *const note_first = (unsigned int *)stick_allocated(
+            platform_cell_cleared(sticks + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0));
         unsigned int notes = 0u;
         for (unsigned int at = 0u; at < sticks; at += 1u)
         {
@@ -322,9 +336,9 @@ int program_main(int argc, char **argv)
             note[best] = NULL;
         }
         record_text("\n");
-        free(note_first);
-        free(note_kernels);
-        free(note);
+        platform_cell_released(note_first, platform_place_g_program_owner);
+        platform_cell_released(note_kernels, platform_place_g_program_owner);
+        platform_cell_released(note, platform_place_g_program_owner);
     }
     record_text("## By category\n\n| category | kernels | nvcc instructions |\n|---|---|---|\n");
     for (unsigned int at = 0u; at < categories; at += 1u)

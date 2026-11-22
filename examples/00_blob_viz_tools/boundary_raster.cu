@@ -539,9 +539,9 @@ int program_main(int argc, char **argv)
     float milliseconds = 0.0f;
     cudaEventElapsedTime(&milliseconds, began, ended);
 
-    unsigned char *host_image = (unsigned char *)malloc(image_bytes);
-    float *host_sampled = (float *)malloc(sampled_bytes);
-    float *host_directions = (float *)malloc(direction_bytes);
+    unsigned char *host_image = (unsigned char *)platform_cell_taken(image_bytes, platform_place_g_program_owner, 0);
+    float *host_sampled = (float *)platform_cell_taken(sampled_bytes, platform_place_g_program_owner, 0);
+    float *host_directions = (float *)platform_cell_taken(direction_bytes, platform_place_g_program_owner, 0);
     if (!host_image || !host_sampled || !host_directions)
     {
         fprintf(stderr, "out of host memory\n");
@@ -655,8 +655,8 @@ int program_main(int argc, char **argv)
     cudaFree(directions);
     cudaFree(device_coefficients);
     cudaFree(device_gain);
-    free(host_image);
-    free(host_sampled);
-    free(host_directions);
+    platform_cell_released(host_image, platform_place_g_program_owner);
+    platform_cell_released(host_sampled, platform_place_g_program_owner);
+    platform_cell_released(host_directions, platform_place_g_program_owner);
     return 0;
 }

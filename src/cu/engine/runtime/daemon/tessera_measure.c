@@ -125,7 +125,8 @@ int tessera_measure_host(const TesseraMeasure *measure)
 
 TesseraMeasure *tessera_measure_open(const unsigned char device[TESSERA_DEVICE_BYTES], unsigned long long luid)
 {
-    TesseraMeasure *const measure = (TesseraMeasure *)calloc(1u, sizeof(TesseraMeasure));
+    TesseraMeasure *const measure =
+        (TesseraMeasure *)platform_cell_cleared(1u, sizeof(TesseraMeasure), platform_place_g_program_owner, 0);
     if (measure == NULL)
     {
         return NULL;
@@ -208,7 +209,7 @@ void tessera_measure_close(TesseraMeasure *measure)
         dlclose(measure->library);
 #endif
     }
-    free(measure);
+    platform_cell_released(measure, platform_place_g_program_owner);
 }
 
 int tessera_measure_device(TesseraMeasure *measure, unsigned long long *capacity, unsigned long long *in_use)
@@ -376,7 +377,8 @@ static unsigned long long tessera_started(unsigned long long pid)
 
 TesseraProcess *tessera_process_open(unsigned long long pid)
 {
-    TesseraProcess *const process = (TesseraProcess *)calloc(1u, sizeof(TesseraProcess));
+    TesseraProcess *const process =
+        (TesseraProcess *)platform_cell_cleared(1u, sizeof(TesseraProcess), platform_place_g_program_owner, 0);
     if (process == NULL)
     {
         return NULL;
@@ -387,7 +389,7 @@ TesseraProcess *tessera_process_open(unsigned long long pid)
     process->handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE, FALSE, (DWORD)pid);
     if (process->handle == NULL)
     {
-        free(process);
+        platform_cell_released(process, platform_place_g_program_owner);
         return NULL;
     }
 #else
@@ -400,7 +402,7 @@ TesseraProcess *tessera_process_open(unsigned long long pid)
     process->started = tessera_started(pid);
     if ((process->descriptor < 0) && (process->started == 0ULL))
     {
-        free(process);
+        platform_cell_released(process, platform_place_g_program_owner);
         return NULL;
     }
 #endif
@@ -438,5 +440,5 @@ void tessera_process_release(TesseraProcess *process)
         close(process->descriptor);
     }
 #endif
-    free(process);
+    platform_cell_released(process, platform_place_g_program_owner);
 }

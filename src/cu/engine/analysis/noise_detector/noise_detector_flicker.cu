@@ -327,8 +327,8 @@ extern "C" long noise_flicker_set(const NoiseSetRequest *request)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    unsigned long long *const sums =
-        (unsigned long long *)malloc((size_t)NOISE_FLICKER_CELLS * sizeof(unsigned long long));
+    unsigned long long *const sums = (unsigned long long *)platform_cell_taken(
+        (size_t)NOISE_FLICKER_CELLS * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     ok = ok && NOISE_DETECTOR_CHECK(sums != NULL, &sums, error, ENGINE_ERROR_RESOURCE);
     const unsigned long long began = engine_clock_microseconds();
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
@@ -339,14 +339,14 @@ extern "C" long noise_flicker_set(const NoiseSetRequest *request)
         ok = NOISE_DETECTOR_CHECK(request->load(request->set, name, extent, &volume, error) == 0L, name, error,
                                   ENGINE_ERROR_REQUEST) &&
              (noise_flicker_sample(volume, extent, sums, error) == 0L);
-        free(volume);
+        platform_cell_released(volume, platform_place_g_program_owner);
         ok = ok && NOISE_DETECTOR_IO(noise_flicker_rows(table, name, sums) != 0, table, error);
         if (ok != 0)
         {
             noise_flicker_summary(name, extent, sums);
         }
     }
-    free(sums);
+    platform_cell_released(sums, platform_place_g_program_owner);
     if (table != NULL)
     {
         ok = NOISE_DETECTOR_IO(platform_file_close(table) == 0, path, error) && ok;

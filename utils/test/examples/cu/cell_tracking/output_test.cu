@@ -782,14 +782,14 @@ static int output_test_second_faces(const char *set, int moved)
 static char *output_test_text(const char *path)
 {
     FILE *const file = fopen(path, "rb");
-    char *const text = (char *)malloc(OUTPUT_TEST_TEXT);
+    char *const text = (char *)platform_cell_taken(OUTPUT_TEST_TEXT, platform_place_g_program_owner, 0);
     if ((file == NULL) || (text == NULL))
     {
         if (file != NULL)
         {
             fclose(file);
         }
-        free(text);
+        platform_cell_released(text, platform_place_g_program_owner);
         return NULL;
     }
     const size_t read = fread(text, 1u, OUTPUT_TEST_TEXT - 1u, file);
@@ -798,7 +798,7 @@ static char *output_test_text(const char *path)
     text[read] = '\0';
     if (ended == 0)
     {
-        free(text);
+        platform_cell_released(text, platform_place_g_program_owner);
         return NULL;
     }
     return text;
@@ -861,7 +861,7 @@ static int output_test_same(const char *path, const char *expected)
         mmgr_line_put(output_line, expected);
         platform_line_out_ended();
     }
-    free(text);
+    platform_cell_released(text, platform_place_g_program_owner);
     return same;
 }
 
@@ -1118,7 +1118,7 @@ static void output_test_complete(OutputTestResults *results, const char *set)
     output_test_check(results, output_test_same(files.submission, OUTPUT_TEST_SUBMISSION),
                       "the submission is the hand's to the character: ids from 0 over the set, node ids from 1 in a"
                       " sample, its nodes and then its edges");
-    char *const expected = (char *)malloc(OUTPUT_TEST_TEXT);
+    char *const expected = (char *)platform_cell_taken(OUTPUT_TEST_TEXT, platform_place_g_program_owner, 0);
     output_test_check(results,
                       (expected != NULL) && output_test_report(expected, OUTPUT_TEST_TEXT) &&
                           output_test_same(files.report, expected),
@@ -1130,8 +1130,8 @@ static void output_test_complete(OutputTestResults *results, const char *set)
         mmgr_line_put(output_line, (displayed != NULL) ? displayed : "  (they did not read)\n");
         platform_line_out_ended();
     }
-    free(displayed);
-    free(expected);
+    platform_cell_released(displayed, platform_place_g_program_owner);
+    platform_cell_released(expected, platform_place_g_program_owner);
 
     // no nodes and no submission named: the code checks and counts the set, and writes nothing
     OutputTestFiles quiet;
@@ -1147,7 +1147,7 @@ static void output_test_complete(OutputTestResults *results, const char *set)
                       (counted == 0L) && (text != NULL) && (strlen(text) >= tail_length) &&
                           (strcmp(&text[strlen(text) - tail_length], tail) == 0),
                       "with no nodes and no submission named, the set is counted and reports nothing was written");
-    free(text);
+    platform_cell_released(text, platform_place_g_program_owner);
 }
 
 // .divide files of no divisions beside the chain, empty and second. Each head is that of the .points with the CRC-64 of
@@ -1182,7 +1182,7 @@ static void output_test_divided(OutputTestResults *results, const char *set)
     output_test_check(results, closed_all && output_test_same(files.submission, OUTPUT_TEST_DIVIDED_SUBMISSION),
                       "the divided submission is the hand's to the character: a parent's edge to daughter one and then"
                       " its edge to daughter two, and none from the point daughter two left");
-    char *const expected = (char *)malloc(OUTPUT_TEST_TEXT);
+    char *const expected = (char *)platform_cell_taken(OUTPUT_TEST_TEXT, platform_place_g_program_owner, 0);
     output_test_check(results,
                       closed_all && (expected != NULL) && output_test_divided_report(expected, OUTPUT_TEST_TEXT) &&
                           output_test_same(files.report, expected),
@@ -1195,8 +1195,8 @@ static void output_test_divided(OutputTestResults *results, const char *set)
         mmgr_line_put(output_line, (displayed != NULL) ? displayed : "  (they did not read)\n");
         platform_line_out_ended();
     }
-    free(displayed);
-    free(expected);
+    platform_cell_released(displayed, platform_place_g_program_owner);
+    platform_cell_released(expected, platform_place_g_program_owner);
 
     const int undivided = output_test_undivided(set);
     const long plain = undivided ? output_test_run(set, samples, 3u, "undivided", &files, &closed_all) : OUTPUT_ERROR;
@@ -1231,7 +1231,7 @@ static void output_test_faced(OutputTestResults *results, const char *set)
                       " a start whose back-prediction crosses one entered, and a point with its link in did neither");
     output_test_check(results, closed_all && output_test_same(files.submission, OUTPUT_TEST_SUBMISSION),
                       "the faced submission is the undivided set's byte for byte: the state is the nodes' alone");
-    char *const expected = (char *)malloc(OUTPUT_TEST_TEXT);
+    char *const expected = (char *)platform_cell_taken(OUTPUT_TEST_TEXT, platform_place_g_program_owner, 0);
     output_test_check(results,
                       closed_all && (expected != NULL) && output_test_faced_report(expected, OUTPUT_TEST_TEXT) &&
                           output_test_same(files.report, expected),
@@ -1244,7 +1244,7 @@ static void output_test_faced(OutputTestResults *results, const char *set)
         mmgr_line_put(output_line, (displayed != NULL) ? displayed : "  (they did not read)\n");
         platform_line_out_ended();
     }
-    free(displayed);
+    platform_cell_released(displayed, platform_place_g_program_owner);
 
     const int divided = output_test_chain_divide(set) && output_test_second_divide(set, "second", OUTPUT_DIVIDE_OK);
     output_test_check(results, divided, "chain's .divide and second's are written beside the faced set");
@@ -1268,8 +1268,8 @@ static void output_test_faced(OutputTestResults *results, const char *set)
         mmgr_line_put(output_line, (text != NULL) ? text : "  (they did not read)\n");
         platform_line_out_ended();
     }
-    free(text);
-    free(expected);
+    platform_cell_released(text, platform_place_g_program_owner);
+    platform_cell_released(expected, platform_place_g_program_owner);
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         output_test_undivide(set, samples[at]);
@@ -1566,8 +1566,8 @@ static void output_test_crossed_counts(OutputTestResults *results, const char *s
     const OutputRequest request = {set, samples, 3u, NULL, NULL, files.files[2]};
     const long result = written ? output_graph_set(&request) : OUTPUT_ERROR;
     const int closed = written && output_test_close(&files);
-    char *const worked = (char *)malloc(OUTPUT_TEST_TEXT);
-    char *const counts = (char *)malloc(OUTPUT_TEST_TEXT);
+    char *const worked = (char *)platform_cell_taken(OUTPUT_TEST_TEXT, platform_place_g_program_owner, 0);
+    char *const counts = (char *)platform_cell_taken(OUTPUT_TEST_TEXT, platform_place_g_program_owner, 0);
     const char *const tail = "  the nodes: no output named, none written\n"
                              "  the submission: no output named, none written\n";
     const int expected = (worked != NULL) && (counts != NULL) && output_test_report(worked, OUTPUT_TEST_TEXT) &&
@@ -1580,8 +1580,8 @@ static void output_test_crossed_counts(OutputTestResults *results, const char *s
     output_test_check(results,
                       written && closed && (result == 0L) && expected && output_test_same(files.report, counts),
                       "\"second\" crossed reads the same counts as worked: frames, nodes, edges, ends, starts and H4");
-    free(worked);
-    free(counts);
+    platform_cell_released(worked, platform_place_g_program_owner);
+    platform_cell_released(counts, platform_place_g_program_owner);
 }
 
 // a file opened for reading, which accepts no row. First, what the C library returns on one written to, as
@@ -1705,7 +1705,7 @@ static void output_test_line_ends(OutputTestResults *results, const char *set)
                     ? output_test_text(path)
                     : NULL;
             clean = clean && (text != NULL) && (strchr(text, '\r') == NULL);
-            free(text);
+            platform_cell_released(text, platform_place_g_program_owner);
         }
     }
     output_test_check(results, clean, "no file the test wrote contains a carriage return: every line ends in LF alone");

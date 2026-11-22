@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "coherence.h"
+#include "../../../../src/platform/platform.h"
 
 #include "answer_key.h"
 #include "../../../../src/cu/engine/runtime/radix_keys/radix_keys.h"
@@ -52,13 +53,16 @@ int export_capacity(const EngineBuffers *buffers, const CoherenceInputs *inputs,
     const int written = snprintf(path, sizeof(path), "%s/%s.room", directory, inputs->sample);
     const size_t unified = inputs->unified_first[inputs->frame_count];
     const unsigned int link_total = inputs->unified_start[unified];
-    unsigned long long *const cells = (unsigned long long *)calloc((unified + 1u) * 12u, sizeof(unsigned long long));
-    unsigned int *const frame_table =
-        (unsigned int *)calloc(((size_t)inputs->frame_count + 1u) * 12u, sizeof(unsigned int));
-    unsigned int *const links = (unsigned int *)malloc(((size_t)link_total + 1u) * 3u * sizeof(unsigned int));
+    unsigned long long *const cells = (unsigned long long *)platform_cell_cleared(
+        (unified + 1u) * 12u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned int *const frame_table = (unsigned int *)platform_cell_cleared(
+        ((size_t)inputs->frame_count + 1u) * 12u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const links = (unsigned int *)platform_cell_taken(
+        ((size_t)link_total + 1u) * 3u * sizeof(unsigned int), platform_place_g_program_owner, 0);
     size_t contact_capacity = 1u << 16u;
     size_t contact_total = 0u;
-    unsigned int *contacts = (unsigned int *)malloc(contact_capacity * 3u * sizeof(unsigned int));
+    unsigned int *contacts = (unsigned int *)platform_cell_taken(contact_capacity * 3u * sizeof(unsigned int),
+                                                                 platform_place_g_program_owner, 0);
     int ok = (written > 0) && ((size_t)written < sizeof(path)) && (cells != NULL) && (frame_table != NULL) &&
              (links != NULL) && (contacts != NULL);
 
@@ -80,8 +84,8 @@ int export_capacity(const EngineBuffers *buffers, const CoherenceInputs *inputs,
             cell[10] += 1u;
             cell[11] += (tree->exposed != NULL) ? tree->exposed[leaf] : 0u;
         }
-        unsigned long long *const keys =
-            (unsigned long long *)malloc(((size_t)tree->joined_count + 1u) * sizeof(unsigned long long));
+        unsigned long long *const keys = (unsigned long long *)platform_cell_taken(
+            ((size_t)tree->joined_count + 1u) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
         ok = (keys != NULL);
         unsigned int key_count = 0u;
         for (unsigned int pair = 0u; (ok != 0) && (tree->contact_faces != NULL) && (pair < tree->joined_count);
@@ -125,8 +129,9 @@ int export_capacity(const EngineBuffers *buffers, const CoherenceInputs *inputs,
             if (contact_total == contact_capacity)
             {
                 contact_capacity *= 2u;
-                unsigned int *const grown =
-                    (unsigned int *)realloc(contacts, contact_capacity * 3u * sizeof(unsigned int));
+                unsigned int *const grown = (unsigned int *)platform_cell_grown(
+                    contacts, (contact_capacity / 2u) * 3u * sizeof(unsigned int),
+                    contact_capacity * 3u * sizeof(unsigned int), platform_place_g_program_owner, 0);
                 if (grown == NULL)
                 {
                     ok = 0;
@@ -140,7 +145,7 @@ int export_capacity(const EngineBuffers *buffers, const CoherenceInputs *inputs,
             contact_total += 1u;
         }
         frame_table[(size_t)frame * 12u + 10u] = (unsigned int)contact_total - frame_table[(size_t)frame * 12u + 9u];
-        free(keys);
+        platform_cell_released(keys, platform_place_g_program_owner);
     }
     for (unsigned int link = 0u; (ok != 0) && (link < link_total); link += 1u)
     {
@@ -243,10 +248,10 @@ int export_capacity(const EngineBuffers *buffers, const CoherenceInputs *inputs,
         ok = (ferror(out) == 0);
         fclose(out);
     }
-    free(cells);
-    free(frame_table);
-    free(links);
-    free(contacts);
+    platform_cell_released(cells, platform_place_g_program_owner);
+    platform_cell_released(frame_table, platform_place_g_program_owner);
+    platform_cell_released(links, platform_place_g_program_owner);
+    platform_cell_released(contacts, platform_place_g_program_owner);
     return ok;
 }
 
@@ -280,13 +285,18 @@ int export_object(const EngineBuffers *buffers, const CoherenceInputs *inputs, c
     {
         edge_count += (unsigned int)(inputs->edge_status[edge] >= 0);
     }
-    unsigned int *const frame_table = (unsigned int *)calloc(((size_t)frame_count + 1u) * 10u, sizeof(unsigned int));
-    unsigned int *const leaves = (unsigned int *)malloc(((size_t)leaf_count + 1u) * 4u * sizeof(unsigned int));
-    unsigned long long *const sums =
-        (unsigned long long *)calloc(((size_t)cell_count + 1u) * 4u, sizeof(unsigned long long));
-    unsigned int *const cells = (unsigned int *)malloc(((size_t)cell_count + 1u) * 4u * sizeof(unsigned int));
-    unsigned int *const links = (unsigned int *)malloc(((size_t)link_count + 1u) * 2u * sizeof(unsigned int));
-    unsigned int *const edges = (unsigned int *)malloc(((size_t)edge_count + 1u) * 3u * sizeof(unsigned int));
+    unsigned int *const frame_table = (unsigned int *)platform_cell_cleared(
+        ((size_t)frame_count + 1u) * 10u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const leaves = (unsigned int *)platform_cell_taken(
+        ((size_t)leaf_count + 1u) * 4u * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned long long *const sums = (unsigned long long *)platform_cell_cleared(
+        ((size_t)cell_count + 1u) * 4u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+    unsigned int *const cells = (unsigned int *)platform_cell_taken(
+        ((size_t)cell_count + 1u) * 4u * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const links = (unsigned int *)platform_cell_taken(
+        ((size_t)link_count + 1u) * 2u * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const edges = (unsigned int *)platform_cell_taken(
+        ((size_t)edge_count + 1u) * 3u * sizeof(unsigned int), platform_place_g_program_owner, 0);
     int ok =
         (written > 0) && ((size_t)written < sizeof(path)) && frame_table && leaves && sums && cells && links && edges;
 
@@ -389,12 +399,12 @@ int export_object(const EngineBuffers *buffers, const CoherenceInputs *inputs, c
              (fwrite(edges, sizeof(unsigned int), (size_t)edge_count * 3u, index) == (size_t)edge_count * 3u);
         ok = (fclose(index) == 0) && ok;
     }
-    free(frame_table);
-    free(leaves);
-    free(sums);
-    free(cells);
-    free(links);
-    free(edges);
+    platform_cell_released(frame_table, platform_place_g_program_owner);
+    platform_cell_released(leaves, platform_place_g_program_owner);
+    platform_cell_released(sums, platform_place_g_program_owner);
+    platform_cell_released(cells, platform_place_g_program_owner);
+    platform_cell_released(links, platform_place_g_program_owner);
+    platform_cell_released(edges, platform_place_g_program_owner);
     return ok;
 }
 
@@ -404,15 +414,23 @@ int read_coherence(EngineBuffers *buffers, const CoherenceInputs *inputs, FILE *
     const size_t voxels = (size_t)buffers->depth * buffers->height * buffers->width;
     const size_t words = (voxels + 63u) / 64u;
     const unsigned int plane = buffers->height * buffers->width;
-    unsigned char *const failing_time = (unsigned char *)calloc((size_t)inputs->volume_frames + 1u, 1u);
-    int *const leaf_at_peak[2] = {(int *)malloc(voxels * sizeof(int)), (int *)malloc(voxels * sizeof(int))};
-    unsigned long long *const mask = (unsigned long long *)malloc(words * sizeof(unsigned long long));
-    unsigned char *const leaf_in_cell = (unsigned char *)malloc(voxels / 8u + 1u);
-    unsigned int *const unified_size = (unsigned int *)calloc((size_t)inputs->unified_count + 1u, sizeof(unsigned int));
-    unsigned int *const landing = (unsigned int *)calloc((size_t)inputs->unified_count + 1u, sizeof(unsigned int));
-    unsigned int *const touched = (unsigned int *)malloc(((size_t)inputs->unified_count + 1u) * sizeof(unsigned int));
+    unsigned char *const failing_time = (unsigned char *)platform_cell_cleared((size_t)inputs->volume_frames + 1u, 1u,
+                                                                               platform_place_g_program_owner, 0);
+    int *const leaf_at_peak[2] = {(int *)platform_cell_taken(voxels * sizeof(int), platform_place_g_program_owner, 0),
+                                  (int *)platform_cell_taken(voxels * sizeof(int), platform_place_g_program_owner, 0)};
+    unsigned long long *const mask = (unsigned long long *)platform_cell_taken(words * sizeof(unsigned long long),
+                                                                               platform_place_g_program_owner, 0);
+    unsigned char *const leaf_in_cell =
+        (unsigned char *)platform_cell_taken(voxels / 8u + 1u, platform_place_g_program_owner, 0);
+    unsigned int *const unified_size = (unsigned int *)platform_cell_cleared(
+        (size_t)inputs->unified_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const landing = (unsigned int *)platform_cell_cleared(
+        (size_t)inputs->unified_count + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const touched = (unsigned int *)platform_cell_taken(
+        ((size_t)inputs->unified_count + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     size_t cell_capacity = 1u << 16u;
-    unsigned int *cell_voxels = (unsigned int *)malloc(cell_capacity * sizeof(unsigned int));
+    unsigned int *cell_voxels =
+        (unsigned int *)platform_cell_taken(cell_capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
     int ok = (failing_time != NULL) && (leaf_at_peak[0] != NULL) && (leaf_at_peak[1] != NULL) && (mask != NULL) &&
              (leaf_in_cell != NULL) && (unified_size != NULL) && (landing != NULL) && (touched != NULL) &&
              (cell_voxels != NULL) && (inputs->volume != NULL);
@@ -521,8 +539,9 @@ int read_coherence(EngineBuffers *buffers, const CoherenceInputs *inputs, FILE *
                 if (cell_size == cell_capacity)
                 {
                     cell_capacity *= 2u;
-                    unsigned int *const grown =
-                        (unsigned int *)realloc(cell_voxels, cell_capacity * sizeof(unsigned int));
+                    unsigned int *const grown = (unsigned int *)platform_cell_grown(
+                        cell_voxels, (cell_capacity / 2u) * sizeof(unsigned int), cell_capacity * sizeof(unsigned int),
+                        platform_place_g_program_owner, 0);
                     if (grown == NULL)
                     {
                         ok = 0;
@@ -652,10 +671,10 @@ int read_coherence(EngineBuffers *buffers, const CoherenceInputs *inputs, FILE *
             {
                 leaf_at_peak[at][tree_frames[at].peaks[leaf]] = -1;
             }
-            free(tree_frames[at].peaks);
-            free(tree_frames[at].sizes);
-            free(tree_frames[at].sums);
-            free(tree_frames[at].joined);
+            platform_cell_released(tree_frames[at].peaks, platform_place_g_program_owner);
+            platform_cell_released(tree_frames[at].sizes, platform_place_g_program_owner);
+            platform_cell_released(tree_frames[at].sums, platform_place_g_program_owner);
+            platform_cell_released(tree_frames[at].joined, platform_place_g_program_owner);
         }
         for (unsigned int node = offset_after; node < inputs->node_offset[frame + 2u]; node += 1u)
         {
@@ -663,14 +682,14 @@ int read_coherence(EngineBuffers *buffers, const CoherenceInputs *inputs, FILE *
         }
     }
     fflush(out);
-    free(cell_voxels);
-    free(touched);
-    free(landing);
-    free(unified_size);
-    free(leaf_in_cell);
-    free(mask);
-    free(leaf_at_peak[0]);
-    free(leaf_at_peak[1]);
-    free(failing_time);
+    platform_cell_released(cell_voxels, platform_place_g_program_owner);
+    platform_cell_released(touched, platform_place_g_program_owner);
+    platform_cell_released(landing, platform_place_g_program_owner);
+    platform_cell_released(unified_size, platform_place_g_program_owner);
+    platform_cell_released(leaf_in_cell, platform_place_g_program_owner);
+    platform_cell_released(mask, platform_place_g_program_owner);
+    platform_cell_released(leaf_at_peak[0], platform_place_g_program_owner);
+    platform_cell_released(leaf_at_peak[1], platform_place_g_program_owner);
+    platform_cell_released(failing_time, platform_place_g_program_owner);
     return ok;
 }

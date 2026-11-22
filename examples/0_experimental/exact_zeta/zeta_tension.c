@@ -39,11 +39,13 @@ double tension_theta_pi(double s)
 
 size_t tension_prime_powers(int64_t limit, int64_t (**powers)[2])
 {
-    unsigned char *const sieve = (unsigned char *)tension_memory(malloc((size_t)limit + 1u));
+    unsigned char *const sieve =
+        (unsigned char *)tension_memory(platform_cell_taken((size_t)limit + 1u, platform_place_g_program_owner, 0));
     memset(sieve, 1, (size_t)limit + 1u);
     size_t capacity = 256u;
     size_t count = 0u;
-    *powers = (int64_t (*)[2])tension_memory(malloc(capacity * sizeof(int64_t[2])));
+    *powers = (int64_t (*)[2])tension_memory(
+        platform_cell_taken(capacity * sizeof(int64_t[2]), platform_place_g_program_owner, 0));
     for (int64_t p = 2; p <= limit; p += 1)
     {
         if (!sieve[p])
@@ -60,7 +62,9 @@ size_t tension_prime_powers(int64_t limit, int64_t (**powers)[2])
             if (count >= capacity)
             {
                 capacity *= 2u;
-                *powers = (int64_t (*)[2])tension_memory(realloc(*powers, capacity * sizeof(int64_t[2])));
+                *powers = (int64_t (*)[2])tension_memory(
+                    platform_cell_grown(*powers, (capacity / 2u) * sizeof(int64_t[2]), capacity * sizeof(int64_t[2]),
+                                        platform_place_g_program_owner, 0));
             }
             (*powers)[count][0] = p;
             (*powers)[count][1] = r;
@@ -68,7 +72,7 @@ size_t tension_prime_powers(int64_t limit, int64_t (**powers)[2])
             power *= p;
         }
     }
-    free(sieve);
+    platform_cell_released(sieve, platform_place_g_program_owner);
     return count;
 }
 
@@ -138,7 +142,8 @@ static size_t listed_points(const char *binary, const TuringConstants *constants
 {
     size_t capacity = 4096u;
     size_t count = 0u;
-    *points = (ListedPoint *)tension_memory(malloc(capacity * sizeof(ListedPoint)));
+    *points = (ListedPoint *)tension_memory(
+        platform_cell_taken(capacity * sizeof(ListedPoint), platform_place_g_program_owner, 0));
     OriorExactInteger unit;
     z_two_to(TURING_SCALE_BITS, &unit);
     for (int64_t nu = first; nu <= last; nu += 1)
@@ -175,7 +180,9 @@ static size_t listed_points(const char *binary, const TuringConstants *constants
             if (count >= capacity)
             {
                 capacity *= 2u;
-                *points = (ListedPoint *)tension_memory(realloc(*points, capacity * sizeof(ListedPoint)));
+                *points = (ListedPoint *)tension_memory(
+                    platform_cell_grown(*points, (capacity / 2u) * sizeof(ListedPoint), capacity * sizeof(ListedPoint),
+                                        platform_place_g_program_owner, 0));
             }
             ListedPoint *const point = &(*points)[count];
             point->nu = nu;
@@ -219,7 +226,8 @@ static size_t place_zeros(const char *binary, const TuringConstants *constants, 
                           size_t end, int64_t wanted, int64_t extra, double **zeros)
 {
     size_t capacity = (end - start) + 64u;
-    *zeros = (double *)tension_memory(malloc(capacity * sizeof(double)));
+    *zeros =
+        (double *)tension_memory(platform_cell_taken(capacity * sizeof(double), platform_place_g_program_owner, 0));
     size_t count = 0u;
     for (size_t i = start; i < end; i += 1u)
     {
@@ -234,7 +242,8 @@ static size_t place_zeros(const char *binary, const TuringConstants *constants, 
         }
     }
     const size_t crossings = count;
-    Dip *const dips = (Dip *)tension_memory(malloc(((end - start) + 1u) * sizeof(Dip)));
+    Dip *const dips = (Dip *)tension_memory(
+        platform_cell_taken(((end - start) + 1u) * sizeof(Dip), platform_place_g_program_owner, 0));
     size_t dip_count = 0u;
     for (size_t i = start + 1u; i < end; i += 1u)
     {
@@ -266,13 +275,15 @@ static size_t place_zeros(const char *binary, const TuringConstants *constants, 
             continue;
         }
         const size_t total = (size_t)2 << FINER;
-        int64_t *const js = (int64_t *)tension_memory(malloc(total * sizeof(int64_t)));
+        int64_t *const js =
+            (int64_t *)tension_memory(platform_cell_taken(total * sizeof(int64_t), platform_place_g_program_owner, 0));
         for (size_t k = 0u; k < total; k += 1u)
         {
             // k is below 128.
             js[k] = ((point->lane - 1) << FINER) + (int64_t)k;
         }
-        TuringPoint *const rows = (TuringPoint *)tension_memory(calloc(total, sizeof(TuringPoint)));
+        TuringPoint *const rows = (TuringPoint *)tension_memory(
+            platform_cell_cleared(total, sizeof(TuringPoint), platform_place_g_program_owner, 0));
         const int64_t failed = turing_run_points(binary, constants, point->nu, p + FINER, js, total, 0, rows);
         if (failed != 0)
         {
@@ -296,7 +307,9 @@ static size_t place_zeros(const char *binary, const TuringConstants *constants, 
                 if (count >= capacity)
                 {
                     capacity *= 2u;
-                    *zeros = (double *)tension_memory(realloc(*zeros, capacity * sizeof(double)));
+                    *zeros = (double *)tension_memory(platform_cell_grown(*zeros, (capacity / 2u) * sizeof(double),
+                                                                          capacity * sizeof(double),
+                                                                          platform_place_g_program_owner, 0));
                 }
                 (*zeros)[count] = (0.5 * (double)(previous_s + s)) / (double)((int64_t)1 << (p + FINER));
                 count += 1u;
@@ -306,10 +319,10 @@ static size_t place_zeros(const char *binary, const TuringConstants *constants, 
             previous_s = s;
             have = 1;
         }
-        free(rows);
-        free(js);
+        platform_cell_released(rows, platform_place_g_program_owner);
+        platform_cell_released(js, platform_place_g_program_owner);
     }
-    free(dips);
+    platform_cell_released(dips, platform_place_g_program_owner);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  zeros at a change of sign ");
@@ -330,7 +343,8 @@ void tension_certified_zeros(const char *binary, int64_t first, int64_t last, in
 {
     TuringConstants constants;
     turing_constants(&constants);
-    TuringCell *const cells = (TuringCell *)tension_memory(calloc((size_t)last + 2u, sizeof(TuringCell)));
+    TuringCell *const cells = (TuringCell *)tension_memory(
+        platform_cell_cleared((size_t)last + 2u, sizeof(TuringCell), platform_place_g_program_owner, 0));
     ListedPoint *points = NULL;
     const size_t count = listed_points(binary, &constants, first, last, extra, cells, &points);
     int64_t start_nu = first;
@@ -433,6 +447,6 @@ void tension_certified_zeros(const char *binary, int64_t first, int64_t last, in
     zeros->n_start = n_start;
     zeros->start_nu = start_nu;
     zeros->end_nu = end_nu;
-    free(points);
-    free(cells);
+    platform_cell_released(points, platform_place_g_program_owner);
+    platform_cell_released(cells, platform_place_g_program_owner);
 }

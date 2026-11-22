@@ -68,7 +68,8 @@ int zip_archive_index(ZipArchive *archive, EngineError *error)
     {
         return 0;
     }
-    unsigned long long *const entry_at = malloc((size_t)(archive->entries + 1ULL) * sizeof(unsigned long long));
+    unsigned long long *const entry_at = platform_cell_taken(
+        (size_t)(archive->entries + 1ULL) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     if (!ZIP_CHECK(entry_at != NULL, &archive->entries, error, ENGINE_ERROR_RESOURCE))
     {
         return 0;
@@ -80,14 +81,14 @@ int zip_archive_index(ZipArchive *archive, EngineError *error)
         entry_at[index] = at;
         if (!zip_entry_next(archive, &at, &entry, error))
         {
-            free(entry_at);
+            platform_cell_released(entry_at, platform_place_g_program_owner);
             return 0;
         }
     }
     s_zip_sorting = archive->directory;
     qsort(entry_at, (size_t)archive->entries, sizeof(unsigned long long), zip_order_entries);
     s_zip_sorting = NULL;
-    free(archive->entry_at);
+    platform_cell_released(archive->entry_at, platform_place_g_program_owner);
     archive->entry_at = entry_at;
     return 1;
 }
@@ -256,11 +257,12 @@ long long zip_member_read(const EngineIngestTools *tools, const char *path, cons
     {
         return ZIP_ERROR;
     }
-    unsigned char *const packed = malloc((size_t)entry->compressed + 1u);
+    unsigned char *const packed =
+        platform_cell_taken((size_t)entry->compressed + 1u, platform_place_g_program_owner, 0);
     const int ok = ZIP_CHECK(packed != NULL, entry, error, ENGINE_ERROR_RESOURCE) &&
                    ZIP_IO(zip_fetch(tools, path, data_start, entry->compressed, packed), packed, error) &&
                    zip_member_unpack(tools, packed, entry, out, error);
-    free(packed);
+    platform_cell_released(packed, platform_place_g_program_owner);
     // the uncompressed size fits memory, and so fits a long long
     return ok ? (long long)entry->uncompressed : ZIP_ERROR;
 }
@@ -297,7 +299,7 @@ int zip_span_read(const EngineIngestTools *tools, const char *path, const ZipArc
     {
         return 0;
     }
-    span->bytes = (unsigned char *)malloc((size_t)(end - begin) + 1u);
+    span->bytes = (unsigned char *)platform_cell_taken((size_t)(end - begin) + 1u, platform_place_g_program_owner, 0);
     if (!ZIP_CHECK(span->bytes != NULL, span, error, ENGINE_ERROR_RESOURCE) ||
         !ZIP_IO(zip_fetch(tools, path, begin, end - begin, span->bytes), span->bytes, error))
     {
@@ -344,6 +346,6 @@ long long zip_span_member(const EngineIngestTools *tools, const ZipSpan *span, c
 
 void zip_span_release(ZipSpan *span)
 {
-    free(span->bytes);
+    platform_cell_released(span->bytes, platform_place_g_program_owner);
     mmgr_bytes_set(span, 0, sizeof(*span));
 }

@@ -155,7 +155,7 @@ static void record_image_programs(void *context, RecordImageRun run)
     unsigned int *atoms[2] = {host_atoms(program.in_limbs[0], HOST_TEST_LANES), NULL};
     run(context, &program, 0, atoms, one_body, NULL, 0);
     run(context, &program, 1, atoms, one_body, NULL, 0);
-    free(atoms[0]);
+    platform_cell_released(atoms[0], platform_place_g_program_owner);
 
     host_division(&program);
     atoms[0] = host_atoms(program.in_limbs[0], HOST_TEST_LANES);
@@ -167,27 +167,30 @@ static void record_image_programs(void *context, RecordImageRun run)
     HostProgram inexact;
     host_inexact(&inexact, &bare);
     run(context, &inexact, 0, atoms, one_body, NULL, 1);
-    free(atoms[0]);
+    platform_cell_released(atoms[0], platform_place_g_program_owner);
 
     host_bitwise(&program);
     atoms[0] = host_atoms(program.in_limbs[0], HOST_TEST_LANES);
     run(context, &program, 0, atoms, one_body, NULL, 0);
-    free(atoms[0]);
+    platform_cell_released(atoms[0], platform_place_g_program_owner);
 
-    unsigned int *const wide = (unsigned int *)malloc(512u * sizeof(unsigned int));
-    unsigned int *const narrow = (unsigned int *)malloc(4096u * sizeof(unsigned int));
+    unsigned int *const wide =
+        (unsigned int *)platform_cell_taken(512u * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const narrow =
+        (unsigned int *)platform_cell_taken(4096u * sizeof(unsigned int), platform_place_g_program_owner, 0);
     host_tables(&program, wide, narrow);
     atoms[0] = host_atoms(program.in_limbs[0], HOST_TEST_LANES);
     run(context, &program, 0, atoms, one_body, NULL, 0);
-    free(atoms[0]);
-    free(wide);
-    free(narrow);
+    platform_cell_released(atoms[0], platform_place_g_program_owner);
+    platform_cell_released(wide, platform_place_g_program_owner);
+    platform_cell_released(narrow, platform_place_g_program_owner);
 
     host_members(&program);
     atoms[0] = host_atoms(program.in_limbs[0], HOST_TEST_FIRST_BODIES);
     atoms[1] = host_atoms(program.in_limbs[1], HOST_TEST_SECOND_BODIES);
     const unsigned long long bodies[2] = {HOST_TEST_FIRST_BODIES, HOST_TEST_SECOND_BODIES};
-    unsigned int *const index = (unsigned int *)malloc((size_t)HOST_TEST_LANES * 2u * sizeof(unsigned int));
+    unsigned int *const index = (unsigned int *)platform_cell_taken((size_t)HOST_TEST_LANES * 2u * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 0);
     for (unsigned int lane = 0u; lane < HOST_TEST_LANES; lane += 1u)
     {
         index[2u * lane] = host_random() % HOST_TEST_FIRST_BODIES;
@@ -201,15 +204,16 @@ static void record_image_programs(void *context, RecordImageRun run)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    free(index);
-    free(atoms[0]);
-    free(atoms[1]);
+    platform_cell_released(index, platform_place_g_program_owner);
+    platform_cell_released(atoms[0], platform_place_g_program_owner);
+    platform_cell_released(atoms[1], platform_place_g_program_owner);
 
     host_affine_limit(&program);
-    atoms[0] = (unsigned int *)calloc(HOST_TEST_LANES, sizeof(unsigned int));
+    atoms[0] =
+        (unsigned int *)platform_cell_cleared(HOST_TEST_LANES, sizeof(unsigned int), platform_place_g_program_owner, 0);
     atoms[1] = NULL;
     run(context, &program, 0, atoms, one_body, NULL, 0);
-    free(atoms[0]);
+    platform_cell_released(atoms[0], platform_place_g_program_owner);
 }
 
 #endif

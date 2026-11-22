@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_extent.cu: the extent
 #include "climb_machine_internal.h"
+#include "../../../../platform/platform.h"
 
 __global__ static void machine_extent_kernel(const unsigned int *run_start, const unsigned int *run_length,
                                              const unsigned int *run_leaf, unsigned int runs, MachineGeometry geometry,
@@ -41,7 +42,8 @@ extern "C" int climb_machine_extents(ClimbMachine *machine, const ClimbMachineEx
     const unsigned int axes = CLIMB_MACHINE_EXTENT_FIELDS / 2u;
     // leaves widens from unsigned int to size_t before the multiply. Leaves * 6 cannot wrap in 32 bits
     const size_t fields = (size_t)leaves * CLIMB_MACHINE_EXTENT_FIELDS;
-    unsigned int *const initial_extents = (unsigned int *)malloc((fields + 1u) * sizeof(unsigned int));
+    unsigned int *const initial_extents =
+        (unsigned int *)platform_cell_taken((fields + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     for (unsigned int leaf = 0u; (initial_extents != NULL) && (leaf < leaves); leaf += 1u)
     {
         for (unsigned int axis = 0u; axis < axes; axis += 1u)
@@ -66,7 +68,7 @@ extern "C" int climb_machine_extents(ClimbMachine *machine, const ClimbMachineEx
     steps_succeeded = steps_succeeded && (cudaMemcpy(request->extents, device_extents, fields * sizeof(unsigned int),
                                                      cudaMemcpyDeviceToHost) == cudaSuccess);
     cudaFree(device_extents);
-    free(initial_extents);
+    platform_cell_released(initial_extents, platform_place_g_program_owner);
     return steps_succeeded ? 1 : 0;
 }
 
@@ -82,46 +84,46 @@ extern "C" void climb_machine_close(ClimbMachine *machine)
     for (unsigned int resident = 0u; (machine->resident_leaf_bundles != NULL) && (resident < machine->capacity);
          resident += 1u)
     {
-        free(machine->resident_leaf_bundles[resident]);
-        free(machine->resident_bundle_first[resident]);
-        free(machine->resident_bundle_end[resident]);
-        free(machine->resident_contact_start[resident]);
-        free(machine->resident_contacts[resident]);
+        platform_cell_released(machine->resident_leaf_bundles[resident], platform_place_g_program_owner);
+        platform_cell_released(machine->resident_bundle_first[resident], platform_place_g_program_owner);
+        platform_cell_released(machine->resident_bundle_end[resident], platform_place_g_program_owner);
+        platform_cell_released(machine->resident_contact_start[resident], platform_place_g_program_owner);
+        platform_cell_released(machine->resident_contacts[resident], platform_place_g_program_owner);
     }
-    free(machine->resident_frame);
-    free(machine->resident_leaves);
-    free(machine->resident_runs);
-    free(machine->resident_leaf_bundles);
-    free(machine->resident_bundle_first);
-    free(machine->resident_bundle_end);
-    free(machine->resident_contact_start);
-    free(machine->resident_contacts);
+    platform_cell_released(machine->resident_frame, platform_place_g_program_owner);
+    platform_cell_released(machine->resident_leaves, platform_place_g_program_owner);
+    platform_cell_released(machine->resident_runs, platform_place_g_program_owner);
+    platform_cell_released(machine->resident_leaf_bundles, platform_place_g_program_owner);
+    platform_cell_released(machine->resident_bundle_first, platform_place_g_program_owner);
+    platform_cell_released(machine->resident_bundle_end, platform_place_g_program_owner);
+    platform_cell_released(machine->resident_contact_start, platform_place_g_program_owner);
+    platform_cell_released(machine->resident_contacts, platform_place_g_program_owner);
     cudaFree(machine->run_start);
     cudaFree(machine->run_length);
     cudaFree(machine->run_leaf);
     cudaFree(machine->run_at_row);
     cudaFree(machine->device_map);
     cudaFree(machine->device_peaks);
-    free(machine->row_counts);
+    platform_cell_released(machine->row_counts, platform_place_g_program_owner);
     cudaFree(machine->device_row_counts);
     cudaFree(machine->device_row_offsets);
     cudaFree(machine->device_unsorted_start);
     cudaFree(machine->device_unsorted_length);
     cudaFree(machine->device_unsorted_leaf);
-    free(machine->unsorted_leaf);
-    free(machine->order);
+    platform_cell_released(machine->unsorted_leaf, platform_place_g_program_owner);
+    platform_cell_released(machine->order, platform_place_g_program_owner);
     cudaFree(machine->device_order);
-    free(machine->leaf_counts);
-    free(machine->pending);
-    free(machine->side_residents);
+    platform_cell_released(machine->leaf_counts, platform_place_g_program_owner);
+    platform_cell_released(machine->pending, platform_place_g_program_owner);
+    platform_cell_released(machine->side_residents, platform_place_g_program_owner);
     cudaFree(machine->device_side_residents);
-    free(machine->climber_side);
-    free(machine->climber_peak);
-    free(machine->climber_entry_start);
-    free(machine->centers);
-    free(machine->active);
-    free(machine->landed);
-    free(machine->final_score);
+    platform_cell_released(machine->climber_side, platform_place_g_program_owner);
+    platform_cell_released(machine->climber_peak, platform_place_g_program_owner);
+    platform_cell_released(machine->climber_entry_start, platform_place_g_program_owner);
+    platform_cell_released(machine->centers, platform_place_g_program_owner);
+    platform_cell_released(machine->active, platform_place_g_program_owner);
+    platform_cell_released(machine->landed, platform_place_g_program_owner);
+    platform_cell_released(machine->final_score, platform_place_g_program_owner);
     cudaFree(machine->device_final_score);
     cudaFree(machine->device_climber_side);
     cudaFree(machine->device_climber_peak);
@@ -129,9 +131,9 @@ extern "C" void climb_machine_close(ClimbMachine *machine)
     cudaFree(machine->device_centers);
     cudaFree(machine->device_active);
     cudaFree(machine->device_landed);
-    free(machine->entry_first);
-    free(machine->entry_end);
-    free(machine->entry_climber);
+    platform_cell_released(machine->entry_first, platform_place_g_program_owner);
+    platform_cell_released(machine->entry_end, platform_place_g_program_owner);
+    platform_cell_released(machine->entry_climber, platform_place_g_program_owner);
     cudaFree(machine->device_entry_first);
     cudaFree(machine->device_entry_end);
     cudaFree(machine->device_entry_climber);
@@ -150,5 +152,5 @@ extern "C" void climb_machine_close(ClimbMachine *machine)
     }
     machine_box_release(machine);
     machine_core_release(machine);
-    free(machine);
+    platform_cell_released(machine, platform_place_g_program_owner);
 }

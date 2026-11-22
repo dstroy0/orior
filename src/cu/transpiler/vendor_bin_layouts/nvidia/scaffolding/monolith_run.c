@@ -74,12 +74,13 @@ static unsigned char *monolith_file(const char *path)
     const long size = platform_file_tell(file);
     platform_file_seek(file, 0L, SEEK_SET);
     // a size the file reported is at least 0, and a byte past it ends the image
-    unsigned char *const bytes = (size > 0L) ? (unsigned char *)malloc((size_t)size + 1u) : NULL;
+    unsigned char *const bytes =
+        (size > 0L) ? (unsigned char *)platform_cell_taken((size_t)size + 1u, platform_place_g_program_owner, 0) : NULL;
     const int read = (bytes != NULL) && (platform_file_read_items(bytes, 1u, (size_t)size, file) == (size_t)size);
     platform_file_close(file);
     if (read == 0)
     {
-        free(bytes);
+        platform_cell_released(bytes, platform_place_g_program_owner);
         return NULL;
     }
     return bytes;
@@ -532,6 +533,6 @@ int program_main(int count_of_words, char **words)
     cuMemFree(out);
     cuModuleUnload(module);
     cuDevicePrimaryCtxRelease(device);
-    free(image);
+    platform_cell_released(image, platform_place_g_program_owner);
     return ((costed != 0) && (s_failed == 0u)) ? 0 : 1;
 }

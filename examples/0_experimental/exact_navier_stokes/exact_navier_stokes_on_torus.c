@@ -67,6 +67,7 @@
  *       names it, and this file does not use it. Nothing in this file is new mathematics.
  */
 #include "torus_fields.h"
+#include "../../../src/platform/platform.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -384,7 +385,7 @@ static int64_t mode_reach(const TorusVector *vector)
                              llabs((long long)list.modes[at][2]);
         largest = (size > largest) ? size : largest;
     }
-    free(list.modes);
+    platform_cell_released(list.modes, platform_place_g_program_owner);
     return largest;
 }
 
@@ -399,7 +400,7 @@ static size_t mode_count(const TorusVector *vector)
     ModeList list;
     modes_of(vector, &list);
     const size_t count = list.count;
-    free(list.modes);
+    platform_cell_released(list.modes, platform_place_g_program_owner);
     return count;
 }
 

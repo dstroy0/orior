@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_expression.c: expressions and gate bounds
 #include "qasm_internal.h"
+#include "../../../src/platform/platform.h"
 
 static int qasm_primary(QasmParser *parser, const QasmScope *scope, QasmAngle *value)
 {
@@ -40,9 +41,8 @@ static int qasm_primary(QasmParser *parser, const QasmScope *scope, QasmAngle *v
         {
             if (qasm_token_is(parser, token, functions[at]))
             {
-                qasm_error(parser, token,
-                            "%s() in a parameter is not read: a parameter is + - * / over numbers and pi",
-                            functions[at]);
+                qasm_error(parser, token, "%s() in a parameter is not read: a parameter is + - * / over numbers and pi",
+                           functions[at]);
                 return 0;
             }
         }
@@ -78,7 +78,7 @@ static int qasm_unary(QasmParser *parser, const QasmScope *scope, QasmAngle *val
     if (qasm_token_is(parser, qasm_peek(parser), "^") && (qasm_peek(parser)->type == QASM_TOKEN_SYMBOL))
     {
         qasm_error(parser, qasm_peek(parser),
-                    "'^' in a parameter is not read: a parameter is + - * / over numbers and pi");
+                   "'^' in a parameter is not read: a parameter is + - * / over numbers and pi");
         return 0;
     }
     return 1;
@@ -111,7 +111,7 @@ static int qasm_term(QasmParser *parser, const QasmScope *scope, QasmAngle *valu
             if (right_pi || qasm_exact_is_zero(&right.a.num))
             {
                 qasm_error(parser, token,
-                            right_pi ? "a division by a multiple of pi is not read" : "a parameter divides by zero");
+                           right_pi ? "a division by a multiple of pi is not read" : "a parameter divides by zero");
                 return 0;
             }
             if (!qasm_fraction_divide(parser, &value->a, &right.a, &value->a) ||
@@ -249,9 +249,9 @@ static int qasm_bound_gate(QasmParser *parser, const QasmGate *gate)
     if ((orior_exact_compare(&bound, &half) >= 0) || !qasm_exact_to_wide(&bound, parser->circuit->bound))
     {
         qasm_error(parser, &parser->tokens[parser->at],
-                    "the proved error bound reaches 1/2 at this gate (%u rounded gates at F = %u): no bitstring could "
-                    "be proved",
-                    parser->circuit->rounded_gates, QASM_FRACTION_BITS);
+                   "the proved error bound reaches 1/2 at this gate (%u rounded gates at F = %u): no bitstring could "
+                   "be proved",
+                   parser->circuit->rounded_gates, QASM_FRACTION_BITS);
         return 0;
     }
     return 1;
@@ -266,7 +266,9 @@ int qasm_push_gate(QasmParser *parser, const QasmGate *gate)
     if (circuit->gate_count == circuit->gate_capacity)
     {
         const unsigned int capacity = (circuit->gate_capacity == 0u) ? 256u : (circuit->gate_capacity * 2u);
-        QasmGate *const grown = (QasmGate *)realloc(circuit->gates, (size_t)capacity * sizeof(QasmGate));
+        QasmGate *const grown =
+            (QasmGate *)platform_cell_grown(circuit->gates, (size_t)circuit->gate_capacity * sizeof(QasmGate),
+                                            (size_t)capacity * sizeof(QasmGate), platform_place_g_program_owner, 0);
         if (!QASM_CHECK(grown != NULL, circuit, parser->error))
         {
             parser->failed = 1;

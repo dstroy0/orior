@@ -21,6 +21,7 @@
  * root of 5 n^2. Each irrational value that it prints is an interval of exact integers.
  */
 #include "../game_record.h"
+#include "../../../src/platform/platform.h"
 
 /** @brief The bits of the scale of each irrational value. */
 #define WYTHOFF_BITS 192u
@@ -304,8 +305,10 @@ static int wythoff_play(SimResults *results, const GameProgram *cell, const Game
              sim_status_check(results, cudaMalloc((void **)&device_index, flags * 3ULL * 4ULL), "index") &&
              sim_status_check(results, cudaMemset(device_cells, 0, (cells + 1ULL) * 4ULL), "cells cleared") &&
              sim_status_check(results, cudaMemset(device_flags[0], 0, flags * 4ULL), "flags cleared");
-    unsigned int *const index = (unsigned int *)malloc((size_t)(flags * 3ULL * 4ULL));
-    unsigned long long *const start = (unsigned long long *)malloc((2ULL * side) * sizeof(unsigned long long));
+    unsigned int *const index =
+        (unsigned int *)platform_cell_taken((size_t)(flags * 3ULL * 4ULL), platform_place_g_program_owner, 0);
+    unsigned long long *const start = (unsigned long long *)platform_cell_taken(
+        (2ULL * side) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
     ok = ok && (index != NULL) && (start != NULL);
     unsigned long long place = 0ULL;
     for (unsigned int diagonal = 0u; ok && (diagonal < ((2u * side) - 1u)); diagonal += 1u)
@@ -378,7 +381,8 @@ static int wythoff_play(SimResults *results, const GameProgram *cell, const Game
         ok = ok && (cycle_record_run(&run_flags) == (long)flags);
         current = 1 - current;
     }
-    unsigned int *const read = (unsigned int *)malloc((size_t)(cells * 4ULL));
+    unsigned int *const read =
+        (unsigned int *)platform_cell_taken((size_t)(cells * 4ULL), platform_place_g_program_owner, 0);
     ok = ok && (read != NULL) &&
          sim_status_check(results, cudaMemcpy(read, device_cells, cells * 4ULL, cudaMemcpyDeviceToHost), "cells read");
     for (unsigned int diagonal = 0u; ok && (diagonal < ((2u * side) - 1u)); diagonal += 1u)
@@ -396,9 +400,9 @@ static int wythoff_play(SimResults *results, const GameProgram *cell, const Game
     cudaFree(device_flags[0]);
     cudaFree(device_flags[1]);
     cudaFree(device_index);
-    free(index);
-    free(start);
-    free(read);
+    platform_cell_released(index, platform_place_g_program_owner);
+    platform_cell_released(start, platform_place_g_program_owner);
+    platform_cell_released(read, platform_place_g_program_owner);
     return ok;
 }
 
@@ -448,7 +452,8 @@ int program_main(int argc, char **argv)
         unsigned int *device_shared = NULL;
         unsigned int *device_index = NULL;
         unsigned int *device_out = NULL;
-        unsigned int *const sums = (unsigned int *)malloc((size_t)((cells / side) + 1ULL) * 2ULL * 4ULL);
+        unsigned int *const sums = (unsigned int *)platform_cell_taken((size_t)((cells / side) + 1ULL) * 2ULL * 4ULL,
+                                                                       platform_place_g_program_owner, 0);
         ok = ok && (sums != NULL) && sim_status_check(&results, cudaMalloc((void **)&device_shared, 4ULL), "side") &&
              sim_status_check(&results, cudaMalloc((void **)&device_index, cells * 4ULL), "index") &&
              sim_status_check(&results, cudaMalloc((void **)&device_out, cells * program.layout.out_limbs * 4ULL),
@@ -508,7 +513,7 @@ int program_main(int argc, char **argv)
         cudaFree(device_shared);
         cudaFree(device_index);
         cudaFree(device_out);
-        free(sums);
+        platform_cell_released(sums, platform_place_g_program_owner);
         game_release(&program);
     }
     if (ok)
@@ -538,8 +543,10 @@ int program_main(int argc, char **argv)
     ok = ok && wythoff_make_cell(&cell, &cell_output, &error) && wythoff_make_flag(&flag, &flag_output, &error);
     GameInterval phi;
     ok = ok && wythoff_phi(WYTHOFF_BITS, &phi);
-    unsigned char *const lost = (unsigned char *)malloc((size_t)((unsigned long long)largest_side * largest_side));
-    unsigned int *const firsts = (unsigned int *)malloc((size_t)largest_side * sizeof(unsigned int));
+    unsigned char *const lost = (unsigned char *)platform_cell_taken(
+        (size_t)((unsigned long long)largest_side * largest_side), platform_place_g_program_owner, 0);
+    unsigned int *const firsts = (unsigned int *)platform_cell_taken((size_t)largest_side * sizeof(unsigned int),
+                                                                     platform_place_g_program_owner, 0);
     ok = ok && (lost != NULL) && (firsts != NULL);
     unsigned int first_count = 0u;
     for (unsigned int shape = 0u; ok && (shape < WYTHOFF_SIDE_COUNT); shape += 1u)
@@ -650,7 +657,7 @@ int program_main(int argc, char **argv)
     sim_flush(&results);
     game_release(&cell);
     game_release(&flag);
-    free(lost);
-    free(firsts);
+    platform_cell_released(lost, platform_place_g_program_owner);
+    platform_cell_released(firsts, platform_place_g_program_owner);
     return sim_close(&results, "bouton and wythoff");
 }

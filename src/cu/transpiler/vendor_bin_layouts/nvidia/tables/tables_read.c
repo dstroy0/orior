@@ -39,10 +39,11 @@ static unsigned char *whole(const char *path, size_t *size)
         if (length == room)
         {
             room = (room == 0u) ? (1u << 20u) : (room * 2u);
-            unsigned char *const grown = (unsigned char *)realloc(bytes, room);
+            unsigned char *const grown =
+                (unsigned char *)platform_cell_grown(bytes, length, room, platform_place_g_program_owner, 0);
             if (grown == NULL)
             {
-                free(bytes);
+                platform_cell_released(bytes, platform_place_g_program_owner);
                 platform_file_close(file);
                 return NULL;
             }
@@ -161,10 +162,10 @@ int program_main(int count, char **words)
             mmgr_line_ch(&engine_note.line, '\n');
             engine_note_written(&engine_note);
         }
-        free(text);
+        platform_cell_released(text, platform_place_g_program_owner);
         return 1;
     }
-    free(text);
+    platform_cell_released(text, platform_place_g_program_owner);
     if (mmgr_text_equal(words[2], "spans", PLATFORM_TEXT_TO_TERMINATOR))
     {
         const int code = spans_printed(&set);

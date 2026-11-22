@@ -34,9 +34,12 @@ static void lane_enumerate(LaneResults *results)
     const DeviceRecordStep *const steps = compiled.layout.step_table;
     const unsigned int out_limbs = compiled.layout.out_limbs;
     const size_t words = (size_t)lanes * out_limbs;
-    unsigned int *const host_out = (unsigned int *)calloc(words, sizeof(unsigned int));
-    unsigned int *const interpreted_out = (unsigned int *)calloc(words, sizeof(unsigned int));
-    unsigned int *const compiled_out = (unsigned int *)calloc(words, sizeof(unsigned int));
+    unsigned int *const host_out =
+        (unsigned int *)platform_cell_cleared(words, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const interpreted_out =
+        (unsigned int *)platform_cell_cleared(words, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const compiled_out =
+        (unsigned int *)platform_cell_cleared(words, sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned int *device_shared = NULL;
     unsigned int *device_interpreted = NULL;
     unsigned int *device_compiled = NULL;
@@ -137,9 +140,9 @@ static void lane_enumerate(LaneResults *results)
     cudaFree(device_shared);
     cudaFree(device_interpreted);
     cudaFree(device_compiled);
-    free(host_out);
-    free(interpreted_out);
-    free(compiled_out);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(interpreted_out, platform_place_g_program_owner);
+    platform_cell_released(compiled_out, platform_place_g_program_owner);
     lane_free(&interpreted);
     lane_free(&compiled);
 }
@@ -198,7 +201,8 @@ static void lane_edges(LaneResults *results)
 {
     const unsigned long long lanes = LANE_TEST_EDGE_LANES;
     const size_t words = (size_t)lanes * LANE_TEST_EDGE_LIMBS;
-    unsigned int *const records = (unsigned int *)calloc(words, sizeof(unsigned int));
+    unsigned int *const records =
+        (unsigned int *)platform_cell_cleared(words, sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned int *device_records = NULL;
     const int passed =
         (records != NULL) && (cudaMalloc((void **)&device_records, words * sizeof(unsigned int)) == cudaSuccess);
@@ -310,7 +314,7 @@ static void lane_edges(LaneResults *results)
                    (cycle_record_latch(&empty) == CYCLE_ERROR),
                "the latch errors on a field past its record and a count of no lanes");
     cudaFree(device_records);
-    free(records);
+    platform_cell_released(records, platform_place_g_program_owner);
 }
 
 // Under an index the lane register is the lane: lane l reads record 4095 - l, whose base is (4095 - l) 2^20, and
@@ -329,10 +333,14 @@ static void lane_indexed(LaneResults *results)
     }
     const DeviceRecordStep *const steps = loaded.layout.step_table;
     const unsigned int out_limbs = loaded.layout.out_limbs;
-    unsigned int *const records = (unsigned int *)calloc((size_t)lanes * LANE_TEST_SHARED_LIMBS, sizeof(unsigned int));
-    unsigned int *const index = (unsigned int *)calloc(lanes, sizeof(unsigned int));
-    unsigned int *const host_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
-    unsigned int *const device_copy = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
+    unsigned int *const records = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * LANE_TEST_SHARED_LIMBS, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const index =
+        (unsigned int *)platform_cell_cleared(lanes, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host_out = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const device_copy = (unsigned int *)platform_cell_cleared(
+        (size_t)lanes * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned int *device_records = NULL;
     unsigned int *device_index = NULL;
     unsigned int *device_out = NULL;
@@ -392,10 +400,10 @@ static void lane_indexed(LaneResults *results)
     cudaFree(device_records);
     cudaFree(device_index);
     cudaFree(device_out);
-    free(records);
-    free(index);
-    free(host_out);
-    free(device_copy);
+    platform_cell_released(records, platform_place_g_program_owner);
+    platform_cell_released(index, platform_place_g_program_owner);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    platform_cell_released(device_copy, platform_place_g_program_owner);
     lane_free(&loaded);
 }
 
@@ -408,7 +416,7 @@ int program_main(int count, char **arguments)
     results.checks = 0ull;
     results.failures = 0ull;
     results.line.capacity = LANE_TEST_LINE;
-    results.line.out = (char *)malloc((size_t)LANE_TEST_LINE);
+    results.line.out = (char *)platform_cell_taken((size_t)LANE_TEST_LINE, platform_place_g_program_owner, 0);
     results.line.at = 0ull;
     if (results.line.out == NULL)
     {
@@ -436,6 +444,6 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " failed\n");
     (void)(mmgr_line_ok(&results.line) &&
            (platform_line_out_put(results.line.out, mmgr_line_finish(&results.line)) == results.line.at));
-    free(results.line.out);
+    platform_cell_released(results.line.out, platform_place_g_program_owner);
     return (results.failures == 0ull) ? 0 : 1;
 }

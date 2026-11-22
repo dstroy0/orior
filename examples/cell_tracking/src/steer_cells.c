@@ -48,10 +48,10 @@ int program_main(int argc, char **argv)
 
     size_t capacity = 1u << 16;
     size_t count = 0u;
-    unsigned int *levels = malloc(capacity * sizeof(*levels));
-    unsigned int *zs = malloc(capacity * sizeof(*zs));
-    unsigned int *ys = malloc(capacity * sizeof(*ys));
-    unsigned int *xs = malloc(capacity * sizeof(*xs));
+    unsigned int *levels = platform_cell_taken(capacity * sizeof(*levels), platform_place_g_program_owner, 0);
+    unsigned int *zs = platform_cell_taken(capacity * sizeof(*zs), platform_place_g_program_owner, 0);
+    unsigned int *ys = platform_cell_taken(capacity * sizeof(*ys), platform_place_g_program_owner, 0);
+    unsigned int *xs = platform_cell_taken(capacity * sizeof(*xs), platform_place_g_program_owner, 0);
     if ((levels == NULL) || (zs == NULL) || (ys == NULL) || (xs == NULL))
     {
         return 1;
@@ -66,10 +66,14 @@ int program_main(int argc, char **argv)
         if (count == capacity)
         {
             capacity *= 2u;
-            levels = realloc(levels, capacity * sizeof(*levels));
-            zs = realloc(zs, capacity * sizeof(*zs));
-            ys = realloc(ys, capacity * sizeof(*ys));
-            xs = realloc(xs, capacity * sizeof(*xs));
+            levels = platform_cell_grown(levels, (capacity / 2u) * sizeof(*levels), capacity * sizeof(*levels),
+                                         platform_place_g_program_owner, 0);
+            zs = platform_cell_grown(zs, (capacity / 2u) * sizeof(*zs), capacity * sizeof(*zs),
+                                     platform_place_g_program_owner, 0);
+            ys = platform_cell_grown(ys, (capacity / 2u) * sizeof(*ys), capacity * sizeof(*ys),
+                                     platform_place_g_program_owner, 0);
+            xs = platform_cell_grown(xs, (capacity / 2u) * sizeof(*xs), capacity * sizeof(*xs),
+                                     platform_place_g_program_owner, 0);
             if ((levels == NULL) || (zs == NULL) || (ys == NULL) || (xs == NULL))
             {
                 return 1;
@@ -83,7 +87,7 @@ int program_main(int argc, char **argv)
     }
     fclose(handle);
 
-    uint8_t *field = malloc(count);
+    uint8_t *field = platform_cell_taken(count, platform_place_g_program_owner, 0);
     if (field == NULL)
     {
         return 1;
