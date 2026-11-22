@@ -14,6 +14,7 @@
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include "memoria_operor/memoria_linea.h"
+#include "verba_scribo/verba_linea.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -81,7 +82,17 @@ static void tables_record(const void *at, const void *from, size_t size)
 {
     char head[80];
     s_recording = 1;
-    const int length = snprintf(head, sizeof(head), "\n<%p %p %zu>\n", at, from, size);
+    // each address as 0x and its hex digits, 0x0 for none, as the funnel reads it (line_number)
+    VerbaLinea formed_line = mmgr_line_over(head, sizeof(head));
+    mmgr_line_put(&formed_line, "\n<0x");
+    mmgr_line_hex(&formed_line, (uint64_t)(uintptr_t)at, 1u);
+    mmgr_line_put(&formed_line, " 0x");
+    mmgr_line_hex(&formed_line, (uint64_t)(uintptr_t)from, 1u);
+    mmgr_line_ch(&formed_line, ' ');
+    mmgr_line_decimal(&formed_line, (uint64_t)size, 1u);
+    mmgr_line_put(&formed_line, ">\n");
+    (void)mmgr_line_finish(&formed_line);
+    const int length = mmgr_line_ok(&formed_line) ? (int)formed_line.at : 0;
     if (length > 0)
     {
         tables_written(head, (size_t)length);
@@ -90,7 +101,7 @@ static void tables_record(const void *at, const void *from, size_t size)
     s_recording = 0;
 }
 
-void *mmgr_bytes_copy(void *restrict dest, const void *restrict src, size_t num)
+void *memcpy(void *restrict dest, const void *restrict src, size_t num)
 {
     tables_found();
     if (s_memcpy == NULL)

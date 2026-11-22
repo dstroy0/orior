@@ -242,7 +242,10 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
         const char *walk = chain;
         int fits = writings_chain_read(&walk, nodes, &count, root, sizeof(root)) && (count != 0u);
         char lines[4096];
-        size_t at = (size_t)snprintf(lines, sizeof(lines), WRITINGS_HEAD WRITINGS_CHAIN_HEAD);
+        VerbaLinea formed_line_head = mmgr_line_over(lines, sizeof(lines));
+        mmgr_line_put(&formed_line_head, WRITINGS_HEAD WRITINGS_CHAIN_HEAD);
+        (void)mmgr_line_finish(&formed_line_head);
+        size_t at = formed_line_head.at;
         for (unsigned int node = 0u; fits && (node < count); node += 1u)
         {
             const unsigned int writing = writings_for(nodes[node].precept);
@@ -263,7 +266,11 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
                                     mmgr_line_put(&formed_line_9, put), (void)mmgr_line_finish(&formed_line_9),
                                     (int)formed_line_9.at)) < sizeof(lines));
         }
-        fits = fits && (snprintf(&lines[at], sizeof(lines) - at, WRITINGS_TAIL) < (int)(sizeof(lines) - at)) &&
+        VerbaLinea formed_line_tail;
+        fits = fits &&
+               ((formed_line_tail = mmgr_line_over(&lines[at], sizeof(lines) - at),
+                 mmgr_line_put(&formed_line_tail, WRITINGS_TAIL), (void)mmgr_line_finish(&formed_line_tail),
+                 (int)formed_line_tail.at) < (int)(sizeof(lines) - at)) &&
                writings_splice(s_kernel_text, lines, s_query_text, sizeof(s_query_text));
         const unsigned int instructions =
             fits ? sass_assemble_lines(&s_machine, s_query_text, SASS_CONTROL_SAFE, s_code, sizeof(s_code)) : 0u;

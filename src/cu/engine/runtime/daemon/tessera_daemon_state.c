@@ -158,13 +158,17 @@ int daemon_directories_make(const char *path)
 
 int daemon_state_file(const char *name, char *path)
 {
-    const int written = snprintf(path, ENGINE_PATH_CAPACITY, "%s%s%s", g_daemon.state,
+    VerbaLinea formed_line = mmgr_line_over(path, ENGINE_PATH_CAPACITY);
+    mmgr_line_put(&formed_line, g_daemon.state);
 #if defined(_WIN32)
-                                 "\\",
+    mmgr_line_ch(&formed_line, '\\');
 #else
-                                 "/",
+    mmgr_line_ch(&formed_line, '/');
 #endif
-                                 name);
+    mmgr_line_put(&formed_line, name);
+    (void)mmgr_line_finish(&formed_line);
+    // the line's count, or its capacity once a write did not fit
+    const int written = (int)formed_line.at;
     // a non-negative length is compared whole against the capacity
     return (written >= 0) && ((unsigned int)written < ENGINE_PATH_CAPACITY);
 }

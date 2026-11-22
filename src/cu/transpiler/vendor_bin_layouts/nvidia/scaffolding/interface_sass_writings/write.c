@@ -113,8 +113,11 @@ int writings_write(const char *pattern, const char *kernel_text, const char *mac
             }
             char instruction[256];
             char lines[2048];
+            VerbaLinea formed_line;
             if (!writings_instruction(form, table, value, assignment, instruction, sizeof(instruction)) ||
-                (snprintf(lines, sizeof(lines), WRITINGS_HEAD "%s" WRITINGS_TAIL, instruction) >= (int)sizeof(lines)) ||
+                ((formed_line = mmgr_line_over(lines, sizeof(lines)), mmgr_line_put(&formed_line, WRITINGS_HEAD),
+                  mmgr_line_put(&formed_line, instruction), mmgr_line_put(&formed_line, WRITINGS_TAIL),
+                  (void)mmgr_line_finish(&formed_line), (int)formed_line.at) >= (int)sizeof(lines)) ||
                 !writings_splice(s_kernel_text, lines, s_query_text, sizeof(s_query_text)))
             {
                 continue;

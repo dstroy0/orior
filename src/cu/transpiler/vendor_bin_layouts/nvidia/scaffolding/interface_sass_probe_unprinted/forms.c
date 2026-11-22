@@ -209,13 +209,20 @@ static int unprinted_operand(const char *base, unsigned int type, unsigned int m
         (void)mmgr_line_finish(&formed_line_44);
         return (int)formed_line_44.at < (int)room;
     }
-    case SASS_OPERAND_IMMEDIATE:
-        return (place != 0u) && (snprintf(operand, room, "%s%s", displayed, base) < (int)room);
-    case SASS_OPERAND_CONSTANT:
+    case SASS_OPERAND_IMMEDIATE: {
+        VerbaLinea formed_line_63;
+        return (place != 0u) && ((formed_line_63 = mmgr_line_over(operand, room),
+                                  mmgr_line_put(&formed_line_63, displayed), mmgr_line_put(&formed_line_63, base),
+                                  (void)mmgr_line_finish(&formed_line_63), (int)formed_line_63.at) < (int)room);
+    }
+    case SASS_OPERAND_CONSTANT: {
+        VerbaLinea formed_line_64;
         return (place != 0u) &&
-               (snprintf(operand, room, "%s%s", displayed,
-                         (mmgr_text_starts(base, "c[0x0]", PLATFORM_TEXT_TO_TERMINATOR)) ? "c[0x0][0x0]" : base) <
-                (int)room);
+               ((formed_line_64 = mmgr_line_over(operand, room), mmgr_line_put(&formed_line_64, displayed),
+                 mmgr_line_put(&formed_line_64,
+                               (mmgr_text_starts(base, "c[0x0]", PLATFORM_TEXT_TO_TERMINATOR)) ? "c[0x0][0x0]" : base),
+                 (void)mmgr_line_finish(&formed_line_64), (int)formed_line_64.at) < (int)room);
+    }
     default:
         return 0;
     }
@@ -375,10 +382,12 @@ static int unprinted_memory_text(const SassForm *form, char *text, size_t room, 
 // answer's third word, which the instruction wrote, loaded into R7, which the kernel stores as the first
 static int unprinted_memory_lines(const char *instruction, char *lines, size_t room)
 {
-    return snprintf(lines, room,
-                    "IMAD.MOV.U32 R6, RZ, RZ, R7\n" UNPRINTED_PREDICATES "%s\nSTG.E term[UR4][R4.64+0x4], R10\n"
-                    "LDG.E.CONSTANT R7, term[UR4][R4.64+0x8]",
-                    instruction) < (int)room;
+    VerbaLinea formed_line = mmgr_line_over(lines, room);
+    mmgr_line_put(&formed_line, "IMAD.MOV.U32 R6, RZ, RZ, R7\n" UNPRINTED_PREDICATES);
+    mmgr_line_put(&formed_line, instruction);
+    mmgr_line_put(&formed_line, "\nSTG.E term[UR4][R4.64+0x4], R10\nLDG.E.CONSTANT R7, term[UR4][R4.64+0x8]");
+    (void)mmgr_line_finish(&formed_line);
+    return (int)formed_line.at < (int)room;
 }
 
 // `value` written as `bits` binary digits and what it answered appended to the tally's list of values answering
