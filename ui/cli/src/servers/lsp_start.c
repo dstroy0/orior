@@ -140,6 +140,10 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     }
     lsp->recv = recv;
     lsp->context = context;
+    lsp->stopping = 0;
+    (void)cellul.copy(&(CatenaFinitaCfg){
+        .dst = lsp->overseen, .src = (args->overseen != NULL) ? args->overseen : "", .cap = sizeof(lsp->overseen)});
+    EMBED_CALL(cli_lsp_internal.overseen, CliLspCtx, .lsp = lsp, .event = CLI_OVERSEER_CONNECTING);
     lsp->words.count = 0u;
     lsp->words.used = 0u;
     lsp->words.full = 0;
@@ -157,9 +161,11 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
                     .words = lsp->words.word_text, .folder = args->root, .settings = lsp->settings,
                     .count = settings_used, .detached = 1, .err_msg = args->err_msg))
     {
+        EMBED_CALL(cli_lsp_internal.overseen, CliLspCtx, .lsp = lsp, .event = CLI_OVERSEER_FAILED);
         lsp->reserved = 0;
         return NULL;
     }
+    EMBED_CALL(cli_lsp_internal.overseen, CliLspCtx, .lsp = lsp, .event = CLI_OVERSEER_SPAWNED);
     EMBED_CALL(cli_lsp_internal.readers_start, CliLspCtx, .lsp = lsp);
     // the params in a cell of the max they hold: the tree's URI twice, its folder's name escaped, what orior can do,
     // the server's options and the members around them
@@ -191,6 +197,9 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
             mmgr_line_put(args->err_msg, ": ");
             mmgr_line_put_n(args->err_msg, complaint, complaint_line.at);
         }
+        // the failure stands on the dot: the let-go that follows reports no stop
+        EMBED_CALL(cli_lsp_internal.overseen, CliLspCtx, .lsp = lsp, .event = CLI_OVERSEER_FAILED);
+        lsp->stopping = 1;
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = lsp);
         return NULL;
     }
@@ -216,5 +225,6 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     VerbaLinea unsent = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_lsp_err_msg_length.notify, CliLspErrMsgLengthCfg, .lsp = lsp, .method = "initialized",
                      .params = "{}", .length = 2ULL, .err_msg = &unsent);
+    EMBED_CALL(cli_lsp_internal.overseen, CliLspCtx, .lsp = lsp, .event = CLI_OVERSEER_READY);
     return lsp;
 }

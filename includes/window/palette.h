@@ -5,8 +5,8 @@
 // name its grammar gives it (palette.c)
 #ifndef GUI_PALETTE_H
 #define GUI_PALETTE_H
-#include "embed_dispatch_layout.h"
 #include "../raster/raster.h"
+#include "embed_dispatch_layout.h"
 
 typedef struct GuiPaletteAtSizeCfg GuiPaletteAtSizeCfg;
 typedef struct GuiPaletteAtCfg GuiPaletteAtCfg;
@@ -138,6 +138,9 @@ typedef struct
     GuiColor pointer_line_end;
     GuiColor pointer_glint;
     GuiColor pointer_shadow;
+    GuiColor dot_up;
+    GuiColor dot_stopping;
+    GuiColor dot_failed;
     GuiColor lattice[3];
     GuiColor mark[GUI_MARKS];
     GuiColor terminal[GUI_TERMINAL_COLORS];
@@ -158,8 +161,8 @@ typedef struct
 
 // the palette of `scheme`, the dark one for any scheme not known
 const GuiPalette *gui_palette(const GuiPaletteCfg *args);
-// `own` made the palette of `scheme`, with no tokens; and the ink's tint and the editor's ground positioned at the bar's and
-// the editor's opacity
+// `own` made the palette of `scheme`, with no tokens; and the ink's tint and the editor's ground positioned at the
+// bar's and the editor's opacity
 void gui_palette_own_init(const GuiPaletteCfg *args);
 // the tokens of `own` cleared, for the next language's. And the token `name` added with `color`, a name at max
 // or longer than a token's name holds left out

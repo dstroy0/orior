@@ -293,6 +293,7 @@ const GuiPaneTable gui_comms_table = {
     .action_named = comms_action_named,
     .tool = "comms",
     .foot = 1,
+    .remote_dot = 1,
     .rows = comms_rows,
     .head = comms_head,
     .head_draw = comms_head_draw,

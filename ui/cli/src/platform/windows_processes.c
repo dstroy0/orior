@@ -194,6 +194,10 @@ int cli_process_memory(const CliPidCtx *args)
     args->memory->working = counters.PrivateWorkingSetSize;
     args->memory->commit = counters.PrivateUsage;
     args->memory->started = ((unsigned long long)made.dwHighDateTime << 32u) | made.dwLowDateTime;
+    // the kernel and user times count 100-nanosecond intervals
+    const unsigned long long kernel_ticks = ((unsigned long long)kernel.dwHighDateTime << 32u) | kernel.dwLowDateTime;
+    const unsigned long long user_ticks = ((unsigned long long)user.dwHighDateTime << 32u) | user.dwLowDateTime;
+    args->memory->processor_us = (kernel_ticks + user_ticks) / 10ULL;
     return 1;
 }
 

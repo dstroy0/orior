@@ -302,7 +302,8 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
         met ? EMBED_CALL(cli_lsp_err_msg.start, CliLspErrMsgCfg, .program = program, .request = words->word_text,
                          .count = words->count, .root = root, .options = options.cell,
                          .length = cli_grown_size(&options), .settings = setting, .setting_count = settings,
-                         .recv = cli_servers_recv, .context = server_sink, .err_msg = &reason)
+                         .recv = cli_servers_recv, .context = server_sink, .overseen = args->spec_read->tool,
+                         .err_msg = &reason)
             : NULL;
     g_cli_guard->persistent_buf_release(vs_path, g_cli_servers_launch_owner);
     g_cli_guard->persistent_buf_release(setting, g_cli_servers_launch_owner);

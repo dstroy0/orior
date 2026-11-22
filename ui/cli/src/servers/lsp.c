@@ -219,6 +219,13 @@ static void lsp_read(void *context)
             lsp->waiters[at].waiting = 0;
         }
     }
+    // the output's end with no stop under way is an end that the server did not ask for. The error stands on the dot
+    // until a new start: the let-go after it reports no stop
+    if (!lsp->stopping)
+    {
+        lsp->stopping = 1;
+        EMBED_CALL(cli_lsp_internal.overseen, CliLspCtx, .lsp = lsp, .event = CLI_OVERSEER_ENDED);
+    }
     lsp->read_state -= 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &lsp->wake);
 }
@@ -467,8 +474,20 @@ void cli_lsp_end(const CliLspCtx *args)
     }
 }
 
+void cli_lsp_overseen(const CliLspCtx *args)
+{
+    if (args->lsp->overseen[0] == '\0')
+    {
+        return;
+    }
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = args->lsp->overseen, .kind = CLI_OVERSEER_SERVER,
+               .event = args->event, .pid = args->lsp->spawned.id);
+}
+
 void cli_lsp_stop(const CliLspContextCfg *args)
 {
+    args->lsp->stopping = 1;
+    EMBED_CALL(cli_lsp_internal.overseen, CliLspCtx, .lsp = args->lsp, .event = CLI_OVERSEER_SHUTDOWN);
     CliLspAnswer answer;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_buf = {why, sizeof(why), 0ULL};
@@ -479,6 +498,7 @@ void cli_lsp_stop(const CliLspContextCfg *args)
                      .params = "null", .length = 4ULL, .err_msg = &err_buf);
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 100u);
     EMBED_CALL(cli_lsp_internal.end, CliLspCtx, .lsp = args->lsp);
+    EMBED_CALL(cli_lsp_internal.overseen, CliLspCtx, .lsp = args->lsp, .event = CLI_OVERSEER_STOPPED);
 }
 
 void cli_lsp_ref(const CliLspContextCfg *args)
@@ -494,7 +514,13 @@ void cli_lsp_unref(const CliLspContextCfg *args)
     {
         return;
     }
-    // a server let go is ended, as its process is with it; its place is given back once its readers end
+    // the last release of a server ends it and its process. Its place goes back once its readers end. A release with
+    // no stop before it is a stop of its own
+    if (!args->lsp->stopping)
+    {
+        args->lsp->stopping = 1;
+        EMBED_CALL(cli_lsp_internal.overseen, CliLspCtx, .lsp = args->lsp, .event = CLI_OVERSEER_STOPPED);
+    }
     EMBED_CALL(cli_lsp_internal.end, CliLspCtx, .lsp = args->lsp);
     EMBED_CALL(cli_spawned_internal.spawn_input_close, CliSpawnedCtx, .spawned = &args->lsp->spawned);
     const unsigned long long until = cli_clock_milliseconds() + 5000ULL;

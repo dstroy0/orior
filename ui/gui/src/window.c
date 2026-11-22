@@ -31,6 +31,7 @@
 #include "../../cli/src/editor/history.h"
 #include "../../cli/src/editor/view_edits.h"
 #include "../../cli/src/editor/view_tidy.h"
+#include "../../cli/src/machine/overseer.h"
 #include "../../cli/src/machine/reach.h"
 #include "../../cli/src/machine/report.h"
 #include "../../cli/src/machine/settings.h"
@@ -1756,8 +1757,9 @@ GuiRect gui_window_busy_draw(const GuiWindowCfg *args)
 static unsigned int s_timeout_source = GUI_WINDOW_WAKES;
 
 const char *const g_gui_window_wake_names[GUI_WINDOW_WAKES] = {
-    "autohide", "scroll",  "slide", "ground", "preferences", "dialog", "wordmark", "caret", "sides", "busy", "panels",
-    "terminal", "notices", "menus", "runs",   "search",      "git",    "preview",  "comms", "debug", "tip",  "bead",
+    "autohide", "scroll",  "slide",  "ground",   "preferences", "dialog", "wordmark", "caret",
+    "sides",    "busy",    "panels", "terminal", "notices",     "menus",  "runs",     "search",
+    "git",      "preview", "comms",  "debug",    "tip",         "bead",   "overseer",
 };
 
 unsigned int gui_window_timeout_source(void)
@@ -1824,6 +1826,8 @@ static unsigned long long window_timeout_ms_called(const GuiWindowInputCfg *args
           0ULL))
             ? now_ms + GUI_STAGE_MS
             : 0ULL,
+        // the overseer's next tick while it has a record, or the next half blink while a dot blinks
+        EMBED_CALL(cli_overseer.due_ms, CliOverseerCfg, .now_ms = now_ms),
     };
     _Static_assert((sizeof(deadlines) / sizeof(deadlines[0])) == GUI_WINDOW_WAKES,
                    "each deadline of the window needs its name in g_gui_window_wake_names");
@@ -6793,6 +6797,13 @@ static void window_step_called(const GuiWindowCfg *args)
     // GUI_MEMORY_MS without input: a take in use touches its pages again, and each page given back faults in once more
     window->memory_released_bytes =
         (window->memory_bytes < window->memory_released_bytes) ? window->memory_bytes : window->memory_released_bytes;
+    // The overseer's tick on this, the main thread. The tick reads each process that it watches and applies its
+    // limits. A changed state draws the dots again. Each half blink also draws them while a dot blinks
+    const int overseen =
+        EMBED_CALL(cli_overseer.tick, CliOverseerCfg, .now_ms = now_ms, .telemetry = window->telemetry);
+    const unsigned long long blink = now_ms / CLI_OVERSEER_BLINK_MS;
+    window->pending = overseen || ((blink != window->dots_blink) && cli_overseer_blinking()) || window->pending;
+    window->dots_blink = blink;
     if (now_ms >= window->memory_due_ms)
     {
         if (window->telemetry)

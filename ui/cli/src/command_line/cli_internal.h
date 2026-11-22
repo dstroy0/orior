@@ -657,12 +657,14 @@ int cli_process_running(const CliPidCtx *args);
 // What a process holds in memory, in bytes: its working set, the memory only it uses that is in RAM, and its commit,
 // the private memory it has reserved whether in RAM or paged out; and when it started, in the system's own ticks, 0
 // where the system does not say. On Linux the working set is its private pages in RAM and the commit its anonymous
-// pages in RAM and swapped out; on macOS both are its physical footprint, as the system counts it against its limit
+// pages in RAM and swapped out; on macOS both are its physical footprint, as the system counts it against its limit.
+// `processor_us` is the processor time that the process used since its start, in microseconds, user and kernel together
 typedef struct
 {
     unsigned long long working;
     unsigned long long commit;
     unsigned long long started;
+    unsigned long long processor_us;
 } CliProcessMemory;
 
 // what the process `pid` holds into `memory`: 1, or 0 where the system does not say; and the name of the program it

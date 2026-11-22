@@ -3,6 +3,7 @@
 // sessions.c: the sessions one window holds, each a far end started over a link, and the far end itself, which sends
 // what it reads to the window on its host
 #include "sessions.h"
+#include "../machine/overseer.h"
 #include "../machine/reach.h"
 #include "link.h"
 
@@ -196,13 +197,19 @@ int cli_sessions_join_words(const CliSessionsCfg *args)
         mmgr_line_put(args->err_msg, "the address does not fit a session's");
         return 0;
     }
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = session.address, .kind = CLI_OVERSEER_REMOTE,
+               .event = CLI_OVERSEER_CONNECTING);
     // the words end at a NULL, as a spawn reads them; the count is the settings', and there are none
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn_piped_as, CliWordsErrMsgCtx, .priority = CLI_PRIORITY_WORK,
                     .spawned = &session.child, .words = args->words, .count = 0u, .folder = NULL, .settings = NULL,
                     .detached = 0, .err_msg = args->err_msg))
     {
+        EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = session.address, .event = CLI_OVERSEER_LINK_LOST);
         return 0;
     }
+    // the link counts as connected at the first whole answer through it
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = session.address, .event = CLI_OVERSEER_SPAWNED,
+               .pid = session.child.id);
     const CarcerMovableEntry *const grown = g_cli_guard->movable_buf_alloc(
         (unsigned long long)(s_sessions.count + 1u) * sizeof(CliSession), g_cli_comms_owner);
     if (grown == NULL)
@@ -211,6 +218,7 @@ int cli_sessions_join_words(const CliSessionsCfg *args)
         (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &session.child);
         EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &session.child);
         mmgr_line_put(args->err_msg, "no cell holds another session");
+        EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = session.address, .event = CLI_OVERSEER_STOPPED);
         return 0;
     }
     if (s_sessions.cell != NULL)
@@ -342,6 +350,7 @@ int cli_sessions_leave(const CliSessionsCfg *args)
         return 0;
     }
     EMBED_CALL(session_end, SessionsOpCtx, .at = found);
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = args->address, .event = CLI_OVERSEER_STOPPED);
     // the records after it move down one place
     CliSession moved;
     for (unsigned int at = found + 1u; at < s_sessions.count; at += 1u)
@@ -501,6 +510,8 @@ EMBED_INLINE void session_reported(const SessionsOpCtx *args)
     {
         mmgr_line_put(out, " gave no answer");
         s_sessions.done = 0;
+        // no answer is an error on the link. The overseer's tick finds a far end that ended
+        EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = session->address, .event = CLI_OVERSEER_LINK_ERROR);
         return;
     }
     // the body: the id, a 0, the mark and the text
@@ -514,6 +525,9 @@ EMBED_INLINE void session_reported(const SessionsOpCtx *args)
     }
     const int ran = body[id + 1ULL] == CLI_REACH_DONE;
     s_sessions.done = s_sessions.done && ran;
+    // a whole answer is a connected link, and a refusal through it is an error on it
+    EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = session->address,
+               .event = ran ? CLI_OVERSEER_READY : CLI_OVERSEER_LINK_ERROR);
     mmgr_line_put(out, ran ? ": " : " refused: ");
     mmgr_line_put_n(out, body + id + 2ULL, size - id - 2ULL);
 }
@@ -560,7 +574,10 @@ void cli_sessions_close(void)
 {
     for (unsigned int at = 0u; at < s_sessions.count; at += 1u)
     {
+        CliSession ended;
+        EMBED_CALL(session_read, SessionsOpCtx, .at = at, .session = &ended);
         EMBED_CALL(session_end, SessionsOpCtx, .at = at);
+        EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = ended.address, .event = CLI_OVERSEER_STOPPED);
     }
     if (s_sessions.cell != NULL)
     {

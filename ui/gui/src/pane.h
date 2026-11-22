@@ -108,6 +108,8 @@ struct GuiPaneTable
     int (*menu)(const GuiPaneCfg *args);
     const char *(*row_text)(const GuiPaneCfg *args);
     unsigned int (*action_named)(const GuiPaneCfg *args);
+    // 1 where the group title's row shows the dot of the remote link after the title (dots.h)
+    int remote_dot;
 };
 
 // a pane pointing at no row and no action, scrolled to its top

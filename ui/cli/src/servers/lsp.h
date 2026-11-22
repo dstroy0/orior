@@ -94,9 +94,9 @@ typedef struct
 #define CLI_LSP_RAW(text_) {(text_), sizeof(text_) - 1ULL, 0, NULL, 0ULL}
 
 // `size` bytes of a JSON body framed and written whole by `writer` under `lock`; the same of a body made of `count`
-// pieces, each text written as a JSON string's characters as it goes, so that a file's whole text is never copied: each 1,
-// or 0 with why given; one message read from `reader` into `body`, sized for `capacity`, its size into `size`: 1, or 0
-// where the reader's source ended, the message gave no length or the body is no JSON, a body larger than the capacity
+// pieces, each text written as a JSON string's characters as it goes, so that a file's whole text is never copied: each
+// 1, or 0 with why given; one message read from `reader` into `body`, sized for `capacity`, its size into `size`: 1, or
+// 0 where the reader's source ended, the message gave no length or the body is no JSON, a body larger than the capacity
 // read and let go and the next one read; one message read into a cell of its length with a 0 after, counted to `owner`,
 // its size into `size`: the cell, given back by the caller, or NULL where the source ended, a body the cells cannot
 // meet or that is no JSON read and let go and the next one read; and the member `name` of a message's top object, as
@@ -106,8 +106,8 @@ int cli_lsp_send_parts(const CliLspWriterLockCfg *args);
 int cli_lsp_read_message(const CliLspReaderCfg *args);
 char *cli_lsp_message_alloc(const CliLspReaderSizeCfg *args);
 int cli_lsp_member(const CliLspBodyCfg *args);
-// a JSON string of `length` bytes read as its characters into `out`, sized for `capacity`: 1, or 0 where it is no string
-// or does not fit (lsp_wire.c)
+// a JSON string of `length` bytes read as its characters into `out`, sized for `capacity`: 1, or 0 where it is no
+// string or does not fit (lsp_wire.c)
 int cli_lsp_string(const CliLspCapacityCfg *args);
 
 // a path as the protocol names a file into `uri`, sized for `capacity`: file:///D:/a/b%20c on Windows, file:///a/b
@@ -122,7 +122,8 @@ void cli_lsp_key_get(const CliLspLengthCfg *args);
 // the server `program` started with `args`, `count` of them, at `root`, reading the tree there with its own `options`,
 // `length` bytes of JSON, with the settings `settings`, `setting_count` of them; `recv` takes what it sends unprompted:
 // the server, referenced once for its starter, or NULL with why given. The server referenced once more, and a reference
-// given back, the server ended with the last (lsp_start.c)
+// given back, the server ended with the last (lsp_start.c). Where `overseen` names it, the server reports its start,
+// its readiness, its stop and an end it did not ask for to the overseer under that name
 CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args);
 void cli_lsp_ref(const CliLspContextCfg *args);
 void cli_lsp_unref(const CliLspContextCfg *args);
@@ -181,6 +182,7 @@ struct CliLspErrMsgCfg
     unsigned int setting_count;
     CliLspRecvFn recv;
     void *context;
+    const char *overseen;
 };
 
 struct CliLspErrMsgLengthCfg

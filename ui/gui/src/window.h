@@ -328,6 +328,8 @@ typedef struct GuiWindow
     int closing;
     unsigned long long memory_bytes;
     unsigned long long memory_due_ms;
+    // the half blink of the state dots at the last step. A dot that blinks draws again at the next half
+    unsigned long long dots_blink;
     // the least working set after the last release of the cellblock's free pages, and when the last input came
     unsigned long long memory_released_bytes;
     unsigned long long input_ms;
@@ -442,7 +444,7 @@ void gui_window_tick(const GuiWindowCfg *args);
 unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args);
 // The deadlines the window waits on, each one's name for the telemetry, and the place of the one that set the last
 // wait. It is GUI_WINDOW_WAKES where none did
-#define GUI_WINDOW_WAKES 22u
+#define GUI_WINDOW_WAKES 23u
 extern const char *const g_gui_window_wake_names[GUI_WINDOW_WAKES];
 unsigned int gui_window_timeout_source(void);
 // The frame laid out for the claim's movement at `time_ms`. While a slide runs, it takes the stage of that moment, and

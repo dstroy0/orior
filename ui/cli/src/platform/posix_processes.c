@@ -20,6 +20,7 @@
 #include <unistd.h>
 #if defined(__APPLE__)
 #include <libproc.h>
+#include <mach/mach_time.h>
 #endif
 
 void *cli_pages_mapped(unsigned long long bytes)
@@ -283,6 +284,39 @@ EMBED_INLINE int processes_proc_read(const PosixProcessesCtx *args)
     return size >= 0LL;
 }
 
+// the processor time in the text of a process's stat file, in microseconds: its user and kernel ticks, the 14th and
+// 15th fields. The count of fields starts after the last `)`, because the program's name can hold spaces
+EMBED_INLINE unsigned long long processes_processor_us(const char *stat)
+{
+    const char *at =
+        EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = stat,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = stat, .cap = CLI_PROCESS_TEXT}), .byte = ')');
+    if (at == NULL)
+    {
+        return 0ULL;
+    }
+    // the field after the `)` is the 3rd, the state
+    unsigned int field = 2u;
+    unsigned long long ticks = 0ULL;
+    while ((at[0] != '\0') && (field < 15u))
+    {
+        at += 1;
+        if (at[0] == ' ')
+        {
+            field += 1u;
+            if ((field == 14u) || (field == 15u))
+            {
+                ticks += EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = at + 1, .at = 0ULL,
+                                    .size = cellul.len(&(CatenaFinitaCfg){.src = at + 1, .cap = CLI_POOL_BYTES}),
+                                    .end = NULL);
+            }
+        }
+    }
+    const long per_second = sysconf(_SC_CLK_TCK);
+    // the ticks a second is a small positive number where the system says it
+    return (per_second > 0L) ? ((ticks * 1000000ULL) / (unsigned long long)per_second) : 0ULL;
+}
+
 int cli_process_memory(const CliPidCtx *args)
 {
     const int read =
@@ -297,6 +331,10 @@ int cli_process_memory(const CliPidCtx *args)
             EMBED_CALL(processes_kilobytes, PosixProcessesCtx, .text = s_command, .field = "RssAnon:") +
             EMBED_CALL(processes_kilobytes, PosixProcessesCtx, .text = s_command, .field = "VmSwap:");
         args->memory->started = 0ULL;
+        args->memory->processor_us =
+            EMBED_CALL(processes_proc_read, PosixProcessesCtx, .pid = args->pid, .file = "/stat", .out = s_line)
+                ? processes_processor_us(s_line)
+                : 0ULL;
     }
     return read;
 }
@@ -329,6 +367,12 @@ int cli_process_memory(const CliPidCtx *args)
     args->memory->working = info.ri_phys_footprint;
     args->memory->commit = info.ri_phys_footprint;
     args->memory->started = 0ULL;
+    // the user and system times count the machine's absolute time units, and the timebase turns them to nanoseconds
+    mach_timebase_info_data_t timebase = {1u, 1u};
+    (void)mach_timebase_info(&timebase);
+    const unsigned long long units = info.ri_user_time + info.ri_system_time;
+    args->memory->processor_us =
+        (timebase.denom != 0u) ? (((units / 1000ULL) * timebase.numer) / timebase.denom) : 0ULL;
     return 1;
 }
 

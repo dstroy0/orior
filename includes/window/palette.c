@@ -5,8 +5,8 @@
 // what they serve; a translucent color carries the stylesheet's alpha as a byte of 255
 #include "palette.h"
 
-#include "memoria_operor/memoria_operor.h"
 #include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_linea.h"
 
 // the dark scheme:
@@ -104,6 +104,9 @@ static const GuiPalette s_dark = {
     GUI_RGBA(0x94u, 0x5eu, 0xe8u, 0xf2u),
     GUI_RGBA(0xffu, 0xffu, 0xffu, 0xb3u),
     GUI_RGBA(0x00u, 0x00u, 0x00u, 0x59u),
+    GUI_RGB(0x6fu, 0xdcu, 0xb4u),
+    GUI_RGB(0xe8u, 0xc4u, 0x6au),
+    GUI_RGB(0xffu, 0x6bu, 0x81u),
     {GUI_RGB(0x6fu, 0xdcu, 0xb4u), GUI_RGB(0x8au, 0xb8u, 0xffu), GUI_RGB(0xb4u, 0x9cu, 0xffu)},
     {GUI_RGB(0xffu, 0x8fu, 0xa3u), GUI_RGB(0x6fu, 0xdcu, 0xb4u), GUI_RGB(0xf2u, 0xd4u, 0x8au),
      GUI_RGB(0x8au, 0xb8u, 0xffu), GUI_RGB(0xb4u, 0x9cu, 0xffu), GUI_RGB(0x7fu, 0xd8u, 0xe8u),
@@ -248,6 +251,9 @@ static const PaletteNamed s_named[] = {
     PALETTE_NAMED("pointer.borderEnd", pointer_line_end),
     PALETTE_NAMED("pointer.glint", pointer_glint),
     PALETTE_NAMED("pointer.shadow", pointer_shadow),
+    PALETTE_NAMED("statusDot.up", dot_up),
+    PALETTE_NAMED("statusDot.stopping", dot_stopping),
+    PALETTE_NAMED("statusDot.failed", dot_failed),
     PALETTE_NAMED("side_menu.activeBackground", side_menu_on),
     PALETTE_NAMED("sideBar.background", side_background),
     PALETTE_NAMED("wordmark.incised", incised),
@@ -437,10 +443,9 @@ unsigned int gui_palette_contrast(const GuiPaletteForegroundCfg *args)
 {
     const GuiColor under =
         EMBED_CALL(gui_color.over, GuiRasterCfg, .background_color = args->background_fill, .color = args->back);
-    const unsigned int foreground_light =
-        EMBED_CALL(palette_light, PaletteCtx,
-                   .color = EMBED_CALL(gui_color.over, GuiRasterCfg, .background_color = under,
-                                       .color = args->foreground_color));
+    const unsigned int foreground_light = EMBED_CALL(
+        palette_light, PaletteCtx,
+        .color = EMBED_CALL(gui_color.over, GuiRasterCfg, .background_color = under, .color = args->foreground_color));
     const unsigned int under_light = EMBED_CALL(palette_light, PaletteCtx, .color = under);
     return (foreground_light > under_light) ? ((foreground_light * 10u) / under_light)
                                             : ((under_light * 10u) / foreground_light);

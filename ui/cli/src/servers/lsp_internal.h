@@ -4,6 +4,7 @@
 // the requests waiting on answers, what it reported it can do and what it wrote to its errors
 #ifndef LSP_INTERNAL_H
 #define LSP_INTERNAL_H
+#include "../machine/overseer.h"
 #include "../text/json_tree.h"
 #include "../toolchains/toolchains.h"
 #include "embed_dispatch_layout.h"
@@ -29,7 +30,8 @@ typedef struct
 // A server: whether its place is taken and how many reference it; its words, settings and process, whether it ended;
 // the lock its input is written under, and the writer of its input; under its lock, the next id, the requests waiting,
 // what it wrote to its errors, and its readers still reading, woken by its wake; what it reported it can do, in a
-// movable cell of its size given back with the server, and its bytes; its receiver; and its readers
+// movable cell of its size given back with the server, and its bytes; its receiver; and its readers. Last are its name
+// for the overseer, empty for none, and whether a stop or a let-go is under way
 struct CliLsp
 {
     int reserved;
@@ -53,6 +55,8 @@ struct CliLsp
     CliThread reader_thread;
     CliThread complaint_thread;
     CliLspReader reader;
+    char overseen[CLI_NAME_MAX_LEN];
+    int stopping;
 };
 
 // the lock a server's number and references are counted under; each server is a cell of its own, taken as it starts and
@@ -64,6 +68,8 @@ struct CliLsp
 void cli_lsp_readers_start(const CliLspCtx *args);
 // the server's process ended where it runs, and waited on (lsp.c)
 void cli_lsp_end(const CliLspCtx *args);
+// the event `event` of the server reported to the overseer under its name, where it has one (lsp.c)
+void cli_lsp_overseen(const CliLspCtx *args);
 // each file a server has open let go, as it is let go; and the cells the files open are allocated in, counted: the
 // table of them, each one's URI while it is open, and the copies one walk over a server's files takes (lsp_files.c)
 void cli_lsp_files_let_go(const CliLspTypeCtx *args);
@@ -71,6 +77,7 @@ void cli_lsp_files_let_go(const CliLspTypeCtx *args);
 struct CliLspCtx
 {
     CliLsp *lsp;
+    unsigned int event;
 };
 
 struct CliLspTypeCtx
@@ -82,11 +89,13 @@ typedef struct
 {
     void (*readers_start)(const CliLspCtx *args);
     void (*end)(const CliLspCtx *args);
+    void (*overseen)(const CliLspCtx *args);
 } CliLspNsTable;
-EMBED_TABLE_LAYOUT(CliLspNsTable, readers_start, end);
+EMBED_TABLE_LAYOUT(CliLspNsTable, readers_start, end, overseen);
 EMBED_TABLE_STORAGE CliLspNsTable cli_lsp_internal EMBED_UNUSED = {
     .readers_start = cli_lsp_readers_start,
     .end = cli_lsp_end,
+    .overseen = cli_lsp_overseen,
 };
 
 typedef struct

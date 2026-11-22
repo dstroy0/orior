@@ -6,9 +6,11 @@
 
 #include "../../../includes/glass/glass.h"
 #include "../../cli/src/command_line/cli_internal.h"
+#include "../../cli/src/machine/overseer.h"
 #include "changes.h"
 #include "comms.h"
 #include "debug.h"
+#include "dots.h"
 #include "explorer.h"
 #include "git.h"
 #include "problems.h"
@@ -369,7 +371,7 @@ void gui_pane_draw(const GuiPaneCfg *args)
     const int side_head = EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = GUI_PANE_SIDE_HEAD);
     const unsigned int side_head_size =
         (unsigned int)EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = (int)GUI_PANE_SIDE_HEAD_SIZE);
-    (void)EMBED_CALL(
+    const float title_end = EMBED_CALL(
         gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs, .face = GUI_FACE_HEAD,
         .size = side_head_size,
         .x_f32 = (float)(side.x + EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = 15)),
@@ -379,6 +381,24 @@ void gui_pane_draw(const GuiPaneCfg *args)
         .color =
             GUI_FRAME_FADED(args->palette->text_2, EMBED_CALL(pane_share, PaneCtx, .table = table, .frame = frame)),
         .clip = inside);
+    if (foot)
+    {
+        // the title row of the panel at the foot. A dot for each language server goes at its right end. The remote
+        // link's dot goes after the title where the pane shows one
+        const unsigned long long now_ms = cli_clock_milliseconds();
+        const int pad = EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = GUI_PANE_PAD_LEFT);
+        (void)EMBED_CALL(gui_dots.draw, GuiDotsCfg, .raster = raster, .palette = args->palette, .clip = inside,
+                         .right = inside.x + inside.width - pad, .top = side.y, .height = side_head,
+                         .scale = frame->scale, .kind = CLI_OVERSEER_SERVER, .now_ms = now_ms);
+        if ((table != NULL) && table->remote_dot)
+        {
+            const int dot = EMBED_CALL(pane_scaled, PaneCtx, .frame = frame, .pixels = GUI_DOTS_SIDE + GUI_DOTS_GAP);
+            // the title's end lies inside the side, far inside an int
+            (void)EMBED_CALL(gui_dots.draw, GuiDotsCfg, .raster = raster, .palette = args->palette, .clip = inside,
+                             .right = (int)title_end + dot, .top = side.y, .height = side_head, .scale = frame->scale,
+                             .kind = CLI_OVERSEER_REMOTE, .worst = 1, .now_ms = now_ms);
+        }
+    }
     if (table == NULL)
     {
         return;
