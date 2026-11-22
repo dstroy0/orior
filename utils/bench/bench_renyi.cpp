@@ -547,7 +547,7 @@ double predicted_deficit_sparse(size_t bins, uint64_t total, const Order &order)
         // E[c log2 c] / mean, less log2 of the mean. The second term is zero exactly when the mean
         // is one: the full-domain case. A version without it agrees at that operating point, and
         // disagrees everywhere else. A defect that hides exactly where the code runs is the worst
-        // kind.
+        // type.
         return (double)((moment / (long double)mean / std::log(2.0L)) - std::log2((long double)mean));
     }
     return (double)(std::log(moment / std::pow((long double)mean, (long double)order.alpha)) / std::log(2.0L) /

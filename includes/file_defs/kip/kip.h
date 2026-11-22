@@ -4,6 +4,6 @@
 #ifndef KIP_H
 #define KIP_H
 
-#define KREP_KIND_KEY "IMP\0"
+#define KREP_TYPE_KEY "IMP\0"
 
 #endif

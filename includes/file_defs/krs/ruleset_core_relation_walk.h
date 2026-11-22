@@ -17,7 +17,7 @@
 // underscores.
 //
 // The caller gives the memory. That is an entry for each line, and a mark and a place on the stack of the walk for each
-// entry. It is also RULESET_CORE_RELATION_KINDS relations for each entry, and one for each name of the schema
+// entry. It is also RULESET_CORE_RELATION_TYPES relations for each entry, and one for each name of the schema
 
 #include "ruleset_core_words.h"
 
@@ -81,7 +81,7 @@
 #define RULESET_CORE_RELATION_ROW_TWICE 15u
 #define RULESET_CORE_RELATION_COUNT_DISAGREES 16u
 #define RULESET_CORE_RELATION_CLASS_NOT_NAMED 17u
-#define RULESET_CORE_RELATION_KINDS 18u
+#define RULESET_CORE_RELATION_TYPES 18u
 
 // The entries that a relation names witness it where each set with those entries holds it. An added file never
 // undoes it. It is a verdict on any part of a set that the walk reads.

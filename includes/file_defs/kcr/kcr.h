@@ -4,7 +4,7 @@
 #ifndef KCR_H
 #define KCR_H
 
-#define KREP_KIND_CRYSTAL "KCR\0"
+#define KREP_TYPE_CRYSTAL "KCR\0"
 
 #define KREP_CRYSTAL_HEAD_WORDS 12u
 

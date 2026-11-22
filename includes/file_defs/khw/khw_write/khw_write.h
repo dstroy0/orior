@@ -46,17 +46,17 @@
 
 // what the operand of a run is, which the code keeps beside its place. It is a register, a pair of registers that an
 // address comes through, a number, or a predicate. Then the character for each after the place in the answers and the working set
-#define KHW_KIND_REGISTER 0u
+#define KHW_TYPE_REGISTER 0u
 
-#define KHW_KIND_ADDRESS 1u
+#define KHW_TYPE_ADDRESS 1u
 
-#define KHW_KIND_IMMEDIATE 2u
+#define KHW_TYPE_IMMEDIATE 2u
 
-#define KHW_KIND_PREDICATE 3u
+#define KHW_TYPE_PREDICATE 3u
 // a run of the constant bank's operand: the offset read from the bank, and the bank, where the walks found a run of it
-#define KHW_KIND_CONSTANT 4u
+#define KHW_TYPE_CONSTANT 4u
 
-#define KHW_KIND_CHARACTERS "ranpc"
+#define KHW_TYPE_CHARACTERS "ranpc"
 
 // the name of the relation of a form in the answers file, from which the writer of the vendor names it
 #define KHW_READS_LADDER "ladder."
@@ -90,7 +90,7 @@ typedef struct
     // each run's place in the relation's tuple, the words in their order and then the answer, KHW_PLACE_NONE where
     // the part answered it none
     unsigned int place[KHW_RUNS];
-    // what each run's operand is, one of KHW_KIND_*
+    // what each run's operand is, one of KHW_TYPE_*
     unsigned int type[KHW_RUNS];
     // the frame relation that the form answered, FRAME_RELATION_COUNT where it answered the `anchor` of the ladder. Then
     // the read of the relation. That is the word that a load reads, the word of the register that a store stores, or

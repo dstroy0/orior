@@ -48,7 +48,7 @@
 #define SASS_MACHINE_PART 16u
 
 // what one printed operand is
-enum SassOperandKind
+enum SassOperandType
 {
     // an operand the parts reader did not know, which no instruction of that form can be assembled
     SASS_OPERAND_UNKNOWN = 0,

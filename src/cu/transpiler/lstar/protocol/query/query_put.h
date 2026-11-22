@@ -50,7 +50,7 @@ typedef enum
     QUERY_PAST_BOUND,
     // the process the query was put from ended before it answered, and the ending is the answer: `fault` reports how
     QUERY_ENDED
-} QueryKind;
+} QueryType;
 
 // one query, and what came back
 typedef struct
@@ -71,7 +71,7 @@ typedef struct
 
     // the bit: 1 where the qualifier was true inside the bound, 0 otherwise
     unsigned int bit;
-    // what came of it, a QueryKind
+    // what came of it, a QueryType
     unsigned int type;
     // the clock's advance across the query, in the clock's own counts; 0 where no clock was given
     unsigned long long cost;

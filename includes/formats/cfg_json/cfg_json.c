@@ -32,7 +32,7 @@ static void cfg_json_space(CfgJsonWalk *walk)
     }
 }
 
-static unsigned int cfg_json_token(CfgJsonWalk *walk, CfgJsonKind type, size_t start, size_t end)
+static unsigned int cfg_json_token(CfgJsonWalk *walk, CfgJsonType type, size_t start, size_t end)
 {
     if ((walk->count == walk->capacity) || (walk->tokens == NULL))
     {
@@ -49,7 +49,7 @@ static unsigned int cfg_json_token(CfgJsonWalk *walk, CfgJsonKind type, size_t s
     return at + 1u;
 }
 
-static int cfg_json_literal(CfgJsonWalk *walk, const char *defined, CfgJsonKind type)
+static int cfg_json_literal(CfgJsonWalk *walk, const char *defined, CfgJsonType type)
 {
     const size_t size = mmgr_text_length(defined, PLATFORM_TEXT_TO_TERMINATOR);
     const int matches =

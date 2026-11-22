@@ -16,7 +16,7 @@
  *       input X reaches output Y, establish that any path from X to Y exists at all. Where none
  *       does, the measurement is of absence, and no sample size fixes it.
  * @note The bench computes this, and does not sample it. The circuit is a fixed graph. Thus
- *       reachability is decidable, and "no path exists" is a constraint of a different kind from
+ *       reachability is decidable, and "no path exists" is a constraint of a different type from
  *       "no effect observed". Every state bit carries the set of input bits that can reach it, propagated
  *       through the real operations:
  *

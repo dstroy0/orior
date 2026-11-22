@@ -84,7 +84,7 @@ typedef struct
     NoiseWide line_squares;
 } NoiseLineCell;
 
-#define NOISE_LINE_CELLS (NOISE_LINE_KINDS * NOISE_LEVEL_BINS)
+#define NOISE_LINE_CELLS (NOISE_LINE_TYPES * NOISE_LEVEL_BINS)
 
 // One frame pair's z plane: its frame differences summed and their squares summed, the squares of its row sums (along
 // x) and of its column sums (along y) each summed, and its values summed, which is its level; then its static voxels'

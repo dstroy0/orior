@@ -59,7 +59,7 @@ std::string g_payout_address;
 /**
  * @brief The name stratum authorizes and submits under, where it is not the payout address.
  *
- * @note Two kinds of pool exist, and they key on different things. ckpool and Ocean take a
+ * @note Two types of pool exist, and they key on different things. ckpool and Ocean take a
  *       Bitcoin address as the worker name. They pay to it directly. There, the address is the identity.
  *       Braiins and the other account pools take an account worker name. They keep the payout
  *       destination in an account setting. There, the address is not the identity, and the client
@@ -701,13 +701,13 @@ bool send_payload(SOCKET connection, const std::string &payload)
  *
  * @param[in]  params Parameter array as sent [BORROWS].
  * @param[out] job    Where the job lands [BORROWS].
- * @return            True where every field was present and the right kind.
+ * @return            True where every field was present and the right type.
  * @note The order is job_id, prevhash, coinb1, coinb2, merkle_branch, version, nbits, ntime,
  *       clean_jobs. A live job confirms this order, and it is not an assumption.
  */
 bool job_from_notify(const JsonValue &params, MiningJob &job)
 {
-    if ((params.kind != JsonKind::Array) || (params.elements.size() < 9u))
+    if ((params.type != JsonType::Array) || (params.elements.size() < 9u))
     {
         return false;
     }
@@ -1380,7 +1380,7 @@ int program_main(int argument_count, char **arguments)
 
                 if (method.is_string() && (method.text == "mining.set_difficulty"))
                 {
-                    if (params.at(0).kind == JsonKind::Number)
+                    if (params.at(0).type == JsonType::Number)
                     {
                         {
                             std::lock_guard<std::mutex> held(g_state.lock);
@@ -1401,7 +1401,7 @@ int program_main(int argument_count, char **arguments)
                 const JsonValue &identifier = message.member("id");
                 const JsonValue &outcome = message.member("result");
 
-                if ((identifier.kind == JsonKind::Number) && (identifier.number == 1.0))
+                if ((identifier.type == JsonType::Number) && (identifier.number == 1.0))
                 {
                     // Subscribe reply: the extranonce is its purpose, and the client must keep it.
                     // Element one is extranonce1, element two is the extranonce2 width.
@@ -1409,7 +1409,7 @@ int program_main(int argument_count, char **arguments)
                     {
                         std::lock_guard<std::mutex> held(g_state.lock);
                         g_state.extranonce1_hex = outcome.at(1).text;
-                        if (outcome.at(2).kind == JsonKind::Number)
+                        if (outcome.at(2).type == JsonType::Number)
                         {
                             g_state.extranonce2_size = (size_t)outcome.at(2).number;
                         }
@@ -1427,9 +1427,9 @@ int program_main(int argument_count, char **arguments)
                     continue;
                 }
 
-                if ((identifier.kind == JsonKind::Number) && (identifier.number >= 100.0))
+                if ((identifier.type == JsonType::Number) && (identifier.number >= 100.0))
                 {
-                    if ((outcome.kind == JsonKind::Boolean) && outcome.boolean)
+                    if ((outcome.type == JsonType::Boolean) && outcome.boolean)
                     {
                         accepted += 1u;
                         {
@@ -1448,7 +1448,7 @@ int program_main(int argument_count, char **arguments)
                         rejected += 1u;
                         const JsonValue &failure = message.member("error");
                         std::string reason = "unspecified";
-                        if (failure.kind == JsonKind::Array)
+                        if (failure.type == JsonType::Array)
                         {
                             for (const JsonValue &part : failure.elements)
                             {

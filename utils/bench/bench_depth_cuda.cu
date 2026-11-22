@@ -731,7 +731,7 @@ int main(int argc, char **argv)
     std::printf("  this carries past where it stopped; if the function did, both stop together.\n");
     std::printf("\n  The bit null is a coin, so the noise floor is the largest of 256 draws rather\n");
     std::printf("  than of 8, near 2.9 instead of near 1.9. Both columns are strongest of their\n");
-    std::printf("  own kind, so they are compared by where each leaves its own floor.\n");
+    std::printf("  own type, so they are compared by where each leaves its own floor.\n");
 
     unsigned long long *device_bits = nullptr;
     cudaMalloc((void **)&device_bits, 256u * sizeof(unsigned long long));

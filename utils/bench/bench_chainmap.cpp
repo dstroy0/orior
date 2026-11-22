@@ -98,7 +98,7 @@ bool load_chain(const std::string &path, std::vector<ChainBlock> &blocks)
     buffer << file.rdbuf();
 
     JsonValue document;
-    if (!json_parse(buffer.str(), document) || (document.kind != JsonKind::Array))
+    if (!json_parse(buffer.str(), document) || (document.type != JsonType::Array))
     {
         return false;
     }

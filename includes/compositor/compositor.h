@@ -74,13 +74,13 @@ _Static_assert((1u << GUI_COMPOSITOR_TILE_SHIFT) == GUI_COMPOSITOR_TILE, "the ti
 // A command as a layer records it. Each field has a fixed width, and no field is a pointer. A list of commands is plain
 // data that a caller can write out and record again.
 //
-// It holds the kind, and the color, BGRA multiplied by its alpha. It holds the place and the size in 16.16, for a run
+// It holds the type, and the color, BGRA multiplied by its alpha. It holds the place and the size in 16.16, for a run
 // the box that its glyphs cover. For an image it holds the handle of the image. For a run it holds the first of
 // its glyphs in the list of the layer, and how many glyphs it has. It holds the digest of the glyphs of a run, which
 // differs for a run with other glyphs. Last it holds the first and last tile that it covers across and down
 typedef struct
 {
-    embed_u32 kind;
+    embed_u32 type;
     embed_u32 color;
     embed_i32 x;
     embed_i32 y;

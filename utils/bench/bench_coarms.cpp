@@ -214,7 +214,7 @@ int main()
 
     std::printf("\n  What would change this: a proof of work whose condition is relational. Some\n");
     std::printf("  exist. Equihash is a collision-finding proof of work precisely so that memory\n");
-    std::printf("  and the birthday bound matter, and it was designed that way to resist the kind\n");
+    std::printf("  and the birthday bound matter, and it was designed that way to resist the type\n");
     std::printf("  of hardware Bitcoin's absolute target rewards. Bitcoin chose the other side.\n");
 
     std::printf("\n================================================================\n");

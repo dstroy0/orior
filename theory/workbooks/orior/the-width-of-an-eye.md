@@ -15,7 +15,7 @@ Two branches, and one of them closes without a measurement.
 ## The branch that closes by counting
 
 At bandlimit L, every function on the sphere lives in an (L+1)²-dimensional space. Every reading of
-every kind - a region integral, a line integral, a point evaluation, an integral against _any_
+every type - a region integral, a line integral, a point evaluation, an integral against _any_
 measure whatever - is a linear functional on that space. So the span of all conceivable integrals is
 exactly (L+1)², and **no integral nobody has thought of yet exceeds it.**
 

@@ -87,7 +87,7 @@ typedef struct
     unsigned long long extent[ENGINE_ARRAY_RANK];
     unsigned long long max[ENGINE_ARRAY_RANK];
     unsigned int element_bytes;
-    EngineElementKind element_type;
+    EngineElementType element_type;
     int big_endian;
     unsigned long long fill_bytes;
     unsigned char fill[8u];

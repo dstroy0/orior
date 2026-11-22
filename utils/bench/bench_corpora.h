@@ -11,11 +11,11 @@ typedef enum
     CORPUS_UNIFORM = 0,
     CORPUS_SKEWED = 1,
     CORPUS_PERIODIC = 2
-} CorpusKind;
+} CorpusType;
 
-void bench_build_bytes(uint8_t *bytes, size_t length, CorpusKind type, uint64_t seed);
+void bench_build_bytes(uint8_t *bytes, size_t length, CorpusType type, uint64_t seed);
 
-const char *bench_corpus_name(CorpusKind type);
+const char *bench_corpus_name(CorpusType type);
 
 double bench_collision_entropy(const uint8_t *corpus, size_t length, size_t *distinct);
 

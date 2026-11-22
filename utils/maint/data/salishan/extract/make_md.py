@@ -18,7 +18,7 @@ from workdir import ORACLES, PRIVATE, WORK  # noqa: E402
 
 from finish import load_context  # noqa: E402
 
-KINDS = (
+TYPES = (
     ("transcription", "an example tier in the orthography"),
     ("segmentation", "an example tier broken into morphemes"),
     ("phonemic", "an example tier in a phonemic alphabet"),
@@ -145,7 +145,7 @@ def main():
         "         the prose, the tables and the notes",
     ]
     first = True
-    for type, meaning in KINDS:
+    for type, meaning in TYPES:
         if types.get(type):
             parts.append("%s %-14s %s" % ("type    " if first else "        ", type, meaning))
             first = False

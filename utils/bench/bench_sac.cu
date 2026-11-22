@@ -2030,7 +2030,7 @@ int main(int argc, char **argv)
         // while nothing mixes them.
         //
         // That model predicts four words of thirty-two bits, with two cells each: 256 cells over 128 bits. The
-        // measurement says 312 over 135. The model is close, and wrong by a stated amount: the useful kind of wrong.
+        // measurement says 312 over 135. The model is close, and wrong by a stated amount: the useful type of wrong.
         // The identities settle it.
         // ---------------------------------------------------------------------------------------
         std::printf("\n================================================================\n");
@@ -2206,7 +2206,7 @@ int main(int argc, char **argv)
             cudaFree(device_matrix);
             return 1;
         }
-        std::fprintf(handle, "kind,axis,index,round,value\n");
+        std::fprintf(handle, "type,axis,index,round,value\n");
 
         std::printf("\n  %u rounds, each on its own seed. A cell is never, always or mixed, and\n", DEEPEST);
         std::printf("  those are exclusive, so nothing cancels the way a signed sum would.\n");
@@ -2339,7 +2339,7 @@ int main(int argc, char **argv)
             cudaFree(device_matrix);
             return 1;
         }
-        std::fprintf(handle, "source,kind,a,b,round,value\n");
+        std::fprintf(handle, "source,type,a,b,round,value\n");
 
         std::printf("\n  %u sources across %u rounds, each round on its own seed.\n", HOW_MANY, DEEPEST);
 
@@ -2509,7 +2509,7 @@ int main(int argc, char **argv)
             std::printf("\n  could not open shadows.csv\n");
             return 1;
         }
-        std::fprintf(handle, "kind,a,b,round,value\n");
+        std::fprintf(handle, "type,a,b,round,value\n");
         for (unsigned at = 0u; at < 32u; at += 1u)
         {
             for (unsigned slot = 0u; slot < DEEPEST; slot += 1u)
@@ -3731,7 +3731,7 @@ int main(int argc, char **argv)
     // The same matrix, read spectrally, and not by its maximum.
     //
     // Every SAC reading above takes the largest of 131072 cells, and discards the other 131071. That makes it peak at
-    // sqrt(2 ln N) whatever the function does. A peak of that kind can pass for a leak in SHA-256, when it is only the
+    // sqrt(2 ln N) whatever the function does. A peak of that type can pass for a leak in SHA-256, when it is only the
     // maximum at work.
     //
     // A structure spread thinly across many cells is invisible to a maximum, and obvious to a sum. SHA-256 is full of

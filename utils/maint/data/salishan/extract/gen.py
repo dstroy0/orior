@@ -265,7 +265,7 @@ def title_mark(text):
     return found.group(0) if found else None
 # The types of row that hold forms of the language, where the code looks for a footnote mark only at the end of the
 # row.
-FORM_KINDS = ("transcription", "phonetic", "phonemic", "underlying")
+FORM_TYPES = ("transcription", "phonetic", "phonemic", "underlying")
 # The key page_footnotes gives the small lines at the foot of the title's page that carry no mark.
 UNMARKED = "unmarked"
 
@@ -1195,12 +1195,12 @@ class Paper(object):
             out.append(row)
             while waiting and not row[0].startswith("footnote") and (only is None or row[2] in only) and row[2] in (
                     "note", "heading", "translation", "citation", "speaker comment", "gloss",
-                    "segmentation") + FORM_KINDS + tuple(types) or (row[2] == "cited form" and waiting and waiting[0] in glued):
+                    "segmentation") + FORM_TYPES + tuple(types) or (row[2] == "cited form" and waiting and waiting[0] in glued):
                 mark = re.escape(waiting[0])
                 # A cited form carries only a glued mark, smelhmúlhats8 in Davis's list (17).
                 if row[2] == "cited form":
                     alone = None
-                elif row[2] in FORM_KINDS + ("segmentation",):
+                elif row[2] in FORM_TYPES + ("segmentation",):
                     # A language row holds digits of its own, as wa7 with 7 the glottal stop.
                     # A mark there ends the row after a stop, a comma or a closing bracket. Examples are tə ʔatnopɛl.12
                     # and xigap,8 in the future certainty of Davis, and [šyεʔtams]8. A mark can also stand apart after
@@ -1242,7 +1242,7 @@ class Paper(object):
                 # can also be a mark on a year, as `published in 1917.1 The last` in Bischoff et al. A section number
                 # opens the row of its heading, and the code never reads it so. The second of two marks can sit a space
                 # after the comma, as `position.10, 11`.
-                paired = previous and row[2] not in FORM_KINDS and \
+                paired = previous and row[2] not in FORM_TYPES and \
                     re.search(r"(?:(?<=\D%s,)|(?<=\D%s, ))%s(?:\s|$|[,.;:)])" %
                               (re.escape(previous), re.escape(previous), mark), row[3])
                 # The code finds a mark that the page sets a space after its word, where the generator names the text

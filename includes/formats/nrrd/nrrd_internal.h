@@ -16,10 +16,10 @@
 
 typedef enum
 {
-    NRRD_KIND_OTHER = 0,
-    NRRD_KIND_SPACE = 1,
-    NRRD_KIND_TIME = 2
-} NrrdKind;
+    NRRD_TYPE_OTHER = 0,
+    NRRD_TYPE_SPACE = 1,
+    NRRD_TYPE_TIME = 2
+} NrrdType;
 
 typedef enum
 {
@@ -39,7 +39,7 @@ typedef struct
 {
     const char *name;
     unsigned int element_bytes;
-    EngineElementKind element_type;
+    EngineElementType element_type;
 } NrrdType;
 
 typedef struct
@@ -59,13 +59,13 @@ typedef struct
     unsigned int dimension;
     unsigned int typed;
     unsigned int element_bytes;
-    EngineElementKind element_type;
+    EngineElementType element_type;
     NrrdEndian endian;
     NrrdEncoding encoding;
     unsigned int sizes_count;
     unsigned long long sizes[ENGINE_ARRAY_RANK];
     unsigned int types_count;
-    NrrdKind types[ENGINE_ARRAY_RANK];
+    NrrdType types[ENGINE_ARRAY_RANK];
     unsigned int directions_count;
     unsigned int directions[ENGINE_ARRAY_RANK];
     unsigned int spaced;

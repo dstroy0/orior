@@ -42,7 +42,7 @@ from salish_marking import (
     switches,
     tagged_spans,
 )
-from salish_unsorted import UNKNOWN_KIND, covered_tokens, unreached, write_unsorted
+from salish_unsorted import UNKNOWN_TYPE, covered_tokens, unreached, write_unsorted
 
 
 # Walk up to the tree that holds build/. Counting directories has been wrong twice now, once when
@@ -427,7 +427,7 @@ def main():
     # this paper's front matter and its prose discussion of particular words sit.
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
-        (0, "%s block %d" % (number, count), UNKNOWN_KIND, "", text)
+        (0, "%s block %d" % (number, count), UNKNOWN_TYPE, "", text)
         for mark, count, story, number, type, text in rows
         if (type == UNCLASSIFIED) and (story != "not reached")
     ]

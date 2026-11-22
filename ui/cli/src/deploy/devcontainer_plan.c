@@ -349,7 +349,7 @@ static void cli_commands_get(const DevcontainerPlanCtx *args)
     unsigned int value = args->value;
     unsigned int *count = args->count;
     static char s_word[CLI_STRING_MAX_LEN];
-    const CfgJsonKind type = s_tokens[value].type;
+    const CfgJsonType type = s_tokens[value].type;
     if ((type == CFG_JSON_STRING) || (type == CFG_JSON_ARRAY))
     {
         if (*count >= CLI_PLAN_COMMANDS_MAX)

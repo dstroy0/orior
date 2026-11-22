@@ -190,7 +190,7 @@ def _report(samples=SAMPLES):
           % (4.0 * math.sqrt(0.25 / per_modulus)))
     print("  than that is NOT excluded by this sweep and would want more trials to reach.")
     print("")
-    print("  AND A PARTIAL PERIOD IS THE ONLY KIND WORTH LOOKING FOR HERE. An exact period would")
+    print("  AND A PARTIAL PERIOD IS THE ONLY TYPE WORTH LOOKING FOR HERE. An exact period would")
     print("  make the hash catastrophically broken and would have been found decades ago by")
     print("  everyone. The measurement above is aimed at a weak one, the thing that could")
     print("  plausibly have escaped notice, and it is the thing Shor would also need: the transform")

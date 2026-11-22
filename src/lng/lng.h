@@ -56,9 +56,9 @@ extern "C"
 
     // the types a word of the transpiler's table is, and a word of the high order language's
     extern const char *const g_lng_types[];
-#define LNG_KINDS 6u
+#define LNG_TYPES 6u
     extern const char *const g_lng_hol_types[];
-#define LNG_HOL_KINDS 3u
+#define LNG_HOL_TYPES 3u
 
     // `text` appended after every text `list` contains
     void lng_list_add(LngList *list, const char *text);

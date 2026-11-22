@@ -3414,7 +3414,7 @@ EMBED_INLINE int view_character_type(const ViewCtx *args)
                             (next == ',') || (next == '.') || (next == ')') || (next == ']') || (next == '}') ||
                             (next == '>');
         // A quote typed inside a string or a comment, as the name of the run under the unit before it says, closes or
-        // is text. So does a quote after an odd count of its own kind on the line, without the escaped ones. It brings
+        // is text. So does a quote after an odd count of its own type on the line, without the escaped ones. It brings
         // no closer
         const int quoted =
             quote &&

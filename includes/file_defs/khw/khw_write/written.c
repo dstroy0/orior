@@ -77,7 +77,7 @@ static int khw_text_passed(const char *name)
 // its type comes after the place, or KHW_PLACE_NONE_TEXT where it has none
 static void khw_run_printed(const KhwAnswered *answered, unsigned int run)
 {
-    const unsigned int type = (answered->type[run] <= KHW_KIND_CONSTANT) ? answered->type[run] : KHW_KIND_REGISTER;
+    const unsigned int type = (answered->type[run] <= KHW_TYPE_CONSTANT) ? answered->type[run] : KHW_TYPE_REGISTER;
     text_character(' ');
     text_decimal(answered->first[run]);
     text_character(' ');
@@ -87,14 +87,14 @@ static void khw_run_printed(const KhwAnswered *answered, unsigned int run)
     {
         // a run with no place carries its type's character after the none mark where it is not a register's
         text_put(KHW_PLACE_NONE_TEXT);
-        if (type != KHW_KIND_REGISTER)
+        if (type != KHW_TYPE_REGISTER)
         {
-            text_character(KHW_KIND_CHARACTERS[type]);
+            text_character(KHW_TYPE_CHARACTERS[type]);
         }
         return;
     }
     text_decimal(answered->place[run]);
-    text_character(KHW_KIND_CHARACTERS[type]);
+    text_character(KHW_TYPE_CHARACTERS[type]);
 }
 
 // the encoding `low`, `high` written after what the text contains as two words of sixteen hex digits, each after a
@@ -155,10 +155,10 @@ int khw_runs_read(KhwAnswered *answered, const char *text)
             answered->place[run] = none ? KHW_PLACE_NONE : (unsigned int)strtoul(place, &end, 10);
             end = none ? (place + mmgr_text_length(KHW_PLACE_NONE_TEXT, PLATFORM_TEXT_TO_TERMINATOR)) : end;
             const char *const character = ((end != NULL) && (*end != '\0'))
-                                              ? mmgr_text_char(KHW_KIND_CHARACTERS, *end, PLATFORM_TEXT_TO_TERMINATOR)
+                                              ? mmgr_text_char(KHW_TYPE_CHARACTERS, *end, PLATFORM_TEXT_TO_TERMINATOR)
                                               : NULL;
             answered->type[run] =
-                (character != NULL) ? (unsigned int)(character - KHW_KIND_CHARACTERS) : KHW_KIND_REGISTER;
+                (character != NULL) ? (unsigned int)(character - KHW_TYPE_CHARACTERS) : KHW_TYPE_REGISTER;
         }
     }
     return 1;

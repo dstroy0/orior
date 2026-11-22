@@ -22,8 +22,8 @@
 #include <sys/stat.h>
 #endif
 
-const char *const g_lng_types[LNG_KINDS] = {"thing", "doing", "gluing", "record", "ksc", "selection"};
-const char *const g_lng_hol_types[LNG_HOL_KINDS] = {"type", "plain", "core op"};
+const char *const g_lng_types[LNG_TYPES] = {"thing", "doing", "gluing", "record", "ksc", "selection"};
+const char *const g_lng_hol_types[LNG_HOL_TYPES] = {"type", "plain", "core op"};
 
 // the last of the selected columns; the operator columns are the ones after it
 static const char s_selected_last[] = "selected_by_fulltrace";
@@ -1933,7 +1933,7 @@ void lng_target_check(const LngTable *transpiler, const LngTable *target, const 
         const int probed = (lng_cell_or_none(target, row, "probe")[0] != '\0');
         const int expected = (lng_cell_or_none(target, row, "expected")[0] != '\0');
         const int typed = (strcmp(type, "type") == 0);
-        if (!lng_one_of(type, g_lng_hol_types, LNG_HOL_KINDS))
+        if (!lng_one_of(type, g_lng_hol_types, LNG_HOL_TYPES))
         {
             lng_list_printed(defects, "%s's %s has the type %s, which no table names", name, word, type);
         }

@@ -73,10 +73,10 @@ int program_main(int argc, char **argv)
         {"orior_inorder", orior_inorder},
         {"orior_free", orior_free},
     };
-    static const CorpusKind KINDS[] = {CORPUS_UNIFORM, CORPUS_SKEWED, CORPUS_PERIODIC};
+    static const CorpusType TYPES[] = {CORPUS_UNIFORM, CORPUS_SKEWED, CORPUS_PERIODIC};
 
     const size_t arm_count = sizeof ARMS / sizeof ARMS[0];
-    const size_t type_count = sizeof KINDS / sizeof KINDS[0];
+    const size_t type_count = sizeof TYPES / sizeof TYPES[0];
     const size_t length_count = sizeof CORPUS_LENGTHS / sizeof CORPUS_LENGTHS[0];
     const size_t needle_count = sizeof NEEDLE_LENGTHS / sizeof NEEDLE_LENGTHS[0];
     const size_t longest = CORPUS_LENGTHS[length_count - 1u];
@@ -109,8 +109,8 @@ int program_main(int argc, char **argv)
         {
             const size_t corpus_len = CORPUS_LENGTHS[step];
 
-            bench_build_bytes(corpus, corpus_len, KINDS[which], CORPUS_SEED);
-            bench_build_bytes(absent, absent_bytes, KINDS[which], ABSENT_SEED);
+            bench_build_bytes(corpus, corpus_len, TYPES[which], CORPUS_SEED);
+            bench_build_bytes(absent, absent_bytes, TYPES[which], ABSENT_SEED);
 
             size_t distinct = 0u;
             const double entropy = bench_collision_entropy(corpus, corpus_len, &distinct);
@@ -159,7 +159,7 @@ int program_main(int argc, char **argv)
                         const double spread = (double)alignments * (double)needles;
 
                         printf("sift_scaling,%s,%llu,%llu,%u,%s,%.4f,%llu,%.6f,%.6f,%.9f,%llu\n",
-                               bench_corpus_name(KINDS[which]), (unsigned long long)corpus_len,
+                               bench_corpus_name(TYPES[which]), (unsigned long long)corpus_len,
                                (unsigned long long)needle_len, present, ARMS[at].name, entropy,
                                (unsigned long long)distinct, (double)orior_probes / spread,
                                (double)orior_verifications / spread, rate, (unsigned long long)found);
@@ -191,7 +191,7 @@ int program_main(int argc, char **argv)
                         const double spread = (double)alignments * (double)needles;
 
                         printf("sift_scaling,%s,%llu,%llu,%u,%s,%.4f,%llu,%.6f,%.9f,%llu\n",
-                               bench_corpus_name(KINDS[which]), (unsigned long long)corpus_len,
+                               bench_corpus_name(TYPES[which]), (unsigned long long)corpus_len,
                                (unsigned long long)needle_len, present, ARMS[at].name, entropy,
                                (unsigned long long)distinct, (double)best / spread, rate, (unsigned long long)found);
 #endif
@@ -201,7 +201,7 @@ int program_main(int argc, char **argv)
                             (void)fprintf(stderr,
                                           "  %s on %s at N=%llu m=%llu present=%u: "
                                           "%llu against %llu\n",
-                                          ARMS[at].name, bench_corpus_name(KINDS[which]),
+                                          ARMS[at].name, bench_corpus_name(TYPES[which]),
                                           (unsigned long long)corpus_len, (unsigned long long)needle_len, present,
                                           (unsigned long long)found, (unsigned long long)reference);
                             disagreed = 1;

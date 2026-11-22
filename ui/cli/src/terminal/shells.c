@@ -46,7 +46,7 @@ EMBED_INLINE void shells_path(void)
         return;
     }
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = s_start.own, .cap = sizeof(s_start.own)});
-    // the last separator of either kind, each kind's last found by a search from the one before
+    // the last separator of either type, each type's last found by a search from the one before
     unsigned long long cut = 0ULL;
     for (const char *slash = memor.chr(&(MemoriaCfg){.src = s_start.own, .val = '/', .bytes = length}); slash != NULL;
          slash = memor.chr(&(MemoriaCfg){.src = slash + 1, .val = '/', .bytes = length - (slash + 1 - s_start.own)}))

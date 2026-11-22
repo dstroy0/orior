@@ -98,10 +98,10 @@ int program_main(int count, char **words)
     // Bit 72 is a negate bit, clear.
     const unsigned long long add_low = 0x0000000700077210ull;
     const unsigned long long add_high = 0x004fca0007ffe0ffull;
-    const HandRun add_runs[4] = {{16u, 23u, 2u, KHW_KIND_REGISTER},
-                                 {24u, 31u, 0u, KHW_KIND_REGISTER},
-                                 {32u, 39u, 1u, KHW_KIND_REGISTER},
-                                 {72u, 72u, SASS_RUN_NO_PLACE, KHW_KIND_REGISTER}};
+    const HandRun add_runs[4] = {{16u, 23u, 2u, KHW_TYPE_REGISTER},
+                                 {24u, 31u, 0u, KHW_TYPE_REGISTER},
+                                 {32u, 39u, 1u, KHW_TYPE_REGISTER},
+                                 {72u, 72u, SASS_RUN_NO_PLACE, KHW_TYPE_REGISTER}};
     KhwForm add;
     hand_form(&add, "ladder.add", add_low, add_high, add_runs, 4u);
     check_text(&add, "IADD3 R7, R0, R7", "an add form reads its three registers, the flag bit printing nothing");
@@ -110,25 +110,25 @@ int program_main(int count, char **words)
     KhwForm take;
     hand_form(&take, "ladder.take", add_low, add_high | (1ull << 8u), add_runs, 4u);
     check_text(&take, "IADD3 R7, R0, -R7", "a take form carries the mark on its second word's operand");
-    const HandRun swapped_runs[4] = {{16u, 23u, 2u, KHW_KIND_REGISTER},
-                                     {24u, 31u, 1u, KHW_KIND_REGISTER},
-                                     {32u, 39u, 0u, KHW_KIND_REGISTER},
-                                     {72u, 72u, SASS_RUN_NO_PLACE, KHW_KIND_REGISTER}};
+    const HandRun swapped_runs[4] = {{16u, 23u, 2u, KHW_TYPE_REGISTER},
+                                     {24u, 31u, 1u, KHW_TYPE_REGISTER},
+                                     {32u, 39u, 0u, KHW_TYPE_REGISTER},
+                                     {72u, 72u, SASS_RUN_NO_PLACE, KHW_TYPE_REGISTER}};
     KhwForm swapped;
     hand_form(&swapped, "ladder.take", add_low, add_high | (1ull << 8u), swapped_runs, 4u);
     check_text(&swapped, "IADD3 R7, -R0, R7", "and on the second word where it is first in the bits");
 
     // The lane form with its special register, a run of eight bits with no place, prints it as a register.
-    const HandRun lane_runs[2] = {{16u, 23u, 0u, KHW_KIND_REGISTER}, {72u, 79u, SASS_RUN_NO_PLACE, KHW_KIND_REGISTER}};
+    const HandRun lane_runs[2] = {{16u, 23u, 0u, KHW_TYPE_REGISTER}, {72u, 79u, SASS_RUN_NO_PLACE, KHW_TYPE_REGISTER}};
     KhwForm lane;
     hand_form(&lane, "frame.lane", 0x0000000000077919ull, 0x000e240000002100ull, lane_runs, 2u);
     check_text(&lane, "S2R R7, R33", "a wide run with no place prints as a register");
 
     // The block size read from the constant bank. The offset run and the bank run are constant runs with no place.
     // The offset run prints them once, as the bank's operand.
-    const HandRun dim_runs[3] = {{16u, 23u, 0u, KHW_KIND_REGISTER},
-                                 {38u, 53u, SASS_RUN_NO_PLACE, KHW_KIND_CONSTANT},
-                                 {54u, 58u, SASS_RUN_NO_PLACE, KHW_KIND_CONSTANT}};
+    const HandRun dim_runs[3] = {{16u, 23u, 0u, KHW_TYPE_REGISTER},
+                                 {38u, 53u, SASS_RUN_NO_PLACE, KHW_TYPE_CONSTANT},
+                                 {54u, 58u, SASS_RUN_NO_PLACE, KHW_TYPE_CONSTANT}};
     KhwForm dim;
     hand_form(&dim, "frame.dim", 0x0000000000017a02ull, 0x000fe40000000f00ull, dim_runs, 3u);
     check_text(&dim, "MOV R1, c[0x0][0x0]",
@@ -138,7 +138,7 @@ int program_main(int count, char **words)
     check_text(&banked, "MOV R1, c[0x1][0x28]", "the bank and the offset read from the encoding's bits");
 
     // A parameter's word read from the constant bank: its offset run is a place, and prints as the run encodes it.
-    const HandRun parameter_runs[2] = {{16u, 23u, 1u, KHW_KIND_REGISTER}, {38u, 53u, 0u, KHW_KIND_CONSTANT}};
+    const HandRun parameter_runs[2] = {{16u, 23u, 1u, KHW_TYPE_REGISTER}, {38u, 53u, 0u, KHW_TYPE_CONSTANT}};
     KhwForm parameter;
     hand_form(&parameter, "frame.parameter", 0x0000000000017a02ull | (0x170ull << 38u), 0x000fe40000000f00ull,
               parameter_runs, 2u);
@@ -147,11 +147,11 @@ int program_main(int count, char **words)
     // at 84 and 87, PT, are operands with no place. The relation read unsigned carries U32, and signed carries
     // nothing.
     khw_guard_field_set(12u, 3u);
-    const HandRun test_runs[5] = {{24u, 31u, 0u, KHW_KIND_REGISTER},
-                                  {32u, 39u, 1u, KHW_KIND_REGISTER},
-                                  {81u, 83u, 2u, KHW_KIND_PREDICATE},
-                                  {84u, 86u, SASS_RUN_NO_PLACE, KHW_KIND_PREDICATE},
-                                  {87u, 89u, SASS_RUN_NO_PLACE, KHW_KIND_PREDICATE}};
+    const HandRun test_runs[5] = {{24u, 31u, 0u, KHW_TYPE_REGISTER},
+                                  {32u, 39u, 1u, KHW_TYPE_REGISTER},
+                                  {81u, 83u, 2u, KHW_TYPE_PREDICATE},
+                                  {84u, 86u, SASS_RUN_NO_PLACE, KHW_TYPE_PREDICATE},
+                                  {87u, 89u, SASS_RUN_NO_PLACE, KHW_TYPE_PREDICATE}};
     KhwForm test;
     hand_form(&test, "ladder.at_least", 0x000000070000720cull, 0x0000000003f00000ull, test_runs, 5u);
     test.signedness_queried = 1;
@@ -162,7 +162,7 @@ int program_main(int count, char **words)
     check_text(&test, "ISETP.GE.AND P0, PT, R0, R7, PT", "and read signed carries no qualifier");
 
     // A guarded exit.
-    const HandRun exit_runs[1] = {{12u, 15u, 0u, KHW_KIND_PREDICATE}};
+    const HandRun exit_runs[1] = {{12u, 15u, 0u, KHW_TYPE_PREDICATE}};
     KhwForm guarded;
     hand_form(&guarded, "frame.exit", 0x000000000000094dull, 0x000fea0003800000ull, exit_runs, 1u);
     check_text(&guarded, "@P0 EXIT", "a predicate run prints before the operation");

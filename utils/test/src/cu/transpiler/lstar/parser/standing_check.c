@@ -47,15 +47,15 @@ static KhwAnswered add_form(unsigned long long low, unsigned long long high)
     form.first[0] = 16u;
     form.last[0] = 23u;
     form.place[0] = 2u;
-    form.type[0] = KHW_KIND_REGISTER;
+    form.type[0] = KHW_TYPE_REGISTER;
     form.first[1] = 24u;
     form.last[1] = 31u;
     form.place[1] = 0u;
-    form.type[1] = KHW_KIND_REGISTER;
+    form.type[1] = KHW_TYPE_REGISTER;
     form.first[2] = 32u;
     form.last[2] = 39u;
     form.place[2] = 1u;
-    form.type[2] = KHW_KIND_REGISTER;
+    form.type[2] = KHW_TYPE_REGISTER;
     return form;
 }
 

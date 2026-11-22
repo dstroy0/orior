@@ -54,7 +54,7 @@ import sys
 
 from mellesmoen_kye_repair import repaired
 from salish_marking import DERIVED, SPOKEN, UNCLASSIFIED, tagged_spans
-from salish_unsorted import UNKNOWN_KIND, covered_tokens, unreached, write_unsorted
+from salish_unsorted import UNKNOWN_TYPE, covered_tokens, unreached, write_unsorted
 
 
 def _repository_root():
@@ -972,7 +972,7 @@ def main():
 
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
-        (0, one[1], UNKNOWN_KIND, "", one[4]) for one in rows if one[3] == UNCLASSIFIED
+        (0, one[1], UNKNOWN_TYPE, "", one[4]) for one in rows if one[3] == UNCLASSIFIED
     ]
     flagged.extend(missed)
     # The one join that the space repair gets wrong. This names it, and no reader has to find it.
@@ -980,7 +980,7 @@ def main():
         (
             34,
             "App A",
-            UNKNOWN_KIND,
+            UNKNOWN_TYPE,
             "ǰč",
             "the palatal series is cited in prose as /ǰ č č̓ š/ and the repair joined the "
             "first two, because ǰ ends in a caron with one space after it exactly as a "

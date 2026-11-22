@@ -1,6 +1,6 @@
 where	who	type	form	gloss
 head 0	ksg_head	magic	8 bytes	KREP and four zero bytes
-head 1	ksg_head	type	4 bytes	KSG_KIND, KSG and a zero byte
+head 1	ksg_head	type	4 bytes	KSG_TYPE, KSG and a zero byte
 head 2	ksg_head	version	1 limb	KREP_VERSION; a seal of another version is no seal of ksg's type
 body 0	ksg_seal_bytes	leaves	leaves * 1 signum	each line's leaf in the order of the lines, the signum keyed for OBSIGNATIO_LEVEL_ROW of the line's bytes with its line feed, a line longer than KSG_LINE_MAX a leaf for each KSG_LINE_MAX of it, a file of no bytes one leaf of none
 trailer 0	ksg_seal_ended	size	1 word	the bytes of the file sealed

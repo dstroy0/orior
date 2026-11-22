@@ -93,14 +93,14 @@ static std::vector<ConstructionForm> construction_forms(const std::string &path)
 
 // what a parameter is bound to: a predicate a boolean, a count or an offset an integer, and a register a word or a
 // wide word
-enum ConstructionKind
+enum ConstructionType
 {
     CONSTRUCTION_BOOLEAN = 0,
     CONSTRUCTION_INTEGER = 1,
     CONSTRUCTION_REGISTER = 2
 };
 
-static ConstructionKind construction_type(const std::string &parameter)
+static ConstructionType construction_type(const std::string &parameter)
 {
     static const char *const predicates[] = {"where", "also"};
     static const char *const integers[] = {"bits", "offset", "at", "count", "state", "error"};
@@ -212,7 +212,7 @@ static int construction_measure(const Ruleset *rules, const std::string &package
         int skipped = 0;
         for (size_t at = 0u; at < form.parameters.size(); at += 1u)
         {
-            const ConstructionKind type = construction_type(form.parameters[at]);
+            const ConstructionType type = construction_type(form.parameters[at]);
             const int wide = ((binding >> at) & 1u) != 0u;
             // a binding that makes a predicate or an integer wide is the binding before it
             skipped = skipped || (wide && (type != CONSTRUCTION_REGISTER));

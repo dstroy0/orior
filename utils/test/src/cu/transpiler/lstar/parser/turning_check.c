@@ -140,8 +140,8 @@ int program_main(int argc, char **argv)
                    (cut.first[0] == 12u) && (cut.last[0] == 14u) && (cut.first[1] == 15u) && (cut.last[1] == 15u) &&
                    (cut.first[2] == 16u) && (cut.last[2] == 16u) && (cut.first[3] == 24u) && (cut.last[3] == 27u),
                "cut: turned bits 12 to 16 under the guard and destination fields are three runs, and 24 to 27 one");
-    check_that((cut.place[0] == KHW_PLACE_NONE) && (cut.type[0] == KHW_KIND_REGISTER) &&
-                   (cut.place[2] == KHW_PLACE_NONE) && (cut.type[2] == KHW_KIND_REGISTER),
+    check_that((cut.place[0] == KHW_PLACE_NONE) && (cut.type[0] == KHW_TYPE_REGISTER) &&
+                   (cut.place[2] == KHW_PLACE_NONE) && (cut.type[2] == KHW_TYPE_REGISTER),
                "cut: each run gathered has no place yet and a register's type");
     KhwAnswered uncut;
     memset(&uncut, 0, sizeof(uncut));

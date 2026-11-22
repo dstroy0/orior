@@ -332,7 +332,7 @@ EMBED_INLINE int cli_write(const ToolchainsAddedCtx *args)
     {
         return 0;
     }
-    const CfgJsonKind type = args->json_read->node[args->value].type;
+    const CfgJsonType type = args->json_read->node[args->value].type;
     if ((type == CFG_JSON_ARRAY) || (type == CFG_JSON_OBJECT))
     {
         return args->json_read->node[args->value].count != 0u;

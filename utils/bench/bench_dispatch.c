@@ -34,7 +34,7 @@
 
 static const size_t NEEDLE_LENGTHS[] = {4u, 8u, 16u, 32u, 64u, 128u, 256u};
 
-static const CorpusKind KINDS[] = {CORPUS_UNIFORM, CORPUS_SKEWED, CORPUS_PERIODIC};
+static const CorpusType TYPES[] = {CORPUS_UNIFORM, CORPUS_SKEWED, CORPUS_PERIODIC};
 
 static const size_t CEILINGS[] = {0u, 4u, 8u, 16u, 32u, 64u, 128u, 256u, SIZE_MAX};
 
@@ -44,7 +44,7 @@ static const size_t CEILINGS[] = {0u, 4u, 8u, 16u, 32u, 64u, 128u, 256u, SIZE_MA
 #define SHIPPED_FREE_CEILING 16u
 #define SHIPPED_FLAT_SHARE 0.85
 
-#define ROW_COUNT ((sizeof KINDS / sizeof KINDS[0]) * (sizeof NEEDLE_LENGTHS / sizeof NEEDLE_LENGTHS[0]) * 2u)
+#define ROW_COUNT ((sizeof TYPES / sizeof TYPES[0]) * (sizeof NEEDLE_LENGTHS / sizeof NEEDLE_LENGTHS[0]) * 2u)
 
 static uint64_t cycles_now(void)
 {
@@ -84,7 +84,7 @@ static double two_to_the(double exponent)
 
 typedef struct
 {
-    CorpusKind type;
+    CorpusType type;
     double entropy;
     size_t distinct;
     OriorFieldCensus census;
@@ -176,7 +176,7 @@ static uint64_t time_arm(OriorEngine arm, const uint8_t *corpus, size_t corpus_l
 
 static size_t measure_rows(Row *rows, uint8_t *corpus, uint8_t *absent)
 {
-    const size_t type_count = sizeof KINDS / sizeof KINDS[0];
+    const size_t type_count = sizeof TYPES / sizeof TYPES[0];
     const size_t needle_count = sizeof NEEDLE_LENGTHS / sizeof NEEDLE_LENGTHS[0];
     const size_t widest = NEEDLE_LENGTHS[needle_count - 1u];
     size_t written = 0u;
@@ -185,8 +185,8 @@ static size_t measure_rows(Row *rows, uint8_t *corpus, uint8_t *absent)
     {
         for (size_t which = 0u; which < type_count; which += 1u)
         {
-            bench_build_bytes(corpus, CORPUS_BYTES, KINDS[which], CORPUS_SEED);
-            bench_build_bytes(absent, widest * NEEDLES_PER_ROW, KINDS[which], ABSENT_SEED);
+            bench_build_bytes(corpus, CORPUS_BYTES, TYPES[which], CORPUS_SEED);
+            bench_build_bytes(absent, widest * NEEDLES_PER_ROW, TYPES[which], ABSENT_SEED);
 
             size_t distinct = 0u;
             const double entropy = bench_collision_entropy(corpus, CORPUS_BYTES, &distinct);
@@ -205,13 +205,13 @@ static size_t measure_rows(Row *rows, uint8_t *corpus, uint8_t *absent)
                 if (found_inorder != found_free)
                 {
                     (void)fprintf(stderr, "  %s at m=%llu: %llu against %llu\n",
-                                  bench_corpus_name(KINDS[which]), (unsigned long long)needle_len,
+                                  bench_corpus_name(TYPES[which]), (unsigned long long)needle_len,
                                   (unsigned long long)found_inorder,
                                   (unsigned long long)found_free);
                     exit(1);
                 }
 
-                rows[written].type = KINDS[which];
+                rows[written].type = TYPES[which];
                 rows[written].entropy = entropy;
                 rows[written].distinct = distinct;
                 orior_field_census(corpus, CORPUS_BYTES, &rows[written].census);
@@ -304,7 +304,7 @@ static void recommend_constants(const Row *rows, size_t count)
 
 static void recommend_per_corpus(const Row *rows, size_t count)
 {
-    const size_t type_count = sizeof KINDS / sizeof KINDS[0];
+    const size_t type_count = sizeof TYPES / sizeof TYPES[0];
 
     printf("\n  %-12s %-9s %-15s %-15s %-13s %s\n", "corpus", "flatness", "run this",
            "free arm at", "over the other", "widest row");
@@ -319,7 +319,7 @@ static void recommend_per_corpus(const Row *rows, size_t count)
 
         for (size_t at = 0u; at < count; at += 1u)
         {
-            if (rows[at].type != KINDS[which])
+            if (rows[at].type != TYPES[which])
             {
                 continue;
             }
@@ -349,7 +349,7 @@ static void recommend_per_corpus(const Row *rows, size_t count)
 
             for (size_t at = 0u; at < count; at += 1u)
             {
-                if (rows[at].type != KINDS[which])
+                if (rows[at].type != TYPES[which])
                 {
                     continue;
                 }
@@ -371,7 +371,7 @@ static void recommend_per_corpus(const Row *rows, size_t count)
 
         name_ceiling(ceiling_text, sizeof ceiling_text, best_ceiling);
 
-        printf("  %-12s %-9.4f %-15s %-15s %-13.2f %.2fx\n", bench_corpus_name(KINDS[which]), best_flatness,
+        printf("  %-12s %-9.4f %-15s %-15s %-13.2f %.2fx\n", bench_corpus_name(TYPES[which]), best_flatness,
                inorder_wins ? "orior_inorder" : "orior_free", ceiling_text, ratio, widest);
     }
     printf("  The needle length column is fitted to that corpus alone, for a caller\n");

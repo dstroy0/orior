@@ -143,7 +143,7 @@ static int khw_runs_read(KhwForm *answered_form, const char *text)
     {
         char place[16];
         answered_form->place[run] = SASS_RUN_NO_PLACE;
-        answered_form->type[run] = KHW_KIND_REGISTER;
+        answered_form->type[run] = KHW_TYPE_REGISTER;
         if (each == 2u)
         {
             if (!line_unsigned(&rest, &answered_form->first[run]) || !line_unsigned(&rest, &answered_form->last[run]))
@@ -166,10 +166,10 @@ static int khw_runs_read(KhwForm *answered_form, const char *text)
             answered_form->place[run] = none ? SASS_RUN_NO_PLACE : (unsigned int)strtoul(place, &end, 10);
             end = none ? (place + mmgr_text_length(SASS_RUN_NO_PLACE_TEXT, PLATFORM_TEXT_TO_TERMINATOR)) : end;
             const char *const character = ((end != NULL) && (*end != '\0'))
-                                              ? mmgr_text_char(KHW_KIND_CHARACTERS, *end, PLATFORM_TEXT_TO_TERMINATOR)
+                                              ? mmgr_text_char(KHW_TYPE_CHARACTERS, *end, PLATFORM_TEXT_TO_TERMINATOR)
                                               : NULL;
             answered_form->type[run] =
-                (character != NULL) ? (unsigned int)(character - KHW_KIND_CHARACTERS) : KHW_KIND_REGISTER;
+                (character != NULL) ? (unsigned int)(character - KHW_TYPE_CHARACTERS) : KHW_TYPE_REGISTER;
         }
     }
     return 1;

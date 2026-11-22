@@ -22,7 +22,7 @@ static void khw_predicate_runs_read(KhwAnswered *form)
         unsigned int first = 0u;
         unsigned int bits = 0u;
         form->place[run] = KHW_PLACE_NONE;
-        form->type[run] = KHW_KIND_REGISTER;
+        form->type[run] = KHW_TYPE_REGISTER;
         if (!khw_field_covering(form->first[run], form->last[run], field, sizeof(field), &first, &bits))
         {
             continue;
@@ -35,7 +35,7 @@ static void khw_predicate_runs_read(KhwAnswered *form)
         }
         if (predicate)
         {
-            form->type[run] = KHW_KIND_PREDICATE;
+            form->type[run] = KHW_TYPE_PREDICATE;
             form->place[run] = ((value == 0ULL) && (!mmgr_text_equal(field, "guard", PLATFORM_TEXT_TO_TERMINATOR)))
                                    ? words
                                    : KHW_PLACE_NONE;

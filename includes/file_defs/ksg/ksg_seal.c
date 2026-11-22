@@ -161,7 +161,7 @@ int ksg_type_sealed(const char *path)
 void ksg_head(unsigned char *head)
 {
     mmgr_bytes_copy(head, KREP_MAGIC, 8u);
-    mmgr_bytes_copy(head + 8u, KSG_KIND, 4u);
+    mmgr_bytes_copy(head + 8u, KSG_TYPE, 4u);
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
         // the version is one 32-bit limb, low byte first, each byte shifted down to its own

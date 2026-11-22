@@ -72,7 +72,7 @@ SCRIPT_SLOT = "/*SCRIPT*/"
 STYLE_SLOT = "/*STYLE*/"
 DATA_SLOT = re.compile(r"/\*DATA\*/\s*null")
 SCRIPT_OPEN = re.compile(r"<script\b", re.IGNORECASE)
-KINDS = ("js", "css")
+TYPES = ("js", "css")
 COPYRIGHT = "copyright.html"
 
 # A JS piece's label line, and a CSS piece's. The toolbox prefix marks the pieces --verify holds.
@@ -106,8 +106,8 @@ def load_manifest(toolbox=TOOLBOX):
         if len(cells) != 4:
             raise Refused("manifest line %d: name, file, requires, type" % number)
         name, file, requires, type = cells
-        if type not in KINDS:
-            raise Refused("manifest line %d: type %s is not one of %s" % (number, type, ", ".join(KINDS)))
+        if type not in TYPES:
+            raise Refused("manifest line %d: type %s is not one of %s" % (number, type, ", ".join(TYPES)))
         if name in tools:
             raise Refused("manifest line %d: %s is listed twice" % (number, name))
         if not os.path.isfile(os.path.join(toolbox, file)):

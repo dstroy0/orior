@@ -5,7 +5,7 @@
 #include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_linea.h"
 
-static const char *const NOISE_LINE_NAMES[NOISE_LINE_KINDS] = {"row", "column", "plane"};
+static const char *const NOISE_LINE_NAMES[NOISE_LINE_TYPES] = {"row", "column", "plane"};
 
 void noise_exact_wide(OriorExactInteger *value, const NoiseWide *wide)
 {
@@ -51,8 +51,8 @@ static void noise_lines_summary(const char *name, const NoiseLineCell cells[NOIS
         mmgr_line_put_columns(output_line, name, 24u);
         platform_line_out_ended();
     }
-    unsigned long long counted[NOISE_LINE_KINDS];
-    for (unsigned int type = 0u; type < NOISE_LINE_KINDS; type += 1u)
+    unsigned long long counted[NOISE_LINE_TYPES];
+    for (unsigned int type = 0u; type < NOISE_LINE_TYPES; type += 1u)
     {
         NoiseLineCell pooled;
         mmgr_bytes_set(&pooled, 0, sizeof(pooled));
@@ -314,7 +314,7 @@ static void noise_static_summary(const NoiseStaticPool *still)
 static int noise_lines_rows(FILE *table, const char *name, const NoiseLineCell cells[NOISE_LINE_CELLS])
 {
     int ok = 1;
-    for (unsigned int type = 0u; ok && (type < NOISE_LINE_KINDS); type += 1u)
+    for (unsigned int type = 0u; ok && (type < NOISE_LINE_TYPES); type += 1u)
     {
         for (unsigned int level_bin = 0u; ok && (level_bin < NOISE_LEVEL_BINS); level_bin += 1u)
         {

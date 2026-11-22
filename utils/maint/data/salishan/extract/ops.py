@@ -18,13 +18,13 @@ A who of @a is the authors and @l the paper's language.
                                         FORM ending ... names a row by its opening words
   remove WHERE | FORM                   FORM ending ... names the row by its opening words
   removewhere REGEX
-  removeif WHERE_RE | KIND_RE | FORM_RE rows all three match, before SPLIT; the words of a story
+  removeif WHERE_RE | TYPE_RE | FORM_RE rows all three match, before SPLIT; the words of a story
                                         the engine offered one by one
-  rewhere WHERE_RE | KIND_RE | WHERE    rows moved to WHERE, before SPLIT
+  rewhere WHERE_RE | TYPE_RE | WHERE    rows moved to WHERE, before SPLIT
   rangewhere WHERE | FIRST | LAST | NEW the run of WHERE rows from the one holding FIRST to the one
                                         holding LAST moved to NEW, before SPLIT
-  rekind WHERE_RE | KIND_RE | FORM_RE | KIND [| WHO]  rows given KIND (and WHO) after the moves
-  absorb WHERE_RE | KIND                 a note straight after an example row made its next line, of KIND
+  retype WHERE_RE | TYPE_RE | FORM_RE | TYPE [| WHO]  rows given TYPE (and WHO) after the moves
+  absorb WHERE_RE | TYPE                 a note straight after an example row made its next line, of TYPE
   initials XX | NAME                    a speaker's initials, for speaker comments and tagged whos
   pairs N N ...                         examples set a word over its gloss, read off the page again
   lines N N ...                         examples set one tier a line, read off the page again
@@ -34,11 +34,11 @@ A who of @a is the authors and @l the paper's language.
                                         a number twice
   twotiers                              the examples pairs and lines read are set in two tiers, the words
                                         over their gloss, a long one wrapping to words and gloss again
-  columns KIND, KIND | N N ...          examples set side by side, a. b. c. across a line and each tier
-                                        in columns under them, the tiers above the translation of KINDs
-  table KIND[@WHO], ... | N N ...      examples set as a table, a header and a row a line, each form cell
-                                        of its column's KIND, the gloss and the source tag rows of their own;
-                                        a KIND of rule takes each line whole
+  columns TYPE, TYPE | N N ...          examples set side by side, a. b. c. across a line and each tier
+                                        in columns under them, the tiers above the translation of TYPEs
+  table TYPE[@WHO], ... | N N ...      examples set as a table, a header and a row a line, each form cell
+                                        of its column's TYPE, the gloss and the source tag rows of their own;
+                                        a TYPE of rule takes each line whole
   tableau N N ...                       examples set as a tableau, the input, constraints, weights and
                                         candidates each printed line a note, from the head to the blank
                                         line after the last candidate
@@ -52,8 +52,8 @@ A who of @a is the authors and @l the paper's language.
                                         wordlist CAPTION | plain for a table whose glosses have no quotes,
                                         /č̓əχ/ cook, the word the line's first and the gloss the rest
   tabletag TAG | GLOSS               what a source tag of a table row, [YP], is for
-  display KIND | N N:K ...              examples set apart on a line or two, a ranking or a constraint
-                                        of KIND, or a picture (KIND picture), the prose the engine
+  display TYPE | N N:K ...              examples set apart on a line or two, a ranking or a constraint
+                                        of TYPE, or a picture (TYPE picture), the prose the engine
                                         read as their lines given back to its paragraph; N:K is the
                                         Kth (N) where the paper printed a number twice
   code CODE | LANGUAGE [| SOURCE]     an example form opening on CODE is LANGUAGE's, its translation SOURCE's
@@ -70,8 +70,8 @@ A who of @a is the authors and @l the paper's language.
   langheads                             forms of an example left as prose given the language of its head
   replace OLD | NEW                     text replaced in every form
   who OLD | NEW                         a who the engine gave, written out
-  whorule WHERE_RE | KIND | FORM_RE | who | gloss
-  kindrule WHERE_RE | KIND_RE | FORM_RE | type | who | gloss
+  whorule WHERE_RE | TYPE | FORM_RE | who | gloss
+  typerule WHERE_RE | TYPE_RE | FORM_RE | type | who | gloss
   tier SCRIPT                           the characters only the phonemic line of an example writes
   # anything                            a comment
 """
@@ -161,8 +161,8 @@ def apply(module, stem):
                 module.LANG_HEADS = True
             elif op == "lang":
                 grow("LANG_WHERE", (parts[0], parts[1]))
-            elif op == "rekind":
-                grow("REKIND", (parts[0], parts[1], parts[2], parts[3], who(parts[4]) if len(parts) > 4 else ""))
+            elif op == "retype":
+                grow("RETYPE", (parts[0], parts[1], parts[2], parts[3], who(parts[4]) if len(parts) > 4 else ""))
             elif op == "pairs":
                 module.PAIRS = tuple(getattr(module, "PAIRS", ())) + tuple(rest.split())
             elif op == "lines":
@@ -226,8 +226,8 @@ def apply(module, stem):
                 module.WHO[parts[0]] = who(parts[1])
             elif op == "whorule":
                 grow("WHO_RULES", (parts[0], parts[1], parts[2], who(parts[3]), parts[4]))
-            elif op == "kindrule":
-                grow("KIND_RULES", (parts[0], parts[1], parts[2], parts[3], who(parts[4]), parts[5]))
+            elif op == "typerule":
+                grow("TYPE_RULES", (parts[0], parts[1], parts[2], parts[3], who(parts[4]), parts[5]))
             elif op == "tier":
                 module.TIER_SCRIPT = rest.strip()
             else:

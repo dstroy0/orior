@@ -127,7 +127,7 @@ def main():
         return 0
 
     out.write("  %-14s %-9s %-11s %s\n" % ("language", "papers", "run length", "what it is"))
-    KIND = {
+    TYPE = {
         "chinese": "logographic", "japanese": "mixed script", "korean": "featural",
         "finnish": "agglutinative", "estonian": "agglutinative", "hungarian": "agglutinative",
         "turkish": "agglutinative", "tamil": "agglutinative", "telugu": "agglutinative",
@@ -141,11 +141,11 @@ def main():
         out.write("  %-14s %-9d %-11s %s\n"
                   % (language, len(marks),
                      "%.2f, %.2f" % (statistics.fmean(marks), statistics.pstdev(marks)),
-                     KIND.get(language, "fusional or other")))
+                     TYPE.get(language, "fusional or other")))
 
     grouped = {}
     for language in ready:
-        grouped.setdefault(KIND.get(language, "fusional or other"), []).extend(by_language[language])
+        grouped.setdefault(TYPE.get(language, "fusional or other"), []).extend(by_language[language])
     out.write("\n  %-22s %-9s %s\n" % ("type of language", "readings", "run length"))
     for type in sorted(grouped, key=lambda type: statistics.fmean(grouped[type])):
         marks = grouped[type]

@@ -3,9 +3,9 @@
 // ksa.h: the approvals of a file's seal, stored beside it as `<file>.ksa`: a list, each approval one approver's
 // signature, by one of the schemes the table of schemes names, over KSA_CONTEXT and then the seal's trailer, which
 // contains the file's size, the max bytes of a leaf, the count of leaves and the root. An approver's keys are stored
-// as k-files too, the secret `KSA_SECRET_KIND` and the public `KSA_PUBLIC_KIND`, each the scheme's tag then its bytes.
+// as k-files too, the secret `KSA_SECRET_TYPE` and the public `KSA_PUBLIC_TYPE`, each the scheme's tag then its bytes.
 //
-//     the k-file head (krep_head.h), type KSA_KIND
+//     the k-file head (krep_head.h), type KSA_TYPE
 //     the count of approvals, one word, low byte first
 //     each approval in turn: the scheme's tag, 4 bytes. The bytes of its public key and of its signature, one word
 //     each, low byte first; the public key; the signature
@@ -23,10 +23,10 @@ extern "C"
 {
 #endif
 
-#define KSA_KIND "KSA\0"
+#define KSA_TYPE "KSA\0"
 #define KSA_SUFFIX ".ksa"
-#define KSA_SECRET_KIND "KSK\0"
-#define KSA_PUBLIC_KIND "KPK\0"
+#define KSA_SECRET_TYPE "KSK\0"
+#define KSA_PUBLIC_TYPE "KPK\0"
 // the bytes every signature is over before the seal's trailer, its zero not among them
 #define KSA_CONTEXT "orior ksg approval 1"
 #define KSA_TAG_BYTES 4u

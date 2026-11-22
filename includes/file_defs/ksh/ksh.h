@@ -4,7 +4,7 @@
 #ifndef KSH_H
 #define KSH_H
 
-#define KREP_KIND_SHARD "KSH\0"
+#define KREP_TYPE_SHARD "KSH\0"
 
 // The flattened file's format word, first in its head. Format 3 records each sample's orders after its name, the
 // smooth, the background and the comb, and a file of any other format errors on read.

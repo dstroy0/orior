@@ -158,7 +158,7 @@ extern "C"
         ENGINE_ERROR_REQUEST = 1,
         ENGINE_ERROR_RESOURCE = 2,
         ENGINE_ERROR_LOGIC = 3
-    } EngineErrorKind;
+    } EngineErrorType;
 
     typedef enum
     {
@@ -218,7 +218,7 @@ extern const char __ehdr_start;
 
     typedef struct
     {
-        EngineErrorKind type;
+        EngineErrorType type;
         EngineModule module;
         unsigned int site;
         int status;
@@ -229,7 +229,7 @@ extern const char __ehdr_start;
         const void *frames[ENGINE_ERROR_FRAMES];
     } EngineError;
 
-    static inline void engine_error_raise(EngineError *error, EngineErrorKind type, EngineModule module,
+    static inline void engine_error_raise(EngineError *error, EngineErrorType type, EngineModule module,
                                           unsigned int site, int status, const void *execaddr, const void *evacaddr)
     {
         if (error->type == ENGINE_ERROR_NONE)
@@ -245,7 +245,7 @@ extern const char __ehdr_start;
         }
     }
 
-    ENGINE_NOINLINE_HELPER int engine_error_check(int condition, EngineErrorKind type, EngineModule module,
+    ENGINE_NOINLINE_HELPER int engine_error_check(int condition, EngineErrorType type, EngineModule module,
                                                   unsigned int site, const void *evacaddr, EngineError *error)
     {
         if (condition == 0)

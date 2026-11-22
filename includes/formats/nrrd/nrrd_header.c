@@ -293,9 +293,9 @@ unsigned int nrrd_types(NrrdSpan value, NrrdFields *fields)
         {
             return 0u;
         }
-        fields->types[count] = nrrd_equals(token, "space")  ? NRRD_KIND_SPACE
-                               : nrrd_equals(token, "time") ? NRRD_KIND_TIME
-                                                            : NRRD_KIND_OTHER;
+        fields->types[count] = nrrd_equals(token, "space")  ? NRRD_TYPE_SPACE
+                               : nrrd_equals(token, "time") ? NRRD_TYPE_TIME
+                                                            : NRRD_TYPE_OTHER;
         count += 1u;
     }
     fields->types_count = count;

@@ -275,7 +275,7 @@
       no_sigma1: "Sigma1 removed",
     };
 
-    var KINDS = [
+    var TYPES = [
       { key: "residue", label: "Residue", rows: 32, signed: true },
       { key: "outbit", label: "Output bits", rows: 256, signed: false },
       { key: "inbit", label: "Input bits", rows: 512, signed: false },
@@ -283,7 +283,7 @@
 
     var left = DATA.order[0];
     var right = DATA.order.length > 1 ? DATA.order[1] : DATA.order[0];
-    var type = KINDS[0];
+    var type = TYPES[0];
     var scale = "log";
 
     function token(name) {
@@ -443,14 +443,14 @@
     );
     pills(
       document.getElementById("types"),
-      KINDS.map(function (k) {
+      TYPES.map(function (k) {
         return { label: k.label, value: k.key };
       }),
       function () {
         return type.key;
       },
       function (v) {
-        KINDS.forEach(function (k) {
+        TYPES.forEach(function (k) {
           if (k.key === v) {
             type = k;
           }

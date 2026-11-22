@@ -69,7 +69,7 @@ struct Mixer
  * @param[in] width Bits per word.
  * @return          The mixed word.
  * @note The function scales the amounts as bench_narrow scales the state functions. Thus a narrowed
- *       sigma is the same kind of object as a narrowed Sigma, and the two sweeps are comparable.
+ *       sigma is the same type of object as a narrowed Sigma, and the two sweeps are comparable.
  */
 uint32_t apply(const Mixer &mixer, uint32_t value, unsigned width)
 {
@@ -327,7 +327,7 @@ int main(void)
     std::printf("  The same four, narrowed\n");
     std::printf("================================================================\n");
     std::printf("\n  Amounts scaled the way bench_narrow scales the state pair, a narrowed sigma\n");
-    std::printf("  is the same kind of object as a narrowed Sigma. A rank short of the width is a\n");
+    std::printf("  is the same type of object as a narrowed Sigma. A rank short of the width is a\n");
     std::printf("  function that has stopped being a bijection at that width.\n");
 
     const unsigned WIDTHS = 8u;

@@ -140,7 +140,7 @@ def _exclude():
         print("  %-30s %9d %9d %28s" % (name, nullity, rank, claim))
 
     print("")
-    print("  a NULL IS NOT ONE KIND OF STATEMENT. A null from the stacked map excludes signal in")
+    print("  a NULL IS NOT ONE TYPE OF STATEMENT. A null from the stacked map excludes signal in")
     print("  every direction the object has. A null from degree 2 excludes it in nine directions of")
     print("  256 and is silent about the other 247, no matter how carefully it was run or how many")
     print("  shuffles drew its bar.")

@@ -46,7 +46,7 @@ from salish_marking import (
     tagged_spans,
     unligatured,
 )
-from salish_unsorted import UNKNOWN_KIND, covered_tokens, unreached, write_unsorted
+from salish_unsorted import UNKNOWN_TYPE, covered_tokens, unreached, write_unsorted
 from space_repair import joined_words, vocabulary_of, welded
 
 
@@ -518,7 +518,7 @@ def main():
     # that the record holds does not come back as a hole.
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
-        (0, "%s block %d" % (sect, count), UNKNOWN_KIND, "", text)
+        (0, "%s block %d" % (sect, count), UNKNOWN_TYPE, "", text)
         for mark, count, sect, name, type, text in rows
         if (type == UNCLASSIFIED) and (sect != "not reached")
     ]

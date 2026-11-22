@@ -7,7 +7,7 @@ number of 55.
 
 Run it with `python examples/00_blob_viz_tools/beam_rows.py`.
 
-## Why a beam is a different kind of row
+## Why a beam is a different type of row
 
 `build_sha_clock_view.py` has carried these in the picture from the start, and its own docstring
 states the mechanism: what stops the carried beam is the bit being set, what casts the shadow is the
@@ -99,7 +99,7 @@ one, because it is a line integral.
 **Calling it a wave function claims a phase it does not have.** A probability distribution is the
 square of a wave function and the difference is phase. These rows are real and non-negative:
 intensity, no phase, and two beams cannot interfere or cancel. The harmonic rows are the opposite,
-complex coefficients whose phase is what torsion reads. So the engine holds both kinds, amplitude
+complex coefficients whose phase is what torsion reads. So the engine holds both types, amplitude
 in the harmonics and intensity in the beams, and which one is the right instrument depends on the
 object. For a bit pattern, the beams. For a quantum state vector, the harmonics.
 

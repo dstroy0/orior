@@ -244,7 +244,7 @@ extern "C" int krep_crystal_write(const KrepCrystalRequest *request)
     const size_t limbs = (size_t)((stream->bits + 31ULL) / 32ULL);
     FILE *const crystal = fopen(request->path, "wb");
     int ok = KREP_IO(crystal != NULL, request->path, error) &&
-             KREP_IO(krep_head_write(crystal, KREP_KIND_CRYSTAL) != 0, crystal, error) &&
+             KREP_IO(krep_head_write(crystal, KREP_TYPE_CRYSTAL) != 0, crystal, error) &&
              KREP_IO(krep_words_write(crystal, head, KREP_CRYSTAL_HEAD_WORDS) != 0, head, error) &&
              krep_seal_write(crystal, seal, error) &&
              KREP_IO(krep_words_write(crystal, stream->offsets, (size_t)stream->chunks) != 0, stream->offsets, error) &&
@@ -268,7 +268,7 @@ int krep_crystal_head_from(const char *path, FILE *crystal, EngineStream *stream
 {
     mmgr_bytes_set(head, 0, KREP_CRYSTAL_HEAD_WORDS * sizeof(unsigned long long));
     const int ok = KREP_IO(crystal != NULL, path, error) &&
-                   KREP_IO(krep_head_read(crystal, KREP_KIND_CRYSTAL) != 0, crystal, error) &&
+                   KREP_IO(krep_head_read(crystal, KREP_TYPE_CRYSTAL) != 0, crystal, error) &&
                    KREP_IO(krep_words_read(crystal, head, KREP_CRYSTAL_HEAD_WORDS) != 0, head, error);
     mmgr_bytes_copy(stream->extent, &head[KREP_HEAD_EXTENT], 4u * sizeof(unsigned long long));
     stream->chunks = head[KREP_HEAD_CHUNKS];

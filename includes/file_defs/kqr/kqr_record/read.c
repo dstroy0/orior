@@ -283,14 +283,14 @@ int kqr_read(KqrRecord *record, const char *path, const char *member, char *erro
             .out = error, .cap = room, .at = kqr_error_put(error, room, error_at, s_no_room, sizeof(s_no_room) - 1u)});
         return 0;
     }
-    const int read = krep_read(&record->file, path, KQR_KIND, error, room);
+    const int read = krep_read(&record->file, path, KQR_TYPE, error, room);
     int ok = (read != 0);
     if (read == 2)
     {
         // the text form: its bytes read again, as the run stores them, and taken as records
         const unsigned char *bytes = NULL;
         unsigned long long size = 0ULL;
-        krep_open(&record->file, KQR_KIND);
+        krep_open(&record->file, KQR_TYPE);
         const unsigned long long named =
             krep_text_number(&record->file, member, mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR));
         krep_record_add(&record->file, KQR_MEMBER_RECORD, &named, 1u);
@@ -327,7 +327,7 @@ int kqr_viewed_at(KqrRecord *record, const char *path, const char *name, const c
         return 0;
     }
     int ok = krep_viewed_at(path, KQR_TABLE, name, &record->file, error, room);
-    if (ok && (mmgr_bytes_compare(record->file.type, KQR_KIND, 4u) != 0))
+    if (ok && (mmgr_bytes_compare(record->file.type, KQR_TYPE, 4u) != 0))
     {
         static const char s_no_kqr[] = ": the record in " KQR_TABLE " is no .kqr";
         const size_t error_at =

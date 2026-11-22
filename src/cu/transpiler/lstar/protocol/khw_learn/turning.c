@@ -171,7 +171,7 @@ unsigned int khw_runs_gathered(const int *turned, unsigned int fields, const uns
         form->first[form->runs] = bit;
         form->last[form->runs] = end;
         form->place[form->runs] = KHW_PLACE_NONE;
-        form->type[form->runs] = KHW_KIND_REGISTER;
+        form->type[form->runs] = KHW_TYPE_REGISTER;
         form->runs += 1u;
         bit = end;
     }

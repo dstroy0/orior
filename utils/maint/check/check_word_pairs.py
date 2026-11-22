@@ -33,7 +33,7 @@ def main():
     field = {}
     with open(SOURCE, newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["kind"] == "word":
+            if row["type"] == "word":
                 field.setdefault(int(row["a"]), {}).setdefault(int(row["b"]), {})[
                     int(row["round"])] = float(row["value"])
 

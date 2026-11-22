@@ -927,13 +927,13 @@ static void cli_effect_declaring(const CliDeclaredCfg *args)
     }
     const unsigned int named = EMBED_CALL(cli_symbols_text_length_internal.effect_append, CliSymbolsTextLengthCtx,
                                           .effect = effect, .text = args->name, .length = length);
-    const unsigned int kinded = EMBED_CALL(
+    const unsigned int typed = EMBED_CALL(
         cli_symbols_text_length_internal.effect_append, CliSymbolsTextLengthCtx, .effect = effect, .text = args->type,
         .length = cellul.len(&(CatenaFinitaCfg){.src = args->type, .cap = CLI_POOL_BYTES}));
-    if ((named != CLI_JSON_NONE) && (kinded != CLI_JSON_NONE))
+    if ((named != CLI_JSON_NONE) && (typed != CLI_JSON_NONE))
     {
         // a name a grammar's token covers is below 2^32 bytes
-        branch->declared[branch->declareds] = (CliEffectDeclared){args->line, named, (unsigned int)length, kinded};
+        branch->declared[branch->declareds] = (CliEffectDeclared){args->line, named, (unsigned int)length, typed};
         branch->declareds += 1u;
     }
 }

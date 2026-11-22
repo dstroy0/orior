@@ -20,7 +20,7 @@
 #include <vector>
 
 /** @brief What a parsed value turned out to be. */
-enum class JsonKind
+enum class JsonType
 {
     Null,
     Boolean,
@@ -33,7 +33,7 @@ enum class JsonKind
 /** @brief One parsed JSON value. It owns its children. */
 struct JsonValue
 {
-    JsonKind kind = JsonKind::Null;
+    JsonType type = JsonType::Null;
     bool boolean = false;
     double number = 0.0;
     std::string text;
@@ -49,7 +49,7 @@ struct JsonValue
     const JsonValue &member(const std::string &name) const
     {
         static const JsonValue absent;
-        if (kind != JsonKind::Object)
+        if (type != JsonType::Object)
         {
             return absent;
         }
@@ -66,7 +66,7 @@ struct JsonValue
     const JsonValue &at(size_t index) const
     {
         static const JsonValue absent;
-        if ((kind != JsonKind::Array) || (index >= elements.size()))
+        if ((type != JsonType::Array) || (index >= elements.size()))
         {
             return absent;
         }
@@ -76,13 +76,13 @@ struct JsonValue
     /** @brief Reports whether this value is a string, which stratum fields mostly are. */
     bool is_string() const
     {
-        return kind == JsonKind::String;
+        return type == JsonType::String;
     }
 
     /** @brief Reports whether the value exists. */
     bool exists() const
     {
-        return kind != JsonKind::Null;
+        return type != JsonType::Null;
     }
 };
 
@@ -186,7 +186,7 @@ inline bool parse_string(const std::string &source, size_t &at, std::string &out
 }
 
 /**
- * @brief Parses one value of any kind.
+ * @brief Parses one value of any type.
  *
  * @param[in]     source Text to parse.
  * @param[in,out] at     Cursor, left past the value on success.
@@ -205,13 +205,13 @@ inline bool parse_value(const std::string &source, size_t &at, JsonValue &out)
 
     if (lead == '"')
     {
-        out.kind = JsonKind::String;
+        out.type = JsonType::String;
         return parse_string(source, at, out.text);
     }
     if (lead == '{')
     {
         at += 1u;
-        out.kind = JsonKind::Object;
+        out.type = JsonType::Object;
         skip_whitespace(source, at);
         if ((at < source.size()) && (source[at] == '}'))
         {
@@ -262,7 +262,7 @@ inline bool parse_value(const std::string &source, size_t &at, JsonValue &out)
     if (lead == '[')
     {
         at += 1u;
-        out.kind = JsonKind::Array;
+        out.type = JsonType::Array;
         skip_whitespace(source, at);
         if ((at < source.size()) && (source[at] == ']'))
         {
@@ -299,21 +299,21 @@ inline bool parse_value(const std::string &source, size_t &at, JsonValue &out)
     }
     if (source.compare(at, 4u, "true") == 0)
     {
-        out.kind = JsonKind::Boolean;
+        out.type = JsonType::Boolean;
         out.boolean = true;
         at += 4u;
         return true;
     }
     if (source.compare(at, 5u, "false") == 0)
     {
-        out.kind = JsonKind::Boolean;
+        out.type = JsonType::Boolean;
         out.boolean = false;
         at += 5u;
         return true;
     }
     if (source.compare(at, 4u, "null") == 0)
     {
-        out.kind = JsonKind::Null;
+        out.type = JsonType::Null;
         at += 4u;
         return true;
     }
@@ -330,7 +330,7 @@ inline bool parse_value(const std::string &source, size_t &at, JsonValue &out)
     {
         return false;
     }
-    out.kind = JsonKind::Number;
+    out.type = JsonType::Number;
     out.number = std::stod(source.substr(number_start, at - number_start));
     return true;
 }

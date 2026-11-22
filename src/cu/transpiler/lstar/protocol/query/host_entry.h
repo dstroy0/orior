@@ -48,7 +48,7 @@ typedef enum
     HOST_LIVE,
     // gave back nothing a reader here can distinguish from nothing
     HOST_NOTHING
-} HostAddressKind;
+} HostAddressType;
 
 // `word` put at `at`
 static inline void host_put(unsigned long long at, unsigned int word)

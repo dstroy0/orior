@@ -41,7 +41,7 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
                                                    count};
     FILE *file = ok ? fopen(path, "wb") : NULL;
     ok = ok && FLATTEN_IO(file != NULL, path, error) &&
-         FLATTEN_IO(krep_head_write(file, KREP_KIND_SHARD) != 0, file, error) &&
+         FLATTEN_IO(krep_head_write(file, KREP_TYPE_SHARD) != 0, file, error) &&
          FLATTEN_IO(krep_limbs_write(file, head, FLATTEN_HEAD_LIMBS) != 0, head, error) &&
          FLATTEN_IO(krep_limbs_write(file, layout->bits, MAX_TREE_FIELDS) != 0, layout->bits, error) &&
          FLATTEN_IO(krep_limbs_write(file, layout->offset, MAX_TREE_FIELDS) != 0, layout->offset, error);
@@ -68,7 +68,7 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
     unsigned int read_bits[MAX_TREE_FIELDS];
     unsigned int read_offset[MAX_TREE_FIELDS];
     ok = ok && FLATTEN_IO(file != NULL, path, error) &&
-         FLATTEN_IO(krep_head_read(file, KREP_KIND_SHARD) != 0, file, error) &&
+         FLATTEN_IO(krep_head_read(file, KREP_TYPE_SHARD) != 0, file, error) &&
          FLATTEN_IO(krep_limbs_read(file, read_head, FLATTEN_HEAD_LIMBS) != 0, read_head, error) &&
          FLATTEN_CHECK(mmgr_bytes_compare(read_head, head, sizeof(head)) == 0, read_head, error, ENGINE_ERROR_LOGIC) &&
          FLATTEN_IO(krep_limbs_read(file, read_bits, MAX_TREE_FIELDS) != 0, read_bits, error) &&
@@ -124,7 +124,7 @@ int flatten_read(const char *set, FlattenResident *resident, EngineError *error)
     unsigned int head[FLATTEN_HEAD_LIMBS] = {0u, 0u, 0u, 0u, 0u};
     int ok =
         FLATTEN_CHECK(named, set, error, ENGINE_ERROR_REQUEST) && FLATTEN_IO(file != NULL, path, error) &&
-        FLATTEN_IO(krep_head_read(file, KREP_KIND_SHARD) != 0, file, error) &&
+        FLATTEN_IO(krep_head_read(file, KREP_TYPE_SHARD) != 0, file, error) &&
         FLATTEN_IO(krep_limbs_read(file, head, FLATTEN_HEAD_LIMBS) != 0, head, error) &&
         FLATTEN_CHECK(head[0] == FLATTEN_FORMAT, &head[0], error, ENGINE_ERROR_REQUEST) &&
         FLATTEN_CHECK(head[1] == MAX_TREE_FIELDS, &head[1], error, ENGINE_ERROR_LOGIC) &&

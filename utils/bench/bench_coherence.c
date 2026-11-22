@@ -21,7 +21,7 @@
 
 #define ABSENT_SEED 0x9E3779B97F4A7C15ULL
 
-static const CorpusKind KINDS[] = {CORPUS_UNIFORM, CORPUS_SKEWED, CORPUS_PERIODIC};
+static const CorpusType TYPES[] = {CORPUS_UNIFORM, CORPUS_SKEWED, CORPUS_PERIODIC};
 
 static double independent_anchors(const BenchPeriod *found, double placed)
 {
@@ -68,7 +68,7 @@ int program_main(int argc, char **argv)
 {
     (void)argc;
     (void)argv;
-    const size_t type_count = sizeof KINDS / sizeof KINDS[0];
+    const size_t type_count = sizeof TYPES / sizeof TYPES[0];
     uint8_t *const corpus = (uint8_t *)malloc(CORPUS_BYTES);
     uint8_t *const absent = (uint8_t *)malloc(NEEDLE_BYTES * NEEDLES_PER_ROW);
 
@@ -92,7 +92,7 @@ int program_main(int argc, char **argv)
 
     for (size_t which = 0u; which < type_count; which += 1u)
     {
-        bench_build_bytes(corpus, CORPUS_BYTES, KINDS[which], CORPUS_SEED);
+        bench_build_bytes(corpus, CORPUS_BYTES, TYPES[which], CORPUS_SEED);
 
         size_t distinct = 0u;
         const double entropy = bench_collision_entropy(corpus, CORPUS_BYTES, &distinct);
@@ -116,7 +116,7 @@ int program_main(int argc, char **argv)
                            (unsigned long long)found.period);
         }
 
-        printf("  %-12s %-7.3f %-8s %-9.4f %-9.4f %-8.4f %llu\n", bench_corpus_name(KINDS[which]),
+        printf("  %-12s %-7.3f %-8s %-9.4f %-9.4f %-8.4f %llu\n", bench_corpus_name(TYPES[which]),
                entropy, period_text, found.agreement, found.at_chance, found.margin,
                (unsigned long long)spacing_for(&found, NEEDLE_BYTES, ORIOR_ANCHORS));
     }
@@ -128,8 +128,8 @@ int program_main(int argc, char **argv)
 
     for (size_t which = 0u; which < type_count; which += 1u)
     {
-        bench_build_bytes(corpus, CORPUS_BYTES, KINDS[which], CORPUS_SEED);
-        bench_build_bytes(absent, NEEDLE_BYTES * NEEDLES_PER_ROW, KINDS[which], ABSENT_SEED);
+        bench_build_bytes(corpus, CORPUS_BYTES, TYPES[which], CORPUS_SEED);
+        bench_build_bytes(absent, NEEDLE_BYTES * NEEDLES_PER_ROW, TYPES[which], ABSENT_SEED);
 
         orior_counters_reset();
 
@@ -153,7 +153,7 @@ int program_main(int argc, char **argv)
         }
         if (found_total != reference)
         {
-            (void)fprintf(stderr, "  %s: %llu against %llu\n", bench_corpus_name(KINDS[which]),
+            (void)fprintf(stderr, "  %s: %llu against %llu\n", bench_corpus_name(TYPES[which]),
                           (unsigned long long)found_total, (unsigned long long)reference);
             disagreed = 1;
         }
@@ -166,7 +166,7 @@ int program_main(int argc, char **argv)
         const double off_coherent = (predicted_coherent[which] > 0.0)
             ? (measured / predicted_coherent[which]) : 0.0;
 
-        printf("  %-12s %-9.0f %-15.9f %-15.9f %-15.9f %s\n", bench_corpus_name(KINDS[which]), independent[which],
+        printf("  %-12s %-9.0f %-15.9f %-15.9f %-15.9f %s\n", bench_corpus_name(TYPES[which]), independent[which],
                predicted_flat[which], predicted_coherent[which], measured,
                (periods[which].period != 0u) ? "coherence" : "they agree");
         printf("  %-12s %-9s off the histogram by %.1f, off coherence by %.2f\n", "", "",
@@ -183,8 +183,8 @@ int program_main(int argc, char **argv)
 
     for (size_t which = 0u; which < type_count; which += 1u)
     {
-        bench_build_bytes(corpus, CORPUS_BYTES, KINDS[which], CORPUS_SEED);
-        bench_build_bytes(absent, NEEDLE_BYTES * NEEDLES_PER_ROW, KINDS[which], ABSENT_SEED);
+        bench_build_bytes(corpus, CORPUS_BYTES, TYPES[which], CORPUS_SEED);
+        bench_build_bytes(absent, NEEDLE_BYTES * NEEDLES_PER_ROW, TYPES[which], ABSENT_SEED);
 
         OriorFieldCensus census;
         orior_field_census(corpus, CORPUS_BYTES, &census);
@@ -211,7 +211,7 @@ int program_main(int argc, char **argv)
         const double probes_chosen = (double)orior_probes / alignments;
         const double survivors_chosen = (double)orior_verifications / alignments;
 
-        printf("  %-12s %-9llu %-15.6f %-15.6f %-9.1f%% %s\n", bench_corpus_name(KINDS[which]),
+        printf("  %-12s %-9llu %-15.6f %-15.6f %-9.1f%% %s\n", bench_corpus_name(TYPES[which]),
                (unsigned long long)orior_anchors_for(&plan), probes_four, probes_chosen,
                (probes_four > 0.0) ? (100.0 * (probes_four - probes_chosen) / probes_four) : 0.0,
                (survivors_four == survivors_chosen) ? "not at all" : "they moved");

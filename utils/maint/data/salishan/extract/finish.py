@@ -7,7 +7,7 @@ off the page: who and type for the names, places and languages the draft calls c
 add (title, names, notations, symbol notes), and text to replace where the text layer broke a row.
 
 Generic steps, the same for every paper, after the rules a context file sets (WHO_RULES for whose a
-row is, KIND_RULES for what it is):
+row is, TYPE_RULES for what it is):
   - a note that is only the printed page number is dropped, and one the page number opens loses it
   - a note opening with a footnote number moves to where "footnote N"
   - a translation ending in a citation, a speaker tag or a bracketed label is split in two
@@ -141,7 +141,7 @@ def main():
         # A rule a person read off the page for what a row is: the lines of an example that hold a
         # formula, λ⃗v.⃗v ∈ σ(α), are the author's denotation and not a tier of the language.
         for where_rule, type_rule, form_rule, new_type, new_who, rule_gloss in \
-                getattr(context, "KIND_RULES", ()):
+                getattr(context, "TYPE_RULES", ()):
             if re.search(where_rule, where) and re.search(type_rule, type) and \
                     re.search(form_rule, form):
                 type, who = new_type, new_who
@@ -473,7 +473,7 @@ def main():
                 one[2] = new_type
     # A type given by pattern after the moves above, the phonemic cells of a table so moved, and a
     # who with it where the rule names one.
-    for rule in getattr(context, "REKIND", ()):
+    for rule in getattr(context, "RETYPE", ()):
         where_rule, type_rule, form_rule, new_type = rule[:4]
         for one in out:
             if re.search(where_rule, one[0]) and re.search(type_rule, one[2]) and re.search(form_rule, one[3]):

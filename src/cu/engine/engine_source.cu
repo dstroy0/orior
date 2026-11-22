@@ -47,7 +47,7 @@ static int entry_zip_names(const char *path, const char *member)
     return named;
 }
 
-static EntrySourceKind entry_source_type(const char *path, const char *member)
+static EntrySourceType entry_source_type(const char *path, const char *member)
 {
     char probe[ENTRY_PATH_CAPACITY];
     static const char *const MARKS[4] = {"zarr.json", ".zarray", ".zgroup", "attributes.json"};

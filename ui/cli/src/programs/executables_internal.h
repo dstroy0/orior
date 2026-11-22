@@ -104,7 +104,7 @@ typedef struct
     unsigned int count;
 } CliNames;
 
-// the type of build script a file's name is: CLI_KIND_NONE where it is none
+// the type of build script a file's name is: CLI_TYPE_NONE where it is none
 unsigned int cli_executables_type_get(const CliExecutablesNameOutFolderCtx *args);
 // a name put after the names, with its second text, where the names contain it not already
 void cli_names_append(const CliExecutablesNameNamesCtx *args);

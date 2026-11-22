@@ -1591,7 +1591,7 @@ static void pointer_checked(void)
 
     // A move to a control by its name goes at once if the speed is 0. The checks move to the strip's Run tool, a
     // window control, a menu by its title and a tab by its name. Each move ends at the middle of the control's
-    // rectangle. The window refuses a kind it does not know.
+    // rectangle. The window refuses a type it does not know.
     unsigned int run_tool = g_gui_tools_count;
     for (unsigned int at = 0u; at < g_gui_tools_count; at += 1u)
     {
@@ -1630,7 +1630,7 @@ static void pointer_checked(void)
     s_window.driven_count = 0u;
     const char *const to_nowhere[3] = {"to", "nowhere", "x"};
     cli_check(!asked_words("pointer", to_nowhere, 3u) && (s_window.driven_count == 0u),
-              "a kind the window does not know is refused");
+              "a type the window does not know is refused");
 
     // At a speed, the pointer moves one frame at a time. Each step moves it no further than the speed covers. The
     // glide ends at the control's middle.

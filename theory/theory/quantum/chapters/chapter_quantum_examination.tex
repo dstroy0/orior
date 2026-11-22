@@ -36,7 +36,7 @@ LDL / STL & 0    & 0\%     & no register spills anywhere \\
 
 Occupancy of the mining kernel is \textbf{100\%} at 38 registers, 48 of 48 warps resident. The
 classical implementation is at the integer-pipe roofline and its rotations are 30\% of everything,
-which is worth establishing before asking whether a different kind of machine helps.
+which is worth establishing before asking whether a different type of machine helps.
 
 Rotation is also where the classical optimizations stop. SHA-256's rotate distances are 2/13/22,
 6/11/25, 7/18 and 17/19, and \textbf{none is byte-aligned}. No rotate therefore collapses into a single

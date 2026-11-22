@@ -33,7 +33,7 @@
 
 #include "../../parsers/who.h"
 // the .kqr's type, the four bytes after the k-file head
-#define KQR_KIND "KQR\0"
+#define KQR_TYPE "KQR\0"
 
 // the name of the run's table whose rows a record a run stores is a view of
 #define KQR_TABLE "queries"

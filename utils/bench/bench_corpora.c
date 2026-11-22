@@ -76,7 +76,7 @@ static void fill_periodic(uint8_t *bytes, size_t length)
     }
 }
 
-void bench_build_bytes(uint8_t *bytes, size_t length, CorpusKind type, uint64_t seed)
+void bench_build_bytes(uint8_t *bytes, size_t length, CorpusType type, uint64_t seed)
 {
     if (type == CORPUS_PERIODIC)
     {
@@ -90,7 +90,7 @@ void bench_build_bytes(uint8_t *bytes, size_t length, CorpusKind type, uint64_t 
     }
 }
 
-const char *bench_corpus_name(CorpusKind type)
+const char *bench_corpus_name(CorpusType type)
 {
     if (type == CORPUS_UNIFORM)
     {

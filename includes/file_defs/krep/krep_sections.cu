@@ -129,7 +129,7 @@ extern "C" int krep_history_write(const char *path, const EngineHistory *history
                                         history->cloud_crc};
     FILE *const out = fopen(path, "wb");
     int ok =
-        KREP_IO(out != NULL, path, error) && KREP_IO(krep_head_write(out, KREP_KIND_NOISE_FLOOR) != 0, out, error) &&
+        KREP_IO(out != NULL, path, error) && KREP_IO(krep_head_write(out, KREP_TYPE_NOISE_FLOOR) != 0, out, error) &&
         KREP_IO(krep_words_write(out, history->extent, 4u) != 0, history->extent, error) &&
         KREP_IO(krep_words_write(out, head, 4u) != 0, head, error) &&
         KREP_IO(fwrite(&history->sample, sizeof(EngineSignum), 1u, out) == 1u, &history->sample, error) &&
@@ -157,7 +157,7 @@ extern "C" int krep_history_read(const char *path, EngineHistory *history, unsig
     FILE *const back = fopen(path, "rb");
     unsigned long long head[4] = {0ULL, 0ULL, 0ULL, 0ULL};
     int ok = KREP_IO(back != NULL, path, error) &&
-             KREP_IO(krep_head_read(back, KREP_KIND_NOISE_FLOOR) != 0, back, error) &&
+             KREP_IO(krep_head_read(back, KREP_TYPE_NOISE_FLOOR) != 0, back, error) &&
              KREP_IO(krep_words_read(back, history->extent, 4u) != 0, history->extent, error) &&
              KREP_IO(krep_words_read(back, head, 4u) != 0, head, error) &&
              KREP_IO(fread(&history->sample, sizeof(EngineSignum), 1u, back) == 1u, &history->sample, error) &&
@@ -217,7 +217,7 @@ extern "C" int krep_bodies_write(const char *path, const EngineBodyTable *table,
     }
     const unsigned long long counts[3] = {table->frames, table->bodies, table->crc};
     FILE *const out = fopen(path, "wb");
-    int ok = KREP_IO(out != NULL, path, error) && KREP_IO(krep_head_write(out, KREP_KIND_BODIES) != 0, out, error) &&
+    int ok = KREP_IO(out != NULL, path, error) && KREP_IO(krep_head_write(out, KREP_TYPE_BODIES) != 0, out, error) &&
              KREP_IO(krep_words_write(out, table->extent, 4u) != 0, table->extent, error) &&
              KREP_IO(krep_words_write(out, counts, 3u) != 0, counts, error) &&
              KREP_IO(krep_words_write(out, table->frame_start, (size_t)table->frames + 1u) != 0, table->frame_start,
@@ -244,7 +244,7 @@ extern "C" int krep_bodies_read(const char *path, EngineBodyTable *table, Engine
     mmgr_bytes_set(table, 0, sizeof(*table));
     FILE *const back = fopen(path, "rb");
     unsigned long long counts[3] = {0ULL, 0ULL, 0ULL};
-    int ok = KREP_IO(back != NULL, path, error) && KREP_IO(krep_head_read(back, KREP_KIND_BODIES) != 0, back, error) &&
+    int ok = KREP_IO(back != NULL, path, error) && KREP_IO(krep_head_read(back, KREP_TYPE_BODIES) != 0, back, error) &&
              KREP_IO(krep_words_read(back, table->extent, 4u) != 0, table->extent, error) &&
              KREP_IO(krep_words_read(back, counts, 3u) != 0, counts, error) &&
              KREP_CHECK((counts[0] == table->extent[0]) && (krep_lanes(table->extent) != 0ULL) &&
@@ -301,7 +301,7 @@ extern "C" int krep_forms_write(const char *path, const KrepFormTable *table, En
     const unsigned long long counts[3] = {table->forms, table->name_words, table->crc};
     FILE *const out = fopen(path, "wb");
     int ok = KREP_IO(out != NULL, path, error) &&
-             KREP_IO(krep_head_write(out, KREP_KIND_CONSTRUCTION_SET) != 0, out, error) &&
+             KREP_IO(krep_head_write(out, KREP_TYPE_CONSTRUCTION_SET) != 0, out, error) &&
              KREP_IO(krep_words_write(out, counts, 3u) != 0, counts, error) &&
              KREP_IO(krep_words_write(out, table->words, (size_t)(table->forms + table->name_words)) != 0, table->words,
                      error);
@@ -327,7 +327,7 @@ extern "C" int krep_forms_read(const char *path, KrepFormTable *table, EngineErr
     unsigned long long counts[3] = {0ULL, 0ULL, 0ULL};
     int ok =
         KREP_IO(back != NULL, path, error) &&
-        KREP_IO(krep_head_read(back, KREP_KIND_CONSTRUCTION_SET) != 0, back, error) &&
+        KREP_IO(krep_head_read(back, KREP_TYPE_CONSTRUCTION_SET) != 0, back, error) &&
         KREP_IO(krep_words_read(back, counts, 3u) != 0, counts, error) &&
         KREP_CHECK((counts[0] <= KREP_FORMS_MAX) && (counts[1] <= KREP_FORMS_MAX), counts, error, ENGINE_ERROR_LOGIC);
     table->forms = ok ? counts[0] : 0ULL;

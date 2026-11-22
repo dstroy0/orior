@@ -34,7 +34,7 @@ static int tessera_grow(void **items, unsigned long long *capacity, unsigned lon
 }
 
 // each of the ledger's arrays grown to the max a call of `type` can add
-static int tessera_reserve(TesseraLedger *ledger, TesseraCallKind type)
+static int tessera_reserve(TesseraLedger *ledger, TesseraCallType type)
 {
     const TesseraCapacity needed = tessera_core_capacity(ledger, type);
     const int jobs = tessera_grow((void **)&ledger->jobs, &ledger->job_capacity, needed.jobs, sizeof(TesseraJob));

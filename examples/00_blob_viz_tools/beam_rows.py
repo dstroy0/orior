@@ -4,7 +4,7 @@
     python examples/00_blob_viz_tools/beam_rows.py                 rank added, and reach into the harmonic kernel
     python examples/00_blob_viz_tools/beam_rows.py --oblique        how a beam's reading grows with its angle
 
-WHY A BEAM IS A DIFFERENT KIND OF ROW
+WHY A BEAM IS A DIFFERENT TYPE OF ROW
 
 `build_sha_clock_view.py` already carries these in the picture and states what they do: what stops
 the carried beam is the bit being set, what casts the shadow is the stopping, and the pattern on the

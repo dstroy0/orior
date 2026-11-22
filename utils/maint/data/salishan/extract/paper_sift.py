@@ -231,7 +231,7 @@ def main():
             return bool(WORD_ROW.match(one[2].strip()))
         return False
 
-    CELL_KINDS = (("<", "transcription", "in < >"), ("⟨", "transcription", "in ⟨ ⟩"),("{", "transcription", "in { }"),
+    CELL_TYPES = (("<", "transcription", "in < >"), ("⟨", "transcription", "in ⟨ ⟩"),("{", "transcription", "in { }"),
                   ("[*", "phonemic", "reconstructed, in [* ]"), ("[", "phonemic", "phonetic, in [ ]"),
                   ("/", "phonemic", "phonemic, in / /"))
 
@@ -497,7 +497,7 @@ def main():
             if text[0] == "(":
                 rows.append((where, authors, "note", text, "page %d%s" % (page, mark)))
                 continue
-            for opens, type, described in CELL_KINDS:
+            for opens, type, described in CELL_TYPES:
                 if text.startswith(opens):
                     place(opens[0], separator)
                     previous = opens[0]

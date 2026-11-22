@@ -169,8 +169,8 @@ int ksg_keys_made(const char *name, const char *secret_path, const char *public_
     scheme->public_of(secret, key);
     unsigned char secret_head[KREP_HEAD_BYTES];
     unsigned char public_head[KREP_HEAD_BYTES];
-    ksg_head_of(KSA_SECRET_KIND, secret_head);
-    ksg_head_of(KSA_PUBLIC_KIND, public_head);
+    ksg_head_of(KSA_SECRET_TYPE, secret_head);
+    ksg_head_of(KSA_PUBLIC_TYPE, public_head);
     const unsigned char *const secret_pieces[3] = {secret_head, (const unsigned char *)scheme->tag, secret};
     const unsigned long long secret_sizes[3] = {KREP_HEAD_BYTES, KSA_TAG_BYTES, scheme->secret_bytes};
     const unsigned char *const public_pieces[3] = {public_head, (const unsigned char *)scheme->tag, key};
@@ -193,7 +193,7 @@ int ksg_keys_made(const char *name, const char *secret_path, const char *public_
 int ksg_public_read(const char *public_path, KsaApproval *key)
 {
     mmgr_bytes_set(key, 0, sizeof(*key));
-    const KsaScheme *const scheme = ksg_key_read(public_path, KSA_PUBLIC_KIND, 0, key->key);
+    const KsaScheme *const scheme = ksg_key_read(public_path, KSA_PUBLIC_TYPE, 0, key->key);
     if (scheme == NULL)
     {
         return 0;
@@ -216,7 +216,7 @@ static int ksg_list_read(const char *path)
     unsigned char head[KREP_HEAD_BYTES];
     unsigned char stored_head[KREP_HEAD_BYTES];
     unsigned char word[8];
-    ksg_head_of(KSA_KIND, head);
+    ksg_head_of(KSA_TYPE, head);
     int whole = (fread(stored_head, 1u, sizeof(stored_head), file) == sizeof(stored_head)) &&
                 (mmgr_bytes_compare(stored_head, head, sizeof(head)) == 0) &&
                 (fread(word, 1u, sizeof(word), file) == sizeof(word));
@@ -253,7 +253,7 @@ static int ksg_list_written(const char *path)
         return 0;
     }
     unsigned long long at = 0ULL;
-    ksg_head_of(KSA_KIND, s_bytes);
+    ksg_head_of(KSA_TYPE, s_bytes);
     at += KREP_HEAD_BYTES;
     ksg_word_put(s_list.count, s_bytes + at);
     at += 8u;
@@ -285,7 +285,7 @@ static int ksg_same_key(const KsaApproval *one, const KsaApproval *other)
 int ksg_approval_added(const char *secret_path, const char *path, const unsigned char *trailer)
 {
     unsigned char secret[KSA_SECRET_MAX];
-    const KsaScheme *const scheme = ksg_key_read(secret_path, KSA_SECRET_KIND, 1, secret);
+    const KsaScheme *const scheme = ksg_key_read(secret_path, KSA_SECRET_TYPE, 1, secret);
     if (scheme == NULL)
     {
         return 0;

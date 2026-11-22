@@ -37,7 +37,7 @@ def read():
                 at = int(row["round"]) - 1
                 if not (0 <= at < ROUNDS):
                     continue
-                type = row["kind"]
+                type = row["type"]
                 if type not in SHAPES:
                     continue
                 plane = packed.setdefault(row["source"], {}).setdefault(

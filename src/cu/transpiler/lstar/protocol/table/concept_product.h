@@ -24,7 +24,7 @@
 #include <vector>
 
 // the types of value a form reads: a word, a wide, a register and its `.hi` read as one, and a flag
-enum ConceptValueKind
+enum ConceptValueType
 {
     CONCEPT_VALUE_WORD,
     CONCEPT_VALUE_WIDE,

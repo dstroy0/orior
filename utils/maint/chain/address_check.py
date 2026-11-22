@@ -92,7 +92,7 @@ def read_address(address):
     return (NETWORKS[prefix], version, program, "bech32" if version == 0 else "bech32m"), None
 
 
-def kind(version, program):
+def type(version, program):
     if version == 0:
         return "P2WPKH" if len(program) == 20 else "P2WSH"
     if version == 1 and len(program) == 32:
@@ -163,7 +163,7 @@ def main(argv):
             continue
         network, version, program, encoding = found
         print("%s  verifies: %s, %s, witness v%d, %d byte program, %s"
-              % (address, network, kind(version, program), version, len(program), encoding))
+              % (address, network, type(version, program), version, len(program), encoding))
     return 1 if bad else 0
 
 

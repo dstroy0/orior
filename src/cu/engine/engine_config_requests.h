@@ -320,7 +320,7 @@ extern "C"
         ENGINE_ELEMENT_UNSIGNED = 0,
         ENGINE_ELEMENT_SIGNED = 1,
         ENGINE_ELEMENT_FLOAT = 2
-    } EngineElementKind;
+    } EngineElementType;
 
     typedef struct
     {
@@ -328,7 +328,7 @@ extern "C"
         unsigned long long sizes[ENGINE_ARRAY_RANK];
         char axes[ENGINE_ARRAY_RANK];
         unsigned int element_bytes;
-        EngineElementKind element_type;
+        EngineElementType element_type;
     } EngineArrayExtent;
 
     typedef struct

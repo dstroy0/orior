@@ -40,7 +40,7 @@ MARKS = TEXT_SPACE
 
 # What the reason column holds. The first is a line the classifier reached and could not type. The
 # second is a line no section of the extractor ever looked at.
-UNKNOWN_KIND = "type unknown"
+UNKNOWN_TYPE = "type unknown"
 NOT_REACHED = "not reached"
 
 

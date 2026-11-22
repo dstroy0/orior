@@ -14,7 +14,7 @@
  *       undisturbed co-arm by several orders of magnitude. It is the most concrete positive
  *       prediction available, and this bench tests it.
  * @note The mechanism, if it works, is decorrelation. Co-arms that estimate one quantity from the
- *       same kind of sample carry correlated error. Correlated error does not average out across
+ *       same type of sample carry correlated error. Correlated error does not average out across
  *       arms. A disturbance that is periodic, and not random, decorrelates one arm from the others
  *       in a way that the joint estimator can cancel.
  * @note That is dither. The theory of signals gives it a sound basis. Thus the prediction is not
@@ -155,7 +155,7 @@ double collision_probability(const std::unordered_map<uint32_t, uint32_t> &count
     return (total > 0.0L) ? (double)(colliding / total) : 0.0;
 }
 
-/** @brief The kind of disturbance on a co-arm. */
+/** @brief The type of disturbance on a co-arm. */
 enum class Disturbance
 {
     None,
@@ -169,12 +169,12 @@ enum class Disturbance
  * @param[in,out] generator Random source [BORROWS].
  * @param[in]     arms      How many co-arms.
  * @param[in]     per_arm   Draws per arm.
- * @param[in]     kind      Which disturbance the first arm carries.
+ * @param[in]     type      Which disturbance the first arm carries.
  * @param[in]     period    Period of the disturbance where it is periodic.
  * @param[in]     magnitude The disturbance value.
  * @return                  The joint estimate: the mean across arms.
  */
-double joint_estimate(std::mt19937 &generator, unsigned arms, unsigned per_arm, Disturbance kind, unsigned period,
+double joint_estimate(std::mt19937 &generator, unsigned arms, unsigned per_arm, Disturbance type, unsigned period,
                       uint32_t magnitude)
 {
     double total = 0.0;
@@ -192,11 +192,11 @@ double joint_estimate(std::mt19937 &generator, unsigned arms, unsigned per_arm, 
             // joint error the claim is about.
             if (arm == 0u)
             {
-                if (kind == Disturbance::Periodic)
+                if (type == Disturbance::Periodic)
                 {
                     disturbance = ((draw % period) == 0u) ? magnitude : 0u;
                 }
-                else if (kind == Disturbance::Random)
+                else if (type == Disturbance::Random)
                 {
                     // Same expected rate as the periodic case. Thus magnitude is not the variable.
                     disturbance = ((generator() % period) == 0u) ? magnitude : 0u;
@@ -334,7 +334,7 @@ int main()
 
     for (int condition = 0; condition < 3; condition += 1)
     {
-        const Disturbance kind = (condition == 0)   ? Disturbance::None
+        const Disturbance type = (condition == 0)   ? Disturbance::None
                                  : (condition == 1) ? Disturbance::Periodic
                                                     : Disturbance::Random;
         const char *name = (condition == 0)   ? "no disturbance"
@@ -344,7 +344,7 @@ int main()
         double error_total = 0.0;
         for (unsigned repeat = 0u; repeat < repeats; repeat += 1u)
         {
-            const double estimate = joint_estimate(generator, arms, per_arm, kind, period, magnitude);
+            const double estimate = joint_estimate(generator, arms, per_arm, type, period, magnitude);
             error_total += std::fabs(estimate - reference);
         }
         const double mean_error = error_total / (double)repeats;

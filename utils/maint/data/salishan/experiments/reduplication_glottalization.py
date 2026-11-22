@@ -102,7 +102,7 @@ def comparisons(everything, retain_survey):
     found = collections.defaultdict(list)
     seen = collections.defaultdict(set)
     for row in everything:
-        if row.type not in corpus_rows.FORM_KINDS or row.branch not in ("CS", "NIS", "SIS", "NUX", "TS", "TI"):
+        if row.type not in corpus_rows.FORM_TYPES or row.branch not in ("CS", "NIS", "SIS", "NUX", "TS", "TI"):
             continue
         if row.stem in SURVEY and not retain_survey:
             continue

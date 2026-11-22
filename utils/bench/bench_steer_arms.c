@@ -35,9 +35,9 @@ typedef enum
     MASK_NONE_ALIVE = 1,
     MASK_ALTERNATING = 2,
     MASK_SPARSE = 3
-} MaskKind;
+} MaskType;
 
-static const char *mask_name(MaskKind type)
+static const char *mask_name(MaskType type)
 {
     switch (type)
     {
@@ -49,7 +49,7 @@ static const char *mask_name(MaskKind type)
     }
 }
 
-static void build_mask(uint8_t *alive, size_t alignments, MaskKind type)
+static void build_mask(uint8_t *alive, size_t alignments, MaskType type)
 {
     for (size_t at = 0u; at < alignments; at += 1u)
     {
@@ -180,7 +180,7 @@ int program_main(int argc, char **argv)
 
         for (unsigned int which_mask = 0u; which_mask < 4u; which_mask += 1u)
         {
-            build_mask(alive, alignments, (MaskKind)which_mask);
+            build_mask(alive, alignments, (MaskType)which_mask);
 
             const size_t offsets[] = { 0u, 7u };
             for (unsigned int which_offset = 0u; which_offset < 2u; which_offset += 1u)
@@ -197,7 +197,7 @@ int program_main(int argc, char **argv)
                     if (got != want)
                     {
                         printf("  %10zu %14s %8zu %14zu %10s  %s returned %zu\n", alignments,
-                               mask_name((MaskKind)which_mask), offset, want, "FAILS",
+                               mask_name((MaskType)which_mask), offset, want, "FAILS",
                                arms[which_arm]->name, got);
                         agreed = 0;
                         failed += 1;
@@ -206,7 +206,7 @@ int program_main(int argc, char **argv)
                 if (agreed != 0)
                 {
                     printf("  %10zu %14s %8zu %14zu %10s\n", alignments,
-                           mask_name((MaskKind)which_mask), offset, want, "ok");
+                           mask_name((MaskType)which_mask), offset, want, "ok");
                 }
             }
         }

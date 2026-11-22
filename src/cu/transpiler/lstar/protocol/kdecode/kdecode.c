@@ -141,7 +141,7 @@ int program_main(int count, char **words)
         char type[4];
         mmgr_bytes_copy(type, bytes + 8u, 4u);
         char error[1400];
-        if (!raw && (mmgr_bytes_compare(type, KQR_KIND, 4u) == 0))
+        if (!raw && (mmgr_bytes_compare(type, KQR_TYPE, 4u) == 0))
         {
             if (!kqr_read(&s_record, words[given], "-", error, sizeof(error)))
             {

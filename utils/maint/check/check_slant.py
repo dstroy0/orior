@@ -35,7 +35,7 @@ def load():
     field = {}
     with open(SOURCE, newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["kind"] == "inbit":
+            if row["type"] == "inbit":
                 field.setdefault(int(row["round"]), {})[int(row["a"])] = float(row["value"])
     return field
 

@@ -21,11 +21,11 @@ extern "C"
         CFG_JSON_TRUE = 4,
         CFG_JSON_FALSE = 5,
         CFG_JSON_NULL = 6
-    } CfgJsonKind;
+    } CfgJsonType;
 
     typedef struct
     {
-        CfgJsonKind type;
+        CfgJsonType type;
         size_t start;
         size_t end;
         unsigned int count;

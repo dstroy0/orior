@@ -41,7 +41,7 @@ static unsigned long long bus_enum_walk_read(const QueryWalk *walk, const char *
         {
             break;
         }
-        // a type is one of the few HostKind values, which an unsigned int represents
+        // a type is one of the few HostAddressType values, which an unsigned int represents
         types[next + read] = (unsigned int)type;
         read += 1ULL;
     }

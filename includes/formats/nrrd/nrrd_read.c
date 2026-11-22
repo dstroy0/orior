@@ -15,7 +15,7 @@ static const NrrdFields nrrd_empty_fields = {0u,         0u,
                                              0u,         ENGINE_ELEMENT_UNSIGNED,
                                              NRRD_UNSET, NRRD_ENCODING_UNSET,
                                              0u,         {0ULL},
-                                             0u,         {NRRD_KIND_OTHER},
+                                             0u,         {NRRD_TYPE_OTHER},
                                              0u,         {0u},
                                              0u,         0u,
                                              0ULL,       0ULL,
@@ -192,11 +192,11 @@ static unsigned int nrrd_extent(const NrrdFields *fields, EngineArrayExtent *ext
     unsigned int timed = 0u;
     for (unsigned int axis = 0u; axis < fields->dimension; axis += 1u)
     {
-        const NrrdKind type = (fields->types_count != 0u) ? fields->types[axis] : NRRD_KIND_OTHER;
+        const NrrdType type = (fields->types_count != 0u) ? fields->types[axis] : NRRD_TYPE_OTHER;
         const int directed = fields->spaced && !fields->space_timed && (fields->directions_count != 0u) &&
                              (fields->directions[axis] != 0u);
-        const int time_axis = (type == NRRD_KIND_TIME) && (timed == 0u);
-        const int space_axis = (type == NRRD_KIND_SPACE) || ((type != NRRD_KIND_TIME) && directed);
+        const int time_axis = (type == NRRD_TYPE_TIME) && (timed == 0u);
+        const int space_axis = (type == NRRD_TYPE_SPACE) || ((type != NRRD_TYPE_TIME) && directed);
         labels[axis] = time_axis                         ? 't'
                        : (space_axis && (spatial == 0u)) ? 'x'
                        : (space_axis && (spatial == 1u)) ? 'y'

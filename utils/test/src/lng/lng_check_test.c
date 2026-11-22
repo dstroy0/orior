@@ -252,7 +252,7 @@ int program_main(int argc, char **argv)
     table_of(&lines, &table, &defects);
     expect_count("a clean table reads whole", table.rows, 5u);
     expect("a clean table reads whole", &defects, NULL, 0u);
-    lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
+    lng_table_check(&table, g_lng_types, LNG_TYPES, &defects);
     expect("a clean table has no defect", &defects, NULL, 0u);
     lng_table_findings(&table, &findings);
     expect("a clean table has no finding", &findings, NULL, 0u);
@@ -275,7 +275,7 @@ int program_main(int argc, char **argv)
         blank(&lines, "add", "doing", "", "", "", "", s_add, 1u);
         blank(&lines, "word", "noun", "", "", "", "", NULL, 0u);
         table_of(&lines, &table, &defects);
-        lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
+        lng_table_check(&table, g_lng_types, LNG_TYPES, &defects);
         static const char *const s_wanted[4] = {
             "add doing is listed twice",
             "word has the type noun, which no table names",
@@ -293,7 +293,7 @@ int program_main(int argc, char **argv)
         blank(&lines, "below", "doing", "", "", "", "geq", s_below, 1u);
         blank(&lines, "geq", "doing", "", "", "", "below", s_plus, 1u);
         table_of(&lines, &table, &defects);
-        lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
+        lng_table_check(&table, g_lng_types, LNG_TYPES, &defects);
         static const char *const s_wanted[2] = {
             "below complements geq, and + does not negate <",
             "geq complements below, and < does not negate +",
@@ -651,7 +651,7 @@ int program_main(int argc, char **argv)
         target_row(&lines, "t", "thing", "qasm", "", "", NULL, 0u);
         table_of(&lines, &table, &defects);
         expect("a table with targets reads whole", &defects, NULL, 0u);
-        lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
+        lng_table_check(&table, g_lng_types, LNG_TYPES, &defects);
         expect("one word of two types in a target is no defect", &defects, NULL, 0u);
         LngMap used = {{NULL, 0u, 0u}, {NULL, 0u, 0u}};
         lng_map_put(&used, "add", "x:1");
@@ -686,7 +686,7 @@ int program_main(int argc, char **argv)
         target_row(&lines, "add", "doing", "", "", "", s_add, 1u);
         target_row(&lines, "add", "doing", "qasm", "", "", NULL, 0u);
         table_of(&lines, &table, &defects);
-        lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
+        lng_table_check(&table, g_lng_types, LNG_TYPES, &defects);
         expect("a word in two targets is no defect", &defects, NULL, 0u);
         lng_table_findings(&table, &findings);
         expect("a word in two targets has one meaning in each", &findings, NULL, 0u);
@@ -697,7 +697,7 @@ int program_main(int argc, char **argv)
         target_row(&lines, "add", "doing", "qasm", "", "", NULL, 0u);
         target_row(&lines, "add", "doing", "qasm", "", "", NULL, 0u);
         table_of(&lines, &table, &defects);
-        lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
+        lng_table_check(&table, g_lng_types, LNG_TYPES, &defects);
         static const char *const s_twice[1] = {"add doing of qasm is listed twice"};
         expect("a row listed twice in one target", &defects, s_twice, 1u);
         lng_list_free(&defects);

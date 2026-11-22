@@ -17,7 +17,7 @@
 //
 // A change in one line gives another leaf at that line and another root. The seal then names the line that differs.
 //
-//   - the k-file head (krep_head.h), type KSG_KIND.
+//   - the k-file head (krep_head.h), type KSG_TYPE.
 //   - each leaf in turn, KSG_SIGNUM_BYTES each.
 //   - the trailer: the size of the file, KSG_LINE_MAX and the count of leaves, eight bytes each, low byte first. Then
 //     the root.
@@ -35,7 +35,7 @@ extern "C"
 {
 #endif
 
-#define KSG_KIND "KSG\0"
+#define KSG_TYPE "KSG\0"
 #define KSG_SUFFIX ".ksg"
 #define KSG_SIGNUM_BYTES 32u
 // the most bytes of one leaf, one chunk of obsignatio. A leaf is the compressions of one chunk. A seal carries at max one

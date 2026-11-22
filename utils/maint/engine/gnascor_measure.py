@@ -38,7 +38,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from gnascor_read import (BASELINE_CYCLES, KINDS, MATRIX_DOC, baseline_of, candidates_of,  # noqa: E402
+from gnascor_read import (BASELINE_CYCLES, TYPES, MATRIX_DOC, baseline_of, candidates_of,  # noqa: E402
                           check_scenario, decide, read_cycle, read_trace, stream)
 from order_check import read_matrices, table_cells  # noqa: E402
 
@@ -48,7 +48,7 @@ BUILT = os.path.join(TOP, "build", "engine")
 
 # the situations gnascor_read.py's own check decides every pair in: each type at each cost, against a bound of
 # 1000 and an edge of 120
-SITUATIONS = [(type, cost) for type in KINDS for cost in (0, 100, 1050, 5000)]
+SITUATIONS = [(type, cost) for type in TYPES for cost in (0, 100, 1050, 5000)]
 BOUND = 1000
 EDGE = 120
 

@@ -39,7 +39,7 @@
 
 #define ODD_TEST_VOXELS_MAX (5u * 9u * 11u)
 
-#define ODD_TEST_KINDS 4ull
+#define ODD_TEST_TYPES 4ull
 
 // the max the test puts on the device at once: the volume, the key's lanes, the sweep's lanes, the sweep's narrow and
 // wide planes and the key's scratch, each at max ENGINE_RESIDUAL_LIMBS a voxel
@@ -360,7 +360,7 @@ static void odd_test_case(SimResults *results, const unsigned int *extent, unsig
     {
         const unsigned long long draw = sim_draw(key, voxel);
         // a remainder below the types' count fits unsigned int
-        const unsigned int type = (unsigned int)(draw % ODD_TEST_KINDS);
+        const unsigned int type = (unsigned int)(draw % ODD_TEST_TYPES);
         // the draw's bits past the type, masked to 16, fit unsigned int
         const unsigned int value =
             (type == 0u) ? 0u : ((type == 1u) ? 0xFFFFu : (unsigned int)((draw >> 8u) & 0xFFFFull));

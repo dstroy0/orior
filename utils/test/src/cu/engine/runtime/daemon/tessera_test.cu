@@ -88,7 +88,7 @@ static TesseraCall device_test_call(unsigned long long now, unsigned long long s
     TesseraCall call;
     memset(&call, 0, sizeof(call));
     // the types are ten, and the draw is below ten
-    call.type = (TesseraCallKind)device_test_below(10ull);
+    call.type = (TesseraCallType)device_test_below(10ull);
     call.now = now;
     call.identity = 1ull + device_test_below(submitted + 1ull);
     call.capacity = DEVICE_TEST_CAPACITY;

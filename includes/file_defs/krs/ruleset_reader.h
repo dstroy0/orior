@@ -51,7 +51,7 @@ struct InstrTemplate
 
 // what one argument of the line of a construct is. It is text written as it is, or the own parameter of the construct
 // at a placeholder. Else it is a scratch register of a bank, which `number` names within one write of the construct
-enum PseudoOperandKind
+enum PseudoOperandType
 {
     PSEUDO_TEXT = 0,
     PSEUDO_PARAMETER = 1,
@@ -60,7 +60,7 @@ enum PseudoOperandKind
 
 struct PseudoOperand
 {
-    PseudoOperandKind type;
+    PseudoOperandType type;
     unsigned int placeholder;
     unsigned int number;
     std::string text;

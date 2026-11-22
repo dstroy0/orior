@@ -48,7 +48,7 @@ _Static_assert((QASM_FRACTION_BITS >= 32u) && (QASM_FRACTION_BITS <= 63u), "QASM
         QASM_GATE_PAIR = 1,     // a 2x2 matrix on the target, under its controls: rounded, one division per lane
         QASM_GATE_DIAGONAL = 2, // a diagonal phase: rounded, one division per lane
         QASM_GATE_PERMUTE = 3   // a permutation times a power of i: exact, no division
-    } QasmGateKind;
+    } QasmGateType;
 
     typedef enum
     {

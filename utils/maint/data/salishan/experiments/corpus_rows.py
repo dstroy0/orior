@@ -42,7 +42,7 @@ def oracle_dir(given=None):
     raise SystemExit("no oracle tables found; pass their directory")
 
 
-FORM_KINDS = ("segmentation", "transcription", "cited form", "cited affix", "phonemic", "phonetic", "root",
+FORM_TYPES = ("segmentation", "transcription", "cited form", "cited affix", "phonemic", "phonetic", "root",
               "running speech", "practical orthography", "underlying")
 
 # Branch codes: NUX Nuxalk, CS Central Salish, TS Tsamosan, TI Tillamook, NIS and SIS Northern and
@@ -253,13 +253,13 @@ def rows(given=None):
         stated = paper_language(stem, extract) or CONFIGURED.get(stem)
         if stated is None:
             shares = collections.Counter(language_of(one[1]) for one in read
-                                         if one[2] in FORM_KINDS and language_of(one[1]))
+                                         if one[2] in FORM_TYPES and language_of(one[1]))
             total = sum(shares.values())
             if total and shares.max_common(1)[0][1] >= 0.7 * total:
                 stated = shares.max_common(1)[0][0]
         for where, who, type, form, gloss in read:
             language, placed = language_of(who), "who"
-            if language is None and type in FORM_KINDS:
+            if language is None and type in FORM_TYPES:
                 language, placed = stated, "paper"
             out.append(Row(stem, where, who, type, form, gloss, language, BRANCHES.get(language), placed))
     return out
@@ -291,7 +291,7 @@ if __name__ == "__main__":
     counted = collections.Counter()
     unplaced = collections.Counter()
     for row in everything:
-        if row.type not in FORM_KINDS:
+        if row.type not in FORM_TYPES:
             continue
         if row.language is None:
             unplaced[row.who] += 1

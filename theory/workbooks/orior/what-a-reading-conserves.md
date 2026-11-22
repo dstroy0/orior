@@ -40,7 +40,7 @@ floor then the reading carried everything.
 
 At degree 15, where `(L+1)^2` first reaches 256, the kernel empties and the map conserves the object
 exactly. **The claim describes a reading truncated below the source count, and states it as a
-property of the map.** That is the error, and it is the kind that survives review, because the
+property of the map.** That is the error, and it is the type that survives review, because the
 sentence is true of the case that its writer had in mind.
 
 The recovery is by least squares on the exact map with a noiseless reading, the most

@@ -28,7 +28,7 @@ the miner in this tree:
 Occupancy of the mining kernel is **100%** at 38 registers, 48 of 48 warps resident. So the
 classical implementation is at the integer-pipe roofline, and its rotations are 30% of everything.
 There is no instruction-level work left to do, which is worth stating before asking whether a
-different kind of machine helps.
+different type of machine helps.
 
 Rotation is also where the classical optimizations stop: SHA-256's rotate distances are 2/13/22,
 6/11/25, 7/18 and 17/19, and **none is byte-aligned**. No rotate can therefore turn into a
@@ -107,7 +107,7 @@ anything projected and still falls short by two orders of magnitude.
 
 ## The decisive point needs no hardware estimate
 
-Mining is a race between many machines, and the two kinds scale oppositely when you add more:
+Mining is a race between many machines, and the two types scale oppositely when you add more:
 
 | machines  | classical   | Grover  |
 | --------- | ----------- | ------- |

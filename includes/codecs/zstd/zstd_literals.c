@@ -4,7 +4,7 @@
 #include "zstd_internal.h"
 #include "memoria_operor/memoria_linea.h"
 
-static const ZstdTableKind zstd_weight_type = {NULL, 0u, 0u, ZSTD_WEIGHT_SYMBOLS, ZSTD_WEIGHT_ACCURACY_MAXIMUM};
+static const ZstdTableType zstd_weight_type = {NULL, 0u, 0u, ZSTD_WEIGHT_SYMBOLS, ZSTD_WEIGHT_ACCURACY_MAXIMUM};
 
 static int zstd_huffman_describe(ZstdDecoder *decoder, ZstdSpan *input)
 {
@@ -237,7 +237,7 @@ int zstd_literals(ZstdDecoder *decoder, ZstdSpan *input)
     return 1;
 }
 
-int zstd_table_prepare(ZstdSpan *input, unsigned int mode, const ZstdTableKind *type, ZstdFseTable *table)
+int zstd_table_prepare(ZstdSpan *input, unsigned int mode, const ZstdTableType *type, ZstdFseTable *table)
 {
     if (mode == 0u)
     {

@@ -32,7 +32,7 @@ typedef struct
     unsigned long long heap;
 } TesseraCapacity;
 
-TESSERA_CORE TesseraEvent tessera_core_event(TesseraEventKind type, unsigned long long identity,
+TESSERA_CORE TesseraEvent tessera_core_event(TesseraEventType type, unsigned long long identity,
                                              unsigned long long bytes, unsigned long long measured)
 {
     const TesseraEvent event = {type, identity, bytes, measured};
@@ -57,7 +57,7 @@ TESSERA_CORE int tessera_core_signum_same(const EngineSignum *left, const Engine
 
 // the arrays a ledger's call of `type` can take: a job and a deadline for a submit, a tracked peak and a deadline for a
 // release, a deadline for an idle, a tracked peak for a remember, and a deadline for each job an admit could start
-TESSERA_CORE TesseraCapacity tessera_core_capacity(const TesseraLedger *ledger, TesseraCallKind type)
+TESSERA_CORE TesseraCapacity tessera_core_capacity(const TesseraLedger *ledger, TesseraCallType type)
 {
     TesseraCapacity needed = {ledger->job_count, ledger->history_count, ledger->heap_count};
     needed.jobs += (type == TESSERA_CALL_SUBMIT) ? 1ULL : 0ULL;
@@ -76,7 +76,7 @@ TESSERA_CORE int tessera_core_fits(const TesseraLedger *ledger, const TesseraCap
 }
 
 TESSERA_CORE int tessera_core_heap_push(TesseraLedger *ledger, unsigned long long when, unsigned long long identity,
-                                        TesseraEventKind type)
+                                        TesseraEventType type)
 {
     if (ledger->heap_count >= ledger->heap_capacity)
     {

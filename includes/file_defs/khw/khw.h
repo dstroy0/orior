@@ -48,20 +48,20 @@ extern "C"
 #define KHW_NO_PLACE_TEXT "-"
 
     // what one printed operand is, each by the place of its name in the file
-    enum KhwKind
+    enum KhwType
     {
         // an operand that the parts reader did not know. No instruction of that form can assemble with it
-        KHW_KIND_UNKNOWN = 0,
-        KHW_KIND_REGISTER = 1,
-        KHW_KIND_PREDICATE = 2,
-        KHW_KIND_IMMEDIATE = 3,
-        KHW_KIND_CONSTANT = 4,
-        KHW_KIND_ADDRESS = 5,
-        KHW_KIND_LABEL = 6,
-        KHW_KIND_UNIFORM = 7,
-        KHW_KIND_SYSTEM = 8
+        KHW_TYPE_UNKNOWN = 0,
+        KHW_TYPE_REGISTER = 1,
+        KHW_TYPE_PREDICATE = 2,
+        KHW_TYPE_IMMEDIATE = 3,
+        KHW_TYPE_CONSTANT = 4,
+        KHW_TYPE_ADDRESS = 5,
+        KHW_TYPE_LABEL = 6,
+        KHW_TYPE_UNIFORM = 7,
+        KHW_TYPE_SYSTEM = 8
     };
-#define KHW_KINDS 9u
+#define KHW_TYPES 9u
 
     // the mark an operand carries, by the place of its character in the file: none, - , ~ and !
     enum KhwMark

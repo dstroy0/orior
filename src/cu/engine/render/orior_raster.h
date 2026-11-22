@@ -134,7 +134,7 @@ extern "C"
 /**
  * @brief Number of channels, for a caller sweeping every one.
  *
- * THE PROOF CHANNEL IS DIFFERENT IN KIND FROM THE OTHER FOUR AND THE DIFFERENCE IS WORTH STATING.
+ * THE PROOF CHANNEL IS DIFFERENT IN TYPE FROM THE OTHER FOUR AND THE DIFFERENCE IS WORTH STATING.
  * A probe set is a sound filter: it never loses a true occurrence, and it does admit alignments that
  * are not one. So the negative direction is certain and the positive is not. A cell where no
  * alignment survived contains no occurrence, and that is a proof.

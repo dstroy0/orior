@@ -131,7 +131,7 @@ def source_path(stem):
     return os.path.join(source_dir(stem), stem + ".txt")
 
 
-LANGUAGE_KINDS = ("transcription", "segmentation", "phonemic", "cited form", "cited affix", "root",
+LANGUAGE_TYPES = ("transcription", "segmentation", "phonemic", "cited form", "cited affix", "root",
                   "running speech")
 
 
@@ -142,7 +142,7 @@ def marks_of(table):
     # should write.
     held.discard("7")
     for where, who, type, form, gloss in oracle_check.oracle_rows(table):
-        if type not in LANGUAGE_KINDS:
+        if type not in LANGUAGE_TYPES:
             continue
         for symbol in unicodedata.normalize("NFC", form):
             if symbol == "7":

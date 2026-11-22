@@ -556,7 +556,7 @@ def nth_head(lines, spec):
 def display(out, context, example_of):
     """Rebuild in out, in place, each example that the display op names, a line or two set apart.
 
-    Three kinds count: an order of OT constraints, `(11) WSP >> TROCHEE`; a constraint defined,
+    Three types count: an order of OT constraints, `(11) WSP >> TROCHEE`; a constraint defined,
     `(9) WEIGHT-TO-STRESS (WSP): Assign one violation ...`; or a picture with no text layer and at max a caption,
     `(17) HDA foot structures in SENĆOŦEN`. The engine reads the prose after one of these as the example's lines. That
     prose goes back to the paragraph that it opens, into the note after the example where that note goes on in lower
@@ -672,7 +672,7 @@ def table(out, context, example_of):
 
     An example is `(2) Secondary labialization:` over `Boas APA pentl’ach gloss` and
     `koā'san → qʷasəm qwasem ‘flower’ [YP]`. Each form cell is a row of the type that the op names for its column,
-    KIND@WHO where the column is someone's own. The gloss is a translation, and the source tag a citation. A type of
+    TYPE@WHO where the column is someone's own. The gloss is a translation, and the source tag a citation. A type of
     rule takes the whole line as one rule row, `y/ī → y`. The cells of a line share its where, (2) line 3, as the engine
     sets a table row. The rows run while a line has an arrow or a quoted gloss.
     """

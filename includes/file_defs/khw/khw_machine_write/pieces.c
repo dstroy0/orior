@@ -259,13 +259,13 @@ static int khw_place_printed(const KhwForm *form, unsigned int run)
 // the constant bank once, as the offset. The bank comes from the second run, where the form has one
 static int khw_constant_later(const KhwForm *form, unsigned int run)
 {
-    if (form->type[run] != KHW_KIND_CONSTANT)
+    if (form->type[run] != KHW_TYPE_CONSTANT)
     {
         return 0;
     }
     for (unsigned int before = 0u; before < run; before += 1u)
     {
-        if (form->type[before] == KHW_KIND_CONSTANT)
+        if (form->type[before] == KHW_TYPE_CONSTANT)
         {
             return 1;
         }
@@ -279,7 +279,7 @@ static unsigned long long khw_constant_bank(const KhwForm *form, unsigned int fi
 {
     for (unsigned int run = first_run + 1u; run < form->runs; run += 1u)
     {
-        if (form->type[run] == KHW_KIND_CONSTANT)
+        if (form->type[run] == KHW_TYPE_CONSTANT)
         {
             return khw_run_read(form->low, form->high, form->first[run], form->last[run]);
         }
@@ -303,7 +303,7 @@ void khw_guard_field_set(unsigned int first, unsigned int bits)
 // knows no guard field
 static int khw_guard(const KhwForm *form, unsigned int run)
 {
-    return (form->type[run] == KHW_KIND_PREDICATE) &&
+    return (form->type[run] == KHW_TYPE_PREDICATE) &&
            ((s_guard_bits == 0u) ||
             ((form->first[run] >= s_guard_first) && (form->first[run] < (s_guard_first + s_guard_bits))));
 }
@@ -340,7 +340,7 @@ static unsigned int khw_printed_runs(const KhwForm *form, unsigned int *order)
         unsigned int found = count;
         for (unsigned int at = 0u; (at < count) && (found == count); at += 1u)
         {
-            const int type_matches = (form->type[order[at]] == KHW_KIND_PREDICATE) == predicate;
+            const int type_matches = (form->type[order[at]] == KHW_TYPE_PREDICATE) == predicate;
             found = (!taken[at] && type_matches) ? at : found;
         }
         if (found == count)
@@ -411,22 +411,22 @@ void khw_text_composed(const KhwForm *form, char *written, size_t room)
             mmgr_line_put(&buffer_line, mark);
             (void)mmgr_line_finish(&buffer_line);
         }
-        if (form->type[run] == KHW_KIND_PREDICATE)
+        if (form->type[run] == KHW_TYPE_PREDICATE)
         {
             ((number & 7ULL) == 7ULL)
                 ? (at += (size_t)snprintf(&written[at], room - at, "%sPT", between))
                 : (at += (size_t)snprintf(&written[at], room - at, "%sP%llu", between, number & 7ULL));
         }
-        else if (form->type[run] == KHW_KIND_CONSTANT)
+        else if (form->type[run] == KHW_TYPE_CONSTANT)
         {
             at += (size_t)snprintf(&written[at], room - at, "%sc[0x%llx][0x%llx]", between,
                                    khw_constant_bank(form, run), number);
         }
-        else if (form->type[run] == KHW_KIND_IMMEDIATE)
+        else if (form->type[run] == KHW_TYPE_IMMEDIATE)
         {
             at += (size_t)snprintf(&written[at], room - at, "%s0x%llx", between, number);
         }
-        else if (form->type[run] == KHW_KIND_ADDRESS)
+        else if (form->type[run] == KHW_TYPE_ADDRESS)
         {
             at += (size_t)snprintf(&written[at], room - at, "%s[R%llu.64]", between, number);
         }

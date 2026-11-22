@@ -81,6 +81,15 @@ target_compile_definitions(cu_unity PUBLIC UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(cu_unity PRIVATE UNITY_NORETURN=_Noreturn)
 set_property(TARGET cu_unity PROPERTY C_STANDARD 11)
 
+# MMgr's byte calls and the lanes under them, one static library with the suites' defines. A suite links only the
+# objects of the MMgr calls that its source makes
+file(GLOB ORIOR_CU_MMGR CONFIGURE_DEPENDS "${ORIOR_INCLUDES}/mmgr/src/memoria_operor/*.c" "${ORIOR_INCLUDES}/mmgr/src/proximus_operor/*.c"
+     "${ORIOR_INCLUDES}/mmgr/src/verbum_scrutor/*.c")
+add_library(cu_mmgr STATIC ${ORIOR_CU_MMGR})
+target_include_directories(cu_mmgr PRIVATE ${ORIOR_CU_INCLUDES})
+target_compile_definitions(cu_mmgr PRIVATE ${ORIOR_CU_DEFINES})
+set_property(TARGET cu_mmgr PROPERTY C_STANDARD 11)
+
 # A suite is a folder test_<source> holding test_<source>.cu, which includes the source's wrapper, and the generated unity_runner.cu
 file(GLOB_RECURSE ORIOR_CU_SUITES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/test_*.cu" "${ORIOR_INCLUDES_UNIT}/test_*.cu")
 foreach(suite ${ORIOR_CU_SUITES})
@@ -90,6 +99,6 @@ foreach(suite ${ORIOR_CU_SUITES})
     target_include_directories(${name} PRIVATE ${ORIOR_CU_INCLUDES} "${CMAKE_CURRENT_SOURCE_DIR}" "${ORIOR_INCLUDES_UNIT}")
     target_compile_definitions(${name} PRIVATE ${ORIOR_CU_DEFINES})
     target_compile_options(${name} PRIVATE ${ORIOR_CU_OPTIONS})
-    target_link_libraries(${name} PRIVATE cu_unity)
+    target_link_libraries(${name} PRIVATE cu_unity cu_mmgr)
     set_target_properties(${name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/suites")
 endforeach()

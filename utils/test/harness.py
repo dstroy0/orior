@@ -485,8 +485,8 @@ def gitlinks_exported(full, partial):
     fails."""
     listed = subprocess.run(["git", "-C", ROOT, "ls-tree", "-r", full], capture_output=True, text=True, check=True)
     for row in listed.stdout.splitlines():
-        mode, kind, sha, path = row.split(None, 3)
-        if kind != "commit":
+        mode, type, sha, path = row.split(None, 3)
+        if type != "commit":
             continue
         repository = os.path.join(ROOT, path)
         held = subprocess.run(["git", "-C", repository, "cat-file", "-e", sha + "^{commit}"], capture_output=True)

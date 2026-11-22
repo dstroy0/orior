@@ -33,7 +33,7 @@
 
 #define PLANES_TEST_VOXELS_MAX (8u * 24u * 20u)
 
-#define PLANES_TEST_KINDS 4ull
+#define PLANES_TEST_TYPES 4ull
 
 // the max the test puts on the device at once: the sweep's narrow and wide planes, the residual, the input planes
 // and the 16-bit volume
@@ -179,7 +179,7 @@ static void planes_test_parts(const PlanesTestCase *test_case, const PlanesTestW
         {
             const unsigned long long draw = sim_draw(key, ((unsigned long long)voxel * PLANES_TEST_PARTS_MAX) + part);
             // a remainder below the types' count fits unsigned int
-            const unsigned int type = (unsigned int)(draw % PLANES_TEST_KINDS);
+            const unsigned int type = (unsigned int)(draw % PLANES_TEST_TYPES);
             // the draw's bits past the type, masked to the part's bits, fit unsigned int
             const unsigned int value = (type == 0u) ? 0u : ((type == 1u) ? mask : ((unsigned int)(draw >> 8u) & mask));
             // a part is masked to 16 bits or fewer: it narrows to unsigned short exactly

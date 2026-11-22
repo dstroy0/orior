@@ -353,7 +353,7 @@ void kqr_marks_written(KqrRecord *record, Who who)
 int kqr_opened(KqrRecord *record, const char *member)
 {
     kqr_free(record);
-    krep_open(&record->file, KQR_KIND);
+    krep_open(&record->file, KQR_TYPE);
     record->slot = (unsigned int *)calloc(KQR_SLOTS, sizeof(unsigned int));
     record->open = (record->slot != NULL);
     const unsigned long long named =

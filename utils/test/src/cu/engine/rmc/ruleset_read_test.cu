@@ -255,7 +255,7 @@ static void map_check(const char *label, const LanguageSet *from, const Language
             }
             entry_print(from, map->other);
         }
-        else if (map->type == RULESET_CORE_MAP_KIND)
+        else if (map->type == RULESET_CORE_MAP_TYPE)
         {
             {
                 VerbaLinea *const output_line = platform_line_out();

@@ -36,7 +36,7 @@ int ruleset_relations_read(const std::string *paths, unsigned int count, const R
     memory->entries.assign(lines, RulesetCoreEntry{});
     memory->marks.assign(lines, 0u);
     memory->stack.assign(lines, 0u);
-    memory->relations.assign((lines * RULESET_CORE_RELATION_KINDS) + relations->schema.form_count +
+    memory->relations.assign((lines * RULESET_CORE_RELATION_TYPES) + relations->schema.form_count +
                                  relations->schema.bank_count + relations->schema.fixed_count,
                              RulesetCoreRelation{});
     relations->text = memory->text.data();
@@ -197,7 +197,7 @@ static std::string ruleset_flat_why(const RulesetCoreRead *read, const std::stri
         return "the construct " + word +
                " is not a form the code generator writes, takes other parameters, or is given "
                "twice";
-    case RULESET_CORE_NO_KIND:
+    case RULESET_CORE_NO_TYPE:
         return "no entry is of the type " + word;
     case RULESET_CORE_NO_LINES:
         return "the construct " + building + " has no lines";
@@ -246,7 +246,7 @@ void ruleset_store(const RulesetCoreRead *read, const std::string &text, Ruleset
             for (unsigned int given = 0u; given < read_line->argument_count; given += 1u)
             {
                 const RulesetCoreArgument *const argument = &read->arguments[read_line->argument_first + given];
-                const PseudoOperand operand = {(PseudoOperandKind)argument->type, argument->placeholder,
+                const PseudoOperand operand = {(PseudoOperandType)argument->type, argument->placeholder,
                                                argument->number, ruleset_flat_text(text, argument->text)};
                 made.arguments.push_back(operand);
             }

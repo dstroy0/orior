@@ -57,7 +57,7 @@ from salish_marking import (
     switches,
     tagged_spans,
 )
-from salish_unsorted import UNKNOWN_KIND, covered_tokens, unreached, write_unsorted
+from salish_unsorted import UNKNOWN_TYPE, covered_tokens, unreached, write_unsorted
 
 
 def _repository_root():
@@ -393,7 +393,7 @@ def main():
 
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
-        (0, "example %d" % number, UNKNOWN_KIND, "", text)
+        (0, "example %d" % number, UNKNOWN_TYPE, "", text)
         for mark, number, type, text in rows
         if type == UNCLASSIFIED
     ]
@@ -414,7 +414,7 @@ def main():
                 (
                     0,
                     "(%d)" % number,
-                    UNKNOWN_KIND,
+                    UNKNOWN_TYPE,
                     "",
                     "the English is %d lines against %d of Lushootseed. It has run on "
                     "into the story summary under it; where it ends is not recoverable "

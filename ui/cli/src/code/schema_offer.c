@@ -300,7 +300,7 @@ EMBED_INLINE void offer_values(const SchemaOfferCtx *args)
             EMBED_CALL(offer_value, SchemaOfferCtx, .json = json, .value = at, .detail = s_detail,
                        .detail_size = detail.at);
         }
-        static const CfgJsonKind s_types[3] = {CFG_JSON_TRUE, CFG_JSON_FALSE, CFG_JSON_NULL};
+        static const CfgJsonType s_types[3] = {CFG_JSON_TRUE, CFG_JSON_FALSE, CFG_JSON_NULL};
         for (unsigned int word_text = 0u; word_text < 3u; word_text += 1u)
         {
             if (!EMBED_CALL(offer_type, SchemaOfferCtx, .json = json, .schema = one,

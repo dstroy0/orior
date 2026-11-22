@@ -34,7 +34,7 @@ def main():
     field = {}
     with open(SOURCE, newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["kind"] == "inbit":
+            if row["type"] == "inbit":
                 field.setdefault(int(row["a"]), {})[int(row["round"])] = float(row["value"])
 
     bits = sorted(field.keys())

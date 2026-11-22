@@ -28,7 +28,7 @@
 
 #define HESSIAN_TEST_LIMBS_MAX 12u
 
-#define HESSIAN_TEST_KINDS 8ull
+#define HESSIAN_TEST_TYPES 8ull
 
 #define HESSIAN_TEST_VOXELS_MAX (16u * 32u * 32u)
 
@@ -81,7 +81,7 @@ static void hessian_test_value(unsigned long long key, unsigned long long voxel,
 {
     const unsigned long long draw = sim_draw(key, voxel);
     // a remainder below the types' count fits unsigned int
-    const unsigned int type = (unsigned int)(draw % HESSIAN_TEST_KINDS);
+    const unsigned int type = (unsigned int)(draw % HESSIAN_TEST_TYPES);
     // a remainder below 3, plus one, fits unsigned int
     const unsigned int small = 1u + (unsigned int)((draw >> 8u) % 3ull);
     const unsigned int middle = limbs / 2u;

@@ -4,6 +4,6 @@
 #ifndef KNF_H
 #define KNF_H
 
-#define KREP_KIND_NOISE_FLOOR "KNF\0"
+#define KREP_TYPE_NOISE_FLOOR "KNF\0"
 
 #endif

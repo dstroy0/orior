@@ -322,7 +322,7 @@ EMBED_INLINE int compositor_same(const CompositorCtx *args)
 {
     const GuiCompositorCommand *const one = args->command;
     const GuiCompositorCommand *const other = args->other;
-    return (one->kind == other->kind) && (one->color == other->color) && (one->x == other->x) &&
+    return (one->type == other->type) && (one->color == other->color) && (one->x == other->x) &&
            (one->y == other->y) && (one->width == other->width) && (one->height == other->height) &&
            (one->image == other->image) && (one->count == other->count) && (one->digest == other->digest) &&
            (one->tile_left == other->tile_left) &&
@@ -515,7 +515,7 @@ int gui_compositor_replay(const GuiCompositorReplayCfg *args)
     for (embed_u32 at = 0u; at < args->count; at += 1u)
     {
         GuiCompositorCommand command = args->commands[at];
-        command.image += (command.kind == GUI_COMPOSITOR_GLYPH_RUN) ? base : 0u;
+        command.image += (command.type == GUI_COMPOSITOR_GLYPH_RUN) ? base : 0u;
         if (!compositor_record(compositor, args->surface, args->layer, &command))
         {
             return 0;
@@ -858,19 +858,19 @@ EMBED_INLINE void compositor_layer_draw(const CompositorCtx *args)
         {
             continue;
         }
-        if (command->kind == GUI_COMPOSITOR_FILL)
+        if (command->type == GUI_COMPOSITOR_FILL)
         {
             EMBED_CALL(compositor_fill_draw, CompositorCtx, .command = command, .target = args->target,
                        .stride = args->stride, .rect = args->rect, .left = left, .top = top, .right = right,
                        .bottom = bottom);
         }
-        else if (command->kind == GUI_COMPOSITOR_IMAGE)
+        else if (command->type == GUI_COMPOSITOR_IMAGE)
         {
             EMBED_CALL(compositor_image_draw, CompositorCtx, .compositor = args->compositor, .command = command,
                        .target = args->target, .stride = args->stride, .rect = args->rect, .left = left, .top = top,
                        .right = right, .bottom = bottom);
         }
-        else if (command->kind == GUI_COMPOSITOR_GLYPH_RUN)
+        else if (command->type == GUI_COMPOSITOR_GLYPH_RUN)
         {
             EMBED_CALL(compositor_run_draw, CompositorCtx, .compositor = args->compositor, .layer = layer,
                        .command = command, .target = args->target, .stride = args->stride, .rect = args->rect,

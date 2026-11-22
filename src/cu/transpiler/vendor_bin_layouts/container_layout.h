@@ -22,7 +22,7 @@ typedef enum
     LAYOUT_SIZE,
     LAYOUT_TAG,
     LAYOUT_NAME
-} LayoutRowKind;
+} LayoutRowType;
 
 // one row: a field has an offset and a width, a size and a tag have a number, and a name has text
 typedef struct

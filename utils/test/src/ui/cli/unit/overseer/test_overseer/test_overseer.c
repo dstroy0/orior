@@ -85,7 +85,7 @@ void test_stopped_removes_the_record(void)
     TEST_ASSERT_EQUAL_UINT(CLI_OVERSEER_UP, overseer_state_of("two", CLI_OVERSEER_SERVER));
 }
 
-void test_the_records_list_by_name_and_by_kind(void)
+void test_the_records_list_by_name_and_by_type(void)
 {
     static const char *const s_names[] = {"pyright", "clangd", "rust-analyzer", "gopls", "bash"};
     for (unsigned int at = 0u; at < (sizeof(s_names) / sizeof(s_names[0])); at += 1u)
@@ -106,7 +106,7 @@ void test_the_records_list_by_name_and_by_kind(void)
     TEST_ASSERT_EQUAL_STRING("rust-analyzer", seen[4].name);
 }
 
-void test_the_worst_state_of_a_kind_wins(void)
+void test_the_worst_state_of_a_type_wins(void)
 {
     EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = "a", .role = CLI_OVERSEER_REMOTE,
                .event = CLI_OVERSEER_READY);

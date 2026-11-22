@@ -42,12 +42,12 @@ extern "C"
 #define KRS_PARAMETERS_SEARCHED 6u
 
 // what one parameter is given, in the order they are tried
-enum KrsKind
+enum KrsType
 {
     KRS_REGISTER = 0,
     KRS_PREDICATE = 1,
     KRS_NUMBER = 2,
-    KRS_KINDS = 3
+    KRS_TYPES = 3
 };
 
 // a scratch register of each bank, numbered where no argument written here reaches
@@ -200,7 +200,7 @@ static unsigned int krs_form_assembles(const Ruleset *rules, const SassMachine *
     unsigned int assignments = 1u;
     for (unsigned int at = 0u; (at < parameters) && (at < KRS_PARAMETERS_SEARCHED); at += 1u)
     {
-        assignments *= KRS_KINDS;
+        assignments *= KRS_TYPES;
     }
     unsigned int outcome = KRS_NOT_WRITTEN;
     for (unsigned int assignment = 0u; assignment < assignments; assignment += 1u)
@@ -210,8 +210,8 @@ static unsigned int krs_form_assembles(const Ruleset *rules, const SassMachine *
         unsigned int walk = assignment;
         for (unsigned int place = 0u; place < parameters; place += 1u)
         {
-            const unsigned int type = (place < KRS_PARAMETERS_SEARCHED) ? (walk % KRS_KINDS) : KRS_REGISTER;
-            walk = (place < KRS_PARAMETERS_SEARCHED) ? (walk / KRS_KINDS) : walk;
+            const unsigned int type = (place < KRS_PARAMETERS_SEARCHED) ? (walk % KRS_TYPES) : KRS_REGISTER;
+            walk = (place < KRS_PARAMETERS_SEARCHED) ? (walk / KRS_TYPES) : walk;
             given.push_back(krs_argument(type, place, wide));
             named += form.parameters[place] + "=" + given.back() + " ";
         }

@@ -140,7 +140,7 @@ int ruleset_text(const RulesetSchema *schema, const std::string &path, std::stri
 
 const char *ruleset_relation_text(unsigned int type)
 {
-    static const char *const s_text[RULESET_CORE_RELATION_KINDS] = {
+    static const char *const s_text[RULESET_CORE_RELATION_TYPES] = {
         "is given again after",
         "has the text of",
         "is under another name",
@@ -160,16 +160,16 @@ const char *ruleset_relation_text(unsigned int type)
         "counts other than the questions written, which are",
         "answers with a class its file does not name",
     };
-    return (type < RULESET_CORE_RELATION_KINDS) ? s_text[type] : "";
+    return (type < RULESET_CORE_RELATION_TYPES) ? s_text[type] : "";
 }
 
 const char *ruleset_map_text(unsigned int type)
 {
-    static const char *const s_text[RULESET_CORE_MAP_KINDS] = {
+    static const char *const s_text[RULESET_CORE_MAP_TYPES] = {
         "is one text in the first set and two in the second with",
         "is two texts in the first set and one in the second with",
         "is given as another type in the second set:",
         "is given by no file of the second set",
     };
-    return (type < RULESET_CORE_MAP_KINDS) ? s_text[type] : "";
+    return (type < RULESET_CORE_MAP_TYPES) ? s_text[type] : "";
 }

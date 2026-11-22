@@ -18,7 +18,7 @@
 
 #include "../../../src/cu/engine/rmc/machine_ir_types.h"
 
-// what one argument of a construct's line is, as PseudoOperandKind gives it
+// what one argument of a construct's line is, as PseudoOperandType gives it
 #define RULESET_CORE_TEXT 0u
 #define RULESET_CORE_PARAMETER 1u
 #define RULESET_CORE_SCRATCH 2u
@@ -49,7 +49,7 @@ enum RulesetCoreEnd
     RULESET_CORE_REGISTER_WRONG = 4,
     RULESET_CORE_FORM_WRONG = 5,
     RULESET_CORE_CONSTRUCT_WRONG = 6,
-    RULESET_CORE_NO_KIND = 7,
+    RULESET_CORE_NO_TYPE = 7,
     RULESET_CORE_NO_LINES = 8,
     RULESET_CORE_LINE_FORM = 9,
     RULESET_CORE_SCRATCH_WORD = 10,

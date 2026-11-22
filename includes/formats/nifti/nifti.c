@@ -38,7 +38,7 @@ typedef struct
 {
     unsigned long long code;
     unsigned int element_bytes;
-    EngineElementKind element_type;
+    EngineElementType element_type;
 } NiftiType;
 
 static const NiftiType nifti_types[] = {{2ULL, 1u, ENGINE_ELEMENT_UNSIGNED},   {4ULL, 2u, ENGINE_ELEMENT_SIGNED},

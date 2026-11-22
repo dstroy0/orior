@@ -16,7 +16,7 @@
 # And a sweep MEASURES GUARD sufficiency: the guard grows until the output stops its change. That establishes that the
 # guard is enough for the cases swept, and nothing about the cases outside the sweep.
 #
-# A STRICT BOUND IS A DIFFERENT KIND OF STATEMENT, and it is available here almost for free. The only inexact operation
+# A STRICT BOUND IS A DIFFERENT TYPE OF STATEMENT, and it is available here almost for free. The only inexact operation
 # in this family is floor division, and its error is exactly known:
 #
 #     for positive a and b,  a // b  =  (a / b) - e  with  e in [0, 1)
@@ -41,7 +41,7 @@
 #
 # It is not a machine-checked proof. The bound here is a derivation by hand, with a numerical check. A formal proof
 # would state the theorem in a proof assistant, and derive it from the definition of the constant. That is a real and
-# different piece of work. A claim of a formal proof for this bound would be the kind of overclaim that a reader finds
+# different piece of work. A claim of a formal proof for this bound would be the type of overclaim that a reader finds
 # out. What it is: a strict bound on this implementation, and "computational proof" means exactly that for a digit
 # string.
 

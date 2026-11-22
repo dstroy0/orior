@@ -54,7 +54,7 @@ from salish_marking import (
     tagged_spans,
     unligatured,
 )
-from salish_unsorted import UNKNOWN_KIND, covered_tokens, unreached, write_unsorted
+from salish_unsorted import UNKNOWN_TYPE, covered_tokens, unreached, write_unsorted
 from space_repair import joined_words, vocabulary_of, welded
 
 
@@ -604,7 +604,7 @@ def main():
     # The repair turns Pierre into ʔierre and Quilchena into ʕuilchena, and those arrive here as unreached.
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
-        (0, "%s block %d" % (sect, count), UNKNOWN_KIND, "", text)
+        (0, "%s block %d" % (sect, count), UNKNOWN_TYPE, "", text)
         for mark, count, sect, type, who, text in rows
         if (type == UNCLASSIFIED) and not sect.startswith("not reached")
     ]

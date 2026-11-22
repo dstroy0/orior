@@ -165,7 +165,7 @@ EMBED_INLINE unsigned char values_type(const SchemaValuesCtx *args)
 int cli_schema_same(const CliSchemaReadJsonCtx *args)
 {
     const CliSchemaNode *const one = &args->read->node[args->node];
-    const CfgJsonKind type = args->json->node[args->value].type;
+    const CfgJsonType type = args->json->node[args->value].type;
     const unsigned char own = EMBED_CALL(values_type, SchemaValuesCtx, .node = one);
     if (own == CLI_SCHEMA_NUMBER)
     {

@@ -55,11 +55,11 @@ typedef enum
     MSQ_NONE = 0,
     MSQ_READ = 1,
     MSQ_ILLEGAL = 2
-} MsqKind;
+} MsqType;
 
 typedef struct
 {
-    MsqKind type;
+    MsqType type;
     char operation[48];
     const char *body;
 } MsqReading;
@@ -159,7 +159,7 @@ typedef enum
     MSQ_PIECE_WORD = 0,
     MSQ_PIECE_FRAME = 1,
     MSQ_PIECE_TAIL = 2
-} MsqPieceKind;
+} MsqPieceType;
 
 // where a piece is after the accumulated run: read in it, stopped at by the vendor and so set aside, or set aside
 // unread where the vendor stopped at no address it named
@@ -174,7 +174,7 @@ typedef enum
 // how it is
 typedef struct
 {
-    MsqPieceKind type;
+    MsqPieceType type;
     size_t index;
     MsqBytes bytes;
     unsigned long long start;

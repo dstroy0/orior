@@ -131,7 +131,7 @@ typedef struct
     VerbaLinea *out;
     unsigned long long written;
     int infer;
-    int kinded[CLI_DB_COLUMNS];
+    int typed[CLI_DB_COLUMNS];
 } CliDbResultsReader;
 
 // a row read buffered: written to its file's pending bytes, its place marked, written into the page where one is
@@ -185,7 +185,7 @@ static int results_row(const CliDbRowCfg *args)
     }
     for (unsigned int at = 0u; reader->infer && (at < count) && (at < results->column_count); at += 1u)
     {
-        if (reader->kinded[at] || values[at].null)
+        if (reader->typed[at] || values[at].null)
         {
             continue;
         }
@@ -200,7 +200,7 @@ static int results_row(const CliDbRowCfg *args)
                           .src = column_type,
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = column_type, .cap = CLI_POOL_BYTES}) + 1u});
         column->numeric = integer || real;
-        reader->kinded[at] = 1;
+        reader->typed[at] = 1;
     }
     return 1;
 }

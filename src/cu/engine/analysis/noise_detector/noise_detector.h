@@ -59,7 +59,7 @@ extern "C"
 
 #define NOISE_LINE_PLANES 2u
 
-#define NOISE_LINE_KINDS 3u
+#define NOISE_LINE_TYPES 3u
 
     // every sample's line sums, written to <set>/noise_lines.tsv, and every frame pair's z plane with its row and
     // column sums squared, written to <set>/noise_planes.tsv; both summarized on stdout

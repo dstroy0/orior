@@ -7,7 +7,7 @@
 
 #define TESSERA_AT_MAGIC 0u
 #define TESSERA_AT_VERSION 4u
-#define TESSERA_AT_KIND 8u
+#define TESSERA_AT_TYPE 8u
 #define TESSERA_AT_OVERRIDE 12u
 #define TESSERA_AT_DEVICE 16u
 #define TESSERA_AT_SIGNUM 32u
@@ -77,7 +77,7 @@ int tessera_frame_pack(const TesseraFrame *frame, unsigned char bytes[TESSERA_FR
     }
     tessera_put_word(bytes, TESSERA_AT_MAGIC, frame->magic);
     tessera_put_word(bytes, TESSERA_AT_VERSION, frame->version);
-    tessera_put_word(bytes, TESSERA_AT_KIND, frame->type);
+    tessera_put_word(bytes, TESSERA_AT_TYPE, frame->type);
     tessera_put_word(bytes, TESSERA_AT_OVERRIDE, frame->override_budget);
     mmgr_bytes_copy(bytes + TESSERA_AT_DEVICE, frame->device, TESSERA_DEVICE_BYTES);
     mmgr_bytes_copy(bytes + TESSERA_AT_SIGNUM, frame->signum.bytes, ENGINE_SIGNUM_BYTES);
@@ -97,7 +97,7 @@ int tessera_frame_unpack(const unsigned char bytes[TESSERA_FRAME_BYTES], Tessera
     TesseraFrame read;
     read.magic = tessera_get_word(bytes, TESSERA_AT_MAGIC);
     read.version = tessera_get_word(bytes, TESSERA_AT_VERSION);
-    read.type = tessera_get_word(bytes, TESSERA_AT_KIND);
+    read.type = tessera_get_word(bytes, TESSERA_AT_TYPE);
     read.override_budget = tessera_get_word(bytes, TESSERA_AT_OVERRIDE);
     mmgr_bytes_copy(read.device, bytes + TESSERA_AT_DEVICE, TESSERA_DEVICE_BYTES);
     mmgr_bytes_copy(read.signum.bytes, bytes + TESSERA_AT_SIGNUM, ENGINE_SIGNUM_BYTES);

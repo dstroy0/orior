@@ -146,7 +146,7 @@ static void boundary_redundant(BoundaryResults *results)
         free(back);
         return;
     }
-    const unsigned int decoder_lanes = BOUNDARY_TEST_CODE_KINDS * coefficients;
+    const unsigned int decoder_lanes = BOUNDARY_TEST_CODE_TYPES * coefficients;
     const unsigned int inverse_lanes = 2u * crystals;
     unsigned int *const samples = (unsigned int *)calloc((size_t)crystals * n, sizeof(unsigned int));
     long long *const crystal = (long long *)calloc((size_t)coefficients, sizeof(long long));
@@ -204,7 +204,7 @@ static void boundary_redundant(BoundaryResults *results)
                     &encoder_loaded.layout.step_table[encoder->outputs[(at * BOUNDARY_TEST_CODE_MODULI) + modulus]]);
                 right = right && (read == ((value + shift) % (long long)s_boundary_moduli[modulus]));
                 // the types share the clean residues, which a corruption then changes; a residue is below 2^12
-                for (unsigned int type = 0u; type < BOUNDARY_TEST_CODE_KINDS; type += 1u)
+                for (unsigned int type = 0u; type < BOUNDARY_TEST_CODE_TYPES; type += 1u)
                 {
                     const size_t place = ((size_t)type * coefficients) + ((size_t)lane * n) + at;
                     words[(place * BOUNDARY_TEST_CODE_MODULI) + modulus] = (unsigned int)read;
@@ -215,8 +215,8 @@ static void boundary_redundant(BoundaryResults *results)
     }
     // corrupt half the coefficients: one residue in the second type, two distinct residues in the third, each moved to
     // another value below its modulus
-    unsigned int corrupted[BOUNDARY_TEST_CODE_KINDS] = {0u, 0u, 0u};
-    for (unsigned int type = 1u; (encoded != 0) && (type < BOUNDARY_TEST_CODE_KINDS); type += 1u)
+    unsigned int corrupted[BOUNDARY_TEST_CODE_TYPES] = {0u, 0u, 0u};
+    for (unsigned int type = 1u; (encoded != 0) && (type < BOUNDARY_TEST_CODE_TYPES); type += 1u)
     {
         for (unsigned int at = 0u; at < coefficients; at += 1u)
         {
@@ -244,7 +244,7 @@ static void boundary_redundant(BoundaryResults *results)
                         boundary_narrow_enough(&decoder_loaded, decoder);
     unsigned int clean_right = 0u;
     unsigned int false_alarms = 0u;
-    unsigned int flagged_right[BOUNDARY_TEST_CODE_KINDS] = {0u, 0u, 0u};
+    unsigned int flagged_right[BOUNDARY_TEST_CODE_TYPES] = {0u, 0u, 0u};
     unsigned int corrected_right = 0u;
     unsigned int detected = 0u;
     unsigned int miscorrected = 0u;

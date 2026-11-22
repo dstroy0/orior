@@ -317,7 +317,7 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
         word_0[at] = s_question.word[at][0];
         word_1[at] = s_question.word[at][1];
     }
-    std::set<FixedKind> given;
+    std::set<FixedType> given;
     for (unsigned int number = 0u; number < registers; number += 1u)
     {
         std::vector<unsigned char> variant(kernel);
@@ -337,7 +337,7 @@ int identity_fixed(const char *engine, const char *answers, const char *ksc, con
             }
             continue;
         }
-        const FixedKind type = fixed_type(s_question.answered, word_0.data(), word_1.data(), s_question.cases);
+        const FixedType type = fixed_type(s_question.answered, word_0.data(), word_1.data(), s_question.cases);
         const char *const question = fixed_type_question(type);
         run_print(&query.table, "register %u contains %s\n", number,
                   (type == FIXED_NOTHING) ? "nothing fixed" : question);

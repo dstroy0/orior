@@ -4,6 +4,6 @@
 #ifndef KBO_H
 #define KBO_H
 
-#define KREP_KIND_BODIES "BAPX"
+#define KREP_TYPE_BODIES "BAPX"
 
 #endif

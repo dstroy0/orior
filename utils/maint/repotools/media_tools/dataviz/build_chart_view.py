@@ -30,7 +30,7 @@ Options:
 
   --split NAME   a column whose distinct values split the rows into separate series. Long-format
                  data usually arrives in that shape.
-  --type KIND    line, scatter, step, bar or area. Default line.
+  --type TYPE    line, scatter, step, bar or area. Default line.
   --title TEXT   heading for the page. Default: the file's name.
   --out FILE     where to write. Default: <name>_chart.html beside the table.
 

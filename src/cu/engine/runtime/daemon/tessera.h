@@ -41,7 +41,7 @@ extern "C"
         TESSERA_NOTICE_LOST = 19,
         TESSERA_NOTICE_RELEASED = 20,
         TESSERA_NOTICE_ERROR = 21
-    } TesseraFrameKind;
+    } TesseraFrameType;
 
     typedef struct
     {

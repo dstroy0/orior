@@ -35,11 +35,11 @@ extern "C"
         QASM_EXACT_GATE_ONE_QUBIT = 8,
         // numbers: a 4 x 4 matrix, [2 t0 + t1][2 s0 + s1], on qubits `first` (s0) and `first + 1` (s1)
         QASM_EXACT_GATE_TWO_QUBIT = 9
-    } QasmExactGateKind;
+    } QasmExactGateType;
 
     typedef struct
     {
-        QasmExactGateKind type;
+        QasmExactGateType type;
         unsigned int first;
         unsigned int second;
         const QasmNumber *numbers;

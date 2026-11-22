@@ -48,7 +48,7 @@ typedef struct CliJsonTreeSizeCfg CliJsonTreeSizeCfg;
 // the node after it among its parent's
 typedef struct
 {
-    CfgJsonKind type;
+    CfgJsonType type;
     unsigned long long key;
     unsigned long long text;
     unsigned long long length;
@@ -330,7 +330,7 @@ struct CliJsonTreeNodeTypeCfg
 {
     const CliJson *json_read;
     unsigned int node;
-    CfgJsonKind type;
+    CfgJsonType type;
 };
 
 struct CliJsonTreeArrayIndexCfg
@@ -397,7 +397,7 @@ struct CliJsonTreeOutValueCfg
 struct CliJsonTreeTypeCfg
 {
     CliJson *json;
-    CfgJsonKind type;
+    CfgJsonType type;
 };
 
 struct CliJsonTreeSizeCfg

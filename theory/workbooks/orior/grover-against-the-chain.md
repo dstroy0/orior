@@ -109,7 +109,7 @@ calls a second against the **9.685e+08** needed.
 
 ## The decisive point needs no hardware estimate
 
-Mining is a race between many machines, and the two kinds scale differently when you add more:
+Mining is a race between many machines, and the two types scale differently when you add more:
 
 | machines  | classical speedup | Grover speedup |
 | --------- | ----------------- | -------------- |

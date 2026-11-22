@@ -56,7 +56,7 @@ typedef enum
     QASM_TOKEN_NUMBER = 2,
     QASM_TOKEN_STRING = 3,
     QASM_TOKEN_SYMBOL = 4
-} QasmTokenKind;
+} QasmTokenType;
 
 typedef struct
 {

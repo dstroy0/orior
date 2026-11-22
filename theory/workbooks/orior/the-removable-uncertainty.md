@@ -18,7 +18,7 @@ fetched from NIST on 2026-09-11:
 | of those, **truncated** | **62** |
 | carrying a measured uncertainty | **277** |
 
-Three different kinds of number wear the same word.
+Three different types of number wear the same word.
 
 **The 19 terminating ones need nothing.** `1.602 176 634 e-19` is the elementary charge, and that is
 all. The digits printed are the value, exactly, with no tail. Computing them to a

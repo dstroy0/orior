@@ -114,7 +114,7 @@ def with_static_feature(scene, frame, depth):
 
 
 def with_impulses(stack, count, swing, seed):
-    """The stack with `count` pixels replaced by a value from nowhere: the wrong KIND of noise.
+    """The stack with `count` pixels replaced by a value from nowhere: the wrong TYPE of noise.
 
     Impulses are incoherent. The frame-period detector should decline them and not scrub them.
     """

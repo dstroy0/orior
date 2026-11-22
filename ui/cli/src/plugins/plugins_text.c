@@ -49,7 +49,7 @@ static void cli_write(const PluginsTextCtx *args)
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = node, .out = out,
                .indent = 0u, .sorted = 0);
     const unsigned long long flat = out->at - begun;
-    const CfgJsonKind type = json->node[node].type;
+    const CfgJsonType type = json->node[node].type;
     if ((mmgr_line_ok(out) && ((flat + indent) <= CLI_WIDE)) || ((type != CFG_JSON_ARRAY) && (type != CFG_JSON_OBJECT)))
     {
         return;

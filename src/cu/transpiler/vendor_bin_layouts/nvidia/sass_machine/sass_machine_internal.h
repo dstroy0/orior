@@ -25,13 +25,13 @@
 
 #endif
 
-// a type as a machine file writes it, by its place in SassOperandKind, and a mark by its place in SassOperandMark
+// a type as a machine file writes it, by its place in SassOperandType, and a mark by its place in SassOperandMark
 static const char *const s_type_names[] = {"unknown",  "register", "predicate", "immediate", "constant",
                                            "address",  "label",    "uniform",   "system"};
 
 static const char *const s_mark_names[] = {"", "-", "~", "!"};
 
-#define SASS_KIND_COUNT (sizeof(s_type_names) / sizeof(s_type_names[0]))
+#define SASS_TYPE_COUNT (sizeof(s_type_names) / sizeof(s_type_names[0]))
 
 #define SASS_MARK_COUNT (sizeof(s_mark_names) / sizeof(s_mark_names[0]))
 

@@ -5727,19 +5727,19 @@ EMBED_INLINE int window_pane_row_named(const GuiWindowCtx *args)
     return 0;
 }
 
-// Find the control of the kind `key` with the name `name`, as the pointer command's `to` names one. Put its
+// Find the control of the type `key` with the name `name`, as the pointer command's `to` names one. Put its
 // rectangle into `rect_out` and return 1. Return 0 if the window has no such control.
 //
-// The kinds are a strip tool, a bar tool, a menu, a tab, a window control, the grip, a pane row and an action. A tool
+// The types are a strip tool, a bar tool, a menu, a tab, a window control, the grip, a pane row and an action. A tool
 // and a tab go by name, and a menu by its title. A window control is minimize, maximize or close. The grip is the foot
 // panel's top line. A row of the side pane or the foot pane goes by its text, and a pane head's action by its label.
 EMBED_INLINE int window_control_rect(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
     const GuiFrame *const frame = &window->frame;
-    const char *const kind = args->key;
+    const char *const type = args->key;
     const char *const name = args->name;
-    if (EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "tool"))
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = type, .key = "tool"))
     {
         const unsigned int at = EMBED_CALL(window_tool_named, GuiWindowCtx, .name = name);
         if (at == g_gui_tools_count)
@@ -5749,7 +5749,7 @@ EMBED_INLINE int window_control_rect(const GuiWindowCtx *args)
         *args->rect_out = EMBED_CALL(gui_side_menu.button, GuiSideMenuCfg, .frame = frame, .at = at);
         return 1;
     }
-    if (EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "bar"))
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = type, .key = "bar"))
     {
         for (unsigned int which = 0u; which < GUI_TOP_MENU_TOOL_NONE; which += 1u)
         {
@@ -5761,7 +5761,7 @@ EMBED_INLINE int window_control_rect(const GuiWindowCtx *args)
         }
         return 0;
     }
-    if (EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "menu"))
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = type, .key = "menu"))
     {
         for (unsigned int at = 0u; at < window->menubar.titles; at += 1u)
         {
@@ -5775,7 +5775,7 @@ EMBED_INLINE int window_control_rect(const GuiWindowCtx *args)
         }
         return 0;
     }
-    if (EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "tab"))
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = type, .key = "tab"))
     {
         for (unsigned int at = 0u; at < cli_view_count(); at += 1u)
         {
@@ -5790,7 +5790,7 @@ EMBED_INLINE int window_control_rect(const GuiWindowCtx *args)
         }
         return 0;
     }
-    if (EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "control"))
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = type, .key = "control"))
     {
         static const char *const s_controls[GUI_CONTROL_NONE] = {
             [GUI_CONTROL_MINIMIZE] = "minimize", [GUI_CONTROL_MAXIMIZE] = "maximize", [GUI_CONTROL_CLOSE] = "close"};
@@ -5804,7 +5804,7 @@ EMBED_INLINE int window_control_rect(const GuiWindowCtx *args)
         }
         return 0;
     }
-    if (EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "grip"))
+    if (EMBED_CALL(window_is, GuiWindowCtx, .name = type, .key = "grip"))
     {
         if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame->terminal))
         {
@@ -5813,8 +5813,8 @@ EMBED_INLINE int window_control_rect(const GuiWindowCtx *args)
         *args->rect_out = (GuiRect){frame->terminal.x, frame->terminal.y, frame->terminal.width, 1};
         return 1;
     }
-    const int row = EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "row");
-    if (!row && !EMBED_CALL(window_is, GuiWindowCtx, .name = kind, .key = "action"))
+    const int row = EMBED_CALL(window_is, GuiWindowCtx, .name = type, .key = "row");
+    if (!row && !EMBED_CALL(window_is, GuiWindowCtx, .name = type, .key = "action"))
     {
         return 0;
     }
@@ -5911,10 +5911,10 @@ EMBED_INLINE void window_glide_step(const GuiWindowCtx *args)
 // - drag and places, x y each: the left button pressed where the pointer is, and a move to each place. Then the
 //   button goes up at the last place.
 // - wheel, down or up, and a count: the wheel turned that many notches where the pointer is, one where no count is.
-// - to, a kind and a name: a move to the middle of the control that the name finds. Add --speed and pixels a second
+// - to, a type and a name: a move to the middle of the control that the name finds. Add --speed and pixels a second
 //   for a speed other than the glide's own. The pointer goes there one frame at a time, or at once if the speed is 0.
 //
-//   The kinds are a strip `tool`, a `bar` tool, a `menu`, a `tab`, a window `control`, the foot panel's `grip`, a
+//   The types are a strip `tool`, a `bar` tool, a `menu`, a `tab`, a window `control`, the foot panel's `grip`, a
 //   `row` and an `action`. A tool and a tab go by name, and a menu by its title. A control is minimize, maximize or
 //   close. A `row` of the side pane or the foot pane goes by its text, and the pane scrolls the row into view. An
 //   `action` of a pane head goes by its label: Start, Stop, field.

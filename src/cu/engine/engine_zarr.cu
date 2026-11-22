@@ -322,35 +322,35 @@ static int entry_n5(const EntryJson *json, ZarrLayout *layout)
         layout->order[axis] = axis;
     }
     const unsigned int compression = entry_json_at(json, 0u, "compression");
-    char type[32] = "raw";
+    char codec_name[32] = "raw";
     if (compression != 0u)
     {
-        entry_json_text(json, entry_json_at(json, compression, "type"), type, sizeof(type));
+        entry_json_text(json, entry_json_at(json, compression, "type"), codec_name, sizeof(codec_name));
     }
     else
     {
-        entry_json_text(json, entry_json_at(json, 0u, "compressionType"), type, sizeof(type));
+        entry_json_text(json, entry_json_at(json, 0u, "compressionType"), codec_name, sizeof(codec_name));
     }
     const unsigned int zlib = entry_json_at(json, compression, "useZlib");
-    if (mmgr_text_equal(type, "gzip", PLATFORM_TEXT_TO_TERMINATOR))
+    if (mmgr_text_equal(codec_name, "gzip", PLATFORM_TEXT_TO_TERMINATOR))
     {
         layout->chain.codec[0] =
             ((zlib != 0u) && (json->tokens[zlib].type == CFG_JSON_TRUE)) ? ENGINE_CODEC_ZLIB : ENGINE_CODEC_GZIP;
         layout->chain.count = 1u;
     }
-    else if ((mmgr_text_equal(type, "blosc", PLATFORM_TEXT_TO_TERMINATOR)) ||
-             (mmgr_text_equal(type, "zstd", PLATFORM_TEXT_TO_TERMINATOR)))
+    else if ((mmgr_text_equal(codec_name, "blosc", PLATFORM_TEXT_TO_TERMINATOR)) ||
+             (mmgr_text_equal(codec_name, "zstd", PLATFORM_TEXT_TO_TERMINATOR)))
     {
-        layout->chain.codec[0] = (type[0] == 'b') ? ENGINE_CODEC_BLOSC : ENGINE_CODEC_ZSTD;
+        layout->chain.codec[0] = (codec_name[0] == 'b') ? ENGINE_CODEC_BLOSC : ENGINE_CODEC_ZSTD;
         layout->chain.count = 1u;
     }
-    else if (!mmgr_text_equal(type, "raw", PLATFORM_TEXT_TO_TERMINATOR))
+    else if (!mmgr_text_equal(codec_name, "raw", PLATFORM_TEXT_TO_TERMINATOR))
     {
         {
             EngineNote engine_note;
             engine_note_begun(&engine_note);
             mmgr_line_put(&engine_note.line, "  n5: the compression ");
-            mmgr_line_put(&engine_note.line, type);
+            mmgr_line_put(&engine_note.line, codec_name);
             mmgr_line_put(&engine_note.line, " is not supported");
             mmgr_line_ch(&engine_note.line, '\n');
             engine_note_written(&engine_note);

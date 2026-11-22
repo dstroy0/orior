@@ -13,7 +13,7 @@
 # WHY THIS AND NOT JUST THE DIGITS
 #
 # A thousand digits of gamma is not evidence. It is a claim, and a reader can only trust it, or spend a day to rebuild
-# the apparatus and find out. Publication of the REPRODUCTION SET changes what kind of object the table is:
+# the apparatus and find out. Publication of the REPRODUCTION SET changes what type of object the table is:
 #   - THE DIGITS ALONE: a reader can compare against somebody else's digits. If they differ, neither of them knows which
 #     is wrong.
 #   - THE REPRODUCTION SET: a reader can derive the digits again from two named algorithms with the exact parameters,

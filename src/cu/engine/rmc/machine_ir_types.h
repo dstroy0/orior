@@ -84,7 +84,7 @@ CODEGEN_CORE unsigned int codegen_operand_count(unsigned int form)
 
 // what an argument is: a register of a bank by its number (the bank immediate a word's value), a register the lane
 // uses throughout, a count or an offset in decimal, or a small signed number in decimal
-enum MachineOperandKind
+enum MachineOperandType
 {
     OPERAND_REGISTER = 1,
     OPERAND_PHYSREG = 2,

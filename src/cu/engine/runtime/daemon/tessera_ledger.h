@@ -26,7 +26,7 @@ extern "C"
         TESSERA_EVENT_LOST = 4,
         TESSERA_EVENT_SWEEP = 5,
         TESSERA_EVENT_IDLE = 6
-    } TesseraEventKind;
+    } TesseraEventType;
 
     // A job as it requests. `declared` is the bytes the job states it will take; `located` is the bytes its process
     // already allocated on the device as it requests (its CUDA context, and whatever it retained from an earlier
@@ -70,12 +70,12 @@ extern "C"
     {
         unsigned long long when;
         unsigned long long identity;
-        TesseraEventKind type;
+        TesseraEventType type;
     } TesseraDeadline;
 
     typedef struct
     {
-        TesseraEventKind type;
+        TesseraEventType type;
         unsigned long long identity;
         unsigned long long bytes;
         unsigned long long measured;
@@ -116,14 +116,14 @@ extern "C"
         TESSERA_CALL_IDLE = 7,
         TESSERA_CALL_REMEMBER = 8,
         TESSERA_CALL_NEXT = 9
-    } TesseraCallKind;
+    } TesseraCallType;
 
     // one call and what it reads: the time; the job it names; the device's capacity and use (DEVICE); the bytes a job
     // was measured using (MEASURE); 1 where a job finished (RELEASE); the events an admit may make, at max
     // TESSERA_CALL_EVENTS (ADMIT); the idle time (IDLE); the job requested (SUBMIT); the peak tracked (REMEMBER)
     typedef struct
     {
-        TesseraCallKind type;
+        TesseraCallType type;
         unsigned long long now;
         unsigned long long identity;
         unsigned long long capacity;

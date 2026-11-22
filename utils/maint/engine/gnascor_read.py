@@ -7,7 +7,7 @@
     python utils/maint/engine/gnascor_read.py --check
 
 A trace holds one line a cycle: the type and cost of the left side's ask, the type and cost of the
-right side's, and the bound both were put under, the types as QueryKind in
+right side's, and the bound both were put under, the types as QueryType in
 src/cu/transpiler/lstar/protocol/query/query_put.h names them.
 
     SATISFIED 412 UNSATISFIED 380 900
@@ -51,7 +51,7 @@ sys.path.insert(0, HERE)
 
 from order_check import MATRIX_DOC, read_matrices, table_cells  # noqa: E402
 
-KINDS = ("SATISFIED", "UNSATISFIED", "PAST_BOUND", "ENDED")
+TYPES = ("SATISFIED", "UNSATISFIED", "PAST_BOUND", "ENDED")
 # the type a side carries where it was not asked
 UNASKED = "-"
 
@@ -73,7 +73,7 @@ def candidates_of(path=MATRIX_DOC):
 def read_cycle(line):
     """One trace line as ((left type, left cost), (right type, right cost), bound)."""
     words = line.split()
-    known = KINDS + (UNASKED,)
+    known = TYPES + (UNASKED,)
     if len(words) != 5 or words[0] not in known or words[2] not in known:
         raise ValueError("a trace line is: <type> <cost> <type> <cost> <bound>, read: %r" % line)
 
@@ -293,7 +293,7 @@ def check():
           % sync_total)
 
     # every pair the tables name is decided in every situation a side can be in
-    situations = [(type, cost) for type in KINDS for cost in (0, 100, 1050, 5000)]
+    situations = [(type, cost) for type in TYPES for cost in (0, 100, 1050, 5000)]
     undecided = 0
     for pair, names in held.items():
         for left in situations:

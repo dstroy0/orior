@@ -9,7 +9,7 @@
 #
 # ART-4-005 removed one fixed pattern from one 8x8 stack and reached 100% on a synthetic control. This
 # widens that reading along the two axes a reader asks about next: does the format the pixels are
-# stored in change the answer, and does the KIND of noise change it. Nothing here is a new instrument.
+# stored in change the answer, and does the TYPE of noise change it. Nothing here is a new instrument.
 # The detector is measure.periodic_energy and the reject is reference.periodic, the same two files
 # ART-4-005 used; this script only feeds them pixels from more places and noise of more types and
 # reports what comes back. Every number is exact rational; the only floats are the %.3f in the prints.

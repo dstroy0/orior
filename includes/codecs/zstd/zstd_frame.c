@@ -34,13 +34,13 @@ static const unsigned int zstd_match_length_extra[ZSTD_MATCH_LENGTH_SYMBOLS] = {
     0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u,  0u,  0u,  0u,  0u,  0u,  0u, 0u,
     0u, 0u, 0u, 0u, 0u, 1u, 1u, 1u, 1u, 2u, 2u, 3u, 3u, 4u, 4u, 5u, 7u, 8u, 9u, 10u, 11u, 12u, 13u, 14u, 15u, 16u};
 
-static const ZstdTableKind zstd_literal_length_type = {zstd_literal_length_predefined, ZSTD_LITERAL_LENGTH_SYMBOLS, 6u,
+static const ZstdTableType zstd_literal_length_type = {zstd_literal_length_predefined, ZSTD_LITERAL_LENGTH_SYMBOLS, 6u,
                                                        ZSTD_LITERAL_LENGTH_SYMBOLS, 9u};
 
-static const ZstdTableKind zstd_match_length_type = {zstd_match_length_predefined, ZSTD_MATCH_LENGTH_SYMBOLS, 6u,
+static const ZstdTableType zstd_match_length_type = {zstd_match_length_predefined, ZSTD_MATCH_LENGTH_SYMBOLS, 6u,
                                                      ZSTD_MATCH_LENGTH_SYMBOLS, 9u};
 
-static const ZstdTableKind zstd_offset_type = {zstd_offset_predefined, ZSTD_OFFSET_PREDEFINED_SYMBOLS, 5u,
+static const ZstdTableType zstd_offset_type = {zstd_offset_predefined, ZSTD_OFFSET_PREDEFINED_SYMBOLS, 5u,
                                                ZSTD_OFFSET_SYMBOLS, 8u};
 
 static const unsigned int zstd_dictionary_widths[4u] = {0u, 1u, 2u, 4u};

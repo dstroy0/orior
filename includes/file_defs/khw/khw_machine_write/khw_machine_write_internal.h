@@ -50,17 +50,17 @@
 
 // what the operand of a run is, as the protocol answered it beside its place. It is a register, a pair of registers that
 // an address comes through, a number, or a predicate. Then the character for each after the place in the answers
-#define KHW_KIND_REGISTER 0u
+#define KHW_TYPE_REGISTER 0u
 
-#define KHW_KIND_ADDRESS 1u
+#define KHW_TYPE_ADDRESS 1u
 
-#define KHW_KIND_IMMEDIATE 2u
+#define KHW_TYPE_IMMEDIATE 2u
 
-#define KHW_KIND_PREDICATE 3u
+#define KHW_TYPE_PREDICATE 3u
 // a run of the constant bank's operand: the offset read from the bank, and the bank, where the walks found a run of it
-#define KHW_KIND_CONSTANT 4u
+#define KHW_TYPE_CONSTANT 4u
 
-#define KHW_KIND_CHARACTERS "ranpc"
+#define KHW_TYPE_CHARACTERS "ranpc"
 
 // What the protocol answered of one form, read from the answers file:
 //   - the relation that each case of it answered.

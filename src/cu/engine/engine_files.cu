@@ -508,7 +508,7 @@ int entry_element_named(const char *name, EngineArrayExtent *extent, unsigned in
     static const char *const NAMES[10] = {"uint8", "uint16", "uint32", "uint64",  "int8",
                                           "int16", "int32",  "int64",  "float32", "float64"};
     static const unsigned int BYTES[10] = {1u, 2u, 4u, 8u, 1u, 2u, 4u, 8u, 4u, 8u};
-    static const EngineElementKind KINDS[10] = {
+    static const EngineElementType TYPES[10] = {
         ENGINE_ELEMENT_UNSIGNED, ENGINE_ELEMENT_UNSIGNED, ENGINE_ELEMENT_UNSIGNED, ENGINE_ELEMENT_UNSIGNED,
         ENGINE_ELEMENT_SIGNED,   ENGINE_ELEMENT_SIGNED,   ENGINE_ELEMENT_SIGNED,   ENGINE_ELEMENT_SIGNED,
         ENGINE_ELEMENT_FLOAT,    ENGINE_ELEMENT_FLOAT};
@@ -517,7 +517,7 @@ int entry_element_named(const char *name, EngineArrayExtent *extent, unsigned in
         if (mmgr_text_equal(name, NAMES[at], PLATFORM_TEXT_TO_TERMINATOR))
         {
             extent->element_bytes = BYTES[at];
-            extent->element_type = KINDS[at];
+            extent->element_type = TYPES[at];
             return 1;
         }
     }

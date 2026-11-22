@@ -212,7 +212,7 @@ void boundary_volume(BoundaryResults *results);
 #define BOUNDARY_TEST_CODE_CRYSTALS 256u
 
 // the decoder runs each crystal three ways: clean, one residue corrupted, two residues corrupted
-#define BOUNDARY_TEST_CODE_KINDS 3u
+#define BOUNDARY_TEST_CODE_TYPES 3u
 
 // the samples are 16-bit signed, as a camera's are after its offset
 #define BOUNDARY_TEST_CODE_SAMPLE_BITS 16u

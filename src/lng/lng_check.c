@@ -73,7 +73,7 @@ int program_main(int argc, char **argv)
     LngTable hol = {{NULL, 0u, 0u}, NULL, 0u, 0u};
     LngTable asm_table = {{NULL, 0u, 0u}, NULL, 0u, 0u};
     lng_check_table("src/lng/transpiler_lng.tsv", &table, &defects);
-    lng_table_check(&table, g_lng_types, LNG_KINDS, &defects);
+    lng_table_check(&table, g_lng_types, LNG_TYPES, &defects);
     // each anchor a row names is an anchor of the ladder, the text of an `anchor_(NAME, "text"` of ladder.h
     LngList ladder_anchors = {NULL, 0u, 0u};
     lng_check_read(LNG_LADDER);
@@ -103,7 +103,7 @@ int program_main(int argc, char **argv)
     lng_list_free(&ladder_anchors);
     lng_table_findings(&table, &findings);
     lng_check_table("src/lng/gnascor_hol_lng.tsv", &hol, &defects);
-    lng_table_check(&hol, g_lng_hol_types, LNG_HOL_KINDS, &defects);
+    lng_table_check(&hol, g_lng_hol_types, LNG_HOL_TYPES, &defects);
     lng_table_findings(&hol, &findings);
     lng_check_table("src/lng/gnascor_asm_lng.tsv", &asm_table, &defects);
 

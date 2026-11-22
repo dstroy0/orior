@@ -134,7 +134,7 @@ CODEGEN_CORE int ruleset_core_entry(RulesetCoreRead *read, RulesetCoreSpan type,
         read->constructs[named].line_count = 0u;
         return 1;
     }
-    return ruleset_core_ended(read, RULESET_CORE_NO_KIND, 0u, type);
+    return ruleset_core_ended(read, RULESET_CORE_NO_TYPE, 0u, type);
 }
 
 // one line of the construct in the read, as ruleset_pseudo_line reads it. `end` closes it. Any other line is a form,

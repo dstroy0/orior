@@ -430,11 +430,11 @@ static int sass_types_read(SassForm *form, const char *column)
                                        ? 1u
                                        : 0u;
         const unsigned int type =
-            sass_name_place(s_type_names, (unsigned int)SASS_KIND_COUNT, at, length - mark_length);
+            sass_name_place(s_type_names, (unsigned int)SASS_TYPE_COUNT, at, length - mark_length);
         const unsigned int mark =
             (mark_length == 0u) ? (unsigned int)SASS_MARK_NONE
                                 : sass_name_place(s_mark_names, (unsigned int)SASS_MARK_COUNT, at + length - 1u, 1u);
-        if ((type == SASS_KIND_COUNT) || (form->operands == SASS_MACHINE_OPERANDS))
+        if ((type == SASS_TYPE_COUNT) || (form->operands == SASS_MACHINE_OPERANDS))
         {
             return 0;
         }

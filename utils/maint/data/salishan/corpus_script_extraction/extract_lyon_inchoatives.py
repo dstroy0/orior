@@ -42,7 +42,7 @@ from salish_marking import (
     tagged_spans,
 )
 from salish_unsorted import (
-    UNKNOWN_KIND,
+    UNKNOWN_TYPE,
     covered_tokens,
     is_language_token,
     unreached,
@@ -262,7 +262,7 @@ def main():
 
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
-        (0, spot, UNKNOWN_KIND, "", text)
+        (0, spot, UNKNOWN_TYPE, "", text)
         for spot, named, type, text in rows
         if (type == UNCLASSIFIED) and not spot.startswith("not reached")
     ]

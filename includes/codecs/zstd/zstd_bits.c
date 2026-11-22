@@ -103,7 +103,7 @@ unsigned long long zstd_backward_read(ZstdBackwardStream *stream, unsigned int c
     return value;
 }
 
-int zstd_fse_describe(ZstdSpan *input, const ZstdTableKind *type, long *counts, unsigned int *accuracy)
+int zstd_fse_describe(ZstdSpan *input, const ZstdTableType *type, long *counts, unsigned int *accuracy)
 {
     ZstdForwardStream stream = {input->bytes, input->length, 0ULL};
     const unsigned int found = (unsigned int)zstd_forward_peek(&stream, 4u) + 5u;

@@ -6,7 +6,7 @@
 
 Each C, CUDA, C++, Python and JavaScript file under the folders that carries the tree's copyright line is cut into
 code, comment and string pieces. In code, an identifier part that is the word or its plural becomes the new word in
-the same case: type_of becomes type_of, KIND_X becomes TYPE_X, scrollKind becomes scrollType. In a comment and a
+the same case: with WORD count and NEW total, count_of becomes total_of, COUNT_X becomes TOTAL_X. In a comment and a
 Python docstring, the word becomes the new word, with its case retained. A string literal retains its text, but the code in
 an f-string's braces and in a template literal's `${}` is code. A JavaScript property name, after a dot or before a
 colon in an object, retains its text, since it names a key that JSON carries.

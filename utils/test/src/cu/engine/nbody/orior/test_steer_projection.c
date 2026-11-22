@@ -638,7 +638,7 @@ int program_main(int argc, char **argv)
         free(corpus);
         return 1;
     }
-    for (CorpusKind type = CORPUS_UNIFORM; type <= CORPUS_PERIODIC; type += 1)
+    for (CorpusType type = CORPUS_UNIFORM; type <= CORPUS_PERIODIC; type += 1)
     {
         bench_build_bytes(swept, STEER_CORPUS, type, 0x5EEDu + (uint64_t)type);
         failed += grade_field(bench_corpus_name(type), swept, STEER_CORPUS);

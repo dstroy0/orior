@@ -395,7 +395,7 @@ void core_radius_device_open(CoreRadiusDevice *device, unsigned int orders, unsi
     device->lengths_device = NULL;
     device->primes_device = NULL;
     device->sums = NULL;
-    device->lengths.assign((size_t)CORE_RADIUS_KINDS * orders, 0u);
+    device->lengths.assign((size_t)CORE_RADIUS_TYPES * orders, 0u);
     // the largest primes below 2^31, each tested by trial division
     device->primes.clear();
     for (uint32_t candidate = 0x7FFFFFFFu; device->primes.size() < primes_count; candidate -= 2u)
@@ -425,7 +425,7 @@ void core_radius_device_open(CoreRadiusDevice *device, unsigned int orders, unsi
         }
     }
     int count = 0;
-    const size_t residue_bytes = (size_t)CORE_RADIUS_KINDS * orders * primes_count * modes * sizeof(uint32_t);
+    const size_t residue_bytes = (size_t)CORE_RADIUS_TYPES * orders * primes_count * modes * sizeof(uint32_t);
     const size_t sum_bytes = (size_t)CORE_RADIUS_SUMS * primes_count * modes * sizeof(uint32_t);
     device->available =
         (cudaGetDeviceCount(&count) == cudaSuccess) && (count > 0) &&

@@ -34,7 +34,7 @@ def main():
     by_word = {}
     with open(SOURCE, newline="") as handle:
         for row in csv.DictReader(handle):
-            if row["kind"] != "inbit":
+            if row["type"] != "inbit":
                 continue
             word = int(row["a"]) // 32
             at = int(row["round"])

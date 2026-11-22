@@ -426,7 +426,7 @@ int program_main(int count, char **words)
             continue;
         }
         const MsqReading *const reading = &readings[question->word_index];
-        const MsqKind type = reading->type;
+        const MsqType type = reading->type;
         const char *const body = ((type == MSQ_READ) && (reading->body != NULL)) ? reading->body : "";
         char why[256] = "";
         unsigned int clearing = 0u;

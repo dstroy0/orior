@@ -138,7 +138,7 @@ CODEGEN_CORE void ruleset_core_relation_counts(RulesetCoreRelations *relations, 
 //     writes. `other` is the entry of the second name in `from`.
 //   - COLLAPSES: two names are two texts in `from` and one text in `to`. `other` is the entry of the second name in
 //     `from`.
-//   - KIND: `from` gives a name as one type and `to` as another, of form, nop, err and construct. `other` is the entry
+//   - TYPE: `from` gives a name as one type and `to` as another, of form, nop, err and construct. `other` is the entry
 //     of `to`.
 //   - ABSENT: `from` gives a name and no entry of `to` does. A file added to `to` undoes it, and thus it is open.
 //
@@ -146,9 +146,9 @@ CODEGEN_CORE void ruleset_core_relation_counts(RulesetCoreRelations *relations, 
 // each write their own names correctly, and is no verdict on either set
 #define RULESET_CORE_MAP_BREAKS 0u
 #define RULESET_CORE_MAP_COLLAPSES 1u
-#define RULESET_CORE_MAP_KIND 2u
+#define RULESET_CORE_MAP_TYPE 2u
 #define RULESET_CORE_MAP_ABSENT 3u
-#define RULESET_CORE_MAP_KINDS 4u
+#define RULESET_CORE_MAP_TYPES 4u
 #define RULESET_CORE_MAP_OPEN(type_) ((type_) == RULESET_CORE_MAP_ABSENT)
 
 // the first entry of `to` that gives the name `name` of `from`, or RULESET_CORE_NONE where none does
@@ -216,7 +216,7 @@ CODEGEN_CORE unsigned int ruleset_core_map(const RulesetCoreRelations *from, con
         }
         const RulesetCoreRelation candidates[4] = {{RULESET_CORE_MAP_BREAKS, at, found[0]},
                                                    {RULESET_CORE_MAP_COLLAPSES, at, found[1]},
-                                                   {RULESET_CORE_MAP_KIND, at, giver},
+                                                   {RULESET_CORE_MAP_TYPE, at, giver},
                                                    {RULESET_CORE_MAP_ABSENT, at, RULESET_CORE_NONE}};
         const int present[4] = {found[0] != RULESET_CORE_NONE, found[1] != RULESET_CORE_NONE,
                                 (giver != RULESET_CORE_NONE) && (to->entries[giver].type != entry->type),

@@ -62,7 +62,7 @@ static int tessera_device_grow(void **items, unsigned long long *capacity, unsig
 }
 
 // each array of the device's ledger, stored on the host in `ledger`, grown to the max a call of `type` can add
-static int tessera_device_reserve(TesseraLedger *ledger, TesseraCallKind type)
+static int tessera_device_reserve(TesseraLedger *ledger, TesseraCallType type)
 {
     const TesseraCapacity needed = tessera_core_capacity(ledger, type);
     return tessera_device_grow((void **)&ledger->jobs, &ledger->job_capacity, ledger->job_count, needed.jobs,

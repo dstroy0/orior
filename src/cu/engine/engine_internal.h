@@ -163,7 +163,7 @@ int entry_ome(const EntryJson *json, unsigned int attributes, EntryOme *ome);
 
 int entry_zarr_describe(const char *root, const char *member, ZarrLayout *layout, char *array_root, size_t capacity);
 
-enum EntrySourceKind
+enum EntrySourceType
 {
     ENTRY_SOURCE_NONE = 0,
     ENTRY_SOURCE_ZARR = 1,
@@ -180,7 +180,7 @@ enum EntrySourceKind
 
 struct EntrySource
 {
-    EntrySourceKind type;
+    EntrySourceType type;
     char path[ENTRY_PATH_CAPACITY];
     const char *member;
     ZarrLayout layout;

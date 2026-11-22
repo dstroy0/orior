@@ -37,7 +37,7 @@ from salish_marking import (
     switches,
     tagged_spans,
 )
-from salish_unsorted import UNKNOWN_KIND, covered_tokens, unreached, write_unsorted
+from salish_unsorted import UNKNOWN_TYPE, covered_tokens, unreached, write_unsorted
 
 
 def _repository_root():
@@ -299,7 +299,7 @@ def main():
     # tests typed, and a line no section reached, which here is the introduction and the references.
     stuck = TARGET[:-4] + ".unclassifiable.tsv"
     flagged = [
-        (0, "%s block %d" % (sect, count), UNKNOWN_KIND, "", text)
+        (0, "%s block %d" % (sect, count), UNKNOWN_TYPE, "", text)
         for mark, count, sect, type, text in rows
         if (type == UNCLASSIFIED) and not sect.startswith("not reached")
     ]

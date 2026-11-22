@@ -35,7 +35,7 @@ def main():
 
     field = {}
     for row in csv.DictReader(open(SOURCE, newline="")):
-        if row["kind"] == "residue":
+        if row["type"] == "residue":
             field.setdefault(int(row["a"]), {})[int(row["round"])] = float(row["value"])
 
     rounds = sorted(field[0].keys())[:40]

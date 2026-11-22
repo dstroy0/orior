@@ -23,7 +23,7 @@
 
 #define PEAKS_TEST_LIMBS_MAX 12u
 
-#define PEAKS_TEST_KINDS 6ull
+#define PEAKS_TEST_TYPES 6ull
 
 #define PEAKS_TEST_VOXELS_MAX (16u * 32u * 32u)
 
@@ -56,7 +56,7 @@ static void peaks_test_value(unsigned long long key, unsigned long long voxel, u
 {
     const unsigned long long draw = sim_draw(key, voxel);
     // a remainder below the types' count fits unsigned int
-    const unsigned int type = (unsigned int)(draw % PEAKS_TEST_KINDS);
+    const unsigned int type = (unsigned int)(draw % PEAKS_TEST_TYPES);
     // a remainder below 3, plus one, fits unsigned int
     const unsigned int small = 1u + (unsigned int)((draw >> 8u) % 3ull);
     const unsigned int middle = limbs / 2u;

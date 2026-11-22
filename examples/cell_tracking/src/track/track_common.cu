@@ -8,8 +8,8 @@
 
 void track_error_report(const char *what, const EngineError *error)
 {
-    static const char *const KINDS[4] = {"none", "request", "resource", "logic"};
-    // the type is one of the four enumerated values. It re-signs to unsigned int and indexes KINDS exactly
+    static const char *const TYPES[4] = {"none", "request", "resource", "logic"};
+    // the type is one of the four enumerated values. It re-signs to unsigned int and indexes TYPES exactly
     const unsigned int type = ((unsigned int)error->type < 4u) ? (unsigned int)error->type : 0u;
     // an address converts to uintptr_t exactly, and the image base is at or below every address inside the image
     const uintptr_t base = (uintptr_t)error->imagebase;
@@ -17,7 +17,7 @@ void track_error_report(const char *what, const EngineError *error)
     const uintptr_t execaddr = (uintptr_t)error->execaddr;
     // the module is one of the enumerated values. It re-signs to unsigned int exactly
     fprintf(stderr, "  %s: %s error, module %u, site %u, status %d, execaddr +0x%llx, evacaddr %p, frames", what,
-            KINDS[type], (unsigned int)error->module, error->site, error->status, (unsigned long long)(execaddr - base),
+            TYPES[type], (unsigned int)error->module, error->site, error->status, (unsigned long long)(execaddr - base),
             error->evacaddr);
     for (unsigned int frame = 0u; frame < error->frame_count; frame += 1u)
     {
