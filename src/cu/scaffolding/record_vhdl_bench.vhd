@@ -7,7 +7,8 @@
 -- ports a word a clock, runs the launch at address 0 by a clock of run, as the host launches the device's resident
 -- kernel, waits for the unit's done, and reads back the errors and the records' words (records.txt), each word in
 -- hex, then the clocks the launch ran, from its run to its done. The unit runs the lanes itself, as the kernel does.
--- The image's size is the generic words, which the test gives GHDL with -gwords.
+-- The image's size is the generic words, which the test gives GHDL with -gwords. A launch that runs past clocks_max
+-- without done stops the bench with a failure, and writes no records.
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -16,7 +17,7 @@ use std.textio.all;
 use work.cycle_program.all;
 
 entity record_vhdl_bench is
-    generic (words : positive);
+    generic (words : positive; clocks_max : positive := 100000000);
 end entity record_vhdl_bench;
 
 architecture run of record_vhdl_bench is
@@ -98,8 +99,9 @@ begin
         loop
             wait until falling_edge(clock);
             clocks := clocks + 1;
-            exit when done = '1';
+            exit when (done = '1') or (clocks >= clocks_max);
         end loop;
+        assert done = '1' report "record vhdl bench: the launch did not end in clocks_max clocks" severity failure;
         read_back(error_address / 4, value);
         write(line_out, to_integer(value));
         writeline(written, line_out);

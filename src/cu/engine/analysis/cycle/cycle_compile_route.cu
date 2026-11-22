@@ -260,7 +260,7 @@ static void cycle_record_route(const EngineRecordLayout *layout, CycleRecord *re
     unsigned int source_places = 0u;
     unsigned int source_live = 0u;
     PlatformText source;
-    platform_text_begun(&source, CYCLE_LANE_TEXT_BYTES, platform_place_g_program_owner, 0);
+    platform_text_begun(&source, CYCLE_LANE_TEXT_BYTES, platform_place_g_program_owner, PLATFORM_TIER_MOVABLE);
     const int wrote =
         (rules != NULL) && generator.program(layout, &target, target.prelude, &source, &source_places, &source_live);
     // the monotonic clock never runs back
@@ -400,7 +400,7 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
     char error_text[RULESET_ERROR_BYTES];
     VerbaLinea error = mmgr_line_over(error_text, sizeof(error_text));
     PlatformText written;
-    platform_text_begun(&written, CYCLE_LANE_TEXT_BYTES, platform_place_g_program_owner, 0);
+    platform_text_begun(&written, CYCLE_LANE_TEXT_BYTES, platform_place_g_program_owner, PLATFORM_TIER_MOVABLE);
     ScheduleCosts costs;
     const int has_costs = generator.program_schedule_costs(&costs);
     s_cycle_codegen_depth += 1;
@@ -615,7 +615,7 @@ int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, 
         unsigned int live = 0u;
         const unsigned long long began = platform_clock_ns();
         PlatformText ptx;
-        platform_text_begun(&ptx, CYCLE_LANE_TEXT_BYTES, platform_place_g_program_owner, 0);
+        platform_text_begun(&ptx, CYCLE_LANE_TEXT_BYTES, platform_place_g_program_owner, PLATFORM_TIER_MOVABLE);
         const int wrote =
             (rules != NULL) && (header[0] != '\0') && generator.program(layout, &target, header, &ptx, &places, &live);
         // the monotonic clock never runs back
@@ -674,7 +674,7 @@ int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, 
     unsigned int source_places = 0u;
     unsigned int source_live = 0u;
     PlatformText source;
-    platform_text_begun(&source, CYCLE_LANE_TEXT_BYTES, platform_place_g_program_owner, 0);
+    platform_text_begun(&source, CYCLE_LANE_TEXT_BYTES, platform_place_g_program_owner, PLATFORM_TIER_MOVABLE);
     const int wrote = (source_rules != NULL) &&
                       source_generator.program(layout, &target, target.prelude, &source, &source_places, &source_live);
     // the monotonic clock never runs back

@@ -74,25 +74,33 @@ static long long tower_test_floor(long long value, unsigned int shift)
     return ((value % divisor) != 0ll) && (value < 0ll) ? (quotient - 1ll) : quotient;
 }
 
-// the oracle: a ruleset run on the host over a block of long long values, level by level and axis by axis as the
-// tower walks them, each line split into its evens and odds, or back
+// the most levels of a block: each halves every extent, and so an extent below 2^64 reaches 1 in 64
+#define TOWER_TEST_LEVELS 65u
+
+// The oracle: a ruleset run on the host over a block of long long values, level by level and axis by axis as the tower
+// walks them, each line split into its evens and odds, or back
 void tower_test_oracle(const unsigned long long extent[4], const TowerLiftingStep *rules, unsigned int rule_count,
-                       std::vector<long long> &values, int inverse)
+                       long long *values, int inverse)
 {
     const unsigned long long stride[4] = {extent[1] * extent[2] * extent[3], extent[2] * extent[3], extent[3], 1ull};
-    std::vector<std::vector<unsigned long long>> levels;
-    std::vector<unsigned long long> active(extent, extent + 4);
-    while ((active[0] > 1ull) || (active[1] > 1ull) || (active[2] > 1ull) || (active[3] > 1ull))
+    unsigned long long levels[TOWER_TEST_LEVELS][4];
+    unsigned int level_count = 0u;
+    unsigned long long active[4] = {extent[0], extent[1], extent[2], extent[3]};
+    while (((active[0] > 1ull) || (active[1] > 1ull) || (active[2] > 1ull) || (active[3] > 1ull)) &&
+           (level_count < TOWER_TEST_LEVELS))
     {
-        levels.push_back(active);
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
         {
+            levels[level_count][axis] = active[axis];
             active[axis] = (active[axis] + 1ull) / 2ull;
         }
+        level_count += 1u;
     }
-    for (size_t walked = 0u; walked < levels.size(); walked += 1u)
+    // each band of a line holds at max half the longest line, and one more
+    long long band[2][(TOWER_TEST_LINE_MAX / 2u) + 1u];
+    for (unsigned int walked = 0u; walked < level_count; walked += 1u)
     {
-        const std::vector<unsigned long long> &level = levels[(inverse != 0) ? (levels.size() - 1u - walked) : walked];
+        const unsigned long long *const level = levels[(inverse != 0) ? (level_count - 1u - walked) : walked];
         for (unsigned int turn = 0u; turn < 4u; turn += 1u)
         {
             const unsigned int axis = (inverse != 0) ? (3u - turn) : turn;
@@ -118,27 +126,30 @@ void tower_test_oracle(const unsigned long long extent[4], const TowerLiftingSte
                 {
                     continue;
                 }
-                std::vector<long long> band[2];
+                unsigned long long band_count[2] = {0ull, 0ull};
                 for (unsigned long long along = 0ull; along < length; along += 1ull)
                 {
-                    const long long value = values[(size_t)(line + (along * stride[axis]))];
+                    const long long value = values[line + (along * stride[axis])];
                     const int odd = (inverse != 0) ? (along >= lows) : ((along % 2ull) == 1ull);
-                    band[odd].push_back(value);
+                    band[odd][band_count[odd]] = value;
+                    band_count[odd] += 1ull;
                 }
                 for (unsigned int step = 0u; step < rule_count; step += 1u)
                 {
                     const TowerLiftingStep &rule = rules[(inverse != 0) ? (rule_count - 1u - step) : step];
-                    std::vector<long long> &target = band[(rule.target == TOWER_BAND_HIGH) ? 1 : 0];
-                    const std::vector<long long> &other = band[(rule.target == TOWER_BAND_HIGH) ? 0 : 1];
-                    const long long last = (long long)other.size() - 1ll;
-                    for (size_t at = 0u; at < target.size(); at += 1u)
+                    const unsigned int target_band = (rule.target == TOWER_BAND_HIGH) ? 1u : 0u;
+                    long long *const target = band[target_band];
+                    const long long *const other = band[1u - target_band];
+                    // a band's count is at max a line's length, far below 2^63
+                    const long long last = (long long)band_count[1u - target_band] - 1ll;
+                    for (unsigned long long at = 0ull; at < band_count[target_band]; at += 1ull)
                     {
                         long long sum = (long long)rule.rounding;
                         for (unsigned int tap = 0u; tap < rule.taps; tap += 1u)
                         {
                             long long taken = (long long)at + rule.offset[tap];
                             taken = (taken < 0ll) ? 0ll : ((taken > last) ? last : taken);
-                            sum += (long long)rule.weight[tap] * other[(size_t)taken];
+                            sum += (long long)rule.weight[tap] * other[taken];
                         }
                         const long long moved = tower_test_floor(sum, rule.shift);
                         target[at] += ((rule.sign > 0) != (inverse != 0)) ? moved : -moved;
@@ -149,13 +160,13 @@ void tower_test_oracle(const unsigned long long extent[4], const TowerLiftingSte
                     long long value = 0ll;
                     if (inverse != 0)
                     {
-                        value = band[along % 2ull][(size_t)(along / 2ull)];
+                        value = band[along % 2ull][along / 2ull];
                     }
                     else
                     {
-                        value = (along < lows) ? band[0][(size_t)along] : band[1][(size_t)(along - lows)];
+                        value = (along < lows) ? band[0][along] : band[1][along - lows];
                     }
-                    values[(size_t)(line + (along * stride[axis]))] = value;
+                    values[line + (along * stride[axis])] = value;
                 }
             }
         }
@@ -163,36 +174,29 @@ void tower_test_oracle(const unsigned long long extent[4], const TowerLiftingSte
 }
 
 // encode, arrange with register reuse, and load: one field a 32-bit word, one member
-int tower_test_load(const std::vector<EngineRecordStep> &steps, const std::vector<unsigned int> &outputs,
-                    const std::vector<unsigned int> &field_bits, TowerTestLoaded *loaded)
+int tower_test_load(const TowerTestSteps *steps, const unsigned int *outputs, unsigned int output_count,
+                    const unsigned int *field_bits, unsigned int fields, TowerTestLoaded *loaded)
 {
-    memset(loaded, 0, sizeof(*loaded));
-    // a block's fields and a program's steps and outputs are far below 2^32
-    const unsigned int fields = (unsigned int)field_bits.size();
-    const KeymathRecordRequest encode_request = {steps.data(),
-                                                 (unsigned int)steps.size(),
-                                                 field_bits.data(),
-                                                 fields,
-                                                 1u,
-                                                 outputs.data(),
-                                                 (unsigned int)outputs.size(),
-                                                 NULL,
-                                                 0u,
-                                                 &loaded->key,
-                                                 &loaded->error};
+    mmgr_bytes_set(loaded, 0, sizeof(*loaded));
+    // a program's steps are far below 2^32
+    const KeymathRecordRequest encode_request = {steps->step, steps->count, field_bits,    fields,
+                                                 1u,          outputs,      output_count,  NULL,
+                                                 0u,          &loaded->key, &loaded->error};
     if (keymath_record_encode(&encode_request) == KEYMATH_ERROR)
     {
         return 0;
     }
-    std::vector<unsigned int> field_offset(fields);
+    // a field for each sample of a block, at max TOWER_TEST_LANES_MAX
+    unsigned int field_offset[TOWER_TEST_LANES_MAX];
     for (unsigned int field = 0u; field < fields; field += 1u)
     {
         field_offset[field] = 32u * field;
     }
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {fields, 0u, 0u};
-    const KeyScheduleRecordRequest layout_request = {&loaded->key,    field_offset.data(), fields, in_limbs, 1,
+    const KeyScheduleRecordRequest layout_request = {&loaded->key,    field_offset,  fields, in_limbs, 1,
                                                      &loaded->layout, &loaded->error};
-    if (key_schedule_record_layout(&layout_request) == KEY_SCHEDULE_ERROR)
+    const int laid = key_schedule_record_layout(&layout_request) != KEY_SCHEDULE_ERROR;
+    if (!laid)
     {
         keymath_record_release(&loaded->key);
         return 0;
@@ -214,27 +218,29 @@ void tower_test_free(TowerTestLoaded *loaded)
     }
     key_schedule_record_release(&loaded->layout);
     keymath_record_release(&loaded->key);
-    memset(loaded, 0, sizeof(*loaded));
+    mmgr_bytes_set(loaded, 0, sizeof(*loaded));
 }
 
-// run a loaded program over the volumes' records on the host and on the device; 1 where both ran and agree word for
-// word, with the device's records left in `out`
-int tower_test_run(TowerTestLoaded *loaded, const std::vector<unsigned int> &atoms, unsigned int volumes,
-                   std::vector<unsigned int> &out)
+// Run a loaded program over the volumes' records on the host and on the device. 1 where both ran and agree word for
+// word, with the device's records left in `out`, which the caller gives with room for `volumes` records
+int tower_test_run(TowerTestLoaded *loaded, const unsigned int *atoms, unsigned int volumes, unsigned int *out)
 {
     const unsigned int in_limbs = loaded->layout.in_limbs[0];
     const unsigned int out_limbs = loaded->layout.out_limbs;
-    std::vector<unsigned int> host_out((size_t)volumes * out_limbs + 1u, 0u);
-    out.assign((size_t)volumes * out_limbs + 1u, 0u);
-    const CycleRecordHostRequest host = {
-        &loaded->layout, {atoms.data(), NULL, NULL}, {volumes, 0ull, 0ull}, NULL, volumes, host_out.data(),
-        &loaded->error};
+    // the host's records are ephemeral, on the temporary tier, and go back before the call returns
+    unsigned int *const host_out = tower_test_words((unsigned long long)volumes * out_limbs);
+    if (host_out == NULL)
+    {
+        return 0;
+    }
+    const CycleRecordHostRequest host = {&loaded->layout, {atoms, NULL, NULL}, {volumes, 0ull, 0ull}, NULL, volumes,
+                                         host_out,        &loaded->error};
     const int host_ran = cycle_record_run_host(&host) != CYCLE_ERROR;
     unsigned int *device_atoms = NULL;
     unsigned int *device_record = NULL;
     int ok = (cudaMalloc((void **)&device_atoms, (size_t)volumes * in_limbs * sizeof(unsigned int)) == cudaSuccess) &&
              (cudaMalloc((void **)&device_record, (size_t)volumes * out_limbs * sizeof(unsigned int)) == cudaSuccess) &&
-             (cudaMemcpy(device_atoms, atoms.data(), (size_t)volumes * in_limbs * sizeof(unsigned int),
+             (cudaMemcpy(device_atoms, atoms, (size_t)volumes * in_limbs * sizeof(unsigned int),
                          cudaMemcpyHostToDevice) == cudaSuccess);
     if (ok != 0)
     {
@@ -242,13 +248,15 @@ int tower_test_run(TowerTestLoaded *loaded, const std::vector<unsigned int> &ato
             loaded->record, {device_atoms, NULL, NULL}, {volumes, 0ull, 0ull}, NULL, volumes, device_record,
             &loaded->error};
         ok = (cycle_record_run(&run) != CYCLE_ERROR) &&
-             (cudaMemcpy(out.data(), device_record, (size_t)volumes * out_limbs * sizeof(unsigned int),
+             (cudaMemcpy(out, device_record, (size_t)volumes * out_limbs * sizeof(unsigned int),
                          cudaMemcpyDeviceToHost) == cudaSuccess);
     }
     cudaFree(device_atoms);
     cudaFree(device_record);
-    return (host_ran != 0) && (ok != 0) &&
-           (memcmp(host_out.data(), out.data(), (size_t)volumes * out_limbs * sizeof(unsigned int)) == 0);
+    const int same = (host_ran != 0) && (ok != 0) &&
+                     (mmgr_bytes_compare(host_out, out, (size_t)volumes * out_limbs * sizeof(unsigned int)) == 0);
+    platform_cell_released(host_out, platform_place_g_program_owner);
+    return same;
 }
 
 // one volume through the kernels: tower_lift's crystal read back, then tower_lower's rebuilt samples; 1 where both ran
@@ -257,14 +265,14 @@ int tower_test_kernels(const unsigned long long extent[4], const unsigned short 
                        int *crystal, unsigned short *rebuilt, unsigned int lanes)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    mmgr_bytes_set(&error, 0, sizeof(error));
     const int *coefficients = NULL;
     unsigned int *scratch = NULL;
     unsigned int floors = 0u;
     TowerLiftRequest lift;
-    memset(&lift, 0, sizeof(lift));
+    mmgr_bytes_set(&lift, 0, sizeof(lift));
     lift.device_lanes = device_volume;
-    memcpy(lift.extent, extent, sizeof(lift.extent));
+    mmgr_bytes_copy(lift.extent, extent, sizeof(lift.extent));
     lift.coefficients = &coefficients;
     lift.scratch = &scratch;
     lift.floors = &floors;
@@ -276,9 +284,9 @@ int tower_test_kernels(const unsigned long long extent[4], const unsigned short 
     unsigned long long mismatches = 1ull;
     const unsigned short *device_rebuilt = NULL;
     TowerLowerRequest lower;
-    memset(&lower, 0, sizeof(lower));
+    mmgr_bytes_set(&lower, 0, sizeof(lower));
     lower.device_lanes = device_volume;
-    memcpy(lower.extent, extent, sizeof(lower.extent));
+    mmgr_bytes_copy(lower.extent, extent, sizeof(lower.extent));
     lower.mismatches = &mismatches;
     lower.device_rebuilt = &device_rebuilt;
     lower.rebuilt = rebuilt;
@@ -305,45 +313,51 @@ void tower_test_operation(const unsigned long long extent[4], const unsigned sho
     }
 }
 
-// emit T or T^-1 under a ruleset into `steps` from the registers `in`: sized first with no steps written, then written
-// into a capacity of exactly that size; 1 where both calls ran and wrote as many steps as the first counted
+// Emit T or T^-1 under a ruleset onto `steps` from the `in_count` registers `in`, into `out`. The first call sizes it
+// with no steps written, then the second writes it into a capacity of exactly that size. 1 where both calls ran and
+// wrote as many steps as the first counted
 int tower_test_build(const unsigned long long extent[4], const TowerTestRuleset *ruleset, int inverse,
-                     const std::vector<unsigned int> &in, std::vector<unsigned int> &out,
-                     std::vector<EngineRecordStep> &steps)
+                     const unsigned int *in, unsigned int in_count, unsigned int *out, TowerTestSteps *steps)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
-    // a program's step count here is far below 2^32
-    const unsigned int start = (unsigned int)steps.size();
+    mmgr_bytes_set(&error, 0, sizeof(error));
+    const unsigned int start = steps->count;
     unsigned int count = start;
-    out.assign(in.size(), 0u);
     TowerRecordRequest request;
-    memset(&request, 0, sizeof(request));
-    memcpy(request.extent, extent, sizeof(request.extent));
+    mmgr_bytes_set(&request, 0, sizeof(request));
+    mmgr_bytes_copy(request.extent, extent, sizeof(request.extent));
     request.rules = ruleset->rules;
     request.rule_count = ruleset->rule_count;
-    request.in_registers = in.data();
-    request.out_registers = out.data();
+    request.in_registers = in;
+    request.out_registers = out;
     request.count = &count;
     request.error = &error;
     int ok = ((inverse != 0) ? tower_record_lower(&request) : tower_record_lift(&request)) == 0L;
     const unsigned int sized = count;
-    steps.resize(sized);
+    ok = ok && (sized <= TOWER_TEST_STEPS_MAX);
     count = start;
-    request.steps = steps.data();
+    request.steps = steps->step;
     request.step_capacity = sized;
     ok =
         ok && (((inverse != 0) ? tower_record_lower(&request) : tower_record_lift(&request)) == 0L) && (count == sized);
+    steps->count = (ok != 0) ? sized : start;
     return ok && (error.type == ENGINE_ERROR_NONE);
 }
 
-// a program's opening: one field for each position of the block, unsigned or signed
-std::vector<EngineRecordStep> tower_test_fields(unsigned int lanes, EngineRecordOperation field)
+// A program's opening onto `steps`, which the call empties first: one field for each position of the block, unsigned
+// or signed. 1, or 0 where the steps cannot hold them
+int tower_test_fields(unsigned int lanes, EngineRecordOperation field, TowerTestSteps *steps)
 {
-    std::vector<EngineRecordStep> steps;
+    steps->count = 0u;
+    if (lanes > TOWER_TEST_STEPS_MAX)
+    {
+        return 0;
+    }
     for (unsigned int position = 0u; position < lanes; position += 1u)
     {
-        steps.push_back(EngineRecordStep{field, position, 0u, 0u});
+        const EngineRecordStep step = {field, position, 0u, 0u};
+        steps->step[position] = step;
     }
-    return steps;
+    steps->count = lanes;
+    return 1;
 }

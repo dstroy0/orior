@@ -186,8 +186,9 @@ struct IrStep
 
 // the lane's body being split into states, a clock each: each form's cost by its place in the schema, how much a state
 // may chain and how many memory writes it may make; the state being written, the cost it chained and the writes it
-// made, 1 where it contains a form, 1 where its last form ends it and 1 where its last form left the lane; the states,
-// the max cost one state chains, and the forms that alone cost more than a state contains; each error's label, by the
+// made, 1 where it contains a form, 1 where its last form ends it and 1 where its last form left the lane; 1 from the
+// first error's label on, where each state is an error's; the states, the max cost one state chains, and the forms
+// that alone cost more than a state contains; each error's label, by the
 // error it names (-1 the opening's), and its first state, as many as `dispatch_max`; and each loop's first state, by
 // the loop's number, as many as `loop_count`
 struct Schedule
@@ -201,6 +202,7 @@ struct Schedule
     unsigned int filled;
     unsigned int ending;
     unsigned int left;
+    unsigned int handling;
     unsigned int max;
     unsigned int over;
     MachineOperand *dispatch_error;

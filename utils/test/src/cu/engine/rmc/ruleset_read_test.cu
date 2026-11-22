@@ -9,9 +9,10 @@
 // forms' writings is written as retained, and an open one, a relation of absence no part of a set can decide
 // (RULESET_CORE_RELATION_OPEN, RULESET_CORE_MAP_OPEN), as open, and neither fails anything. The map's relations are the
 // lines a lane cannot be read through as it is, written and failing nothing
-#include "../../../../../../src/cu/scaffolding/ruleset_strings.h"
 #include "../../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "code_generator.h"
+#include "memoria_operor/memoria_linea.h"
 #include "target_internal.h"
 
 #include <stdio.h>
@@ -120,17 +121,20 @@ static void relation_print(const LanguageSet *set, const RulesetSchema *names, c
 
 // the files at `paths` read into `set` and checked against each other, and against `schema` where it is not NULL,
 // `names` its names. Every relation written, and the set failed where it contains a verdict. 1 where it was read
-static int relations_check(const char *label, const std::string *paths, unsigned int count,
+static int relations_check(const char *label, const char (*paths)[PLATFORM_PATH_BYTES], unsigned int count,
                            const RulesetCoreSchema *schema, const RulesetSchema *names, LanguageSet *set)
 {
     s_checks += 1u;
-    std::string error;
-    if (ruleset_relations_strings(paths, count, schema, &set->memory, &set->relations, &error) == 0)
+    char why[RULESET_ERROR_BYTES];
+    VerbaLinea error = mmgr_line_over(why, sizeof(why));
+    const int read = ruleset_relations_read(paths, count, schema, &set->memory, &set->relations, &error);
+    (void)mmgr_line_finish(&error);
+    if (read == 0)
     {
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  ");
-            mmgr_line_put(output_line, error.c_str());
+            mmgr_line_put(output_line, why);
             mmgr_line_put(output_line, " could not be opened");
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
@@ -191,14 +195,33 @@ static int target_check(Target &target, LanguageSet *set)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    std::string paths[RULESET_PATHS_MAX];
-    const unsigned int count = ruleset_strings_paths(schema, ruleset_strings_folder() + "/" + schema->file, paths);
+    char folder[PLATFORM_PATH_BYTES];
+    char path[PLATFORM_PATH_BYTES];
+    VerbaLinea path_line = mmgr_line_over(path, sizeof(path));
+    if (ruleset_folder(folder, sizeof(folder)) != 0)
+    {
+        mmgr_line_put(&path_line, folder);
+        mmgr_line_ch(&path_line, '/');
+        mmgr_line_put(&path_line, schema->file);
+    }
+    (void)mmgr_line_finish(&path_line);
+    char paths[RULESET_PATHS_MAX][PLATFORM_PATH_BYTES];
+    const unsigned int count = ruleset_paths(schema, path, paths);
     RulesetFlat flat;
     ruleset_flat_schema(schema, &flat);
     // the read of the relations reads the flat schema, and nothing reads it after
     const int read = relations_check(schema->file, paths, count, &flat.schema, schema, set);
     ruleset_flat_ended(&flat);
     return read;
+}
+
+// the scratch an open check gives each construct: R100 of any bank
+static int open_scratch(void *context, const char *bank, VerbaLinea *name)
+{
+    (void)context;
+    (void)bank;
+    mmgr_line_put(name, "R100");
+    return 1;
 }
 
 // a form the part's ruleset does not give is open (P10): the ruleset reads, a lane that decides the open form is
@@ -208,13 +231,18 @@ static void open_check(Target &target)
 {
     s_checks += 1u;
     const Ruleset *const rules = target.ruleset(1);
-    const auto scratch = [](const std::string &) { return std::string("R100"); };
-    std::string text;
-    const std::vector<std::string> note(6u, "0");
-    const int open_written = (rules != NULL) ? ruleset_opcode(rules, "word_div", {"R1", "R0", "R7"}, scratch, text) : 1;
+    const RulesetNamedScratch scratch = {open_scratch, NULL};
+    PlatformText text;
+    platform_text_begun(&text, RULESET_FILE_MAX, platform_place_g_program_owner, 0);
+    const char *const registers[3] = {"R1", "R0", "R7"};
+    const char *const note[6] = {"0", "0", "0", "0", "0", "0"};
+    const int open_written =
+        (rules != NULL) ? ruleset_form_written(rules, "word_div", registers, 3u, &scratch, &text.line) : 1;
     const int given_written =
-        (rules != NULL) ? ruleset_opcode(rules, "word_add", {"R1", "R0", "R7"}, scratch, text) : 0;
-    const int structure_written = (rules != NULL) ? ruleset_opcode(rules, "program_note", note, scratch, text) : 0;
+        (rules != NULL) ? ruleset_form_written(rules, "word_add", registers, 3u, &scratch, &text.line) : 0;
+    const int structure_written =
+        (rules != NULL) ? ruleset_form_written(rules, "program_note", note, 6u, &scratch, &text.line) : 0;
+    platform_text_ended(&text);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  sass.krs: a lane through word_div, open, is ");
@@ -233,11 +261,13 @@ static void open_check(Target &target)
 static void map_check(const char *label, const LanguageSet *from, const LanguageSet *to)
 {
     s_checks += 1u;
-    std::vector<RulesetCoreRelation> maps((3u * from->relations.entry_count) + 1u);
-    const unsigned int count =
-        ruleset_core_map(&from->relations, &to->relations, maps.data(), (unsigned int)maps.size());
+    const unsigned int room = (3u * from->relations.entry_count) + 1u;
+    RulesetCoreRelation *const maps = (RulesetCoreRelation *)platform_cell_cleared(room, sizeof(RulesetCoreRelation),
+                                                                                   platform_place_g_program_owner, 0);
+    const unsigned int count = (maps != NULL) ? ruleset_core_map(&from->relations, &to->relations, maps, room) : 0u;
+    s_failed += (maps == NULL) ? 1u : 0u;
     unsigned int open = 0u;
-    for (unsigned int at = 0u; (at < count) && (at < (unsigned int)maps.size()); at += 1u)
+    for (unsigned int at = 0u; (at < count) && (at < room); at += 1u)
     {
         const RulesetCoreRelation *const map = &maps[at];
         open += RULESET_CORE_MAP_OPEN(map->type) ? 1u : 0u;
@@ -286,6 +316,7 @@ static void map_check(const char *label, const LanguageSet *from, const Language
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
+    platform_cell_released(maps, platform_place_g_program_owner);
 }
 
 int program_main(int argc, char **argv)
@@ -298,9 +329,21 @@ int program_main(int argc, char **argv)
     }
     if (argc > 1)
     {
-        std::vector<std::string> paths(argv + 1, argv + argc);
+        // the paths given are far fewer than 2^32
+        const unsigned int given_count = (unsigned int)(argc - 1);
+        char (*const paths)[PLATFORM_PATH_BYTES] = (char (*)[PLATFORM_PATH_BYTES])platform_cell_cleared(
+            given_count, PLATFORM_PATH_BYTES, platform_place_g_program_owner, 0);
+        for (unsigned int at = 0u; (paths != NULL) && (at < given_count); at += 1u)
+        {
+            (void)mmgr_text_copy(paths[at], argv[at + 1], PLATFORM_PATH_BYTES);
+        }
         LanguageSet given;
-        relations_check("the files given", paths.data(), (unsigned int)paths.size(), NULL, NULL, &given);
+        s_failed += (paths == NULL) ? 1u : 0u;
+        if (paths != NULL)
+        {
+            relations_check("the files given", paths, given_count, NULL, NULL, &given);
+        }
+        platform_cell_released(paths, platform_place_g_program_owner);
     }
     else
     {

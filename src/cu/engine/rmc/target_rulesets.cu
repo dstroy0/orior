@@ -308,13 +308,15 @@ Target::Target(const RulesetSchema *schema)
     }
 }
 
+// The ruleset given back where the pool is there. A target that is a static ends after main returns. The pool gave
+// its pages back by then, with every cell on them, and the target then reads none
 Target::~Target()
 {
-    if (rules != NULL)
+    if ((rules != NULL) && platform_pool_placed())
     {
         ruleset_released(rules);
+        platform_cell_released(rules, platform_place_g_program_owner);
     }
-    platform_cell_released(rules, platform_place_g_program_owner);
 }
 
 const Ruleset *Target::ruleset(int report)

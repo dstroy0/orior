@@ -11,7 +11,7 @@ VhdlTarget::VhdlTarget(void) : CodeGenerator("vhdl.krs")
 // with no construction set every form costs nothing, and nothing but the write port bounds a state
 const ScheduleModel *VhdlTarget::program_schedule_model(void) const
 {
-    static const ScheduleModel unbounded = {{}, 0u, SCHEDULE_UNBOUNDED, SCHEDULE_UNBOUNDED};
+    static const ScheduleModel unbounded = {NULL, 0u, 0u, SCHEDULE_UNBOUNDED, SCHEDULE_UNBOUNDED};
     return &unbounded;
 }
 

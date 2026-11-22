@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // platform_windows.c: the platform on Windows. The pages come from VirtualAlloc, a thread from CreateThread, an address
 // wait from WaitOnAddress, the clock from the performance counter, and the streams from WriteFile
-#include "platform_internal.h"
 #include "cellularum_laboro/cellularum_linea.h"
 #include "memoria_operor/memoria_linea.h"
+#include "platform_internal.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -111,6 +111,20 @@ void platform_worker_joined(PlatformWorker *worker)
 void platform_thread_yield(void)
 {
     (void)SwitchToThread();
+}
+
+void platform_stack_put(VerbaLinea *line)
+{
+    void *frames[PLATFORM_STACK_FRAMES];
+    const USHORT count = RtlCaptureStackBackTrace(1u, PLATFORM_STACK_FRAMES, frames, NULL);
+    // Explicit casts read the image's start and each frame as the addresses that they are
+    const uintptr_t base = (uintptr_t)GetModuleHandleW(NULL);
+    for (USHORT at = 0u; at < count; at += 1u)
+    {
+        const uintptr_t address = (uintptr_t)frames[at];
+        mmgr_line_put(line, " +0x");
+        mmgr_line_hex(line, (uint64_t)((address >= base) ? (address - base) : address), 1u);
+    }
 }
 
 unsigned int platform_processors(void)
@@ -273,10 +287,10 @@ int platform_file_written(const char *path, const void *data, unsigned long long
     return ok;
 }
 
-unsigned long long platform_stream_opened(const char *path, int kind)
+unsigned long long platform_stream_opened(const char *path, int type)
 {
-    const DWORD access = (kind == 0) ? GENERIC_READ : ((kind == 1) ? GENERIC_WRITE : FILE_APPEND_DATA);
-    const DWORD disposition = (kind == 0) ? OPEN_EXISTING : ((kind == 1) ? CREATE_ALWAYS : OPEN_ALWAYS);
+    const DWORD access = (type == 0) ? GENERIC_READ : ((type == 1) ? GENERIC_WRITE : FILE_APPEND_DATA);
+    const DWORD disposition = (type == 0) ? OPEN_EXISTING : ((type == 1) ? CREATE_ALWAYS : OPEN_ALWAYS);
     const HANDLE file = CreateFileA(path, access, FILE_SHARE_READ, NULL, disposition, FILE_ATTRIBUTE_NORMAL, NULL);
     // Explicit cast carries the handle as the integer that platform_file.c holds, and a handle is never 0
     return (file == INVALID_HANDLE_VALUE) ? 0ULL : (unsigned long long)(uintptr_t)file;

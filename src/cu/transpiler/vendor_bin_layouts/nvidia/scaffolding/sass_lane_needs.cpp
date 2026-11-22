@@ -21,15 +21,10 @@ extern "C"
 #include "../../../../../../includes/file_defs/krs/ruleset_core_words.h"
 #include "../../../../../../includes/file_defs/krs/ruleset_reader.h"
 #include "../../../../../platform/platform.h"
-#include "../../../../scaffolding/ruleset_strings.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "machine_ir_types.h"
 #include "sass_target.h"
 #include "target.h"
-
-#include <cstdio>
-#include <cstdlib>
-#include <string>
-#include <vector>
 
 // ENGINE_IMAGE_BASE reads the ELF header the linker marks with __ehdr_start (engine_config_platform.h), and this
 // tool is linked as a PE, where there is none. Nothing here requests for the image base: it is named so the link
@@ -59,38 +54,58 @@ static int lane_form_errors(const Ruleset *rules, unsigned int place)
 static SassMachine s_machine;
 static int s_machine_read;
 
-// Each line of `lane` assembled, and the first that the assembler refuses printed. A lane the generator writes is
-// not a lane the part runs: a form the ruleset leaves empty writes nothing and breaks nothing. The text comes
-// back whole with its holes in it, and only the assembler determines whether the remainder is machine code
-static unsigned int lane_assembles(const std::string &lane, unsigned int *refused, std::string *first)
+// the bytes of one line of a lane, its newline and its terminator among them, and of the first line refused
+#define LANE_LINE_BYTES 4096u
+#define LANE_FIRST_BYTES 256u
+
+// the bytes of a lane's text at max
+#define LANE_TEXT_BYTES (1ULL << 30u)
+
+// Each line of the `length` bytes of `lane` assembled, and the first that the assembler refuses into `first`. A lane
+// the generator writes is not a lane the part runs: a form the ruleset leaves empty writes nothing and breaks nothing.
+// The text comes back whole with its holes in it, and only the assembler determines whether the remainder is machine
+// code
+static unsigned int lane_assembles(const char *lane, unsigned long long length, unsigned int *refused, char *first)
 {
     static unsigned char code[64];
     unsigned int lines = 0u;
-    size_t at = 0u;
-    while (at < lane.size())
+    unsigned long long at = 0ULL;
+    while (at < length)
     {
-        const size_t end = lane.find('\n', at);
-        const size_t stop = (end == std::string::npos) ? lane.size() : end;
-        const std::string line = lane.substr(at, stop - at) + "\n";
+        unsigned long long stop = at;
+        while ((stop < length) && (lane[stop] != '\n'))
+        {
+            stop += 1ULL;
+        }
+        // the line and its newline, cut where it passes the room of a line
+        char line[LANE_LINE_BYTES];
+        VerbaLinea line_text = mmgr_line_over(line, sizeof(line));
+        (void)mmgr_line_put_n(&line_text, &lane[at], (size_t)(stop - at));
+        mmgr_line_ch(&line_text, '\n');
+        const size_t size = mmgr_line_finish(&line_text);
         size_t character = 0u;
-        while ((character < line.size()) && ((line[character] == ' ') || (line[character] == '\t')))
+        while ((character < size) && ((line[character] == ' ') || (line[character] == '\t')))
         {
             character += 1u;
         }
         // a label, a note, a directive and a blank line are not instructions and assemble to nothing
-        const int instruction = (character < (line.size() - 1u)) && (line[character] != '.') &&
-                                (line[character] != '/') && (line.find(':') == std::string::npos) &&
-                                (line.find('`') == std::string::npos);
+        const int instruction = (character < (size - 1u)) && (line[character] != '.') && (line[character] != '/') &&
+                                (mmgr_text_char(line, ':', size) == NULL) && (mmgr_text_char(line, '`', size) == NULL);
         if (instruction != 0)
         {
             lines += 1u;
-            if (sass_assemble_lines(&s_machine, line.c_str(), SASS_CONTROL_SAFE, code, sizeof(code)) == 0u)
+            if (sass_assemble_lines(&s_machine, line, SASS_CONTROL_SAFE, code, sizeof(code)) == 0u)
             {
-                *first = (first->empty()) ? line.substr(0u, line.size() - 1u) : *first;
+                if (first[0] == '\0')
+                {
+                    VerbaLinea first_line = mmgr_line_over(first, LANE_FIRST_BYTES);
+                    (void)mmgr_line_put_n(&first_line, line, size - 1u);
+                    (void)mmgr_line_finish(&first_line);
+                }
                 *refused += 1u;
             }
         }
-        at = stop + 1u;
+        at = stop + 1ULL;
     }
     return lines;
 }
@@ -112,9 +127,10 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
         return;
     }
     *positioned += 1u;
-    std::vector<MachineInstr> items;
+    PlatformArray items;
+    platform_array_begun(&items, sizeof(MachineInstr), platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT);
     unsigned int places = 0u;
-    if (lane_decided_items(sass_target(), &loaded.layout, &places, &items) == 0)
+    if (sass_target().decided(&loaded.layout, &places, &items) == 0)
     {
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -126,31 +142,39 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
+        platform_array_ended(&items);
         host_free(&loaded);
         return;
     }
-    for (const MachineInstr &item : items)
+    const MachineInstr *const decided = (const MachineInstr *)items.cell;
+    for (unsigned long long at = 0ULL; at < items.count; at += 1ULL)
     {
         // the header is in the items as a form of all ones, and is the listing's opening, not a form
-        if (item.form < OPCODE_COUNT)
+        if (decided[at].form < OPCODE_COUNT)
         {
-            queried[item.form] += 1u;
+            queried[decided[at].form] += 1u;
         }
     }
+    const unsigned long long item_count = items.count;
+    platform_array_ended(&items);
     // and the lane as the generator writes it, to determine whether an empty form stops it or is passed over in silence
     const TargetInfo target = {0ULL, 8, 6, 12, 0, ""};
     unsigned int lane_places = 0u;
     unsigned int live = 0u;
-    const std::string lane =
-        lane_program_text(sass_target(), &loaded.layout, &target, std::string(), &lane_places, &live);
+    PlatformText text;
+    platform_text_begun(&text, LANE_TEXT_BYTES, platform_place_g_program_owner, PLATFORM_TIER_MOVABLE);
+    const int wrote = sass_target().program(&loaded.layout, &target, "", &text, &lane_places, &live);
+    const unsigned long long length = (wrote != 0) ? platform_text_size(&text) : 0ULL;
+    const char *const lane = (length != 0ULL) ? platform_text_bytes(&text) : NULL;
     unsigned int lines = 0u;
-    for (size_t at = 0u; at < lane.size(); at += 1u)
+    for (unsigned long long at = 0ULL; (lane != NULL) && (at < length); at += 1ULL)
     {
         lines += (lane[at] == '\n') ? 1u : 0u;
     }
     unsigned int refused = 0u;
-    std::string first;
-    const unsigned int instructions = (s_machine_read != 0) ? lane_assembles(lane, &refused, &first) : 0u;
+    char first[LANE_FIRST_BYTES] = {0};
+    const unsigned int instructions =
+        ((s_machine_read != 0) && (lane != NULL)) ? lane_assembles(lane, length, &refused, first) : 0u;
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  ");
@@ -158,9 +182,9 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
         mmgr_line_put(output_line, " ");
         mmgr_line_decimal_columns(output_line, loaded.layout.steps, 4u);
         mmgr_line_put(output_line, " steps, ");
-        mmgr_line_decimal_columns(output_line, items.size(), 5u);
+        mmgr_line_decimal_columns(output_line, item_count, 5u);
         mmgr_line_put(output_line, " items, lane ");
-        mmgr_line_put(output_line, lane.empty() ? "REFUSED" : "written");
+        mmgr_line_put(output_line, (lane == NULL) ? "REFUSED" : "written");
         mmgr_line_put(output_line, ", ");
         mmgr_line_decimal(output_line, lines, 1u);
         mmgr_line_put(output_line, " lines, ");
@@ -168,23 +192,18 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
         mmgr_line_put(output_line, " instructions, ");
         mmgr_line_decimal(output_line, refused, 1u);
         mmgr_line_put(output_line, " the assembler refuses");
-        mmgr_line_put(output_line, first.empty() ? "" : ", first: ");
-        mmgr_line_put(output_line, first.c_str());
+        mmgr_line_put(output_line, (first[0] == '\0') ? "" : ", first: ");
+        mmgr_line_put(output_line, first);
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
     // the first lane written out whole: what a form that writes nothing leaves behind can be read
     static int dumped;
-    if ((dumped == 0) && !lane.empty())
+    if ((dumped == 0) && (lane != NULL))
     {
-        PlatformFile *const file = platform_file_open("build/sass_lane_needs/lane.sass", "wb");
-        if (file != NULL)
-        {
-            platform_file_write_items(lane.data(), 1u, lane.size(), file);
-            platform_file_close(file);
-            dumped = 1;
-        }
+        dumped = platform_file_written("build/sass_lane_needs/lane.sass", lane, length);
     }
+    platform_text_ended(&text);
     host_free(&loaded);
 }
 

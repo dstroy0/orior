@@ -3,8 +3,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # The record machine's lane as VHDL held to the host oracle, where GHDL is on the path: the code generator, keymath and
 # key_schedule and krep are host code in .cu files and the test C++, compiled as C++; cycle.c, the exact integer's
-# pieces and MMgr's line as C. GHDL analyzes and runs each program's lane in a work folder in the system's temporary folder. Where
-# the build's output holds vhdl.kcs (vhdl_construction_set.sh), the lane is cut by that construction set as well.
+# pieces and MMgr's line as C. GHDL analyzes and runs each schedule of each program's lane in a folder of its own
+# under the build's output, all of them at once. Where the build's output holds vhdl.kcs (vhdl_construction_set.sh),
+# that construction set cuts the lane as well. GHDL's LLVM backend runs the benches where it is installed.
 set -u
 
 TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,6 +28,12 @@ source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp record_vhdl_test
 
 command -v ghdl > /dev/null 2>&1 || { echo "  not run: GHDL is not on the path"; exit 0; }
+# The LLVM and GCC backends compile each bench to code of the machine, which runs it far faster than the mcode backend
+if [ -x "$(command -v ghdl-llvm)" ]; then
+    export GHDL_BACKEND=llvm
+elif [ -x "$(command -v ghdl-gcc)" ]; then
+    export GHDL_BACKEND=gcc
+fi
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/includes/codecs/crc" -I "$CYCLE" -I "$CYCLE_CU" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$KEYMATH" -I "$KEYMATH_CU"
           -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$KREP" -I "$KREP_CU" -I "$NO_ROUNDING" "${FILE_DEFS_MMGR_FLAGS[@]}")
 BINARY="$OUT/record_vhdl_test"
@@ -48,13 +55,17 @@ for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODE
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
-"$FILE_DEFS_CXX" -o "$BINARY" "${OBJECTS[@]}" -lpthread
+"$FILE_DEFS_CXX" -o "$BINARY" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: the test did not link"; exit 1; }
 
-# the work folder is the system's own temporary folder, not the build's output: a synthesis writes its Verilog in small
-# pieces, and a drive the system shares with another (WSL's /mnt) takes each one slowly
-WORK="$(mktemp -d "${TMPDIR:-/tmp}/record_vhdl.XXXXXX")"
-trap 'rm -rf "$WORK"' EXIT
+# The work folder holds a folder for each job, made new for each run. It is on the ext4 filesystem of the tests where
+# WSL mounts one, because a drive that WSL shares with Windows (/mnt) takes GHDL's small writes slowly
+WORK="$OUT/record_vhdl_work"
+if [ -d /mnt/orior_test ] && [ -w /mnt/orior_test ]; then
+    WORK="/mnt/orior_test/record_vhdl_work"
+fi
+rm -rf "$WORK"
+mkdir -p "$WORK"
 # where Yosys is on the path too, each lane is synthesized as well
 SYNTHESIS=()
 if command -v yosys > /dev/null 2>&1; then

@@ -49,7 +49,7 @@ for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODE
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
-"$FILE_DEFS_CXX" -o "$BINARY" "${OBJECTS[@]}" -lpthread
+"$FILE_DEFS_CXX" -o "$BINARY" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: the tool did not link"; exit 1; }
 
 # the work folder is the system's own temporary folder, as record_vhdl_test.sh's is

@@ -22,21 +22,17 @@
 // A question the device errors prints "error <code> <name>" for the CUDA error it gave, then the error the next
 // allocation gives, "after <code> <name>", and exits 3. One the toolchain errors prints "errored" and its log, and
 // exits 4. Exit 2 where the probe could not query at all
+#include "../../../../../platform/platform.h"
 #include "../../../../engine/rmc/machine_ir_builder.h"
+#include "cellularum_laboro/cellularum_linea.h"
+#include "memoria_operor/memoria_linea.h"
 #include "ptx_target.h"
 
 #include <cuda_runtime.h>
 #include <nvJitLink.h>
 #include <nvrtc.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <chrono>
-#include <functional>
-#include <string>
-#include <vector>
+#include <stddef.h>
 
 #define PROBE_CASES 65536u
 #define PROBE_IN_WORDS 8u
@@ -45,16 +41,32 @@
 // the operands every case draws the majority of its words from, the edges of 32-bit arithmetic and of a shift
 #define PROBE_EDGES 14u
 
-// the answer the host's integers give a case: the output words, and 0 where the rule leaves the answer undefined
-typedef std::function<int(const unsigned int *in, unsigned int *out)> ProbeRule;
+// the bytes of a register's name, its terminator among them; of PTX's header; and of a kernel's text at max
+#define PROBE_NAME_BYTES 64u
+#define PROBE_HEADER_BYTES 512u
+#define PROBE_KERNEL_BYTES (1ULL << 24u)
 
-// one question: its name, the forms that pose it as the kernel's body, the output words it writes and the host's rule
+// the questions at max, and the bytes of all their bodies, each terminated
+#define PROBE_QUESTIONS_MAX 32u
+#define PROBE_BODIES_BYTES (1u << 20u)
+
+// the answer the host's integers give a case: the output words, and 0 where the rule leaves the answer undefined
+typedef int (*ProbeRule)(const unsigned int *in, unsigned int *out);
+
+// one question: its name, the forms that pose it as the kernel's body, the output words it writes and the host's rule.
+// The body lies in the probe's bodies (interface_ptx_probe_questions.cu), terminated [BORROWS]
 struct ProbeQuestion
 {
-    std::string name;
-    std::string body;
+    const char *name;
+    const char *body;
     unsigned int outputs;
     ProbeRule rule;
+};
+
+// a register's name as the ruleset writes it, terminated, and empty where the ruleset names none
+struct ProbeName
+{
+    char text[PROBE_NAME_BYTES];
 };
 
 // the registers of each bank a kernel declares: the questions' own below, and above them the scratch a construct
@@ -75,22 +87,34 @@ struct ProbeWriter
     unsigned int scratch_predicate;
 };
 
-std::string probe_temporary(ProbeWriter *writer, unsigned int number);
+ProbeName probe_temporary(ProbeWriter *writer, unsigned int number);
 
-std::string probe_wide(ProbeWriter *writer, unsigned int number);
+ProbeName probe_wide(ProbeWriter *writer, unsigned int number);
 
-void probe_form(ProbeWriter *writer, std::string &text, const char *name, const std::vector<std::string> &arguments);
+// form `name` written onto `text` with its `count` arguments, the text marked broken where the ruleset does not write
+// it
+void probe_form(ProbeWriter *writer, VerbaLinea *text, const char *name, const char *const *arguments,
+                unsigned int count);
+
+// form `name` written onto `text` with the arguments after it, each a terminated text
+#define PROBE_FORM(writer_, text_, name_, ...)                                                                         \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        const char *const arguments_[] = {__VA_ARGS__};                                                                \
+        probe_form(writer_, text_, name_, arguments_, (unsigned int)(sizeof(arguments_) / sizeof(arguments_[0])));     \
+    } while (0)
 
 void probe_case(unsigned int number, unsigned int *in);
 
-std::vector<ProbeQuestion> probe_questions(ProbeWriter *writer);
+// the questions, `*count` of them, their bodies written once a process [BORROWS]
+const ProbeQuestion *probe_questions(ProbeWriter *writer, unsigned int *count);
 
-// the probe's runs (interface_ptx_probe_runs.cu): PTX's header, the cubins, and the membership, single, clocks and
-// cubin probes main runs
-std::string probe_header(int major, int minor);
-int probe_cubins(ProbeWriter *writer, const std::string &header, int major, int minor, const char *folder);
-int probe_membership(ProbeWriter *writer, const std::string &header, int major, int minor);
-int probe_single(ProbeWriter *writer, const std::string &header, const std::string &body, int major, int minor);
+// the probe's runs (interface_ptx_probe_runs.cu): PTX's header into `header`, the cubins, and the membership, single,
+// clocks and cubin probes main runs
+size_t probe_header(int major, int minor, char *header, size_t room);
+int probe_cubins(ProbeWriter *writer, const char *header, int major, int minor, const char *folder);
+int probe_membership(ProbeWriter *writer, const char *header, int major, int minor);
+int probe_single(ProbeWriter *writer, const char *header, const char *body, int major, int minor);
 int probe_clocks(int device);
 int probe_cubin_run(const char *path, int count, char **arguments);
 

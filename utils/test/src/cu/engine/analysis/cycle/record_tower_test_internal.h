@@ -26,8 +26,8 @@
 #include "../../../../../../../src/cu/engine/analysis/tower/tower.h"
 #include "sim.h"
 
-#include <algorithm>
-#include <vector>
+#include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_linea.h"
 
 #define TOWER_TEST_VOLUMES 256u
 
@@ -69,16 +69,37 @@ long long tower_test_signed(unsigned int word, unsigned int bits);
 
 long long tower_test_take(const unsigned int *record, const DeviceRecordStep *step);
 
-void tower_test_oracle(const unsigned long long extent[4], const TowerLiftingStep *rules, unsigned int rule_count,
-                       std::vector<long long> &values, int inverse);
+// the samples of the largest block of the test, 3 x 5 x 7, and the longest line of a block
+#define TOWER_TEST_LANES_MAX 105u
+#define TOWER_TEST_LINE_MAX 64u
 
-int tower_test_load(const std::vector<EngineRecordStep> &steps, const std::vector<unsigned int> &outputs,
-                    const std::vector<unsigned int> &field_bits, TowerTestLoaded *loaded);
+// the steps of the largest program of the test, T read through T^-1 on the largest block, with room past it
+#define TOWER_TEST_STEPS_MAX 8192u
+
+// a program's steps in a fixed array, and how many it holds
+typedef struct
+{
+    EngineRecordStep step[TOWER_TEST_STEPS_MAX];
+    unsigned int count;
+} TowerTestSteps;
+
+// An ephemeral cell of `count` words on the temporary tier, every byte zero, never empty. The caller gives it back
+// before its work ends. NULL where the pool cannot meet it
+static inline unsigned int *tower_test_words(unsigned long long count)
+{
+    return (unsigned int *)platform_cell_cleared((count != 0ull) ? count : 1ull, sizeof(unsigned int),
+                                                 platform_place_g_program_owner, 1);
+}
+
+void tower_test_oracle(const unsigned long long extent[4], const TowerLiftingStep *rules, unsigned int rule_count,
+                       long long *values, int inverse);
+
+int tower_test_load(const TowerTestSteps *steps, const unsigned int *outputs, unsigned int output_count,
+                    const unsigned int *field_bits, unsigned int fields, TowerTestLoaded *loaded);
 
 void tower_test_free(TowerTestLoaded *loaded);
 
-int tower_test_run(TowerTestLoaded *loaded, const std::vector<unsigned int> &atoms, unsigned int volumes,
-                   std::vector<unsigned int> &out);
+int tower_test_run(TowerTestLoaded *loaded, const unsigned int *atoms, unsigned int volumes, unsigned int *out);
 
 int tower_test_kernels(const unsigned long long extent[4], const unsigned short *source, unsigned short *device_volume,
                        int *crystal, unsigned short *rebuilt, unsigned int lanes);
@@ -87,9 +108,8 @@ void tower_test_operation(const unsigned long long extent[4], const unsigned sho
                           long long *sum, long long *energy);
 
 int tower_test_build(const unsigned long long extent[4], const TowerTestRuleset *ruleset, int inverse,
-                     const std::vector<unsigned int> &in, std::vector<unsigned int> &out,
-                     std::vector<EngineRecordStep> &steps);
+                     const unsigned int *in, unsigned int in_count, unsigned int *out, TowerTestSteps *steps);
 
-std::vector<EngineRecordStep> tower_test_fields(unsigned int lanes, EngineRecordOperation field);
+int tower_test_fields(unsigned int lanes, EngineRecordOperation field, TowerTestSteps *steps);
 
 #endif

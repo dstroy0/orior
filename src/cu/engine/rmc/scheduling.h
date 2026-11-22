@@ -32,11 +32,15 @@ CODEGEN_CORE void codegen_state_open(MachineFunction *lane, Schedule *schedule)
     schedule->left = 0u;
 }
 
-// the next state begun, the one before going on to it unless the lane errored in it
+// The next state begun. Before the first error's label, the state before goes on to it unless the lane errored in it,
+// and an errored lane goes to the dispatch state. In an error's states the lane errored already, and the state before
+// goes on to it in every case. Else the dispatch state sends the lane back to the error's first state, and the lane
+// never ends
 CODEGEN_CORE void codegen_state_next(MachineFunction *lane, Schedule *schedule)
 {
     schedule->state += 1u;
-    codegen_instr2(lane, OPCODE_STATE_NEXT, codegen_number(schedule->state), codegen_number(SCHEDULE_STATE_DISPATCH));
+    const unsigned int errored = (schedule->handling != 0u) ? schedule->state : SCHEDULE_STATE_DISPATCH;
+    codegen_instr2(lane, OPCODE_STATE_NEXT, codegen_number(schedule->state), codegen_number(errored));
     codegen_state_open(lane, schedule);
 }
 
@@ -50,6 +54,7 @@ CODEGEN_CORE void codegen_schedule_open(MachineFunction *lane, Schedule *schedul
     schedule->max = 0u;
     schedule->over = 0u;
     schedule->dispatch_count = 0u;
+    schedule->handling = 0u;
     for (unsigned int loop = 0u; loop < schedule->loop_count; loop += 1u)
     {
         schedule->loop_state[loop] = CODEGEN_UNBEGUN;
@@ -69,6 +74,7 @@ CODEGEN_CORE void codegen_schedule_instr(MachineFunction *lane, Schedule *schedu
     const unsigned int form = item->form;
     if ((form == OPCODE_LABEL_ERROR_OPEN) || (form == OPCODE_LABEL_ERROR))
     {
+        schedule->handling = 1u;
         schedule->state += 1u;
         codegen_state_open(lane, schedule);
         if (schedule->dispatch_count < schedule->dispatch_max)

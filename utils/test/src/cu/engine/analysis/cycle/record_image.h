@@ -8,16 +8,13 @@
 // run; the memory image a lane runs over, arranged as the device arranges its launch; and the files a lane's bench
 // reads the image from and writes its records to. It compiles as C++
 
-#include "record_programs.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_linea.h"
+#include "memoria_operor/memoria_linea.h"
+#include "record_programs.h"
 #include "target.h"
 
 #include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#include <string>
-#include <vector>
 
 // the launch's words at address 0 of the memory image, before every array
 #define RECORD_IMAGE_LAUNCH_WORDS 64u
@@ -28,115 +25,209 @@ static_assert(sizeof(CycleCompiledLaunch) <= (4u * RECORD_IMAGE_LAUNCH_WORDS),
 // the launch's number, which the program's block names as its owner
 #define RECORD_IMAGE_LAUNCH_NUMBER 1ull
 
-// the image: its words, each address in it a byte offset from its first word; the records' address and words, and the
-// errors' address
+// The image: its words, an array of unsigned int, each address in it a byte offset from its first word. Also the
+// lanes it holds records for, the records' address and words, and the errors' address
 struct RecordImage
 {
-    std::vector<unsigned int> memory;
+    PlatformArray memory;
+    unsigned long long lanes;
     unsigned long long records;
     unsigned long long record_words;
     unsigned long long error;
 };
 
-// `count` words arranged at the end of the image; their byte address
-static unsigned long long record_image_layout(std::vector<unsigned int> &memory, const unsigned int *words,
-                                              unsigned long long count)
+// the words of the image [BORROWS]
+static unsigned int *record_image_words(const RecordImage *image)
 {
-    const unsigned long long address = 4ull * memory.size();
-    memory.insert(memory.end(), words, words + count);
-    return address;
+    return (unsigned int *)image->memory.cell;
+}
+
+// `count` words arranged at the end of the image, and their byte address into `address`: 1, or 0 where the pool cannot
+// meet the room
+static int record_image_layout(PlatformArray *memory, const unsigned int *words, unsigned long long count,
+                               unsigned long long *address)
+{
+    const unsigned long long held = memory->count;
+    *address = 4ull * held;
+    if (platform_array_counted(memory, held + count) == 0)
+    {
+        return 0;
+    }
+    if (count != 0ull)
+    {
+        mmgr_bytes_copy(platform_array_at(memory, held), words, (size_t)(count * sizeof(unsigned int)));
+    }
+    return 1;
+}
+
+// the image's words grown by `count` zero words: 1, or 0 where the pool cannot meet the room
+static int record_image_grown(PlatformArray *memory, unsigned long long count)
+{
+    return platform_array_counted(memory, memory->count + count);
 }
 
 // a 64-bit field of the launch, little-endian, at its byte offset
-static void record_image_wide(std::vector<unsigned int> &memory, size_t offset, unsigned long long value)
+static void record_image_wide(PlatformArray *memory, size_t offset, unsigned long long value)
 {
-    memory[offset / 4u] = (unsigned int)(value & 0xFFFFFFFFull);
-    memory[(offset / 4u) + 1u] = (unsigned int)(value >> 32u);
+    unsigned int *const words = (unsigned int *)memory->cell;
+    words[offset / 4u] = (unsigned int)(value & 0xFFFFFFFFull);
+    words[(offset / 4u) + 1u] = (unsigned int)(value >> 32u);
 }
 
-// the image of a program's HOST_TEST_LANES lanes: the launch at 0, arranged as CycleCompiledLaunch, then the members'
-// atoms, the index, the tables, the records, the errors, the hot words and the program's block
-static RecordImage record_image(const EngineRecordLayout *layout, unsigned int *const *atoms,
-                                const unsigned long long *bodies, const unsigned int *index)
+// The image of the first `lanes` lanes of a program into `image`, at max HOST_TEST_LANES. The launch is at 0, arranged
+// as CycleCompiledLaunch, then the members' atoms, the index, the tables, the records, the errors, the hot words and
+// the program's block. The image is ephemeral work on the temporary tier, and its words come in one take at their
+// full size. 1, or 0 where the pool cannot meet the image, which record_image_ended then gives back
+static int record_image(const EngineRecordLayout *layout, unsigned int *const *atoms, const unsigned long long *bodies,
+                        const unsigned int *index, unsigned long long lanes, RecordImage *image)
 {
-    RecordImage image = {std::vector<unsigned int>(RECORD_IMAGE_LAUNCH_WORDS, 0u), 0ull,
-                         (unsigned long long)HOST_TEST_LANES * layout->out_limbs, 0ull};
-    std::vector<unsigned int> &memory = image.memory;
+    platform_array_begun(&image->memory, sizeof(unsigned int), platform_place_g_program_owner, 1);
+    image->lanes = lanes;
+    image->records = 0ull;
+    image->record_words = lanes * layout->out_limbs;
+    image->error = 0ull;
+    PlatformArray *const memory = &image->memory;
+    // every word of the image, and one more that the hot words' alignment can take
+    unsigned long long words = RECORD_IMAGE_LAUNCH_WORDS + image->record_words + 2ull + (sizeof(CycleHot) / 4u) +
+                               (sizeof(EngineProgramBlock) / 4u) + layout->table_word_count;
     for (unsigned int member = 0u; member < layout->members; member += 1u)
     {
-        const unsigned long long address =
-            record_image_layout(memory, atoms[member], bodies[member] * layout->in_limbs[member]);
-        record_image_wide(memory, offsetof(CycleCompiledLaunch, in) + (8u * (size_t)member), address);
-        record_image_wide(memory, offsetof(CycleCompiledLaunch, bodies) + (8u * (size_t)member), bodies[member]);
+        words += bodies[member] * layout->in_limbs[member];
     }
-    if (index != NULL)
+    words += (index != NULL) ? (lanes * layout->members) : 0ull;
+    int ok = (lanes <= HOST_TEST_LANES) && platform_array_counted(memory, words) &&
+             platform_array_counted(memory, 0ull) && record_image_grown(memory, RECORD_IMAGE_LAUNCH_WORDS);
+    for (unsigned int member = 0u; (ok != 0) && (member < layout->members); member += 1u)
     {
-        record_image_wide(memory, offsetof(CycleCompiledLaunch, index),
-                          record_image_layout(memory, index, (unsigned long long)HOST_TEST_LANES * layout->members));
+        unsigned long long address = 0ull;
+        ok = record_image_layout(memory, atoms[member], bodies[member] * layout->in_limbs[member], &address);
+        if (ok != 0)
+        {
+            record_image_wide(memory, offsetof(CycleCompiledLaunch, in) + (8u * (size_t)member), address);
+            record_image_wide(memory, offsetof(CycleCompiledLaunch, bodies) + (8u * (size_t)member), bodies[member]);
+        }
     }
-    if (layout->table_word_count != 0ull)
+    unsigned long long address = 0ull;
+    if ((ok != 0) && (index != NULL))
     {
-        record_image_wide(memory, offsetof(CycleCompiledLaunch, tables),
-                          record_image_layout(memory, layout->table_values, layout->table_word_count));
+        ok = record_image_layout(memory, index, lanes * layout->members, &address);
+        if (ok != 0)
+        {
+            record_image_wide(memory, offsetof(CycleCompiledLaunch, index), address);
+        }
     }
-    image.records = 4ull * memory.size();
-    memory.resize(memory.size() + (size_t)image.record_words, 0u);
-    image.error = 4ull * memory.size();
-    memory.push_back(0u);
+    if ((ok != 0) && (layout->table_word_count != 0ull))
+    {
+        ok = record_image_layout(memory, layout->table_values, layout->table_word_count, &address);
+        if (ok != 0)
+        {
+            record_image_wide(memory, offsetof(CycleCompiledLaunch, tables), address);
+        }
+    }
+    image->records = 4ull * memory->count;
+    ok = ok && record_image_grown(memory, image->record_words);
+    image->error = 4ull * memory->count;
+    ok = ok && record_image_grown(memory, 1ull);
     // the hot words and the program's block, each at an address of whole 64-bit words: the next lane 0, and the block
-    // owned by the launch's number and instructed to run, as the host positions them out before the first launch
-    memory.resize(memory.size() + (memory.size() % 2u), 0u);
-    const unsigned long long hot = 4ull * memory.size();
-    memory.resize(memory.size() + (sizeof(CycleHot) / 4u), 0u);
-    const unsigned long long block = 4ull * memory.size();
-    memory.resize(memory.size() + (sizeof(EngineProgramBlock) / 4u), 0u);
+    // owned by the launch's number and told to run, as the host positions them out before the first launch
+    ok = ok && record_image_grown(memory, memory->count % 2ull);
+    const unsigned long long hot = 4ull * memory->count;
+    ok = ok && record_image_grown(memory, sizeof(CycleHot) / 4u);
+    const unsigned long long block = 4ull * memory->count;
+    ok = ok && record_image_grown(memory, sizeof(EngineProgramBlock) / 4u);
+    if (ok == 0)
+    {
+        return 0;
+    }
     record_image_wide(memory, (size_t)block + offsetof(EngineProgramBlock, owner), RECORD_IMAGE_LAUNCH_NUMBER);
     record_image_wide(memory, (size_t)block + offsetof(EngineProgramBlock, command), ENGINE_PROGRAM_RUN);
-    record_image_wide(memory, offsetof(CycleCompiledLaunch, out), image.records);
-    record_image_wide(memory, offsetof(CycleCompiledLaunch, error), image.error);
-    record_image_wide(memory, offsetof(CycleCompiledLaunch, count), HOST_TEST_LANES);
+    record_image_wide(memory, offsetof(CycleCompiledLaunch, out), image->records);
+    record_image_wide(memory, offsetof(CycleCompiledLaunch, error), image->error);
+    record_image_wide(memory, offsetof(CycleCompiledLaunch, count), lanes);
     record_image_wide(memory, offsetof(CycleCompiledLaunch, hot), hot);
     record_image_wide(memory, offsetof(CycleCompiledLaunch, block), block);
     record_image_wide(memory, offsetof(CycleCompiledLaunch, launch_number), RECORD_IMAGE_LAUNCH_NUMBER);
-    return image;
+    return 1;
 }
 
-// the image and its line of places as a bench reads them: its words, the lanes, the records' address and words and the
-// errors' address, then each word in hex
-static int record_image_write(const std::string &path, const RecordImage *image)
+// the cell of the image given back
+static void record_image_ended(RecordImage *image)
 {
-    FILE *const file = fopen(path.c_str(), "wb");
-    if (file == NULL)
-    {
-        return 0;
-    }
-    fprintf(file, "%zu %u %llu %llu %llu\n", image->memory.size(), HOST_TEST_LANES, image->records, image->record_words,
-            image->error);
-    for (const unsigned int word : image->memory)
-    {
-        fprintf(file, "%08X\n", word);
-    }
-    return fclose(file) == 0;
+    platform_array_ended(&image->memory);
 }
 
-// the errors, the records' words and the clocks a bench wrote, the clocks 0 from a language that is not clocked; 0
-// where they cannot be read whole
-static int record_image_read(const std::string &path, const RecordImage *image, unsigned int *error,
-                             std::vector<unsigned int> &records, unsigned long long *clocks)
+// the bytes the image's file holds at max
+#define RECORD_IMAGE_FILE_BYTES (1ULL << 30u)
+
+// The image and its line of places as a bench reads them: its words, the lanes, the records' address and words and the
+// errors' address, then each word in hex. 1 where the whole file went
+static int record_image_write(const char *path, const RecordImage *image)
 {
-    FILE *const file = fopen(path.c_str(), "rb");
-    if (file == NULL)
+    PlatformText text;
+    platform_text_begun(&text, RECORD_IMAGE_FILE_BYTES, platform_place_g_program_owner, 0);
+    VerbaLinea *const line = &text.line;
+    mmgr_line_decimal(line, image->memory.count, 1u);
+    mmgr_line_ch(line, ' ');
+    mmgr_line_decimal(line, image->lanes, 1u);
+    mmgr_line_ch(line, ' ');
+    mmgr_line_decimal(line, image->records, 1u);
+    mmgr_line_ch(line, ' ');
+    mmgr_line_decimal(line, image->record_words, 1u);
+    mmgr_line_ch(line, ' ');
+    mmgr_line_decimal(line, image->error, 1u);
+    mmgr_line_ch(line, '\n');
+    const unsigned int *const words = record_image_words(image);
+    for (unsigned long long at = 0ull; at < image->memory.count; at += 1ull)
     {
+        mmgr_line_hex(line, words[at], 8u);
+        mmgr_line_ch(line, '\n');
+    }
+    const int written =
+        (mmgr_line_ok(line) != 0) && platform_file_written(path, platform_text_bytes(&text), platform_text_size(&text));
+    platform_text_ended(&text);
+    return written;
+}
+
+// The next number of the text at `*at` in `base`, past the white space before it, into `value`, and `*at` after it. 1,
+// or 0 where no digit comes
+static int record_image_number(const char **at, unsigned int base, unsigned long long *value)
+{
+    const char *end = NULL;
+    *value = (unsigned long long)mmgr_text_unsigned_in(*at, &end, base);
+    const int read = (end != NULL) && (end != *at);
+    *at = (end != NULL) ? end : *at;
+    return read;
+}
+
+// The errors, the records' words and the clocks a bench wrote, into `error`, `records` (room for the image's record
+// words) and `clocks`, the clocks 0 from a language that is not clocked. 0 where the call cannot read them whole
+static int record_image_read(const char *path, const RecordImage *image, unsigned int *error, unsigned int *records,
+                             unsigned long long *clocks)
+{
+    unsigned long long size = 0ull;
+    char *const text = (platform_file_size(path, &size) != 0)
+                           ? (char *)platform_cell_taken(size + 1ull, platform_place_g_program_owner, 1)
+                           : NULL;
+    unsigned long long read = 0ull;
+    if ((text == NULL) || (platform_file_read(path, text, size, &read) == 0))
+    {
+        platform_cell_released(text, platform_place_g_program_owner);
         return 0;
     }
-    records.assign((size_t)image->record_words, 0u);
-    int passed = fscanf(file, "%u", error) == 1;
-    for (unsigned long long at = 0ull; passed && (at < image->record_words); at += 1ull)
+    text[read] = '\0';
+    const char *at = text;
+    unsigned long long value = 0ull;
+    int passed = record_image_number(&at, 10u, &value);
+    // a bench's error count is a count of lanes, far under 2^32
+    *error = (unsigned int)value;
+    for (unsigned long long word = 0ull; passed && (word < image->record_words); word += 1ull)
     {
-        passed = fscanf(file, "%x", &records[(size_t)at]) == 1;
+        passed = record_image_number(&at, 16u, &value);
+        // a record's word is the 32 bits the bench wrote in hex
+        records[word] = (unsigned int)value;
     }
-    passed = passed && (fscanf(file, "%llu", clocks) == 1);
-    fclose(file);
+    passed = passed && record_image_number(&at, 10u, clocks);
+    platform_cell_released(text, platform_place_g_program_owner);
     return passed;
 }
 

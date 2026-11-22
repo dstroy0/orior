@@ -618,11 +618,11 @@ src/cu/engine/runtime/device_pool/device_pool.h	9
 src/cu/engine/runtime/obsignatio/obsignatio_internal.h	6
 src/cu/engine/runtime/obsignatio/obsignatio_seal.cu	3
 src/cu/scaffolding/c_target.h	1
-src/cu/scaffolding/record_vhdl_test.cpp	30
+src/cu/scaffolding/record_vhdl_test.cpp	5
 src/cu/scaffolding/record_vhdl_test.sh	2
-src/cu/scaffolding/vhdl_construction_set.cpp	13
+src/cu/scaffolding/vhdl_construction_set.cpp	12
 src/cu/scaffolding/vhdl_target.h	4
-src/cu/scaffolding/yosys_script.h	3
+src/cu/scaffolding/yosys_script.h	2
 src/cu/transpiler/lstar/interface/interface.h	20
 src/cu/transpiler/lstar/interface/platform/interface_internal.h	7
 src/cu/transpiler/lstar/interface/platform/posix.c	16
@@ -1231,7 +1231,7 @@ utils/test/src/cu/engine/analysis/cycle/record_boundary_test_internal.h	16
 utils/test/src/cu/engine/analysis/cycle/record_boundary_test_main.cu	2
 utils/test/src/cu/engine/analysis/cycle/record_boundary_test_run.cu	1
 utils/test/src/cu/engine/analysis/cycle/record_boundary_test_transform.cu	4
-utils/test/src/cu/engine/analysis/cycle/record_c_test.cpp	9
+utils/test/src/cu/engine/analysis/cycle/record_c_test.cpp	7
 utils/test/src/cu/engine/analysis/cycle/record_coherence_test_internal.h	6
 utils/test/src/cu/engine/analysis/cycle/record_coherence_test_inverse.cu	3
 utils/test/src/cu/engine/analysis/cycle/record_coherence_test_programs.cu	2
@@ -1258,8 +1258,8 @@ utils/test/src/cu/engine/analysis/cycle/record_table_test_internal.h	4
 utils/test/src/cu/engine/analysis/cycle/record_table_test_run.cu	1
 utils/test/src/cu/engine/analysis/cycle/record_test.c	6
 utils/test/src/cu/engine/analysis/cycle/record_tower_test_internal.h	11
-utils/test/src/cu/engine/analysis/cycle/record_tower_test_oracle.cu	7
-utils/test/src/cu/engine/analysis/cycle/record_tower_test_ruleset.cu	6
+utils/test/src/cu/engine/analysis/cycle/record_tower_test_oracle.cu	6
+utils/test/src/cu/engine/analysis/cycle/record_tower_test_ruleset.cu	5
 utils/test/src/cu/engine/analysis/period/period_probe.cu	6
 utils/test/src/cu/engine/analysis/period/period_record_test.cu	9
 utils/test/src/cu/engine/analysis/period/period_test_main.cu	3

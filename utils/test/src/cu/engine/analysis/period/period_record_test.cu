@@ -11,14 +11,13 @@
 // - a lattice of more than 2^31 voxels is refused before a lane is read.
 // On a lattice of 30 x 640 x 640 it prints the microseconds of the reading and of one draw on each route. The test is
 // one job on the device's tessera daemon.
+#include "../../../../../../../src/cu/engine/analysis/period/period.h"
 #include "../../../../../../../src/cu/engine/analysis/period/period_internal.h"
 #include "../../../../../../../src/platform/platform.h"
-#include "../../../../../../../src/cu/engine/analysis/period/period.h"
 #include "sim.h"
 
 #include <cuda_runtime.h>
 
-#include <chrono>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -194,10 +193,8 @@ static void record_request(PeriodRequest *request, const unsigned short *device_
 
 static unsigned long long record_now(void)
 {
-    // a steady clock's count is never negative
-    return (unsigned long long)std::chrono::duration_cast<std::chrono::microseconds>(
-               std::chrono::steady_clock::now().time_since_epoch())
-        .count();
+    // a microsecond is 1000 of the monotonic clock's nanoseconds
+    return platform_clock_ns() / 1000ULL;
 }
 
 // one shape on both routes: the given-top reading word for word, then the draws against the host

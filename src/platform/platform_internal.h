@@ -25,10 +25,10 @@ embed_word platform_thread_id(void);
 // the processor given up by the thread that calls, for the next thread that waits for it
 void platform_thread_yield(void);
 
-// A file of the system, on the handle that platform_file.c holds. A kind of 0 reads the file. A kind of 1 writes a
-// file made new in place of any file there. A kind of 2 writes after the end of the file, which the call makes where
+// A file of the system, on the handle that platform_file.c holds. A type of 0 reads the file. A type of 1 writes a
+// file made new in place of any file there. A type of 2 writes after the end of the file, which the call makes where
 // none is there. The answer is the handle, and 0 where the system refused
-unsigned long long platform_stream_opened(const char *path, int kind);
+unsigned long long platform_stream_opened(const char *path, int type);
 
 // `count` bytes of `bytes` written to the file: the count that went, `count` where every byte went
 unsigned long long platform_stream_put(unsigned long long handle, const void *bytes, unsigned long long count);
@@ -42,5 +42,10 @@ long long platform_stream_placed(unsigned long long handle, long long offset, in
 
 // the file of the handle closed: 1, or 0 where the system refused
 int platform_stream_shut(unsigned long long handle);
+
+// The return addresses of the calls that led to the caller onto `line`, at max PLATFORM_STACK_FRAMES of them. On
+// Windows each is an offset from the start of the program's image, which a symbolizer reads with the program's PDB
+#define PLATFORM_STACK_FRAMES 12u
+void platform_stack_put(VerbaLinea *line);
 
 #endif

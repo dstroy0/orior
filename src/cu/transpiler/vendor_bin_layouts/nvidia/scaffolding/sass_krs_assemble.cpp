@@ -28,19 +28,23 @@ extern "C"
 
 #include "../../../../../../includes/file_defs/krs/ruleset_flat.h"
 #include "../../../../../platform/platform.h"
-#include "../../../../scaffolding/ruleset_strings.h"
+#include "cellularum_laboro/cellularum_linea.h"
+#include "memoria_operor/memoria_linea.h"
 #include "sass_target.h"
 #include "target.h"
 
-#include <cstdio>
-#include <cstring>
-#include <sstream>
-#include <string>
-#include <vector>
+#include <stddef.h>
 
 // the max parameters a form is written every way of: past this it is written with registers alone, since three to
 // the power of the parameters is the assignments tried and the resident's form takes twenty-four
 #define KRS_PARAMETERS_SEARCHED 6u
+
+// the parameters a form takes at max, the bytes of a form's name and of an argument, each terminator among them, and
+// the bytes of a writing at max
+#define KRS_PARAMETERS_MAX 32u
+#define KRS_NAME_BYTES 128u
+#define KRS_ARGUMENT_BYTES 16u
+#define KRS_TEXT_BYTES (1ULL << 24u)
 
 // what one parameter is given, in the order they are tried
 enum KrsType
@@ -51,106 +55,177 @@ enum KrsType
     KRS_TYPES = 3
 };
 
-// a scratch register of each bank, numbered where no argument written here reaches
-static std::string krs_scratch(const std::string &bank)
+// a scratch register of each bank onto `name`, numbered where no argument written here reaches. 0 for a bank it does
+// not know
+static int krs_scratch(void *context, const char *bank, VerbaLinea *name)
 {
+    (void)context;
     static unsigned int temporaries;
     static unsigned int wides;
     static unsigned int predicates;
-    if (bank == "temporary")
+    if (mmgr_text_equal(bank, "temporary", PLATFORM_TEXT_TO_TERMINATOR))
     {
         temporaries += 1u;
-        return "R" + std::to_string(100u + (temporaries % 8u));
+        mmgr_line_ch(name, 'R');
+        mmgr_line_decimal(name, 100u + (temporaries % 8u), 1u);
+        return 1;
     }
-    if (bank == "wide")
+    if (mmgr_text_equal(bank, "wide", PLATFORM_TEXT_TO_TERMINATOR))
     {
         wides += 1u;
-        return "R" + std::to_string(120u + (2u * (wides % 4u)));
+        mmgr_line_ch(name, 'R');
+        mmgr_line_decimal(name, 120u + (2u * (wides % 4u)), 1u);
+        return 1;
     }
-    if (bank == "predicate")
+    if (mmgr_text_equal(bank, "predicate", PLATFORM_TEXT_TO_TERMINATOR))
     {
         predicates += 1u;
-        return "P" + std::to_string(predicates % 3u);
+        mmgr_line_ch(name, 'P');
+        mmgr_line_decimal(name, predicates % 3u, 1u);
+        return 1;
     }
-    return std::string();
+    return 0;
 }
 
-// the argument at `place`, of the type `type`. A 64-bit form takes registers of an even number, since sass.krs
-// writes the pair's second as .hi and a pair begins on an even register
-static std::string krs_argument(unsigned int type, unsigned int place, int wide)
+// The argument at `place`, of the type `type`, into `text`. A 64-bit form takes registers of an even number, since
+// sass.krs writes the pair's second as .hi and a pair begins on an even register
+static const char *krs_argument(unsigned int type, unsigned int place, int wide, char *text)
 {
+    VerbaLinea line = mmgr_line_over(text, KRS_ARGUMENT_BYTES);
     if (type == KRS_PREDICATE)
     {
-        return "P" + std::to_string(place % 3u);
+        mmgr_line_ch(&line, 'P');
+        mmgr_line_decimal(&line, place % 3u, 1u);
     }
-    if (type == KRS_NUMBER)
+    else if (type == KRS_NUMBER)
     {
-        return std::to_string(1u + place);
+        mmgr_line_decimal(&line, 1u + place, 1u);
     }
-    return "R" + std::to_string(wide ? (2u * (1u + place)) : (1u + place));
+    else
+    {
+        mmgr_line_ch(&line, 'R');
+        mmgr_line_decimal(&line, wide ? (2u * (1u + place)) : (1u + place), 1u);
+    }
+    (void)mmgr_line_finish(&line);
+    return text;
 }
 
-// one form of the ruleset: its name, its parameters in order, and whether the ruleset writes anything for it
+// one form of the ruleset: its name, terminated, the parameters it takes, and whether the ruleset writes anything for
+// it
 struct KrsForm
 {
-    std::string name;
-    std::vector<std::string> parameters;
+    char name[KRS_NAME_BYTES];
+    unsigned int parameters;
     int empty;
 };
 
-// the ruleset's forms read out of its own lines and its part's: `form <name> <parameter>... = <text>` and the head of a
-// construct, `construct <name> <parameter>...`
-static std::vector<KrsForm> krs_forms(const Ruleset *rules, const char *path)
+// the next word of the `length` bytes at `line` from `*at`, its start into `word` and its length the answer, `*at`
+// after it. 0 where no word is left
+static size_t krs_word(const char *line, size_t length, size_t *at, const char **word)
 {
-    std::vector<KrsForm> forms;
-    std::string text;
-    std::string error;
-    ruleset_text_strings(rules->schema, path, &text, &error);
-    std::istringstream file(text);
-    std::string line;
-    while (std::getline(file, line))
+    while ((*at < length) && ((line[*at] == ' ') || (line[*at] == '\t') || (line[*at] == '\r')))
     {
-        std::istringstream words(line);
-        std::string type;
-        words >> type;
-        if ((type != "form") && (type != "construct"))
-        {
-            continue;
-        }
-        KrsForm form;
-        form.empty = 0;
-        words >> form.name;
-        std::string word;
-        while (words >> word)
-        {
-            if (word == "=")
-            {
-                // a form whose text is empty writes nothing: its line ends at its equals
-                form.empty = !(words >> word);
-                break;
-            }
-            form.parameters.push_back(word);
-        }
-        forms.push_back(form);
+        *at += 1u;
     }
+    const size_t start = *at;
+    while ((*at < length) && (line[*at] != ' ') && (line[*at] != '\t') && (line[*at] != '\r'))
+    {
+        *at += 1u;
+    }
+    *word = &line[start];
+    return *at - start;
+}
+
+// 1 where the `length` bytes at `word` are the terminated `text`
+static int krs_word_is(const char *word, size_t length, const char *text)
+{
+    return (length == mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR)) &&
+           (mmgr_bytes_compare(word, text, length) == 0);
+}
+
+// One line of the ruleset read as a form into `form`: `form <name> <parameter>... = <text>` and the head of a
+// construct, `construct <name> <parameter>...`. 0 where the line is neither
+static int krs_form_read(const char *line, size_t length, KrsForm *form)
+{
+    size_t at = 0u;
+    const char *word = NULL;
+    size_t size = krs_word(line, length, &at, &word);
+    if (!krs_word_is(word, size, "form") && !krs_word_is(word, size, "construct"))
+    {
+        return 0;
+    }
+    size = krs_word(line, length, &at, &word);
+    VerbaLinea name = mmgr_line_over(form->name, sizeof(form->name));
+    (void)mmgr_line_put_n(&name, word, size);
+    (void)mmgr_line_finish(&name);
+    form->parameters = 0u;
+    form->empty = 0;
+    for (size = krs_word(line, length, &at, &word); size != 0u; size = krs_word(line, length, &at, &word))
+    {
+        if (krs_word_is(word, size, "="))
+        {
+            // a form whose text is empty writes nothing: its line ends at its equals
+            form->empty = krs_word(line, length, &at, &word) == 0u;
+            break;
+        }
+        form->parameters += 1u;
+    }
+    return 1;
+}
+
+// The ruleset's forms read out of its own lines and its part's into a cell of the run, `*count` of them, which the
+// caller gives back. NULL where the ruleset did not read or the pool cannot meet the cell
+static KrsForm *krs_forms(const Ruleset *rules, const char *path, unsigned int *count)
+{
+    *count = 0u;
+    PlatformText text;
+    ruleset_text_begun(&text);
+    char why[RULESET_ERROR_BYTES];
+    VerbaLinea error = mmgr_line_over(why, sizeof(why));
+    (void)ruleset_text(rules->schema, path, &text, &error);
+    const size_t size = (size_t)platform_text_size(&text);
+    const char *const bytes = platform_text_bytes(&text);
+    unsigned long long lines = 1ULL;
+    for (size_t at = 0u; (bytes != NULL) && (at < size); at += 1u)
+    {
+        lines += (bytes[at] == '\n') ? 1ULL : 0ULL;
+    }
+    KrsForm *const forms =
+        (bytes != NULL) ? (KrsForm *)platform_cell_cleared(lines, sizeof(KrsForm), platform_place_g_program_owner,
+                                                           PLATFORM_TIER_PERSISTENT)
+                        : NULL;
+    for (size_t at = 0u; (forms != NULL) && (at < size);)
+    {
+        size_t end = at;
+        while ((end < size) && (bytes[end] != '\n'))
+        {
+            end += 1u;
+        }
+        *count += krs_form_read(&bytes[at], end - at, &forms[*count]) ? 1u : 0u;
+        at = end + 1u;
+    }
+    platform_text_ended(&text);
     return forms;
 }
 
-// 1 where `text` contains a line the part runs: a label, a note and a blank line are none
-static int krs_has_instruction(const std::string &text)
+// 1 where the `length` bytes of `text` contain a line the part runs: a label, a note and a blank line are none
+static int krs_has_instruction(const char *text, size_t length)
 {
     size_t at = 0u;
-    while (at < text.size())
+    while (at < length)
     {
-        const size_t end = text.find('\n', at);
-        const size_t stop = (end == std::string::npos) ? text.size() : end;
+        size_t stop = at;
+        while ((stop < length) && (text[stop] != '\n'))
+        {
+            stop += 1u;
+        }
         size_t first = at;
         while ((first < stop) && ((text[first] == ' ') || (text[first] == '\t')))
         {
             first += 1u;
         }
         if ((first < stop) && (text[first] != '.') && (text[first] != '/') && (text[first] != '#') &&
-            (text.find(':', first) > stop))
+            (mmgr_text_char(&text[first], ':', stop - first) == NULL))
         {
             return 1;
         }
@@ -159,27 +234,49 @@ static int krs_has_instruction(const std::string &text)
     return 0;
 }
 
-// Every label the ruleset's forms define, as one preamble. A branch names a label another form writes
-// (error_open_unless branches to the one label_error_open writes), and the assembler resolves a label from the lines
-// of the text it is given: a form written alone has none. Each form that carries no instruction is written with
-// every number a branch here is given: whatever a branch names is in front of it
-static std::string krs_labels(const Ruleset *rules, const std::vector<KrsForm> &forms)
+// form `name` written with its `count` arguments onto `text`, emptied first: 1 where the ruleset wrote it
+static int krs_written(const Ruleset *rules, const char *name, const char *const *given, unsigned int count,
+                       PlatformText *text)
 {
-    std::string preamble;
-    for (const KrsForm &form : forms)
+    const RulesetNamedScratch scratch = {krs_scratch, NULL};
+    platform_text_reset(text);
+    return ruleset_form_written(rules, name, given, count, &scratch, &text->line);
+}
+
+// Every label the ruleset's forms define, as one preamble onto `preamble`. A branch names a label another form writes
+// (error_open_unless branches to the one label_error_open writes). The assembler resolves a label from the lines of the
+// text it is given, and a form written alone has none. Each form that carries no instruction is written with every
+// number a branch here is given: whatever a branch names is in front of it
+static void krs_labels(const Ruleset *rules, const KrsForm *forms, unsigned int count, PlatformText *preamble,
+                       PlatformText *text)
+{
+    for (unsigned int at = 0u; at < count; at += 1u)
     {
-        for (unsigned int number = 1u; (form.empty == 0) && (number <= 8u); number += 1u)
+        const KrsForm *const form = &forms[at];
+        for (unsigned int number = 1u; (form->empty == 0) && (number <= 8u); number += 1u)
         {
-            std::vector<std::string> given(form.parameters.size(), std::to_string(number));
-            std::string text;
-            if ((ruleset_opcode(rules, form.name, given, krs_scratch, text) != 0) && !krs_has_instruction(text) &&
-                (text.find(':') != std::string::npos))
+            char value[KRS_ARGUMENT_BYTES];
+            VerbaLinea value_line = mmgr_line_over(value, sizeof(value));
+            mmgr_line_decimal(&value_line, number, 1u);
+            (void)mmgr_line_finish(&value_line);
+            const char *given[KRS_PARAMETERS_MAX];
+            const unsigned int parameters =
+                (form->parameters < KRS_PARAMETERS_MAX) ? form->parameters : KRS_PARAMETERS_MAX;
+            for (unsigned int place = 0u; place < parameters; place += 1u)
             {
-                preamble += text;
+                given[place] = value;
+            }
+            if (krs_written(rules, form->name, given, parameters, text) != 0)
+            {
+                const size_t length = (size_t)platform_text_size(text);
+                const char *const bytes = platform_text_bytes(text);
+                if (!krs_has_instruction(bytes, length) && (mmgr_text_char(bytes, ':', length) != NULL))
+                {
+                    (void)mmgr_line_put_n(&preamble->line, bytes, length);
+                }
             }
         }
     }
-    return preamble;
 }
 
 // how one form came out
@@ -191,13 +288,14 @@ enum KrsOutcome
     KRS_NOT_WRITTEN = 3
 };
 
-// form `form` written every way its parameters can be given and assembled, `wrote` the text of the assignment that
-// passed or of the last one tried, and `types` that assignment
-static unsigned int krs_form_assembles(const Ruleset *rules, const SassMachine *machine, const KrsForm &form,
-                                       const std::string &labels, std::string *wrote, std::string *types)
+// Form `form` written every way its parameters can be given and assembled behind `labels`, `wrote` the text of the
+// assignment that passed or of the last one tried. `whole` takes the labels and the writing for the assembler
+static unsigned int krs_form_assembles(const Ruleset *rules, const SassMachine *machine, const KrsForm *form,
+                                       PlatformText *labels, PlatformText *wrote, PlatformText *whole)
 {
-    const int wide = (form.name.find("wide") != std::string::npos) || (form.name.find("member") != std::string::npos);
-    const unsigned int parameters = (unsigned int)form.parameters.size();
+    const int wide = (mmgr_text_find(form->name, "wide", PLATFORM_TEXT_TO_TERMINATOR) != NULL) ||
+                     (mmgr_text_find(form->name, "member", PLATFORM_TEXT_TO_TERMINATOR) != NULL);
+    const unsigned int parameters = (form->parameters < KRS_PARAMETERS_MAX) ? form->parameters : KRS_PARAMETERS_MAX;
     unsigned int assignments = 1u;
     for (unsigned int at = 0u; (at < parameters) && (at < KRS_PARAMETERS_SEARCHED); at += 1u)
     {
@@ -206,37 +304,43 @@ static unsigned int krs_form_assembles(const Ruleset *rules, const SassMachine *
     unsigned int outcome = KRS_NOT_WRITTEN;
     for (unsigned int assignment = 0u; assignment < assignments; assignment += 1u)
     {
-        std::vector<std::string> given;
-        std::string named;
+        char values[KRS_PARAMETERS_MAX][KRS_ARGUMENT_BYTES];
+        const char *given[KRS_PARAMETERS_MAX];
         unsigned int walk = assignment;
         for (unsigned int place = 0u; place < parameters; place += 1u)
         {
             const unsigned int type = (place < KRS_PARAMETERS_SEARCHED) ? (walk % KRS_TYPES) : KRS_REGISTER;
             walk = (place < KRS_PARAMETERS_SEARCHED) ? (walk / KRS_TYPES) : walk;
-            given.push_back(krs_argument(type, place, wide));
-            named += form.parameters[place] + "=" + given.back() + " ";
+            given[place] = krs_argument(type, place, wide, values[place]);
         }
-        std::string text;
-        if (ruleset_opcode(rules, form.name, given, krs_scratch, text) == 0)
+        if (krs_written(rules, form->name, given, parameters, wrote) == 0)
         {
             return KRS_NOT_WRITTEN;
         }
-        *wrote = text;
-        *types = named;
-        if (!krs_has_instruction(text))
+        const size_t length = (size_t)platform_text_size(wrote);
+        const char *const bytes = platform_text_bytes(wrote);
+        if (!krs_has_instruction(bytes, length))
         {
             return KRS_NO_INSTRUCTION;
         }
         outcome = KRS_REFUSED;
         static unsigned char code[4096];
         // the labels are in front, each at the address the instructions begin at: a branch to one resolves
-        const std::string whole = labels + text;
-        if (sass_assemble_lines(machine, whole.c_str(), SASS_CONTROL_SAFE, code, sizeof(code)) != 0u)
+        platform_text_reset(whole);
+        (void)mmgr_line_put_n(&whole->line, platform_text_bytes(labels), (size_t)platform_text_size(labels));
+        (void)mmgr_line_put_n(&whole->line, bytes, length);
+        if (sass_assemble_lines(machine, platform_text_bytes(whole), SASS_CONTROL_SAFE, code, sizeof(code)) != 0u)
         {
             return KRS_ASSEMBLED;
         }
     }
     return outcome;
+}
+
+// a text of the run begun, empty
+static void krs_text_begun(PlatformText *text)
+{
+    platform_text_begun(text, KRS_TEXT_BYTES, platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT);
 }
 
 int program_main(int count, char **arguments)
@@ -263,8 +367,15 @@ int program_main(int count, char **arguments)
     {
         return 1;
     }
-    const std::vector<KrsForm> forms = krs_forms(rules, ruleset);
-    const std::string labels = krs_labels(rules, forms);
+    unsigned int form_count = 0u;
+    KrsForm *const forms = krs_forms(rules, ruleset, &form_count);
+    PlatformText labels;
+    PlatformText wrote;
+    PlatformText whole;
+    krs_text_begun(&labels);
+    krs_text_begun(&wrote);
+    krs_text_begun(&whole);
+    krs_labels(rules, forms, form_count, &labels, &wrote);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "machine ");
@@ -274,7 +385,7 @@ int program_main(int count, char **arguments)
         mmgr_line_put(output_line, " forms; ");
         mmgr_line_put(output_line, ruleset);
         mmgr_line_put(output_line, ": ");
-        mmgr_line_decimal(output_line, forms.size(), 1u);
+        mmgr_line_decimal(output_line, form_count, 1u);
         mmgr_line_put(output_line, " forms");
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
@@ -283,23 +394,26 @@ int program_main(int count, char **arguments)
     unsigned int empty = 0u;
     unsigned int refused = 0u;
     unsigned int quiet = 0u;
-    for (const KrsForm &form : forms)
+    for (unsigned int at = 0u; at < form_count; at += 1u)
     {
-        if (form.empty != 0)
+        const KrsForm *const form = &forms[at];
+        if (form->empty != 0)
         {
             empty += 1u;
             continue;
         }
-        std::string wrote;
-        std::string types;
-        const unsigned int outcome = krs_form_assembles(rules, &machine, form, labels, &wrote, &types);
+        platform_text_reset(&wrote);
+        const unsigned int outcome = krs_form_assembles(rules, &machine, form, &labels, &wrote, &whole);
+        const size_t length = (size_t)platform_text_size(&wrote);
+        const char *const bytes = platform_text_bytes(&wrote);
         if (outcome == KRS_ASSEMBLED)
         {
             assembled += 1u;
             if (output_file != NULL)
             {
-                mmgr_line_put(platform_file_line(output_file), wrote.c_str());
-                mmgr_line_put(platform_file_line(output_file), (!wrote.empty() && (wrote.back() == '\n')) ? "" : "\n");
+                (void)mmgr_line_put_n(platform_file_line(output_file), bytes, length);
+                mmgr_line_put(platform_file_line(output_file),
+                              ((length != 0u) && (bytes[length - 1u] == '\n')) ? "" : "\n");
             }
         }
         else if (outcome == KRS_NO_INSTRUCTION)
@@ -312,11 +426,11 @@ int program_main(int count, char **arguments)
             {
                 VerbaLinea *const output_line = platform_line_out();
                 mmgr_line_put(output_line, "  ");
-                mmgr_line_put(output_line, form.name.c_str());
+                mmgr_line_put(output_line, form->name);
                 mmgr_line_put(output_line, " refused, its last writing ");
                 mmgr_line_put(output_line, (outcome == KRS_NOT_WRITTEN) ? "not written" : "");
                 mmgr_line_put(output_line, ":\n");
-                mmgr_line_put(output_line, wrote.c_str());
+                (void)mmgr_line_put_n(output_line, bytes, length);
                 platform_line_out_ended();
             }
         }
@@ -339,5 +453,9 @@ int program_main(int count, char **arguments)
     {
         platform_file_close(output_file);
     }
+    platform_text_ended(&whole);
+    platform_text_ended(&wrote);
+    platform_text_ended(&labels);
+    platform_cell_released(forms, platform_place_g_program_owner);
     return (refused == 0u) ? 0 : 1;
 }

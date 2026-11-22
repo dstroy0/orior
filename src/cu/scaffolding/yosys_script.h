@@ -8,8 +8,6 @@
 
 #include "../engine/rmc/target.h"
 
-#include <string>
-
 class YosysScript : public Target
 {
   public:
@@ -18,10 +16,10 @@ class YosysScript : public Target
     int program(const EngineRecordLayout *layout, const TargetInfo *target, const char *header, PlatformText *text,
                 unsigned int *places, unsigned int *live) override;
 
-    // the script that reads `source`, synthesizes it from the module `top` and measures it, and where `memories` is not
-    // empty, writes the coarse netlist's statistics to the log `memories` before the fine stage; empty where the
-    // ruleset is not read
-    std::string synthesis(const std::string &source, const std::string &top, const std::string &memories);
+    // The script that reads `source`, synthesizes it from the module `top` and measures it, onto `script`. Where
+    // `memories` is not empty, the script writes the coarse netlist's statistics to the log `memories` before the fine
+    // stage. 1 where it wrote the script; 0 where the ruleset is not read or writes it broken
+    int synthesis(const char *source, const char *top, const char *memories, PlatformText *script);
 };
 
 // the Yosys script a process retains, its ruleset read at its first call to ruleset()

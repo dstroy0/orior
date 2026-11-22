@@ -6,37 +6,44 @@
 //     ruleset_read_one <form> <argument> ...
 //     ruleset_read_one predicate_bitxor P0 P1 P2
 #include "../../../../../platform/platform.h"
-#include "../../../../scaffolding/ruleset_strings.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "sass_target.h"
 #include "target.h"
 
-#include <cstdio>
-#include <string>
-#include <vector>
+// the bytes of the form's text at max
+#define READ_ONE_TEXT_BYTES (1ULL << 24u)
 
-// the scratch a writing takes, each bank's registers numbered from 0 as the lane's would be: the temporaries R100 up,
-// the 64-bit temporaries R120 up and the predicates P0 up, numbers no argument here is likely to carry
-static std::string read_one_scratch(const std::string &bank)
+// The scratch a writing takes, each bank's registers numbered from 0 as the lane's would be: the temporaries R100 up,
+// the 64-bit temporaries R120 up and the predicates P0 up, numbers no argument here is likely to carry. 0 for a bank
+// it does not know
+static int read_one_scratch(void *context, const char *bank, VerbaLinea *name)
 {
+    (void)context;
     static unsigned int temporaries;
     static unsigned int wides;
     static unsigned int predicates;
-    if (bank == "temporary")
+    if (mmgr_text_equal(bank, "temporary", PLATFORM_TEXT_TO_TERMINATOR))
     {
         temporaries += 1u;
-        return "R" + std::to_string(99u + temporaries);
+        mmgr_line_ch(name, 'R');
+        mmgr_line_decimal(name, 99u + temporaries, 1u);
+        return 1;
     }
-    if (bank == "wide")
+    if (mmgr_text_equal(bank, "wide", PLATFORM_TEXT_TO_TERMINATOR))
     {
         wides += 1u;
-        return "R" + std::to_string(119u + wides);
+        mmgr_line_ch(name, 'R');
+        mmgr_line_decimal(name, 119u + wides, 1u);
+        return 1;
     }
-    if (bank == "predicate")
+    if (mmgr_text_equal(bank, "predicate", PLATFORM_TEXT_TO_TERMINATOR))
     {
         predicates += 1u;
-        return "P" + std::to_string(predicates - 1u);
+        mmgr_line_ch(name, 'P');
+        mmgr_line_decimal(name, predicates - 1u, 1u);
+        return 1;
     }
-    return std::string();
+    return 0;
 }
 
 int program_main(int count, char **arguments)
@@ -62,30 +69,33 @@ int program_main(int count, char **arguments)
         }
         return 1;
     }
-    std::vector<std::string> given;
-    for (int at = 2; at < count; at += 1)
-    {
-        given.push_back(std::string(arguments[at]));
-    }
-    std::string text;
-    if (ruleset_opcode(rules, arguments[1], given, read_one_scratch, text) == 0)
+    // the arguments after the form, which the process holds to its end
+    const char *const *const given = (const char *const *)&arguments[2];
+    // the arguments are far fewer than 2^32
+    const unsigned int given_count = (unsigned int)(count - 2);
+    const RulesetNamedScratch scratch = {read_one_scratch, NULL};
+    PlatformText text;
+    platform_text_begun(&text, READ_ONE_TEXT_BYTES, platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT);
+    if (ruleset_form_written(rules, arguments[1], given, given_count, &scratch, &text.line) == 0)
     {
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "sass.krs does not write ");
             mmgr_line_put(output_line, arguments[1]);
             mmgr_line_put(output_line, " with ");
-            mmgr_line_decimal(output_line, given.size(), 1u);
+            mmgr_line_decimal(output_line, given_count, 1u);
             mmgr_line_put(output_line, " arguments");
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
+        platform_text_ended(&text);
         return 1;
     }
     {
         VerbaLinea *const output_line = platform_line_out();
-        mmgr_line_put(output_line, text.c_str());
+        mmgr_line_put(output_line, platform_text_bytes(&text));
         platform_line_out_ended();
     }
+    platform_text_ended(&text);
     return 0;
 }

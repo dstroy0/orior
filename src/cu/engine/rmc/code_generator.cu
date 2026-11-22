@@ -375,7 +375,8 @@ static const RulesetSchema *code_generator_schema(const char *file)
 
 CodeGenerator::CodeGenerator(const char *file) : Target(code_generator_schema(file))
 {
-    platform_text_begun(&claim_lines, CODE_GENERATOR_CLAIM_BYTES, platform_place_g_program_owner, 0);
+    platform_text_begun(&claim_lines, CODE_GENERATOR_CLAIM_BYTES, platform_place_g_program_owner,
+                        PLATFORM_TIER_MOVABLE);
 }
 
 CodeGenerator::~CodeGenerator()

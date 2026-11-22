@@ -11,12 +11,10 @@
 //   ladder of the last pair
 // The test is one job on the device's tessera daemon, submitted before the first program is loaded onto the device.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../../../../../../src/platform/platform.h"
 #include "sim.h"
-
-#include <chrono>
 
 #define SPEED_TEST_LANES (1u << 22u)
 
@@ -233,12 +231,10 @@ int program_main(int count, char **arguments)
                                            &error};
         for (unsigned int each = 0u; (ran != 0) && (each < SPEED_TEST_RUNS); each += 1u)
         {
-            const auto began = std::chrono::steady_clock::now();
+            const unsigned long long began = platform_clock_ns();
             ran = cycle_record_run(&run) == (long)SPEED_TEST_LANES;
-            const auto ended = std::chrono::steady_clock::now();
-            // a run's microseconds are a count of ticks, never negative
-            const unsigned long long elapsed =
-                (unsigned long long)std::chrono::duration_cast<std::chrono::microseconds>(ended - began).count();
+            // the monotonic clock never runs back, and a microsecond is 1000 of its nanoseconds
+            const unsigned long long elapsed = (platform_clock_ns() - began) / 1000ULL;
             best = (elapsed < best) ? elapsed : best;
         }
         sim_check(&results, ran, "every run takes every lane, none errored");

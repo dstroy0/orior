@@ -9,7 +9,6 @@
 #include "../../../../../../includes/exact_types/integers/exact_integer.h"
 #include "../../../../../../src/platform/platform.h"
 
-#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -146,12 +145,13 @@ static double ladder_seconds(OriorExactStatus (*multiply)(const OriorExactIntege
     unsigned int repeats = 1u;
     for (;;)
     {
-        const auto start = std::chrono::steady_clock::now();
+        const unsigned long long start = platform_clock_ns();
         for (unsigned int at = 0u; at < repeats; at++)
         {
             (void)multiply(left, right, product);
         }
-        const double spent = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+        // the monotonic clock never runs back, and a second is 10^9 of its nanoseconds
+        const double spent = (double)(platform_clock_ns() - start) / 1e9;
         if ((spent > 0.2) || (repeats >= (1u << 20u)))
         {
             return spent / repeats;
@@ -168,12 +168,13 @@ static double ladder_divide_seconds(OriorExactStatus (*divide)(const OriorExactI
     unsigned int repeats = 1u;
     for (;;)
     {
-        const auto start = std::chrono::steady_clock::now();
+        const unsigned long long start = platform_clock_ns();
         for (unsigned int at = 0u; at < repeats; at++)
         {
             (void)divide(numerator, divisor, quotient, remainder);
         }
-        const double spent = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+        // the monotonic clock never runs back, and a second is 10^9 of its nanoseconds
+        const double spent = (double)(platform_clock_ns() - start) / 1e9;
         if ((spent > 0.2) || (repeats >= (1u << 20u)))
         {
             return spent / repeats;

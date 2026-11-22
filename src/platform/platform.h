@@ -48,6 +48,10 @@ int platform_open(unsigned long long bytes);
 // the end of the process stage, which main runs after program_main returns: the mover ended and the pages given back
 void platform_close(void);
 
+// 1 from platform_open to platform_close, while the pool is there. A destructor of a static runs after main returns,
+// and it reads no cell where this is 0, since the cells went back with the pages
+int platform_pool_placed(void);
+
 // `length` bytes of `text` written to the output stream of the process, or to its error stream where `errors` is 1
 void platform_terminal_write(int errors, const char *text, unsigned long long length);
 
@@ -102,30 +106,50 @@ void *platform_cell_grown(void *cell, unsigned long long held, unsigned long lon
 
 // ---- a text that grows ----
 
+// the tiers of a text's cell: the persistent tier, the temporary tier, and a movable cell
+#define PLATFORM_TIER_PERSISTENT 0
+#define PLATFORM_TIER_TEMPORARY 1
+#define PLATFORM_TIER_MOVABLE 2
+
+// the bytes that the line of a movable text holds before each flush
+#define PLATFORM_TEXT_STAGE_BYTES 1024u
+
 // A text in one cell of the pool, written through `line` with the entries of verba_linea.h. The cell starts small, and
 // the flush of the line doubles it toward `max` bytes as the writes come. Past `max` the line fills, as a line with no
-// flush fills. The text is whole in `cell`, terminated
+// flush fills. On the persistent or the temporary tier the text is whole in `cell`, terminated.
+//
+// A text on the movable tier holds its bytes in a movable cell, which a move of the pool can move. Its line writes into
+// `stage`, and each flush puts the stage into the cell after the bytes before it. A grown cell is a new movable cell,
+// and the old cell goes back. A text that grows to megabytes takes this tier, because its old cells leave no holes.
+// `movable` names that cell, and `view` is the last copy that platform_text_bytes gave
 typedef struct
 {
-    char *cell;                  // The cell of the text [BORROWS].
+    char *cell; // The cell of the text, NULL on the movable tier [BORROWS].
+    const void *movable;
+    char *view;
     unsigned long long capacity; // The bytes of the cell.
     unsigned long long max;      // The bytes that the cell grows to at max.
     unsigned int place;          // The place of the owner of the cell.
-    int ephemeral;               // One where the cell is on the temporary tier.
+    int tier;                    // PLATFORM_TIER_PERSISTENT, PLATFORM_TIER_TEMPORARY or PLATFORM_TIER_MOVABLE.
     VerbaLinea line;             // The line that the writes go through.
+    char stage[PLATFORM_TEXT_STAGE_BYTES];
 } PlatformText;
 
-// the text begun, empty, before its first write
-void platform_text_begun(PlatformText *text, unsigned long long max, unsigned int place, int ephemeral);
+// the text begun on `tier`, empty, before its first write
+void platform_text_begun(PlatformText *text, unsigned long long max, unsigned int place, int tier);
 
 // the bytes that the text holds, the terminator not among them
 unsigned long long platform_text_size(const PlatformText *text);
 
-// the bytes of the text, terminated [BORROWS]
+// The bytes of the text, terminated [BORROWS]. For a movable text they are a copy in a cell of the temporary tier.
+// The text holds that copy until its next read, reset, cut or end. NULL where the pool cannot meet the copy
 const char *platform_text_bytes(PlatformText *text);
 
 // the text emptied, with its cell kept at the size that it grew to
 void platform_text_reset(PlatformText *text);
+
+// the text cut to its first `size` bytes, where it holds more, the next write after them
+void platform_text_cut(PlatformText *text, unsigned long long size);
 
 // the cell of the text given back, after its last read
 void platform_text_ended(PlatformText *text);

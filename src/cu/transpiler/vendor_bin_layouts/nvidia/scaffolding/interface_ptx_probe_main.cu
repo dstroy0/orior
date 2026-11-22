@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_ptx_probe_main.cu: the probe's main: each probe run on the device given, and its findings printed
 #include "interface_ptx_probe_internal.h"
-#include "../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
 
 int program_main(int count, char **arguments)
 {
@@ -22,9 +20,10 @@ int program_main(int count, char **arguments)
     }
     const int major = properties.major;
     const int minor = properties.minor;
-    const std::string header = probe_header(major, minor);
+    char header[PROBE_HEADER_BYTES];
+    const size_t header_length = probe_header(major, minor, header, sizeof(header));
     ProbeWriter writer = {ptx_target().ruleset(1), 0, PROBE_TEMPORARIES, PROBE_WIDES, PROBE_PREDICATES};
-    if ((writer.rules == NULL) || header.empty())
+    if ((writer.rules == NULL) || (header_length == 0u))
     {
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -40,12 +39,12 @@ int program_main(int count, char **arguments)
         mmgr_line_decimal_signed(output_line, major);
         mmgr_line_decimal_signed(output_line, minor);
         mmgr_line_put(output_line, ", ");
-        mmgr_line_put(output_line, header.c_str());
+        mmgr_line_put(output_line, header);
         platform_line_out_ended();
     }
-    const std::string t8 = probe_temporary(&writer, 8u);
-    const std::string t0 = probe_temporary(&writer, 0u);
-    const std::string w0 = probe_wide(&writer, 0u);
+    const ProbeName t8 = probe_temporary(&writer, 8u);
+    const ProbeName t0 = probe_temporary(&writer, 0u);
+    const ProbeName w0 = probe_wide(&writer, 0u);
     if (mmgr_text_equal(question, "membership", PLATFORM_TEXT_TO_TERMINATOR))
     {
         return probe_membership(&writer, header, major, minor);
@@ -64,24 +63,32 @@ int program_main(int count, char **arguments)
     }
     if (mmgr_text_equal(question, "alive", PLATFORM_TEXT_TO_TERMINATOR))
     {
-        std::string body;
-        probe_form(&writer, body, "word_add", {t8, t0, probe_temporary(&writer, 1u)});
+        const ProbeName t1 = probe_temporary(&writer, 1u);
+        char body[PROBE_HEADER_BYTES];
+        VerbaLinea body_line = mmgr_line_over(body, sizeof(body));
+        PROBE_FORM(&writer, &body_line, "word_add", t8.text, t0.text, t1.text);
+        (void)mmgr_line_finish(&body_line);
         return probe_single(&writer, header, body, major, minor);
     }
     if (mmgr_text_equal(question, "address", PLATFORM_TEXT_TO_TERMINATOR))
     {
         // the load reads the sixteenth byte of the device's address space
-        std::string body;
-        probe_form(&writer, body, "word_set", {t0, "16"});
-        probe_form(&writer, body, "wide_from_word", {w0, t0});
-        probe_form(&writer, body, "global_load_constant_word", {t8, w0, "0"});
+        char body[PROBE_HEADER_BYTES];
+        VerbaLinea body_line = mmgr_line_over(body, sizeof(body));
+        PROBE_FORM(&writer, &body_line, "word_set", t0.text, "16");
+        PROBE_FORM(&writer, &body_line, "wide_from_word", w0.text, t0.text);
+        PROBE_FORM(&writer, &body_line, "global_load_constant_word", t8.text, w0.text, "0");
+        (void)mmgr_line_finish(&body_line);
         return probe_single(&writer, header, body, major, minor);
     }
     if (mmgr_text_equal(question, "misaligned", PLATFORM_TEXT_TO_TERMINATOR))
     {
         // the case's own input, one byte in: a 32-bit load from an address that is not a multiple of 4
-        std::string body = "\tadd.s64 \t%interface_wide2, %interface_wide2, 1;\n";
-        probe_form(&writer, body, "global_load_constant_word", {t8, "%interface_wide2", "0"});
+        char body[PROBE_HEADER_BYTES];
+        VerbaLinea body_line = mmgr_line_over(body, sizeof(body));
+        mmgr_line_put(&body_line, "\tadd.s64 \t%interface_wide2, %interface_wide2, 1;\n");
+        PROBE_FORM(&writer, &body_line, "global_load_constant_word", t8.text, "%interface_wide2", "0");
+        (void)mmgr_line_finish(&body_line);
         return probe_single(&writer, header, body, major, minor);
     }
     if (mmgr_text_equal(question, "trap", PLATFORM_TEXT_TO_TERMINATOR))

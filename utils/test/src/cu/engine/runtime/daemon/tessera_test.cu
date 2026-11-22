@@ -7,17 +7,15 @@
 // of a ledger on the device, arranged with arrays of one to make it grow. Every answer must be the host's field for
 // field, and the ledger each is left with the host's job for job, recorded peak for recorded peak and deadline for
 // deadline. The test is one job on the device's tessera daemon, submitted before its first device work.
-#include "sim.h"
-#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera_device.h"
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera_ledger.h"
+#include "../../../../../../../src/platform/platform.h"
+#include "sim.h"
 
 #include <cuda_runtime.h>
 
 #include <stdio.h>
 #include <string.h>
-
-#include <vector>
 
 // the max the test puts on the device at once: a round's calls and answers, and the ledger's arrays
 #define DEVICE_TEST_DECLARED (64ull << 20u)
@@ -177,7 +175,7 @@ static int device_test_ledger_same(const TesseraLedger *left, const TesseraLedge
 // one round: a stream of calls made of the host's ledger and the device's, the answers and the ledgers compared equal
 static void device_test_round(DeviceTestResults *results, unsigned int round, unsigned long long *grown)
 {
-    std::vector<TesseraCall> calls(DEVICE_TEST_CALLS);
+    TesseraCall calls[DEVICE_TEST_CALLS];
     unsigned long long now = 0ull;
     unsigned long long submitted = 0ull;
     for (unsigned int at = 0u; at < DEVICE_TEST_CALLS; at += 1u)
@@ -188,15 +186,15 @@ static void device_test_round(DeviceTestResults *results, unsigned int round, un
     }
     TesseraLedger host;
     tessera_ledger_open(&host);
-    std::vector<TesseraAnswer> host_answers(DEVICE_TEST_CALLS);
+    TesseraAnswer host_answers[DEVICE_TEST_CALLS];
     for (unsigned int at = 0u; at < DEVICE_TEST_CALLS; at += 1u)
     {
         tessera_ledger_call(&host, &calls[at], &host_answers[at]);
     }
     TesseraDevice device;
-    std::vector<TesseraAnswer> device_answers(DEVICE_TEST_CALLS);
+    TesseraAnswer device_answers[DEVICE_TEST_CALLS];
     const int opened = tessera_device_open(&device, 1ull);
-    const int made = opened && tessera_device_calls(&device, calls.data(), DEVICE_TEST_CALLS, device_answers.data());
+    const int made = opened && tessera_device_calls(&device, calls, DEVICE_TEST_CALLS, device_answers);
     device_test_check(results, made, "the device makes the calls", round);
     if (made)
     {

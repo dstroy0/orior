@@ -8,12 +8,13 @@
 #define _GNU_SOURCE
 #define _DARWIN_C_SOURCE
 #endif
-#include "platform_internal.h"
 #include "cellularum_laboro/cellularum_linea.h"
 #include "memoria_operor/memoria_linea.h"
+#include "platform_internal.h"
 
 #if !defined(_WIN32)
 #include <dlfcn.h>
+#include <execinfo.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <pthread.h>
@@ -144,6 +145,23 @@ void platform_worker_joined(PlatformWorker *worker)
 void platform_thread_yield(void)
 {
     (void)sched_yield();
+}
+
+void platform_stack_put(VerbaLinea *line)
+{
+    void *frames[PLATFORM_STACK_FRAMES + 1u];
+    const int count = backtrace(frames, (int)(PLATFORM_STACK_FRAMES + 1u));
+    // the first frame is this call's own, and each after it is a return address in the object that holds it
+    for (int at = 1; at < count; at += 1)
+    {
+        Dl_info where;
+        // Explicit casts read each frame and its object's start as the addresses that they are
+        const uintptr_t address = (uintptr_t)frames[at];
+        const uintptr_t base =
+            ((dladdr(frames[at], &where) != 0) && (where.dli_fbase != NULL)) ? (uintptr_t)where.dli_fbase : 0u;
+        mmgr_line_put(line, " +0x");
+        mmgr_line_hex(line, (uint64_t)(address - base), 1u);
+    }
 }
 
 unsigned int platform_processors(void)
@@ -320,11 +338,11 @@ int platform_file_written(const char *path, const void *data, unsigned long long
     return ok;
 }
 
-unsigned long long platform_stream_opened(const char *path, int kind)
+unsigned long long platform_stream_opened(const char *path, int type)
 {
     // the flags of fopen for r, w and a, and the mode fopen gives a file it makes, which the umask then narrows
     const int flags =
-        (kind == 0) ? O_RDONLY : ((kind == 1) ? (O_WRONLY | O_CREAT | O_TRUNC) : (O_WRONLY | O_CREAT | O_APPEND));
+        (type == 0) ? O_RDONLY : ((type == 1) ? (O_WRONLY | O_CREAT | O_TRUNC) : (O_WRONLY | O_CREAT | O_APPEND));
     const int file = open(path, flags, 0666);
     // Explicit cast carries the descriptor one up as the handle. A descriptor of 0 is a handle of 1
     return (file < 0) ? 0ULL : (unsigned long long)file + 1ULL;

@@ -13,21 +13,17 @@
 // printer, must be the code generator's. The test is one job on the device's tessera daemon, submitted before its first
 // device work.
 #include "../../../../../../includes/file_defs/krs/ruleset_reader.h"
-#include "../../../../../../src/cu/scaffolding/ruleset_strings.h"
 #include "../../../../../../src/platform/platform.h"
 #include "../../engine/analysis/cycle/record_image.h"
+#include "cellularum_laboro/cellularum_linea.h"
 #include "code_generator.h"
 #include "codegen_device.h"
+#include "memoria_operor/memoria_linea.h"
 #include "sim.h"
 
 #include <cuda_runtime.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <string>
-#include <vector>
+#include <stddef.h>
 
 // the max the test puts on the device at once: a lane's forms, records and bytes, and the assembly printer, each a
 // few megabytes at max for these programs. The first run peaked 8 MB over its process's CUDA context
@@ -37,6 +33,11 @@
 #define DEVICE_TEST_BUDGET 4u
 
 #define DEVICE_TEST_LANGUAGES 3u
+
+// the bytes of what a check names and of a reason a call gives, the terminator among them, and of a lane's text
+#define DEVICE_TEST_WHAT_BYTES 1536u
+#define DEVICE_TEST_WHY_BYTES 1024u
+#define DEVICE_TEST_TEXT_BYTES (1ULL << 30u)
 
 // the header each lane is written under, which the assembly printer takes whole
 static const char s_device_header[] = "// codegen_device_test\n";
@@ -49,8 +50,23 @@ struct DeviceResults
     unsigned int unsupported;
 };
 
-static void device_check(DeviceResults *results, int passed, const std::string &what)
+// what a check names, as the test writes it: its bytes and the line over them
+struct DeviceWhat
 {
+    char text[DEVICE_TEST_WHAT_BYTES];
+    VerbaLinea line;
+};
+
+// a check's words begun with `head`
+static void device_what_begun(DeviceWhat *what, const char *head)
+{
+    what->line = mmgr_line_over(what->text, sizeof(what->text));
+    mmgr_line_put(&what->line, head);
+}
+
+static void device_check(DeviceResults *results, int passed, DeviceWhat *what)
+{
+    (void)mmgr_line_finish(&what->line);
     results->checks += 1u;
     results->failed += passed ? 0u : 1u;
     {
@@ -58,122 +74,211 @@ static void device_check(DeviceResults *results, int passed, const std::string &
         mmgr_line_put(output_line, "  ");
         mmgr_line_put(output_line, passed ? "ok  " : "FAIL");
         mmgr_line_put(output_line, " ");
-        mmgr_line_put(output_line, what.c_str());
+        mmgr_line_put(output_line, what->text);
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
 }
 
-// 1 where every line of a lane's ledger reads `<register> <holder> claimed <n> <form> released <n> <form>`, the claim
-// no later than the release, and the ledger contains a line at all
-static int device_claims_well_formed(const std::string &claims)
+// a check whose words are `head` then `rest`
+static void device_named_check(DeviceResults *results, int passed, const char *head, const char *rest)
 {
-    int well = !claims.empty();
-    for (size_t at = 0u; well && (at < claims.size());)
+    DeviceWhat what;
+    device_what_begun(&what, head);
+    mmgr_line_put(&what.line, rest);
+    device_check(results, passed, &what);
+}
+
+// 1 where the `length` bytes at `line` from `from` read `label`, then a number of at least 1 into `number`, then a word
+static int device_claim_read(const char *line, size_t length, size_t from, const char *label,
+                             unsigned long long *number)
+{
+    const size_t label_length = mmgr_text_length(label, PLATFORM_TEXT_TO_TERMINATOR);
+    if (((from + label_length) > length) || (mmgr_bytes_compare(&line[from], label, label_length) != 0))
     {
-        const size_t end = claims.find('\n', at);
-        const std::string line = claims.substr(at, (end == std::string::npos) ? std::string::npos : end - at);
-        at = (end == std::string::npos) ? claims.size() : end + 1u;
-        const size_t claimed = line.find(" claimed ");
-        const size_t released = line.find(" released ");
+        return 0;
+    }
+    const char *const digits = &line[from + label_length];
+    const char *end = NULL;
+    *number = (unsigned long long)mmgr_text_unsigned_in(digits, &end, 10u);
+    // the number ends inside the line, past its start
+    const size_t after = (end != NULL) ? (size_t)(end - line) : length;
+    return (end != NULL) && (end != digits) && ((after + 1u) < length) && (line[after] == ' ') &&
+           (line[after + 1u] != ' ');
+}
+
+// the place of `needle` in the `length` bytes at `text`, or `length` where it is not there
+static size_t device_find(const char *text, size_t length, const char *needle)
+{
+    const size_t needle_length = mmgr_text_length(needle, PLATFORM_TEXT_TO_TERMINATOR);
+    for (size_t at = 0u; (at + needle_length) <= length; at += 1u)
+    {
+        if (mmgr_bytes_compare(&text[at], needle, needle_length) == 0)
+        {
+            return at;
+        }
+    }
+    return length;
+}
+
+// 1 where every line of a lane's ledger reads `<register> <holder> claimed <n> <form> released <n> <form>`, the claim
+// no later than the release, and the ledger holds a line at all
+static int device_claims_well_formed(const char *claims)
+{
+    const size_t size = mmgr_text_length(claims, PLATFORM_TEXT_TO_TERMINATOR);
+    int well = size != 0u;
+    for (size_t at = 0u; well && (at < size);)
+    {
+        const char *const newline = mmgr_text_char(&claims[at], '\n', size - at);
+        // a line ends at or past its start
+        const size_t end = (newline != NULL) ? (size_t)(newline - claims) : size;
+        const char *const line = &claims[at];
+        const size_t length = end - at;
+        at = end + 1u;
+        const size_t claimed = device_find(line, length, " claimed ");
+        const size_t released = device_find(line, length, " released ");
+        const size_t space = device_find(line, length, " ");
         unsigned long long claimed_at = 0ull;
         unsigned long long released_at = 0ull;
-        char claimed_form[64];
-        char released_form[64];
-        well = (claimed != std::string::npos) && (released != std::string::npos) && (claimed > 0u) &&
-               (line.find(' ') < claimed) && (released > claimed) &&
-               (sscanf(line.c_str() + claimed, " claimed %llu %63s", &claimed_at, claimed_form) == 2) &&
-               (sscanf(line.c_str() + released, " released %llu %63s", &released_at, released_form) == 2) &&
-               (claimed_at >= 1ull) && (claimed_at <= released_at);
+        well = (claimed != length) && (released != length) && (claimed > 0u) && (space < claimed) &&
+               (released > claimed) && device_claim_read(line, length, claimed, " claimed ", &claimed_at) &&
+               device_claim_read(line, length, released, " released ", &released_at) && (claimed_at >= 1ull) &&
+               (claimed_at <= released_at);
     }
     return well;
 }
 
-// 1 where two lists of forms are the same item for item
-static int device_items_same(const std::vector<MachineInstr> &left, const std::vector<MachineInstr> &right)
+// 1 where two lists of forms, a MachineInstr each, are the same item for item
+static int device_items_same(const PlatformArray *left, const PlatformArray *right)
 {
-    return (left.size() == right.size()) &&
-           ((left.empty()) || (memcmp(left.data(), right.data(), left.size() * sizeof(MachineInstr)) == 0));
+    return (left->count == right->count) &&
+           ((left->count == 0ull) ||
+            (mmgr_bytes_compare(left->cell, right->cell, (size_t)(left->count * sizeof(MachineInstr))) == 0));
 }
 
-// what the device gave, or why it did not
-static std::string device_why(int ok, const std::string &error)
+// what the device gave, or why it did not, onto `what`
+static void device_why(DeviceWhat *what, int ok, const char *error)
 {
-    return ok ? std::string() : (" (" + error + ")");
-}
-
-static std::string device_text_differ(const std::string &host, const std::string &device);
-
-// the bytes of a reason or a text a call of the device gives, its terminator among them
-#define DEVICE_TEST_WHY_BYTES 1024u
-#define DEVICE_TEST_TEXT_BYTES (1ULL << 30u)
-
-// `call` given a line for its reason, the reason then in `error` as a string
-template <typename Call> static int device_said(std::string *error, const Call &call)
-{
-    char why[DEVICE_TEST_WHY_BYTES];
-    VerbaLinea line = mmgr_line_over(why, sizeof(why));
-    const int ok = call(&line);
-    (void)mmgr_line_finish(&line);
-    *error = why;
-    return ok;
-}
-
-// `call` given a text and a line for its reason, the text then in `text` and the reason in `error` as strings
-template <typename Call> static int device_wrote(std::string *text, std::string *error, const Call &call)
-{
-    PlatformText written;
-    platform_text_begun(&written, DEVICE_TEST_TEXT_BYTES, platform_place_g_program_owner, 0);
-    const int ok = device_said(error, [&](VerbaLinea *line) { return call(&written, line); });
-    *text = std::string(platform_text_bytes(&written), (size_t)platform_text_size(&written));
-    platform_text_ended(&written);
-    return ok;
-}
-
-// the device's forms of a lane into `items` (codegen_device_instrs)
-static int device_instrs(const EngineRecordLayout *layout, const std::vector<unsigned int> &scratch,
-                         unsigned int places, const ScheduleCosts *costs, ScheduleReport *report,
-                         std::vector<MachineInstr> *items, std::string *error)
-{
-    PlatformArray decided;
-    platform_array_begun(&decided, sizeof(MachineInstr), platform_place_g_program_owner, 0);
-    const int ok = device_said(error, [&](VerbaLinea *line) {
-        return codegen_device_instrs(layout, scratch.data(), scratch.size(), places, costs, report, &decided, line);
-    });
-    lane_items_taken(&decided, items);
-    return ok;
-}
-
-// one language's lane of a program: its forms as the lane runs and split, and its text, the device's checked against
-// the host's
-static void device_language(DeviceResults *results, const std::string &name, CodeGenerator *generator,
-                            const char *language, const EngineRecordLayout *layout, const LayoutRequest *request)
-{
-    const std::string lane = name + " in " + language;
-    const Ruleset *const rules = generator->ruleset(1);
-    if (rules == NULL)
+    if (ok == 0)
     {
-        device_check(results, 0, lane + ": the ruleset is read");
+        mmgr_line_put(&what->line, " (");
+        mmgr_line_put(&what->line, error);
+        mmgr_line_put(&what->line, ")");
+    }
+}
+
+// Where the device's text first leaves the code generator's, onto `what`: the byte, and a few lines of each from the
+// line it is on. Nothing where the two are the same
+static void device_text_differ(DeviceWhat *what, const PlatformText *host, const PlatformText *device)
+{
+    const char *const host_text = host->cell;
+    const char *const device_text = device->cell;
+    const unsigned long long host_length = platform_text_size(host);
+    const unsigned long long device_length = platform_text_size(device);
+    unsigned long long at = 0ull;
+    while ((at < host_length) && (at < device_length) && (host_text[at] == device_text[at]))
+    {
+        at += 1ull;
+    }
+    if ((at == host_length) && (at == device_length))
+    {
         return;
     }
-    const unsigned int scratch_banks[3] = {REGCLASS_TEMPORARY, REGCLASS_WIDE, REGCLASS_PREDICATE};
-    std::vector<unsigned int> scratch;
-    unsigned int *const scratch_cell = ruleset_scratch(rules, scratch_banks);
-    if (scratch_cell != NULL)
+    unsigned long long from = at;
+    while ((from > 0ull) && (host_text[from - 1ull] != '\n'))
     {
-        scratch.assign(scratch_cell, scratch_cell + (4u * rules->schema->form_count));
+        from -= 1ull;
     }
-    platform_cell_released(scratch_cell, platform_place_g_program_owner);
-    std::vector<MachineInstr> host_items;
-    std::vector<MachineInstr> device_items;
-    unsigned int places = 0u;
-    std::string error;
-    if (lane_decided_items(*generator, layout, &places, &host_items) == 0)
+    VerbaLinea *const line = &what->line;
+    mmgr_line_put(line, " (");
+    mmgr_line_decimal(line, host_length, 1u);
+    mmgr_line_put(line, " bytes on the host, ");
+    mmgr_line_decimal(line, device_length, 1u);
+    mmgr_line_put(line, " from the device, first differing at byte ");
+    mmgr_line_decimal(line, at, 1u);
+    mmgr_line_put(line, ")\n    host:   ");
+    (void)mmgr_line_put_n(line, &host_text[from],
+                          (size_t)(((host_length - from) < 160ull) ? (host_length - from) : 160ull));
+    mmgr_line_put(line, "\n    device: ");
+    const unsigned long long device_from = (from < device_length) ? from : device_length;
+    (void)mmgr_line_put_n(line, &device_text[device_from],
+                          (size_t)(((device_length - device_from) < 160ull) ? (device_length - device_from) : 160ull));
+}
+
+// a reason a call gives: its bytes and the line over them
+struct DeviceWhy
+{
+    char text[DEVICE_TEST_WHY_BYTES];
+    VerbaLinea line;
+};
+
+static void device_why_begun(DeviceWhy *why)
+{
+    why->line = mmgr_line_over(why->text, sizeof(why->text));
+}
+
+static const char *device_why_text(DeviceWhy *why)
+{
+    (void)mmgr_line_finish(&why->line);
+    return why->text;
+}
+
+// a text begun for a lane
+static void device_text_begun(PlatformText *text)
+{
+    platform_text_begun(text, DEVICE_TEST_TEXT_BYTES, platform_place_g_program_owner, 0);
+}
+
+// 1 where two texts hold the same bytes
+static int device_texts_same(const PlatformText *left, const PlatformText *right)
+{
+    const unsigned long long length = platform_text_size(left);
+    return (length == platform_text_size(right)) && (mmgr_bytes_compare(left->cell, right->cell, (size_t)length) == 0);
+}
+
+// the cells of one language's lane of a program, each given back as the lane ends
+struct DeviceLane
+{
+    unsigned int *scratch;
+    PlatformArray host_items;
+    PlatformArray device_items;
+    PlatformText text;
+    PlatformText written;
+    PlatformText stepped;
+};
+
+static void device_lane_begun(DeviceLane *lane)
+{
+    lane->scratch = NULL;
+    platform_array_begun(&lane->host_items, sizeof(MachineInstr), platform_place_g_program_owner, 0);
+    platform_array_begun(&lane->device_items, sizeof(MachineInstr), platform_place_g_program_owner, 0);
+    device_text_begun(&lane->text);
+    device_text_begun(&lane->written);
+    device_text_begun(&lane->stepped);
+}
+
+static void device_lane_ended(DeviceLane *lane)
+{
+    platform_cell_released(lane->scratch, platform_place_g_program_owner);
+    platform_array_ended(&lane->host_items);
+    platform_array_ended(&lane->device_items);
+    platform_text_ended(&lane->text);
+    platform_text_ended(&lane->written);
+    platform_text_ended(&lane->stepped);
+}
+
+// The lane's forms on the device against the host's, as the lane runs and split into states by the test's model. 0
+// where the host decides no lane for it, which the language then does not support
+static int device_forms(DeviceResults *results, const char *lane_name, CodeGenerator *generator,
+                        const EngineRecordLayout *layout, DeviceLane *lane, unsigned int *places)
+{
+    const unsigned int scratch_count = 4u * generator->schema()->form_count;
+    if (generator->decided(layout, places, &lane->host_items) == 0)
     {
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  ");
-            mmgr_line_put(output_line, lane.c_str());
+            mmgr_line_put(output_line, lane_name);
             mmgr_line_put(output_line, ": ");
             mmgr_line_decimal(output_line, layout->steps, 1u);
             mmgr_line_put(output_line,
@@ -182,126 +287,172 @@ static void device_language(DeviceResults *results, const std::string &name, Cod
             platform_line_out_ended();
         }
         results->unsupported += 1u;
-        return;
+        return 0;
     }
     // the lane as program() writes it: whole, or split where the language always splits it
     ScheduleCosts program_costs;
     const ScheduleCosts *const written_costs =
         generator->program_schedule_costs(&program_costs) ? &program_costs : NULL;
     ScheduleReport written_report = {0u, 0u, 0u};
-    const int decided = device_instrs(layout, scratch, places, written_costs, &written_report, &device_items, &error);
-    device_check(results, decided && device_items_same(host_items, device_items),
-                 lane + ": the device decides the host's " + std::to_string(host_items.size()) + " forms" +
-                     device_why(decided, error));
+    DeviceWhy why;
+    device_why_begun(&why);
+    const int decided = codegen_device_instrs(layout, lane->scratch, scratch_count, *places, written_costs,
+                                              &written_report, &lane->device_items, &why.line);
+    DeviceWhat what;
+    device_what_begun(&what, lane_name);
+    mmgr_line_put(&what.line, ": the device decides the host's ");
+    mmgr_line_decimal(&what.line, lane->host_items.count, 1u);
+    mmgr_line_put(&what.line, " forms");
+    device_why(&what, decided, device_why_text(&why));
+    device_check(results, decided && device_items_same(&lane->host_items, &lane->device_items), &what);
     // the lane split into states
-    ScheduleModel model;
-    model.cost = NULL;
-    model.cost_count = 0u;
-    model.other = 1u;
-    model.budget = DEVICE_TEST_BUDGET;
-    model.writes = 1u;
+    const ScheduleModel model = {NULL, 0u, 1u, DEVICE_TEST_BUDGET, 1u};
     ScheduleReport host_report = {0u, 0u, 0u};
     ScheduleReport device_report = {0u, 0u, 0u};
     unsigned int scheduled_places = 0u;
-    if (lane_decided_items(*generator, layout, model, &host_report, &scheduled_places, &host_items) != 0)
+    if (generator->decided(layout, model, &host_report, &scheduled_places, &lane->host_items) != 0)
     {
         const ScheduleCosts costs = generator->schedule_costs(model);
-        const int scheduled_decided =
-            device_instrs(layout, scratch, scheduled_places, &costs, &device_report, &device_items, &error);
+        device_why_begun(&why);
+        const int scheduled_decided = codegen_device_instrs(layout, lane->scratch, scratch_count, scheduled_places,
+                                                            &costs, &device_report, &lane->device_items, &why.line);
+        device_what_begun(&what, lane_name);
+        mmgr_line_put(&what.line, " split into ");
+        mmgr_line_decimal(&what.line, host_report.states, 1u);
+        mmgr_line_put(&what.line, " states: the device splits it as the host does");
+        device_why(&what, scheduled_decided, device_why_text(&why));
         device_check(results,
-                     scheduled_decided && device_items_same(host_items, device_items) &&
+                     scheduled_decided && device_items_same(&lane->host_items, &lane->device_items) &&
                          (device_report.states == host_report.states) && (device_report.max == host_report.max) &&
                          (device_report.over == host_report.over),
-                     lane + " split into " + std::to_string(host_report.states) +
-                         " states: the device splits it as the host does" + device_why(scheduled_decided, error));
+                     &what);
     }
     else
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  ");
-        mmgr_line_put(output_line, lane.c_str());
+        mmgr_line_put(output_line, lane_name);
         mmgr_line_put(output_line, ": the host does not split the lane by the test's schedule model");
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    // the text, where the assembly printer takes the language's ruleset
-    const TargetInfo target = {0ull, 0, 0, 0, 0, ""};
-    unsigned int live = 0u;
-    const std::string text =
-        lane_program_text(*generator, layout, &target, std::string(s_device_header), &places, &live);
-    AsmPrinterRuleset text_rules{};
-    if (asm_printer_build_strings(rules, &target, std::string(s_device_header), &text_rules, &error) == 0)
-    {
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "  ");
-            mmgr_line_put(output_line, lane.c_str());
-            mmgr_line_put(output_line, ": the assembly printer does not take the ruleset (");
-            mmgr_line_put(output_line, error.c_str());
-            mmgr_line_put(output_line, ")");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
-        return;
-    }
+    return 1;
+}
+
+// The device's read of the ruleset's file against the host's, and its build of the assembly printer's ruleset against
+// `text_rules`
+static void device_rules(DeviceResults *results, const char *lane_name, const Ruleset *rules, const TargetInfo *target,
+                         const AsmPrinterRuleset *text_rules)
+{
     Ruleset device_read{};
     device_read.schema = rules->schema;
     platform_array_begun(&device_read.folds, sizeof(RulesetFold), platform_place_g_program_owner, 0);
     ruleset_released(&device_read);
-    std::string read_error;
-    const int read_ran = device_said(
-        &read_error, [&](VerbaLinea *line) { return ruleset_read_device(&device_read, rules->path, line); });
-    device_check(results, read_ran && ruleset_same(&device_read, rules),
-                 lane + ": the device reads the ruleset's file as the host does" + device_why(read_ran, read_error));
+    DeviceWhy why;
+    device_why_begun(&why);
+    const int read_ran = ruleset_read_device(&device_read, rules->path, &why.line);
+    DeviceWhat what;
+    device_what_begun(&what, lane_name);
+    mmgr_line_put(&what.line, ": the device reads the ruleset's file as the host does");
+    device_why(&what, read_ran, device_why_text(&why));
+    device_check(results, read_ran && ruleset_same(&device_read, rules), &what);
     ruleset_released(&device_read);
-    AsmPrinterRuleset device_rules{};
-    std::string rules_error;
-    const int rules_built = device_said(&rules_error, [&](VerbaLinea *line) {
-        return asm_printer_ruleset_device(rules, &target, s_device_header, &device_rules, line);
-    });
-    device_check(results, rules_built && asm_printer_ruleset_same(&device_rules, &text_rules),
-                 lane + ": the device builds the assembly printer's ruleset word for word the host's" +
-                     device_why(rules_built, rules_error));
+    AsmPrinterRuleset device_built;
+    mmgr_bytes_set(&device_built, 0, sizeof(device_built));
+    device_why_begun(&why);
+    const int rules_built = asm_printer_ruleset_device(rules, target, s_device_header, &device_built, &why.line);
+    device_what_begun(&what, lane_name);
+    mmgr_line_put(&what.line, ": the device builds the assembly printer's ruleset word for word the host's");
+    device_why(&what, rules_built, device_why_text(&why));
+    device_check(results, rules_built && asm_printer_ruleset_same(&device_built, text_rules), &what);
     if (rules_built)
     {
-        asm_printer_ruleset_release(&device_rules);
+        asm_printer_ruleset_release(&device_built);
     }
-    std::string written;
-    const int wrote = device_wrote(&written, &error, [&](PlatformText *out, VerbaLinea *line) {
-        return codegen_device(layout, &text_rules, places, written_costs, out, line);
-    });
-    device_check(results, wrote && !text.empty() && (written == text),
-                 lane + ": the device writes the code generator's " + std::to_string(text.size()) +
-                     " bytes from the host's "
-                     "layout" +
-                     device_why(wrote, error) + (wrote ? device_text_differ(text, written) : std::string()));
-    std::string stepped;
-    const int stepped_wrote = device_wrote(&stepped, &error, [&](PlatformText *out, VerbaLinea *line) {
-        return codegen_device_steps(request, &text_rules, places, written_costs, out, line);
-    });
-    device_check(results, stepped_wrote && !text.empty() && (stepped == text),
-                 lane + ": the device writes them from its own layout" + device_why(stepped_wrote, error) +
-                     (stepped_wrote ? device_text_differ(text, stepped) : std::string()));
-    asm_printer_ruleset_release(&text_rules);
 }
 
-// where the device's text first leaves the code generator's: the byte and a few lines of each from the line it is on
-static std::string device_text_differ(const std::string &host, const std::string &device)
+// one language's lane of a program: its forms as the lane runs and split, and its text, the device's checked against
+// the host's
+static void device_language(DeviceResults *results, const char *name, CodeGenerator *generator, const char *language,
+                            const EngineRecordLayout *layout, const LayoutRequest *request)
 {
-    if (host == device)
+    char lane_name[DEVICE_TEST_WHAT_BYTES];
+    VerbaLinea lane_line = mmgr_line_over(lane_name, sizeof(lane_name));
+    mmgr_line_put(&lane_line, name);
+    mmgr_line_put(&lane_line, " in ");
+    mmgr_line_put(&lane_line, language);
+    (void)mmgr_line_finish(&lane_line);
+    const Ruleset *const rules = generator->ruleset(1);
+    if (rules == NULL)
     {
-        return std::string();
+        device_named_check(results, 0, lane_name, ": the ruleset is read");
+        return;
     }
-    size_t at = 0u;
-    while ((at < host.size()) && (at < device.size()) && (host[at] == device[at]))
+    const unsigned int scratch_banks[3] = {REGCLASS_TEMPORARY, REGCLASS_WIDE, REGCLASS_PREDICATE};
+    DeviceLane lane;
+    device_lane_begun(&lane);
+    lane.scratch = ruleset_scratch(rules, scratch_banks);
+    unsigned int places = 0u;
+    if ((lane.scratch == NULL) || (device_forms(results, lane_name, generator, layout, &lane, &places) == 0))
     {
-        at += 1u;
+        device_lane_ended(&lane);
+        return;
     }
-    const size_t line = host.rfind('\n', (at == 0u) ? 0u : (at - 1u));
-    const size_t from = ((line == std::string::npos) || (at == 0u)) ? 0u : (line + 1u);
-    return " (" + std::to_string(host.size()) + " bytes on the host, " + std::to_string(device.size()) +
-           " from the device, first differing at byte " + std::to_string(at) +
-           ")\n    host:   " + host.substr(from, 160u) + "\n    device: " + device.substr(from, 160u);
+    // the text, where the assembly printer takes the language's ruleset
+    const TargetInfo target = {0ull, 0, 0, 0, 0, ""};
+    unsigned int live = 0u;
+    (void)generator->program(layout, &target, s_device_header, &lane.text, &places, &live);
+    AsmPrinterRuleset text_rules;
+    mmgr_bytes_set(&text_rules, 0, sizeof(text_rules));
+    DeviceWhy why;
+    device_why_begun(&why);
+    if (asm_printer_ruleset_build(rules, &target, s_device_header, &text_rules, &why.line) == 0)
+    {
+        {
+            VerbaLinea *const output_line = platform_line_out();
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, lane_name);
+            mmgr_line_put(output_line, ": the assembly printer does not take the ruleset (");
+            mmgr_line_put(output_line, device_why_text(&why));
+            mmgr_line_put(output_line, ")");
+            mmgr_line_ch(output_line, '\n');
+            platform_line_out_ended();
+        }
+        device_lane_ended(&lane);
+        return;
+    }
+    device_rules(results, lane_name, rules, &target, &text_rules);
+    ScheduleCosts program_costs;
+    const ScheduleCosts *const written_costs =
+        generator->program_schedule_costs(&program_costs) ? &program_costs : NULL;
+    const unsigned long long text_length = platform_text_size(&lane.text);
+    device_why_begun(&why);
+    const int wrote = codegen_device(layout, &text_rules, places, written_costs, &lane.written, &why.line);
+    DeviceWhat what;
+    device_what_begun(&what, lane_name);
+    mmgr_line_put(&what.line, ": the device writes the code generator's ");
+    mmgr_line_decimal(&what.line, text_length, 1u);
+    mmgr_line_put(&what.line, " bytes from the host's layout");
+    device_why(&what, wrote, device_why_text(&why));
+    if (wrote)
+    {
+        device_text_differ(&what, &lane.text, &lane.written);
+    }
+    device_check(results, wrote && (text_length != 0ull) && device_texts_same(&lane.written, &lane.text), &what);
+    device_why_begun(&why);
+    const int stepped_wrote =
+        codegen_device_steps(request, &text_rules, places, written_costs, &lane.stepped, &why.line);
+    device_what_begun(&what, lane_name);
+    mmgr_line_put(&what.line, ": the device writes them from its own layout");
+    device_why(&what, stepped_wrote, device_why_text(&why));
+    if (stepped_wrote)
+    {
+        device_text_differ(&what, &lane.text, &lane.stepped);
+    }
+    device_check(results, stepped_wrote && (text_length != 0ull) && device_texts_same(&lane.stepped, &lane.text),
+                 &what);
+    asm_printer_ruleset_release(&text_rules);
+    device_lane_ended(&lane);
 }
 
 // the program arranged on the host and on the device, and each language's lane of it
@@ -313,11 +464,15 @@ static void device_run(void *context, const HostProgram *program, int reuse, uns
     (void)index;
     (void)errors;
     DeviceResults *const results = (DeviceResults *)context;
-    const std::string name = std::string(program->name) + (reuse ? " (registers reused)" : "");
+    char name[DEVICE_TEST_WHAT_BYTES];
+    VerbaLinea name_line = mmgr_line_over(name, sizeof(name));
+    mmgr_line_put(&name_line, program->name);
+    mmgr_line_put(&name_line, reuse ? " (registers reused)" : "");
+    (void)mmgr_line_finish(&name_line);
     HostLoaded loaded;
     if (host_load(program, reuse, &loaded) == 0)
     {
-        device_check(results, 0, name + " is arranged on the host");
+        device_named_check(results, 0, name, " is arranged on the host");
         return;
     }
     LayoutRequest request{};
@@ -334,13 +489,18 @@ static void device_run(void *context, const HostProgram *program, int reuse, uns
     request.table_count = program->table_count;
     request.reuse = reuse;
     EngineRecordLayout device_layout{};
-    std::string error;
-    const int device_built =
-        device_said(&error, [&](VerbaLinea *line) { return layout_device(&request, &device_layout, line); });
-    device_check(results, device_built && layout_same(&device_layout, &loaded.layout),
-                 name + ": the device arranges the host's " + std::to_string(loaded.layout.steps) + " steps and " +
-                     std::to_string(loaded.layout.file_limbs) + " limbs of file word for word" +
-                     device_why(device_built, error));
+    DeviceWhy why;
+    device_why_begun(&why);
+    const int device_built = layout_device(&request, &device_layout, &why.line);
+    DeviceWhat what;
+    device_what_begun(&what, name);
+    mmgr_line_put(&what.line, ": the device arranges the host's ");
+    mmgr_line_decimal(&what.line, loaded.layout.steps, 1u);
+    mmgr_line_put(&what.line, " steps and ");
+    mmgr_line_decimal(&what.line, loaded.layout.file_limbs, 1u);
+    mmgr_line_put(&what.line, " limbs of file word for word");
+    device_why(&what, device_built, device_why_text(&why));
+    device_check(results, device_built && layout_same(&device_layout, &loaded.layout), &what);
     if (device_built)
     {
         key_schedule_record_release(&device_layout);
@@ -360,20 +520,25 @@ static void device_run(void *context, const HostProgram *program, int reuse, uns
 // printer writes itself
 static void device_bootstrap(DeviceResults *results, CodeGenerator *generator, const char *language)
 {
-    const std::string lane = std::string("the assembly printer's own lane in ") + language;
+    char lane_name[DEVICE_TEST_WHAT_BYTES];
+    VerbaLinea lane_line = mmgr_line_over(lane_name, sizeof(lane_name));
+    mmgr_line_put(&lane_line, "the assembly printer's own lane in ");
+    mmgr_line_put(&lane_line, language);
+    (void)mmgr_line_finish(&lane_line);
     const Ruleset *const rules = generator->ruleset(1);
     const TargetInfo target = {0ull, 0, 0, 0, 0, ""};
-    AsmPrinterRuleset text_rules{};
-    std::string error;
-    if ((rules == NULL) ||
-        (asm_printer_build_strings(rules, &target, std::string(s_device_header), &text_rules, &error) == 0))
+    AsmPrinterRuleset text_rules;
+    mmgr_bytes_set(&text_rules, 0, sizeof(text_rules));
+    DeviceWhy why;
+    device_why_begun(&why);
+    if ((rules == NULL) || (asm_printer_ruleset_build(rules, &target, s_device_header, &text_rules, &why.line) == 0))
     {
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  ");
-            mmgr_line_put(output_line, lane.c_str());
+            mmgr_line_put(output_line, lane_name);
             mmgr_line_put(output_line, ": the assembly printer does not take the ruleset (");
-            mmgr_line_put(output_line, (rules == NULL) ? "it is not read" : error.c_str());
+            mmgr_line_put(output_line, (rules == NULL) ? "it is not read" : device_why_text(&why));
             mmgr_line_put(output_line, ")");
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
@@ -398,23 +563,34 @@ static void device_bootstrap(DeviceResults *results, CodeGenerator *generator, c
     request.reuse = 1;
     unsigned int places = 0u;
     unsigned int live = 0u;
-    const std::string text =
-        lane_program_text(*generator, &program.layout, &target, std::string(s_device_header), &places, &live);
-    device_check(results, text.empty() || device_claims_well_formed(generator->register_claims()),
-                 lane + ": every register the lane uses is claimed and released by its items");
-    std::string written;
+    PlatformText text;
+    PlatformText written;
+    device_text_begun(&text);
+    device_text_begun(&written);
+    (void)generator->program(&program.layout, &target, s_device_header, &text, &places, &live);
+    const unsigned long long text_length = platform_text_size(&text);
+    device_named_check(results, (text_length == 0ull) || device_claims_well_formed(generator->register_claims()),
+                       lane_name, ": every register the lane uses is claimed and released by its items");
     ScheduleCosts program_costs;
     const ScheduleCosts *const written_costs =
         generator->program_schedule_costs(&program_costs) ? &program_costs : NULL;
-    const int wrote = device_wrote(&written, &error, [&](PlatformText *out, VerbaLinea *line) {
-        return codegen_device_steps(&request, &text_rules, places, written_costs, out, line);
-    });
-    device_check(results, wrote && !text.empty() && (written == text),
-                 lane + ", " + std::to_string(program.layout.steps) +
-                     " steps: the device writes it with the text "
-                     "program, the code generator's " +
-                     std::to_string(text.size()) + " bytes" + device_why(wrote, error) +
-                     (wrote ? device_text_differ(text, written) : std::string()));
+    device_why_begun(&why);
+    const int wrote = codegen_device_steps(&request, &text_rules, places, written_costs, &written, &why.line);
+    DeviceWhat what;
+    device_what_begun(&what, lane_name);
+    mmgr_line_put(&what.line, ", ");
+    mmgr_line_decimal(&what.line, program.layout.steps, 1u);
+    mmgr_line_put(&what.line, " steps: the device writes it with the text program, the code generator's ");
+    mmgr_line_decimal(&what.line, text_length, 1u);
+    mmgr_line_put(&what.line, " bytes");
+    device_why(&what, wrote, device_why_text(&why));
+    if (wrote)
+    {
+        device_text_differ(&what, &text, &written);
+    }
+    device_check(results, wrote && (text_length != 0ull) && device_texts_same(&written, &text), &what);
+    platform_text_ended(&written);
+    platform_text_ended(&text);
     asm_printer_ruleset_release(&text_rules);
 }
 
@@ -434,8 +610,8 @@ int program_main(int count, char **arguments)
     }
     sim_job_release(&job);
     sim_flush(&job);
-    device_check(&results, (admitted != 0) && (job.failures == 0ull),
-                 "tessera: the device's daemon admits the test's job and it releases");
+    device_named_check(&results, (admitted != 0) && (job.failures == 0ull),
+                       "tessera: the device's daemon admits the test's job and it releases", "");
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  codegen device test: ");
