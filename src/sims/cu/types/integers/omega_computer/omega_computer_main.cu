@@ -1,6 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // omega_computer_main.cu: direct runs, requests and main
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "omega_computer_internal.h"
 
 // Tromp's universal machine, 190 bits: (\1 (\(\\(\\1 (\\2 (1 4) (5 1 (1 1 1)))) (\3 (\2 (3 (\\3 (\\2 3 (1 4))))
@@ -20,16 +22,25 @@ static const char s_omega_computer_delimit_input[] = "1111000111001";
 
 static const char s_omega_computer_delimit_output[] = "11010";
 
-// the direct run by rewriting: the program applied to its input's list
-static OmegaComputerFate omega_computer_direct(const std::vector<int> &program, const std::string &input,
-                                               unsigned int steps, unsigned int tokens, std::vector<int> &normal,
+// The pool: the arenas, the stack, the work and the arguments of the lazy machine at the cap of its cells, 1792 MiB.
+// Also the rewriting's tables at OMEGA_COMPUTER_TERM_MAX, 112 MiB, and room for the sim's own cells
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 31u;
+
+// the bits of a text that ends in a terminator, without the terminator
+#define OMEGA_COMPUTER_TEXT_BITS(text_) (sizeof(text_) - 1u)
+
+// The direct run by the rewrite: the program applied to its input's list. `normal` names the last term, in the
+// rewrite's tables until the next rewrite
+static OmegaComputerFate omega_computer_direct(const OmegaComputerTerm *program, const char *input, size_t input_count,
+                                               unsigned int steps, unsigned int tokens, OmegaComputerTerm *normal,
                                                unsigned long long *taken)
 {
-    normal.clear();
-    normal.push_back(OMEGA_COMPUTER_APPLY);
-    normal.insert(normal.end(), program.begin(), program.end());
-    omega_computer_list_tokens(input, normal);
-    return omega_computer_rewrite(normal, steps, tokens, taken);
+    static int s_start_tokens[OMEGA_COMPUTER_PROGRAM_MAX];
+    OmegaComputerTerm start = {s_start_tokens, 0u, OMEGA_COMPUTER_PROGRAM_MAX};
+    omega_computer_put(&start, OMEGA_COMPUTER_APPLY);
+    omega_computer_appended(&start, program->token, program->count);
+    omega_computer_list_tokens(input, input_count, &start);
+    return omega_computer_rewrite(&start, steps, tokens, taken, normal);
 }
 
 static void omega_computer_binary(VerbaLinea *line, unsigned long long numerator, unsigned int bits)
@@ -68,14 +79,21 @@ static int omega_computer_request(const char *text, unsigned long long least, un
     {
         return 0;
     }
-    for (const char *walk = text; *walk != '\0'; walk += 1)
+    const size_t digits = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = "0123456789");
+    if (text[digits] != '\0')
     {
-        if ((*walk < '0') || (*walk > '9') || (read > max))
+        return 0;
+    }
+    // each digit is a step of the value: the value times 10, and the digit added
+    for (size_t at = 0u; at < digits; at += 1u)
+    {
+        if (read > max)
         {
             return 0;
         }
         // one decimal digit, 0 to 9
-        read = (read * 10ULL) + (unsigned long long)(*walk - '0');
+        read = (read * 10ULL) + (unsigned long long)(text[at] - '0');
     }
     if ((read < least) || (read > max))
     {
@@ -84,6 +102,17 @@ static int omega_computer_request(const char *text, unsigned long long least, un
     *value = read;
     return 1;
 }
+
+// the tables of the sim's terms, each at a fixed bound
+static int s_universal_tokens[OMEGA_COMPUTER_PROGRAM_MAX];
+static int s_delimit_tokens[OMEGA_COMPUTER_PROGRAM_MAX];
+static int s_expected_tokens[OMEGA_COMPUTER_PROGRAM_MAX];
+static int s_identity_tokens[OMEGA_COMPUTER_PROGRAM_MAX];
+static int s_nested_tokens[OMEGA_COMPUTER_PROGRAM_MAX];
+static int s_program_tokens[OMEGA_COMPUTER_PROGRAM_MAX];
+static int s_normal_tokens[OMEGA_COMPUTER_DEPTH_MAX + 1u][OMEGA_COMPUTER_NORMAL_MAX];
+static char s_code_bits[OMEGA_COMPUTER_BITS_MAX];
+static OmegaComputerMachine s_machine;
 
 int program_main(int count, char **arguments)
 {
@@ -108,93 +137,109 @@ int program_main(int count, char **arguments)
     const unsigned int depths = (unsigned int)deepest;
 
     // 1. U, and Tromp's test at every depth
-    const std::string universal_code = s_omega_computer_universal;
-    std::vector<int> universal;
+    const char *const universal_code = s_omega_computer_universal;
+    const size_t universal_count = OMEGA_COMPUTER_TEXT_BITS(s_omega_computer_universal);
+    OmegaComputerTerm universal = {s_universal_tokens, 0u, OMEGA_COMPUTER_PROGRAM_MAX};
     size_t universal_at = 0u;
-    const int universal_closed =
-        omega_computer_parse(universal_code, &universal_at, 0, universal) && (universal_at == universal_code.size());
-    std::vector<int> delimit;
+    const int universal_closed = omega_computer_parse(universal_code, universal_count, &universal_at, 0, &universal) &&
+                                 (universal_at == universal_count);
+    OmegaComputerTerm delimit = {s_delimit_tokens, 0u, OMEGA_COMPUTER_PROGRAM_MAX};
     size_t delimit_at = 0u;
-    const std::string delimit_code = s_omega_computer_delimit;
+    const size_t delimit_count = OMEGA_COMPUTER_TEXT_BITS(s_omega_computer_delimit);
     const int delimit_closed =
-        omega_computer_parse(delimit_code, &delimit_at, 0, delimit) && (delimit_at == delimit_code.size());
+        omega_computer_parse(s_omega_computer_delimit, delimit_count, &delimit_at, 0, &delimit) &&
+        (delimit_at == delimit_count);
+    const size_t input_count = OMEGA_COMPUTER_TEXT_BITS(s_omega_computer_delimit_input);
     mmgr_line_put(&results.line, "  U, Tromp's universal machine: ");
-    mmgr_line_decimal(&results.line, universal_code.size(), 1u);
+    mmgr_line_decimal(&results.line, universal_count, 1u);
     mmgr_line_put(&results.line, " bits, ");
-    mmgr_line_decimal(&results.line, universal.size(), 1u);
+    mmgr_line_decimal(&results.line, universal.count, 1u);
     mmgr_line_put(&results.line, " tokens; delimit: ");
-    mmgr_line_decimal(&results.line, delimit_code.size(), 1u);
+    mmgr_line_decimal(&results.line, delimit_count, 1u);
     mmgr_line_put(&results.line, " bits\n");
-    sim_check(&results,
-              universal_closed && (universal_code.size() == 190u) && (omega_computer_code(universal) == universal_code),
+    OmegaComputerBits code = {s_code_bits, 0u, sizeof(s_code_bits)};
+    omega_computer_code(&universal, &code);
+    const int reads_back =
+        (code.count == universal_count) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = code.bit, .other = universal_code, .bytes = universal_count) == 0);
+    sim_check(&results, universal_closed && (universal_count == 190u) && reads_back,
               "U is one closed term of 190 bits, and its code reads back to itself");
     sim_flush(&results);
-    OmegaComputerMachine machine;
-    omega_computer_machine_open(&machine, universal);
-    machine.step_budget = budget;
-    std::vector<int> expected;
-    omega_computer_list_tokens(s_omega_computer_delimit_output, expected);
-    std::vector<int> normal;
+    omega_computer_rewrite_open();
+    OmegaComputerMachine *const machine = &s_machine;
+    omega_computer_machine_open(machine, &universal);
+    machine->step_budget = budget;
+    OmegaComputerTerm expected = {s_expected_tokens, 0u, OMEGA_COMPUTER_PROGRAM_MAX};
+    omega_computer_list_tokens(s_omega_computer_delimit_output,
+                               OMEGA_COMPUTER_TEXT_BITS(s_omega_computer_delimit_output), &expected);
+    OmegaComputerTerm normals[OMEGA_COMPUTER_DEPTH_MAX + 1u];
+    for (unsigned int depth = 0u; depth <= OMEGA_COMPUTER_DEPTH_MAX; depth += 1u)
+    {
+        normals[depth].token = s_normal_tokens[depth];
+        normals[depth].count = 0u;
+        normals[depth].room = OMEGA_COMPUTER_NORMAL_MAX;
+    }
+    OmegaComputerTerm *const normal = &normals[0];
     int tromp_ok = delimit_closed;
-    mmgr_line_put(&results.line,
-                   "  Tromp's test, delimit then 1111000111001: depth, fate, beta steps, and the list\n");
+    mmgr_line_put(&results.line, "  Tromp's test, delimit then 1111000111001: depth, fate, beta steps, and the list\n");
     for (unsigned int depth = 0u; depth <= depths; depth += 1u)
     {
-        const OmegaComputerFate fate =
-            omega_computer_run(&machine, delimit, s_omega_computer_delimit_input, depth, universal_code, normal);
-        const int ok = (fate == OMEGA_COMPUTER_HALTS) && (normal == expected);
+        const OmegaComputerFate fate = omega_computer_run(machine, &delimit, s_omega_computer_delimit_input,
+                                                          input_count, depth, universal_code, universal_count, normal);
+        const int ok = (fate == OMEGA_COMPUTER_HALTS) && omega_computer_same(normal, &expected);
         tromp_ok = tromp_ok && ok;
         mmgr_line_put(&results.line, "    ");
         mmgr_line_decimal(&results.line, depth, 1u);
         mmgr_line_put(&results.line, (fate == OMEGA_COMPUTER_HALTS) ? "  halts  " : "  does not halt  ");
-        mmgr_line_decimal(&results.line, machine.steps, 1u);
+        mmgr_line_decimal(&results.line, machine->steps, 1u);
         mmgr_line_put(&results.line, "  cells ");
-        mmgr_line_decimal(&results.line, machine.thunks.size() + machine.environments.size() + machine.spines.size(),
-                          1u);
+        mmgr_line_decimal(&results.line, machine->thunk_count + machine->environment_count + machine->spine_count, 1u);
         mmgr_line_put(&results.line, (ok != 0) ? "  11010\n" : "  NOT 11010\n");
         sim_flush(&results);
     }
-    std::vector<int> rewritten;
+    OmegaComputerTerm rewritten;
     unsigned long long rewrite_taken = 0ULL;
-    const OmegaComputerFate delimit_direct =
-        omega_computer_direct(delimit, s_omega_computer_delimit_input, 1u << 20u, 1u << 19u, rewritten, &rewrite_taken);
-    tromp_ok = tromp_ok && (delimit_direct == OMEGA_COMPUTER_HALTS) && (rewritten == expected);
+    const OmegaComputerFate delimit_direct = omega_computer_direct(
+        &delimit, s_omega_computer_delimit_input, input_count, 1u << 20u, 1u << 19u, &rewritten, &rewrite_taken);
+    tromp_ok = tromp_ok && (delimit_direct == OMEGA_COMPUTER_HALTS) && omega_computer_same(&rewritten, &expected);
     mmgr_line_put(&results.line, "    the rewriting, directly: fate ");
     mmgr_line_decimal(&results.line, (unsigned long long)delimit_direct, 1u);
     mmgr_line_put(&results.line, ", ");
     mmgr_line_decimal(&results.line, rewrite_taken, 1u);
     mmgr_line_put(&results.line, " steps, ");
-    mmgr_line_decimal(&results.line, rewritten.size(), 1u);
+    mmgr_line_decimal(&results.line, rewritten.count, 1u);
     mmgr_line_put(&results.line, " tokens\n");
     sim_check(
         &results, tromp_ok,
         "U reading delimit and 1111000111001 gives the list 11010 at every depth, and the rewriting gives it directly");
-    // diagnostic: normal order rewriting of U nested, its steps and its largest live term
+    // diagnostic: the rewrite in normal order of U nested, its steps and its largest live term
     {
-        std::vector<int> identity;
-        identity.push_back(OMEGA_COMPUTER_LAMBDA);
-        identity.push_back(1);
-        const std::vector<int> *const tried[2] = {&identity, &delimit};
+        OmegaComputerTerm identity = {s_identity_tokens, 0u, OMEGA_COMPUTER_PROGRAM_MAX};
+        omega_computer_put(&identity, OMEGA_COMPUTER_LAMBDA);
+        omega_computer_put(&identity, 1);
+        const OmegaComputerTerm *const tried[2] = {&identity, &delimit};
         const char *const inputs[2] = {"", s_omega_computer_delimit_input};
+        const size_t input_counts[2] = {0u, input_count};
         for (unsigned int which = 0u; which < 2u; which += 1u)
         {
             for (unsigned int depth = 1u; depth <= 2u; depth += 1u)
             {
-                std::string bits;
+                OmegaComputerBits bits = {s_code_bits, 0u, sizeof(s_code_bits)};
                 for (unsigned int copy = 1u; copy < depth; copy += 1u)
                 {
-                    bits += universal_code;
+                    omega_computer_bits_put(&bits, universal_code, universal_count);
                 }
-                bits += omega_computer_code(*tried[which]);
-                bits += inputs[which];
-                std::vector<int> nested;
-                nested.push_back(OMEGA_COMPUTER_APPLY);
-                nested.insert(nested.end(), universal.begin(), universal.end());
-                omega_computer_list_tokens(bits, nested);
-                const size_t start = nested.size();
+                omega_computer_code(tried[which], &bits);
+                omega_computer_bits_put(&bits, inputs[which], input_counts[which]);
+                OmegaComputerTerm nested = {s_nested_tokens, 0u, OMEGA_COMPUTER_PROGRAM_MAX};
+                omega_computer_put(&nested, OMEGA_COMPUTER_APPLY);
+                omega_computer_appended(&nested, universal.token, universal.count);
+                omega_computer_list_tokens(bits.bit, bits.count, &nested);
+                const size_t start = nested.count;
                 unsigned long long nested_taken = 0ULL;
+                OmegaComputerTerm nested_last;
                 const OmegaComputerFate nested_fate =
-                    omega_computer_rewrite(nested, 1u << 18u, 1u << 17u, &nested_taken);
+                    omega_computer_rewrite(&nested, 1u << 18u, 1u << 17u, &nested_taken, &nested_last);
                 mmgr_line_put(&results.line, "    rewriting ");
                 mmgr_line_put(&results.line, (which == 0u) ? "identity" : "delimit");
                 mmgr_line_put(&results.line, " depth ");
@@ -216,12 +261,12 @@ int program_main(int count, char **arguments)
     // 2 to 4. every closed M through L bits, run on nil at every depth
     OmegaComputerCounts counts;
     omega_computer_count_all(&counts, max);
-    std::vector<unsigned long long> halted(depths + 1u, 0ULL);
-    std::vector<unsigned long long> looped(depths + 1u, 0ULL);
-    std::vector<unsigned long long> open(depths + 1u, 0ULL);
-    std::vector<unsigned long long> grew(depths + 1u, 0ULL);
-    std::vector<unsigned long long> halted_mass(depths + 1u, 0ULL);
-    std::vector<unsigned long long> steps_total(depths + 1u, 0ULL);
+    unsigned long long halted[OMEGA_COMPUTER_DEPTH_MAX + 1u] = {0ULL};
+    unsigned long long looped[OMEGA_COMPUTER_DEPTH_MAX + 1u] = {0ULL};
+    unsigned long long open[OMEGA_COMPUTER_DEPTH_MAX + 1u] = {0ULL};
+    unsigned long long grew[OMEGA_COMPUTER_DEPTH_MAX + 1u] = {0ULL};
+    unsigned long long halted_mass[OMEGA_COMPUTER_DEPTH_MAX + 1u] = {0ULL};
+    unsigned long long steps_total[OMEGA_COMPUTER_DEPTH_MAX + 1u] = {0ULL};
     unsigned long long proven_mass = 0ULL;
     unsigned long long programs = 0ULL;
     unsigned long long direct_halted = 0ULL;
@@ -231,35 +276,41 @@ int program_main(int count, char **arguments)
     unsigned long long settled_everywhere = 0ULL;
     unsigned long long contradictions = 0ULL;
     unsigned long long unnested = 0ULL;
-    std::vector<unsigned long long> depth_steps(depths + 1u, 0ULL);
-    std::vector<OmegaComputerFate> fates(depths + 1u, OMEGA_COMPUTER_OPEN);
-    std::vector<std::vector<int>> normals(depths + 1u);
+    unsigned long long depth_steps[OMEGA_COMPUTER_DEPTH_MAX + 1u] = {0ULL};
+    OmegaComputerFate fates[OMEGA_COMPUTER_DEPTH_MAX + 1u];
+    for (unsigned int depth = 0u; depth <= OMEGA_COMPUTER_DEPTH_MAX; depth += 1u)
+    {
+        fates[depth] = OMEGA_COMPUTER_OPEN;
+        normals[depth].count = 0u;
+    }
+    OmegaComputerTerm program = {s_program_tokens, 0u, OMEGA_COMPUTER_PROGRAM_MAX};
     for (unsigned int bits = 2u; bits <= max; bits += 1u)
     {
         const unsigned long long terms = omega_computer_count(&counts, bits, 0u);
         const unsigned long long mass = 1ULL << (max - bits);
         for (unsigned long long index = 0ULL; index < terms; index += 1ULL)
         {
-            std::vector<int> program;
-            omega_computer_unrank(&counts, bits, 0u, index, program);
+            program.count = 0u;
+            omega_computer_unrank(&counts, bits, 0u, index, &program);
             programs += 1ULL;
             unsigned long long taken = 0ULL;
-            std::vector<int> direct_normal;
+            OmegaComputerTerm direct_normal;
             const OmegaComputerFate direct = omega_computer_direct(
-                program, "", OMEGA_COMPUTER_REWRITE_STEPS, OMEGA_COMPUTER_REWRITE_TOKENS, direct_normal, &taken);
+                &program, "", 0u, OMEGA_COMPUTER_REWRITE_STEPS, OMEGA_COMPUTER_REWRITE_TOKENS, &direct_normal, &taken);
             const int proven_by_rewriting = (direct == OMEGA_COMPUTER_LOOPS) || (direct == OMEGA_COMPUTER_DIVERGES);
-            machine.step_budget =
+            machine->step_budget =
                 (proven_by_rewriting && (budget > OMEGA_COMPUTER_NEVER_STEPS)) ? OMEGA_COMPUTER_NEVER_STEPS : budget;
             for (unsigned int depth = 0u; depth <= depths; depth += 1u)
             {
-                fates[depth] = omega_computer_run(&machine, program, "", depth, universal_code, normals[depth]);
-                depth_steps[depth] = machine.steps;
+                fates[depth] = omega_computer_run(machine, &program, "", 0u, depth, universal_code, universal_count,
+                                                  &normals[depth]);
+                depth_steps[depth] = machine->steps;
             }
-            // the direct run halts where the rewriting or the lazy machine at depth 0 halts, and never halts where
+            // the direct run halts where the rewrite or the lazy machine at depth 0 halts, and never halts where
             // either proves it
             const int rewrite_halts = direct == OMEGA_COMPUTER_HALTS;
             const int rewrite_never = (direct == OMEGA_COMPUTER_LOOPS) || (direct == OMEGA_COMPUTER_DIVERGES);
-            const std::vector<int> &reference = rewrite_halts ? direct_normal : normals[0];
+            const OmegaComputerTerm *const reference = rewrite_halts ? &direct_normal : &normals[0];
             const int reference_halts = rewrite_halts || (fates[0] == OMEGA_COMPUTER_HALTS);
             int never = rewrite_never;
             for (unsigned int depth = 0u; depth <= depths; depth += 1u)
@@ -268,8 +319,9 @@ int program_main(int count, char **arguments)
             }
             if (rewrite_halts && (fates[0] == OMEGA_COMPUTER_HALTS))
             {
-                agree_direct += (direct_normal == normals[0]) ? 1ULL : 0ULL;
-                contradictions += (direct_normal == normals[0]) ? 0ULL : 1ULL;
+                const int agree = omega_computer_same(&direct_normal, &normals[0]);
+                agree_direct += (agree != 0) ? 1ULL : 0ULL;
+                contradictions += (agree != 0) ? 0ULL : 1ULL;
             }
             lazy_missed += (rewrite_halts && (fates[0] != OMEGA_COMPUTER_HALTS)) ? 1ULL : 0ULL;
             direct_halted += (reference_halts != 0) ? 1ULL : 0ULL;
@@ -285,7 +337,9 @@ int program_main(int count, char **arguments)
                     halted[depth] += 1ULL;
                     halted_mass[depth] += mass;
                     // a halt at any depth has the direct run's normal form, and no run proves it never halts
-                    if ((depth > 0u) && (((reference_halts != 0) && (normals[depth] != reference)) || (never != 0)))
+                    if ((depth > 0u) &&
+                        (((reference_halts != 0) && (omega_computer_same(&normals[depth], reference) == 0)) ||
+                         (never != 0)))
                     {
                         contradictions += 1ULL;
                     }
@@ -316,9 +370,11 @@ int program_main(int count, char **arguments)
             }
         }
     }
+    omega_computer_machine_close(machine);
+    omega_computer_rewrite_close();
 
     // the mass of every code through L bits, closed or not, over 2^L; what it leaves of 1 bounds every longer code
-    std::vector<unsigned long long> all_codes(max + 1u, 0ULL);
+    unsigned long long all_codes[OMEGA_COMPUTER_LENGTH_MAX + 1u] = {0ULL};
     unsigned long long counted = 0ULL;
     unsigned long long closed_mass = 0ULL;
     for (unsigned int bits = 2u; bits <= max; bits += 1u)
@@ -333,7 +389,7 @@ int program_main(int count, char **arguments)
         closed_mass += omega_computer_count(&counts, bits, 0u) << (max - bits);
     }
     const unsigned long long total = 1ULL << max;
-    // the upper bound: everything but the proven non-halts and the codes through L that are not closed
+    // the upper bound: everything but the proven non-halts and the codes through L with a free variable
     const unsigned long long upper = total - proven_mass - (counted - closed_mass);
 
     mmgr_line_put(&results.line, "  ");
@@ -347,7 +403,7 @@ int program_main(int count, char **arguments)
     mmgr_line_put(&results.line, " never halt; the rewriting and the lazy machine agree on ");
     mmgr_line_decimal(&results.line, agree_direct, 1u);
     mmgr_line_put(&results.line, " normal forms\n  depth  halted  proven never  out of steps  outgrew  Omega_nil at "
-                                  "least  proven bits  steps (settled everywhere)\n");
+                                 "least  proven bits  steps (settled everywhere)\n");
     unsigned long long previous_mass = 0ULL;
     int nested = 1;
     for (unsigned int depth = 0u; depth <= depths; depth += 1u)
