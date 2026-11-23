@@ -2,19 +2,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // monolith_emit.cpp: the monolith (monolith.cu), a block at a time, checked against what our compiler writes.
 //
-// NVIDIA's listing of the tagged build is the answer key: the instructions between tag n and tag n + 1 are its writing
-// of precept n - 1, each with the 128 bits it encoded. For every one, our reader is queried for its text from those
-// bits, and our assembler for its bits from that text. The scheduler's bits, 105 to 127, are read apart, since no
-// listing prints them. Then the word our compiler writes the block's precept with (word_web.h) is written through
-// sass.krs with NVIDIA's own registers, assembled, and set beside NVIDIA's instruction. A precept no word implements is
-// reported with the tree the alphabet web writes it as (precepts.h). sass.krs, the machine file and the word web are
-// read as they are.
+// NVIDIA's listing of the tagged build is the answer key. The instructions between tag n and tag n + 1 are its writing
+// of precept n - 1, each with the 128 bits that it encoded. For each one, the emitter asks our reader for its text from
+// those bits, and our assembler for its bits from that text. The emitter reads the scheduler's bits, 105 to 127, apart,
+// because no listing prints them.
+//
+// Then the emitter writes the word that our compiler writes the block's precept with (word_web.h) through sass.krs,
+// with NVIDIA's own registers. It assembles that word and sets it beside NVIDIA's instruction. Where no word implements
+// a precept, the emitter reports the tree that the alphabet web writes it as (precepts.h). The emitter reads sass.krs,
+// the machine file and the word web as they are.
 //
 //     monolith_emit <listing> <block> [machine file]
 //     monolith_emit <listing> all <record> [machine file]
 //
-// The second form runs every block and writes the record, a table a row an instruction and a row our compiler's
-// writing, to <record>. It is written whole on every run: it contains what the blocks read now.
+// The second form runs every block and writes the record to <record>. The record is a table with a row for each
+// instruction and a row for our compiler's writing. The emitter writes it whole on every run, and it holds what the
+// blocks read now.
 //
 // The listing is cuobjdump -sass -fun monolith of the build with MONOLITH_TAGGED 1.
 extern "C"
@@ -33,9 +36,9 @@ extern "C"
 
 #include <stddef.h>
 
-// ENGINE_IMAGE_BASE reads the ELF header the linker marks with __ehdr_start (engine_config_platform.h), and this
-// program is linked as a PE, where there is none. Nothing here requests for the image base: it is named so the link
-// resolves
+// ENGINE_IMAGE_BASE reads the ELF header that the linker marks with __ehdr_start (engine_config_platform.h). The link
+// makes this program a PE, which has no such header. Nothing here asks for the image base, and the name only lets the
+// link resolve
 #if defined(__GNUC__) && !defined(__ELF__)
 extern "C" const char __ehdr_start = 0;
 #endif
@@ -47,15 +50,15 @@ extern "C" const char __ehdr_start = 0;
 
 static const char *const s_names[PRECEPT_COUNT] = {PRECEPTS(EMIT_NAMED)};
 
-// the bytes of one instruction's text, of a register's or a field's name, and of a text the emitter builds, each with
-// its terminator; and the bytes of the record's texts at max
+// The bytes of one instruction's text, and of the name of a register or a field, each with its terminator. Then the
+// bytes of a text that the emitter builds, with its terminator, and of the record's texts at max
 #define EMIT_LINE_BYTES 256u
 #define EMIT_NAME_BYTES 64u
 #define EMIT_TEXT_BYTES 1024u
 #define EMIT_RECORD_BYTES (1ULL << 28u)
 
-// the instructions of one block, the operands of one instruction, the fields the part does not read, and the
-// questions of its answers, each at max
+// The instructions of one block and the operands of one instruction, each at max. Then the fields that the part does
+// not read, and the questions of its answers, each at max
 #define EMIT_PASSAGE_MAX 1024u
 #define EMIT_OPERANDS_MAX 16u
 #define EMIT_UNREAD_MAX 4096u
@@ -146,64 +149,86 @@ static int emit_same(const char *left, const char *right)
                       .ci = EMBED_FALSE);
 }
 
-// The `length` bytes of `text` into `plain` with their whitespace run together, and their closing semicolon and the
-// spaces around it gone
-static void emit_plain(const char *text, size_t length, char *plain, size_t room)
+// the whitespace that emit_plain runs together
+static const char s_emit_white[] = " \t\n\r";
+
+// The end of the last run of bytes outside `set` in the `length` bytes at `text`, or 0 where every byte is in `set`.
+// The walk jumps from run to run
+static size_t emit_end_outside(const char *text, size_t length, const char *set)
 {
-    VerbaLinea line = mmgr_line_over(plain, room);
-    int space = 0;
-    size_t written = 0u;
-    for (size_t at = 0u; (at < length) && (text[at] != '\0'); at += 1u)
+    size_t end = 0u;
+    size_t at = 0u;
+    while (at < length)
     {
-        const char character = text[at];
-        if ((character == ' ') || (character == '\t') || (character == '\n') || (character == '\r'))
+        const size_t run =
+            EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text[at], .cap = length - at, .other = set);
+        at += run;
+        end = (run != 0u) ? at : end;
+        const size_t inside =
+            EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[at], .cap = length - at, .other = set);
+        at += inside;
+        if ((run == 0u) && (inside == 0u))
         {
-            space = written != 0u;
-            continue;
+            break;
         }
-        if (space != 0)
-        {
-            mmgr_line_ch(&line, ' ');
-            written += 1u;
-            space = 0;
-        }
-        mmgr_line_ch(&line, character);
-        written += 1u;
     }
-    size_t end = mmgr_line_finish(&line);
-    while ((end != 0u) && ((plain[end - 1u] == ';') || (plain[end - 1u] == ' ')))
-    {
-        end -= 1u;
-        plain[end] = '\0';
-    }
+    return end;
 }
 
-// the hexadecimal word in the `length` bytes of `text` after `from`, written /* 0x... */; 0 where there is none
-static int emit_word(const char *text, size_t length, size_t from, unsigned long long *word)
+// The `length` bytes of `text` into `plain` with their whitespace run together, and their closing semicolon and the
+// spaces around it gone. The text ends at a byte 0, and the walk jumps from run to run
+static void emit_plain(const char *text, size_t length, char *plain, size_t room)
 {
-    for (size_t at = from; (at + 5u) <= length; at += 1u)
+    const char *const zero = (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = text, .bytes = length, .val = 0);
+    // a byte 0 lies within the text
+    const size_t size = (zero != NULL) ? (size_t)(zero - text) : length;
+    VerbaLinea line = mmgr_line_over(plain, room);
+    size_t at = 0u;
+    while (at < size)
     {
-        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &text[at], .other = "/* 0x", .bytes = 5u) == 0)
+        at += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[at], .cap = size - at, .other = s_emit_white);
+        const size_t run =
+            EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text[at], .cap = size - at, .other = s_emit_white);
+        if (run == 0u)
         {
-            *word = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = &text[at + 5u], .end = NULL, .base = 16);
-            return 1;
+            break;
         }
+        mmgr_line_put(&line, (line.at != 0u) ? " " : "");
+        (void)mmgr_line_put_n(&line, &text[at], run);
+        at += run;
     }
-    return 0;
+    const size_t end = mmgr_line_finish(&line);
+    plain[emit_end_outside(plain, end, "; ")] = '\0';
 }
 
 // the place of `needle` in the `length` bytes of `text` from `from`, or `length` where it is not there
 static size_t emit_find_n(const char *text, size_t length, const char *needle, size_t from)
 {
     const size_t size = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = needle, .cap = PLATFORM_TEXT_TO_TERMINATOR);
-    for (size_t at = from; (at + size) <= length; at += 1u)
+    if ((from > length) || (size > (length - from)))
     {
-        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &text[at], .other = needle, .bytes = size) == 0)
-        {
-            return at;
-        }
+        return length;
     }
-    return length;
+    if (size == 0u)
+    {
+        return from;
+    }
+    const char *const found = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = &text[from], .cap = length - from,
+                                         .other = needle, .other_cap = size, .ci = EMBED_FALSE);
+    // a found needle lies within the text, at or past `from`
+    return (found != NULL) ? (size_t)(found - text) : length;
+}
+
+// the hexadecimal word in the `length` bytes of `text` after `from`, written /* 0x... */; 0 where there is none
+static int emit_word(const char *text, size_t length, size_t from, unsigned long long *word)
+{
+    const size_t at = emit_find_n(text, length, "/* 0x", from);
+    if (at == length)
+    {
+        return 0;
+    }
+    *word = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = &text[at + 5u], .end = NULL, .base = 16);
+    return 1;
 }
 
 // The file at `path` read whole into a cell of the temporary tier, terminated, and its bytes into `size`. The caller
@@ -231,11 +256,11 @@ static char *emit_file_read(const char *path, size_t *size)
 // the end of the line at `at` in the `size` bytes of `text`: its newline, or `size`
 static size_t emit_line_end(const char *text, size_t size, size_t at)
 {
-    while ((at < size) && (text[at] != '\n'))
-    {
-        at += 1u;
-    }
-    return at;
+    const char *const newline =
+        (at < size) ? (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = &text[at], .bytes = size - at, .val = '\n')
+                    : NULL;
+    // a found newline lies within the text, at or past `at`
+    return (newline != NULL) ? (size_t)(newline - text) : ((at < size) ? size : at);
 }
 
 // NVIDIA's listing read into its instructions, a cell of the run that the caller gives back, `*count` of them. Each is
@@ -245,10 +270,12 @@ static EmitLine *emit_listing(const char *path, unsigned long long *count)
     *count = 0ULL;
     size_t size = 0u;
     char *const file = emit_file_read(path, &size);
+    // one line past the count of the newlines, each newline found with a jump from the one before it
     unsigned long long lines = 1ULL;
-    for (size_t at = 0u; (file != NULL) && (at < size); at += 1u)
+    for (size_t at = (file != NULL) ? emit_line_end(file, size, 0u) : size; at < size;
+         at = emit_line_end(file, size, at + 1u))
     {
-        lines += (file[at] == '\n') ? 1ULL : 0ULL;
+        lines += 1ULL;
     }
     EmitLine *const read =
         (file != NULL) ? (EmitLine *)platform_cell_cleared(lines, sizeof(EmitLine), platform_place_g_program_owner,
@@ -310,7 +337,7 @@ static unsigned int emit_operands(const char *text, EmitName *operands)
     return count;
 }
 
-// 1 where `operand` names a register a word can be written with: R and a number, not RZ
+// 1 where `operand` names a register that the code can write a word with: R and a number, not RZ
 static int emit_register(const char *operand)
 {
     return (operand[0] == 'R') && (operand[1] >= '0') && (operand[1] <= '9');
@@ -369,9 +396,9 @@ static void emit_said(const char *text)
     platform_line_out_ended();
 }
 
-// Whether NVIDIA's block contains the passage: the register its load writes is the register its store reads, and
-// nothing past the parameters' moves is between them. The two registers through `loaded` and `stored`, the reading
-// printed
+// Whether NVIDIA's block contains the passage. The register that its load writes is the register that its store
+// reads, and nothing past the parameters' moves is between them. The two registers go through `loaded` and `stored`,
+// and the code prints the reading
 static int emit_passage(const EmitLine *passage, unsigned int count, EmitName *loaded, EmitName *stored)
 {
     unsigned int between = 0u;
@@ -455,8 +482,8 @@ static void emit_binary(unsigned long long low, unsigned long long high, EmitTex
     (void)mmgr_line_finish(&line);
 }
 
-// NVIDIA's encoding and ours bit by bit under each byte's top bit number into `bits`, and a line marking each bit
-// apart: ^ an operation bit, . a scheduler bit
+// NVIDIA's encoding and ours bit by bit into `bits`, under the number of the top bit of each byte. Then a line that
+// marks each bit apart: ^ an operation bit, . a scheduler bit
 static void emit_bits_apart(unsigned long long nvidia_low, unsigned long long nvidia_high, unsigned long long low,
                             unsigned long long high, const char *label, EmitText *bits)
 {
@@ -558,10 +585,10 @@ static EmitName s_descriptor;
 // the part's answers on the bits the disassembler does not print, written by interface_sass_unprinted.sh
 #define EMIT_UNREAD_PATH EMIT_SCAFFOLDING "interface_sass_unprinted.md"
 
-// A field of a form the part does not read: every value of it written into a question's instruction answered as that
-// instruction's text specifies, with no other bit fixed beside it. A bit apart there is apart in the encoding and not
-// in what the part does. The answer is valid for the question it was tested over, and the record names where it was
-// read
+// A field of a form that the part does not read. Each value of it, written into a question's instruction, answered as
+// the text of that instruction specifies, with no other bit fixed beside it. A bit apart there is apart in the
+// encoding and not in what the part does. The answer holds for the question that the run tested it over, and the
+// record names where the code read it
 struct EmitUnread
 {
     const SassForm *form;
@@ -605,8 +632,8 @@ struct EmitCells
     unsigned int count;
 };
 
-// The fields the part does not read, from the answers at `path`, each keyed by the form its question's instruction is
-// matched by. A row is `| question | instruction | bits | the form contains | value | answer |`. A question whose bits
+// The fields the part does not read, from the answers at `path`, each keyed by the form that matches its question's
+// instruction. A row is `| question | instruction | bits | the form contains | value | answer |`. A question whose bits
 // name one fixed beside its field, or one of whose values answered otherwise, gives none
 static void emit_unread_read(const char *path, const SassMachine *machine)
 {
@@ -716,16 +743,10 @@ static void emit_unread_forms_read(const char *path, const SassMachine *machine)
         for (size_t bar = emit_find_n(line, length, "|", from); bar < length;
              bar = emit_find_n(line, length, "|", from))
         {
-            size_t first = from;
-            size_t last = bar;
-            while ((first < last) && (line[first] == ' '))
-            {
-                first += 1u;
-            }
-            while ((last > first) && (line[last - 1u] == ' '))
-            {
-                last -= 1u;
-            }
+            // the cell between the bars, the spaces at either end cut
+            const size_t first =
+                from + EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &line[from], .cap = bar - from, .other = " ");
+            const size_t last = first + emit_end_outside(&line[first], bar - first, " ");
             if (cells.count < 8u)
             {
                 cells.cell[cells.count] = &line[first];
@@ -784,8 +805,8 @@ static int emit_unread(const SassForm *form, unsigned int bit)
 }
 
 // NVIDIA's text in `text` written again in ours. The listing prints no descriptor on a memory operand whose bit 101 is
-// clear, and the field contains the kernel's descriptor register all the same. Each such operand of a form that reads
-// one is written term[URn], the register the kernel loaded
+// clear, and the field contains the kernel's descriptor register all the same. The code writes each such operand of a
+// form that reads one as term[URn], the register the kernel loaded
 static void emit_our_text(char *text, size_t room, const SassMachine *machine)
 {
     if (s_descriptor.text[0] == '\0')
@@ -931,8 +952,8 @@ static void emit_instruction(unsigned int block, const EmitLine *line, const Sas
     {
         emit_plain(text, sizeof(text), ours.text, sizeof(ours.text));
     }
-    // whether the machine file contains a form for the instruction's text, its operation and the types of its
-    // operands, apart from whether that form matches these bits
+    // Whether the machine file contains a form for the instruction's text: its operation and the types of its
+    // operands. This holds apart from whether that form matches these bits
     SassInstructionParts parts;
     sass_instruction_read(line->text, &parts);
     const int text_known = (sass_machine_form(machine, &parts) != nullptr);
@@ -948,8 +969,8 @@ static void emit_instruction(unsigned int block, const EmitLine *line, const Sas
         platform_line_out_ended();
     }
     // A branch's target is the address its text names. The listing prints it bare and our assembler reads a bare
-    // number as the immediate itself. The text goes to the assembler as a label, `(0x...), which it counts from the
-    // instruction after the branch, and the address is given as the label's
+    // number as the immediate itself. The text goes to the assembler as a label, `(0x...), and the address is the
+    // label's. The assembler counts the label from the instruction after the branch
     const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line->text, .cap = sizeof(line->text));
     const size_t branch = emit_place(line->text, "BRA 0x", 0u, length);
     const unsigned long long target =
@@ -992,8 +1013,8 @@ static void emit_instruction(unsigned int block, const EmitLine *line, const Sas
     }
     const int operation = (low == line->low) && ((high & EMIT_OPERATION_HIGH) == (line->high & EMIT_OPERATION_HIGH));
     const int control = ((high & ~EMIT_OPERATION_HIGH) == (line->high & ~EMIT_OPERATION_HIGH));
-    // the bits the operation is apart at, the high word's counted from 64, and whether every one lies in a field of the
-    // form matching NVIDIA's text that the part does not read
+    // The bits that the operation is apart at, the bits of the high word counted from 64. Then whether each one lies in
+    // a field that the part does not read, of the form that matches NVIDIA's text
     const SassForm *const form = sass_machine_form(machine, &parts);
     EmitText apart = {{0}};
     int unread_only = (operation == 0) && (form != nullptr);
@@ -1123,9 +1144,9 @@ static void emit_said3(const char *head, const char *text, const char *tail)
     platform_line_out_ended();
 }
 
-// MOV has two candidates, and the part's clock chooses between them. One is the passage, the copy written as no
-// instruction, where the register the word is read into is the register it is written from. The other is the copy word
-// (word_copy, word_web.h), written through sass.krs as an instruction
+// MOV has two candidates, and the part's clock chooses between them. One is the passage, the copy that writes no
+// instruction, where the code reads the word into the register that it writes it from. The other is the copy word
+// (word_copy, word_web.h), which the code writes through sass.krs as an instruction
 static void emit_move(unsigned int block, unsigned int count, const SassMachine *machine, const Ruleset *rules)
 {
     const unsigned int precept = block - 1u;
@@ -1168,7 +1189,7 @@ static void emit_move(unsigned int block, unsigned int count, const SassMachine 
 
 // ERR has two candidates, and the part's clock chooses between them, and this code does not. One is a trap where it
 // is, the way NVIDIA writes it, a branch past the trap on the flag. The other is a branch to a handler, the error word
-// (word_web.h), written through sass.krs on NVIDIA's predicate and landing on the label label_error writes
+// (word_web.h). The code writes it through sass.krs on NVIDIA's predicate, and it lands on the label label_error writes
 static void emit_error(unsigned int block, unsigned int count, const SassMachine *machine, const Ruleset *rules)
 {
     const unsigned int precept = block - 1u;
@@ -1196,8 +1217,8 @@ static void emit_error(unsigned int block, unsigned int count, const SassMachine
                           : "the machine file contains no form for the trap, and it cannot be written yet";
     emit_said3("  our compiler, candidate 1, a trap in place: ", trap_reading, "");
     emit_row(block, precept, "", "", "", "", "", "candidate 1, a trap in place", trap_reading);
-    // the predicate the branch is taken on: NVIDIA's guard with its negation dropped, since the handler is gone to
-    // where the flag is set and NVIDIA's branch passes the trap where it is clear
+    // The predicate that the branch goes on: NVIDIA's guard with its negation dropped. The branch goes to the handler
+    // where the flag is 1, and NVIDIA's branch passes the trap where the flag is 0
     EmitName where;
     EMIT_SET(where, "P0");
     if ((guard != nullptr) && (guard->text[0] == '@'))
@@ -1246,8 +1267,9 @@ static void emit_error(unsigned int block, unsigned int count, const SassMachine
                                : "taken where the flag is set, to a handler; NVIDIA's passes a trap where it is clear");
 }
 
-// JCC is the loop_back_if word (word_web.h), a jump taken on a predicate to a label. It is written through sass.krs on
-// the predicate NVIDIA's branch is guarded by and lands on the label label_loop writes, and its guard keeps its sense
+// JCC is the loop_back_if word (word_web.h), a jump on a predicate to a label. The code writes it through sass.krs on
+// the predicate that guards NVIDIA's branch. It lands on the label that label_loop writes, and its guard keeps its
+// sense
 static void emit_jump(unsigned int block, unsigned int count, const SassMachine *machine, const Ruleset *rules)
 {
     const unsigned int precept = block - 1u;
@@ -1336,8 +1358,9 @@ static void emit_jump(unsigned int block, unsigned int count, const SassMachine 
              (assembled == 0u) ? "does not assemble" : difference.text);
 }
 
-// The precept as our compiler writes it: the word whose tree is that precept alone, through sass.krs. It is written
-// with NVIDIA's own registers and set beside NVIDIA's instruction, with the leaves swapped as well for a word of two
+// The precept as our compiler writes it: the word whose tree is that precept alone, through sass.krs. The code writes
+// it with NVIDIA's own registers and sets it beside NVIDIA's instruction, with the leaves swapped as well for a word of
+// two
 static void emit_word_written(unsigned int block, unsigned int count, const SassMachine *machine, const Ruleset *rules)
 {
     const unsigned int precept = block - 1u;
@@ -1370,8 +1393,8 @@ static void emit_word_written(unsigned int block, unsigned int count, const Sass
         emit_row(block, precept, "", "", "", "", "", compiler.text, "no word");
         return;
     }
-    // NVIDIA's instruction for the precept: the block's one line that writes a register from registers and is not a
-    // load, a store or a move of a parameter
+    // NVIDIA's instruction for the precept: the block's one line that writes a register from registers. That line is
+    // not a load, a store or a move of a parameter
     const EmitLine *core = nullptr;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -1386,8 +1409,8 @@ static void emit_word_written(unsigned int block, unsigned int count, const Sass
         emit_row(block, precept, "", "", "", "", "", word->name, "NVIDIA's block contains no instruction for it");
         return;
     }
-    // the registers the instruction names, a negation or a complement in front of one dropped: the word is written
-    // with the register, and its form puts any negation itself
+    // The registers that the instruction names, with a negation or a complement in front of one dropped. The code
+    // writes the word with the register, and its form puts any negation itself
     EmitName operands[EMIT_OPERANDS_MAX];
     EmitName registers[EMIT_OPERANDS_MAX];
     unsigned int register_count = 0u;
