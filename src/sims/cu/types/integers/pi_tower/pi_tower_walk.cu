@@ -3,9 +3,9 @@
 // pi_tower_walk.cu: the walk, polynomials, fractions and the arc
 #include "pi_tower_internal.h"
 
-// the step at which the direct walk fills every one of 2^bits cells, the cell it fills, the longest stall, the step
-// at which every cell has been etched a second time, the first step after the fill that etches cell 0, and the first
-// step after that one that etches the fill's last cell
+// The step at which the direct walk fills every one of 2^bits cells, the cell it fills, and the longest stall. Also the
+// step at which the walk etches every cell a second time, and the first step after the fill that etches cell 0. Also
+// the first step after that one that etches the last cell of the fill
 unsigned long long pi_tower_walk(const PiWide &alpha, unsigned int bits, unsigned long long *last,
                                  unsigned long long *stall, unsigned long long *again, unsigned long long *home,
                                  unsigned long long *closing)
@@ -19,7 +19,13 @@ unsigned long long pi_tower_walk(const PiWide &alpha, unsigned int bits, unsigne
         place[word] = 0ULL;
     }
     const unsigned long long cells = 1ULL << bits;
-    std::vector<unsigned char> seen(cells, 0u);
+    // the etches of each cell, up to 2, in a cell of the temporary tier with every byte 0
+    unsigned char *const seen = (unsigned char *)platform_cell_cleared(cells, sizeof(unsigned char),
+                                                                       (unsigned int)platform_place_g_program_owner, 1);
+    if (seen == NULL)
+    {
+        pi_tower_refused("the pool gave no cell");
+    }
     seen[0] = 1u;
     unsigned long long filled = 1ULL;
     unsigned long long twice = 0ULL;
@@ -69,49 +75,150 @@ unsigned long long pi_tower_walk(const PiWide &alpha, unsigned int bits, unsigne
             *home = step;
         }
     }
+    pi_tower_given(seen);
     return fill;
+}
+
+// the coefficients that the arc's polynomials hold at once, at max. The arc holds 1583 at its peak
+#define PI_TOWER_COEFFICIENTS_MAX 4096u
+
+// The coefficients of the arc's polynomials, as a stack. A call takes the coefficients of what it builds on top. It
+// keeps what it gives back at the mark that it began from, and the rest goes back (pi_tower_kept)
+static PiWide s_coefficients[PI_TOWER_COEFFICIENTS_MAX];
+static unsigned int s_coefficients_top = 0u;
+
+static PiWide *pi_tower_coefficient(PiTowerPolynomial polynomial, unsigned int at)
+{
+    return &s_coefficients[polynomial.first + at];
+}
+
+// a polynomial of `count` coefficients on top of the stack, each 0
+static PiTowerPolynomial pi_tower_polynomial_taken(unsigned int count)
+{
+    if (count > (PI_TOWER_COEFFICIENTS_MAX - s_coefficients_top))
+    {
+        pi_tower_refused("the arc's polynomials pass their stack of coefficients");
+    }
+    const PiTowerPolynomial polynomial = {s_coefficients_top, count};
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        s_coefficients[s_coefficients_top + at] = pi_tower_unsigned(0ULL);
+    }
+    s_coefficients_top += count;
+    return polynomial;
+}
+
+// The polynomials that `kept` names, moved down to `mark` in the order that they lie on the stack, and the stack cut
+// above them. A polynomial below the mark stays where it is. Two that name the same coefficients move once
+static void pi_tower_kept(unsigned int mark, PiTowerPolynomial *const *kept, unsigned int count)
+{
+    unsigned int to = mark;
+    unsigned int moved = 0u;
+    unsigned int was[6];
+    PiTowerPolynomial *done[6];
+    for (unsigned int pass = 0u; pass < count; pass += 1u)
+    {
+        PiTowerPolynomial *lowest = NULL;
+        for (unsigned int at = 0u; at < count; at += 1u)
+        {
+            PiTowerPolynomial *const polynomial = kept[at];
+            int waiting = (polynomial->count != 0u) && (polynomial->first >= mark);
+            for (unsigned int prior = 0u; (waiting != 0) && (prior < moved); prior += 1u)
+            {
+                waiting = done[prior] != polynomial;
+            }
+            if ((waiting != 0) && ((lowest == NULL) || (polynomial->first < lowest->first)))
+            {
+                lowest = polynomial;
+            }
+        }
+        if (lowest == NULL)
+        {
+            break;
+        }
+        unsigned int shared = moved;
+        for (unsigned int prior = 0u; prior < moved; prior += 1u)
+        {
+            shared = (was[prior] == lowest->first) ? prior : shared;
+        }
+        was[moved] = lowest->first;
+        done[moved] = lowest;
+        if (shared != moved)
+        {
+            lowest->first = done[shared]->first;
+            moved += 1u;
+            continue;
+        }
+        moved += 1u;
+        // the move goes down the stack. A copy from the low coefficient up thus never writes a coefficient before it
+        // reads it
+        for (unsigned int at = 0u; at < lowest->count; at += 1u)
+        {
+            s_coefficients[to + at] = s_coefficients[lowest->first + at];
+        }
+        lowest->first = to;
+        to += lowest->count;
+    }
+    s_coefficients_top = to;
+}
+
+static void pi_tower_fraction_kept(unsigned int mark, PiTowerFraction *fraction)
+{
+    PiTowerPolynomial *const kept[2] = {&fraction->numerator, &fraction->denominator};
+    pi_tower_kept(mark, kept, 2u);
+}
+
+static void pi_tower_vector_kept(unsigned int mark, PiTowerVector *vector)
+{
+    PiTowerPolynomial *const kept[6] = {&vector->axis[0].numerator, &vector->axis[0].denominator,
+                                        &vector->axis[1].numerator, &vector->axis[1].denominator,
+                                        &vector->axis[2].numerator, &vector->axis[2].denominator};
+    pi_tower_kept(mark, kept, 6u);
 }
 
 static void pi_tower_polynomial_trim(PiTowerPolynomial *polynomial)
 {
-    while (!polynomial->empty() && (polynomial->back().sign == 0))
+    while ((polynomial->count != 0u) && (pi_tower_coefficient(*polynomial, polynomial->count - 1u)->sign == 0))
     {
-        polynomial->pop_back();
+        polynomial->count -= 1u;
     }
 }
 
-static PiTowerPolynomial pi_tower_polynomial_sum(const PiTowerPolynomial &left, const PiTowerPolynomial &right,
-                                                 int subtract)
+static PiTowerPolynomial pi_tower_polynomial_sum(PiTowerPolynomial left, PiTowerPolynomial right, int subtract)
 {
-    PiTowerPolynomial total((left.size() > right.size()) ? left.size() : right.size(), pi_tower_unsigned(0ULL));
-    for (size_t at = 0u; at < total.size(); at += 1u)
+    PiTowerPolynomial total = pi_tower_polynomial_taken((left.count > right.count) ? left.count : right.count);
+    for (unsigned int at = 0u; at < total.count; at += 1u)
     {
-        if (at < left.size())
+        PiWide *const coefficient = pi_tower_coefficient(total, at);
+        if (at < left.count)
         {
-            total[at] = left[at];
+            *coefficient = *pi_tower_coefficient(left, at);
         }
-        if (at < right.size())
+        if (at < right.count)
         {
-            total[at] =
-                (subtract != 0) ? pi_tower_difference(total[at], right[at]) : pi_tower_sum(total[at], right[at]);
+            *coefficient = (subtract != 0) ? pi_tower_difference(*coefficient, *pi_tower_coefficient(right, at))
+                                           : pi_tower_sum(*coefficient, *pi_tower_coefficient(right, at));
         }
     }
     pi_tower_polynomial_trim(&total);
     return total;
 }
 
-static PiTowerPolynomial pi_tower_polynomial_product(const PiTowerPolynomial &left, const PiTowerPolynomial &right)
+static PiTowerPolynomial pi_tower_polynomial_product(PiTowerPolynomial left, PiTowerPolynomial right)
 {
-    if (left.empty() || right.empty())
+    if ((left.count == 0u) || (right.count == 0u))
     {
-        return PiTowerPolynomial();
+        const PiTowerPolynomial empty = {0u, 0u};
+        return empty;
     }
-    PiTowerPolynomial total((left.size() + right.size()) - 1u, pi_tower_unsigned(0ULL));
-    for (size_t one = 0u; one < left.size(); one += 1u)
+    PiTowerPolynomial total = pi_tower_polynomial_taken((left.count + right.count) - 1u);
+    for (unsigned int one = 0u; one < left.count; one += 1u)
     {
-        for (size_t other = 0u; other < right.size(); other += 1u)
+        for (unsigned int other = 0u; other < right.count; other += 1u)
         {
-            total[one + other] = pi_tower_sum(total[one + other], pi_tower_product(left[one], right[other]));
+            PiWide *const coefficient = pi_tower_coefficient(total, one + other);
+            *coefficient = pi_tower_sum(
+                *coefficient, pi_tower_product(*pi_tower_coefficient(left, one), *pi_tower_coefficient(right, other)));
         }
     }
     pi_tower_polynomial_trim(&total);
@@ -121,13 +228,13 @@ static PiTowerPolynomial pi_tower_polynomial_product(const PiTowerPolynomial &le
 // coefficient . pi^power
 static PiTowerPolynomial pi_tower_monomial(long long coefficient, unsigned int power)
 {
-    PiTowerPolynomial polynomial(power + 1u, pi_tower_unsigned(0ULL));
-    sim_exact_signed(&polynomial[power], coefficient);
+    PiTowerPolynomial polynomial = pi_tower_polynomial_taken(power + 1u);
+    sim_exact_signed(pi_tower_coefficient(polynomial, power), coefficient);
     pi_tower_polynomial_trim(&polynomial);
     return polynomial;
 }
 
-static PiTowerFraction pi_tower_fraction(const PiTowerPolynomial &numerator, const PiTowerPolynomial &denominator)
+static PiTowerFraction pi_tower_fraction(PiTowerPolynomial numerator, PiTowerPolynomial denominator)
 {
     PiTowerFraction fraction;
     fraction.numerator = numerator;
@@ -137,10 +244,13 @@ static PiTowerFraction pi_tower_fraction(const PiTowerPolynomial &numerator, con
 
 static PiTowerFraction pi_tower_fraction_sum(const PiTowerFraction &left, const PiTowerFraction &right, int subtract)
 {
-    return pi_tower_fraction(pi_tower_polynomial_sum(pi_tower_polynomial_product(left.numerator, right.denominator),
-                                                     pi_tower_polynomial_product(right.numerator, left.denominator),
-                                                     subtract),
-                             pi_tower_polynomial_product(left.denominator, right.denominator));
+    const unsigned int mark = s_coefficients_top;
+    PiTowerFraction total = pi_tower_fraction(
+        pi_tower_polynomial_sum(pi_tower_polynomial_product(left.numerator, right.denominator),
+                                pi_tower_polynomial_product(right.numerator, left.denominator), subtract),
+        pi_tower_polynomial_product(left.denominator, right.denominator));
+    pi_tower_fraction_kept(mark, &total);
+    return total;
 }
 
 static PiTowerFraction pi_tower_fraction_product(const PiTowerFraction &left, const PiTowerFraction &right)
@@ -157,25 +267,32 @@ static PiTowerFraction pi_tower_fraction_quotient(const PiTowerFraction &left, c
 
 static int pi_tower_fraction_zero(const PiTowerFraction &fraction)
 {
-    return fraction.numerator.empty();
+    return fraction.numerator.count == 0u;
 }
 
 static int pi_tower_fraction_equal(const PiTowerFraction &left, const PiTowerFraction &right)
 {
-    return pi_tower_polynomial_sum(pi_tower_polynomial_product(left.numerator, right.denominator),
-                                   pi_tower_polynomial_product(right.numerator, left.denominator), 1)
-        .empty();
+    const unsigned int mark = s_coefficients_top;
+    const int equal = pi_tower_polynomial_sum(pi_tower_polynomial_product(left.numerator, right.denominator),
+                                              pi_tower_polynomial_product(right.numerator, left.denominator), 1)
+                          .count == 0u;
+    s_coefficients_top = mark;
+    return equal;
 }
 
 static PiTowerFraction pi_tower_vector_dot(const PiTowerVector &left, const PiTowerVector &right)
 {
+    const unsigned int mark = s_coefficients_top;
     PiTowerFraction total = pi_tower_fraction_product(left.axis[0], right.axis[0]);
     total = pi_tower_fraction_sum(total, pi_tower_fraction_product(left.axis[1], right.axis[1]), 0);
-    return pi_tower_fraction_sum(total, pi_tower_fraction_product(left.axis[2], right.axis[2]), 0);
+    total = pi_tower_fraction_sum(total, pi_tower_fraction_product(left.axis[2], right.axis[2]), 0);
+    pi_tower_fraction_kept(mark, &total);
+    return total;
 }
 
 static PiTowerVector pi_tower_vector_cross(const PiTowerVector &left, const PiTowerVector &right)
 {
+    const unsigned int mark = s_coefficients_top;
     PiTowerVector cross;
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {
@@ -184,22 +301,26 @@ static PiTowerVector pi_tower_vector_cross(const PiTowerVector &left, const PiTo
         cross.axis[axis] = pi_tower_fraction_sum(pi_tower_fraction_product(left.axis[next], right.axis[after]),
                                                  pi_tower_fraction_product(left.axis[after], right.axis[next]), 1);
     }
+    pi_tower_vector_kept(mark, &cross);
     return cross;
 }
 
-// the k-th derivative of the helix (a cos s, a sin s, b s) at the quarter turn s = quarter . pi / 2, where every
+// The k-th derivative of the helix (a cos s, a sin s, b s) at the quarter turn s = quarter . pi / 2. There every
 // derivative of the cosine and the sine is 1, 0 or -1
 static PiTowerVector pi_tower_helix_derivative(const PiTowerFraction &radius, const PiTowerFraction &rise,
                                                unsigned int quarter, unsigned int order)
 {
+    const unsigned int mark = s_coefficients_top;
     const long long cosine[4] = {1LL, 0LL, -1LL, 0LL};
     const long long sine[4] = {0LL, 1LL, 0LL, -1LL};
     const PiTowerPolynomial one = pi_tower_monomial(1LL, 0u);
+    const PiTowerPolynomial empty = {0u, 0u};
     const unsigned int turn = (quarter + order) % 4u;
     PiTowerVector derivative;
     derivative.axis[0] = pi_tower_fraction_product(radius, pi_tower_fraction(pi_tower_monomial(cosine[turn], 0u), one));
     derivative.axis[1] = pi_tower_fraction_product(radius, pi_tower_fraction(pi_tower_monomial(sine[turn], 0u), one));
-    derivative.axis[2] = (order == 1u) ? rise : pi_tower_fraction(PiTowerPolynomial(), one);
+    derivative.axis[2] = (order == 1u) ? rise : pi_tower_fraction(empty, one);
+    pi_tower_vector_kept(mark, &derivative);
     return derivative;
 }
 
@@ -216,8 +337,9 @@ static void pi_tower_print_places(VerbaLinea *line, const PiWide &scaled, unsign
     mmgr_line_decimal(line, pi_tower_word(pi_tower_remainder(scaled, unit)), places);
 }
 
-// 2^bits . arctan(scaled / 2^bits) within 3 terms + 2, for scaled / 2^bits below 1 / 2: each power floored, its error
-// bounded below 1 / (1 - x^2) < 1.34, each term's below 2.34, and the tail below the first term dropped
+// 2^bits . arctan(scaled / 2^bits) within 3 terms + 2, for scaled / 2^bits below 1 / 2. Each power is a floor, and its
+// error stays below 1 / (1 - x^2) < 1.34. The error of each term stays below 2.34, and the tail past it stays below
+// the first term that the sum drops
 static PiWide pi_tower_arctan_fixed(const PiWide &scaled, unsigned int bits, unsigned long long *terms)
 {
     const PiWide square = pi_tower_product(scaled, scaled);
@@ -260,6 +382,8 @@ PiWide pi_tower_root(const PiWide &value)
 // 7, 8 and 9. the arc: the helix on the cylinder over our disk, in Q(pi) and from the bracket
 void pi_tower_arc(SimResults *results, const PiWide &low, const PiWide &high, unsigned int bits)
 {
+    // the arc's polynomials go back before it returns
+    const unsigned int arc_mark = s_coefficients_top;
     const PiTowerPolynomial one = pi_tower_monomial(1LL, 0u);
     const PiTowerPolynomial square_and_one = pi_tower_polynomial_sum(pi_tower_monomial(1LL, 2u), one, 0);
     // circumference 1 around our disk, and 1 / pi along the axis for each turn: a = 1 / (2 pi), b = 1 / (2 pi^2)
@@ -280,7 +404,9 @@ void pi_tower_arc(SimResults *results, const PiWide &low, const PiWide &high, un
     int momentum_ok = 1;
     for (unsigned int quarter = 0u; quarter < 4u; quarter += 1u)
     {
-        // order 0 is the place; only its two coordinates across our disk are read, and those are exact
+        // the quarter's polynomials go back before the next quarter
+        const unsigned int quarter_mark = s_coefficients_top;
+        // order 0 is the place; the sim reads only its two coordinates across our disk, and those are exact
         const PiTowerVector place = pi_tower_helix_derivative(radius, rise, quarter, 0u);
         const PiTowerVector first = pi_tower_helix_derivative(radius, rise, quarter, 1u);
         const PiTowerVector second = pi_tower_helix_derivative(radius, rise, quarter, 2u);
@@ -329,7 +455,9 @@ void pi_tower_arc(SimResults *results, const PiWide &low, const PiWide &high, un
             momentum_ok && pi_tower_fraction_equal(
                                pi_tower_fraction_quotient(pi_tower_fraction_product(momentum, momentum), speed_squared),
                                momentum_expected);
+        s_coefficients_top = quarter_mark;
     }
+    s_coefficients_top = arc_mark;
     mmgr_line_put(&results->line, "  the arc: the helix of radius 1/(2 pi) rising 1/pi a turn, over our disk\n");
     sim_check(results, bending, "in Q(pi), the helix's curvature is 2 pi^3 / (pi^2 + 1) at all four quarter turns");
     sim_check(results, twisting, "in Q(pi), its torsion is 2 pi^2 / (pi^2 + 1) at all four");
@@ -340,7 +468,7 @@ void pi_tower_arc(SimResults *results, const PiWide &low, const PiWide &high, un
               "the torque about our axis is zero and L_z^2 = 1 / (4 (pi^2 + 1)) at unit speed, at all four: present, "
               "and balanced");
 
-    // the numbers: kappa and tau rise with pi, and arctan(1 / pi) falls. Each is bracketed by the ends of pi's
+    // the numbers: kappa and tau rise with pi, and arctan(1 / pi) falls. The ends of the bracket of pi bracket each
     const unsigned int places = 12u;
     PiWide unit = pi_tower_unsigned(1ULL);
     for (unsigned int place = 0u; place < places; place += 1u)
@@ -376,7 +504,7 @@ void pi_tower_arc(SimResults *results, const PiWide &low, const PiWide &high, un
         high);
     const PiWide tilt_high = pi_tower_quotient(
         pi_tower_product(pi_tower_sum(large_angle, pi_tower_unsigned((3ULL * large_terms) + 2ULL)), degrees), low);
-    // L_z = 1 / (2 sqrt(pi^2 + 1)) falls as pi rises; its square is 4^bits / (4 (P^2 + 4^bits)), and the floor of the
+    // L_z = 1 / (2 sqrt(pi^2 + 1)) falls as pi rises, and its square is 4^bits / (4 (P^2 + 4^bits)). The floor of the
     // root of a floor is the floor of the root
     PiWide momentum[2];
     for (unsigned int end = 0u; end < 2u; end += 1u)

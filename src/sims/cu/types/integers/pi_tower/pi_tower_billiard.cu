@@ -3,7 +3,7 @@
 // pi_tower_billiard.cu: word arithmetic and the billiard
 #include "pi_tower_internal.h"
 
-// words += increment over PI_TOWER_WORDS, returning the carry out of the top word
+// words += increment over PI_TOWER_WORDS. The answer is the carry out of the top word
 static unsigned long long pi_tower_words_add(unsigned long long *words, const unsigned long long *increment)
 {
     unsigned long long carry = 0ULL;
@@ -69,10 +69,10 @@ static PiWide pi_tower_words_wide(const unsigned long long *words)
     return value;
 }
 
-// 10. the billiard from the corner at slope pi, walked through its unfolded lattice. Column i contains the cells
-// j = floor(pi i) .. floor(pi (i + 1)), each one segment between walls, in the order the ball runs them; each floor
-// is 3 n + floor(alpha n), read from the integer turn's carries.
-void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vector<PiWide> &denominators)
+// 10. The billiard from the corner at slope pi, walked through its unfolded lattice. Column i contains the cells
+// j = floor(pi i) .. floor(pi (i + 1)), in the order that the ball runs them. Each cell is one segment between walls.
+// Each floor is 3 n + floor(alpha n), read from the carries of the integer turn.
+void pi_tower_billiard(SimResults *results, const PiWide &alpha, const PiTowerFloors *floors)
 {
     unsigned long long increment[PI_TOWER_WORDS];
     unsigned long long twice[PI_TOWER_WORDS];
@@ -108,7 +108,10 @@ void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vect
     unsigned long long nearest_column = 0ULL;
     unsigned long long nearest_row = 0ULL;
     int sign_before = 0;
-    std::vector<unsigned long long> near_corners;
+    // The record near-corners: each is nearer a corner than every wall hit before it. Their columns are the
+    // convergents' denominators to 2^PI_TOWER_BILLIARD_BITS, which grow at least as Fibonacci's numbers do
+    unsigned long long near_corners[PI_TOWER_NEAR_CORNERS_MAX];
+    unsigned int near_count = 0u;
     for (unsigned long long column = 0ULL; column < columns; column += 1ULL)
     {
         unsigned long long next[PI_TOWER_WORDS];
@@ -117,8 +120,8 @@ void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vect
             next[word] = single[word];
         }
         const unsigned long long next_integer = single_integer + pi_tower_words_add(next, increment);
-        // the real n alpha 2^P lies in (n A, n A + n): with the top word short of all ones, n < 2^320 cannot carry it
-        // past a whole. The floor read from the carries is the real floor
+        // The real n alpha 2^P lies in (n A, n A + n). Where the top word is short of all ones, n < 2^320 cannot carry
+        // it past a whole. The floor read from the carries is then the real floor
         uncertain += ((next[PI_TOWER_WORDS - 1u] == ~0ULL) || (odd[PI_TOWER_WORDS - 1u] == ~0ULL)) ? 1ULL : 0ULL;
         corners += (pi_tower_words_zero(next) != 0) ? 1ULL : 0ULL;
         zero += (pi_tower_words_zero(odd) != 0) ? 1ULL : 0ULL;
@@ -182,7 +185,12 @@ void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vect
             {
                 closest[word] = miss[word];
             }
-            near_corners.push_back(column + 1ULL);
+            if (near_count == PI_TOWER_NEAR_CORNERS_MAX)
+            {
+                pi_tower_refused("the billiard's record near-corners pass their table");
+            }
+            near_corners[near_count] = column + 1ULL;
+            near_count += 1u;
         }
         for (unsigned int word = 0u; word < PI_TOWER_WORDS; word += 1u)
         {
@@ -193,15 +201,15 @@ void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vect
     }
     longest = (run > longest) ? run : longest;
     size_t floors_in_walk = 0u;
-    while ((floors_in_walk < denominators.size()) &&
-           (pi_tower_compare(denominators[floors_in_walk], pi_tower_unsigned(columns)) <= 0))
+    while ((floors_in_walk < floors->count) &&
+           (pi_tower_compare(floors->denominator[floors_in_walk], pi_tower_unsigned(columns)) <= 0))
     {
         floors_in_walk += 1u;
     }
-    int matched = near_corners.size() == floors_in_walk;
-    for (size_t at = 0u; (at < near_corners.size()) && (at < floors_in_walk); at += 1u)
+    int matched = near_count == floors_in_walk;
+    for (size_t at = 0u; (at < near_count) && (at < floors_in_walk); at += 1u)
     {
-        matched = matched && (near_corners[at] == pi_tower_word(denominators[at]));
+        matched = matched && (near_corners[at] == pi_tower_word(floors->denominator[at]));
     }
     mmgr_line_put(&results->line, "  the billiard from the corner at slope pi, 2^");
     mmgr_line_decimal(&results->line, PI_TOWER_BILLIARD_BITS, 1u);
@@ -232,10 +240,10 @@ void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vect
     mmgr_line_ch(&results->line, '/');
     mmgr_line_decimal(&results->line, (2ULL * nearest_column) + 1ULL, 1u);
     mmgr_line_put(&results->line, "\n    the record near-corners at the side walls: ");
-    for (size_t at = 0u; at < near_corners.size(); at += 1u)
+    for (size_t at = 0u; at < near_count; at += 1u)
     {
         mmgr_line_decimal(&results->line, near_corners[at], 1u);
-        mmgr_line_put(&results->line, (at + 1u < near_corners.size()) ? ", " : "\n");
+        mmgr_line_put(&results->line, (at + 1u < near_count) ? ", " : "\n");
     }
     // pi is irrational. No corner and no zero L can occur on the real walk. What these two checks measure is that
     // the integer turn's carries decide every floor (uncertain is 0). The walk read is the real one
@@ -247,15 +255,17 @@ void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vect
     sim_flush(results);
 }
 
-// 11. The residue. On floor j, q_j alpha = p_j + delta_j. Put p_j / q_j for
-// alpha and the turn is the permutation n -> n p_j mod q_j of q_j cells, whole again after q_j steps: the identity.
-// Where q_j |delta_j| < 1, pi's whole parts for n < q_j are the permutation's, floor(n alpha) = floor(n p_j / q_j),
-// each point carried n delta_j / q_j off the permutation's mark, past it where delta_j > 0 and short of it where
-// delta_j < 0 (so into the right-closed cell), and at n = q_j pi is at P + delta_j where the permutation is whole:
-// the residue. Walked on the 384-bit turn, the whole parts read from its carries, on every floor with q_j at max
+// 11. The residue. On floor j, q_j alpha = p_j + delta_j. Put p_j / q_j for alpha. The turn is then the permutation
+// n -> n p_j mod q_j of q_j cells. It is whole again after q_j steps: the identity.
+//
+// Where q_j |delta_j| < 1, the whole parts of pi for n < q_j are those of the permutation: floor(n alpha) =
+// floor(n p_j / q_j). Each point goes n delta_j / q_j off the mark of the permutation. It goes past the mark where
+// delta_j > 0, and short of it where delta_j < 0, into the right-closed cell. At n = q_j pi is at P + delta_j, where
+// the permutation is whole: that is the residue.
+//
+// The sim walks the 384-bit turn and reads the whole parts from its carries. It walks every floor with q_j at max
 // 2^PI_TOWER_RESIDUE_BITS.
-void pi_tower_residues(SimResults *results, const PiWide &walk_alpha, const std::vector<PiWide> &denominators,
-                       const std::vector<PiWide> &floors)
+void pi_tower_residues(SimResults *results, const PiWide &walk_alpha, const PiTowerFloors *floors)
 {
     const PiWide modulus = pi_tower_power_two(PI_TOWER_BITS);
     const PiWide limit = pi_tower_power_two(PI_TOWER_RESIDUE_BITS);
@@ -272,25 +282,26 @@ void pi_tower_residues(SimResults *results, const PiWide &walk_alpha, const std:
     unsigned long long numerator_before = 1ULL;
     unsigned long long numerator = 0ULL;
     mmgr_line_put(&results->line, "  the residue: floor j, pi's identity P/q, the residue q pi - P, and q steps "
-                                   "walked as the permutation n -> n p mod q\n");
-    for (size_t at = 0u; (at < denominators.size()) && (pi_tower_compare(denominators[at], limit) <= 0); at += 1u)
+                                  "walked as the permutation n -> n p mod q\n");
+    for (size_t at = 0u; (at < floors->count) && (pi_tower_compare(floors->denominator[at], limit) <= 0); at += 1u)
     {
         if (at > 0u)
         {
             // a_j p_(j-1) + p_(j-2): each p_j is below q_j, below 2^21. The words store them
-            const unsigned long long next = (pi_tower_word(floors[at]) * numerator) + numerator_before;
+            const unsigned long long next = (pi_tower_word(floors->quotient[at]) * numerator) + numerator_before;
             numerator_before = numerator;
             numerator = next;
         }
-        const unsigned long long steps = pi_tower_word(denominators[at]);
-        const PiWide residue = pi_tower_difference(pi_tower_product(denominators[at], walk_alpha),
+        const unsigned long long steps = pi_tower_word(floors->denominator[at]);
+        const PiWide residue = pi_tower_difference(pi_tower_product(floors->denominator[at], walk_alpha),
                                                    pi_tower_product(pi_tower_unsigned(numerator), modulus));
         const int negative = residue.sign < 0;
         PiWide size = residue;
         size.sign = (residue.sign == 0) ? 0 : 1;
-        // the real residue lies in (qA - pM, qA - pM + q); the integer whole parts are the real ones and each point
-        // stays in its cell when q (size + q) < M where delta > 0, and q size < M with size >= q where delta < 0
-        const PiWide q = denominators[at];
+        // The real residue lies in (qA - pM, qA - pM + q). The integer whole parts are the real ones, and each point
+        // stays in its cell, under one condition. Where delta > 0, it is q (size + q) < M. Where delta < 0, it is
+        // q size < M with size >= q
+        const PiWide q = floors->denominator[at];
         certain =
             certain && ((negative == 0) ? (pi_tower_compare(pi_tower_product(q, pi_tower_sum(size, q)), modulus) < 0)
                                         : ((pi_tower_compare(pi_tower_product(q, size), modulus) < 0) &&
@@ -308,7 +319,7 @@ void pi_tower_residues(SimResults *results, const PiWide &walk_alpha, const std:
             floor_ok = floor_ok && (integer_sum == ((step * numerator) / steps));
             integer_sum += pi_tower_words_add(place, increment);
         }
-        // at n = q the walk is at the residue: whole P past 3 q, and delta past it, or whole P - 1 and |delta|
+        // At n = q the walk is at the residue. That is whole P past 3 q and delta past it, or whole P - 1 and |delta|
         // short of the next
         const PiWide located = pi_tower_words_wide(place);
         floor_ok = floor_ok && (integer_sum == ((negative != 0) ? (numerator - 1ULL) : numerator)) &&
@@ -325,7 +336,7 @@ void pi_tower_residues(SimResults *results, const PiWide &walk_alpha, const std:
         mmgr_line_ch(&results->line, (negative != 0) ? '-' : '+');
         pi_tower_print_exponent(&results->line, size, modulus);
         mmgr_line_put(&results->line, (floor_ok != 0) ? "  the permutation's whole parts, and the residue at step q\n"
-                                                       : "  NOT the permutation\n");
+                                                      : "  NOT the permutation\n");
         sim_flush(results);
     }
     sim_check(results, ok && certain && (walked >= 12u),

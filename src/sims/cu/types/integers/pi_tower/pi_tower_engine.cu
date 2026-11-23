@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_tower_engine.cu: the engine, depth and requests
 #include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "pi_tower_internal.h"
 
@@ -14,10 +15,14 @@ void pi_tower_engine(SimResults *results, int count, char **arguments, const PiT
     const unsigned long long lanes = pi_tower_bbp_lanes();
     unsigned int window = 0u;
     const PiWide tower_position = pi_tower_depth_position(pi_tower_unsigned(depth), &window);
-    std::vector<PiTowerBbp> plans(PI_TOWER_PUBLISHED_COUNT + 1u);
+    // a plan for each published position and one for the tower's, each its own run
+    static PiTowerBbp s_plans[PI_TOWER_PUBLISHED_COUNT + 1u];
+    PiTowerBbp *const plans = s_plans;
+    const size_t plans_count = PI_TOWER_PUBLISHED_COUNT + 1u;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = s_plans, .bytes = sizeof(s_plans), .val = 0);
     int planned = lanes != 0ULL;
     unsigned long long declared = 0ULL;
-    for (size_t at = 0u; (planned != 0) && (at < plans.size()); at += 1u)
+    for (size_t at = 0u; (planned != 0) && (at < plans_count); at += 1u)
     {
         const PiWide position = (at < PI_TOWER_PUBLISHED_COUNT)
                                     ? pi_tower_unsigned(s_pi_tower_published[at].position - 1ULL)
@@ -29,7 +34,7 @@ void pi_tower_engine(SimResults *results, int count, char **arguments, const PiT
     sim_check(results, planned, "engine: keymath encodes and the scheduler arranges the term, tail and pair programs");
     if ((planned == 0) || !sim_job_submit(results, "pi_tower", count, arguments, declared))
     {
-        for (size_t at = 0u; at < plans.size(); at += 1u)
+        for (size_t at = 0u; at < plans_count; at += 1u)
         {
             pi_tower_bbp_free(&plans[at]);
         }
@@ -45,11 +50,19 @@ void pi_tower_engine(SimResults *results, int count, char **arguments, const PiT
         const int ran = pi_tower_bbp_sum(results, &plans[at], 0, &run);
         const unsigned int certified = (ran != 0) ? pi_tower_bbp_certified(&plans[at], run.sum) : 0u;
         pi_tower_bbp_print(results, &plans[at], &run, certified);
-        const std::string expected = s_pi_tower_published[at].digits;
+        const char *const expected = s_pi_tower_published[at].digits;
         finished = finished && ran && run.finished;
         // a published string is at max 23 digits. Its length fits an unsigned int
-        published = published && ran && run.finished && ((4u * expected.size()) <= certified) &&
-                    (pi_tower_bbp_hex(&plans[at], run.sum, (unsigned int)expected.size()) == expected);
+        const unsigned int expected_length =
+            (unsigned int)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = expected, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+        const int readable = published && ran && run.finished && ((4u * expected_length) <= certified);
+        char hex[PI_TOWER_HEX_MAX];
+        if (readable != 0)
+        {
+            pi_tower_bbp_hex(&plans[at], run.sum, expected_length, hex, sizeof(hex));
+        }
+        published = readable &&
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = hex, .other = expected, .bytes = expected_length) == 0);
     }
     sim_check(results, finished, "engine: every run sums all its terms");
     sim_check(results, published,
@@ -72,15 +85,15 @@ void pi_tower_engine(SimResults *results, int count, char **arguments, const PiT
     mmgr_line_ch(&results->line, '\n');
     sim_check(results, ran && run.finished && (certified >= window) && (engine_cell == exact_cell),
               "the engine's cell at the deepest resolution requested, its low 64 bits, is the exact turn's");
-    for (size_t at = 0u; at < plans.size(); at += 1u)
+    for (size_t at = 0u; at < plans_count; at += 1u)
     {
         pi_tower_bbp_free(&plans[at]);
     }
     sim_flush(results);
 }
 
-// a resolution past the exact turn's: represented as (2, n), every part that does not require pi's bits printed exact,
-// and the depth-n turn summed on the engine sweep by sweep until every term is in or the run is stopped
+// A resolution past that of the exact turn, as (2, n). The sim prints exact every part that does not need the bits of
+// pi. The engine sums the turn at depth n sweep by sweep, until every term is in or an interrupt stops the run
 void pi_tower_deep(SimResults *results, int count, char **arguments, const PiWide &depth)
 {
     EngineError error;
@@ -159,20 +172,21 @@ static int pi_tower_digits(const char **text, PiWide *value)
 {
     const PiWide ten = pi_tower_unsigned(10ULL);
     *value = pi_tower_unsigned(0ULL);
-    const char *walk = *text;
-    while ((*walk >= '0') && (*walk <= '9'))
+    const char *const digits = *text;
+    const size_t length = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = digits, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = "0123456789");
+    // each digit is a step of the value: the value times 10, and the digit added
+    for (size_t at = 0u; at < length; at += 1u)
     {
         // one decimal digit, 0 to 9
-        *value = pi_tower_sum(pi_tower_product(*value, ten), pi_tower_unsigned((unsigned long long)(*walk - '0')));
-        walk += 1;
+        *value = pi_tower_sum(pi_tower_product(*value, ten), pi_tower_unsigned((unsigned long long)(digits[at] - '0')));
     }
-    const int read = walk != *text;
-    *text = walk;
-    return read;
+    *text = &digits[length];
+    return length != 0u;
 }
 
-// n from the request, whole or as base^exponent, the base and its operation stored apart until n is formed; 0 where the
-// text is neither, n is 0, or n outgrows the exact width
+// n from the request, whole or as base^exponent. The base and its operation stay apart until they make n. The answer
+// is 0 where the text is neither, n is 0, or n outgrows the exact width
 int pi_tower_request(const char *text, PiWide *value)
 {
     if (text == NULL)
@@ -196,7 +210,7 @@ int pi_tower_request(const char *text, PiWide *value)
         {
             return 0;
         }
-        // base^exponent by squaring, over the exponent's bits from the top
+        // base^exponent by a square for each bit of the exponent, from the top
         *value = pi_tower_unsigned(1ULL);
         for (unsigned int bit = pi_tower_bit_length(exponent); (bit > 0u) && (g_pi_tower_error == 0); bit -= 1u)
         {

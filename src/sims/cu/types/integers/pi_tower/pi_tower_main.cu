@@ -5,9 +5,8 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "pi_tower_internal.h"
 
-static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const std::vector<PiWide> &denominators,
-                          const std::vector<PiWide> &floors, unsigned int from_bits, unsigned int to_bits,
-                          const PiWide &walk_alpha);
+static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const PiTowerFloors *floors,
+                          unsigned int from_bits, unsigned int to_bits, const PiWide &walk_alpha);
 
 int program_main(int count, char **arguments)
 {
@@ -101,26 +100,28 @@ int program_main(int count, char **arguments)
     turn.precision = precision;
     turn.range = ((to_bits + PI_TOWER_RECORD_MARGIN) > PI_TOWER_RECORD_BITS) ? (to_bits + PI_TOWER_RECORD_MARGIN)
                                                                              : PI_TOWER_RECORD_BITS;
-    turn.lowest = pi_tower_records(turn, 1);
-    turn.highest = pi_tower_records(turn, 0);
+    turn.lowest_count = pi_tower_records(turn, 1, &turn.lowest);
+    turn.highest_count = pi_tower_records(turn, 0, &turn.highest);
     // the walks' turn, floor(alpha 2^384): a floor of a floor is the floor
     const PiWide walk_alpha = pi_tower_quotient(turn.multiplier, pi_tower_power_two(precision - PI_TOWER_BITS));
-    std::vector<PiWide> denominators;
-    std::vector<PiWide> floors;
-    pi_tower_floors(&results, turn, &denominators, &floors);
-    pi_tower_residues(&results, walk_alpha, denominators, floors);
-    pi_tower_golden(&results, turn, denominators, floors);
-    pi_tower_billiard(&results, walk_alpha, denominators);
-    pi_tower_fill(&results, turn, denominators, floors, from_bits, to_bits, walk_alpha);
+    PiTowerFloors floors;
+    pi_tower_floors(&results, turn, &floors);
+    pi_tower_residues(&results, walk_alpha, &floors);
+    pi_tower_golden(&results, turn, &floors);
+    pi_tower_billiard(&results, walk_alpha, &floors);
+    pi_tower_fill(&results, turn, &floors, from_bits, to_bits, walk_alpha);
     pi_tower_engine(&results, count, arguments, turn, to_bits);
+    pi_tower_given(floors.quotient);
+    pi_tower_given(floors.denominator);
+    pi_tower_given(turn.highest);
+    pi_tower_given(turn.lowest);
     return sim_close(&results, "pi tower");
 }
 
-// 4, 5 and 6. at each resolution, the step that fills the boundary: the least count of steps whose points touch every
-// cell, found by doubling and halving on the three gap test
-static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const std::vector<PiWide> &denominators,
-                          const std::vector<PiWide> &floors, unsigned int from_bits, unsigned int to_bits,
-                          const PiWide &walk_alpha)
+// 4, 5 and 6. At each resolution, the step that fills the boundary: the least count of steps whose points touch every
+// cell. The three gap test finds it, as the count goes up by twice and back down by half
+static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const PiTowerFloors *floors,
+                          unsigned int from_bits, unsigned int to_bits, const PiWide &walk_alpha)
 {
     const PiWide one = pi_tower_unsigned(1ULL);
     const PiWide two = pi_tower_unsigned(2ULL);
@@ -177,8 +178,8 @@ static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const st
         found_home = found_home && closed;
         const PiWide range = (closed != 0) ? pi_tower_sum(closing, one) : covering;
 
-        // the integer turn is the real one on every step below range: step n's real place lies in
-        // (n A, n A + n), which crosses into the next cell only where (n A mod cell) > cell - n
+        // The integer turn is the real one on every step below range. The real place of step n lies in (n A, n A + n).
+        // That crosses into the next cell only where (n A mod cell) > cell - n
         PiWide unsure;
         const PiWide multiplier = pi_tower_remainder(turn.multiplier, cell);
         const int wanders = pi_tower_first_hit(multiplier, cell, pi_tower_sum(pi_tower_difference(cell, range), one),
@@ -193,11 +194,22 @@ static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const st
                                      pi_tower_difference(pi_tower_sum(low, cell), one), &first) &&
                   (pi_tower_compare(first, fill) == 0);
 
-        size_t level = 0u;
-        while (((level + 1u) < denominators.size()) && (pi_tower_compare(denominators[level + 1u], fill) <= 0))
+        // the last floor whose q_j is at max the fill, from floor 0. The q_j rise, and a binary search finds it
+        unsigned int below = 1u;
+        unsigned int above = floors->count;
+        while (below < above)
         {
-            level += 1u;
+            const unsigned int middle = below + ((above - below) / 2u);
+            if (pi_tower_compare(floors->denominator[middle], fill) <= 0)
+            {
+                below = middle + 1u;
+            }
+            else
+            {
+                above = middle;
+            }
         }
+        const unsigned int level = below - 1u;
         mmgr_line_put(&results->line, "    2^");
         mmgr_line_decimal(&results->line, bits, 1u);
         mmgr_line_put(&results->line, "  step ");
@@ -210,10 +222,10 @@ static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const st
         sim_ratio_print(&results->line, &last, &cells, 12u);
         mmgr_line_put(&results->line, "  floor ");
         mmgr_line_decimal(&results->line, level, 1u);
-        if ((level + 1u) < floors.size())
+        if ((level + 1u) < floors->count)
         {
             mmgr_line_put(&results->line, " (a ");
-            pi_tower_print_decimal(&results->line, floors[level + 1u]);
+            pi_tower_print_decimal(&results->line, floors->quotient[level + 1u]);
             mmgr_line_ch(&results->line, ')');
         }
         if (homed != 0)

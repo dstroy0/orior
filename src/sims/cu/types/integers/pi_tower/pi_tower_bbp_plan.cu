@@ -7,19 +7,29 @@
 // the four denominators' offsets, 8 i + j
 static const unsigned int s_pi_tower_bbp_offset[4] = {1u, 4u, 5u, 6u};
 
-// keymath encodes the program, its last step the output, and the scheduler arranges its registers, each reused once its
-// last reader has run
-static int pi_tower_program_build(PiTowerProgram *program, const std::vector<EngineRecordStep> &steps,
-                                  const unsigned int *field_bits, unsigned int members, const unsigned int *in_limbs,
-                                  const EngineRecordTable *tables, unsigned int table_count, EngineError *error)
+// The steps of the program that a build writes. The builds write one program at a time, and keymath copies the steps
+// into the key that it encodes
+static PiTowerSteps s_steps;
+
+// the table of steps, empty, for the next build [BORROWS]
+static PiTowerSteps *pi_tower_steps_begun(void)
+{
+    s_steps.count = 0u;
+    return &s_steps;
+}
+
+// keymath encodes the program, its last step the output, and the scheduler arranges its registers. The scheduler uses
+// a register again after its last reader runs
+static int pi_tower_program_build(PiTowerProgram *program, const PiTowerSteps *steps, const unsigned int *field_bits,
+                                  unsigned int members, const unsigned int *in_limbs, const EngineRecordTable *tables,
+                                  unsigned int table_count, EngineError *error)
 {
     EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
-    // a program's steps are counted in an unsigned int, as keymath counts them
-    const unsigned int count = (unsigned int)steps.size();
+    const unsigned int count = steps->count;
     const unsigned int output = count - 1u;
     const unsigned int field_offset[1] = {0u};
-    const KeymathRecordRequest encode_request = {steps.data(), count,       field_bits,    1u,   members, &output, 1u,
-                                                 tables,       table_count, &program->key, error};
+    const KeymathRecordRequest encode_request = {steps->step, count,       field_bits,    1u,   members, &output, 1u,
+                                                 tables,      table_count, &program->key, error};
     if (keymath_record_encode(&encode_request) == KEYMATH_ERROR)
     {
         return 0;
@@ -52,50 +62,50 @@ void pi_tower_bbp_free(PiTowerBbp *bbp)
 // the term lane: field 0 is i
 static int pi_tower_bbp_term_build(PiTowerBbp *bbp, EngineError *error)
 {
-    std::vector<EngineRecordStep> steps;
-    const unsigned int index = pi_tower_field(&steps, 0u, 0u);
-    const unsigned int position = pi_tower_constant(&steps, bbp->position);
-    const unsigned int exponent = pi_tower_step(&steps, ENGINE_RECORD_DIFFERENCE, position, index);
+    PiTowerSteps *const steps = pi_tower_steps_begun();
+    const unsigned int index = pi_tower_field(steps, 0u, 0u);
+    const unsigned int position = pi_tower_constant(steps, bbp->position);
+    const unsigned int exponent = pi_tower_step(steps, ENGINE_RECORD_DIFFERENCE, position, index);
     const unsigned int nibbles = (bbp->position_bits + 3u) / 4u;
     // 16^nibbles is above every exponent. A quotient by any lower power of 16 leaves a whole nibble to index by
-    const unsigned int above = pi_tower_constant(&steps, pi_tower_power_two(4u * nibbles));
-    const unsigned int guarded = pi_tower_step(&steps, ENGINE_RECORD_SUM, exponent, above);
-    const unsigned int eight = pi_tower_step(&steps, ENGINE_RECORD_CONSTANT, 8u, 0u);
-    const unsigned int eighth = pi_tower_step(&steps, ENGINE_RECORD_PRODUCT, eight, index);
-    const unsigned int one = pi_tower_step(&steps, ENGINE_RECORD_CONSTANT, 1u, 0u);
+    const unsigned int above = pi_tower_constant(steps, pi_tower_power_two(4u * nibbles));
+    const unsigned int guarded = pi_tower_step(steps, ENGINE_RECORD_SUM, exponent, above);
+    const unsigned int eight = pi_tower_step(steps, ENGINE_RECORD_CONSTANT, 8u, 0u);
+    const unsigned int eighth = pi_tower_step(steps, ENGINE_RECORD_PRODUCT, eight, index);
+    const unsigned int one = pi_tower_step(steps, ENGINE_RECORD_CONSTANT, 1u, 0u);
     unsigned int modulus[4];
     unsigned int residue[4];
     for (unsigned int type = 0u; type < 4u; type += 1u)
     {
-        const unsigned int offset = pi_tower_step(&steps, ENGINE_RECORD_CONSTANT, s_pi_tower_bbp_offset[type], 0u);
-        modulus[type] = pi_tower_step(&steps, ENGINE_RECORD_SUM, eighth, offset);
+        const unsigned int offset = pi_tower_step(steps, ENGINE_RECORD_CONSTANT, s_pi_tower_bbp_offset[type], 0u);
+        modulus[type] = pi_tower_step(steps, ENGINE_RECORD_SUM, eighth, offset);
         residue[type] = one;
     }
     // 16^e from the top nibble down: r becomes r^16 . 16^(the nibble), each square and product taken mod 8 i + j
     for (unsigned int nibble = nibbles; nibble > 0u; nibble -= 1u)
     {
-        const unsigned int place = pi_tower_constant(&steps, pi_tower_power_two(4u * (nibble - 1u)));
-        const unsigned int digit = pi_tower_step(&steps, ENGINE_RECORD_QUOTIENT, guarded, place);
-        const unsigned int power = pi_tower_step(&steps, ENGINE_RECORD_TABLE, digit, 0u);
+        const unsigned int place = pi_tower_constant(steps, pi_tower_power_two(4u * (nibble - 1u)));
+        const unsigned int digit = pi_tower_step(steps, ENGINE_RECORD_QUOTIENT, guarded, place);
+        const unsigned int power = pi_tower_step(steps, ENGINE_RECORD_TABLE, digit, 0u);
         for (unsigned int type = 0u; type < 4u; type += 1u)
         {
             for (unsigned int square = 0u; square < 4u; square += 1u)
             {
-                const unsigned int squared = pi_tower_step(&steps, ENGINE_RECORD_PRODUCT, residue[type], residue[type]);
-                residue[type] = pi_tower_step(&steps, ENGINE_RECORD_REMAINDER, squared, modulus[type]);
+                const unsigned int squared = pi_tower_step(steps, ENGINE_RECORD_PRODUCT, residue[type], residue[type]);
+                residue[type] = pi_tower_step(steps, ENGINE_RECORD_REMAINDER, squared, modulus[type]);
             }
-            const unsigned int raised = pi_tower_step(&steps, ENGINE_RECORD_PRODUCT, residue[type], power);
-            residue[type] = pi_tower_step(&steps, ENGINE_RECORD_REMAINDER, raised, modulus[type]);
+            const unsigned int raised = pi_tower_step(steps, ENGINE_RECORD_PRODUCT, residue[type], power);
+            residue[type] = pi_tower_step(steps, ENGINE_RECORD_REMAINDER, raised, modulus[type]);
         }
     }
-    const unsigned int unit = pi_tower_constant(&steps, pi_tower_power_two(bbp->fraction_bits));
+    const unsigned int unit = pi_tower_constant(steps, pi_tower_power_two(bbp->fraction_bits));
     unsigned int fraction[4];
     for (unsigned int type = 0u; type < 4u; type += 1u)
     {
-        const unsigned int scaled = pi_tower_step(&steps, ENGINE_RECORD_PRODUCT, residue[type], unit);
-        fraction[type] = pi_tower_step(&steps, ENGINE_RECORD_QUOTIENT, scaled, modulus[type]);
+        const unsigned int scaled = pi_tower_step(steps, ENGINE_RECORD_PRODUCT, residue[type], unit);
+        fraction[type] = pi_tower_step(steps, ENGINE_RECORD_QUOTIENT, scaled, modulus[type]);
     }
-    pi_tower_bbp_combine(&steps, fraction, bbp->fraction_bits);
+    pi_tower_bbp_combine(steps, fraction, bbp->fraction_bits);
     // 16^v for a nibble v, below 2^61
     unsigned int values[32];
     for (unsigned int row = 0u; row < 16u; row += 1u)
@@ -114,61 +124,69 @@ static int pi_tower_bbp_term_build(PiTowerBbp *bbp, EngineError *error)
 // the tail lane: field 0 is t, the term d + t
 static int pi_tower_bbp_tail_build(PiTowerBbp *bbp, EngineError *error)
 {
-    std::vector<EngineRecordStep> steps;
-    const unsigned int ahead = pi_tower_field(&steps, 0u, 0u);
-    const unsigned int position = pi_tower_constant(&steps, bbp->position);
-    const unsigned int index = pi_tower_step(&steps, ENGINE_RECORD_SUM, position, ahead);
-    const unsigned int eight = pi_tower_step(&steps, ENGINE_RECORD_CONSTANT, 8u, 0u);
-    const unsigned int eighth = pi_tower_step(&steps, ENGINE_RECORD_PRODUCT, eight, index);
-    const unsigned int scale = pi_tower_step(&steps, ENGINE_RECORD_TABLE, ahead, 0u);
-    const unsigned int unit = pi_tower_constant(&steps, pi_tower_power_two(bbp->fraction_bits));
+    PiTowerSteps *const steps = pi_tower_steps_begun();
+    const unsigned int ahead = pi_tower_field(steps, 0u, 0u);
+    const unsigned int position = pi_tower_constant(steps, bbp->position);
+    const unsigned int index = pi_tower_step(steps, ENGINE_RECORD_SUM, position, ahead);
+    const unsigned int eight = pi_tower_step(steps, ENGINE_RECORD_CONSTANT, 8u, 0u);
+    const unsigned int eighth = pi_tower_step(steps, ENGINE_RECORD_PRODUCT, eight, index);
+    const unsigned int scale = pi_tower_step(steps, ENGINE_RECORD_TABLE, ahead, 0u);
+    const unsigned int unit = pi_tower_constant(steps, pi_tower_power_two(bbp->fraction_bits));
     unsigned int fraction[4];
     for (unsigned int type = 0u; type < 4u; type += 1u)
     {
-        const unsigned int offset = pi_tower_step(&steps, ENGINE_RECORD_CONSTANT, s_pi_tower_bbp_offset[type], 0u);
-        const unsigned int modulus = pi_tower_step(&steps, ENGINE_RECORD_SUM, eighth, offset);
-        const unsigned int below = pi_tower_step(&steps, ENGINE_RECORD_PRODUCT, modulus, scale);
-        fraction[type] = pi_tower_step(&steps, ENGINE_RECORD_QUOTIENT, unit, below);
+        const unsigned int offset = pi_tower_step(steps, ENGINE_RECORD_CONSTANT, s_pi_tower_bbp_offset[type], 0u);
+        const unsigned int modulus = pi_tower_step(steps, ENGINE_RECORD_SUM, eighth, offset);
+        const unsigned int below = pi_tower_step(steps, ENGINE_RECORD_PRODUCT, modulus, scale);
+        fraction[type] = pi_tower_step(steps, ENGINE_RECORD_QUOTIENT, unit, below);
     }
-    pi_tower_bbp_combine(&steps, fraction, bbp->fraction_bits);
+    pi_tower_bbp_combine(steps, fraction, bbp->fraction_bits);
     // 16^v for every v the tail's field can represent
     const unsigned int rows = 1u << bbp->tail_bits;
     const unsigned int out_bits = (4u * (rows - 1u)) + 1u;
     const unsigned int row_limbs = (out_bits + 31u) / 32u;
-    std::vector<unsigned int> values((size_t)rows * row_limbs, 0u);
+    // the table's rows in a cell of the temporary tier, every limb 0, as keymath copies the table into the key
+    unsigned int *const values = (unsigned int *)platform_cell_cleared(
+        (unsigned long long)rows * row_limbs, sizeof(unsigned int), (unsigned int)platform_place_g_program_owner, 1);
+    if (values == NULL)
+    {
+        pi_tower_refused("the pool gave no cell");
+    }
     for (unsigned int row = 0u; row < rows; row += 1u)
     {
         values[((size_t)row * row_limbs) + ((4u * row) / 32u)] = 1u << ((4u * row) % 32u);
     }
-    const EngineRecordTable table = {bbp->tail_bits, out_bits, values.data()};
+    const EngineRecordTable table = {bbp->tail_bits, out_bits, values};
     const unsigned int field_bits[1] = {bbp->tail_bits};
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {1u, 0u, 0u};
-    return pi_tower_program_build(&bbp->tail, steps, field_bits, 1u, in_limbs, &table, 1u, error);
+    const int built = pi_tower_program_build(&bbp->tail, steps, field_bits, 1u, in_limbs, &table, 1u, error);
+    pi_tower_given(values);
+    return built;
 }
 
 // the pair lane: two lanes' sums, members 0 and 1, added mod 2^W
 static int pi_tower_bbp_pair_build(PiTowerBbp *bbp, EngineError *error)
 {
-    std::vector<EngineRecordStep> steps;
-    const unsigned int left = pi_tower_field(&steps, 0u, 0u);
-    const unsigned int right = pi_tower_field(&steps, 0u, 1u);
-    const unsigned int sum = pi_tower_step(&steps, ENGINE_RECORD_SUM, left, right);
-    pi_tower_step(&steps, ENGINE_RECORD_WRAP, sum, bbp->fraction_bits);
+    PiTowerSteps *const steps = pi_tower_steps_begun();
+    const unsigned int left = pi_tower_field(steps, 0u, 0u);
+    const unsigned int right = pi_tower_field(steps, 0u, 1u);
+    const unsigned int sum = pi_tower_step(steps, ENGINE_RECORD_SUM, left, right);
+    pi_tower_step(steps, ENGINE_RECORD_WRAP, sum, bbp->fraction_bits);
     const unsigned int field_bits[1] = {bbp->fraction_bits + 1u};
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {bbp->out_limbs, bbp->out_limbs, 0u};
     return pi_tower_program_build(&bbp->pair, steps, field_bits, 2u, in_limbs, NULL, 0u, error);
 }
 
-// E = 4 (N + T) + 1: each of the N + T lanes floors four fractions weighted 4, 2, 1 and 1, off by less than 4 units
-// either way, and the terms past the tail add less than 1
+// E = 4 (N + T) + 1. Each of the N + T lanes floors four fractions with the weights 4, 2, 1 and 1. The lane is then
+// off by less than 4 units either way, and the terms past the tail add less than 1
 PiWide pi_tower_bbp_error(const PiTowerBbp *bbp)
 {
     const PiWide lanes = pi_tower_sum(bbp->terms, pi_tower_unsigned(bbp->tail_terms));
     return pi_tower_sum(pi_tower_product(lanes, pi_tower_unsigned(4ULL)), pi_tower_unsigned(1ULL));
 }
 
-// the run at hex position d, from d alone: W contains PI_TOWER_BBP_CERTIFIED bits past the error with
-// PI_TOWER_BBP_GUARD to spare, and the tail runs until 16^T >= 2^(W + 8)
+// The run at hex position d, from d alone. W contains PI_TOWER_BBP_CERTIFIED bits past the error with
+// PI_TOWER_BBP_GUARD to spare. The tail runs until 16^T >= 2^(W + 8)
 int pi_tower_bbp_plan(PiTowerBbp *bbp, const PiWide &position, unsigned long long lanes, EngineError *error)
 {
     EMBED_CALL(memor.set, MemoriaCfg, .dst = bbp, .bytes = sizeof(*bbp), .val = 0);
@@ -208,8 +226,8 @@ int pi_tower_bbp_plan(PiTowerBbp *bbp, const PiWide &position, unsigned long lon
     return 1;
 }
 
-// the device bytes a run occupies: its lanes' inputs, two buffers of sums, the pair program's index, the total, and the
-// three programs' step tables and lookup tables
+// The device bytes that a run occupies: the inputs of its lanes, two buffers of sums, the index of the pair program and
+// the total. Also the step tables and lookup tables of the three programs
 unsigned long long pi_tower_bbp_bytes(const PiTowerBbp *bbp)
 {
     const unsigned long long buffer_words = (bbp->lanes + 1ULL) * bbp->out_limbs;
@@ -249,8 +267,8 @@ int pi_tower_bbp_counted(SimResults *results, unsigned int *out, unsigned long l
     return sim_status_check(results, cudaGetLastError(), "engine: the lanes' integers");
 }
 
-// the sums of count lanes in buffers[0], reduced to one by rounds of the pair program, the buffers taking turns. The
-// buffer the one sum lands in, or NULL
+// The sums of count lanes in buffers[0], reduced to one by rounds of the pair program, the buffers in turn. The answer
+// is the buffer that the one sum lands in, or NULL
 unsigned int *pi_tower_bbp_reduce(SimResults *results, const PiTowerBbp *bbp, unsigned int *const *buffers,
                                   const unsigned int *index, unsigned long long count, EngineError *error)
 {
@@ -291,30 +309,32 @@ unsigned int *pi_tower_bbp_reduce(SimResults *results, const PiTowerBbp *bbp, un
 // the sum read from the device: the pair program's two's complement over W + 1 bits, taken mod 2^W
 int pi_tower_bbp_read(SimResults *results, const PiTowerBbp *bbp, const unsigned int *total, PiWide *sum)
 {
-    std::vector<unsigned int> limbs(bbp->out_limbs, 0u);
-    if (!sim_status_check(
-            results, cudaMemcpy(limbs.data(), total, bbp->out_limbs * sizeof(unsigned int), cudaMemcpyDeviceToHost),
-            "engine: the sum read back"))
+    if (bbp->out_limbs > ORIOR_EXACT_LIMBS)
+    {
+        pi_tower_refused("a lane's sum passes the exact width");
+    }
+    // the limbs land in an integer of their own, and the sum takes it only where the read succeeds
+    PiWide read;
+    orior_exact_zero(&read);
+    if (!sim_status_check(results,
+                          cudaMemcpy(read.limb, total, bbp->out_limbs * sizeof(unsigned int), cudaMemcpyDeviceToHost),
+                          "engine: the sum read back"))
     {
         return 0;
     }
-    orior_exact_zero(sum);
     int zero = 1;
-    for (unsigned int limb = 0u; limb < bbp->out_limbs; limb += 1u)
-    {
-        sum->limb[limb] = limbs[limb];
-    }
     // W = 32 k - 1. The sign's bit W is the top limb's top bit
-    sum->limb[bbp->out_limbs - 1u] &= 0x7FFFFFFFu;
+    read.limb[bbp->out_limbs - 1u] &= 0x7FFFFFFFu;
     for (unsigned int limb = 0u; limb < bbp->out_limbs; limb += 1u)
     {
-        zero = zero && (sum->limb[limb] == 0u);
+        zero = zero && (read.limb[limb] == 0u);
     }
-    sum->sign = (zero != 0) ? 0 : 1;
+    read.sign = (zero != 0) ? 0 : 1;
+    *sum = read;
     return 1;
 }
 
-// a progress line: the terms done, the rate, and what is left at that rate
+// a progress line: the terms done, the rate, and the terms and the time to go at that rate
 void pi_tower_bbp_progress(SimResults *results, const PiTowerBbp *bbp, const PiTowerBbpRun *run)
 {
     // a run's seconds are non-negative and far below 2^64 microseconds. The floor fits the word

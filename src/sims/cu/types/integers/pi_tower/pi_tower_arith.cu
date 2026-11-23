@@ -5,7 +5,7 @@
 
 int g_pi_tower_error = 0;
 
-// set where a search requests a record past the range the records were limited to
+// set where a search requests a record past the range of the records
 int g_pi_tower_records_short = 0;
 
 static void pi_tower_took(OriorExactStatus status)
@@ -89,12 +89,19 @@ unsigned long long pi_tower_word(const PiWide &value)
 }
 
 // the least x >= 0 with low <= (multiplier . x mod modulus) <= high, for low <= high < modulus; 0 where there is
-// none. Where no multiple of the multiplier lands in the window, x wraps y times, and y is the least hit of the window
+// none. Where no multiple of the multiplier lands in the window, x wraps y times. Then y is the least hit of the window
 // reflected into the rotation one floor down, modulus mod multiplier on multiplier: Euclid's descent.
 int pi_tower_first_hit(PiWide multiplier, PiWide modulus, PiWide low, PiWide high, PiWide *step)
 {
     const PiWide one = pi_tower_unsigned(1ULL);
-    std::vector<PiTowerLevel> levels;
+    // Each level is a step of Euclid's algorithm on the multiplier and the modulus, in a cell of the temporary tier. A
+    // multiplier above the modulus adds one step
+    const unsigned int multiplier_bits = pi_tower_bit_length(multiplier);
+    const unsigned int modulus_bits = pi_tower_bit_length(modulus);
+    const unsigned int bound =
+        pi_tower_euclid_bound((multiplier_bits > modulus_bits) ? multiplier_bits : modulus_bits) + 1u;
+    PiTowerLevel *const levels = (PiTowerLevel *)pi_tower_taken(bound, sizeof(PiTowerLevel), 1);
+    unsigned int depth = 0u;
     PiWide found;
     for (;;)
     {
@@ -105,6 +112,7 @@ int pi_tower_first_hit(PiWide multiplier, PiWide modulus, PiWide low, PiWide hig
         }
         if (multiplier.sign == 0)
         {
+            pi_tower_given(levels);
             return 0;
         }
         const PiWide least = pi_tower_quotient(pi_tower_sum(low, pi_tower_difference(multiplier, one)), multiplier);
@@ -113,11 +121,14 @@ int pi_tower_first_hit(PiWide multiplier, PiWide modulus, PiWide low, PiWide hig
             found = least;
             break;
         }
-        PiTowerLevel level;
-        level.multiplier = multiplier;
-        level.modulus = modulus;
-        level.low = low;
-        levels.push_back(level);
+        if (depth == bound)
+        {
+            pi_tower_refused("the descent passes Lame's bound on its levels");
+        }
+        levels[depth].multiplier = multiplier;
+        levels[depth].modulus = modulus;
+        levels[depth].low = low;
+        depth += 1u;
         const PiWide next_multiplier = pi_tower_remainder(modulus, multiplier);
         const PiWide next_low = pi_tower_difference(multiplier, pi_tower_remainder(high, multiplier));
         const PiWide next_high = pi_tower_difference(multiplier, pi_tower_remainder(low, multiplier));
@@ -126,12 +137,13 @@ int pi_tower_first_hit(PiWide multiplier, PiWide modulus, PiWide low, PiWide hig
         low = next_low;
         high = next_high;
     }
-    for (size_t at = levels.size(); at > 0u; at -= 1u)
+    for (unsigned int at = depth; at > 0u; at -= 1u)
     {
         const PiTowerLevel &level = levels[at - 1u];
         const PiWide range = pi_tower_sum(level.low, pi_tower_product(level.modulus, found));
         found = pi_tower_quotient(pi_tower_sum(range, pi_tower_difference(level.multiplier, one)), level.multiplier);
     }
+    pi_tower_given(levels);
     *step = found;
     return 1;
 }
@@ -182,7 +194,7 @@ int pi_tower_hit_between(const PiWide &multiplier, const PiWide &modulus, const 
     return pi_tower_compare(pi_tower_sum(from, step), to) < 0;
 }
 
-// 2^bits . arctan(1 / x) within terms + 1: the alternating series, each term floored
+// 2^bits . arctan(1 / x) within terms + 1: the series with signs in turn, each term floored
 PiWide pi_tower_arctan(unsigned long long x, unsigned int bits, unsigned long long *terms)
 {
     const PiWide square = pi_tower_unsigned(x * x);

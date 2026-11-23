@@ -3,17 +3,21 @@
 // pi_tower_golden.cu: residues, golden and the record program
 #include "pi_tower_internal.h"
 
-// 12. The golden helix. The residues flip
-// sign each floor, a half turn, and shrink by 1 / [a_(j+1); a_(j+2), ...]: on the cylinder of angle and log size they
-// step down a helix. The golden ratio [1; 1, 1, ...] shrinks by exactly 1 / phi every half turn, and every tower is at
-// least as tall as its, q_j >= F_(j+1). Each residue is bracketed from the turn, (qA - pM, qA - pM + q), and every
-// comparison is decided at both ends.
-void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::vector<PiWide> &denominators,
-                     const std::vector<PiWide> &floors)
+// 12. The golden helix. The residues flip sign each floor, a half turn, and shrink by 1 / [a_(j+1); a_(j+2), ...].
+// On the cylinder of angle and log size they step down a helix. The golden ratio [1; 1, 1, ...] shrinks by exactly
+// 1 / phi every half turn. Every tower is at least as tall as the tower of the golden ratio,
+// q_j >= F_(j+1). The turn brackets each
+// residue in (qA - pM, qA - pM + q), and both ends decide every comparison.
+void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const PiTowerFloors *floors)
 {
     const PiWide bound = pi_tower_power_two(PI_TOWER_RECORD_BITS);
-    std::vector<PiWide> low;
-    std::vector<PiWide> high;
+    const PiWide *const denominators = floors->denominator;
+    const PiWide *const quotients = floors->quotient;
+    const unsigned int floors_count = floors->count;
+    // the bracket of each residue's size, a floor each, in two cells of the temporary tier at the count of the floors
+    PiWide *const low = (PiWide *)pi_tower_taken(floors_count, sizeof(PiWide), 1);
+    PiWide *const high = (PiWide *)pi_tower_taken(floors_count, sizeof(PiWide), 1);
+    unsigned int kept = 0u;
     PiWide numerator_before = pi_tower_unsigned(1ULL);
     PiWide numerator = pi_tower_unsigned(0ULL);
     PiWide fibonacci_before = pi_tower_unsigned(0ULL);
@@ -21,11 +25,11 @@ void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::ve
     int alternates = 1;
     int above_golden_floor = 1;
     int under_next = 1;
-    for (size_t at = 0u; (at < denominators.size()) && (pi_tower_compare(denominators[at], bound) <= 0); at += 1u)
+    for (unsigned int at = 0u; (at < floors_count) && (pi_tower_compare(denominators[at], bound) <= 0); at += 1u)
     {
         if (at > 0u)
         {
-            const PiWide next = pi_tower_sum(pi_tower_product(floors[at], numerator), numerator_before);
+            const PiWide next = pi_tower_sum(pi_tower_product(quotients[at], numerator), numerator_before);
             numerator_before = numerator;
             numerator = next;
         }
@@ -36,21 +40,22 @@ void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::ve
         PiWide size = residue;
         size.sign = (residue.sign == 0) ? 0 : 1;
         // the real residue's size: (size, size + q) where it is positive, (size - q, size) where negative
-        low.push_back((residue.sign > 0) ? size : pi_tower_difference(size, denominators[at]));
-        high.push_back((residue.sign > 0) ? pi_tower_sum(size, denominators[at]) : size);
+        low[kept] = (residue.sign > 0) ? size : pi_tower_difference(size, denominators[at]);
+        high[kept] = (residue.sign > 0) ? pi_tower_sum(size, denominators[at]) : size;
+        kept += 1u;
         alternates = alternates && (residue.sign == (((at & 1u) == 0u) ? 1 : -1));
         // under the next floor: |delta_j| < 1 / q_(j+1), and so under the golden 1 / F_(j+2)
-        if ((at + 1u) < denominators.size())
+        if ((at + 1u) < floors_count)
         {
             under_next = under_next &&
-                         (pi_tower_compare(pi_tower_product(high.back(), denominators[at + 1u]), turn.modulus) < 0);
+                         (pi_tower_compare(pi_tower_product(high[kept - 1u], denominators[at + 1u]), turn.modulus) < 0);
         }
         const PiWide next_fibonacci = pi_tower_sum(fibonacci, fibonacci_before);
         fibonacci_before = fibonacci;
         fibonacci = next_fibonacci;
     }
     mmgr_line_put(&results->line, "  the golden helix: floor j (a_(j+1)), the residue's shrink |delta_j| / "
-                                   "|delta_(j-1)|, against 1/phi = 0.6180\n");
+                                  "|delta_(j-1)|, against 1/phi = 0.6180\n");
     int band_ok = 1;
     int decided = 1;
     unsigned int below = 0u;
@@ -58,7 +63,7 @@ void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::ve
     unsigned int banded = 0u;
     // |delta_(j-1)| = a_(j+1) |delta_j| + |delta_(j+1)| (Euclid). The shrink lies in (1 / (a_(j+1) + 1), 1 /
     // a_(j+1))
-    for (size_t at = 1u; (at < low.size()) && ((at + 1u) < floors.size()); at += 1u)
+    for (unsigned int at = 1u; (at < kept) && ((at + 1u) < floors_count); at += 1u)
     {
         // shrink below 1/phi exactly where (2 x + y)^2 < 5 y^2, x = |delta_j|, y = |delta_(j-1)|: that falls as x
         // rises and rises with y. The two corners of the bracket decide it
@@ -78,20 +83,22 @@ void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::ve
         const int wide = pi_tower_compare(pi_tower_sum(low[at], low[at]), high[at - 1u]) > 0;
         const int narrow = pi_tower_compare(pi_tower_sum(high[at], high[at]), low[at - 1u]) < 0;
         decided = decided && ((wide != 0) || (narrow != 0));
-        const int one_floor = pi_tower_compare(floors[at + 1u], pi_tower_unsigned(1ULL)) == 0;
+        const int one_floor = pi_tower_compare(quotients[at + 1u], pi_tower_unsigned(1ULL)) == 0;
         band_ok = band_ok && (wide == one_floor);
         banded += (wide != 0) ? 1u : 0u;
         mmgr_line_put(&results->line, "    ");
         mmgr_line_decimal(&results->line, at, 2u);
         mmgr_line_put(&results->line, " (");
-        pi_tower_print_decimal(&results->line, floors[at + 1u]);
+        pi_tower_print_decimal(&results->line, quotients[at + 1u]);
         mmgr_line_put(&results->line, ")  ");
         sim_ratio_print(&results->line, &low[at], &high[at - 1u], 4u);
         mmgr_line_put(&results->line, (under != 0) ? "  below the golden shrink\n" : "  above the golden shrink\n");
         sim_flush(results);
     }
+    pi_tower_given(high);
+    pi_tower_given(low);
     // the mean growth a floor, q_J^(1 / J), to 6 places: the largest r with r^J <= q_J 10^(6 J)
-    const size_t last = low.size() - 1u;
+    const size_t last = kept - 1u;
     PiWide scaled = denominators[last];
     for (size_t place = 0u; place < (6u * last); place += 1u)
     {
@@ -177,29 +184,31 @@ unsigned int pi_tower_bit_length(const PiWide &value)
     return bits;
 }
 
-unsigned int pi_tower_step(std::vector<EngineRecordStep> *steps, EngineRecordOperation operation, unsigned int left,
-                           unsigned int right)
+unsigned int pi_tower_step(PiTowerSteps *steps, EngineRecordOperation operation, unsigned int left, unsigned int right)
 {
-    EngineRecordStep step;
-    step.operation = operation;
-    step.left = left;
-    step.right = right;
-    step.member = 0u;
-    steps->push_back(step);
-    // a program's steps are counted in an unsigned int, as keymath counts them
-    return (unsigned int)(steps->size() - 1u);
+    if (steps->count == PI_TOWER_STEPS_MAX)
+    {
+        pi_tower_refused("a record program passes its table of steps");
+    }
+    EngineRecordStep *const step = &steps->step[steps->count];
+    step->operation = operation;
+    step->left = left;
+    step->right = right;
+    step->member = 0u;
+    steps->count += 1u;
+    return steps->count - 1u;
 }
 
-unsigned int pi_tower_field(std::vector<EngineRecordStep> *steps, unsigned int field, unsigned int member)
+unsigned int pi_tower_field(PiTowerSteps *steps, unsigned int field, unsigned int member)
 {
     const unsigned int step = pi_tower_step(steps, ENGINE_RECORD_FIELD, field, 0u);
-    (*steps)[step].member = member;
+    steps->step[step].member = member;
     return step;
 }
 
-// a register storing a non-negative integer: one constant below 2^64, and past it Horner's rule over the 32-bit limbs
+// A register that stores a non-negative integer: one constant below 2^64. Past it, Horner's rule over the 32-bit limbs
 // from the top, a product by 2^32 and a sum a limb
-unsigned int pi_tower_constant(std::vector<EngineRecordStep> *steps, const PiWide &value)
+unsigned int pi_tower_constant(PiTowerSteps *steps, const PiWide &value)
 {
     unsigned int used = ORIOR_EXACT_LIMBS;
     while ((used > 1u) && (value.limb[used - 1u] == 0u))
@@ -225,8 +234,7 @@ unsigned int pi_tower_constant(std::vector<EngineRecordStep> *steps, const PiWid
 }
 
 // 4 S_1 - 2 S_4 - S_5 - S_6 of a lane's four fractions, wrapped to W bits: the lane's sum mod 2^W
-void pi_tower_bbp_combine(std::vector<EngineRecordStep> *steps, const unsigned int *fraction,
-                          unsigned int fraction_bits)
+void pi_tower_bbp_combine(PiTowerSteps *steps, const unsigned int *fraction, unsigned int fraction_bits)
 {
     const unsigned int four = pi_tower_step(steps, ENGINE_RECORD_CONSTANT, 4u, 0u);
     const unsigned int two = pi_tower_step(steps, ENGINE_RECORD_CONSTANT, 2u, 0u);
