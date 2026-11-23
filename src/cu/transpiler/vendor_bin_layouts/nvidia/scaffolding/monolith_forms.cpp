@@ -45,18 +45,10 @@ extern "C"
 
 #include "../../../../../platform/platform.h"
 #include "../../../../scaffolding/c_target.h"
-#include "../../../../scaffolding/ruleset_strings.h"
 #include "machine_ir_types.h"
 #include "target.h"
 
-#include <cctype>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <map>
-#include <set>
-#include <string>
-#include <vector>
+#include <stddef.h>
 
 // ENGINE_IMAGE_BASE reads the ELF header that the linker marks with __ehdr_start (engine_config_platform.h). This tool
 // links as a PE, where there is none. Nothing here requests the image base: this file names it only so that the link
@@ -69,6 +61,9 @@ extern "C" const char __ehdr_start = 0;
 #define MONOLITH_FORMS_LOADS 0x4000u
 #define MONOLITH_FORMS_STORES 0x8000u
 
+// the tag a question put in ptx.krs's own text is behind is past this; below it a question put in c.krs's
+#define MONOLITH_FORMS_PTX 0x1000u
+
 #define FORM_NAME(name_, text_, parameters_, type_) text_,
 static const char *const s_form_names[OPCODE_COUNT] = {OPCODES(FORM_NAME)};
 #undef FORM_NAME
@@ -79,61 +74,576 @@ static const char *const s_bank_names[REGCLASS_COUNT] = {REGCLASSES(BANK_NAME)};
 static const char *const s_fixed_names[PHYSREG_COUNT] = {PHYSREGS(FIXED_NAME)};
 #undef FIXED_NAME
 
-// a form of a ruleset: its parameters and its text, the escapes read
-struct KrsForm
+// The bytes of a name, a word or a number, and of a line, an operand or a key, each with its terminator. A text past
+// its bound ends the run with the reason, and the tool never cuts a text short
+#define FORMS_WORD_BYTES 64u
+#define FORMS_LINE_BYTES 512u
+
+// the bytes of a text that one call builds and gives back, and of a text that grows over the run, each at max
+#define FORMS_TEXT_MAX (1ULL << 24u)
+#define FORMS_KEPT_MAX (1ULL << 26u)
+
+// the parameters of one form at max
+#define FORMS_PARAMETERS_MAX 32u
+
+// a name, a word or a number, inline
+struct FormsWord
 {
-    std::vector<std::string> parameters;
-    std::string text;
+    char text[FORMS_WORD_BYTES];
 };
 
-// a ruleset as this reads it: its forms, its banks' texts and its fixed registers' texts
+// a line, an operand or a key, inline
+struct FormsLine
+{
+    char text[FORMS_LINE_BYTES];
+};
+
+// `why`, then the `length` bytes at `piece`, written to the engine's note, and the run ended
+static void forms_refused(const char *why, const char *piece, size_t length)
+{
+    EngineNote engine_note;
+    engine_note_begun(&engine_note);
+    mmgr_line_put(&engine_note.line, "monolith_forms: ");
+    mmgr_line_put(&engine_note.line, why);
+    (void)mmgr_line_put_n(&engine_note.line, piece, length);
+    mmgr_line_ch(&engine_note.line, '\n');
+    engine_note_written(&engine_note);
+    platform_process_ended(2);
+}
+
+// `pointer`, or the run ended where the pool gave no cell
+static void *forms_allocated(void *pointer)
+{
+    if (pointer == NULL)
+    {
+        forms_refused("the pool gave no cell", "", 0u);
+    }
+    return pointer;
+}
+
+// the bytes of the terminated `text`
+static size_t forms_length(const char *text)
+{
+    return EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+}
+
+// The `length` bytes at `text` put into the `room` bytes at `into` after the `at` bytes it holds, terminated. A text
+// past the room ends the run, with `what` and the text as the reason
+static void forms_put_at(char *into, size_t room, size_t at, const char *text, size_t length, const char *what)
+{
+    if ((at + length) >= room)
+    {
+        forms_refused(what, text, length);
+    }
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &into[at], .src = text, .bytes = length);
+    into[at + length] = '\0';
+}
+
+static void forms_set_n(char *into, size_t room, const char *text, size_t length)
+{
+    forms_put_at(into, room, 0u, text, length, "a text passes its room: ");
+}
+
+static void forms_add_n(char *into, size_t room, const char *text, size_t length)
+{
+    forms_put_at(into, room, forms_length(into), text, length, "a text passes its room: ");
+}
+
+static void forms_add(char *into, size_t room, const char *text)
+{
+    forms_add_n(into, room, text, forms_length(text));
+}
+
+static void forms_add_decimal(char *into, size_t room, unsigned long long value)
+{
+    char digits[24];
+    VerbaLinea line = mmgr_line_over(digits, sizeof(digits));
+    mmgr_line_decimal(&line, value, 1u);
+    (void)mmgr_line_finish(&line);
+    forms_add(into, room, digits);
+}
+
+static void forms_add_signed(char *into, size_t room, long long value)
+{
+    char digits[24];
+    VerbaLinea line = mmgr_line_over(digits, sizeof(digits));
+    mmgr_line_decimal_signed(&line, value);
+    (void)mmgr_line_finish(&line);
+    forms_add(into, room, digits);
+}
+
+#define FORMS_SET(to_, from_) forms_set_n((to_).text, sizeof((to_).text), (from_), forms_length(from_))
+#define FORMS_SET_N(to_, from_, length_) forms_set_n((to_).text, sizeof((to_).text), (from_), (length_))
+#define FORMS_ADD(to_, from_) forms_add((to_).text, sizeof((to_).text), (from_))
+#define FORMS_ADD_N(to_, from_, length_) forms_add_n((to_).text, sizeof((to_).text), (from_), (length_))
+#define FORMS_ADD_DECIMAL(to_, value_) forms_add_decimal((to_).text, sizeof((to_).text), (value_))
+#define FORMS_ADD_SIGNED(to_, value_) forms_add_signed((to_).text, sizeof((to_).text), (value_))
+
+// 1 where the terminated texts are the same
+static int forms_same(const char *left, const char *right)
+{
+    return EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = left, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = right,
+                      .ci = EMBED_FALSE);
+}
+
+// 1 where the `length` bytes at `text` are the terminated `other`
+static int forms_same_n(const char *text, size_t length, const char *other)
+{
+    return (forms_length(other) == length) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = text, .other = other, .bytes = length) == 0);
+}
+
+// 1 where the terminated `text` begins with the terminated `prefix`
+static int forms_begins(const char *text, const char *prefix)
+{
+    return EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = prefix,
+                      .ci = EMBED_FALSE);
+}
+
+// the order of the terminated texts, as the bytes read unsigned order them: below 0, 0 or above 0
+static int forms_order(const char *left, const char *right)
+{
+    const size_t left_length = forms_length(left);
+    const size_t right_length = forms_length(right);
+    const size_t reach = ((left_length < right_length) ? left_length : right_length) + 1u;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
+
+// The place of the terminated `needle` in the `length` bytes at `text` from `from` on, or `length` where it is not
+// there. An empty needle is at `from`
+static size_t forms_find_n(const char *text, size_t length, const char *needle, size_t from)
+{
+    const size_t size = forms_length(needle);
+    if ((from > length) || (size > (length - from)))
+    {
+        return length;
+    }
+    if (size == 0u)
+    {
+        return from;
+    }
+    const char *const found = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = &text[from], .cap = length - from,
+                                         .other = needle, .other_cap = size, .ci = EMBED_FALSE);
+    // a found needle lies within the text, at or past `from`
+    return (found != NULL) ? (size_t)(found - text) : length;
+}
+
+// the place of the terminated `needle` in the terminated `text` from `from` on, or the text's length
+static size_t forms_find(const char *text, const char *needle, size_t from)
+{
+    return forms_find_n(text, forms_length(text), needle, from);
+}
+
+// 1 where the terminated `text` holds the terminated `needle`
+static int forms_has(const char *text, const char *needle)
+{
+    const size_t length = forms_length(text);
+    return forms_find_n(text, length, needle, 0u) < length;
+}
+
+// the place of the byte `byte` in the `length` bytes at `text` from `from` on, or `length`
+static size_t forms_chr_n(const char *text, size_t length, char byte, size_t from)
+{
+    const char *const found = (from < length)
+                                  ? (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = &text[from],
+                                                             .bytes = length - from, .val = (unsigned char)byte)
+                                  : NULL;
+    // a found byte lies within the text, at or past `from`
+    return (found != NULL) ? (size_t)(found - text) : length;
+}
+
+// the place of the last byte `byte` in the first `length` bytes at `text`, or `length` where none is there
+static size_t forms_chr_last(const char *text, size_t length, char byte)
+{
+    const char *const found =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = text, .cap = length, .byte = (uint8_t)byte);
+    // a found byte lies within the text
+    return (found != NULL) ? (size_t)(found - text) : length;
+}
+
+// 1 where `character` is a byte of an identifier: a character, a digit or `_`
+static int forms_identifier(char character)
+{
+    // a byte of a text read as the unsigned byte the class takes
+    return (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_ALNUM, .byte = (unsigned char)character) != 0) ||
+           (character == '_');
+}
+
+// The end of the last run of bytes outside `set` in the `length` bytes at `text`, or 0 where every byte is in `set`.
+// The walk jumps from run to run
+static size_t forms_end_outside(const char *text, size_t length, const char *set)
+{
+    size_t end = 0u;
+    size_t at = 0u;
+    while (at < length)
+    {
+        const size_t run =
+            EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text[at], .cap = length - at, .other = set);
+        at += run;
+        end = (run != 0u) ? at : end;
+        const size_t inside =
+            EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[at], .cap = length - at, .other = set);
+        at += inside;
+        if ((run == 0u) && (inside == 0u))
+        {
+            break;
+        }
+    }
+    return end;
+}
+
+// the `length` bytes at `text` with the bytes of `set` at either end cut, as a piece: its first byte into `first`, and
+// its bytes the answer
+static size_t forms_trimmed(const char *text, size_t length, const char *set, size_t *first)
+{
+    *first = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text, .cap = length, .other = set);
+    return forms_end_outside(&text[*first], length - *first, set);
+}
+
+// the `length` bytes at `text` with the spaces and tabs at either end cut, put into `trimmed`
+static FormsLine forms_trim_n(const char *text, size_t length)
+{
+    size_t first = 0u;
+    const size_t size = forms_trimmed(text, length, " \t", &first);
+    FormsLine trimmed;
+    FORMS_SET_N(trimmed, &text[first], size);
+    return trimmed;
+}
+
+static FormsLine forms_trim(const char *text)
+{
+    return forms_trim_n(text, forms_length(text));
+}
+
+// The count of the places of the terminated `part` in the terminated `text`. The search for each goes on past the one
+// before it
+static size_t forms_count(const char *text, const char *part)
+{
+    const size_t length = forms_length(text);
+    const size_t size = forms_length(part);
+    size_t count = 0u;
+    for (size_t at = forms_find_n(text, length, part, 0u); (size != 0u) && (at < length);
+         at = forms_find_n(text, length, part, at + size))
+    {
+        count += 1u;
+    }
+    return count;
+}
+
+// 1 where `name` is in `text` as a whole identifier
+static int forms_names(const char *text, const char *name)
+{
+    const size_t length = forms_length(text);
+    const size_t size = forms_length(name);
+    for (size_t at = forms_find_n(text, length, name, 0u); at < length; at = forms_find_n(text, length, name, at + 1u))
+    {
+        const int before = (at == 0u) || !forms_identifier(text[at - 1u]);
+        const int after = ((at + size) >= length) || !forms_identifier(text[at + size]);
+        if (before && after)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// the texts a call builds
+
+// a text of the temporary tier, begun empty, for a text that one call builds and gives back before it returns
+static void forms_text_begun(PlatformText *text)
+{
+    platform_text_begun(text, FORMS_TEXT_MAX, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+}
+
+// a text of the movable tier, begun empty, for a text that grows large and lasts past the call that begins it
+static void forms_kept_begun(PlatformText *text)
+{
+    platform_text_begun(text, FORMS_KEPT_MAX, platform_place_g_program_owner, PLATFORM_TIER_MOVABLE);
+}
+
+// the bytes of `text`, terminated [BORROWS], and their count into `size`. A text past its max ends the run
+static const char *forms_text_bytes(PlatformText *text, size_t *size)
+{
+    if (!mmgr_line_ok(&text->line))
+    {
+        forms_refused("a text passes its max", "", 0u);
+    }
+    const char *const bytes = (const char *)forms_allocated((void *)platform_text_bytes(text));
+    // a text at its max is far below what a size_t counts
+    *size = (size_t)platform_text_size(text);
+    return bytes;
+}
+
+// the bytes of `from` put after the bytes of `to`
+static void forms_text_put(PlatformText *to, PlatformText *from)
+{
+    size_t size = 0u;
+    const char *const bytes = forms_text_bytes(from, &size);
+    (void)mmgr_line_put_n(&to->line, bytes, size);
+}
+
+// `text` with every `{name}` written `put`, in place
+static void forms_text_fill(PlatformText *text, const char *name, const char *put)
+{
+    FormsWord brace;
+    FORMS_SET(brace, "{");
+    FORMS_ADD(brace, name);
+    FORMS_ADD(brace, "}");
+    PlatformText filled;
+    forms_text_begun(&filled);
+    size_t size = 0u;
+    const char *const bytes = forms_text_bytes(text, &size);
+    const size_t brace_size = forms_length(brace.text);
+    size_t at = 0u;
+    for (size_t found = forms_find_n(bytes, size, brace.text, 0u); found < size;
+         found = forms_find_n(bytes, size, brace.text, at))
+    {
+        (void)mmgr_line_put_n(&filled.line, &bytes[at], found - at);
+        mmgr_line_put(&filled.line, put);
+        at = found + brace_size;
+    }
+    (void)mmgr_line_put_n(&filled.line, &bytes[at], size - at);
+    platform_text_reset(text);
+    forms_text_put(text, &filled);
+    platform_text_ended(&filled);
+}
+
+// `text` set to the terminated `from`
+static void forms_text_set(PlatformText *text, const char *from)
+{
+    platform_text_reset(text);
+    mmgr_line_put(&text->line, from);
+}
+
+// a copy of the bytes of `text` in a text of the temporary tier `copy`, begun here; the caller ends it
+static const char *forms_text_copy(PlatformText *text, PlatformText *copy, size_t *size)
+{
+    forms_text_begun(copy);
+    forms_text_put(copy, text);
+    return forms_text_bytes(copy, size);
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// the rulesets
+
+// The kinds of a ruleset's line: a form with its parameters, a bank's text and a fixed register's text
+enum KrsKind
+{
+    KRS_FORM,
+    KRS_BANK,
+    KRS_FIXED,
+    KRS_KINDS
+};
+
+// One line of a ruleset: its name, the place and bytes of its text in the ruleset's text cell, and its parameters from
+// `parameter_first`, `parameter_count` of them
+struct KrsEntry
+{
+    char name[FORMS_WORD_BYTES];
+    size_t text;
+    size_t length;
+    unsigned int parameter_first;
+    unsigned int parameter_count;
+};
+
+// A ruleset as this reads it: its texts, a form's with the escapes read, in one cell. Then the lines of each kind in a
+// cell of the kind, in the order of their names, each once. Then the parameters of the forms in one cell. Each cell is
+// of the persistent tier, taken once at its count
 struct Krs
 {
-    std::map<std::string, KrsForm> forms;
-    std::map<std::string, std::string> banks;
-    std::map<std::string, std::string> fixed;
+    char *text;
+    KrsEntry *entries[KRS_KINDS];
+    unsigned int counts[KRS_KINDS];
+    FormsWord *parameters;
+    unsigned int parameter_count;
 };
 
-// a form's text with \t, \n and \\ read
-static std::string krs_unescape(const std::string &text)
+// the text of `entry` of `krs`, terminated [BORROWS]
+static const char *krs_text(const Krs *krs, const KrsEntry *entry)
 {
-    std::string read;
-    for (size_t at = 0u; at < text.size(); at += 1u)
+    return &krs->text[entry->text];
+}
+
+// the line of `kind` named `name`, or NULL where the ruleset has none
+static const KrsEntry *krs_find(const Krs *krs, unsigned int kind, const char *name)
+{
+    const KrsEntry *const entries = krs->entries[kind];
+    unsigned int low = 0u;
+    unsigned int high = krs->counts[kind];
+    while (low < high)
     {
-        if ((text[at] == '\\') && ((at + 1u) < text.size()))
+        const unsigned int middle = low + ((high - low) / 2u);
+        if (forms_order(entries[middle].name, name) < 0)
         {
-            const char next = text[at + 1u];
-            read += (next == 't') ? '\t' : ((next == 'n') ? '\n' : next);
-            at += 1u;
+            low = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    return ((low < krs->counts[kind]) && forms_same(entries[low].name, name)) ? &entries[low] : NULL;
+}
+
+// the text of the form, the bank or the fixed register named `name`, or "" where the ruleset has none [BORROWS]
+static const char *krs_text_of(const Krs *krs, unsigned int kind, const char *name)
+{
+    const KrsEntry *const entry = krs_find(krs, kind, name);
+    return (entry != NULL) ? krs_text(krs, entry) : "";
+}
+
+static int krs_entry_order(const void *left, const void *right)
+{
+    return forms_order(((const KrsEntry *)left)->name, ((const KrsEntry *)right)->name);
+}
+
+// the `length` bytes at `text` with \t, \n and \\ read, put into `into` from `*at`, terminated, and `*at` past them
+static void krs_unescaped(const char *text, size_t length, char *into, size_t *at)
+{
+    size_t from = 0u;
+    while (from < length)
+    {
+        const size_t slash = forms_chr_n(text, length, '\\', from);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &into[*at], .src = &text[from], .bytes = slash - from);
+        *at += slash - from;
+        from = slash;
+        if (from >= length)
+        {
+            break;
+        }
+        if ((from + 1u) >= length)
+        {
+            into[*at] = '\\';
+            *at += 1u;
+            from += 1u;
+            break;
+        }
+        const char next = text[from + 1u];
+        into[*at] = (next == 't') ? '\t' : ((next == 'n') ? '\n' : next);
+        *at += 1u;
+        from += 2u;
+    }
+    into[*at] = '\0';
+    *at += 1u;
+}
+
+// The lines of the ruleset in `bytes`, counted where `filling` is 0 and written where it is 1. A line is
+// `form <name> <parameters> = <text>`, `bank <name> = <text>` or `fixed <name> = <text>`. The code leaves out every
+// carriage return of a line. `line` is room for one line, and `bytes_counted` counts the bytes of the texts
+static void krs_lines_made(const unsigned char *bytes, unsigned long long size, Krs *krs, int filling, char *line,
+                           size_t line_room, size_t *bytes_counted)
+{
+    *bytes_counted = 0u;
+    krs->parameter_count = 0u;
+    for (unsigned int kind = 0u; kind < KRS_KINDS; kind += 1u)
+    {
+        krs->counts[kind] = 0u;
+    }
+    // a ruleset the run holds whole is at max what a size_t counts
+    const char *const text = (const char *)bytes;
+    const size_t whole = (size_t)size;
+    size_t at = 0u;
+    while (at < whole)
+    {
+        const size_t end = forms_chr_n(text, whole, '\n', at);
+        // the line put together with its carriage returns left out
+        size_t length = 0u;
+        for (size_t from = at; from < end;)
+        {
+            const size_t carriage = forms_chr_n(text, end, '\r', from);
+            if ((length + (carriage - from)) >= line_room)
+            {
+                forms_refused("a line of a ruleset passes its room: ", &text[at], end - at);
+            }
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &line[length], .src = &text[from], .bytes = carriage - from);
+            length += carriage - from;
+            from = carriage + 1u;
+        }
+        line[length] = '\0';
+        at = end + 1u;
+        const size_t equals = forms_find_n(line, length, " = ", 0u);
+        if (equals == length)
+        {
             continue;
         }
-        read += text[at];
+        // the words of the head, apart by spaces
+        FormsWord head[FORMS_PARAMETERS_MAX + 2u];
+        unsigned int words = 0u;
+        for (size_t word = 0u; word < equals;)
+        {
+            word += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &line[word], .cap = equals - word, .other = " ");
+            const size_t run =
+                EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &line[word], .cap = equals - word, .other = " ");
+            if (run == 0u)
+            {
+                break;
+            }
+            if (words == (FORMS_PARAMETERS_MAX + 2u))
+            {
+                forms_refused("a line of a ruleset names more parameters than a form holds: ", line, length);
+            }
+            FORMS_SET_N(head[words], &line[word], run);
+            words += 1u;
+            word += run;
+        }
+        const int form = (words >= 2u) && forms_same(head[0].text, "form");
+        const int bank = (words == 2u) && forms_same(head[0].text, "bank");
+        const int fixed = (words == 2u) && forms_same(head[0].text, "fixed");
+        if (!form && !bank && !fixed)
+        {
+            continue;
+        }
+        const unsigned int kind = form ? KRS_FORM : (bank ? KRS_BANK : KRS_FIXED);
+        const char *const body = &line[equals + 3u];
+        const size_t body_length = length - equals - 3u;
+        if (filling)
+        {
+            KrsEntry *const entry = &krs->entries[kind][krs->counts[kind]];
+            forms_set_n(entry->name, sizeof(entry->name), head[1].text, forms_length(head[1].text));
+            entry->text = *bytes_counted;
+            entry->parameter_first = krs->parameter_count;
+            entry->parameter_count = form ? (words - 2u) : 0u;
+            size_t written = *bytes_counted;
+            if (form)
+            {
+                krs_unescaped(body, body_length, krs->text, &written);
+            }
+            else
+            {
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &krs->text[written], .src = body, .bytes = body_length);
+                krs->text[written + body_length] = '\0';
+                written += body_length + 1u;
+            }
+            entry->length = written - *bytes_counted - 1u;
+            *bytes_counted = written;
+            for (unsigned int parameter = 2u; form && (parameter < words); parameter += 1u)
+            {
+                krs->parameters[krs->parameter_count + parameter - 2u] = head[parameter];
+            }
+        }
+        else
+        {
+            *bytes_counted += body_length + 1u;
+        }
+        krs->parameter_count += form ? (words - 2u) : 0u;
+        krs->counts[kind] += 1u;
     }
-    return read;
 }
 
-static std::vector<std::string> words_split(const std::string &text)
-{
-    std::vector<std::string> words;
-    size_t at = 0u;
-    while (at < text.size())
-    {
-        while ((at < text.size()) && (text[at] == ' '))
-        {
-            at += 1u;
-        }
-        const size_t end = text.find(' ', at);
-        const size_t stop = (end == std::string::npos) ? text.size() : end;
-        if (stop > at)
-        {
-            words.push_back(text.substr(at, stop - at));
-        }
-        at = stop;
-    }
-    return words;
-}
+// the room of one line of a ruleset as the reader puts it together
+#define KRS_LINE_BYTES 65536u
 
-// the ruleset at `path` read: 1, or 0 where it did not read
+// The ruleset at `path` read into `krs`, its lines counted first, then each cell taken at its count, then the lines
+// written. The lines of each kind then go in the order of their names, and a name a ruleset gives twice keeps its last
+// line. 1, or 0 where the ruleset did not read
 static int krs_read(const char *path, Krs *krs)
 {
     // the ruleset as the run stores it, or the disk where the run stores none (qry_member_file)
@@ -143,181 +653,236 @@ static int krs_read(const char *path, Krs *krs)
     {
         return 0;
     }
-    std::string line;
-    unsigned long long at = 0ULL;
-    while (at < size)
+    static char s_line[KRS_LINE_BYTES];
+    size_t text_bytes = 0u;
+    krs_lines_made(bytes, size, krs, 0, s_line, sizeof(s_line), &text_bytes);
+    krs->text = (char *)forms_allocated(
+        platform_cell_taken(text_bytes + 1u, platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
+    for (unsigned int kind = 0u; kind < KRS_KINDS; kind += 1u)
     {
-        line.clear();
-        while ((at < size) && (bytes[at] != '\n'))
+        krs->entries[kind] = (KrsEntry *)forms_allocated(
+            platform_cell_cleared((krs->counts[kind] != 0u) ? krs->counts[kind] : 1u, sizeof(KrsEntry),
+                                  platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
+    }
+    krs->parameters = (FormsWord *)forms_allocated(
+        platform_cell_cleared((krs->parameter_count != 0u) ? krs->parameter_count : 1u, sizeof(FormsWord),
+                              platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
+    krs_lines_made(bytes, size, krs, 1, s_line, sizeof(s_line), &text_bytes);
+    for (unsigned int kind = 0u; kind < KRS_KINDS; kind += 1u)
+    {
+        KrsEntry *const entries = krs->entries[kind];
+        const unsigned int count = krs->counts[kind];
+        if (count >= 2u)
         {
-            if (bytes[at] != '\r')
+            void *const spare = forms_allocated(platform_cell_taken(
+                (unsigned long long)count * sizeof(KrsEntry), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY));
+            (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = entries, .bytes = sizeof(KrsEntry), .scratch = spare,
+                             .count = count, .order = krs_entry_order);
+            platform_cell_released(spare, platform_place_g_program_owner);
+        }
+        unsigned int kept = 0u;
+        for (unsigned int at = 0u; at < count; at += 1u)
+        {
+            if (((at + 1u) == count) || !forms_same(entries[at].name, entries[at + 1u].name))
             {
-                line += (char)bytes[at];
+                entries[kept] = entries[at];
+                kept += 1u;
             }
-            at += 1ULL;
         }
-        at += 1ULL;
-        const size_t equals = line.find(" = ");
-        if (equals == std::string::npos)
-        {
-            continue;
-        }
-        const std::vector<std::string> head = words_split(line.substr(0u, equals));
-        const std::string text = line.substr(equals + 3u);
-        if ((head.size() >= 2u) && (head[0] == "form"))
-        {
-            KrsForm form;
-            form.parameters.assign(head.begin() + 2, head.end());
-            form.text = krs_unescape(text);
-            krs->forms[head[1]] = form;
-        }
-        else if ((head.size() == 2u) && (head[0] == "bank"))
-        {
-            krs->banks[head[1]] = text;
-        }
-        else if ((head.size() == 2u) && (head[0] == "fixed"))
-        {
-            krs->fixed[head[1]] = text;
-        }
+        krs->counts[kind] = kept;
     }
     return 1;
 }
 
-static size_t text_count(const std::string &text, const std::string &part)
+// the parameter `at` of the form `entry` of `krs` [BORROWS]
+static const char *krs_parameter(const Krs *krs, const KrsEntry *entry, unsigned int at)
 {
-    size_t count = 0u;
-    size_t at = text.find(part);
-    while (at != std::string::npos)
-    {
-        count += 1u;
-        at = text.find(part, at + part.size());
-    }
-    return count;
-}
-
-static int identifier_character(char character)
-{
-    return ((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z')) ||
-           ((character >= '0') && (character <= '9')) || (character == '_');
-}
-
-// 1 where `name` is in `text` as a whole identifier
-static int text_names(const std::string &text, const std::string &name)
-{
-    size_t at = text.find(name);
-    while (at != std::string::npos)
-    {
-        const int before = (at == 0u) || !identifier_character(text[at - 1u]);
-        const int after = ((at + name.size()) >= text.size()) || !identifier_character(text[at + name.size()]);
-        if (before && after)
-        {
-            return 1;
-        }
-        at = text.find(name, at + 1u);
-    }
-    return 0;
-}
-
-// `text` with every `{name}` replaced by `put`
-static std::string text_fill(const std::string &text, const std::string &name, const std::string &put)
-{
-    const std::string brace = "{" + name + "}";
-    std::string filled;
-    size_t at = 0u;
-    size_t found = text.find(brace);
-    while (found != std::string::npos)
-    {
-        filled += text.substr(at, found - at) + put;
-        at = found + brace.size();
-        found = text.find(brace, at);
-    }
-    return filled + text.substr(at);
+    return krs->parameters[entry->parameter_first + at].text;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
 // the C types the lane's registers contain, read off c.krs
 
-// The C type each variable c.krs declares in a list of its own, `type a, b, c;`, by the variable's name
-static std::map<std::string, std::string> c_declared(const Krs &c)
+// a variable that a ruleset declares and the type of its declaration, and the order the reader met it in
+struct FormsDeclared
 {
-    std::map<std::string, std::string> types;
-    for (const auto &entry : c.forms)
+    char name[FORMS_WORD_BYTES];
+    char type[FORMS_WORD_BYTES];
+};
+
+// the declarations a ruleset makes, in one cell in the order of their names, each once: `count` of them
+struct FormsTypes
+{
+    FormsDeclared *declared;
+    unsigned int count;
+};
+
+static int forms_declared_order(const void *left, const void *right)
+{
+    return forms_order(((const FormsDeclared *)left)->name, ((const FormsDeclared *)right)->name);
+}
+
+// The `count` declarations at `declared` put in the order of their names, stable, and each name kept once. The first of
+// a name stays where `first` is 1, and the last where it is 0
+static unsigned int forms_declared_settled(FormsDeclared *declared, unsigned int count, int first)
+{
+    if (count >= 2u)
     {
-        const std::string &text = entry.second.text;
-        size_t at = 0u;
-        while (at < text.size())
+        void *const spare =
+            forms_allocated(platform_cell_taken((unsigned long long)count * sizeof(FormsDeclared),
+                                                platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY));
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = declared, .bytes = sizeof(FormsDeclared), .scratch = spare,
+                         .count = count, .order = forms_declared_order);
+        platform_cell_released(spare, platform_place_g_program_owner);
+    }
+    unsigned int kept = 0u;
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        const int opens = (at == 0u) || !forms_same(declared[at - 1u].name, declared[at].name);
+        const int closes = ((at + 1u) == count) || !forms_same(declared[at].name, declared[at + 1u].name);
+        if (first ? opens : closes)
         {
-            const size_t end = text.find('\n', at);
-            const size_t stop = (end == std::string::npos) ? text.size() : end;
-            std::string line = text.substr(at, stop - at);
+            declared[kept] = declared[at];
+            kept += 1u;
+        }
+    }
+    return kept;
+}
+
+// the type `types` declares `name` of, or NULL where it declares none [BORROWS]
+static const char *forms_type_of(const FormsTypes *types, const char *name)
+{
+    unsigned int low = 0u;
+    unsigned int high = types->count;
+    while (low < high)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        if (forms_order(types->declared[middle].name, name) < 0)
+        {
+            low = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    return ((low < types->count) && forms_same(types->declared[low].name, name)) ? types->declared[low].type : NULL;
+}
+
+// The declarations of c.krs, `type a, b, c;` each a line of its own, counted where `declared` is NULL and put at
+// `declared` where it is not. The forms go in the order of their names. A line with a bracket, a parenthesis or a `=`
+// is no such declaration
+static unsigned int c_declared_made(const Krs *c, FormsDeclared *declared)
+{
+    unsigned int count = 0u;
+    for (unsigned int form = 0u; form < c->counts[KRS_FORM]; form += 1u)
+    {
+        const KrsEntry *const entry = &c->entries[KRS_FORM][form];
+        const char *const text = krs_text(c, entry);
+        const size_t size = entry->length;
+        for (size_t at = 0u; at < size;)
+        {
+            const size_t stop = forms_chr_n(text, size, '\n', at);
+            const char *const line = &text[at];
+            const size_t length = stop - at;
             at = stop + 1u;
-            const size_t first = line.find_first_not_of(' ');
-            if ((first == std::string::npos) || (line.find('[') != std::string::npos) ||
-                (line.find('(') != std::string::npos) || (line.find('=') != std::string::npos) || (line.back() != ';'))
+            const size_t first = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = line, .cap = length, .other = " ");
+            if ((first == length) || (forms_chr_n(line, length, '[', 0u) < length) ||
+                (forms_chr_n(line, length, '(', 0u) < length) || (forms_chr_n(line, length, '=', 0u) < length) ||
+                (line[length - 1u] != ';'))
             {
                 continue;
             }
-            line = line.substr(first, line.size() - first - 1u);
-            const size_t space = line.find(' ');
-            if (space == std::string::npos)
+            // the declaration, its spaces before and its `;` cut
+            const char *const kept = &line[first];
+            const size_t kept_length = length - first - 1u;
+            const size_t space = forms_chr_n(kept, kept_length, ' ', 0u);
+            if (space == kept_length)
             {
                 continue;
             }
-            const std::string type = line.substr(0u, space);
-            std::string names = line.substr(space + 1u);
-            size_t from = 0u;
-            while (from < names.size())
+            const char *const names = &kept[space + 1u];
+            const size_t names_length = kept_length - space - 1u;
+            for (size_t from = 0u; from < names_length;)
             {
-                const size_t comma = names.find(',', from);
-                const size_t until = (comma == std::string::npos) ? names.size() : comma;
-                std::string name = names.substr(from, until - from);
-                name.erase(0u, name.find_first_not_of(' '));
-                name.erase(name.find_last_not_of(' ') + 1u);
-                if (!name.empty() && (types.find(name) == types.end()))
+                const size_t until = forms_chr_n(names, names_length, ',', from);
+                size_t name_first = 0u;
+                const size_t name_length = forms_trimmed(&names[from], until - from, " ", &name_first);
+                if ((name_length != 0u) && (declared != NULL))
                 {
-                    types[name] = type;
+                    forms_set_n(declared[count].name, sizeof(declared[count].name), &names[from + name_first],
+                                name_length);
+                    forms_set_n(declared[count].type, sizeof(declared[count].type), kept, space);
                 }
+                count += (name_length != 0u) ? 1u : 0u;
                 from = until + 1u;
             }
         }
     }
+    return count;
+}
+
+// The C type each variable c.krs declares in a list of its own, `type a, b, c;`, by the variable's name. The first
+// declaration of a name, in the order of the forms' names, holds
+static FormsTypes c_declared(const Krs *c)
+{
+    FormsTypes types;
+    const unsigned int count = c_declared_made(c, NULL);
+    types.declared = (FormsDeclared *)forms_allocated(platform_cell_cleared(
+        (count != 0u) ? count : 1u, sizeof(FormsDeclared), platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
+    types.count = forms_declared_settled(types.declared, c_declared_made(c, types.declared), 1);
     return types;
 }
 
 // the C type that a bank's registers contain: the type that its text casts to, or the type that declares its name as an
 // array
-static std::string c_bank_type(const Krs &c, const std::string &bank)
+static FormsWord c_bank_type(const Krs *c, const char *bank)
 {
-    const auto found = c.banks.find(bank);
-    if (found == c.banks.end())
+    FormsWord type;
+    type.text[0] = '\0';
+    const KrsEntry *const found = krs_find(c, KRS_BANK, bank);
+    if (found == NULL)
     {
-        return std::string();
+        return type;
     }
-    const std::string &text = found->second;
-    if (text.compare(0u, 2u, "((") == 0)
+    const char *const text = krs_text(c, found);
+    const size_t length = found->length;
+    if (forms_begins(text, "(("))
     {
-        const size_t space = text.find(' ', 2u);
-        return (space == std::string::npos) ? std::string() : text.substr(2u, space - 2u);
+        const size_t space = forms_chr_n(text, length, ' ', 2u);
+        if (space < length)
+        {
+            FORMS_SET_N(type, &text[2], space - 2u);
+        }
+        return type;
     }
-    const size_t bracket = text.find('[');
-    if (bracket == std::string::npos)
+    const size_t bracket = forms_chr_n(text, length, '[', 0u);
+    if (bracket == length)
     {
-        return std::string();
+        return type;
     }
-    const std::string array = text.substr(0u, bracket);
-    for (const auto &entry : c.forms)
+    FormsLine array;
+    FORMS_SET(array, " ");
+    FORMS_ADD_N(array, text, bracket);
+    FORMS_ADD(array, "[");
+    for (unsigned int form = 0u; form < c->counts[KRS_FORM]; form += 1u)
     {
-        const std::string &form = entry.second.text;
-        const size_t at = form.find(" " + array + "[");
-        if (at == std::string::npos)
+        const KrsEntry *const entry = &c->entries[KRS_FORM][form];
+        const char *const form_text = krs_text(c, entry);
+        const size_t at = forms_find_n(form_text, entry->length, array.text, 0u);
+        if (at == entry->length)
         {
             continue;
         }
-        size_t begin = form.rfind(' ', at - 1u);
-        begin = (begin == std::string::npos) ? 0u : (begin + 1u);
-        return form.substr(begin, at - begin);
+        // the space before the type: the last at or before the place before `at`, or the last of the text where `at`
+        // is 0
+        const size_t searched = (at == 0u) ? entry->length : at;
+        const size_t space = forms_chr_last(form_text, searched, ' ');
+        const size_t begin = (space == searched) ? 0u : (space + 1u);
+        FORMS_SET_N(type, &form_text[begin], (begin <= at) ? (at - begin) : (entry->length - begin));
+        return type;
     }
-    return std::string();
+    return type;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -335,73 +900,51 @@ struct Argument
 struct LaneForm
 {
     unsigned int form;
-    std::vector<Argument> arguments;
+    unsigned int count;
+    Argument arguments[MACHINE_INSTR_OPERANDS];
 };
 
 // what the arguments of a submitted form come from, and two of them alike are one question
-static std::string lane_form_key(const LaneForm &lane_form)
+static FormsLine lane_form_key(const LaneForm *lane_form)
 {
-    std::string key = s_form_names[lane_form.form];
-    for (const Argument &argument : lane_form.arguments)
+    FormsLine key;
+    FORMS_SET(key, s_form_names[lane_form->form]);
+    for (unsigned int at = 0u; at < lane_form->count; at += 1u)
     {
-        char part[32];
-        if (argument.type == OPERAND_REGISTER)
+        const Argument *const argument = &lane_form->arguments[at];
+        if (argument->type == OPERAND_REGISTER)
         {
-            VerbaLinea buffer_line = mmgr_line_over(part, sizeof(part));
-            mmgr_line_put(&buffer_line, " r");
-            mmgr_line_decimal(&buffer_line, argument.which, 1u);
-            (void)mmgr_line_finish(&buffer_line);
+            FORMS_ADD(key, " r");
+            FORMS_ADD_DECIMAL(key, argument->which);
         }
-        else if (argument.type == OPERAND_PHYSREG)
+        else if (argument->type == OPERAND_PHYSREG)
         {
-            VerbaLinea buffer_line = mmgr_line_over(part, sizeof(part));
-            mmgr_line_put(&buffer_line, " f");
-            mmgr_line_decimal(&buffer_line, argument.which, 1u);
-            (void)mmgr_line_finish(&buffer_line);
+            FORMS_ADD(key, " f");
+            FORMS_ADD_DECIMAL(key, argument->which);
         }
         else
         {
-            VerbaLinea buffer_line = mmgr_line_over(part, sizeof(part));
-            mmgr_line_put(&buffer_line, " n");
-            (void)mmgr_line_finish(&buffer_line);
+            FORMS_ADD(key, " n");
         }
-        key += part;
     }
     return key;
 }
 
-// 1 where c.krs's text for the form writes the chain's carry, and through `reads` whether it reads it
-static int form_carries(const Krs &c, const std::string &name, int *reads)
+// 1 where the two forms have one key (lane_form_key): one form, and arguments from the same banks
+static int lane_form_alike(const LaneForm *one, const LaneForm *other)
 {
-    const auto found = c.forms.find(name);
-    const std::string text = (found == c.forms.end()) ? std::string() : found->second.text;
-    const size_t named = text_count(text, "carry");
-    const size_t written = text_count(text, "&carry");
-    *reads = (named > written) ? 1 : 0;
-    return (written != 0u) ? 1 : 0;
-}
-
-// 1 where the form is a question. `c.krs` gives it a text that does something with its arguments, and not a
-// declaration, a label, a note, a jump or the resident
-static int form_is_question(const Krs &c, const std::string &name)
-{
-    const auto found = c.forms.find(name);
-    if ((found == c.forms.end()) || found->second.parameters.empty())
+    if ((one->form != other->form) || (one->count != other->count))
     {
         return 0;
     }
-    const std::string &text = found->second.text;
-    const size_t first = text.find_first_not_of(" \t\n");
-    if ((first == std::string::npos) || (text.compare(first, 2u, "//") == 0) ||
-        (text.find("goto") != std::string::npos) || (text.find("return") != std::string::npos) ||
-        (text.find("__global__") != std::string::npos) || (text.back() != '\n') ||
-        (text.find(":\n") != std::string::npos))
+    for (unsigned int at = 0u; at < one->count; at += 1u)
     {
-        return 0;
-    }
-    for (const std::string &parameter : found->second.parameters)
-    {
-        if (text.find("[{" + parameter + "}]") != std::string::npos)
+        const Argument *const left = &one->arguments[at];
+        const Argument *const right = &other->arguments[at];
+        const int left_register = (left->type == OPERAND_REGISTER) || (left->type == OPERAND_PHYSREG);
+        const int right_register = (right->type == OPERAND_REGISTER) || (right->type == OPERAND_PHYSREG);
+        if ((left_register != right_register) || (left_register && (left->type != right->type)) ||
+            (left_register && (left->which != right->which)))
         {
             return 0;
         }
@@ -409,235 +952,325 @@ static int form_is_question(const Krs &c, const std::string &name)
     return 1;
 }
 
-// the questions gathered from every lane: each form submitted alone, and each run of forms that carry, with the numbers
-// that each submission used
+// 1 where c.krs's text for the form writes the chain's carry, and through `reads` whether it reads it
+static int form_carries(const Krs *c, const char *name, int *reads)
+{
+    const char *const text = krs_text_of(c, KRS_FORM, name);
+    const size_t named = forms_count(text, "carry");
+    const size_t written = forms_count(text, "&carry");
+    *reads = (named > written) ? 1 : 0;
+    return (written != 0u) ? 1 : 0;
+}
+
+// 1 where the form is a question. `c.krs` gives it a text that does something with its arguments, and not a
+// declaration, a label, a note, a jump or the resident
+static int form_is_question(const Krs *c, const char *name)
+{
+    const KrsEntry *const found = krs_find(c, KRS_FORM, name);
+    if ((found == NULL) || (found->parameter_count == 0u))
+    {
+        return 0;
+    }
+    const char *const text = krs_text(c, found);
+    const size_t length = found->length;
+    const size_t first = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text, .cap = length, .other = " \t\n");
+    if ((first == length) || forms_begins(&text[first], "//") || forms_has(text, "goto") || forms_has(text, "return") ||
+        forms_has(text, "__global__") || (text[length - 1u] != '\n') || forms_has(text, ":\n"))
+    {
+        return 0;
+    }
+    for (unsigned int at = 0u; at < found->parameter_count; at += 1u)
+    {
+        FormsWord indexed;
+        FORMS_SET(indexed, "[{");
+        FORMS_ADD(indexed, krs_parameter(c, found, at));
+        FORMS_ADD(indexed, "}]");
+        if (forms_has(text, indexed.text))
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+// the questions and their lane forms at max, and the forms of one run of forms that carry at max
+#define FORMS_QUESTIONS_MAX 4096u
+#define FORMS_LANE_FORMS_MAX 16384u
+#define FORMS_RUN_MAX 1024u
+
+// A question gathered from the lanes: each form submitted alone, or a run of forms that carry, `count` of them from
+// `first` of s_lane_forms. The tables are static at a bound, in the order the lanes give them
 struct Gathered
 {
-    std::vector<std::vector<LaneForm>> questions;
-    std::set<std::string> keys;
+    unsigned int first;
+    unsigned int count;
 };
 
-static void gather_number(std::vector<LaneForm> &merged, const std::vector<LaneForm> &seen)
+static LaneForm s_lane_forms[FORMS_LANE_FORMS_MAX];
+static unsigned int s_lane_form_count = 0u;
+static Gathered s_gathered[FORMS_QUESTIONS_MAX];
+static unsigned int s_gathered_count = 0u;
+
+// each number of the `count` forms at `merged` raised to the one `seen` puts in its place where the number is 0 or 1
+static void gather_number(LaneForm *merged, const LaneForm *seen, unsigned int count)
 {
-    for (size_t one = 0u; one < merged.size(); one += 1u)
+    for (unsigned int one = 0u; one < count; one += 1u)
     {
-        for (size_t at = 0u; at < merged[one].arguments.size(); at += 1u)
+        for (unsigned int at = 0u; at < merged[one].count; at += 1u)
         {
-            Argument &argument_ref = merged[one].arguments[at];
+            Argument *const argument = &merged[one].arguments[at];
             const unsigned int now = seen[one].arguments[at].number;
-            const int number = (argument_ref.type == OPERAND_NUMBER) || (argument_ref.type == OPERAND_SIGNED) ||
-                               ((argument_ref.type == OPERAND_REGISTER) && (argument_ref.which == REGCLASS_IMMEDIATE));
+            const int number = (argument->type == OPERAND_NUMBER) || (argument->type == OPERAND_SIGNED) ||
+                               ((argument->type == OPERAND_REGISTER) && (argument->which == REGCLASS_IMMEDIATE));
             // a number of 0 or 1 is the likeliest for the compiler to meet with a constant of its own
-            if (number && (argument_ref.number < 2u) && (now >= 2u))
+            if (number && (argument->number < 2u) && (now >= 2u))
             {
-                argument_ref.number = now;
+                argument->number = now;
             }
         }
     }
 }
 
-static void gather_add(Gathered *gathered, const std::vector<LaneForm> &run)
+// The `count` forms at `run` gathered as one question, a form that repeats the one before it once. A question alike
+// to one gathered before raises that one's numbers, and is no question of its own
+static void gather_add(const LaneForm *run, unsigned int count)
 {
-    if (run.empty())
+    if (count == 0u)
     {
         return;
     }
-    // a run that repeats a form submits it once
-    std::vector<LaneForm> merged;
-    for (const LaneForm &lane_form : run)
+    // the run put after the lane forms, a repeat of the form before it left out
+    const unsigned int first = s_lane_form_count;
+    unsigned int merged = 0u;
+    for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (merged.empty() || (lane_form_key(merged.back()) != lane_form_key(lane_form)))
+        if ((merged != 0u) && lane_form_alike(&s_lane_forms[first + merged - 1u], &run[at]))
         {
-            merged.push_back(lane_form);
+            continue;
+        }
+        if ((first + merged) == FORMS_LANE_FORMS_MAX)
+        {
+            forms_refused("more lane forms than the table holds", "", 0u);
+        }
+        s_lane_forms[first + merged] = run[at];
+        merged += 1u;
+    }
+    for (unsigned int question = 0u; question < s_gathered_count; question += 1u)
+    {
+        const Gathered *const before = &s_gathered[question];
+        int alike = (before->count == merged);
+        for (unsigned int at = 0u; alike && (at < merged); at += 1u)
+        {
+            alike = lane_form_alike(&s_lane_forms[before->first + at], &s_lane_forms[first + at]);
+        }
+        if (alike)
+        {
+            gather_number(&s_lane_forms[before->first], &s_lane_forms[first], merged);
+            return;
         }
     }
-    std::string key;
-    for (const LaneForm &lane_form : merged)
+    if (s_gathered_count == FORMS_QUESTIONS_MAX)
     {
-        key += lane_form_key(lane_form) + ";";
+        forms_refused("more questions than the table holds", "", 0u);
     }
-    if (gathered->keys.insert(key).second)
-    {
-        gathered->questions.push_back(merged);
-        return;
-    }
-    for (std::vector<LaneForm> &question : gathered->questions)
-    {
-        std::string previous_key;
-        for (const LaneForm &lane_form : question)
-        {
-            previous_key += lane_form_key(lane_form) + ";";
-        }
-        if (previous_key == key)
-        {
-            gather_number(question, merged);
-        }
-    }
+    s_gathered[s_gathered_count].first = first;
+    s_gathered[s_gathered_count].count = merged;
+    s_gathered_count += 1u;
+    s_lane_form_count += merged;
 }
 
-static void gather_lane(const Krs &c, const HostProgram *program, int reuse, Gathered *gathered)
+// a line on the output, `head`, `name` and `tail`
+static void forms_said(const char *head, const char *name, const char *tail)
+{
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, head);
+    mmgr_line_put(output_line, name);
+    mmgr_line_put(output_line, tail);
+    mmgr_line_ch(output_line, '\n');
+    platform_line_out_ended();
+}
+
+static void gather_lane(const Krs *c, const HostProgram *program, int reuse)
 {
     HostLoaded loaded;
     if (host_load(program, reuse, &loaded) == 0)
     {
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "  ");
-            mmgr_line_put(output_line, program->name);
-            mmgr_line_put(output_line, ": not arranged");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
+        forms_said("  ", program->name, ": not arranged");
         return;
     }
-    std::vector<MachineInstr> items;
+    PlatformArray decided;
+    platform_array_begun(&decided, sizeof(MachineInstr), platform_place_g_program_owner, 0);
     unsigned int places = 0u;
-    if (lane_decided_items(c_target(), &loaded.layout, &places, &items) == 0)
+    if (c_target().decided(&loaded.layout, &places, &decided) == 0)
     {
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "  ");
-            mmgr_line_put(output_line, program->name);
-            mmgr_line_put(output_line, ": the core decides no lane for it");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
+        platform_array_ended(&decided);
+        forms_said("  ", program->name, ": the core decides no lane for it");
         host_free(&loaded);
         return;
     }
-    std::vector<LaneForm> run;
-    for (const MachineInstr &item : items)
+    static LaneForm s_run[FORMS_RUN_MAX];
+    unsigned int run = 0u;
+    const MachineInstr *const items = (const MachineInstr *)decided.cell;
+    for (unsigned long long one = 0ULL; one < decided.count; one += 1ULL)
     {
-        if ((item.form >= OPCODE_COUNT) || !form_is_question(c, s_form_names[item.form]))
+        const MachineInstr *const item = &items[one];
+        if ((item->form >= OPCODE_COUNT) || !form_is_question(c, s_form_names[item->form]))
         {
             continue;
         }
         LaneForm lane_form;
-        lane_form.form = item.form;
-        for (unsigned int at = 0u; at < codegen_operand_count(item.form); at += 1u)
+        lane_form.form = item->form;
+        lane_form.count = codegen_operand_count(item->form);
+        for (unsigned int at = 0u; at < lane_form.count; at += 1u)
         {
-            lane_form.arguments.push_back(
-                {item.arguments[at].type, item.arguments[at].which, item.arguments[at].number});
+            lane_form.arguments[at].type = item->arguments[at].type;
+            lane_form.arguments[at].which = item->arguments[at].which;
+            lane_form.arguments[at].number = item->arguments[at].number;
         }
         int reads = 0;
-        const int writes = form_carries(c, s_form_names[item.form], &reads);
+        const int writes = form_carries(c, s_form_names[item->form], &reads);
         if (!writes && !reads)
         {
-            gather_add(gathered, std::vector<LaneForm>{lane_form});
+            gather_add(&lane_form, 1u);
             continue;
         }
         // a form that writes the carry and does not read it opens a run, and the run before it ends
         if (writes && !reads)
         {
-            gather_add(gathered, run);
-            run.clear();
+            gather_add(s_run, run);
+            run = 0u;
         }
-        run.push_back(lane_form);
+        if (run == FORMS_RUN_MAX)
+        {
+            forms_refused("a run of forms that carry passes the room of a run", "", 0u);
+        }
+        s_run[run] = lane_form;
+        run += 1u;
     }
-    gather_add(gathered, run);
+    gather_add(s_run, run);
+    platform_array_ended(&decided);
     host_free(&loaded);
 }
 
-static std::vector<std::string> line_split(const std::string &line, char by)
+// the operands of an instruction at max
+#define FORMS_OPERANDS_MAX 16u
+
+// the bytes of an operand, with its terminator
+#define FORMS_OPERAND_BYTES 256u
+
+struct FormsOperand
 {
-    std::vector<std::string> parts;
-    size_t at = 0u;
-    while (at <= line.size())
-    {
-        const size_t end = line.find(by, at);
-        const size_t stop = (end == std::string::npos) ? line.size() : end;
-        parts.push_back(line.substr(at, stop - at));
-        at = stop + 1u;
-    }
-    return parts;
-}
+    char text[FORMS_OPERAND_BYTES];
+};
 
 // an instruction of a listing: its guard, its operation and its operands
 struct Instruction
 {
-    std::string guard;
-    std::string operation;
-    std::vector<std::string> operands;
+    FormsWord guard;
+    FormsWord operation;
+    FormsOperand operands[FORMS_OPERANDS_MAX];
+    unsigned int operand_count;
 };
 
-static std::string trim(const std::string &text)
+// The operands of the `length` bytes at `text` split at every comma outside brackets and braces, each with its spaces
+// and tabs cut, into `instruction`. The walk keeps a running depth, and jumps from one bracket, brace or comma to the
+// next. The last operand counts only where it is not empty
+static void operands_split(const char *text, size_t length, Instruction *instruction)
 {
-    const size_t first = text.find_first_not_of(" \t");
-    if (first == std::string::npos)
-    {
-        return std::string();
-    }
-    return text.substr(first, text.find_last_not_of(" \t") - first + 1u);
-}
-
-// the operands of `text` split at every comma outside brackets and braces
-static std::vector<std::string> operands_split(const std::string &text)
-{
-    std::vector<std::string> operands;
+    instruction->operand_count = 0u;
     int depth = 0;
-    std::string one;
-    for (const char character : text)
+    size_t from = 0u;
+    size_t at = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = text, .cap = length, .other = ",[]{}");
+    while (at < length)
     {
+        const char character = text[at];
         depth += ((character == '[') || (character == '{')) ? 1 : 0;
         depth -= ((character == ']') || (character == '}')) ? 1 : 0;
         if ((character == ',') && (depth == 0))
         {
-            operands.push_back(trim(one));
-            one.clear();
-            continue;
+            if (instruction->operand_count == FORMS_OPERANDS_MAX)
+            {
+                forms_refused("an instruction names more operands than it holds: ", text, length);
+            }
+            const FormsLine one = forms_trim_n(&text[from], at - from);
+            FORMS_SET(instruction->operands[instruction->operand_count], one.text);
+            instruction->operand_count += 1u;
+            from = at + 1u;
         }
-        one += character;
+        at += 1u;
+        at += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text[at], .cap = length - at, .other = ",[]{}");
     }
-    if (!trim(one).empty())
+    const FormsLine last = forms_trim_n(&text[from], length - from);
+    if (last.text[0] != '\0')
     {
-        operands.push_back(trim(one));
+        if (instruction->operand_count == FORMS_OPERANDS_MAX)
+        {
+            forms_refused("an instruction names more operands than it holds: ", text, length);
+        }
+        FORMS_SET(instruction->operands[instruction->operand_count], last.text);
+        instruction->operand_count += 1u;
     }
-    return operands;
 }
 
-static Instruction instruction_read(const std::string &text)
+// The instruction of the `length` bytes at `text`. That is a guard after an `@` up to its space, then the operation up
+// to its space or tab, then the operands
+static Instruction instruction_read_n(const char *text, size_t length)
 {
     Instruction instruction;
-    std::string rest = trim(text);
-    if (!rest.empty() && (rest[0] == '@'))
+    instruction.guard.text[0] = '\0';
+    instruction.operation.text[0] = '\0';
+    instruction.operand_count = 0u;
+    size_t first = 0u;
+    size_t size = forms_trimmed(text, length, " \t", &first);
+    const char *rest = &text[first];
+    if ((size != 0u) && (rest[0] == '@'))
     {
-        const size_t space = rest.find(' ');
-        instruction.guard = rest.substr(1u, space - 1u);
-        rest = trim(rest.substr(space));
+        const size_t space = forms_chr_n(rest, size, ' ', 0u);
+        FORMS_SET_N(instruction.guard, &rest[1], (space > 1u) ? (space - 1u) : 0u);
+        size_t after = 0u;
+        const size_t kept = (space < size) ? forms_trimmed(&rest[space], size - space, " \t", &after) : 0u;
+        rest = (space < size) ? &rest[space + after] : &rest[size];
+        size = kept;
     }
-    const size_t space = rest.find_first_of(" \t");
-    instruction.operation = rest.substr(0u, space);
-    if (space != std::string::npos)
+    const size_t space = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = rest, .cap = size, .other = " \t");
+    FORMS_SET_N(instruction.operation, rest, space);
+    if (space < size)
     {
-        instruction.operands = operands_split(rest.substr(space));
+        operands_split(&rest[space], size - space, &instruction);
     }
     return instruction;
+}
+
+static Instruction instruction_read(const char *text)
+{
+    return instruction_read_n(text, forms_length(text));
 }
 
 // ---------------------------------------------------------------------------------------------------------------
 // the monolith written
 
+// The writer of the monolith: the rulesets and the types they declare, and the helpers of the lane's opening. Then the
+// body and the rows of the questions, each a movable text. Then the tags and the words taken from `in` and `out`
 struct Writer
 {
     const Krs *c;
     const Krs *ptx;
-    std::map<std::string, std::string> declared;
-    std::map<std::string, std::string> ptx_types;
-    std::string helpers;
-    std::string body;
-    std::vector<std::string> questions;
+    FormsTypes declared;
+    FormsTypes ptx_types;
+    const char *helpers;
+    size_t helpers_length;
+    PlatformText body;
+    PlatformText rows;
+    unsigned int questions;
     unsigned int tag;
     unsigned int ptx_tag;
     unsigned int in_words;
     unsigned int out_words;
 };
 
-// the tag a question put in ptx.krs's own text is behind is past this; below it a question put in c.krs's
-#define MONOLITH_FORMS_PTX 0x1000u
-
-static unsigned int writer_take(unsigned int *words, const std::string &type)
+static unsigned int writer_take(unsigned int *words, const char *type)
 {
-    if (type == "u64")
+    if (forms_same(type, "u64"))
     {
         *words += (*words & 1u);
         const unsigned int at = *words;
@@ -649,106 +1282,91 @@ static unsigned int writer_take(unsigned int *words, const std::string &type)
     return at;
 }
 
-static std::string writer_load(const std::string &type, unsigned int at)
+static FormsLine writer_load(const char *type, unsigned int at)
 {
-    char text[160];
-    if (type == "u64")
+    FormsLine text;
+    if (forms_same(type, "u64"))
     {
-        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
-        mmgr_line_put(&buffer_line, "*(volatile const u64 *)&in[");
-        mmgr_line_decimal(&buffer_line, at, 1u);
-        mmgr_line_put(&buffer_line, "]");
-        (void)mmgr_line_finish(&buffer_line);
+        FORMS_SET(text, "*(volatile const u64 *)&in[");
+        FORMS_ADD_DECIMAL(text, at);
+        FORMS_ADD(text, "]");
     }
-    else if (type == "int")
+    else if (forms_same(type, "int"))
     {
-        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
-        mmgr_line_put(&buffer_line, "((*(volatile const u32 *)&in[");
-        mmgr_line_decimal(&buffer_line, at, 1u);
-        mmgr_line_put(&buffer_line, "] != 0u) ? 1 : 0)");
-        (void)mmgr_line_finish(&buffer_line);
+        FORMS_SET(text, "((*(volatile const u32 *)&in[");
+        FORMS_ADD_DECIMAL(text, at);
+        FORMS_ADD(text, "] != 0u) ? 1 : 0)");
     }
-    else if (type == "s8")
+    else if (forms_same(type, "s8"))
     {
-        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
-        mmgr_line_put(&buffer_line, "(s8)*(volatile const u32 *)&in[");
-        mmgr_line_decimal(&buffer_line, at, 1u);
-        mmgr_line_put(&buffer_line, "]");
-        (void)mmgr_line_finish(&buffer_line);
+        FORMS_SET(text, "(s8)*(volatile const u32 *)&in[");
+        FORMS_ADD_DECIMAL(text, at);
+        FORMS_ADD(text, "]");
     }
     else
     {
-        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
-        mmgr_line_put(&buffer_line, "*(volatile const u32 *)&in[");
-        mmgr_line_decimal(&buffer_line, at, 1u);
-        mmgr_line_put(&buffer_line, "]");
-        (void)mmgr_line_finish(&buffer_line);
+        FORMS_SET(text, "*(volatile const u32 *)&in[");
+        FORMS_ADD_DECIMAL(text, at);
+        FORMS_ADD(text, "]");
     }
     return text;
 }
 
-static std::string writer_store(const std::string &type, unsigned int at, const std::string &name)
+static FormsLine writer_store(const char *type, unsigned int at, const char *name)
 {
-    char text[200];
-    if (type == "u64")
+    FormsLine text;
+    if (forms_same(type, "u64"))
     {
-        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
-        mmgr_line_put(&buffer_line, "        *(volatile u64 *)&out[");
-        mmgr_line_decimal(&buffer_line, at, 1u);
-        mmgr_line_put(&buffer_line, "] = ");
-        mmgr_line_put(&buffer_line, name.c_str());
-        mmgr_line_put(&buffer_line, ";\n");
-        (void)mmgr_line_finish(&buffer_line);
+        FORMS_SET(text, "        *(volatile u64 *)&out[");
+        FORMS_ADD_DECIMAL(text, at);
+        FORMS_ADD(text, "] = ");
+        FORMS_ADD(text, name);
+        FORMS_ADD(text, ";\n");
     }
-    else if (type == "int")
+    else if (forms_same(type, "int"))
     {
-        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
-        mmgr_line_put(&buffer_line, "        *(volatile u32 *)&out[");
-        mmgr_line_decimal(&buffer_line, at, 1u);
-        mmgr_line_put(&buffer_line, "] = (");
-        mmgr_line_put(&buffer_line, name.c_str());
-        mmgr_line_put(&buffer_line, " != 0) ? 1u : 0u;\n");
-        (void)mmgr_line_finish(&buffer_line);
+        FORMS_SET(text, "        *(volatile u32 *)&out[");
+        FORMS_ADD_DECIMAL(text, at);
+        FORMS_ADD(text, "] = (");
+        FORMS_ADD(text, name);
+        FORMS_ADD(text, " != 0) ? 1u : 0u;\n");
     }
-    else if (type == "s8")
+    else if (forms_same(type, "s8"))
     {
-        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
-        mmgr_line_put(&buffer_line, "        *(volatile u32 *)&out[");
-        mmgr_line_decimal(&buffer_line, at, 1u);
-        mmgr_line_put(&buffer_line, "] = (u32)(int)");
-        mmgr_line_put(&buffer_line, name.c_str());
-        mmgr_line_put(&buffer_line, ";\n");
-        (void)mmgr_line_finish(&buffer_line);
+        FORMS_SET(text, "        *(volatile u32 *)&out[");
+        FORMS_ADD_DECIMAL(text, at);
+        FORMS_ADD(text, "] = (u32)(int)");
+        FORMS_ADD(text, name);
+        FORMS_ADD(text, ";\n");
     }
     else
     {
-        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
-        mmgr_line_put(&buffer_line, "        *(volatile u32 *)&out[");
-        mmgr_line_decimal(&buffer_line, at, 1u);
-        mmgr_line_put(&buffer_line, "] = ");
-        mmgr_line_put(&buffer_line, name.c_str());
-        mmgr_line_put(&buffer_line, ";\n");
-        (void)mmgr_line_finish(&buffer_line);
+        FORMS_SET(text, "        *(volatile u32 *)&out[");
+        FORMS_ADD_DECIMAL(text, at);
+        FORMS_ADD(text, "] = ");
+        FORMS_ADD(text, name);
+        FORMS_ADD(text, ";\n");
     }
     return text;
 }
 
 // the C type and the c.krs variable an argument is: a bank's type, a fixed register's, or none for a number
-static std::string writer_type(Writer *writer, const Argument &argument, std::string *variable)
+static FormsWord writer_type(const Writer *writer, const Argument *argument, FormsWord *variable)
 {
-    variable->clear();
-    if ((argument.type == OPERAND_REGISTER) && (argument.which != REGCLASS_IMMEDIATE))
+    FormsWord type;
+    type.text[0] = '\0';
+    variable->text[0] = '\0';
+    if ((argument->type == OPERAND_REGISTER) && (argument->which != REGCLASS_IMMEDIATE))
     {
-        return c_bank_type(*writer->c, s_bank_names[argument.which]);
+        return c_bank_type(writer->c, s_bank_names[argument->which]);
     }
-    if (argument.type == OPERAND_PHYSREG)
+    if (argument->type == OPERAND_PHYSREG)
     {
-        const auto fixed = writer->c->fixed.find(s_fixed_names[argument.which]);
-        *variable = (fixed == writer->c->fixed.end()) ? std::string() : fixed->second;
-        const auto type = writer->declared.find(*variable);
-        return (type == writer->declared.end()) ? std::string() : type->second;
+        FORMS_SET(*variable, krs_text_of(writer->c, KRS_FIXED, s_fixed_names[argument->which]));
+        const char *const declared = forms_type_of(&writer->declared, variable->text);
+        FORMS_SET(type, (declared != NULL) ? declared : "");
     }
-    return std::string();
+    return type;
 }
 
 // The tool submits a question that contains a number again, with another number. The second time, a form that the
@@ -766,15 +1384,16 @@ static unsigned int number_alternate(unsigned int number)
     return (number >= 3u) ? (number - 1u) : (number + 1u);
 }
 
-// 1 where a question puts a number to any of its forms
-static int question_numbered(const std::vector<LaneForm> &question)
+// 1 where a question puts a number to any of its `count` forms at `question`
+static int question_numbered(const LaneForm *question, unsigned int count)
 {
-    for (const LaneForm &lane_form : question)
+    for (unsigned int one = 0u; one < count; one += 1u)
     {
-        for (const Argument &argument : lane_form.arguments)
+        for (unsigned int at = 0u; at < question[one].count; at += 1u)
         {
-            if ((argument.type == OPERAND_NUMBER) || (argument.type == OPERAND_SIGNED) ||
-                ((argument.type == OPERAND_REGISTER) && (argument.which == REGCLASS_IMMEDIATE)))
+            const Argument *const argument = &question[one].arguments[at];
+            if ((argument->type == OPERAND_NUMBER) || (argument->type == OPERAND_SIGNED) ||
+                ((argument->type == OPERAND_REGISTER) && (argument->which == REGCLASS_IMMEDIATE)))
             {
                 return 1;
             }
@@ -783,216 +1402,511 @@ static int question_numbered(const std::vector<LaneForm> &question)
     return 0;
 }
 
-// one question written: its run of forms, each in three regions between tags, its loads, the form and its stores. A
-// volatile access does not cross a tag, and the region of the form contains none. The compiler cannot fold a load or a
-// store into the form
-static void writer_question(Writer *writer, const std::vector<LaneForm> &question, int alternate)
+// a tag line of the body: `head`, the tag, then `tail`
+static void writer_tag(Writer *writer, const char *head, unsigned int tag, const char *tail)
 {
-    for (size_t one = 0u; one < question.size(); one += 1u)
+    mmgr_line_put(&writer->body.line, head);
+    mmgr_line_decimal(&writer->body.line, tag, 1u);
+    mmgr_line_put(&writer->body.line, tail);
+}
+
+// the row of a question put after the rows, and the count of the rows past it
+static void writer_row(Writer *writer, const FormsLine *row)
+{
+    mmgr_line_put(&writer->rows.line, row->text);
+    mmgr_line_ch(&writer->rows.line, '\n');
+    writer->questions += 1u;
+}
+
+// a role of a row: `prefix`, the role's name, `=`, the place and the word, `:` and the type
+static void writer_role(FormsLine *row, const char *prefix, const char *name, const char *place, unsigned int word,
+                        const char *type)
+{
+    FORMS_ADD(*row, prefix);
+    FORMS_ADD(*row, name);
+    FORMS_ADD(*row, "=");
+    FORMS_ADD(*row, place);
+    FORMS_ADD(*row, ":");
+    FORMS_ADD_DECIMAL(*row, word);
+    FORMS_ADD(*row, ":");
+    FORMS_ADD(*row, type);
+}
+
+// a number written as a question puts it, signed where the argument is
+static FormsWord writer_number(unsigned int value, int is_signed)
+{
+    FormsWord number;
+    number.text[0] = '\0';
+    if (is_signed)
     {
-        const LaneForm &lane_form = question[one];
-        const std::string name = s_form_names[lane_form.form];
-        const KrsForm &form = writer->c->forms.at(name);
-        writer->tag += 1u;
-        char line[256];
+        // the bits of the word read as the signed word a signed argument holds
+        FORMS_ADD_SIGNED(number, (long long)(int)value);
+    }
+    else
+    {
+        FORMS_ADD_DECIMAL(number, value);
+    }
+    return number;
+}
+
+// One question written: its run of the `count` forms at `question`, each in three regions between tags, its loads,
+// the form and its stores. A volatile access does not cross a tag, and the region of the form contains none. The
+// compiler cannot fold a load or a store into the form
+static void writer_question(Writer *writer, const LaneForm *question, unsigned int count, int alternate)
+{
+    for (unsigned int one = 0u; one < count; one += 1u)
+    {
+        const LaneForm *const lane_form = &question[one];
+        const char *const name = s_form_names[lane_form->form];
+        const KrsEntry *const form = krs_find(writer->c, KRS_FORM, name);
+        if (form == NULL)
         {
-            VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
-            mmgr_line_put(&buffer_line, "\n    MONOLITH_TAG(");
-            mmgr_line_decimal(&buffer_line, MONOLITH_FORMS_LOADS + writer->tag, 1u);
-            mmgr_line_put(&buffer_line, ");\n    {\n");
-            (void)mmgr_line_finish(&buffer_line);
+            forms_refused("c.krs gives no form of a question: ", name, forms_length(name));
         }
-        writer->body += line;
-        std::string row = std::to_string(writer->tag) + "\t" + name + "\t" + lane_form_key(lane_form);
-        std::string text = form.text;
-        std::string stores;
-        const int conditional = (text.find("if (") != std::string::npos);
-        for (size_t at = 0u; at < form.parameters.size(); at += 1u)
+        writer->tag += 1u;
+        writer_tag(writer, "\n    MONOLITH_TAG(", MONOLITH_FORMS_LOADS + writer->tag, ");\n    {\n");
+        FormsLine row;
+        row.text[0] = '\0';
+        FORMS_ADD_DECIMAL(row, writer->tag);
+        FORMS_ADD(row, "\t");
+        FORMS_ADD(row, name);
+        FORMS_ADD(row, "\t");
+        FORMS_ADD(row, lane_form_key(lane_form).text);
+        PlatformText text;
+        forms_text_begun(&text);
+        mmgr_line_put(&text.line, krs_text(writer->c, form));
+        PlatformText stores;
+        forms_text_begun(&stores);
+        size_t size = 0u;
+        const int conditional = forms_has(forms_text_bytes(&text, &size), "if (");
+        for (unsigned int at = 0u; at < form->parameter_count; at += 1u)
         {
-            const std::string &parameter = form.parameters[at];
-            const Argument &argument = lane_form.arguments[at];
-            std::string variable;
-            const std::string type = writer_type(writer, argument, &variable);
-            if (type.empty())
+            const char *const parameter = krs_parameter(writer->c, form, at);
+            const Argument *const argument = &lane_form->arguments[at];
+            FormsWord variable;
+            const FormsWord type = writer_type(writer, argument, &variable);
+            if (type.text[0] == '\0')
             {
-                const int immediate = (argument.type == OPERAND_REGISTER);
-                const unsigned int value = alternate ? number_alternate(argument.number) : argument.number;
-                const std::string number =
-                    (argument.type == OPERAND_SIGNED) ? std::to_string((int)value) : std::to_string(value);
-                text = text_fill(text, parameter, immediate ? (number + "u") : number);
-                row += "\t" + parameter + "=number:" + number;
+                const int immediate = (argument->type == OPERAND_REGISTER);
+                const unsigned int value = alternate ? number_alternate(argument->number) : argument->number;
+                FormsWord number = writer_number(value, argument->type == OPERAND_SIGNED);
+                FormsWord put = number;
+                FORMS_ADD(put, immediate ? "u" : "");
+                forms_text_fill(&text, parameter, put.text);
+                FORMS_ADD(row, "\t");
+                FORMS_ADD(row, parameter);
+                FORMS_ADD(row, "=number:");
+                FORMS_ADD(row, number.text);
                 continue;
             }
-            const std::string local = "a_" + parameter;
-            const size_t named = text_count(text, "{" + parameter + "}");
-            const size_t assigned =
-                text_count(text, "{" + parameter + "} =") - text_count(text, "{" + parameter + "} ==");
+            FormsWord local;
+            FORMS_SET(local, "a_");
+            FORMS_ADD(local, parameter);
+            FormsWord braced;
+            FORMS_SET(braced, "{");
+            FORMS_ADD(braced, parameter);
+            FORMS_ADD(braced, "}");
+            FormsWord assigned_text = braced;
+            FORMS_ADD(assigned_text, " =");
+            FormsWord compared_text = braced;
+            FORMS_ADD(compared_text, " ==");
+            const char *const bytes = forms_text_bytes(&text, &size);
+            const size_t named = forms_count(bytes, braced.text);
+            const size_t assigned = forms_count(bytes, assigned_text.text) - forms_count(bytes, compared_text.text);
             const int output = (assigned != 0u);
             const int input = !output || conditional || (named > assigned);
             if (input)
             {
-                const unsigned int word = writer_take(&writer->in_words, type);
-                writer->body += "        " + type + " " + local + " = " + writer_load(type, word) + ";\n";
-                row += "\t" + parameter + "=in:" + std::to_string(word) + ":" + type;
+                const unsigned int word = writer_take(&writer->in_words, type.text);
+                mmgr_line_put(&writer->body.line, "        ");
+                mmgr_line_put(&writer->body.line, type.text);
+                mmgr_line_put(&writer->body.line, " ");
+                mmgr_line_put(&writer->body.line, local.text);
+                mmgr_line_put(&writer->body.line, " = ");
+                mmgr_line_put(&writer->body.line, writer_load(type.text, word).text);
+                mmgr_line_put(&writer->body.line, ";\n");
+                writer_role(&row, "\t", parameter, "in", word, type.text);
             }
             else
             {
-                writer->body += "        " + type + " " + local + ";\n";
+                mmgr_line_put(&writer->body.line, "        ");
+                mmgr_line_put(&writer->body.line, type.text);
+                mmgr_line_put(&writer->body.line, " ");
+                mmgr_line_put(&writer->body.line, local.text);
+                mmgr_line_put(&writer->body.line, ";\n");
             }
             if (output)
             {
-                const unsigned int word = writer_take(&writer->out_words, type);
-                stores += writer_store(type, word, local);
-                row += "\t" + parameter + "=out:" + std::to_string(word) + ":" + type;
+                const unsigned int word = writer_take(&writer->out_words, type.text);
+                mmgr_line_put(&stores.line, writer_store(type.text, word, local.text).text);
+                writer_role(&row, "\t", parameter, "out", word, type.text);
             }
-            text = text_fill(text, parameter, local);
+            forms_text_fill(&text, parameter, local.text);
         }
         // The fixed registers the text names, each loaded as an argument is. The carry is the chain's own, and the
         // question loads and stores it below as a form that carries reads and writes it
-        std::set<std::string> loaded_fixed;
-        for (const auto &fixed : writer->c->fixed)
+        int launch_loaded = 0;
+        for (unsigned int fixed = 0u; fixed < writer->c->counts[KRS_FIXED]; fixed += 1u)
         {
-            const std::string &variable = fixed.second;
-            const auto type = writer->declared.find(variable);
-            if ((variable == "carry") || (type == writer->declared.end()) || !text_names(text, variable))
+            const KrsEntry *const entry = &writer->c->entries[KRS_FIXED][fixed];
+            const char *const variable = krs_text(writer->c, entry);
+            const char *const type = forms_type_of(&writer->declared, variable);
+            if (forms_same(variable, "carry") || (type == NULL) ||
+                !forms_names(forms_text_bytes(&text, &size), variable))
             {
                 continue;
             }
-            const unsigned int word = writer_take(&writer->in_words, type->second);
-            writer->body +=
-                "        const " + type->second + " " + variable + " = " + writer_load(type->second, word) + ";\n";
-            row += "\t!" + fixed.first + "=in:" + std::to_string(word) + ":" + type->second;
-            loaded_fixed.insert(variable);
+            const unsigned int word = writer_take(&writer->in_words, type);
+            mmgr_line_put(&writer->body.line, "        const ");
+            mmgr_line_put(&writer->body.line, type);
+            mmgr_line_put(&writer->body.line, " ");
+            mmgr_line_put(&writer->body.line, variable);
+            mmgr_line_put(&writer->body.line, " = ");
+            mmgr_line_put(&writer->body.line, writer_load(type, word).text);
+            mmgr_line_put(&writer->body.line, ";\n");
+            writer_role(&row, "\t!", entry->name, "in", word, type);
+            launch_loaded = launch_loaded || forms_same(variable, "launch");
         }
         // the launch, where c.krs names it as no fixed register and the loop above has not loaded it
-        for (const char *const variable : {"launch"})
+        const char *const launch_type = forms_type_of(&writer->declared, "launch");
+        if ((launch_type != NULL) && !launch_loaded && forms_names(forms_text_bytes(&text, &size), "launch"))
         {
-            const auto type = writer->declared.find(variable);
-            if ((type != writer->declared.end()) && (loaded_fixed.count(variable) == 0u) && text_names(text, variable))
-            {
-                const unsigned int word = writer_take(&writer->in_words, type->second);
-                writer->body +=
-                    "        const " + type->second + " " + variable + " = " + writer_load(type->second, word) + ";\n";
-                row += "\t!" + std::string(variable) + "=in:" + std::to_string(word) + ":" + type->second;
-            }
+            const unsigned int word = writer_take(&writer->in_words, launch_type);
+            mmgr_line_put(&writer->body.line, "        const ");
+            mmgr_line_put(&writer->body.line, launch_type);
+            mmgr_line_put(&writer->body.line, " launch = ");
+            mmgr_line_put(&writer->body.line, writer_load(launch_type, word).text);
+            mmgr_line_put(&writer->body.line, ";\n");
+            writer_role(&row, "\t!", "launch", "in", word, launch_type);
         }
         // the question loads the carry that a form reads, and stores the carry that it writes, as every other word that
         // it reads and writes
         int reads = 0;
-        const int writes = form_carries(*writer->c, name, &reads);
+        const int writes = form_carries(writer->c, name, &reads);
         if (reads)
         {
             const unsigned int word = writer_take(&writer->in_words, "u32");
-            writer->body += "        carry = " + writer_load("u32", word) + ";\n";
-            row += "\t!carry=in:" + std::to_string(word) + ":u32";
+            mmgr_line_put(&writer->body.line, "        carry = ");
+            mmgr_line_put(&writer->body.line, writer_load("u32", word).text);
+            mmgr_line_put(&writer->body.line, ";\n");
+            writer_role(&row, "\t!", "carry", "in", word, "u32");
         }
         if (writes)
         {
             const unsigned int word = writer_take(&writer->out_words, "u32");
-            stores += writer_store("u32", word, "carry");
-            row += "\t!carry=out:" + std::to_string(word) + ":u32";
+            mmgr_line_put(&stores.line, writer_store("u32", word, "carry").text);
+            writer_role(&row, "\t!", "carry", "out", word, "u32");
         }
-        {
-            VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
-            mmgr_line_put(&buffer_line, "        MONOLITH_TAG(");
-            mmgr_line_decimal(&buffer_line, writer->tag, 1u);
-            mmgr_line_put(&buffer_line, ");\n");
-            (void)mmgr_line_finish(&buffer_line);
-        }
-        writer->body += line + text;
-        {
-            VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
-            mmgr_line_put(&buffer_line, "        MONOLITH_TAG(");
-            mmgr_line_decimal(&buffer_line, MONOLITH_FORMS_STORES + writer->tag, 1u);
-            mmgr_line_put(&buffer_line, ");\n");
-            (void)mmgr_line_finish(&buffer_line);
-        }
-        writer->body += line + stores + "    }\n";
-        writer->questions.push_back(row);
+        writer_tag(writer, "        MONOLITH_TAG(", writer->tag, ");\n");
+        forms_text_put(&writer->body, &text);
+        writer_tag(writer, "        MONOLITH_TAG(", MONOLITH_FORMS_STORES + writer->tag, ");\n");
+        forms_text_put(&writer->body, &stores);
+        mmgr_line_put(&writer->body.line, "    }\n");
+        writer_row(writer, &row);
+        platform_text_ended(&stores);
+        platform_text_ended(&text);
     }
+}
+
+// The PTX types the forms of ptx.krs declare, by the register's name, counted where `declared` is NULL and put at
+// `declared` where it is not. Each comes off a `.reg .<type> <names>;`, each name up to its `<`
+static unsigned int ptx_declared_made(const Krs *ptx, FormsDeclared *declared)
+{
+    unsigned int count = 0u;
+    for (unsigned int form = 0u; form < ptx->counts[KRS_FORM]; form += 1u)
+    {
+        const KrsEntry *const entry = &ptx->entries[KRS_FORM][form];
+        const char *const text = krs_text(ptx, entry);
+        const size_t length = entry->length;
+        for (size_t at = forms_find_n(text, length, ".reg .", 0u); at < length;)
+        {
+            const size_t type_from = at + 6u;
+            const size_t type_end =
+                type_from + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text[type_from],
+                                       .cap = (type_from < length) ? (length - type_from) : 0u, .other = " \t");
+            const size_t end = forms_chr_n(text, length, ';', at);
+            if ((type_end >= length) || (end == length))
+            {
+                break;
+            }
+            // the names between the type and the `;`, apart by commas, an empty one among them
+            const char *const names = &text[type_end];
+            const size_t names_length = (end > type_end) ? (end - type_end) : 0u;
+            for (size_t from = 0u; from <= names_length;)
+            {
+                const size_t until = forms_chr_n(names, names_length, ',', from);
+                size_t first = 0u;
+                const size_t size = forms_trimmed(&names[from], until - from, " \t", &first);
+                const size_t angle = forms_chr_n(&names[from + first], size, '<', 0u);
+                if (declared != NULL)
+                {
+                    forms_set_n(declared[count].name, sizeof(declared[count].name), &names[from + first], angle);
+                    forms_set_n(declared[count].type, sizeof(declared[count].type), &text[type_from],
+                                type_end - type_from);
+                }
+                count += 1u;
+                from = until + 1u;
+            }
+            at = forms_find_n(text, length, ".reg .", end);
+        }
+    }
+    return count;
 }
 
 // The PTX type that each register declared in ptx.krs stores, b32, b64 or pred, by its name. Also the type of each
 // bank, by the prefix of the names of its registers. Both come off every `.reg .<type> <names>;` that the forms of the
-// ruleset write
-static std::map<std::string, std::string> ptx_declared(const Krs &ptx)
+// ruleset write. The last declaration of a name, in the order of the forms' names, holds
+static FormsTypes ptx_declared(const Krs *ptx)
 {
-    std::map<std::string, std::string> types;
-    for (const auto &entry : ptx.forms)
-    {
-        const std::string &text = entry.second.text;
-        size_t at = text.find(".reg .");
-        while (at != std::string::npos)
-        {
-            const size_t type_end = text.find_first_of(" \t", at + 6u);
-            const size_t end = text.find(';', at);
-            if ((type_end == std::string::npos) || (end == std::string::npos))
-            {
-                break;
-            }
-            const std::string type = text.substr(at + 6u, type_end - at - 6u);
-            const std::vector<std::string> names = line_split(text.substr(type_end, end - type_end), ',');
-            for (std::string name : names)
-            {
-                name.erase(0u, name.find_first_not_of(" \t"));
-                name.erase(name.find_last_not_of(" \t") + 1u);
-                const size_t angle = name.find('<');
-                types[(angle == std::string::npos) ? name : name.substr(0u, angle)] = type;
-            }
-            at = text.find(".reg .", end);
-        }
-    }
+    FormsTypes types;
+    const unsigned int count = ptx_declared_made(ptx, NULL);
+    types.declared = (FormsDeclared *)forms_allocated(platform_cell_cleared(
+        (count != 0u) ? count : 1u, sizeof(FormsDeclared), platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
+    types.count = forms_declared_settled(types.declared, ptx_declared_made(ptx, types.declared), 0);
     return types;
 }
 
 // the PTX type a register of `bank` stores, through the prefix ptx.krs names the bank's registers with
-static std::string ptx_bank_type(const Writer *writer, const std::string &bank)
+static FormsWord ptx_bank_type(const Writer *writer, const char *bank)
 {
-    const auto text = writer->ptx->banks.find(bank);
-    if (text == writer->ptx->banks.end())
+    FormsWord type;
+    type.text[0] = '\0';
+    const KrsEntry *const entry = krs_find(writer->ptx, KRS_BANK, bank);
+    if (entry == NULL)
     {
-        return std::string();
+        return type;
     }
-    const auto type = writer->ptx_types.find(text->second.substr(0u, text->second.find('{')));
-    return (type == writer->ptx_types.end()) ? std::string() : type->second;
+    const char *const text = krs_text(writer->ptx, entry);
+    FormsWord prefix;
+    FORMS_SET_N(prefix, text, forms_chr_n(text, entry->length, '{', 0u));
+    const char *const found = forms_type_of(&writer->ptx_types, prefix.text);
+    FORMS_SET(type, (found != NULL) ? found : "");
+    return type;
 }
 
-// `text` written as a C string's contents
-static std::string c_string(const std::string &text)
+// the `size` bytes at `text` written as a C string's contents onto `line`. The walk jumps from one byte to escape to
+// the next
+static void c_string(VerbaLinea *line, const char *text, size_t size)
 {
-    std::string out;
-    for (const char character : text)
+    size_t at = 0u;
+    while (at < size)
     {
-        out += (character == '\n')   ? std::string("\\n")
-               : (character == '\t') ? std::string("\\t")
-               : (character == '"')  ? std::string("\\\"")
-               : (character == '\\') ? std::string("\\\\")
-                                     : std::string(1u, character);
+        const size_t run =
+            EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text[at], .cap = size - at, .other = "\n\t\"\\");
+        (void)mmgr_line_put_n(line, &text[at], run);
+        at += run;
+        if (at >= size)
+        {
+            break;
+        }
+        const char character = text[at];
+        mmgr_line_put(line, (character == '\n')   ? "\\n"
+                            : (character == '\t') ? "\\t"
+                            : (character == '"')  ? "\\\""
+                                                  : "\\\\");
+        at += 1u;
     }
-    return out;
 }
 
-// the place of each write of `name` in the text of a PTX form. 1 where it is the first operand of a line that writes
+// The place of each write of `name` in the text of a PTX form. 1 where it is the first operand of a line that writes
 // one. 2 where that line is also under a guard, and the line then reads the register as well. 0 where the text only
 // reads it
-static int ptx_written(const std::string &text, const std::string &name)
+static int ptx_written(const char *text, size_t size, const char *name)
 {
     int written = 0;
-    size_t at = 0u;
-    while (at < text.size())
+    for (size_t at = 0u; at < size;)
     {
-        const size_t end = text.find('\n', at);
-        const size_t stop = (end == std::string::npos) ? text.size() : end;
-        const Instruction instruction = instruction_read(text.substr(at, stop - at));
+        const size_t stop = forms_chr_n(text, size, '\n', at);
+        const Instruction instruction = instruction_read_n(&text[at], stop - at);
         at = stop + 1u;
         const int stores =
-            (instruction.operation.compare(0u, 3u, "st.") == 0) || (instruction.operation.compare(0u, 4u, "red.") == 0);
-        if (!stores && !instruction.operands.empty() && (instruction.operands[0].find(name) != std::string::npos))
+            forms_begins(instruction.operation.text, "st.") || forms_begins(instruction.operation.text, "red.");
+        if (!stores && (instruction.operand_count != 0u) && forms_has(instruction.operands[0].text, name))
         {
-            written = instruction.guard.empty() ? ((written == 2) ? 2 : 1) : 2;
+            written = (instruction.guard.text[0] == '\0') ? ((written == 2) ? 2 : 1) : 2;
         }
     }
     return written;
+}
+
+// the registers of a PTX question at max: its outputs and its inputs
+#define FORMS_PTX_OPERANDS_MAX 64u
+
+// The PTX question that the writer builds: its loads, its stores, and the lines before and after its form, each a text
+// of the call's. Then its predicates, its outputs and its inputs, the count of its predicates, and its row
+struct PtxQuestion
+{
+    Writer *writer;
+    PlatformText loads;
+    PlatformText stores;
+    PlatformText before;
+    PlatformText after;
+    FormsLine predicates;
+    FormsLine outputs[FORMS_PTX_OPERANDS_MAX];
+    unsigned int output_count;
+    FormsLine inputs[FORMS_PTX_OPERANDS_MAX];
+    unsigned int input_count;
+    unsigned int predicate_count;
+    FormsLine row;
+};
+
+// One register of the form: its operand, loaded, stored or both, `role` its name in the questions' row. The answer is
+// the text the form names it by: its operand, or the predicate that a predicate crosses through
+static FormsWord ptx_operand(PtxQuestion *question, const char *role, const char *type, int fixed, int read, int write)
+{
+    Writer *const writer = question->writer;
+    const char *const prefix = fixed ? "\t!" : "\t";
+    FormsWord local;
+    FORMS_SET(local, "p_");
+    FORMS_ADD_DECIMAL(local, question->input_count + question->output_count + question->predicate_count);
+    const int predicate = forms_same(type, "pred");
+    const char *const c_type = forms_same(type, "b64") ? "u64" : "u32";
+    const char *const row_type = predicate ? "int" : c_type;
+    mmgr_line_put(&question->loads.line, "        ");
+    mmgr_line_put(&question->loads.line, c_type);
+    mmgr_line_put(&question->loads.line, " ");
+    mmgr_line_put(&question->loads.line, local.text);
+    if (read)
+    {
+        const unsigned int word = writer_take(&writer->in_words, c_type);
+        mmgr_line_put(&question->loads.line, " = ");
+        mmgr_line_put(&question->loads.line, writer_load(c_type, word).text);
+        writer_role(&question->row, prefix, role, "in", word, row_type);
+    }
+    mmgr_line_put(&question->loads.line, ";\n");
+    if (write)
+    {
+        const unsigned int word = writer_take(&writer->out_words, c_type);
+        mmgr_line_put(&question->stores.line, writer_store(c_type, word, local.text).text);
+        writer_role(&question->row, prefix, role, "out", word, row_type);
+    }
+    const char *const constraint = forms_same(c_type, "u64") ? "l" : "r";
+    FormsWord placed;
+    if ((write ? question->output_count : question->input_count) == FORMS_PTX_OPERANDS_MAX)
+    {
+        forms_refused("a PTX question names more registers than it holds: ", role, forms_length(role));
+    }
+    if (write)
+    {
+        FormsLine *const output = &question->outputs[question->output_count];
+        FORMS_SET(*output, "\"");
+        FORMS_ADD(*output, read ? "+" : "=");
+        FORMS_ADD(*output, constraint);
+        FORMS_ADD(*output, "\"(");
+        FORMS_ADD(*output, local.text);
+        FORMS_ADD(*output, ")");
+        FORMS_SET(placed, "%");
+        FORMS_ADD_DECIMAL(placed, question->output_count);
+        question->output_count += 1u;
+    }
+    else
+    {
+        FormsLine *const input = &question->inputs[question->input_count];
+        FORMS_SET(*input, "\"");
+        FORMS_ADD(*input, constraint);
+        FORMS_ADD(*input, "\"(");
+        FORMS_ADD(*input, local.text);
+        FORMS_ADD(*input, ")");
+        FORMS_SET(placed, "%I");
+        FORMS_ADD_DECIMAL(placed, question->input_count);
+        question->input_count += 1u;
+    }
+    if (!predicate)
+    {
+        return placed;
+    }
+    FormsWord predicate_name;
+    FORMS_SET(predicate_name, "mq");
+    FORMS_ADD_DECIMAL(predicate_name, question->predicate_count);
+    question->predicate_count += 1u;
+    FORMS_ADD(question->predicates, (question->predicates.text[0] == '\0') ? "" : ", ");
+    FORMS_ADD(question->predicates, predicate_name.text);
+    if (read)
+    {
+        mmgr_line_put(&question->before.line, "\tsetp.ne.u32 ");
+        mmgr_line_put(&question->before.line, predicate_name.text);
+        mmgr_line_put(&question->before.line, ", ");
+        mmgr_line_put(&question->before.line, placed.text);
+        mmgr_line_put(&question->before.line, ", 0;\n");
+    }
+    if (write)
+    {
+        mmgr_line_put(&question->after.line, "\tselp.u32 ");
+        mmgr_line_put(&question->after.line, placed.text);
+        mmgr_line_put(&question->after.line, ", 1, 0, ");
+        mmgr_line_put(&question->after.line, predicate_name.text);
+        mmgr_line_put(&question->after.line, ";\n");
+    }
+    return predicate_name;
+}
+
+// the line of the `size` bytes at `text` that holds the place `at`, as a piece: its first byte into `first`, and its
+// bytes the answer
+static size_t forms_line_of(const char *text, size_t size, size_t at, size_t *first)
+{
+    const size_t newline = forms_chr_last(text, at, '\n');
+    *first = (newline == at) ? 0u : (newline + 1u);
+    return forms_chr_n(text, size, '\n', at) - *first;
+}
+
+// `text` with each place of `mark` written `put`, in place. The search for each goes on past the one put before it
+static void forms_text_replaced(PlatformText *text, const char *mark, const char *put)
+{
+    PlatformText replaced;
+    forms_text_begun(&replaced);
+    size_t size = 0u;
+    const char *const bytes = forms_text_bytes(text, &size);
+    const size_t mark_size = forms_length(mark);
+    size_t at = 0u;
+    for (size_t found = forms_find_n(bytes, size, mark, 0u); found < size; found = forms_find_n(bytes, size, mark, at))
+    {
+        (void)mmgr_line_put_n(&replaced.line, &bytes[at], found - at);
+        mmgr_line_put(&replaced.line, put);
+        at = found + mark_size;
+    }
+    (void)mmgr_line_put_n(&replaced.line, &bytes[at], size - at);
+    platform_text_reset(text);
+    forms_text_put(text, &replaced);
+    platform_text_ended(&replaced);
+}
+
+// `text` with each place of `%<register>` that no byte of an identifier follows written `put`, in place
+static void ptx_register_replaced(PlatformText *text, const char *register_name, const char *put)
+{
+    FormsWord mark;
+    FORMS_SET(mark, "%");
+    FORMS_ADD(mark, register_name);
+    PlatformText replaced;
+    forms_text_begun(&replaced);
+    size_t size = 0u;
+    const char *const bytes = forms_text_bytes(text, &size);
+    const size_t mark_size = forms_length(mark.text);
+    size_t last = 0u;
+    for (size_t at = forms_find_n(bytes, size, mark.text, 0u); at < size;)
+    {
+        const size_t end = at + mark_size;
+        if ((end >= size) || !forms_identifier(bytes[end]))
+        {
+            (void)mmgr_line_put_n(&replaced.line, &bytes[last], at - last);
+            mmgr_line_put(&replaced.line, put);
+            last = end;
+        }
+        at = forms_find_n(bytes, size, mark.text, end);
+    }
+    (void)mmgr_line_put_n(&replaced.line, &bytes[last], size - last);
+    platform_text_reset(text);
+    forms_text_put(text, &replaced);
+    platform_text_ended(&replaced);
+}
+
+// The registers of a PTX form, `first` to `count`, apart by ", " onto `line`
+static void ptx_joined(VerbaLinea *line, const FormsLine *operands, unsigned int count)
+{
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        mmgr_line_put(line, (at == 0u) ? "" : ", ");
+        mmgr_line_put(line, operands[at].text);
+    }
 }
 
 // One form submitted in the own text of ptx.krs, for the SASS that NVIDIA's assembler writes from it. The text is an
@@ -1010,347 +1924,377 @@ static int ptx_written(const std::string &text, const std::string &name)
 //
 // No question reads a copy. In a straight run, the allocator gives the two words of the copy one register. Only a
 // register fixed from outside, such as that of a call, makes it write one
-static void writer_ptx_question(Writer *writer, const LaneForm &lane_form, int alternate)
+static void writer_ptx_question(Writer *writer, const LaneForm *lane_form, int alternate)
 {
-    const std::string name = s_form_names[lane_form.form];
-    const auto found = writer->ptx->forms.find(name);
-    if (found == writer->ptx->forms.end())
+    const char *const name = s_form_names[lane_form->form];
+    const KrsEntry *const form = krs_find(writer->ptx, KRS_FORM, name);
+    if (form == NULL)
     {
         return;
     }
-    const KrsForm &form = found->second;
+    const char *const form_text = krs_text(writer->ptx, form);
+    const size_t form_size = form->length;
     writer->ptx_tag += 1u;
     const unsigned int tag = MONOLITH_FORMS_PTX + writer->ptx_tag;
-    std::string row = std::to_string(tag) + "\t" + name + "\t" + lane_form_key(lane_form);
+    static PtxQuestion s_question;
+    PtxQuestion *const question = &s_question;
+    question->writer = writer;
+    question->predicates.text[0] = '\0';
+    question->output_count = 0u;
+    question->input_count = 0u;
+    question->predicate_count = 0u;
+    question->row.text[0] = '\0';
+    FORMS_ADD_DECIMAL(question->row, tag);
+    FORMS_ADD(question->row, "\t");
+    FORMS_ADD(question->row, name);
+    FORMS_ADD(question->row, "\t");
+    FORMS_ADD(question->row, lane_form_key(lane_form).text);
+    forms_text_begun(&question->loads);
+    forms_text_begun(&question->stores);
+    forms_text_begun(&question->before);
+    forms_text_begun(&question->after);
     // every % of the text retained as one, and each register named in it then given its operand
-    std::string text;
-    for (const char character : form.text)
+    PlatformText text;
+    forms_text_begun(&text);
+    for (size_t at = 0u; at < form_size;)
     {
-        text += (character == '%') ? std::string("%%") : std::string(1u, character);
+        const size_t percent = forms_chr_n(form_text, form_size, '%', at);
+        (void)mmgr_line_put_n(&text.line, &form_text[at], percent - at);
+        if (percent < form_size)
+        {
+            mmgr_line_put(&text.line, "%%");
+        }
+        at = percent + 1u;
     }
-    std::string loads;
-    std::string stores;
-    std::string before;
-    std::string after;
-    std::string predicates;
-    std::vector<std::string> outputs;
-    std::vector<std::string> inputs;
-    unsigned int predicate_count = 0u;
     unsigned int opaque = 0u;
-    // one register of the form: its operand, loaded, stored or both, `role` its name in the questions' row
-    auto operand = [&](const std::string &role, const std::string &type, int fixed, int read,
-                       int write) -> std::string {
-        const std::string prefix = fixed ? "\t!" : "\t";
-        const std::string local = "p_" + std::to_string(inputs.size() + outputs.size() + predicate_count);
-        const int predicate = (type == "pred");
-        const std::string c_type = (type == "b64") ? "u64" : "u32";
-        const std::string row_type = predicate ? "int" : c_type;
-        if (read)
-        {
-            const unsigned int word = writer_take(&writer->in_words, c_type);
-            loads += "        " + c_type + " " + local + " = " + writer_load(c_type, word) + ";\n";
-            row += prefix + role + "=in:" + std::to_string(word) + ":" + row_type;
-        }
-        else
-        {
-            loads += "        " + c_type + " " + local + ";\n";
-        }
-        if (write)
-        {
-            const unsigned int word = writer_take(&writer->out_words, c_type);
-            stores += writer_store(c_type, word, local);
-            row += prefix + role + "=out:" + std::to_string(word) + ":" + row_type;
-        }
-        const std::string constraint = (c_type == "u64") ? "l" : "r";
-        std::string placed;
-        if (write)
-        {
-            outputs.push_back(std::string("\"") + (read ? "+" : "=") + constraint + "\"(" + local + ")");
-            placed = "%" + std::to_string(outputs.size() - 1u);
-        }
-        else
-        {
-            inputs.push_back("\"" + constraint + "\"(" + local + ")");
-            placed = "%I" + std::to_string(inputs.size() - 1u);
-        }
-        if (!predicate)
-        {
-            return placed;
-        }
-        const std::string predicate_name = "mq" + std::to_string(predicate_count);
-        predicate_count += 1u;
-        predicates += predicates.empty() ? predicate_name : (", " + predicate_name);
-        if (read)
-        {
-            before += "\tsetp.ne.u32 " + predicate_name + ", " + placed + ", 0;\n";
-        }
-        if (write)
-        {
-            after += "\tselp.u32 " + placed + ", 1, 0, " + predicate_name + ";\n";
-        }
-        return predicate_name;
-    };
-    for (size_t at = 0u; at < form.parameters.size(); at += 1u)
+    for (unsigned int at = 0u; at < form->parameter_count; at += 1u)
     {
-        const std::string &parameter = form.parameters[at];
-        const Argument &argument = lane_form.arguments[at];
-        std::string type;
-        if ((argument.type == OPERAND_REGISTER) && (argument.which != REGCLASS_IMMEDIATE))
+        const char *const parameter = krs_parameter(writer->ptx, form, at);
+        const Argument *const argument = &lane_form->arguments[at];
+        FormsWord type;
+        type.text[0] = '\0';
+        if ((argument->type == OPERAND_REGISTER) && (argument->which != REGCLASS_IMMEDIATE))
         {
-            type = ptx_bank_type(writer, s_bank_names[argument.which]);
+            type = ptx_bank_type(writer, s_bank_names[argument->which]);
         }
-        else if (argument.type == OPERAND_PHYSREG)
+        else if (argument->type == OPERAND_PHYSREG)
         {
-            const auto fixed = writer->ptx->fixed.find(s_fixed_names[argument.which]);
-            const auto declared =
-                (fixed == writer->ptx->fixed.end()) ? writer->ptx_types.end() : writer->ptx_types.find(fixed->second);
-            type = (declared == writer->ptx_types.end()) ? std::string() : declared->second;
+            const KrsEntry *const fixed = krs_find(writer->ptx, KRS_FIXED, s_fixed_names[argument->which]);
+            const char *const declared =
+                (fixed == NULL) ? NULL : forms_type_of(&writer->ptx_types, krs_text(writer->ptx, fixed));
+            FORMS_SET(type, (declared != NULL) ? declared : "");
         }
-        if (type.empty())
+        FormsWord braced;
+        FORMS_SET(braced, "{");
+        FORMS_ADD(braced, parameter);
+        FORMS_ADD(braced, "}");
+        if (type.text[0] == '\0')
         {
-            const unsigned int value = (alternate == 1) ? number_alternate(argument.number) : argument.number;
-            std::string line_of;
-            const size_t named = form.text.find("{" + parameter + "}");
-            if (named != std::string::npos)
+            const unsigned int value = (alternate == 1) ? number_alternate(argument->number) : argument->number;
+            // the line of the form's text that names the parameter first
+            FormsLine line_of;
+            line_of.text[0] = '\0';
+            const size_t named = forms_find_n(form_text, form_size, braced.text, 0u);
+            if (named < form_size)
             {
-                const size_t start = form.text.rfind('\n', named);
-                const size_t stop = form.text.find('\n', named);
-                line_of = form.text.substr((start == std::string::npos) ? 0u : (start + 1u),
-                                           ((stop == std::string::npos) ? form.text.size() : stop) -
-                                               ((start == std::string::npos) ? 0u : (start + 1u)));
+                size_t first = 0u;
+                const size_t length = forms_line_of(form_text, form_size, named, &first);
+                FORMS_SET_N(line_of, &form_text[first], length);
             }
-            const size_t bracket = line_of.find('[');
-            const int addressed = (bracket != std::string::npos) && (line_of.find("{" + parameter + "}") > bracket);
+            const size_t line_length = forms_length(line_of.text);
+            const size_t bracket = forms_chr_n(line_of.text, line_length, '[', 0u);
+            const int addressed =
+                (bracket < line_length) && (forms_find_n(line_of.text, line_length, braced.text, 0u) > bracket);
             // a shift's count is a 32-bit word whatever the width it shifts
-            const std::string operation = line_of.empty() ? std::string() : instruction_read(line_of).operation;
-            const int wide =
-                !addressed && (operation.find("64") != std::string::npos) && (operation.compare(0u, 2u, "sh") != 0);
+            FormsWord operation;
+            operation.text[0] = '\0';
+            if (line_length != 0u)
+            {
+                operation = instruction_read_n(line_of.text, line_length).operation;
+            }
+            const int wide = !addressed && forms_has(operation.text, "64") && !forms_begins(operation.text, "sh");
             // the question submits a 64-bit number whole. Its high word is the alternate of its low, which is never 0
             // and never the low word itself. The compiler folds a high word of 0 to RZ, and the tool does not read the
             // form that it writes for any other
             const unsigned long long whole =
                 wide ? (((unsigned long long)number_alternate(value) << 32u) | value) : value;
-            const std::string number =
-                ((argument.type == OPERAND_SIGNED) && !wide) ? std::to_string((int)value) : std::to_string(whole);
-            if ((alternate == 2) && !line_of.empty() && !addressed)
+            FormsWord number;
+            number.text[0] = '\0';
+            if ((argument->type == OPERAND_SIGNED) && !wide)
             {
-                text = text_fill(text, parameter, operand(parameter, wide ? "b64" : "b32", 0, 1, 0));
-                row += ":number:" + number;
+                // the bits of the word read as the signed word a signed argument holds
+                FORMS_ADD_SIGNED(number, (long long)(int)value);
+            }
+            else
+            {
+                FORMS_ADD_DECIMAL(number, whole);
+            }
+            if ((alternate == 2) && (line_length != 0u) && !addressed)
+            {
+                const FormsWord placed = ptx_operand(question, parameter, wide ? "b64" : "b32", 0, 1, 0);
+                forms_text_fill(&text, parameter, placed.text);
+                FORMS_ADD(question->row, ":number:");
+                FORMS_ADD(question->row, number.text);
                 opaque += 1u;
                 continue;
             }
-            text = text_fill(text, parameter, number);
-            row += "\t" + parameter + "=number:" + number;
+            forms_text_fill(&text, parameter, number.text);
+            FORMS_ADD(question->row, "\t");
+            FORMS_ADD(question->row, parameter);
+            FORMS_ADD(question->row, "=number:");
+            FORMS_ADD(question->row, number.text);
             continue;
         }
-        const int written = ptx_written(form.text, "{" + parameter + "}");
+        const int written = ptx_written(form_text, form_size, braced.text);
         const int read = (written != 1);
-        text = text_fill(text, parameter, operand(parameter, type, 0, read, written != 0));
+        const FormsWord placed = ptx_operand(question, parameter, type.text, 0, read, written != 0);
+        forms_text_fill(&text, parameter, placed.text);
     }
     // a form whose every number sits in an address tests nothing the literal questions did not
     if ((alternate == 2) && (opaque == 0u))
     {
         writer->ptx_tag -= 1u;
+        platform_text_ended(&text);
+        platform_text_ended(&question->after);
+        platform_text_ended(&question->before);
+        platform_text_ended(&question->stores);
+        platform_text_ended(&question->loads);
         return;
     }
     // the fixed registers the text names, each loaded as an argument is: the ruleset's name for it where it has one
-    for (const auto &declared : writer->ptx_types)
+    for (unsigned int declared = 0u; declared < writer->ptx_types.count; declared += 1u)
     {
-        const std::string &register_name = declared.first;
-        if ((register_name.empty()) || (register_name[0] != '%') || !text_names(text, "%" + register_name))
+        const char *const register_name = writer->ptx_types.declared[declared].name;
+        FormsWord mark;
+        FORMS_SET(mark, "%");
+        FORMS_ADD(mark, register_name);
+        size_t size = 0u;
+        if ((register_name[0] != '%') || !forms_names(forms_text_bytes(&text, &size), mark.text))
         {
             continue;
         }
-        std::string role = register_name.substr(1u);
-        for (const auto &fixed : writer->ptx->fixed)
+        FormsWord role;
+        FORMS_SET(role, &register_name[1]);
+        for (unsigned int fixed = 0u; fixed < writer->ptx->counts[KRS_FIXED]; fixed += 1u)
         {
-            role = (fixed.second == register_name) ? fixed.first : role;
-        }
-        const int written = ptx_written(form.text, register_name);
-        const std::string placed = operand(role, declared.second, 1, written != 1, written != 0);
-        size_t at = text.find("%" + register_name);
-        while (at != std::string::npos)
-        {
-            const size_t end = at + 1u + register_name.size();
-            if ((end >= text.size()) || !identifier_character(text[end]))
+            const KrsEntry *const entry = &writer->ptx->entries[KRS_FIXED][fixed];
+            if (forms_same(krs_text(writer->ptx, entry), register_name))
             {
-                text.replace(at, end - at, placed);
-                at = text.find("%" + register_name, at + placed.size());
-                continue;
+                FORMS_SET(role, entry->name);
             }
-            at = text.find("%" + register_name, end);
         }
+        const int written = ptx_written(form_text, form_size, register_name);
+        const FormsWord placed =
+            ptx_operand(question, role.text, writer->ptx_types.declared[declared].type, 1, written != 1, written != 0);
+        ptx_register_replaced(&text, register_name, placed.text);
     }
     // the carry flag: set from a word before a form that reads it, read into a word after a form that writes it
     int carry_in = 0;
     int carry_out = 0;
-    size_t at = 0u;
-    while (at < form.text.size())
+    for (size_t at = 0u; at < form_size;)
     {
-        const size_t end = form.text.find('\n', at);
-        const size_t stop = (end == std::string::npos) ? form.text.size() : end;
-        const std::string operation = instruction_read(form.text.substr(at, stop - at)).operation;
+        const size_t stop = forms_chr_n(form_text, form_size, '\n', at);
+        const FormsWord operation = instruction_read_n(&form_text[at], stop - at).operation;
         at = stop + 1u;
-        carry_in = carry_in || (operation.compare(0u, 4u, "addc") == 0) || (operation.compare(0u, 4u, "subc") == 0) ||
-                   (operation.compare(0u, 4u, "madc") == 0);
-        carry_out = carry_out || (operation.find(".cc") != std::string::npos);
+        carry_in = carry_in || forms_begins(operation.text, "addc") || forms_begins(operation.text, "subc") ||
+                   forms_begins(operation.text, "madc");
+        carry_out = carry_out || forms_has(operation.text, ".cc");
     }
     if (carry_in)
     {
         const unsigned int word = writer_take(&writer->in_words, "u32");
-        const std::string local = "p_carry_in";
-        loads += "        u32 " + local + " = " + writer_load("u32", word) + ";\n";
-        row += "\t!carry=in:" + std::to_string(word) + ":int";
-        inputs.push_back("\"r\"(" + local + ")");
-        before = "\tadd.cc.u32 mw, %I" + std::to_string(inputs.size() - 1u) + ", 0xffffffff;\n" + before;
+        mmgr_line_put(&question->loads.line, "        u32 p_carry_in = ");
+        mmgr_line_put(&question->loads.line, writer_load("u32", word).text);
+        mmgr_line_put(&question->loads.line, ";\n");
+        writer_role(&question->row, "\t!", "carry", "in", word, "int");
+        if (question->input_count == FORMS_PTX_OPERANDS_MAX)
+        {
+            forms_refused("a PTX question names more registers than it holds: ", name, forms_length(name));
+        }
+        FORMS_SET(question->inputs[question->input_count], "\"r\"(p_carry_in)");
+        question->input_count += 1u;
+        PlatformText before;
+        forms_text_begun(&before);
+        mmgr_line_put(&before.line, "\tadd.cc.u32 mw, %I");
+        mmgr_line_decimal(&before.line, question->input_count - 1u, 1u);
+        mmgr_line_put(&before.line, ", 0xffffffff;\n");
+        forms_text_put(&before, &question->before);
+        platform_text_reset(&question->before);
+        forms_text_put(&question->before, &before);
+        platform_text_ended(&before);
     }
     if (carry_out)
     {
         const unsigned int word = writer_take(&writer->out_words, "u32");
-        const std::string local = "p_carry_out";
-        loads += "        u32 " + local + ";\n";
-        stores += writer_store("u32", word, local);
-        row += "\t!carry=out:" + std::to_string(word) + ":int";
-        outputs.push_back("\"=r\"(" + local + ")");
-        after += "\taddc.u32 %" + std::to_string(outputs.size() - 1u) + ", 0, 0;\n";
-    }
-    std::string statement = "{\n\t.reg .b32 mw;\n" +
-                            (predicates.empty() ? std::string() : ("\t.reg .pred " + predicates + ";\n")) + before +
-                            text + after + "}\n";
-    // the inputs numbered past the outputs, as an inline assembly statement numbers them
-    for (size_t one = inputs.size(); one > 0u; one -= 1u)
-    {
-        const std::string mark = "%I" + std::to_string(one - 1u);
-        const std::string put = "%" + std::to_string(outputs.size() + one - 1u);
-        size_t place = statement.find(mark);
-        while (place != std::string::npos)
+        mmgr_line_put(&question->loads.line, "        u32 p_carry_out;\n");
+        mmgr_line_put(&question->stores.line, writer_store("u32", word, "p_carry_out").text);
+        writer_role(&question->row, "\t!", "carry", "out", word, "int");
+        if (question->output_count == FORMS_PTX_OPERANDS_MAX)
         {
-            statement.replace(place, mark.size(), put);
-            place = statement.find(mark, place + put.size());
+            forms_refused("a PTX question names more registers than it holds: ", name, forms_length(name));
         }
+        FORMS_SET(question->outputs[question->output_count], "\"=r\"(p_carry_out)");
+        question->output_count += 1u;
+        mmgr_line_put(&question->after.line, "\taddc.u32 %");
+        mmgr_line_decimal(&question->after.line, question->output_count - 1u, 1u);
+        mmgr_line_put(&question->after.line, ", 0, 0;\n");
     }
-    std::string joined_outputs;
-    for (const std::string &one : outputs)
+    PlatformText statement;
+    forms_text_begun(&statement);
+    mmgr_line_put(&statement.line, "{\n\t.reg .b32 mw;\n");
+    if (question->predicates.text[0] != '\0')
     {
-        joined_outputs += (joined_outputs.empty() ? "" : ", ") + one;
+        mmgr_line_put(&statement.line, "\t.reg .pred ");
+        mmgr_line_put(&statement.line, question->predicates.text);
+        mmgr_line_put(&statement.line, ";\n");
     }
-    std::string joined_inputs;
-    for (const std::string &one : inputs)
+    forms_text_put(&statement, &question->before);
+    forms_text_put(&statement, &text);
+    forms_text_put(&statement, &question->after);
+    mmgr_line_put(&statement.line, "}\n");
+    // the inputs numbered past the outputs, as an inline assembly statement numbers them
+    for (unsigned int one = question->input_count; one > 0u; one -= 1u)
     {
-        joined_inputs += (joined_inputs.empty() ? "" : ", ") + one;
+        FormsWord mark;
+        FORMS_SET(mark, "%I");
+        FORMS_ADD_DECIMAL(mark, one - 1u);
+        FormsWord put;
+        FORMS_SET(put, "%");
+        FORMS_ADD_DECIMAL(put, question->output_count + one - 1u);
+        forms_text_replaced(&statement, mark.text, put.text);
     }
-    char line[96];
-    {
-        VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
-        mmgr_line_put(&buffer_line, "\n    MONOLITH_TAG(");
-        mmgr_line_decimal(&buffer_line, MONOLITH_FORMS_LOADS + tag, 1u);
-        mmgr_line_put(&buffer_line, ");\n    {\n");
-        (void)mmgr_line_finish(&buffer_line);
-    }
-    writer->body += line + loads;
-    {
-        VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
-        mmgr_line_put(&buffer_line, "        MONOLITH_TAG(");
-        mmgr_line_decimal(&buffer_line, tag, 1u);
-        mmgr_line_put(&buffer_line, ");\n");
-        (void)mmgr_line_finish(&buffer_line);
-    }
-    writer->body += line + std::string("        asm volatile(\"") + c_string(statement) + "\" : " + joined_outputs +
-                    " : " + joined_inputs + ");\n";
-    {
-        VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
-        mmgr_line_put(&buffer_line, "        MONOLITH_TAG(");
-        mmgr_line_decimal(&buffer_line, MONOLITH_FORMS_STORES + tag, 1u);
-        mmgr_line_put(&buffer_line, ");\n");
-        (void)mmgr_line_finish(&buffer_line);
-    }
-    writer->body += line + stores + "    }\n";
-    writer->questions.push_back(row);
+    writer_tag(writer, "\n    MONOLITH_TAG(", MONOLITH_FORMS_LOADS + tag, ");\n    {\n");
+    forms_text_put(&writer->body, &question->loads);
+    writer_tag(writer, "        MONOLITH_TAG(", tag, ");\n");
+    mmgr_line_put(&writer->body.line, "        asm volatile(\"");
+    size_t statement_size = 0u;
+    const char *const statement_bytes = forms_text_bytes(&statement, &statement_size);
+    c_string(&writer->body.line, statement_bytes, statement_size);
+    mmgr_line_put(&writer->body.line, "\" : ");
+    ptx_joined(&writer->body.line, question->outputs, question->output_count);
+    mmgr_line_put(&writer->body.line, " : ");
+    ptx_joined(&writer->body.line, question->inputs, question->input_count);
+    mmgr_line_put(&writer->body.line, ");\n");
+    writer_tag(writer, "        MONOLITH_TAG(", MONOLITH_FORMS_STORES + tag, ");\n");
+    forms_text_put(&writer->body, &question->stores);
+    mmgr_line_put(&writer->body.line, "    }\n");
+    writer_row(writer, &question->row);
+    platform_text_ended(&statement);
+    platform_text_ended(&text);
+    platform_text_ended(&question->after);
+    platform_text_ended(&question->before);
+    platform_text_ended(&question->stores);
+    platform_text_ended(&question->loads);
+}
+
+// a note of the engine's that a file did not read or the tool did not write it: `head`, `path`, `middle`, `other` and
+// `tail`
+static void forms_noted(const char *head, const char *path, const char *middle, const char *other, const char *tail)
+{
+    EngineNote engine_note;
+    engine_note_begun(&engine_note);
+    mmgr_line_put(&engine_note.line, head);
+    mmgr_line_put(&engine_note.line, path);
+    mmgr_line_put(&engine_note.line, middle);
+    mmgr_line_put(&engine_note.line, other);
+    mmgr_line_put(&engine_note.line, tail);
+    mmgr_line_ch(&engine_note.line, '\n');
+    engine_note_written(&engine_note);
 }
 
 static int forms_write(const char *c_path, const char *ptx_path, const char *monolith_path, const char *questions_path)
 {
-    Krs c;
-    Krs ptx;
-    if ((c_target().ruleset(1) == NULL) || !krs_read(c_path, &c) || !krs_read(ptx_path, &ptx))
+    static Krs s_c;
+    static Krs s_ptx;
+    if ((c_target().ruleset(1) == NULL) || !krs_read(c_path, &s_c) || !krs_read(ptx_path, &s_ptx))
     {
-        {
-            EngineNote engine_note;
-            engine_note_begun(&engine_note);
-            mmgr_line_put(&engine_note.line, "the ruleset ");
-            mmgr_line_put(&engine_note.line, c_path);
-            mmgr_line_put(&engine_note.line, " or ");
-            mmgr_line_put(&engine_note.line, ptx_path);
-            mmgr_line_put(&engine_note.line, " did not read");
-            mmgr_line_ch(&engine_note.line, '\n');
-            engine_note_written(&engine_note);
-        }
+        forms_noted("the ruleset ", c_path, " or ", ptx_path, " did not read");
         return 2;
     }
-    Gathered gathered;
     HostProgram program;
     HostProgram bare;
     for (int reuse = 0; reuse <= 1; reuse += 1)
     {
         host_arithmetic(&program);
-        gather_lane(c, &program, reuse, &gathered);
+        gather_lane(&s_c, &program, reuse);
         host_division(&program);
-        gather_lane(c, &program, reuse, &gathered);
+        gather_lane(&s_c, &program, reuse);
         host_bitwise(&program);
-        gather_lane(c, &program, reuse, &gathered);
+        gather_lane(&s_c, &program, reuse);
         host_members(&program);
-        gather_lane(c, &program, reuse, &gathered);
+        gather_lane(&s_c, &program, reuse);
         host_affine_limit(&program);
-        gather_lane(c, &program, reuse, &gathered);
+        gather_lane(&s_c, &program, reuse);
         host_bare_divisor(&bare);
-        gather_lane(c, &bare, reuse, &gathered);
+        gather_lane(&s_c, &bare, reuse);
         host_inexact(&program, &bare);
-        gather_lane(c, &program, reuse, &gathered);
+        gather_lane(&s_c, &program, reuse);
         // the two tables the program reads through, sized as the host oracle sizes them
         unsigned int *const wide = (unsigned int *)platform_cell_taken(
             (unsigned long long)(512u * sizeof(unsigned int)), (unsigned int)platform_place_g_program_owner, 0);
         unsigned int *const narrow = (unsigned int *)platform_cell_taken(
             (unsigned long long)(4096u * sizeof(unsigned int)), (unsigned int)platform_place_g_program_owner, 0);
         host_tables(&program, wide, narrow);
-        gather_lane(c, &program, reuse, &gathered);
+        gather_lane(&s_c, &program, reuse);
         platform_cell_released(wide, (unsigned int)platform_place_g_program_owner);
         platform_cell_released(narrow, (unsigned int)platform_place_g_program_owner);
     }
-    Writer writer;
-    writer.c = &c;
-    writer.ptx = &ptx;
-    writer.declared = c_declared(c);
-    writer.ptx_types = ptx_declared(ptx);
-    writer.tag = 0u;
-    writer.ptx_tag = 0u;
-    writer.in_words = 0u;
-    writer.out_words = 0u;
+    static Writer s_writer;
+    Writer *const writer = &s_writer;
+    writer->c = &s_c;
+    writer->ptx = &s_ptx;
+    writer->declared = c_declared(&s_c);
+    writer->ptx_types = ptx_declared(&s_ptx);
+    writer->questions = 0u;
+    writer->tag = 0u;
+    writer->ptx_tag = 0u;
+    writer->in_words = 0u;
+    writer->out_words = 0u;
+    forms_kept_begun(&writer->body);
+    forms_kept_begun(&writer->rows);
     // the helpers the lane's opening defines for the carry chains, everything it contains before the lane itself
-    const std::string &open = c.forms.at("lane_open").text;
-    writer.helpers = open.substr(0u, open.find("extern \"C\" __device__"));
-    for (const std::vector<LaneForm> &question : gathered.questions)
+    const KrsEntry *const open = krs_find(&s_c, KRS_FORM, "lane_open");
+    if (open == NULL)
     {
-        writer_question(&writer, question, 0);
-        if (question_numbered(question))
+        forms_refused("c.krs gives no form lane_open", "", 0u);
+    }
+    writer->helpers = krs_text(&s_c, open);
+    writer->helpers_length = forms_find_n(writer->helpers, open->length, "extern \"C\" __device__", 0u);
+    for (unsigned int at = 0u; at < s_gathered_count; at += 1u)
+    {
+        const LaneForm *const question = &s_lane_forms[s_gathered[at].first];
+        const unsigned int count = s_gathered[at].count;
+        writer_question(writer, question, count, 0);
+        if (question_numbered(question, count))
         {
-            writer_question(&writer, question, 1);
+            writer_question(writer, question, count, 1);
         }
     }
-    // each form again in ptx.krs's own text, for the SASS read off it: alone, since the carry crosses as a word
-    std::set<std::string> ptx_keys;
-    for (const std::vector<LaneForm> &question : gathered.questions)
+    // each form again in ptx.krs's own text, for the SASS read off it: alone, since the carry crosses as a word. A
+    // form of one key goes once, the first that the questions give
+    static const LaneForm *s_ptx_seen[FORMS_LANE_FORMS_MAX];
+    unsigned int ptx_seen = 0u;
+    for (unsigned int at = 0u; at < s_gathered_count; at += 1u)
     {
-        for (const LaneForm &lane_form : question)
+        for (unsigned int one = 0u; one < s_gathered[at].count; one += 1u)
         {
-            if (!ptx_keys.insert(lane_form_key(lane_form)).second)
+            const LaneForm *const lane_form = &s_lane_forms[s_gathered[at].first + one];
+            int seen = 0;
+            for (unsigned int before = 0u; !seen && (before < ptx_seen); before += 1u)
+            {
+                seen = lane_form_alike(s_ptx_seen[before], lane_form);
+            }
+            if (seen)
             {
                 continue;
             }
-            writer_ptx_question(&writer, lane_form, 0);
-            if (question_numbered(std::vector<LaneForm>{lane_form}))
+            s_ptx_seen[ptx_seen] = lane_form;
+            ptx_seen += 1u;
+            writer_ptx_question(writer, lane_form, 0);
+            if (question_numbered(lane_form, 1u))
             {
-                writer_ptx_question(&writer, lane_form, 1);
-                writer_ptx_question(&writer, lane_form, 2);
+                writer_ptx_question(writer, lane_form, 1);
+                writer_ptx_question(writer, lane_form, 2);
             }
         }
     }
@@ -1358,81 +2302,63 @@ static int forms_write(const char *c_path, const char *ptx_path, const char *mon
     PlatformFile *const rows = platform_file_open(questions_path, "wb");
     if ((out == NULL) || (rows == NULL))
     {
-        {
-            EngineNote engine_note;
-            engine_note_begun(&engine_note);
-            mmgr_line_put(&engine_note.line, "the monolith ");
-            mmgr_line_put(&engine_note.line, monolith_path);
-            mmgr_line_put(&engine_note.line, " or the questions ");
-            mmgr_line_put(&engine_note.line, questions_path);
-            mmgr_line_put(&engine_note.line, " was not written");
-            mmgr_line_ch(&engine_note.line, '\n');
-            engine_note_written(&engine_note);
-        }
+        forms_noted("the monolith ", monolith_path, " or the questions ", questions_path, " was not written");
         return 2;
     }
-    {
-        mmgr_line_put(platform_file_line(out),
-                      "// written by monolith_forms from c.krs and the lanes of the record programs; not edited by "
-                      "hand\ntypedef unsigned int u32;\ntypedef unsigned long long u64;\ntypedef signed char "
-                      "s8;\n\n#define MONOLITH_TAG(tag_) asm volatile(\"pmevent.mask ");
-        mmgr_line_ch(platform_file_line(out), '%');
-        mmgr_line_put(platform_file_line(out), "0;\" ::\"n\"(tag_) : \"memory\")\n");
-        mmgr_line_put(platform_file_line(out), writer.helpers.c_str());
-        mmgr_line_put(
-            platform_file_line(out),
-            "\nextern \"C\" __global__ void monolith_forms(const u32 *in, u32 *out)\n{\n    u32 carry = 0u;\n");
-        mmgr_line_put(platform_file_line(out), writer.body.c_str());
-        mmgr_line_put(platform_file_line(out), "\n    MONOLITH_TAG(");
-        mmgr_line_decimal(platform_file_line(out), writer.tag + 1u, 1u);
-        mmgr_line_put(platform_file_line(out), ");\n}\n");
-    }
-    for (const std::string &row : writer.questions)
-    {
-        mmgr_line_put(platform_file_line(rows), row.c_str());
-        mmgr_line_put(platform_file_line(rows), "\n");
-    }
+    VerbaLinea *const line = platform_file_line(out);
+    mmgr_line_put(line, "// written by monolith_forms from c.krs and the lanes of the record programs; not edited by "
+                        "hand\ntypedef unsigned int u32;\ntypedef unsigned long long u64;\ntypedef signed char "
+                        "s8;\n\n#define MONOLITH_TAG(tag_) asm volatile(\"pmevent.mask ");
+    mmgr_line_ch(line, '%');
+    mmgr_line_put(line, "0;\" ::\"n\"(tag_) : \"memory\")\n");
+    (void)mmgr_line_put_n(line, writer->helpers, writer->helpers_length);
+    mmgr_line_put(line,
+                  "\nextern \"C\" __global__ void monolith_forms(const u32 *in, u32 *out)\n{\n    u32 carry = 0u;\n");
+    size_t body_size = 0u;
+    const char *const body = forms_text_bytes(&writer->body, &body_size);
+    (void)mmgr_line_put_n(line, body, body_size);
+    mmgr_line_put(line, "\n    MONOLITH_TAG(");
+    mmgr_line_decimal(line, writer->tag + 1u, 1u);
+    mmgr_line_put(line, ");\n}\n");
+    size_t rows_size = 0u;
+    const char *const rows_bytes = forms_text_bytes(&writer->rows, &rows_size);
+    (void)mmgr_line_put_n(platform_file_line(rows), rows_bytes, rows_size);
     platform_file_close(out);
     platform_file_close(rows);
-    {
-        VerbaLinea *const output_line = platform_line_out();
-        mmgr_line_put(output_line, "monolith_forms: ");
-        mmgr_line_decimal(output_line, gathered.questions.size(), 1u);
-        mmgr_line_put(output_line, " questions, ");
-        mmgr_line_decimal(output_line, writer.tag, 1u);
-        mmgr_line_put(output_line, " blocks in c.krs's text and ");
-        mmgr_line_decimal(output_line, writer.ptx_tag, 1u);
-        mmgr_line_put(output_line, " in ptx.krs's, ");
-        mmgr_line_decimal(output_line, writer.in_words, 1u);
-        mmgr_line_put(output_line, " words in and ");
-        mmgr_line_decimal(output_line, writer.out_words, 1u);
-        mmgr_line_put(output_line, " out");
-        mmgr_line_ch(output_line, '\n');
-        platform_line_out_ended();
-    }
+    platform_text_ended(&writer->rows);
+    platform_text_ended(&writer->body);
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, "monolith_forms: ");
+    mmgr_line_decimal(output_line, s_gathered_count, 1u);
+    mmgr_line_put(output_line, " questions, ");
+    mmgr_line_decimal(output_line, writer->tag, 1u);
+    mmgr_line_put(output_line, " blocks in c.krs's text and ");
+    mmgr_line_decimal(output_line, writer->ptx_tag, 1u);
+    mmgr_line_put(output_line, " in ptx.krs's, ");
+    mmgr_line_decimal(output_line, writer->in_words, 1u);
+    mmgr_line_put(output_line, " words in and ");
+    mmgr_line_decimal(output_line, writer->out_words, 1u);
+    mmgr_line_put(output_line, " out");
+    mmgr_line_ch(output_line, '\n');
+    platform_line_out_ended();
     return 0;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
 // the forms read back
 
-// what a block's register or predicate contains: an argument, its half, or scratch
-struct RegisterContent
-{
-    std::string argument;
-    unsigned int half;
-    int negated;
-};
+// the roles of one question at max
+#define FORMS_ROLES_MAX 32u
 
 // one argument of a question as written. That is where the question loads it from or stores it to, and its type, or
 // the number that the question put
 struct Role
 {
-    std::string name;
-    std::string place;
+    FormsWord name;
+    FormsWord place;
     unsigned int word;
-    std::string type;
-    std::string number;
+    FormsWord type;
+    FormsWord number;
     int fixed;
     // a number the question loaded where the lanes write it into the instruction
     int opaque;
@@ -1441,212 +2367,453 @@ struct Role
 struct Question
 {
     unsigned int tag;
-    std::string form;
-    std::string key;
-    std::vector<Role> roles;
+    FormsWord form;
+    FormsLine key;
+    Role roles[FORMS_ROLES_MAX];
+    unsigned int role_count;
 };
 
-static std::vector<Question> questions_read(const char *path)
+// The file at `path` read whole into a cell of the temporary tier, terminated, and its bytes into `size`. The caller
+// gives the cell back before its work ends. NULL where the file does not read
+static char *forms_file_read(const char *path, size_t *size)
 {
-    std::vector<Question> questions;
-    PlatformFile *const file = platform_file_open(path, "rb");
-    if (file == NULL)
+    unsigned long long bytes = 0ULL;
+    char *const text =
+        (platform_file_size(path, &bytes) != 0)
+            ? (char *)platform_cell_taken(bytes + 1ULL, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY)
+            : NULL;
+    unsigned long long read = 0ULL;
+    if ((text == NULL) || !platform_file_read(path, text, bytes, &read))
     {
-        return questions;
+        platform_cell_released(text, platform_place_g_program_owner);
+        *size = 0u;
+        return NULL;
     }
-    char line[4096];
-    while (platform_file_text_read(line, sizeof(line), file) != NULL)
+    text[read] = '\0';
+    // a file read whole is at max what a size_t counts
+    *size = (size_t)read;
+    return text;
+}
+
+// the lines of the `size` bytes at `text`, the last counted where no newline ends it
+static unsigned int forms_lines_counted(const char *text, size_t size)
+{
+    unsigned int lines = 0u;
+    for (size_t at = 0u; at < size; at = forms_chr_n(text, size, '\n', at) + 1u)
     {
-        std::string text(line);
-        text.erase(text.find_last_not_of("\r\n") + 1u);
-        const std::vector<std::string> parts = line_split(text, '\t');
-        if (parts.size() < 3u)
+        lines += 1u;
+    }
+    return lines;
+}
+
+// The field `at` of the `length` bytes at `text` apart by `by`, as a piece. Its first byte goes into `first`, and its
+// bytes are the answer, or 0 bytes where the text has fewer fields. The count of the fields goes into `count`
+static size_t forms_field(const char *text, size_t length, char by, unsigned int at, size_t *first, unsigned int *count)
+{
+    *count = 0u;
+    size_t found = 0u;
+    size_t found_first = 0u;
+    for (size_t from = 0u; from <= length;)
+    {
+        const size_t stop = forms_chr_n(text, length, by, from);
+        if (*count == at)
+        {
+            found_first = from;
+            found = stop - from;
+        }
+        *count += 1u;
+        from = stop + 1u;
+    }
+    *first = found_first;
+    return (at < *count) ? found : 0u;
+}
+
+// One line of the questions, the `length` bytes at `line`, read into `question`: 1, or 0 where it has fewer than three
+// fields. Each field past the third is a role, `<name>=<place>:<word>:<type>`, a `!` before the name of a fixed one
+static int question_read(const char *line, size_t length, Question *question)
+{
+    unsigned int fields = 0u;
+    size_t first = 0u;
+    (void)forms_field(line, length, '\t', 0u, &first, &fields);
+    if (fields < 3u)
+    {
+        return 0;
+    }
+    size_t size = forms_field(line, length, '\t', 0u, &first, &fields);
+    FormsWord tag;
+    FORMS_SET_N(tag, &line[first], size);
+    // a tag of a question is far below 2^32
+    question->tag =
+        (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = tag.text, .end = NULL, .base = 10);
+    size = forms_field(line, length, '\t', 1u, &first, &fields);
+    FORMS_SET_N(question->form, &line[first], size);
+    size = forms_field(line, length, '\t', 2u, &first, &fields);
+    FORMS_SET_N(question->key, &line[first], size);
+    question->role_count = 0u;
+    for (unsigned int at = 3u; at < fields; at += 1u)
+    {
+        size = forms_field(line, length, '\t', at, &first, &fields);
+        const char *const part = &line[first];
+        const size_t equals = forms_chr_n(part, size, '=', 0u);
+        if (equals == size)
         {
             continue;
         }
-        Question question;
-        question.tag = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = parts[0].c_str(),
-                                                .end = NULL, .base = 10);
-        question.form = parts[1];
-        question.key = parts[2];
-        for (size_t at = 3u; at < parts.size(); at += 1u)
+        if (question->role_count == FORMS_ROLES_MAX)
         {
-            const size_t equals = parts[at].find('=');
-            if (equals == std::string::npos)
-            {
-                continue;
-            }
-            Role role;
-            role.fixed = (parts[at][0] == '!');
-            role.name = parts[at].substr(role.fixed ? 1u : 0u, equals - (role.fixed ? 1u : 0u));
-            const std::vector<std::string> fields = line_split(parts[at].substr(equals + 1u), ':');
-            role.place = fields[0];
-            role.word = (fields.size() > 1u)
-                            ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = fields[1].c_str(),
-                                                       .end = NULL, .base = 10)
-                            : 0u;
-            role.type = (fields.size() > 2u) ? fields[2] : std::string();
-            role.number = (role.place == "number") ? fields[1] : std::string();
-            role.opaque = (fields.size() > 4u) && (fields[3] == "number");
-            role.number = role.opaque ? fields[4] : role.number;
-            question.roles.push_back(role);
+            forms_refused("a question names more roles than it holds: ", line, length);
         }
-        questions.push_back(question);
+        Role *const role = &question->roles[question->role_count];
+        question->role_count += 1u;
+        role->fixed = (part[0] == '!');
+        const size_t name_from = role->fixed ? 1u : 0u;
+        FORMS_SET_N(role->name, &part[name_from], (equals > name_from) ? (equals - name_from) : 0u);
+        const char *const rest = &part[equals + 1u];
+        const size_t rest_length = size - equals - 1u;
+        unsigned int parts = 0u;
+        size_t piece_first = 0u;
+        size_t piece = forms_field(rest, rest_length, ':', 0u, &piece_first, &parts);
+        FORMS_SET_N(role->place, &rest[piece_first], piece);
+        FormsWord second;
+        second.text[0] = '\0';
+        if (parts > 1u)
+        {
+            piece = forms_field(rest, rest_length, ':', 1u, &piece_first, &parts);
+            FORMS_SET_N(second, &rest[piece_first], piece);
+        }
+        // a word of a question's in or out is far below 2^32
+        role->word = (parts > 1u) ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = second.text,
+                                                             .end = NULL, .base = 10)
+                                  : 0u;
+        role->type.text[0] = '\0';
+        if (parts > 2u)
+        {
+            piece = forms_field(rest, rest_length, ':', 2u, &piece_first, &parts);
+            FORMS_SET_N(role->type, &rest[piece_first], piece);
+        }
+        role->number.text[0] = '\0';
+        if (forms_same(role->place.text, "number"))
+        {
+            role->number = second;
+        }
+        FormsWord fourth;
+        fourth.text[0] = '\0';
+        if (parts > 3u)
+        {
+            piece = forms_field(rest, rest_length, ':', 3u, &piece_first, &parts);
+            FORMS_SET_N(fourth, &rest[piece_first], piece);
+        }
+        role->opaque = (parts > 4u) && forms_same(fourth.text, "number");
+        if (role->opaque)
+        {
+            piece = forms_field(rest, rest_length, ':', 4u, &piece_first, &parts);
+            FORMS_SET_N(role->number, &rest[piece_first], piece);
+        }
     }
-    platform_file_close(file);
+    return 1;
+}
+
+// The questions at `path`, a line each, in one cell taken at the count of the lines: their count into `count`. Each
+// line ends at its newline, with the carriage returns and the newlines at its end cut
+static Question *questions_read(const char *path, unsigned int *count)
+{
+    *count = 0u;
+    size_t size = 0u;
+    char *const file = forms_file_read(path, &size);
+    if (file == NULL)
+    {
+        return NULL;
+    }
+    const unsigned int lines = forms_lines_counted(file, size);
+    Question *const questions = (Question *)forms_allocated(platform_cell_cleared(
+        (lines != 0u) ? lines : 1u, sizeof(Question), platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
+    for (size_t at = 0u; at < size;)
+    {
+        const size_t end = forms_chr_n(file, size, '\n', at);
+        const size_t length = forms_end_outside(&file[at], end - at, "\r\n");
+        *count += question_read(&file[at], length, &questions[*count]) ? 1u : 0u;
+        at = end + 1u;
+    }
+    platform_cell_released(file, platform_place_g_program_owner);
     return questions;
 }
 
-// the SASS listing's blocks, each tag's instructions, and the instructions before the first tag
-static std::map<unsigned int, std::vector<std::string>> sass_blocks(const char *path)
+// one line of a block of the listing or of the PTX: the tag it is behind and its instruction
+struct BlockLine
 {
-    std::map<unsigned int, std::vector<std::string>> blocks;
-    PlatformFile *const file = platform_file_open(path, "rb");
+    unsigned int tag;
+    FormsLine text;
+};
+
+// The lines of a listing or of the PTX, in one cell in the order of their tags. The lines of a tag stay in their own
+// order
+struct Blocks
+{
+    BlockLine *lines;
+    unsigned int count;
+};
+
+static int block_line_order(const void *left, const void *right)
+{
+    const unsigned int one = ((const BlockLine *)left)->tag;
+    const unsigned int other = ((const BlockLine *)right)->tag;
+    return (one == other) ? 0 : ((one < other) ? -1 : 1);
+}
+
+// the lines at `blocks` put in the order of their tags, stable
+static void blocks_sorted(Blocks *blocks)
+{
+    if (blocks->count < 2u)
+    {
+        return;
+    }
+    void *const spare = forms_allocated(platform_cell_taken((unsigned long long)blocks->count * sizeof(BlockLine),
+                                                            platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY));
+    (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = blocks->lines, .bytes = sizeof(BlockLine), .scratch = spare,
+                     .count = blocks->count, .order = block_line_order);
+    platform_cell_released(spare, platform_place_g_program_owner);
+}
+
+// the first line of `blocks` behind `tag`, or the count where none is; the lines behind it into `count`
+static unsigned int blocks_of(const Blocks *blocks, unsigned int tag, unsigned int *count)
+{
+    unsigned int low = 0u;
+    unsigned int high = blocks->count;
+    while (low < high)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        if (blocks->lines[middle].tag < tag)
+        {
+            low = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    unsigned int end = low;
+    high = blocks->count;
+    while (end < high)
+    {
+        const unsigned int middle = end + ((high - end) / 2u);
+        if (blocks->lines[middle].tag <= tag)
+        {
+            end = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    *count = end - low;
+    return low;
+}
+
+// `text` with every `.reuse` of it left out, in place
+static void sass_reuse_dropped(FormsLine *text)
+{
+    FormsLine kept;
+    kept.text[0] = '\0';
+    const size_t length = forms_length(text->text);
+    size_t at = 0u;
+    for (size_t found = forms_find_n(text->text, length, ".reuse", 0u); found < length;
+         found = forms_find_n(text->text, length, ".reuse", at))
+    {
+        FORMS_ADD_N(kept, &text->text[at], found - at);
+        at = found + 6u;
+    }
+    FORMS_ADD_N(kept, &text->text[at], length - at);
+    *text = kept;
+}
+
+// The instruction of one line of the SASS listing, the `length` bytes at `line`, into `instruction`: 1, or 0 where the
+// line is no instruction. An instruction's line opens with its address inside a C comment, in hex with no space. A
+// line of encoding alone opens with a space and `0x` inside that comment. The instruction runs to its ` ;`. The code
+// leaves out each `.reuse`, and cuts the spaces and tabs at either end
+static int sass_line_read(const char *line, size_t length, FormsLine *instruction)
+{
+    const size_t open = forms_find_n(line, length, "/*", 0u);
+    const size_t address = forms_find_n(line, length, "*/", 0u);
+    if ((open == length) || (address == length) || (open > address) ||
+        !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_HEX, .byte = (unsigned char)line[open + 2u]))
+    {
+        return 0;
+    }
+    const size_t end = forms_find_n(line, length, " ;", address);
+    if (end == length)
+    {
+        return 0;
+    }
+    *instruction = forms_trim_n(&line[address + 2u], end - address - 2u);
+    sass_reuse_dropped(instruction);
+    return 1;
+}
+
+// The SASS listing's blocks, each tag's instructions, and the instructions before the first tag. Each line counts once
+// to size the cell, and the lines then go in the order of their tags
+static Blocks sass_blocks(const char *path)
+{
+    Blocks blocks = {NULL, 0u};
+    size_t size = 0u;
+    char *const file = forms_file_read(path, &size);
     if (file == NULL)
     {
         return blocks;
     }
-    char line[4096];
+    const unsigned int lines = forms_lines_counted(file, size);
+    blocks.lines = (BlockLine *)forms_allocated(platform_cell_cleared(
+        (lines != 0u) ? lines : 1u, sizeof(BlockLine), platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
     unsigned int tag = 0u;
-    while (platform_file_text_read(line, sizeof(line), file) != NULL)
+    for (size_t at = 0u; at < size;)
     {
-        const std::string text(line);
-        // an instruction's line opens with its address between /* and */, in hex with no space. A line of encoding
-        // alone opens /* 0x
-        const size_t open = text.find("/*");
-        const size_t address = text.find("*/");
-        if ((open == std::string::npos) || (address == std::string::npos) || (open > address) ||
-            !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_HEX, .byte = (unsigned char)text[open + 2u]))
+        const size_t end = forms_chr_n(file, size, '\n', at);
+        FormsLine instruction;
+        const int read = sass_line_read(&file[at], end - at, &instruction);
+        at = end + 1u;
+        if (!read)
         {
             continue;
         }
-        const size_t end = text.find(" ;", address);
-        if (end == std::string::npos)
+        if (forms_begins(instruction.text, "PMTRIG "))
         {
+            // a tag is far below 2^32
+            tag = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = &instruction.text[7], .end = NULL,
+                                           .base = 16);
             continue;
         }
-        std::string instruction = trim(text.substr(address + 2u, end - address - 2u));
-        size_t reuse = instruction.find(".reuse");
-        while (reuse != std::string::npos)
-        {
-            instruction.erase(reuse, 6u);
-            reuse = instruction.find(".reuse");
-        }
-        if (instruction.compare(0u, 7u, "PMTRIG ") == 0)
-        {
-            tag = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = instruction.c_str() + 7,
-                                           .end = NULL, .base = 16);
-            continue;
-        }
-        blocks[tag].push_back(instruction);
+        blocks.lines[blocks.count].tag = tag;
+        blocks.lines[blocks.count].text = instruction;
+        blocks.count += 1u;
     }
-    platform_file_close(file);
+    platform_cell_released(file, platform_place_g_program_owner);
+    blocks_sorted(&blocks);
     return blocks;
 }
 
-// the PTX's blocks, each tag's instructions
-static std::map<unsigned int, std::vector<std::string>> ptx_blocks(const char *path)
+// The PTX's blocks, each tag's instructions. The lines count only past the entry of monolith_forms. A line is an
+// instruction where it ends with `;` and is no directive and no comment. Each line counts once to size the cell, and
+// the lines then go in the order of their tags
+static Blocks ptx_blocks(const char *path)
 {
-    std::map<unsigned int, std::vector<std::string>> blocks;
-    PlatformFile *const file = platform_file_open(path, "rb");
+    Blocks blocks = {NULL, 0u};
+    size_t size = 0u;
+    char *const file = forms_file_read(path, &size);
     if (file == NULL)
     {
         return blocks;
     }
-    char line[4096];
+    const unsigned int lines = forms_lines_counted(file, size);
+    blocks.lines = (BlockLine *)forms_allocated(platform_cell_cleared(
+        (lines != 0u) ? lines : 1u, sizeof(BlockLine), platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
     unsigned int tag = 0u;
     int inside = 0;
-    while (platform_file_text_read(line, sizeof(line), file) != NULL)
+    for (size_t at = 0u; at < size;)
     {
-        std::string text = trim(std::string(line));
-        text.erase(text.find_last_not_of("\r\n") + 1u);
-        text = trim(text);
-        inside = inside || (text.find(".entry monolith_forms") != std::string::npos);
-        if (!inside || text.empty() || (text.back() != ';') || (text[0] == '.') || (text.compare(0u, 2u, "//") == 0))
+        const size_t end = forms_chr_n(file, size, '\n', at);
+        size_t first = 0u;
+        size_t length = forms_trimmed(&file[at], end - at, " \t", &first);
+        const char *line = &file[at + first];
+        length = forms_end_outside(line, length, "\r\n");
+        size_t again = 0u;
+        length = forms_trimmed(line, length, " \t", &again);
+        line = &line[again];
+        at = end + 1u;
+        inside = inside || (forms_find_n(line, length, ".entry monolith_forms", 0u) < length);
+        if (!inside || (length == 0u) || (line[length - 1u] != ';') || (line[0] == '.') ||
+            ((length >= 2u) && (line[0] == '/') && (line[1] == '/')))
         {
             continue;
         }
-        text.pop_back();
-        if (text.compare(0u, 13u, "pmevent.mask ") == 0)
+        length -= 1u;
+        FormsLine text;
+        FORMS_SET_N(text, line, length);
+        if (forms_begins(text.text, "pmevent.mask "))
         {
-            tag = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = text.c_str() + 13, .end = NULL,
+            // a tag is far below 2^32
+            tag = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = &text.text[13], .end = NULL,
                                            .base = 10);
             continue;
         }
-        blocks[tag].push_back(trim(text));
+        blocks.lines[blocks.count].tag = tag;
+        blocks.lines[blocks.count].text = forms_trim(text.text);
+        blocks.count += 1u;
     }
-    platform_file_close(file);
+    platform_cell_released(file, platform_place_g_program_owner);
+    blocks_sorted(&blocks);
     return blocks;
 }
 
-// a register token of a SASS operand: its start and length, the first at or past `from`; npos where none
-static size_t sass_register(const std::string &operand, size_t from, size_t *length)
+// A register token of a SASS operand, the first at or past `from`: its start, and its length into `length`. The start
+// is the operand's length where no token is there. A token is R or P and digits, with no byte of an identifier on
+// either side. The walk jumps from one R or P to the next
+static size_t sass_register(const char *operand, size_t from, size_t *length)
 {
-    for (size_t at = from; at < operand.size(); at += 1u)
+    const size_t size = forms_length(operand);
+    for (size_t at = from + ((from < size) ? EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &operand[from],
+                                                        .cap = size - from, .other = "RP")
+                                           : 0u);
+         at < size; at += 1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &operand[at + 1u],
+                                          .cap = size - at - 1u, .other = "RP"))
     {
-        const int start = (at == 0u) || !identifier_character(operand[at - 1u]);
-        if (!start || ((operand[at] != 'R') && (operand[at] != 'P')))
+        const int start = (at == 0u) || !forms_identifier(operand[at - 1u]);
+        if (!start)
         {
             continue;
         }
-        size_t digits = 0u;
-        while (((at + 1u + digits) < operand.size()) && (operand[at + 1u + digits] >= '0') &&
-               (operand[at + 1u + digits] <= '9'))
-        {
-            digits += 1u;
-        }
-        const int ends = ((at + 1u + digits) >= operand.size()) || !identifier_character(operand[at + 1u + digits]);
+        const size_t digits = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &operand[at + 1u], .cap = size - at - 1u,
+                                         .other = "0123456789");
+        const int ends = ((at + 1u + digits) >= size) || !forms_identifier(operand[at + 1u + digits]);
         if ((digits != 0u) && ends)
         {
             *length = 1u + digits;
             return at;
         }
     }
-    return std::string::npos;
+    return size;
 }
 
 // the number of the register `token`, R7 or P3
-static unsigned int token_number(const std::string &token)
+static unsigned int token_number(const char *token)
 {
-    return (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = token.c_str() + 1, .end = NULL,
-                                    .base = 10);
+    // a register's number is far below 2^32
+    return (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = &token[1], .end = NULL, .base = 10);
 }
 
-// the operands that an instruction writes: its first, and every predicate straight after it, where it writes any. None
+// The operands that an instruction writes: its first, and every predicate straight after it, where it writes any. None
 // for a store, a reduction, a branch and the rest that write nothing of a register's
-static unsigned int sass_written(const Instruction &instruction)
+static unsigned int sass_written(const Instruction *instruction)
 {
     static const char *const s_none[] = {"ST",       "RED", "BRA",  "BSSY", "BSYNC", "EXIT",
                                          "WARPSYNC", "BAR", "CALL", "RET",  "NOP",   "ATOM.E.ADD.STRONG.GPU.RZ"};
     for (const char *const none : s_none)
     {
-        if (instruction.operation.compare(
-                0u, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = none, .cap = PLATFORM_TEXT_TO_TERMINATOR), none) ==
-            0)
+        if (forms_begins(instruction->operation.text, none))
         {
             return 0u;
         }
     }
-    unsigned int written = instruction.operands.empty() ? 0u : 1u;
-    while ((written < instruction.operands.size()) && !instruction.operands[written].empty() &&
-           (instruction.operands[written][0] == 'P'))
+    unsigned int written = (instruction->operand_count == 0u) ? 0u : 1u;
+    while ((written < instruction->operand_count) && (instruction->operands[written].text[0] == 'P'))
     {
         written += 1u;
     }
     return written;
 }
 
-static int sass_wide_write(const Instruction &instruction)
+static int sass_wide_write(const Instruction *instruction)
 {
-    return (instruction.operation.find(".WIDE") != std::string::npos) ||
-           (instruction.operation.find(".64") != std::string::npos);
+    return forms_has(instruction->operation.text, ".WIDE") || forms_has(instruction->operation.text, ".64");
 }
+
+// the bytes of a form's text that a block reads back, and of the reasons a reading gives, each at max
+#define FORMS_READ_BYTES 16384u
+#define FORMS_WHY_BYTES 4096u
 
 // a block read back into a form's text: 1, or 0 with the reason through `why`
 struct Read
 {
-    std::string text;
-    std::string why;
+    char text[FORMS_READ_BYTES];
+    char why[FORMS_WHY_BYTES];
 };
 
 // the in and out bases the listing set up so far, a register each and its pair
@@ -1656,154 +2823,208 @@ struct Bases
     int out_low;
 };
 
-static std::string hex_number(const std::string &decimal)
+// a number of a question, written in decimal, written in hexadecimal: -0x for a negative
+static FormsWord hex_number(const char *decimal)
 {
-    char text[32];
-    const TransfiguroCfg read = {decimal.c_str(), NULL, 0u};
+    FormsWord text;
+    const TransfiguroCfg read = {decimal, NULL, 0u};
     // Explicit cast widens the signed word of the read to the long long of the value
     const long long value = (long long)mmgr_cellul_to_long(&read);
-    if (value < 0)
-    {
-        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
-        mmgr_line_put(&buffer_line, "-0x");
-        mmgr_line_hex(&buffer_line, (unsigned long long)(-value), 1u);
-        (void)mmgr_line_finish(&buffer_line);
-    }
-    else
-    {
-        VerbaLinea buffer_line = mmgr_line_over(text, sizeof(text));
-        mmgr_line_put(&buffer_line, "0x");
-        mmgr_line_hex(&buffer_line, (unsigned long long)value, 1u);
-        (void)mmgr_line_finish(&buffer_line);
-    }
+    VerbaLinea line = mmgr_line_over(text.text, sizeof(text.text));
+    mmgr_line_put(&line, (value < 0) ? "-0x" : "0x");
+    // the magnitude of the value, a negative read as its negation
+    mmgr_line_hex(&line, (value < 0) ? (unsigned long long)(-value) : (unsigned long long)value, 1u);
+    (void)mmgr_line_finish(&line);
     return text;
+}
+
+// the negative a word past the sign bit reads as when signed, or `number` itself, in decimal
+static FormsWord number_negative(const char *number, unsigned long long word)
+{
+    FormsWord negative;
+    if ((word >= 0x80000000ULL) && (word <= 0xffffffffULL))
+    {
+        negative.text[0] = '\0';
+        // the word read as the negative 32-bit word it is when signed
+        FORMS_ADD_SIGNED(negative, -(long long)(0x100000000ULL - word));
+        return negative;
+    }
+    FORMS_SET(negative, number);
+    return negative;
+}
+
+// the places of `literal` in `text` as a whole token, into `places`, at max `room` of them: their count
+static unsigned int literal_places(const char *text, const char *literal, size_t *places, unsigned int room)
+{
+    const size_t length = forms_length(text);
+    const size_t size = forms_length(literal);
+    unsigned int count = 0u;
+    for (size_t at = forms_find_n(text, length, literal, 0u); at < length;
+         at = forms_find_n(text, length, literal, at + 1u))
+    {
+        const int before = (at == 0u) || !forms_identifier(text[at - 1u]);
+        const int after = ((at + size) >= length) || !forms_identifier(text[at + size]);
+        if (before && after)
+        {
+            if (count < room)
+            {
+                places[count] = at;
+            }
+            count += 1u;
+        }
+    }
+    return count;
 }
 
 // `named` with the number `number` named `name` where it is a whole token exactly once. The number can be in hex or
 // decimal. A word past the sign bit can also be the negative that it reads as when signed. 1 where the name applies
-static int number_named(std::string *named, const std::string &number, const std::string &name, std::string *why)
+static int number_named(char *named, size_t room, const char *number, const char *name, char *why, size_t why_room)
 {
     const unsigned long long word =
-        EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = number.c_str(), .end = NULL, .base = 10);
-    const std::string negative = ((word >= 0x80000000ULL) && (word <= 0xffffffffULL))
-                                     ? std::to_string(-(long long)(0x100000000ULL - word))
-                                     : number;
-    for (const std::string &literal : {hex_number(number), number, hex_number(negative), negative})
+        EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = number, .end = NULL, .base = 10);
+    const FormsWord negative = number_negative(number, word);
+    const FormsWord hex = hex_number(number);
+    const FormsWord hex_negative = hex_number(negative.text);
+    const char *const order[4] = {hex.text, number, hex_negative.text, negative.text};
+    for (unsigned int one = 0u; one < 4u; one += 1u)
     {
-        std::vector<size_t> places;
-        size_t at = named->find(literal);
-        while (at != std::string::npos)
+        size_t places[2];
+        const unsigned int count = literal_places(named, order[one], places, 2u);
+        if (count == 1u)
         {
-            const int before = (at == 0u) || !identifier_character((*named)[at - 1u]);
-            const int after =
-                ((at + literal.size()) >= named->size()) || !identifier_character((*named)[at + literal.size()]);
-            if (before && after)
-            {
-                places.push_back(at);
-            }
-            at = named->find(literal, at + 1u);
-        }
-        if (places.size() == 1u)
-        {
-            *named = named->substr(0u, places[0]) + name + named->substr(places[0] + literal.size());
+            // the name put in the place of the one number
+            static char s_rest[FORMS_READ_BYTES];
+            const size_t length = forms_length(named);
+            const size_t size = forms_length(order[one]);
+            forms_set_n(s_rest, sizeof(s_rest), &named[places[0] + size], length - places[0] - size);
+            named[places[0]] = '\0';
+            forms_add(named, room, name);
+            forms_add(named, room, s_rest);
             return 1;
         }
-        if (places.size() > 1u)
+        if (count > 1u)
         {
-            *why += "the number " + number + " is " + std::to_string(places.size()) + " times; ";
+            forms_add(why, why_room, "the number ");
+            forms_add(why, why_room, number);
+            forms_add(why, why_room, " is ");
+            forms_add_decimal(why, why_room, count);
+            forms_add(why, why_room, " times; ");
             return 0;
         }
     }
     return 0;
 }
 
+// the word a number of a role holds: 0 where it is negative
+static unsigned long long role_word(const Role *role)
+{
+    return (role->number.text[0] == '-')
+               ? 0ULL
+               : EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = role->number.text, .end = NULL, .base = 10);
+}
+
 // `text` with each number argument named where its number is a whole token exactly once. A number past 32 bits that
 // does not occur whole occurs as its two words. The low word gets the name of the number, and the high word its .hi
-static std::string numbers_named(const std::string &text, const Question &question, std::string *why)
+static void numbers_named(char *text, size_t room, const Question *question, char *why, size_t why_room)
 {
-    std::string named = text;
-    for (const Role &role : question.roles)
+    for (unsigned int at = 0u; at < question->role_count; at += 1u)
     {
-        if (role.place != "number")
+        const Role *const role = &question->roles[at];
+        if (!forms_same(role->place.text, "number"))
         {
             continue;
         }
-        const unsigned long long word =
-            (role.number[0] == '-')
-                ? 0ULL
-                : EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = role.number.c_str(), .end = NULL, .base = 10);
-        if (number_named(&named, role.number, "{" + role.name + "}", why) || (word <= 0xffffffffULL))
+        const unsigned long long word = role_word(role);
+        FormsWord name;
+        FORMS_SET(name, "{");
+        FORMS_ADD(name, role->name.text);
+        FORMS_ADD(name, "}");
+        if (number_named(text, room, role->number.text, name.text, why, why_room) || (word <= 0xffffffffULL))
         {
             continue;
         }
-        number_named(&named, std::to_string(word & 0xffffffffULL), "{" + role.name + "}", why);
-        number_named(&named, std::to_string(word >> 32u), "{" + role.name + "}.hi", why);
+        FormsWord low;
+        low.text[0] = '\0';
+        FORMS_ADD_DECIMAL(low, word & 0xffffffffULL);
+        FormsWord high;
+        high.text[0] = '\0';
+        FORMS_ADD_DECIMAL(high, word >> 32u);
+        FormsWord high_name = name;
+        FORMS_ADD(high_name, ".hi");
+        (void)number_named(text, room, low.text, name.text, why, why_room);
+        (void)number_named(text, room, high.text, high_name.text, why, why_room);
     }
-    return named;
 }
 
 // 1 where `text`, a reading, carries the number of `role`: named where it occurs once, or located as its own token
 // where it occurs more than once. 0 where it is nowhere in the answer, because the system folded it into a form of its
 // own
-static int number_carried(const std::string &text, const Role &role)
+static int number_carried(const char *text, const Role *role)
 {
     // the bare name is the low word. The name followed by .hi is the high half alone, which does not carry the low word
     // a fold left behind
-    const std::string named = "{" + role.name + "}";
-    size_t low = text.find(named);
-    while (low != std::string::npos)
+    FormsWord named;
+    FORMS_SET(named, "{");
+    FORMS_ADD(named, role->name.text);
+    FORMS_ADD(named, "}");
+    const size_t length = forms_length(text);
+    const size_t size = forms_length(named.text);
+    for (size_t low = forms_find_n(text, length, named.text, 0u); low < length;
+         low = forms_find_n(text, length, named.text, low + 1u))
     {
-        if (text.compare(low + named.size(), 3u, ".hi") != 0)
+        if (!forms_begins(&text[low + size], ".hi"))
         {
             return 1;
         }
-        low = text.find(named, low + 1u);
     }
-    const unsigned long long word =
-        (role.number[0] == '-')
-            ? 0ULL
-            : EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = role.number.c_str(), .end = NULL, .base = 10);
-    const std::string negative = ((word >= 0x80000000ULL) && (word <= 0xffffffffULL))
-                                     ? std::to_string(-(long long)(0x100000000ULL - word))
-                                     : role.number;
-    for (const std::string &literal : {hex_number(role.number), role.number, hex_number(negative), negative})
+    const unsigned long long word = role_word(role);
+    const FormsWord negative = number_negative(role->number.text, word);
+    const FormsWord hex = hex_number(role->number.text);
+    const FormsWord hex_negative = hex_number(negative.text);
+    const char *const order[4] = {hex.text, role->number.text, hex_negative.text, negative.text};
+    for (unsigned int one = 0u; one < 4u; one += 1u)
     {
-        size_t at = text.find(literal);
-        while (at != std::string::npos)
+        size_t place = 0u;
+        if (literal_places(text, order[one], &place, 1u) != 0u)
         {
-            const size_t end = at + literal.size();
-            const int before = (at == 0u) || !identifier_character(text[at - 1u]);
-            const int after = (end >= text.size()) || !identifier_character(text[end]);
-            if (before && after)
-            {
-                return 1;
-            }
-            at = text.find(literal, at + 1u);
+            return 1;
         }
     }
     return 0;
 }
 
-// a token with every signed type marker written unsigned. An `s` that sits where the signedness of a type sits, after a
+// A token with every signed type marker written unsigned. An `s` that sits where the signedness of a type sits, after a
 // dot and before a bit width, reads as `u`. Two operations that differ only in signedness write the same word through
-// this. An operation that differs in any other way does not
-static std::string as_unsigned(const std::string &token)
+// this. An operation that differs in any other way does not. The walk jumps from one `.s` to the next
+static FormsLine as_unsigned(const char *token)
 {
-    std::string unsigned_token = token;
-    for (size_t at = 0u; at < unsigned_token.size(); at += 1u)
+    FormsLine unsigned_token;
+    FORMS_SET(unsigned_token, token);
+    const size_t length = forms_length(unsigned_token.text);
+    for (size_t at = forms_find_n(unsigned_token.text, length, ".s", 0u); at < length;
+         at = forms_find_n(unsigned_token.text, length, ".s", at + 1u))
     {
-        const int marks = (unsigned_token[at] == 's') && (at > 0u) && (unsigned_token[at - 1u] == '.') &&
-                          ((at + 1u) < unsigned_token.size()) && (unsigned_token[at + 1u] >= '0') &&
-                          (unsigned_token[at + 1u] <= '9');
-        if (marks)
+        const size_t marker = at + 1u;
+        // a byte of a text read as the unsigned byte the class takes
+        if (((marker + 1u) < length) && (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM,
+                                                    .byte = (unsigned char)unsigned_token.text[marker + 1u]) != 0))
         {
-            unsigned_token[at] = 'u';
+            unsigned_token.text[marker] = 'u';
         }
     }
     return unsigned_token;
 }
 
-// whether `read` is `now` with nothing changed but the signedness of one or more operations. The function walks both a
+// the writings that differ only in their signedness, a pair each, at max
+#define FORMS_ALIKE_MAX 256u
+
+struct FormsAlike
+{
+    FormsLine now;
+    FormsLine read;
+};
+
+// Whether `read` is `now` with nothing changed but the signedness of one or more operations. The function walks both a
 // word at a time, with whitespace between words:
 //   - a word that matches passes.
 //   - a word that matches only once the signedness goes to unsigned is an operation that the system writes either way.
@@ -1813,208 +3034,555 @@ static std::string as_unsigned(const std::string &token)
 //
 // The soundness is not here. The caller verifies that the system compiles both to the same machine code before it reads
 // this. This function only names the writings that the caller may record alike
-static bool signedness_only(const std::string &now, const std::string &read,
-                            std::vector<std::pair<std::string, std::string>> *alike)
+static int signedness_only(const char *now, const char *read, FormsAlike *alike, unsigned int *alike_count)
 {
+    static const char s_space_class[] = " \t\n\r\v\f";
+    const size_t now_size = forms_length(now);
+    const size_t read_size = forms_length(read);
     size_t here = 0u;
     size_t there = 0u;
-    bool any = false;
-    while (true)
+    int any = 0;
+    *alike_count = 0u;
+    for (;;)
     {
-        while ((here < now.size()) &&
-               (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_SPACE, .byte = (unsigned char)now[here]) != 0))
+        here +=
+            EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &now[here], .cap = now_size - here, .other = s_space_class);
+        there += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &read[there], .cap = read_size - there,
+                            .other = s_space_class);
+        if ((here >= now_size) || (there >= read_size))
         {
-            here += 1u;
+            return any && (here >= now_size) && (there >= read_size);
         }
-        while ((there < read.size()) &&
-               (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_SPACE, .byte = (unsigned char)read[there]) != 0))
-        {
-            there += 1u;
-        }
-        if ((here >= now.size()) || (there >= read.size()))
-        {
-            return any && (here >= now.size()) && (there >= read.size());
-        }
-        const size_t now_end = now.find_first_of(" \t\n", here);
-        const size_t read_end = read.find_first_of(" \t\n", there);
-        const std::string now_word = now.substr(here, now_end - here);
-        const std::string read_word = read.substr(there, read_end - there);
-        here = (now_end == std::string::npos) ? now.size() : now_end;
-        there = (read_end == std::string::npos) ? read.size() : read_end;
-        if (now_word == read_word)
+        const size_t now_end = here + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &now[here],
+                                                 .cap = now_size - here, .other = " \t\n");
+        const size_t read_end = there + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &read[there],
+                                                   .cap = read_size - there, .other = " \t\n");
+        FormsLine now_word;
+        FORMS_SET_N(now_word, &now[here], now_end - here);
+        FormsLine read_word;
+        FORMS_SET_N(read_word, &read[there], read_end - there);
+        here = now_end;
+        there = read_end;
+        if (forms_same(now_word.text, read_word.text))
         {
             continue;
         }
-        if (as_unsigned(now_word) != as_unsigned(read_word))
+        if (!forms_same(as_unsigned(now_word.text).text, as_unsigned(read_word.text).text))
         {
-            return false;
+            return 0;
         }
-        alike->push_back(std::make_pair(now_word, read_word));
-        any = true;
+        if (*alike_count == FORMS_ALIKE_MAX)
+        {
+            forms_refused("more writings alike than the table holds: ", now_word.text, forms_length(now_word.text));
+        }
+        alike[*alike_count].now = now_word;
+        alike[*alike_count].read = read_word;
+        *alike_count += 1u;
+        any = 1;
     }
 }
 
-static Read sass_read(const Question &question, const std::vector<std::string> &lines, Bases *bases)
+// the lines of one question's three regions, and the values a block's registers take, each at max
+#define FORMS_BLOCK_MAX 2048u
+#define FORMS_VALUES_MAX 4096u
+
+// what a block's register or predicate contains: an argument, its half, or scratch. The table drops a value it erases
+struct RegisterContent
 {
-    Read read;
+    FormsWord value;
+    FormsWord argument;
+    unsigned int half;
+    int negated;
+    int erased;
+};
+
+// a register of a block and the value that it contains now
+struct FormsCurrent
+{
+    FormsWord token;
+    FormsWord value;
+};
+
+// an instruction a block keeps, each operand with each register it reads written as its value's name between two \x02
+struct Retained
+{
+    Instruction instruction;
+    FormsOperand names[FORMS_OPERANDS_MAX];
+    FormsOperand guard;
+};
+
+// The tables of one block's read: the value of each register now, what each value contains, the instructions kept and
+// those dropped. Each is static at a bound, and a read clears its counts as it begins
+static FormsCurrent s_current[FORMS_VALUES_MAX];
+static unsigned int s_current_count = 0u;
+static RegisterContent s_bound[FORMS_VALUES_MAX];
+static unsigned int s_bound_count = 0u;
+static Retained s_retained[FORMS_BLOCK_MAX];
+static unsigned int s_retained_count = 0u;
+static int s_dropped[FORMS_BLOCK_MAX];
+
+// the value that the register `token` contains now [BORROWS], or NULL where it holds none of the block's
+static const char *current_of(const char *token)
+{
+    for (unsigned int at = 0u; at < s_current_count; at += 1u)
+    {
+        if (forms_same(s_current[at].token.text, token))
+        {
+            return s_current[at].value.text;
+        }
+    }
+    return NULL;
+}
+
+// the register `token` given the value `value`, in place of the one it had
+static void current_put(const char *token, const char *value)
+{
+    for (unsigned int at = 0u; at < s_current_count; at += 1u)
+    {
+        if (forms_same(s_current[at].token.text, token))
+        {
+            FORMS_SET(s_current[at].value, value);
+            return;
+        }
+    }
+    if (s_current_count == FORMS_VALUES_MAX)
+    {
+        forms_refused("a block names more registers than the table holds: ", token, forms_length(token));
+    }
+    FORMS_SET(s_current[s_current_count].token, token);
+    FORMS_SET(s_current[s_current_count].value, value);
+    s_current_count += 1u;
+}
+
+// what the value `value` contains [BORROWS], or NULL where it is no argument's
+static RegisterContent *bound_of(const char *value)
+{
+    for (unsigned int at = 0u; at < s_bound_count; at += 1u)
+    {
+        if (!s_bound[at].erased && forms_same(s_bound[at].value.text, value))
+        {
+            return &s_bound[at];
+        }
+    }
+    return NULL;
+}
+
+// the value `value` bound to the half `half` of `argument`, negated where `negated` is 1, in place of what it had
+static void bound_put(const char *value, const char *argument, unsigned int half, int negated)
+{
+    RegisterContent *content = bound_of(value);
+    if (content == NULL)
+    {
+        if (s_bound_count == FORMS_VALUES_MAX)
+        {
+            forms_refused("a block holds more values than the table holds: ", value, forms_length(value));
+        }
+        content = &s_bound[s_bound_count];
+        s_bound_count += 1u;
+        FORMS_SET(content->value, value);
+    }
+    FORMS_SET(content->argument, argument);
+    content->half = half;
+    content->negated = negated;
+    content->erased = 0;
+}
+
+// the role of `question` at `place` that holds the word `word`, and the half of it through `half`, or NULL
+static const Role *role_at(const Question *question, const char *place, unsigned int word, unsigned int *half)
+{
+    for (unsigned int at = 0u; at < question->role_count; at += 1u)
+    {
+        const Role *const role = &question->roles[at];
+        if (forms_same(role->place.text, place) &&
+            ((role->word == word) || (forms_same(role->type.text, "u64") && ((role->word + 1u) == word))))
+        {
+            *half = word - role->word;
+            return role;
+        }
+    }
+    return NULL;
+}
+
+// the role of type int that the value `value` contains, or NULL
+static const Role *int_role(const Question *question, const char *value)
+{
+    const RegisterContent *const found = bound_of(value);
+    for (unsigned int at = 0u; (found != NULL) && (at < question->role_count); at += 1u)
+    {
+        const Role *const role = &question->roles[at];
+        if (forms_same(role->name.text, found->argument.text) && forms_same(role->type.text, "int"))
+        {
+            return role;
+        }
+    }
+    return NULL;
+}
+
+// the offset of an address `[R<n>+0x<offset>]`, or 0 where it names none
+static unsigned int offset_of(const char *address)
+{
+    const size_t length = forms_length(address);
+    const size_t plus = forms_chr_n(address, length, '+', 0u);
+    // an offset into a question's words is far below 2^32
+    return (plus == length) ? 0u
+                            : (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = &address[plus + 1u],
+                                                       .end = NULL, .base = 16);
+}
+
+// `operand` with each register it reads written as its value's name between two \x02, into `renamed`
+static void read_names(const char *operand, FormsOperand *renamed)
+{
+    renamed->text[0] = '\0';
+    const size_t size = forms_length(operand);
+    size_t from = 0u;
+    size_t length = 0u;
+    for (size_t found = sass_register(operand, 0u, &length); found < size;
+         found = sass_register(operand, from, &length))
+    {
+        FormsWord token;
+        FORMS_SET_N(token, &operand[found], length);
+        const char *const value = current_of(token.text);
+        FORMS_ADD_N(*renamed, &operand[from], found - from);
+        if (value != NULL)
+        {
+            FORMS_ADD(*renamed, "\x02");
+            FORMS_ADD(*renamed, value);
+            FORMS_ADD(*renamed, "\x02");
+        }
+        else
+        {
+            FORMS_ADD(*renamed, token.text);
+        }
+        from = found + length;
+    }
+    FORMS_ADD_N(*renamed, &operand[from], size - from);
+}
+
+// the values of a block's register that `name` holds, at max this many
+#define FORMS_NAME_VALUES_MAX 16u
+
+// `name` with each value between two \x02 taken out into `values`, `*count` of them: the rest
+static FormsOperand values_of(const char *name, FormsWord *values, unsigned int *count)
+{
+    FormsOperand rest;
+    rest.text[0] = '\0';
+    *count = 0u;
+    const size_t size = forms_length(name);
+    size_t from = 0u;
+    for (size_t open = forms_chr_n(name, size, '\x02', 0u); open < size; open = forms_chr_n(name, size, '\x02', from))
+    {
+        const size_t close = forms_chr_n(name, size, '\x02', open + 1u);
+        FORMS_ADD_N(rest, &name[from], open - from);
+        if (*count == FORMS_NAME_VALUES_MAX)
+        {
+            forms_refused("an operand names more values than it holds: ", name, size);
+        }
+        FORMS_SET_N(values[*count], &name[open + 1u], (close > open) ? (close - open - 1u) : 0u);
+        *count += 1u;
+        from = (close < size) ? (close + 1u) : size;
+    }
+    FORMS_ADD_N(rest, &name[from], size - from);
+    return rest;
+}
+
+// 1 where the rest of an operand is RZ, PT, a negation of one, a number or nothing
+static int constant(const char *rest)
+{
+    const FormsLine bare = forms_trim(rest);
+    return (bare.text[0] == '\0') || forms_same(bare.text, "RZ") || forms_same(bare.text, "PT") ||
+           forms_same(bare.text, "!PT") || forms_same(bare.text, "!") || forms_begins(bare.text, "0x") ||
+           forms_begins(bare.text, "-0x");
+}
+
+// 1 where a value that an instruction wrote is a predicate's
+static int predicate_value(const char *value)
+{
+    const size_t size = forms_length(value);
+    const size_t colon = forms_chr_n(value, size, ':', 0u);
+    return (colon < size) && (value[colon + 1u] == 'P');
+}
+
+// the operand `at` of a kept instruction's names, or "" where it has fewer [BORROWS]
+static const char *retained_name(const Retained *one, unsigned int at)
+{
+    return (at < one->instruction.operand_count) ? one->names[at].text : "";
+}
+
+// the scratch a block's reading names, a register of the compiler's each and the name the reading gives it, at max
+#define FORMS_SCRATCH_MAX 512u
+
+struct FormsScratch
+{
+    FormsWord physical;
+    FormsWord name;
+};
+
+// the state of one resolution of a block's names: its scratch and the counts of scratch words and predicates
+struct Resolution
+{
+    const Question *question;
+    Read *read;
+    FormsScratch scratch[FORMS_SCRATCH_MAX];
+    unsigned int scratch_count;
+    unsigned int words;
+    unsigned int predicates;
+};
+
+// `with`, each value between two \x02 written as an argument's name, or as the scratch it is, onto `out`
+static void resolved(Resolution *resolution, const char *with, FormsLine *out)
+{
+    const Question *const question = resolution->question;
+    const size_t size = forms_length(with);
+    size_t from = 0u;
+    for (size_t open = forms_chr_n(with, size, '\x02', 0u); open < size; open = forms_chr_n(with, size, '\x02', from))
+    {
+        const size_t close = forms_chr_n(with, size, '\x02', open + 1u);
+        FORMS_ADD_N(*out, &with[from], open - from);
+        FormsWord value;
+        FORMS_SET_N(value, &with[open + 1u], (close > open) ? (close - open - 1u) : 0u);
+        const RegisterContent *const content = bound_of(value.text);
+        if (content != NULL)
+        {
+            int fixed = 0;
+            for (unsigned int at = 0u; at < question->role_count; at += 1u)
+            {
+                fixed = forms_same(question->roles[at].name.text, content->argument.text) ? question->roles[at].fixed
+                                                                                          : fixed;
+            }
+            // the carry is P6, which sass.krs reserves for a chain's carry
+            if (forms_same(content->argument.text, "carry"))
+            {
+                FORMS_ADD(*out, "P6");
+            }
+            else
+            {
+                FORMS_ADD(*out, fixed ? "<" : "{");
+                FORMS_ADD(*out, content->argument.text);
+                FORMS_ADD(*out, fixed ? ">" : "}");
+                FORMS_ADD(*out, (content->half != 0u) ? ".hi" : "");
+            }
+        }
+        else
+        {
+            // the compiler's own register, past the `:` of the value's name, or the whole name where it has none
+            const size_t value_size = forms_length(value.text);
+            const size_t colon = forms_chr_n(value.text, value_size, ':', 0u);
+            const char *const physical = (colon < value_size) ? &value.text[colon + 1u] : value.text;
+            unsigned int found = resolution->scratch_count;
+            for (unsigned int at = 0u; at < resolution->scratch_count; at += 1u)
+            {
+                found = forms_same(resolution->scratch[at].physical.text, physical) ? at : found;
+            }
+            if (found == resolution->scratch_count)
+            {
+                if (found == FORMS_SCRATCH_MAX)
+                {
+                    forms_refused("a block names more scratch than the table holds: ", physical,
+                                  forms_length(physical));
+                }
+                const int predicate = (physical[0] == 'P');
+                unsigned int *const taken = predicate ? &resolution->predicates : &resolution->words;
+                FORMS_SET(resolution->scratch[found].physical, physical);
+                FORMS_SET(resolution->scratch[found].name, (*taken == 0u) ? (predicate ? "P6" : "R237") : physical);
+                if (*taken == 1u)
+                {
+                    forms_add(resolution->read->why, sizeof(resolution->read->why), "more scratch ");
+                    forms_add(resolution->read->why, sizeof(resolution->read->why), predicate ? "predicates" : "words");
+                    forms_add(resolution->read->why, sizeof(resolution->read->why), " than one; ");
+                }
+                *taken += 1u;
+                resolution->scratch_count += 1u;
+            }
+            FORMS_ADD(*out, resolution->scratch[found].name.text);
+        }
+        from = (close < size) ? (close + 1u) : size;
+    }
+    FORMS_ADD_N(*out, &with[from], size - from);
+}
+
+// `why` with the first place of `note` left out, in place
+static void why_dropped(char *why, const char *note)
+{
+    const size_t length = forms_length(why);
+    const size_t found = forms_find_n(why, length, note, 0u);
+    if (found == length)
+    {
+        return;
+    }
+    const size_t size = forms_length(note);
+    EMBED_CALL(memor.move_down, MemoriaCfg, .dst = &why[found], .src = &why[found + size],
+               .bytes = length - found - size + 1u);
+}
+
+// a note of a read with a role's name between `head` and "; "
+static void why_noted(Read *read, const char *head, const char *name)
+{
+    forms_add(read->why, sizeof(read->why), head);
+    forms_add(read->why, sizeof(read->why), name);
+    forms_add(read->why, sizeof(read->why), "; ");
+}
+
+// The SASS block of the `count` lines at `lines` read back into the form that `question` puts, into `read`. The bases
+// that the opening of the entry sets up carry from one block to the next through `bases`
+static void sass_read(const Question *question, const char *const *lines, unsigned int count, Bases *bases, Read *read)
+{
+    read->text[0] = '\0';
+    read->why[0] = '\0';
     // the value that each register contains now, by a name of its own: L<n> loaded, W<n>:<register> written by kept
     // instruction n. A value bound to an argument takes the name of the argument
-    std::map<std::string, std::string> current;
-    std::map<std::string, RegisterContent> bound;
-    struct Retained
-    {
-        Instruction instruction;
-        std::vector<std::string> names;
-        std::string guard;
-    };
-    std::vector<Retained> retained;
+    s_current_count = 0u;
+    s_bound_count = 0u;
+    s_retained_count = 0u;
     unsigned int loads = 0u;
-    auto role_at = [&](const std::string &place, unsigned int word, unsigned int *half) -> const Role * {
-        for (const Role &role : question.roles)
-        {
-            if ((role.place == place) && ((role.word == word) || ((role.type == "u64") && ((role.word + 1u) == word))))
-            {
-                *half = word - role.word;
-                return &role;
-            }
-        }
-        return NULL;
-    };
-    auto int_role = [&](const std::string &value) -> const Role * {
-        const auto found = bound.find(value);
-        for (const Role &role : question.roles)
-        {
-            if ((found != bound.end()) && (role.name == found->second.argument) && (role.type == "int"))
-            {
-                return &role;
-            }
-        }
-        return NULL;
-    };
-    auto offset_of = [](const std::string &address) -> unsigned int {
-        const size_t plus = address.find('+');
-        return (plus == std::string::npos)
-                   ? 0u
-                   : (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = address.c_str() + plus + 1u,
-                                              .end = NULL, .base = 16);
-    };
-    // `operand` with each register it reads written as its value's name between two \x02
-    auto read_names = [&](const std::string &operand) -> std::string {
-        std::string renamed;
-        size_t from = 0u;
-        size_t length = 0u;
-        size_t found = sass_register(operand, 0u, &length);
-        while (found != std::string::npos)
-        {
-            const std::string token = operand.substr(found, length);
-            const auto value = current.find(token);
-            renamed += operand.substr(from, found - from);
-            renamed += (value != current.end()) ? ("\x02" + value->second + "\x02") : token;
-            from = found + length;
-            found = sass_register(operand, from, &length);
-        }
-        return renamed + operand.substr(from);
-    };
-    for (const std::string &line : lines)
+    for (unsigned int line = 0u; line < count; line += 1u)
     {
-        const Instruction instruction = instruction_read(line);
-        const std::string &operation = instruction.operation;
-        const std::vector<std::string> &operands = instruction.operands;
+        const Instruction instruction = instruction_read(lines[line]);
+        const char *const operation = instruction.operation.text;
+        const FormsOperand *const operands = instruction.operands;
+        const unsigned int operand_count = instruction.operand_count;
         // the bases: a register set from the entry's parameters, `in` at 0x160 and `out` at 0x168
-        if ((operands.size() >= 2u) && (operands.back().compare(0u, 10u, "c[0x0][0x1") == 0) &&
-            ((operation == "MOV") || (operation == "IMAD.MOV.U32")))
+        if ((operand_count >= 2u) && forms_begins(operands[operand_count - 1u].text, "c[0x0][0x1") &&
+            (forms_same(operation, "MOV") || forms_same(operation, "IMAD.MOV.U32")))
         {
-            const unsigned int place = (unsigned int)EMBED_CALL(
-                cellul.to_ulong_in, TransfiguroCfg, .src = operands.back().c_str() + 7, .end = NULL, .base = 16);
+            // a place in the constant bank is far below 2^32
+            const unsigned int place =
+                (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                         .src = &operands[operand_count - 1u].text[7], .end = NULL, .base = 16);
             if ((place >= 0x160u) && (place < 0x170u))
             {
-                bases->in_low = (place == 0x160u) ? (int)token_number(operands[0]) : bases->in_low;
-                bases->out_low = (place == 0x168u) ? (int)token_number(operands[0]) : bases->out_low;
+                // a register's number is far below 2^31
+                bases->in_low = (place == 0x160u) ? (int)token_number(operands[0].text) : bases->in_low;
+                bases->out_low = (place == 0x168u) ? (int)token_number(operands[0].text) : bases->out_low;
                 continue;
             }
         }
-        if (operation.compare(0u, 4u, "ULDC") == 0)
+        if (forms_begins(operation, "ULDC"))
         {
             continue;
         }
         // a load from `in`: the register it writes contains the argument loaded
-        if ((operation.compare(0u, 3u, "LDG") == 0) && (operands.size() == 2u) && (operands[1][0] == '[') &&
-            ((int)token_number(operands[1].substr(1u)) == bases->in_low))
+        if (forms_begins(operation, "LDG") && (operand_count == 2u) && (operands[1].text[0] == '[') &&
+            ((int)token_number(&operands[1].text[1]) == bases->in_low))
         {
             unsigned int half = 0u;
-            const Role *const role = role_at("in", offset_of(operands[1]) / 4u, &half);
+            const Role *const role = role_at(question, "in", offset_of(operands[1].text) / 4u, &half);
             if (role != NULL)
             {
-                const unsigned int first = token_number(operands[0]);
-                const unsigned int words = (operation.find(".64") != std::string::npos) ? 2u : 1u;
+                const unsigned int first = token_number(operands[0].text);
+                const unsigned int words = forms_has(operation, ".64") ? 2u : 1u;
                 for (unsigned int word = 0u; word < words; word += 1u)
                 {
-                    const std::string value = "L" + std::to_string(loads);
+                    FormsWord value;
+                    FORMS_SET(value, "L");
+                    FORMS_ADD_DECIMAL(value, loads);
                     loads += 1u;
-                    current["R" + std::to_string(first + word)] = value;
-                    bound[value] = {role->name, half + word, 0};
+                    FormsWord token;
+                    FORMS_SET(token, "R");
+                    FORMS_ADD_DECIMAL(token, first + word);
+                    current_put(token.text, value.text);
+                    bound_put(value.text, role->name.text, half + word, 0);
                 }
                 continue;
             }
         }
         // a store to `out`: the value of the register it reads is the argument stored
-        if ((operation.compare(0u, 3u, "STG") == 0) && (operands.size() == 2u) && (operands[0][0] == '[') &&
-            ((int)token_number(operands[0].substr(1u)) == bases->out_low))
+        if (forms_begins(operation, "STG") && (operand_count == 2u) && (operands[0].text[0] == '[') &&
+            ((int)token_number(&operands[0].text[1]) == bases->out_low))
         {
             unsigned int half = 0u;
-            const Role *const role = role_at("out", offset_of(operands[0]) / 4u, &half);
+            const Role *const role = role_at(question, "out", offset_of(operands[0].text) / 4u, &half);
             if (role != NULL)
             {
-                const unsigned int words = (operation.find(".64") != std::string::npos) ? 2u : 1u;
+                const unsigned int words = forms_has(operation, ".64") ? 2u : 1u;
                 for (unsigned int word = 0u; word < words; word += 1u)
                 {
-                    const std::string token =
-                        (operands[1] == "RZ") ? "RZ" : ("R" + std::to_string(token_number(operands[1]) + word));
-                    const auto value = current.find(token);
-                    if (value == current.end())
+                    FormsWord token;
+                    if (forms_same(operands[1].text, "RZ"))
                     {
-                        read.why += "the compiler stores " + token + " for " + role->name + "; ";
+                        FORMS_SET(token, "RZ");
+                    }
+                    else
+                    {
+                        FORMS_SET(token, "R");
+                        FORMS_ADD_DECIMAL(token, token_number(operands[1].text) + word);
+                    }
+                    const char *const value = current_of(token.text);
+                    if (value == NULL)
+                    {
+                        forms_add(read->why, sizeof(read->why), "the compiler stores ");
+                        forms_add(read->why, sizeof(read->why), token.text);
+                        why_noted(read, " for ", role->name.text);
                         continue;
                     }
-                    if (value->second[0] == 'L')
+                    if (value[0] == 'L')
                     {
-                        read.why += "the compiler stores " + role->name + " straight from a load; ";
+                        forms_add(read->why, sizeof(read->why), "the compiler stores ");
+                        forms_add(read->why, sizeof(read->why), role->name.text);
+                        forms_add(read->why, sizeof(read->why), " straight from a load; ");
                     }
-                    bound[value->second] = {role->name, half + word, 0};
+                    FormsWord held;
+                    FORMS_SET(held, value);
+                    bound_put(held.text, role->name.text, half + word, 0);
                 }
                 continue;
             }
         }
-        Retained one;
-        one.instruction = instruction;
-        one.names.resize(operands.size());
-        const unsigned int written = sass_written(instruction);
-        for (size_t at = written; at < operands.size(); at += 1u)
+        if (s_retained_count == FORMS_BLOCK_MAX)
         {
-            one.names[at] = read_names(operands[at]);
+            forms_refused("a block keeps more instructions than the table holds", "", 0u);
         }
-        one.guard = instruction.guard.empty() ? std::string() : read_names(instruction.guard);
-        const std::string id = "W" + std::to_string(retained.size()) + ":";
-        for (size_t at = 0u; at < written; at += 1u)
+        Retained *const one = &s_retained[s_retained_count];
+        one->instruction = instruction;
+        for (unsigned int at = 0u; at < operand_count; at += 1u)
+        {
+            one->names[at].text[0] = '\0';
+        }
+        const unsigned int written = sass_written(&instruction);
+        for (unsigned int at = written; at < operand_count; at += 1u)
+        {
+            read_names(operands[at].text, &one->names[at]);
+        }
+        one->guard.text[0] = '\0';
+        if (instruction.guard.text[0] != '\0')
+        {
+            read_names(instruction.guard.text, &one->guard);
+        }
+        FormsWord id;
+        FORMS_SET(id, "W");
+        FORMS_ADD_DECIMAL(id, s_retained_count);
+        FORMS_ADD(id, ":");
+        for (unsigned int at = 0u; at < written; at += 1u)
         {
             size_t length = 0u;
-            const size_t found = sass_register(operands[at], 0u, &length);
-            if (found == std::string::npos)
+            const size_t size = forms_length(operands[at].text);
+            const size_t found = sass_register(operands[at].text, 0u, &length);
+            if (found == size)
             {
-                one.names[at] = operands[at];
+                one->names[at] = operands[at];
                 continue;
             }
-            const std::string token = operands[at].substr(found, length);
-            current[token] = id + token;
-            one.names[at] =
-                operands[at].substr(0u, found) + "\x02" + current[token] + "\x02" + operands[at].substr(found + length);
-            if ((at == 0u) && (token[0] == 'R') && sass_wide_write(instruction))
+            FormsWord token;
+            FORMS_SET_N(token, &operands[at].text[found], length);
+            FormsWord value = id;
+            FORMS_ADD(value, token.text);
+            current_put(token.text, value.text);
+            FORMS_SET_N(one->names[at], operands[at].text, found);
+            FORMS_ADD(one->names[at], "\x02");
+            FORMS_ADD(one->names[at], value.text);
+            FORMS_ADD(one->names[at], "\x02");
+            FORMS_ADD(one->names[at], &operands[at].text[found + length]);
+            if ((at == 0u) && (token.text[0] == 'R') && sass_wide_write(&instruction))
             {
-                const std::string next = "R" + std::to_string(token_number(token) + 1u);
-                current[next] = id + next;
+                FormsWord next;
+                FORMS_SET(next, "R");
+                FORMS_ADD_DECIMAL(next, token_number(token.text) + 1u);
+                FormsWord next_value = id;
+                FORMS_ADD(next_value, next.text);
+                current_put(next.text, next_value.text);
             }
         }
-        retained.push_back(one);
+        s_dropped[s_retained_count] = 0;
+        s_retained_count += 1u;
     }
     // A predicate argument, and the carry, cross the edge of the block as a word.
     //   - read in: an instruction that meets three conditions sets the predicate from the word. Its one value read is
@@ -2024,94 +3592,91 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
     //     where the predicate is true. Any other form reads the predicate as written.
     //
     // The tool drops each such instruction from the form, and its predicate is the argument
-    auto values_of = [](const std::string &name, std::vector<std::string> *values) -> std::string {
-        std::string rest;
-        size_t from = 0u;
-        size_t open = name.find('\x02');
-        while (open != std::string::npos)
-        {
-            const size_t close = name.find('\x02', open + 1u);
-            rest += name.substr(from, open - from);
-            values->push_back(name.substr(open + 1u, close - open - 1u));
-            from = close + 1u;
-            open = name.find('\x02', from);
-        }
-        return rest + name.substr(from);
-    };
-    auto constant = [](const std::string &rest) -> int {
-        const std::string bare = trim(rest);
-        return bare.empty() || (bare == "RZ") || (bare == "PT") || (bare == "!PT") || (bare == "!") ||
-               (bare.compare(0u, 2u, "0x") == 0) || (bare.compare(0u, 3u, "-0x") == 0);
-    };
-    auto predicate_value = [](const std::string &value) -> int {
-        const size_t colon = value.find(':');
-        return (colon != std::string::npos) && (value[colon + 1u] == 'P');
-    };
-    std::set<size_t> dropped;
     int set_negated = 0;
-    for (size_t at = 0u; at < retained.size(); at += 1u)
+    for (unsigned int at = 0u; at < s_retained_count; at += 1u)
     {
-        const Instruction &instruction = retained[at].instruction;
-        const std::vector<std::string> &names = retained[at].names;
+        const Retained *const one = &s_retained[at];
+        const Instruction *const instruction = &one->instruction;
         const unsigned int written = sass_written(instruction);
-        std::vector<std::string> reads;
+        FormsWord reads[FORMS_NAME_VALUES_MAX * FORMS_OPERANDS_MAX];
+        unsigned int read_count = 0u;
         int others = 0;
         int inverted = 0;
-        for (size_t one = written; one < names.size(); one += 1u)
+        for (unsigned int operand = written; operand < instruction->operand_count; operand += 1u)
         {
-            std::vector<std::string> values;
-            const std::string rest = values_of(names[one], &values);
-            inverted = inverted || (!values.empty() && (rest.find('!') != std::string::npos));
-            others = others || !constant(rest);
-            reads.insert(reads.end(), values.begin(), values.end());
+            FormsWord values[FORMS_NAME_VALUES_MAX];
+            unsigned int value_count = 0u;
+            const FormsOperand rest = values_of(one->names[operand].text, values, &value_count);
+            inverted = inverted || ((value_count != 0u) && forms_has(rest.text, "!"));
+            others = others || !constant(rest.text);
+            for (unsigned int value = 0u; value < value_count; value += 1u)
+            {
+                reads[read_count] = values[value];
+                read_count += 1u;
+            }
         }
-        std::vector<std::string> writes;
+        FormsWord writes[FORMS_NAME_VALUES_MAX * FORMS_OPERANDS_MAX];
+        unsigned int write_count = 0u;
         int written_words = 0;
-        for (size_t one = 0u; one < written; one += 1u)
+        for (unsigned int operand = 0u; operand < written; operand += 1u)
         {
-            std::vector<std::string> values;
-            values_of(names[one], &values);
-            for (const std::string &value : values)
+            FormsWord values[FORMS_NAME_VALUES_MAX];
+            unsigned int value_count = 0u;
+            (void)values_of(one->names[operand].text, values, &value_count);
+            for (unsigned int value = 0u; value < value_count; value += 1u)
             {
-                written_words = written_words || !predicate_value(value);
-                writes.push_back(value);
+                written_words = written_words || !predicate_value(values[value].text);
+                writes[write_count] = values[value];
+                write_count += 1u;
             }
         }
-        if (others || (reads.size() != 1u) || !instruction.guard.empty())
+        if (others || (read_count != 1u) || (instruction->guard.text[0] != '\0'))
         {
             continue;
         }
-        const Role *const read_role = int_role(reads[0]);
-        if ((read_role != NULL) && (reads[0][0] == 'L') && !written_words && !writes.empty())
+        const Role *const read_role = int_role(question, reads[0].text);
+        if ((read_role != NULL) && (reads[0].text[0] == 'L') && !written_words && (write_count != 0u))
         {
-            const int negated = (instruction.operation.find(".EQ") != std::string::npos);
-            for (const std::string &value : writes)
+            const int negated = forms_has(instruction->operation.text, ".EQ");
+            for (unsigned int value = 0u; value < write_count; value += 1u)
             {
-                bound[value] = {read_role->name, 0u, negated};
+                bound_put(writes[value].text, read_role->name.text, 0u, negated);
             }
-            dropped.insert(at);
-            read.why += negated ? ("the compiler reads the negation of " + read_role->name + "; ") : std::string();
+            s_dropped[at] = 1;
+            if (negated)
+            {
+                why_noted(read, "the compiler reads the negation of ", read_role->name.text);
+            }
             continue;
         }
-        const Role *const write_role = (writes.size() == 1u) ? int_role(writes[0]) : NULL;
-        if ((write_role != NULL) && predicate_value(reads[0]))
+        const Role *const write_role = (write_count == 1u) ? int_role(question, writes[0].text) : NULL;
+        if ((write_role != NULL) && predicate_value(reads[0].text))
         {
             int negated = inverted;
-            if (instruction.operation == "SEL")
+            if (forms_same(instruction->operation.text, "SEL"))
             {
-                const int straight = (names[1] == "RZ") && (names[2] == "0x1");
-                const int crossed = (names[1] == "0x1") && (names[2] == "RZ");
+                const int straight =
+                    forms_same(retained_name(one, 1u), "RZ") && forms_same(retained_name(one, 2u), "0x1");
+                const int crossed =
+                    forms_same(retained_name(one, 1u), "0x1") && forms_same(retained_name(one, 2u), "RZ");
                 if (!straight && !crossed)
                 {
                     continue;
                 }
                 negated = straight ? !inverted : inverted;
             }
-            bound[reads[0]] = {write_role->name, 0u, negated};
-            bound.erase(writes[0]);
-            dropped.insert(at);
+            bound_put(reads[0].text, write_role->name.text, 0u, negated);
+            RegisterContent *const erased = bound_of(writes[0].text);
+            if (erased != NULL)
+            {
+                erased->erased = 1;
+            }
+            s_dropped[at] = 1;
             set_negated = set_negated || negated;
-            read.why += negated ? ("the compiler sets the negation of " + write_role->name + "; ") : std::string();
+            if (negated)
+            {
+                why_noted(read, "the compiler sets the negation of ", write_role->name.text);
+            }
         }
     }
     // A predicate stored as its negation, where every instruction left is an ISETP anded with PT: each comparison
@@ -2122,389 +3687,527 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
         static const char *const turned[6][2] = {{".EQ.", ".NE."}, {".NE.", ".EQ."}, {".LT.", ".GE."},
                                                  {".GE.", ".LT."}, {".GT.", ".LE."}, {".LE.", ".GT."}};
         int turnable = 1;
-        for (size_t at = 0u; at < retained.size(); at += 1u)
+        for (unsigned int at = 0u; at < s_retained_count; at += 1u)
         {
-            turnable = turnable && ((dropped.count(at) != 0u) ||
-                                    ((retained[at].instruction.operation.compare(0u, 6u, "ISETP.") == 0) &&
-                                     (retained[at].names.size() >= 5u) && (retained[at].names[4] == "PT")));
+            turnable =
+                turnable && (s_dropped[at] || (forms_begins(s_retained[at].instruction.operation.text, "ISETP.") &&
+                                               (s_retained[at].instruction.operand_count >= 5u) &&
+                                               forms_same(s_retained[at].names[4].text, "PT")));
         }
-        for (size_t at = 0u; turnable && (at < retained.size()); at += 1u)
+        for (unsigned int at = 0u; turnable && (at < s_retained_count); at += 1u)
         {
-            std::string &operation = retained[at].instruction.operation;
-            for (unsigned int one = 0u; (dropped.count(at) == 0u) && (one < 6u); one += 1u)
+            char *const operation = s_retained[at].instruction.operation.text;
+            for (unsigned int one = 0u; !s_dropped[at] && (one < 6u); one += 1u)
             {
-                const size_t found = operation.find(turned[one][0]);
-                if (found == 5u)
+                if (forms_find(operation, turned[one][0], 0u) == 5u)
                 {
-                    operation.replace(found, 4u, turned[one][1]);
+                    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &operation[5], .src = turned[one][1], .bytes = 4u);
                     break;
                 }
             }
         }
-        for (const Role &role : question.roles)
+        for (unsigned int at = 0u; turnable && (at < question->role_count); at += 1u)
         {
-            const std::string note = "the compiler sets the negation of " + role.name + "; ";
-            const size_t found = turnable ? read.why.find(note) : std::string::npos;
-            if (found != std::string::npos)
-            {
-                read.why.erase(found, note.size());
-            }
+            FormsLine note;
+            FORMS_SET(note, "the compiler sets the negation of ");
+            FORMS_ADD(note, question->roles[at].name.text);
+            FORMS_ADD(note, "; ");
+            why_dropped(read->why, note.text);
         }
     }
     // the pair a 64-bit write gives: where one half is an argument's, the other is the argument's other half
-    for (size_t at = 0u; at < retained.size(); at += 1u)
+    for (unsigned int at = 0u; at < s_retained_count; at += 1u)
     {
-        const Instruction &instruction = retained[at].instruction;
+        const Instruction *const instruction = &s_retained[at].instruction;
         size_t length = 0u;
+        const size_t size = (instruction->operand_count != 0u) ? forms_length(instruction->operands[0].text) : 0u;
         const size_t found =
-            instruction.operands.empty() ? std::string::npos : sass_register(instruction.operands[0], 0u, &length);
-        if ((found == std::string::npos) || (sass_written(instruction) == 0u) || !sass_wide_write(instruction) ||
-            (instruction.operands[0][found] != 'R'))
+            (instruction->operand_count != 0u) ? sass_register(instruction->operands[0].text, 0u, &length) : 0u;
+        if ((instruction->operand_count == 0u) || (found == size) || (sass_written(instruction) == 0u) ||
+            !sass_wide_write(instruction) || (instruction->operands[0].text[found] != 'R'))
         {
             continue;
         }
-        const unsigned int first = token_number(instruction.operands[0].substr(found, length));
-        const std::string low = "W" + std::to_string(at) + ":R" + std::to_string(first);
-        const std::string high = "W" + std::to_string(at) + ":R" + std::to_string(first + 1u);
-        const auto low_bound = bound.find(low);
-        const auto high_bound = bound.find(high);
-        if ((low_bound != bound.end()) && (high_bound == bound.end()) && (low_bound->second.half == 0u))
+        FormsWord token;
+        FORMS_SET_N(token, &instruction->operands[0].text[found], length);
+        const unsigned int first = token_number(token.text);
+        FormsWord low;
+        FORMS_SET(low, "W");
+        FORMS_ADD_DECIMAL(low, at);
+        FORMS_ADD(low, ":R");
+        FormsWord high = low;
+        FORMS_ADD_DECIMAL(low, first);
+        FORMS_ADD_DECIMAL(high, first + 1u);
+        const RegisterContent *const low_bound = bound_of(low.text);
+        const RegisterContent *const high_bound = bound_of(high.text);
+        if ((low_bound != NULL) && (high_bound == NULL) && (low_bound->half == 0u))
         {
-            bound[high] = {low_bound->second.argument, 1u, 0};
+            const FormsWord argument = low_bound->argument;
+            bound_put(high.text, argument.text, 1u, 0);
         }
-        else if ((high_bound != bound.end()) && (low_bound == bound.end()) && (high_bound->second.half == 1u))
+        else if ((high_bound != NULL) && (low_bound == NULL) && (high_bound->half == 1u))
         {
-            bound[low] = {high_bound->second.argument, 0u, 0};
+            const FormsWord argument = high_bound->argument;
+            bound_put(low.text, argument.text, 0u, 0);
         }
     }
     // every value left: an argument's, or scratch, named by the compiler's own register for it
-    std::map<std::string, std::string> scratch;
-    unsigned int scratch_words = 0u;
+    static Resolution s_resolution;
+    Resolution *const resolution = &s_resolution;
+    resolution->question = question;
+    resolution->read = read;
+    resolution->scratch_count = 0u;
+    resolution->words = 0u;
     // a form that carries occupies P6 already, and any predicate scratch beside it is one more than sass.krs reserves
-    unsigned int scratch_predicates = 0u;
-    for (const Role &role : question.roles)
+    resolution->predicates = 0u;
+    for (unsigned int at = 0u; at < question->role_count; at += 1u)
     {
-        scratch_predicates = (role.name == "carry") ? 1u : scratch_predicates;
+        resolution->predicates = forms_same(question->roles[at].name.text, "carry") ? 1u : resolution->predicates;
     }
-    auto resolve = [&](const std::string &with) -> std::string {
-        std::string out;
-        size_t from = 0u;
-        size_t open = with.find('\x02');
-        while (open != std::string::npos)
-        {
-            const size_t close = with.find('\x02', open + 1u);
-            out += with.substr(from, open - from);
-            const std::string value = with.substr(open + 1u, close - open - 1u);
-            const auto argument = bound.find(value);
-            if (argument != bound.end())
-            {
-                const RegisterContent &content = argument->second;
-                int fixed = 0;
-                for (const Role &role : question.roles)
-                {
-                    fixed = (role.name == content.argument) ? role.fixed : fixed;
-                }
-                // the carry is P6, which sass.krs reserves for a chain's carry
-                out += (content.argument == "carry") ? std::string("P6")
-                       : fixed ? ("<" + content.argument + ">" + ((content.half != 0u) ? ".hi" : ""))
-                               : ("{" + content.argument + "}" + ((content.half != 0u) ? ".hi" : ""));
-            }
-            else
-            {
-                const std::string physical = value.substr(value.find(':') + 1u);
-                if (scratch.find(physical) == scratch.end())
-                {
-                    const int predicate = (physical[0] == 'P');
-                    unsigned int &taken = predicate ? scratch_predicates : scratch_words;
-                    scratch[physical] = (taken == 0u) ? (predicate ? "P6" : "R237") : physical;
-                    read.why +=
-                        (taken == 1u)
-                            ? (std::string("more scratch ") + (predicate ? "predicates" : "words") + " than one; ")
-                            : std::string();
-                    taken += 1u;
-                }
-                out += scratch[physical];
-            }
-            from = close + 1u;
-            open = with.find('\x02', from);
-        }
-        return out + with.substr(from);
-    };
-    std::string text;
-    for (size_t at = 0u; at < retained.size(); at += 1u)
+    for (unsigned int at = 0u; at < s_retained_count; at += 1u)
     {
-        if (dropped.count(at) != 0u)
+        if (s_dropped[at])
         {
             continue;
         }
-        text += "\t";
-        if (!retained[at].guard.empty())
+        const Retained *const one = &s_retained[at];
+        FormsLine line;
+        FORMS_SET(line, "\t");
+        if (one->guard.text[0] != '\0')
         {
-            text += "@" + resolve(retained[at].guard) + " ";
+            FORMS_ADD(line, "@");
+            resolved(resolution, one->guard.text, &line);
+            FORMS_ADD(line, " ");
         }
-        text += retained[at].instruction.operation;
-        for (size_t one = 0u; one < retained[at].names.size(); one += 1u)
+        FORMS_ADD(line, one->instruction.operation.text);
+        for (unsigned int operand = 0u; operand < one->instruction.operand_count; operand += 1u)
         {
-            text += ((one == 0u) ? " \t" : ", ") + resolve(retained[at].names[one]);
+            FORMS_ADD(line, (operand == 0u) ? " \t" : ", ");
+            resolved(resolution, one->names[operand].text, &line);
         }
-        text += ";\n";
+        FORMS_ADD(line, ";\n");
+        forms_add(read->text, sizeof(read->text), line.text);
     }
-    read.text = numbers_named(text, question, &read.why);
-    return read;
+    numbers_named(read->text, sizeof(read->text), question, read->why, sizeof(read->why));
 }
 
 // ---------------------------------------------------------------------------------------------------------------
 // PTX
 
-struct PtxBases
+// the parameters the PTX loads its bases from at max
+#define FORMS_PARAMETER_LOADS_MAX 64u
+
+// a register the PTX loads from a parameter, and the parameter
+struct PtxParameter
 {
-    std::string in;
-    std::string out;
-    std::map<std::string, std::string> parameters;
+    FormsLine register_name;
+    FormsLine parameter;
 };
 
-static int ptx_register_start(const std::string &text, size_t at)
+// the PTX's bases: the register `in` is in and the register `out` is in, and the registers loaded from parameters
+struct PtxBases
 {
-    return (text[at] == '%') && ((at + 1u) < text.size()) && identifier_character(text[at + 1u]);
+    FormsLine in;
+    FormsLine out;
+    PtxParameter parameters[FORMS_PARAMETER_LOADS_MAX];
+    unsigned int parameter_count;
+};
+
+// the parameter that the PTX loaded the register `name` from, or "" [BORROWS]
+static const char *ptx_parameter_of(const PtxBases *bases, const char *name)
+{
+    for (unsigned int at = 0u; at < bases->parameter_count; at += 1u)
+    {
+        if (forms_same(bases->parameters[at].register_name.text, name))
+        {
+            return bases->parameters[at].parameter.text;
+        }
+    }
+    return "";
 }
 
-static Read ptx_read(const Question &question, const std::vector<std::string> &lines, PtxBases *bases)
+// the register `name` loaded from `parameter`, in place of what it had
+static void ptx_parameter_put(PtxBases *bases, const char *name, const char *parameter)
 {
-    Read read;
-    std::map<std::string, RegisterContent> contents;
-    std::vector<Instruction> retained;
-    for (const std::string &line : lines)
+    for (unsigned int at = 0u; at < bases->parameter_count; at += 1u)
     {
-        const Instruction instruction = instruction_read(line);
-        const std::string &operation = instruction.operation;
-        const std::vector<std::string> &operands = instruction.operands;
-        if ((operation.compare(0u, 9u, "ld.param.") == 0) && (operands.size() == 2u))
+        if (forms_same(bases->parameters[at].register_name.text, name))
         {
-            bases->parameters[operands[0]] = operands[1];
-            continue;
+            FORMS_SET(bases->parameters[at].parameter, parameter);
+            return;
         }
-        if ((operation.compare(0u, 10u, "cvta.to.gl") == 0) && (operands.size() == 2u))
-        {
-            const std::string parameter = bases->parameters[operands[1]];
-            if (parameter.find("param_0") != std::string::npos)
-            {
-                bases->in = operands[0];
-            }
-            if (parameter.find("param_1") != std::string::npos)
-            {
-                bases->out = operands[0];
-            }
-            continue;
-        }
-        auto address = [](const std::string &operand, std::string *base) -> unsigned int {
-            const size_t plus = operand.find('+');
-            *base = operand.substr(1u, ((plus == std::string::npos) ? (operand.size() - 1u) : plus) - 1u);
-            return (plus == std::string::npos)
-                       ? 0u
-                       : (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
-                                                  .src = operand.c_str() + plus + 1u, .end = NULL, .base = 10);
-        };
-        if ((operation.compare(0u, 19u, "ld.volatile.global.") == 0) && (operands.size() == 2u))
-        {
-            std::string base;
-            const unsigned int offset = address(operands[1], &base);
-            const Role *role = NULL;
-            for (const Role &one : question.roles)
-            {
-                role = ((base == bases->in) && (one.place == "in") && (one.word * 4u == offset)) ? &one : role;
-            }
-            if (role != NULL)
-            {
-                contents[operands[0]] = {role->name, 0u, 0};
-                continue;
-            }
-        }
-        if ((operation.compare(0u, 19u, "st.volatile.global.") == 0) && (operands.size() == 2u))
-        {
-            std::string base;
-            const unsigned int offset = address(operands[0], &base);
-            const Role *role = NULL;
-            for (const Role &one : question.roles)
-            {
-                role = ((base == bases->out) && (one.place == "out") && (one.word * 4u == offset)) ? &one : role;
-            }
-            if (role != NULL)
-            {
-                contents[operands[1]] = {role->name, 0u, 0};
-                continue;
-            }
-        }
-        retained.push_back(instruction);
     }
-    // a predicate argument read in, and one stored
-    std::set<size_t> dropped;
-    for (size_t at = 0u; at < retained.size(); at += 1u)
+    if (bases->parameter_count == FORMS_PARAMETER_LOADS_MAX)
     {
-        const Instruction &instruction = retained[at];
-        auto int_role = [&](const std::string &token) -> const Role * {
-            const auto value = contents.find(token);
-            const Role *role = NULL;
-            for (const Role &one : question.roles)
+        forms_refused("the PTX loads more parameters than the table holds: ", name, forms_length(name));
+    }
+    FORMS_SET(bases->parameters[bases->parameter_count].register_name, name);
+    FORMS_SET(bases->parameters[bases->parameter_count].parameter, parameter);
+    bases->parameter_count += 1u;
+}
+
+// the base of an address `[<base>+<offset>]` into `base`, and its offset in decimal, or 0 where it names none
+static unsigned int ptx_address(const char *operand, FormsLine *base)
+{
+    const size_t size = forms_length(operand);
+    const size_t plus = forms_chr_n(operand, size, '+', 0u);
+    const size_t end = (plus == size) ? (size - 1u) : plus;
+    FORMS_SET_N(*base, &operand[1], (end > 1u) ? (end - 1u) : 0u);
+    // an offset into a question's words is far below 2^32
+    return (plus == size) ? 0u
+                          : (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = &operand[plus + 1u],
+                                                     .end = NULL, .base = 10);
+}
+
+// 1 where a PTX register starts at `at` of `text`: a `%` and a byte of an identifier
+static int ptx_register_start(const char *text, size_t size, size_t at)
+{
+    return (text[at] == '%') && ((at + 1u) < size) && forms_identifier(text[at + 1u]);
+}
+
+// the PTX's own temporaries a reading names, at max
+#define FORMS_TEMPORARIES_MAX 512u
+
+// the role of `question` that a register contains, its argument's, or NULL
+static const Role *role_of_argument(const Question *question, const char *argument)
+{
+    for (unsigned int at = 0u; at < question->role_count; at += 1u)
+    {
+        if (forms_same(question->roles[at].name.text, argument))
+        {
+            return &question->roles[at];
+        }
+    }
+    return NULL;
+}
+
+// `operand` with each PTX register an argument contains written as the argument's name onto `out`, and each register no
+// argument contains put among `temporaries`, `%tid` and `%ntid` aside. The walk jumps from one `%` to the next
+static void ptx_renamed(const Question *question, const char *operand, FormsLine *out, FormsWord *temporaries,
+                        unsigned int *temporary_count)
+{
+    const size_t size = forms_length(operand);
+    size_t at = 0u;
+    while (at < size)
+    {
+        const size_t percent = forms_chr_n(operand, size, '%', at);
+        FORMS_ADD_N(*out, &operand[at], percent - at);
+        at = percent;
+        if (at >= size)
+        {
+            break;
+        }
+        if (!ptx_register_start(operand, size, at))
+        {
+            FORMS_ADD_N(*out, &operand[at], 1u);
+            at += 1u;
+            continue;
+        }
+        size_t end = at + 1u;
+        end += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &operand[end], .cap = size - end,
+                          .other = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
+        FormsWord token;
+        FORMS_SET_N(token, &operand[at], end - at);
+        const RegisterContent *const content = bound_of(token.text);
+        if (content != NULL)
+        {
+            const Role *const role = role_of_argument(question, content->argument.text);
+            const int fixed = (role != NULL) ? role->fixed : 0;
+            FORMS_ADD(*out, fixed ? "<" : "{");
+            FORMS_ADD(*out, content->argument.text);
+            FORMS_ADD(*out, fixed ? ">" : "}");
+        }
+        else
+        {
+            FORMS_ADD(*out, token.text);
+            if (!forms_begins(token.text, "%tid") && !forms_begins(token.text, "%ntid"))
             {
-                role = ((value != contents.end()) && (one.name == value->second.argument) && (one.type == "int"))
-                           ? &one
+                int seen = 0;
+                for (unsigned int one = 0u; !seen && (one < *temporary_count); one += 1u)
+                {
+                    seen = forms_same(temporaries[one].text, token.text);
+                }
+                if (!seen)
+                {
+                    if (*temporary_count == FORMS_TEMPORARIES_MAX)
+                    {
+                        forms_refused("a block names more temporaries than the table holds: ", token.text,
+                                      forms_length(token.text));
+                    }
+                    temporaries[*temporary_count] = token;
+                    *temporary_count += 1u;
+                }
+            }
+        }
+        at = end;
+    }
+}
+
+// The PTX block of the `count` lines at `lines` read back into the form that `question` puts, into `read`. The bases
+// that the opening of the entry sets up carry from one block to the next through `bases`
+static void ptx_read(const Question *question, const char *const *lines, unsigned int count, PtxBases *bases,
+                     Read *read)
+{
+    read->text[0] = '\0';
+    read->why[0] = '\0';
+    // what each register contains, by the register: the table of values of the SASS read, a register's name the value
+    s_bound_count = 0u;
+    s_retained_count = 0u;
+    for (unsigned int line = 0u; line < count; line += 1u)
+    {
+        const Instruction instruction = instruction_read(lines[line]);
+        const char *const operation = instruction.operation.text;
+        const FormsOperand *const operands = instruction.operands;
+        if (forms_begins(operation, "ld.param.") && (instruction.operand_count == 2u))
+        {
+            ptx_parameter_put(bases, operands[0].text, operands[1].text);
+            continue;
+        }
+        if (forms_begins(operation, "cvta.to.gl") && (instruction.operand_count == 2u))
+        {
+            const char *const parameter = ptx_parameter_of(bases, operands[1].text);
+            if (forms_has(parameter, "param_0"))
+            {
+                FORMS_SET(bases->in, operands[0].text);
+            }
+            if (forms_has(parameter, "param_1"))
+            {
+                FORMS_SET(bases->out, operands[0].text);
+            }
+            continue;
+        }
+        if (forms_begins(operation, "ld.volatile.global.") && (instruction.operand_count == 2u))
+        {
+            FormsLine base;
+            const unsigned int offset = ptx_address(operands[1].text, &base);
+            const Role *role = NULL;
+            for (unsigned int one = 0u; one < question->role_count; one += 1u)
+            {
+                const Role *const candidate = &question->roles[one];
+                role = (forms_same(base.text, bases->in.text) && forms_same(candidate->place.text, "in") &&
+                        ((candidate->word * 4u) == offset))
+                           ? candidate
                            : role;
             }
-            return role;
-        };
-        if ((instruction.operation.compare(0u, 7u, "setp.ne") == 0) && (instruction.operands.size() == 3u) &&
-            (instruction.operands[2] == "0") && (int_role(instruction.operands[1]) != NULL))
-        {
-            contents[instruction.operands[0]] = {int_role(instruction.operands[1])->name, 0u, 0};
-            dropped.insert(at);
-        }
-        if ((instruction.operation.compare(0u, 5u, "selp.") == 0) && (instruction.operands.size() == 4u) &&
-            (int_role(instruction.operands[0]) != NULL))
-        {
-            const Role *const role = int_role(instruction.operands[0]);
-            const int negated = (instruction.operands[1] == "0") ? 1 : 0;
-            contents[instruction.operands[3]] = {role->name, 0u, negated};
-            dropped.insert(at);
-            if (negated)
+            if (role != NULL)
             {
-                read.why += "the compiler sets the negation of " + role->name + "; ";
+                bound_put(operands[0].text, role->name.text, 0u, 0);
+                continue;
+            }
+        }
+        if (forms_begins(operation, "st.volatile.global.") && (instruction.operand_count == 2u))
+        {
+            FormsLine base;
+            const unsigned int offset = ptx_address(operands[0].text, &base);
+            const Role *role = NULL;
+            for (unsigned int one = 0u; one < question->role_count; one += 1u)
+            {
+                const Role *const candidate = &question->roles[one];
+                role = (forms_same(base.text, bases->out.text) && forms_same(candidate->place.text, "out") &&
+                        ((candidate->word * 4u) == offset))
+                           ? candidate
+                           : role;
+            }
+            if (role != NULL)
+            {
+                bound_put(operands[1].text, role->name.text, 0u, 0);
+                continue;
+            }
+        }
+        if (s_retained_count == FORMS_BLOCK_MAX)
+        {
+            forms_refused("a block keeps more instructions than the table holds", "", 0u);
+        }
+        s_retained[s_retained_count].instruction = instruction;
+        s_dropped[s_retained_count] = 0;
+        s_retained_count += 1u;
+    }
+    // a predicate argument read in, and one stored
+    for (unsigned int at = 0u; at < s_retained_count; at += 1u)
+    {
+        const Instruction *const instruction = &s_retained[at].instruction;
+        // the last role of type int that a register contains, or NULL
+        const RegisterContent *content = NULL;
+        const Role *role = NULL;
+        if (forms_begins(instruction->operation.text, "setp.ne") && (instruction->operand_count == 3u) &&
+            forms_same(instruction->operands[2].text, "0"))
+        {
+            content = bound_of(instruction->operands[1].text);
+            for (unsigned int one = 0u; (content != NULL) && (one < question->role_count); one += 1u)
+            {
+                const Role *const candidate = &question->roles[one];
+                role = (forms_same(candidate->name.text, content->argument.text) &&
+                        forms_same(candidate->type.text, "int"))
+                           ? candidate
+                           : role;
+            }
+            if (role != NULL)
+            {
+                bound_put(instruction->operands[0].text, role->name.text, 0u, 0);
+                s_dropped[at] = 1;
+            }
+        }
+        role = NULL;
+        if (forms_begins(instruction->operation.text, "selp.") && (instruction->operand_count == 4u))
+        {
+            content = bound_of(instruction->operands[0].text);
+            for (unsigned int one = 0u; (content != NULL) && (one < question->role_count); one += 1u)
+            {
+                const Role *const candidate = &question->roles[one];
+                role = (forms_same(candidate->name.text, content->argument.text) &&
+                        forms_same(candidate->type.text, "int"))
+                           ? candidate
+                           : role;
+            }
+            if (role != NULL)
+            {
+                const int negated = forms_same(instruction->operands[1].text, "0") ? 1 : 0;
+                const FormsWord name = role->name;
+                bound_put(instruction->operands[3].text, name.text, 0u, negated);
+                s_dropped[at] = 1;
+                if (negated)
+                {
+                    why_noted(read, "the compiler sets the negation of ", name.text);
+                }
             }
         }
     }
     // the PTX's own registers renamed; one no argument occupies is a temporary of the compiler's
-    std::set<std::string> temporaries;
-    std::string text;
-    for (size_t at = 0u; at < retained.size(); at += 1u)
+    static FormsWord s_temporaries[FORMS_TEMPORARIES_MAX];
+    unsigned int temporaries = 0u;
+    for (unsigned int at = 0u; at < s_retained_count; at += 1u)
     {
-        if (dropped.count(at) != 0u)
+        if (s_dropped[at])
         {
             continue;
         }
-        auto renamed = [&](const std::string &operand) -> std::string {
-            std::string out;
-            size_t at_char = 0u;
-            while (at_char < operand.size())
-            {
-                if (!ptx_register_start(operand, at_char))
-                {
-                    out += operand[at_char];
-                    at_char += 1u;
-                    continue;
-                }
-                size_t end = at_char + 1u;
-                while ((end < operand.size()) && identifier_character(operand[end]))
-                {
-                    end += 1u;
-                }
-                const std::string token = operand.substr(at_char, end - at_char);
-                const auto value = contents.find(token);
-                if (value != contents.end())
-                {
-                    const int fixed = [&]() {
-                        for (const Role &role : question.roles)
-                        {
-                            if (role.name == value->second.argument)
-                            {
-                                return role.fixed;
-                            }
-                        }
-                        return 0;
-                    }();
-                    out += fixed ? ("<" + value->second.argument + ">") : ("{" + value->second.argument + "}");
-                }
-                else
-                {
-                    out += token;
-                    if ((token.compare(0u, 4u, "%tid") != 0) && (token.compare(0u, 5u, "%ntid") != 0))
-                    {
-                        temporaries.insert(token);
-                    }
-                }
-                at_char = end;
-            }
-            return out;
-        };
-        const Instruction &instruction = retained[at];
-        text += "\t";
-        if (!instruction.guard.empty())
+        const Instruction *const instruction = &s_retained[at].instruction;
+        FormsLine line;
+        FORMS_SET(line, "\t");
+        if (instruction->guard.text[0] != '\0')
         {
-            text += "@" + renamed(instruction.guard) + " ";
+            FORMS_ADD(line, "@");
+            ptx_renamed(question, instruction->guard.text, &line, s_temporaries, &temporaries);
+            FORMS_ADD(line, " ");
         }
-        text += instruction.operation;
-        for (size_t one = 0u; one < instruction.operands.size(); one += 1u)
+        FORMS_ADD(line, instruction->operation.text);
+        for (unsigned int one = 0u; one < instruction->operand_count; one += 1u)
         {
-            text += ((one == 0u) ? " \t" : ", ") + renamed(instruction.operands[one]);
+            FORMS_ADD(line, (one == 0u) ? " \t" : ", ");
+            ptx_renamed(question, instruction->operands[one].text, &line, s_temporaries, &temporaries);
         }
-        text += ";\n";
+        FORMS_ADD(line, ";\n");
+        forms_add(read->text, sizeof(read->text), line.text);
     }
-    if (!temporaries.empty())
+    if (temporaries != 0u)
     {
-        read.why += std::to_string(temporaries.size()) + " temporaries of the compiler's; ";
+        forms_add_decimal(read->why, sizeof(read->why), temporaries);
+        forms_add(read->why, sizeof(read->why), " temporaries of the compiler's; ");
     }
-    read.text = numbers_named(text, question, &read.why);
-    return read;
+    numbers_named(read->text, sizeof(read->text), question, read->why, sizeof(read->why));
 }
 
-// a form's text as one line for a table: tabs and line ends written as a space and a semicolon run
-static std::string text_flat(const std::string &text)
+// A form's text as one line for a table, onto `flat`. The whitespace between words is a space, and each line end is a
+// ` |`. The code cuts the spaces and bars at its end, and the walk jumps from run to run of whitespace
+static void text_flat(const char *text, PlatformText *flat)
 {
-    std::string flat;
+    static const char s_white[] = "\t \n";
+    const size_t size = forms_length(text);
+    platform_text_reset(flat);
     int space = 0;
-    for (const char character : text)
+    size_t written = 0u;
+    char last = '\0';
+    size_t at = 0u;
+    while (at < size)
     {
-        if ((character == '\t') || (character == ' ') || (character == '\n'))
+        const size_t white =
+            EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[at], .cap = size - at, .other = s_white);
+        if (white != 0u)
         {
-            space = space || !flat.empty();
-            if (character == '\n')
+            // a byte of the run read while the line is not empty marks a space; the first newline makes it not empty
+            const size_t newline = forms_chr_n(&text[at], white, '\n', 0u);
+            const int had = (written != 0u);
+            space = space || had || ((newline < white) && ((newline + 1u) < white));
+            for (size_t one = newline; one < white; one = forms_chr_n(&text[at], white, '\n', one + 1u))
             {
-                flat += " |";
+                mmgr_line_put(&flat->line, " |");
+                written += 2u;
+                last = '|';
             }
+            at += white;
             continue;
         }
-        if (space && !flat.empty() && (flat.back() != ' '))
+        const size_t run =
+            EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text[at], .cap = size - at, .other = s_white);
+        if (space && (written != 0u) && (last != ' '))
         {
-            flat += ' ';
+            mmgr_line_ch(&flat->line, ' ');
+            written += 1u;
         }
         space = 0;
-        flat += character;
+        (void)mmgr_line_put_n(&flat->line, &text[at], run);
+        written += run;
+        last = text[at + run - 1u];
+        at += run;
     }
-    while (!flat.empty() && ((flat.back() == '|') || (flat.back() == ' ')))
-    {
-        flat.pop_back();
-    }
-    return flat;
+    size_t flat_size = 0u;
+    const char *const bytes = forms_text_bytes(flat, &flat_size);
+    platform_text_cut(flat, forms_end_outside(bytes, flat_size, "| "));
 }
 
-static std::string cell(const std::string &text)
+// `text` with every `|` written `\|`, onto `line`. The walk jumps from one `|` to the next
+static void cell_put(VerbaLinea *line, const char *text, size_t size)
 {
-    std::string out;
-    for (const char character : text)
+    size_t at = 0u;
+    while (at < size)
     {
-        out += (character == '|') ? std::string("\\|") : std::string(1u, character);
-    }
-    return out;
-}
-
-// a question's three regions joined, its loads, its form and its stores
-static std::vector<std::string> regions_joined(const std::map<unsigned int, std::vector<std::string>> &blocks,
-                                               unsigned int tag)
-{
-    std::vector<std::string> joined;
-    for (const unsigned int region : {MONOLITH_FORMS_LOADS + tag, tag, MONOLITH_FORMS_STORES + tag})
-    {
-        const auto found = blocks.find(region);
-        if (found != blocks.end())
+        const size_t run =
+            EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text[at], .cap = size - at, .other = "|");
+        (void)mmgr_line_put_n(line, &text[at], run);
+        at += run;
+        if (at < size)
         {
-            joined.insert(joined.end(), found->second.begin(), found->second.end());
+            mmgr_line_put(line, "\\|");
+            at += 1u;
+        }
+    }
+}
+
+// a form's text flat and with its bars escaped, onto `line`
+static void flat_cell_put(VerbaLinea *line, const char *text, PlatformText *flat)
+{
+    text_flat(text, flat);
+    size_t size = 0u;
+    const char *const bytes = forms_text_bytes(flat, &size);
+    cell_put(line, bytes, size);
+}
+
+// a question's three regions joined, its loads, its form and its stores, into `lines`: their count
+static unsigned int regions_joined(const Blocks *blocks, unsigned int tag, const char **lines, unsigned int room)
+{
+    const unsigned int regions[3] = {MONOLITH_FORMS_LOADS + tag, tag, MONOLITH_FORMS_STORES + tag};
+    unsigned int joined = 0u;
+    for (unsigned int region = 0u; region < 3u; region += 1u)
+    {
+        unsigned int count = 0u;
+        const unsigned int first = blocks_of(blocks, regions[region], &count);
+        for (unsigned int at = 0u; at < count; at += 1u)
+        {
+            if (joined == room)
+            {
+                forms_refused("a question's regions hold more lines than the table holds", "", 0u);
+            }
+            lines[joined] = blocks->lines[first + at].text.text;
+            joined += 1u;
         }
     }
     return joined;
 }
 
 // the instructions a form's text contains, a line each
-static size_t text_instructions(const std::string &text)
+static size_t text_instructions(const char *text)
 {
-    return text_count(text, "\n");
+    return forms_count(text, "\n");
 }
 
 // the part's machine file. The tool assembles a SASS form that it reads against this file before it writes the form
@@ -2518,77 +4221,99 @@ static int s_machine_read;
 //   - each predicate parameter takes a predicate from P0.
 //   - each number parameter takes the number that its question put, loaded or not, as the lanes write a number into the
 //     instruction.
-static int sass_assembles(const std::string &text, const Question &question)
+static int sass_assembles(const char *text, const Question *question)
 {
     if (!s_machine_read)
     {
         return 0;
     }
-    std::string filled = text;
+    PlatformText filled;
+    forms_text_begun(&filled);
+    mmgr_line_put(&filled.line, text);
     unsigned int pair = 10u;
     unsigned int predicate = 0u;
-    for (const Role &role : question.roles)
+    for (unsigned int at = 0u; at < question->role_count; at += 1u)
     {
-        if (role.fixed)
+        const Role *const role = &question->roles[at];
+        if (role->fixed)
         {
             continue;
         }
         // a number's .hi is its high word, and the number itself its low word, each the hexadecimal immediate that the
         // assembler reads. The assembler would take a bare decimal for a register number, which tests the wrong operand
         // type
-        if ((role.place == "number") || role.opaque)
+        if (forms_same(role->place.text, "number") || role->opaque)
         {
-            const unsigned long long word = (role.number[0] == '-')
-                                                ? 0ULL
-                                                : EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
-                                                             .src = role.number.c_str(), .end = NULL, .base = 10);
-            const std::string high = "{" + role.name + "}.hi";
-            size_t at = filled.find(high);
-            while (at != std::string::npos)
+            const unsigned long long word = role_word(role);
+            FormsWord high;
+            FORMS_SET(high, "{");
+            FORMS_ADD(high, role->name.text);
+            FORMS_ADD(high, "}.hi");
+            FormsWord high_word;
+            high_word.text[0] = '\0';
+            FORMS_ADD_DECIMAL(high_word, word >> 32u);
+            forms_text_replaced(&filled, high.text, hex_number(high_word.text).text);
+            FormsWord low;
+            low.text[0] = '\0';
+            if ((role->number.text[0] != '-') && (word > 0xffffffffULL))
             {
-                filled.replace(at, high.size(), hex_number(std::to_string(word >> 32u)));
-                at = filled.find(high, at);
+                FORMS_ADD_DECIMAL(low, word & 0xffffffffULL);
             }
-            const std::string low = ((role.number[0] != '-') && (word > 0xffffffffULL))
-                                        ? std::to_string(word & 0xffffffffULL)
-                                        : role.number;
-            filled = text_fill(filled, role.name, hex_number(low));
+            else
+            {
+                FORMS_SET(low, role->number.text);
+            }
+            forms_text_fill(&filled, role->name.text, hex_number(low.text).text);
             continue;
         }
-        if (role.type == "int")
+        FormsWord put;
+        if (forms_same(role->type.text, "int"))
         {
-            filled = text_fill(filled, role.name, "P" + std::to_string(predicate));
+            FORMS_SET(put, "P");
+            FORMS_ADD_DECIMAL(put, predicate);
+            forms_text_fill(&filled, role->name.text, put.text);
             predicate += 1u;
             continue;
         }
-        filled = text_fill(filled, role.name, "R" + std::to_string(pair));
+        FORMS_SET(put, "R");
+        FORMS_ADD_DECIMAL(put, pair);
+        forms_text_fill(&filled, role->name.text, put.text);
         pair += 2u;
     }
     static unsigned char code[256];
-    size_t from = 0u;
-    while (from < filled.size())
+    size_t size = 0u;
+    const char *const bytes = forms_text_bytes(&filled, &size);
+    int assembles = 1;
+    for (size_t from = 0u; assembles && (from < size);)
     {
-        const size_t end = filled.find('\n', from);
-        const size_t stop = (end == std::string::npos) ? filled.size() : end;
-        const std::string line = filled.substr(from, stop - from) + "\n";
+        const size_t stop = forms_chr_n(bytes, size, '\n', from);
+        FormsLine line;
+        FORMS_SET_N(line, &bytes[from], stop - from);
+        FORMS_ADD(line, "\n");
         from = stop + 1u;
-        if (trim(line).size() <= 1u)
+        size_t first = 0u;
+        if (forms_trimmed(line.text, forms_length(line.text), " \t", &first) <= 1u)
         {
             continue;
         }
-        if (sass_assemble_lines(&s_machine, line.c_str(), SASS_CONTROL_SAFE, code, sizeof(code)) == 0u)
-        {
-            return 0;
-        }
+        assembles = (sass_assemble_lines(&s_machine, line.text, SASS_CONTROL_SAFE, code, sizeof(code)) != 0u);
     }
-    return 1;
+    platform_text_ended(&filled);
+    return assembles;
 }
 
 // 1 where `text` reaches memory through a space named: SASS's global load and store, PTX's .global
-static int text_spaced(const std::string &text, int sass)
+static int text_spaced(const char *text, int sass)
 {
-    return sass ? ((text.find("LDG") != std::string::npos) || (text.find("STG") != std::string::npos))
-                : (text.find(".global") != std::string::npos);
+    return sass ? (forms_has(text, "LDG") || forms_has(text, "STG")) : forms_has(text, ".global");
+}
+
+// the reason that the tool adopts no reading, `head` then `middle`, put into `why` in place of what it had
+static void why_set(char *why, size_t room, const char *head, const char *middle)
+{
+    why[0] = '\0';
+    forms_add(why, room, head);
+    forms_add(why, room, middle);
 }
 
 // The tool writes a form that it reads into a ruleset where it is the whole form:
@@ -2600,133 +4325,269 @@ static int text_spaced(const std::string &text, int sass)
 //
 // Where the form of the ruleset reaches memory through a named space and the reading does not, the question named none.
 // `c.krs` writes an address as a plain pointer. Of two correct writings, the one with fewer instructions wins. The tool
-// does not write a reading longer than the form of the ruleset. Returns the text to write, or empty with the reason
-// through `why`
-static std::string read_adopted(const Read &read, const Krs &rules, const Question &question, int sass,
-                                std::string *why)
+// does not write a reading longer than the form of the ruleset. The text to write goes into `text`, or empty with the
+// reason through `why`
+static void read_adopted(const Read *read, const Krs *rules, const Question *question, int sass, char *text,
+                         size_t room, char *why, size_t why_room)
 {
-    const std::string &form = question.form;
-    const auto found = rules.forms.find(form);
-    const std::string now = (found == rules.forms.end()) ? std::string() : found->second.text;
-    if ((read.text.find("BRA") != std::string::npos) || (read.text.find("bra ") != std::string::npos))
+    text[0] = '\0';
+    why[0] = '\0';
+    const KrsEntry *const found = krs_find(rules, KRS_FORM, question->form.text);
+    const char *const now = (found == NULL) ? "" : krs_text(rules, found);
+    if (forms_has(read->text, "BRA") || forms_has(read->text, "bra "))
     {
-        *why = "the reading contains a branch";
-        return std::string();
+        why_set(why, why_room, "the reading contains a branch", "");
+        return;
     }
-    if (text_spaced(now, sass) && !read.text.empty() && !text_spaced(read.text, sass))
+    if (text_spaced(now, sass) && (read->text[0] != '\0') && !text_spaced(read->text, sass))
     {
-        *why = "the question names no address space";
-        return std::string();
+        why_set(why, why_room, "the question names no address space", "");
+        return;
     }
-    if (!now.empty() && !read.text.empty() && (text_instructions(read.text) > text_instructions(now)))
+    if ((now[0] != '\0') && (read->text[0] != '\0') && (text_instructions(read->text) > text_instructions(now)))
     {
-        *why = "the compiler writes " + std::to_string(text_instructions(read.text)) +
-               " instructions where the "
-               "ruleset writes " +
-               std::to_string(text_instructions(now));
-        return std::string();
+        why_set(why, why_room, "the compiler writes ", "");
+        forms_add_decimal(why, why_room, text_instructions(read->text));
+        forms_add(why, why_room, " instructions where the ruleset writes ");
+        forms_add_decimal(why, why_room, text_instructions(now));
+        return;
     }
-    if (read.text.empty())
+    if (read->text[0] == '\0')
     {
-        *why = "the compiler writes no instruction for it";
-        return std::string();
+        why_set(why, why_room, "the compiler writes no instruction for it", "");
+        return;
     }
-    if (!read.why.empty())
+    if (read->why[0] != '\0')
     {
-        *why = read.why;
-        return std::string();
+        why_set(why, why_room, read->why, "");
+        return;
     }
-    if (found == rules.forms.end())
+    if (found == NULL)
     {
-        *why = "the ruleset contains no form of the name";
-        return std::string();
+        why_set(why, why_room, "the ruleset contains no form of the name", "");
+        return;
     }
-    for (const std::string &parameter : found->second.parameters)
+    const size_t read_size = forms_length(read->text);
+    for (unsigned int at = 0u; at < found->parameter_count; at += 1u)
     {
+        const char *const parameter = krs_parameter(rules, found, at);
         // the parameter itself, and not only its .hi, which names the other half
-        const std::string low = "{" + parameter + "}";
-        size_t at = read.text.find(low);
-        while ((at != std::string::npos) && (read.text.compare(at + low.size(), 3u, ".hi") == 0))
+        FormsWord low;
+        FORMS_SET(low, "{");
+        FORMS_ADD(low, parameter);
+        FORMS_ADD(low, "}");
+        const size_t low_size = forms_length(low.text);
+        size_t place = forms_find_n(read->text, read_size, low.text, 0u);
+        while ((place < read_size) && forms_begins(&read->text[place + low_size], ".hi"))
         {
-            at = read.text.find(low, at + 1u);
+            place = forms_find_n(read->text, read_size, low.text, place + 1u);
         }
-        if (at == std::string::npos)
+        if (place == read_size)
         {
-            *why = "the reading does not name " + parameter;
-            return std::string();
+            why_set(why, why_room, "the reading does not name ", parameter);
+            return;
         }
         // a half the ruleset names and the reading does not is a half the reading does not carry
-        const std::string high = "{" + parameter + "}.hi";
-        if ((now.find(high) != std::string::npos) && (read.text.find(high) == std::string::npos))
+        FormsWord high = low;
+        FORMS_ADD(high, ".hi");
+        if (forms_has(now, high.text) && !forms_has(read->text, high.text))
         {
-            *why = "the reading does not name " + high;
-            return std::string();
+            why_set(why, why_room, "the reading does not name ", high.text);
+            return;
         }
     }
-    std::string text = read.text;
-    size_t open = text.find('<');
-    while (open != std::string::npos)
+    forms_set_n(text, room, read->text, read_size);
+    for (size_t open = forms_chr_n(text, forms_length(text), '<', 0u); open < forms_length(text);
+         open = forms_chr_n(text, forms_length(text), '<', open))
     {
-        const size_t close = text.find('>', open);
-        const std::string fixed = text.substr(open + 1u, close - open - 1u);
-        const auto named = rules.fixed.find(fixed);
-        if (named == rules.fixed.end())
+        const size_t length = forms_length(text);
+        const size_t close = forms_chr_n(text, length, '>', open);
+        FormsWord fixed;
+        FORMS_SET_N(fixed, &text[open + 1u], (close > open) ? (close - open - 1u) : 0u);
+        const KrsEntry *const named = krs_find(rules, KRS_FIXED, fixed.text);
+        if (named == NULL)
         {
-            *why = "the ruleset names no fixed register " + fixed;
-            return std::string();
+            text[0] = '\0';
+            why_set(why, why_room, "the ruleset names no fixed register ", fixed.text);
+            return;
         }
-        text = text.substr(0u, open) + named->second + text.substr(close + 1u);
-        open = text.find('<', open);
+        static char s_rest[FORMS_READ_BYTES];
+        forms_set_n(s_rest, sizeof(s_rest), &text[close + 1u], (close < length) ? (length - close - 1u) : 0u);
+        text[open] = '\0';
+        forms_add(text, room, krs_text(rules, named));
+        forms_add(text, room, s_rest);
     }
-    // a register of the compiler's own left in the text: one the reading did not name
-    for (size_t at = 0u; at < text.size(); at += 1u)
+    // a register of the compiler's own left in the text: one the reading did not name. The walk jumps from one R or P
+    // to the next
+    const size_t length = forms_length(text);
+    for (size_t at = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = text, .cap = length, .other = "RP");
+         sass && (at < length); at += 1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text[at + 1u],
+                                                      .cap = length - at - 1u, .other = "RP"))
     {
-        const int start = (at == 0u) || !identifier_character(text[at - 1u]);
-        if (!start)
+        const int start = (at == 0u) || !forms_identifier(text[at - 1u]);
+        const char next = ((at + 1u) < length) ? text[at + 1u] : '\0';
+        if (!start || (next < '0') || (next > '9'))
         {
             continue;
         }
-        if (sass && (text[at] == 'R') && ((at + 1u) < text.size()) && (text[at + 1u] >= '0') && (text[at + 1u] <= '9'))
+        if (text[at] == 'R')
         {
-            const unsigned int number = token_number(text.substr(at));
-            const int ruleset = (number >= 236u);
-            if (!ruleset)
+            const unsigned int number = token_number(&text[at]);
+            if (number < 236u)
             {
-                *why = "the reading leaves the compiler's register R" + std::to_string(number);
-                return std::string();
+                text[0] = '\0';
+                why_set(why, why_room, "the reading leaves the compiler's register R", "");
+                forms_add_decimal(why, why_room, number);
+                return;
             }
         }
-        if (sass && (text[at] == 'P') && ((at + 1u) < text.size()) && (text[at + 1u] >= '0') && (text[at + 1u] <= '5'))
+        if ((text[at] == 'P') && (next <= '5'))
         {
-            *why = "the reading leaves the compiler's predicate " + text.substr(at, 2u);
-            return std::string();
+            FormsWord predicate;
+            FORMS_SET_N(predicate, &text[at], 2u);
+            text[0] = '\0';
+            why_set(why, why_room, "the reading leaves the compiler's predicate ", predicate.text);
+            return;
         }
     }
     if (sass && !sass_assembles(text, question))
     {
-        *why = "the machine file contains no form for it";
-        return std::string();
+        text[0] = '\0';
+        why_set(why, why_room, "the machine file contains no form for it", "");
     }
-    return text;
 }
 
-// a form's text written back as a ruleset line contains it: \t, \n and \\ escaped
-static std::string krs_escape(const std::string &text)
+// a form's text written back as a ruleset line contains it, onto `line`: \t, \n and \\ escaped. The walk jumps from
+// one byte to escape to the next
+static void krs_escaped(VerbaLinea *line, const char *text)
 {
-    std::string escaped;
-    for (const char character : text)
+    const size_t size = forms_length(text);
+    size_t at = 0u;
+    while (at < size)
     {
-        escaped += (character == '\t')   ? std::string("\\t")
-                   : (character == '\n') ? std::string("\\n")
-                   : (character == '\\') ? std::string("\\\\")
-                                         : std::string(1u, character);
+        const size_t run =
+            EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text[at], .cap = size - at, .other = "\t\n\\");
+        (void)mmgr_line_put_n(line, &text[at], run);
+        at += run;
+        if (at < size)
+        {
+            mmgr_line_put(line, (text[at] == '\t') ? "\\t" : ((text[at] == '\n') ? "\\n" : "\\\\"));
+            at += 1u;
+        }
     }
-    return escaped;
 }
 
-// the ruleset at `path` with the text of each form that `adopted` names written in place. Returns the count written, or
-// -1 where the read or the write of the file failed
-static int krs_apply(const char *path, const std::map<std::string, std::string> &adopted)
+// the forms of a read at max
+#define FORMS_FORMS_MAX 512u
+
+// each form's readings: the text every question gave where all gave one whole, else empty with the reason. `seen` is 1
+// once a question or a fold settles it
+struct Verdict
+{
+    char text[FORMS_READ_BYTES];
+    char why[FORMS_WHY_BYTES];
+    int seen;
+};
+
+// A form of the read: its verdicts off the SASS, off the PTX, and off the SASS with the numbers loaded. Then the fold
+// that the system does of it, named once for its classification. Then the folds its questions tested off each, with
+// the reason. Then whether each ruleset adopts its reading
+struct FormState
+{
+    FormsWord form;
+    Verdict sass;
+    Verdict ptx;
+    Verdict loaded;
+    FormsLine fold_fact;
+    char sass_fold[FORMS_WHY_BYTES];
+    char ptx_fold[FORMS_WHY_BYTES];
+    int has_sass_fold;
+    int has_ptx_fold;
+    int sass_adopted;
+    int ptx_adopted;
+};
+
+static FormState s_forms[FORMS_FORMS_MAX];
+static unsigned int s_form_count = 0u;
+
+// the state of the form `form`, put after the forms where they hold none
+static FormState *form_state(const char *form)
+{
+    for (unsigned int at = 0u; at < s_form_count; at += 1u)
+    {
+        if (forms_same(s_forms[at].form.text, form))
+        {
+            return &s_forms[at];
+        }
+    }
+    if (s_form_count == FORMS_FORMS_MAX)
+    {
+        forms_refused("a read reads more forms than the table holds: ", form, forms_length(form));
+    }
+    FormState *const state = &s_forms[s_form_count];
+    s_form_count += 1u;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = state, .bytes = sizeof(*state), .val = 0);
+    FORMS_SET(state->form, form);
+    return state;
+}
+
+static int form_state_order(const void *left, const void *right)
+{
+    return forms_order(((const FormState *)left)->form.text, ((const FormState *)right)->form.text);
+}
+
+// the verdict `verdict` settled by one more question's `text` and `why`
+static void settle(Verdict *verdict, const char *text, const char *why)
+{
+    if (verdict->seen == 0)
+    {
+        forms_set_n(verdict->text, sizeof(verdict->text), text, forms_length(text));
+        forms_set_n(verdict->why, sizeof(verdict->why), why, forms_length(why));
+        verdict->seen = 1;
+        return;
+    }
+    if ((verdict->text[0] != '\0') && !forms_same(text, verdict->text))
+    {
+        const char *const reason = (text[0] == '\0') ? why : "the questions read apart";
+        forms_set_n(verdict->why, sizeof(verdict->why), reason, forms_length(reason));
+        verdict->text[0] = '\0';
+    }
+}
+
+// A reading of a question off the SASS or the PTX: the form, the question, and the text it adopts, empty where it
+// adopts none. The readings go in one cell at the count of the questions. A reading settles its form where it is a
+// question of the SASS that loads no number and the system folds nothing of. A question of the SASS that loads no
+// number constrains its form, folded or not
+struct FormReading
+{
+    FormState *state;
+    const Question *question;
+    int settles;
+    int constrains;
+    char text[FORMS_READ_BYTES];
+};
+
+// 1 where `text` assembles for the banks of every question that constrains the form of `state`
+static int assembles_everywhere(const FormReading *readings, unsigned int count, const FormState *state,
+                                const char *text)
+{
+    int everywhere = 1;
+    for (unsigned int at = 0u; everywhere && (at < count); at += 1u)
+    {
+        if ((readings[at].state == state) && readings[at].constrains)
+        {
+            everywhere = sass_assembles(text, readings[at].question);
+        }
+    }
+    return everywhere;
+}
+
+// The ruleset at `path` with the text of each form that the forms adopt written in place. The text is off the SASS
+// where `sass` is 1, and off the PTX where it is 0. The ruleset goes to the run's writer, which writes it in its place
+// as the run ends.
+// The run holds the ruleset as the tool read it, and the writer writes that copy back over a write to the disk. The
+// answer is the count written, or -1 where the read of the file failed or the run did not take it
+static int krs_apply(const char *path, int sass)
 {
     // the ruleset as the run stores it, or the disk where the run stores none (qry_member_file)
     const unsigned char *bytes = NULL;
@@ -2736,150 +4597,194 @@ static int krs_apply(const char *path, const std::map<std::string, std::string> 
         return -1;
     }
     // a ruleset read whole is at max what a size_t counts
-    std::string whole((const char *)bytes, (size_t)size);
+    const char *const whole = (const char *)bytes;
+    const size_t length = (size_t)size;
     int written = 0;
-    std::string out;
-    size_t at = 0u;
-    while (at < whole.size())
+    PlatformText out;
+    forms_text_begun(&out);
+    PlatformText replaced;
+    forms_text_begun(&replaced);
+    for (size_t at = 0u; at < length;)
     {
-        const size_t end = whole.find('\n', at);
-        const size_t stop = (end == std::string::npos) ? whole.size() : end;
-        std::string line = whole.substr(at, stop - at);
-        const size_t equals = line.find(" = ");
-        if ((line.compare(0u, 5u, "form ") == 0) && (equals != std::string::npos))
+        const size_t end = forms_chr_n(whole, length, '\n', at);
+        const char *const line = &whole[at];
+        const size_t line_length = end - at;
+        const size_t equals = forms_find_n(line, line_length, " = ", 0u);
+        const FormState *adopted = NULL;
+        if ((line_length >= 5u) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = line, .other = "form ", .bytes = 5u) == 0) &&
+            (equals < line_length))
         {
-            const std::vector<std::string> head = words_split(line.substr(0u, equals));
-            const auto found = (head.size() >= 2u) ? adopted.find(head[1]) : adopted.end();
-            if (found != adopted.end())
+            // the form's name, the second word of the head
+            size_t word = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = line, .cap = equals, .other = " ");
+            word +=
+                EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &line[word], .cap = equals - word, .other = " ");
+            word += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &line[word], .cap = equals - word, .other = " ");
+            const size_t name =
+                EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &line[word], .cap = equals - word, .other = " ");
+            for (unsigned int one = 0u; (name != 0u) && (one < s_form_count); one += 1u)
             {
-                const std::string replaced = line.substr(0u, equals + 3u) + krs_escape(found->second);
-                written += (replaced != line) ? 1 : 0;
-                line = replaced;
+                const FormState *const state = &s_forms[one];
+                adopted = (forms_same_n(&line[word], name, state->form.text) &&
+                           (sass ? state->sass_adopted : state->ptx_adopted))
+                              ? state
+                              : adopted;
             }
         }
-        out += line + ((end == std::string::npos) ? "" : "\n");
-        at = stop + 1u;
+        if (adopted != NULL)
+        {
+            platform_text_reset(&replaced);
+            (void)mmgr_line_put_n(&replaced.line, line, equals + 3u);
+            krs_escaped(&replaced.line, sass ? adopted->sass.text : adopted->ptx.text);
+            size_t replaced_size = 0u;
+            const char *const replaced_bytes = forms_text_bytes(&replaced, &replaced_size);
+            written += ((replaced_size != line_length) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = replaced_bytes,
+                                                                      .other = line, .bytes = line_length) != 0))
+                           ? 1
+                           : 0;
+            (void)mmgr_line_put_n(&out.line, replaced_bytes, replaced_size);
+        }
+        else
+        {
+            (void)mmgr_line_put_n(&out.line, line, line_length);
+        }
+        mmgr_line_put(&out.line, (end < length) ? "\n" : "");
+        at = end + 1u;
     }
-    PlatformFile *const back = platform_file_open(path, "wb");
-    if ((back == NULL) || (platform_file_write_items(out.data(), 1u, out.size(), back) != out.size()) ||
-        (platform_file_close(back) != 0))
+    size_t out_size = 0u;
+    const char *const out_bytes = forms_text_bytes(&out, &out_size);
+    const int failed = (qry_member_filed(path, out_bytes, out_size) == 0ULL);
+    platform_text_ended(&replaced);
+    platform_text_ended(&out);
+    return failed ? -1 : written;
+}
+
+// the state of a verdict for the table, `retained: <why>`, `same` or `read`, into `state`, and the count of the same
+static void verdict_state(const Verdict *verdict, const char *now, unsigned int *same, FormsLine *state)
+{
+    if (verdict->text[0] == '\0')
     {
-        return -1;
+        FORMS_SET(*state, "retained: ");
+        FORMS_ADD(*state, verdict->why);
+        return;
     }
-    return written;
+    if (forms_same(verdict->text, now))
+    {
+        *same += 1u;
+        FORMS_SET(*state, "same");
+        return;
+    }
+    FORMS_SET(*state, "read");
+}
+
+// The instructions of the SASS blocks read for the bases, a block at a time in the order of the tags. The read stops
+// once it has both bases
+static void sass_bases_read(const Blocks *blocks, Bases *bases)
+{
+    static const Question s_nothing = {};
+    static const char *s_lines[FORMS_BLOCK_MAX];
+    static Read s_read;
+    for (unsigned int at = 0u; (at < blocks->count) && ((bases->in_low < 0) || (bases->out_low < 0));)
+    {
+        unsigned int count = 0u;
+        const unsigned int first = blocks_of(blocks, blocks->lines[at].tag, &count);
+        if (count > FORMS_BLOCK_MAX)
+        {
+            forms_refused("a block holds more lines than the table holds", "", 0u);
+        }
+        for (unsigned int one = 0u; one < count; one += 1u)
+        {
+            s_lines[one] = blocks->lines[first + one].text.text;
+        }
+        sass_read(&s_nothing, s_lines, count, bases, &s_read);
+        at = first + count;
+    }
+}
+
+// a line of the record, `text` with no more
+static void record_put(PlatformFile *out, const char *text)
+{
+    mmgr_line_put(platform_file_line(out), text);
 }
 
 static int forms_read(const char *questions_path, const char *listing, const char *ptx, const char *sass_krs,
                       const char *ptx_krs, const char *machine, const char *record, int apply)
 {
-    const std::vector<Question> questions = questions_read(questions_path);
+    unsigned int question_count = 0u;
+    const Question *const questions = questions_read(questions_path, &question_count);
     s_machine_read = sass_machine_read(&s_machine, machine);
-    Krs sass;
-    Krs ptx_rules;
-    if (questions.empty() || !krs_read(sass_krs, &sass) || !krs_read(ptx_krs, &ptx_rules))
+    static Krs s_sass;
+    static Krs s_ptx_rules;
+    if ((question_count == 0u) || !krs_read(sass_krs, &s_sass) || !krs_read(ptx_krs, &s_ptx_rules))
     {
-        {
-            EngineNote engine_note;
-            engine_note_begun(&engine_note);
-            mmgr_line_put(&engine_note.line, "the questions, sass.krs or ptx.krs did not read");
-            mmgr_line_ch(&engine_note.line, '\n');
-            engine_note_written(&engine_note);
-        }
+        forms_noted("the questions, sass.krs or ptx.krs did not read", "", "", "", "");
         return 2;
     }
-    const std::map<unsigned int, std::vector<std::string>> sass_lines = sass_blocks(listing);
-    const std::map<unsigned int, std::vector<std::string>> ptx_lines = ptx_blocks(ptx);
+    const Blocks sass_lines = sass_blocks(listing);
+    const Blocks ptx_lines = ptx_blocks(ptx);
     PlatformFile *const out = platform_file_open(record, "wb");
     if (out == NULL)
     {
-        {
-            EngineNote engine_note;
-            engine_note_begun(&engine_note);
-            mmgr_line_put(&engine_note.line, "the record ");
-            mmgr_line_put(&engine_note.line, record);
-            mmgr_line_put(&engine_note.line, " was not written");
-            mmgr_line_ch(&engine_note.line, '\n');
-            engine_note_written(&engine_note);
-        }
+        forms_noted("the record ", record, " was not written", "", "");
         return 2;
     }
     Bases bases = {-1, -1};
-    PtxBases ptx_bases;
-    const std::vector<std::string> none;
-    Question nothing;
+    static PtxBases s_ptx_bases;
+    static const Question s_nothing = {};
+    static const char *s_lines[3u * FORMS_BLOCK_MAX];
+    static Read s_read;
     // the code sets the bases in whichever block the compiler opens the entry into
-    for (auto block = sass_lines.begin(); (block != sass_lines.end()) && ((bases.in_low < 0) || (bases.out_low < 0));
-         ++block)
+    sass_bases_read(&sass_lines, &bases);
+    unsigned int opening_count = 0u;
+    const unsigned int opening = blocks_of(&ptx_lines, 0u, &opening_count);
+    if (opening_count > (3u * FORMS_BLOCK_MAX))
     {
-        sass_read(nothing, block->second, &bases);
+        forms_refused("the PTX's opening holds more lines than the table holds", "", 0u);
     }
-    const auto ptx_opening = ptx_lines.find(0u);
-    ptx_read(nothing, (ptx_opening != ptx_lines.end()) ? ptx_opening->second : none, &ptx_bases);
+    for (unsigned int at = 0u; at < opening_count; at += 1u)
     {
-        mmgr_line_put(platform_file_line(out), "# The forms read off NVIDIA's compiler\n\n");
+        s_lines[at] = ptx_lines.lines[opening + at].text.text;
     }
-    {
-        mmgr_line_put(platform_file_line(out),
-                      "Written by `monolith_forms.sh` whole on every run. Every form the lanes of the record programs "
-                      "decide is submitted to NVIDIA's compiler once for each set of banks its arguments come from, in "
-                      "one program between tags (`monolith_forms.cpp`). A question in the form's text in `c.krs` is "
-                      "read off the PTX and compared with the form `ptx.krs` gives; one in its text in `ptx.krs`, put "
-                      "to `ptxas` as inline PTX, is read off the listing and compared with the form `sass.krs` gives. "
-                      "Each block is read back into the form it is, its registers named by the arguments they contain. "
-                      "A fixed register is named in angle brackets, and the ruleset names it. A form every question of "
-                      "which reads whole and alike is the ruleset's form, written into it by `monolith_forms.sh "
-                      "apply`; any other retains the ruleset's text, and the reason is beside it.\n\n");
-    }
-    {
-        mmgr_line_put(platform_file_line(out),
-                      "| tag | form | banks | read off | read | note |\n|---|---|---|---|---|---|\n");
-    }
-    // each form's readings: the text every question gave where all gave one whole, else empty with the reason
-    struct Verdict
-    {
-        std::string text;
-        std::string why;
-        int seen;
-    };
-    std::map<std::string, Verdict> sass_verdicts;
-    std::map<std::string, Verdict> ptx_verdicts;
-    auto settle = [](std::map<std::string, Verdict> &verdicts, const std::string &form, const std::string &text,
-                     const std::string &why) {
-        Verdict &verdict = verdicts[form];
-        if (verdict.seen == 0)
-        {
-            verdict = {text, why, 1};
-            return;
-        }
-        if (!verdict.text.empty() && (text != verdict.text))
-        {
-            verdict.why = text.empty() ? why : "the questions read apart";
-            verdict.text.clear();
-        }
-    };
+    ptx_read(&s_nothing, s_lines, opening_count, &s_ptx_bases, &s_read);
+    record_put(out, "# The forms read off NVIDIA's compiler\n\n");
+    record_put(out, "Written by `monolith_forms.sh` whole on every run. Every form the lanes of the record programs "
+                    "decide is submitted to NVIDIA's compiler once for each set of banks its arguments come from, in "
+                    "one program between tags (`monolith_forms.cpp`). A question in the form's text in `c.krs` is "
+                    "read off the PTX and compared with the form `ptx.krs` gives; one in its text in `ptx.krs`, put "
+                    "to `ptxas` as inline PTX, is read off the listing and compared with the form `sass.krs` gives. "
+                    "Each block is read back into the form it is, its registers named by the arguments they contain. "
+                    "A fixed register is named in angle brackets, and the ruleset names it. A form every question of "
+                    "which reads whole and alike is the ruleset's form, written into it by `monolith_forms.sh "
+                    "apply`; any other retains the ruleset's text, and the reason is beside it.\n\n");
+    record_put(out, "| tag | form | banks | read off | read | note |\n|---|---|---|---|---|---|\n");
+    PlatformText flat;
+    forms_text_begun(&flat);
+    // the readings off the SASS of every question, in one cell at the count of the questions
+    FormReading *const readings = (FormReading *)forms_allocated(platform_cell_cleared(
+        question_count, sizeof(FormReading), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY));
+    unsigned int reading_count = 0u;
     // The tool reads a question submitted in the text of ptx.krs for sass.krs off the listing. It reads one submitted
     // in the text of c.krs for ptx.krs off the PTX. The questions that load their numbers settle a form of their own
     // with the questions that contain none. That form applies where the questions that write their numbers in do not
     // settle one
-    std::map<std::string, Verdict> loaded_verdicts;
-    // the readings each form's written-in questions gave, and the questions, for a form they read apart
-    std::map<std::string, std::vector<std::string>> readings;
-    std::map<std::string, std::vector<const Question *>> questions_of;
-    // every written-in question of a form, folded or not. A fold decides no form, but the form must still assemble for
-    // the operands that the question submitted. Else a reading that skips the position of that operand is no form of it
-    std::map<std::string, std::vector<const Question *>> constrained;
-    // the forms a question tested with a folded number, and why, for a form no other question settles
-    std::map<std::string, std::string> folds;
-    // the fold that the system does of a form, named once for its classification. A front-end fold shows in both the
-    // PTX and the SASS reading, but it is one compile-channel fact about the form, not one per reading
-    std::map<std::string, std::string> fold_fact;
-    for (const Question &question : questions)
+    static char s_text[FORMS_READ_BYTES];
+    static char s_why[FORMS_WHY_BYTES];
+    for (unsigned int at = 0u; at < question_count; at += 1u)
     {
-        const int from_ptx = (question.tag >= MONOLITH_FORMS_PTX);
-        const Read read = from_ptx ? sass_read(question, regions_joined(sass_lines, question.tag), &bases)
-                                   : ptx_read(question, regions_joined(ptx_lines, question.tag), &ptx_bases);
-        std::string why;
-        const std::string text = read_adopted(read, from_ptx ? sass : ptx_rules, question, from_ptx, &why);
+        const Question *const question = &questions[at];
+        const int from_ptx = (question->tag >= MONOLITH_FORMS_PTX);
+        const unsigned int count =
+            regions_joined(from_ptx ? &sass_lines : &ptx_lines, question->tag, s_lines, 3u * FORMS_BLOCK_MAX);
+        if (from_ptx)
+        {
+            sass_read(question, s_lines, count, &bases, &s_read);
+        }
+        else
+        {
+            ptx_read(question, s_lines, count, &s_ptx_bases, &s_read);
+        }
+        read_adopted(&s_read, from_ptx ? &s_sass : &s_ptx_rules, question, from_ptx, s_text, sizeof(s_text), s_why,
+                     sizeof(s_why));
         int loaded = 0;
         int numbered = 0;
         // A probe classifies an operator only where what it varies shows in the answer. The system folded a numbered
@@ -2889,73 +4794,98 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         // that the system cannot fold decides instead.
         //
         // What a system folds is its own, written to its .ksc, and nothing here names one.
-        std::string folded;
-        for (const Role &role : question.roles)
+        FormsLine folded;
+        folded.text[0] = '\0';
+        for (unsigned int one = 0u; one < question->role_count; one += 1u)
         {
-            loaded = loaded || role.opaque;
-            numbered = numbered || (role.place == "number");
-            if ((role.place == "number") && !number_carried(read.text, role))
+            const Role *const role = &question->roles[one];
+            loaded = loaded || role->opaque;
+            numbered = numbered || forms_same(role->place.text, "number");
+            if (forms_same(role->place.text, "number") && !number_carried(s_read.text, role))
             {
-                folded = "the system folds the number put for " + role.name;
+                FORMS_SET(folded, "the system folds the number put for ");
+                FORMS_ADD(folded, role->name.text);
             }
         }
-        for (const Role &role : question.roles)
+        for (unsigned int one = 0u; one < question->role_count; one += 1u)
         {
-            const int put = !role.fixed && ((role.place == "in") || (role.place == "out"));
-            if (folded.empty() && put && (read.text.find("{" + role.name + "}") == std::string::npos))
+            const Role *const role = &question->roles[one];
+            const int put = !role->fixed && (forms_same(role->place.text, "in") || forms_same(role->place.text, "out"));
+            FormsWord braced;
+            FORMS_SET(braced, "{");
+            FORMS_ADD(braced, role->name.text);
+            FORMS_ADD(braced, "}");
+            if ((folded.text[0] == '\0') && put && !forms_has(s_read.text, braced.text))
             {
-                folded = "the system folds the register put for " + role.name;
+                FORMS_SET(folded, "the system folds the register put for ");
+                FORMS_ADD(folded, role->name.text);
             }
         }
-        if (!loaded && !folded.empty())
+        FormState *const state = form_state(question->form.text);
+        if (!loaded && (folded.text[0] != '\0'))
         {
-            fold_fact[question.form] = folded;
-            why = folded + (why.empty() ? "" : "; " + why);
-            folds[std::string(from_ptx ? "sass " : "ptx ") + question.form] = why;
-        }
-        if (!loaded && folded.empty())
-        {
-            settle(from_ptx ? sass_verdicts : ptx_verdicts, question.form, text, why);
-            if (from_ptx)
+            FORMS_SET(state->fold_fact, folded.text);
+            static char s_folded_why[FORMS_WHY_BYTES];
+            forms_set_n(s_folded_why, sizeof(s_folded_why), folded.text, forms_length(folded.text));
+            if (s_why[0] != '\0')
             {
-                readings[question.form].push_back(text);
-                questions_of[question.form].push_back(&question);
+                forms_add(s_folded_why, sizeof(s_folded_why), "; ");
+                forms_add(s_folded_why, sizeof(s_folded_why), s_why);
             }
+            forms_set_n(s_why, sizeof(s_why), s_folded_why, forms_length(s_folded_why));
+            char *const fold = from_ptx ? state->sass_fold : state->ptx_fold;
+            forms_set_n(fold, FORMS_WHY_BYTES, s_why, forms_length(s_why));
+            *(from_ptx ? &state->has_sass_fold : &state->has_ptx_fold) = 1;
         }
-        if (from_ptx && !loaded)
+        FormReading *const reading = &readings[reading_count];
+        reading_count += 1u;
+        reading->state = state;
+        reading->question = question;
+        reading->settles = 0;
+        reading->constrains = 0;
+        forms_set_n(reading->text, sizeof(reading->text), s_text, forms_length(s_text));
+        if (!loaded && (folded.text[0] == '\0'))
         {
-            constrained[question.form].push_back(&question);
+            settle(from_ptx ? &state->sass : &state->ptx, s_text, s_why);
+            reading->settles = from_ptx;
         }
+        reading->constrains = from_ptx && !loaded;
         if (from_ptx && (loaded || !numbered))
         {
-            settle(loaded_verdicts, question.form, text, why);
+            settle(&state->loaded, s_text, s_why);
         }
-        const size_t space = question.key.find(' ');
-        const std::string banks = (space == std::string::npos) ? std::string() : question.key.substr(space + 1u);
-        {
-            mmgr_line_put(platform_file_line(out), "| ");
-            mmgr_line_decimal(platform_file_line(out), question.tag, 1u);
-            mmgr_line_put(platform_file_line(out), " | ");
-            mmgr_line_put(platform_file_line(out), question.form.c_str());
-            mmgr_line_put(platform_file_line(out), " | ");
-            mmgr_line_put(platform_file_line(out), banks.c_str());
-            mmgr_line_put(platform_file_line(out), " | ");
-            mmgr_line_put(platform_file_line(out), !from_ptx ? "PTX" : (loaded ? "SASS, numbers loaded" : "SASS"));
-            mmgr_line_put(platform_file_line(out), " | `");
-            mmgr_line_put(platform_file_line(out), cell(text_flat(read.text)).c_str());
-            mmgr_line_put(platform_file_line(out), "` | ");
-            mmgr_line_put(platform_file_line(out), cell(why).c_str());
-            mmgr_line_put(platform_file_line(out), " |\n");
-        }
+        const size_t key_size = forms_length(question->key.text);
+        const size_t space = forms_chr_n(question->key.text, key_size, ' ', 0u);
+        PlatformFile *const file = out;
+        VerbaLinea *const line = platform_file_line(file);
+        mmgr_line_put(line, "| ");
+        mmgr_line_decimal(line, question->tag, 1u);
+        mmgr_line_put(line, " | ");
+        mmgr_line_put(line, question->form.text);
+        mmgr_line_put(line, " | ");
+        mmgr_line_put(line, (space < key_size) ? &question->key.text[space + 1u] : "");
+        mmgr_line_put(line, " | ");
+        mmgr_line_put(line, !from_ptx ? "PTX" : (loaded ? "SASS, numbers loaded" : "SASS"));
+        mmgr_line_put(line, " | `");
+        flat_cell_put(line, s_read.text, &flat);
+        mmgr_line_put(line, "` | ");
+        cell_put(line, s_why, forms_length(s_why));
+        mmgr_line_put(line, " |\n");
     }
-    for (const auto &fold : folds)
+    for (unsigned int at = 0u; at < s_form_count; at += 1u)
     {
-        const int of_sass = (fold.first.compare(0u, 5u, "sass ") == 0);
-        std::map<std::string, Verdict> &verdicts = of_sass ? sass_verdicts : ptx_verdicts;
-        const std::string form = fold.first.substr(of_sass ? 5u : 4u);
-        if (verdicts.find(form) == verdicts.end())
+        FormState *const state = &s_forms[at];
+        if (state->has_sass_fold && !state->sass.seen)
         {
-            verdicts[form] = {std::string(), fold.second, 1};
+            state->sass.text[0] = '\0';
+            forms_set_n(state->sass.why, sizeof(state->sass.why), state->sass_fold, forms_length(state->sass_fold));
+            state->sass.seen = 1;
+        }
+        if (state->has_ptx_fold && !state->ptx.seen)
+        {
+            state->ptx.text[0] = '\0';
+            forms_set_n(state->ptx.why, sizeof(state->ptx.why), state->ptx_fold, forms_length(state->ptx_fold));
+            state->ptx.seen = 1;
         }
     }
     // Where the written-in questions read apart, each whole and the two numbers of one set of banks alike, the banks
@@ -2963,253 +4893,282 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     // for the banks of every question does what each requested, and is the form. It is the ruleset's own form where it
     // is one, else the shortest. Two numbers of one set of banks that read apart are a folded number, and no reading of
     // theirs is the form
-    for (auto &entry : sass_verdicts)
+    for (unsigned int at = 0u; at < s_form_count; at += 1u)
     {
-        const std::vector<std::string> &read_texts = readings[entry.first];
-        const std::vector<const Question *> &read_questions = questions_of[entry.first];
-        int whole = !read_texts.empty();
-        std::map<std::string, std::string> by_banks;
-        for (size_t at = 0u; at < read_texts.size(); at += 1u)
-        {
-            whole = whole && !read_texts[at].empty();
-            const auto seen = by_banks.find(read_questions[at]->key);
-            whole = whole && ((seen == by_banks.end()) || (seen->second == read_texts[at]));
-            by_banks[read_questions[at]->key] = read_texts[at];
-        }
-        if (!entry.second.text.empty() || !whole)
+        FormState *const state = &s_forms[at];
+        if (!state->sass.seen)
         {
             continue;
         }
-        const auto current = sass.forms.find(entry.first);
-        const std::string now = (current != sass.forms.end()) ? current->second.text : std::string();
-        std::string chosen;
-        for (const std::string &one : read_texts)
+        int any = 0;
+        int whole = 1;
+        for (unsigned int one = 0u; one < reading_count; one += 1u)
         {
-            int everywhere = 1;
-            for (const Question *question : constrained[entry.first])
+            if ((readings[one].state != state) || !readings[one].settles)
             {
-                everywhere = everywhere && sass_assembles(one, *question);
+                continue;
             }
-            if (everywhere && (chosen.empty() || (one == now) ||
-                               ((chosen != now) && (text_instructions(one) < text_instructions(chosen)))))
+            any = 1;
+            whole = whole && (readings[one].text[0] != '\0');
+            // the reading of the same banks before it, which this one must read alike
+            for (unsigned int before = one; whole && (before > 0u); before -= 1u)
             {
-                chosen = one;
+                const FormReading *const earlier = &readings[before - 1u];
+                if ((earlier->state == state) && earlier->settles &&
+                    forms_same(earlier->question->key.text, readings[one].question->key.text))
+                {
+                    whole = forms_same(earlier->text, readings[one].text);
+                    break;
+                }
             }
         }
-        if (!chosen.empty())
+        whole = whole && any;
+        if ((state->sass.text[0] != '\0') || !whole)
         {
-            entry.second.text = chosen;
-            entry.second.why.clear();
+            continue;
+        }
+        const char *const now = krs_text_of(&s_sass, KRS_FORM, state->form.text);
+        const char *chosen = "";
+        for (unsigned int one = 0u; one < reading_count; one += 1u)
+        {
+            if ((readings[one].state != state) || !readings[one].settles)
+            {
+                continue;
+            }
+            const char *const text = readings[one].text;
+            if (assembles_everywhere(readings, reading_count, state, text) &&
+                ((chosen[0] == '\0') || forms_same(text, now) ||
+                 (!forms_same(chosen, now) && (text_instructions(text) < text_instructions(chosen)))))
+            {
+                chosen = text;
+            }
+        }
+        if (chosen[0] != '\0')
+        {
+            forms_set_n(state->sass.text, sizeof(state->sass.text), chosen, forms_length(chosen));
+            state->sass.why[0] = '\0';
         }
     }
-    for (auto &entry : sass_verdicts)
+    for (unsigned int at = 0u; at < s_form_count; at += 1u)
     {
-        const auto loaded = loaded_verdicts.find(entry.first);
-        if (!entry.second.text.empty() || (loaded == loaded_verdicts.end()) || loaded->second.text.empty())
+        FormState *const state = &s_forms[at];
+        if (!state->sass.seen || (state->sass.text[0] != '\0') || !state->loaded.seen ||
+            (state->loaded.text[0] == '\0'))
         {
             continue;
         }
         // the loaded reading places the numbers of the form in registers. It is the form only where it also assembles
         // for every written-in number that the tests of the form used. Else it is a form only for operands that the
         // written-in questions never used
-        int everywhere = 1;
-        for (const Question *question : constrained[entry.first])
+        if (assembles_everywhere(readings, reading_count, state, state->loaded.text))
         {
-            everywhere = everywhere && sass_assembles(loaded->second.text, *question);
-        }
-        if (everywhere)
-        {
-            entry.second = loaded->second;
+            state->sass = state->loaded;
         }
     }
     // A verdict holds only where the reading assembles for every operand that the tests of the form used, folded probes
     // included. A reading settled from register operands alone is no form of the operator in one case. A test put a
     // literal in a position that the reading cannot encode. That holds however every register question agreed on it
-    for (auto &entry : sass_verdicts)
+    for (unsigned int at = 0u; at < s_form_count; at += 1u)
     {
-        if (entry.second.text.empty())
+        FormState *const state = &s_forms[at];
+        if (!state->sass.seen || (state->sass.text[0] == '\0'))
         {
             continue;
         }
-        for (const Question *question : constrained[entry.first])
+        for (unsigned int one = 0u; one < reading_count; one += 1u)
         {
-            if (sass_assembles(entry.second.text, *question))
+            if ((readings[one].state != state) || !readings[one].constrains ||
+                sass_assembles(state->sass.text, readings[one].question))
             {
                 continue;
             }
-            const auto fold = folds.find("sass " + entry.first);
-            entry.second.why = (fold != folds.end())
-                                   ? fold->second
-                                   : "the reading does not assemble for every operand the form was tested with";
-            entry.second.text.clear();
+            const char *const why = state->has_sass_fold
+                                        ? state->sass_fold
+                                        : "the reading does not assemble for every operand the form was tested with";
+            forms_set_n(state->sass.why, sizeof(state->sass.why), why, forms_length(why));
+            state->sass.text[0] = '\0';
             break;
         }
     }
-    for (const auto &entry : ptx_verdicts)
+    for (unsigned int at = 0u; at < s_form_count; at += 1u)
     {
-        if (sass_verdicts.find(entry.first) == sass_verdicts.end())
+        FormState *const state = &s_forms[at];
+        if (state->ptx.seen && !state->sass.seen)
         {
-            sass_verdicts[entry.first] = {std::string(), "ptx.krs gives no form", 1};
+            state->sass.text[0] = '\0';
+            forms_set_n(state->sass.why, sizeof(state->sass.why), "ptx.krs gives no form", 21u);
+            state->sass.seen = 1;
         }
     }
-    std::map<std::string, std::string> sass_adopted;
-    std::map<std::string, std::string> ptx_adopted;
+    platform_cell_released(readings, platform_place_g_program_owner);
+    // the forms in the order of their names, for the table and the folds, each once
+    if (s_form_count >= 2u)
     {
-        mmgr_line_put(platform_file_line(out), "\n## By form\n\n| form | sass.krs | SASS read | | ptx.krs | PTX read | "
-                                               "|\n|---|---|---|---|---|---|---|\n");
+        void *const spare =
+            forms_allocated(platform_cell_taken((unsigned long long)s_form_count * sizeof(FormState),
+                                                platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY));
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = s_forms, .bytes = sizeof(FormState), .scratch = spare,
+                         .count = s_form_count, .order = form_state_order);
+        platform_cell_released(spare, platform_place_g_program_owner);
     }
+    record_put(out, "\n## By form\n\n| form | sass.krs | SASS read | | ptx.krs | PTX read | "
+                    "|\n|---|---|---|---|---|---|---|\n");
     unsigned int sass_same = 0u;
     unsigned int ptx_same = 0u;
-    for (const auto &entry : sass_verdicts)
+    unsigned int sass_forms = 0u;
+    unsigned int sass_adopted = 0u;
+    unsigned int ptx_adopted = 0u;
+    static FormsAlike s_alike[FORMS_ALIKE_MAX];
+    for (unsigned int at = 0u; at < s_form_count; at += 1u)
     {
-        const std::string &form = entry.first;
-        const Verdict &sass_verdict = entry.second;
-        const Verdict &ptx_verdict = ptx_verdicts[form];
-        const auto sass_form = sass.forms.find(form);
-        const auto ptx_form = ptx_rules.forms.find(form);
-        const std::string sass_now = (sass_form != sass.forms.end()) ? sass_form->second.text : std::string();
-        const std::string ptx_now = (ptx_form != ptx_rules.forms.end()) ? ptx_form->second.text : std::string();
-        auto state = [](const Verdict &verdict, const std::string &now, unsigned int *same) -> std::string {
-            if (verdict.text.empty())
-            {
-                return "retained: " + verdict.why;
-            }
-            if (verdict.text == now)
-            {
-                *same += 1u;
-                return "same";
-            }
-            return "read";
-        };
-        const std::string sass_state = state(sass_verdict, sass_now, &sass_same);
-        std::string ptx_state = state(ptx_verdict, ptx_now, &ptx_same);
+        FormState *const state = &s_forms[at];
+        if (!state->sass.seen)
+        {
+            continue;
+        }
+        sass_forms += 1u;
+        const char *const sass_now = krs_text_of(&s_sass, KRS_FORM, state->form.text);
+        const char *const ptx_now = krs_text_of(&s_ptx_rules, KRS_FORM, state->form.text);
+        FormsLine sass_state;
+        verdict_state(&state->sass, sass_now, &sass_same, &sass_state);
+        FormsLine ptx_state;
+        verdict_state(&state->ptx, ptx_now, &ptx_same, &ptx_state);
         // A PTX reading that differs from the ruleset only in the signedness of an operation is the form of the
         // ruleset. That holds where the system compiles both to the same machine code. The SASS read whole and alike is
         // that proof. Record the writings that the system answers alike, and read the form as given.
-        if ((ptx_state == "read") && (sass_state == "same"))
+        if (forms_same(ptx_state.text, "read") && forms_same(sass_state.text, "same"))
         {
-            std::vector<std::pair<std::string, std::string>> alike;
-            if (signedness_only(ptx_now, ptx_verdict.text, &alike))
+            unsigned int alike = 0u;
+            if (signedness_only(ptx_now, state->ptx.text, s_alike, &alike))
             {
-                for (const auto &pair : alike)
+                for (unsigned int one = 0u; one < alike; one += 1u)
                 {
-                    sass_equal_take(pair.first.c_str(), pair.second.c_str());
+                    sass_equal_take(s_alike[one].now.text, s_alike[one].read.text);
                 }
                 ptx_same += 1u;
-                ptx_state = "same";
+                FORMS_SET(ptx_state, "same");
             }
         }
-        if (sass_state == "read")
-        {
-            sass_adopted[form] = sass_verdict.text;
-        }
-        if (ptx_state == "read")
-        {
-            ptx_adopted[form] = ptx_verdict.text;
-        }
-        {
-            mmgr_line_put(platform_file_line(out), "| ");
-            mmgr_line_put(platform_file_line(out), form.c_str());
-            mmgr_line_put(platform_file_line(out), " | `");
-            mmgr_line_put(platform_file_line(out), cell(text_flat(sass_now)).c_str());
-            mmgr_line_put(platform_file_line(out), "` | `");
-            mmgr_line_put(platform_file_line(out), cell(text_flat(sass_verdict.text)).c_str());
-            mmgr_line_put(platform_file_line(out), "` | ");
-            mmgr_line_put(platform_file_line(out), cell(sass_state).c_str());
-            mmgr_line_put(platform_file_line(out), " | `");
-            mmgr_line_put(platform_file_line(out), cell(text_flat(ptx_now)).c_str());
-            mmgr_line_put(platform_file_line(out), "` | `");
-            mmgr_line_put(platform_file_line(out), cell(text_flat(ptx_verdict.text)).c_str());
-            mmgr_line_put(platform_file_line(out), "` | ");
-            mmgr_line_put(platform_file_line(out), cell(ptx_state).c_str());
-            mmgr_line_put(platform_file_line(out), " |\n");
-        }
+        state->sass_adopted = forms_same(sass_state.text, "read");
+        state->ptx_adopted = forms_same(ptx_state.text, "read");
+        sass_adopted += state->sass_adopted ? 1u : 0u;
+        ptx_adopted += state->ptx_adopted ? 1u : 0u;
+        VerbaLinea *const line = platform_file_line(out);
+        mmgr_line_put(line, "| ");
+        mmgr_line_put(line, state->form.text);
+        mmgr_line_put(line, " | `");
+        flat_cell_put(line, sass_now, &flat);
+        mmgr_line_put(line, "` | `");
+        flat_cell_put(line, state->sass.text, &flat);
+        mmgr_line_put(line, "` | ");
+        cell_put(line, sass_state.text, forms_length(sass_state.text));
+        mmgr_line_put(line, " | `");
+        flat_cell_put(line, ptx_now, &flat);
+        mmgr_line_put(line, "` | `");
+        flat_cell_put(line, state->ptx.text, &flat);
+        mmgr_line_put(line, "` | ");
+        cell_put(line, ptx_state.text, forms_length(ptx_state.text));
+        mmgr_line_put(line, " |\n");
     }
-    {
-        mmgr_line_put(platform_file_line(out), "\n");
-        mmgr_line_decimal(platform_file_line(out), questions.size(), 1u);
-        mmgr_line_put(platform_file_line(out), " questions over ");
-        mmgr_line_decimal(platform_file_line(out), sass_verdicts.size(), 1u);
-        mmgr_line_put(platform_file_line(out), " forms. Of the forms, sass.krs already gives ");
-        mmgr_line_decimal(platform_file_line(out), sass_same, 1u);
-        mmgr_line_put(platform_file_line(out), " as read and ");
-        mmgr_line_decimal(platform_file_line(out), sass_adopted.size(), 1u);
-        mmgr_line_put(platform_file_line(out), " are read otherwise; ptx.krs gives ");
-        mmgr_line_decimal(platform_file_line(out), ptx_same, 1u);
-        mmgr_line_put(platform_file_line(out), " as read and ");
-        mmgr_line_decimal(platform_file_line(out), ptx_adopted.size(), 1u);
-        mmgr_line_put(platform_file_line(out), " are read otherwise.\n");
-    }
+    platform_text_ended(&flat);
+    VerbaLinea *const summary = platform_file_line(out);
+    mmgr_line_put(summary, "\n");
+    mmgr_line_decimal(summary, question_count, 1u);
+    mmgr_line_put(summary, " questions over ");
+    mmgr_line_decimal(summary, sass_forms, 1u);
+    mmgr_line_put(summary, " forms. Of the forms, sass.krs already gives ");
+    mmgr_line_decimal(summary, sass_same, 1u);
+    mmgr_line_put(summary, " as read and ");
+    mmgr_line_decimal(summary, sass_adopted, 1u);
+    mmgr_line_put(summary, " are read otherwise; ptx.krs gives ");
+    mmgr_line_decimal(summary, ptx_same, 1u);
+    mmgr_line_put(summary, " as read and ");
+    mmgr_line_decimal(summary, ptx_adopted, 1u);
+    mmgr_line_put(summary, " are read otherwise.\n");
     platform_file_close(out);
-    {
-        VerbaLinea *const output_line = platform_line_out();
-        mmgr_line_put(output_line, "monolith_forms: ");
-        mmgr_line_decimal(output_line, questions.size(), 1u);
-        mmgr_line_put(output_line, " questions over ");
-        mmgr_line_decimal(output_line, sass_verdicts.size(), 1u);
-        mmgr_line_put(output_line, " forms; sass.krs: ");
-        mmgr_line_decimal(output_line, sass_same, 1u);
-        mmgr_line_put(output_line, " same, ");
-        mmgr_line_decimal(output_line, sass_adopted.size(), 1u);
-        mmgr_line_put(output_line, " read otherwise; ptx.krs: ");
-        mmgr_line_decimal(output_line, ptx_same, 1u);
-        mmgr_line_put(output_line, " same, ");
-        mmgr_line_decimal(output_line, ptx_adopted.size(), 1u);
-        mmgr_line_put(output_line, " read otherwise; the record written to ");
-        mmgr_line_put(output_line, record);
-        mmgr_line_ch(output_line, '\n');
-        platform_line_out_ended();
-    }
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, "monolith_forms: ");
+    mmgr_line_decimal(output_line, question_count, 1u);
+    mmgr_line_put(output_line, " questions over ");
+    mmgr_line_decimal(output_line, sass_forms, 1u);
+    mmgr_line_put(output_line, " forms; sass.krs: ");
+    mmgr_line_decimal(output_line, sass_same, 1u);
+    mmgr_line_put(output_line, " same, ");
+    mmgr_line_decimal(output_line, sass_adopted, 1u);
+    mmgr_line_put(output_line, " read otherwise; ptx.krs: ");
+    mmgr_line_decimal(output_line, ptx_same, 1u);
+    mmgr_line_put(output_line, " same, ");
+    mmgr_line_decimal(output_line, ptx_adopted, 1u);
+    mmgr_line_put(output_line, " read otherwise; the record written to ");
+    mmgr_line_put(output_line, record);
+    mmgr_line_ch(output_line, '\n');
+    platform_line_out_ended();
     // The folds that the system does are its own, and belong in the classification of what the generator emits. That is
     // the .ksc beside sass.krs that the code generator reads with it. Read it, and drop what it contains of each number
     // and register that this pass put for a role of a form that it tested. Add the compile-channel folds of this pass
     // in place, and write it back. Every other fold stays
-    const std::string ruleset_path = sass_krs;
-    const size_t slash = ruleset_path.find_last_of('/');
-    const std::string rulesets = (slash == std::string::npos) ? std::string(".") : ruleset_path.substr(0u, slash);
-    const std::string file = (slash == std::string::npos) ? ruleset_path : ruleset_path.substr(slash + 1u);
-    const std::string stem = file.substr(0u, file.find_last_of('.'));
-    sass_class_read(rulesets.c_str(), stem.c_str());
-    for (const Question &question : questions)
+    const size_t path_length = forms_length(sass_krs);
+    const size_t slash = forms_chr_last(sass_krs, path_length, '/');
+    FormsLine rulesets;
+    FORMS_SET_N(rulesets, (slash == path_length) ? "." : sass_krs, (slash == path_length) ? 1u : slash);
+    const char *const file = (slash == path_length) ? sass_krs : &sass_krs[slash + 1u];
+    const size_t file_length = forms_length(file);
+    FormsLine stem;
+    FORMS_SET_N(stem, file, forms_chr_last(file, file_length, '.'));
+    sass_class_read(rulesets.text, stem.text);
+    for (unsigned int at = 0u; at < question_count; at += 1u)
     {
-        for (const Role &role : question.roles)
+        const Question *const question = &questions[at];
+        for (unsigned int one = 0u; one < question->role_count; one += 1u)
         {
-            const int put = !role.fixed && ((role.place == "in") || (role.place == "out"));
-            if (role.place == "number")
+            const Role *const role = &question->roles[one];
+            const int put = !role->fixed && (forms_same(role->place.text, "in") || forms_same(role->place.text, "out"));
+            FormsLine dropped;
+            if (forms_same(role->place.text, "number"))
             {
-                sass_class_drop(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS,
-                                (question.form + ": the system folds the number put for " + role.name).c_str());
+                FORMS_SET(dropped, question->form.text);
+                FORMS_ADD(dropped, ": the system folds the number put for ");
+                FORMS_ADD(dropped, role->name.text);
+                sass_class_drop(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS, dropped.text);
             }
             if (put)
             {
-                sass_class_drop(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS,
-                                (question.form + ": the system folds the register put for " + role.name).c_str());
+                FORMS_SET(dropped, question->form.text);
+                FORMS_ADD(dropped, ": the system folds the register put for ");
+                FORMS_ADD(dropped, role->name.text);
+                sass_class_drop(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS, dropped.text);
             }
         }
     }
-    for (const auto &fold : fold_fact)
+    for (unsigned int at = 0u; at < s_form_count; at += 1u)
     {
-        const std::string question = fold.first + ": " + fold.second;
-        sass_class_take(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS, question.c_str(), 0u);
+        const FormState *const state = &s_forms[at];
+        if (state->fold_fact.text[0] == '\0')
+        {
+            continue;
+        }
+        FormsLine taken;
+        FORMS_SET(taken, state->form.text);
+        FORMS_ADD(taken, ": ");
+        FORMS_ADD(taken, state->fold_fact.text);
+        sass_class_take(SASS_CHANNEL_COMPILE, SASS_CLASS_FOLDS, taken.text, 0u);
     }
-    sass_class_write(rulesets.c_str(), stem.c_str());
+    sass_class_write(rulesets.text, stem.text);
     if (apply)
     {
-        const int sass_written = krs_apply(sass_krs, sass_adopted);
-        const int ptx_written = krs_apply(ptx_krs, ptx_adopted);
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "monolith_forms: ");
-            mmgr_line_decimal_signed(output_line, sass_written);
-            mmgr_line_put(output_line, " forms written into ");
-            mmgr_line_put(output_line, sass_krs);
-            mmgr_line_put(output_line, " and ");
-            mmgr_line_decimal_signed(output_line, ptx_written);
-            mmgr_line_put(output_line, " into ");
-            mmgr_line_put(output_line, ptx_krs);
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
+        const int sass_written = krs_apply(sass_krs, 1);
+        const int ptx_written = krs_apply(ptx_krs, 0);
+        VerbaLinea *const applied = platform_line_out();
+        mmgr_line_put(applied, "monolith_forms: ");
+        mmgr_line_decimal_signed(applied, sass_written);
+        mmgr_line_put(applied, " forms written into ");
+        mmgr_line_put(applied, sass_krs);
+        mmgr_line_put(applied, " and ");
+        mmgr_line_decimal_signed(applied, ptx_written);
+        mmgr_line_put(applied, " into ");
+        mmgr_line_put(applied, ptx_krs);
+        mmgr_line_ch(applied, '\n');
+        platform_line_out_ended();
         if ((sass_written < 0) || (ptx_written < 0))
         {
             return 2;
@@ -3220,28 +5179,17 @@ static int forms_read(const char *questions_path, const char *listing, const cha
 
 int program_main(int count, char **words)
 {
-    if ((count == 6) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
-                                    .other = "write", .ci = EMBED_FALSE)))
+    if ((count == 6) && forms_same(words[1], "write"))
     {
         return forms_write(words[2], words[3], words[4], words[5]);
     }
-    if (((count == 9) || (count == 10)) &&
-        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "read",
-                    .ci = EMBED_FALSE)))
+    if (((count == 9) || (count == 10)) && forms_same(words[1], "read"))
     {
         return forms_read(words[2], words[3], words[4], words[5], words[6], words[7], words[8],
-                          (count == 10) &&
-                              (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[9],
-                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "apply", .ci = EMBED_FALSE)));
+                          (count == 10) && forms_same(words[9], "apply"));
     }
-    {
-        EngineNote engine_note;
-        engine_note_begun(&engine_note);
-        mmgr_line_put(&engine_note.line,
-                      "monolith_forms write <c.krs> <ptx.krs> <monolith.cu> <questions>\nmonolith_forms read "
-                      "<questions> <listing> <ptx> <sass.krs> <ptx.krs> <machine> <record> [apply]");
-        mmgr_line_ch(&engine_note.line, '\n');
-        engine_note_written(&engine_note);
-    }
+    forms_noted("monolith_forms write <c.krs> <ptx.krs> <monolith.cu> <questions>\nmonolith_forms read "
+                "<questions> <listing> <ptx> <sass.krs> <ptx.krs> <machine> <record> [apply]",
+                "", "", "", "");
     return 2;
 }
