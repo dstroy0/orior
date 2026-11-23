@@ -847,12 +847,14 @@ static void writer_question(Writer *writer, const std::vector<LaneForm> &questio
             }
             text = text_fill(text, parameter, local);
         }
-        // the fixed registers the text names, each loaded as an argument is. The carry is the chain's own
+        // The fixed registers the text names, each loaded as an argument is. The carry is the chain's own, and the
+        // question loads and stores it below as a form that carries reads and writes it
+        std::set<std::string> loaded_fixed;
         for (const auto &fixed : writer->c->fixed)
         {
             const std::string &variable = fixed.second;
             const auto type = writer->declared.find(variable);
-            if ((type == writer->declared.end()) || !text_names(text, variable))
+            if ((variable == "carry") || (type == writer->declared.end()) || !text_names(text, variable))
             {
                 continue;
             }
@@ -860,11 +862,13 @@ static void writer_question(Writer *writer, const std::vector<LaneForm> &questio
             writer->body +=
                 "        const " + type->second + " " + variable + " = " + writer_load(type->second, word) + ";\n";
             row += "\t!" + fixed.first + "=in:" + std::to_string(word) + ":" + type->second;
+            loaded_fixed.insert(variable);
         }
+        // the launch, where c.krs names it as no fixed register and the loop above has not loaded it
         for (const char *const variable : {"launch"})
         {
             const auto type = writer->declared.find(variable);
-            if ((type != writer->declared.end()) && text_names(text, variable))
+            if ((type != writer->declared.end()) && (loaded_fixed.count(variable) == 0u) && text_names(text, variable))
             {
                 const unsigned int word = writer_take(&writer->in_words, type->second);
                 writer->body +=
