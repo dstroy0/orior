@@ -28,18 +28,28 @@ static int goodstein_bump(unsigned long long value, unsigned long long base, uns
     return 1;
 }
 
-static void goodstein_print_term(VerbaLinea *line, const GoodsteinNotation &exponent, unsigned long long coefficient,
+static void goodstein_print_term(VerbaLinea *line, GoodsteinForm exponent, unsigned long long coefficient,
                                  unsigned int *capacity);
 
-// the form as an ordinal in Cantor normal form, w for omega, cut at the capacity left
-static void goodstein_print(VerbaLinea *line, const GoodsteinNotation &form, unsigned int *capacity)
+// the term of k written in the base `origin` printed with `coefficient`, its tree on the stack while it prints
+static void goodstein_print_tree(VerbaLinea *line, unsigned long long k, unsigned long long origin,
+                                 unsigned long long coefficient, unsigned int *capacity)
 {
-    if (form.blocks.empty())
+    GoodsteinNotation *const tree = goodstein_taken();
+    goodstein_of(k, origin, tree);
+    goodstein_print_term(line, goodstein_form(tree), coefficient, capacity);
+    goodstein_given();
+}
+
+// the form as an ordinal in Cantor normal form, w for omega, cut at the capacity left
+static void goodstein_print(VerbaLinea *line, GoodsteinForm form, unsigned int *capacity)
+{
+    if (form.count == 0u)
     {
         mmgr_line_ch(line, '0');
         return;
     }
-    for (size_t at = 0u; at < form.blocks.size(); at += 1u)
+    for (unsigned int at = 0u; at < form.count; at += 1u + form.blocks[at].exponent_blocks)
     {
         if (*capacity == 0u)
         {
@@ -50,38 +60,37 @@ static void goodstein_print(VerbaLinea *line, const GoodsteinNotation &form, uns
         {
             mmgr_line_put(line, " + ");
         }
-        const GoodsteinBlock &block = form.blocks[at];
-        if (block.origin == 0ULL)
+        const GoodsteinBlock *const block = &form.blocks[at];
+        if (block->origin == 0ULL)
         {
-            goodstein_print_term(line, block.exponent, block.coefficient, capacity);
+            goodstein_print_term(line, goodstein_exponent(form, at), block->coefficient, capacity);
             continue;
         }
         mmgr_line_ch(line, '[');
-        goodstein_print_term(line, goodstein_of(block.high, block.origin), block.coefficient, capacity);
-        if (block.high != block.low)
+        goodstein_print_tree(line, block->high, block->origin, block->coefficient, capacity);
+        if (block->high != block->low)
         {
             mmgr_line_put(line, " + ... + ");
-            goodstein_print_term(line, goodstein_of(block.low, block.origin), block.coefficient, capacity);
+            goodstein_print_tree(line, block->low, block->origin, block->coefficient, capacity);
         }
         mmgr_line_put(line, "; ");
-        mmgr_line_decimal(line, block.high - block.low + 1ULL, 1u);
+        mmgr_line_decimal(line, block->high - block->low + 1ULL, 1u);
         mmgr_line_put(line, " terms]");
     }
 }
 
-static void goodstein_print_term(VerbaLinea *line, const GoodsteinNotation &exponent, unsigned long long coefficient,
+static void goodstein_print_term(VerbaLinea *line, GoodsteinForm exponent, unsigned long long coefficient,
                                  unsigned int *capacity)
 {
     *capacity = (*capacity > 8u) ? (*capacity - 8u) : 0u;
-    if (exponent.blocks.empty())
+    if (exponent.count == 0u)
     {
         mmgr_line_decimal(line, coefficient, 1u);
         return;
     }
-    const int power_one = (exponent.blocks.size() == 1u) && (exponent.blocks[0].origin == 0ULL) &&
-                          exponent.blocks[0].exponent.blocks.empty() && (exponent.blocks[0].coefficient == 1ULL);
-    const int power_finite = (exponent.blocks.size() == 1u) && (exponent.blocks[0].origin == 0ULL) &&
-                             exponent.blocks[0].exponent.blocks.empty();
+    // an exponent of one term with no exponent of its own is a finite power
+    const int power_finite = (exponent.count == 1u) && (exponent.blocks[0].origin == 0ULL);
+    const int power_one = power_finite && (exponent.blocks[0].coefficient == 1ULL);
     mmgr_line_ch(line, 'w');
     if (power_finite != 0)
     {
@@ -104,6 +113,15 @@ static void goodstein_print_term(VerbaLinea *line, const GoodsteinNotation &expo
     }
 }
 
+// The forms that main holds over its run: the form, the form before a step, a tower and the tower below it. Then the
+// two trees that a comparison reads
+static GoodsteinNotation s_form;
+static GoodsteinNotation s_before;
+static GoodsteinNotation s_tower;
+static GoodsteinNotation s_below;
+static GoodsteinNotation s_left;
+static GoodsteinNotation s_right;
+
 // 1. the bump preserves the tree
 static void goodstein_lemma(SimResults *results)
 {
@@ -119,7 +137,9 @@ static void goodstein_lemma(SimResults *results)
                 continue;
             }
             GoodsteinBudget budget = {GOODSTEIN_COMPARE_TERMS, 0};
-            const int order = goodstein_compare(goodstein_of(bumped, base + 1ULL), goodstein_of(value, base), &budget);
+            goodstein_of(bumped, base + 1ULL, &s_left);
+            goodstein_of(value, base, &s_right);
+            const int order = goodstein_compare(goodstein_form(&s_left), goodstein_form(&s_right), &budget);
             tested += 1ULL;
             terminated += ((order == 0) && (budget.exhausted == 0)) ? 1ULL : 0ULL;
         }
@@ -141,29 +161,32 @@ static void goodstein_towers(SimResults *results)
     unsigned long long value = 1ULL;
     int same = 1;
     int climbs = 1;
-    GoodsteinNotation below;
+    s_below.count = 0u;
     for (unsigned int height = 1u; height <= GOODSTEIN_TOWER; height += 1u)
     {
         // 2^^height from 2^^(height - 1): 1, 2, 4, 16, 65536
         unsigned long long next = 0ULL;
         same = same && (goodstein_power(2ULL, value, &next) != 0);
         value = next;
-        const GoodsteinNotation tower = goodstein_tower(height);
+        goodstein_tower(height, &s_tower);
+        goodstein_of(value, 2ULL, &s_left);
         GoodsteinBudget budget = {GOODSTEIN_COMPARE_TERMS, 0};
-        same = same && (goodstein_compare(goodstein_of(value, 2ULL), tower, &budget) == 0) && (budget.exhausted == 0);
+        same = same && (goodstein_compare(goodstein_form(&s_left), goodstein_form(&s_tower), &budget) == 0) &&
+               (budget.exhausted == 0);
         if (height > 1u)
         {
             GoodsteinBudget climb = {GOODSTEIN_COMPARE_TERMS, 0};
-            climbs = climbs && (goodstein_compare(below, tower, &climb) < 0) && (climb.exhausted == 0);
+            climbs = climbs && (goodstein_compare(goodstein_form(&s_below), goodstein_form(&s_tower), &climb) < 0) &&
+                     (climb.exhausted == 0);
         }
-        below = tower;
+        goodstein_copied(&s_below, &s_tower);
         unsigned int capacity = GOODSTEIN_PRINT_CAPACITY;
         mmgr_line_put(&results->line, "  2^^");
         mmgr_line_decimal(&results->line, height, 1u);
         mmgr_line_put(&results->line, " = ");
         mmgr_line_decimal(&results->line, value, 1u);
         mmgr_line_put(&results->line, " in hereditary base 2 is ");
-        goodstein_print(&results->line, goodstein_of(value, 2ULL), &capacity);
+        goodstein_print(&results->line, goodstein_form(&s_left), &capacity);
         mmgr_line_ch(&results->line, '\n');
     }
     sim_check(results, same, "2^^k in hereditary base 2 is omega^^k, for k = 1 to 4");
@@ -178,22 +201,22 @@ static void goodstein_small(SimResults *results)
     int values = 1;
     for (unsigned long long start = 1ULL; start <= 3ULL; start += 1ULL)
     {
-        GoodsteinNotation form = goodstein_of(start, 2ULL);
+        goodstein_of(start, 2ULL, &s_form);
         unsigned long long numeric = start;
         unsigned long long base = 2ULL;
         unsigned long long steps = 0ULL;
-        while (!form.blocks.empty() && (steps < GOODSTEIN_SMALL_STEPS_MAX))
+        while ((s_form.count != 0u) && (steps < GOODSTEIN_SMALL_STEPS_MAX))
         {
             unsigned long long bumped = 0ULL;
             values = values && (goodstein_bump(numeric, base, &bumped) != 0);
             numeric = bumped - 1ULL;
             base += 1ULL;
-            values = values && (goodstein_decrement(form, base) != 0);
+            values = values && (goodstein_decrement(&s_form, base) != 0);
             unsigned long long value = 0ULL;
-            values = values && (goodstein_value(form, base, &value) != 0) && (value == numeric);
+            values = values && (goodstein_value(goodstein_form(&s_form), base, &value) != 0) && (value == numeric);
             steps += 1ULL;
         }
-        finish = finish && form.blocks.empty() && (numeric == 0ULL) && (steps == expected[start - 1ULL]);
+        finish = finish && (s_form.count == 0u) && (numeric == 0ULL) && (steps == expected[start - 1ULL]);
         mmgr_line_put(&results->line, "  start ");
         mmgr_line_decimal(&results->line, start, 1u);
         mmgr_line_put(&results->line, ": 0 after ");
@@ -208,12 +231,12 @@ static void goodstein_small(SimResults *results)
 static void goodstein_run(SimResults *results, unsigned long long start, int *falls, int *agrees,
                           unsigned long long *compared)
 {
-    GoodsteinNotation form = goodstein_of(start, 2ULL);
+    goodstein_of(start, 2ULL, &s_form);
     unsigned int capacity = GOODSTEIN_PRINT_CAPACITY;
     mmgr_line_put(&results->line, "  start ");
     mmgr_line_decimal(&results->line, start, 1u);
     mmgr_line_put(&results->line, ", the ordinal ");
-    goodstein_print(&results->line, form, &capacity);
+    goodstein_print(&results->line, goodstein_form(&s_form), &capacity);
     mmgr_line_ch(&results->line, '\n');
     unsigned long long numeric = start;
     int numeric_fits = 1;
@@ -222,9 +245,9 @@ static void goodstein_run(SimResults *results, unsigned long long start, int *fa
     unsigned long long fell = 0ULL;
     unsigned long long matched = 0ULL;
     int ok = 1;
-    while (!form.blocks.empty() && (steps < GOODSTEIN_STEPS) && (ok != 0))
+    while ((s_form.count != 0u) && (steps < GOODSTEIN_STEPS) && (ok != 0))
     {
-        const GoodsteinNotation before = form;
+        goodstein_copied(&s_before, &s_form);
         if (numeric_fits != 0)
         {
             unsigned long long bumped = 0ULL;
@@ -232,11 +255,14 @@ static void goodstein_run(SimResults *results, unsigned long long start, int *fa
             numeric = bumped - 1ULL;
         }
         base += 1ULL;
-        ok = goodstein_decrement(form, base);
+        ok = goodstein_decrement(&s_form, base);
         GoodsteinBudget budget = {GOODSTEIN_COMPARE_TERMS, 0};
-        fell += ((ok != 0) && (goodstein_compare(form, before, &budget) < 0) && (budget.exhausted == 0)) ? 1ULL : 0ULL;
+        fell += ((ok != 0) && (goodstein_compare(goodstein_form(&s_form), goodstein_form(&s_before), &budget) < 0) &&
+                 (budget.exhausted == 0))
+                    ? 1ULL
+                    : 0ULL;
         unsigned long long value = 0ULL;
-        const int value_fits = goodstein_value(form, base, &value);
+        const int value_fits = goodstein_value(goodstein_form(&s_form), base, &value);
         if (numeric_fits != value_fits)
         {
             *agrees = 0;
@@ -256,13 +282,13 @@ static void goodstein_run(SimResults *results, unsigned long long start, int *fa
     mmgr_line_put(&results->line, " steps, base ");
     mmgr_line_decimal(&results->line, base, 1u);
     mmgr_line_put(&results->line, ", ");
-    mmgr_line_decimal(&results->line, form.blocks.size(), 1u);
+    mmgr_line_decimal(&results->line, goodstein_terms(goodstein_form(&s_form)), 1u);
     mmgr_line_put(&results->line, " blocks; the ordinal fell on ");
     mmgr_line_decimal(&results->line, fell, 1u);
     mmgr_line_put(&results->line, "; the value equals the numeric sequence's on ");
     mmgr_line_decimal(&results->line, matched, 1u);
     mmgr_line_put(&results->line, " steps, where it fits 64 bits\n    now ");
-    goodstein_print(&results->line, form, &capacity);
+    goodstein_print(&results->line, goodstein_form(&s_form), &capacity);
     mmgr_line_ch(&results->line, '\n');
     sim_flush(results);
 }

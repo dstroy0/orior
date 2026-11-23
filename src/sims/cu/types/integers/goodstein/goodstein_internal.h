@@ -4,25 +4,28 @@
 #ifndef GOODSTEIN_INTERNAL_H
 #define GOODSTEIN_INTERNAL_H
 
-// Goodstein's sequences, represented exactly and never expanded (R. L. Goodstein, "On the restricted ordinal theorem",
-// J. Symbolic Logic 9, 1944; L. Kirby and J. Paris, "Accessible independence results for Peano arithmetic", Bull.
-// London Math. Soc. 14, 1982). n is written in hereditary base b, every exponent written in base b again; a step writes
-// every b as b + 1 and subtracts one. With b read as omega the same tree is an ordinal below epsilon_0 in Cantor normal
-// form: the bump leaves the tree as it is, and the subtraction lowers it. Every sequence reaches 0. The start 2^^k
-// is omega^^k. 16 is omega^omega^omega. The values grow as towers and are never formed: a form is the tree itself,
-// with the base a separate number, and b^L - 1 at a large L is represented as one run of coefficient b - 1 over the
-// exponents 0 .. L - 1 of the base the run was made at.
-// 1. The bump preserves the tree: for every n below GOODSTEIN_LEMMA_BELOW at bases 2 to 6, n bumped numerically and
-//    written in base b + 1 is the tree of n in base b.
+// Goodstein's sequences, exact and never expanded. The sources are Goodstein, "On the restricted ordinal theorem",
+// Journal of Symbolic Logic 9, 1944. Then Kirby and Paris, "Accessible independence results for Peano arithmetic",
+// Bulletin of the London Mathematical Society 14, 1982.
+//
+// The sim writes n in hereditary base b, and every exponent in base b again. A step writes every b as b + 1 and
+// subtracts one. With b read as omega, the same tree is an ordinal below epsilon_0 in
+// Cantor normal form. The bump leaves the tree as it is, and the subtraction lowers it. Every sequence reaches 0.
+//
+// The start 2^^k is omega^^k, and 16 is omega^omega^omega. The values grow as towers, and the sim never forms them. A
+// form is the tree itself, with the base a separate number. The sim holds b^L - 1 at a large L as one run of
+// coefficient b - 1. The run goes over the exponents 0 to L - 1 of the base that made the run.
+//
+// 1. The bump preserves the tree. Take each n below GOODSTEIN_LEMMA_BELOW at bases 2 to 6. Its numeric bump, in base
+//    b + 1, is the tree of n in base b.
 // 2. 2^^k in hereditary base 2 is omega^^k for k = 1 to 4, and the towers climb.
 // 3. The starts 1, 2 and 3 reach 0 in 1, 3 and 5 steps, every value the numeric sequence's.
-// 4. The starts 4, 16 and 65536 run GOODSTEIN_STEPS steps: every ordinal is strictly below the one before, and
-//    every value equals the numeric sequence's wherever that fits 64 bits.
+// 4. The starts 4, 16 and 65536 run GOODSTEIN_STEPS steps. Every ordinal is strictly below the one before.
+//    Every value equals the numeric sequence's wherever that fits 64 bits.
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "sim.h"
-
-#include <algorithm>
-#include <vector>
 
 #define GOODSTEIN_STEPS 1000000ULL
 
@@ -34,30 +37,45 @@
 
 #define GOODSTEIN_SMALL_STEPS_MAX 64ULL
 
-// the max term comparisons one ordinal comparison may make before it is reported unfinished
+// the max term comparisons one ordinal comparison may make before the sim reports it unfinished
 #define GOODSTEIN_COMPARE_TERMS 1000000ULL
 
-// the max characters an ordinal is printed with
+// the max characters the sim prints an ordinal with
 #define GOODSTEIN_PRINT_CAPACITY 360u
 
-struct GoodsteinBlock;
+// The blocks of one form at max, every exponent's blocks among them. A 64-bit value in hereditary base 2 holds a few
+// hundred. A form past the bound ends the run with the reason
+#define GOODSTEIN_BLOCKS_MAX 1024u
 
-// a hereditary form, its terms highest first; the empty form is 0
-struct GoodsteinNotation
-{
-    std::vector<GoodsteinBlock> blocks;
-};
+// the forms that the calls build and give back before they return, at max at once
+#define GOODSTEIN_STACK_MAX 64u
 
-// one term c . b^E (origin 0), or a run: c . b^tree(k) for every integer k from high down to low, tree(k) being k
-// written hereditarily in the base the run was made at (origin)
+// One term c b^E, of origin 0. Or a run, c b^tree(k) for every integer k from high down to low. The tree of k is k
+// written hereditarily in the base that made the run (origin). The blocks of its exponent E follow it in the form,
+// `exponent_blocks` of them, and a run's exponent holds none
 struct GoodsteinBlock
 {
-    GoodsteinNotation exponent;
     unsigned long long coefficient;
     unsigned long long origin;
     unsigned long long low;
     unsigned long long high;
+    unsigned int exponent_blocks;
 };
+
+// A hereditary form, its terms highest first, each followed by the blocks of its exponent: `count` blocks inline at a
+// bound. The empty form is 0
+struct GoodsteinNotation
+{
+    GoodsteinBlock blocks[GOODSTEIN_BLOCKS_MAX];
+    unsigned int count;
+};
+
+// a form read in place: `count` blocks from `blocks`, the whole of a notation or the exponent of one of its terms
+typedef struct
+{
+    const GoodsteinBlock *blocks;
+    unsigned int count;
+} GoodsteinForm;
 
 typedef struct
 {
@@ -65,26 +83,39 @@ typedef struct
     int exhausted;
 } GoodsteinBudget;
 
+// a place among the terms of a form: the block of the term and, in a run, the k of the term
 typedef struct
 {
-    const GoodsteinNotation *form;
-    size_t block;
+    GoodsteinForm form;
+    unsigned int block;
     unsigned long long high;
 } GoodsteinCursor;
 
-GoodsteinNotation goodstein_of(unsigned long long value, unsigned long long base);
+GoodsteinForm goodstein_form(const GoodsteinNotation *notation);
 
-GoodsteinNotation goodstein_tower(unsigned int height);
+GoodsteinForm goodstein_exponent(GoodsteinForm form, unsigned int block);
 
-int goodstein_compare(const GoodsteinNotation &left, const GoodsteinNotation &right, GoodsteinBudget *budget);
+unsigned int goodstein_terms(GoodsteinForm form);
+
+void goodstein_copied(GoodsteinNotation *to, const GoodsteinNotation *from);
+
+GoodsteinNotation *goodstein_taken(void);
+
+void goodstein_given(void);
+
+void goodstein_of(unsigned long long value, unsigned long long base, GoodsteinNotation *out);
+
+void goodstein_tower(unsigned int height, GoodsteinNotation *out);
+
+int goodstein_compare(GoodsteinForm left, GoodsteinForm right, GoodsteinBudget *budget);
 
 int goodstein_power(unsigned long long base, unsigned long long exponent, unsigned long long *out);
 
 int goodstein_add_term(unsigned long long *total, unsigned long long coefficient, unsigned long long base,
                        unsigned long long exponent);
 
-int goodstein_value(const GoodsteinNotation &form, unsigned long long base, unsigned long long *out);
+int goodstein_value(GoodsteinForm form, unsigned long long base, unsigned long long *out);
 
-int goodstein_decrement(GoodsteinNotation &form, unsigned long long base);
+int goodstein_decrement(GoodsteinNotation *form, unsigned long long base);
 
 #endif
