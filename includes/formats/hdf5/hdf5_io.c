@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_io.c: errors, byte order, checksums and file access
-#include "hdf5_internal.h"
-#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
+#include "../../../src/platform/platform.h"
+#include "hdf5_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 int hdf5_error(Hdf5File *file, const char *reason)
 {
@@ -170,8 +170,8 @@ uint32_t hdf5_lookup3(const unsigned char *bytes, size_t length)
         return third;
     }
     unsigned char tail[12u];
-    mmgr_bytes_set(tail, 0, sizeof(tail));
-    mmgr_bytes_copy(tail, &bytes[at], length - at);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = tail, .bytes = sizeof(tail), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = tail, .src = &bytes[at], .bytes = length - at);
     first += (uint32_t)hdf5_little(&tail[0u], 4u);
     second += (uint32_t)hdf5_little(&tail[4u], 4u);
     third += (uint32_t)hdf5_little(&tail[8u], 4u);

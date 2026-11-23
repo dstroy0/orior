@@ -1,9 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "body_overlap.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../platform/platform.h"
-
+#include "memoria_operor/memoria_operor.h"
 
 _Static_assert(sizeof(unsigned int) == 4u, "body_overlap: unsigned int must be 32 bits, a peak index");
 _Static_assert(sizeof(unsigned long long) == 8u, "body_overlap: unsigned long long must be 64 bits, a pair");
@@ -110,7 +109,8 @@ long body_overlap_host(const BodyOverlapRequest *args)
         void *const sort_room =
             platform_cell_taken((unsigned long long)(total) * (unsigned long long)(sizeof(unsigned long long)),
                                 platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(pairs, total, sizeof(unsigned long long), overlap_order, sort_room);
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = pairs, .bytes = sizeof(unsigned long long),
+                         .scratch = sort_room, .count = total, .order = overlap_order);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
 

@@ -1,236 +1,335 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// bridge.cu: the bridge read from the run, each pair's concept folded, each pair closed with what it is read
-// into written beneath it, the bridge passed back to the run's writer, and the decoding printed
+// bridge.cu: each pair's concept folded, each pair closed with what it is read into written beneath it, the bridge
+// passed back to the run's writer, and the decoding printed
 #include "../../../../../../platform/platform.h"
 #include "decoder_internal.h"
 
 // 1 where a line of the bridge is a set's name alone, `<set>_coherence`
-static int set_line(const std::string &entry)
+static int set_line(CarrierPiece entry)
 {
-    const std::string suffix = "_coherence";
-    return (entry.find(' ') == std::string::npos) && (entry.size() > suffix.size()) &&
-           (entry.compare(entry.size() - suffix.size(), suffix.size(), suffix) == 0);
+    static const char s_suffix[] = "_coherence";
+    const size_t suffix = sizeof(s_suffix) - 1u;
+    return (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = entry.text, .cap = entry.length, .byte = ' ') == NULL) &&
+           (entry.length > suffix) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &entry.text[entry.length - suffix], .other = s_suffix,
+                       .bytes = suffix) == 0);
 }
 
-int Decoding::bridge_read(const char *klq)
+// a line on stdout after the decoder's name: `klq`, then `tail`
+static void bridge_said(const char *klq, const char *tail)
 {
-    std::string line;
-    const unsigned char *bridge_bytes = NULL;
-    unsigned long long bridge_size = 0ULL;
-    if (!qry_member_file_blob(klq, &bridge_bytes, &bridge_size))
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, "orior_klq_decoder: ");
+    mmgr_line_put(output_line, klq);
+    mmgr_line_put(output_line, tail);
+    mmgr_line_ch(output_line, '\n');
+    platform_line_out_ended();
+}
+
+// the pair a `pair <first> <second>` line of the bridge names, or NULL where the decoding holds none
+static DecoderPair *bridge_pair(const Decoding *decoding, CarrierPiece entry)
+{
+    DecoderWords words;
+    decoder_words(entry, &words);
+    const CarrierPiece none = {"", 0u};
+    return decoding->pair_of(
+        decoder_key((words.count > 1u) ? words.word[1] : none, (words.count > 2u) ? words.word[2] : none));
+}
+
+// a pair's concept by its place among the pairs, which orders the concepts
+struct ConceptHeld
+{
+    CarrierPiece concept_text;
+    unsigned long long pair;
+};
+
+static int concept_order(const void *left, const void *right)
+{
+    return decoder_order(((const ConceptHeld *)left)->concept_text, ((const ConceptHeld *)right)->concept_text);
+}
+
+void Decoding::concepts_folded()
+{
+    // each pair's concept as the bridge writes it, its own product's where this log answered it and otherwise the one
+    // the bridge recorded beneath it. The decoding folds a pair whose concept another pair shares: one query answers
+    // both
+    DecoderPair *concept_pair = NULL;
+    for (unsigned long long line_at = 0ULL; line_at < bridge_count; line_at += 1ULL)
     {
+        const CarrierPiece entry = bridge[line_at];
+        if (decoder_begins(entry, "pair "))
         {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "orior_klq_decoder: ");
-            mmgr_line_put(output_line, klq);
-            mmgr_line_put(output_line, " could not be read");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
+            concept_pair = bridge_pair(this, entry);
         }
-        return 1;
-    }
-    // a file read whole is at max what a size_t counts
-    std::istringstream bridge_stream(std::string((const char *)bridge_bytes, (size_t)bridge_size));
-    while (std::getline(bridge_stream, line))
-    {
-        bridge.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
-    }
-    // each pair's concept as it is written, its own product's where this log answered it and otherwise the one the
-    // bridge recorded beneath it. A pair whose concept another pair shares is folded: one query answers both
-    std::map<std::string, std::string> pair_concepts;
-    std::string concept_pair;
-    for (const std::string &entry : bridge)
-    {
-        if (entry.rfind("pair ", 0u) == 0u)
+        else if ((concept_pair != NULL) && decoder_begins(entry, "concept_coherence ") && !concept_pair->decoded_held)
         {
-            std::stringstream words(entry);
-            std::string type;
-            std::string first;
-            std::string second;
-            words >> type >> first >> second;
-            concept_pair = pair_key(first, second);
-        }
-        else if (!concept_pair.empty() && (entry.rfind("concept_coherence ", 0u) == 0u) &&
-                 (decoded.count(concept_pair) == 0u))
-        {
-            pair_concepts[concept_pair] = entry.substr(18u);
+            concept_pair->concept_text = carrier_after(entry, 18u);
+            concept_pair->concept_held = 1;
         }
     }
-    for (const auto &identity_entry : identities)
+    unsigned long long held = 0ULL;
+    for (unsigned long long at = 0ULL; at < pair_count; at += 1ULL)
     {
-        pair_concepts[identity_entry.first] = identity_entry.second;
-    }
-    std::map<std::string, unsigned int> pairs_of_concept;
-    for (const auto &identity_entry : pair_concepts)
-    {
-        pairs_of_concept[identity_entry.second] += 1u;
-    }
-    for (const auto &identity_entry : pair_concepts)
-    {
-        if (pairs_of_concept[identity_entry.second] > 1u)
+        DecoderPair *const pair = &pairs[at];
+        if (pair->identity_held)
         {
-            metas[identity_entry.first].insert("folding_coherence");
+            pair->concept_text = carrier_piece_of(pair->identity);
+            pair->concept_held = 1;
+        }
+        held += pair->concept_held ? 1ULL : 0ULL;
+    }
+    ConceptHeld *const concepts_held = (ConceptHeld *)decoder_cell(held, sizeof(ConceptHeld));
+    if (concepts_held == NULL)
+    {
+        bridge_said("the concepts", ": the pool cannot meet their cell");
+        return;
+    }
+    unsigned long long filled = 0ULL;
+    for (unsigned long long at = 0ULL; at < pair_count; at += 1ULL)
+    {
+        if (pairs[at].concept_held)
+        {
+            concepts_held[filled].concept_text = pairs[at].concept_text;
+            concepts_held[filled].pair = at;
+            filled += 1ULL;
+        }
+    }
+    (void)decoder_sorted(concepts_held, filled, sizeof(ConceptHeld), concept_order);
+    const unsigned int folding = decoder_name_bit(carrier_piece_of("folding_coherence"));
+    unsigned long long run = 0ULL;
+    while (run < filled)
+    {
+        unsigned long long next = run + 1ULL;
+        while ((next < filled) && (concept_order(&concepts_held[run], &concepts_held[next]) == 0))
+        {
+            next += 1ULL;
+        }
+        for (unsigned long long each = run; (next - run > 1ULL) && (each < next); each += 1ULL)
+        {
+            pairs[concepts_held[each].pair].metas |= folding;
+        }
+        run = next;
+    }
+    platform_cell_released(concepts_held, platform_place_g_program_owner);
+}
+
+// a line of the bridge written: the piece and its line's end
+static void written_line(Decoding *decoding, CarrierPiece line)
+{
+    (void)mmgr_line_put_n(&decoding->written.line, line.text, line.length);
+    mmgr_line_ch(&decoding->written.line, '\n');
+}
+
+// 1 where `sets` holds the piece `set` among the sets that are none of the decoder's names
+static int foreign_held(const FoldSets *sets, CarrierPiece set)
+{
+    for (unsigned int at = 0u; at < sets->foreign_count; at += 1u)
+    {
+        if (decoder_order(sets->foreign[at], set) == 0)
+        {
+            return 1;
         }
     }
     return 0;
 }
 
-void Decoding::pair_closed()
+// the piece `set` put among the sets in the order of their names, where they do not hold it and hold room for it
+static void foreign_added(FoldSets *sets, CarrierPiece set)
 {
-    if (!pair_beneath.empty())
+    if (foreign_held(sets, set) || (sets->foreign_count >= DECODER_FOREIGN_MAX))
     {
-        // a pair the log read the texts or the answers of hangs from the metas read of it now, and any other
-        // from the metas the bridge recorded. The fold is read off every pair's concept, and always now
-        const int texts_read = faceted.count(pair_beneath) != 0u;
-        const int answered = decoded.count(pair_beneath) != 0u;
-        for (const char *const meta : s_metas)
+        return;
+    }
+    unsigned int at = sets->foreign_count;
+    while ((at > 0u) && (decoder_order(sets->foreign[at - 1u], set) > 0))
+    {
+        sets->foreign[at] = sets->foreign[at - 1u];
+        at -= 1u;
+    }
+    sets->foreign[at] = set;
+    sets->foreign_count += 1u;
+}
+
+// the metas of the pair beneath written and counted. Each read now where the log read the pair's texts or answers, the
+// fold always, and any other as the bridge recorded it
+static void metas_written(Decoding *decoding, const DecoderPair *pair, int texts_read, int answered)
+{
+    const unsigned int folding = decoder_name_bit(carrier_piece_of("folding_coherence"));
+    for (unsigned int meta_at = 0u; meta_at < DECODER_METAS; meta_at += 1u)
+    {
+        const unsigned int bit = DECODER_META_BIT(meta_at);
+        const int now = texts_read || answered || (bit == folding);
+        const int meta_read = (pair->metas & bit) != 0u;
+        const int meta_known = (decoding->metas_beneath & bit) != 0u;
+        if (now ? meta_read : meta_known)
         {
-            const int meta_known = std::find(metas_beneath.begin(), metas_beneath.end(), meta) != metas_beneath.end();
-            const int now = texts_read || answered || (std::string(meta) == "folding_coherence");
-            if (now ? (metas[pair_beneath].count(meta) != 0u) : meta_known)
-            {
-                written.push_back(meta);
-                counted[meta] += 1u;
-            }
-        }
-        // every set the pair is read into, each a light of its own: the categories its texts read it into and the
-        // sets its answers read it into, each read now where the log read it and otherwise as the bridge recorded it
-        std::set<std::string> lit;
-        for (const std::string &set : sets_beneath)
-        {
-            if (named_in(s_categories, std::size(s_categories), set) ? !texts_read : !answered)
-            {
-                lit.insert(set);
-            }
-        }
-        if (answered)
-        {
-            lit.insert(decoded[pair_beneath].begin(), decoded[pair_beneath].end());
-        }
-        if (texts_read)
-        {
-            lit.insert(categories[pair_beneath].begin(), categories[pair_beneath].end());
-        }
-        // only an answer reads a pair out of `unknown_coherence`, a member of every category beneath
-        int read_down = 0;
-        for (const std::string &set : lit)
-        {
-            read_down |=
-                (!named_in(s_categories, std::size(s_categories), set) && (set != "unknown_coherence")) ? 1 : 0;
-        }
-        if (read_down)
-        {
-            lit.erase("unknown_coherence");
-        }
-        else
-        {
-            lit.insert("unknown_coherence");
-        }
-        std::vector<std::string> sets;
-        for (const char *const set : s_sets)
-        {
-            if (lit.count(set) != 0u)
-            {
-                sets.push_back(set);
-                lit.erase(set);
-            }
-        }
-        sets.insert(std::find(sets.begin(), sets.end(), "unknown_coherence"), lit.begin(), lit.end());
-        // each set's signal and noise: its pairs, those a whole product names, and the rows of their products
-        // that came back one way and both ways
-        const auto product_found = products.find(pair_beneath);
-        const size_t signal_rows = (product_found != products.end()) ? concept_signal(product_found->second) : 0u;
-        const size_t noise_rows =
-            (product_found != products.end()) ? (product_found->second.rows.size() - signal_rows) : 0u;
-        for (const std::string &set : sets)
-        {
-            written.push_back(set);
-            counted[set] += 1u;
-            named_pairs[set] += (identities.count(pair_beneath) != 0u) ? 1u : 0u;
-            set_signal[set] += signal_rows;
-            set_noise[set] += noise_rows;
-        }
-        // a pair answered in this log is the concept its own product is, and none until that product is whole
-        const std::string identity = (identities.count(pair_beneath) != 0u)
-                                         ? ("concept_coherence " + identities[pair_beneath])
-                                     : (decoded.count(pair_beneath) != 0u) ? std::string()
-                                                                           : identity_beneath;
-        if (!identity.empty())
-        {
-            written.push_back(identity);
-            concepts[identity] += 1u;
-        }
-        // the intent the pair's forms carry of their own, the values each writes as the ruleset gives it
-        std::string intent;
-        for (const unsigned long long value : pair_qualifiers[pair_beneath])
-        {
-            char written_value[24];
-            {
-                VerbaLinea buffer_line = mmgr_line_over(written_value, sizeof(written_value));
-                mmgr_line_put(&buffer_line, " ");
-                mmgr_line_hex(&buffer_line, value, 1u);
-                (void)mmgr_line_finish(&buffer_line);
-            }
-            intent += written_value;
-        }
-        intent = !intent.empty()                       ? ("intent_coherence" + intent)
-                 : (decoded.count(pair_beneath) != 0u) ? std::string()
-                                                       : intent_beneath;
-        if (!intent.empty())
-        {
-            written.push_back(intent);
+            written_line(decoding, carrier_piece_of(s_metas[meta_at]));
+            decoding->counted[meta_at] += 1u;
         }
     }
-    pair_beneath.clear();
-    sets_beneath.clear();
-    metas_beneath.clear();
-    identity_beneath.clear();
-    intent_beneath.clear();
+}
+
+// a set of the pair beneath written and counted with its pair's signal and noise. `at` is its place among the
+// decoder's names, or DECODER_NAMES where it is none of them
+static void set_written(Decoding *decoding, CarrierPiece set, unsigned int at, int named, unsigned long long signal,
+                        unsigned long long noise)
+{
+    written_line(decoding, set);
+    if (at >= DECODER_NAMES)
+    {
+        return;
+    }
+    decoding->counted[at] += 1u;
+    decoding->named_pairs[at] += named ? 1u : 0u;
+    decoding->set_signal[at] += signal;
+    decoding->set_noise[at] += noise;
+}
+
+void Decoding::pair_closed()
+{
+    DecoderPair *const pair = pair_beneath;
+    if (pair != NULL)
+    {
+        // a pair the log read the texts or the answers of hangs from the metas read of it now. Any other hangs from
+        // the metas the bridge recorded. The decoding reads the fold off every pair's concept, and always now
+        const int texts_read = pair->faceted;
+        const int answered = pair->decoded_held;
+        metas_written(this, pair, texts_read, answered);
+        // every set the decoding reads the pair into, each a light of its own. The categories its texts read it into
+        // and the sets its answers read it into. Each read now where the log read it, and otherwise as the bridge
+        // recorded it
+        const unsigned int category_bits = decoder_category_bits();
+        unsigned int lit = sets_beneath.bits & (texts_read ? ~category_bits : ~0u) & (answered ? category_bits : ~0u);
+        FoldSets foreign_lit;
+        foreign_lit.foreign_count = 0u;
+        for (unsigned int at = 0u; !answered && (at < sets_beneath.foreign_count); at += 1u)
+        {
+            foreign_added(&foreign_lit, sets_beneath.foreign[at]);
+        }
+        lit |= answered ? pair->decoded : 0u;
+        lit |= texts_read ? pair->categories : 0u;
+        // only an answer reads a pair out of `unknown_coherence`, a member of every category beneath
+        const unsigned int unknown = decoder_set_bit("unknown_coherence");
+        const int read_down = ((lit & ~category_bits & ~unknown) != 0u) || (foreign_lit.foreign_count != 0u);
+        // each set's signal and noise. Its pairs, those a whole product names, and the rows of their products that
+        // came back one way and both ways
+        const unsigned long long signal_rows = pair->product_held ? concept_signal(&pair->product) : 0ULL;
+        const unsigned long long noise_rows = pair->product_held ? (pair->product.rows.count - signal_rows) : 0ULL;
+        // the sets in the tree's order, then the rest of `lit` in the order of their names before unknown_coherence.
+        // Then unknown_coherence goes last where the pair is a member of it
+        for (unsigned int set_at = 0u; set_at < (unsigned int)DECODER_COUNT(s_sets); set_at += 1u)
+        {
+            const unsigned int bit = DECODER_SET_BIT(set_at);
+            if ((bit != unknown) && ((lit & bit) != 0u))
+            {
+                set_written(this, carrier_piece_of(s_sets[set_at]), DECODER_METAS + set_at, pair->identity_held,
+                            signal_rows, noise_rows);
+            }
+        }
+        for (unsigned int at = 0u; at < foreign_lit.foreign_count; at += 1u)
+        {
+            set_written(this, foreign_lit.foreign[at], DECODER_NAMES, pair->identity_held, signal_rows, noise_rows);
+        }
+        if (!read_down)
+        {
+            set_written(this, carrier_piece_of("unknown_coherence"),
+                        decoder_name_at(carrier_piece_of("unknown_coherence")), pair->identity_held, signal_rows,
+                        noise_rows);
+        }
+        // a pair answered in this log is the concept its own product is, and none until that product is whole
+        char own[64];
+        CarrierPiece identity = {"", 0u};
+        if (pair->identity_held)
+        {
+            VerbaLinea identity_line = mmgr_line_over(own, sizeof(own));
+            mmgr_line_put(&identity_line, "concept_coherence ");
+            mmgr_line_put(&identity_line, pair->identity);
+            identity.text = own;
+            identity.length = mmgr_line_finish(&identity_line);
+        }
+        else if (!answered)
+        {
+            identity = identity_beneath;
+        }
+        if (identity.length != 0u)
+        {
+            written_line(this, identity);
+            (void)mmgr_line_put_n(&concepts.line, identity.text, identity.length);
+            mmgr_line_ch(&concepts.line, '\n');
+        }
+        // the intent the pair's forms carry of their own, the values each writes as the ruleset gives it
+        if (pair->qualifiers_held && (pair->qualifiers.count != 0u))
+        {
+            for (unsigned int at = 0u; at < pair->qualifiers.count; at += 1u)
+            {
+                mmgr_line_put(&written.line, (at == 0u) ? "intent_coherence " : " ");
+                mmgr_line_hex(&written.line, pair->qualifiers.number[at], 1u);
+            }
+            mmgr_line_ch(&written.line, '\n');
+        }
+        else if (!answered && (intent_beneath.length != 0u))
+        {
+            written_line(this, intent_beneath);
+        }
+    }
+    pair_beneath = NULL;
+    sets_beneath.bits = 0u;
+    sets_beneath.foreign_count = 0u;
+    metas_beneath = 0u;
+    identity_beneath = CarrierPiece{"", 0u};
+    intent_beneath = CarrierPiece{"", 0u};
 }
 
 void Decoding::bridge_folded()
 {
-    for (const std::string &entry : bridge)
+    platform_text_begun(&written, 1ULL << 30u, platform_place_g_program_owner, PLATFORM_TIER_MOVABLE);
+    platform_text_begun(&concepts, 1ULL << 30u, platform_place_g_program_owner, PLATFORM_TIER_MOVABLE);
+    texts_begun = 1;
+    for (unsigned long long at = 0ULL; at < bridge_count; at += 1ULL)
     {
-        const int verdict = (entry.rfind("open ", 0u) == 0u) || (entry.rfind("closed ", 0u) == 0u);
-        const int meta = std::find_if(std::begin(s_metas), std::end(s_metas),
-                                      [&](const char *const each) { return entry == each; }) != std::end(s_metas);
-        if (!pair_beneath.empty() && meta)
+        const CarrierPiece entry = bridge[at];
+        const int verdict = decoder_begins(entry, "open ") || decoder_begins(entry, "closed ");
+        const unsigned int named = decoder_name_at(entry);
+        const int meta = named < DECODER_METAS;
+        const int beneath = pair_beneath != NULL;
+        if (beneath && meta)
         {
-            metas_beneath.push_back(entry);
+            metas_beneath |= 1u << named;
             continue;
         }
-        if (!pair_beneath.empty() && set_line(entry))
+        if (beneath && set_line(entry))
         {
-            sets_beneath.push_back(entry);
+            if (named < DECODER_NAMES)
+            {
+                sets_beneath.bits |= 1u << named;
+            }
+            else
+            {
+                foreign_added(&sets_beneath, entry);
+            }
             continue;
         }
-        if (!pair_beneath.empty() && (entry.rfind("concept_coherence ", 0u) == 0u))
+        if (beneath && decoder_begins(entry, "concept_coherence "))
         {
             identity_beneath = entry;
             continue;
         }
-        if (!pair_beneath.empty() && (entry.rfind("intent_coherence ", 0u) == 0u))
+        if (beneath && decoder_begins(entry, "intent_coherence "))
         {
             intent_beneath = entry;
             continue;
         }
-        if (!pair_beneath.empty() && verdict)
+        if (beneath && verdict)
         {
-            written.push_back(entry);
+            written_line(this, entry);
             continue;
         }
         pair_closed();
-        written.push_back(entry);
-        if (entry.rfind("pair ", 0u) == 0u)
+        written_line(this, entry);
+        if (decoder_begins(entry, "pair "))
         {
-            std::stringstream words(entry);
-            std::string type;
-            std::string first;
-            std::string second;
-            words >> type >> first >> second;
-            pair_beneath = pair_key(first, second);
+            pair_beneath = bridge_pair(this, entry);
         }
     }
     pair_closed();
@@ -239,161 +338,210 @@ void Decoding::bridge_folded()
 int Decoding::bridge_passed(const char *klq)
 {
     // the bridge passed to the run's writer, which writes it in the file's place (qry_member_filed)
-    std::string bridge_text;
-    for (const std::string &line : written)
+    const unsigned long long size = platform_text_size(&written);
+    const char *const bytes = platform_text_bytes(&written);
+    const int filed = (bytes != NULL) && qry_member_filed(klq, bytes, size);
+    if (!filed)
     {
-        bridge_text += line + "\n";
-    }
-    if (!qry_member_filed(klq, bridge_text.data(), bridge_text.size()))
-    {
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "orior_klq_decoder: ");
-            mmgr_line_put(output_line, klq);
-            mmgr_line_put(output_line, " could not be written through the run's writer");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
+        bridge_said(klq, " could not be written through the run's writer");
         return 1;
     }
     return 0;
 }
 
-void Decoding::printed(const char *klq)
+// the choices of `counts` by the trace's flags onto `line`, each flag `held` counts: each count and flag, a comma
+// between them
+static void bridge_choices_written(const QueryTrace *trace, const unsigned int *counts, unsigned long long held,
+                                   VerbaLinea *line)
 {
-    for (const auto &entry : decoded)
+    int first = 1;
+    for (unsigned int flag_at = 0u; flag_at < trace->count; flag_at += 1u)
     {
-        std::string lights;
-        for (const std::string &meta : metas[entry.first])
+        if ((held & (1ULL << flag_at)) != 0ULL)
         {
-            lights += meta + " ";
-        }
-        for (const std::string &set : categories[entry.first])
-        {
-            lights += set + " ";
-        }
-        for (const std::string &set : entry.second)
-        {
-            lights += set + " ";
-        }
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "  ");
-            mmgr_line_put(output_line, entry.first.c_str());
-            mmgr_line_put(output_line, ": ");
-            mmgr_line_put(output_line, lights.c_str());
-            mmgr_line_put(output_line, (identities.count(entry.first) != 0u) ? identities[entry.first].c_str() : "-");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
+            mmgr_line_put(line, first ? "" : ", ");
+            mmgr_line_decimal(line, counts[flag_at], 1u);
+            mmgr_line_ch(line, ' ');
+            mmgr_line_put(line, trace->flags[flag_at].name);
+            first = 0;
         }
     }
-    unsigned int shared = 0u;
-    for (const auto &entry : concepts)
+}
+
+// the names of the bits of `bits` onto `line` in the order of their names, each with a space after it
+static void bridge_names_put(unsigned int bits, VerbaLinea *line)
+{
+    unsigned int left = bits;
+    while (left != 0u)
     {
-        shared += (entry.second > 1u) ? 1u : 0u;
-    }
-    // the choices of every pair's puts by the trace's flags, and those of each pair the part answered nothing of, the
-    // questions a further pass takes up
-    const auto choices_written = [this](const std::map<unsigned long long, unsigned int> &entry) {
-        std::string written;
-        for (unsigned int flag_at = 0u; flag_at < trace.count; flag_at += 1u)
+        unsigned int least = DECODER_NAMES;
+        for (unsigned int at = 0u; at < DECODER_NAMES; at += 1u)
         {
-            const QueryTraceFlag &flag = trace.flags[flag_at];
-            const auto count = entry.find(flag.word);
-            if (count != entry.end())
+            if (((left & (1u << at)) != 0u) &&
+                ((least == DECODER_NAMES) || (decoder_order(carrier_piece_of(decoder_name_text(at)),
+                                                            carrier_piece_of(decoder_name_text(least))) < 0)))
             {
-                written += (written.empty() ? "" : ", ") + std::to_string(count->second) + " " + flag.name;
+                least = at;
             }
         }
-        return written;
-    };
-    if (!chosen.empty())
+        mmgr_line_put(line, decoder_name_text(least));
+        mmgr_line_ch(line, ' ');
+        left &= ~(1u << least);
+    }
+}
+
+static int piece_order(const void *left, const void *right)
+{
+    return decoder_order(*(const CarrierPiece *)left, *(const CarrierPiece *)right);
+}
+
+// the concepts written, each once, and those more than one pair is: 1, or 0 where the pool cannot meet the cell
+static int concepts_counted(PlatformText *concepts, unsigned long long *count, unsigned int *shared)
+{
+    *count = 0ULL;
+    *shared = 0u;
+    const char *const bytes = platform_text_bytes(concepts);
+    // the text of the concepts is at max what a size_t counts
+    const CarrierPiece text = {(bytes != NULL) ? bytes : "", (size_t)platform_text_size(concepts)};
+    unsigned long long lines = 0ULL;
+    size_t at = 0u;
+    CarrierPiece line;
+    while (carrier_piece_next(text, '\n', &at, &line))
+    {
+        lines += 1ULL;
+    }
+    CarrierPiece *const pieces = (CarrierPiece *)decoder_cell(lines, sizeof(CarrierPiece));
+    if (pieces == NULL)
+    {
+        return 0;
+    }
+    unsigned long long filled = 0ULL;
+    at = 0u;
+    while (carrier_piece_next(text, '\n', &at, &line))
+    {
+        pieces[filled] = line;
+        filled += 1ULL;
+    }
+    (void)decoder_sorted(pieces, filled, sizeof(CarrierPiece), piece_order);
+    unsigned long long run = 0ULL;
+    while (run < filled)
+    {
+        unsigned long long next = run + 1ULL;
+        while ((next < filled) && (piece_order(&pieces[run], &pieces[next]) == 0))
+        {
+            next += 1ULL;
+        }
+        *count += 1ULL;
+        *shared += ((next - run) > 1ULL) ? 1u : 0u;
+        run = next;
+    }
+    platform_cell_released(pieces, platform_place_g_program_owner);
+    return 1;
+}
+
+void Decoding::printed(const char *klq)
+{
+    for (unsigned long long at = 0ULL; at < pair_count; at += 1ULL)
+    {
+        const DecoderPair *const pair = &pairs[at];
+        if (!pair->decoded_held)
+        {
+            continue;
+        }
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  ");
+        mmgr_line_put(output_line, pair->key.text);
+        mmgr_line_put(output_line, ": ");
+        bridge_names_put(pair->metas, output_line);
+        bridge_names_put(pair->categories, output_line);
+        bridge_names_put(pair->decoded, output_line);
+        mmgr_line_put(output_line, pair->identity_held ? pair->identity : "-");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
+    unsigned long long concept_count = 0ULL;
+    unsigned int shared = 0u;
+    (void)concepts_counted(&concepts, &concept_count, &shared);
+    // the choices of every pair's puts by the trace's flags. Then those of each pair the part answered nothing of, the
+    // questions a further pass takes up
+    if (chosen_held != 0ULL)
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  choices: ");
-        mmgr_line_put(output_line, choices_written(chosen).c_str());
+        bridge_choices_written(&trace, chosen, chosen_held, output_line);
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
     const unsigned long long answered_flags = query_trace_flag(&trace, "alike") | query_trace_flag(&trace, "apart");
-    for (const auto &entry : choices)
+    for (unsigned long long at = 0ULL; at < pair_count; at += 1ULL)
     {
+        const DecoderPair *const pair = &pairs[at];
         int answered = 0;
-        for (const auto &flag : entry.second)
+        for (unsigned int flag_at = 0u; flag_at < trace.count; flag_at += 1u)
         {
-            answered |= ((flag.first & answered_flags) != 0ULL) ? 1 : 0;
+            answered |= (((pair->choice_held & (1ULL << flag_at)) != 0ULL) &&
+                         ((trace.flags[flag_at].word & answered_flags) != 0ULL))
+                            ? 1
+                            : 0;
         }
-        if (!entry.first.empty() && (decoded.count(entry.first) == 0u) && !answered)
+        if ((pair->choice_held != 0ULL) && (pair->key.text[0] != '\0') && !pair->decoded_held && !answered)
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  answered nothing, ");
-            mmgr_line_put(output_line, entry.first.c_str());
+            mmgr_line_put(output_line, pair->key.text);
             mmgr_line_put(output_line, ": ");
-            mmgr_line_put(output_line, choices_written(entry.second).c_str());
+            bridge_choices_written(&trace, pair->choice, pair->choice_held, output_line);
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
     }
     // each set's pairs, those a whole product names, and its signal against its noise in rows of the products
-    for (const char *const set : s_sets)
+    for (unsigned int set_at = 0u; set_at < (unsigned int)DECODER_COUNT(s_sets); set_at += 1u)
     {
-        if (counted[set] != 0u)
+        const unsigned int at = DECODER_METAS + set_at;
+        if (counted[at] != 0u)
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  ");
-            mmgr_line_put(output_line, set);
+            mmgr_line_put(output_line, s_sets[set_at]);
             mmgr_line_put(output_line, ": ");
-            mmgr_line_decimal(output_line, counted[set], 1u);
+            mmgr_line_decimal(output_line, counted[at], 1u);
             mmgr_line_put(output_line, " pairs, ");
-            mmgr_line_decimal(output_line, named_pairs[set], 1u);
+            mmgr_line_decimal(output_line, named_pairs[at], 1u);
             mmgr_line_put(output_line, " named by a concept, ");
-            mmgr_line_decimal(output_line, set_signal[set], 1u);
+            mmgr_line_decimal(output_line, set_signal[at], 1u);
             mmgr_line_put(output_line, " rows of signal, ");
-            mmgr_line_decimal(output_line, set_noise[set], 1u);
+            mmgr_line_decimal(output_line, set_noise[at], 1u);
             mmgr_line_put(output_line, " of noise");
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
     }
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, "orior_klq_decoder: ");
+    mmgr_line_decimal(output_line, put_count, 1u);
+    mmgr_line_put(output_line, " puts read, ");
+    mmgr_line_decimal(output_line, concept_count, 1u);
+    mmgr_line_put(output_line, " concepts, ");
+    mmgr_line_decimal(output_line, shared, 1u);
+    mmgr_line_put(output_line, " of more than one pair; metas");
+    for (unsigned int meta_at = 0u; meta_at < DECODER_METAS; meta_at += 1u)
     {
-        VerbaLinea *const output_line = platform_line_out();
-        mmgr_line_put(output_line, "orior_klq_decoder: ");
-        mmgr_line_decimal(output_line, (unsigned int)puts.size(), 1u);
-        mmgr_line_put(output_line, " puts read, ");
-        mmgr_line_decimal(output_line, (unsigned int)concepts.size(), 1u);
-        mmgr_line_put(output_line, " concepts, ");
-        mmgr_line_decimal(output_line, shared, 1u);
-        mmgr_line_put(output_line, " of more than one pair; metas");
-        platform_line_out_ended();
+        mmgr_line_ch(output_line, ' ');
+        mmgr_line_decimal(output_line, counted[meta_at], 1u);
+        mmgr_line_ch(output_line, ' ');
+        mmgr_line_put(output_line, s_metas[meta_at]);
     }
-    for (const char *const meta : s_metas)
+    mmgr_line_put(output_line, "; sets");
+    for (unsigned int set_at = 0u; set_at < (unsigned int)DECODER_COUNT(s_sets); set_at += 1u)
     {
-        VerbaLinea *const output_line = platform_line_out();
-        mmgr_line_put(output_line, " ");
-        mmgr_line_decimal(output_line, counted[meta], 1u);
-        mmgr_line_put(output_line, " ");
-        mmgr_line_put(output_line, meta);
-        platform_line_out_ended();
+        mmgr_line_ch(output_line, ' ');
+        mmgr_line_decimal(output_line, counted[DECODER_METAS + set_at], 1u);
+        mmgr_line_ch(output_line, ' ');
+        mmgr_line_put(output_line, s_sets[set_at]);
     }
-    {
-        VerbaLinea *const output_line = platform_line_out();
-        mmgr_line_put(output_line, "; sets");
-        platform_line_out_ended();
-    }
-    for (const char *const set : s_sets)
-    {
-        VerbaLinea *const output_line = platform_line_out();
-        mmgr_line_put(output_line, " ");
-        mmgr_line_decimal(output_line, counted[set], 1u);
-        mmgr_line_put(output_line, " ");
-        mmgr_line_put(output_line, set);
-        platform_line_out_ended();
-    }
-    {
-        VerbaLinea *const output_line = platform_line_out();
-        mmgr_line_put(output_line, "; written to ");
-        mmgr_line_put(output_line, klq);
-        mmgr_line_ch(output_line, '\n');
-        platform_line_out_ended();
-    }
+    mmgr_line_put(output_line, "; written to ");
+    mmgr_line_put(output_line, klq);
+    mmgr_line_ch(output_line, '\n');
+    platform_line_out_ended();
 }

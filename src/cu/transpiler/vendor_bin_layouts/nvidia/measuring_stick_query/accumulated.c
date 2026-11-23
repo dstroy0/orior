@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // accumulated.c: every piece of the cross's work read as one raw run at one start of the vendor, a piece it stops at
 // set aside, and the listing cut into each piece's reading
-#include "msq_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "msq_internal.h"
 
 // The pieces, `count` of them, every one not set aside read as one raw run, each placed after the one before it: the
 // vendor reads them all at one start. Where it stops, the piece the stop lies in is set aside, STOPPED, and the run
@@ -13,7 +13,7 @@
 // UNREAD, to be read alone. 1, or 0 where the vendor could not be run or the system gave no memory
 int msq_accumulated_read(MsqReader *reader, MsqPiece *pieces, size_t count, MsqListing *listing)
 {
-    mmgr_bytes_set(listing, 0, sizeof(*listing));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = listing, .bytes = sizeof(*listing), .val = 0);
     MsqBytes *const runs = (MsqBytes *)platform_cell_taken((unsigned long long)((count + 1u) * sizeof(MsqBytes)),
                                                            (unsigned int)platform_place_g_program_owner, 0);
     if (runs == NULL)
@@ -107,7 +107,8 @@ void msq_pieces_cut(MsqListing *listing, const MsqPiece *pieces, size_t count, M
         }
         else if (one->type == MSQ_PIECE_FRAME)
         {
-            mmgr_bytes_set(&frames[one->index], 0, sizeof(frames[one->index]));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &frames[one->index], .bytes = sizeof(frames[one->index]),
+                       .val = 0);
             frames[one->index].listing = view;
             frames[one->index].readable = 1;
         }

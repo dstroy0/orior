@@ -4,15 +4,30 @@
 // operand
 #include "read.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../../../../../../includes/parsers/line_read.h"
 
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int read_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
-
-    static const char *tables_past_spaces(const char *at)
+static const char *tables_past_spaces(const char *at)
 {
     while ((*at == ' ') || (*at == '\t'))
     {
@@ -43,18 +58,19 @@ static int tables_set_grown(TablesSet *set)
 // `CLASS "<name>"`: the name into `name`, `room` long: 1, or 0 where the line is no class head
 static int tables_class_head(const char *line, char *name, size_t room)
 {
-    if (mmgr_text_order(line, "CLASS \"", (size_t)(7u)) != 0)
+    if (read_text_order(line, "CLASS \"", (size_t)(7u)) != 0)
     {
         return 0;
     }
-    const char *const end = mmgr_text_char(line + 7, '"', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const end =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line + 7, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '"');
     if (end == NULL)
     {
         return 0;
     }
     const size_t length = (size_t)(end - (line + 7));
     const size_t copied = (length < room) ? length : (room - 1u);
-    mmgr_bytes_copy(name, line + 7, copied);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = name, .src = line + 7, .bytes = copied);
     name[copied] = '\0';
     return 1;
 }
@@ -62,7 +78,8 @@ static int tables_class_head(const char *line, char *name, size_t room)
 // the opcode of an OPCODES line, `<name> = 0b<bits>;`, the bits read as they are
 static int tables_opcode_read(const char *line, unsigned long long *opcode)
 {
-    const char *const at = mmgr_text_find(line, "0b", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const at = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                      .other = "0b", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if (at == NULL)
     {
         return 0;
@@ -79,15 +96,16 @@ static int tables_opcode_read(const char *line, unsigned long long *opcode)
 // `BITS_<n>_<hi>_<lo>..._<name>=<operand>;` into `field`: 1, or 0 where the line is no such field
 static int tables_field_line(const char *line, TablesField *field)
 {
-    if (!mmgr_text_starts(line, "BITS_", PLATFORM_TEXT_TO_TERMINATOR))
+    if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "BITS_",
+                    .ci = EMBED_FALSE))
     {
         return 0;
     }
-    mmgr_bytes_set(field, 0, sizeof(*field));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = field, .bytes = sizeof(*field), .val = 0);
     const char *at = line + 5;
     const char *end = NULL;
     // the count, then pairs of numbers while a number follows the underscore
-    const unsigned long count = mmgr_text_unsigned_in(at, &end, 10);
+    const unsigned long count = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = at, .end = &end, .base = 10);
     if ((end == at) || (*end != '_'))
     {
         return 0;
@@ -96,13 +114,15 @@ static int tables_field_line(const char *line, TablesField *field)
     for (;;)
     {
         const char *high_end = NULL;
-        const unsigned long high = mmgr_text_unsigned_in(at, &high_end, 10);
+        const unsigned long high =
+            EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = at, .end = &high_end, .base = 10);
         if ((high_end == at) || (*high_end != '_'))
         {
             break;
         }
         const char *low_end = NULL;
-        const unsigned long low = mmgr_text_unsigned_in(high_end + 1, &low_end, 10);
+        const unsigned long low =
+            EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = high_end + 1, .end = &low_end, .base = 10);
         if ((low_end == high_end + 1) || (*low_end != '_') || (low > high) || (high > 127UL))
         {
             break;
@@ -121,7 +141,8 @@ static int tables_field_line(const char *line, TablesField *field)
     {
         return 0;
     }
-    const char *const equals = mmgr_text_char(at, '=', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const equals =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '=');
     if (equals == NULL)
     {
         return 0;
@@ -133,21 +154,22 @@ static int tables_field_line(const char *line, TablesField *field)
         length -= 1u;
     }
     const size_t copied = (length < TABLES_NAME) ? length : (TABLES_NAME - 1u);
-    mmgr_bytes_copy(field->name, at, copied);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = field->name, .src = at, .bytes = copied);
     field->name[copied] = '\0';
     const char *operand = tables_past_spaces(equals + 1);
     if (*operand == '*')
     {
         field->fixed = 1;
-        field->value = mmgr_text_unsigned_in(operand + 1, NULL, 0);
+        field->value = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = operand + 1, .end = NULL, .base = 0);
     }
-    size_t operand_length = mmgr_text_span_not(operand, ";", PLATFORM_TEXT_TO_TERMINATOR);
+    size_t operand_length =
+        EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = operand, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ";");
     while ((operand_length != 0u) && (operand[operand_length - 1u] == ' '))
     {
         operand_length -= 1u;
     }
     const size_t operand_copied = (operand_length < TABLES_NAME) ? operand_length : (TABLES_NAME - 1u);
-    mmgr_bytes_copy(field->operand, operand, operand_copied);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = field->operand, .src = operand, .bytes = operand_copied);
     field->operand[operand_copied] = '\0';
     // the width the line counts is the runs' where the runs are whole; a count past them is a line cut short
     return (unsigned long)field->width == count;
@@ -158,15 +180,20 @@ static int tables_field_line(const char *line, TablesField *field)
 // each field takes the operand's argument in its place, and the whole operand where it has none to give
 static void tables_fields_line(const char *line, TablesClass *class_)
 {
-    const char *const equals = mmgr_text_char(line, '=', PLATFORM_TEXT_TO_TERMINATOR);
-    if ((equals == NULL) || (!mmgr_text_starts(line, "BITS_", PLATFORM_TEXT_TO_TERMINATOR)))
+    const char *const equals =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '=');
+    if ((equals == NULL) || (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "BITS_", .ci = EMBED_FALSE)))
     {
         return;
     }
     const char *const operand = tables_past_spaces(equals + 1);
     // the operand's arguments, where it is a call: the text between its parentheses, split on commas
-    const char *const open = mmgr_text_char(operand, '(', PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const close = (open != NULL) ? mmgr_text_char_last(operand, ')', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+    const char *const open =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = operand, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '(');
+    const char *const close = (open != NULL) ? EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = operand,
+                                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ')')
+                                             : NULL;
     unsigned int parts = 1u;
     for (const char *at = line; at < equals; at += 1)
     {
@@ -175,8 +202,9 @@ static void tables_fields_line(const char *line, TablesClass *class_)
     const char *part = line;
     for (unsigned int index = 0u; index < parts; index += 1u)
     {
-        const char *const part_end =
-            (index + 1u < parts) ? mmgr_text_char(part, ',', PLATFORM_TEXT_TO_TERMINATOR) : equals;
+        const char *const part_end = (index + 1u < parts) ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = part,
+                                                                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ',')
+                                                          : equals;
         if (part_end == NULL)
         {
             return;
@@ -187,13 +215,14 @@ static void tables_fields_line(const char *line, TablesClass *class_)
         {
             return;
         }
-        mmgr_bytes_copy(one, part, left);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = one, .src = part, .bytes = left);
         size_t length = left;
         one[length] = '=';
         length += 1u;
         // the argument in this field's place, or the whole operand
         const char *argument = operand;
-        size_t argument_length = mmgr_text_span_not(operand, ";", PLATFORM_TEXT_TO_TERMINATOR);
+        size_t argument_length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = operand,
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ";");
         if ((parts > 1u) && (open != NULL) && (close != NULL) && (close > open))
         {
             const char *at = open + 1;
@@ -201,7 +230,8 @@ static void tables_fields_line(const char *line, TablesClass *class_)
             {
                 skipped += (*at == ',') ? 1u : 0u;
             }
-            const char *const comma = mmgr_text_char(at, ',', PLATFORM_TEXT_TO_TERMINATOR);
+            const char *const comma =
+                EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ',');
             argument = at;
             argument_length = (size_t)((((comma != NULL) && (comma < close)) ? comma : close) - at);
         }
@@ -209,7 +239,7 @@ static void tables_fields_line(const char *line, TablesClass *class_)
         {
             return;
         }
-        mmgr_bytes_copy(one + length, argument, argument_length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = one + length, .src = argument, .bytes = argument_length);
         length += argument_length;
         one[length] = ';';
         one[length + 1u] = '\0';
@@ -252,9 +282,10 @@ static unsigned int tables_immediate_bits(const char *open, const char *end)
 {
     for (const char *at = open; at + 4 < end; at += 1)
     {
-        if (mmgr_text_starts(at, "Imm(", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "Imm(",
+                       .ci = EMBED_FALSE))
         {
-            return (unsigned int)mmgr_text_unsigned_in(at + 4, NULL, 10);
+            return (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = at + 4, .end = NULL, .base = 10);
         }
     }
     return 0u;
@@ -265,9 +296,14 @@ static unsigned int tables_immediate_bits(const char *open, const char *end)
 // after the colon
 static void tables_size_read(const char *line, TablesClass *class_)
 {
-    const char *const size = mmgr_text_find(line, "/SZ_", PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const open = (size != NULL) ? mmgr_text_char(size, '(', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
-    const char *const close = (open != NULL) ? mmgr_text_char(open, ')', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+    const char *const size = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                        .other = "/SZ_", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+    const char *const open = (size != NULL) ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = size,
+                                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '(')
+                                            : NULL;
+    const char *const close = (open != NULL) ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = open,
+                                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ')')
+                                             : NULL;
     if ((close == NULL) || (close[1] != ':'))
     {
         return;
@@ -276,7 +312,7 @@ static void tables_size_read(const char *line, TablesClass *class_)
     // the list's name, from the slash to the parenthesis, which a condition's constant names a choice under
     const size_t list_length = (size_t)(open - (size + 1));
     const size_t list_copied = (list_length < TABLES_NAME) ? list_length : (TABLES_NAME - 1u);
-    mmgr_bytes_copy(class_->size_list, size + 1, list_copied);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = class_->size_list, .src = size + 1, .bytes = list_copied);
     class_->size_list[list_copied] = '\0';
     for (const char *at = size + 4; (at < open) && (class_->sizes < TABLES_SIZES);)
     {
@@ -290,7 +326,8 @@ static void tables_size_read(const char *line, TablesClass *class_)
         {
             digits += 1;
         }
-        class_->size_bytes[class_->sizes] = (unsigned int)mmgr_text_unsigned_in(digits, NULL, 10) / 8u;
+        class_->size_bytes[class_->sizes] =
+            (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = digits, .end = NULL, .base = 10) / 8u;
         class_->sizes += 1u;
         at = end + 1;
     }
@@ -381,21 +418,26 @@ unsigned int tables_class_bytes(const TablesClass *class_, unsigned long long lo
 // operand's width the immediate's inside that bracket
 static void tables_constant_read(const char *line, TablesClass *class_)
 {
-    const char *const constant = mmgr_text_find(line, "C:", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const constant =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "C:", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if ((constant == NULL) ||
         (constant != line && (constant[-1] != '\'') && (constant[-1] != ' ') && (constant[-1] != ',')))
     {
         return;
     }
-    const char *const first_open = mmgr_text_char(constant, '[', PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const first_close =
-        (first_open != NULL) ? mmgr_text_char(first_open, ']', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+    const char *const first_open =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = constant, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '[');
+    const char *const first_close = (first_open != NULL) ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = first_open,
+                                                                      .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ']')
+                                                         : NULL;
     if (first_close == NULL)
     {
         return;
     }
     tables_name_before(first_open, first_close, class_->bank);
-    const char *const last_close = mmgr_text_char_last(first_close, ']', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const last_close = EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = first_close,
+                                              .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ']');
     const char *last_open = NULL;
     for (const char *at = first_close; (last_close != NULL) && (at < last_close); at += 1)
     {
@@ -435,8 +477,8 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
             }
             class_ = &set->class_[set->count];
             set->count += 1u;
-            mmgr_bytes_set(class_, 0, sizeof(*class_));
-            mmgr_bytes_copy(class_->name, name, sizeof(name));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = class_, .bytes = sizeof(*class_), .val = 0);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = class_->name, .src = name, .bytes = sizeof(name));
             part = ELSEWHERE;
             continue;
         }
@@ -444,36 +486,44 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         {
             continue;
         }
-        const size_t length = mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
-        if (mmgr_text_starts(line, "FORMAT", PLATFORM_TEXT_TO_TERMINATOR))
+        const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "FORMAT", .ci = EMBED_FALSE))
         {
             part = FORMAT;
         }
-        else if (mmgr_text_equal(line, "OPCODES", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "OPCODES", .ci = EMBED_FALSE))
         {
             part = OPCODES;
             continue;
         }
-        else if (mmgr_text_equal(line, "ENCODING", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "ENCODING", .ci = EMBED_FALSE))
         {
             part = ENCODING;
             continue;
         }
-        else if (mmgr_text_equal(line, "CONDITIONS", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "CONDITIONS", .ci = EMBED_FALSE))
         {
             part = CONDITIONS;
             register_type = 0;
             continue;
         }
         else if ((line[0] >= 'A') && (line[0] <= 'Z') &&
-                 (mmgr_text_span(line, "ABCDEFGHIJKLMNOPQRSTUVWXYZ_", PLATFORM_TEXT_TO_TERMINATOR) == length))
+                 (EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_") == length))
         {
             // within CONDITIONS, a type of error the conditions after it are under; elsewhere another part's head,
             // PROPERTIES, PREDICATES: capitals and underscores alone
             if ((part == CONDITIONS) && (length > 6u) &&
-                (mmgr_text_equal(line + length - 6u, "_ERROR", PLATFORM_TEXT_TO_TERMINATOR)))
+                (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = line + length - 6u, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "_ERROR", .ci = EMBED_FALSE)))
             {
-                register_type = (mmgr_text_find(line, "REG_ERROR", PLATFORM_TEXT_TO_TERMINATOR) != NULL);
+                register_type = (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line,
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "REG_ERROR",
+                                            .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL);
                 continue;
             }
             part = ELSEWHERE;
@@ -484,16 +534,18 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
             // a condition is a line ending in a colon, under a type on the registers. The line after it, in quotes, is
             // its message, and a condition longer than its room is not stored
             const char *const text_at = tables_past_spaces(line);
-            size_t copied = mmgr_text_length(text_at, PLATFORM_TEXT_TO_TERMINATOR);
+            size_t copied = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text_at, .cap = PLATFORM_TEXT_TO_TERMINATOR);
             while ((copied != 0u) && ((text_at[copied - 1u] == ' ') || (text_at[copied - 1u] == ':')))
             {
                 copied -= 1u;
             }
             if (register_type && (copied != 0u) &&
-                (text_at[mmgr_text_length(text_at, PLATFORM_TEXT_TO_TERMINATOR) - 1u] == ':') &&
+                (text_at[EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text_at, .cap = PLATFORM_TEXT_TO_TERMINATOR) -
+                         1u] == ':') &&
                 (copied + 1u < TABLES_CONDITION_TEXT) && (class_->conditions < TABLES_CONDITIONS))
             {
-                mmgr_bytes_copy(class_->condition[class_->conditions], text_at, copied);
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = class_->condition[class_->conditions], .src = text_at,
+                           .bytes = copied);
                 class_->condition[class_->conditions][copied] = '\0';
                 class_->conditions += 1u;
             }
@@ -503,8 +555,10 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         {
             tables_constant_read(line, class_);
             tables_size_read(line, class_);
-            if (line[mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR) -
-                     ((mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR) != 0u) ? 1u : 0u)] == ';')
+            if (line[EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR) -
+                     ((EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR) != 0u)
+                          ? 1u
+                          : 0u)] == ';')
             {
                 part = ELSEWHERE;
             }
@@ -537,7 +591,8 @@ const TablesField *tables_field_named(const TablesClass *class_, const char *nam
 {
     for (unsigned int field = 0u; field < class_->fields; field += 1u)
     {
-        if (mmgr_text_equal(class_->field[field].name, name, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = class_->field[field].name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = name, .ci = EMBED_FALSE))
         {
             return &class_->field[field];
         }
@@ -550,7 +605,8 @@ const TablesField *tables_field_by_operand(const TablesClass *class_, const char
     for (unsigned int field = 0u; field < class_->fields; field += 1u)
     {
         if (!class_->field[field].fixed &&
-            (mmgr_text_equal(class_->field[field].operand, operand, PLATFORM_TEXT_TO_TERMINATOR)))
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = class_->field[field].operand,
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = operand, .ci = EMBED_FALSE)))
         {
             return &class_->field[field];
         }
@@ -649,8 +705,8 @@ static void tables_condition_spaces(TablesCondition *condition)
 static int tables_condition_word(TablesCondition *condition, const char *word)
 {
     tables_condition_spaces(condition);
-    const size_t length = mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR);
-    if (mmgr_text_order(condition->at, word, (size_t)(length)) != 0)
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    if (read_text_order(condition->at, word, (size_t)(length)) != 0)
     {
         return 0;
     }
@@ -697,9 +753,11 @@ static long long tables_condition_constant(TablesCondition *condition)
     }
     value[length] = '\0';
     condition->at += (quoted && (*condition->at == '"')) ? 1 : 0;
-    if (mmgr_text_equal(list, "Register", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = list, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "Register",
+                   .ci = EMBED_FALSE))
     {
-        if (mmgr_text_equal(value, "RZ", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = value, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "RZ",
+                       .ci = EMBED_FALSE))
         {
             return TABLES_REGISTER_ZERO;
         }
@@ -709,40 +767,52 @@ static long long tables_condition_constant(TablesCondition *condition)
             return (long long)EMBED_CALL(cellul.to_long, TransfiguroCfg, .src = value + 1, .end = NULL);
         }
     }
-    if (mmgr_text_equal(list, "UniformRegister", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = list, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "UniformRegister", .ci = EMBED_FALSE))
     {
-        if (mmgr_text_equal(value, "URZ", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = value, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "URZ",
+                       .ci = EMBED_FALSE))
         {
             return TABLES_UNIFORM_ZERO;
         }
-        if (mmgr_text_starts(value, "UR", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = value, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "UR",
+                       .ci = EMBED_FALSE))
         {
             // Explicit cast widens the signed word of the read to the long long of the constant
             return (long long)EMBED_CALL(cellul.to_long, TransfiguroCfg, .src = value + 2, .end = NULL);
         }
     }
-    if (((mmgr_text_equal(list, "Predicate", PLATFORM_TEXT_TO_TERMINATOR)) &&
-         (mmgr_text_equal(value, "PT", PLATFORM_TEXT_TO_TERMINATOR))) ||
-        ((mmgr_text_equal(list, "UniformPredicate", PLATFORM_TEXT_TO_TERMINATOR)) &&
-         (mmgr_text_equal(value, "UPT", PLATFORM_TEXT_TO_TERMINATOR))))
+    if (((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = list, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "Predicate",
+                     .ci = EMBED_FALSE)) &&
+         (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = value, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "PT",
+                     .ci = EMBED_FALSE))) ||
+        ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = list, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                     .other = "UniformPredicate", .ci = EMBED_FALSE)) &&
+         (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = value, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "UPT",
+                     .ci = EMBED_FALSE))))
     {
         return TABLES_PREDICATE_TRUE;
     }
     if ((condition->class_->size_list[0] != '\0') &&
-        (mmgr_text_equal(list, condition->class_->size_list, PLATFORM_TEXT_TO_TERMINATOR)))
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = list, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = condition->class_->size_list, .ci = EMBED_FALSE)))
     {
         // the choice's place in the list, counted from the first underscore past the list's prefix: the size field
         // stores that place
-        const char *choice = mmgr_text_char(list, '_', PLATFORM_TEXT_TO_TERMINATOR);
+        const char *choice =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = list, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '_');
         long long place = 0LL;
         while (choice != NULL)
         {
             choice += 1;
-            const char *const end = mmgr_text_char(choice, '_', PLATFORM_TEXT_TO_TERMINATOR);
-            const size_t choice_length =
-                (end != NULL) ? (size_t)(end - choice) : mmgr_text_length(choice, PLATFORM_TEXT_TO_TERMINATOR);
-            if ((choice_length == mmgr_text_length(value, PLATFORM_TEXT_TO_TERMINATOR)) &&
-                (mmgr_text_order(choice, value, (size_t)(choice_length)) == 0))
+            const char *const end =
+                EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = choice, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '_');
+            const size_t choice_length = (end != NULL) ? (size_t)(end - choice)
+                                                       : EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = choice,
+                                                                    .cap = PLATFORM_TEXT_TO_TERMINATOR);
+            if ((choice_length ==
+                 EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = value, .cap = PLATFORM_TEXT_TO_TERMINATOR)) &&
+                (read_text_order(choice, value, (size_t)(choice_length)) == 0))
             {
                 return place;
             }
@@ -781,7 +851,8 @@ static long long tables_condition_primary(TablesCondition *condition)
         const char *end = NULL;
         // The text opens with a digit, and so the read has no sign. Explicit cast carries the unsigned word to the
         // long long of the constant
-        const long long value = (long long)mmgr_text_unsigned_in(condition->at, &end, 0u);
+        const long long value =
+            (long long)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = condition->at, .end = &end, .base = 0u);
         condition->at = end;
         return value;
     }

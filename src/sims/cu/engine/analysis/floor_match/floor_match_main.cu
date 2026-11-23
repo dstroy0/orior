@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // floor_match_main.cu: main
-#include "floor_match_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "floor_match_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 int program_main(int count, char **arguments)
 {
@@ -54,7 +54,7 @@ int program_main(int count, char **arguments)
     ok = ok && sim_job_submit(&results, "floor_match", count, arguments, MATCH_DECLARED);
 
     SimScene scene;
-    mmgr_bytes_set(&scene, 0, sizeof(scene));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &scene, .bytes = sizeof(scene), .val = 0);
     scene.frames = 1ULL;
     scene.extent[0] = MATCH_SIDE;
     scene.extent[1] = MATCH_SIDE;
@@ -64,7 +64,7 @@ int program_main(int count, char **arguments)
     scene.bodies = MATCH_FOUNDERS;
     SimBody body[MATCH_FOUNDERS];
     SimCamera camera;
-    mmgr_bytes_set(&camera, 0, sizeof(camera));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &camera, .bytes = sizeof(camera), .val = 0);
     camera.key = MATCH_KEY;
     camera.offset = 100ULL;
     camera.gain = 1ULL;
@@ -207,12 +207,13 @@ int program_main(int count, char **arguments)
 
     // each query's match set against the host's scan of floor 2, and its reads
     MatchSide sides[2];
-    mmgr_bytes_set(sides, 0, sizeof(sides));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = sides, .bytes = sizeof(sides), .val = 0);
     unsigned long long first_query_cell = MATCH_FLOOR_VALUES;
     for (unsigned int query = 0u; ok && (query < MATCH_QUERIES); query += 1u)
     {
         MatchSide *const side = &sides[query / MATCH_QUERIES_EACH];
-        mmgr_bytes_set(expected, 0, (size_t)MATCH_WORDS * sizeof(unsigned int));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = expected, .bytes = (size_t)MATCH_WORDS * sizeof(unsigned int),
+                   .val = 0);
         for (unsigned long long at = 0ULL; at < MATCH_FLOOR_VALUES; at += 1ULL)
         {
             if ((unsigned int)floor_values[at] == queries[query])

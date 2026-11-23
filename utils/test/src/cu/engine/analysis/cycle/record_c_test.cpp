@@ -15,9 +15,9 @@
 #include "../../../../../../../src/cu/engine/engine_note.h"
 #include "../../../../../../../src/platform/platform.h"
 #include "asm_printer.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "code_generator.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 #include "record_image.h"
 
 #include <stddef.h>
@@ -200,7 +200,8 @@ static void c_log_shown(const char *path)
     while ((log != NULL) && (shown < 30u) && (platform_file_text_read(log_text, (int)sizeof(log_text), log) != NULL))
     {
         mmgr_line_put(platform_line_out(), log_text);
-        const size_t length = mmgr_text_length(log_text, PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t length =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = log_text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         shown += ((length != 0u) && (log_text[length - 1u] == '\n')) ? 1u : 0u;
     }
     if (log != NULL)
@@ -257,7 +258,7 @@ static void c_lane_from_items(CResults *results, const CProgram *program, CodeGe
     platform_array_begun(&items, sizeof(MachineInstr), platform_place_g_program_owner, 0);
     unsigned int item_places = 0u;
     AsmPrinterRuleset text_rules;
-    mmgr_bytes_set(&text_rules, 0, sizeof(text_rules));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &text_rules, .bytes = sizeof(text_rules), .val = 0);
     char error_text[RECORD_C_WHAT_BYTES];
     VerbaLinea error = mmgr_line_over(error_text, sizeof(error_text));
     PlatformText from_items;
@@ -283,8 +284,9 @@ static void c_lane_from_items(CResults *results, const CProgram *program, CodeGe
         platform_line_out_ended();
     }
     const unsigned long long length = platform_text_size(lane);
-    const int same = ran && (platform_text_size(&from_items) == length) &&
-                     (mmgr_bytes_compare(from_items.cell, lane->cell, (size_t)length) == 0);
+    const int same =
+        ran && (platform_text_size(&from_items) == length) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = from_items.cell, .other = lane->cell, .bytes = (size_t)length) == 0);
     c_check(results, same && (item_places == program->places), program->name,
             " written from the core's forms by the assembly printer is the code generator's text");
     platform_text_ended(&from_items);
@@ -324,7 +326,7 @@ static void c_run(void *context, const HostProgram *host_program, int reuse, uns
 {
     CResults *const results = (CResults *)context;
     CProgram program;
-    mmgr_bytes_set(&program, 0, sizeof(program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &program, .bytes = sizeof(program), .val = 0);
     VerbaLinea name_line = mmgr_line_over(program.name, sizeof(program.name));
     mmgr_line_put(&name_line, host_program->name);
     mmgr_line_put(&name_line, reuse ? " (registers reused)" : "");
@@ -352,7 +354,7 @@ static void c_run(void *context, const HostProgram *host_program, int reuse, uns
         return;
     }
     CycleRecordHostRequest request;
-    mmgr_bytes_set(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.layout = layout;
     for (unsigned int member = 0u; member < layout->members; member += 1u)
     {
@@ -461,8 +463,8 @@ static void c_run(void *context, const HostProgram *host_program, int reuse, uns
     }
     else
     {
-        const int same = mmgr_bytes_compare(records, program.host_records,
-                                            (size_t)(program.record_words * sizeof(unsigned int))) == 0;
+        const int same = EMBED_CALL(memor.cmp, MemoriaCfg, .src = records, .other = program.host_records,
+                                    .bytes = (size_t)(program.record_words * sizeof(unsigned int))) == 0;
         c_check(results, read && host_ran && (error == 0u) && same, program.name,
                 " as C writes the host's records word for word");
     }

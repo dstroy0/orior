@@ -3,9 +3,9 @@
 // cycle_compile_route.cu: caching programs, the route and the device's code generator
 #include "../../../../../includes/file_defs/krs/ruleset_reader.h"
 #include "../../engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "cycle_compile_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the programs compiled in this process, a CycleCompiledProgram each; the array begins at its first program
 static PlatformArray s_cycle_programs;
@@ -94,7 +94,7 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
         }
     }
     CycleCompiledProgram program;
-    mmgr_bytes_set(&program, 0, sizeof(program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &program, .bytes = sizeof(program), .val = 0);
     program.holders = 1ULL;
     program.length = length;
     // the source the process keeps to find the program by, in a movable cell
@@ -212,7 +212,11 @@ void cycle_program_release(cudaKernel_t kernel)
                 platform_movable_released(program->source, platform_place_g_program_owner);
                 // the programs after it move down one place, and the order of the rest holds
                 const unsigned long long after = s_cycle_programs.count - at - 1ULL;
-                mmgr_bytes_move(program, program + 1, (size_t)(after * sizeof(CycleCompiledProgram)));
+                (((const unsigned char *)(program) <= (const unsigned char *)(program + 1))
+                     ? EMBED_CALL(memor.move_down, MemoriaCfg, .dst = program, .src = program + 1,
+                                  .bytes = (size_t)(after * sizeof(CycleCompiledProgram)))
+                     : EMBED_CALL(memor.move_up, MemoriaCfg, .dst = program, .src = program + 1,
+                                  .bytes = (size_t)(after * sizeof(CycleCompiledProgram))));
                 (void)platform_array_counted(&s_cycle_programs, s_cycle_programs.count - 1ULL);
             }
             break;
@@ -400,7 +404,7 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
         return 1;
     }
     AsmPrinterRuleset text_rules;
-    mmgr_bytes_set(&text_rules, 0, sizeof(text_rules));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &text_rules, .bytes = sizeof(text_rules), .val = 0);
     char error_text[RULESET_ERROR_BYTES];
     VerbaLinea error = mmgr_line_over(error_text, sizeof(error_text));
     PlatformText written;
@@ -443,7 +447,7 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
     }
     // the ruleset built on the device as well, and the device's written from where it is the host's word for word
     AsmPrinterRuleset device_rules;
-    mmgr_bytes_set(&device_rules, 0, sizeof(device_rules));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &device_rules, .bytes = sizeof(device_rules), .val = 0);
     char device_error_text[RULESET_ERROR_BYTES];
     VerbaLinea device_error = mmgr_line_over(device_error_text, sizeof(device_error_text));
     const int device_built = built && asm_printer_ruleset_device((read_same != 0) ? device_read : rules, target, header,

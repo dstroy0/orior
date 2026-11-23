@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_open.cu: the runs cut, the machine opened and a frame stored
-#include "climb_machine_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "climb_machine_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 static int machine_split_runs(ClimbMachine *machine, unsigned int resident, const unsigned int *labels,
                               const ClimbMachineFrame *frame)
@@ -82,7 +82,7 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int resident, cons
     }
 
     unsigned int *const counts = machine->leaf_counts;
-    mmgr_bytes_set(counts, 0, ((size_t)leaves + 1u) * sizeof(unsigned int));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = counts, .bytes = ((size_t)leaves + 1u) * sizeof(unsigned int), .val = 0);
     for (size_t run = 0u; run < runs; run += 1u)
     {
         counts[machine->unsorted_leaf[run] + 1u] += 1u;
@@ -338,9 +338,10 @@ extern "C" int climb_machine_store(ClimbMachine *machine, const ClimbMachineFram
         ok = (machine->resident_contact_start[resident] != NULL) && (machine->resident_contacts[resident] != NULL);
         if (ok != 0)
         {
-            mmgr_bytes_copy(machine->resident_contact_start[resident], frame->contact_start,
-                            ((size_t)frame->leaf_count + 1u) * sizeof(unsigned int));
-            mmgr_bytes_copy(machine->resident_contacts[resident], frame->contacts, contacts * sizeof(unsigned int));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = machine->resident_contact_start[resident],
+                       .src = frame->contact_start, .bytes = ((size_t)frame->leaf_count + 1u) * sizeof(unsigned int));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = machine->resident_contacts[resident], .src = frame->contacts,
+                       .bytes = contacts * sizeof(unsigned int));
         }
     }
     machine->resident_frame[resident] = (ok != 0) ? frame->frame : CLIMB_MACHINE_EMPTY;

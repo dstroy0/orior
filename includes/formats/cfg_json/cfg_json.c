@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "cfg_json.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
-
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 typedef struct
 {
@@ -50,9 +49,10 @@ static unsigned int cfg_json_token(CfgJsonWalk *walk, CfgJsonType type, size_t s
 
 static int cfg_json_literal(CfgJsonWalk *walk, const char *defined, CfgJsonType type)
 {
-    const size_t size = mmgr_text_length(defined, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t size = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = defined, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const int matches =
-        ((walk->length - walk->at) >= size) && (mmgr_bytes_compare(&walk->text[walk->at], defined, size) == 0);
+        ((walk->length - walk->at) >= size) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &walk->text[walk->at], .other = defined, .bytes = size) == 0);
     walk->reason = matches ? walk->reason : "a value the scheme does not know";
     const unsigned int made = matches ? cfg_json_token(walk, type, walk->at, walk->at + size) : 0u;
     walk->at += matches ? size : 0u;
@@ -337,9 +337,9 @@ int cfg_json_parse_metadata(const char *text, size_t length, CfgJsonToken *token
 
 int cfg_json_names(const char *text, const CfgJsonToken *token, const char *name)
 {
-    const size_t size = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t size = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     return (token->type == CFG_JSON_STRING) && ((token->end - token->start) == size) &&
-           (mmgr_bytes_compare(&text[token->start], name, size) == 0);
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &text[token->start], .other = name, .bytes = size) == 0);
 }
 
 int cfg_json_unsigned(const char *text, const CfgJsonToken *token, unsigned long long *value)

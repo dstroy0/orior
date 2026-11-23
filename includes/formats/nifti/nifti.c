@@ -1,11 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "nifti.h"
-#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
-
+#include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #define NIFTI_ONE_HEADER 348ULL
 #define NIFTI_TWO_HEADER 540ULL
@@ -105,7 +104,7 @@ static unsigned int nifti_fetch(const NiftiSource *source, unsigned long long of
     }
     if ((source->memory != NULL) && (bytes != 0ULL))
     {
-        mmgr_bytes_copy(out, source->memory + offset, (size_t)bytes);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = source->memory + offset, .bytes = (size_t)bytes);
         return 1u;
     }
     return nifti_file_fetch(source->tools, source->path, offset, bytes, out);
@@ -213,10 +212,14 @@ static unsigned int nifti_header(const unsigned char *bytes, unsigned long long 
         return 0u;
     }
     const int second = (header_bytes == NIFTI_TWO_HEADER);
-    const int single = second ? (mmgr_bytes_compare(bytes + 4u, nifti_two_single, sizeof nifti_two_single) == 0)
-                              : (mmgr_bytes_compare(bytes + 344u, nifti_one_single, sizeof nifti_one_single) == 0);
-    const int paired = second ? (mmgr_bytes_compare(bytes + 4u, nifti_two_paired, sizeof nifti_two_paired) == 0)
-                              : (mmgr_bytes_compare(bytes + 344u, nifti_one_paired, sizeof nifti_one_paired) == 0);
+    const int single = second ? (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes + 4u, .other = nifti_two_single,
+                                            .bytes = sizeof nifti_two_single) == 0)
+                              : (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes + 344u, .other = nifti_one_single,
+                                            .bytes = sizeof nifti_one_single) == 0);
+    const int paired = second ? (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes + 4u, .other = nifti_two_paired,
+                                            .bytes = sizeof nifti_two_paired) == 0)
+                              : (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes + 344u, .other = nifti_one_paired,
+                                            .bytes = sizeof nifti_one_paired) == 0);
     if (!single && !paired)
     {
         return 0u;
@@ -304,7 +307,7 @@ static unsigned int nifti_character_is(char defined, char lower)
 
 static char *nifti_sibling(const char *path, const char *from, const char *to, unsigned int toggle_gzip)
 {
-    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const int gzipped = (length >= 3u) && (path[length - 3u] == '.') && nifti_character_is(path[length - 2u], 'g') &&
                         nifti_character_is(path[length - 1u], 'z');
     const size_t stem_end = gzipped ? (length - 3u) : length;
@@ -319,14 +322,15 @@ static char *nifti_sibling(const char *path, const char *from, const char *to, u
     {
         return NULL;
     }
-    mmgr_bytes_copy(sibling, path, stem_end);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = sibling, .src = path, .bytes = stem_end);
     for (size_t character = 0u; character < 3u; character += 1u)
     {
         const char original = path[stem_end - 3u + character];
         const int upper = (original >= 'A') && (original <= 'Z');
         sibling[stem_end - 3u + character] = upper ? (char)(to[character] - 'a' + 'A') : to[character];
     }
-    mmgr_bytes_copy(sibling + stem_end, ends_gzipped ? ".gz" : "", ends_gzipped ? 4u : 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = sibling + stem_end, .src = ends_gzipped ? ".gz" : "",
+               .bytes = ends_gzipped ? 4u : 1u);
     return sibling;
 }
 
@@ -465,7 +469,7 @@ long long nifti_read(const EngineArrayRead *request)
     {
         if (agrees && (wanted <= request->out_capacity) && nifti_fits_memory(wanted))
         {
-            mmgr_bytes_set(request->out, 0, (size_t)wanted);
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = request->out, .bytes = (size_t)wanted, .val = 0);
         }
         return -1LL;
     }

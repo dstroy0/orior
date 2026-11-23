@@ -3,13 +3,12 @@
 //
 // The device's tessera (tessera_device.h): the ledger's decisions made on the device by one thread, from the source
 // the host daemon's ledger makes them by (tessera_ledger_core.h).
-#include "tessera_device.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera_device.h"
 #include "tessera_ledger_core.h"
 
 #include <cuda_runtime.h>
-
 
 // the calls from `first` made in order by one thread, each answered, until one the ledger's arrays cannot take:
 // `stopped` is that call, or `count` where every call was made
@@ -73,7 +72,7 @@ static int tessera_device_reserve(TesseraLedger *ledger, TesseraCallType type)
 
 int tessera_device_open(TesseraDevice *device, unsigned long long capacity)
 {
-    mmgr_bytes_set(device, 0, sizeof(*device));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = device, .bytes = sizeof(*device), .val = 0);
     TesseraLedger *const host_ledger = &device->host_ledger;
     host_ledger->next_identity = 1ULL;
     const unsigned long long first_capacity = (capacity == 0ULL) ? 1ULL : capacity;
@@ -99,7 +98,7 @@ void tessera_device_close(TesseraDevice *device)
     cudaFree(device->host_ledger.history);
     cudaFree(device->host_ledger.heap);
     cudaFree(device->ledger);
-    mmgr_bytes_set(device, 0, sizeof(*device));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = device, .bytes = sizeof(*device), .val = 0);
 }
 
 int tessera_device_calls(TesseraDevice *device, const TesseraCall *calls, unsigned long long count,
@@ -149,7 +148,7 @@ int tessera_device_read(const TesseraDevice *device, TesseraLedger *copy)
     TesseraLedger host_ledger;
     if (cudaMemcpy(&host_ledger, device->ledger, sizeof(host_ledger), cudaMemcpyDeviceToHost) != cudaSuccess)
     {
-        mmgr_bytes_set(copy, 0, sizeof(*copy));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = copy, .bytes = sizeof(*copy), .val = 0);
         return 0;
     }
     *copy = host_ledger;
@@ -176,7 +175,7 @@ int tessera_device_read(const TesseraDevice *device, TesseraLedger *copy)
         platform_cell_released(copy->jobs, platform_place_g_program_owner);
         platform_cell_released(copy->history, platform_place_g_program_owner);
         platform_cell_released(copy->heap, platform_place_g_program_owner);
-        mmgr_bytes_set(copy, 0, sizeof(*copy));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = copy, .bytes = sizeof(*copy), .val = 0);
     }
     return read;
 }

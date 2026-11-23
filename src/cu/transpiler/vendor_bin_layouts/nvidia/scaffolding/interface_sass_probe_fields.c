@@ -20,19 +20,21 @@
 // writes <folder>/list.txt and the cubins it names; interface_sass_run runs that list and writes the answers, which a
 // later pass reads back against the form's runs. The kernel opens with its section's label, loads the case into
 // registers and stores the answer's first word from R7.
-#include "interface_sass_probe_fields/fields_internal.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "interface_sass_probe_fields/fields_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 int program_main(int count, char **words)
 {
-    if ((count == 6) && (mmgr_text_equal(words[1], "read", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count == 6) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "read", .ci = EMBED_FALSE)))
     {
         return fields_read(words[2], words[3], words[4], words[5]);
     }
-    if ((count == 4) && (mmgr_text_equal(words[1], "names", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count == 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "names", .ci = EMBED_FALSE)))
     {
         return fields_names(words[2], words[3]);
     }
@@ -103,9 +105,12 @@ int program_main(int count, char **words)
     char line[512];
     while (platform_file_text_read(line, sizeof(line), instructions) != NULL)
     {
-        line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
-        const char *walk = line + mmgr_text_span(line, " \t", PLATFORM_TEXT_TO_TERMINATOR);
-        if ((*walk == '\0') || (mmgr_text_starts(walk, "IADD3 R8", PLATFORM_TEXT_TO_TERMINATOR)))
+        line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\r\n")] = '\0';
+        const char *walk = line + EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = line,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \t");
+        if ((*walk == '\0') || (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = walk,
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "IADD3 R8", .ci = EMBED_FALSE)))
         {
             continue;
         }

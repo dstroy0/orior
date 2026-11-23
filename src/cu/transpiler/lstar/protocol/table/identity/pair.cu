@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pair.cu: the pair: each pair of the bridge put to the part through the carriers, its verdict written beneath it
 #include "../../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "pair.h"
 
 thread_local RunQuestion *t_question = NULL;
-thread_local std::vector<unsigned int> *t_places = NULL;
+thread_local unsigned int *t_places = NULL;
 
-// every choice a put makes at a link, written to the log as `choice <flags> <link>`, the flags of the trace's
-// table that are set there ORed into one word (query_trace.tsv): why a link was passed over, how the part answered
-// it, or why the put ended at it. The flags an open pair's links carry are the questions a further pass takes up
-void PairWork::chosen(const char *const *names, unsigned int count, const std::string &link) const
+// Every choice a put makes at a link, written to the log as `choice <flags> <link>`. The flags of the trace's table set
+// there, ORed into one word (query_trace.tsv). Why the put passed over a link, how the part answered it, or why the put
+// ended at it. The flags an open pair's links carry are the questions a further pass takes up
+void PairWork::chosen(const char *const *names, unsigned int count, const char *link) const
 {
     if (s_query_log == NULL)
     {
@@ -23,69 +23,116 @@ void PairWork::chosen(const char *const *names, unsigned int count, const std::s
     {
         word |= query_trace_flag(&s_query_trace, names[at]);
     }
-    {
-        TextNote text_note;
-        text_note_begun(&text_note, &s_query_log->bytes);
-        mmgr_line_put(&text_note.line, "choice 0x");
-        mmgr_line_hex(&text_note.line, word, 1u);
-        mmgr_line_put(&text_note.line, " ");
-        mmgr_line_put(&text_note.line, link.c_str());
-        mmgr_line_ch(&text_note.line, '\n');
-        text_note_written(&text_note);
-    }
+    VerbaLinea *const line = query_log_line(s_query_log);
+    mmgr_line_put(line, "choice 0x");
+    mmgr_line_hex(line, word, 1u);
+    mmgr_line_put(line, " ");
+    mmgr_line_put(line, link);
+    mmgr_line_ch(line, '\n');
 }
 
 // one choice written, by its flag's name
-void PairWork::chose(const char *name, const std::string &link) const
+void PairWork::chose(const char *name, const char *link) const
 {
     const char *const names[1] = {name};
     chosen(names, 1u, link);
 }
 
+// 1 where the piece begins with the terminated `head`
+static int piece_starts(CarrierPiece piece, const char *head)
+{
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = head, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    return (piece.length >= length) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = piece.text, .other = head, .bytes = length) == 0);
+}
+
 // The conference a refused put calls, convened on the pair's thread once the teacher called it (overseer.h). The
 // learner passes its statement: what it put, the carrier, what the stand-in does and the stand-in as written. The
-// coherence sets hand what the pair was being queried as: the sets the bridge reads it into and what its texts show
-// of it. The counterexample passes the first case apart the pair contains, this run's or the bridge's. The ruling is
-// written to the trace and its choice to the log, and its guidance given back: OVERSEER_HANDS_OFF where no party
-// called a conference of `statement`
-unsigned int PairWork::conferred(const std::string &from, const std::string &to, const std::string &statement,
-                                 const std::string &located, const std::string &carrier_name, unsigned int scratch,
-                                 const RunQuestion &question, const std::string &closed_here,
-                                 const std::string &link_address)
+// coherence sets hand what the put queried the pair as: the sets the bridge reads it into and what its texts show of
+// it. The counterexample passes the first case apart the pair contains, this run's or the bridge's. The OverseerRuling
+// goes to the trace and its choice to the log, and its guidance comes back: OVERSEER_HANDS_OFF where no party called a
+// conference of `statement`
+unsigned int PairWork::conferred(const char *from, const char *to, const char *statement, const char *located,
+                                 const char *carrier_name, unsigned int scratch, const RunQuestion *question,
+                                 const char *closed_here, const char *link_address)
 {
     QryShared *const run = qry_member_run();
-    const std::string identity = question_identity(&question);
+    char identity[96];
+    question_identity(question, identity, sizeof(identity));
     char joined[OVERSEER_STANDING_MAX_LEN];
-    overseer_located_joined(located.c_str(), joined);
-    const std::string statement_line = statement + "; carrier " + carrier_name +
-                                       (form_addresses(located) ? "; stand-in addresses" : "") +
-                                       (form_controls(located) ? "; stand-in controls" : "") +
-                                       ((scratch != 0u) ? "; stand-in scratch" : "") + "; located " + joined;
-    overseer_account(run, identity.c_str(), "learner", statement_line.c_str());
-    std::string sets;
-    std::string counterexample = closed_here;
-    for (const std::string &line : pair_beneath(bridge, from, to))
+    overseer_located_joined(located, joined);
+    PlatformText said;
+    identity_text_begun(&said);
+    mmgr_line_put(&said.line, statement);
+    mmgr_line_put(&said.line, "; carrier ");
+    mmgr_line_put(&said.line, carrier_name);
+    mmgr_line_put(&said.line, form_addresses(located) ? "; stand-in addresses" : "");
+    mmgr_line_put(&said.line, form_controls(located) ? "; stand-in controls" : "");
+    mmgr_line_put(&said.line, (scratch != 0u) ? "; stand-in scratch" : "");
+    mmgr_line_put(&said.line, "; located ");
+    mmgr_line_put(&said.line, joined);
+    overseer_account(run, identity, "learner", platform_text_bytes(&said));
+    PlatformArray beneath;
+    identity_pieces_begun(&beneath);
+    pair_beneath(bridge, bridge_count, from, to, &beneath);
+    PlatformText sets;
+    identity_text_begun(&sets);
+    PlatformText counterexample;
+    identity_text_begun(&counterexample);
+    mmgr_line_put(&counterexample.line, closed_here);
+    for (unsigned long long at = 0ULL; at < beneath.count; at += 1ULL)
     {
-        if ((line.rfind("closed ", 0u) == 0u) && counterexample.empty())
+        const CarrierPiece line = identity_piece_at(&beneath, at);
+        const int closed = piece_starts(line, "closed ");
+        const int open = piece_starts(line, "open ");
+        if (closed && (platform_text_size(&counterexample) == 0ULL))
         {
-            counterexample = line;
+            (void)mmgr_line_put_n(&counterexample.line, line.text, line.length);
         }
-        else if ((line.rfind("open ", 0u) != 0u) && (line.rfind("closed ", 0u) != 0u))
+        else if (!open && !closed)
         {
-            sets += (sets.empty() ? "" : " ") + line;
+            mmgr_line_put(&sets.line, (platform_text_size(&sets) == 0ULL) ? "" : " ");
+            (void)mmgr_line_put_n(&sets.line, line.text, line.length);
         }
     }
-    const std::string categories = pair_categories(sass, from, to);
-    const std::string learning = (sets.empty() ? std::string("no set an answer reads it into yet") : sets) +
-                                 (categories.empty() ? std::string() : (", its texts reading it" + categories));
-    overseer_account(run, identity.c_str(), "coherence",
-                     ("the pair " + from + " " + to + "; learning " + learning).c_str());
-    overseer_account(run, identity.c_str(), "counterexample",
-                     counterexample.empty()
-                         ? "the pair contains no case apart yet"
-                         : ("the pair contains its first case apart; counterexample " + counterexample).c_str());
+    platform_array_ended(&beneath);
+    const PairCategories categories = pair_categories(sass, from, to);
+    platform_text_reset(&said);
+    mmgr_line_put(&said.line, "the pair ");
+    mmgr_line_put(&said.line, from);
+    mmgr_line_put(&said.line, " ");
+    mmgr_line_put(&said.line, to);
+    mmgr_line_put(&said.line, "; learning ");
+    if (platform_text_size(&sets) == 0ULL)
+    {
+        mmgr_line_put(&said.line, "no set an answer reads it into yet");
+    }
+    else
+    {
+        identity_text_put(&said, &sets);
+    }
+    if (categories.text[0] != '\0')
+    {
+        mmgr_line_put(&said.line, ", its texts reading it");
+        mmgr_line_put(&said.line, categories.text);
+    }
+    overseer_account(run, identity, "coherence", platform_text_bytes(&said));
+    platform_text_reset(&said);
+    if (platform_text_size(&counterexample) == 0ULL)
+    {
+        mmgr_line_put(&said.line, "the pair contains no case apart yet");
+    }
+    else
+    {
+        mmgr_line_put(&said.line, "the pair contains its first case apart; counterexample ");
+        identity_text_put(&said, &counterexample);
+    }
+    overseer_account(run, identity, "counterexample", platform_text_bytes(&said));
+    platform_text_ended(&counterexample);
+    platform_text_ended(&sets);
+    platform_text_ended(&said);
     OverseerRuling ruling;
-    if (!overseer_convened(run, identity.c_str(), t_other_way, &ruling))
+    if (!overseer_convened(run, identity, t_other_way, &ruling))
     {
         return OVERSEER_HANDS_OFF;
     }
@@ -94,64 +141,525 @@ unsigned int PairWork::conferred(const std::string &from, const std::string &to,
     chose("conference", link_address);
     if (s_trace_log != NULL)
     {
-        {
-            TextNote text_note;
-            text_note_begun(&text_note, &s_trace_log->bytes);
-            mmgr_line_put(&text_note.line, "conference ");
-            mmgr_line_put(&text_note.line, identity.c_str());
-            mmgr_line_put(&text_note.line, ": ");
-            mmgr_line_put(&text_note.line, ruling.text);
-            mmgr_line_ch(&text_note.line, '\n');
-            text_note_written(&text_note);
-        }
+        VerbaLinea *const line = query_log_line(s_trace_log);
+        mmgr_line_put(line, "conference ");
+        mmgr_line_put(line, identity);
+        mmgr_line_put(line, ": ");
+        mmgr_line_put(line, ruling.text);
+        mmgr_line_ch(line, '\n');
         query_log_flushed(s_trace_log);
     }
     return ruling.guidance;
 }
 
-// The bridge's pairs put to the part, `pair <form> <form>` in Lstar.klq: two forms whose sameness the text leaves
-// open. A pair is put in a carrier, a chain of ours the host computes that contains one form's text as the ruleset
-// writes it: the form's arguments are read off the chain's lines, the other form is written in its place with the
-// arguments of its parameters' names, and the chain is assembled as the engine assembles it and put to the part over
-// every case the host computes the carrier on. The pair is open with its count of cases where the part answers the
-// changed chain as the host answers the carrier on every one, and closed at the carrier's address, the question and the
-// position of the link, and the first case it answers apart. Each form is tried in the other's place, the first in the
-// second's first; a pair neither form can are in for in any carrier, the second naming a parameter the first does
-// not or neither's text located in a chain, and a pair the part refuses in every carrier, is open with 0. Each
-// verdict is written beneath its pair in the bridge in place of the one it recorded. Where the log is retained, each
-// put is followed by the values the form reads there on every case, the carrier cut at the form, for orior_klq_decoder
-// to read its product off
-int identity_pair(const char *engine, const char *answers, const char *ksc, const char *klq, const char *machine_path,
-                  const char *const *carrier)
+// the bytes of the hash of what a pair's put reads, its terminator among them: sixteen hexadecimal digits
+#define PAIR_READS_BYTES 17u
+
+// every pair of the bridge, in its order. The question and places its put queries with, the hash of what its put reads,
+// and the verdict it came to
+struct PairPut
 {
-    PairWork work;
-    work.host = host_answers_read(answers);
-    work.sass = identity_ruleset();
-    work.machine = machine_path;
-    if (work.sass == NULL)
+    IdentityName first;
+    IdentityName second;
+    PairVerdict verdict;
+    int put_whole;
+    RunQuestion *question;
+    unsigned int places[RUN_CASES_MAX];
+    char reads[PAIR_READS_BYTES];
+};
+
+// what a pair's thread reads: the work, every pair, and the place of its own
+struct PairThread
+{
+    PairWork *work;
+    PairPut *pairs;
+    unsigned int at;
+};
+
+// what the texts of a pair's two forms show of it before any query, written to the log
+static void pair_facts(const PairWork *work, const char *first, const char *second)
+{
+    const PairCategories categories = pair_categories(work->sass, first, second);
+    VerbaLinea *const line = query_log_line(s_query_log);
+    mmgr_line_put(line, "facts ");
+    mmgr_line_put(line, first);
+    mmgr_line_put(line, " ");
+    mmgr_line_put(line, second);
+    mmgr_line_put(line, categories.text);
+    mmgr_line_ch(line, '\n');
+}
+
+// One pair put in its thread, run only in its turn. Its facts, its put, and the stand-in the other way round where the
+// form's own way answered nothing. Its trace and its log are logs of its own, stored in memory. They pass whole to the
+// query's writer once its put ends, after what the thread that carries the queries wrote before it
+static void pair_thread_run(void *context)
+{
+    PairThread *const thread = (PairThread *)context;
+    PairWork *const work = thread->work;
+    // a pair's place is far below 2^31
+    const int at = (int)thread->at;
+    identity_turn_awaited(at);
+    t_pair = at;
+    QueryLog pair_trace = {s_trace_whole.name};
+    QueryLog pair_log = {s_log_whole.name};
+    if (s_query_run != NULL)
     {
+        s_trace_log = &pair_trace;
+        s_query_log = &pair_log;
+    }
+    PairPut *const pair = &thread->pairs[at];
+    t_question = pair->question;
+    t_places = pair->places;
+    stall_cases(t_question, t_places);
+    if (s_query_log != NULL)
+    {
+        pair_facts(work, pair->first.text, pair->second.text);
+    }
+    // the form's own way first, then the other way round where it answered nothing or a conference turned it. Last,
+    // the lower witness where neither answered
+    t_turned = 0;
+    t_other_way = 0;
+    PairVerdict verdict = pair->verdict;
+    const int one_way = work->put(pair->first.text, pair->second.text, &verdict);
+    int either_way = one_way;
+    if (!one_way || t_turned)
+    {
+        t_other_way = 1;
+        PairVerdict other_verdict;
+        other_verdict.text[0] = '\0';
+        const int other_way = work->put(pair->second.text, pair->first.text, &other_verdict);
+        verdict = one_way ? pair_verdicts_joined(verdict.text, other_verdict.text) : other_verdict;
+        either_way = one_way || other_way;
+    }
+    if (!either_way)
+    {
+        (void)work->witness_lower(pair->first.text, pair->second.text, &verdict);
+    }
+    // a pair that no put and no witness wrote a verdict of, its forms unread in the ruleset, is open with 0
+    if (verdict.text[0] == '\0')
+    {
+        (void)IDENTITY_SET_TEXT(verdict, "open 0");
+    }
+    pair->verdict = verdict;
+    if (s_query_log != NULL)
+    {
+        s_trace_log = NULL;
+        s_query_log = NULL;
+        // the thread that carries the queries waits out this pair's turn: what it wrote before the pair goes first
+        query_log_passed(&s_trace_whole);
+        query_log_passed(&s_log_whole);
+        query_log_passed(&pair_trace);
+        query_log_passed(&pair_log);
+    }
+    if (pair_trace.begun)
+    {
+        platform_text_ended(&pair_trace.bytes);
+    }
+    if (pair_log.begun)
+    {
+        platform_text_ended(&pair_log.bytes);
+    }
+    pair->put_whole = 1;
+    identity_turn_given(-1);
+}
+
+// the number `value` in decimal as a terminated text in `text`
+static void decimal_text(unsigned long long value, char *text, size_t capacity)
+{
+    VerbaLinea line = mmgr_line_over(text, capacity);
+    mmgr_line_decimal(&line, value, 1u);
+    (void)mmgr_line_finish(&line);
+}
+
+// 1 where the terminated `text` begins with the terminated `head`
+static int text_starts(const char *text, const char *head)
+{
+    return EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = head,
+                      .ci = EMBED_FALSE);
+}
+
+// The bridge's lines and its keys, the schema's forms in its order, into `work`, each a piece of the bridge's text,
+// which the work keeps read. 1, or 0 where the pool cannot meet a cell
+static int bridge_read(const char *klq, PairWork *work)
+{
+    size_t size = 0u;
+    work->bridge_text = run_file_read(klq, &size);
+    const CarrierPiece text = {(work->bridge_text != NULL) ? work->bridge_text : "", size};
+    unsigned long long lines = 1ULL;
+    for (size_t at = 0u; at < size; at += 1u)
+    {
+        lines += (text.text[at] == '\n') ? 1ULL : 0ULL;
+    }
+    work->bridge = (CarrierPiece *)platform_cell_taken(lines * sizeof(CarrierPiece), platform_place_g_program_owner,
+                                                       PLATFORM_TIER_PERSISTENT);
+    work->keys = (CarrierPiece *)platform_cell_taken(lines * sizeof(CarrierPiece), platform_place_g_program_owner,
+                                                     PLATFORM_TIER_PERSISTENT);
+    if ((work->bridge == NULL) || (work->keys == NULL))
+    {
+        return 0;
+    }
+    size_t cut = 0u;
+    CarrierPiece line;
+    while (carrier_piece_next(text, '\n', &cut, &line))
+    {
+        if ((line.length != 0u) && (line.text[line.length - 1u] == '\r'))
+        {
+            line.length -= 1u;
+        }
+        work->bridge[work->bridge_count] = line;
+        work->bridge_count += 1ULL;
+        if (piece_starts(line, "key "))
+        {
+            work->keys[work->key_count] = carrier_after(line, 4u);
+            work->key_count += 1ULL;
+        }
+    }
+    return 1;
+}
+
+// the work's cells given back
+static void pair_work_ended(PairWork *work)
+{
+    platform_cell_released(work->keys, platform_place_g_program_owner);
+    platform_cell_released(work->bridge, platform_place_g_program_owner);
+    platform_cell_released(work->bridge_text, platform_place_g_program_owner);
+    carriers_ended(&work->carriers);
+    host_answers_ended(&work->host);
+}
+
+// what every put reads of the engine: each chain's text and the host's answers to its cases, by its question
+static unsigned long long engine_read_hashed(const PairWork *work)
+{
+    unsigned long long engine_read = 0xcbf29ce484222325ULL;
+    for (unsigned long long at = 0ULL; at < work->carriers.count; at += 1ULL)
+    {
+        const CarrierChain *const chain = &work->carriers.chain[at];
+        const char *const key = chain->number.text;
+        engine_read = record_hash(
+            key, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u,
+            engine_read);
+        const char *const text = chain->text;
+        engine_read = record_hash(
+            text, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u,
+            engine_read);
+        const HostCases *const cases = host_cases_of(&work->host, key);
+        for (unsigned int answer = 0u; (cases != NULL) && (answer < cases->count); answer += 1u)
+        {
+            const char *const answer_text = cases->answer[answer];
+            engine_read = record_hash(
+                answer_text,
+                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = answer_text, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u,
+                engine_read);
+        }
+    }
+    return engine_read;
+}
+
+// a path the record holds, by its two forms apart by a space
+struct RecordedPath
+{
+    char key[sizeof(((KqrPath *)0)->first) + sizeof(((KqrPath *)0)->second) + 2u];
+    KqrPath path;
+};
+
+// The paths the query record holds, into a cell of the temporary tier the caller gives back, ordered by key. A key
+// given twice keeps its last path. NULL where the pool cannot meet the cell
+static RecordedPath *recorded_paths_read(unsigned long long *count)
+{
+    *count = 0ULL;
+    static KqrPath s_recorded;
+    unsigned long long paths = 0ULL;
+    while (kqr_path_read(&s_query_record, (unsigned int)paths, &s_recorded))
+    {
+        paths += 1ULL;
+    }
+    RecordedPath *const recorded = (RecordedPath *)platform_cell_cleared(
+        (paths != 0ULL) ? paths : 1ULL, sizeof(RecordedPath), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    if (recorded == NULL)
+    {
+        return NULL;
+    }
+    for (unsigned long long at = 0ULL; at < paths; at += 1ULL)
+    {
+        // the record's paths are far below 2^32
+        (void)kqr_path_read(&s_query_record, (unsigned int)at, &recorded[at].path);
+        VerbaLinea key_line = mmgr_line_over(recorded[at].key, sizeof(recorded[at].key));
+        mmgr_line_put(&key_line, recorded[at].path.first);
+        mmgr_line_ch(&key_line, ' ');
+        mmgr_line_put(&key_line, recorded[at].path.second);
+        (void)mmgr_line_finish(&key_line);
+    }
+    (void)identity_sorted(recorded, paths, [](const RecordedPath &one, const RecordedPath &other) {
+        return identity_order_text(one.key, other.key) < 0;
+    });
+    for (unsigned long long at = 0ULL; at < paths; at += 1ULL)
+    {
+        if ((*count != 0ULL) && identity_same(recorded[*count - 1ULL].key, recorded[at].key))
+        {
+            recorded[*count - 1ULL] = recorded[at];
+            continue;
+        }
+        recorded[*count] = recorded[at];
+        *count += 1ULL;
+    }
+    return recorded;
+}
+
+// the path of the key `key` among the `count` sorted paths, or NULL where none holds it
+static const KqrPath *recorded_path_of(const RecordedPath *recorded, unsigned long long count, const char *key)
+{
+    const unsigned long long at = identity_lower(
+        recorded, count, [key](const RecordedPath &one) { return identity_order_text(one.key, key) < 0; });
+    return ((at < count) && identity_same(recorded[at].key, key)) ? &recorded[at].path : NULL;
+}
+
+// The pairs of the bridge, `pair <form> <form>`, into `pairs`, each with its question and the hash of what its put
+// reads. Then the record's verdict where the record settled it. The answer is the count the record settled
+static unsigned long long pairs_read(PairWork *work, unsigned long long engine_read, PairPut *pairs,
+                                     RunQuestion *questions)
+{
+    unsigned long long recorded_count = 0ULL;
+    RecordedPath *const recorded = recorded_paths_read(&recorded_count);
+    unsigned long long settled = 0ULL;
+    unsigned long long filled = 0ULL;
+    FormNames names;
+    for (unsigned long long at = 0ULL; at < work->bridge_count; at += 1ULL)
+    {
+        const CarrierPiece words = work->bridge[at];
+        if (!piece_starts(words, "pair "))
+        {
+            continue;
+        }
+        size_t word_at = 0u;
+        CarrierPiece type = {words.text, 0u};
+        CarrierPiece first = {words.text, 0u};
+        CarrierPiece second = {words.text, 0u};
+        (void)(identity_word_next(words, &word_at, &type) && identity_word_next(words, &word_at, &first) &&
+               identity_word_next(words, &word_at, &second));
+        PairPut *const pair = &pairs[filled];
+        filled += 1ULL;
+        (void)IDENTITY_SET(pair->first, first.text, first.length);
+        (void)IDENTITY_SET(pair->second, second.text, second.length);
+        (void)IDENTITY_SET_TEXT(pair->verdict, "open 0");
+        pair->question = &questions[filled - 1ULL];
+        PlatformText first_text;
+        PlatformText second_text;
+        identity_text_begun(&first_text);
+        identity_text_begun(&second_text);
+        (void)marked(work->sass, pair->first.text, &names, &first_text);
+        (void)marked(work->sass, pair->second.text, &names, &second_text);
+        const char *const first_bytes = platform_text_bytes(&first_text);
+        const char *const first_marked = (first_bytes != NULL) ? first_bytes : "";
+        unsigned long long reads = record_hash(
+            first_marked,
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = first_marked, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u,
+            engine_read);
+        const char *const second_bytes = platform_text_bytes(&second_text);
+        const char *const second_marked = (second_bytes != NULL) ? second_bytes : "";
+        reads = record_hash(
+            second_marked,
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = second_marked, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u,
+            reads);
+        platform_text_ended(&second_text);
+        platform_text_ended(&first_text);
+        VerbaLinea hashed_line = mmgr_line_over(pair->reads, sizeof(pair->reads));
+        mmgr_line_hex(&hashed_line, reads, 16u);
+        (void)mmgr_line_finish(&hashed_line);
+        char key[CARRIER_TEXT_MAX * 2u];
+        VerbaLinea key_line = mmgr_line_over(key, sizeof(key));
+        mmgr_line_put(&key_line, pair->first.text);
+        mmgr_line_ch(&key_line, ' ');
+        mmgr_line_put(&key_line, pair->second.text);
+        (void)mmgr_line_finish(&key_line);
+        const KqrPath *const path = (recorded != NULL) ? recorded_path_of(recorded, recorded_count, key) : NULL;
+        if ((path != NULL) && path->read &&
+            (EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = pair->reads, .end = NULL, .base = 16) ==
+             path->reads) &&
+            text_starts(path->verdict, "closed "))
+        {
+            (void)IDENTITY_SET_TEXT(pair->verdict, path->verdict);
+            pair->put_whole = 1;
+            settled += 1ULL;
+        }
+    }
+    platform_cell_released(recorded, platform_place_g_program_owner);
+    return settled;
+}
+
+// The rounds. Each pair not yet put runs in its turn until it queries or its put ends. The round answers the queries it
+// took together. The rounds loop while any pair's put goes on, and end once every pair's put ends
+static void pairs_rounds(PairPut *pairs, unsigned long long pair_count, unsigned long long left)
+{
+    unsigned int round = 0u;
+    PlatformArray carried;
+    platform_array_begun(&carried, sizeof(CarriedQuery), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    while (left != 0ULL)
+    {
+        const unsigned long long round_began = platform_clock_ns();
+        const unsigned long long passed_before = s_round_passed;
+        const unsigned long long recalled_before = s_round_recalled;
+        const unsigned long long processes_before = s_round_processes;
+        round += 1u;
+        {
+            char round_text[24];
+            decimal_text(round, round_text, sizeof(round_text));
+            kqr_mark(&s_query_record, KQR_ROUND_RECORD, round_text);
+        }
+        (void)platform_array_counted(&carried, 0ULL);
+        unsigned int in_flight = 0u;
+        for (unsigned long long at = 0ULL; at < pair_count; at += 1ULL)
+        {
+            if (pairs[at].put_whole)
+            {
+                continue;
+            }
+            // a pair's place is far below 2^31
+            identity_turn_given((int)at);
+            identity_turn_awaited(-1);
+            CarriedQueries *const queued = (CarriedQueries *)platform_array_at(&s_round_queries, at);
+            in_flight += (queued->count == 0ULL) ? 0u : 1u;
+            for (unsigned long long query = 0ULL; query < queued->count; query += 1ULL)
+            {
+                (void)platform_array_appended(&carried, platform_array_at(queued, query));
+            }
+            (void)platform_array_counted(queued, 0ULL);
+        }
+        queries_answered(&carried);
+        left = 0ULL;
+        for (unsigned long long at = 0ULL; at < pair_count; at += 1ULL)
+        {
+            left += pairs[at].put_whole ? 0ULL : 1ULL;
+        }
+        const unsigned long long elapsed = platform_clock_ns() - round_began;
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity round ");
+        mmgr_line_decimal(output_line, round, 1u);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_decimal(output_line, in_flight, 1u);
+        mmgr_line_put(output_line, " pairs queried, ");
+        mmgr_line_decimal(output_line, s_round_passed - passed_before, 1u);
+        mmgr_line_put(output_line, " queries passed, ");
+        mmgr_line_decimal(output_line, s_round_recalled - recalled_before, 1u);
+        mmgr_line_put(output_line, " answered from what was recorded, ");
+        mmgr_line_decimal(output_line, s_round_processes - processes_before, 1u);
+        mmgr_line_put(output_line, " processes, ");
+        mmgr_line_decimal(output_line, pair_count - left, 1u);
+        mmgr_line_put(output_line, " of ");
+        mmgr_line_decimal(output_line, pair_count, 1u);
+        mmgr_line_put(output_line, " pairs put, ");
+        mmgr_line_fixed(output_line, (double)elapsed / 1e9, 1u, 0u, EMBED_FALSE);
+        mmgr_line_put(output_line, " seconds");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+        platform_line_flushed();
+    }
+    platform_array_ended(&carried);
+}
+
+// The bridge written with each pair's verdict beneath it, in place of the verdict it recorded, and each verdict counted
+// into `open`, `closed` and `unqueried`. 1, or 0 where the write failed
+static int bridge_written(const PairWork *work, const char *klq, const PairPut *pairs, unsigned int *open,
+                          unsigned int *closed, unsigned int *unqueried)
+{
+    RunWritten file;
+    run_written_begun(&file, klq, 1);
+    VerbaLinea *const out = &file.text.line;
+    int beneath = 0;
+    unsigned long long paired = 0ULL;
+    for (unsigned long long at = 0ULL; at < work->bridge_count; at += 1ULL)
+    {
+        const CarrierPiece entry = work->bridge[at];
+        const int verdict_line = piece_starts(entry, "open ") || piece_starts(entry, "closed ");
+        const int is_pair = piece_starts(entry, "pair ");
+        beneath = is_pair || (beneath && verdict_line);
+        if (verdict_line && beneath)
+        {
+            continue;
+        }
+        (void)mmgr_line_put_n(out, entry.text, entry.length);
+        mmgr_line_ch(out, '\n');
+        if (!is_pair)
+        {
+            continue;
+        }
+        const PairPut *const pair = &pairs[paired];
+        paired += 1ULL;
+        const int unqueried_here = identity_same(pair->verdict.text, "open 0");
+        *open += (text_starts(pair->verdict.text, "open ") && !unqueried_here) ? 1u : 0u;
+        *closed += text_starts(pair->verdict.text, "closed ") ? 1u : 0u;
+        *unqueried += unqueried_here ? 1u : 0u;
         {
             VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "orior_klq_identity pair: the ruleset ");
-            mmgr_line_put(output_line, IDENTITY_RULESET);
-            mmgr_line_put(output_line, " names is not read");
+            mmgr_line_put(output_line, "  ");
+            mmgr_line_put(output_line, pair->first.text);
+            mmgr_line_put(output_line, " ");
+            mmgr_line_put(output_line, pair->second.text);
+            mmgr_line_put(output_line, ": ");
+            mmgr_line_put(output_line, pair->verdict.text);
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
+        mmgr_line_put(out, pair->verdict.text);
+        mmgr_line_ch(out, '\n');
+    }
+    const int written = run_closed(&file);
+    run_written_ended(&file);
+    return written;
+}
+
+// a line on the output stream: the mode's name, then `first`, then `second`
+static void pair_said(const char *first, const char *second)
+{
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, "orior_klq_identity pair: ");
+    mmgr_line_put(output_line, first);
+    mmgr_line_put(output_line, second);
+    mmgr_line_ch(output_line, '\n');
+    platform_line_out_ended();
+}
+
+// The bridge's pairs put to the part, `pair <form> <form>` in Lstar.klq: two forms whose sameness the text leaves open.
+// A pair goes in a carrier, a chain of ours the host computes that contains one form's text as the ruleset writes it.
+// The put reads the form's arguments off the chain's lines, and writes the other form in its place with the arguments
+// of its parameters' names. The put assembles the chain as the engine assembles it, and puts it to the part over every
+// case the host computes the carrier on.
+//
+// The pair is open with its count of cases where the part answers the changed chain as the host answers the carrier
+// on every one. It closes at the carrier's address, the question and the position of the link, and the first case it
+// answers apart. The put tries each form in the other's place, the first in the second's first. A pair is open with 0
+// where neither form can go in for it in any carrier. The second names a parameter the first does not, neither's text
+// is in a chain, or the ruleset writes neither form. A pair the part refuses in every carrier is open with 0 as well.
+//
+// Each verdict goes beneath its pair in the bridge in place of the one it recorded. Where the run keeps the log, the
+// values the form reads there on every case follow each put, the carrier cut at the form. `orior_klq_decoder` reads
+// its product off them
+int identity_pair(const char *engine, const char *answers, const char *ksc, const char *klq, const char *machine_path,
+                  const char *const *carrier)
+{
+    static PairWork s_work;
+    PairWork *const work = &s_work;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = work, .bytes = sizeof(*work), .val = 0);
+    work->seed = 1UL;
+    work->sass = identity_ruleset();
+    work->machine = machine_path;
+    if (work->sass == NULL)
+    {
+        pair_said("the ruleset ", IDENTITY_RULESET " names is not read");
         return 1;
     }
-    carriers_read(engine, work.host, &work.carriers);
-    // the seed the order of the links of one magnitude is drawn from, with each put's two forms, the run's
-    // IDENTITY_SEED where it is given
-    work.seed = identity_seed();
-    std::string line;
-    std::istringstream bridge_stream(run_file_text(klq));
-    while (std::getline(bridge_stream, line))
+    if (!host_answers_read(answers, 1, &work->host) || !carriers_read(engine, &work->host, &work->carriers) ||
+        !bridge_read(klq, work))
     {
-        work.bridge.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
+        pair_said(klq, ": the pool cannot meet the pairs' cells");
+        pair_work_ended(work);
+        return 1;
     }
+    // the seed the order of the links of one magnitude draws from, with each put's two forms, the run's IDENTITY_SEED
+    // where the run gives it
+    work->seed = identity_seed();
     if (!run_channel_open(carrier, 60000000ULL))
     {
+        pair_work_ended(work);
         return 1;
     }
     record_open(ksc, "pair");
@@ -163,206 +671,102 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     (void)mmgr_line_finish(&trace_error);
     if (!trace_read)
     {
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "orior_klq_identity pair: ");
-            mmgr_line_put(output_line, trace_why);
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
+        pair_said(trace_why, "");
         run_channel_close();
+        pair_work_ended(work);
         return 1;
     }
-    kqr_mark(&s_query_record, KQR_SEED_RECORD, std::to_string(work.seed).c_str());
+    {
+        char seed_text[24];
+        decimal_text(work->seed, seed_text, sizeof(seed_text));
+        kqr_mark(&s_query_record, KQR_SEED_RECORD, seed_text);
+    }
     // the lessons a run before this one taught, carried into this run (overseer.h)
     overseer_lessons_cleared();
     const unsigned int lessons_carried = overseer_lessons_read(qry_member_run());
     // the queries the query record contained before this cycle, read with R
     const unsigned int recorded_before = s_query_record.query_count;
-    const std::unique_ptr<RunQuestion> stalled(new RunQuestion());
-    std::vector<unsigned int> stalled_places;
-    stall_cases(stalled.get(), &stalled_places);
-    // the values the cases are made of: the three operands of every case, as the log's cases write them
-    std::vector<unsigned long long> operands;
-    for (unsigned int place = 0u; place < stalled->cases; place += 1u)
+    static RunQuestion s_stalled;
+    static unsigned int s_stalled_places[RUN_CASES_MAX];
+    stall_cases(&s_stalled, s_stalled_places);
+    // the values of the cases: the three operands of every case, as the log's cases write them
+    static unsigned long long s_operands[RUN_CASES_MAX * 3u];
+    unsigned long long operand_count = 0ULL;
+    for (unsigned int place = 0u; place < s_stalled.cases; place += 1u)
     {
         for (unsigned int operand = 0u; operand < 3u; operand += 1u)
         {
-            operands.push_back(((unsigned long long)stalled->word[place][2u * operand + 1u] << 32u) |
-                               stalled->word[place][2u * operand]);
+            s_operands[operand_count] = ((unsigned long long)s_stalled.word[place][2u * operand + 1u] << 32u) |
+                                        s_stalled.word[place][2u * operand];
+            operand_count += 1ULL;
         }
     }
-    work.cased = concept_values(operands);
-    // the bridge's keys, the schema's forms, in its order
-    for (const std::string &entry : work.bridge)
-    {
-        if (entry.rfind("key ", 0u) == 0u)
-        {
-            work.keys.push_back(entry.substr(4u));
-        }
-    }
-    std::vector<std::string> written;
+    concept_values(s_operands, operand_count, &work->cased);
     unsigned int open = 0u;
     unsigned int closed = 0u;
     unsigned int unqueried = 0u;
-    int beneath = 0;
     query_logs_opened();
-    // what the texts of a pair's two forms show of it before any query, written to the log
-    const auto pair_facts = [&](const std::string &first, const std::string &second) {
-        TextNote text_note;
-        text_note_begun(&text_note, &s_query_log->bytes);
-        mmgr_line_put(&text_note.line, "facts ");
-        mmgr_line_put(&text_note.line, first.c_str());
-        mmgr_line_put(&text_note.line, " ");
-        mmgr_line_put(&text_note.line, second.c_str());
-        mmgr_line_put(&text_note.line, pair_categories(work.sass, first, second).c_str());
-        mmgr_line_ch(&text_note.line, '\n');
-        text_note_written(&text_note);
-    };
-    // every pair of the bridge, in its order, the question and places its put queries with, the hash of what its put
-    // reads, and the verdict it came to
-    struct PairPut
-    {
-        std::string first;
-        std::string second;
-        std::string verdict;
-        int put_whole;
-        std::unique_ptr<RunQuestion> question;
-        std::vector<unsigned int> places;
-        std::string reads;
-    };
-    // what every put reads of the engine: each chain's text and the host's answers to its cases, by its question
-    unsigned long long engine_read = 0xcbf29ce484222325ULL;
-    for (const auto &chain : work.carriers.texts)
-    {
-        engine_read = record_hash(chain.first.c_str(), chain.first.size() + 1u, engine_read);
-        engine_read = record_hash(chain.second.c_str(), chain.second.size() + 1u, engine_read);
-        for (const std::string &answer : work.host[chain.first])
-        {
-            engine_read = record_hash(answer.c_str(), answer.size() + 1u, engine_read);
-        }
-    }
     // The scheduler: the record's gray entries are the queue. A pair closed on the record's path, whose reads are as
-    // they were, is settled: its verdict is the record's, and it is put no more, since a put runs again only where what
-    // it reads changed. Every other pair, open, with no path, or reading what changed, is gray, and the rounds put
-    // the gray pairs alone
-    std::map<std::string, KqrPath> recorded_paths;
-    static KqrPath s_recorded;
-    for (unsigned int at = 0u; kqr_path_read(&s_query_record, at, &s_recorded); at += 1u)
+    // they were, settles. Its verdict is the record's, and no put runs on it, since a put runs again only where what it
+    // reads changed. Every other pair, open, with no path, or reading what changed, is gray, and the rounds put the
+    // gray pairs alone
+    unsigned long long pair_count = 0ULL;
+    for (unsigned long long at = 0ULL; at < work->bridge_count; at += 1ULL)
     {
-        recorded_paths[std::string(s_recorded.first) + " " + s_recorded.second] = s_recorded;
+        pair_count += piece_starts(work->bridge[at], "pair ") ? 1ULL : 0ULL;
     }
-    std::vector<PairPut> pairs;
-    size_t settled = 0u;
-    for (const std::string &entry : work.bridge)
+    // the pairs and their questions, each in one cell for the run, so that no pointer to one moves
+    PairPut *const pairs = (PairPut *)platform_cell_cleared((pair_count != 0ULL) ? pair_count : 1ULL, sizeof(PairPut),
+                                                            platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT);
+    RunQuestion *const questions =
+        (RunQuestion *)platform_cell_cleared((pair_count != 0ULL) ? pair_count : 1ULL, sizeof(RunQuestion),
+                                             platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT);
+    if ((pairs == NULL) || (questions == NULL))
     {
-        if (entry.rfind("pair ", 0u) == 0u)
-        {
-            std::stringstream words(entry);
-            std::string type;
-            PairPut pair{std::string(),
-                         std::string(),
-                         "open 0",
-                         0,
-                         std::unique_ptr<RunQuestion>(new RunQuestion()),
-                         std::vector<unsigned int>(),
-                         std::string()};
-            words >> type >> pair.first >> pair.second;
-            std::vector<std::string> names;
-            const std::string first_text = marked(work.sass, pair.first, &names);
-            const std::string second_text = marked(work.sass, pair.second, &names);
-            unsigned long long reads = record_hash(first_text.c_str(), first_text.size() + 1u, engine_read);
-            reads = record_hash(second_text.c_str(), second_text.size() + 1u, reads);
-            char hashed[17];
-            {
-                VerbaLinea buffer_line = mmgr_line_over(hashed, sizeof(hashed));
-                mmgr_line_hex(&buffer_line, reads, 16u);
-                (void)mmgr_line_finish(&buffer_line);
-            }
-            pair.reads = hashed;
-            const auto path = recorded_paths.find(pair.first + " " + pair.second);
-            if ((path != recorded_paths.end()) && path->second.read &&
-                (mmgr_text_unsigned_in(pair.reads.c_str(), NULL, 16) == path->second.reads) &&
-                (mmgr_text_starts(path->second.verdict, "closed ", PLATFORM_TEXT_TO_TERMINATOR)))
-            {
-                pair.verdict = path->second.verdict;
-                pair.put_whole = 1;
-                settled += 1u;
-            }
-            pairs.push_back(std::move(pair));
-        }
+        platform_cell_released(pairs, platform_place_g_program_owner);
+        platform_cell_released(questions, platform_place_g_program_owner);
+        run_channel_close();
+        pair_work_ended(work);
+        return 1;
     }
-    // Each pair put in a thread of its own, run only in its turn: its facts, its put, and the stand-in the other way
-    // round where the form's own way answered nothing. Its trace and its log are logs of its own, stored in memory and
-    // passed whole to the query's writer once it is put, after what the thread that carries the queries wrote before it
-    s_round_queries.assign(pairs.size(), std::vector<CarriedQuery>());
-    std::vector<std::thread> threads;
-    for (size_t at = 0u; at < pairs.size(); at += 1u)
+    const unsigned long long settled = pairs_read(work, engine_read_hashed(work), pairs, questions);
+    // Each pair put in a thread of its own, run only in its turn. Every worker and every list of the round is in place
+    // before the first thread starts, and none moves while a thread runs
+    platform_array_begun(&s_round_queries, sizeof(CarriedQueries), platform_place_g_program_owner,
+                         PLATFORM_TIER_PERSISTENT);
+    (void)platform_array_counted(&s_round_queries, pair_count);
+    for (unsigned long long at = 0ULL; at < s_round_queries.count; at += 1ULL)
+    {
+        platform_array_begun((CarriedQueries *)platform_array_at(&s_round_queries, at), sizeof(CarriedQuery),
+                             platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT);
+    }
+    PlatformWorker *const workers =
+        (PlatformWorker *)platform_cell_cleared((pair_count != 0ULL) ? pair_count : 1ULL, sizeof(PlatformWorker),
+                                                platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT);
+    PairThread *const threads =
+        (PairThread *)platform_cell_cleared((pair_count != 0ULL) ? pair_count : 1ULL, sizeof(PairThread),
+                                            platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT);
+    for (unsigned long long at = 0ULL; (workers != NULL) && (threads != NULL) && (at < pair_count); at += 1ULL)
     {
         if (pairs[at].put_whole)
         {
             continue;
         }
-        threads.emplace_back([&, at]() {
-            {
-                std::unique_lock<std::mutex> lock(s_turn_lock);
-                s_turn_changed.wait(lock, [at]() { return s_turn == (int)at; });
-            }
-            t_pair = (int)at;
-            QueryLog pair_trace = {s_trace_whole.name, std::string()};
-            QueryLog pair_log = {s_log_whole.name, std::string()};
-            if (s_query_run != NULL)
-            {
-                s_trace_log = &pair_trace;
-                s_query_log = &pair_log;
-            }
-            PairPut &pair = pairs[at];
-            t_question = pair.question.get();
-            t_places = &pair.places;
-            stall_cases(t_question, t_places);
-            if (s_query_log != NULL)
-            {
-                pair_facts(pair.first, pair.second);
-            }
-            // the form's own way first, then the other way round where it answered nothing or a conference turned it,
-            // then the lower witness where neither answered
-            t_turned = 0;
-            t_other_way = 0;
-            const int one_way = work.put(pair.first, pair.second, &pair.verdict);
-            int either_way = one_way;
-            if (!one_way || t_turned)
-            {
-                t_other_way = 1;
-                std::string other_verdict;
-                const int other_way = work.put(pair.second, pair.first, &other_verdict);
-                pair.verdict = one_way ? pair_verdicts_joined(pair.verdict, other_verdict) : other_verdict;
-                either_way = one_way || other_way;
-            }
-            if (!either_way)
-            {
-                work.witness_lower(pair.first, pair.second, &pair.verdict);
-            }
-            if (s_query_log != NULL)
-            {
-                s_trace_log = NULL;
-                s_query_log = NULL;
-                // the thread that carries the queries waits out this pair's turn: what it wrote before the pair goes
-                // first
-                query_log_passed(&s_trace_whole);
-                query_log_passed(&s_log_whole);
-                query_log_passed(&pair_trace);
-                query_log_passed(&pair_log);
-            }
-            std::unique_lock<std::mutex> lock(s_turn_lock);
-            pair.put_whole = 1;
-            s_turn = -1;
-            s_turn_changed.notify_all();
-        });
+        threads[at].work = work;
+        threads[at].pairs = pairs;
+        // a pair's place is far below 2^32
+        threads[at].at = (unsigned int)at;
+        if (!platform_worker_started(&workers[at], pair_thread_run, &threads[at]))
+        {
+            // a pair whose thread the system refused stays open with nothing queried
+            pairs[at].put_whole = 1;
+        }
     }
-    // The rounds: each pair not yet put runs in its turn until it queries or is put, and the queries the round was
-    // passed are answered together. The rounds loop while a pair is left to put, and end once every pair is put
-    unsigned int round = 0u;
-    size_t left = pairs.size() - settled;
+    unsigned long long left = 0ULL;
+    for (unsigned long long at = 0ULL; at < pair_count; at += 1ULL)
+    {
+        left += pairs[at].put_whole ? 0ULL : 1ULL;
+    }
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "orior_klq_identity pair: ");
@@ -373,120 +777,32 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    while (left != 0u)
+    pairs_rounds(pairs, pair_count, left);
+    for (unsigned long long at = 0ULL; (workers != NULL) && (at < pair_count); at += 1ULL)
     {
-        const std::chrono::steady_clock::time_point round_began = std::chrono::steady_clock::now();
-        const unsigned long long passed_before = s_round_passed;
-        const unsigned long long recalled_before = s_round_recalled;
-        const unsigned long long processes_before = s_round_processes;
-        round += 1u;
-        kqr_mark(&s_query_record, KQR_ROUND_RECORD, std::to_string(round).c_str());
-        std::vector<CarriedQuery> carried;
-        unsigned int in_flight = 0u;
-        for (size_t at = 0u; at < pairs.size(); at += 1u)
-        {
-            std::unique_lock<std::mutex> lock(s_turn_lock);
-            if (pairs[at].put_whole)
-            {
-                continue;
-            }
-            s_turn = (int)at;
-            s_turn_changed.notify_all();
-            s_turn_changed.wait(lock, []() { return s_turn == -1; });
-            in_flight += s_round_queries[at].empty() ? 0u : 1u;
-            carried.insert(carried.end(), s_round_queries[at].begin(), s_round_queries[at].end());
-            s_round_queries[at].clear();
-        }
-        queries_answered(carried);
-        left = (size_t)std::count_if(pairs.begin(), pairs.end(), [](const PairPut &pair) { return !pair.put_whole; });
-        const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - round_began).count();
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "orior_klq_identity round ");
-            mmgr_line_decimal(output_line, round, 1u);
-            mmgr_line_put(output_line, ": ");
-            mmgr_line_decimal(output_line, in_flight, 1u);
-            mmgr_line_put(output_line, " pairs queried, ");
-            mmgr_line_decimal(output_line, s_round_passed - passed_before, 1u);
-            mmgr_line_put(output_line, " queries passed, ");
-            mmgr_line_decimal(output_line, s_round_recalled - recalled_before, 1u);
-            mmgr_line_put(output_line, " answered from what was recorded, ");
-            mmgr_line_decimal(output_line, s_round_processes - processes_before, 1u);
-            mmgr_line_put(output_line, " processes, ");
-            mmgr_line_decimal(output_line, pairs.size() - left, 1u);
-            mmgr_line_put(output_line, " of ");
-            mmgr_line_decimal(output_line, pairs.size(), 1u);
-            mmgr_line_put(output_line, " pairs put, ");
-            mmgr_line_fixed(output_line, (double)(seconds), 1u, 0u, EMBED_FALSE);
-            mmgr_line_put(output_line, " seconds");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
-        platform_line_flushed();
+        platform_worker_joined(&workers[at]);
     }
-    for (std::thread &thread : threads)
+    platform_cell_released(threads, platform_place_g_program_owner);
+    platform_cell_released(workers, platform_place_g_program_owner);
+    for (unsigned long long at = 0ULL; at < s_round_queries.count; at += 1ULL)
     {
-        thread.join();
+        platform_array_ended((CarriedQueries *)platform_array_at(&s_round_queries, at));
     }
-    // the bridge written with each pair's verdict beneath it, in place of the verdict it recorded
-    size_t paired = 0u;
-    for (const std::string &entry : work.bridge)
-    {
-        const int verdict_line = (entry.rfind("open ", 0u) == 0u) || (entry.rfind("closed ", 0u) == 0u);
-        beneath = (entry.rfind("pair ", 0u) == 0u) || (beneath && verdict_line);
-        if (verdict_line && beneath)
-        {
-            continue;
-        }
-        written.push_back(entry);
-        if (entry.rfind("pair ", 0u) != 0u)
-        {
-            continue;
-        }
-        const PairPut &pair = pairs[paired];
-        paired += 1u;
-        open += ((pair.verdict.rfind("open ", 0u) == 0u) && (pair.verdict != "open 0")) ? 1u : 0u;
-        closed += (pair.verdict.rfind("closed ", 0u) == 0u) ? 1u : 0u;
-        unqueried += (pair.verdict == "open 0") ? 1u : 0u;
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "  ");
-            mmgr_line_put(output_line, pair.first.c_str());
-            mmgr_line_put(output_line, " ");
-            mmgr_line_put(output_line, pair.second.c_str());
-            mmgr_line_put(output_line, ": ");
-            mmgr_line_put(output_line, pair.verdict.c_str());
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
-        written.push_back(pair.verdict);
-    }
+    platform_array_ended(&s_round_queries);
     run_channel_close();
-    RunWritten file = {klq, 1, std::string()};
-    for (const std::string &written_line : written)
+    const int written = bridge_written(work, klq, pairs, &open, &closed, &unqueried);
+    if (!written)
     {
-        TextNote text_note;
-        text_note_begun(&text_note, &(&file)->text);
-        mmgr_line_put(&text_note.line, written_line.c_str());
-        mmgr_line_ch(&text_note.line, '\n');
-        text_note_written(&text_note);
-    }
-    if (!run_closed(&file))
-    {
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "orior_klq_identity pair: ");
-            mmgr_line_put(output_line, klq);
-            mmgr_line_put(output_line, " could not be written");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
+        pair_said(klq, " could not be written");
+        platform_cell_released(questions, platform_place_g_program_owner);
+        platform_cell_released(pairs, platform_place_g_program_owner);
+        pair_work_ended(work);
         return 1;
     }
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "orior_klq_identity pair: ");
-        mmgr_line_decimal(output_line, work.queries, 1u);
+        mmgr_line_decimal(output_line, work->queries, 1u);
         mmgr_line_put(output_line, " queries, ");
         mmgr_line_decimal(output_line, open, 1u);
         mmgr_line_put(output_line, " open, ");
@@ -503,42 +819,35 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "orior_klq_identity pair: ");
-        mmgr_line_decimal(output_line, work.conferences, 1u);
+        mmgr_line_decimal(output_line, work->conferences, 1u);
         mmgr_line_put(output_line, " conferences called by refusals, ");
-        mmgr_line_decimal(output_line, work.lessons_taught, 1u);
+        mmgr_line_decimal(output_line, work->lessons_taught, 1u);
         mmgr_line_put(output_line, " lessons taught, ");
         mmgr_line_decimal(output_line, lessons_carried, 1u);
         mmgr_line_put(output_line, " carried in");
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    // the path this cycle read off the queries, each pair and its verdict, an open pair the question a further pass
-    // takes up, written to the query record with every query it contained and every query this cycle put once R is
-    // written back
+    // The path this cycle read off the queries, each pair and its verdict, an open pair the question a further pass
+    // takes up. It goes to the query record with every query it contained and every query this cycle put once the run
+    // writes R back
     kqr_paths_clear(&s_query_record);
     static KqrPath s_path;
-    for (const PairPut &pair : pairs)
+    for (unsigned long long at = 0ULL; at < pair_count; at += 1ULL)
     {
-        {
-            VerbaLinea buffer_line = mmgr_line_over(s_path.first, sizeof(s_path.first));
-            mmgr_line_put(&buffer_line, pair.first.c_str());
-            (void)mmgr_line_finish(&buffer_line);
-        }
-        {
-            VerbaLinea buffer_line = mmgr_line_over(s_path.second, sizeof(s_path.second));
-            mmgr_line_put(&buffer_line, pair.second.c_str());
-            (void)mmgr_line_finish(&buffer_line);
-        }
-        s_path.read = pair.reads.empty() ? 0 : 1;
-        s_path.reads = mmgr_text_unsigned_in(pair.reads.c_str(), NULL, 16);
-        {
-            VerbaLinea buffer_line = mmgr_line_over(s_path.verdict, sizeof(s_path.verdict));
-            mmgr_line_put(&buffer_line, pair.verdict.c_str());
-            (void)mmgr_line_finish(&buffer_line);
-        }
+        const PairPut *const pair = &pairs[at];
+        (void)identity_name_set(s_path.first, sizeof(s_path.first), pair->first.text, PLATFORM_TEXT_TO_TERMINATOR);
+        (void)identity_name_set(s_path.second, sizeof(s_path.second), pair->second.text, PLATFORM_TEXT_TO_TERMINATOR);
+        s_path.read = (pair->reads[0] == '\0') ? 0 : 1;
+        s_path.reads = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = pair->reads, .end = NULL, .base = 16);
+        (void)identity_name_set(s_path.verdict, sizeof(s_path.verdict), pair->verdict.text,
+                                PLATFORM_TEXT_TO_TERMINATOR);
         kqr_path_add(&s_query_record, &s_path);
-        pair_row_passed(pair.first, pair.second, s_path.read, s_path.reads, pair.verdict);
+        pair_row_passed(pair->first.text, pair->second.text, s_path.read, s_path.reads, pair->verdict.text);
     }
+    platform_cell_released(questions, platform_place_g_program_owner);
+    platform_cell_released(pairs, platform_place_g_program_owner);
+    pair_work_ended(work);
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "orior_klq_identity pair: ");

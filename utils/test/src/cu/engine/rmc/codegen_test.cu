@@ -15,10 +15,10 @@
 #include "../../../../../../includes/file_defs/krs/ruleset_reader.h"
 #include "../../../../../../src/platform/platform.h"
 #include "../../engine/analysis/cycle/record_image.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "code_generator.h"
 #include "codegen_device.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 #include "sim.h"
 
 #include <cuda_runtime.h>
@@ -93,14 +93,17 @@ static void device_named_check(DeviceResults *results, int passed, const char *h
 static int device_claim_read(const char *line, size_t length, size_t from, const char *label,
                              unsigned long long *number)
 {
-    const size_t label_length = mmgr_text_length(label, PLATFORM_TEXT_TO_TERMINATOR);
-    if (((from + label_length) > length) || (mmgr_bytes_compare(&line[from], label, label_length) != 0))
+    const size_t label_length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = label, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    if (((from + label_length) > length) ||
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &line[from], .other = label, .bytes = label_length) != 0))
     {
         return 0;
     }
     const char *const digits = &line[from + label_length];
     const char *end = NULL;
-    *number = (unsigned long long)mmgr_text_unsigned_in(digits, &end, 10u);
+    *number =
+        (unsigned long long)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = digits, .end = &end, .base = 10u);
     // the number ends inside the line, past its start
     const size_t after = (end != NULL) ? (size_t)(end - line) : length;
     return (end != NULL) && (end != digits) && ((after + 1u) < length) && (line[after] == ' ') &&
@@ -110,10 +113,11 @@ static int device_claim_read(const char *line, size_t length, size_t from, const
 // the place of `needle` in the `length` bytes at `text`, or `length` where it is not there
 static size_t device_find(const char *text, size_t length, const char *needle)
 {
-    const size_t needle_length = mmgr_text_length(needle, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t needle_length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = needle, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     for (size_t at = 0u; (at + needle_length) <= length; at += 1u)
     {
-        if (mmgr_bytes_compare(&text[at], needle, needle_length) == 0)
+        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &text[at], .other = needle, .bytes = needle_length) == 0)
         {
             return at;
         }
@@ -125,11 +129,12 @@ static size_t device_find(const char *text, size_t length, const char *needle)
 // no later than the release, and the ledger holds a line at all
 static int device_claims_well_formed(const char *claims)
 {
-    const size_t size = mmgr_text_length(claims, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t size = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = claims, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     int well = size != 0u;
     for (size_t at = 0u; well && (at < size);)
     {
-        const char *const newline = mmgr_text_char(&claims[at], '\n', size - at);
+        const char *const newline =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = &claims[at], .cap = size - at, .byte = '\n');
         // a line ends at or past its start
         const size_t end = (newline != NULL) ? (size_t)(newline - claims) : size;
         const char *const line = &claims[at];
@@ -152,8 +157,8 @@ static int device_claims_well_formed(const char *claims)
 static int device_items_same(const PlatformArray *left, const PlatformArray *right)
 {
     return (left->count == right->count) &&
-           ((left->count == 0ull) ||
-            (mmgr_bytes_compare(left->cell, right->cell, (size_t)(left->count * sizeof(MachineInstr))) == 0));
+           ((left->count == 0ull) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->cell, .other = right->cell,
+                                                 .bytes = (size_t)(left->count * sizeof(MachineInstr))) == 0));
 }
 
 // what the device gave, or why it did not, onto `what`
@@ -233,7 +238,8 @@ static void device_text_begun(PlatformText *text)
 static int device_texts_same(const PlatformText *left, const PlatformText *right)
 {
     const unsigned long long length = platform_text_size(left);
-    return (length == platform_text_size(right)) && (mmgr_bytes_compare(left->cell, right->cell, (size_t)length) == 0);
+    return (length == platform_text_size(right)) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->cell, .other = right->cell, .bytes = (size_t)length) == 0);
 }
 
 // the cells of one language's lane of a program, each given back as the lane ends
@@ -358,7 +364,7 @@ static void device_rules(DeviceResults *results, const char *lane_name, const Ru
     device_check(results, read_ran && ruleset_same(&device_read, rules), &what);
     ruleset_released(&device_read);
     AsmPrinterRuleset device_built;
-    mmgr_bytes_set(&device_built, 0, sizeof(device_built));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &device_built, .bytes = sizeof(device_built), .val = 0);
     device_why_begun(&why);
     const int rules_built = asm_printer_ruleset_device(rules, target, s_device_header, &device_built, &why.line);
     device_what_begun(&what, lane_name);
@@ -403,7 +409,7 @@ static void device_language(DeviceResults *results, const char *name, CodeGenera
     unsigned int live = 0u;
     (void)generator->program(layout, &target, s_device_header, &lane.text, &places, &live);
     AsmPrinterRuleset text_rules;
-    mmgr_bytes_set(&text_rules, 0, sizeof(text_rules));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &text_rules, .bytes = sizeof(text_rules), .val = 0);
     DeviceWhy why;
     device_why_begun(&why);
     if (asm_printer_ruleset_build(rules, &target, s_device_header, &text_rules, &why.line) == 0)
@@ -528,7 +534,7 @@ static void device_bootstrap(DeviceResults *results, CodeGenerator *generator, c
     const Ruleset *const rules = generator->ruleset(1);
     const TargetInfo target = {0ull, 0, 0, 0, 0, ""};
     AsmPrinterRuleset text_rules;
-    mmgr_bytes_set(&text_rules, 0, sizeof(text_rules));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &text_rules, .bytes = sizeof(text_rules), .val = 0);
     DeviceWhy why;
     device_why_begun(&why);
     if ((rules == NULL) || (asm_printer_ruleset_build(rules, &target, s_device_header, &text_rules, &why.line) == 0))

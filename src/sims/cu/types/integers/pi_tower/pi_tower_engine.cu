@@ -1,16 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_tower_engine.cu: the engine, depth and requests
-#include "pi_tower_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "pi_tower_internal.h"
 
 // 13 and 14 on the engine: position 0 and Bailey's, and the tower's deepest resolution requested. 15, a segment, is a
 // request of its own (pi_tower_segment_request)
 void pi_tower_engine(SimResults *results, int count, char **arguments, const PiTowerTurn &turn, unsigned int depth)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long lanes = pi_tower_bbp_lanes();
     unsigned int window = 0u;
     const PiWide tower_position = pi_tower_depth_position(pi_tower_unsigned(depth), &window);
@@ -84,7 +84,7 @@ void pi_tower_engine(SimResults *results, int count, char **arguments, const PiT
 void pi_tower_deep(SimResults *results, int count, char **arguments, const PiWide &depth)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const PiWide word = pi_tower_unsigned(64ULL);
     const PiWide precision = pi_tower_product(
         pi_tower_quotient(pi_tower_sum(pi_tower_sum(pi_tower_product(depth, pi_tower_unsigned(3ULL)), word),

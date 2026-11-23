@@ -22,18 +22,21 @@
 // against every relation and writes the record. The third writes every arrangement of the .kdm node by node, each node
 // the first writing found for its precept, into <folder>/chains, and the fourth reads the chains' answers back against
 // the relation each is a row of.
-#include "interface_sass_writings/writings_internal.h"
 #include "../../../../engine/engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../engine/rmc/precept_value.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "interface_sass_writings/writings_internal.h"
 
 int program_main(int count, char **words)
 {
-    if ((count == 5) && (mmgr_text_equal(words[1], "krs-read", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count == 5) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "krs-read", .ci = EMBED_FALSE)))
     {
         return writings_krs_read(words[2], words[3], words[4]);
     }
-    if (((count == 7) || (count == 8)) && (mmgr_text_equal(words[1], "chains", PLATFORM_TEXT_TO_TERMINATOR)))
+    if (((count == 7) || (count == 8)) &&
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "chains",
+                    .ci = EMBED_FALSE)))
     {
         char into[1024];
         {
@@ -44,15 +47,19 @@ int program_main(int count, char **words)
         }
         return writings_chains_write(words[2], words[3], words[4], words[5], words[6], (count == 8) ? words[7] : into);
     }
-    if ((count >= 5) && ((count % 2) == 1) && (mmgr_text_equal(words[1], "descent-read", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count >= 5) && ((count % 2) == 1) &&
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = "descent-read", .ci = EMBED_FALSE)))
     {
         return writings_descent_read(words[2], (unsigned int)(count - 3) / 2u, &words[3]);
     }
-    if ((count == 4) && (mmgr_text_equal(words[1], "chains-read", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count == 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "chains-read", .ci = EMBED_FALSE)))
     {
         return writings_chains_read(words[2], words[3]);
     }
-    if ((count == 4) && (mmgr_text_equal(words[1], "read", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count == 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "read", .ci = EMBED_FALSE)))
     {
         return writings_read(words[2], words[3]);
     }

@@ -16,11 +16,11 @@
 //
 // The listing is what cuobjdump -sass or nvdisasm prints. The architecture is named as the disassembler names it,
 // SM86; the folder contains the encodings the disassembler is given.
-#include "interface_sass_probe.h"
 #include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "interface_sass_probe.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../sass_machine.h"
 
@@ -166,7 +166,8 @@ static int take_fields(const char *path, const char *architecture, const char *f
 
 int program_main(int count, char **words)
 {
-    if ((count == 5) && (mmgr_text_equal(words[1], "--fields", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count == 5) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "--fields", .ci = EMBED_FALSE)))
     {
         return take_fields(words[2], words[3], words[4]);
     }
@@ -273,7 +274,7 @@ int program_main(int count, char **words)
             continue;
         }
         found_form->runs = form->runs;
-        mmgr_bytes_copy(found_form->run, form->run, sizeof(form->run));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = found_form->run, .src = form->run, .bytes = sizeof(form->run));
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  taken: ");

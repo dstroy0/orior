@@ -14,13 +14,12 @@
 // before it already passed, and the cell reads where the walk stopped from the last line. `turns` is how
 // many reads ADVANCES puts at an address after its first before the address reads as not advancing: a counter that
 // steps once a clock interrupt reads as still between two reads far more often than not.
-#include "verba_scribo/verba_linea.h"
-#include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "query_put.h"
-
+#include "verba_scribo/verba_linea.h"
 
 int program_main(int count_of_words, char **words)
 {
@@ -29,12 +28,18 @@ int program_main(int count_of_words, char **words)
         return 2;
     }
     // each is read as hexadecimal and stored at the width the query carries
-    const unsigned int qualifier = (unsigned int)mmgr_text_unsigned_in(words[1], NULL, 16);
-    const unsigned long long from = mmgr_text_unsigned_in(words[2], NULL, 16);
-    const unsigned long long count = mmgr_text_unsigned_in(words[3], NULL, 16);
-    const unsigned long long stride = mmgr_text_unsigned_in(words[4], NULL, 16);
-    const unsigned long long turns = mmgr_text_unsigned_in(words[5], NULL, 16);
-    const unsigned int word = (unsigned int)mmgr_text_unsigned_in(words[6], NULL, 16);
+    const unsigned int qualifier =
+        (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = words[1], .end = NULL, .base = 16);
+    const unsigned long long from =
+        EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = words[2], .end = NULL, .base = 16);
+    const unsigned long long count =
+        EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = words[3], .end = NULL, .base = 16);
+    const unsigned long long stride =
+        EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = words[4], .end = NULL, .base = 16);
+    const unsigned long long turns =
+        EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = words[5], .end = NULL, .base = 16);
+    const unsigned int word =
+        (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = words[6], .end = NULL, .base = 16);
     for (unsigned long long number = 0ULL; number < count; number += 1ULL)
     {
         Query query = {0};

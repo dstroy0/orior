@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // krep_sections.cu: the crystal, side, history, bodies and forms
-#include "krep_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "krep_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 extern "C" int krep_crystal_head(const char *path, EngineStream *stream, EngineSignum *root, EngineError *error)
 {
@@ -15,7 +15,7 @@ extern "C" int krep_crystal_head(const char *path, EngineStream *stream, EngineS
     {
         return 0;
     }
-    mmgr_bytes_set(stream, 0, sizeof(*stream));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = stream, .bytes = sizeof(*stream), .val = 0);
     unsigned long long head[KREP_CRYSTAL_HEAD_WORDS];
     PlatformFile *const crystal = platform_file_open(path, "rb");
     int ok = krep_crystal_head_from(path, crystal, stream, head, error);
@@ -44,12 +44,12 @@ extern "C" int krep_crystal_read(const KrepCrystalRequest *request)
     }
     EngineStream *const stream = request->stream;
     EngineSeal *const seal = request->seal;
-    mmgr_bytes_set(stream, 0, sizeof(*stream));
-    mmgr_bytes_set(seal, 0, sizeof(*seal));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = stream, .bytes = sizeof(*stream), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = seal, .bytes = sizeof(*seal), .val = 0);
     unsigned long long head[KREP_CRYSTAL_HEAD_WORDS];
     EngineSideSection discarded;
     EngineSideSection *const side_section = (request->section != NULL) ? request->section : &discarded;
-    mmgr_bytes_set(side_section, 0, sizeof(*side_section));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = side_section, .bytes = sizeof(*side_section), .val = 0);
     PlatformFile *const crystal = platform_file_open(request->path, "rb");
     int ok = krep_crystal_head_from(request->path, crystal, stream, head, error) &&
              krep_seal_read(crystal, head, seal, error);
@@ -89,7 +89,7 @@ extern "C" void krep_seal_release(EngineSeal *seal)
 {
     platform_cell_released(seal->lane_nodes, platform_place_g_program_owner);
     platform_cell_released(seal->chunk_leaves, platform_place_g_program_owner);
-    mmgr_bytes_set(seal, 0, sizeof(*seal));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = seal, .bytes = sizeof(*seal), .val = 0);
 }
 
 extern "C" void krep_side_release(EngineSideSection *section)
@@ -104,7 +104,7 @@ extern "C" void krep_side_release(EngineSideSection *section)
     platform_cell_released(side->member_crc, platform_place_g_program_owner);
     platform_cell_released(side->member_bytes, platform_place_g_program_owner);
     platform_cell_released(section->packed, platform_place_g_program_owner);
-    mmgr_bytes_set(section, 0, sizeof(*section));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = section, .bytes = sizeof(*section), .val = 0);
 }
 
 extern "C" void krep_crystal_release(EngineStream *stream)
@@ -159,7 +159,7 @@ extern "C" int krep_history_read(const char *path, EngineHistory *history, unsig
     {
         return 0;
     }
-    mmgr_bytes_set(history, 0, sizeof(*history));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = history, .bytes = sizeof(*history), .val = 0);
     PlatformFile *const back = platform_file_open(path, "rb");
     unsigned long long head[4] = {0ULL, 0ULL, 0ULL, 0ULL};
     int ok = KREP_IO(back != NULL, path, error) &&
@@ -251,7 +251,7 @@ extern "C" int krep_bodies_read(const char *path, EngineBodyTable *table, Engine
     {
         return 0;
     }
-    mmgr_bytes_set(table, 0, sizeof(*table));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = table, .bytes = sizeof(*table), .val = 0);
     PlatformFile *const back = platform_file_open(path, "rb");
     unsigned long long counts[3] = {0ULL, 0ULL, 0ULL};
     int ok = KREP_IO(back != NULL, path, error) && KREP_IO(krep_head_read(back, KREP_TYPE_BODIES) != 0, back, error) &&
@@ -335,7 +335,7 @@ extern "C" int krep_forms_read(const char *path, KrepFormTable *table, EngineErr
     {
         return 0;
     }
-    mmgr_bytes_set(table, 0, sizeof(*table));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = table, .bytes = sizeof(*table), .val = 0);
     PlatformFile *const back = platform_file_open(path, "rb");
     unsigned long long counts[3] = {0ULL, 0ULL, 0ULL};
     int ok =

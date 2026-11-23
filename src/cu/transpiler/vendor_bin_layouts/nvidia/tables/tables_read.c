@@ -13,13 +13,12 @@
 // each distinct pair of a bank field's span and an offset field's span with the count of classes positioning their
 // constant operand so, `bank <first>..<last> offset <first>..<last> <count>`. Exit 0, 2 where the words are not as
 // above, and 1 where the instruction set could not be read
-#include "../cubin_safe.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "../cubin_safe.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "read.h"
-
 
 // the file at `path` whole, or NULL
 static unsigned char *whole(const char *path, size_t *size)
@@ -133,8 +132,10 @@ static int spans_printed(const TablesSet *set)
 
 int program_main(int count, char **words)
 {
-    if ((count < 3) || ((!mmgr_text_equal(words[2], "class", PLATFORM_TEXT_TO_TERMINATOR)) &&
-                        (!mmgr_text_equal(words[2], "spans", PLATFORM_TEXT_TO_TERMINATOR))))
+    if ((count < 3) || ((!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[2], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = "class", .ci = EMBED_FALSE)) &&
+                        (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[2], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = "spans", .ci = EMBED_FALSE))))
     {
         {
             EngineNote engine_note;
@@ -164,7 +165,8 @@ int program_main(int count, char **words)
         return 1;
     }
     platform_cell_released(text, platform_place_g_program_owner);
-    if (mmgr_text_equal(words[2], "spans", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[2], .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "spans",
+                   .ci = EMBED_FALSE))
     {
         const int code = spans_printed(&set);
         tables_set_freed(&set);
@@ -172,15 +174,18 @@ int program_main(int count, char **words)
     }
     int given = 3;
     unsigned long long bank_size = 0ULL;
-    if (((given + 1) < count) && (mmgr_text_equal(words[given], "--bank", PLATFORM_TEXT_TO_TERMINATOR)))
+    if (((given + 1) < count) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[given],
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "--bank", .ci = EMBED_FALSE)))
     {
-        bank_size = mmgr_text_unsigned_in(words[given + 1], NULL, 0);
+        bank_size = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = words[given + 1], .end = NULL, .base = 0);
         given += 2;
     }
     for (; (given + 1) < count; given += 2)
     {
-        const unsigned long long low = mmgr_text_unsigned_in(words[given], NULL, 16);
-        const unsigned long long high = mmgr_text_unsigned_in(words[given + 1], NULL, 16);
+        const unsigned long long low =
+            EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = words[given], .end = NULL, .base = 16);
+        const unsigned long long high =
+            EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = words[given + 1], .end = NULL, .base = 16);
         char line[256];
         const int classed = tables_class_described(&set, low, high, line, sizeof(line));
         const TablesClass *const class_ = classed ? tables_class_of(&set, low, high) : NULL;

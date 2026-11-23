@@ -21,8 +21,8 @@
 #include "../../../utils/test/src/cu/engine/analysis/cycle/record_image.h"
 #include "../../platform/platform.h"
 #include "../engine/engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "vhdl_target.h"
 #include "yosys_script.h"
 
@@ -138,7 +138,7 @@ static int vhdl_construction(const char *path, VhdlPlace *place)
 {
     KrepFormTable table;
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     if (krep_forms_read(path, &table, &error) == 0)
     {
         return 0;
@@ -164,7 +164,9 @@ static int vhdl_construction(const char *path, VhdlPlace *place)
         const ScheduleCost cost = {&place->names[start], (unsigned int)table.words[form]};
         ok = platform_array_appended(&place->costs, &cost);
         place->budget = (cost.cost > place->budget) ? cost.cost : place->budget;
-        start += mmgr_text_length(&place->names[start], (size_t)(name_bytes - start)) + 1ULL;
+        start +=
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = &place->names[start], .cap = (size_t)(name_bytes - start)) +
+            1ULL;
     }
     krep_forms_release(&table);
     place->constructed = ok;
@@ -231,10 +233,13 @@ static unsigned long long vhdl_after(const char *path, const char *label)
     unsigned long long found = 0ULL;
     while ((found == 0ULL) && (platform_file_text_read(line, sizeof(line), file) != NULL))
     {
-        const char *const at = mmgr_text_find(line, label, PLATFORM_TEXT_TO_TERMINATOR);
-        found = (at != NULL)
-                    ? mmgr_text_unsigned_in(at + mmgr_text_length(label, PLATFORM_TEXT_TO_TERMINATOR), NULL, 10)
-                    : 0ULL;
+        const char *const at = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                          .other = label, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+        found = (at != NULL) ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                          .src = at + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = label,
+                                                                 .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                                          .end = NULL, .base = 10)
+                             : 0ULL;
     }
     platform_file_close(file);
     return found;
@@ -252,7 +257,10 @@ static unsigned long long vhdl_lines(const char *path, const char *label)
     unsigned long long found = 0ULL;
     while (platform_file_text_read(line, sizeof(line), file) != NULL)
     {
-        found += (mmgr_text_find(line, label, PLATFORM_TEXT_TO_TERMINATOR) != NULL) ? 1ULL : 0ULL;
+        found += (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = label, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL)
+                     ? 1ULL
+                     : 0ULL;
     }
     platform_file_close(file);
     return found;
@@ -268,7 +276,8 @@ static void vhdl_log_shown(const char *path)
     while ((log != NULL) && (shown < 20u) && (platform_file_text_read(log_text, (int)sizeof(log_text), log) != NULL))
     {
         mmgr_line_put(platform_line_out(), log_text);
-        const size_t length = mmgr_text_length(log_text, PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t length =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = log_text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         shown += ((length != 0u) && (log_text[length - 1u] == '\n')) ? 1u : 0u;
     }
     if (log != NULL)
@@ -316,7 +325,7 @@ static int vhdl_job_added(const VhdlPlace *place, unsigned int program, unsigned
     }
     const unsigned int index = table->jobs;
     VhdlJob *const job = &table->job[index];
-    mmgr_bytes_set(job, 0, sizeof(*job));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = job, .bytes = sizeof(*job), .val = 0);
     job->program = program;
     job->type = type;
     job->budget = budget;
@@ -364,7 +373,8 @@ static void vhdl_ends_written(const VhdlPlace *place, unsigned int index, VhdlPr
         {
             program->split_same = (program_text != NULL) && (scheduled_text != NULL) &&
                                   (program_length == scheduled_length) &&
-                                  (mmgr_bytes_compare(program_text, scheduled_text, (size_t)program_length) == 0);
+                                  (EMBED_CALL(memor.cmp, MemoriaCfg, .src = program_text, .other = scheduled_text,
+                                              .bytes = (size_t)program_length) == 0);
         }
         const unsigned int job = s_vhdl_table.jobs;
         program->room = program->room &&
@@ -407,7 +417,7 @@ static int vhdl_round_before(const VhdlPlace *place, const unsigned int *rounds,
                 : NULL;
         unsigned long long read = 0ULL;
         before = (earlier != NULL) && platform_file_read(program_path, earlier, size, &read) && (read == length) &&
-                 (mmgr_bytes_compare(earlier, text, (size_t)length) == 0);
+                 (EMBED_CALL(memor.cmp, MemoriaCfg, .src = earlier, .other = text, .bytes = (size_t)length) == 0);
         platform_cell_released(earlier, platform_place_g_program_owner);
     }
     return before;
@@ -481,7 +491,7 @@ static void vhdl_run(void *context, const HostProgram *host_program, int reuse, 
     }
     const unsigned int program_index = table->programs;
     VhdlProgram *const program = &table->program[program_index];
-    mmgr_bytes_set(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     program->errors = errors;
     program->room = 1;
     VerbaLinea name_line = mmgr_line_over(program->name, sizeof(program->name));
@@ -509,7 +519,7 @@ static void vhdl_run(void *context, const HostProgram *host_program, int reuse, 
         return;
     }
     CycleRecordHostRequest request;
-    mmgr_bytes_set(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.layout = layout;
     for (unsigned int member = 0u; member < layout->members; member += 1u)
     {
@@ -534,7 +544,7 @@ static void vhdl_run(void *context, const HostProgram *host_program, int reuse, 
     platform_text_begun(&text, VHDL_TEST_TEXT_BYTES, platform_place_g_program_owner, PLATFORM_TIER_MOVABLE);
     const int wrote = (generator.ruleset(1) != NULL) && generator.program(layout, &target, "", &text, &places, &live);
     RecordImage image;
-    mmgr_bytes_set(&image, 0, sizeof(image));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &image, .bytes = sizeof(image), .val = 0);
     const int imaged = (wrote != 0) && record_image(layout, atoms, bodies, index, VHDL_TEST_LANES, &image);
     if (wrote == 0)
     {
@@ -708,7 +718,7 @@ struct VhdlTrial
 static void vhdl_job_read(const VhdlPlace *place, unsigned int index, const VhdlProgram *program, VhdlTrial *trial)
 {
     const VhdlJob *const job = &s_vhdl_table.job[index];
-    mmgr_bytes_set(trial, 0, sizeof(*trial));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = trial, .bytes = sizeof(*trial), .val = 0);
     // the records are ephemeral work, given back before the next job's
     trial->records = (unsigned int *)platform_cell_cleared(
         (program->record_words != 0ULL) ? program->record_words : 1ULL, sizeof(unsigned int),
@@ -720,7 +730,7 @@ static void vhdl_job_read(const VhdlPlace *place, unsigned int index, const Vhdl
     (void)vhdl_path(folder, "records.txt", records_path, sizeof(records_path));
     (void)vhdl_path(folder, "ghdl.log", ghdl_log, sizeof(ghdl_log));
     RecordImage shape;
-    mmgr_bytes_set(&shape, 0, sizeof(shape));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &shape, .bytes = sizeof(shape), .val = 0);
     shape.record_words = program->record_words;
     trial->read = (trial->records != NULL) && (job->status == 0L) &&
                   record_image_read(records_path, &shape, &trial->error, trial->records, &trial->clocks);
@@ -756,9 +766,9 @@ static void vhdl_job_read(const VhdlPlace *place, unsigned int index, const Vhdl
 static int vhdl_report(VhdlResults *results, const VhdlPlace *place, const char *what, const VhdlTrial *trial,
                        const VhdlProgram *program)
 {
-    const int same =
-        (trial->records != NULL) && (mmgr_bytes_compare(trial->records, program->host_records,
-                                                        (size_t)(program->record_words * sizeof(unsigned int))) == 0);
+    const int same = (trial->records != NULL) &&
+                     (EMBED_CALL(memor.cmp, MemoriaCfg, .src = trial->records, .other = program->host_records,
+                                 .bytes = (size_t)(program->record_words * sizeof(unsigned int))) == 0);
     const int passed = program->errors ? (trial->read && !program->host_ran && (trial->error != 0u))
                                        : (trial->read && program->host_ran && (trial->error == 0u) && same);
     vhdl_named_check(results, passed, what,
@@ -925,15 +935,21 @@ int program_main(int argc, char **argv)
     // each line reaches the log as the test writes it, where stdout is a file
     platform_line_out_every_write();
     VhdlPlace place;
-    mmgr_bytes_set(&place, 0, sizeof(place));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &place, .bytes = sizeof(place), .val = 0);
     int usable = argc >= 3;
     for (int at = 3; usable && (at < argc); at += 1)
     {
         const int construction =
-            (mmgr_text_equal(argv[at], "--construction", PLATFORM_TEXT_TO_TERMINATOR)) && ((at + 1) < argc);
-        place.synthesis = place.synthesis || (mmgr_text_equal(argv[at], "--synthesis", PLATFORM_TEXT_TO_TERMINATOR));
-        usable = construction ? vhdl_construction(argv[at + 1], &place)
-                              : (mmgr_text_equal(argv[at], "--synthesis", PLATFORM_TEXT_TO_TERMINATOR));
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "--construction", .ci = EMBED_FALSE)) &&
+            ((at + 1) < argc);
+        place.synthesis = place.synthesis ||
+                          (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                      .other = "--synthesis", .ci = EMBED_FALSE));
+        usable = construction
+                     ? vhdl_construction(argv[at + 1], &place)
+                     : (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                   .other = "--synthesis", .ci = EMBED_FALSE));
         at += construction ? 1 : 0;
     }
     if (!usable)

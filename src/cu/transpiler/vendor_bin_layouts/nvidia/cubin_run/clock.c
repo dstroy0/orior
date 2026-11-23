@@ -6,10 +6,10 @@
 // cost of the launch is the word's advance, in the clock's own count (query_put.h, Q1). Where the .ksc names no clock
 // or the BAR0 driver is not reached, the launches are timed on the driver's event timer as before, and the answer
 // reports which clock timed them
-#include "cubin_run_internal.h"
-#include "../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../includes/file_defs/ksc/ksc.h"
+#include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "cubin_run_internal.h"
 
 #if defined(_WIN32)
 #include "../scaffolding/mmio_read.h"
@@ -22,9 +22,11 @@ int cubin_run_clock_open(const char *machine_path)
 {
     // the .ksc beside the machine file, its stem the machine file's
     char ksc[1200];
-    const size_t length = mmgr_text_length(machine_path, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = machine_path, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const size_t stem =
-        (length > 4u) && (mmgr_text_equal(machine_path + length - 4u, ".khw", PLATFORM_TEXT_TO_TERMINATOR))
+        (length > 4u) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = machine_path + length - 4u,
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".khw", .ci = EMBED_FALSE))
             ? length - 4u
             : length;
     {
@@ -41,8 +43,10 @@ int cubin_run_clock_open(const char *machine_path)
         for (unsigned int at = 0u; !named && (at < file.lines); at += 1u)
         {
             if (ksc_row_read(file.line[at], "run", &s_row) &&
-                (mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)) &&
-                (mmgr_text_equal(s_row.question, "clock address", PLATFORM_TEXT_TO_TERMINATOR)))
+                (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.answer, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "answers", .ci = EMBED_FALSE)) &&
+                (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "clock address", .ci = EMBED_FALSE)))
             {
                 // an offset into BAR0 is far below what an unsigned int represents
                 s_clock_offset = (unsigned int)s_row.value;

@@ -12,9 +12,9 @@
 // reached through dlsym, which allocates while they are found: those first allocations come off a static arena of its
 // own, never freed.
 #define _GNU_SOURCE
-#include <dlfcn.h>
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_linea.h"
+#include <dlfcn.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -194,7 +194,7 @@ void *calloc(size_t count, size_t size)
         void *const at = tables_arena(count * size);
         if (at != NULL)
         {
-            mmgr_bytes_set(at, 0, count * size);
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = at, .bytes = count * size, .val = 0);
         }
         return at;
     }
@@ -213,7 +213,7 @@ void *realloc(void *at, size_t size)
         void *const moved = malloc(size);
         if (moved != NULL)
         {
-            mmgr_bytes_copy(moved, at, (size < left) ? size : left);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = moved, .src = at, .bytes = (size < left) ? size : left);
         }
         return moved;
     }

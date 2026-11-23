@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tokens.c: the tokens of an instruction's text: spaces, a token taken, digits, the high half, an operand's type and
 // the operand taken, an instruction read, and two forms the same
-#include "sass_machine_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sass_machine_internal.h"
 
 static int sass_is_space(char character)
 {
@@ -26,7 +26,7 @@ static void sass_token_take(char *token, const char *text, size_t length)
         length -= 1u;
     }
     const size_t copied = (length < (SASS_MACHINE_TOKEN - 1u)) ? length : (SASS_MACHINE_TOKEN - 1u);
-    mmgr_bytes_copy(token, text, copied);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = token, .src = text, .bytes = copied);
     token[copied] = '\0';
 }
 
@@ -45,14 +45,15 @@ static int sass_all_digits(const char *text, size_t at)
 // register by its number alone, and the pair beginning at R14 has no other way to name R15 (sass.krs)
 int sass_high_half(const char *text)
 {
-    const size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
-    return (length > 3u) && (mmgr_text_equal(text + length - 3u, ".hi", PLATFORM_TEXT_TO_TERMINATOR));
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    return (length > 3u) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text + length - 3u,
+                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".hi", .ci = EMBED_FALSE));
 }
 
 // what type of thing `text` is, with any mark already cut off it
 static unsigned int sass_operand_type(const char *text)
 {
-    if (mmgr_text_char(text, ' ', PLATFORM_TEXT_TO_TERMINATOR) != NULL)
+    if (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ' ') != NULL)
     {
         return SASS_OPERAND_UNKNOWN;
     }
@@ -60,27 +61,35 @@ static unsigned int sass_operand_type(const char *text)
     if (sass_high_half(text))
     {
         char stem[SASS_MACHINE_TOKEN];
-        const size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR) - 3u;
+        const size_t length =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR) - 3u;
         const size_t copied = (length < (SASS_MACHINE_TOKEN - 1u)) ? length : (SASS_MACHINE_TOKEN - 1u);
-        mmgr_bytes_copy(stem, text, copied);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = stem, .src = text, .bytes = copied);
         stem[copied] = '\0';
         return sass_operand_type(stem);
     }
-    if ((text[0] == 'R') && ((mmgr_text_equal(text, "RZ", PLATFORM_TEXT_TO_TERMINATOR)) || sass_all_digits(text, 1u)))
+    if ((text[0] == 'R') && ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = "RZ", .ci = EMBED_FALSE)) ||
+                             sass_all_digits(text, 1u)))
     {
         return SASS_OPERAND_REGISTER;
     }
-    if ((text[0] == 'P') && ((mmgr_text_equal(text, "PT", PLATFORM_TEXT_TO_TERMINATOR)) || sass_all_digits(text, 1u)))
+    if ((text[0] == 'P') && ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = "PT", .ci = EMBED_FALSE)) ||
+                             sass_all_digits(text, 1u)))
     {
         return SASS_OPERAND_PREDICATE;
     }
     // URZ is to the uniform registers what RZ is to the numbered ones, and reads the same way
     if ((text[0] == 'U') && (text[1] == 'R') &&
-        ((mmgr_text_equal(text, "URZ", PLATFORM_TEXT_TO_TERMINATOR)) || sass_all_digits(text, 2u)))
+        ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "URZ",
+                     .ci = EMBED_FALSE)) ||
+         sass_all_digits(text, 2u)))
     {
         return SASS_OPERAND_UNIFORM;
     }
-    if (mmgr_text_starts(text, "SR_", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "SR_",
+                   .ci = EMBED_FALSE))
     {
         return SASS_OPERAND_SYSTEM;
     }
@@ -91,8 +100,11 @@ static unsigned int sass_operand_type(const char *text)
     // an address, and an address that names the uniform register its memory descriptor is read from: desc[URn]
     // where the instruction's bit 101 is set, as the disassembler prints it, and term[URn] where it is clear and the
     // field still contains the register
-    if ((text[0] == '[') || (mmgr_text_starts(text, "desc[", PLATFORM_TEXT_TO_TERMINATOR)) ||
-        (mmgr_text_starts(text, "term[", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((text[0] == '[') ||
+        (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "desc[",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "term[",
+                    .ci = EMBED_FALSE)))
     {
         return SASS_OPERAND_ADDRESS;
     }
@@ -121,8 +133,10 @@ static void sass_operand_take(SassInstructionParts *parts, unsigned int place, c
 {
     char token[SASS_MACHINE_TOKEN];
     sass_token_take(token, text, length);
-    const size_t token_length = mmgr_text_length(token, PLATFORM_TEXT_TO_TERMINATOR);
-    if ((token_length > 6u) && (mmgr_text_equal(token + token_length - 6u, ".reuse", PLATFORM_TEXT_TO_TERMINATOR)))
+    const size_t token_length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = token, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    if ((token_length > 6u) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = token + token_length - 6u,
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".reuse", .ci = EMBED_FALSE)))
     {
         token[token_length - 6u] = '\0';
     }
@@ -135,20 +149,23 @@ static void sass_operand_take(SassInstructionParts *parts, unsigned int place, c
     mark = ((mark == SASS_MARK_NEGATE) && (marked == SASS_OPERAND_IMMEDIATE)) ? SASS_MARK_NONE : mark;
     parts->mark[place] = mark;
     parts->type[place] = (mark == SASS_MARK_NONE) ? sass_operand_type(token) : marked;
-    mmgr_bytes_copy(parts->operand[place], token + ((mark == SASS_MARK_NONE) ? 0u : 1u),
-                    mmgr_text_length(token + ((mark == SASS_MARK_NONE) ? 0u : 1u), PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = parts->operand[place], .src = token + ((mark == SASS_MARK_NONE) ? 0u : 1u),
+               .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = token + ((mark == SASS_MARK_NONE) ? 0u : 1u),
+                                   .cap = PLATFORM_TEXT_TO_TERMINATOR) +
+                        1u);
 }
 
 void sass_instruction_read(const char *text, SassInstructionParts *parts)
 {
-    mmgr_bytes_set(parts, 0, sizeof(*parts));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = parts, .bytes = sizeof(*parts), .val = 0);
     while (sass_is_space(*text))
     {
         text += 1;
     }
     if (*text == '@')
     {
-        const size_t length = mmgr_text_span_not(text, SASS_SPACES, PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = text,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = SASS_SPACES);
         sass_token_take(parts->guard, text, length);
         text += length;
         while (sass_is_space(*text))
@@ -156,7 +173,8 @@ void sass_instruction_read(const char *text, SassInstructionParts *parts)
             text += 1;
         }
     }
-    const size_t operation_length = mmgr_text_span_not(text, SASS_SPACES, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t operation_length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = text,
+                                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = SASS_SPACES);
     sass_token_take(parts->operation, text, operation_length);
     text += operation_length;
     // the operands, split at each comma outside brackets
@@ -171,7 +189,8 @@ void sass_instruction_read(const char *text, SassInstructionParts *parts)
         {
             const size_t length = (size_t)(walk - start);
             if ((parts->operands < SASS_MACHINE_OPERANDS) &&
-                (mmgr_text_span(start, SASS_SPACES, PLATFORM_TEXT_TO_TERMINATOR) < length))
+                (EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = start, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = SASS_SPACES) < length))
             {
                 sass_operand_take(parts, parts->operands, start, length);
                 parts->operands += 1u;
@@ -190,7 +209,8 @@ void sass_instruction_read(const char *text, SassInstructionParts *parts)
 // name different ones are two forms, each with the encoding it was seen with
 int sass_form_same(const SassForm *form, const SassInstructionParts *parts)
 {
-    int same = (mmgr_text_equal(form->operation, parts->operation, PLATFORM_TEXT_TO_TERMINATOR)) &&
+    int same = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = form->operation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = parts->operation, .ci = EMBED_FALSE)) &&
                (form->operands == parts->operands);
     int by_text = 0;
     for (unsigned int place = 0u; same && (place < form->operands); place += 1u)
@@ -205,7 +225,8 @@ int sass_form_same(const SassForm *form, const SassInstructionParts *parts)
         for (unsigned int place = 0u; same && (place < form->operands); place += 1u)
         {
             same = ((form->type[place] != SASS_OPERAND_SYSTEM) && (form->type[place] != SASS_OPERAND_UNKNOWN)) ||
-                   (mmgr_text_equal(seen.operand[place], parts->operand[place], PLATFORM_TEXT_TO_TERMINATOR));
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = seen.operand[place],
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = parts->operand[place], .ci = EMBED_FALSE));
         }
     }
     return same;

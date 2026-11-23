@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "flatten.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "flatten.h"
+#include "memoria_operor/memoria_operor.h"
 
+#include "../../../../../includes/file_defs/krep/krep.h"
 #include "../../analysis/cycle/cycle.h"
 #include "../../engine.h"
 #include "../max_tree/max_tree.h"
-#include "../../../../../includes/file_defs/krep/krep.h"
 
 #include <cuda_runtime.h>
 
@@ -46,7 +46,8 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
          FLATTEN_IO(krep_limbs_write(file, layout->offset, MAX_TREE_FIELDS) != 0, layout->offset, error);
     for (unsigned int sample = 0u; ok && (sample < count); sample += 1u)
     {
-        const unsigned int length = (unsigned int)mmgr_text_length(names[sample], PLATFORM_TEXT_TO_TERMINATOR);
+        const unsigned int length = (unsigned int)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = names[sample],
+                                                             .cap = PLATFORM_TEXT_TO_TERMINATOR);
         ok =
             FLATTEN_IO(krep_limbs_write(file, &length, 1u) != 0, &length, error) &&
             FLATTEN_IO(platform_file_write_items(names[sample], 1u, length, file) == length, names[sample], error) &&
@@ -69,13 +70,16 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
     ok = ok && FLATTEN_IO(file != NULL, path, error) &&
          FLATTEN_IO(krep_head_read(file, KREP_TYPE_SHARD) != 0, file, error) &&
          FLATTEN_IO(krep_limbs_read(file, read_head, FLATTEN_HEAD_LIMBS) != 0, read_head, error) &&
-         FLATTEN_CHECK(mmgr_bytes_compare(read_head, head, sizeof(head)) == 0, read_head, error, ENGINE_ERROR_LOGIC) &&
+         FLATTEN_CHECK(EMBED_CALL(memor.cmp, MemoriaCfg, .src = read_head, .other = head, .bytes = sizeof(head)) == 0,
+                       read_head, error, ENGINE_ERROR_LOGIC) &&
          FLATTEN_IO(krep_limbs_read(file, read_bits, MAX_TREE_FIELDS) != 0, read_bits, error) &&
-         FLATTEN_CHECK(mmgr_bytes_compare(read_bits, layout->bits, sizeof(read_bits)) == 0, read_bits, error,
-                       ENGINE_ERROR_LOGIC) &&
+         FLATTEN_CHECK(EMBED_CALL(memor.cmp, MemoriaCfg, .src = read_bits, .other = layout->bits,
+                                  .bytes = sizeof(read_bits)) == 0,
+                       read_bits, error, ENGINE_ERROR_LOGIC) &&
          FLATTEN_IO(krep_limbs_read(file, read_offset, MAX_TREE_FIELDS) != 0, read_offset, error) &&
-         FLATTEN_CHECK(mmgr_bytes_compare(read_offset, layout->offset, sizeof(read_offset)) == 0, read_offset, error,
-                       ENGINE_ERROR_LOGIC);
+         FLATTEN_CHECK(EMBED_CALL(memor.cmp, MemoriaCfg, .src = read_offset, .other = layout->offset,
+                                  .bytes = sizeof(read_offset)) == 0,
+                       read_offset, error, ENGINE_ERROR_LOGIC);
     for (unsigned int sample = 0u; ok && (sample < count); sample += 1u)
     {
         char name[ENGINE_PATH_CAPACITY];
@@ -84,22 +88,26 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
         ok = FLATTEN_IO(krep_limbs_read(file, &length, 1u) != 0, &length, error) &&
              FLATTEN_CHECK(length < sizeof(name), &length, error, ENGINE_ERROR_LOGIC) &&
              FLATTEN_IO(platform_file_read_items(name, 1u, length, file) == length, name, error) &&
-             FLATTEN_CHECK((length == mmgr_text_length(names[sample], PLATFORM_TEXT_TO_TERMINATOR)) &&
-                               (mmgr_bytes_compare(name, names[sample], length) == 0),
-                           name, error, ENGINE_ERROR_LOGIC) &&
+             FLATTEN_CHECK(
+                 (length ==
+                  EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = names[sample], .cap = PLATFORM_TEXT_TO_TERMINATOR)) &&
+                     (EMBED_CALL(memor.cmp, MemoriaCfg, .src = name, .other = names[sample], .bytes = length) == 0),
+                 name, error, ENGINE_ERROR_LOGIC) &&
              FLATTEN_IO(krep_limbs_read(file, read_orders.smooth, ENGINE_AXES) != 0, read_orders.smooth, error) &&
              FLATTEN_IO(krep_limbs_read(file, read_orders.background, ENGINE_AXES) != 0, read_orders.background,
                         error) &&
              FLATTEN_IO(krep_limbs_read(file, read_orders.comb, ENGINE_AXES) != 0, read_orders.comb, error) &&
-             FLATTEN_CHECK(mmgr_bytes_compare(&read_orders, &orders[sample], sizeof(read_orders)) == 0, &read_orders,
-                           error, ENGINE_ERROR_LOGIC);
+             FLATTEN_CHECK(EMBED_CALL(memor.cmp, MemoriaCfg, .src = &read_orders, .other = &orders[sample],
+                                      .bytes = sizeof(read_orders)) == 0,
+                           &read_orders, error, ENGINE_ERROR_LOGIC);
     }
     unsigned long long read_bodies = 0ULL;
     ok = ok && FLATTEN_IO(krep_words_read(file, &read_bodies, 1u) != 0, &read_bodies, error) &&
          FLATTEN_CHECK(read_bodies == bodies, &read_bodies, error, ENGINE_ERROR_LOGIC) &&
          FLATTEN_IO(krep_limbs_read(file, again, words) != 0, again, error) &&
-         FLATTEN_CHECK(mmgr_bytes_compare(again, magnitudes, words * sizeof(unsigned int)) == 0, again, error,
-                       ENGINE_ERROR_LOGIC) &&
+         FLATTEN_CHECK(EMBED_CALL(memor.cmp, MemoriaCfg, .src = again, .other = magnitudes,
+                                  .bytes = words * sizeof(unsigned int)) == 0,
+                       again, error, ENGINE_ERROR_LOGIC) &&
          FLATTEN_CHECK(platform_file_char_get(file) == EOF, file, error, ENGINE_ERROR_LOGIC);
     if (file != NULL)
     {
@@ -115,7 +123,7 @@ int flatten_read(const char *set, FlattenResident *resident, EngineError *error)
     {
         return 0;
     }
-    mmgr_bytes_set(resident, 0, sizeof(*resident));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
     char path[ENGINE_PATH_CAPACITY];
     VerbaLinea formed_line_1 = mmgr_line_over(path, sizeof(path));
     mmgr_line_put(&formed_line_1, set);
@@ -207,7 +215,7 @@ void flatten_release(FlattenResident *resident)
     platform_cell_released(resident->orders, platform_place_g_program_owner);
     platform_cell_released(resident->offset_halves, platform_place_g_program_owner);
     platform_cell_released(resident->magnitudes, platform_place_g_program_owner);
-    mmgr_bytes_set(resident, 0, sizeof(*resident));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
 }
 
 static int flatten_header(const char *set, const char *name, unsigned int header[4], EngineError *error)
@@ -237,9 +245,12 @@ static int flatten_orders(const FlattenSetRequest *request, FlattenOrders *order
         }
         else
         {
-            mmgr_bytes_copy(orders[sample].smooth, request->smooth_orders, sizeof(orders[sample].smooth));
-            mmgr_bytes_copy(orders[sample].background, request->background_orders, sizeof(orders[sample].background));
-            mmgr_bytes_set(orders[sample].comb, 0, sizeof(orders[sample].comb));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = orders[sample].smooth, .src = request->smooth_orders,
+                       .bytes = sizeof(orders[sample].smooth));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = orders[sample].background, .src = request->background_orders,
+                       .bytes = sizeof(orders[sample].background));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = orders[sample].comb, .bytes = sizeof(orders[sample].comb),
+                       .val = 0);
         }
         for (unsigned int axis = 0u; ok && (axis < ENGINE_AXES); axis += 1u)
         {
@@ -357,16 +368,17 @@ int flatten_set(const FlattenSetRequest *request)
             mark = engine_clock_microseconds();
             int offset_halves[ENGINE_AXES] = {0, 0, 0};
             EngineResidualRequest residual_request;
-            mmgr_bytes_set(&residual_request, 0, sizeof(residual_request));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &residual_request, .bytes = sizeof(residual_request), .val = 0);
             residual_request.volume = &volume[frame * voxels];
             residual_request.depth = header[1];
             residual_request.height = header[2];
             residual_request.width = header[3];
-            mmgr_bytes_copy(residual_request.smooth_orders, orders[sample].smooth,
-                            sizeof(residual_request.smooth_orders));
-            mmgr_bytes_copy(residual_request.background_orders, orders[sample].background,
-                            sizeof(residual_request.background_orders));
-            mmgr_bytes_copy(residual_request.comb, orders[sample].comb, sizeof(residual_request.comb));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = residual_request.smooth_orders, .src = orders[sample].smooth,
+                       .bytes = sizeof(residual_request.smooth_orders));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = residual_request.background_orders,
+                       .src = orders[sample].background, .bytes = sizeof(residual_request.background_orders));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = residual_request.comb, .src = orders[sample].comb,
+                       .bytes = sizeof(residual_request.comb));
             residual_request.unit_sweep = ENGINE_RESIDUAL_BY_UNIT_SWEEP;
             residual_request.offset_halves = offset_halves;
             residual_request.error = error;
@@ -380,7 +392,7 @@ int flatten_set(const FlattenSetRequest *request)
             unsigned int proof_count = 0u;
             unsigned int differ = 0u;
             MaxTreeObjectsRequest objects;
-            mmgr_bytes_set(&objects, 0, sizeof(objects));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &objects, .bytes = sizeof(objects), .val = 0);
             objects.error = error;
             objects.device_residual = device_residual;
             objects.depth = header[1];
@@ -409,7 +421,7 @@ int flatten_set(const FlattenSetRequest *request)
                                       &gathered, error, ENGINE_ERROR_RESOURCE));
             unsigned long long lost = 0ULL;
             MaxTreePackRequest pack;
-            mmgr_bytes_set(&pack, 0, sizeof(pack));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &pack, .bytes = sizeof(pack), .val = 0);
             pack.error = error;
             pack.layout = &layout;
             pack.sample = sample;

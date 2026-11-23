@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "sim.h"
 #include "../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 
-#include "../../cu/engine/runtime/obsignatio/obsignatio.h"
 #include "../../cu/engine/runtime/daemon/tessera.h"
+#include "../../cu/engine/runtime/obsignatio/obsignatio.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -51,11 +51,14 @@ static int sim_job_daemon(char *path, size_t capacity)
         directory_length -= 1u;
     }
     if ((directory_length == 0u) ||
-        ((directory_length + mmgr_text_length(daemon, PLATFORM_TEXT_TO_TERMINATOR) + 1u) > capacity))
+        ((directory_length +
+          EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = daemon, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u) > capacity))
     {
         return 0;
     }
-    mmgr_bytes_copy(path + directory_length, daemon, mmgr_text_length(daemon, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = path + directory_length, .src = daemon,
+               .bytes =
+                   EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = daemon, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
     return 1;
 }
 
@@ -63,17 +66,19 @@ int sim_job_submit(SimResults *results, const char *name, int count, char *const
                    unsigned long long declared)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     int device = 0;
     cudaDeviceProp properties;
     char daemon[ENGINE_PATH_CAPACITY];
     TesseraJobSubmit submit;
-    mmgr_bytes_set(&submit, 0, sizeof(submit));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &submit, .bytes = sizeof(submit), .val = 0);
     // the request is the sim's name and every argument, each ended by a zero byte
-    unsigned long long bytes = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
+    unsigned long long bytes =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
     for (int at = 1; at < count; at += 1)
     {
-        bytes += mmgr_text_length(arguments[at], PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
+        bytes +=
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = arguments[at], .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
     }
     unsigned char *const request = (unsigned char *)platform_cell_taken(
         (unsigned long long)((size_t)bytes), (unsigned int)platform_place_g_program_owner, 0);
@@ -85,13 +90,19 @@ int sim_job_submit(SimResults *results, const char *name, int count, char *const
     if (ok)
     {
         unsigned long long at_byte = 0ULL;
-        mmgr_bytes_copy(request, name, mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
-        at_byte += mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request, .src = name,
+                   .bytes =
+                       EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+        at_byte += EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
         for (int at = 1; at < count; at += 1)
         {
-            mmgr_bytes_copy(request + at_byte, arguments[at],
-                            mmgr_text_length(arguments[at], PLATFORM_TEXT_TO_TERMINATOR) + 1u);
-            at_byte += mmgr_text_length(arguments[at], PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request + at_byte, .src = arguments[at],
+                       .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = arguments[at],
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR) +
+                                1u);
+            at_byte +=
+                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = arguments[at], .cap = PLATFORM_TEXT_TO_TERMINATOR) +
+                1ULL;
         }
         const ObsignatioSignumRequest signum = {
             request, bytes, NULL, OBSIGNATIO_MODE_HASH, submit.signum.bytes, ENGINE_SIGNUM_BYTES, &error};
@@ -104,9 +115,10 @@ int sim_job_submit(SimResults *results, const char *name, int count, char *const
                   "tessera: the sim's job is requested (its signum, declaration, device and the daemon's place)");
         return 0;
     }
-    mmgr_bytes_copy(submit.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = submit.device, .src = properties.uuid.bytes,
+               .bytes = TESSERA_DEVICE_BYTES);
 #if defined(_WIN32)
-    mmgr_bytes_copy(&submit.luid, properties.luid, sizeof(submit.luid));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &submit.luid, .src = properties.luid, .bytes = sizeof(submit.luid));
 #endif
     submit.declared = declared;
     submit.grace_microseconds = SIM_JOB_RUNNING_MICROSECONDS;
@@ -181,9 +193,9 @@ void sim_job_release(SimResults *results)
         return;
     }
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     TesseraTicket ticket;
-    mmgr_bytes_set(&ticket, 0, sizeof(ticket));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &ticket, .bytes = sizeof(ticket), .val = 0);
     const int released = tessera_job_release(results->job, &ticket, &error) == 0L;
     results->job = NULL;
     sim_check(results, released, "tessera: the sim's job releases");

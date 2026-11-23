@@ -1,16 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_floor_fit.cu: fits, bins, spreads and main
-#include "noise_floor_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "noise_floor_internal.h"
 
 // the line over the level through the noise detector's fit (build plan item 38), each level a place and its squares a
 // total, at scale 1 on both
 static int floor_fit(const unsigned long long *count, const unsigned long long *total, FloorLine *fit)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     NoiseLineSums sums;
     noise_line_sums_zero(&sums);
     fit->samples = 0ULL;
@@ -224,7 +224,8 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
         ok = floor_bins_fit(results, &bins[route], count, total, &fit[route]);
         if (ok && (route == 0u))
         {
-            mmgr_bytes_copy(truth_count, count, FLOOR_LEVELS * sizeof(unsigned long long));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = truth_count, .src = count,
+                       .bytes = FLOOR_LEVELS * sizeof(unsigned long long));
         }
     }
     FloorCoherence coherence;
@@ -358,9 +359,9 @@ int program_main(int argc, char **argv)
     sim_flush(&results);
 
     SimBody body[FLOOR_FOUNDERS];
-    mmgr_bytes_set(body, 0, sizeof(body));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = body, .bytes = sizeof(body), .val = 0);
     SimScene scene;
-    mmgr_bytes_set(&scene, 0, sizeof(scene));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &scene, .bytes = sizeof(scene), .val = 0);
     scene.frames = 24ULL;
     scene.extent[0] = 20ULL;
     scene.extent[1] = 96ULL;
@@ -374,7 +375,7 @@ int program_main(int argc, char **argv)
     draws.counter = 0ULL;
     sim_founders_draw(&draws, &scene, body, FLOOR_FOUNDERS);
     SimCamera camera;
-    mmgr_bytes_set(&camera, 0, sizeof(camera));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &camera, .bytes = sizeof(camera), .val = 0);
     camera.key = FLOOR_KEY;
     camera.offset = 100ULL;
     camera.gain = 1ULL;

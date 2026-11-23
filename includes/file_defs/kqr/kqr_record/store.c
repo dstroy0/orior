@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // store.c: the record stored: tabled and written by a who, freed, a query found and stored, a sample stored, a mark
 // made, an query, a sample and a path read, the paths cleared and added, and the text form rendered and sliced
-#include "../../../parsers/who.h"
 #include "../../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "../../../parsers/who.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "kqr_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 int kqr_tabled_by(KqrRecord *record, QryShared *buffer, const char *path, Who who)
 {
@@ -23,7 +23,7 @@ void kqr_free(KqrRecord *record)
     krep_free(&record->file);
     platform_cell_released(record->slot, platform_place_g_program_owner);
     platform_cell_released(record->sample, platform_place_g_program_owner);
-    mmgr_bytes_set(record, 0, sizeof(*record));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = record, .bytes = sizeof(*record), .val = 0);
 }
 
 int kqr_find(const KqrRecord *record, const KqrIdentity *identity, KqrQuery *out)
@@ -111,7 +111,9 @@ void kqr_mark(KqrRecord *record, unsigned int code, const char *value)
     {
         word = kqr_text_number(record, value);
     }
-    else if (!kqr_number_read(value, mmgr_text_length(value, PLATFORM_TEXT_TO_TERMINATOR), 10, &word))
+    else if (!kqr_number_read(value,
+                              EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = value, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                              10, &word))
     {
         return;
     }
@@ -167,7 +169,7 @@ int kqr_path_read(const KqrRecord *record, unsigned int at, KqrPath *out)
         }
         if (seen == at)
         {
-            mmgr_bytes_set(out, 0, sizeof(*out));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = out, .bytes = sizeof(*out), .val = 0);
             kqr_text_copied(record, pair->word[0], out->first, sizeof(out->first));
             kqr_text_copied(record, pair->word[1], out->second, sizeof(out->second));
             out->read = (pair->word[2] != 0ULL);
@@ -348,7 +350,7 @@ size_t kqr_text_sliced(const KqrRecord *record, char *out, size_t cap, size_t at
             text_character('\n');
             break;
         case KQR_PAIR_RECORD:
-            mmgr_bytes_set(&s_path, 0, sizeof(s_path));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_path, .bytes = sizeof(s_path), .val = 0);
             kqr_text_copied(record, entry->word[0], s_path.first, sizeof(s_path.first));
             kqr_text_copied(record, entry->word[1], s_path.second, sizeof(s_path.second));
             kqr_text_copied(record, entry->word[4], s_path.verdict, sizeof(s_path.verdict));

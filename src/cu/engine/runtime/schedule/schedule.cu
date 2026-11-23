@@ -1,14 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "schedule.h"
 #include "../../../../platform/platform.h"
 #include "../../engine_note.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "schedule.h"
 
 #include "../../engine.h"
 
 #include <cuda_runtime.h>
-
 
 const char *g_schedule_path = NULL;
 
@@ -73,7 +72,7 @@ int schedule_program(const char *set, char *const *names, unsigned int count)
     {
         unsigned long long head[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         EngineError error;
-        mmgr_bytes_set(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         if (engine_iapx_head(set, names[at], head, &error) != 0L)
         {
             {

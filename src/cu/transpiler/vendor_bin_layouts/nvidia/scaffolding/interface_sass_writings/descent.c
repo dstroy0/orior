@@ -1,12 +1,30 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // descent.c: the descent: the gate's descent read, the fill and the flat form, and the ruleset read
-#include "writings_internal.h"
+#include "../../../../../../../includes/parsers/line_read.h"
 #include "../../../../../../platform/platform.h"
 #include "../../../../../engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "../../../../../../../includes/parsers/line_read.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "writings_internal.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int descent_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // The arrangements a descent ran over, written by `chains` into each `into` with its verdict, read back against the
 // cases the descent placed for that relation, each `cases` file a case a line as the two words and the word the
@@ -129,7 +147,7 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         s_cases = placed_count;
         unsigned int ran = 0u;
         unsigned int refused = 0u;
-        mmgr_bytes_set(s_chain_ran, 0, sizeof(s_chain_ran));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = s_chain_ran, .bytes = sizeof(s_chain_ran), .val = 0);
         writings_answers_read(answers, count, s_chain_answered, s_chain_ran, &ran, &refused);
         s_cases = saved;
         platform_file_close(answers);
@@ -144,7 +162,8 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
                 agreed += (s_chain_answered[number][at] == placed[at][2]) ? 1u : 0u;
             }
             const int part = s_chain_ran[number] && (agreed == placed_count);
-            const int host = (mmgr_text_equal(s_verdict[number], "located", PLATFORM_TEXT_TO_TERMINATOR));
+            const int host = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_verdict[number],
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "located", .ci = EMBED_FALSE));
             located_part += part ? 1u : 0u;
             located_host += host ? 1u : 0u;
             if (part != host)
@@ -230,13 +249,15 @@ static int writings_fill(const char *text, const char *name, const char *put, ch
     const char *walk = text;
     while ((*walk != '\0') && (at < room))
     {
-        if (mmgr_text_order(walk, brace, (size_t)(mmgr_text_length(brace, PLATFORM_TEXT_TO_TERMINATOR))) == 0)
+        if (descent_text_order(walk, brace,
+                               (size_t)(EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = brace,
+                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR))) == 0)
         {
             VerbaLinea formed_line_1 = mmgr_line_over(&out[at], room - at);
             mmgr_line_put(&formed_line_1, put);
             (void)mmgr_line_finish(&formed_line_1);
             at += (size_t)(int)formed_line_1.at;
-            walk += mmgr_text_length(brace, PLATFORM_TEXT_TO_TERMINATOR);
+            walk += EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = brace, .cap = PLATFORM_TEXT_TO_TERMINATOR);
             continue;
         }
         out[at] = *walk;
@@ -316,7 +337,10 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
     unsigned int rule_count = 0u;
     while ((rule_count < 512u) && line_read(rules, rules_size, &rules_at, s_rule[rule_count], sizeof(s_rule[0])))
     {
-        rule_count += (mmgr_text_starts(s_rule[rule_count], "form ", PLATFORM_TEXT_TO_TERMINATOR)) ? 1u : 0u;
+        rule_count += (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = s_rule[rule_count],
+                                  .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "form ", .ci = EMBED_FALSE))
+                          ? 1u
+                          : 0u;
     }
     {
         mmgr_line_put(platform_file_line(out), "# A ruleset's forms checked against the part's writings\n\n");
@@ -349,11 +373,12 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
         {
             continue;
         }
-        const size_t name_length = mmgr_text_length(one->name, PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t name_length =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = one->name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         const char *rule = NULL;
         for (unsigned int at = 0u; (rule == NULL) && (at < rule_count); at += 1u)
         {
-            rule = ((mmgr_text_order(s_rule[at] + 5, one->name, (size_t)(name_length)) == 0) &&
+            rule = ((descent_text_order(s_rule[at] + 5, one->name, (size_t)(name_length)) == 0) &&
                     (s_rule[at][5u + name_length] == ' '))
                        ? s_rule[at]
                        : NULL;
@@ -369,14 +394,18 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
             }
             continue;
         }
-        const char *const equals = mmgr_text_find(rule, " = ", PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const equals =
+            EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = rule, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " = ",
+                       .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
         char params[8][32];
         unsigned int param_count = 0u;
         const char *walk = rule + 5u + name_length;
         while ((equals != NULL) && (walk < equals) && (param_count < 8u))
         {
-            walk += mmgr_text_span(walk, " ", PLATFORM_TEXT_TO_TERMINATOR);
-            const size_t length = mmgr_text_span_not(walk, " =", PLATFORM_TEXT_TO_TERMINATOR);
+            walk +=
+                EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = walk, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
+            const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = walk,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " =");
             if ((length == 0u) || (walk >= equals))
             {
                 break;
@@ -411,8 +440,11 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
         unsigned int found = s_form_count;
         for (unsigned int number = 0u; (found == s_form_count) && (number < s_form_count); number += 1u)
         {
-            found = (s_ran[number] && (mmgr_text_equal(s_forms[number], flat, PLATFORM_TEXT_TO_TERMINATOR))) ? number
-                                                                                                             : found;
+            found =
+                (s_ran[number] && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_forms[number],
+                                              .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = flat, .ci = EMBED_FALSE)))
+                    ? number
+                    : found;
         }
         const char *verdict = "not among the forms run";
         if (found < s_form_count)

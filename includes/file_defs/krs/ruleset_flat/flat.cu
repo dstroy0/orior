@@ -17,7 +17,7 @@ static const char *ruleset_text_placed(RulesetCellPlan *plan, const void *bytes,
     char *const placed = (char *)ruleset_cell_place(plan, (unsigned long long)length + 1ULL, 1ULL);
     if (placed != NULL)
     {
-        mmgr_bytes_copy(placed, bytes, length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = placed, .src = bytes, .bytes = length);
         placed[length] = '\0';
     }
     return placed;
@@ -89,7 +89,9 @@ int ruleset_relations_read(const char (*paths)[PLATFORM_PATH_BYTES], unsigned in
     unsigned long long label_bytes = 0ULL;
     for (unsigned int file = 0u; file < count; file += 1u)
     {
-        label_bytes += mmgr_text_length(ruleset_label(paths[file]), PLATFORM_PATH_BYTES) + 16ULL;
+        label_bytes +=
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = ruleset_label(paths[file]), .cap = PLATFORM_PATH_BYTES) +
+            16ULL;
     }
     const char **labels = NULL;
     RulesetCellPlan plan = {NULL, 0ULL};
@@ -109,12 +111,15 @@ int ruleset_relations_read(const char (*paths)[PLATFORM_PATH_BYTES], unsigned in
     plan.base = (unsigned char *)memory->cell;
     plan.used = 0ULL;
     ruleset_relation_layout(&plan, characters, count, lines, relation_capacity, relations, &labels);
-    mmgr_bytes_copy((void *)relations->text, platform_text_bytes(&all), (size_t)characters);
-    mmgr_bytes_copy((void *)relations->files, files.cell, (size_t)count * sizeof(RulesetCoreSpan));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = (void *)relations->text, .src = platform_text_bytes(&all),
+               .bytes = (size_t)characters);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = (void *)relations->files, .src = files.cell,
+               .bytes = (size_t)count * sizeof(RulesetCoreSpan));
     for (unsigned int file = 0u; file < count; file += 1u)
     {
         const char *const label = ruleset_label(paths[file]);
-        labels[file] = ruleset_text_placed(&plan, label, mmgr_text_length(label, PLATFORM_PATH_BYTES));
+        labels[file] = ruleset_text_placed(
+            &plan, label, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = label, .cap = PLATFORM_PATH_BYTES));
     }
     memory->labels = labels;
     platform_text_ended(&all);
@@ -136,7 +141,7 @@ void ruleset_relation_memory_ended(RulesetRelationMemory *memory)
 int ruleset_file(Ruleset *rules, const char *path, PlatformText *text)
 {
     const RulesetSchema *const schema = rules->schema;
-    (void)mmgr_text_copy(rules->path, path, sizeof(rules->path));
+    (void)EMBED_CALL(cellul.copy, CatenaFinitaCfg, .src = path, .cap = sizeof(rules->path), .dst = rules->path);
     rules->building = schema->form_count;
     VerbaLinea error = mmgr_line_over(rules->error, sizeof(rules->error));
     const int read = ruleset_text(schema, path, text, &error);
@@ -150,7 +155,8 @@ static unsigned long long ruleset_name_characters(const RulesetName *names, unsi
     unsigned long long characters = 0ULL;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        characters += mmgr_text_length(names[at].text, PLATFORM_TEXT_TO_TERMINATOR);
+        characters +=
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = names[at].text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     }
     return characters;
 }
@@ -185,8 +191,10 @@ static unsigned int ruleset_flat_names(const RulesetName *names, unsigned int co
     {
         // a schema's names are a few words each, a few thousand characters in all
         const RulesetCoreSpan span = {at_character,
-                                      (unsigned int)mmgr_text_length(names[at].text, PLATFORM_TEXT_TO_TERMINATOR)};
-        mmgr_bytes_copy(&characters[at_character], names[at].text, span.length);
+                                      (unsigned int)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = names[at].text,
+                                                               .cap = PLATFORM_TEXT_TO_TERMINATOR)};
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &characters[at_character], .src = names[at].text,
+                   .bytes = span.length);
         spans[at] = span;
         at_character += span.length;
     }

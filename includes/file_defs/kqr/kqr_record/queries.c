@@ -5,9 +5,9 @@
 // record opened, and the queries indexed
 #include "../../../../src/platform/platform.h"
 #include "../../../parsers/who.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "kqr_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 // what came back of a query, each as the text form writes it, by its code
 static const char *const s_answers[KQR_ANSWER_COUNT] = {"answers", "illegal", "nothing", "timed_out", "censored"};
@@ -20,7 +20,9 @@ const char *kqr_answer_name(unsigned int answer)
 unsigned int kqr_answer_of(const char *name)
 {
     unsigned int answer = 0u;
-    while ((answer < KQR_ANSWER_COUNT) && (!mmgr_text_equal(s_answers[answer], name, PLATFORM_TEXT_TO_TERMINATOR)))
+    while ((answer < KQR_ANSWER_COUNT) &&
+           (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_answers[answer], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = name, .ci = EMBED_FALSE)))
     {
         answer += 1u;
     }
@@ -35,10 +37,10 @@ int kqr_number_read(const char *text, size_t length, int base, unsigned long lon
     {
         return 0;
     }
-    mmgr_bytes_copy(plain, text, length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = plain, .src = text, .bytes = length);
     plain[length] = '\0';
     const char *after = NULL;
-    *value = mmgr_text_unsigned_in(plain, &after, base);
+    *value = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = plain, .end = &after, .base = base);
     return (*after == '\0') && (plain[0] != '-') && (plain[0] != '+');
 }
 
@@ -48,7 +50,8 @@ int kqr_identity_read(const char *text, KqrIdentity *identity)
     const char *at = text;
     for (unsigned int word = 0u; word < 7u; word += 1u)
     {
-        const size_t length = mmgr_text_span_not(at, " ", PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t length =
+            EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
         const int hexed = (word == 0u) || (word == 6u);
         if (!kqr_number_read(at, length, hexed ? 16 : 10, &value[word]) || (!hexed && (value[word] > 0xffffffffULL)))
         {
@@ -142,7 +145,8 @@ static int kqr_identity_matches(const KrepRecord *entry, const KqrIdentity *iden
     unsigned long long words[KQR_QUERY_WORDS];
     kqr_identity_words(identity, 0u, words);
     return (entry->count >= KQR_QUERY_WORDS) &&
-           (mmgr_bytes_compare(entry->word, words, (KQR_QUERY_WORDS - 1u) * sizeof(unsigned long long)) == 0);
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = entry->word, .other = words,
+                       .bytes = (KQR_QUERY_WORDS - 1u) * sizeof(unsigned long long)) == 0);
 }
 
 // the bucket of `identity`: the one that holds it, or the empty one where it goes
@@ -180,9 +184,10 @@ void kqr_text_copied(const KqrRecord *record, unsigned long long number, char *t
 // the number of `text`, stored once, or 0 where it is empty or there was no memory for it
 unsigned long long kqr_text_number(KqrRecord *record, const char *text)
 {
-    return (text[0] == '\0')
-               ? 0ULL
-               : krep_text_number(&record->file, text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR));
+    return (text[0] == '\0') ? 0ULL
+                             : krep_text_number(&record->file, text,
+                                                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text,
+                                                           .cap = PLATFORM_TEXT_TO_TERMINATOR));
 }
 
 // The query record `entry` read into `query`: 1, or 0 where it is not a query's
@@ -239,7 +244,7 @@ int kqr_sample_of(const KqrRecord *record, const KrepRecord *entry, KqrSample *s
     {
         return 0;
     }
-    mmgr_bytes_set(sample, 0, sizeof(*sample));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = sample, .bytes = sizeof(*sample), .val = 0);
     sample->answer = kqr_identity_of_words(entry->word, &sample->identity);
     if (sample->answer == KQR_ANSWERS)
     {
@@ -358,7 +363,8 @@ int kqr_opened(KqrRecord *record, const char *member)
         (unsigned int *)platform_cell_cleared(KQR_SLOTS, sizeof(unsigned int), platform_place_g_program_owner, 0);
     record->open = (record->slot != NULL);
     const unsigned long long named =
-        krep_text_number(&record->file, member, mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR));
+        krep_text_number(&record->file, member,
+                         EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = member, .cap = PLATFORM_TEXT_TO_TERMINATOR));
     return record->open && krep_record_add(&record->file, KQR_MEMBER_RECORD, &named, 1u);
 }
 
@@ -386,7 +392,7 @@ int kqr_sample_take(KqrRecord *record, unsigned int at)
 // the record's table of queries, its samples, its cycles and where its pairs start read off its records
 void kqr_indexed(KqrRecord *record)
 {
-    mmgr_bytes_set(record->slot, 0, KQR_SLOTS * sizeof(unsigned int));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = record->slot, .bytes = KQR_SLOTS * sizeof(unsigned int), .val = 0);
     record->samples = 0u;
     record->query_count = 0u;
     record->cycles = 0u;

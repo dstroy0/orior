@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // deflate_tokens.c: matching, tokens and Huffman code lengths
-#include "deflate_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "deflate_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 unsigned int deflate_length_code(unsigned int length)
 {
@@ -144,7 +144,7 @@ static unsigned int deflate_count_leaves(const DeflateNode *nodes, unsigned int 
 
 int deflate_lengths(const unsigned long long *frequency, unsigned int count, unsigned int limit, unsigned char *lengths)
 {
-    mmgr_bytes_set(lengths, 0, count);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = lengths, .bytes = count, .val = 0);
     unsigned int used = 0u;
     unsigned int only = 0u;
     for (unsigned int symbol = 0u; symbol < count; symbol += 1u)
@@ -196,7 +196,7 @@ int deflate_lengths(const unsigned long long *frequency, unsigned int count, uns
         made += 1u;
     }
     unsigned int listed = used;
-    mmgr_bytes_copy(list, leaves, sizeof(unsigned int) * used);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = list, .src = leaves, .bytes = sizeof(unsigned int) * used);
     for (unsigned int level = 1u; level < limit; level += 1u)
     {
         const unsigned int packages = listed / 2u;
@@ -222,7 +222,7 @@ int deflate_lengths(const unsigned long long *frequency, unsigned int count, uns
             package_at += take_leaf ? 0u : 1u;
             listed += 1u;
         }
-        mmgr_bytes_copy(list, next, sizeof(unsigned int) * listed);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = list, .src = next, .bytes = sizeof(unsigned int) * listed);
     }
     for (unsigned int item = 0u; item < ((2u * used) - 2u); item += 1u)
     {
@@ -239,7 +239,7 @@ void deflate_codes(const unsigned char *lengths, unsigned int count, unsigned in
 {
     unsigned int per_length[DEFLATE_CODE_BITS + 1u];
     unsigned int next_code[DEFLATE_CODE_BITS + 1u];
-    mmgr_bytes_set(per_length, 0, sizeof(per_length));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = per_length, .bytes = sizeof(per_length), .val = 0);
     for (unsigned int symbol = 0u; symbol < count; symbol += 1u)
     {
         per_length[lengths[symbol]] += 1u;

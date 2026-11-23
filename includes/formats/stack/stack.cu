@@ -1,11 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "stack.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "stack.h"
 
 #include <cuda_runtime.h>
-
 
 #ifdef _WIN32
 #include <windows.h>
@@ -32,7 +31,7 @@ extern "C" PlatformFile *stack_open(const char *path, unsigned int header[4])
         }
         return NULL;
     }
-    mmgr_bytes_copy(header, words, 4u * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = header, .src = words, .bytes = 4u * sizeof(unsigned int));
     return file;
 }
 
@@ -137,7 +136,8 @@ extern "C" long long stack_file_read(const EngineFileRange *range)
         const unsigned long long copied_end = ((offset + got) < last) ? (offset + got) : last;
         if (ok && (copied_end > from))
         {
-            mmgr_bytes_copy(range->out + (from - first), buffer + (from - offset), (size_t)(copied_end - from));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = range->out + (from - first), .src = buffer + (from - offset),
+                       .bytes = (size_t)(copied_end - from));
             copied += copied_end - from;
         }
     }
@@ -211,7 +211,8 @@ extern "C" int stack_read_uncached(const char *path, unsigned long long lanes, u
         ok = ok && ((got == STACK_UNCACHED_BLOCK) || ((offset + got) >= last));
         if (ok && (to > from))
         {
-            mmgr_bytes_copy((unsigned char *)volume + (from - first), buffer + (from - offset), (size_t)(to - from));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = (unsigned char *)volume + (from - first),
+                       .src = buffer + (from - offset), .bytes = (size_t)(to - from));
         }
     }
 #ifdef _WIN32

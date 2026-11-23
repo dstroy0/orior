@@ -9,7 +9,7 @@
 
 #include "../../klang/klang.h"
 #include "../../qry/writer/qry_member.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #endif

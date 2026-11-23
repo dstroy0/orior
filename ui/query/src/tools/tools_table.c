@@ -21,9 +21,9 @@ const char *const g_query_file_defs[] = {"includes/file_defs/qry/writer/qry_memb
                                          "includes/file_defs/krf/krf.c",
                                          NULL};
 
-// MMgr, which every program of the tree writes, copies, compares and scans its text through: its modules' sources,
-// each folder's, and of impensa_ancorae_acus's profiles, each a source of its own, the one MMgr's build takes where
-// none is named, generic
+// MMgr, which every program of the tree writes, copies, compares and scans its text through. Its modules' sources,
+// each folder's, and of impensa_ancorae_acus's profiles, each a source of its own. Of those profiles, MMgr's build
+// takes generic where nothing names another
 const char *const g_query_mmgr[] = {
     "includes/mmgr/src/ascii_persona_bitorum/*.c", "includes/mmgr/src/bitorum_introitus_exitus/*.c",
     "includes/mmgr/src/cellularum_laboro/*.c", "includes/mmgr/src/clz/*.c", "includes/mmgr/src/endian/*.c",
@@ -42,11 +42,11 @@ const char *const g_query_mmgr[] = {
     "src/platform/platform_process.c", "src/platform/platform_pool.c", "src/platform/platform_file.c",
     "src/platform/platform_windows.c", "src/platform/platform_posix.c", NULL};
 
-// MMgr's include folders, from the top of the tree, and the settings it is built with, given every compile
+// MMgr's include folders, from the top of the tree, and the settings its build takes, given every compile
 const char *const g_query_mmgr_includes[] = {"includes/mmgr/include", "includes/mmgr/src",
                                              "includes/embedded_types/include", "includes/mmgr/test/support", NULL};
 
-// the words every program's link ends with: on Windows the library the address wait is in, and on Linux and macOS
+// the words every program's link ends with. On Windows the library the address wait is in, and on Linux and macOS
 // the threads and the loader, which the platform calls
 #if defined(_WIN32)
 const char *const g_query_mmgr_link[] = {"-lsynchronization", NULL};
@@ -76,7 +76,9 @@ static const char *const s_c11[] = {"-std=c11", "-O2", "-Wall", "-Wextra", NULL}
 
 static const char *const s_c11_plain[] = {"-std=c11", "-O2", "-Wall", NULL};
 
-static const char *const s_cxx17[] = {"-std=c++17", "-O2", "-Wall", "-Wextra", NULL};
+// A C++ unit calls MMgr through designated initializers, and the members it does not name are 0 by the contract of
+// each Cfg. The g++ compiler warns on each such member where C does not, and the C++ flags turn that warning off
+static const char *const s_cxx17[] = {"-std=c++17", "-O2", "-Wall", "-Wextra", "-Wno-missing-field-initializers", NULL};
 
 static const char *const s_cxx17_plain[] = {"-std=c++17", "-O2", "-Wall", NULL};
 
@@ -163,7 +165,7 @@ static const char *const s_sass_listing_seeds[] = {"src/cu/transpiler/vendor_bin
 static const char *const s_krs_write[] = {"includes/file_defs/krs/krs_write.c", "includes/file_defs/krs/krs_write/*.c",
                                           "includes/file_defs/vendor_writer_run.c", NULL};
 
-// the word web and the precepts the words are written over
+// the word web and the precepts the words go over
 static const char *const s_rmc[] = {"src/cu/engine/rmc", NULL};
 
 static const char *const s_gsm_write[] = {"includes/file_defs/gsm/gsm_write.c",
@@ -172,6 +174,10 @@ static const char *const s_gsm_write[] = {"includes/file_defs/gsm/gsm_write.c",
 static const char *const s_member_c[] = {"includes/file_defs/qry/writer/qry_member.c",
                                          "includes/file_defs/qry/writer/platform/*.c",
                                          "includes/file_defs/qry/qry_read.c", NULL};
+
+// the regular expressions the table's tools read their texts by (table_regexp.h)
+static const char *const s_regexp_c[] = {"includes/regexp/*.c",
+                                         "src/cu/transpiler/lstar/protocol/table/table_regexp_cells.c", NULL};
 
 static const char *const s_klq_write[] = {"includes/file_defs/klq/klq_write/klq_write.cu", NULL};
 
@@ -371,7 +377,7 @@ const QueryTool g_query_tools[] = {
      s_static,
      s_klq_write_headers},
     {"orior_klq_identity",
-     {s_klq_identity_c, s_interface, NULL},
+     {s_klq_identity_c, s_interface, s_regexp_c, NULL},
      {s_codegen, s_klq_identity_cxx, NULL},
      s_none,
      1,
@@ -382,7 +388,7 @@ const QueryTool g_query_tools[] = {
      s_static,
      s_klq_identity_headers},
     {"orior_klq_decoder",
-     {s_member_c, NULL},
+     {s_member_c, s_regexp_c, NULL},
      {s_klq_decoder_cxx, NULL},
      s_none,
      0,

@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_object.c: layout, pipeline, links and symbol tables
-#include "hdf5_internal.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "hdf5_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 static Hdf5Walk hdf5_object_layout(Hdf5File *file, Hdf5Object *object, Hdf5Cursor *cursor)
 {
@@ -40,7 +40,7 @@ static Hdf5Walk hdf5_object_layout(Hdf5File *file, Hdf5Object *object, Hdf5Curso
         }
         if (size > 0ULL)
         {
-            mmgr_bytes_copy(object->compact, data, (size_t)size);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = object->compact, .src = data, .bytes = (size_t)size);
         }
         return HDF5_WALK_ON;
     }
@@ -158,7 +158,7 @@ void hdf5_object_close(Hdf5Object *object)
 
 int hdf5_object_open(Hdf5File *file, unsigned long long address, Hdf5Object *object)
 {
-    mmgr_bytes_set(object, 0, sizeof(*object));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = object, .bytes = sizeof(*object), .val = 0);
     object->compact = NULL;
     if (hdf5_header_walk(file, address, hdf5_object_message, object) == HDF5_WALK_FAILED)
     {
@@ -224,7 +224,7 @@ Hdf5Walk hdf5_group_message(Hdf5File *file, void *state, unsigned int type, unsi
 static int hdf5_name_after(const unsigned char *name, size_t length, const unsigned char *last, size_t last_length)
 {
     const size_t shared = (length < last_length) ? length : last_length;
-    const int order = mmgr_bytes_compare(name, last, shared);
+    const int order = EMBED_CALL(memor.cmp, MemoriaCfg, .src = name, .other = last, .bytes = shared);
     return (order > 0) || ((order == 0) && (length > last_length));
 }
 
@@ -236,7 +236,7 @@ static Hdf5Walk hdf5_table_symbols(Hdf5File *file, Hdf5GroupWalk *walk, const un
     {
         return HDF5_WALK_FAILED;
     }
-    if ((mmgr_bytes_compare(head, "SNOD", 4u) != 0) || (head[4u] != 1u))
+    if ((EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = "SNOD", .bytes = 4u) != 0) || (head[4u] != 1u))
     {
         return hdf5_walk_error(file, "a symbol table node whose signature does not match");
     }
@@ -260,7 +260,9 @@ static Hdf5Walk hdf5_table_symbols(Hdf5File *file, Hdf5GroupWalk *walk, const un
         const unsigned long long cache = hdf5_little(&symbol[2u * file->offset_bytes], 4u);
         const unsigned char *const name = (name_offset < names_length) ? &names[name_offset] : NULL;
         const unsigned char *const end =
-            (name != NULL) ? (const unsigned char *)mmgr_bytes_find(name, 0, names_length - (size_t)name_offset) : NULL;
+            (name != NULL) ? (const unsigned char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = name,
+                                                               .bytes = names_length - (size_t)name_offset, .val = 0)
+                           : NULL;
         const size_t length = (end != NULL) ? (size_t)(end - name) : 0u;
         const int ordered = (end != NULL) && ((walk->last_name == NULL) ||
                                               hdf5_name_after(name, length, walk->last_name, walk->last_length));
@@ -290,7 +292,8 @@ static Hdf5Walk hdf5_table_node(Hdf5File *file, Hdf5GroupWalk *walk, const unsig
     }
     const unsigned int node_level = prefix[5u];
     const size_t entries = (size_t)hdf5_little(&prefix[6u], 2u);
-    if ((mmgr_bytes_compare(prefix, "TREE", 4u) != 0) || (prefix[4u] != 0u) || (!root && (node_level != level)))
+    if ((EMBED_CALL(memor.cmp, MemoriaCfg, .src = prefix, .other = "TREE", .bytes = 4u) != 0) || (prefix[4u] != 0u) ||
+        (!root && (node_level != level)))
     {
         return hdf5_walk_error(file, "a group B-tree node whose signature, type or level is wrong");
     }
@@ -311,12 +314,13 @@ static Hdf5Walk hdf5_table_node(Hdf5File *file, Hdf5GroupWalk *walk, const unsig
         const unsigned long long left = hdf5_little(left_key, file->length_bytes);
         const unsigned long long right = hdf5_little(&left_key[key_bytes + pointer_bytes], file->length_bytes);
         const unsigned char *const left_end =
-            (left < names_length) ? (const unsigned char *)mmgr_bytes_find(&names[left], 0, names_length - (size_t)left)
+            (left < names_length) ? (const unsigned char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = &names[left],
+                                                                      .bytes = names_length - (size_t)left, .val = 0)
                                   : NULL;
         const unsigned char *const right_end =
-            (right < names_length)
-                ? (const unsigned char *)mmgr_bytes_find(&names[right], 0, names_length - (size_t)right)
-                : NULL;
+            (right < names_length) ? (const unsigned char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = &names[right],
+                                                                       .bytes = names_length - (size_t)right, .val = 0)
+                                   : NULL;
         const int keyed = (left_end != NULL) && (right_end != NULL);
         const int wanted =
             (walk->target == NULL) ||
@@ -341,7 +345,7 @@ Hdf5Walk hdf5_table_links(Hdf5File *file, Hdf5GroupWalk *walk)
     {
         return HDF5_WALK_FAILED;
     }
-    if ((mmgr_bytes_compare(prefix, "HEAP", 4u) != 0) || (prefix[4u] != 0u))
+    if ((EMBED_CALL(memor.cmp, MemoriaCfg, .src = prefix, .other = "HEAP", .bytes = 4u) != 0) || (prefix[4u] != 0u))
     {
         return hdf5_walk_error(file, "a local heap whose signature does not match");
     }

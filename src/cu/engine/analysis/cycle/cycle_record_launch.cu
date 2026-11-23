@@ -4,7 +4,7 @@
 #include "cycle_record_internal.h"
 
 #include "../../engine_note.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the owner that the cells of a launch count to
 #define CYCLE_LAUNCH_PLACE ((unsigned int)platform_place_g_engine_owner)
@@ -14,13 +14,13 @@
 // the block back only between launches, when the seal of the block holds.
 //
 // Three faults error on the run. One is a device block whose seal does not match, written while no launch referenced
-// it. The others are a launch that failed, and a launch that left the block anywhere but yielded or done. The copy of the host then stays
-// sealed at the fault, with the module and the site of the error.
+// it. The others are a launch that failed, and a launch that left the block anywhere but yielded or done. The copy of
+// the host then stays sealed at the fault, with the module and the site of the error.
 //
 // The program runs on as many thread blocks as the device fits at once, or fewer where the lanes need fewer. A thread
 // block takes the threads that the shared memory of its registers fits. Where the lanes are few, it takes their share
-// of the processors of the device in whole warps. A launch of a few thousand lanes then reaches every processor, and not
-// only a few thread blocks.
+// of the processors of the device in whole warps. A launch of a few thousand lanes then reaches every processor, and
+// not only a few thread blocks.
 static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch program, EngineError *error)
 {
     const unsigned long long share = (program.count + record->processors - 1ULL) / record->processors;
@@ -37,7 +37,7 @@ static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch 
     const unsigned long long wdt = 1000ULL * CYCLE_PROGRAM_WDT_MICROSECONDS;
     const EngineSignum signature = block->signature;
     const unsigned long long generation = block->generation + 1ULL;
-    mmgr_bytes_set(block, 0u, sizeof(EngineProgramBlock));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = block, .bytes = sizeof(EngineProgramBlock), .val = 0u);
     block->signature = signature;
     block->generation = generation;
     block->command = ENGINE_PROGRAM_RUN;
@@ -130,7 +130,7 @@ static int cycle_record_launch(const CycleRecord *record, const CycleRecordLaunc
     if ((ok != 0) && (compiled != 0))
     {
         CycleCompiledLaunch program;
-        mmgr_bytes_set(&program, 0u, sizeof(program));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &program, .bytes = sizeof(program), .val = 0u);
         for (unsigned int member = 0u; member < ENGINE_RECORD_MEMBERS_MAX; member += 1u)
         {
             program.in[member] = launch.in[member];
@@ -172,9 +172,9 @@ static int cycle_record_launch(const CycleRecord *record, const CycleRecordLaunc
     return ok;
 }
 
-// CYCLE_RECORD_CHECK: the compiled program ran into the records of the request. The interpreter runs the same lanes into
-// records of its own. The records and the errors of both runs must be the same word for word. The call puts the errors
-// of the compiled run back for the run to read
+// CYCLE_RECORD_CHECK: the compiled program ran into the records of the request. The interpreter runs the same lanes
+// into records of its own. The records and the errors of both runs must be the same word for word. The call puts the
+// errors of the compiled run back for the run to read
 static int cycle_record_check(const CycleRecord *record, CycleRecordLaunch launch, unsigned int blocks,
                               unsigned long long compiled_nanoseconds, int report, EngineError *error)
 {
@@ -268,7 +268,7 @@ extern "C" long cycle_record_run(const CycleRecordRunRequest *request)
     }
     const CycleRecord *const record = request->record;
     CycleRecordLaunch launch;
-    mmgr_bytes_set(&launch, 0u, sizeof(launch));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &launch, .bytes = sizeof(launch), .val = 0u);
     for (unsigned int member = 0u; member < record->members; member += 1u)
     {
         // with no index, lane i reads record i of a member, or its one record where it has one
@@ -439,8 +439,8 @@ __device__ static unsigned int cycle_sum_limb(const unsigned int *record, unsign
 
 // the sum over the records. Each thread takes `chunk` consecutive records. Limb by limb, it adds the limb of the field
 // into 64 bits for as long as its records stay in one run. It then adds that total to the total of the run by one
-// atomic add. The pass past the last limb counts the fields whose sign bit is 1. A run contains at max 2^32 records, and 2^32 limbs
-// fit 64 bits
+// atomic add. The pass past the last limb counts the fields whose sign bit is 1. A run contains at max 2^32 records,
+// and 2^32 limbs fit 64 bits
 __global__ static void cycle_sum_kernel(const unsigned int *records, unsigned long long count, unsigned long long group,
                                         unsigned int out_limbs, unsigned int offset, unsigned int bits,
                                         unsigned int field_limbs, unsigned long long chunk, unsigned long long *totals,
@@ -540,7 +540,7 @@ extern "C" void cycle_record_sum_release(void)
 {
     cudaFree(g_cycle_sum_scratch.totals);
     cudaFree(g_cycle_sum_scratch.negatives);
-    mmgr_bytes_set(&g_cycle_sum_scratch, 0u, sizeof(g_cycle_sum_scratch));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &g_cycle_sum_scratch, .bytes = sizeof(g_cycle_sum_scratch), .val = 0u);
 }
 
 extern "C" long cycle_record_sum(const CycleRecordSumRequest *request)
@@ -587,7 +587,7 @@ extern "C" long cycle_record_sum(const CycleRecordSumRequest *request)
     for (unsigned long long run = 0ULL; (ok != 0) && (run < runs); run += 1ULL)
     {
         unsigned int *const sum = &request->sums[run * request->sum_limbs];
-        mmgr_bytes_set(sum, 0u, request->sum_limbs * sizeof(unsigned int));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = sum, .bytes = request->sum_limbs * sizeof(unsigned int), .val = 0u);
         for (unsigned int limb = 0u; limb < field_limbs; limb += 1u)
         {
             cycle_sum_add(sum, request->sum_limbs, limb, totals[(run * field_limbs) + limb]);

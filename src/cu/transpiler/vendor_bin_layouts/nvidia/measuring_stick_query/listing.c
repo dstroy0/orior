@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // listing.c: the vendor's listing: the disassembler run over a container and its output read, the listing cut into
 // lines, each line's guard, word and body, the line at an address, and the address the vendor stopped at
-#include "msq_internal.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "msq_internal.h"
 QryShared *s_run = NULL;
 const char *s_nvdisasm = NULL;
 const char *s_architecture = NULL;
@@ -51,7 +51,7 @@ int msq_added(unsigned char **memory, size_t *size_used, size_t *room, const voi
         *memory = larger;
         *room = grown;
     }
-    mmgr_bytes_copy(*memory + *size_used, bytes, size);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = *memory + *size_used, .src = bytes, .bytes = size);
     *size_used += size;
     return 1;
 }
@@ -94,12 +94,12 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
     // read again where the output ran past the room it was given, the room grown to contain it
     for (unsigned int tried = 0u; tried < 2u; tried += 1u)
     {
-        mmgr_bytes_set(&answer, 0, sizeof(answer));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &answer, .bytes = sizeof(answer), .val = 0);
         answer.output = reader->output;
         answer.output_capacity = reader->output_room;
         const InterfaceProbe probe = {command, NULL, 0ULL};
         EngineError error;
-        mmgr_bytes_set(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         if ((interface_probe_run(&probe, &answer, &error) != 0L) || (answer.ending == INTERFACE_ENDING_NOT_STARTED))
         {
             return -1;
@@ -158,7 +158,7 @@ void msq_listing_free(MsqListing *listing)
         platform_cell_released(listing->lines, platform_place_g_program_owner);
     }
     platform_cell_released(listing->text, platform_place_g_program_owner);
-    mmgr_bytes_set(listing, 0, sizeof(*listing));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = listing, .bytes = sizeof(*listing), .val = 0);
 }
 
 // Every instruction of the listing `printed` of `length` bytes, in the order printed: a comment of four or more hex
@@ -167,19 +167,20 @@ void msq_listing_free(MsqListing *listing)
 // where it ends. 1, or 0 where the system gives no memory
 int msq_listing_read(const char *printed, size_t length, MsqListing *listing)
 {
-    mmgr_bytes_set(listing, 0, sizeof(*listing));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = listing, .bytes = sizeof(*listing), .val = 0);
     char *const text = (char *)platform_cell_taken(length + 1u, platform_place_g_program_owner, 0);
     if (text == NULL)
     {
         return 0;
     }
-    mmgr_bytes_copy(text, printed, length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = text, .src = printed, .bytes = length);
     text[length] = '\0';
     listing->text = text;
     size_t at = 0u;
     while ((at + 1u) < length)
     {
-        const char *const open = (const char *)mmgr_bytes_find(text + at, '/', length - at);
+        const char *const open =
+            (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = text + at, .bytes = length - at, .val = '/');
         if (open == NULL)
         {
             break;
@@ -284,7 +285,7 @@ int msq_listing_read(const char *printed, size_t length, MsqListing *listing)
 MsqReading msq_listing_at(const MsqListing *listing, unsigned long long offset)
 {
     MsqReading reading;
-    mmgr_bytes_set(&reading, 0, sizeof(reading));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &reading, .bytes = sizeof(reading), .val = 0);
     for (size_t at = listing->count; at > 0u; at -= 1u)
     {
         const MsqLine *const line = &listing->lines[at - 1u];
@@ -299,7 +300,7 @@ MsqReading msq_listing_at(const MsqListing *listing, unsigned long long offset)
         {
             length += 1u;
         }
-        mmgr_bytes_copy(reading.operation, line->body, length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = reading.operation, .src = line->body, .bytes = length);
         reading.operation[length] = '\0';
         reading.body = line->body;
         break;
@@ -314,7 +315,7 @@ int msq_stopped_at(const char *text, size_t length, unsigned long long *address)
     const size_t marker_length = sizeof(s_address_marker) - 1u;
     for (size_t at = 0u; (at + marker_length) < length; at += 1u)
     {
-        if (mmgr_bytes_compare(text + at, s_address_marker, marker_length) != 0)
+        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = text + at, .other = s_address_marker, .bytes = marker_length) != 0)
         {
             continue;
         }

@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_posix.c: starting, timing and ending a job's process tree on POSIX
-#include "tessera_run_internal.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera_run_internal.h"
 
 #if !(defined(_WIN32))
 
@@ -119,7 +119,7 @@ int run_ended(RunChild *child, unsigned long long microseconds)
         run_pause(microseconds);
     }
     siginfo_t ended;
-    mmgr_bytes_set(&ended, 0, sizeof(ended));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &ended, .bytes = sizeof(ended), .val = 0);
     const int wait_result = waitid(P_PID, (id_t)child->pid, &ended, WEXITED | WNOHANG | WNOWAIT);
     return ((wait_result == 0) && (ended.si_pid == child->pid)) || ((wait_result != 0) && (errno != EINTR));
 }
@@ -249,7 +249,8 @@ int run_parent_alive(const char *parent)
 // The answer is the count of fields read, 6 where all of them came, as the read of a format counts them
 static int run_stat_fields(const char *at, RunProcess *process, unsigned long long ticks[4])
 {
-    at += mmgr_text_span(at, RUN_STAT_SPACE, PLATFORM_TEXT_TO_TERMINATOR);
+    at += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                     .other = RUN_STAT_SPACE);
     if (*at == '\0')
     {
         return 0;
@@ -257,7 +258,7 @@ static int run_stat_fields(const char *at, RunProcess *process, unsigned long lo
     process->state = *at;
     at += 1;
     const char *end = at;
-    process->parent = mmgr_text_unsigned_in(at, &end, 10u);
+    process->parent = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = at, .end = &end, .base = 10u);
     if (end == at)
     {
         return 1;
@@ -265,8 +266,10 @@ static int run_stat_fields(const char *at, RunProcess *process, unsigned long lo
     at = end;
     for (unsigned int skipped = 0u; skipped < 9u; skipped += 1u)
     {
-        at += mmgr_text_span(at, RUN_STAT_SPACE, PLATFORM_TEXT_TO_TERMINATOR);
-        const size_t word = mmgr_text_span_not(at, RUN_STAT_SPACE, PLATFORM_TEXT_TO_TERMINATOR);
+        at += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = RUN_STAT_SPACE);
+        const size_t word = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                       .other = RUN_STAT_SPACE);
         if (word == 0u)
         {
             return 2;
@@ -276,7 +279,7 @@ static int run_stat_fields(const char *at, RunProcess *process, unsigned long lo
     for (unsigned int tick = 0u; tick < 4u; tick += 1u)
     {
         end = at;
-        ticks[tick] = mmgr_text_unsigned_in(at, &end, 10u);
+        ticks[tick] = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = at, .end = &end, .base = 10u);
         if (end == at)
         {
             // Explicit cast narrows a count of at max 4 to the int of the answer
@@ -307,7 +310,9 @@ int run_process_read(unsigned long long pid, RunProcess *process)
     platform_file_close(stat);
     // the name may contain spaces and parentheses: the fields are read after its last ')', the state, the parent, nine
     // skipped, then the process's own user and system ticks and those of the children it waited for
-    const char *const after_name = read ? mmgr_text_char_last(line, ')', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+    const char *const after_name = read ? EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = line,
+                                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ')')
+                                        : NULL;
     unsigned long long ticks[4] = {0ULL, 0ULL, 0ULL, 0ULL};
     if ((after_name == NULL) || (run_stat_fields(after_name + 1, process, ticks) != 6))
     {
@@ -335,7 +340,8 @@ RunProcess *run_tree(pid_t root, unsigned long long *count)
     for (const struct dirent *entry = readdir(listing); ok && (entry != NULL); entry = readdir(listing))
     {
         const char *end = NULL;
-        const unsigned long long pid = mmgr_text_unsigned_in(entry->d_name, &end, 10);
+        const unsigned long long pid =
+            EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = entry->d_name, .end = &end, .base = 10);
         RunProcess read;
         if ((end == entry->d_name) || (*end != '\0') || !run_process_read(pid, &read))
         {

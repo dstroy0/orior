@@ -3,11 +3,10 @@
 // head.c: the lines of a SASS ruleset's head, each the part's answer in its .ksc or left out
 #include "head.h"
 #include "../../../../src/platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 
 #include "../../ksc/ksc.h"
 #include "verba_scribo/verba_scribo.h"
-
 
 unsigned int krs_head_written(char *out, size_t cap, size_t *at, const char *ksc_path, char *missing, size_t room)
 {
@@ -19,12 +18,16 @@ unsigned int krs_head_written(char *out, size_t cap, size_t *at, const char *ksc
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
         if (!ksc_row_read(s_file.line[line], "run", &s_row) ||
-            (!mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)))
+            (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.answer, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = "answers", .ci = EMBED_FALSE)))
         {
             continue;
         }
-        returned = returned || (mmgr_text_equal(s_row.question, "container returned", PLATFORM_TEXT_TO_TERMINATOR));
-        least = least || (mmgr_text_starts(s_row.question, "opening least", PLATFORM_TEXT_TO_TERMINATOR));
+        returned = returned ||
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "container returned", .ci = EMBED_FALSE));
+        least = least || (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = s_row.question,
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "opening least", .ci = EMBED_FALSE));
     }
     ksc_free(&s_file);
     unsigned int written = 0u;

@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_terms_structure.cu: structure, halves, spikes, boxes and clips
-#include "noise_terms_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "noise_terms_internal.h"
 
 // C17 read back (build plan item 38). The scale moves a pair's d_k - d_{k,x} by (eps_{t+k} - eps_t) g (S - S_x), and
 // L - L_x = g (S - S_x)(1 + mean eps). D_a(k) reads the scale path's mean squared step over (1 + mean eps)^2, from the
@@ -20,7 +20,7 @@
 void terms_structure(SimResults *results, const unsigned short *lanes, const SimScene *scene, const SimCamera *camera)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     // the measurement's 28 exact integers are stored off the stack
     NoiseStructureMeasurement *const measurement = (NoiseStructureMeasurement *)platform_cell_taken(
         (unsigned long long)(sizeof(NoiseStructureMeasurement)), (unsigned int)platform_place_g_program_owner, 0);
@@ -182,7 +182,7 @@ int terms_halves(SimResults *results, const unsigned short *lanes, const SimCame
                  NoiseHalvesMeasurement *measurement)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const int ok = noise_halves_volume(lanes, TERMS_EXTENT, measurement, &error) == 0L;
     sim_check(results, ok, "the halves pass read the volume");
     if (ok == 0)
@@ -280,7 +280,7 @@ void terms_spikes(SimResults *results, const unsigned short *lanes, unsigned lon
                   unsigned long long law)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     unsigned long long counts[NOISE_CLIPS_COUNTS];
     unsigned int box[NOISE_CLIPS_BOX];
     unsigned long long spikes[NOISE_SPIKE_SUMS];
@@ -366,7 +366,7 @@ void terms_boxes(unsigned short *lanes)
 void terms_clips(SimResults *results, const unsigned short *lanes)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     unsigned long long counts[NOISE_CLIPS_COUNTS];
     unsigned int box[NOISE_CLIPS_BOX];
     unsigned long long spikes[NOISE_SPIKE_SUMS];

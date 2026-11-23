@@ -6,7 +6,7 @@
 
 #include "../../../../includes/file_defs/krs/ruleset_reader.h"
 #include "../engine_note.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 int layout_same(const EngineRecordLayout *left, const EngineRecordLayout *right)
 {
@@ -17,11 +17,11 @@ int layout_same(const EngineRecordLayout *left, const EngineRecordLayout *right)
     {
         same = same && (left->in_limbs[member] == right->in_limbs[member]);
     }
-    same = same && (mmgr_bytes_compare(left->step_table, right->step_table,
-                                       (size_t)left->steps * sizeof(DeviceRecordStep)) == 0);
+    same = same && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->step_table, .other = right->step_table,
+                               .bytes = (size_t)left->steps * sizeof(DeviceRecordStep)) == 0);
     return same && ((left->table_word_count == 0ULL) ||
-                    (mmgr_bytes_compare(left->table_values, right->table_values,
-                                        (size_t)left->table_word_count * sizeof(unsigned int)) == 0));
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->table_values, .other = right->table_values,
+                                .bytes = (size_t)left->table_word_count * sizeof(unsigned int)) == 0));
 }
 
 int layout_device_agrees(const LayoutRequest *request, EngineRecordLayout *layout, int report)

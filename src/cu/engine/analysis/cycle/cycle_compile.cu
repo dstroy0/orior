@@ -12,10 +12,10 @@
 // alone, with -ccbin $CYCLE_HOST_CCBIN where it is set; elsewhere it is $CXX, else c++
 #include "../../../../platform/platform.h"
 #include "../../engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "cycle_compile_internal.h"
 #include "cycle_record_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 #if !defined(_WIN32)
 #include <fcntl.h>
@@ -142,7 +142,8 @@ static int cycle_host_file_same(const char *path, const char *text, unsigned lon
     PlatformText contents;
     platform_text_begun(&contents, CYCLE_HOST_TEXT_BYTES, platform_place_g_program_owner, 0);
     const int same = cycle_host_file_read(path, &contents) && (platform_text_size(&contents) == length) &&
-                     (mmgr_bytes_compare(platform_text_bytes(&contents), text, (size_t)length) == 0);
+                     (EMBED_CALL(memor.cmp, MemoriaCfg, .src = platform_text_bytes(&contents), .other = text,
+                                 .bytes = (size_t)length) == 0);
     platform_text_ended(&contents);
     return same;
 }
@@ -218,7 +219,7 @@ static int cycle_host_compiler_run(const char *source, const char *library, cons
     // CreateProcessA can write into its line, and the text's own cell holds the line
     char *const line = (char *)platform_text_bytes(&command);
     SECURITY_ATTRIBUTES inherited;
-    mmgr_bytes_set(&inherited, 0, sizeof(inherited));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &inherited, .bytes = sizeof(inherited), .val = 0);
     inherited.nLength = sizeof(inherited);
     inherited.bInheritHandle = TRUE;
     const HANDLE output =
@@ -233,14 +234,14 @@ static int cycle_host_compiler_run(const char *source, const char *library, cons
         return 0;
     }
     STARTUPINFOA startup;
-    mmgr_bytes_set(&startup, 0, sizeof(startup));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &startup, .bytes = sizeof(startup), .val = 0);
     startup.cb = sizeof(startup);
     startup.dwFlags = STARTF_USESTDHANDLES;
     startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
     startup.hStdOutput = output;
     startup.hStdError = output;
     PROCESS_INFORMATION process;
-    mmgr_bytes_set(&process, 0, sizeof(process));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &process, .bytes = sizeof(process), .val = 0);
     DWORD status = 1u;
     const BOOL started = CreateProcessA(NULL, line, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &startup, &process);
     if (started)
@@ -411,7 +412,7 @@ static int cycle_host_program_built(const EngineRecordLayout *layout, CycleRecor
         }
     }
     CycleHostProgram program;
-    mmgr_bytes_set(&program, 0, sizeof(program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &program, .bytes = sizeof(program), .val = 0);
     program.library = cycle_host_library_open(named_library);
     program.holders = 1ULL;
     if (program.library != NULL)
@@ -520,7 +521,11 @@ void cycle_host_program_release(CycleHostEntry entry)
                 platform_movable_released(program->source, platform_place_g_program_owner);
                 // the programs after it move down one place, and the order of the rest holds
                 const unsigned long long after = s_cycle_host_programs.count - at - 1ULL;
-                mmgr_bytes_move(program, program + 1, (size_t)(after * sizeof(CycleHostProgram)));
+                (((const unsigned char *)(program) <= (const unsigned char *)(program + 1))
+                     ? EMBED_CALL(memor.move_down, MemoriaCfg, .dst = program, .src = program + 1,
+                                  .bytes = (size_t)(after * sizeof(CycleHostProgram)))
+                     : EMBED_CALL(memor.move_up, MemoriaCfg, .dst = program, .src = program + 1,
+                                  .bytes = (size_t)(after * sizeof(CycleHostProgram))));
                 (void)platform_array_counted(&s_cycle_host_programs, s_cycle_host_programs.count - 1ULL);
             }
             break;
@@ -550,7 +555,9 @@ static unsigned int cycle_host_threads(unsigned long long lanes)
         (platform_environment("CYCLE_HOST_THREADS", named_text, sizeof(named_text)) != 0ULL) ? named_text : NULL;
     const char *end = NULL;
     const unsigned long long requested =
-        ((named != NULL) && (named[0] >= '0') && (named[0] <= '9')) ? mmgr_text_unsigned_in(named, &end, 10) : 0ULL;
+        ((named != NULL) && (named[0] >= '0') && (named[0] <= '9'))
+            ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = named, .end = &end, .base = 10)
+            : 0ULL;
     const unsigned long long hardware = platform_processors();
     const unsigned long long threads =
         ((requested != 0ULL) && (end != NULL) && (*end == '\0')) ? requested : ((hardware != 0ULL) ? hardware : 1ULL);
@@ -606,7 +613,7 @@ static void cycle_host_run_ended(CycleHostRun *run)
 int cycle_host_resident(const CycleRecord *record, CycleCompiledLaunch program, EngineError *error)
 {
     CycleHostRun run;
-    mmgr_bytes_set(&run, 0, sizeof(run));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &run, .bytes = sizeof(run), .val = 0);
     unsigned int *const device_out = program.out;
     unsigned int *const device_error = program.error;
     // a lane count and a record's limbs are the ones the device's buffers were allocated to, which fit in memory
@@ -638,7 +645,7 @@ int cycle_host_resident(const CycleRecord *record, CycleCompiledLaunch program, 
         return 0;
     }
     CycleHot hot;
-    mmgr_bytes_set(&hot, 0, sizeof(hot));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &hot, .bytes = sizeof(hot), .val = 0);
     program.index = (program.index != NULL) ? run.index : NULL;
     program.tables = (program.tables != NULL) ? run.tables : NULL;
     program.out = run.out;
@@ -649,7 +656,7 @@ int cycle_host_resident(const CycleRecord *record, CycleCompiledLaunch program, 
     const unsigned long long wdt = 1000ULL * CYCLE_PROGRAM_WDT_MICROSECONDS;
     const EngineSignum signature = block->signature;
     const unsigned long long generation = block->generation + 1ULL;
-    mmgr_bytes_set(block, 0, sizeof(EngineProgramBlock));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = block, .bytes = sizeof(EngineProgramBlock), .val = 0);
     block->signature = signature;
     block->generation = generation;
     block->command = ENGINE_PROGRAM_RUN;

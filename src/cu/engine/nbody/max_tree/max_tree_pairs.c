@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_pairs.c: pairs and overlap sums
-#include "max_tree_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "max_tree_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 unsigned int max_tree_probe_partition(const unsigned int *sorted, const unsigned int *own_level,
                                       const unsigned int *joined, unsigned int probe_count, unsigned int level,
@@ -47,7 +47,7 @@ void max_tree_pairs_release(MaxTreePairs *pairs)
     platform_cell_released(pairs->earlier, platform_place_g_program_owner);
     platform_cell_released(pairs->later, platform_place_g_program_owner);
     platform_cell_released(pairs->voxels, platform_place_g_program_owner);
-    mmgr_bytes_set(pairs, 0, sizeof(*pairs));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = pairs, .bytes = sizeof(*pairs), .val = 0);
 }
 
 long max_tree_pairs(const MaxTreePairsRequest *request)
@@ -69,7 +69,7 @@ long max_tree_pairs(const MaxTreePairsRequest *request)
     {
         return MAX_TREE_ERROR;
     }
-    mmgr_bytes_set(pairs, 0, sizeof(*pairs));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = pairs, .bytes = sizeof(*pairs), .val = 0);
     const size_t voxels = earlier->voxels;
     const size_t plane = (size_t)earlier->height * earlier->width;
     unsigned long long *const keys =
@@ -111,7 +111,8 @@ long max_tree_pairs(const MaxTreePairsRequest *request)
         void *const sort_room =
             platform_cell_taken((unsigned long long)(found) * (unsigned long long)(sizeof(unsigned long long)),
                                 platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(keys, found, sizeof(unsigned long long), max_tree_key_compare, sort_room);
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = keys, .bytes = sizeof(unsigned long long), .scratch = sort_room,
+                         .count = found, .order = max_tree_key_compare);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     unsigned int distinct = 0u;
@@ -240,7 +241,8 @@ long max_tree_overlap_sums(const MaxTreeOverlapSumsRequest *request)
         void *const sort_room =
             platform_cell_taken((unsigned long long)(events) * (unsigned long long)(sizeof(unsigned long long)),
                                 platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(keys, events, sizeof(unsigned long long), max_tree_key_compare, sort_room);
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = keys, .bytes = sizeof(unsigned long long), .scratch = sort_room,
+                         .count = events, .order = max_tree_key_compare);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     unsigned int entry = 0u;

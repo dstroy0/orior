@@ -4,8 +4,8 @@
 #ifndef SIM_CAMERA_RENDER_H
 #define SIM_CAMERA_RENDER_H
 
+#include "memoria_operor/memoria_operor.h"
 #include "sim_camera_scene.h"
-#include "memoria_operor/memoria_linea.h"
 
 // each of count electrons retained with chance numerator / 2^bits, bits 1 to 16: a word contains 64 / bits electrons'
 // draws. A counter's SIM_COUNTER_STRIDE words contain that many each
@@ -280,7 +280,8 @@ static inline int sim_render(SimResults *results, const SimScene *scene, const S
 
 static inline void sim_truth_host(const SimScene *scene, unsigned long long *truth)
 {
-    mmgr_bytes_set(truth, 0, scene->frames * scene->bodies * SIM_TRUTH_FIELDS * sizeof(unsigned long long));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = truth,
+               .bytes = scene->frames * scene->bodies * SIM_TRUTH_FIELDS * sizeof(unsigned long long), .val = 0);
     for (unsigned long long frame = 0ULL; frame < scene->frames; frame += 1ULL)
     {
         for (unsigned int index = 0u; index < scene->bodies; index += 1u)

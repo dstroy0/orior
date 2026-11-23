@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // input.c: the input: a blob or a file read, the query key, the verdict and launch rows put to the run, the input's
 // lines, the cases of a launch, and what the carrier reports of an answer, a dry run or a call
-#include "cubin_run_internal.h"
-#include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "../../../lstar/protocol/table_text.h"
-#include "../../../../../../includes/parsers/who.h"
 #include "../../../../../../includes/parsers/line_read.h"
+#include "../../../../../../includes/parsers/who.h"
+#include "../../../../../platform/platform.h"
+#include "../../../lstar/protocol/table_text.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "cubin_run_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 SassMachine s_machine;
 unsigned char s_pattern[CUBIN_RUN_BYTES];
@@ -35,7 +35,7 @@ unsigned long long cubin_run_input(const char *name, unsigned char *bytes, unsig
         return 0ULL;
     }
     // the blob fits `bytes`, whose count a size_t represents
-    mmgr_bytes_copy(bytes, blob, (size_t)size);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = bytes, .src = blob, .bytes = (size_t)size);
     return size;
 }
 
@@ -55,14 +55,15 @@ void cubin_run_verdict_row(unsigned long long query_key, unsigned int verdict, u
 {
     const char *const reason = cubin_safe_name(verdict);
     const int gated = (verdict != CUBIN_SAFE);
-    unsigned long long row[2u + 6] = {0ULL,
-                                      0ULL,
-                                      query_key,
-                                      verdict,
-                                      gated ? 1ULL : 0ULL,
-                                      gated ? at : 0ULL,
-                                      table_text(reason, mmgr_text_length(reason, PLATFORM_TEXT_TO_TERMINATOR)),
-                                      dry ? 0ULL : 1ULL};
+    unsigned long long row[2u + 6] = {
+        0ULL,
+        0ULL,
+        query_key,
+        verdict,
+        gated ? 1ULL : 0ULL,
+        gated ? at : 0ULL,
+        table_text(reason, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = reason, .cap = PLATFORM_TEXT_TO_TERMINATOR)),
+        dry ? 0ULL : 1ULL};
     who_words(WHO_HERE, row);
     qry_member_append(CUBIN_RUN_VERDICTS, row, sizeof(row), QRY_ORDINARY);
 }
@@ -73,10 +74,16 @@ void cubin_run_launch_row(unsigned long long query_key, unsigned int outcome, un
                           unsigned long long nanoseconds, unsigned long long least, unsigned long long max,
                           const char *message)
 {
-    unsigned long long row[2u + 7] = {
-        0ULL,    0ULL,     query_key,
-        outcome, launches, nanoseconds,
-        least,   max,      table_text(message, mmgr_text_length(message, PLATFORM_TEXT_TO_TERMINATOR))};
+    unsigned long long row[2u + 7] = {0ULL,
+                                      0ULL,
+                                      query_key,
+                                      outcome,
+                                      launches,
+                                      nanoseconds,
+                                      least,
+                                      max,
+                                      table_text(message, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = message,
+                                                                     .cap = PLATFORM_TEXT_TO_TERMINATOR))};
     who_words(WHO_HERE, row);
     qry_member_append(CUBIN_RUN_LAUNCHES, row, sizeof(row), QRY_ORDINARY);
 }
@@ -84,7 +91,7 @@ void cubin_run_launch_row(unsigned long long query_key, unsigned int outcome, un
 // the lines of the input `name` opened: 1, or 0 where it is not there
 int cubin_run_lines_open(CubinRunLines *lines, const char *name)
 {
-    mmgr_bytes_set(lines, 0, sizeof(*lines));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = lines, .bytes = sizeof(*lines), .val = 0);
     return qry_member_blob(name, &lines->bytes, &lines->size, NULL);
 }
 
@@ -97,11 +104,11 @@ int cubin_run_line(CubinRunLines *lines, char *line, size_t room)
         return 0;
     }
     const unsigned char *const start = lines->bytes + lines->at;
-    const unsigned char *const end =
-        (const unsigned char *)mmgr_bytes_find(start, '\n', (size_t)(lines->size - lines->at));
+    const unsigned char *const end = (const unsigned char *)EMBED_CALL(
+        memor.chr, MemoriaCfg, .src = start, .bytes = (size_t)(lines->size - lines->at), .val = '\n');
     const size_t length = (end != NULL) ? ((size_t)(end - start) + 1u) : (size_t)(lines->size - lines->at);
     const size_t copied = (length < (room - 1u)) ? length : (room - 1u);
-    mmgr_bytes_copy(line, start, copied);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = line, .src = start, .bytes = copied);
     line[copied] = '\0';
     lines->at += length;
     return 1;
@@ -109,7 +116,7 @@ int cubin_run_line(CubinRunLines *lines, char *line, size_t room)
 
 void cubin_run_lines_close(CubinRunLines *lines)
 {
-    mmgr_bytes_set(lines, 0, sizeof(*lines));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = lines, .bytes = sizeof(*lines), .val = 0);
 }
 
 // the cases input `name` read into s_cases: 1, or 0 where it does not read, contains no case or contains more than a
@@ -143,7 +150,7 @@ int cubin_run_cases(const char *name)
         fits = (count < CUBIN_RUN_THREADS_MAX);
         if (fits)
         {
-            mmgr_bytes_copy(s_cases[count], words, sizeof(words));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_cases[count], .src = words, .bytes = sizeof(words));
             count += 1u;
         }
     }

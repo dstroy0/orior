@@ -1,10 +1,28 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // forms.c: the forms: a form of the machine file's text listed, the vendor's run, and the forms read
-#include "khw_write.h"
 #include "../../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "khw_write.h"
+#include "memoria_operor/memoria_operor.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int forms_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // the opening of a form line at `text`, `<operation> <types> 0x<low> 0x<high>`, into its parts, each into its room: 1,
 // or 0 where `text` does not open so
@@ -30,7 +48,8 @@ int khw_form_listed(const unsigned char *bytes, unsigned long long size, unsigne
         char types[256];
         unsigned long long listed_low = 0ULL;
         unsigned long long listed_high = 0ULL;
-        if ((mmgr_text_starts(line, "form ", PLATFORM_TEXT_TO_TERMINATOR)) &&
+        if ((EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "form ", .ci = EMBED_FALSE)) &&
             khw_form_line_read(line + 5, operation, sizeof(operation), types, sizeof(types), &listed_low,
                                &listed_high) &&
             (listed_low == low) && (listed_high == high))
@@ -76,7 +95,7 @@ unsigned int khw_forms_read(const char *name)
             continue;
         }
         KhwAnswered answered;
-        mmgr_bytes_set(&answered, 0, sizeof(answered));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &answered, .bytes = sizeof(answered), .val = 0);
         char relation[256];
         const char *runs_at = line;
         // a working-set line leads with the phase and the read order. A vendor answers line leads with the relation.
@@ -100,32 +119,39 @@ unsigned int khw_forms_read(const char *name)
         // out. The relation of a frame has its read after a dot
         answered.anchor = (unsigned int)LADDER_ANCHOR_COUNT;
         answered.frame = (unsigned int)FRAME_RELATION_COUNT;
-        const size_t ladder_prefix = mmgr_text_length(KHW_READS_LADDER, PLATFORM_TEXT_TO_TERMINATOR);
-        const size_t frame_prefix = mmgr_text_length(FRAME_READS, PLATFORM_TEXT_TO_TERMINATOR);
-        if (mmgr_text_order(relation, FRAME_READS, (size_t)(frame_prefix)) == 0)
+        const size_t ladder_prefix =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = KHW_READS_LADDER, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t frame_prefix =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = FRAME_READS, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+        if (forms_text_order(relation, FRAME_READS, (size_t)(frame_prefix)) == 0)
         {
-            char *const dot = mmgr_text_char(relation + frame_prefix, '.', PLATFORM_TEXT_TO_TERMINATOR);
-            answered.reading = (dot != NULL) ? mmgr_text_unsigned_in(dot + 1, NULL, 16) : 0ULL;
+            char *const dot = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = relation + frame_prefix,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.');
+            answered.reading =
+                (dot != NULL) ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = dot + 1, .end = NULL, .base = 16)
+                              : 0ULL;
             if (dot != NULL)
             {
                 *dot = '\0';
             }
             for (unsigned int each = 0u; each < (unsigned int)FRAME_RELATION_COUNT; each += 1u)
             {
-                answered.frame =
-                    (mmgr_text_equal(s_frame_text[each], relation + frame_prefix, PLATFORM_TEXT_TO_TERMINATOR))
-                        ? each
-                        : answered.frame;
+                answered.frame = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_frame_text[each],
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = relation + frame_prefix,
+                                             .ci = EMBED_FALSE))
+                                     ? each
+                                     : answered.frame;
             }
         }
         else
         {
-            const char *const name = (mmgr_text_order(relation, KHW_READS_LADDER, (size_t)(ladder_prefix)) == 0)
+            const char *const name = (forms_text_order(relation, KHW_READS_LADDER, (size_t)(ladder_prefix)) == 0)
                                          ? (relation + ladder_prefix)
                                          : relation;
             for (unsigned int anchor = 0u; anchor < (unsigned int)LADDER_ANCHOR_COUNT; anchor += 1u)
             {
-                if (mmgr_text_equal(s_anchor_text[anchor], name, PLATFORM_TEXT_TO_TERMINATOR))
+                if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_anchor_text[anchor],
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = name, .ci = EMBED_FALSE))
                 {
                     answered.anchor = anchor;
                     break;

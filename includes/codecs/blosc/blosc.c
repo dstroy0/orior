@@ -1,10 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "blosc.h"
-#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
 
 #define BLOSC_HEADER_BYTES 16ULL
 #define BLOSC_START_BYTES 4ULL
@@ -77,7 +76,8 @@ static void blosc_byte_unshuffle(const unsigned char *shuffled, unsigned char *o
         }
     }
     const unsigned long long total_bytes = elements * element_bytes;
-    mmgr_bytes_copy(out + total_bytes, shuffled + total_bytes, (size_t)(bytes - total_bytes));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out + total_bytes, .src = shuffled + total_bytes,
+               .bytes = (size_t)(bytes - total_bytes));
 }
 
 static void blosc_bit_unshuffle(const unsigned char *shuffled, unsigned char *out, unsigned long long bytes,
@@ -86,7 +86,7 @@ static void blosc_bit_unshuffle(const unsigned char *shuffled, unsigned char *ou
     const unsigned long long elements = bytes / element_bytes;
     if ((elements % BLOSC_BIT_GROUP) != 0ULL)
     {
-        mmgr_bytes_copy(out, shuffled, (size_t)bytes);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = shuffled, .bytes = (size_t)bytes);
         return;
     }
     const unsigned long long row_bytes = elements / BLOSC_BIT_GROUP;
@@ -109,7 +109,8 @@ static void blosc_bit_unshuffle(const unsigned char *shuffled, unsigned char *ou
         }
     }
     const unsigned long long total_bytes = elements * element_bytes;
-    mmgr_bytes_copy(out + total_bytes, shuffled + total_bytes, (size_t)(bytes - total_bytes));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out + total_bytes, .src = shuffled + total_bytes,
+               .bytes = (size_t)(bytes - total_bytes));
 }
 
 static int blosc_stream(const BloscChunk *chunk, unsigned long long *at, unsigned char *target,
@@ -128,7 +129,8 @@ static int blosc_stream(const BloscChunk *chunk, unsigned long long *at, unsigne
     *at = packed_from + packed_bytes;
     if (packed_bytes == stream_bytes)
     {
-        mmgr_bytes_copy(target, chunk->chunk + packed_from, (size_t)stream_bytes);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = target, .src = chunk->chunk + packed_from,
+                   .bytes = (size_t)stream_bytes);
         return 1;
     }
     const EngineBytesRequest inner = {chunk->chunk + packed_from, packed_bytes, target, stream_bytes};
@@ -227,7 +229,8 @@ long long blosc_decode(const BloscDecodeRequest *request)
         {
             return ENGINE_BYTES_ERROR;
         }
-        mmgr_bytes_copy(bytes->out, header + BLOSC_HEADER_BYTES, (size_t)total_bytes);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = bytes->out, .src = header + BLOSC_HEADER_BYTES,
+                   .bytes = (size_t)total_bytes);
         return (long long)total_bytes;
     }
     const unsigned int codec = flags >> BLOSC_CODEC_SHIFT;
@@ -260,7 +263,7 @@ long long blosc_decode(const BloscDecodeRequest *request)
     platform_cell_released(scratch, platform_place_g_program_owner);
     if (!decoded)
     {
-        mmgr_bytes_set(bytes->out, 0, (size_t)total_bytes);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = bytes->out, .bytes = (size_t)total_bytes, .val = 0);
         return ENGINE_BYTES_ERROR;
     }
     return (long long)total_bytes;
@@ -273,7 +276,7 @@ static void blosc_match_copy(unsigned char *out, unsigned long long written, uns
     const unsigned char *const from = to - distance;
     if (distance >= length)
     {
-        mmgr_bytes_copy(to, from, (size_t)length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = to, .src = from, .bytes = (size_t)length);
         return;
     }
     for (unsigned long long step = 0ULL; step < length; step += 1ULL)
@@ -304,7 +307,7 @@ long long blosclz_decode(const EngineBytesRequest *request)
             {
                 return ENGINE_BYTES_ERROR;
             }
-            mmgr_bytes_copy(out + written, in + at, (size_t)literal);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out + written, .src = in + at, .bytes = (size_t)literal);
             written += literal;
             at += literal;
             if (at >= in_bytes)

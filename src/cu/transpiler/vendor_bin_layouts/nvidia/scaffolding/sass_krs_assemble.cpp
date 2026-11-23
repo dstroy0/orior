@@ -28,8 +28,8 @@ extern "C"
 
 #include "../../../../../../includes/file_defs/krs/ruleset_flat.h"
 #include "../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "sass_target.h"
 #include "target.h"
 
@@ -63,21 +63,24 @@ static int krs_scratch(void *context, const char *bank, VerbaLinea *name)
     static unsigned int temporaries;
     static unsigned int wides;
     static unsigned int predicates;
-    if (mmgr_text_equal(bank, "temporary", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = bank, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "temporary",
+                   .ci = EMBED_FALSE))
     {
         temporaries += 1u;
         mmgr_line_ch(name, 'R');
         mmgr_line_decimal(name, 100u + (temporaries % 8u), 1u);
         return 1;
     }
-    if (mmgr_text_equal(bank, "wide", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = bank, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "wide",
+                   .ci = EMBED_FALSE))
     {
         wides += 1u;
         mmgr_line_ch(name, 'R');
         mmgr_line_decimal(name, 120u + (2u * (wides % 4u)), 1u);
         return 1;
     }
-    if (mmgr_text_equal(bank, "predicate", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = bank, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "predicate",
+                   .ci = EMBED_FALSE))
     {
         predicates += 1u;
         mmgr_line_ch(name, 'P');
@@ -139,8 +142,8 @@ static size_t krs_word(const char *line, size_t length, size_t *at, const char *
 // 1 where the `length` bytes at `word` are the terminated `text`
 static int krs_word_is(const char *word, size_t length, const char *text)
 {
-    return (length == mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR)) &&
-           (mmgr_bytes_compare(word, text, length) == 0);
+    return (length == EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR)) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = word, .other = text, .bytes = length) == 0);
 }
 
 // One line of the ruleset read as a form into `form`: `form <name> <parameter>... = <text>` and the head of a
@@ -225,7 +228,7 @@ static int krs_has_instruction(const char *text, size_t length)
             first += 1u;
         }
         if ((first < stop) && (text[first] != '.') && (text[first] != '/') && (text[first] != '#') &&
-            (mmgr_text_char(&text[first], ':', stop - first) == NULL))
+            (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = &text[first], .cap = stop - first, .byte = ':') == NULL))
         {
             return 1;
         }
@@ -270,7 +273,8 @@ static void krs_labels(const Ruleset *rules, const KrsForm *forms, unsigned int 
             {
                 const size_t length = (size_t)platform_text_size(text);
                 const char *const bytes = platform_text_bytes(text);
-                if (!krs_has_instruction(bytes, length) && (mmgr_text_char(bytes, ':', length) != NULL))
+                if (!krs_has_instruction(bytes, length) &&
+                    (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = bytes, .cap = length, .byte = ':') != NULL))
                 {
                     (void)mmgr_line_put_n(&preamble->line, bytes, length);
                 }
@@ -293,8 +297,11 @@ enum KrsOutcome
 static unsigned int krs_form_assembles(const Ruleset *rules, const SassMachine *machine, const KrsForm *form,
                                        PlatformText *labels, PlatformText *wrote, PlatformText *whole)
 {
-    const int wide = (mmgr_text_find(form->name, "wide", PLATFORM_TEXT_TO_TERMINATOR) != NULL) ||
-                     (mmgr_text_find(form->name, "member", PLATFORM_TEXT_TO_TERMINATOR) != NULL);
+    const int wide =
+        (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = form->name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = "wide", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL) ||
+        (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = form->name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = "member", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL);
     const unsigned int parameters = (form->parameters < KRS_PARAMETERS_MAX) ? form->parameters : KRS_PARAMETERS_MAX;
     unsigned int assignments = 1u;
     for (unsigned int at = 0u; (at < parameters) && (at < KRS_PARAMETERS_SEARCHED); at += 1u)

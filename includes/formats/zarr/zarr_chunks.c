@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zarr_chunks.c: checksums, keys, codecs and placing a chunk
-#include "zarr_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "zarr_internal.h"
 
 static unsigned int zarr_crc32c_step(unsigned int crc, unsigned int byte)
 {
@@ -157,7 +157,7 @@ long long zarr_unchain(const ZarrWalk *walk, const ZarrChain *chain, unsigned ch
         {
             return ZARR_ERROR;
         }
-        mmgr_bytes_copy(out, raw, (size_t)expected);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = raw, .bytes = (size_t)expected);
         return (long long)expected;
     }
     if (chain->count != 1u)
@@ -209,7 +209,7 @@ void zarr_place(const ZarrWalk *walk, const unsigned long long *position, const 
         identity &= (unsigned int)(layout->order[axis] == axis);
     }
     unsigned long long counter[ENGINE_ARRAY_RANK];
-    mmgr_bytes_set(counter, 0, sizeof(counter));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = counter, .bytes = sizeof(counter), .val = 0);
     unsigned long long source = 0ULL;
     const unsigned long long last = (rank != 0u) ? stored[rank - 1u] : 1ULL;
     const unsigned long long step = (identity != 0u) ? last : 1ULL;
@@ -241,8 +241,8 @@ void zarr_place(const ZarrWalk *walk, const unsigned long long *position, const 
                     layout->extent.sizes[rank - 1u] - (origin[rank - 1u] + counter[rank - 1u]);
                 run = (run < remaining) ? run : remaining;
             }
-            mmgr_bytes_copy(&request->out[target * element_bytes], &walk->chunk[source * element_bytes],
-                            (size_t)(run * element_bytes));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &request->out[target * element_bytes],
+                       .src = &walk->chunk[source * element_bytes], .bytes = (size_t)(run * element_bytes));
         }
         source += step;
         for (unsigned int axis = rank; axis > 0u; axis -= 1u)

@@ -8,11 +8,12 @@
 #define _GNU_SOURCE
 #define _DARWIN_C_SOURCE
 #endif
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "platform_internal.h"
 
 #if !defined(_WIN32)
+#include <dirent.h>
 #include <dlfcn.h>
 #include <execinfo.h>
 #include <fcntl.h>
@@ -125,7 +126,7 @@ int platform_worker_started(PlatformWorker *worker, void (*run)(void *context), 
         return 0;
     }
     _Static_assert(sizeof(pthread_t) <= PLATFORM_WORKER_HANDLE_BYTES, "a pthread_t fits the handle of a worker");
-    mmgr_bytes_copy(worker->handle, &started, sizeof(started));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = worker->handle, .src = &started, .bytes = sizeof(started));
     worker->running = 1;
     return 1;
 }
@@ -137,7 +138,7 @@ void platform_worker_joined(PlatformWorker *worker)
         return;
     }
     pthread_t started;
-    mmgr_bytes_copy(&started, worker->handle, sizeof(started));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &started, .src = worker->handle, .bytes = sizeof(started));
     (void)pthread_join(started, NULL);
     worker->running = 0;
 }
@@ -272,13 +273,14 @@ unsigned long long platform_environment(const char *name, char *out, unsigned lo
         }
         return 0ULL;
     }
-    const unsigned long long length = (unsigned long long)mmgr_text_length(value, (size_t)capacity);
+    const unsigned long long length =
+        (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = value, .cap = (size_t)capacity);
     if (length >= capacity)
     {
         out[0] = '\0';
         return 0ULL;
     }
-    mmgr_bytes_copy(out, value, (size_t)length + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = value, .bytes = (size_t)length + 1u);
     return length;
 }
 
@@ -407,6 +409,37 @@ int platform_folder_made(const char *path)
     }
     struct stat status;
     return (stat(path, &status) == 0) && S_ISDIR(status.st_mode);
+}
+
+int platform_folder_listed(const char *path, PlatformFolderEntry each, void *context)
+{
+    DIR *const folder = opendir(path);
+    if (folder == NULL)
+    {
+        return 0;
+    }
+    for (const struct dirent *entry = readdir(folder); entry != NULL; entry = readdir(folder))
+    {
+        const int dot = EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = entry->d_name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                   .other = ".", .ci = EMBED_FALSE) ||
+                        EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = entry->d_name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                   .other = "..", .ci = EMBED_FALSE);
+        if (dot)
+        {
+            continue;
+        }
+        char full[PLATFORM_PATH_BYTES];
+        VerbaLinea line = mmgr_line_over(full, sizeof(full));
+        mmgr_line_put(&line, path);
+        mmgr_line_ch(&line, '/');
+        mmgr_line_put(&line, entry->d_name);
+        (void)mmgr_line_finish(&line);
+        struct stat status;
+        const int is_folder = mmgr_line_ok(&line) && (stat(full, &status) == 0) && S_ISDIR(status.st_mode);
+        each(context, entry->d_name, is_folder);
+    }
+    (void)closedir(folder);
+    return 1;
 }
 
 unsigned long long platform_process_id(void)

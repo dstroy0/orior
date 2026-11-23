@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_box.cu: boxes released, ordered and merged
-#include "climb_machine_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "climb_machine_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 void machine_box_release(ClimbMachine *machine)
 {
@@ -78,7 +78,8 @@ static int machine_box_merge(ClimbMachine *machine, const unsigned int *cell_raw
             void *const sort_room =
                 platform_cell_taken((unsigned long long)(piece_count) * (unsigned long long)(sizeof(MachineBoxPiece)),
                                     platform_place_g_program_owner, 1);
-            (void)mmgr_bytes_sort(pieces, piece_count, sizeof(MachineBoxPiece), machine_box_piece_order, sort_room);
+            (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = pieces, .bytes = sizeof(MachineBoxPiece),
+                             .scratch = sort_room, .count = piece_count, .order = machine_box_piece_order);
             platform_cell_released(sort_room, platform_place_g_program_owner);
         }
         for (size_t piece = 0u; piece < piece_count; piece += 1u)
@@ -108,7 +109,7 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
     {
         return 0;
     }
-    mmgr_bytes_set(box, 0, sizeof(*box));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = box, .bytes = sizeof(*box), .val = 0);
     machine_box_release(machine);
     const unsigned long long started = engine_clock_microseconds();
     unsigned int boxed = 0u;
@@ -184,7 +185,7 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
         machine->box_cell_first[boxed] = (unsigned int)cell_count;
     }
     MachineBoxCells device;
-    mmgr_bytes_set(&device, 0, sizeof(device));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &device, .bytes = sizeof(device), .val = 0);
     unsigned int *device_cell_climber = NULL;
     unsigned int *device_climber_of_box = NULL;
     int *device_cell_shift = NULL;

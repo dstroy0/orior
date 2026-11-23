@@ -2,25 +2,28 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // carrier.c: the carrier: the channel opened with the carrier's words, a line added to the list, the list written, an
 // answer read back, and a dry run's answer written
-#include "run_channel_internal.h"
-#include "../../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../../includes/parsers/line_read.h"
+#include "../../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "run_channel_internal.h"
 
 int run_channel_open(const char *const *carrier, unsigned long long limit_microseconds)
 {
-    mmgr_bytes_set(&s_channel, 0, sizeof(s_channel));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_channel, .bytes = sizeof(s_channel), .val = 0);
     // the carrier's words, then the pop's after `--pop` and the cross's after `--cross`, each from 1 to
     // RUN_CARRIER_WORDS
     char (*part)[RUN_PATH_MAX_LEN] = s_channel.word;
     unsigned int *count = &s_channel.words;
     for (unsigned int at = 0u; carrier[at] != NULL; at += 1u)
     {
-        if ((mmgr_text_equal(carrier[at], "--pop", PLATFORM_TEXT_TO_TERMINATOR)) ||
-            (mmgr_text_equal(carrier[at], "--cross", PLATFORM_TEXT_TO_TERMINATOR)))
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = carrier[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "--pop", .ci = EMBED_FALSE)) ||
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = carrier[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "--cross", .ci = EMBED_FALSE)))
         {
-            const int pop = (mmgr_text_equal(carrier[at], "--pop", PLATFORM_TEXT_TO_TERMINATOR));
+            const int pop = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = carrier[at],
+                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "--pop", .ci = EMBED_FALSE));
             part = pop ? s_channel.pop : s_channel.cross;
             count = pop ? &s_channel.pop_words : &s_channel.cross_words;
             continue;
@@ -56,7 +59,8 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
     // the gated list the carrier reads, named after its `--gated`
     for (unsigned int at = 0u; (at + 1u) < words; at += 1u)
     {
-        if (mmgr_text_equal(s_channel.word[at], "--gated", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_channel.word[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--gated", .ci = EMBED_FALSE))
         {
             VerbaLinea gated_line = {s_channel.gated_list, sizeof(s_channel.gated_list), 0ULL};
             mmgr_line_put_max(&gated_line, s_channel.word[at + 1u], sizeof(s_channel.gated_list) - 1u);
@@ -77,12 +81,15 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
     }
     s_channel.words = words;
     s_channel.limit_microseconds = limit_microseconds;
-    s_channel.dry = (words >= 1u) && (mmgr_text_equal(s_channel.word[0], "dry", PLATFORM_TEXT_TO_TERMINATOR));
+    s_channel.dry =
+        (words >= 1u) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_channel.word[0],
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "dry", .ci = EMBED_FALSE));
     s_channel.stopped = 0;
     for (unsigned int at = 1u; at < words; at += 1u)
     {
         s_channel.stopped =
-            s_channel.stopped || (mmgr_text_equal(s_channel.word[at], "--dry", PLATFORM_TEXT_TO_TERMINATOR));
+            s_channel.stopped || (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_channel.word[at],
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "--dry", .ci = EMBED_FALSE));
     }
     s_channel.open = 1;
     return 1;
@@ -95,7 +102,7 @@ int run_channel_listed(const char *line, size_t length)
     {
         return 0;
     }
-    mmgr_bytes_copy(s_channel_list + s_channel.list_size, line, length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_channel_list + s_channel.list_size, .src = line, .bytes = length);
     s_channel.list_size += length;
     return 1;
 }
@@ -151,10 +158,11 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
     }
     // the first line, the answer; and after it, in any order, the lines the carrier adds: the registers it read off
     // the part, and the time its launches took, which is read wherever it is
-    const unsigned char *const first_end = (const unsigned char *)mmgr_bytes_find(bytes, '\n', (size_t)size);
+    const unsigned char *const first_end =
+        (const unsigned char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = bytes, .bytes = (size_t)size, .val = '\n');
     const size_t first_length = (first_end != NULL) ? (size_t)(first_end - bytes) : (size_t)size;
     const size_t copied = (first_length < (sizeof(s_answer_line) - 1u)) ? first_length : (sizeof(s_answer_line) - 1u);
-    mmgr_bytes_copy(s_answer_line, bytes, copied);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_answer_line, .src = bytes, .bytes = copied);
     s_answer_line[copied] = '\0';
     char timed_line[128] = "";
     unsigned long long line_at = (first_end != NULL) ? (unsigned long long)(first_end - bytes) + 1ULL : size;
@@ -165,16 +173,19 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
         {
             break;
         }
-        if (mmgr_text_starts(line, "timed ", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "timed ", .ci = EMBED_FALSE))
         {
             VerbaLinea timed_text = {timed_line, sizeof(timed_line), 0ULL};
             mmgr_line_put_max(&timed_text, line, sizeof(timed_line) - 1u);
             mmgr_line_finish(&timed_text);
         }
-        if (mmgr_text_starts(line, "clock address ", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "clock address ", .ci = EMBED_FALSE))
         {
             // the timer register's address, in hex as the carrier writes it
-            question->clock_address = (unsigned int)mmgr_text_unsigned_in(line + 14, NULL, 16);
+            question->clock_address =
+                (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = line + 14, .end = NULL, .base = 16);
         }
     }
     unsigned int launches = 0u;
@@ -187,10 +198,13 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
         line_number(&timed_at, 0, &question->max);
     }
     timed = timed && (launches == question->launches);
-    s_answer_line[mmgr_text_span_not(s_answer_line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
-    if (!mmgr_text_starts(s_answer_line, "answered", PLATFORM_TEXT_TO_TERMINATOR))
+    s_answer_line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = s_answer_line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "\r\n")] = '\0';
+    if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = s_answer_line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = "answered", .ci = EMBED_FALSE))
     {
-        question->outcome = (mmgr_text_starts(s_answer_line, "skipped", PLATFORM_TEXT_TO_TERMINATOR))
+        question->outcome = (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = s_answer_line,
+                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "skipped", .ci = EMBED_FALSE))
                                 ? (unsigned int)RUN_GATED
                                 : (unsigned int)RUN_ILLEGAL;
         VerbaLinea refused = {question->refused, sizeof(question->refused), 0ULL};
@@ -215,7 +229,8 @@ void run_channel_read(RunQuestion *question, const char *answers_name, unsigned 
     for (unsigned int place = 0u; place < question->cases; place += 1u)
     {
         const char *after_word = NULL;
-        question->answered[place] = mmgr_text_unsigned_in(at, &after_word, 16);
+        question->answered[place] =
+            EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = at, .end = &after_word, .base = 16);
         if (after_word == at)
         {
             VerbaLinea refused = {question->refused, sizeof(question->refused), 0ULL};
@@ -282,7 +297,7 @@ void run_channel_close(void)
     }
     kqr_free(&s_record);
     s_record_path[0] = '\0';
-    mmgr_bytes_set(&s_channel, 0, sizeof(s_channel));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_channel, .bytes = sizeof(s_channel), .val = 0);
 }
 
 const char *run_channel_carrier(void)

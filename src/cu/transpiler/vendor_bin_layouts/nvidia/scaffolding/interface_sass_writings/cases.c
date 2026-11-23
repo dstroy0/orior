@@ -3,11 +3,11 @@
 // cases.c: the cases: a file read, an anchor that fits, the relations and the expected answers, the cases written, the
 // kernel, a splice, a mark and a swap, a form that fits, the table and the sources, digits in order, an instruction and
 // the container written
-#include "writings_internal.h"
 #include "../../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../engine/rmc/precept_value.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "writings_internal.h"
 
 #define LADDER_WORD_COUNT(name_, text_, words_, measured_) words_,
 
@@ -139,11 +139,13 @@ void writings_cases(void)
 // the kernel the kernel opens with, `.text.<kernel>:`, into `kernel`: 1, or 0 where it opens otherwise
 int writings_kernel(const char *kernel_text, char *kernel, size_t room)
 {
-    if (!mmgr_text_starts(kernel_text, ".text.", PLATFORM_TEXT_TO_TERMINATOR))
+    if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = kernel_text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = ".text.", .ci = EMBED_FALSE))
     {
         return 0;
     }
-    const size_t length = mmgr_text_span_not(kernel_text + 6, ":\r\n", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = kernel_text + 6,
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ":\r\n");
     VerbaLinea formed_line_17;
     return (kernel_text[6u + length] == ':') &&
            ((formed_line_17 = mmgr_line_over(kernel, room),
@@ -155,12 +157,15 @@ int writings_kernel(const char *kernel_text, char *kernel, size_t room)
 // such line or `text` will not fit the whole
 int writings_splice(const char *kernel_text, const char *lines, char *text, size_t room)
 {
-    const char *const line = mmgr_text_find(kernel_text, "\nIADD3 ", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const line =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = kernel_text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "\nIADD3 ", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if (line == NULL)
     {
         return 0;
     }
-    const char *const after = mmgr_text_char(line + 1, '\n', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const after =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\n');
     const size_t before = (size_t)(line - kernel_text) + 1u;
     VerbaLinea formed_line_1 = mmgr_line_over(text, room);
     mmgr_line_put_max(&formed_line_1, kernel_text, (size_t)((int)before));
@@ -195,12 +200,14 @@ static void writings_swap(const char *operand, const char *put, char *out, size_
     size_t length = 0u;
     if (operand[0] == 'R')
     {
-        length =
-            (operand[1] == 'Z') ? 2u : (1u + mmgr_text_span(operand + 1, "0123456789", PLATFORM_TEXT_TO_TERMINATOR));
+        length = (operand[1] == 'Z') ? 2u
+                                     : (1u + EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = operand + 1,
+                                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "0123456789"));
     }
     const char *const rest = operand + length;
     const size_t rest_length =
-        mmgr_text_length(rest, PLATFORM_TEXT_TO_TERMINATOR) - (sass_high_half(operand) ? 3u : 0u);
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = rest, .cap = PLATFORM_TEXT_TO_TERMINATOR) -
+        (sass_high_half(operand) ? 3u : 0u);
     {
         VerbaLinea buffer_line = mmgr_line_over(out, room);
         mmgr_line_put(&buffer_line, put);
@@ -215,7 +222,8 @@ int writings_form_fits(const SassForm *form)
 {
     if ((form->operands < 2u) || (form->type[0] != SASS_OPERAND_REGISTER) ||
         sass_operation_control_or_wait(form->operation) ||
-        (mmgr_text_starts(form->operation, "NOP", PLATFORM_TEXT_TO_TERMINATOR)))
+        (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = form->operation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = "NOP", .ci = EMBED_FALSE)))
     {
         return 0;
     }
@@ -342,7 +350,7 @@ int writings_cubin(unsigned int count, const char *path)
 {
     const unsigned long long code_size = 16ULL * count;
     CubinWrite written;
-    mmgr_bytes_set(&written, 0, sizeof(written));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &written, .bytes = sizeof(written), .val = 0);
     written.pattern = s_pattern;
     written.pattern_size = s_pattern_size;
     written.kernel = s_kernel;

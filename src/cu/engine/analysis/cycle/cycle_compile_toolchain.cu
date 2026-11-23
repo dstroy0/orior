@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cycle_compile_toolchain.cu: the environment, the compiler and linker, and the cache's names
 #include "../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "cycle_compile_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 CycleCompiler g_cycle_compiler;
 
@@ -27,7 +27,8 @@ unsigned long long cycle_environment_microseconds(const char *name, unsigned lon
         return otherwise;
     }
     const char *end = NULL;
-    const unsigned long long named = mmgr_text_unsigned_in(value, &end, 10);
+    const unsigned long long named =
+        EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = value, .end = &end, .base = 10);
     return ((end != NULL) && (*end == '\0')) ? named : otherwise;
 }
 
@@ -261,7 +262,7 @@ int cycle_image_taken(CycleImage *image, const void *from, unsigned long long co
     image->count = (image->bytes != NULL) ? count : 0ULL;
     if (image->bytes != NULL)
     {
-        mmgr_bytes_copy(image->bytes, from, (size_t)count);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = image->bytes, .src = from, .bytes = (size_t)count);
         image->bytes[count] = 0u;
     }
     return (image->bytes != NULL) ? 1 : 0;

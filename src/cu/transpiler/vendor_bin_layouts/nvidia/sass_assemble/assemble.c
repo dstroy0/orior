@@ -2,10 +2,28 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // assemble.c: the assembly: one instruction assembled from its text, a line taken, a label and an instruction
 // distinguished, a label's address, and the lines of a listing assembled
-#include "sass_assemble_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sass_assemble_internal.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int assemble_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 typedef struct
 {
@@ -36,11 +54,14 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
     for (unsigned int place = 0u; place < parts.operands; place += 1u)
     {
         const char *const operand = parts.operand[place];
-        const char *const open = mmgr_text_char_last(operand, '[', PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const open = EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = operand,
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '[');
         const char *const named = (parts.type[place] == SASS_OPERAND_ADDRESS)    ? ((open != NULL) ? (open + 1) : NULL)
                                   : (parts.type[place] == SASS_OPERAND_REGISTER) ? operand
                                                                                  : NULL;
-        if ((named == NULL) || (named[0] != 'R') || (mmgr_text_starts(named, "RZ", PLATFORM_TEXT_TO_TERMINATOR)))
+        if ((named == NULL) || (named[0] != 'R') ||
+            (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = named, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "RZ",
+                        .ci = EMBED_FALSE)))
         {
             continue;
         }
@@ -114,7 +135,8 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
     {
         if (places[place].by_text != 0)
         {
-            if (!mmgr_text_equal(parts.operand[place], base.operand[place], PLATFORM_TEXT_TO_TERMINATOR))
+            if (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts.operand[place], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = base.operand[place], .ci = EMBED_FALSE))
             {
                 {
                     VerbaLinea *const output_line = platform_line_out();
@@ -144,14 +166,18 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
         // A memory operand that names its descriptor writes the uniform register into the descriptor field and
         // specifies whether it is displayed: desc[URn] sets bit 101 and term[URn] clears it. One that names none
         // retains both as its form carries them
-        const int named = (mmgr_text_starts(parts.operand[place], "desc[", PLATFORM_TEXT_TO_TERMINATOR)) ||
-                          (mmgr_text_starts(parts.operand[place], "term[", PLATFORM_TEXT_TO_TERMINATOR));
+        const int named = (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = parts.operand[place],
+                                      .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "desc[", .ci = EMBED_FALSE)) ||
+                          (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = parts.operand[place],
+                                      .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "term[", .ci = EMBED_FALSE));
         if ((places[place].has_descriptor != 0) && named)
         {
             const char *const uniform = parts.operand[place] + 5;
-            const unsigned long long descriptor = (mmgr_text_starts(uniform, "URZ", PLATFORM_TEXT_TO_TERMINATOR))
-                                                      ? SASS_DESCRIPTOR_ZERO
-                                                      : sass_register_value(uniform);
+            const unsigned long long descriptor =
+                (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = uniform, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "URZ", .ci = EMBED_FALSE))
+                    ? SASS_DESCRIPTOR_ZERO
+                    : sass_register_value(uniform);
             sass_bits_write(low, high, places[place].descriptor.first, places[place].descriptor.bits, descriptor);
             sass_bits_write(low, high, SASS_DESCRIPTOR_DISPLAYED, 1u, (parts.operand[place][0] == 'd') ? 1ULL : 0ULL);
         }
@@ -215,7 +241,8 @@ static const char *sass_line_take(const char *text, char *line, size_t room)
     {
         return NULL;
     }
-    const size_t length = mmgr_text_span_not(text, "\n", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length =
+        EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\n");
     size_t line_length = length;
     // a listing indents with spaces and a ruleset with tabs, and both end an instruction with a semicolon
     while ((line_length != 0u) && ((text[line_length - 1u] == ' ') || (text[line_length - 1u] == '\t') ||
@@ -229,7 +256,7 @@ static const char *sass_line_take(const char *text, char *line, size_t room)
         first += 1u;
     }
     const size_t taken = ((line_length - first) < (room - 1u)) ? (line_length - first) : (room - 1u);
-    mmgr_bytes_copy(line, text + first, taken);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = line, .src = text + first, .bytes = taken);
     line[taken] = '\0';
     return text + length + ((text[length] == '\n') ? 1u : 0u);
 }
@@ -237,7 +264,7 @@ static const char *sass_line_take(const char *text, char *line, size_t room)
 // what a line is: an instruction, a label, or neither
 static int sass_line_is_label(const char *line)
 {
-    const size_t length = mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     return (length != 0u) && (line[length - 1u] == ':');
 }
 
@@ -249,14 +276,18 @@ static int sass_line_is_instruction(const char *line)
 // the address the labels give for `operand`, which a listing writes `(.L_x_0); the count where they give none
 static unsigned long long sass_label_address(const SassLabels *labels, const char *operand, int *known)
 {
-    const char *const open = mmgr_text_char(operand, '(', PLATFORM_TEXT_TO_TERMINATOR);
-    const size_t length = (open != NULL) ? mmgr_text_span_not(open + 1, ")", PLATFORM_TEXT_TO_TERMINATOR) : 0u;
+    const char *const open =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = operand, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '(');
+    const size_t length = (open != NULL) ? EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = open + 1,
+                                                      .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ")")
+                                         : 0u;
     *known = 0;
     unsigned long long found = 0ULL;
     for (unsigned int at = 0u; (open != NULL) && (at < labels->count); at += 1u)
     {
-        if ((mmgr_text_length(labels->name[at], PLATFORM_TEXT_TO_TERMINATOR) == length) &&
-            (mmgr_text_order(labels->name[at], open + 1, (size_t)(length)) == 0))
+        if ((EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = labels->name[at], .cap = PLATFORM_TEXT_TO_TERMINATOR) ==
+             length) &&
+            (assemble_text_order(labels->name[at], open + 1, (size_t)(length)) == 0))
         {
             found = labels->address[at];
             *known = 1;
@@ -278,8 +309,8 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
         if (sass_line_is_label(line))
         {
             // a label past the max one text names, or longer than a name is stored, is refused and not dropped
-            if ((s_labels.count == SASS_LABELS) ||
-                (mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR) > SASS_LABEL_TOKEN))
+            if ((s_labels.count == SASS_LABELS) || (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line,
+                                                               .cap = PLATFORM_TEXT_TO_TERMINATOR) > SASS_LABEL_TOKEN))
             {
                 {
                     VerbaLinea *const output_line = platform_line_out();
@@ -298,7 +329,9 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
             {
                 VerbaLinea buffer_line = mmgr_line_over(s_labels.name[s_labels.count], SASS_LABEL_TOKEN);
                 mmgr_line_put_max(&buffer_line, line,
-                                  (size_t)((int)(mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR) - 1u)));
+                                  (size_t)((int)(EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line,
+                                                            .cap = PLATFORM_TEXT_TO_TERMINATOR) -
+                                                 1u)));
                 (void)mmgr_line_finish(&buffer_line);
             }
             s_labels.address[s_labels.count] = address;
@@ -334,7 +367,8 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
         int known = 1;
         for (unsigned int place = 0u; place < parts.operands; place += 1u)
         {
-            const char *const open = mmgr_text_char(parts.operand[place], '(', PLATFORM_TEXT_TO_TERMINATOR);
+            const char *const open = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = parts.operand[place],
+                                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '(');
             // a label of the text names where it is; a symbol is a relocation the loader fills, and the text
             // specifies nothing about where it will be
             if ((parts.type[place] == SASS_OPERAND_LABEL) && (open != NULL) && (open[1] == '.'))

@@ -5,10 +5,28 @@
 // the types and the answers, and writes and reads the file.
 #include "../../../../../../includes/parsers/line_read.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "sass_machine_internal.h"
 #include "verba_scribo/verba_linea.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int machine_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 const SassForm *sass_machine_form(const SassMachine *machine, const SassInstructionParts *parts)
 {
@@ -25,7 +43,8 @@ unsigned long long sass_exit_encoding(const SassMachine *machine)
     unsigned long long found = 0ULL;
     for (unsigned int number = 0u; number < machine->forms; number += 1u)
     {
-        found = (mmgr_text_equal(machine->form[number].operation, "EXIT", PLATFORM_TEXT_TO_TERMINATOR))
+        found = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = machine->form[number].operation,
+                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "EXIT", .ci = EMBED_FALSE))
                     ? machine->form[number].low
                     : found;
     }
@@ -39,8 +58,9 @@ int sass_operation_control_or_wait(const char *operation)
         "WARPSYNC", "YIELD", "BAR", "DEPBAR", "NANOSLEEP", "BPT", "RTT",  "KILL", "RPCMOV", "RETIRE", "PMTRIG"};
     for (unsigned int at = 0u; at < (sizeof(s_unsafe) / sizeof(s_unsafe[0])); at += 1u)
     {
-        if (mmgr_text_order(operation, s_unsafe[at],
-                            (size_t)(mmgr_text_length(s_unsafe[at], PLATFORM_TEXT_TO_TERMINATOR))) == 0)
+        if (machine_text_order(operation, s_unsafe[at],
+                               (size_t)(EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_unsafe[at],
+                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR))) == 0)
         {
             return 1;
         }
@@ -58,27 +78,29 @@ unsigned int sass_operation_schedule(const SassMachine *machine, const char *ope
     // The names before the first dot that NVIDIA's compiler gives a write barrier at every place, or a read barrier.
     static const char *const s_late[] = {"LDG", "LDS", "S2R", "S2UR", "F2I", "I2F", "MUFU", "ATOMG"};
     static const char *const s_store[] = {"STG", "STS", "STL", "ST", "RED"};
-    const size_t base = mmgr_text_span_not(operation, ".", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t base = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = operation,
+                                   .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".");
     *soonest = SASS_STALL_MAX_LEN;
     for (unsigned int at = 0u; at < (sizeof(s_late) / sizeof(s_late[0])); at += 1u)
     {
-        if ((mmgr_text_length(s_late[at], PLATFORM_TEXT_TO_TERMINATOR) == base) &&
-            (mmgr_text_order(operation, s_late[at], (size_t)(base)) == 0))
+        if ((EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_late[at], .cap = PLATFORM_TEXT_TO_TERMINATOR) == base) &&
+            (machine_text_order(operation, s_late[at], (size_t)(base)) == 0))
         {
             return SASS_SCHEDULE_LATE;
         }
     }
     for (unsigned int at = 0u; at < (sizeof(s_store) / sizeof(s_store[0])); at += 1u)
     {
-        if ((mmgr_text_length(s_store[at], PLATFORM_TEXT_TO_TERMINATOR) == base) &&
-            (mmgr_text_order(operation, s_store[at], (size_t)(base)) == 0))
+        if ((EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_store[at], .cap = PLATFORM_TEXT_TO_TERMINATOR) == base) &&
+            (machine_text_order(operation, s_store[at], (size_t)(base)) == 0))
         {
             return SASS_SCHEDULE_STORE;
         }
     }
     for (unsigned int at = 0u; at < machine->soonests; at += 1u)
     {
-        if (mmgr_text_equal(operation, machine->soonest[at].operation, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = operation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = machine->soonest[at].operation, .ci = EMBED_FALSE))
         {
             *soonest = machine->soonest[at].stall;
         }
@@ -104,8 +126,8 @@ int sass_machine_take(SassMachine *machine, const char *text, unsigned long long
         return 0;
     }
     SassForm *const form = &machine->form[machine->forms];
-    mmgr_bytes_set(form, 0, sizeof(*form));
-    mmgr_bytes_copy(form->operation, parts.operation, sizeof(form->operation));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = form, .bytes = sizeof(*form), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = form->operation, .src = parts.operation, .bytes = sizeof(form->operation));
     form->operands = parts.operands;
     for (unsigned int place = 0u; place < parts.operands; place += 1u)
     {
@@ -133,7 +155,9 @@ int sass_machine_take_related(SassMachine *machine, const char *text, unsigned l
     {
         SassForm *const form = &machine->form[number];
         if (sass_form_same(form, &parts) &&
-            ((form->relation[0] == '\0') || (mmgr_text_equal(form->relation, relation, PLATFORM_TEXT_TO_TERMINATOR))))
+            ((form->relation[0] == '\0') ||
+             (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = form->relation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = relation, .ci = EMBED_FALSE))))
         {
             *taken = form;
             return 1;
@@ -146,8 +170,8 @@ int sass_machine_take_related(SassMachine *machine, const char *text, unsigned l
         return 0;
     }
     SassForm *const form = &machine->form[machine->forms];
-    mmgr_bytes_set(form, 0, sizeof(*form));
-    mmgr_bytes_copy(form->operation, parts.operation, sizeof(form->operation));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = form, .bytes = sizeof(*form), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = form->operation, .src = parts.operation, .bytes = sizeof(form->operation));
     form->operands = parts.operands;
     for (unsigned int place = 0u; place < parts.operands; place += 1u)
     {
@@ -171,14 +195,17 @@ int sass_machine_take_related(SassMachine *machine, const char *text, unsigned l
 // of the form `c[<bank>][<offset>]`.
 static size_t sass_constant_head(const char *text)
 {
-    const char *const first_close = mmgr_text_char(text, ']', PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const second =
-        (first_close != NULL) ? mmgr_text_char(first_close + 1, '[', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+    const char *const first_close =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ']');
+    const char *const second = (first_close != NULL) ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = first_close + 1,
+                                                                  .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '[')
+                                                     : NULL;
     if (second == NULL)
     {
         return 0u;
     }
-    const char *const plus = mmgr_text_char_last(second, '+', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const plus =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = second, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '+');
     // The head is a few bytes of a short operand.
     return (size_t)(((plus != NULL) ? plus : second) + 1 - text);
 }
@@ -233,7 +260,9 @@ int sass_text_placed(const SassForm *form, char *written, size_t room)
         // A placed address keeps its brackets and what follows its register inside them, `[{<place>}.64]`. The
         // operand then reads as an address after the place takes its value.
         const int address = (parts.type[operand] == SASS_OPERAND_ADDRESS) && (text[0] == '[');
-        const size_t inner = address ? (1u + mmgr_text_span_not(text + 1, ".+]", PLATFORM_TEXT_TO_TERMINATOR)) : 0u;
+        const size_t inner = address ? (1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = text + 1,
+                                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".+]"))
+                                     : 0u;
         // A placed constant keeps its bank and its base and places its immediate, `c[0x0][0x160+{<place>}]`. The
         // operand then reads as a constant after the place takes its value.
         const size_t head = (parts.type[operand] == SASS_OPERAND_CONSTANT) ? sass_constant_head(text) : 0u;
@@ -314,7 +343,8 @@ static void sass_runs_write(const SassForm *form, char *written, size_t room)
 static int sass_runs_read(SassForm *form, const char *column)
 {
     form->runs = 0u;
-    if (mmgr_text_equal(column, "none", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = column, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "none",
+                   .ci = EMBED_FALSE))
     {
         return 1;
     }
@@ -339,17 +369,20 @@ static int sass_runs_read(SassForm *form, const char *column)
         const int read = (int)(walk - at);
         unsigned int place = SASS_RUN_NO_PLACE;
         if ((at[read] == ':') &&
-            (mmgr_text_order(&at[read + 1], SASS_RUN_NO_PLACE_TEXT,
-                             (size_t)(mmgr_text_length(SASS_RUN_NO_PLACE_TEXT, PLATFORM_TEXT_TO_TERMINATOR))) != 0))
+            (machine_text_order(&at[read + 1], SASS_RUN_NO_PLACE_TEXT,
+                                (size_t)(EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = SASS_RUN_NO_PLACE_TEXT,
+                                                    .cap = PLATFORM_TEXT_TO_TERMINATOR))) != 0))
         {
-            place = (unsigned int)mmgr_text_unsigned_in(&at[read + 1], NULL, 10);
+            place = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = &at[read + 1], .end = NULL,
+                                             .base = 10);
         }
         form->run[form->runs].operand = operand;
         form->run[form->runs].first = first;
         form->run[form->runs].last = last;
         form->run[form->runs].place = place;
         form->runs += 1u;
-        const size_t length = mmgr_text_span_not(at, ";", PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t length =
+            EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ";");
         at += length + ((at[length] == ';') ? 1u : 0u);
     }
     return 1;
@@ -441,8 +474,9 @@ static unsigned int sass_name_place(const char *const *names, unsigned int count
     unsigned int found = count;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        found = ((mmgr_text_length(names[at], PLATFORM_TEXT_TO_TERMINATOR) == length) &&
-                 (mmgr_text_order(names[at], word, (size_t)(length)) == 0))
+        found = ((EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = names[at], .cap = PLATFORM_TEXT_TO_TERMINATOR) ==
+                  length) &&
+                 (machine_text_order(names[at], word, (size_t)(length)) == 0))
                     ? at
                     : found;
     }
@@ -453,14 +487,16 @@ static unsigned int sass_name_place(const char *const *names, unsigned int count
 static int sass_types_read(SassForm *form, const char *column)
 {
     form->operands = 0u;
-    if (mmgr_text_equal(column, "none", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = column, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "none",
+                   .ci = EMBED_FALSE))
     {
         return 1;
     }
     const char *at = column;
     while (*at != '\0')
     {
-        const size_t length = mmgr_text_span_not(at, ",", PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t length =
+            EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ",");
         // The mark is the last character if it is one, and the type is the rest.
         const size_t mark_length = ((length != 0u) && (sass_name_place(s_mark_names, (unsigned int)SASS_MARK_COUNT,
                                                                        at + length - 1u, 1u) != SASS_MARK_COUNT))
@@ -492,8 +528,10 @@ static void sass_answers_read(SassMachine *machine, const char *path)
     machine->register_last = SASS_MACHINE_UNANSWERED;
     machine->register_past = SASS_MACHINE_UNANSWERED;
     char ksc[1024];
-    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
-    const int typed = (length > 4u) && (mmgr_text_equal(path + length - 4u, ".khw", PLATFORM_TEXT_TO_TERMINATOR));
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    const int typed =
+        (length > 4u) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = path + length - 4u,
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".khw", .ci = EMBED_FALSE));
     {
         VerbaLinea buffer_line = mmgr_line_over(ksc, sizeof(ksc));
         mmgr_line_put_max(&buffer_line, path, (size_t)((int)(typed ? (length - 4u) : length)));
@@ -509,18 +547,21 @@ static void sass_answers_read(SassMachine *machine, const char *path)
         char writer[SASS_MACHINE_TOKEN];
         char reader[SASS_MACHINE_TOKEN];
         if (!ksc_row_read(s_file.line[line], "run", &s_row) ||
-            (!mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)))
+            (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.answer, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = "answers", .ci = EMBED_FALSE)))
         {
             continue;
         }
         // A stall and a register are each at max eight hex digits, and an unsigned int represents each.
         const unsigned int answered = (unsigned int)s_row.value;
-        if (mmgr_text_starts(s_row.question, "register last", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = s_row.question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "register last", .ci = EMBED_FALSE))
         {
             machine->register_last = answered;
             continue;
         }
-        if (mmgr_text_starts(s_row.question, "register past", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = s_row.question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "register past", .ci = EMBED_FALSE))
         {
             machine->register_past = answered;
             continue;
@@ -534,7 +575,8 @@ static void sass_answers_read(SassMachine *machine, const char *path)
         const unsigned int stall = answered;
         unsigned int at = 0u;
         while ((at < machine->soonests) &&
-               (!mmgr_text_equal(machine->soonest[at].operation, writer, PLATFORM_TEXT_TO_TERMINATOR)))
+               (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = machine->soonest[at].operation,
+                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = writer, .ci = EMBED_FALSE)))
         {
             at += 1u;
         }
@@ -576,23 +618,27 @@ int sass_machine_read(SassMachine *machine, const char *path)
         }
         return 0;
     }
-    mmgr_bytes_set(machine, 0, sizeof(*machine));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = machine, .bytes = sizeof(*machine), .val = 0);
     char line[SASS_MACHINE_TEXT + (SASS_MACHINE_TOKEN * (SASS_MACHINE_OPERANDS + 4u))];
     unsigned int version = 0u;
     int broken = 0;
     while (line_read(file_bytes, file_size, &file_at, line, sizeof(line)))
     {
-        line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
+        line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\r\n")] = '\0';
         if ((line[0] == '#') || (line[0] == '\0'))
         {
             continue;
         }
-        if (mmgr_text_starts(line, "forms ", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "forms ", .ci = EMBED_FALSE))
         {
-            version = (unsigned int)mmgr_text_unsigned_in(line + 6, NULL, 10);
+            version =
+                (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = line + 6, .end = NULL, .base = 10);
             continue;
         }
-        if (mmgr_text_starts(line, "part ", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "part ", .ci = EMBED_FALSE))
         {
             // A part's name is short, and the field cuts a longer one to what it fits.
             {
@@ -602,7 +648,8 @@ int sass_machine_read(SassMachine *machine, const char *path)
             }
             continue;
         }
-        if (!mmgr_text_starts(line, "form ", PLATFORM_TEXT_TO_TERMINATOR))
+        if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "form ", .ci = EMBED_FALSE))
         {
             broken = 1;
             continue;
@@ -636,7 +683,7 @@ int sass_machine_read(SassMachine *machine, const char *path)
             continue;
         }
         SassForm *const form = &machine->form[machine->forms];
-        mmgr_bytes_set(form, 0, sizeof(*form));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = form, .bytes = sizeof(*form), .val = 0);
         {
             VerbaLinea buffer_line = mmgr_line_over(form->operation, sizeof(form->operation));
             mmgr_line_put(&buffer_line, operation);
@@ -649,14 +696,18 @@ int sass_machine_read(SassMachine *machine, const char *path)
         }
         form->low = low;
         form->high = high;
-        if (!mmgr_text_equal(relation, SASS_RUN_NO_PLACE_TEXT, PLATFORM_TEXT_TO_TERMINATOR))
+        if (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = relation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = SASS_RUN_NO_PLACE_TEXT, .ci = EMBED_FALSE))
         {
             {
                 VerbaLinea buffer_line = mmgr_line_over(form->relation, sizeof(form->relation));
                 mmgr_line_put(&buffer_line, relation);
                 (void)mmgr_line_finish(&buffer_line);
             }
-            form->signed_read = (mmgr_text_equal(signed_read, "1", PLATFORM_TEXT_TO_TERMINATOR)) ? 1 : 0;
+            form->signed_read = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = signed_read,
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "1", .ci = EMBED_FALSE))
+                                    ? 1
+                                    : 0;
         }
         broken = sass_types_read(form, types) ? broken : 1;
         broken = sass_runs_read(form, runs) ? broken : 1;

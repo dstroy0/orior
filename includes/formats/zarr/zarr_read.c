@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zarr_read.c: the shard index, fill and the read
-#include "zarr_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "zarr_internal.h"
 
 static int zarr_shard_index(ZarrWalk *walk, const char *path, long long file_bytes)
 {
@@ -91,7 +91,7 @@ static int zarr_leaf(ZarrWalk *walk, const unsigned long long *position)
             {
                 return 0;
             }
-            mmgr_bytes_copy(walk->cached_shard, shard, sizeof(shard));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = walk->cached_shard, .src = shard, .bytes = sizeof(shard));
             walk->shard_valid = 1u;
         }
         const unsigned long long offset = walk->shard_index[entry * 2ULL];
@@ -179,12 +179,13 @@ static void zarr_fill(const ZarrReadRequest *request, unsigned long long bytes, 
     }
     if (zero != 0u)
     {
-        mmgr_bytes_set(request->out, 0, (size_t)bytes);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = request->out, .bytes = (size_t)bytes, .val = 0);
         return;
     }
     for (unsigned long long at = 0ULL; at < bytes; at += element_bytes)
     {
-        mmgr_bytes_copy(&request->out[at], request->layout->fill, element_bytes);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &request->out[at], .src = request->layout->fill,
+                   .bytes = element_bytes);
     }
 }
 
@@ -205,7 +206,7 @@ long long zarr_read(const ZarrReadRequest *request)
         return ZARR_ERROR;
     }
     ZarrWalk walk;
-    mmgr_bytes_set(&walk, 0, sizeof(walk));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &walk, .bytes = sizeof(walk), .val = 0);
     walk.request = request;
     walk.rank = rank;
     walk.element_bytes = element_bytes;
@@ -213,7 +214,7 @@ long long zarr_read(const ZarrReadRequest *request)
     unsigned long long total = (request->end - request->first) * element_bytes;
     unsigned long long leaf_bytes = element_bytes;
     unsigned int seen[ENGINE_ARRAY_RANK];
-    mmgr_bytes_set(seen, 0, sizeof(seen));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = seen, .bytes = sizeof(seen), .val = 0);
     for (unsigned int axis = 0u; axis < rank; axis += 1u)
     {
         const unsigned int placed = layout->order[axis];
@@ -243,7 +244,7 @@ long long zarr_read(const ZarrReadRequest *request)
     const unsigned long long first_chunk = request->first / walk.leaf[0];
     const unsigned long long end_chunk = (request->end + walk.leaf[0] - 1ULL) / walk.leaf[0];
     unsigned long long position[ENGINE_ARRAY_RANK];
-    mmgr_bytes_set(position, 0, sizeof(position));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = position, .bytes = sizeof(position), .val = 0);
     position[0] = first_chunk;
     int ok = 1;
     while (ok && (position[0] < end_chunk))

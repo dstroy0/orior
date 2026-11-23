@@ -4,12 +4,11 @@
 // tools; this is the other direction, putting instructions of the interface's own into a cubin the part will load and
 // run, with a cubin the toolchain built located as the pattern for everything an ELF carries that no instruction
 // states
-#include "interface_sass_probe.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../cubin_write.h"
 #include "../sass_assemble.h"
-
+#include "interface_sass_probe.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the max bytes a cubin, its code and its text take
 #define SASS_CUBIN_BYTES 262144u
@@ -125,7 +124,7 @@ int sass_cubin_kernel(const SassMachine *machine, const char *folder, const char
     }
     const unsigned long long code_size = 16ULL * instructions;
     CubinWrite written;
-    mmgr_bytes_set(&written, 0, sizeof(written));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &written, .bytes = sizeof(written), .val = 0);
     written.pattern = s_pattern;
     written.pattern_size = pattern_size;
     written.kernel = kernel;

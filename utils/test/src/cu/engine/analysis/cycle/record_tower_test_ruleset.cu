@@ -460,11 +460,11 @@ static void tower_test_errors(SimResults *results)
         steps_out[at] = EngineRecordStep{ENGINE_RECORD_CONSTANT, 7u, 0u, 0u};
     }
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     unsigned int count = 1u;
     TowerRecordRequest request;
-    mmgr_bytes_set(&request, 0, sizeof(request));
-    mmgr_bytes_copy(request.extent, pair, sizeof(request.extent));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.extent, .src = pair, .bytes = sizeof(request.extent));
     request.in_registers = fields;
     request.out_registers = out;
     request.count = &count;
@@ -473,7 +473,7 @@ static void tower_test_errors(SimResults *results)
     const int later =
         (tower_record_lift(&request) == TOWER_ERROR) && (count == 1u) && (error.type == ENGINE_ERROR_REQUEST);
     sim_check(results, later, "a register that is not an earlier step errors, and the count is left as it was");
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     count = 2u;
     request.steps = steps_out;
     request.step_capacity = 3u;
@@ -485,8 +485,8 @@ static void tower_test_errors(SimResults *results)
         unchanged = unchanged && (steps_out[at].operation == ENGINE_RECORD_CONSTANT) && (steps_out[at].left == 7u);
     }
     sim_check(results, small && unchanged, "a capacity too small errors before a step is written");
-    mmgr_bytes_set(&error, 0, sizeof(error));
-    mmgr_bytes_copy(request.extent, empty, sizeof(request.extent));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.extent, .src = empty, .bytes = sizeof(request.extent));
     request.steps = NULL;
     const int nothing =
         (tower_record_lift(&request) == TOWER_ERROR) && (count == 2u) && (error.type == ENGINE_ERROR_REQUEST);
@@ -495,11 +495,11 @@ static void tower_test_errors(SimResults *results)
     TowerLiftingStep malformed[3] = {{TOWER_BAND_HIGH, -1, 1u, {0}, {0}, 0u, 0u},
                                      {TOWER_BAND_HIGH, -1, 0u, {0}, {1}, 0u, 0u},
                                      {TOWER_BAND_LOW, 2, 1u, {0}, {1}, 0u, 0u}};
-    mmgr_bytes_copy(request.extent, pair, sizeof(request.extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.extent, .src = pair, .bytes = sizeof(request.extent));
     int errored = 1;
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        mmgr_bytes_set(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         request.rules = &malformed[at];
         request.rule_count = 1u;
         errored = errored && (tower_record_lift(&request) == TOWER_ERROR) && (count == 2u) &&

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_device_overlap.cu: the overlap step
 #include "max_tree_device_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 static int max_tree_overlap_step(MaxTreeOverlap *overlap, unsigned int origin, unsigned int level,
                                  MaxTreeOverlapStep *step, MaxTreeOverlapProbe *probes, unsigned char *links_present)
@@ -194,7 +194,7 @@ extern "C" long max_tree_overlap(const MaxTreeOverlapRequest *request)
         return MAX_TREE_ERROR;
     }
     MaxTreeOverlap overlap;
-    mmgr_bytes_set(&overlap, 0, sizeof(overlap));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &overlap, .bytes = sizeof(overlap), .val = 0);
     overlap.depth = resident->last_depth;
     overlap.height = resident->last_height;
     overlap.width = resident->last_width;

@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "heaviest_matching.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-
+#include "memoria_operor/memoria_operor.h"
 
 _Static_assert(sizeof(long long) == 8u, "heaviest_matching: long long must be 64 bits, a path cost");
 
@@ -358,7 +357,8 @@ long heaviest_matching_run(const HeaviestMatchingRequest *args)
                                                 (unsigned int)platform_place_g_engine_owner, 0);
         if (filled != NULL)
         {
-            mmgr_bytes_copy(filled, starts, (objects + 1u) * sizeof(unsigned int));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = filled, .src = starts,
+                       .bytes = (objects + 1u) * sizeof(unsigned int));
             for (unsigned int pair = 0u; pair < args->pairs; pair += 1u)
             {
                 members[filled[component_of[pair]]] = pair;
@@ -378,7 +378,7 @@ long heaviest_matching_run(const HeaviestMatchingRequest *args)
             }
             if (answer >= 0)
             {
-                mmgr_bytes_copy(args->chosen, staged, (size_t)args->pairs);
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = args->chosen, .src = staged, .bytes = (size_t)args->pairs);
             }
         }
     }

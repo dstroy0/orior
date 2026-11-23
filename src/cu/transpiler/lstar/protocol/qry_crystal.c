@@ -13,12 +13,11 @@
 //
 // The lifting runs on the device. Exit 0 where it was done and every sample matched, 1 where it was not, 2 where the
 // words are none of the above
-#include "../../../engine/engine.h"
 #include "../../../../platform/platform.h"
+#include "../../../engine/engine.h"
 #include "../../../engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
-
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #if defined(_WIN32)
 #include <direct.h>
@@ -178,11 +177,11 @@ static int qry_crystal_written(const char *qry, const char *set)
     }
     // the samples lifted, coded and sealed on the device, each read back and checked against its source by the engine
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     static EngineSampleRecord s_records[QRY_CRYSTAL_PARTS];
-    mmgr_bytes_set(s_records, 0, sizeof(s_records));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = s_records, .bytes = sizeof(s_records), .val = 0);
     EngineSetReport report;
-    mmgr_bytes_set(&report, 0, sizeof(report));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &report, .bytes = sizeof(report), .val = 0);
     report.samples = s_records;
     const EngineIngestRequest ingest = {source, set, s_named, parts, "x", 0u, &error, &report};
     whole = (engine_ingest_set(&ingest) != ENGINE_ERROR);
@@ -202,7 +201,7 @@ static int qry_crystal_written(const char *qry, const char *set)
         unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *lanes = NULL;
         EngineSignum root;
-        mmgr_bytes_set(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         whole = whole && (again != NULL) &&
                 (engine_iapx_load(set, s_names[part], extent, &lanes, &root, NULL, &error) != ENGINE_ERROR) &&
                 ((extent[0] * extent[1] * extent[2] * extent[3]) == s_sizes[part]) &&
@@ -314,7 +313,7 @@ static int qry_crystal_read(const char *set, const char *qry)
         unsigned short *lanes = NULL;
         EngineSignum root;
         EngineError error;
-        mmgr_bytes_set(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         whole = (engine_iapx_load(set, name, extent, &lanes, &root, NULL, &error) != ENGINE_ERROR);
         const unsigned long long count = extent[0] * extent[1] * extent[2] * extent[3];
         unsigned char *const larger = whole ? (unsigned char *)platform_cell_grown(bytes, bytes_room, count + 1ULL,
@@ -371,11 +370,13 @@ static int qry_crystal_read(const char *set, const char *qry)
 
 int program_main(int count, char **words)
 {
-    if ((count == 4) && (mmgr_text_equal(words[1], "write", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count == 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "write", .ci = EMBED_FALSE)))
     {
         return qry_crystal_written(words[2], words[3]) ? 0 : 1;
     }
-    if ((count == 4) && (mmgr_text_equal(words[1], "read", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count == 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "read", .ci = EMBED_FALSE)))
     {
         return qry_crystal_read(words[2], words[3]) ? 0 : 1;
     }

@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_chunks.c: decoding and placing chunks
-#include "hdf5_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "hdf5_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 static long long hdf5_decode(const Hdf5File *file, EngineCodec codec, const unsigned char *in, size_t in_bytes,
                              unsigned char *out, size_t capacity)
@@ -49,7 +49,7 @@ static long long hdf5_lz4_frames(const Hdf5File *file, const unsigned char *in, 
         }
         if (packed == piece)
         {
-            mmgr_bytes_copy(&out[made], &in[at], (size_t)piece);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &out[made], .src = &in[at], .bytes = (size_t)piece);
         }
         else if (hdf5_decode(file, ENGINE_CODEC_LZ4, &in[at], (size_t)packed, &out[made], (size_t)piece) !=
                  (long long)piece)
@@ -73,7 +73,7 @@ static long long hdf5_unshuffle(const unsigned char *in, size_t length, unsigned
         }
     }
     const size_t settled = count * width;
-    mmgr_bytes_copy(&out[settled], &in[settled], length - settled);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &out[settled], .src = &in[settled], .bytes = length - settled);
     return (long long)length;
 }
 
@@ -91,7 +91,7 @@ static long long hdf5_fletcher(const unsigned char *in, size_t length, unsigned 
     {
         return -1LL;
     }
-    mmgr_bytes_copy(out, in, body);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = in, .bytes = body);
     return (long long)body;
 }
 
@@ -141,7 +141,7 @@ static void hdf5_chunk_copy(const Hdf5Gather *gather, const unsigned char *chunk
     const unsigned long long element = gather->object->element_bytes;
     const size_t run = (size_t)((high[rank - 1u] - low[rank - 1u]) * element);
     unsigned long long position[ENGINE_ARRAY_RANK];
-    mmgr_bytes_copy(position, low, rank * sizeof(position[0u]));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = position, .src = low, .bytes = rank * sizeof(position[0u]));
     int more = 1;
     while (more)
     {
@@ -152,7 +152,8 @@ static void hdf5_chunk_copy(const Hdf5Gather *gather, const unsigned char *chunk
             source += (position[axis] - origin[axis]) * gather->chunk_stride[axis];
             target += (position[axis] - ((axis == 0u) ? gather->first : 0ULL)) * gather->out_stride[axis];
         }
-        mmgr_bytes_copy(&gather->out[target * element], &chunk[source * element], run);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &gather->out[target * element], .src = &chunk[source * element],
+                   .bytes = run);
         more = 0;
         for (unsigned int axis = rank - 1u; axis > 0u; axis -= 1u)
         {
@@ -242,7 +243,8 @@ int hdf5_chunk_tree(Hdf5Gather *gather, unsigned long long address, unsigned int
     }
     const unsigned int node_level = prefix[5u];
     const size_t entries = (size_t)hdf5_little(&prefix[6u], 2u);
-    if ((mmgr_bytes_compare(prefix, "TREE", 4u) != 0) || (prefix[4u] != 1u) || (!root && (node_level != level)))
+    if ((EMBED_CALL(memor.cmp, MemoriaCfg, .src = prefix, .other = "TREE", .bytes = 4u) != 0) || (prefix[4u] != 1u) ||
+        (!root && (node_level != level)))
     {
         return hdf5_error(file, "a chunk B-tree node whose signature, type or level is wrong");
     }
@@ -277,7 +279,8 @@ int hdf5_chunk_tree(Hdf5Gather *gather, unsigned long long address, unsigned int
                 }
             }
             ok = (after > 0) ? 1 : hdf5_error(file, "chunk B-tree keys that repeat or run out of order");
-            mmgr_bytes_copy(gather->last_key, origin, dimensions * sizeof(origin[0u]));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = gather->last_key, .src = origin,
+                       .bytes = dimensions * sizeof(origin[0u]));
             gather->keyed = 1;
             ok = ok && hdf5_chunk_place(gather, origin, child_address, hdf5_little(key, 4u),
                                         (unsigned int)hdf5_little(&key[4u], 4u));
@@ -304,7 +307,7 @@ void hdf5_fixed_close(Hdf5Fixed *fixed)
 
 int hdf5_fixed_open(Hdf5File *file, const Hdf5Object *object, const Hdf5Gather *gather, Hdf5Fixed *fixed)
 {
-    mmgr_bytes_set(fixed, 0, sizeof(*fixed));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = fixed, .bytes = sizeof(*fixed), .val = 0);
     fixed->prefix = NULL;
     fixed->page = NULL;
     if (hdf5_undefined(file, object->data_address))
@@ -318,8 +321,9 @@ int hdf5_fixed_open(Hdf5File *file, const Hdf5Object *object, const Hdf5Gather *
     {
         return 0;
     }
-    const int sound =
-        hdf5_sealed(header, header_bytes) && (mmgr_bytes_compare(header, "FAHD", 4u) == 0) && (header[4u] == 0u);
+    const int sound = hdf5_sealed(header, header_bytes) &&
+                      (EMBED_CALL(memor.cmp, MemoriaCfg, .src = header, .other = "FAHD", .bytes = 4u) == 0) &&
+                      (header[4u] == 0u);
     const unsigned int client = header[5u];
     fixed->entry_bytes = header[6u];
     const unsigned int page_bits = header[7u];
@@ -361,10 +365,11 @@ int hdf5_fixed_open(Hdf5File *file, const Hdf5Object *object, const Hdf5Gather *
     {
         return 0;
     }
-    const int block_sound = hdf5_sealed(fixed->prefix, (size_t)loaded) &&
-                            (mmgr_bytes_compare(fixed->prefix, "FADB", 4u) == 0) && (fixed->prefix[4u] == 0u) &&
-                            (fixed->prefix[5u] == client) &&
-                            (hdf5_little(&fixed->prefix[6u], offset_bytes) == object->data_address);
+    const int block_sound =
+        hdf5_sealed(fixed->prefix, (size_t)loaded) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = fixed->prefix, .other = "FADB", .bytes = 4u) == 0) &&
+        (fixed->prefix[4u] == 0u) && (fixed->prefix[5u] == client) &&
+        (hdf5_little(&fixed->prefix[6u], offset_bytes) == object->data_address);
     if (!block_sound)
     {
         hdf5_fixed_close(fixed);

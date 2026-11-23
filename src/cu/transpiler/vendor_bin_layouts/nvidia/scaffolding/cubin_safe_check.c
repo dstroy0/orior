@@ -9,12 +9,11 @@
 // One line a case and a cubin, and a last line with the checks. Exit 0 where every case gives its rule's verdict, 1
 // where one does not, 2 where the machine file did not read. A cubin's verdict is reported and is no check: a cubin
 // blocked from the part is the gate doing its work.
-#include "../cubin_safe.h"
 #include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "../cubin_safe.h"
 #include "../sass_assemble.h"
-
+#include "cellularum_laboro/cellularum_laboro.h"
 
 #define CHECK_CUBIN_BYTES 1048576u
 #define CHECK_CODE_INSTRUCTIONS 4u
@@ -98,7 +97,8 @@ static const SassForm *check_form(const char *operation)
 {
     for (unsigned int at = 0u; at < s_machine.forms; at += 1u)
     {
-        if (mmgr_text_equal(s_machine.form[at].operation, operation, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_machine.form[at].operation,
+                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = operation, .ci = EMBED_FALSE))
         {
             return &s_machine.form[at];
         }
@@ -111,7 +111,8 @@ static const SassForm *check_form_seen(const char *text)
 {
     for (unsigned int at = 0u; at < s_machine.forms; at += 1u)
     {
-        if (mmgr_text_equal(s_machine.form[at].text, text, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_machine.form[at].text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = text, .ci = EMBED_FALSE))
         {
             return &s_machine.form[at];
         }

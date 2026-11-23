@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_floor_massey.cu: bits, Massey, the mock and the transfer kernel
-#include "noise_floor_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "noise_floor_internal.h"
 
 static inline __host__ __device__ unsigned int floor_bit(const FloorStream *stream, unsigned int at)
 {
@@ -127,7 +127,7 @@ static int floor_massey(SimResults *results, const FloorStream *streams, unsigne
 static void floor_seeded_stream(FloorStream *stream, unsigned int degree, unsigned long long key,
                                 unsigned long long index)
 {
-    mmgr_bytes_set(stream, 0, sizeof(*stream));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = stream, .bytes = sizeof(*stream), .val = 0);
     const unsigned long long range = (degree == 64u) ? 0xFFFFFFFFFFFFFFFFULL : ((1ULL << degree) - 1ULL);
     const unsigned long long taps = (sim_draw(key, (index * 4ULL) + 0ULL) & range) | (1ULL << (degree - 1u));
     unsigned long long state = sim_draw(key, (index * 4ULL) + 1ULL) & range;

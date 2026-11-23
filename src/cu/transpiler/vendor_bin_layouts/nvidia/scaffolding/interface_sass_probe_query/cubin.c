@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cubin.c: the container: checked safe and run, its answers first and whole and by the toolchain, the environment, the
 // clock, a query's text and name, and the loop or the time preferred
-#include "probe_query_internal.h"
 #include "../../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "probe_query_internal.h"
 
 // A question of preference instead of membership. Every question above tests whether the part CAN do a thing;
 // this tests which of two codings of one thing the part prefers. Both must answer the same, or they are not
@@ -75,8 +74,10 @@ static int sass_cubin_run(SassProbe *probe, const char *path, unsigned int first
                              (char *)"00000007",    (char *)"00000003", (char *)"00000005", (char *)"00000002",
                              (char *)"00000009",    (char *)"00000001", (char *)"00000004", NULL};
     const int status = sass_run(command, output);
-    const char *const line =
-        (status == 0) ? mmgr_text_find(sass_output(), "answered ", PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+    const char *const line = (status == 0) ? EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = sass_output(),
+                                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "answered ",
+                                                        .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE)
+                                           : NULL;
     if (line == NULL)
     {
         {
@@ -94,7 +95,8 @@ static int sass_cubin_run(SassProbe *probe, const char *path, unsigned int first
     {
         VerbaLinea buffer_line = mmgr_line_over(answered, room);
         mmgr_line_put_max(&buffer_line, line,
-                          (size_t)((int)mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)));
+                          (size_t)((int)EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line,
+                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\r\n")));
         (void)mmgr_line_finish(&buffer_line);
     }
     return 1;
@@ -126,8 +128,13 @@ void sass_environment(const char *name, const char *value)
 // times a run only where PROBE_REPEATS is set, and the count is what the caller set before calling
 double sass_cubin_nanoseconds(void)
 {
-    const char *const line = mmgr_text_find(sass_output(), "timed ", PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const taken = (line != NULL) ? mmgr_text_find(line, ", ", PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+    const char *const line =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = sass_output(), .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "timed ", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+    const char *const taken =
+        (line != NULL) ? EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = ", ", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE)
+                       : NULL;
     return (taken != NULL) ? EMBED_CALL(cellul.to_double, TransfiguroCfg, .src = taken + 2, .end = NULL) : 0.0;
 }
 
@@ -140,14 +147,20 @@ int sass_query_text(const char *was, const char *instruction, char *text, size_t
     const char *walk = was;
     while ((*walk != '\0') && (at < (room - 1u)))
     {
-        const size_t length = mmgr_text_span_not(walk, "\n", PLATFORM_TEXT_TO_TERMINATOR);
-        const char *const chosen = (mmgr_text_starts(walk, "IADD3 ", PLATFORM_TEXT_TO_TERMINATOR)) ? instruction : walk;
-        const size_t copied =
-            (chosen == instruction) ? mmgr_text_length(instruction, PLATFORM_TEXT_TO_TERMINATOR) : length;
+        const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = walk,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\n");
+        const char *const chosen =
+            (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = walk, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "IADD3 ", .ci = EMBED_FALSE))
+                ? instruction
+                : walk;
+        const size_t copied = (chosen == instruction) ? EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = instruction,
+                                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR)
+                                                      : length;
         put = put || (chosen == instruction);
         if ((at + copied + 1u) < room)
         {
-            mmgr_bytes_copy(&text[at], chosen, copied);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &text[at], .src = chosen, .bytes = copied);
             at += copied;
             text[at] = '\n';
             at += 1u;
@@ -172,7 +185,7 @@ void sass_query_named(const char *instruction, char *named, size_t room)
     // 52 is the column the answers line up in, and a question past it is named by its opening
     if (at > 52u)
     {
-        mmgr_bytes_copy(&named[49], "...", 4u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &named[49], .src = "...", .bytes = 4u);
     }
 }
 
@@ -272,10 +285,15 @@ unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, un
                 char answer[256];
                 const double taken = sass_prefer_time(probe, machine, s_was, coding, answer, sizeof(answer));
                 // the answer is "answered <word> ..." where it ran, and "refused" where it did not assemble
-                const unsigned int word = (mmgr_text_starts(answer, "answered ", PLATFORM_TEXT_TO_TERMINATOR))
-                                              ? (unsigned int)mmgr_text_unsigned_in(answer + 9, NULL, 16)
-                                              : 0u;
-                if ((taken == 0.0) || (!mmgr_text_starts(answer, "answered ", PLATFORM_TEXT_TO_TERMINATOR)) ||
+                const unsigned int word =
+                    (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = answer, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = "answered ", .ci = EMBED_FALSE))
+                        ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = answer + 9, .end = NULL,
+                                                   .base = 16)
+                        : 0u;
+                if ((taken == 0.0) ||
+                    (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = answer, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                 .other = "answered ", .ci = EMBED_FALSE)) ||
                     (word != prefer->answer))
                 {
                     {

@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chain_build.c: every arrangement of primitives that produces a relation
 #include "chain_build.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_linea.h"
-
 
 // The precepts a chain is built from: the ones that carry a word and take a child. NOP carries no child, ERR reports a
 // thing cannot be done, and the two branches go nowhere a word comes back from
@@ -141,7 +140,7 @@ static int chain_swept(const ChainWork *work)
     for (unsigned int at = 0u; at < CHAIN_SWEEP; at += 1u)
     {
         PreceptCase given;
-        mmgr_bytes_set(&given, 0, sizeof(given));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &given, .bytes = sizeof(given), .val = 0);
         given.operands = 2u;
         given.operand[0] = ladder_swept(&state);
         given.operand[1] = ladder_swept(&state);
@@ -237,7 +236,7 @@ unsigned int chain_build(ChainSet *set, const LadderQuestion *cases, unsigned in
 
 unsigned int chain_build_cases(ChainSet *set, const LadderQuestion *cases, unsigned int count, int swept)
 {
-    mmgr_bytes_set(set, 0, sizeof(*set));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = set, .bytes = sizeof(*set), .val = 0);
     if ((count == 0u) || (count > LADDER_CASE_COUNT))
     {
         return 0u;
@@ -249,7 +248,7 @@ unsigned int chain_build_cases(ChainSet *set, const LadderQuestion *cases, unsig
         return 0u;
     }
     static ChainWork work;
-    mmgr_bytes_set(&work, 0, sizeof(work));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &work, .bytes = sizeof(work), .val = 0);
     work.set = set;
     work.cases = cases;
     work.count = count;

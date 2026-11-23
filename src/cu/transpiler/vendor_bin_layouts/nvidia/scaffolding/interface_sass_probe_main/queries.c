@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // queries.c: the queries: two containers the same, the lane written, the compiles counted, the questions read and
 // compiled, the loop and the queries run
-#include "probe_main_internal.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "probe_main_internal.h"
 
 // the kernel `name` written again from its own listing, then both cubins run and their answers compared: 1 where the
 // two answer the same. A written kernel cubin_safe blocks from the part is run on nothing, and adds one to `same`
@@ -55,7 +55,8 @@ int sass_cubin_same(SassProbe *probe, const SassMachine *machine, const char *na
     {
         return 0;
     }
-    if (!mmgr_text_equal(was, now, PLATFORM_TEXT_TO_TERMINATOR))
+    if (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = was, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = now,
+                    .ci = EMBED_FALSE))
     {
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -145,18 +146,27 @@ int sass_lane_written(SassProbe *probe)
 static void sass_compiles_count(const char *output)
 {
     const char *const emitted = "\ncubin 0 ";
-    if (mmgr_text_find(output, emitted, PLATFORM_TEXT_TO_TERMINATOR) != NULL)
+    if (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = output, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = emitted,
+                   .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL)
     {
         sass_class_count(SASS_CHANNEL_COMPILE, SASS_CLASS_ANSWERS);
         sass_class_count(SASS_CHANNEL_COMPILE, SASS_CLASS_ANSWERS);
     }
-    for (const char *line = mmgr_text_find(output, "\ncubin ", PLATFORM_TEXT_TO_TERMINATOR); line != NULL;
-         line = mmgr_text_find(line + 1, "\ncubin ", PLATFORM_TEXT_TO_TERMINATOR))
+    for (const char *line =
+             EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = output, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\ncubin ", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+         line != NULL;
+         line = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = "\ncubin ", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE))
     {
         sass_class_count(SASS_CHANNEL_COMPILE, SASS_CLASS_ANSWERS);
     }
-    for (const char *line = mmgr_text_find(output, "errored: nvJitLink", PLATFORM_TEXT_TO_TERMINATOR); line != NULL;
-         line = mmgr_text_find(line + 1, "errored: nvJitLink", PLATFORM_TEXT_TO_TERMINATOR))
+    for (const char *line =
+             EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = output, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "errored: nvJitLink", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+         line != NULL;
+         line = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = "errored: nvJitLink", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE))
     {
         sass_class_count(SASS_CHANNEL_COMPILE, SASS_CLASS_ILLEGAL);
     }
@@ -165,14 +175,18 @@ static void sass_compiles_count(const char *output)
 static int sass_questions_read(SassProbe *probe, const char *output)
 {
     // the line may follow others the ruleset's reader printed
-    const char *const line = (mmgr_text_starts(output, "sm_", PLATFORM_TEXT_TO_TERMINATOR))
-                                 ? output
-                                 : mmgr_text_find(output, "\nsm_", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const line =
+        (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = output, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "sm_",
+                    .ci = EMBED_FALSE))
+            ? output
+            : EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = output, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = "\nsm_", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if (line == NULL)
     {
         return 0;
     }
-    const unsigned long version = mmgr_text_unsigned_in(line + ((*line == '\n') ? 4 : 3), NULL, 10);
+    const unsigned long version = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                             .src = line + ((*line == '\n') ? 4 : 3), .end = NULL, .base = 10);
     {
         VerbaLinea buffer_line = mmgr_line_over(probe->architecture, sizeof(probe->architecture));
         mmgr_line_put(&buffer_line, "SM");
@@ -180,16 +194,22 @@ static int sass_questions_read(SassProbe *probe, const char *output)
         (void)mmgr_line_finish(&buffer_line);
     }
     probe->questions = 0u;
-    for (const char *line = mmgr_text_find(output, "\ncubin ", PLATFORM_TEXT_TO_TERMINATOR); line != NULL;
-         line = mmgr_text_find(line + 1, "\ncubin ", PLATFORM_TEXT_TO_TERMINATOR))
+    for (const char *line =
+             EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = output, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\ncubin ", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+         line != NULL;
+         line = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = "\ncubin ", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE))
     {
         const char *after = NULL;
-        const unsigned long number = mmgr_text_unsigned_in(line + 7, &after, 10);
+        const unsigned long number =
+            EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = line + 7, .end = &after, .base = 10);
         if ((number != (unsigned long)probe->questions) || (probe->questions == SASS_QUESTIONS) || (*after != ' '))
         {
             return 0;
         }
-        const size_t length = mmgr_text_span_not(after + 1, "\r\n", PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = after + 1,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\r\n");
         {
             VerbaLinea buffer_line = mmgr_line_over(probe->names[probe->questions], SASS_NAME);
             mmgr_line_put_max(&buffer_line, after + 1, (size_t)((int)length));

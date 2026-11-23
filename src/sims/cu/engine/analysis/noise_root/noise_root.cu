@@ -5,9 +5,9 @@
 // through the tower and compression's coder and names the root, the term whose yank saves the max bits. The null
 // names none; a planted term is the root or there is none, never another term; at the strongest each is the root; and
 // every yank returns the box exactly.
-#include "sim_camera.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim_camera.h"
 
 #include "../../../../../cu/engine/analysis/compression/compression.h"
 #include "../../../../../cu/engine/analysis/noise_detector/noise_detector.h"
@@ -72,9 +72,9 @@ static long root_cost(const int *values, const unsigned long long extent[4], uns
     if (ok)
     {
         TowerLiftRequest lift;
-        mmgr_bytes_set(&lift, 0, sizeof(lift));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &lift, .bytes = sizeof(lift), .val = 0);
         lift.device_values = device_values;
-        mmgr_bytes_copy(lift.extent, extent, sizeof(lift.extent));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lift.extent, .src = extent, .bytes = sizeof(lift.extent));
         lift.coefficients = &coefficients;
         lift.scratch = &scratch;
         lift.floors = &floors;
@@ -87,7 +87,7 @@ static long root_cost(const int *values, const unsigned long long extent[4], uns
         const unsigned long long *offsets = NULL;
         const unsigned int *stream = NULL;
         CompressionEncodeRequest code;
-        mmgr_bytes_set(&code, 0, sizeof(code));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &code, .bytes = sizeof(code), .val = 0);
         code.device_coefficients = coefficients;
         code.count = lanes;
         code.device_scratch = scratch;
@@ -104,7 +104,7 @@ static long root_cost(const int *values, const unsigned long long extent[4], uns
 
 static void root_camera(SimCamera *camera, unsigned int planted, unsigned long long square)
 {
-    mmgr_bytes_set(camera, 0, sizeof(*camera));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = camera, .bytes = sizeof(*camera), .val = 0);
     camera->key = ROOT_KEY;
     camera->offset = ROOT_OFFSET;
     camera->gain = 1ULL;
@@ -214,7 +214,7 @@ int program_main(int argc, char **argv)
     sim_check(&results, ok, "the scene's buffers");
 
     SimBody body;
-    mmgr_bytes_set(&body, 0, sizeof(body));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &body, .bytes = sizeof(body), .val = 0);
     body.center[0] = 8LL;
     body.center[1] = 32LL;
     body.center[2] = 32LL;
@@ -225,7 +225,7 @@ int program_main(int argc, char **argv)
     body.ended = ROOT_FRAMES;
     body.parent = -1LL;
     SimScene scene;
-    mmgr_bytes_set(&scene, 0, sizeof(scene));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &scene, .bytes = sizeof(scene), .val = 0);
     scene.frames = ROOT_FRAMES;
     scene.extent[0] = ROOT_DEPTH;
     scene.extent[1] = ROOT_HEIGHT;
@@ -267,15 +267,15 @@ int program_main(int argc, char **argv)
         }
         root_box_take(lanes, values);
         EngineError error;
-        mmgr_bytes_set(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         NoiseRootMeasurement measurement;
-        mmgr_bytes_set(&measurement, 0, sizeof(measurement));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &measurement, .bytes = sizeof(measurement), .val = 0);
         NoiseRootRequest request;
-        mmgr_bytes_set(&request, 0, sizeof(request));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
         request.volume = lanes;
-        mmgr_bytes_copy(request.extent, ROOT_EXTENT, sizeof(request.extent));
-        mmgr_bytes_copy(request.low, ROOT_LOW, sizeof(request.low));
-        mmgr_bytes_copy(request.high, ROOT_HIGH, sizeof(request.high));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.extent, .src = ROOT_EXTENT, .bytes = sizeof(request.extent));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.low, .src = ROOT_LOW, .bytes = sizeof(request.low));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.high, .src = ROOT_HIGH, .bytes = sizeof(request.high));
         request.cost = root_cost;
         request.measurement = &measurement;
         request.residual = residual;
@@ -291,19 +291,21 @@ int program_main(int argc, char **argv)
         if (measurement.root < NOISE_ROOT_TERMS)
         {
             NoiseReturnRequest back;
-            mmgr_bytes_set(&back, 0, sizeof(back));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &back, .bytes = sizeof(back), .val = 0);
             back.residual = residual;
             back.pattern = pattern;
             back.term = measurement.root;
-            mmgr_bytes_copy(back.box, box, sizeof(back.box));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = back.box, .src = box, .bytes = sizeof(back.box));
             back.values = returned;
             back.error = &error;
-            exact = (noise_root_return(&back) == 0L) &&
-                    (mmgr_bytes_compare(returned, values, (size_t)voxels * sizeof(int)) == 0);
+            exact =
+                (noise_root_return(&back) == 0L) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = returned, .other = values,
+                                                                .bytes = (size_t)voxels * sizeof(int)) == 0);
         }
         else
         {
-            exact = mmgr_bytes_compare(residual, values, (size_t)voxels * sizeof(int)) == 0;
+            exact = EMBED_CALL(memor.cmp, MemoriaCfg, .src = residual, .other = values,
+                               .bytes = (size_t)voxels * sizeof(int)) == 0;
         }
         mmgr_line_put(line, "  ");
         mmgr_line_put_columns(line, ROOT_NAMES[planted], 7u);

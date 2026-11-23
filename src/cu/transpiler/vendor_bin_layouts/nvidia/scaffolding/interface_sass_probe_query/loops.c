@@ -1,30 +1,50 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // loops.c: the loops: an operand renamed, a candidate and its answer, the loop written, and the loops queried
-#include "probe_query_internal.h"
 #include "../../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "probe_query_internal.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int loops_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // `from` into `into`, every register named `stem` ("R" or "UR") and a number made the one numbered 8, which the loop
 // does not retain. A stem following a character is part of another name and is copied as it is
 static void sass_loop_rename(const char *from, const char *stem, char *into, size_t room)
 {
-    const size_t stem_length = mmgr_text_length(stem, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t stem_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = stem, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     size_t at = 0u;
     size_t walk = 0u;
     while ((from[walk] != '\0') && ((at + stem_length + 2u) < room))
     {
-        const int alone = (walk == 0u) || !mmgr_text_is_alpha((unsigned char)from[walk - 1u]);
-        if (alone && (mmgr_text_order(&from[walk], stem, (size_t)(stem_length)) == 0) &&
-            mmgr_text_is_num((unsigned char)from[walk + stem_length]))
+        const int alone = (walk == 0u) || !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_ALPHA,
+                                                      .byte = (unsigned char)from[walk - 1u]);
+        if (alone && (loops_text_order(&from[walk], stem, (size_t)(stem_length)) == 0) &&
+            EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (unsigned char)from[walk + stem_length]))
         {
-            mmgr_bytes_copy(&into[at], stem, stem_length);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &into[at], .src = stem, .bytes = stem_length);
             at += stem_length;
             into[at] = '8';
             at += 1u;
             walk += stem_length;
-            while (mmgr_text_is_num((unsigned char)from[walk]))
+            while (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (unsigned char)from[walk]))
             {
                 walk += 1u;
             }
@@ -56,7 +76,11 @@ static void sass_loop_operand(const char *base, unsigned int type, unsigned int 
         break;
     case SASS_OPERAND_PREDICATE: {
         VerbaLinea formed_line_11 = mmgr_line_over(filled, sizeof(filled));
-        mmgr_line_put(&formed_line_11, (mmgr_text_equal(base, "PT", PLATFORM_TEXT_TO_TERMINATOR)) ? "PT" : "P0");
+        mmgr_line_put(&formed_line_11,
+                      (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = base, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "PT", .ci = EMBED_FALSE))
+                          ? "PT"
+                          : "P0");
         (void)mmgr_line_finish(&formed_line_11);
         (void)formed_line_11.at;
     }
@@ -136,7 +160,7 @@ static int sass_loop_answer(SassProbe *probe, unsigned int count, unsigned int *
         return 0;
     }
     // the answer's first word, which the run prints after "answered "
-    *word = (unsigned int)mmgr_text_unsigned_in(answered + 9, NULL, 16);
+    *word = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = answered + 9, .end = NULL, .base = 16);
     return 1;
 }
 

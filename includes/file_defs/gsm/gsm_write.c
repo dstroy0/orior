@@ -20,14 +20,31 @@
 // It runs in a query run, the .qry that QRY names (qry_member.h). The forms that the writer of the vendor passes back
 // are the blob GSM_FORMS_NAME of the run. What it prints goes to the run as GSM_MACHINE_NAME.
 #include "../../../src/cu/transpiler/lstar/protocol/counterexample/ladder.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../src/platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../parsers/line_read.h"
 #include "../qry/writer/qry_member.h"
 #include "../vendor_writer_run.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_scribo.h"
 
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int gsm_write_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // the name for the relation of a form in the pass back, as khw_write writes it
 #define GSM_READS_LADDER "ladder."
@@ -63,8 +80,8 @@ static unsigned int gsm_relations_read(const unsigned char *bytes, unsigned long
     unsigned long long next = 0ULL;
     while (next < size)
     {
-        const unsigned char *const end =
-            (const unsigned char *)mmgr_bytes_find(bytes + next, '\n', (size_t)(size - next));
+        const unsigned char *const end = (const unsigned char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = bytes + next,
+                                                                           .bytes = (size_t)(size - next), .val = '\n');
         const size_t length = (end != NULL) ? (size_t)(end - (bytes + next)) : (size_t)(size - next);
         {
             VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
@@ -79,12 +96,14 @@ static unsigned int gsm_relations_read(const unsigned char *bytes, unsigned long
         {
             continue;
         }
-        const size_t prefix = mmgr_text_length(GSM_READS_LADDER, PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t prefix =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = GSM_READS_LADDER, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         const char *const name =
-            (mmgr_text_order(relation, GSM_READS_LADDER, (size_t)(prefix)) == 0) ? (relation + prefix) : relation;
+            (gsm_write_text_order(relation, GSM_READS_LADDER, (size_t)(prefix)) == 0) ? (relation + prefix) : relation;
         for (unsigned int anchor = 0u; anchor < (unsigned int)LADDER_ANCHOR_COUNT; anchor += 1u)
         {
-            if (mmgr_text_equal(s_anchor_text[anchor], name, PLATFORM_TEXT_TO_TERMINATOR))
+            if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_anchor_text[anchor], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = name, .ci = EMBED_FALSE))
             {
                 s_answered[anchor][(signed_read != 0) ? 1 : 0] = 1;
                 read += 1u;
@@ -97,8 +116,10 @@ static unsigned int gsm_relations_read(const unsigned char *bytes, unsigned long
 // the folder `path` lies in, into `folder`, which has room for `room`: "." where it names none
 static void gsm_folder_of(const char *path, char *folder, size_t room)
 {
-    const char *const slash = mmgr_text_char_last(path, '/', PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const back = mmgr_text_char_last(path, '\\', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const slash =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+    const char *const back =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
     const char *const last = ((slash != NULL) && ((back == NULL) || (slash > back))) ? slash : back;
     if (last == NULL)
     {

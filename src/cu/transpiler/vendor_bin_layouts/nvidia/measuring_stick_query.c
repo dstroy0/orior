@@ -51,12 +51,12 @@
 // clears a refusal changes how a question is put and not what it requires. Exit 1 where any
 // question is blocked, 2 where a blob, a tool or the run was not reached, or a frame was read at no stop it
 // named: the round is then not carried
-#include "measuring_stick_query/msq_internal.h"
+#include "../../../../../includes/parsers/line_read.h"
 #include "../../../../platform/platform.h"
 #include "../../../engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "../../../../../includes/parsers/line_read.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "measuring_stick_query/msq_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 int program_main(int count, char **words)
 {
@@ -123,8 +123,8 @@ int program_main(int count, char **words)
     size_t question_count = 0u;
     for (unsigned long long at = 0ULL; at < list_size;)
     {
-        const unsigned char *const end =
-            (const unsigned char *)mmgr_bytes_find(list + at, '\n', (size_t)(list_size - at));
+        const unsigned char *const end = (const unsigned char *)EMBED_CALL(
+            memor.chr, MemoriaCfg, .src = list + at, .bytes = (size_t)(list_size - at), .val = '\n');
         const size_t length = (end != NULL) ? (size_t)(end - (list + at)) : (size_t)(list_size - at);
         char line[1024];
         {
@@ -166,7 +166,8 @@ int program_main(int count, char **words)
             (probe_place < (question->code.size / 16ULL)) && (((probe_place * 16ULL) + 16ULL) <= question->code.size);
         if (question->placed)
         {
-            mmgr_bytes_copy(question->word, question->code.bytes + (probe_place * 16ULL), 16u);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = question->word,
+                       .src = question->code.bytes + (probe_place * 16ULL), .bytes = 16u);
         }
         question_count += 1u;
     }
@@ -284,13 +285,13 @@ int program_main(int count, char **words)
         run_pieces[piece].state = msq_vendor_reads(&run_pieces[piece].bytes) ? MSQ_PIECE_READ : MSQ_PIECE_UNREAD;
     }
     MsqReader reader;
-    mmgr_bytes_set(&reader, 0, sizeof(reader));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &reader, .bytes = sizeof(reader), .val = 0);
     reader.output_room = 8ULL << 20u;
     reader.output =
         whole ? (char *)platform_cell_taken((size_t)reader.output_room, platform_place_g_program_owner, 0) : NULL;
     // the accumulated run's listing, which every reading and frame of it points into until the cross ends
     MsqListing accumulated;
-    mmgr_bytes_set(&accumulated, 0, sizeof(accumulated));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &accumulated, .bytes = sizeof(accumulated), .val = 0);
     whole = whole && (reader.output != NULL) && msq_accumulated_read(&reader, run_pieces, piece_count, &accumulated);
     if (whole)
     {
@@ -307,7 +308,7 @@ int program_main(int count, char **words)
     }
     // the pieces set aside, each read alone, on a reader thread for each up to the host's processors
     MsqPool pool;
-    mmgr_bytes_set(&pool, 0, sizeof(pool));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &pool, .bytes = sizeof(pool), .val = 0);
     pool.pieces = run_pieces;
     pool.aside = aside;
     pool.aside_count = aside_count;
@@ -372,7 +373,7 @@ int program_main(int count, char **words)
     // is blocked, and the gate blocks every code that contains it. A frame the vendor stopped in at no instruction it
     // named blocks its questions by no encoding, and the round they came in is not carried
     MsqVerdicts verdicts;
-    mmgr_bytes_set(&verdicts, 0, sizeof(verdicts));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &verdicts, .bytes = sizeof(verdicts), .val = 0);
     size_t gated_count = 0u;
     size_t unread = 0u;
     for (size_t place = 0u; place < question_count; place += 1u)
@@ -462,7 +463,8 @@ int program_main(int count, char **words)
         int control = 0;
         for (size_t at = 0u; (type == MSQ_READ) && (at < (sizeof(s_control) / sizeof(s_control[0]))); at += 1u)
         {
-            control |= (mmgr_text_equal(reading->operation, s_control[at], PLATFORM_TEXT_TO_TERMINATOR));
+            control |= (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = reading->operation,
+                                   .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_control[at], .ci = EMBED_FALSE));
         }
         if (type == MSQ_ILLEGAL)
         {

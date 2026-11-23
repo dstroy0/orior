@@ -13,8 +13,8 @@
 //
 // Exit 0 with the seeds on the standard output; 1 where the listing did not read; 2 where the words are not these
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the operation key, the low word's bits 0 to 11
 #define SEED_KEY_BITS 12u
@@ -80,7 +80,9 @@ static int seed_accepted(unsigned long long low, unsigned long long high, int mo
 
 int program_main(int count, char **word)
 {
-    const int modifiers = (count == 3) && (mmgr_text_equal(word[2], "--modifiers", PLATFORM_TEXT_TO_TERMINATOR));
+    const int modifiers =
+        (count == 3) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = word[2], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "--modifiers", .ci = EMBED_FALSE));
     if ((count < 2) || (count > 3) || ((count == 3) && !modifiers))
     {
         {
@@ -111,13 +113,18 @@ int program_main(int count, char **word)
     int accepted = 1;
     while (accepted && (platform_file_text_read(line, sizeof(line), listing) != NULL))
     {
-        for (const char *at = mmgr_text_find(line, "/* 0x", PLATFORM_TEXT_TO_TERMINATOR); at != NULL;
-             at = mmgr_text_find(at + 5, "/* 0x", PLATFORM_TEXT_TO_TERMINATOR))
+        for (const char *at = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = "/* 0x", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+             at != NULL;
+             at = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = at + 5, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "/* 0x", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE))
         {
             const char *end = NULL;
-            const unsigned long long value = mmgr_text_unsigned_in(at + 5, &end, 16);
+            const unsigned long long value =
+                EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = at + 5, .end = &end, .base = 16);
             if ((end == NULL) || ((end - (at + 5)) != 16) ||
-                (!mmgr_text_starts(end, " */", PLATFORM_TEXT_TO_TERMINATOR)))
+                (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = end, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = " */", .ci = EMBED_FALSE)))
             {
                 continue;
             }

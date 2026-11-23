@@ -3,11 +3,29 @@
 // ksc.c: a system's .ksc read, its rows read and replaced, and written back whole (ksc.h)
 #include "ksc.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../../parsers/line_read.h"
 #include "../../parsers/who.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int ksc_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // the max answers a channel's counts are taken again over
 #define KSC_ANSWERS 32u
@@ -36,13 +54,15 @@ int ksc_line_add(KscFile *file, const char *text)
 // it: 1, or 0 where there is no word or it does not fit
 static int ksc_word_read(const char *text, size_t *at, char *word, size_t room)
 {
-    *at += mmgr_text_span(text + *at, " \t", PLATFORM_TEXT_TO_TERMINATOR);
-    const size_t length = mmgr_text_span_not(text + *at, " \t", PLATFORM_TEXT_TO_TERMINATOR);
+    *at +=
+        EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text + *at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \t");
+    const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = text + *at,
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \t");
     if ((length == 0u) || (length >= room))
     {
         return 0;
     }
-    mmgr_bytes_copy(word, text + *at, length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = word, .src = text + *at, .bytes = length);
     word[length] = '\0';
     *at += length;
     return 1;
@@ -52,15 +72,17 @@ int ksc_row_read(const char *line, const char *channel, KscRow *row)
 {
     size_t at = 0u;
     if (!ksc_word_read(line, &at, row->channel, sizeof(row->channel)) ||
-        (!mmgr_text_equal(row->channel, channel, PLATFORM_TEXT_TO_TERMINATOR)) ||
+        (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = row->channel, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                     .other = channel, .ci = EMBED_FALSE)) ||
         !ksc_word_read(line, &at, row->answer, sizeof(row->answer)) ||
         !ksc_word_read(line, &at, row->word, sizeof(row->word)))
     {
         return 0;
     }
     const char *after = NULL;
-    row->value = mmgr_text_unsigned_in(row->word, &after, 16);
-    at += mmgr_text_span(line + at, " \t", PLATFORM_TEXT_TO_TERMINATOR);
+    row->value = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = row->word, .end = &after, .base = 16);
+    at +=
+        EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = line + at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \t");
     {
         VerbaLinea buffer_line = mmgr_line_over(row->question, sizeof(row->question));
         mmgr_line_put(&buffer_line, line + at);
@@ -73,9 +95,10 @@ int ksc_row_read(const char *line, const char *channel, KscRow *row)
 static int ksc_row_question_starts(const char *line, const char *channel, const char *question_prefix)
 {
     static KscRow s_row;
-    const size_t length = mmgr_text_length(question_prefix, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = question_prefix, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     return ksc_row_read(line, channel, &s_row) &&
-           (mmgr_text_order(s_row.question, question_prefix, (size_t)(length)) == 0) &&
+           (ksc_text_order(s_row.question, question_prefix, (size_t)(length)) == 0) &&
            ((s_row.question[length] == '\0') || (s_row.question[length] == ' '));
 }
 
@@ -86,9 +109,11 @@ static int ksc_count_read(const char *line, const char *channel, char *answer)
     char word[KSC_CHANNEL];
     char counted[KSC_CHANNEL];
     return ksc_word_read(line, &at, word, sizeof(word)) &&
-           (mmgr_text_equal(word, "count", PLATFORM_TEXT_TO_TERMINATOR)) &&
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "count",
+                       .ci = EMBED_FALSE)) &&
            ksc_word_read(line, &at, counted, sizeof(counted)) &&
-           (mmgr_text_equal(counted, channel, PLATFORM_TEXT_TO_TERMINATOR)) &&
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = counted, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = channel,
+                       .ci = EMBED_FALSE)) &&
            ksc_word_read(line, &at, answer, KSC_ANSWER);
 }
 
@@ -110,7 +135,9 @@ int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *
             continue;
         }
         unsigned int same = 0u;
-        while ((same < count) && (!mmgr_text_equal(rows[same], file->line[at], PLATFORM_TEXT_TO_TERMINATOR)))
+        while ((same < count) &&
+               (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = rows[same], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = file->line[at], .ci = EMBED_FALSE)))
         {
             same += 1u;
         }
@@ -168,7 +195,9 @@ int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *
             continue;
         }
         unsigned int seen = 0u;
-        while ((seen < distinct) && (!mmgr_text_equal(answers[seen], s_row.answer, PLATFORM_TEXT_TO_TERMINATOR)))
+        while ((seen < distinct) &&
+               (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = answers[seen], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = s_row.answer, .ci = EMBED_FALSE)))
         {
             seen += 1u;
         }
@@ -192,7 +221,9 @@ int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *
             continue;
         }
         unsigned int seen = 0u;
-        while ((seen < distinct) && (!mmgr_text_equal(answers[seen], answer, PLATFORM_TEXT_TO_TERMINATOR)))
+        while ((seen < distinct) &&
+               (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = answers[seen], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = answer, .ci = EMBED_FALSE)))
         {
             seen += 1u;
         }
@@ -218,7 +249,9 @@ int ksc_field_read(const char *line, char *name, size_t room, unsigned int *from
     unsigned long long first = 0ULL;
     unsigned long long bits = 0ULL;
     const char *at = line;
-    if (!line_word(&at, type, sizeof(type)) || (!mmgr_text_equal(type, "field", PLATFORM_TEXT_TO_TERMINATOR)) ||
+    if (!line_word(&at, type, sizeof(type)) ||
+        (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "field",
+                     .ci = EMBED_FALSE)) ||
         !line_word(&at, name, room) || !line_number(&at, 0, &first) || !line_number(&at, 0, &bits) ||
         (first > 0xffffffffULL) || (bits > 0xffffffffULL))
     {

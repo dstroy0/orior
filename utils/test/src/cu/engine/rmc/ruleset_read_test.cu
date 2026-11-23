@@ -10,9 +10,9 @@
 // (RULESET_CORE_RELATION_OPEN, RULESET_CORE_MAP_OPEN), as open, and neither fails anything. The map's relations are the
 // lines a lane cannot be read through as it is, written and failing nothing
 #include "../../../../../../src/platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "code_generator.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 #include "target_internal.h"
 
 #include <stdio.h>
@@ -335,7 +335,8 @@ int program_main(int argc, char **argv)
             given_count, PLATFORM_PATH_BYTES, platform_place_g_program_owner, 0);
         for (unsigned int at = 0u; (paths != NULL) && (at < given_count); at += 1u)
         {
-            (void)mmgr_text_copy(paths[at], argv[at + 1], PLATFORM_PATH_BYTES);
+            (void)EMBED_CALL(cellul.copy, CatenaFinitaCfg, .src = argv[at + 1], .cap = PLATFORM_PATH_BYTES,
+                             .dst = paths[at]);
         }
         LanguageSet given;
         s_failed += (paths == NULL) ? 1u : 0u;

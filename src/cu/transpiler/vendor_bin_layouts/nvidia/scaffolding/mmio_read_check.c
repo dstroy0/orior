@@ -9,21 +9,23 @@
 // With no argument it reads PMC_BOOT_0 alone. Given an offset in hex, and a count of 32-bit words, it reads that many
 // registers from that offset and prints each. Exit 0 where the read looks live, 1 where it does not, 2 where the
 // driver was not reached.
-#include "mmio_read.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
-
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "mmio_read.h"
 
 // the register at offset 0 of BAR0: the part's chip name, read to prove the aperture is live
 #define MMIO_CHECK_BOOT_0 0x0u
 
 int program_main(int count, char **words)
 {
-    const unsigned int offset =
-        (count >= 2) ? (unsigned int)mmgr_text_unsigned_in(words[1], NULL, 16) : MMIO_CHECK_BOOT_0;
-    const unsigned int wanted = (count >= 3) ? (unsigned int)mmgr_text_unsigned_in(words[2], NULL, 10) : 1u;
+    const unsigned int offset = (count >= 2) ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                                                        .src = words[1], .end = NULL, .base = 16)
+                                             : MMIO_CHECK_BOOT_0;
+    const unsigned int wanted = (count >= 3) ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                                                        .src = words[2], .end = NULL, .base = 10)
+                                             : 1u;
     HANDLE device = mmio_open();
     if (device == INVALID_HANDLE_VALUE)
     {

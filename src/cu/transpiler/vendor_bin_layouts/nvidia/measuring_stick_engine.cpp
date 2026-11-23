@@ -50,9 +50,10 @@
 extern "C"
 {
 #include "../../../engine/engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "interface_sass_probe.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 #include "sass_assemble.h"
 #include "sass_machine.h"
 }
@@ -227,15 +228,17 @@ static std::vector<std::string> stick_tokens(const std::string &expression)
     while (at < expression.size())
     {
         const char character = expression[at];
-        if (mmgr_text_is_space((unsigned char)character) != 0)
+        if (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_SPACE, .byte = (unsigned char)character) != 0)
         {
             at += 1u;
             continue;
         }
         size_t end = at + 1u;
-        if ((mmgr_text_is_alnum((unsigned char)character) != 0) || (character == '_'))
+        if ((EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_ALNUM, .byte = (unsigned char)character) != 0) ||
+            (character == '_'))
         {
-            while ((end < expression.size()) && ((mmgr_text_is_alnum((unsigned char)expression[end]) != 0) ||
+            while ((end < expression.size()) && ((EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_ALNUM,
+                                                             .byte = (unsigned char)expression[end]) != 0) ||
                                                  (expression[end] == '_') || (expression[end] == '.')))
             {
                 end += 1u;
@@ -422,7 +425,8 @@ static int stick_reads_name(const std::string &text, const std::string &name)
         return 0;
     }
     const auto joins = [](char character) {
-        return (mmgr_text_is_alnum((unsigned char)character) != 0) || (character == '_') || (character == '.');
+        return (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_ALNUM, .byte = (unsigned char)character) != 0) ||
+               (character == '_') || (character == '.');
     };
     for (size_t at = text.find(name); at != std::string::npos; at = text.find(name, at + 1u))
     {
@@ -529,7 +533,8 @@ static std::string stick_complement(const std::string &bare)
         }
         for (const auto &pair : s_pairs)
         {
-            const size_t size = mmgr_text_length(pair[0], PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t size =
+                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = pair[0], .cap = PLATFORM_TEXT_TO_TERMINATOR);
             if (inner.compare(at, size, pair[0]) == 0)
             {
                 return "(" + inner.substr(0u, at) + pair[1] + inner.substr(at + size) + ")";
@@ -550,14 +555,16 @@ static int stick_pipe_of(const std::string &operation)
                                             "P2R",   "R2P",   "CS2R", "SGXT", "BMSK",  "IADD"};
     for (const char *const one : s_fma)
     {
-        if (operation.compare(0u, mmgr_text_length(one, PLATFORM_TEXT_TO_TERMINATOR), one) == 0)
+        if (operation.compare(
+                0u, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = one, .cap = PLATFORM_TEXT_TO_TERMINATOR), one) == 0)
         {
             return 2;
         }
     }
     for (const char *const one : s_integer)
     {
-        if (operation.compare(0u, mmgr_text_length(one, PLATFORM_TEXT_TO_TERMINATOR), one) == 0)
+        if (operation.compare(
+                0u, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = one, .cap = PLATFORM_TEXT_TO_TERMINATOR), one) == 0)
         {
             return 1;
         }
@@ -604,7 +611,8 @@ static std::string stick_pipe_choice(const std::string &instruction, std::string
     }
     if (std::regex_match(text, found, shifted))
     {
-        const unsigned long bits = mmgr_text_unsigned_in(std::string(found[3]).c_str(), NULL, 0);
+        const unsigned long bits = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = std::string(found[3]).c_str(),
+                                              .end = NULL, .base = 0);
         *writing = "IMAD.SHL.U32 " + std::string(found[1]) + ", " + std::string(found[2]) + ", " +
                    std::to_string(1UL << bits) + ", RZ";
         return "SHF.L.U32";
@@ -647,7 +655,9 @@ static std::regex stick_line_pattern(const std::string &squeezed)
         {
             pattern += "([^,\\[\\]\\s;]+)";
         }
-        else if (mmgr_text_char(".^$|()[]{}*+?\\", character, PLATFORM_TEXT_TO_TERMINATOR) != NULL)
+        // a byte of the form read as the unsigned byte the search takes
+        else if (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = ".^$|()[]{}*+?\\", .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .byte = (uint8_t)character) != NULL)
         {
             pattern += std::string("\\") + character;
         }
@@ -705,14 +715,17 @@ static std::string stick_constant(const std::string &text)
     {
         const size_t plus = terms.find('+', at);
         const std::string term = terms.substr(at, (plus == std::string::npos) ? std::string::npos : (plus - at));
-        offset += mmgr_text_unsigned_in(term.c_str(), NULL, 0);
+        offset += EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = term.c_str(), .end = NULL, .base = 0);
         at = (plus == std::string::npos) ? terms.size() : (plus + 1u);
     }
     char written[64];
     {
         VerbaLinea buffer_line = mmgr_line_over(written, sizeof(written));
         mmgr_line_put(&buffer_line, "c[0x");
-        mmgr_line_hex(&buffer_line, mmgr_text_unsigned_in(std::string(found[1]).c_str(), NULL, 0), 1u);
+        mmgr_line_hex(&buffer_line,
+                      EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = std::string(found[1]).c_str(), .end = NULL,
+                                 .base = 0),
+                      1u);
         mmgr_line_put(&buffer_line, "][0x");
         mmgr_line_hex(&buffer_line, offset, 1u);
         mmgr_line_put(&buffer_line, "]");
@@ -763,7 +776,8 @@ static unsigned int stick_own_cast(const std::string &piece)
     static const char *const s_own[] = {"(unsignedint)", "(unsignedlonglong)"};
     for (unsigned int own = 0u; own < 2u; own += 1u)
     {
-        const size_t size = mmgr_text_length(s_own[own], PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t size =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_own[own], .cap = PLATFORM_TEXT_TO_TERMINATOR);
         if ((piece.size() >= size) && (piece.compare(piece.size() - size, size, s_own[own]) == 0))
         {
             return (own == 0u) ? STICK_REGISTER_BITS : STICK_PAIR_BITS;
@@ -1629,7 +1643,8 @@ class StickKernel
         }
         const std::string digits = bare.substr(before.size(), bare.size() - before.size() - after.size());
         const char *end = NULL;
-        const unsigned long long value = mmgr_text_unsigned_in(digits.c_str(), &end, 0);
+        const unsigned long long value =
+            EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = digits.c_str(), .end = &end, .base = 0);
         if ((end == NULL) || (*end != '\0') || (value > 0xFFFFFFFFULL))
         {
             return 0;
@@ -1848,7 +1863,7 @@ class StickKernel
         const auto is = located.find(name);
         const int type = (is != located.end()) ? is->second.type : type_of(name);
         if ((type < 0) || (flags.count(name) != 0u) || !stick_operation(name).empty() ||
-            (mmgr_text_is_num((unsigned char)name[0]) != 0))
+            (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (unsigned char)name[0]) != 0))
         {
             return refuse("a step of what stores no value of C: " + name);
         }
@@ -1972,7 +1987,7 @@ class StickKernel
             token_at += 1u;
             return inner;
         }
-        if (mmgr_text_is_num((unsigned char)token[0]) != 0)
+        if (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (unsigned char)token[0]) != 0)
         {
             return number_typed(token);
         }
@@ -2001,10 +2016,12 @@ class StickKernel
     StickTyped number_typed(const std::string &token)
     {
         const char *end = NULL;
-        const unsigned long long number = mmgr_text_unsigned_in(token.c_str(), &end, 0);
+        const unsigned long long number =
+            EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = token.c_str(), .end = &end, .base = 0);
         std::string suffix = (end == NULL) ? std::string() : std::string(end);
-        std::transform(suffix.begin(), suffix.end(), suffix.begin(),
-                       [](unsigned char character) { return (char)mmgr_text_lower(character); });
+        std::transform(suffix.begin(), suffix.end(), suffix.begin(), [](unsigned char character) {
+            return (char)EMBED_CALL(ascii.lower, AsciiCfg, .byte = character);
+        });
         const int unsigned_one = (suffix.find('u') != std::string::npos);
         const int wide = (suffix.find("ll") != std::string::npos) || (number > 0xFFFFFFFFULL);
         if (number > 0xFFFFFFFFULL)
@@ -2398,7 +2415,8 @@ class StickKernel
         static const char *const s_words[] = {"(unsignedint)", "(int)"};
         for (unsigned int word = 0u; word < 2u; word += 1u)
         {
-            const size_t size = mmgr_text_length(s_words[word], PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t size =
+                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_words[word], .cap = PLATFORM_TEXT_TO_TERMINATOR);
             const auto pair = (bare.compare(0u, size, s_words[word]) == 0) ? bound_values.find(bare.substr(size))
                                                                            : bound_values.end();
             const int low = (pair != bound_values.end()) &&

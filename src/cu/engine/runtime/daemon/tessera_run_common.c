@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_common.c: tessera_run's clock, arguments, paths, limits, record and log
-#include "tessera_run_internal.h"
 #include "../../../../platform/platform.h"
 #include "../../engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera_run_internal.h"
 
 #if (defined(_WIN32))
 _Alignas(8) static const char s_run_daemon[] = "tessera_daemon.exe";
@@ -62,9 +62,11 @@ unsigned long long run_self_pid(void)
 int run_arguments(int count, char **arguments, RunRequest *request)
 {
     int at = 1;
-    while ((at < count) && (!mmgr_text_equal(arguments[at], "--", PLATFORM_TEXT_TO_TERMINATOR)))
+    while ((at < count) && (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[at],
+                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "--", .ci = EMBED_FALSE)))
     {
-        if (mmgr_text_equal(arguments[at], "--child", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--child", .ci = EMBED_FALSE))
         {
             request->child = 1;
             at += 1;
@@ -72,19 +74,23 @@ int run_arguments(int count, char **arguments, RunRequest *request)
         }
         const int valued = (at + 1) < count;
         const char *end = NULL;
-        if (valued && (mmgr_text_equal(arguments[at], "--processors", PLATFORM_TEXT_TO_TERMINATOR)))
+        if (valued && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "--processors", .ci = EMBED_FALSE)))
         {
-            request->processors = mmgr_text_unsigned_in(arguments[at + 1], &end, 10);
+            request->processors =
+                EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = arguments[at + 1], .end = &end, .base = 10);
             if ((end == arguments[at + 1]) || (*end != '\0'))
             {
                 return 0;
             }
         }
-        else if (valued && (mmgr_text_equal(arguments[at], "--name", PLATFORM_TEXT_TO_TERMINATOR)))
+        else if (valued && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[at],
+                                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "--name", .ci = EMBED_FALSE)))
         {
             request->name = arguments[at + 1];
         }
-        else if (valued && (mmgr_text_equal(arguments[at], "--parent", PLATFORM_TEXT_TO_TERMINATOR)))
+        else if (valued && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[at],
+                                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "--parent", .ci = EMBED_FALSE)))
         {
             request->parent = arguments[at + 1];
         }
@@ -145,7 +151,8 @@ int run_daemon_path(char *path, size_t capacity)
     {
         return 0;
     }
-    mmgr_bytes_copy(path + directory_length, s_run_daemon, sizeof(s_run_daemon));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = path + directory_length, .src = s_run_daemon,
+               .bytes = sizeof(s_run_daemon));
     return 1;
 }
 
@@ -153,10 +160,12 @@ int run_signum(const RunRequest *request, char **arguments, int count, EngineSig
 {
     // the request is the name, then every word of the command, each ended by a zero byte
     const char *const name = (request->name != NULL) ? request->name : "";
-    unsigned long long bytes = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
+    unsigned long long bytes =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
     for (int at = request->command; at < count; at += 1)
     {
-        bytes += mmgr_text_length(arguments[at], PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
+        bytes +=
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = arguments[at], .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
     }
     unsigned char *const text = (unsigned char *)platform_cell_taken((unsigned long long)((size_t)bytes),
                                                                      (unsigned int)platform_place_g_engine_owner, 0);
@@ -164,13 +173,18 @@ int run_signum(const RunRequest *request, char **arguments, int count, EngineSig
     {
         return 0;
     }
-    mmgr_bytes_copy(text, name, mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
-    unsigned long long at_byte = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = text, .src = name,
+               .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+    unsigned long long at_byte =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
     for (int at = request->command; at < count; at += 1)
     {
-        mmgr_bytes_copy(text + at_byte, arguments[at],
-                        mmgr_text_length(arguments[at], PLATFORM_TEXT_TO_TERMINATOR) + 1u);
-        at_byte += mmgr_text_length(arguments[at], PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
+        EMBED_CALL(
+            memor.cpy, MemoriaCfg, .dst = text + at_byte, .src = arguments[at],
+            .bytes =
+                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = arguments[at], .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+        at_byte +=
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = arguments[at], .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1ULL;
     }
     const ObsignatioSignumRequest hashed = {text, bytes, NULL, OBSIGNATIO_MODE_HASH, signum->bytes, ENGINE_SIGNUM_BYTES,
                                             error};
@@ -197,7 +211,8 @@ unsigned long long run_limit(const char *name, unsigned long long fallback)
     char text_text[PLATFORM_ENVIRONMENT_BYTES];
     const char *const text = (platform_environment(name, text_text, sizeof(text_text)) != 0ULL) ? text_text : NULL;
     const char *end = NULL;
-    const unsigned long long milliseconds = (text != NULL) ? mmgr_text_unsigned_in(text, &end, 10) : 0ULL;
+    const unsigned long long milliseconds =
+        (text != NULL) ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = text, .end = &end, .base = 10) : 0ULL;
     const int given = (text != NULL) && (end != text) && (*end == '\0') && (milliseconds != 0ULL);
     return given ? (milliseconds * RUN_THOUSAND) : fallback;
 }
@@ -206,22 +221,26 @@ unsigned long long run_limit(const char *name, unsigned long long fallback)
 // numbers read, or -1 for a line that is not whole
 static int run_record_fields(const char *line, char state[RUN_STATE_CAPACITY], unsigned long long numbers[RUN_NUMBERS])
 {
-    const size_t length = mmgr_text_span_not(line, " \n", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length =
+        EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \n");
     if ((length == 0u) || (length >= RUN_STATE_CAPACITY))
     {
         return -1;
     }
-    mmgr_bytes_copy(state, line, length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = state, .src = line, .bytes = length);
     state[length] = '\0';
     const char *walk = line + length;
     int count = 0;
     while ((count < RUN_NUMBERS) && (walk[0] == ' ') && (walk[1] >= '0') && (walk[1] <= '9'))
     {
         const char *end = NULL;
-        numbers[count] = mmgr_text_unsigned_in(walk + 1, &end, 10);
+        numbers[count] = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = walk + 1, .end = &end, .base = 10);
         count += 1;
         // past the word that names the next number
-        walk = (end[0] == ' ') ? (end + 1 + mmgr_text_span_not(end + 1, " \n", PLATFORM_TEXT_TO_TERMINATOR)) : end;
+        walk = (end[0] == ' ') ? (end + 1 +
+                                  EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = end + 1,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \n"))
+                               : end;
     }
     return (walk[0] == '\n') ? count : -1;
 }

@@ -1,10 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "device_pool.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include <cuda_runtime.h>
-
 
 static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success");
 
@@ -71,7 +70,7 @@ extern "C" long device_pool_reserve(const DevicePoolReserveRequest *request)
         return DEVICE_POOL_ERROR;
     }
     DevicePool *const pool = request->pool;
-    mmgr_bytes_set(pool, 0, sizeof(*pool));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = pool, .bytes = sizeof(*pool), .val = 0);
     const unsigned long long bytes = device_pool_plan_bytes(request->plan);
     if (bytes == 0ULL)
     {
@@ -120,5 +119,5 @@ extern "C" void device_pool_return(DevicePool *pool)
 extern "C" void device_pool_release(DevicePool *pool)
 {
     cudaFree(pool->base);
-    mmgr_bytes_set(pool, 0, sizeof(*pool));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = pool, .bytes = sizeof(*pool), .val = 0);
 }

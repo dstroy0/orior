@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // parquet_thrift.c: the Thrift compact protocol the footer and every page header are written in, and growing bytes
-#include "parquet_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "parquet_internal.h"
 
 // the longest a varint may run: ten groups of seven bits cover sixty-four, and the last group's bits that land
 // inside sixty-four, 64 - 7 x 9 = 1
@@ -280,7 +280,7 @@ int parquet_bytes_append(ParquetBytes *bytes, const unsigned char *from, unsigne
     }
     if (count != 0ULL)
     {
-        mmgr_bytes_copy(bytes->bytes + bytes->count, from, (size_t)count);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = bytes->bytes + bytes->count, .src = from, .bytes = (size_t)count);
     }
     bytes->count += count;
     return 1;

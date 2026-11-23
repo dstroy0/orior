@@ -5,7 +5,7 @@
 #ifndef IDENTITY_SETTINGS_H
 #define IDENTITY_SETTINGS_H
 
-// the seed the order of a magnitude's links is drawn from, one word
+// the seed the order of a magnitude's links draws from, one word
 #define IDENTITY_SEED "identity.seed"
 
 // the path of the ruleset the identity writes forms in, from the top of the tree, its bytes without an end

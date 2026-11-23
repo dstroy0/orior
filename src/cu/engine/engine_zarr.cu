@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_zarr.cu: zarr v2 and v3, n5, and their description
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "engine_internal.h"
 #include "engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrLayout *layout, int inner)
 {
@@ -32,7 +32,8 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
             }
             return 0;
         }
-        if (mmgr_text_equal(name, "bytes", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "bytes",
+                       .ci = EMBED_FALSE))
         {
             char endian[16] = "little";
             const unsigned int stated = entry_json_at(json, configuration, "endian");
@@ -40,10 +41,14 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
             {
                 return 0;
             }
-            layout->big_endian = (mmgr_text_equal(endian, "big", PLATFORM_TEXT_TO_TERMINATOR)) ? 1u : 0u;
+            layout->big_endian = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = endian,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "big", .ci = EMBED_FALSE))
+                                     ? 1u
+                                     : 0u;
             bytes_seen = 1;
         }
-        else if (mmgr_text_equal(name, "transpose", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "transpose", .ci = EMBED_FALSE))
         {
             unsigned long long order[ENGINE_ARRAY_RANK];
             unsigned int count = 0u;
@@ -67,7 +72,8 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
                 layout->order[axis] = (unsigned int)order[axis];
             }
         }
-        else if (mmgr_text_equal(name, "sharding_indexed", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "sharding_indexed", .ci = EMBED_FALSE))
         {
             unsigned int count = 0u;
             if ((inner != 0) || (at != 0u) ||
@@ -98,17 +104,28 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
                     return 0;
                 }
                 const unsigned int stated = entry_json_at(json, entry_json_at(json, step, "configuration"), "endian");
-                if ((mmgr_text_equal(step_name, "bytes", PLATFORM_TEXT_TO_TERMINATOR)) && (stated != 0u) &&
-                    entry_json_text(json, stated, endian, sizeof(endian)))
+                if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = step_name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = "bytes", .ci = EMBED_FALSE)) &&
+                    (stated != 0u) && entry_json_text(json, stated, endian, sizeof(endian)))
                 {
-                    layout->index_big_endian = (mmgr_text_equal(endian, "big", PLATFORM_TEXT_TO_TERMINATOR)) ? 1u : 0u;
+                    layout->index_big_endian =
+                        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = endian, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "big", .ci = EMBED_FALSE))
+                            ? 1u
+                            : 0u;
                 }
                 layout->index_chain.crc32c |=
-                    (mmgr_text_equal(step_name, "crc32c", PLATFORM_TEXT_TO_TERMINATOR)) ? 1u : 0u;
-                layout->index_chain.count += ((!mmgr_text_equal(step_name, "bytes", PLATFORM_TEXT_TO_TERMINATOR)) &&
-                                              (!mmgr_text_equal(step_name, "crc32c", PLATFORM_TEXT_TO_TERMINATOR)))
-                                                 ? 1u
-                                                 : 0u;
+                    (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = step_name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = "crc32c", .ci = EMBED_FALSE))
+                        ? 1u
+                        : 0u;
+                layout->index_chain.count +=
+                    ((!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = step_name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "bytes", .ci = EMBED_FALSE)) &&
+                     (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = step_name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "crc32c", .ci = EMBED_FALSE)))
+                        ? 1u
+                        : 0u;
             }
             char location[16] = "end";
             const unsigned int placed = entry_json_at(json, configuration, "index_location");
@@ -116,10 +133,15 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
             {
                 return 0;
             }
-            layout->index_at_start = (mmgr_text_equal(location, "start", PLATFORM_TEXT_TO_TERMINATOR)) ? 1u : 0u;
+            layout->index_at_start =
+                (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = location, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "start", .ci = EMBED_FALSE))
+                    ? 1u
+                    : 0u;
             bytes_seen = 1;
         }
-        else if (mmgr_text_equal(name, "crc32c", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "crc32c", .ci = EMBED_FALSE))
         {
             chain->crc32c = 1u;
         }
@@ -197,7 +219,10 @@ static int entry_zarr_v3(const EntryJson *json, ZarrLayout *layout)
     const int split =
         entry_json_text(json, entry_json_at(json, entry_json_at(json, encoding, "configuration"), "separator"),
                         separator, sizeof(separator));
-    layout->prefixed = (mmgr_text_equal(encoding_name, "v2", PLATFORM_TEXT_TO_TERMINATOR)) ? 0u : 1u;
+    layout->prefixed = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = encoding_name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                   .other = "v2", .ci = EMBED_FALSE))
+                           ? 0u
+                           : 1u;
     layout->separator = (split != 0) ? separator[0] : ((layout->prefixed != 0u) ? '/' : '.');
     for (unsigned int axis = 0u; axis < rank; axis += 1u)
     {
@@ -332,19 +357,23 @@ static int entry_n5(const EntryJson *json, ZarrLayout *layout)
         entry_json_text(json, entry_json_at(json, 0u, "compressionType"), codec_name, sizeof(codec_name));
     }
     const unsigned int zlib = entry_json_at(json, compression, "useZlib");
-    if (mmgr_text_equal(codec_name, "gzip", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = codec_name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "gzip", .ci = EMBED_FALSE))
     {
         layout->chain.codec[0] =
             ((zlib != 0u) && (json->tokens[zlib].type == CFG_JSON_TRUE)) ? ENGINE_CODEC_ZLIB : ENGINE_CODEC_GZIP;
         layout->chain.count = 1u;
     }
-    else if ((mmgr_text_equal(codec_name, "blosc", PLATFORM_TEXT_TO_TERMINATOR)) ||
-             (mmgr_text_equal(codec_name, "zstd", PLATFORM_TEXT_TO_TERMINATOR)))
+    else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = codec_name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = "blosc", .ci = EMBED_FALSE)) ||
+             (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = codec_name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = "zstd", .ci = EMBED_FALSE)))
     {
         layout->chain.codec[0] = (codec_name[0] == 'b') ? ENGINE_CODEC_BLOSC : ENGINE_CODEC_ZSTD;
         layout->chain.count = 1u;
     }
-    else if (!mmgr_text_equal(codec_name, "raw", PLATFORM_TEXT_TO_TERMINATOR))
+    else if (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = codec_name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = "raw", .ci = EMBED_FALSE))
     {
         {
             EngineNote engine_note;
@@ -374,18 +403,19 @@ static int entry_n5(const EntryJson *json, ZarrLayout *layout)
 
 int entry_zarr_describe(const char *root, const char *member, ZarrLayout *layout, char *array_root, size_t capacity)
 {
-    mmgr_bytes_set(layout, 0, sizeof(*layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = layout, .bytes = sizeof(*layout), .val = 0);
     char path[ENTRY_PATH_CAPACITY];
     EntryJson json;
-    mmgr_bytes_set(&json, 0, sizeof(json));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &json, .bytes = sizeof(json), .val = 0);
     EntryOme ome;
-    mmgr_bytes_set(&ome, 0, sizeof(ome));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &ome, .bytes = sizeof(ome), .val = 0);
     int ok = 0;
     if (entry_joined(path, sizeof(path), root, "zarr.json") && entry_json_load(path, &json))
     {
         char node[16] = "";
         entry_json_text(&json, entry_json_at(&json, 0u, "node_type"), node, sizeof(node));
-        const int group = (mmgr_text_equal(node, "group", PLATFORM_TEXT_TO_TERMINATOR));
+        const int group = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = node, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                      .other = "group", .ci = EMBED_FALSE));
         const int described = group ? entry_ome(&json, entry_json_at(&json, 0u, "attributes"), &ome) : 0;
         const char *const leaf = (member != NULL) ? member : (described ? ome.path : NULL);
         entry_json_release(&json);

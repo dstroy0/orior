@@ -4,31 +4,35 @@
 #include "asm_printer_internal.h"
 #include "codegen_device.h"
 #include "codegen_device_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 int asm_printer_ruleset_same(const AsmPrinterRuleset *left, const AsmPrinterRuleset *right)
 {
     const AsmPrinterProgram &left_program = left->program;
     const AsmPrinterProgram &right_program = right->program;
-    int same =
-        asm_printer_words_same(&left->scratch, &right->scratch) &&
-        asm_printer_words_same(&left->word_lengths, &right->word_lengths) &&
-        asm_printer_words_same(&left->part_lanes, &right->part_lanes) &&
-        asm_printer_words_same(&left->form_part_first, &right->form_part_first) &&
-        asm_printer_words_same(&left->form_parts, &right->form_parts) &&
-        asm_printer_words_same(&left->form_placeholder_first, &right->form_placeholder_first) &&
-        asm_printer_words_same(&left->placeholder_parameters, &right->placeholder_parameters) &&
-        (mmgr_bytes_compare(left->bank_before, right->bank_before, sizeof(left->bank_before)) == 0) &&
-        (mmgr_bytes_compare(left->bank_after, right->bank_after, sizeof(left->bank_after)) == 0) &&
-        (mmgr_bytes_compare(left->fixed_word, right->fixed_word, sizeof(left->fixed_word)) == 0) &&
-        (left->minus_word == right->minus_word) && (left->hash_word == right->hash_word) &&
-        (left->header_part == right->header_part) &&
-        (mmgr_bytes_compare(left->target_numbers, right->target_numbers, sizeof(left->target_numbers)) == 0) &&
-        (left_program.step_count == right_program.step_count) &&
-        (mmgr_bytes_compare(left_program.field_bits, right_program.field_bits, sizeof(left_program.field_bits)) == 0) &&
-        (mmgr_bytes_compare(left_program.field_offset, right_program.field_offset, sizeof(left_program.field_offset)) ==
-         0) &&
-        (left_program.output == right_program.output);
+    int same = asm_printer_words_same(&left->scratch, &right->scratch) &&
+               asm_printer_words_same(&left->word_lengths, &right->word_lengths) &&
+               asm_printer_words_same(&left->part_lanes, &right->part_lanes) &&
+               asm_printer_words_same(&left->form_part_first, &right->form_part_first) &&
+               asm_printer_words_same(&left->form_parts, &right->form_parts) &&
+               asm_printer_words_same(&left->form_placeholder_first, &right->form_placeholder_first) &&
+               asm_printer_words_same(&left->placeholder_parameters, &right->placeholder_parameters) &&
+               (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->bank_before, .other = right->bank_before,
+                           .bytes = sizeof(left->bank_before)) == 0) &&
+               (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->bank_after, .other = right->bank_after,
+                           .bytes = sizeof(left->bank_after)) == 0) &&
+               (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->fixed_word, .other = right->fixed_word,
+                           .bytes = sizeof(left->fixed_word)) == 0) &&
+               (left->minus_word == right->minus_word) && (left->hash_word == right->hash_word) &&
+               (left->header_part == right->header_part) &&
+               (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->target_numbers, .other = right->target_numbers,
+                           .bytes = sizeof(left->target_numbers)) == 0) &&
+               (left_program.step_count == right_program.step_count) &&
+               (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left_program.field_bits, .other = right_program.field_bits,
+                           .bytes = sizeof(left_program.field_bits)) == 0) &&
+               (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left_program.field_offset, .other = right_program.field_offset,
+                           .bytes = sizeof(left_program.field_offset)) == 0) &&
+               (left_program.output == right_program.output);
     for (unsigned int table = 0u; (same != 0) && (table < ASM_PRINTER_TABLES); table += 1u)
     {
         same = asm_printer_words_same(&left_program.values[table], &right_program.values[table]);
@@ -109,7 +113,7 @@ static void codegen_rules_read(DeviceArena *device_arena, const AsmPrinterCoreBu
 int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, const char *header,
                                AsmPrinterRuleset *text_rules, VerbaLinea *error)
 {
-    mmgr_bytes_set(text_rules, 0, sizeof(*text_rules));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = text_rules, .bytes = sizeof(*text_rules), .val = 0);
     if ((rules->schema->form_count != OPCODE_COUNT) || (rules->schema->bank_count != REGCLASS_COUNT) ||
         (rules->schema->fixed_count != PHYSREG_COUNT))
     {
@@ -201,7 +205,7 @@ int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, c
     (void)rules;
     (void)target;
     (void)header;
-    mmgr_bytes_set(text_rules, 0, sizeof(*text_rules));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = text_rules, .bytes = sizeof(*text_rules), .val = 0);
     mmgr_line_put(error, "the build has no device");
     return 0;
 }

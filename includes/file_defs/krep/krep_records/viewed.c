@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // viewed.c: the file as a view: its rows viewed from a run's table, the rows gathered from a finished .qry, a text's
 // number and text, and the who at a row
-#include "../../../parsers/who.h"
 #include "../../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "../../../parsers/who.h"
 #include "../../qry/qry_read.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "krep_records_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the file the rows among `bytes`, `size` of them, of the key `key` put together into `view`, which is open and
 // empty of its type: the rows joined, each whole words, its opening, the numbers its change gives, then its bytes or
@@ -20,7 +20,8 @@ static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size,
     while (ok && ((at + KREP_ROW_OPENING) <= words))
     {
         unsigned long long opening[KREP_ROW_OPENING];
-        mmgr_bytes_copy(opening, bytes + (at * sizeof(unsigned long long)), sizeof(opening));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = opening, .src = bytes + (at * sizeof(unsigned long long)),
+                   .bytes = sizeof(opening));
         at += KREP_ROW_OPENING;
         const unsigned long long change = opening[3];
         const unsigned int given = ((change == KREP_ROW_HEAD) || (change == KREP_ROW_PUT))   ? 3u
@@ -33,7 +34,8 @@ static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size,
             break;
         }
         unsigned long long number[3] = {0ULL, 0ULL, 0ULL};
-        mmgr_bytes_copy(number, bytes + (at * sizeof(unsigned long long)), given * sizeof(unsigned long long));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = number, .src = bytes + (at * sizeof(unsigned long long)),
+                   .bytes = given * sizeof(unsigned long long));
         at += given;
         // a head's and a text's bytes, filled out to whole words, and a put's and a set's words
         const unsigned long long following = ((change == KREP_ROW_HEAD) || (change == KREP_ROW_TEXT))
@@ -89,13 +91,15 @@ static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size,
 int krep_viewed(const KrepFile *file, KrepFile *view)
 {
     krep_open(view, file->type);
-    const size_t named = mmgr_text_length(file->table, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t named =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = file->table, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     unsigned long long at = 0ULL;
     const QryRecord *record = NULL;
     int ok = (file->key != 0ULL);
     while (ok && qry_member_read(&at, &record))
     {
-        if ((record->name_length == named) && (mmgr_bytes_compare(QRY_RECORD_NAME(record), file->table, named) == 0))
+        if ((record->name_length == named) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = QRY_RECORD_NAME(record),
+                                                          .other = file->table, .bytes = named) == 0))
         {
             ok = krep_rows_viewed(QRY_RECORD_BLOB(record), record->blob_length, file->key, view);
         }
@@ -110,8 +114,9 @@ int krep_viewed(const KrepFile *file, KrepFile *view)
 // 1 where `record` is a row of `table`
 static int krep_row_of(const QryRecord *record, const char *table)
 {
-    const size_t named = mmgr_text_length(table, PLATFORM_TEXT_TO_TERMINATOR);
-    return (record->name_length == named) && (mmgr_bytes_compare(QRY_RECORD_NAME(record), table, named) == 0);
+    const size_t named = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = table, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    return (record->name_length == named) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = QRY_RECORD_NAME(record), .other = table, .bytes = named) == 0);
 }
 
 // The head row `record` of `table` read: 1 where it heads the file `name`, or any file where `name` is NULL, its
@@ -125,13 +130,15 @@ static int krep_head_of(const QryRecord *record, const char *table, const char *
     {
         return 0;
     }
-    mmgr_bytes_copy(opening, bytes, sizeof(opening));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = opening, .src = bytes, .bytes = sizeof(opening));
     const unsigned long long length = opening[KREP_HEAD_WORDS - 1u];
     const unsigned long long named_at = KREP_HEAD_WORDS * sizeof(unsigned long long);
-    const int sought = (opening[3] == KREP_ROW_HEAD) &&
-                       ((name == NULL) || ((length == mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR)) &&
-                                           (length <= (size - named_at)) &&
-                                           (mmgr_bytes_compare(bytes + named_at, name, (size_t)length) == 0)));
+    const int sought =
+        (opening[3] == KREP_ROW_HEAD) &&
+        ((name == NULL) ||
+         ((length == EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR)) &&
+          (length <= (size - named_at)) &&
+          (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes + named_at, .other = name, .bytes = (size_t)length) == 0)));
     for (unsigned int at = 0u; sought && (at < 4u); at += 1u)
     {
         // the type's four bytes are the low first in its word

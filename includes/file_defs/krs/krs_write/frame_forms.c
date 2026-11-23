@@ -3,15 +3,33 @@
 // frame_forms.c: the frame forms of a part's ruleset. The module reads the table of names, writes a form's line as
 // the schema's form, and writes the lines. The ruleset's own line stays where the run passes none.
 #include "frame_forms.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../src/platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../../../parsers/line_read.h"
 #include "../../krf/krf.h"
 #include "fixed.h"
 #include "krs_write_internal.h"
 #include "verba_scribo/verba_scribo.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int frame_forms_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // The max rows the table contains, and the max places a row gives a form's parameters.
 #define KRS_FRAME_ROWS 32u
@@ -47,8 +65,10 @@ typedef struct
 static void frame_table_beside(char *path, size_t room)
 {
     const char *const file = __FILE__;
-    const char *const forward = mmgr_text_char_last(file, '/', PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const back = mmgr_text_char_last(file, '\\', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const forward =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = file, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+    const char *const back =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = file, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
     const char *const slash = (back == NULL) ? forward : ((forward == NULL) || (back > forward)) ? back : forward;
     // The folder is __FILE__ up to and with its last slash. A file name with no folder is in this folder.
     const int folder = (slash != NULL) ? (int)((slash - file) + 1) : 0;
@@ -79,25 +99,29 @@ unsigned int krs_frame_read(const char *path)
     char line[1024];
     while (line_read(file_bytes, file_size, &file_at, line, sizeof(line)) && (s_rows < KRS_FRAME_ROWS))
     {
-        line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
+        line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\r\n")] = '\0';
         if ((line[0] == '#') || (line[0] == '\0'))
         {
             continue;
         }
-        char *const form = mmgr_text_char(line, '\t', PLATFORM_TEXT_TO_TERMINATOR);
+        char *const form =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
         if (form == NULL)
         {
             continue;
         }
         *form = '\0';
         // The places column can be empty, a form of no parameters, and a line can end before it.
-        char *const places = mmgr_text_char(form + 1, '\t', PLATFORM_TEXT_TO_TERMINATOR);
+        char *const places =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = form + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
         if (places != NULL)
         {
             *places = '\0';
         }
         // The head line names the columns.
-        if (mmgr_text_equal(line, "relation", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "relation",
+                       .ci = EMBED_FALSE))
         {
             continue;
         }
@@ -151,7 +175,8 @@ static unsigned int frame_places_count(const char *text)
 // contains.
 static int frame_row_fits(const KrsFrameRow *row, const KrsFrameForm *form)
 {
-    return (mmgr_text_equal(row->relation, form->relation, PLATFORM_TEXT_TO_TERMINATOR)) &&
+    return (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = row->relation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = form->relation, .ci = EMBED_FALSE)) &&
            (row->places == frame_places_count(form->text));
 }
 
@@ -219,7 +244,9 @@ static int frame_row_named(const KrsFrameRow *row, const KrsFrameForm *form, con
                 named = (row->place[each] == place) ? each : named;
             }
             if ((named == row->places) ||
-                ((at + mmgr_text_length(parameter[named], PLATFORM_TEXT_TO_TERMINATOR) + 3u) >= sizeof(text)))
+                ((at +
+                  EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = parameter[named], .cap = PLATFORM_TEXT_TO_TERMINATOR) +
+                  3u) >= sizeof(text)))
             {
                 return 0;
             }
@@ -299,11 +326,13 @@ static unsigned int frame_given_read(const char *krs_path, KrsFrameGiven *given)
         char name[KRS_NAME];
         const char *at = line;
         if (!line_word(&at, type, sizeof(type)) || !line_word(&at, name, sizeof(name)) ||
-            (!mmgr_text_equal(type, "form", PLATFORM_TEXT_TO_TERMINATOR)))
+            (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "form",
+                         .ci = EMBED_FALSE)))
         {
             continue;
         }
-        line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
+        line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\r\n")] = '\0';
         {
             VerbaLinea buffer_line = mmgr_line_over(given[count].name, sizeof(given[count].name));
             mmgr_line_put(&buffer_line, name);
@@ -325,7 +354,8 @@ static const char *frame_given_of(const KrsFrameGiven *given, unsigned int count
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (mmgr_text_equal(given[at].name, name, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = given[at].name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = name, .ci = EMBED_FALSE))
         {
             return given[at].line;
         }
@@ -336,9 +366,10 @@ static const char *frame_given_of(const KrsFrameGiven *given, unsigned int count
 // Return 1 if `before`, a line with no newline, is `line` up to its newline.
 static int frame_same_line(const char *before, const char *line)
 {
-    const size_t length = mmgr_text_span_not(line, "\n", PLATFORM_TEXT_TO_TERMINATOR);
-    return (mmgr_text_length(before, PLATFORM_TEXT_TO_TERMINATOR) == length) &&
-           (mmgr_text_order(before, line, (size_t)(length)) == 0);
+    const size_t length =
+        EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\n");
+    return (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = before, .cap = PLATFORM_TEXT_TO_TERMINATOR) == length) &&
+           (frame_forms_text_order(before, line, (size_t)(length)) == 0);
 }
 
 // Write `row` into `line` from the first of the `count` forms in `form` it fits. Return 1, or 0 if it names none.
@@ -361,7 +392,8 @@ static int frame_row_written(const KrsFrameRow *row, const KrsFrameForm *form, u
 static unsigned int frame_form_first(unsigned int at)
 {
     unsigned int first = 0u;
-    while (!mmgr_text_equal(s_row[first].form, s_row[at].form, PLATFORM_TEXT_TO_TERMINATOR))
+    while (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row[first].form, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = s_row[at].form, .ci = EMBED_FALSE))
     {
         first += 1u;
     }
@@ -391,7 +423,8 @@ unsigned int krs_frame_written(char *out, size_t cap, size_t *at, const KrsFrame
         int named = 0;
         for (unsigned int other = place; (other < s_rows) && !named; other += 1u)
         {
-            named = (mmgr_text_equal(s_row[other].form, row->form, PLATFORM_TEXT_TO_TERMINATOR)) &&
+            named = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row[other].form,
+                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = row->form, .ci = EMBED_FALSE)) &&
                     frame_row_written(&s_row[other], form, count, named_ruleset, line, sizeof(line));
         }
         const char *const before = frame_given_of(s_given, givens, row->form);

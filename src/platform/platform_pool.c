@@ -6,7 +6,6 @@
 // one of its parts. No part of the block comes from the cells, and so no part makes a hole in the persistent tier
 #include "platform_internal.h"
 
-#include "memoria_operor/memoria_linea.h"
 #include "memoria_operor/memoria_operor.h"
 
 #include <signal.h>
@@ -376,7 +375,11 @@ void *platform_cell_grown(void *cell, unsigned long long held, unsigned long lon
         void *const in_place = g_platform_guard->buf_grow(cell, (size_t)bytes, &mmgr_owner_table[place]);
         if ((in_place != NULL) && (in_place != cell) && (held != 0ULL))
         {
-            mmgr_bytes_move(in_place, cell, (size_t)((held < bytes) ? held : bytes));
+            (((const unsigned char *)(in_place) <= (const unsigned char *)(cell))
+                 ? EMBED_CALL(memor.move_down, MemoriaCfg, .dst = in_place, .src = cell,
+                              .bytes = (size_t)((held < bytes) ? held : bytes))
+                 : EMBED_CALL(memor.move_up, MemoriaCfg, .dst = in_place, .src = cell,
+                              .bytes = (size_t)((held < bytes) ? held : bytes)));
         }
         if (in_place != NULL)
         {

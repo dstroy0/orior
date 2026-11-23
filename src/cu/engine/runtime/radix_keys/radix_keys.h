@@ -3,9 +3,9 @@
 #ifndef RADIX_KEYS_H
 #define RADIX_KEYS_H
 
-#include <stdlib.h>
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef __cplusplus
@@ -30,7 +30,7 @@ extern "C"
         size_t histogram[256];
         for (unsigned int shift = 0u; shift < 64u; shift += 8u)
         {
-            mmgr_bytes_set(histogram, 0, sizeof(histogram));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = histogram, .bytes = sizeof(histogram), .val = 0);
             for (size_t at = 0u; at < count; at += 1u)
             {
                 histogram[(source[at] >> shift) & 0xFFULL] += 1u;
@@ -58,7 +58,7 @@ extern "C"
         }
         if (source != keys)
         {
-            mmgr_bytes_copy(keys, source, count * sizeof(unsigned long long));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = keys, .src = source, .bytes = count * sizeof(unsigned long long));
         }
         platform_cell_released(scratch, platform_place_g_program_owner);
         return 1;
@@ -87,7 +87,7 @@ extern "C"
         size_t histogram[256];
         for (unsigned int shift = 0u; shift < 64u; shift += 8u)
         {
-            mmgr_bytes_set(histogram, 0, sizeof(histogram));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = histogram, .bytes = sizeof(histogram), .val = 0);
             for (size_t at = 0u; at < count; at += 1u)
             {
                 histogram[(source_keys[at] >> shift) & 0xFFULL] += 1u;
@@ -119,8 +119,10 @@ extern "C"
         }
         if (source_keys != keys)
         {
-            mmgr_bytes_copy(keys, source_keys, count * sizeof(unsigned long long));
-            mmgr_bytes_copy(values, source_values, count * sizeof(unsigned int));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = keys, .src = source_keys,
+                       .bytes = count * sizeof(unsigned long long));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = values, .src = source_values,
+                       .bytes = count * sizeof(unsigned int));
         }
         platform_cell_released(scratch_keys, platform_place_g_program_owner);
         platform_cell_released(scratch_values, platform_place_g_program_owner);

@@ -48,7 +48,7 @@
 // blob FORMS_BLOB_NAME of the run (forms_blob.h). What the writer prints goes into the run as KRS_MACHINE_NAME.
 #include "../../../src/cu/engine/rmc/schema_forms.h"
 #include "../../../src/platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "krs_write/fixed.h"
 #include "krs_write/head.h"
 #include "krs_write/krs_write_internal.h"
@@ -396,7 +396,8 @@ int program_main(int count, char **word)
     // from (krs.oracle.tsv). Each line is the part's answer in its .ksc (Open 6.3). The lines name the container
     // the vendor's writer makes, loaded and returned from, and the least head a kernel runs with. A line the part has
     // not answered for stays out, and the reader refuses the ruleset without it.
-    if (mmgr_text_equal(language, "sass", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = language, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "sass",
+                   .ci = EMBED_FALSE))
     {
         char missing[128];
         krs_head_written(s_head_bytes, sizeof(s_head_bytes), &s_head_at, ksc, missing, sizeof(missing));
@@ -421,7 +422,8 @@ int program_main(int count, char **word)
     //
     // The rows register last and predicate last in the part's .ksc bound the numbers. The bank line names, it does
     // not bound.
-    if (mmgr_text_equal(language, "sass", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = language, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "sass",
+                   .ci = EMBED_FALSE))
     {
         head_text("bank file = R{n}\n");
         head_text("bank sign = R{n}\n");

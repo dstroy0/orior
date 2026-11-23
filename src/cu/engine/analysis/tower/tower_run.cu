@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tower_run.cu: allocation, edges, lifting and lowering
-#include "tower_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tower_internal.h"
 
 static int tower_reserve(size_t lanes, EngineError *error)
 {
@@ -132,7 +132,7 @@ static int tower_edge_run(const TowerEdge *edges, unsigned int edge_count, const
 {
     TowerResident *const resident = &g_tower_resident;
     TowerStep region;
-    mmgr_bytes_set(&region, 0, sizeof(region));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &region, .bytes = sizeof(region), .val = 0);
     // the global strides are the full-extent strides, fixed constant across the in-place lifting levels
     region.stride[3] = 1ULL;
     region.stride[2] = extent[3];

@@ -1,11 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_windows.c: starting, timing and ending a job's process tree on Windows
-#include "tessera_run_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera_run_internal.h"
 
 #if (defined(_WIN32))
 _Alignas(8) static const char s_run_unjoined[] =
@@ -15,10 +14,12 @@ _Alignas(8) static const char s_run_unjoined[] =
 // the command's words as one command line, the program first, each quoted as the C runtime splits them back
 static char *run_command_line(const char *program, char *const *words, int count)
 {
-    size_t capacity = 1u + (2u * mmgr_text_length(program, PLATFORM_TEXT_TO_TERMINATOR)) + 3u;
+    size_t capacity =
+        1u + (2u * EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = program, .cap = PLATFORM_TEXT_TO_TERMINATOR)) + 3u;
     for (int at = 1; at < count; at += 1)
     {
-        capacity += (2u * mmgr_text_length(words[at], PLATFORM_TEXT_TO_TERMINATOR)) + 3u;
+        capacity +=
+            (2u * EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = words[at], .cap = PLATFORM_TEXT_TO_TERMINATOR)) + 3u;
     }
     char *const line = (char *)platform_cell_taken(capacity, platform_place_g_program_owner, 0);
     if (line == NULL)
@@ -35,11 +36,14 @@ static char *run_command_line(const char *program, char *const *words, int count
             length += 1u;
         }
         const int quoted =
-            (word[0] == '\0') || ((word[mmgr_text_span_not(word, " \t\n\v\"", PLATFORM_TEXT_TO_TERMINATOR)] != '\0'));
+            (word[0] == '\0') || ((word[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = word,
+                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \t\n\v\"")] != '\0'));
         if (!quoted)
         {
-            mmgr_bytes_copy(line + length, word, mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR));
-            length += mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = line + length, .src = word,
+                       .bytes =
+                           EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR));
+            length += EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR);
             continue;
         }
         line[length] = '"';
@@ -77,7 +81,9 @@ static const char *run_program_found(const char *program, char *found, size_t ca
 {
     char path_text[PLATFORM_ENVIRONMENT_PATH_BYTES];
     const char *const path = (platform_environment("PATH", path_text, sizeof(path_text)) != 0ULL) ? path_text : NULL;
-    if (((program[mmgr_text_span_not(program, "\\/:", PLATFORM_TEXT_TO_TERMINATOR)] != '\0')) || (path == NULL))
+    if (((program[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = program, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "\\/:")] != '\0')) ||
+        (path == NULL))
     {
         return program;
     }
@@ -193,14 +199,14 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
     // what the command's tree has used
     child->job = CreateJobObjectA(NULL, NULL);
     JOBOBJECT_BASIC_LIMIT_INFORMATION limits;
-    mmgr_bytes_set(&limits, 0, sizeof(limits));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &limits, .bytes = sizeof(limits), .val = 0);
     limits.LimitFlags = JOB_OBJECT_LIMIT_AFFINITY;
     // the mask covers the first sixty-four processors, which the machine word represents whole
     limits.Affinity = (ULONG_PTR)mask;
     const int limited = (child->job != NULL) &&
                         SetInformationJobObject(child->job, JobObjectBasicLimitInformation, &limits, sizeof(limits));
     STARTUPINFOA startup;
-    mmgr_bytes_set(&startup, 0, sizeof(startup));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &startup, .bytes = sizeof(startup), .val = 0);
     startup.cb = sizeof(startup);
     startup.dwFlags = STARTF_USESTDHANDLES;
     startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
@@ -210,7 +216,7 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
     run_inheritable(startup.hStdOutput);
     run_inheritable(startup.hStdError);
     PROCESS_INFORMATION started;
-    mmgr_bytes_set(&started, 0, sizeof(started));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &started, .bytes = sizeof(started), .val = 0);
     // below normal is the class every process the command starts inherits
     const int made = CreateProcessA(NULL, line, NULL, NULL, TRUE, CREATE_SUSPENDED | BELOW_NORMAL_PRIORITY_CLASS, NULL,
                                     NULL, &startup, &started);
@@ -237,7 +243,8 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
         {
             const char *const error_text = s_run_unjoined;
             platform_terminal_write(1, error_text,
-                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+                                    (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = error_text,
+                                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR));
         }
     }
     // a watched command's pid is recorded before it runs: its child reads that it was launched
@@ -272,7 +279,7 @@ int run_finish(RunChild *child)
 int run_cpu(const RunChild *child, unsigned long long *microseconds)
 {
     JOBOBJECT_BASIC_ACCOUNTING_INFORMATION accounting;
-    mmgr_bytes_set(&accounting, 0, sizeof(accounting));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &accounting, .bytes = sizeof(accounting), .val = 0);
     if ((child->job == NULL) || !QueryInformationJobObject(child->job, JobObjectBasicAccountingInformation, &accounting,
                                                            sizeof(accounting), NULL))
     {

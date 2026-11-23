@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chaitin_omega_pool.cu: the pool's program, its kernels and admission
 #include "chaitin_omega_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 static void omega_program_step(EngineRecordStep *steps, unsigned int *count, EngineRecordOperation operation,
                                unsigned int left, unsigned int right, unsigned int member)
@@ -45,8 +45,8 @@ int omega_program_load(OmegaProgram *program, EngineError *error)
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {
         (program->token_bits + 31u) / 32u, (program->depth_bits + program->bound_bits + 2u + 31u) / 32u, 0u};
     const unsigned int outputs[1] = {OMEGA_PROGRAM_OUT};
-    mmgr_bytes_set(&program->key, 0, sizeof(program->key));
-    mmgr_bytes_set(&program->layout, 0, sizeof(program->layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &program->key, .bytes = sizeof(program->key), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &program->layout, .bytes = sizeof(program->layout), .val = 0);
     program->record = NULL;
     const KeymathRecordRequest encode_request = {steps, count, field_bits,    5u,   2u, outputs, 1u,
                                                  NULL,  0u,    &program->key, error};

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cubin.c: the container: a file read and written, a word read and written, the kernel, a splice, a place found, the
 // container written, the keys, a flip checked safe, the first field and the operand at a place
-#include "fields_internal.h"
 #include "../../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "fields_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 SassMachine s_machine;
 unsigned char s_pattern[FIELDS_CUBIN_BYTES];
@@ -66,11 +66,13 @@ static void fields_word_write(unsigned char *bytes, unsigned long long word)
 // the kernel the kernel opens with, `.text.<kernel>:`, into `kernel`: 1, or 0 where it opens otherwise
 int fields_kernel(const char *kernel_text, char *kernel, size_t room)
 {
-    if (!mmgr_text_starts(kernel_text, ".text.", PLATFORM_TEXT_TO_TERMINATOR))
+    if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = kernel_text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = ".text.", .ci = EMBED_FALSE))
     {
         return 0;
     }
-    const size_t length = mmgr_text_span_not(kernel_text + 6, ":\r\n", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = kernel_text + 6,
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ":\r\n");
     VerbaLinea formed_line_11;
     return (kernel_text[6u + length] == ':') &&
            ((formed_line_11 = mmgr_line_over(kernel, room),
@@ -82,12 +84,15 @@ int fields_kernel(const char *kernel_text, char *kernel, size_t room)
 // such line or `text` will not contain the whole
 int fields_splice(const char *kernel_text, const char *lines, char *text, size_t room)
 {
-    const char *const line = mmgr_text_find(kernel_text, "\nIADD3 ", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const line =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = kernel_text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "\nIADD3 ", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if (line == NULL)
     {
         return 0;
     }
-    const char *const after = mmgr_text_char(line + 1, '\n', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const after =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\n');
     const size_t before = (size_t)(line - kernel_text) + 1u;
     VerbaLinea formed_line_1 = mmgr_line_over(text, room);
     mmgr_line_put_max(&formed_line_1, kernel_text, (size_t)((int)before));
@@ -123,7 +128,7 @@ int fields_cubin(const unsigned char *code, unsigned int count, unsigned int pla
 {
     static unsigned char s_turned[FIELDS_CODE_BYTES];
     const unsigned long long code_size = 16ULL * count;
-    mmgr_bytes_copy(s_turned, code, (size_t)code_size);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_turned, .src = code, .bytes = (size_t)code_size);
     if (bit < 128u)
     {
         const unsigned int at = (16u * place) + ((bit < 64u) ? 0u : 8u);
@@ -132,7 +137,7 @@ int fields_cubin(const unsigned char *code, unsigned int count, unsigned int pla
         fields_word_write(&s_turned[at], word);
     }
     CubinWrite written;
-    mmgr_bytes_set(&written, 0, sizeof(written));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &written, .bytes = sizeof(written), .val = 0);
     written.pattern = s_pattern;
     written.pattern_size = s_pattern_size;
     written.kernel = s_kernel;
@@ -241,9 +246,13 @@ int fields_first(const char *path, char *instruction, size_t room)
     int found = 0;
     while (!found && (platform_file_text_read(line, sizeof(line), file) != NULL))
     {
-        line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
-        const char *const walk = line + mmgr_text_span(line, " \t", PLATFORM_TEXT_TO_TERMINATOR);
-        if ((*walk != '\0') && (!mmgr_text_starts(walk, "IADD3 R8", PLATFORM_TEXT_TO_TERMINATOR)))
+        line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\r\n")] = '\0';
+        const char *const walk = line + EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = line,
+                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \t");
+        if ((*walk != '\0') &&
+            (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = walk, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = "IADD3 R8", .ci = EMBED_FALSE)))
         {
             VerbaLinea formed_line_2 = mmgr_line_over(instruction, room);
             mmgr_line_put(&formed_line_2, walk);

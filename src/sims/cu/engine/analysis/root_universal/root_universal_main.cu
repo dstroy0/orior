@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // root_universal_main.cu: the extent printed and main
-#include "root_universal_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "root_universal_internal.h"
 
 static void root_extent_print(VerbaLinea *line, const unsigned long long extent[4])
 {
@@ -27,7 +27,7 @@ int program_main(int argc, char **argv)
     VerbaLinea *const line = &results.line;
 
     SimCamera camera;
-    mmgr_bytes_set(&camera, 0, sizeof(camera));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &camera, .bytes = sizeof(camera), .val = 0);
     camera.offset = 100ULL;
     camera.gain = 1ULL;
     camera.read_square = 3ULL;
@@ -36,7 +36,7 @@ int program_main(int argc, char **argv)
 
     const unsigned long long extent[ROOT_EXTENTS][4] = {{4ULL, 12ULL, 48ULL, 48ULL}, {3ULL, 13ULL, 37ULL, 41ULL}};
     RootVolume volume[ROOT_EXTENTS];
-    mmgr_bytes_set(volume, 0, sizeof(volume));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = volume, .bytes = sizeof(volume), .val = 0);
     // both volumes' device lanes, the tower's and the coder's pools for the larger, and the table of the widest edge;
     // the coded stream, sized by the values, is left to the retained peak
     unsigned long long declared = (unsigned long long)ROOT_TABLE_CAPACITY * sizeof(unsigned int);
@@ -56,7 +56,7 @@ int program_main(int argc, char **argv)
         lanes_max = (volume[shaped].lanes > lanes_max) ? volume[shaped].lanes : lanes_max;
     }
     RootProgram program;
-    mmgr_bytes_set(&program, 0, sizeof(program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &program, .bytes = sizeof(program), .val = 0);
     for (unsigned int at = 0u; at < ROOT_EDGES_MAX; at += 1u)
     {
         program.table[at] = (unsigned int *)platform_cell_taken((size_t)ROOT_TABLE_CAPACITY * sizeof(unsigned int),
@@ -102,8 +102,10 @@ int program_main(int argc, char **argv)
             root_program_draw(&program, here->floors, sim_draw(camera.key, ROOT_PROGRAM_PURPOSE), drawn == 0u);
             ok = ok && root_crystal_trip(&results, here, program.edge, program.count, crystal[1], &bits, &exact);
             edged_exact += (exact != 0) ? 1ULL : 0ULL;
-            changed +=
-                (mmgr_bytes_compare(crystal[0], crystal[1], (size_t)here->lanes * sizeof(int)) != 0) ? 1ULL : 0ULL;
+            changed += (EMBED_CALL(memor.cmp, MemoriaCfg, .src = crystal[0], .other = crystal[1],
+                                   .bytes = (size_t)here->lanes * sizeof(int)) != 0)
+                           ? 1ULL
+                           : 0ULL;
             edge_count += program.count;
         }
         mmgr_line_put(line, "  ");
@@ -165,9 +167,15 @@ int program_main(int argc, char **argv)
         ok = ok && root_lift_crystal(&results, folded, swapped, 2u, crystal[2]);
         ok = ok && root_lift_crystal(&results, folded, split, 2u, crystal[3]);
         const size_t bytes = (size_t)folded->lanes * sizeof(int);
-        folds += (mmgr_bytes_compare(crystal[0], crystal[1], bytes) == 0) ? 1ULL : 0ULL;
-        orders += (mmgr_bytes_compare(crystal[0], crystal[2], bytes) != 0) ? 1ULL : 0ULL;
-        blocks += (mmgr_bytes_compare(crystal[0], crystal[3], bytes) != 0) ? 1ULL : 0ULL;
+        folds += (EMBED_CALL(memor.cmp, MemoriaCfg, .src = crystal[0], .other = crystal[1], .bytes = bytes) == 0)
+                     ? 1ULL
+                     : 0ULL;
+        orders += (EMBED_CALL(memor.cmp, MemoriaCfg, .src = crystal[0], .other = crystal[2], .bytes = bytes) != 0)
+                      ? 1ULL
+                      : 0ULL;
+        blocks += (EMBED_CALL(memor.cmp, MemoriaCfg, .src = crystal[0], .other = crystal[3], .bytes = bytes) != 0)
+                      ? 1ULL
+                      : 0ULL;
     }
     mmgr_line_decimal_columns(line, ROOT_FOLD_VOLUMES, 9u);
     mmgr_line_decimal_columns(line, folds, 12u);
@@ -189,7 +197,7 @@ int program_main(int argc, char **argv)
     const unsigned int place_last[ROOT_PLACES] = {0u, floors / 2u, floors, floors};
     unsigned long long plain_bits = 0ULL;
     unsigned long long cost[ROOT_COST_WIDTHS][ROOT_PLACES];
-    mmgr_bytes_set(cost, 0, sizeof(cost));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = cost, .bytes = sizeof(cost), .val = 0);
     unsigned long long trips = 0ULL;
     unsigned long long exact_trips = 0ULL;
     for (unsigned int drawn = 0u; ok && (drawn < ROOT_COST_VOLUMES); drawn += 1u)

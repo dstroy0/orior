@@ -21,7 +21,7 @@ extern "C"
 #include "../../../../../../includes/file_defs/krs/ruleset_core_words.h"
 #include "../../../../../../includes/file_defs/krs/ruleset_reader.h"
 #include "../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "machine_ir_types.h"
 #include "sass_target.h"
 #include "target.h"
@@ -89,8 +89,10 @@ static unsigned int lane_assembles(const char *lane, unsigned long long length, 
             character += 1u;
         }
         // a label, a note, a directive and a blank line are not instructions and assemble to nothing
-        const int instruction = (character < (size - 1u)) && (line[character] != '.') && (line[character] != '/') &&
-                                (mmgr_text_char(line, ':', size) == NULL) && (mmgr_text_char(line, '`', size) == NULL);
+        const int instruction =
+            (character < (size - 1u)) && (line[character] != '.') && (line[character] != '/') &&
+            (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = size, .byte = ':') == NULL) &&
+            (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = size, .byte = '`') == NULL);
         if (instruction != 0)
         {
             lines += 1u;

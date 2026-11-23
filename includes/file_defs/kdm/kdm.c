@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // kdm.c: a part's .kdm read, its rows read, its section and its pipes written by a who, and written back whole (kdm.h)
 #include "kdm.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../src/platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../../parsers/who.h"
 
-    int kdm_read(KdmFile *file, const char *path)
+int kdm_read(KdmFile *file, const char *path)
 {
     return kfile_lines_read(file, path);
 }
@@ -33,7 +32,8 @@ int kdm_row_read(const char *line, KdmRow *row)
     while (fields < 6u)
     {
         field[fields] = at;
-        length[fields] = mmgr_text_span_not(at, "\t", PLATFORM_TEXT_TO_TERMINATOR);
+        length[fields] =
+            EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\t");
         at += length[fields];
         fields += 1u;
         if (*at != '\t')
@@ -55,7 +55,7 @@ int kdm_row_read(const char *line, KdmRow *row)
         mmgr_line_put_max(&buffer_line, field[0], (size_t)((int)length[0]));
         (void)mmgr_line_finish(&buffer_line);
     }
-    row->nodes = (unsigned int)mmgr_text_unsigned_in(field[1], NULL, 10);
+    row->nodes = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = field[1], .end = NULL, .base = 10);
     {
         VerbaLinea buffer_line = mmgr_line_over(row->chain, sizeof(row->chain));
         mmgr_line_put_max(&buffer_line, field[2], (size_t)((int)length[2]));
@@ -66,7 +66,7 @@ int kdm_row_read(const char *line, KdmRow *row)
         mmgr_line_put_max(&buffer_line, field[3], (size_t)((int)length[3]));
         (void)mmgr_line_finish(&buffer_line);
     }
-    row->runs = (unsigned int)mmgr_text_unsigned_in(field[4], NULL, 10);
+    row->runs = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = field[4], .end = NULL, .base = 10);
     return 1;
 }
 
@@ -75,7 +75,10 @@ unsigned int kdm_tail_at(const KdmFile *file)
     unsigned int head = file->lines;
     for (unsigned int at = 0u; (at < file->lines) && (head == file->lines); at += 1u)
     {
-        head = (mmgr_text_equal(file->line[at], KDM_ROWS_HEAD, PLATFORM_TEXT_TO_TERMINATOR)) ? at : head;
+        head = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = file->line[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = KDM_ROWS_HEAD, .ci = EMBED_FALSE))
+                   ? at
+                   : head;
     }
     if (head == file->lines)
     {
@@ -106,7 +109,9 @@ int kdm_section_written_by(KdmFile *file, const char *part, const char *const *l
         mmgr_line_put(&buffer_line, part);
         (void)mmgr_line_finish(&buffer_line);
     }
-    const int headed = (file->lines != 0u) && (mmgr_text_starts(file->line[0], "kdm ", PLATFORM_TEXT_TO_TERMINATOR));
+    const int headed =
+        (file->lines != 0u) && (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = file->line[0],
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "kdm ", .ci = EMBED_FALSE));
     int ok = kfile_lines_line_add(&written, headed ? file->line[0] : first) &&
              ((count == 0u) || (kfile_lines_put_by(&written, written.lines, lines, count, who) != 0u));
     if (ok && (tail < file->lines) && !tail_own &&
@@ -166,10 +171,12 @@ int kdm_pipes_replaced_by(KdmFile *file, const char *const *comment, unsigned in
     while (at > tail)
     {
         at -= 1u;
-        int dropped = (mmgr_text_starts(file->line[at], "pipe ", PLATFORM_TEXT_TO_TERMINATOR));
+        int dropped = (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = file->line[at],
+                                  .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "pipe ", .ci = EMBED_FALSE));
         for (unsigned int line = 0u; (line < comments) && !dropped; line += 1u)
         {
-            dropped = (mmgr_text_equal(file->line[at], comment[line], PLATFORM_TEXT_TO_TERMINATOR));
+            dropped = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = file->line[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = comment[line], .ci = EMBED_FALSE));
         }
         if (dropped)
         {

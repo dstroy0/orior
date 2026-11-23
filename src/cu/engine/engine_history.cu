@@ -1,20 +1,23 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_history.cu: the history and the public entry points
-#include "engine_internal.h"
 #include "../../platform/platform.h"
+#include "engine_internal.h"
 #include "engine_note.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 static int entry_history_same(const EngineHistory *one, const EngineHistory *other)
 {
     const size_t entries = (size_t)(one->windows * one->windows);
     const size_t words = (size_t)(one->windows * one->extent[1] * one->extent[2] * one->extent[3]);
-    return (mmgr_bytes_compare(one->extent, other->extent, sizeof(one->extent)) == 0) &&
+    return (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->extent, .other = other->extent,
+                       .bytes = sizeof(one->extent)) == 0) &&
            (one->windows == other->windows) && entry_signum_same(&one->sample, &other->sample) &&
            (one->payload_crc == other->payload_crc) && (one->cloud_crc == other->cloud_crc) &&
-           (mmgr_bytes_compare(one->cloud, other->cloud, entries * sizeof(unsigned long long)) == 0) &&
-           (mmgr_bytes_compare(one->history, other->history, words * sizeof(unsigned long long)) == 0);
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->cloud, .other = other->cloud,
+                       .bytes = entries * sizeof(unsigned long long)) == 0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->history, .other = other->history,
+                       .bytes = words * sizeof(unsigned long long)) == 0);
 }
 
 extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
@@ -50,7 +53,7 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
         EngineStream located;
         EngineSignum located_root;
         EngineError probe;
-        mmgr_bytes_set(&probe, 0, sizeof(probe));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &probe, .bytes = sizeof(probe), .val = 0);
         if ((request->reuse != 0u) && krep_crystal_head(iapx_path, &located, &located_root, &probe))
         {
             EngineHistory stored_history;
@@ -75,7 +78,7 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
         unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
         unsigned short *volume = NULL;
         EngineSignum sample_root;
-        mmgr_bytes_set(&sample_root, 0, sizeof(sample_root));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &sample_root, .bytes = sizeof(sample_root), .val = 0);
         ok = (engine_iapx_load(request->set.set, name, extent, &volume, &sample_root, NULL, error) == 0L);
         const long windows = ok ? entropy_history_windows(extent, error) : ENTROPY_HISTORY_ERROR;
         ok = ok && (windows != ENTROPY_HISTORY_ERROR);
@@ -89,13 +92,13 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
             payload_count, sizeof(unsigned long long), platform_place_g_program_owner, 0);
         ok = ok && (cloud != NULL) && (payload != NULL);
         EngineHistory history;
-        mmgr_bytes_set(&history, 0, sizeof(history));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &history, .bytes = sizeof(history), .val = 0);
         history.cloud = cloud;
         history.history = payload;
         EntropyHistoryProjectRequest project;
-        mmgr_bytes_set(&project, 0, sizeof(project));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &project, .bytes = sizeof(project), .val = 0);
         project.volume = volume;
-        mmgr_bytes_copy(project.extent, extent, sizeof(project.extent));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = project.extent, .src = extent, .bytes = sizeof(project.extent));
         project.sample = sample_root;
         project.history = &history;
         project.error = error;
@@ -122,7 +125,7 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
         }
 
         EngineHistory read;
-        mmgr_bytes_set(&read, 0, sizeof(read));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &read, .bytes = sizeof(read), .val = 0);
         ok = ok && ENGINE_IO(engine_directories_make(path, 0) != 0, path, error) &&
              krep_history_write(path, &history, error) && krep_history_read(path, &read, 1u, error) &&
              ENGINE_CHECK(entry_history_same(&history, &read) != 0, &read, error, ENGINE_ERROR_LOGIC);
@@ -192,7 +195,8 @@ extern "C" long engine_entropy_cloud(const char *path, unsigned int *windows, un
         return ENGINE_ERROR;
     }
     *windows = (unsigned int)history.windows;
-    mmgr_bytes_copy(cloud, history.cloud, (size_t)(history.windows * history.windows) * sizeof(unsigned long long));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = cloud, .src = history.cloud,
+               .bytes = (size_t)(history.windows * history.windows) * sizeof(unsigned long long));
     krep_history_release(&history);
     return 0L;
 }
@@ -245,10 +249,10 @@ extern "C" long engine_bodies_write(const char *set, const char *sample, EngineB
         (ok != 0) &&
         ENGINE_CHECK(
             (back.bodies == table->bodies) && (back.crc == table->crc) &&
-                (mmgr_bytes_compare(back.frame_start, table->frame_start,
-                                    (size_t)(table->frames + 1ULL) * sizeof(unsigned long long)) == 0) &&
-                (mmgr_bytes_compare(back.words, table->words,
-                                    (size_t)(table->bodies * ENGINE_BODY_WORDS) * sizeof(unsigned long long)) == 0),
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = back.frame_start, .other = table->frame_start,
+                            .bytes = (size_t)(table->frames + 1ULL) * sizeof(unsigned long long)) == 0) &&
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = back.words, .other = table->words,
+                            .bytes = (size_t)(table->bodies * ENGINE_BODY_WORDS) * sizeof(unsigned long long)) == 0),
             &back, error, ENGINE_ERROR_LOGIC);
     krep_bodies_release(&back);
     if (same == 0)

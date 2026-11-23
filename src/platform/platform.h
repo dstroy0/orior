@@ -335,6 +335,13 @@ int platform_file_removed(const char *path);
 // the folder at `path` made: 1 where it is there after the call, made now or before
 int platform_folder_made(const char *path);
 
+// A call that hears one entry of a folder: its name, terminated, and 1 where the entry is a folder itself
+typedef void (*PlatformFolderEntry)(void *context, const char *name, int folder);
+
+// Each entry of the folder at `path` heard by `each` with `context`, in the order that the system gives them, with
+// "." and ".." left out. The answer is 1, or 0 where `path` is no folder that the system opens
+int platform_folder_listed(const char *path, PlatformFolderEntry each, void *context);
+
 // the number that the system gives the process
 unsigned long long platform_process_id(void);
 

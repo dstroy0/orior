@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_ladder.cu: the ladder
-#include "noise_detector_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "noise_detector_internal.h"
 
 // A sample's quiet static voxels, their frames in blocks as the moment pass takes them, each retained block added to
 // the ladder's sums at its voxel's level over the other blocks
@@ -23,7 +23,7 @@ static long noise_ladder_sample(const unsigned short *volume, const unsigned lon
     {
         return NOISE_DETECTOR_ERROR;
     }
-    mmgr_bytes_set(sums, 0, sizeof(*sums));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = sums, .bytes = sizeof(*sums), .val = 0);
     *left_out = 0ULL;
     unsigned long long ceiling = 0ULL;
     unsigned char *const mask = (unsigned char *)platform_cell_taken((unsigned long long)((size_t)voxels),
@@ -148,7 +148,7 @@ extern "C" long noise_ladder_volume(const unsigned short *volume, const unsigned
     // a block's level is its voxel's frames over the other blocks. The level scale is those frames' count
     const unsigned long long other_frames = ((extent[0] / NOISE_MOMENT_BLOCK) - 1ULL) * NOISE_MOMENT_BLOCK;
     NoiseLadderMeasurement read;
-    mmgr_bytes_set(&read, 0, sizeof(read));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &read, .bytes = sizeof(read), .val = 0);
     unsigned long long falling = NOISE_MOMENT_BLOCK;
     for (unsigned int order = 0u; ok && (order < NOISE_LADDER_ORDERS); order += 1u)
     {

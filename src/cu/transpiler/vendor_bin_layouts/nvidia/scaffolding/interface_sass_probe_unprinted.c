@@ -14,14 +14,16 @@
 //
 // The kernel's text opens with its section's label, `.text.<kernel>:`, which names the kernel the cubin is written
 // into. The kernel loads the case's first two words into R0 and R7 and stores R7 as the first word of the answer.
-#include "interface_sass_probe_unprinted/unprinted_internal.h"
 #include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "interface_sass_probe_unprinted/unprinted_internal.h"
 
 int program_main(int count, char **words)
 {
-    const int forms = (count == 8) && (mmgr_text_equal(words[7], "forms", PLATFORM_TEXT_TO_TERMINATOR));
+    const int forms =
+        (count == 8) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[7], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "forms", .ci = EMBED_FALSE));
     if ((count != 7) && !forms)
     {
         {

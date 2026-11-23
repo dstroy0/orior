@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_daemon_peers.c: writing to, delivering to and serving the peers
-#include "tessera_daemon_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera_daemon_internal.h"
 
 _Alignas(8) static const char s_daemon_reason_closed[] = "its connection closed";
 
@@ -17,7 +17,7 @@ static int daemon_write(TesseraPeer *peer, const TesseraFrame *frame)
     }
 #if defined(_WIN32)
     OVERLAPPED writing;
-    mmgr_bytes_set(&writing, 0, sizeof(writing));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &writing, .bytes = sizeof(writing), .val = 0);
     writing.hEvent = CreateEventA(NULL, TRUE, FALSE, NULL);
     if (writing.hEvent == NULL)
     {
@@ -122,7 +122,7 @@ static DWORD WINAPI daemon_peer(LPVOID argument)
 {
     TesseraPeer *const peer = (TesseraPeer *)argument;
     OVERLAPPED measurement;
-    mmgr_bytes_set(&measurement, 0, sizeof(measurement));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &measurement, .bytes = sizeof(measurement), .val = 0);
     measurement.hEvent = CreateEventA(NULL, TRUE, FALSE, NULL);
     unsigned char bytes[TESSERA_FRAME_BYTES];
     unsigned int got = 0u;
@@ -259,7 +259,7 @@ int daemon_peer_start(TesseraPeer *peer, unsigned long long pid)
 
 static int daemon_hex(const char *text, unsigned char *bytes, unsigned int count)
 {
-    if (mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR) != (2u * count))
+    if (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR) != (2u * count))
     {
         return 0;
     }
@@ -292,18 +292,22 @@ int daemon_arguments(int count, char **arguments, unsigned long long *idle)
     for (int at = 1; (at + 1) < count; at += 2)
     {
         const char *end = NULL;
-        if (mmgr_text_equal(arguments[at], "--device", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--device", .ci = EMBED_FALSE))
         {
             have_device = daemon_hex(arguments[at + 1], g_daemon.device, TESSERA_DEVICE_BYTES);
         }
-        else if (mmgr_text_equal(arguments[at], "--luid", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--luid", .ci = EMBED_FALSE))
         {
-            g_daemon.luid = mmgr_text_unsigned_in(arguments[at + 1], &end, 16);
+            g_daemon.luid =
+                EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = arguments[at + 1], .end = &end, .base = 16);
             have_luid = (end != arguments[at + 1]) && (*end == '\0');
         }
-        else if (mmgr_text_equal(arguments[at], "--idle", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--idle", .ci = EMBED_FALSE))
         {
-            *idle = mmgr_text_unsigned_in(arguments[at + 1], &end, 10);
+            *idle = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = arguments[at + 1], .end = &end, .base = 10);
             have_idle = (end != arguments[at + 1]) && (*end == '\0');
         }
         else
@@ -327,8 +331,10 @@ int daemon_socket_passed(void)
     const char *const listen_fds =
         (platform_environment("LISTEN_FDS", listen_fds_text, sizeof(listen_fds_text)) != 0ULL) ? listen_fds_text : NULL;
     return (listen_pid != NULL) && (listen_fds != NULL) &&
-           (mmgr_text_unsigned_in(listen_pid, NULL, 10) == (unsigned long long)getpid()) &&
-           (mmgr_text_equal(listen_fds, "1", PLATFORM_TEXT_TO_TERMINATOR));
+           (EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = listen_pid, .end = NULL, .base = 10) ==
+            (unsigned long long)getpid()) &&
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = listen_fds, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "1",
+                       .ci = EMBED_FALSE));
 #endif
 }
 

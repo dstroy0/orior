@@ -3,12 +3,11 @@
 // query_interface.c: a walk of queries put from inside the interface, every ending recorded as the answer of the
 // address that caused it
 #include "query_interface.h"
-#include "../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_linea.h"
-
 
 #define QUERY_INTERFACE_CHECK(condition_, evacaddr_, error_, type_)                                                    \
     engine_error_check((condition_), (type_), ENGINE_MODULE_INTERFACE, (unsigned int)__LINE__,                         \
@@ -38,7 +37,8 @@ static void query_interface_lines_gathered(unsigned long long began)
     while (qry_member_read(&at, &record))
     {
         if ((record->name_length == (sizeof(QUERY_WALK_RECORD) - 1u)) &&
-            (mmgr_bytes_compare(QRY_RECORD_NAME(record), QUERY_WALK_RECORD, sizeof(QUERY_WALK_RECORD) - 1u) == 0))
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = QRY_RECORD_NAME(record), .other = QUERY_WALK_RECORD,
+                        .bytes = sizeof(QUERY_WALK_RECORD) - 1u) == 0))
         {
             mmgr_line_put_n(&lines, (const char *)QRY_RECORD_BLOB(record), record->blob_length);
         }
@@ -120,21 +120,24 @@ static unsigned long long query_interface_read(const QueryWalk *walk, const char
     while (read < given)
     {
         const char *end = NULL;
-        const unsigned long long address = mmgr_text_unsigned_in(at, &end, 16);
+        const unsigned long long address =
+            EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = at, .end = &end, .base = 16);
         if (end == at)
         {
             break;
         }
         at = end;
         // a bit and a type are each one small number, stored at the width of the fields that contain them
-        const unsigned int bit = (unsigned int)mmgr_text_unsigned_in(at, &end, 10);
+        const unsigned int bit =
+            (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = at, .end = &end, .base = 10);
         if (end == at)
         {
             break;
         }
         at = end;
         // as above
-        const unsigned int type = (unsigned int)mmgr_text_unsigned_in(at, &end, 10);
+        const unsigned int type =
+            (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = at, .end = &end, .base = 10);
         if ((end == at) || (address != (walk->from + ((next + read) * walk->stride))))
         {
             break;

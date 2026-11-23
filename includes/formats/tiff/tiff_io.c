@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tiff_io.c: errors, file access and directory entries
-#include "tiff_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tiff_internal.h"
 
 int tiff_fail(TiffFile *file, const char *reason)
 {
@@ -104,7 +104,7 @@ unsigned long long tiff_unpack(const TiffFile *file, const unsigned char *raw, u
 
 int tiff_open(TiffFile *file, const char *path, const char *member, const EngineIngestTools *tools)
 {
-    mmgr_bytes_set(file, 0, sizeof(*file));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = file, .bytes = sizeof(*file), .val = 0);
     file->path = path;
     file->tools = tools;
     if (member != NULL)
@@ -168,7 +168,7 @@ int tiff_entry_bytes(TiffFile *file, const TiffEntry *entry, unsigned long long 
     const unsigned int inline_bytes = file->bigtiff ? 8u : 4u;
     if ((file->reason == NULL) && (total <= inline_bytes))
     {
-        mmgr_bytes_copy(out, entry->value, (size_t)total);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = entry->value, .bytes = (size_t)total);
         return file->reason == NULL;
     }
     return tiff_fetch(file, tiff_unpack(file, entry->value, inline_bytes), total, out);

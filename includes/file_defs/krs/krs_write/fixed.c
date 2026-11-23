@@ -5,12 +5,30 @@
 // the register's numeric name.
 #include "fixed.h"
 #include "../../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../parsers/line_read.h"
 #include "../../krf/krf.h"
 #include "../../ksc/ksc.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_scribo.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int fixed_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // The four fixed registers the kernel the system accepted leaves at its probe place. The lines come in this order.
 static const char *const s_fixed_names[] = {"zero", "lane_number", "record", "index"};
@@ -56,11 +74,13 @@ static unsigned int fixed_given_read(const char *krs_path, KrsFixedGiven *given)
         char name[64];
         const char *at = line;
         if (!line_word(&at, type, sizeof(type)) || !line_word(&at, name, sizeof(name)) ||
-            (!mmgr_text_equal(type, "fixed", PLATFORM_TEXT_TO_TERMINATOR)))
+            (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "fixed",
+                         .ci = EMBED_FALSE)))
         {
             continue;
         }
-        line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
+        line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\r\n")] = '\0';
         {
             VerbaLinea buffer_line = mmgr_line_over(given[count].name, sizeof(given[count].name));
             mmgr_line_put(&buffer_line, name);
@@ -82,7 +102,8 @@ static const char *fixed_given_of(const KrsFixedGiven *given, unsigned int count
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (mmgr_text_equal(given[at].name, name, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = given[at].name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = name, .ci = EMBED_FALSE))
         {
             return given[at].line;
         }
@@ -95,7 +116,8 @@ static int fixed_is_placeholder_name(const char *name)
 {
     for (unsigned int at = 0u; at < KRS_FIXED_NAMES; at += 1u)
     {
-        if (mmgr_text_equal(s_fixed_names[at], name, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_fixed_names[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = name, .ci = EMBED_FALSE))
         {
             return 1;
         }
@@ -123,14 +145,17 @@ static void fixed_answers_read(const char *ksc_path, int *answered, unsigned lon
             continue;
         }
         if (!ksc_row_read(s_file.line[line], "run", &s_row) ||
-            (!mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)) ||
-            (!mmgr_text_starts(s_row.question, "fixed ", PLATFORM_TEXT_TO_TERMINATOR)))
+            (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.answer, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = "answers", .ci = EMBED_FALSE)) ||
+            (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = s_row.question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = "fixed ", .ci = EMBED_FALSE)))
         {
             continue;
         }
         for (unsigned int name = 0u; name < KRS_FIXED_NAMES; name += 1u)
         {
-            if (mmgr_text_equal(s_row.question + 6, s_fixed_names[name], PLATFORM_TEXT_TO_TERMINATOR))
+            if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.question + 6, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = s_fixed_names[name], .ci = EMBED_FALSE))
             {
                 answered[name] = 1;
                 number[name] = s_row.value;
@@ -165,7 +190,8 @@ static void fixed_line_of(unsigned int name, unsigned long long value, unsigned 
 // Keep the register of the fixed line `line` under `name` in s_register, if the line reads `fixed <name> = <text>`.
 static void fixed_register_kept(const char *name, const char *line)
 {
-    const char *const equals = mmgr_text_find(line, "= ", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const equals = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                          .other = "= ", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if ((equals == NULL) || (s_registers >= KRS_FIXED_GIVEN_MAX))
     {
         return;
@@ -180,8 +206,8 @@ static void fixed_register_kept(const char *name, const char *line)
         mmgr_line_put(&buffer_line, equals + 2);
         (void)mmgr_line_finish(&buffer_line);
     }
-    s_register[s_registers].text[mmgr_text_span_not(s_register[s_registers].text, " \t", PLATFORM_TEXT_TO_TERMINATOR)] =
-        '\0';
+    s_register[s_registers].text[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = s_register[s_registers].text,
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \t")] = '\0';
     s_registers += 1u;
 }
 
@@ -252,9 +278,10 @@ int krs_fixed_placed(char *text, size_t room)
         const KrsFixedRegister *found = NULL;
         for (unsigned int each = 0u; (found == NULL) && (each < s_registers); each += 1u)
         {
-            const size_t length = mmgr_text_length(s_register[each].text, PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_register[each].text,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR);
             const int whole = !fixed_word_character(before) && (before != '{') &&
-                              (mmgr_text_order(walk, s_register[each].text, (size_t)(length)) == 0) &&
+                              (fixed_text_order(walk, s_register[each].text, (size_t)(length)) == 0) &&
                               !fixed_word_character(walk[length]);
             found = (whole && fixed_numeric(s_register[each].text)) ? &s_register[each] : NULL;
         }
@@ -280,14 +307,14 @@ int krs_fixed_placed(char *text, size_t room)
             return 0;
         }
         at += (size_t)added;
-        walk += mmgr_text_length(found->text, PLATFORM_TEXT_TO_TERMINATOR);
+        walk += EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = found->text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     }
     placed[at] = '\0';
     if ((at + 1u) > room)
     {
         return 0;
     }
-    mmgr_bytes_copy(text, placed, at + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = text, .src = placed, .bytes = at + 1u);
     return 1;
 }
 
@@ -316,7 +343,8 @@ unsigned int krs_fixed_written(char *out, size_t cap, size_t *at, const char *ks
             *at = verba_littera.ch(&(VerbaLitteraCfg){.out = out, .cap = cap, .at = *at, .ch = '\n'});
             written += 1u;
             const char *const before = fixed_given_of(s_given, givens, s_fixed_names[name]);
-            if ((before != NULL) && (!mmgr_text_equal(before, line, PLATFORM_TEXT_TO_TERMINATOR)))
+            if ((before != NULL) && (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = before,
+                                                 .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = line, .ci = EMBED_FALSE)))
             {
                 removed[removals] = before;
                 removals += 1u;

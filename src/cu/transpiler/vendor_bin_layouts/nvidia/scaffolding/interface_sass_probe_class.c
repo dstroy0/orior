@@ -4,18 +4,36 @@
 // the system contains; this one records how that was learned - which channel each question went out on, and whether
 // what came back was an answer, nothing, or a refusal. The pipes the system writes on are the part's and are written
 // into <part>.kdm
-#include "interface_sass_probe.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "interface_sass_probe.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../../../../../../includes/file_defs/kdm/kdm.h"
 #include "../../../../../../includes/file_defs/ksc/ksc.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "verba_scribo/verba_scribo.h"
 
-#include "../../../../../../includes/parsers/who.h"
 #include "../../../../../../includes/parsers/line_read.h"
+#include "../../../../../../includes/parsers/who.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int interface_sass_probe_class_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // the max questions stored whole. The decode channel puts one for every bit of every form, far past this, and is
 // counted in place of being stored
@@ -98,10 +116,14 @@ int sass_equal_known(const char *one, const char *other)
 {
     for (unsigned int number = 0u; number < s_equal_count; number += 1u)
     {
-        const int straight = (mmgr_text_equal(s_equal[number].one, one, PLATFORM_TEXT_TO_TERMINATOR)) &&
-                             (mmgr_text_equal(s_equal[number].other, other, PLATFORM_TEXT_TO_TERMINATOR));
-        const int crossed = (mmgr_text_equal(s_equal[number].one, other, PLATFORM_TEXT_TO_TERMINATOR)) &&
-                            (mmgr_text_equal(s_equal[number].other, one, PLATFORM_TEXT_TO_TERMINATOR));
+        const int straight = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_equal[number].one,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = one, .ci = EMBED_FALSE)) &&
+                             (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_equal[number].other,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = other, .ci = EMBED_FALSE));
+        const int crossed = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_equal[number].one,
+                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = other, .ci = EMBED_FALSE)) &&
+                            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_equal[number].other,
+                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = one, .ci = EMBED_FALSE));
         if (straight || crossed)
         {
             return 1;
@@ -125,7 +147,8 @@ int sass_pipe_found(const char *operation, char *writing, unsigned int *least, u
 {
     for (unsigned int number = 0u; number < s_pipe_count; number += 1u)
     {
-        if (mmgr_text_equal(s_pipe[number].operation, operation, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_pipe[number].operation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = operation, .ci = EMBED_FALSE))
         {
             sass_text_copy(writing, s_pipe[number].writing);
             *least = s_pipe[number].least;
@@ -140,7 +163,8 @@ void sass_pipe_take(const char *operation, const char *writing, unsigned int lea
 {
     unsigned int number = 0u;
     while ((number < s_pipe_count) &&
-           (!mmgr_text_equal(s_pipe[number].operation, operation, PLATFORM_TEXT_TO_TERMINATOR)))
+           (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_pipe[number].operation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = operation, .ci = EMBED_FALSE)))
     {
         number += 1u;
     }
@@ -187,13 +211,13 @@ void sass_class_take(unsigned int channel, unsigned int answered, const char *qu
 
 void sass_class_drop(unsigned int channel, unsigned int answered, const char *opening)
 {
-    const size_t length = mmgr_text_length(opening, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = opening, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     unsigned int retained = 0u;
     for (unsigned int number = 0u; number < s_classed_count; number += 1u)
     {
         const SassClassed *const one = &s_classed[number];
         const int dropped = (one->channel == channel) && (one->answered == answered) &&
-                            (mmgr_text_order(one->question, opening, (size_t)(length)) == 0);
+                            (interface_sass_probe_class_text_order(one->question, opening, (size_t)(length)) == 0);
         if (dropped != 0)
         {
             s_tally[channel][answered] -= (s_tally[channel][answered] != 0u) ? 1u : 0u;
@@ -210,7 +234,8 @@ static unsigned int sass_channel_of(const char *text)
 {
     for (unsigned int channel = 0u; channel < SASS_CHANNEL_COUNT; channel += 1u)
     {
-        if (mmgr_text_equal(s_channel_text[channel], text, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_channel_text[channel], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = text, .ci = EMBED_FALSE))
         {
             return channel;
         }
@@ -222,7 +247,8 @@ static unsigned int sass_class_of(const char *text)
 {
     for (unsigned int answered = 0u; answered < SASS_CLASS_COUNT; answered += 1u)
     {
-        if (mmgr_text_equal(s_class_text[answered], text, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_class_text[answered], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = text, .ci = EMBED_FALSE))
         {
             return answered;
         }
@@ -253,7 +279,7 @@ int sass_class_read(const char *machines, const char *part)
     s_classed_count = 0u;
     s_forms_length = 0u;
     s_containers_length = 0u;
-    mmgr_bytes_set(s_tally, 0, sizeof(s_tally));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = s_tally, .bytes = sizeof(s_tally), .val = 0);
     char line[SASS_TEXT * 8u];
     // the forms are the text of the file's block of the ruleset's language (klang.h), the lines between its opener and
     // its closer, which the ruleset beside the file reads after its own
@@ -272,10 +298,10 @@ int sass_class_read(const char *machines, const char *part)
             mmgr_line_put(&buffer_line, "\n");
             (void)mmgr_line_finish(&buffer_line);
         }
-        const size_t length = mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         if ((s_forms_length + length) < sizeof(s_forms))
         {
-            mmgr_bytes_copy(&s_forms[s_forms_length], line, length);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &s_forms[s_forms_length], .src = line, .bytes = length);
             s_forms_length += length;
         }
     }
@@ -290,17 +316,22 @@ int sass_class_read(const char *machines, const char *part)
             (void)mmgr_line_finish(&buffer_line);
         }
         const int blocked = (block != s_file.lines) && ((at + 1u) >= block) && (at <= block_past);
-        if ((mmgr_text_starts(line, "who ", PLATFORM_TEXT_TO_TERMINATOR)) || blocked)
+        if ((EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "who ", .ci = EMBED_FALSE)) ||
+            blocked)
         {
             continue;
         }
-        const size_t length = mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
-        if ((mmgr_text_starts(line, "container ", PLATFORM_TEXT_TO_TERMINATOR)) ||
-            (mmgr_text_starts(line, "field ", PLATFORM_TEXT_TO_TERMINATOR)))
+        const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+        if ((EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "container ", .ci = EMBED_FALSE)) ||
+            (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "field ", .ci = EMBED_FALSE)))
         {
             if ((s_containers_length + length) < sizeof(s_containers))
             {
-                mmgr_bytes_copy(&s_containers[s_containers_length], line, length);
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &s_containers[s_containers_length], .src = line,
+                           .bytes = length);
                 s_containers_length += length;
             }
             continue;

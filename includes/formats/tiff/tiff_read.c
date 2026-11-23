@@ -1,21 +1,22 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tiff_read.c: the layout and the entry points
-#include "tiff_internal.h"
-#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tiff_internal.h"
 
 static int tiff_layout(TiffFile *file, const TiffPage *page, const char *text, unsigned long long pages,
                        unsigned int pages_known, TiffLayout *layout)
 {
-    mmgr_bytes_set(layout, 0, sizeof(*layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = layout, .bytes = sizeof(*layout), .val = 0);
     if (file->reason != NULL)
     {
         return file->reason == NULL;
     }
-    if ((text != NULL) && (mmgr_text_starts(text, "ImageJ=", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((text != NULL) && (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                      .other = "ImageJ=", .ci = EMBED_FALSE)))
     {
         tiff_imagej(file, text, pages, pages_known, layout);
     }
@@ -41,7 +42,7 @@ static int tiff_layout(TiffFile *file, const TiffPage *page, const char *text, u
 
 static void tiff_extent(const TiffPage *page, const TiffLayout *layout, EngineArrayExtent *extent)
 {
-    mmgr_bytes_set(extent, 0, sizeof(*extent));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = extent, .bytes = sizeof(*extent), .val = 0);
     for (unsigned int axis = 0u; axis < layout->leading; axis += 1u)
     {
         extent->sizes[axis] = layout->extent[axis];
@@ -84,7 +85,7 @@ long tiff_describe(const EngineDescribeRequest *request)
     TiffFile file;
     TiffChain chain = {NULL, 0ULL, 0ULL, 0ULL};
     TiffPage first;
-    mmgr_bytes_set(&first, 0, sizeof(first));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &first, .bytes = sizeof(first), .val = 0);
     tiff_open(&file, request->path, request->member, request->tools);
     unsigned long long offset = file.first_ifd;
     while ((file.reason == NULL) && (offset != 0ULL))
@@ -216,7 +217,7 @@ long long tiff_read(const EngineArrayRead *request)
     {
         if (writing && (total > 0ULL))
         {
-            mmgr_bytes_set(request->out, 0, (size_t)total);
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = request->out, .bytes = (size_t)total, .val = 0);
         }
         tiff_report(&file);
         return -1LL;

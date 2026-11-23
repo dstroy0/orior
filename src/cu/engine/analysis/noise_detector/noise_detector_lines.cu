@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_lines.cu: line and plane noise sampled
-#include "noise_detector_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "noise_detector_internal.h"
 
 void noise_wide_add(NoiseWide *sum, unsigned long long low, unsigned long long high)
 {
@@ -209,7 +209,7 @@ int noise_static_mask(const unsigned short *volume, unsigned long long frames, u
     *ceiling = 0ULL;
     if (ok != 0)
     {
-        mmgr_bytes_set(least, 0xFF, (size_t)voxels * sizeof(unsigned short));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = least, .bytes = (size_t)voxels * sizeof(unsigned short), .val = 0xFF);
         for (unsigned long long frame = 0ULL; frame < frames; frame += 1ULL)
         {
             const unsigned short *const lanes = &volume[frame * voxels];
@@ -298,8 +298,9 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
     {
         return NOISE_DETECTOR_ERROR;
     }
-    mmgr_bytes_set(cells, 0, (size_t)NOISE_LINE_CELLS * sizeof(NoiseLineCell));
-    mmgr_bytes_set(still, 0, sizeof(*still));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = cells, .bytes = (size_t)NOISE_LINE_CELLS * sizeof(NoiseLineCell),
+               .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = still, .bytes = sizeof(*still), .val = 0);
     const unsigned long long frame_pairs = frames - 1ULL;
     const unsigned long long row_lines = frame_pairs * depth * height;
     const unsigned long long column_lines = frame_pairs * depth * width;

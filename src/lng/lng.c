@@ -3,13 +3,12 @@
 // lng.c: the three language tables read, and each checked against the tree and against the others (lng.h)
 #include "lng.h"
 #include "../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../../includes/file_defs/klang/klang.h"
 #include "../../includes/parsers/who.h"
 #include "verba_scribo/verba_scribo.h"
-
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -17,6 +16,24 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #endif
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int lng_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 const char *const g_lng_types[LNG_TYPES] = {"thing", "doing", "gluing", "record", "ksc", "selection"};
 const char *const g_lng_hol_types[LNG_HOL_TYPES] = {"type", "plain", "core op"};
@@ -86,7 +103,8 @@ static void *lng_allocated(void *pointer)
         {
             const char *const error_text = "lng: the system gave no memory\n";
             platform_terminal_write(1, error_text,
-                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+                                    (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = error_text,
+                                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR));
         }
         platform_process_ended(2);
     }
@@ -97,7 +115,7 @@ static void *lng_allocated(void *pointer)
 static char *lng_copy(const char *text, size_t length)
 {
     char *const copy = (char *)lng_allocated(platform_cell_taken(length + 1u, platform_place_g_program_owner, 0));
-    mmgr_bytes_copy(copy, text, length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy, .src = text, .bytes = length);
     copy[length] = '\0';
     return copy;
 }
@@ -120,14 +138,19 @@ static void lng_list_room(LngList *list)
 static void lng_list_insert(LngList *list, unsigned int at, const char *text, size_t length)
 {
     lng_list_room(list);
-    mmgr_bytes_move(&list->text[at + 1u], &list->text[at], (size_t)(list->count - at) * sizeof(char *));
+    (((const unsigned char *)(&list->text[at + 1u]) <= (const unsigned char *)(&list->text[at]))
+         ? EMBED_CALL(memor.move_down, MemoriaCfg, .dst = &list->text[at + 1u], .src = &list->text[at],
+                      .bytes = (size_t)(list->count - at) * sizeof(char *))
+         : EMBED_CALL(memor.move_up, MemoriaCfg, .dst = &list->text[at + 1u], .src = &list->text[at],
+                      .bytes = (size_t)(list->count - at) * sizeof(char *)));
     list->text[at] = lng_copy(text, length);
     list->count += 1u;
 }
 
 void lng_list_add(LngList *list, const char *text)
 {
-    lng_list_insert(list, list->count, text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR));
+    lng_list_insert(list, list->count, text,
+                    EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR));
 }
 
 // the bytes of a full line of the note that `context` names added to the end of its text
@@ -136,7 +159,7 @@ static int lng_note_passed(void *context, const char *bytes, size_t length)
     LngNote *const note = (LngNote *)context;
     note->text = (char *)lng_allocated(platform_cell_grown(note->text, note->length + 1u, note->length + length + 1u,
                                                            platform_place_g_program_owner, 0));
-    mmgr_bytes_copy(&note->text[note->length], bytes, length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &note->text[note->length], .src = bytes, .bytes = length);
     note->length += length;
     note->text[note->length] = '\0';
     return 1;
@@ -169,7 +192,7 @@ int lng_set_find(const LngList *set, const char *text, unsigned int *at)
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        const int order = mmgr_text_order(set->text[middle], text, PLATFORM_TEXT_TO_TERMINATOR);
+        const int order = lng_text_order(set->text[middle], text, PLATFORM_TEXT_TO_TERMINATOR);
         if (order == 0)
         {
             *at = middle;
@@ -187,7 +210,8 @@ void lng_set_add(LngList *set, const char *text)
     unsigned int at = 0u;
     if (!lng_set_find(set, text, &at))
     {
-        lng_list_insert(set, at, text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR));
+        lng_list_insert(set, at, text,
+                        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR));
     }
 }
 
@@ -203,7 +227,8 @@ int lng_list_same(const LngList *left, const LngList *right)
     int same = (left->count == right->count);
     for (unsigned int at = 0u; same && (at < left->count); at += 1u)
     {
-        same = (mmgr_text_equal(left->text[at], right->text[at], PLATFORM_TEXT_TO_TERMINATOR));
+        same = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = left->text[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = right->text[at], .ci = EMBED_FALSE));
     }
     return same;
 }
@@ -214,7 +239,7 @@ static int lng_list_order(const LngList *left, const LngList *right)
 {
     for (unsigned int at = 0u; (at < left->count) && (at < right->count); at += 1u)
     {
-        const int order = mmgr_text_order(left->text[at], right->text[at], PLATFORM_TEXT_TO_TERMINATOR);
+        const int order = lng_text_order(left->text[at], right->text[at], PLATFORM_TEXT_TO_TERMINATOR);
         if (order != 0)
         {
             return order;
@@ -225,11 +250,12 @@ static int lng_list_order(const LngList *left, const LngList *right)
 
 char *lng_list_joined(const LngList *list, const char *between)
 {
-    const size_t gap = mmgr_text_length(between, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t gap = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = between, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     size_t length = 0u;
     for (unsigned int at = 0u; at < list->count; at += 1u)
     {
-        length += mmgr_text_length(list->text[at], PLATFORM_TEXT_TO_TERMINATOR) + ((at == 0u) ? 0u : gap);
+        length += EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = list->text[at], .cap = PLATFORM_TEXT_TO_TERMINATOR) +
+                  ((at == 0u) ? 0u : gap);
     }
     char *const joined = (char *)lng_allocated(platform_cell_taken(length + 1u, platform_place_g_program_owner, 0));
     size_t written = 0u;
@@ -237,11 +263,12 @@ char *lng_list_joined(const LngList *list, const char *between)
     {
         if (at != 0u)
         {
-            mmgr_bytes_copy(&joined[written], between, gap);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &joined[written], .src = between, .bytes = gap);
             written += gap;
         }
-        const size_t size = mmgr_text_length(list->text[at], PLATFORM_TEXT_TO_TERMINATOR);
-        mmgr_bytes_copy(&joined[written], list->text[at], size);
+        const size_t size =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = list->text[at], .cap = PLATFORM_TEXT_TO_TERMINATOR);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &joined[written], .src = list->text[at], .bytes = size);
         written += size;
     }
     joined[written] = '\0';
@@ -267,8 +294,10 @@ int lng_map_put(LngMap *map, const char *key, const char *value)
     {
         return 0;
     }
-    lng_list_insert(&map->key, at, key, mmgr_text_length(key, PLATFORM_TEXT_TO_TERMINATOR));
-    lng_list_insert(&map->value, at, value, mmgr_text_length(value, PLATFORM_TEXT_TO_TERMINATOR));
+    lng_list_insert(&map->key, at, key,
+                    EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR));
+    lng_list_insert(&map->value, at, value,
+                    EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = value, .cap = PLATFORM_TEXT_TO_TERMINATOR));
     return 1;
 }
 
@@ -299,9 +328,14 @@ static LngList *lng_sets_at(LngSets *sets, const char *key)
                                                                  (size_t)sets->room * sizeof(LngList),
                                                                  platform_place_g_program_owner, 0));
     }
-    mmgr_bytes_move(&sets->set[at + 1u], &sets->set[at], (size_t)(sets->key.count - at) * sizeof(LngList));
-    mmgr_bytes_set(&sets->set[at], 0, sizeof(LngList));
-    lng_list_insert(&sets->key, at, key, mmgr_text_length(key, PLATFORM_TEXT_TO_TERMINATOR));
+    (((const unsigned char *)(&sets->set[at + 1u]) <= (const unsigned char *)(&sets->set[at]))
+         ? EMBED_CALL(memor.move_down, MemoriaCfg, .dst = &sets->set[at + 1u], .src = &sets->set[at],
+                      .bytes = (size_t)(sets->key.count - at) * sizeof(LngList))
+         : EMBED_CALL(memor.move_up, MemoriaCfg, .dst = &sets->set[at + 1u], .src = &sets->set[at],
+                      .bytes = (size_t)(sets->key.count - at) * sizeof(LngList)));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &sets->set[at], .bytes = sizeof(LngList), .val = 0);
+    lng_list_insert(&sets->key, at, key,
+                    EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR));
     return &sets->set[at];
 }
 
@@ -331,7 +365,8 @@ static int lng_one_of(const char *text, const char *const *texts, unsigned int c
     int found = 0;
     for (unsigned int at = 0u; (at < count) && !found; at += 1u)
     {
-        found = (mmgr_text_equal(text, texts[at], PLATFORM_TEXT_TO_TERMINATOR));
+        found = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = texts[at], .ci = EMBED_FALSE));
     }
     return found;
 }
@@ -342,7 +377,8 @@ static void lng_cells(const char *line, LngList *cells)
     const char *at = line;
     for (;;)
     {
-        const size_t length = mmgr_text_span_not(at, "\t", PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t length =
+            EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\t");
         lng_list_insert(cells, cells->count, at, length);
         if (at[length] == '\0')
         {
@@ -358,13 +394,16 @@ static void lng_tokens(const char *text, size_t length, LngList *tokens)
     size_t at = 0u;
     while (at < length)
     {
-        while ((at < length) && (mmgr_text_char(s_space, text[at], PLATFORM_TEXT_TO_TERMINATOR) != NULL) &&
+        while ((at < length) &&
+               (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = s_space, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .byte = text[at]) != NULL) &&
                (text[at] != '\0'))
         {
             at += 1u;
         }
         const size_t start = at;
-        while ((at < length) && (mmgr_text_char(s_space, text[at], PLATFORM_TEXT_TO_TERMINATOR) == NULL))
+        while ((at < length) && (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = s_space,
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = text[at]) == NULL))
         {
             at += 1u;
         }
@@ -449,7 +488,8 @@ const char *lng_cell(const LngTable *table, unsigned int row, const char *column
     while (at > 0u)
     {
         at -= 1u;
-        if (mmgr_text_equal(table->head.text[at], column, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = table->head.text[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = column, .ci = EMBED_FALSE))
         {
             return table->row[row][at];
         }
@@ -475,7 +515,8 @@ static unsigned int lng_operators_start(const LngTable *table)
 {
     for (unsigned int at = 0u; at < table->head.count; at += 1u)
     {
-        if (mmgr_text_equal(table->head.text[at], s_selected_last, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = table->head.text[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = s_selected_last, .ci = EMBED_FALSE))
         {
             return at + 1u;
         }
@@ -489,7 +530,8 @@ void lng_operators_of(const LngTable *table, unsigned int row, LngList *operator
     {
         const char *const column = table->head.text[at];
         if (!lng_one_of(column, s_not_operators, LNG_NOT_OPERATORS) &&
-            (mmgr_text_equal(lng_cell_or_none(table, row, column), "1", PLATFORM_TEXT_TO_TERMINATOR)))
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(table, row, column),
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "1", .ci = EMBED_FALSE)))
         {
             lng_set_add(operators, column);
         }
@@ -501,8 +543,10 @@ void lng_words_of(const char *name, LngList *words)
     const char *at = name;
     for (;;)
     {
-        const size_t length = mmgr_text_span_not(at, "_", PLATFORM_TEXT_TO_TERMINATOR);
-        if ((length != 0u) && (mmgr_text_span(at, "0123456789", PLATFORM_TEXT_TO_TERMINATOR) < length))
+        const size_t length =
+            EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "_");
+        if ((length != 0u) && (EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                          .other = "0123456789") < length))
         {
             lng_list_insert(words, words->count, at, length);
         }
@@ -563,7 +607,8 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
             const char *const column = table->head.text[at];
             const char *const cell = lng_cell_or_none(table, row, column);
             if (!lng_one_of(column, s_not_operators, LNG_NOT_OPERATORS) && (cell[0] != '\0') &&
-                (!mmgr_text_equal(cell, "1", PLATFORM_TEXT_TO_TERMINATOR)))
+                (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = cell, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "1",
+                             .ci = EMBED_FALSE)))
             {
                 LngNote lng_note;
                 lng_note_begun(&lng_note, defects);
@@ -591,7 +636,9 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
         }
         const char *const word = lng_cell_or_none(table, row, "word");
         unsigned int at = 0u;
-        while ((at < order.count) && (!mmgr_text_equal(order.text[at], word, PLATFORM_TEXT_TO_TERMINATOR)))
+        while ((at < order.count) &&
+               (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = order.text[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = word, .ci = EMBED_FALSE)))
         {
             at += 1u;
         }
@@ -606,12 +653,15 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
         const char *const word = order.text[at];
         const char *const complement = lng_cell_or_none(table, last[at], "complement");
         unsigned int other = 0u;
-        while ((other < order.count) && (!mmgr_text_equal(order.text[other], complement, PLATFORM_TEXT_TO_TERMINATOR)))
+        while ((other < order.count) &&
+               (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = order.text[other], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = complement, .ci = EMBED_FALSE)))
         {
             other += 1u;
         }
         if ((other == order.count) ||
-            (!mmgr_text_equal(lng_cell_or_none(table, last[other], "complement"), word, PLATFORM_TEXT_TO_TERMINATOR)))
+            (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(table, last[other], "complement"),
+                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = word, .ci = EMBED_FALSE)))
         {
             {
                 LngNote lng_note;
@@ -635,7 +685,8 @@ void lng_table_check(const LngTable *table, const char *const *types, unsigned i
         {
             unsigned int pair = 0u;
             while ((pair < LNG_COMPLEMENTS) &&
-                   (!mmgr_text_equal(s_complement[pair][0], mine.text[one], PLATFORM_TEXT_TO_TERMINATOR)))
+                   (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_complement[pair][0],
+                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = mine.text[one], .ci = EMBED_FALSE)))
             {
                 pair += 1u;
             }
@@ -713,13 +764,16 @@ void lng_table_findings(const LngTable *table, LngList *findings)
         }
         platform_cell_released(marked, platform_place_g_program_owner);
         unsigned int at = 0u;
-        while ((at < groups) && (!mmgr_text_equal(group[at].key, key.text[0], PLATFORM_TEXT_TO_TERMINATOR)))
+        while ((at < groups) &&
+               (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = group[at].key, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = key.text[0], .ci = EMBED_FALSE)))
         {
             at += 1u;
         }
         if (at == groups)
         {
-            group[at].key = lng_copy(key.text[0], mmgr_text_length(key.text[0], PLATFORM_TEXT_TO_TERMINATOR));
+            group[at].key = lng_copy(key.text[0], EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key.text[0],
+                                                             .cap = PLATFORM_TEXT_TO_TERMINATOR));
             group[at].type = lng_cell_or_none(table, row, "type");
             group[at].operators = operators;
             groups += 1u;
@@ -787,16 +841,20 @@ void lng_table_findings(const LngTable *table, LngList *findings)
     }
     for (unsigned int at = 0u; at < words.count; at += 1u)
     {
-        const char *const unit = mmgr_text_char(words.text[at], '\x1f', PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const unit = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = words.text[at],
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\x1f');
         const size_t word_length = (size_t)(unit - words.text[at]);
         const char *const target = unit + 1;
         LngList meanings = {NULL, 0u, 0u};
         for (unsigned int row = 0u; row < table->rows; row += 1u)
         {
             const char *const word = lng_cell_or_none(table, row, "word");
-            if ((mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR) != word_length) ||
-                !mmgr_text_starts(words.text[at], word, PLATFORM_TEXT_TO_TERMINATOR) ||
-                !mmgr_text_equal(lng_cell_or_none(table, row, "target"), target, PLATFORM_TEXT_TO_TERMINATOR))
+            if ((EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR) !=
+                 word_length) ||
+                !EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = words.text[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = word, .ci = EMBED_FALSE) ||
+                !EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(table, row, "target"),
+                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = target, .ci = EMBED_FALSE))
             {
                 continue;
             }
@@ -837,25 +895,28 @@ void lng_table_findings(const LngTable *table, LngList *findings)
 void lng_schema_forms(const char *text, LngList *names)
 {
     static const char s_form[] = "form_(";
-    const char *at = mmgr_text_find(text, s_form, PLATFORM_TEXT_TO_TERMINATOR);
+    const char *at = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = s_form, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     while (at != NULL)
     {
         const char *const upper = at + (sizeof(s_form) - 1u);
-        const size_t uppers =
-            mmgr_text_span(upper, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_", PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t uppers = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = upper, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
         const char *next = at + 1;
-        if ((uppers != 0u) && (mmgr_text_order(&upper[uppers], ", \"", (size_t)(3u)) == 0))
+        if ((uppers != 0u) && (lng_text_order(&upper[uppers], ", \"", (size_t)(3u)) == 0))
         {
             const char *const name = &upper[uppers + 3u];
             const size_t length =
-                mmgr_text_span(name, "abcdefghijklmnopqrstuvwxyz0123456789_", PLATFORM_TEXT_TO_TERMINATOR);
+                EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = "abcdefghijklmnopqrstuvwxyz0123456789_");
             if ((length != 0u) && (name[length] == '"'))
             {
                 lng_list_insert(names, names->count, name, length);
                 next = &name[length + 1u];
             }
         }
-        at = mmgr_text_find(next, s_form, PLATFORM_TEXT_TO_TERMINATOR);
+        at = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = next, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_form,
+                        .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     }
 }
 
@@ -867,7 +928,8 @@ static int lng_braced_at(const char *text, size_t at, size_t *name, size_t *leng
     {
         return 0;
     }
-    const size_t characters = mmgr_text_span(&text[at + 1u], s_lower, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t characters = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[at + 1u],
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_lower);
     if (characters == 0u)
     {
         return 0;
@@ -875,7 +937,8 @@ static int lng_braced_at(const char *text, size_t at, size_t *name, size_t *leng
     size_t end = at + 1u + characters;
     if (text[end] == ':')
     {
-        const size_t digits = mmgr_text_span(&text[end + 1u], "0123456789", PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t digits = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[end + 1u],
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "0123456789");
         end = ((digits != 0u) && (text[end + 1u + digits] == '}')) ? (end + 1u + digits) : end;
     }
     if (text[end] != '}')
@@ -892,8 +955,9 @@ static int lng_braced_at(const char *text, size_t at, size_t *name, size_t *leng
 // braces in it
 static void lng_braced_names(const char *token, LngList *names)
 {
-    const size_t whole = mmgr_text_length(token, PLATFORM_TEXT_TO_TERMINATOR);
-    if ((whole != 0u) && (mmgr_text_span(token, s_lower, PLATFORM_TEXT_TO_TERMINATOR) == whole))
+    const size_t whole = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = token, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    if ((whole != 0u) && (EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = token, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = s_lower) == whole))
     {
         lng_list_add(names, token);
         return;
@@ -939,7 +1003,8 @@ void lng_ruleset_words(const char *path, const char *const *line, unsigned int l
             continue;
         }
         LngList tokens = {NULL, 0u, 0u};
-        lng_tokens(text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR), &tokens);
+        lng_tokens(text, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                   &tokens);
         if (tokens.count == 0u)
         {
             continue;
@@ -949,7 +1014,10 @@ void lng_ruleset_words(const char *path, const char *const *line, unsigned int l
         {
             // a form's text, after its first `=`, is no word of the ruleset
             lng_list_free(&tokens);
-            lng_tokens(text, mmgr_text_span_not(text, "=", PLATFORM_TEXT_TO_TERMINATOR), &tokens);
+            lng_tokens(text,
+                       EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "="),
+                       &tokens);
         }
         LngList where = {NULL, 0u, 0u};
         {
@@ -961,7 +1029,8 @@ void lng_ruleset_words(const char *path, const char *const *line, unsigned int l
             lng_note_written(&lng_note);
         }
         const char *const first = tokens.text[0];
-        if (inside && (!mmgr_text_equal(first, "end", PLATFORM_TEXT_TO_TERMINATOR)))
+        if (inside && (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = first, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                   .other = "end", .ci = EMBED_FALSE)))
         {
             lng_use(used, first, where.text[0]);
             for (unsigned int at = 1u; at < tokens.count; at += 1u)
@@ -992,8 +1061,10 @@ void lng_ruleset_words(const char *path, const char *const *line, unsigned int l
         {
             lng_use(used, tokens.text[1], where.text[0]);
         }
-        inside = (mmgr_text_equal(first, "construct", PLATFORM_TEXT_TO_TERMINATOR)) ||
-                 (inside && (!mmgr_text_equal(first, "end", PLATFORM_TEXT_TO_TERMINATOR)));
+        inside = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = first, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "construct", .ci = EMBED_FALSE)) ||
+                 (inside && (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = first, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = "end", .ci = EMBED_FALSE)));
         lng_list_free(&where);
         lng_list_free(&tokens);
     }
@@ -1037,7 +1108,8 @@ static void lng_block_parts(const KfileLines *file, LngList *inside, LngList *ou
     for (unsigned int at = 0u; at < file->lines; at += 1u)
     {
         const size_t start = starts[at];
-        const size_t end = start + mmgr_text_length(file->line[at], PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t end =
+            start + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = file->line[at], .cap = PLATFORM_TEXT_TO_TERMINATOR);
         static char s_in_bytes[QRY_WRITER_RING_BYTES / 2ULL];
         size_t in = 0u;
         static char s_out_bytes[QRY_WRITER_RING_BYTES / 2ULL];
@@ -1101,16 +1173,19 @@ static void lng_folds(const char *line, LngList *folds, LngList *puts)
 {
     static const char s_folds[] = "folds the ";
     static const char s_put[] = " put for ";
-    const char *at = mmgr_text_find(line, s_folds, PLATFORM_TEXT_TO_TERMINATOR);
+    const char *at = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = s_folds, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     while (at != NULL)
     {
         const char *const fold = at + (sizeof(s_folds) - 1u);
-        const size_t fold_length = mmgr_text_span_not(fold, s_space, PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t fold_length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = fold,
+                                              .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_space);
         const char *next = at + 1;
-        if ((fold_length != 0u) && (mmgr_text_order(&fold[fold_length], s_put, (size_t)(sizeof(s_put) - 1u)) == 0))
+        if ((fold_length != 0u) && (lng_text_order(&fold[fold_length], s_put, (size_t)(sizeof(s_put) - 1u)) == 0))
         {
             const char *const put = &fold[fold_length + (sizeof(s_put) - 1u)];
-            const size_t put_length = mmgr_text_span_not(put, s_space, PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t put_length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = put,
+                                                 .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_space);
             if (put_length != 0u)
             {
                 lng_list_insert(folds, folds->count, fold, fold_length);
@@ -1118,7 +1193,8 @@ static void lng_folds(const char *line, LngList *folds, LngList *puts)
                 next = &put[put_length];
             }
         }
-        at = mmgr_text_find(next, s_folds, PLATFORM_TEXT_TO_TERMINATOR);
+        at = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = next, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_folds,
+                        .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     }
 }
 
@@ -1137,7 +1213,8 @@ void lng_ksc_words(const char *path, const KfileLines *file, LngMap *used)
             continue;
         }
         LngList tokens = {NULL, 0u, 0u};
-        lng_tokens(line, mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR), &tokens);
+        lng_tokens(line, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                   &tokens);
         if (tokens.count == 0u)
         {
             continue;
@@ -1157,17 +1234,22 @@ void lng_ksc_words(const char *path, const KfileLines *file, LngMap *used)
         {
             lng_use(used, tokens.text[1], where.text[0]);
         }
-        if ((mmgr_text_equal(tokens.text[0], "count", PLATFORM_TEXT_TO_TERMINATOR)) && (tokens.count > 2u))
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = tokens.text[0], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "count", .ci = EMBED_FALSE)) &&
+            (tokens.count > 2u))
         {
             lng_map_put(used, tokens.text[2], where.text[0]);
         }
-        if ((mmgr_text_equal(tokens.text[0], "compile", PLATFORM_TEXT_TO_TERMINATOR)) && (tokens.count > 3u))
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = tokens.text[0], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "compile", .ci = EMBED_FALSE)) &&
+            (tokens.count > 3u))
         {
             LngList folds = {NULL, 0u, 0u};
             LngList puts = {NULL, 0u, 0u};
             lng_folds(line, &folds, &puts);
             // the fourth word, its colon cut
-            const size_t named = mmgr_text_length(tokens.text[3], PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t named =
+                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = tokens.text[3], .cap = PLATFORM_TEXT_TO_TERMINATOR);
             size_t count = named;
             while ((count != 0u) && (tokens.text[3][count - 1u] == ':'))
             {
@@ -1198,7 +1280,8 @@ static void lng_ticked(const char *text, size_t length, LngList *set)
     {
         size_t characters = 0u;
         while (((at + 1u + characters) < length) &&
-               (mmgr_text_char(s_lower, text[at + 1u + characters], PLATFORM_TEXT_TO_TERMINATOR) != NULL) &&
+               (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = s_lower, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .byte = text[at + 1u + characters]) != NULL) &&
                (text[at + 1u + characters] != '\0'))
         {
             characters += 1u;
@@ -1247,9 +1330,15 @@ static int lng_field(const char *text, size_t length, char mark, unsigned int fi
 
 void lng_gnascor_lists(const char *text, LngList *thing, LngList *doing, LngList *gluing)
 {
-    const char *const things = mmgr_text_find(text, "**Thing words.**", PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const doings = mmgr_text_find(text, "**Doing words.**", PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const gluings = mmgr_text_find(text, "**Gluing words.**", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const things =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "**Thing words.**", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+    const char *const doings =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "**Doing words.**", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+    const char *const gluings =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "**Gluing words.**", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if ((things == NULL) || (doings == NULL) || (gluings == NULL))
     {
         return;
@@ -1257,14 +1346,18 @@ void lng_gnascor_lists(const char *text, LngList *thing, LngList *doing, LngList
     const char *line = things;
     while (line < doings)
     {
-        const char *const newline = mmgr_bytes_find(line, '\n', (size_t)(doings - line));
+        const char *const newline =
+            EMBED_CALL(memor.chr, MemoriaCfg, .src = line, .bytes = (size_t)(doings - line), .val = '\n');
         const size_t length = (newline != NULL) ? (size_t)(newline - line) : (size_t)(doings - line);
         char *const line_copy = lng_copy(line, length);
         size_t start = 0u;
         size_t size = 0u;
-        if ((mmgr_text_starts(line_copy, "| ", PLATFORM_TEXT_TO_TERMINATOR)) &&
-            (mmgr_text_find(line_copy, "---", PLATFORM_TEXT_TO_TERMINATOR) == NULL) &&
-            (mmgr_text_find(line_copy, "| type |", PLATFORM_TEXT_TO_TERMINATOR) == NULL) &&
+        if ((EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line_copy, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "| ", .ci = EMBED_FALSE)) &&
+            (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line_copy, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "---", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) == NULL) &&
+            (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line_copy, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "| type |", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) == NULL) &&
             lng_field(line_copy, length, '|', 2u, &start, &size))
         {
             lng_ticked(&line_copy[start], size, thing);
@@ -1274,10 +1367,12 @@ void lng_gnascor_lists(const char *text, LngList *thing, LngList *doing, LngList
     }
     if (gluings > doings)
     {
-        const char *const newline = mmgr_bytes_find(doings, '\n', (size_t)(gluings - doings));
+        const char *const newline =
+            EMBED_CALL(memor.chr, MemoriaCfg, .src = doings, .bytes = (size_t)(gluings - doings), .val = '\n');
         lng_ticked(doings, (newline != NULL) ? (size_t)(newline - doings) : (size_t)(gluings - doings), doing);
     }
-    const size_t length = mmgr_text_span_not(gluings, "\n", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length =
+        EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = gluings, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\n");
     size_t start = 0u;
     size_t size = 0u;
     if (lng_field(gluings, length, '.', 1u, &start, &size))
@@ -1289,7 +1384,8 @@ void lng_gnascor_lists(const char *text, LngList *thing, LngList *doing, LngList
 // the operator a punctuator writes: a compound assignment its operator, every other punctuator itself
 static void lng_punctuator_added(const char *punctuator, LngList *found)
 {
-    const size_t length = mmgr_text_length(punctuator, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = punctuator, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     static const char *const s_compared[4] = {"<=", ">=", "==", "!="};
     if ((length > 1u) && (punctuator[length - 1u] == '=') && !lng_one_of(punctuator, s_compared, 4u))
     {
@@ -1318,20 +1414,23 @@ static size_t lng_literal_at(const char *text)
         return past;
     }
     static const char s_name_start[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_";
-    if ((text[0] != '\0') && (mmgr_text_char(s_name_start, text[0], PLATFORM_TEXT_TO_TERMINATOR) != NULL))
+    if ((text[0] != '\0') && (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = s_name_start,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = text[0]) != NULL))
     {
-        return 1u + mmgr_text_span(&text[1], "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789",
-                                   PLATFORM_TEXT_TO_TERMINATOR);
+        return 1u + EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789");
     }
     if ((text[0] == '0') && (text[1] == 'x'))
     {
-        const size_t digits = mmgr_text_span(&text[2], "0123456789abcdefABCDEF", PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t digits = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[2],
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "0123456789abcdefABCDEF");
         if (digits != 0u)
         {
             return 2u + digits + ((text[2u + digits] == 'u') ? 1u : 0u);
         }
     }
-    const size_t digits = mmgr_text_span(text, "0123456789", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t digits = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = "0123456789");
     if (digits == 0u)
     {
         return 0u;
@@ -1339,8 +1438,9 @@ static size_t lng_literal_at(const char *text)
     static const char *const s_suffix[5] = {"ull", "ul", "u", "ll", "l"};
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
-        const size_t suffix = mmgr_text_length(s_suffix[at], PLATFORM_TEXT_TO_TERMINATOR);
-        if (mmgr_text_order(&text[digits], s_suffix[at], (size_t)(suffix)) == 0)
+        const size_t suffix =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_suffix[at], .cap = PLATFORM_TEXT_TO_TERMINATOR);
+        if (lng_text_order(&text[digits], s_suffix[at], (size_t)(suffix)) == 0)
         {
             return digits + suffix;
         }
@@ -1350,7 +1450,7 @@ static size_t lng_literal_at(const char *text)
 
 void lng_c_operators(const char *text, LngList *operators)
 {
-    const size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     // the text with each written newline a newline, then each note from `//` to the next backslash cut, then each
     // literal and name a space
     char *const unescaped = (char *)lng_allocated(platform_cell_taken(length + 1u, platform_place_g_program_owner, 0));
@@ -1369,7 +1469,8 @@ void lng_c_operators(const char *text, LngList *operators)
     {
         if ((unescaped[at] == '/') && (unescaped[at + 1u] == '/'))
         {
-            at += 2u + mmgr_text_span_not(&unescaped[at + 2u], "\\", PLATFORM_TEXT_TO_TERMINATOR);
+            at += 2u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &unescaped[at + 2u],
+                                  .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\\");
             continue;
         }
         unnoted[copied] = unescaped[at];
@@ -1391,15 +1492,17 @@ void lng_c_operators(const char *text, LngList *operators)
     LngList found = {NULL, 0u, 0u};
     for (size_t at = 0u; at < left;)
     {
-        if (mmgr_text_char(s_space, stripped[at], PLATFORM_TEXT_TO_TERMINATOR) != NULL)
+        if (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = s_space, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .byte = stripped[at]) != NULL)
         {
             at += 1u;
             continue;
         }
         unsigned int which = 0u;
         while ((which < LNG_PUNCTUATORS) &&
-               (mmgr_text_order(&stripped[at], s_punctuators[which],
-                                (size_t)(mmgr_text_length(s_punctuators[which], PLATFORM_TEXT_TO_TERMINATOR))) != 0))
+               (lng_text_order(&stripped[at], s_punctuators[which],
+                               (size_t)(EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_punctuators[which],
+                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR))) != 0))
         {
             which += 1u;
         }
@@ -1409,7 +1512,7 @@ void lng_c_operators(const char *text, LngList *operators)
             continue;
         }
         lng_punctuator_added(s_punctuators[which], &found);
-        at += mmgr_text_length(s_punctuators[which], PLATFORM_TEXT_TO_TERMINATOR);
+        at += EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_punctuators[which], .cap = PLATFORM_TEXT_TO_TERMINATOR);
     }
     for (unsigned int at = 0u; at < found.count; at += 1u)
     {
@@ -1429,7 +1532,8 @@ static const char *lng_family(const char *operator_text)
 {
     for (unsigned int at = 0u; at < LNG_FAMILY; at += 1u)
     {
-        if (mmgr_text_equal(s_family[at][0], operator_text, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_family[at][0], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = operator_text, .ci = EMBED_FALSE))
         {
             return s_family[at][1];
         }
@@ -1458,7 +1562,8 @@ void lng_form_findings(const LngTable *table, const LngList *names, const LngLis
             lng_set_add(claimed, operators.text[at]);
         }
         lng_list_free(&operators);
-        if (mmgr_text_equal(lng_cell_or_none(table, row, "type"), "doing", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(table, row, "type"),
+                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "doing", .ci = EMBED_FALSE))
         {
             lng_set_add(&doing, word);
         }
@@ -1553,8 +1658,10 @@ static unsigned int lng_row_of(const LngTable *table, const char *word, const ch
     for (unsigned int row = 0u; row < table->rows; row += 1u)
     {
         found = (!lng_row_targeted(table, row) &&
-                 mmgr_text_equal(lng_cell_or_none(table, row, "word"), word, PLATFORM_TEXT_TO_TERMINATOR) &&
-                 mmgr_text_equal(lng_cell_or_none(table, row, "type"), type, PLATFORM_TEXT_TO_TERMINATOR))
+                 EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(table, row, "word"),
+                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = word, .ci = EMBED_FALSE) &&
+                 EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(table, row, "type"),
+                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = type, .ci = EMBED_FALSE))
                     ? row
                     : found;
     }
@@ -1573,7 +1680,8 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
             continue;
         }
         lng_set_add(&words, lng_cell_or_none(transpiler, row, "word"));
-        if (mmgr_text_equal(lng_cell_or_none(transpiler, row, "type"), "thing", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(transpiler, row, "type"),
+                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "thing", .ci = EMBED_FALSE))
         {
             lng_set_add(&things, lng_cell_or_none(transpiler, row, "word"));
         }
@@ -1600,8 +1708,10 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
             lng_note_written(&lng_note);
         }
         else if ((other != transpiler->rows) &&
-                 ((!mmgr_text_equal(lng_cell_or_none(transpiler, other, "bits"), bits, PLATFORM_TEXT_TO_TERMINATOR)) ||
-                  (!mmgr_text_equal(lng_cell_or_none(transpiler, other, "signed"), sign, PLATFORM_TEXT_TO_TERMINATOR))))
+                 ((!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(transpiler, other, "bits"),
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = bits, .ci = EMBED_FALSE)) ||
+                  (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(transpiler, other, "signed"),
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = sign, .ci = EMBED_FALSE))))
         {
             LngNote lng_note;
             lng_note_begun(&lng_note, defects);
@@ -1622,7 +1732,8 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
     LngList found = {NULL, 0u, 0u};
     for (unsigned int row = 0u; row < hol->rows; row += 1u)
     {
-        if (mmgr_text_equal(lng_cell_or_none(hol, row, "type"), "type", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(hol, row, "type"),
+                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "type", .ci = EMBED_FALSE))
         {
             LngList width = {NULL, 0u, 0u};
             {
@@ -1673,7 +1784,8 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
     {
         LngList operators = {NULL, 0u, 0u};
         lng_operators_of(hol, row, &operators);
-        const int core = (mmgr_text_equal(lng_cell_or_none(hol, row, "type"), "core op", PLATFORM_TEXT_TO_TERMINATOR));
+        const int core = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(hol, row, "type"),
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "core op", .ci = EMBED_FALSE));
         for (unsigned int at = 0u; at < operators.count; at += 1u)
         {
             lng_set_add(&hol_means, operators.text[at]);
@@ -1715,7 +1827,8 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
     }
     for (unsigned int row = 0u; row < transpiler->rows; row += 1u)
     {
-        if (!mmgr_text_equal(lng_cell_or_none(transpiler, row, "type"), "doing", PLATFORM_TEXT_TO_TERMINATOR))
+        if (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(transpiler, row, "type"),
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "doing", .ci = EMBED_FALSE))
         {
             continue;
         }
@@ -1756,17 +1869,22 @@ const char *lng_arrow_of(const LngTable *table, unsigned int row)
 {
     const char *const left = lng_cell_or_none(table, row, "left");
     const char *const right = lng_cell_or_none(table, row, "right");
-    if (mmgr_text_equal(lng_cell_or_none(table, row, "table"), "the branch pair", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(table, row, "table"),
+                   .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "the branch pair", .ci = EMBED_FALSE))
     {
         return "";
     }
-    if ((mmgr_text_equal(left, "-", PLATFORM_TEXT_TO_TERMINATOR)) ||
-        (mmgr_text_equal(right, "-", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = left, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "-",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = right, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "-",
+                    .ci = EMBED_FALSE)))
     {
         return "*>";
     }
-    if ((!mmgr_text_equal(left, "=", PLATFORM_TEXT_TO_TERMINATOR)) &&
-        (!mmgr_text_equal(right, "=", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = left, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "=",
+                     .ci = EMBED_FALSE)) &&
+        (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = right, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "=",
+                     .ci = EMBED_FALSE)))
     {
         return "x>";
     }
@@ -1776,9 +1894,13 @@ const char *lng_arrow_of(const LngTable *table, unsigned int row)
 // the mirror of `side`, with lead and rite in each other's places
 static const char *lng_mirror(const char *side)
 {
-    return (mmgr_text_equal(side, "lead", PLATFORM_TEXT_TO_TERMINATOR))
+    return (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = side, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "lead",
+                       .ci = EMBED_FALSE))
                ? "rite"
-               : ((mmgr_text_equal(side, "rite", PLATFORM_TEXT_TO_TERMINATOR)) ? "lead" : side);
+               : ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = side, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = "rite", .ci = EMBED_FALSE))
+                      ? "lead"
+                      : side);
 }
 
 // the `field`th field of `key`, its fields apart by \x1f, copied into an allocation of the caller's to free
@@ -1786,7 +1908,8 @@ static char *lng_key_field(const char *key, unsigned int field)
 {
     size_t start = 0u;
     size_t size = 0u;
-    if (!lng_field(key, mmgr_text_length(key, PLATFORM_TEXT_TO_TERMINATOR), '\x1f', field, &start, &size))
+    if (!lng_field(key, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR), '\x1f',
+                   field, &start, &size))
     {
         return lng_copy("", 0u);
     }
@@ -1800,7 +1923,8 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         const char *const arrow = lng_arrow_of(table, row);
         const char *const written = lng_cell(table, row, "arrow");
         const char *const given = (written != NULL) ? written : arrow;
-        if (!mmgr_text_equal(given, arrow, PLATFORM_TEXT_TO_TERMINATOR))
+        if (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = given, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = arrow,
+                        .ci = EMBED_FALSE))
         {
             LngNote lng_note;
             lng_note_begun(&lng_note, defects);
@@ -1833,8 +1957,8 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         LngList transitions = {NULL, 0u, 0u};
         for (unsigned int row = 0u; row < table->rows; row += 1u)
         {
-            if (mmgr_text_equal(lng_cell_or_none(table, row, "mnemonic"), mnemonics.text[at],
-                                PLATFORM_TEXT_TO_TERMINATOR))
+            if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(table, row, "mnemonic"),
+                           .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = mnemonics.text[at], .ci = EMBED_FALSE))
             {
                 LngNote lng_note;
                 lng_note_begun(&lng_note, &transitions);
@@ -1881,8 +2005,10 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
         lng_list_free(&key);
         const char *const left = lng_cell_or_none(table, row, "left");
         const char *const right = lng_cell_or_none(table, row, "right");
-        if ((!mmgr_text_equal(left, "-", PLATFORM_TEXT_TO_TERMINATOR)) &&
-            (!mmgr_text_equal(right, "-", PLATFORM_TEXT_TO_TERMINATOR)))
+        if ((!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = left, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "-",
+                         .ci = EMBED_FALSE)) &&
+            (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = right, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "-",
+                         .ci = EMBED_FALSE)))
         {
             LngList pair = {NULL, 0u, 0u};
             {
@@ -1920,8 +2046,10 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
             }
             platform_cell_released(both, platform_place_g_program_owner);
         }
-        if ((mmgr_text_equal(table_name, s_matrix, PLATFORM_TEXT_TO_TERMINATOR)) ||
-            (mmgr_text_equal(table_name, s_high_energy_matrix, PLATFORM_TEXT_TO_TERMINATOR)))
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = table_name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = s_matrix, .ci = EMBED_FALSE)) ||
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = table_name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = s_high_energy_matrix, .ci = EMBED_FALSE)))
         {
             LngList key = {NULL, 0u, 0u};
             {
@@ -2043,11 +2171,12 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
             lng_note_written(&lng_note);
         }
         const LngList *const mirror = lng_sets_get(&named, key.text[0]);
-        const int order = mmgr_text_order(past, mirror_past, PLATFORM_TEXT_TO_TERMINATOR);
-        const int sooner = (order < 0) || ((order == 0) &&
-                                           (mmgr_text_order(present, mirror_present, PLATFORM_TEXT_TO_TERMINATOR) < 0));
-        if ((!mmgr_text_equal(key.text[0], named.key.text[at], PLATFORM_TEXT_TO_TERMINATOR)) && (mirror != NULL) &&
-            !lng_list_same(mirror, &named.set[at]) && sooner)
+        const int order = lng_text_order(past, mirror_past, PLATFORM_TEXT_TO_TERMINATOR);
+        const int sooner =
+            (order < 0) || ((order == 0) && (lng_text_order(present, mirror_present, PLATFORM_TEXT_TO_TERMINATOR) < 0));
+        if ((!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = key.text[0], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = named.key.text[at], .ci = EMBED_FALSE)) &&
+            (mirror != NULL) && !lng_list_same(mirror, &named.set[at]) && sooner)
         {
             char *const mine = lng_list_joined(&named.set[at], " ");
             char *const theirs = lng_list_joined(mirror, " ");
@@ -2098,8 +2227,10 @@ typedef struct
 static void lng_files_under(const char *folder, const LngWalk *walk);
 static void lng_entry_taken(const char *folder, const char *name, int folder_exists, const LngWalk *walk)
 {
-    if ((mmgr_text_equal(name, ".", PLATFORM_TEXT_TO_TERMINATOR)) ||
-        (mmgr_text_equal(name, "..", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "..",
+                    .ci = EMBED_FALSE)))
     {
         return;
     }
@@ -2112,16 +2243,18 @@ static void lng_entry_taken(const char *folder, const char *name, int folder_exi
         mmgr_line_put(&lng_note.line, name);
         lng_note_written(&lng_note);
     }
-    const size_t length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     if (folder_exists)
     {
         lng_files_under(path.text[0], walk);
     }
     for (unsigned int at = 0u; !folder_exists && (at < walk->count); at += 1u)
     {
-        const size_t ending = mmgr_text_length(walk->suffixes[at], PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t ending =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = walk->suffixes[at], .cap = PLATFORM_TEXT_TO_TERMINATOR);
         if ((length >= ending) &&
-            (mmgr_text_equal(&name[length - ending], walk->suffixes[at], PLATFORM_TEXT_TO_TERMINATOR)))
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = &name[length - ending], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = walk->suffixes[at], .ci = EMBED_FALSE)))
         {
             lng_set_add(&walk->found[at], path.text[0]);
         }
@@ -2202,10 +2335,13 @@ void lng_target_of(const char *path, char *target, size_t capacity)
     {
         name = ((*at == '/') || (*at == '\\')) ? (at + 1) : name;
     }
-    const char *const dot = mmgr_text_char(name, '.', PLATFORM_TEXT_TO_TERMINATOR);
-    const size_t length = (dot != NULL) ? (size_t)(dot - name) : mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const dot =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.');
+    const size_t length =
+        (dot != NULL) ? (size_t)(dot - name)
+                      : EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const size_t kept = (length < capacity) ? length : (capacity - 1u);
-    mmgr_bytes_copy(target, name, kept);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = target, .src = name, .bytes = kept);
     target[kept] = '\0';
 }
 
@@ -2219,9 +2355,12 @@ void lng_used_check(const LngTable *table, const char *path, const LngMap *used,
         for (unsigned int row = 0u; (row < table->rows) && !contained; row += 1u)
         {
             const char *const row_target = lng_cell_or_none(table, row, "target");
-            contained = (mmgr_text_equal(lng_cell_or_none(table, row, "word"), used->key.text[at],
-                                         PLATFORM_TEXT_TO_TERMINATOR)) &&
-                        ((row_target[0] == '\0') || (mmgr_text_equal(row_target, target, PLATFORM_TEXT_TO_TERMINATOR)));
+            contained =
+                (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(table, row, "word"),
+                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = used->key.text[at], .ci = EMBED_FALSE)) &&
+                ((row_target[0] == '\0') ||
+                 (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = row_target, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = target, .ci = EMBED_FALSE)));
         }
         if (!contained)
         {
@@ -2243,7 +2382,8 @@ static unsigned int lng_bridge_word_row(const LngTable *transpiler, const char *
     for (unsigned int row = 0u; row < transpiler->rows; row += 1u)
     {
         if (!lng_row_targeted(transpiler, row) &&
-            (mmgr_text_equal(lng_cell_or_none(transpiler, row, "word"), word, PLATFORM_TEXT_TO_TERMINATOR)))
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(transpiler, row, "word"),
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = word, .ci = EMBED_FALSE)))
         {
             return row;
         }
@@ -2257,7 +2397,8 @@ static unsigned int lng_bridged_row(const LngTable *target, const char *bridge)
 {
     for (unsigned int row = 0u; row < target->rows; row += 1u)
     {
-        if (mmgr_text_equal(lng_cell_or_none(target, row, "transpiler"), bridge, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(target, row, "transpiler"),
+                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = bridge, .ci = EMBED_FALSE))
         {
             return row;
         }
@@ -2276,7 +2417,8 @@ void lng_target_check(const LngTable *transpiler, const LngTable *target, const 
         const char *const bridge = lng_cell_or_none(target, row, "transpiler");
         const int probed = (lng_cell_or_none(target, row, "probe")[0] != '\0');
         const int expected = (lng_cell_or_none(target, row, "expected")[0] != '\0');
-        const int typed = (mmgr_text_equal(type, "type", PLATFORM_TEXT_TO_TERMINATOR));
+        const int typed = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                      .other = "type", .ci = EMBED_FALSE));
         if (!lng_one_of(type, g_lng_hol_types, LNG_HOL_TYPES))
         {
             LngNote lng_note;
@@ -2355,11 +2497,14 @@ void lng_target_check(const LngTable *transpiler, const LngTable *target, const 
         }
         lng_set_add(&bridged, bridge);
         // a type and its bridge agree on width and sign
-        if ((mmgr_text_equal(type, "type", PLATFORM_TEXT_TO_TERMINATOR)) &&
-            ((!mmgr_text_equal(lng_cell_or_none(target, row, "bits"), lng_cell_or_none(transpiler, crossed, "bits"),
-                               PLATFORM_TEXT_TO_TERMINATOR)) ||
-             (!mmgr_text_equal(lng_cell_or_none(target, row, "signed"), lng_cell_or_none(transpiler, crossed, "signed"),
-                               PLATFORM_TEXT_TO_TERMINATOR))))
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "type",
+                        .ci = EMBED_FALSE)) &&
+            ((!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(target, row, "bits"),
+                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = lng_cell_or_none(transpiler, crossed, "bits"),
+                          .ci = EMBED_FALSE)) ||
+             (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(target, row, "signed"),
+                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = lng_cell_or_none(transpiler, crossed, "signed"),
+                          .ci = EMBED_FALSE))))
         {
             LngNote lng_note;
             lng_note_begun(&lng_note, defects);
@@ -2490,7 +2635,9 @@ void lng_targets_holes(const LngTable *const *targets, const char *const *names,
             }
             // one bridge word, one output for every target's probe
             const char *const expected = lng_cell_or_none(targets[table], row, "expected");
-            if ((first_expected != NULL) && (!mmgr_text_equal(first_expected, expected, PLATFORM_TEXT_TO_TERMINATOR)))
+            if ((first_expected != NULL) &&
+                (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = first_expected, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = expected, .ci = EMBED_FALSE)))
             {
                 LngNote lng_note;
                 lng_note_begun(&lng_note, defects);
@@ -2517,17 +2664,17 @@ void lng_theorem_names(const char *const *line, unsigned int lines, LngList *nam
     static const char s_theorem[] = "theorem ";
     for (unsigned int at = 0u; at < lines; at += 1u)
     {
-        if (mmgr_text_order(line[at], s_theorem, (size_t)(sizeof(s_theorem) - 1u)) != 0)
+        if (lng_text_order(line[at], s_theorem, (size_t)(sizeof(s_theorem) - 1u)) != 0)
         {
             continue;
         }
         // a name that Lean keeps for itself goes in guillemets, as «not»
         const char *start = line[at] + sizeof(s_theorem) - 1u;
-        const int guarded = (mmgr_text_order(start, "\xc2\xab", (size_t)(2u)) == 0);
+        const int guarded = (lng_text_order(start, "\xc2\xab", (size_t)(2u)) == 0);
         start += guarded ? 2u : 0u;
         size_t length = 0u;
         while ((start[length] != '\0') && (start[length] != ' ') && (start[length] != ':') &&
-               (mmgr_text_order(&start[length], "\xc2\xbb", (size_t)(2u)) != 0))
+               (lng_text_order(&start[length], "\xc2\xbb", (size_t)(2u)) != 0))
         {
             length += 1u;
         }
@@ -2562,7 +2709,8 @@ void lng_target_proofs(const LngTable *target, const char *name, const char *pat
     {
         const char *const bridge = lng_cell_or_none(target, row, "transpiler");
         // a type and a hole have no proof to give: a type is a width, and a hole is no symbol of the relation
-        if ((mmgr_text_equal(lng_cell_or_none(target, row, "type"), "type", PLATFORM_TEXT_TO_TERMINATOR)) ||
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(target, row, "type"),
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "type", .ci = EMBED_FALSE)) ||
             (bridge[0] == '\0') || (lng_cell_or_none(target, row, "witness")[0] == '\0'))
         {
             continue;
@@ -2585,12 +2733,16 @@ void lng_target_proofs(const LngTable *target, const char *name, const char *pat
 
 const char *lng_side_anchor(const char *operation)
 {
-    if ((operation[0] == '\0') || (mmgr_text_equal(operation, "-", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((operation[0] == '\0') || (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = operation,
+                                              .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "-", .ci = EMBED_FALSE)))
     {
         return NULL;
     }
     // a side that keeps its bit copies it, and a side that reaches the other bit inverts it
-    return (mmgr_text_equal(operation, "=", PLATFORM_TEXT_TO_TERMINATOR)) ? "copy" : "invert";
+    return (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = operation, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "=",
+                       .ci = EMBED_FALSE))
+               ? "copy"
+               : "invert";
 }
 
 // the transpiler's own word whose anchor is `anchor`, or NULL where no word or two words have it
@@ -2600,7 +2752,8 @@ static const char *lng_anchor_word(const LngTable *transpiler, const char *ancho
     for (unsigned int row = 0u; row < transpiler->rows; row += 1u)
     {
         if (lng_row_targeted(transpiler, row) ||
-            (!mmgr_text_equal(lng_cell_or_none(transpiler, row, "anchor"), anchor, PLATFORM_TEXT_TO_TERMINATOR)))
+            (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(transpiler, row, "anchor"),
+                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = anchor, .ci = EMBED_FALSE)))
         {
             continue;
         }
@@ -2662,8 +2815,8 @@ unsigned int lng_asm_forms(const LngTable *transpiler, const LngTable *table, Ln
         {
             const char *left = NULL;
             const char *right = NULL;
-            if ((mmgr_text_equal(lng_cell_or_none(table, row, "mnemonic"), mnemonics.text[at],
-                                 PLATFORM_TEXT_TO_TERMINATOR)) &&
+            if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(table, row, "mnemonic"),
+                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = mnemonics.text[at], .ci = EMBED_FALSE)) &&
                 lng_asm_form(transpiler, table, row, &left, &right))
             {
                 given += 1u;
@@ -2687,8 +2840,10 @@ const char *lng_g_anchor(const LngTable *hol, const LngTable *transpiler, const 
 {
     for (unsigned int row = 0u; row < hol->rows; row += 1u)
     {
-        if (!mmgr_text_equal(lng_cell_or_none(hol, row, "type"), "core op", PLATFORM_TEXT_TO_TERMINATOR) ||
-            !mmgr_text_equal(lng_cell_or_none(hol, row, symbol), "1", PLATFORM_TEXT_TO_TERMINATOR))
+        if (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(hol, row, "type"),
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "core op", .ci = EMBED_FALSE) ||
+            !EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(hol, row, symbol),
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "1", .ci = EMBED_FALSE))
         {
             continue;
         }
@@ -2712,7 +2867,8 @@ unsigned int lng_g_bindings(const LngTable *hol, const LngTable *transpiler, Lng
     LngList symbols = {NULL, 0u, 0u};
     for (unsigned int row = 0u; row < hol->rows; row += 1u)
     {
-        if (!mmgr_text_equal(lng_cell_or_none(hol, row, "type"), "type", PLATFORM_TEXT_TO_TERMINATOR))
+        if (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell_or_none(hol, row, "type"),
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "type", .ci = EMBED_FALSE))
         {
             lng_operators_of(hol, row, &symbols);
         }

@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chaitin_omega_engine_ledger.cu: the engine's threads, ledger and buffers
-#include "chaitin_omega_internal.h"
 #include "../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "chaitin_omega_internal.h"
 
 // the engine's ledger: one line a finished job, "engine" first and "end" last. A line cut anywhere is not a job
 void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &jobs)
@@ -22,7 +22,7 @@ void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &job
         unsigned long long contradictions = 0ULL;
         unsigned long long max[4];
         int read = 0;
-        const size_t written = mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t written = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         if ((written == 0u) || (line[written - 1u] != '\n'))
         {
             continue;
@@ -32,13 +32,15 @@ void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &job
         unsigned long long field[14];
         int fields = 0;
         const char *at = line;
-        if (mmgr_text_starts(line, "engine", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "engine", .ci = EMBED_FALSE))
         {
             at = line + 6;
             while (fields < 14)
             {
                 const char *end = at;
-                const embed_word value = mmgr_text_unsigned_in(at, &end, 10u);
+                const embed_word value =
+                    EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = at, .end = &end, .base = 10u);
                 if (end == at)
                 {
                     break;
@@ -50,9 +52,13 @@ void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &job
         }
         if (fields == 14)
         {
-            at += mmgr_text_span(at, " \t\n\v\f\r", PLATFORM_TEXT_TO_TERMINATOR);
+            at += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = " \t\n\v\f\r");
             // Explicit cast narrows the bytes read of a line of at max 1024 bytes to the int that counts them
-            read = mmgr_text_starts(at, "end", PLATFORM_TEXT_TO_TERMINATOR) ? (int)((at + 3) - line) : 0;
+            read = EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = "end", .ci = EMBED_FALSE)
+                       ? (int)((at + 3) - line)
+                       : 0;
             // Explicit cast narrows the job's length, which the ledger writes as an unsigned int, to that width
             job.length = (unsigned int)field[0];
             job.from = field[1];

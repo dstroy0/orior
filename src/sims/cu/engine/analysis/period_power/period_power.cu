@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "sim_camera.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim_camera.h"
 
 #include "../../../../../cu/engine/analysis/period/period.h"
 
@@ -33,9 +33,9 @@ static int power_read(SimResults *results, const unsigned short *lanes, const un
                       PeriodMeasurement *measurement)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     PeriodRequest request;
-    mmgr_bytes_set(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.device_lanes = device_lanes;
     request.rank = SIM_AXES;
     for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
@@ -65,7 +65,7 @@ int program_main(int argc, char **argv)
     const unsigned long long draw_count[POWER_DRAW_COUNTS] = {8ULL, 19ULL};
 
     SimScene scene;
-    mmgr_bytes_set(&scene, 0, sizeof(scene));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &scene, .bytes = sizeof(scene), .val = 0);
     scene.frames = 1ULL;
     scene.extent[0] = 32ULL;
     scene.extent[1] = 64ULL;
@@ -74,7 +74,7 @@ int program_main(int argc, char **argv)
     scene.plant_axis = 2u;
     scene.plant_period = POWER_PERIOD;
     SimCamera camera;
-    mmgr_bytes_set(&camera, 0, sizeof(camera));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &camera, .bytes = sizeof(camera), .val = 0);
     camera.offset = 100ULL;
     camera.gain = 1ULL;
     camera.read_square = 3ULL;
@@ -105,7 +105,7 @@ int program_main(int argc, char **argv)
         for (unsigned int level = 0u; ok && (level < POWER_AMPLITUDES); level += 1u)
         {
             PowerResults result;
-            mmgr_bytes_set(&result, 0, sizeof(result));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &result, .bytes = sizeof(result), .val = 0);
             scene.plant_amplitude = amplitude[level];
             for (unsigned int volume = 0u; ok && (volume < POWER_VOLUMES); volume += 1u)
             {

@@ -3,9 +3,27 @@
 // query_trace.cu: the trace's flags read from their table, and a word of them written back by name
 #include "../../../src/platform/platform.h"
 #include "../../parsers/tree_folder.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "query_trace.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int query_trace_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 int query_trace_path(char *path, size_t bytes)
 {
@@ -23,7 +41,8 @@ static int query_trace_copied(const char *cell, size_t length, char *out, size_t
 // the place of `character` in the `length` bytes at `text`, or `length` where it is not there
 static size_t query_trace_find(const char *text, size_t length, char character)
 {
-    const char *const found = mmgr_text_char(text, (uint8_t)character, length);
+    const char *const found =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = text, .cap = length, .byte = (uint8_t)character);
     // a byte found lies inside the text, at or past its start
     return ((found != NULL) && (found < (text + length))) ? (size_t)(found - text) : length;
 }
@@ -44,7 +63,10 @@ static int query_trace_line(const char *line, size_t length, unsigned long long 
         query_trace_copied(&line[name_at + 1u], name_length, made->name, sizeof(made->name)) &&
         query_trace_copied((gloss_at < length) ? &line[gloss_at + 1u] : "",
                            (gloss_at < length) ? (length - gloss_at - 1u) : 0u, made->gloss, sizeof(made->gloss));
-    const unsigned long long word = (cut != 0) ? (unsigned long long)mmgr_text_unsigned_in(flag_text, NULL, 16u) : 0ULL;
+    const unsigned long long word = (cut != 0)
+                                        ? (unsigned long long)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                                                         .src = flag_text, .end = NULL, .base = 16u)
+                                        : 0ULL;
     const int fresh = (cut != 0) && (made->name[0] != '\0') && (query_trace_flag(trace, made->name) == 0ULL);
     if ((fresh == 0) || (word == 0ULL) || ((word & (word - 1ULL)) != 0ULL) || ((*seen_bits & word) != 0ULL))
     {
@@ -102,7 +124,7 @@ unsigned long long query_trace_flag(const QueryTrace *trace, const char *name)
 {
     for (unsigned int at = 0u; at < trace->count; at += 1u)
     {
-        if (mmgr_text_order(trace->flags[at].name, name, PLATFORM_TEXT_TO_TERMINATOR) == 0)
+        if (query_trace_text_order(trace->flags[at].name, name, PLATFORM_TEXT_TO_TERMINATOR) == 0)
         {
             return trace->flags[at].word;
         }

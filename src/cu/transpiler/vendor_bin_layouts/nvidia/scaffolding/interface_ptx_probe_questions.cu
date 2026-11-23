@@ -40,15 +40,18 @@ static int probe_scratch(void *context, const char *bank, VerbaLinea *name)
 {
     ProbeWriter *const writer = (ProbeWriter *)context;
     unsigned int *next = NULL;
-    if (mmgr_text_equal(bank, "temporary", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = bank, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "temporary",
+                   .ci = EMBED_FALSE))
     {
         next = &writer->scratch_temporary;
     }
-    else if (mmgr_text_equal(bank, "wide", PLATFORM_TEXT_TO_TERMINATOR))
+    else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = bank, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "wide",
+                        .ci = EMBED_FALSE))
     {
         next = &writer->scratch_wide;
     }
-    else if (mmgr_text_equal(bank, "predicate", PLATFORM_TEXT_TO_TERMINATOR))
+    else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = bank, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "predicate", .ci = EMBED_FALSE))
     {
         next = &writer->scratch_predicate;
     }

@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chaitin_omega_main.cu: the terms printed and main
-#include "chaitin_omega_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "chaitin_omega_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 // a term from its code, for the checks below
 static std::vector<int> omega_term(const char *code)
@@ -78,21 +78,29 @@ int program_main(int argc, char **argv)
     static OmegaCounts counts;
     // L alone runs on the engine, bounded by nothing. L, steps and tokens run the budgeted kernel on the device
     // ("cpu" after them: on the host), retained as the cross-check. "--ledger <path>" plans either run as jobs.
-    counts.length = (argc > 1) ? (unsigned int)mmgr_text_unsigned_in(argv[1], NULL, 10) : OMEGA_LENGTH_DEFAULT;
+    counts.length = (argc > 1) ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = argv[1],
+                                                          .end = NULL, .base = 10)
+                               : OMEGA_LENGTH_DEFAULT;
     const int budgeted = (argc > 2) && (argv[2][0] >= '0') && (argv[2][0] <= '9');
-    counts.steps = budgeted ? (unsigned int)mmgr_text_unsigned_in(argv[2], NULL, 10) : OMEGA_STEPS_DEFAULT;
-    counts.tokens =
-        (budgeted && (argc > 3)) ? (unsigned int)mmgr_text_unsigned_in(argv[3], NULL, 10) : OMEGA_TOKENS_DEFAULT;
+    counts.steps =
+        budgeted ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = argv[2], .end = NULL, .base = 10)
+                 : OMEGA_STEPS_DEFAULT;
+    counts.tokens = (budgeted && (argc > 3)) ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                                                        .src = argv[3], .end = NULL, .base = 10)
+                                             : OMEGA_TOKENS_DEFAULT;
     const int on_engine = !budgeted;
     int on_device = budgeted;
     const char *ledger = NULL;
     for (int at = 2; at < argc; at += 1)
     {
-        if (mmgr_text_equal(argv[at], "cpu", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "cpu",
+                       .ci = EMBED_FALSE))
         {
             on_device = 0;
         }
-        else if ((mmgr_text_equal(argv[at], "--ledger", PLATFORM_TEXT_TO_TERMINATOR)) && ((at + 1) < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--ledger", .ci = EMBED_FALSE)) &&
+                 ((at + 1) < argc))
         {
             at += 1;
             ledger = argv[at];
@@ -171,7 +179,7 @@ int program_main(int argc, char **argv)
     unsigned long long jobs_retained = 0ULL;
     const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     OmegaEngineReport engine_report;
-    mmgr_bytes_set(&engine_report, 0, sizeof(engine_report));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &engine_report, .bytes = sizeof(engine_report), .val = 0);
     std::vector<OmegaSettled> crossed;
     if (on_engine != 0)
     {

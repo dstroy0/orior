@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_files.cu: directories, decoders and the JSON reader of an entry
-#include "engine_internal.h"
 #include "../../platform/platform.h"
-#include "engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "embed_atomic.h"
+#include "engine_internal.h"
+#include "engine_note.h"
+#include "memoria_operor/memoria_operor.h"
 
 static int entry_directory_end(const char *walk, size_t at, size_t length, int include_last)
 {
@@ -19,13 +19,13 @@ static int entry_directory_end(const char *walk, size_t at, size_t length, int i
 int entry_directories_make(const char *path, int include_last, unsigned int *made)
 {
     *made = 0u;
-    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     char *const walk = (char *)platform_cell_taken(length + 1u, platform_place_g_program_owner, 0);
     if (walk == NULL)
     {
         return 0;
     }
-    mmgr_bytes_copy(walk, path, length + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = walk, .src = path, .bytes = length + 1u);
     int ok = 1;
     for (size_t at = 1u; ok && (at <= length); at += 1u)
     {
@@ -50,13 +50,13 @@ void entry_directories_remove(const char *path, int include_last, unsigned int m
     {
         return;
     }
-    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     char *const walk = (char *)platform_cell_taken(length + 1u, platform_place_g_program_owner, 0);
     if (walk == NULL)
     {
         return;
     }
-    mmgr_bytes_copy(walk, path, length + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = walk, .src = path, .bytes = length + 1u);
     unsigned int left = made;
     for (size_t at = length; (left != 0u) && (at >= 1u); at -= 1u)
     {
@@ -127,7 +127,7 @@ static long long entry_raw_decode(const EngineBytesRequest *request)
     {
         return ENGINE_BYTES_ERROR;
     }
-    mmgr_bytes_copy(request->out, request->in, (size_t)request->in_bytes);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->out, .src = request->in, .bytes = (size_t)request->in_bytes);
     return (long long)request->in_bytes;
 }
 
@@ -142,7 +142,9 @@ static unsigned long long entry_each_workers(unsigned long long items)
         (platform_environment("TESSERA_RUN_PROCESSORS", named_text, sizeof(named_text)) != 0ULL) ? named_text : NULL;
     const char *end = NULL;
     const unsigned long long requested_workers =
-        ((named != NULL) && (named[0] >= '1') && (named[0] <= '9')) ? mmgr_text_unsigned_in(named, &end, 10) : 0ULL;
+        ((named != NULL) && (named[0] >= '1') && (named[0] <= '9'))
+            ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = named, .end = &end, .base = 10)
+            : 0ULL;
     const unsigned long long workers =
         ((requested_workers != 0ULL) && (end != NULL) && (*end == '\0')) ? requested_workers : 1ULL;
     return (workers < items) ? workers : items;
@@ -281,11 +283,12 @@ static long long entry_span_read(const EngineFileRange *range)
     for (unsigned int at = 0u; (span == NULL) && (at < ENTRY_SPAN_COUNT); at += 1u)
     {
         EntrySpan *const candidate = &s_spans[at];
-        const int inside = (range != NULL) && (range->path != NULL) && (candidate->bytes != NULL) &&
-                           (mmgr_text_equal(range->path, candidate->path, PLATFORM_TEXT_TO_TERMINATOR)) &&
-                           (range->offset >= candidate->first) &&
-                           ((range->offset - candidate->first) <= candidate->length) &&
-                           (range->bytes <= (candidate->length - (range->offset - candidate->first)));
+        const int inside =
+            (range != NULL) && (range->path != NULL) && (candidate->bytes != NULL) &&
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = range->path, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = candidate->path, .ci = EMBED_FALSE)) &&
+            (range->offset >= candidate->first) && ((range->offset - candidate->first) <= candidate->length) &&
+            (range->bytes <= (candidate->length - (range->offset - candidate->first)));
         span = inside ? candidate : NULL;
     }
     if (span == NULL)
@@ -313,7 +316,8 @@ static long long entry_span_read(const EngineFileRange *range)
         entry_span_release(span);
         return stack_file_read(range);
     }
-    mmgr_bytes_copy(range->out, span->bytes + (range->offset - span->first), (size_t)range->bytes);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = range->out, .src = span->bytes + (range->offset - span->first),
+               .bytes = (size_t)range->bytes);
     // a range's bytes are bounded to the span's length above, which a long long represents
     return (long long)range->bytes;
 }
@@ -338,7 +342,8 @@ extern "C" long engine_source_prefetch(const char *source, const char *sample, E
     unsigned long long first = 0ULL;
     unsigned long long count = 0ULL;
     if ((archive == NULL) || !zip_folder_find(archive, sample, &first, &count) || (count == 0ULL) ||
-        (mmgr_text_length(source, PLATFORM_TEXT_TO_TERMINATOR) >= sizeof(at->path)))
+        (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = source, .cap = PLATFORM_TEXT_TO_TERMINATOR) >=
+         sizeof(at->path)))
     {
         return ENGINE_ERROR;
     }
@@ -365,7 +370,9 @@ extern "C" long engine_source_prefetch(const char *source, const char *sample, E
     {
         return ENGINE_ERROR;
     }
-    mmgr_bytes_copy(at->path, source, mmgr_text_length(source, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = at->path, .src = source,
+               .bytes =
+                   EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = source, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
     at->first = begin;
     at->length = end - begin;
     at->read = 0LL;
@@ -444,7 +451,7 @@ void entry_json_release(EntryJson *json)
 {
     platform_cell_released(json->text, platform_place_g_program_owner);
     platform_cell_released(json->tokens, platform_place_g_program_owner);
-    mmgr_bytes_set(json, 0, sizeof(*json));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = json, .bytes = sizeof(*json), .val = 0);
 }
 
 static int entry_file_read_all(const char *path, char **bytes, size_t *length)
@@ -473,7 +480,7 @@ static int entry_file_read_all(const char *path, char **bytes, size_t *length)
 
 int entry_json_load(const char *path, EntryJson *json)
 {
-    mmgr_bytes_set(json, 0, sizeof(*json));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = json, .bytes = sizeof(*json), .val = 0);
     if (entry_file_read_all(path, &json->text, &json->length) == 0)
     {
         return 0;
@@ -482,7 +489,7 @@ int entry_json_load(const char *path, EntryJson *json)
     json->tokens =
         (CfgJsonToken *)platform_cell_taken((size_t)capacity * sizeof(CfgJsonToken), platform_place_g_program_owner, 0);
     CfgJsonParse parse;
-    mmgr_bytes_set(&parse, 0, sizeof(parse));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &parse, .bytes = sizeof(parse), .val = 0);
     const int ok = (json->tokens != NULL) &&
                    cfg_json_parse_metadata(json->text, json->length, json->tokens, capacity, &parse) &&
                    (json->tokens[0].type == CFG_JSON_OBJECT);
@@ -558,18 +565,20 @@ int entry_element_named(const char *name, EngineArrayExtent *extent, unsigned in
         ENGINE_ELEMENT_FLOAT,    ENGINE_ELEMENT_FLOAT};
     for (unsigned int at = 0u; at < 10u; at += 1u)
     {
-        if (mmgr_text_equal(name, NAMES[at], PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = NAMES[at],
+                       .ci = EMBED_FALSE))
         {
             extent->element_bytes = BYTES[at];
             extent->element_type = TYPES[at];
             return 1;
         }
     }
-    const size_t length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const int ordered =
         (length >= 3u) && ((name[0] == '<') || (name[0] == '>') || (name[0] == '|') || (name[0] == '='));
     const char type = ordered ? name[1] : '\0';
-    const unsigned long width = ordered ? mmgr_text_unsigned_in(&name[2], NULL, 10) : 0UL;
+    const unsigned long width =
+        ordered ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = &name[2], .end = NULL, .base = 10) : 0UL;
     if ((ordered == 0) || ((type != 'u') && (type != 'i') && (type != 'f')) ||
         ((width != 1UL) && (width != 2UL) && (width != 4UL) && (width != 8UL)))
     {
@@ -590,7 +599,8 @@ int entry_codec_named(const char *name, EngineCodec *codec)
                                           ENGINE_CODEC_ZLIB,  ENGINE_CODEC_LZ4_SIZED, ENGINE_CODEC_SNAPPY};
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        if (mmgr_text_equal(name, NAMES[at], PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = NAMES[at],
+                       .ci = EMBED_FALSE))
         {
             *codec = CODECS[at];
             return 1;
@@ -613,7 +623,8 @@ char entry_axis_named(const char *name)
     lowered[length] = '\0';
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
-        if (mmgr_text_equal(lowered, NAMES[at], PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lowered, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = NAMES[at], .ci = EMBED_FALSE))
         {
             return AXES[at];
         }
@@ -623,7 +634,7 @@ char entry_axis_named(const char *name)
 
 int entry_ome(const EntryJson *json, unsigned int attributes, EntryOme *ome)
 {
-    mmgr_bytes_set(ome, 0, sizeof(*ome));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = ome, .bytes = sizeof(*ome), .val = 0);
     unsigned int scales = entry_json_at(json, attributes, "multiscales");
     scales = (scales != 0u) ? scales : entry_json_at(json, entry_json_at(json, attributes, "ome"), "multiscales");
     const unsigned int first = entry_json_element(json, scales, 0u);

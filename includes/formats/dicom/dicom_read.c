@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // dicom_read.c: caching, describing and reading a series
-#include "dicom_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "dicom_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 static int dicom_open(const EngineIngestTools *tools, const char *path, const char *member, EngineError *error)
 {
@@ -13,8 +13,11 @@ static int dicom_open(const EngineIngestTools *tools, const char *path, const ch
     {
         return 0;
     }
-    if ((resident->valid != 0) && (mmgr_text_equal(resident->path, path, PLATFORM_TEXT_TO_TERMINATOR)) &&
-        (mmgr_text_equal(resident->member, member, PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((resident->valid != 0) &&
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = resident->path, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = path, .ci = EMBED_FALSE)) &&
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = resident->member, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = member, .ci = EMBED_FALSE)))
     {
         return 1;
     }
@@ -32,17 +35,22 @@ static int dicom_open(const EngineIngestTools *tools, const char *path, const ch
         dicom_resident_release();
         return 0;
     }
-    resident->path = (char *)platform_cell_taken(mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR) + 1u,
-                                                 platform_place_g_program_owner, 0);
-    resident->member = (char *)platform_cell_taken(mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR) + 1u,
-                                                   platform_place_g_program_owner, 0);
+    resident->path = (char *)platform_cell_taken(
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u,
+        platform_place_g_program_owner, 0);
+    resident->member = (char *)platform_cell_taken(
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = member, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u,
+        platform_place_g_program_owner, 0);
     if (!DICOM_CHECK((resident->path != NULL) && (resident->member != NULL), resident, error, ENGINE_ERROR_RESOURCE))
     {
         dicom_resident_release();
         return 0;
     }
-    mmgr_bytes_copy(resident->path, path, mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
-    mmgr_bytes_copy(resident->member, member, mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = resident->path, .src = path,
+               .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = resident->member, .src = member,
+               .bytes =
+                   EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = member, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
     resident->valid = 1;
     return 1;
 }
@@ -51,13 +59,13 @@ static void dicom_extent(EngineArrayExtent *extent)
 {
     const DicomResident *const resident = &g_dicom_resident;
     const DicomSlice *const lead = &resident->slices[0];
-    mmgr_bytes_set(extent, 0, sizeof(*extent));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = extent, .bytes = sizeof(*extent), .val = 0);
     extent->rank = 4u;
     extent->sizes[0] = 1ULL;
     extent->sizes[1] = resident->count;
     extent->sizes[2] = lead->rows;
     extent->sizes[3] = lead->columns;
-    mmgr_bytes_copy(extent->axes, "tzyx", 4u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = extent->axes, .src = "tzyx", .bytes = 4u);
     extent->element_bytes = lead->bits_allocated / 8u;
     extent->element_type = (lead->pixel_representation != 0u) ? ENGINE_ELEMENT_SIGNED : ENGINE_ELEMENT_UNSIGNED;
 }
@@ -67,13 +75,15 @@ int dicom_zip_has_member(const EngineIngestTools *tools, const char *path, const
     // a series the module already contains was gathered and parsed as DICOM whole, and is a member it contains
     const DicomResident *const resident = &g_dicom_resident;
     if ((resident->valid != 0) && (path != NULL) && (member != NULL) &&
-        (mmgr_text_equal(resident->path, path, PLATFORM_TEXT_TO_TERMINATOR)) &&
-        (mmgr_text_equal(resident->member, member, PLATFORM_TEXT_TO_TERMINATOR)))
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = resident->path, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = path, .ci = EMBED_FALSE)) &&
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = resident->member, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = member, .ci = EMBED_FALSE)))
     {
         return 1;
     }
     EngineError probe;
-    mmgr_bytes_set(&probe, 0, sizeof(probe));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &probe, .bytes = sizeof(probe), .val = 0);
     const ZipArchive *const archive = (member != NULL) ? zip_archive_cached(tools, path, &probe) : NULL;
     unsigned long long first = 0ULL;
     unsigned long long count = 0ULL;
@@ -96,8 +106,9 @@ int dicom_zip_has_member(const EngineIngestTools *tools, const char *path, const
             (unsigned char *)platform_cell_taken((size_t)entry.uncompressed + 1u, platform_place_g_program_owner, 0);
         const int read = (member != NULL) && (zip_member_read(tools, path, archive, &entry, member, entry.uncompressed,
                                                               &probe) != ZIP_ERROR);
-        const int preamble_valid = read && (entry.uncompressed >= (DICOM_PREAMBLE + 4ULL)) &&
-                                   (mmgr_bytes_compare(member + DICOM_PREAMBLE, "DICM", 4u) == 0);
+        const int preamble_valid =
+            read && (entry.uncompressed >= (DICOM_PREAMBLE + 4ULL)) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = member + DICOM_PREAMBLE, .other = "DICM", .bytes = 4u) == 0);
         platform_cell_released(member, platform_place_g_program_owner);
         return preamble_valid ? 1 : 0;
     }
@@ -181,7 +192,7 @@ static void dicom_side_release(EngineSideBytes *side)
     platform_cell_released(side->names, platform_place_g_program_owner);
     platform_cell_released(side->member_crc, platform_place_g_program_owner);
     platform_cell_released(side->member_bytes, platform_place_g_program_owner);
-    mmgr_bytes_set(side, 0, sizeof(*side));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = side, .bytes = sizeof(*side), .val = 0);
 }
 
 static int dicom_side_fill(EngineSideBytes *side, EngineError *error)
@@ -195,7 +206,7 @@ static int dicom_side_fill(EngineSideBytes *side, EngineError *error)
         byte_total += slice->member_bytes - ((slice->pixel_stored != 0ULL) ? 0ULL : slice->pixel_bytes);
         named += slice->name_length;
     }
-    mmgr_bytes_set(side, 0, sizeof(*side));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = side, .bytes = sizeof(*side), .val = 0);
     side->pixel_at = (unsigned long long *)platform_cell_cleared(
         (size_t)resident->count + 1u, sizeof(unsigned long long), platform_place_g_program_owner, 0);
     side->pixel_stored = (unsigned long long *)platform_cell_cleared(
@@ -228,12 +239,15 @@ static int dicom_side_fill(EngineSideBytes *side, EngineError *error)
         side->pixel_at[place] = slice->pixel_at;
         side->pixel_stored[place] = slice->pixel_stored;
         side->byte_start[place] = byte_at;
-        mmgr_bytes_copy(side->bytes + byte_at, slice->member, (size_t)slice->pixel_at);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = side->bytes + byte_at, .src = slice->member,
+                   .bytes = (size_t)slice->pixel_at);
         byte_at += slice->pixel_at;
-        mmgr_bytes_copy(side->bytes + byte_at, slice->member + after, (size_t)(slice->member_bytes - after));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = side->bytes + byte_at, .src = slice->member + after,
+                   .bytes = (size_t)(slice->member_bytes - after));
         byte_at += slice->member_bytes - after;
         side->name_start[place] = name_at;
-        mmgr_bytes_copy(side->names + name_at, slice->name, (size_t)slice->name_length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = side->names + name_at, .src = slice->name,
+                   .bytes = (size_t)slice->name_length);
         name_at += slice->name_length;
         side->member_crc[place] = slice->member_crc;
         side->member_bytes[place] = slice->member_bytes;
@@ -277,7 +291,8 @@ long long dicom_read(const EngineArrayRead *request)
     {
         DicomSlice *const slice = &resident->slices[resident->order[place]];
         unsigned char *const pixels = request->out + (place * slice_bytes);
-        mmgr_bytes_copy(pixels, slice->member + slice->pixel_at, (size_t)slice_bytes);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = pixels, .src = slice->member + slice->pixel_at,
+                   .bytes = (size_t)slice_bytes);
         if (slice->pixel_representation != 0u)
         {
             slice->pixel_stored = dicom_sign_extend(slice, pixels);

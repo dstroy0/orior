@@ -4,7 +4,7 @@
 #define SIM_H
 
 #include "../../cu/engine/engine_config.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../../../includes/exact_types/integers/exact_integer.h"
 #include "../../platform/platform.h"
@@ -141,7 +141,7 @@ static inline __host__ __device__ unsigned long long sim_poisson_four_cumulants(
 
 static inline void sim_open(SimResults *results, char *capacity)
 {
-    mmgr_bytes_set(results, 0, sizeof(*results));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = results, .bytes = sizeof(*results), .val = 0);
     results->line.out = capacity;
     results->line.capacity = SIM_LINE_CAPACITY;
 }

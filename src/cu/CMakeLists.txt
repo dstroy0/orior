@@ -195,7 +195,13 @@ set(ORIOR_RASTER_SOURCES engine/render/orior_raster.c engine/render/orior_raster
 set(ORIOR_RASTER_DEFINES "")
 if(CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
-    set(CMAKE_CUDA_STANDARD 17)
+    # C++17, and on Windows C++20: nvcc's MSVC front end accepts the designated initializers of MMgr's calls from C++20,
+    # where GCC accepts them as an extension
+    if(WIN32)
+        set(CMAKE_CUDA_STANDARD 20)
+    else()
+        set(CMAKE_CUDA_STANDARD 17)
+    endif()
     set(CMAKE_CUDA_STANDARD_REQUIRED ON)
     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
         # native asks the toolkit for the architecture this machine carries. A toolkit too old to

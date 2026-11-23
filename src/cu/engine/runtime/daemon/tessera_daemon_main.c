@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_daemon_main.c: the daemon's arguments and main
-#include "tessera_daemon_internal.h"
 #include "../../../../platform/platform.h"
 #include "../../engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera_daemon_internal.h"
 
 _Alignas(8) static const char s_daemon_lock_file[] = "daemon.lock";
 _Alignas(8) static const char s_daemon_usage[] = "  tessera daemon: --device <32 hex digits, all zero for the host's "
@@ -32,7 +32,8 @@ int program_main(int count, char **arguments)
         {
             const char *const error_text = s_daemon_usage;
             platform_terminal_write(1, error_text,
-                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+                                    (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = error_text,
+                                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR));
         }
         return 2;
     }
@@ -43,7 +44,8 @@ int program_main(int count, char **arguments)
         {
             const char *const error_text = s_daemon_no_state;
             platform_terminal_write(1, error_text,
-                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+                                    (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = error_text,
+                                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR));
         }
         return daemon_error();
     }
@@ -98,9 +100,10 @@ int program_main(int count, char **arguments)
     if (!g_daemon.socket_activated)
     {
         struct sockaddr_un address;
-        mmgr_bytes_set(&address, 0, sizeof(address));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &address, .bytes = sizeof(address), .val = 0);
         address.sun_family = AF_UNIX;
-        if (mmgr_text_length(g_daemon.endpoint, PLATFORM_TEXT_TO_TERMINATOR) >= sizeof(address.sun_path))
+        if (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = g_daemon.endpoint, .cap = PLATFORM_TEXT_TO_TERMINATOR) >=
+            sizeof(address.sun_path))
         {
             {
                 EngineNote engine_note;
@@ -112,8 +115,10 @@ int program_main(int count, char **arguments)
             }
             return 1;
         }
-        mmgr_bytes_copy(address.sun_path, g_daemon.endpoint,
-                        mmgr_text_length(g_daemon.endpoint, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = address.sun_path, .src = g_daemon.endpoint,
+                   .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = g_daemon.endpoint,
+                                       .cap = PLATFORM_TEXT_TO_TERMINATOR) +
+                            1u);
         // the path names the device instead of the state: a daemon with another state, or systemd's socket, may occupy
         // it
         const int probe = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -161,7 +166,8 @@ int program_main(int count, char **arguments)
             const char *const error_text =
                 tessera_device_names_host(g_daemon.device) ? s_daemon_no_cores : s_daemon_unmeasured;
             platform_terminal_write(1, error_text,
-                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+                                    (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = error_text,
+                                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR));
         }
         return daemon_error();
     }
@@ -177,7 +183,7 @@ int program_main(int count, char **arguments)
     for (;;)
     {
         OVERLAPPED connecting;
-        mmgr_bytes_set(&connecting, 0, sizeof(connecting));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &connecting, .bytes = sizeof(connecting), .val = 0);
         connecting.hEvent = CreateEventA(NULL, TRUE, FALSE, NULL);
         DWORD moved = 0u;
         const int connected =
@@ -212,7 +218,8 @@ int program_main(int count, char **arguments)
             {
                 const char *const error_text = s_daemon_no_pipe;
                 platform_terminal_write(1, error_text,
-                                        (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+                                        (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = error_text,
+                                                                       .cap = PLATFORM_TEXT_TO_TERMINATOR));
             }
             return 1;
         }

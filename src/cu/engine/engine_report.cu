@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_report.cu: the run's report
 #include "../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "engine_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 static int entry_report_write(VerbaLinea *line, VerbaLinea *out)
 {
@@ -143,10 +143,10 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         return ENGINE_ERROR;
     }
     EngineSetReport silent;
-    mmgr_bytes_set(&silent, 0, sizeof(silent));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &silent, .bytes = sizeof(silent), .val = 0);
     EngineSetReport *const report = (request->report != NULL) ? request->report : &silent;
     EngineSampleRecord *const records = report->samples;
-    mmgr_bytes_set(report, 0, sizeof(*report));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = report, .bytes = sizeof(*report), .val = 0);
     report->samples = records;
     const unsigned long long began = engine_clock_microseconds();
     EngineSignum *const sample_roots = (EngineSignum *)platform_cell_cleared(
@@ -156,7 +156,7 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
     {
         EngineSampleRecord discarded;
         EngineSampleRecord *const record = (records != NULL) ? &records[sample] : &discarded;
-        mmgr_bytes_set(record, 0, sizeof(*record));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = record, .bytes = sizeof(*record), .val = 0);
         report->reached = sample + 1ULL;
         char source_path[ENTRY_PATH_CAPACITY];
         char iapx_path[ENTRY_PATH_CAPACITY];
@@ -180,7 +180,7 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         }
         record->placed = 1ULL;
         EngineSideSection section;
-        mmgr_bytes_set(&section, 0, sizeof(section));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &section, .bytes = sizeof(section), .val = 0);
         unsigned long long lane_offset = 0ULL;
         EngineSourceRequest source;
         source.path = source_path;
@@ -209,9 +209,9 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
 
         EngineStream written;
         unsigned int floors = 0u;
-        mmgr_bytes_set(&written, 0, sizeof(written));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &written, .bytes = sizeof(written), .val = 0);
         EngineSeal seal;
-        mmgr_bytes_set(&seal, 0, sizeof(seal));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &seal, .bytes = sizeof(seal), .val = 0);
         ok = ok && (entry_iapx_encode(device_lanes, extent, &written, &floors, error) != 0);
         written.lane_offset = lane_offset;
         ok = ok && entry_seal_make(device_lanes, &written, &section, &seal, error);
@@ -220,11 +220,11 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         record->crystal_written = ok ? 1ULL : 0ULL;
 
         EngineStream file;
-        mmgr_bytes_set(&file, 0, sizeof(file));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &file, .bytes = sizeof(file), .val = 0);
         EngineSideSection back;
-        mmgr_bytes_set(&back, 0, sizeof(back));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &back, .bytes = sizeof(back), .val = 0);
         EngineSeal back_seal;
-        mmgr_bytes_set(&back_seal, 0, sizeof(back_seal));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &back_seal, .bytes = sizeof(back_seal), .val = 0);
         unsigned long long pixels_differ = 0ULL;
         unsigned short *const rebuilt = ok ? (unsigned short *)platform_cell_cleared(lanes, sizeof(unsigned short),
                                                                                      platform_place_g_program_owner, 0)
@@ -232,7 +232,8 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         ok = ok && ENGINE_CHECK(rebuilt != NULL, &rebuilt, error, ENGINE_ERROR_RESOURCE);
         const KrepCrystalRequest read = {iapx_path, &file, &back, &back_seal, error};
         ok = ok && krep_crystal_read(&read) &&
-             ENGINE_CHECK((mmgr_bytes_compare(file.extent, extent, sizeof(extent)) == 0) &&
+             ENGINE_CHECK((EMBED_CALL(memor.cmp, MemoriaCfg, .src = file.extent, .other = extent,
+                                      .bytes = sizeof(extent)) == 0) &&
                               (file.chunks == written.chunks) && (file.bits == written.bits) &&
                               (file.lane_offset == written.lane_offset) &&
                               entry_signum_same(&back_seal.roots[ENGINE_SEAL_SAMPLE], &seal.roots[ENGINE_SEAL_SAMPLE]),
@@ -245,7 +246,8 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         cudaFree(device_lanes);
         // the crystal read back from disk and rebuilt, against the lanes the source gave: the pixels are counted only
         // where the two are not one block of bytes
-        if (ok && (mmgr_bytes_compare(host_lanes, rebuilt, (size_t)lanes * sizeof(unsigned short)) != 0))
+        if (ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_lanes, .other = rebuilt,
+                              .bytes = (size_t)lanes * sizeof(unsigned short)) != 0))
         {
             for (size_t pixel = 0u; pixel < (size_t)lanes; pixel += 1u)
             {
@@ -302,10 +304,10 @@ extern "C" long engine_iapx_prove_set(const EngineSetRequest *request)
         return ENGINE_ERROR;
     }
     EngineSetReport silent;
-    mmgr_bytes_set(&silent, 0, sizeof(silent));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &silent, .bytes = sizeof(silent), .val = 0);
     EngineSetReport *const report = (request->report != NULL) ? request->report : &silent;
     EngineSampleRecord *const records = report->samples;
-    mmgr_bytes_set(report, 0, sizeof(*report));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = report, .bytes = sizeof(*report), .val = 0);
     report->samples = records;
     const unsigned long long began = engine_clock_microseconds();
     EngineSignum *const sample_roots = (EngineSignum *)platform_cell_cleared(
@@ -315,15 +317,15 @@ extern "C" long engine_iapx_prove_set(const EngineSetRequest *request)
     {
         EngineSampleRecord discarded;
         EngineSampleRecord *const record = (records != NULL) ? &records[sample] : &discarded;
-        mmgr_bytes_set(record, 0, sizeof(*record));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = record, .bytes = sizeof(*record), .val = 0);
         report->reached = sample + 1ULL;
         char iapx_path[ENTRY_PATH_CAPACITY];
         EngineStream file;
-        mmgr_bytes_set(&file, 0, sizeof(file));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &file, .bytes = sizeof(file), .val = 0);
         EngineSideSection section;
-        mmgr_bytes_set(&section, 0, sizeof(section));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &section, .bytes = sizeof(section), .val = 0);
         EngineSeal seal;
-        mmgr_bytes_set(&seal, 0, sizeof(seal));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &seal, .bytes = sizeof(seal), .val = 0);
         const KrepCrystalRequest read = {iapx_path, &file, &section, &seal, error};
         const int ok = ENGINE_CHECK(engine_sample_path(iapx_path, sizeof(iapx_path), request->set,
                                                        request->samples[sample], ENTRY_CRYSTAL_SUFFIX) != 0,
@@ -363,10 +365,10 @@ extern "C" long engine_iapx_prove_set(const EngineSetRequest *request)
 extern "C" void engine_side_release(EngineSideBytes *side)
 {
     EngineSideSection section;
-    mmgr_bytes_set(&section, 0, sizeof(section));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &section, .bytes = sizeof(section), .val = 0);
     section.side = *side;
     krep_side_release(&section);
-    mmgr_bytes_set(side, 0, sizeof(*side));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = side, .bytes = sizeof(*side), .val = 0);
 }
 
 extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned long long extent[4],
@@ -383,16 +385,16 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
         return ENGINE_ERROR;
     }
     *volume = NULL;
-    mmgr_bytes_set(root, 0, sizeof(*root));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = root, .bytes = sizeof(*root), .val = 0);
     char iapx_path[ENTRY_PATH_CAPACITY];
     EngineStream file;
-    mmgr_bytes_set(&file, 0, sizeof(file));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &file, .bytes = sizeof(file), .val = 0);
     EngineSideSection section;
-    mmgr_bytes_set(&section, 0, sizeof(section));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &section, .bytes = sizeof(section), .val = 0);
     EngineSeal seal;
-    mmgr_bytes_set(&seal, 0, sizeof(seal));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &seal, .bytes = sizeof(seal), .val = 0);
     EngineSampleRecord record;
-    mmgr_bytes_set(&record, 0, sizeof(record));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &record, .bytes = sizeof(record), .val = 0);
     const KrepCrystalRequest read = {iapx_path, &file, &section, &seal, error};
     int ok = ENGINE_CHECK(engine_sample_path(iapx_path, sizeof(iapx_path), set, sample, ENTRY_CRYSTAL_SUFFIX) != 0,
                           sample, error, ENGINE_ERROR_REQUEST) &&
@@ -410,7 +412,8 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
         platform_cell_released(rebuilt, platform_place_g_program_owner);
         krep_side_release(&section);
         VerbaLinea line;
-        line.capacity = ENTRY_ROW_TEXT + mmgr_text_length(sample, ENTRY_PATH_CAPACITY);
+        line.capacity =
+            ENTRY_ROW_TEXT + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = sample, .cap = ENTRY_PATH_CAPACITY);
         line.out = (char *)platform_cell_taken((size_t)line.capacity, platform_place_g_program_owner, 0);
         line.at = 0ULL;
         if (line.out != NULL)
@@ -430,7 +433,7 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
         engine_error_latch(error);
         return ENGINE_ERROR;
     }
-    mmgr_bytes_copy(extent, file.extent, sizeof(file.extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = extent, .src = file.extent, .bytes = sizeof(file.extent));
     *volume = rebuilt;
     *root = record.root;
     if (side != NULL)

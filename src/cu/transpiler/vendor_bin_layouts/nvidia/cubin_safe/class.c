@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // class.c: an instruction's class read off the vendor's instruction set for rules 2 and 3: whether the operation the
 // class is named for transfers control or waits, whatever name the machine file's form gives the encoding
-#include "cubin_safe_internal.h"
 #include "../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "cubin_safe_internal.h"
 
 #include "../tables/read.h"
-
 
 int cubin_class_control_or_wait(const struct TablesSetTag *tables, unsigned long long low, unsigned long long high)
 {
@@ -23,12 +23,13 @@ int cubin_class_control_or_wait(const struct TablesSetTag *tables, unsigned long
     while ((length + 1u < sizeof(operation)) && (class_->name[length] != '\0') && (class_->name[length] != '_'))
     {
         // the name's bytes are ASCII characters and digits, which toupper takes as unsigned char
-        operation[length] = (char)mmgr_text_upper((unsigned char)class_->name[length]);
+        operation[length] = (char)EMBED_CALL(ascii.upper, AsciiCfg, .byte = (unsigned char)class_->name[length]);
         length += 1u;
     }
     operation[length] = '\0';
     // an EXIT is the walk's own to read: the one with no guard ends the code, and the others fall through
-    if (mmgr_text_equal(operation, "EXIT", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = operation, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "EXIT",
+                   .ci = EMBED_FALSE))
     {
         return 0;
     }

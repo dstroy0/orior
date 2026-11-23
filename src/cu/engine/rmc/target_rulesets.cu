@@ -2,9 +2,27 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // target_rulesets.cu: rulesets read, loaded and written
 #include "../engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "target_internal.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int target_rulesets_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // the ruleset at `path` read whole into `rules` against its schema: 1 where its first line is krs 1, every entry is
 // valid, and every bank, fixed register and form the code generator names is given with the ruleset's name, toolchain
@@ -92,17 +110,18 @@ static unsigned int ruleset_words(const char *line, size_t length, RulesetCoreSp
 // 1 where the word `word` of `line` is the text `text`
 static int ruleset_word_is(const char *line, RulesetCoreSpan word, const char *text)
 {
-    return (mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR) == word.length) &&
-           (mmgr_bytes_compare(&line[word.first], text, word.length) == 0);
+    return (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR) == word.length) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &line[word.first], .other = text, .bytes = word.length) == 0);
 }
 
 // the place of `needle` in the `length` characters at `text` from `from` on, or `length` where it is not there
 static size_t ruleset_span_find(const char *text, size_t length, const char *needle, size_t from)
 {
-    const size_t needle_length = mmgr_text_length(needle, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t needle_length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = needle, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     for (size_t at = from; (at + needle_length) <= length; at += 1u)
     {
-        if (mmgr_bytes_compare(&text[at], needle, needle_length) == 0)
+        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &text[at], .other = needle, .bytes = needle_length) == 0)
         {
             return at;
         }
@@ -126,7 +145,8 @@ unsigned int ruleset_parameter_place(const Ruleset *rules, const char *form, con
     size_t at = 0u;
     while (at < size)
     {
-        const char *const newline = mmgr_text_char(&bytes[at], '\n', size - at);
+        const char *const newline =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = &bytes[at], .cap = size - at, .byte = '\n');
         // a line ends at or past its start
         const size_t end = (newline != NULL) ? (size_t)(newline - bytes) : size;
         const char *const line = &bytes[at];
@@ -165,9 +185,11 @@ void ruleset_folds_read(Ruleset *rules)
     (void)platform_array_counted(&rules->folds, 0ULL);
     // the .ksc beside the ruleset as the run stores it (ruleset_bytes_read)
     char ksc_path[PLATFORM_PATH_BYTES];
-    const char *const dot = mmgr_text_char_last(rules->path, '.', sizeof(rules->path));
-    const size_t stem =
-        (dot != NULL) ? (size_t)(dot - rules->path) : mmgr_text_length(rules->path, sizeof(rules->path));
+    const char *const dot =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = rules->path, .cap = sizeof(rules->path), .byte = '.');
+    const size_t stem = (dot != NULL)
+                            ? (size_t)(dot - rules->path)
+                            : EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = rules->path, .cap = sizeof(rules->path));
     VerbaLinea path_line = mmgr_line_over(ksc_path, sizeof(ksc_path));
     (void)mmgr_line_put_n(&path_line, rules->path, stem);
     mmgr_line_put(&path_line, ".ksc");
@@ -182,15 +204,18 @@ void ruleset_folds_read(Ruleset *rules)
     const char *const folds = "compile folds ";
     const char *const system = ": the system folds the ";
     const char *const put = " put for ";
-    const size_t folds_length = mmgr_text_length(folds, PLATFORM_TEXT_TO_TERMINATOR);
-    const size_t system_length = mmgr_text_length(system, PLATFORM_TEXT_TO_TERMINATOR);
-    const size_t put_length = mmgr_text_length(put, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t folds_length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = folds, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t system_length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = system, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t put_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = put, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const char *const bytes = platform_text_bytes(&ksc);
     const size_t size = (size_t)platform_text_size(&ksc);
     size_t line_at = 0u;
     while (line_at < size)
     {
-        const char *const newline = mmgr_text_char(&bytes[line_at], '\n', size - line_at);
+        const char *const newline =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = &bytes[line_at], .cap = size - line_at, .byte = '\n');
         // a line ends at or past its start
         const size_t line_end = (newline != NULL) ? (size_t)(newline - bytes) : size;
         const char *const line = &bytes[line_at];
@@ -198,8 +223,9 @@ void ruleset_folds_read(Ruleset *rules)
         line_at = line_end + 1u;
         const size_t colon = ruleset_span_find(line, length, system, 0u);
         const size_t type_end = (colon < length) ? ruleset_span_find(line, length, put, colon + system_length) : length;
-        if ((length < folds_length) || (mmgr_bytes_compare(line, folds, folds_length) != 0) || (colon == length) ||
-            (type_end == length))
+        if ((length < folds_length) ||
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = line, .other = folds, .bytes = folds_length) != 0) ||
+            (colon == length) || (type_end == length))
         {
             continue;
         }
@@ -213,7 +239,7 @@ void ruleset_folds_read(Ruleset *rules)
                                                                          &line[head[3].first], head[3].length)
                                                      : schema->form_count;
         RulesetFold fold;
-        mmgr_bytes_set(&fold, 0, sizeof(fold));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &fold, .bytes = sizeof(fold), .val = 0);
         char role_name[RULESET_SCRATCH_NAME_BYTES];
         const int named = (form != schema->form_count) && (role_count == 1u) &&
                           ruleset_span_copied(&line[type_end + put_length + role[0].first], role[0].length, role_name,
@@ -254,8 +280,8 @@ static const Ruleset *ruleset_load(Ruleset *rules, const RulesetSchema *schema, 
     (void)mmgr_line_finish(&path_line);
     rules->ready = ruleset_read(rules, path);
     if ((rules->ready != 0) && (schema->toolchain != NULL) &&
-        ((mmgr_text_order(rules->toolchain, schema->toolchain, PLATFORM_TEXT_TO_TERMINATOR) != 0) ||
-         (mmgr_text_order(rules->header, schema->header, PLATFORM_TEXT_TO_TERMINATOR) != 0)))
+        ((target_rulesets_text_order(rules->toolchain, schema->toolchain, PLATFORM_TEXT_TO_TERMINATOR) != 0) ||
+         (target_rulesets_text_order(rules->header, schema->header, PLATFORM_TEXT_TO_TERMINATOR) != 0)))
     {
         rules->ready = 0;
         VerbaLinea error = mmgr_line_over(rules->error, sizeof(rules->error));
@@ -356,7 +382,7 @@ static const char *ruleset_scratch_taken(PlatformArray *taken, unsigned int key,
         }
     }
     RulesetScratchTaken made;
-    mmgr_bytes_set(&made, 0, sizeof(made));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &made, .bytes = sizeof(made), .val = 0);
     made.key = key;
     made.number = number;
     VerbaLinea name = mmgr_line_over(made.name, sizeof(made.name));

@@ -2,10 +2,28 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schedule.c: the schedule: what is waited on, the same operation, what is behind later or earlier, an instruction
 // followed, the container read, the stalls, the operations by count, and the record written
-#include "scheduler_internal.h"
 #include "../../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "scheduler_internal.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int schedule_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // 1 where an instruction of the section from `first` to `last` waits on barrier `barrier`
 static int scheduler_waited(unsigned int barrier, unsigned int first, unsigned int last)
@@ -25,9 +43,11 @@ static int scheduler_same_operation(unsigned int one, unsigned int two)
 {
     const char *const left = s_operation[one].name;
     const char *const right = s_operation[two].name;
-    const size_t length = mmgr_text_span_not(left, ".", PLATFORM_TEXT_TO_TERMINATOR);
-    return (length == mmgr_text_span_not(right, ".", PLATFORM_TEXT_TO_TERMINATOR)) &&
-           (mmgr_text_order(left, right, (size_t)(length)) == 0);
+    const size_t length =
+        EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = left, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".");
+    return (length == EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = right, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                 .other = ".")) &&
+           (schedule_text_order(left, right, (size_t)(length)) == 0);
 }
 
 // 1 where an instruction after `writer` and before `reader`, of the writer's operation, sets a write barrier that an
@@ -134,10 +154,10 @@ static void scheduler_follow(unsigned int count)
 // reads
 int scheduler_cubin(unsigned long long size)
 {
-    if ((size < 0x40ULL) || (mmgr_bytes_compare(s_cubin,
-                                                "\x7f"
-                                                "ELF",
-                                                4u) != 0))
+    if ((size < 0x40ULL) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = s_cubin,
+                                        .other = "\x7f"
+                                                 "ELF",
+                                        .bytes = 4u) != 0))
     {
         return 0;
     }
@@ -157,7 +177,8 @@ int scheduler_cubin(unsigned long long size)
         const unsigned long long offset = scheduler_word(&header[0x18], 8u);
         const unsigned long long length = scheduler_word(&header[0x20], 8u);
         if ((label >= size) ||
-            (!mmgr_text_starts((const char *)&s_cubin[label], ".text.", PLATFORM_TEXT_TO_TERMINATOR)) ||
+            (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = (const char *)&s_cubin[label],
+                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".text.", .ci = EMBED_FALSE)) ||
             ((offset + length) > size))
         {
             continue;
@@ -207,7 +228,8 @@ static int scheduler_by_count(const void *left, const void *right)
     const SchedulerOperation *const two = (const SchedulerOperation *)right;
     return (one->count < two->count)
                ? 1
-               : ((one->count > two->count) ? -1 : mmgr_text_order(one->name, two->name, PLATFORM_TEXT_TO_TERMINATOR));
+               : ((one->count > two->count) ? -1
+                                            : schedule_text_order(one->name, two->name, PLATFORM_TEXT_TO_TERMINATOR));
 }
 
 // the record: every operation by how often NVIDIA wrote it, and the readings gathered from them
@@ -223,7 +245,8 @@ int scheduler_record(const char *path)
         void *const sort_room =
             platform_cell_taken((unsigned long long)(s_operations) * (unsigned long long)(sizeof(s_operation[0])),
                                 platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(s_operation, s_operations, sizeof(s_operation[0]), scheduler_by_count, sort_room);
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = s_operation, .bytes = sizeof(s_operation[0]),
+                         .scratch = sort_room, .count = s_operations, .order = scheduler_by_count);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     {

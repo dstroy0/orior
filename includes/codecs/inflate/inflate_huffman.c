@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // inflate_huffman.c: the bit reader and Huffman tables
 #include "inflate_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 static const unsigned short inflate_length_base[29u] = {3u,  4u,  5u,  6u,   7u,   8u,   9u,   10u,  11u, 13u,
                                                         15u, 17u, 19u, 23u,  27u,  31u,  35u,  43u,  51u, 59u,
@@ -57,7 +57,7 @@ void inflate_align(InflateStream *stream)
 
 int inflate_build(InflateHuffman *huffman, const unsigned char *lengths, unsigned int count, int single_permitted)
 {
-    mmgr_bytes_set(huffman, 0u, sizeof(*huffman));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = huffman, .bytes = sizeof(*huffman), .val = 0u);
     unsigned int used = 0u;
     for (unsigned int symbol = 0u; symbol < count; symbol += 1u)
     {
@@ -210,7 +210,7 @@ int inflate_codes(InflateStream *stream, const InflateHuffman *literals, const I
         const unsigned char *const source = target - distance;
         if (distance >= length)
         {
-            mmgr_bytes_copy(target, source, (size_t)length);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = target, .src = source, .bytes = (size_t)length);
         }
         else
         {

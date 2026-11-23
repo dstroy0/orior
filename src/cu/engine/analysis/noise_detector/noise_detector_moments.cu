@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_moments.cu: moments and cumulants
-#include "noise_detector_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "noise_detector_internal.h"
 
 // A sample's quiet static voxels, each one's frames in blocks of NOISE_MOMENT_BLOCK: a block's values less their mean
 // rounded to the nearest, raised to the powers 1 to 4 and summed, then binned by that mean. The fixed pattern leaves
@@ -29,7 +29,8 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
     {
         return NOISE_DETECTOR_ERROR;
     }
-    mmgr_bytes_set(cells, 0, (size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = cells, .bytes = (size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell),
+               .val = 0);
     *sampled = 0ULL;
     *left_out = 0ULL;
     unsigned char *const mask = (unsigned char *)platform_cell_taken((size_t)voxels, platform_place_g_program_owner, 0);
@@ -357,7 +358,7 @@ extern "C" long noise_moments_volume(const unsigned short *volume, const unsigne
              (noise_moments_sample(volume, extent, cells, &ceiling, &sampled, &left_out, error) == 0L);
     // every bin pooled: each pooled sum is a sum over the sample's blocks, which the pass's bound already enforces
     NoiseMomentCell pooled;
-    mmgr_bytes_set(&pooled, 0, sizeof(pooled));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &pooled, .bytes = sizeof(pooled), .val = 0);
     for (unsigned int level_bin = 0u; ok && (level_bin < NOISE_LEVEL_BINS); level_bin += 1u)
     {
         const NoiseMomentCell *const cell = &cells[level_bin];

@@ -36,9 +36,12 @@ size_t probe_header(int major, int minor, char *header, size_t room)
             const char *const wanted[] = {".version ", ".target ", ".address_size "};
             for (unsigned int at = 0u; at < 3u; at += 1u)
             {
-                const char *const found = mmgr_text_find(ptx, wanted[at], PLATFORM_TEXT_TO_TERMINATOR);
-                const char *const end =
-                    (found != NULL) ? mmgr_text_char(found, '\n', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+                const char *const found =
+                    EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = ptx, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = wanted[at], .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+                const char *const end = (found != NULL) ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = found,
+                                                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\n')
+                                                        : NULL;
                 if (end != NULL)
                 {
                     // a line ends past its start
@@ -705,7 +708,8 @@ int probe_cubin_run(const char *path, int count, char **arguments)
     for (int word = 0; (word < (count - 3)) && (word < (int)PROBE_IN_WORDS); word += 1)
     {
         // a word the caller gives in hex, which fits an unsigned int
-        in[word] = (unsigned int)mmgr_text_unsigned_in(arguments[3 + word], NULL, 16);
+        in[word] = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = arguments[3 + word], .end = NULL,
+                                            .base = 16);
     }
     unsigned int out[PROBE_OUT_WORDS] = {0u, 0u, 0u, 0u};
     const cudaError_t status = probe_run(kernel, in, out, 1u);
@@ -720,7 +724,9 @@ int probe_cubin_run(const char *path, int count, char **arguments)
     char repeats_text[PLATFORM_ENVIRONMENT_BYTES];
     const char *const repeats =
         (platform_environment("PROBE_REPEATS", repeats_text, sizeof(repeats_text)) != 0ULL) ? repeats_text : NULL;
-    const unsigned long runs = (repeats != NULL) ? mmgr_text_unsigned_in(repeats, NULL, 10) : 0UL;
+    const unsigned long runs =
+        (repeats != NULL) ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = repeats, .end = NULL, .base = 10)
+                          : 0UL;
     if (runs != 0UL)
     {
         const unsigned long long opened = platform_clock_ns();

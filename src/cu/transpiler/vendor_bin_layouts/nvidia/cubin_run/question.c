@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // question.c: the question: the safety word positioned on the code, a refusal's cause received and reported, the fault
 // recorded, the account given, one question carried, and the verdict loaded
-#include "cubin_run_internal.h"
 #include "../../../../engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "cubin_run_internal.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_linea.h"
 
 // a part of a driver's error name and the cause a conference reads it as (overseer.h)
@@ -96,7 +96,9 @@ static const char *cubin_run_cause_named(const char *name)
 {
     for (size_t at = 0u; (name != NULL) && (at < (sizeof(s_cause_names) / sizeof(s_cause_names[0]))); at += 1u)
     {
-        if (mmgr_text_find(name, s_cause_names[at].part, PLATFORM_TEXT_TO_TERMINATOR) != NULL)
+        if (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = s_cause_names[at].part, .other_cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .ci = EMBED_FALSE) != NULL)
         {
             return s_cause_names[at].cause;
         }
@@ -119,7 +121,9 @@ static const char *cubin_run_listener_cause(void)
     {
         for (unsigned int place = 0u; (place < s_xid_count) && (place < CUBIN_RUN_XID_MAX); place += 1u)
         {
-            if (mmgr_text_find(s_xid_text[place], s_driver_messages[message], PLATFORM_TEXT_TO_TERMINATOR) != NULL)
+            if (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = s_xid_text[place], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = s_driver_messages[message], .other_cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .ci = EMBED_FALSE) != NULL)
             {
                 return s_driver_causes[message];
             }
@@ -172,7 +176,8 @@ static void cubin_run_faulted_stored(unsigned long long low, unsigned long long 
         mmgr_line_put(&buffer_line, "\n");
         (void)mmgr_line_finish(&buffer_line);
     }
-    cubin_safe_verdict_added(line, mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR));
+    cubin_safe_verdict_added(line,
+                             EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR));
 }
 
 // The account `call` contains written in the answer `answers` too, and passed as a panic of the call where `panicked`
@@ -342,7 +347,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     const unsigned long long gate_began = cubin_run_host_now();
     cubin_run_safe_word(s_code, code_size, probe_place);
     CubinWrite written;
-    mmgr_bytes_set(&written, 0, sizeof(written));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &written, .bytes = sizeof(written), .val = 0);
     written.pattern = s_pattern;
     written.pattern_size = pattern_size;
     written.kernel = kernel;
@@ -402,7 +407,7 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     // the verdict is loaded (cubin_safe_verdict_gated): the gate blocks the whole code, not the probe alone
     if (!s_driver_opened)
     {
-        mmgr_bytes_set(&s_driver, 0, sizeof(s_driver));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_driver, .bytes = sizeof(s_driver), .val = 0);
         if (!cubin_run_driver(&s_driver))
         {
             {

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record.c: the record: a question's identity, the record's answer to it, a question stored in the record, the
 // registers past, the record written, a line of the list, and the round passed
-#include "run_channel_internal.h"
 #include "../../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "run_channel_internal.h"
 
 // a question's identity as R stores it: the hash of its code, its registers, its shape and launches, its count of
 // cases and the hash of its cases, into `identity`
@@ -91,8 +91,9 @@ void run_channel_stored(const RunQuestion *question)
         answer = KQR_CENSORED;
         break;
     case RUN_NOTHING:
-        answer = (mmgr_text_find(question->refused, interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME),
-                                 PLATFORM_TEXT_TO_TERMINATOR) != NULL)
+        answer = (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = question->refused, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME),
+                             .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL)
                      ? KQR_TIMED_OUT
                      : KQR_NOTHING;
         break;
@@ -107,7 +108,7 @@ void run_channel_stored(const RunQuestion *question)
     run_channel_identity(question, &identity);
     if (question->launches != 0u)
     {
-        mmgr_bytes_set(&s_sample, 0, sizeof(s_sample));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_sample, .bytes = sizeof(s_sample), .val = 0);
         s_sample.identity = identity;
         s_sample.answer = answer;
         s_sample.nanoseconds = question->nanoseconds;
@@ -120,7 +121,7 @@ void run_channel_stored(const RunQuestion *question)
         kqr_sample(&s_record, &s_sample);
         return;
     }
-    mmgr_bytes_set(&s_stored, 0, sizeof(s_stored));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_stored, .bytes = sizeof(s_stored), .val = 0);
     s_stored.identity = identity;
     s_stored.answer = answer;
     VerbaLinea refusal = {s_stored.refusal, sizeof(s_stored.refusal), 0ULL};
@@ -144,9 +145,11 @@ int run_channel_registers_past(const char *ksc)
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
         if (ksc_row_read(s_file.line[line], "run", &s_row) &&
-            (mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)) &&
-            (mmgr_text_starts(s_row.question, "register past", PLATFORM_TEXT_TO_TERMINATOR)) && (s_row.value != 0ULL) &&
-            (s_row.value < RUN_REGISTERS_UNANSWERED))
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.answer, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "answers", .ci = EMBED_FALSE)) &&
+            (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = s_row.question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "register past", .ci = EMBED_FALSE)) &&
+            (s_row.value != 0ULL) && (s_row.value < RUN_REGISTERS_UNANSWERED))
         {
             // a count below the mark of no answer is one an unsigned int represents
             s_registers_past = (unsigned int)s_row.value;
@@ -187,11 +190,13 @@ void run_channel_list_line(unsigned int place, char *line)
     size_t at = 0u;
     for (unsigned int seen = 0u; (seen < place) && (at < s_channel.list_size); seen += 1u)
     {
-        const char *const end = (const char *)mmgr_bytes_find(s_channel_list + at, '\n', s_channel.list_size - at);
+        const char *const end = (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = s_channel_list + at,
+                                                         .bytes = s_channel.list_size - at, .val = '\n');
         at = (end != NULL) ? ((size_t)(end - s_channel_list) + 1u) : s_channel.list_size;
     }
     const char *const end = (at < s_channel.list_size)
-                                ? (const char *)mmgr_bytes_find(s_channel_list + at, '\n', s_channel.list_size - at)
+                                ? (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = s_channel_list + at,
+                                                           .bytes = s_channel.list_size - at, .val = '\n')
                                 : NULL;
     size_t length = (at >= s_channel.list_size) ? 0u
                     : (end != NULL)             ? ((size_t)(end - (s_channel_list + at)) + 1u)
@@ -199,7 +204,7 @@ void run_channel_list_line(unsigned int place, char *line)
     length = (length < (RUN_LINE_MAX_LEN - 1u)) ? length : (RUN_LINE_MAX_LEN - 1u);
     if (length != 0u)
     {
-        mmgr_bytes_copy(line, s_channel_list + at, length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = line, .src = s_channel_list + at, .bytes = length);
     }
     line[length] = '\0';
 }

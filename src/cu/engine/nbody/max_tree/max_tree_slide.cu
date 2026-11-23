@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_slide.cu: the sliding search
-#include "max_tree_device_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "max_tree_device_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 __global__ static void max_tree_slide_gather_kernel(const unsigned int *probe_voxels, unsigned int probes,
                                                     const unsigned char *ranges, const unsigned int *label,
@@ -87,7 +87,8 @@ static int max_tree_slide_search(MaxTreeSlide *slide, unsigned int low, unsigned
                                  const unsigned int *high_partition)
 {
     EngineError *const error = slide->error;
-    if (mmgr_bytes_compare(low_partition, high_partition, (size_t)slide->probes * sizeof(unsigned int)) == 0)
+    if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = low_partition, .other = high_partition,
+                   .bytes = (size_t)slide->probes * sizeof(unsigned int)) == 0)
     {
         return 1;
     }
@@ -101,8 +102,8 @@ static int max_tree_slide_search(MaxTreeSlide *slide, unsigned int low, unsigned
         slide->steps[slide->step_count] = *low_step;
         if (slide->partitions != NULL)
         {
-            mmgr_bytes_copy(&slide->partitions[(size_t)slide->step_count * slide->probes], low_partition,
-                            (size_t)slide->probes * sizeof(unsigned int));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &slide->partitions[(size_t)slide->step_count * slide->probes],
+                       .src = low_partition, .bytes = (size_t)slide->probes * sizeof(unsigned int));
         }
         slide->step_count += 1u;
         return 1;
@@ -144,7 +145,7 @@ extern "C" long max_tree_slide(const MaxTreeSlideRequest *request)
         return MAX_TREE_ERROR;
     }
     MaxTreeSlide slide;
-    mmgr_bytes_set(&slide, 0, sizeof(slide));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &slide, .bytes = sizeof(slide), .val = 0);
     slide.depth = resident->last_depth;
     slide.height = resident->last_height;
     slide.width = resident->last_width;

@@ -94,12 +94,12 @@
 // The carrier reaches the driver by name and by its own entry points, and compiles nothing against the toolchain of its
 // vendor. Exit 0 where a line went out. Exit 2 where no writer of the run runs, or where the inputs, the machine or the
 // driver were out of reach.
-#include "cubin_run/cubin_run_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "../../../../../includes/parsers/line_read.h"
 #include "../../../../platform/platform.h"
 #include "../../../engine/engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "../../../../../includes/parsers/line_read.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "cubin_run/cubin_run_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 int program_main(int count, char **words)
 {
@@ -121,7 +121,8 @@ int program_main(int count, char **words)
         return 2;
     }
     // `--dry` before the machine file runs every question as ever up to the driver, and none past it
-    if ((count >= 2) && (mmgr_text_equal(words[1], "--dry", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count >= 2) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "--dry", .ci = EMBED_FALSE)))
     {
         s_dry = 1;
         words[1] = words[0];
@@ -132,10 +133,14 @@ int program_main(int count, char **words)
     // pops them all. A dry run with no facet pops out the diff from its first question, as ever. The flag --gated
     // <file> takes the feedback of the vendor, the encodings that its disassembler blocked. On a live run, the carrier
     // blocks a probe instruction that matches one before it reaches the part
-    while ((count >= 2) && (mmgr_text_starts(words[1], "--", PLATFORM_TEXT_TO_TERMINATOR)) &&
-           (!mmgr_text_equal(words[1], "--list", PLATFORM_TEXT_TO_TERMINATOR)))
+    while ((count >= 2) &&
+           (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--", .ci = EMBED_FALSE)) &&
+           (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "--list", .ci = EMBED_FALSE)))
     {
-        if (mmgr_text_equal(words[1], "--gated", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--gated", .ci = EMBED_FALSE))
         {
             if ((count < 3) || !cubin_run_verdict_load(words[2]))
             {
@@ -157,7 +162,8 @@ int program_main(int count, char **words)
         }
         // --lessons <file> takes the lessons that a conference taught, the blob of them in the run. Every encoding that
         // a lesson admits goes past rule 3 (cubin_safe_admitted_read). A run with no such blob admits none
-        if (mmgr_text_equal(words[1], "--lessons", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--lessons", .ci = EMBED_FALSE))
         {
             const unsigned char *lessons = NULL;
             unsigned long long lessons_size = 0ULL;
@@ -191,19 +197,23 @@ int program_main(int count, char **words)
             count -= 2;
             continue;
         }
-        if (mmgr_text_equal(words[1], "--full", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--full", .ci = EMBED_FALSE))
         {
             s_facets = CUBIN_FACET_QUERY | CUBIN_FACET_GATE | CUBIN_FACET_VENDOR;
         }
-        else if (mmgr_text_equal(words[1], "--query", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--query", .ci = EMBED_FALSE))
         {
             s_facets |= CUBIN_FACET_QUERY;
         }
-        else if (mmgr_text_equal(words[1], "--gate-check", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--gate-check", .ci = EMBED_FALSE))
         {
             s_facets |= CUBIN_FACET_GATE;
         }
-        else if (mmgr_text_equal(words[1], "--diff-output-against-vendor", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--diff-output-against-vendor", .ci = EMBED_FALSE))
         {
             s_facets |= CUBIN_FACET_VENDOR;
         }
@@ -215,7 +225,9 @@ int program_main(int count, char **words)
         words += 1;
         count -= 1;
     }
-    const int listed = (count == 5) && (mmgr_text_equal(words[3], "--list", PLATFORM_TEXT_TO_TERMINATOR));
+    const int listed =
+        (count == 5) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[3], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "--list", .ci = EMBED_FALSE));
     if (!listed && (count != 8) && (count != 9) && (count != 11))
     {
         {
@@ -254,14 +266,21 @@ int program_main(int count, char **words)
     const CubinRunShape unshaped = {CUBIN_RUN_THREADS, 1u};
     if (!listed)
     {
-        const unsigned int place = (unsigned int)mmgr_text_unsigned_in(words[7], NULL, 10);
-        const unsigned int launches = (count >= 9) ? (unsigned int)mmgr_text_unsigned_in(words[8], NULL, 10) : 0u;
-        const CubinRunShape shape = {(count == 11) ? (unsigned int)mmgr_text_unsigned_in(words[9], NULL, 10)
+        const unsigned int place =
+            (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = words[7], .end = NULL, .base = 10);
+        const unsigned int launches = (count >= 9) ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                                                              .src = words[8], .end = NULL, .base = 10)
+                                                   : 0u;
+        const CubinRunShape shape = {(count == 11) ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                                                              .src = words[9], .end = NULL, .base = 10)
                                                    : CUBIN_RUN_THREADS,
-                                     (count == 11) ? (unsigned int)mmgr_text_unsigned_in(words[10], NULL, 10) : 1u};
-        const int carried =
-            cubin_run_question(kernel, pattern_size, words[3], (unsigned int)mmgr_text_unsigned_in(words[4], NULL, 10),
-                               words[5], words[6], place, launches, (count == 11) ? shape : unshaped, count == 11);
+                                     (count == 11) ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                                                              .src = words[10], .end = NULL, .base = 10)
+                                                   : 1u};
+        const int carried = cubin_run_question(
+            kernel, pattern_size, words[3],
+            (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = words[4], .end = NULL, .base = 10),
+            words[5], words[6], place, launches, (count == 11) ? shape : unshaped, count == 11);
         return (carried == 2) ? 2 : 0;
     }
     // Each line of the list is one question of no shape of its own:

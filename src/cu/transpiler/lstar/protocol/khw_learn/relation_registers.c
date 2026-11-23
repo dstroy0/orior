@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // relation_registers.c: the relation: the fields queried
-#include "khw_learn_internal.h"
 #include "../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "khw_learn_internal.h"
 
 // KHW_SETTINGS: the count, 0 where the stage queries the run nothing. A ladder form's runs take the two registers the
 // kernel leaves the case's words in, in the first stage alone. A frame form's runs take first the index's and the
@@ -34,7 +34,8 @@ unsigned int khw_run_settings(const KhwAnswered *form, unsigned int stage, unsig
     unsigned int first = 0u;
     unsigned int bits = 0u;
     const int immediate = khw_field_covering(form->first[run], form->last[run], field, sizeof(field), &first, &bits) &&
-                          (mmgr_text_equal(field, "immediate", PLATFORM_TEXT_TO_TERMINATOR));
+                          (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = field, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                      .other = "immediate", .ci = EMBED_FALSE));
     settings[0] = KHW_FIRST_REGISTER;
     settings[1] = immediate ? KHW_OFFSET_WORD : KHW_SECOND_REGISTER;
     return 2u;

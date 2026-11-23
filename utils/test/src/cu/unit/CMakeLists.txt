@@ -1,8 +1,8 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
-# Every source's thin wrapper built by nvcc, one object library a wrapper named wrap_<source>, with the include path and settings
-# src/build_engine.sh uses for the engine's sources. harness.py cu build configures and builds this.
+# Every source's thin wrapper built by nvcc, one object library a wrapper named wrap_<source>. Each takes the include path and
+# settings src/build_engine.sh uses for the engine's sources. `harness.py cu build` configures and builds this.
 
 cmake_minimum_required(VERSION 3.18)
 
@@ -27,8 +27,8 @@ if(NOT CMAKE_CUDA_COMPILER AND NOT WIN32)
 endif()
 project(orior_cu_unit LANGUAGES C CXX CUDA)
 
-# C++17, as the sources build, and on Windows C++20: nvcc's MSVC front end accepts the designated initializers of MMgr's headers from C++20,
-# where GCC accepts them as an extension
+# C++17, as the sources build, and on Windows C++20. The MSVC front end of nvcc accepts the designated initializers of MMgr's
+# headers from C++20, where GCC accepts them as an extension
 if(WIN32)
     set(CMAKE_CUDA_STANDARD 20)
 else()
@@ -39,8 +39,8 @@ if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
     set(CMAKE_CUDA_ARCHITECTURES native)
 endif()
 
-# Every folder under src/cu and includes with a header, but MMgr's and embedded_types', which have a library's own layout and are
-# reached from their include and src folders; the top of the tree, which a wrapper names its source from
+# Every folder under src/cu and includes with a header, but MMgr's and embedded_types', which have a library's own layout. A
+# source reaches those two from their include and src folders. Then the top of the tree, which a wrapper names its source from
 file(GLOB_RECURSE ORIOR_CU_HEADERS "${ORIOR_CU}/*.h" "${ORIOR_CU}/*.cuh" "${ORIOR_CU}/*.hpp"
      "${ORIOR_INCLUDES}/*.h" "${ORIOR_INCLUDES}/*.cuh" "${ORIOR_INCLUDES}/*.hpp")
 set(ORIOR_CU_INCLUDES "${ORIOR_ROOT}" "${ORIOR_CU}" "${ORIOR_INCLUDES}")
@@ -72,8 +72,8 @@ foreach(wrapper ${ORIOR_CU_WRAPPERS})
     target_compile_options(wrap_${name} PRIVATE ${ORIOR_CU_OPTIONS})
 endforeach()
 
-# Unity from the clone harness.py makes under build/unity, built as C with C11's noreturn; a suite compiled as C++ uses the noreturn
-# form Unity's header chooses for C++
+# Unity from the clone harness.py makes under build/unity, built as C with C11's noreturn. A suite compiled as C++ uses the
+# noreturn form Unity's header chooses for C++
 set(ORIOR_UNITY "${ORIOR_ROOT}/build/unity/src")
 add_library(cu_unity STATIC "${ORIOR_UNITY}/unity.c")
 target_include_directories(cu_unity PUBLIC "${ORIOR_UNITY}")
@@ -81,16 +81,18 @@ target_compile_definitions(cu_unity PUBLIC UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(cu_unity PRIVATE UNITY_NORETURN=_Noreturn)
 set_property(TARGET cu_unity PROPERTY C_STANDARD 11)
 
-# MMgr's byte calls and the lanes under them, one static library with the suites' defines. A suite links only the
-# objects of the MMgr calls that its source makes
-file(GLOB ORIOR_CU_MMGR CONFIGURE_DEPENDS "${ORIOR_INCLUDES}/mmgr/src/memoria_operor/*.c" "${ORIOR_INCLUDES}/mmgr/src/proximus_operor/*.c"
-     "${ORIOR_INCLUDES}/mmgr/src/verbum_scrutor/*.c")
-add_library(cu_mmgr STATIC ${ORIOR_CU_MMGR})
-target_include_directories(cu_mmgr PRIVATE ${ORIOR_CU_INCLUDES})
-target_compile_definitions(cu_mmgr PRIVATE ${ORIOR_CU_DEFINES})
-set_property(TARGET cu_mmgr PROPERTY C_STANDARD 11)
+# MMgr's modules, which a source reaches through their tables, from MMgr's own build in includes/mmgr. That build matches
+# what src/cu configures, with the suites' settings of MMgr
+set(MMGR_BUILD_TESTS OFF)
+set(MMGR_LTO OFF)
+set(FETCHCONTENT_SOURCE_DIR_EMBEDDED_TYPES "${ORIOR_INCLUDES}/embedded_types")
+set(ORIOR_CU_MMGR_DEFINES ${ORIOR_CU_DEFINES})
+list(FILTER ORIOR_CU_MMGR_DEFINES INCLUDE REGEX "^MMGR_")
+add_compile_definitions(${ORIOR_CU_MMGR_DEFINES})
+add_subdirectory("${ORIOR_INCLUDES}/mmgr" includes/mmgr)
+get_property(ORIOR_CU_MMGR_MODULES GLOBAL PROPERTY MMGR_TARGETS_host)
 
-# A suite is a folder test_<source> holding test_<source>.cu, which includes the source's wrapper, and the generated unity_runner.cu
+# A suite is a folder test_<source> that holds test_<source>.cu, which includes the source's wrapper, and the generated unity_runner.cu
 file(GLOB_RECURSE ORIOR_CU_SUITES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/test_*.cu" "${ORIOR_INCLUDES_UNIT}/test_*.cu")
 foreach(suite ${ORIOR_CU_SUITES})
     get_filename_component(name "${suite}" NAME_WE)
@@ -99,6 +101,6 @@ foreach(suite ${ORIOR_CU_SUITES})
     target_include_directories(${name} PRIVATE ${ORIOR_CU_INCLUDES} "${CMAKE_CURRENT_SOURCE_DIR}" "${ORIOR_INCLUDES_UNIT}")
     target_compile_definitions(${name} PRIVATE ${ORIOR_CU_DEFINES})
     target_compile_options(${name} PRIVATE ${ORIOR_CU_OPTIONS})
-    target_link_libraries(${name} PRIVATE cu_unity cu_mmgr)
+    target_link_libraries(${name} PRIVATE cu_unity ${ORIOR_CU_MMGR_MODULES})
     set_target_properties(${name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/suites")
 endforeach()

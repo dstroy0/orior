@@ -4,10 +4,10 @@
 // a path
 #include "../../../../src/cu/engine/rmc/precept_value.h"
 #include "../../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../parsers/line_read.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "krs_write_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the parameters the ruleset at `path` names `name` with on its line `form`, `construct`, `nop` or `err`, into
 // `parameter`. The count, 0 where it names none of them
@@ -35,17 +35,22 @@ unsigned int krs_parameters_named(const char *path, const char *name, char param
         int naming = 0;
         for (unsigned int each = 0u; each < (sizeof(s_naming) / sizeof(s_naming[0])); each += 1u)
         {
-            naming = naming || (mmgr_text_equal(type, s_naming[each], PLATFORM_TEXT_TO_TERMINATOR));
+            naming = naming || (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                           .other = s_naming[each], .ci = EMBED_FALSE));
         }
-        if (!naming || (!mmgr_text_equal(named, name, PLATFORM_TEXT_TO_TERMINATOR)))
+        if (!naming || (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = named, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = name, .ci = EMBED_FALSE)))
         {
             continue;
         }
         char word[KRS_NAME];
         while ((count < KRS_PARAMETERS) && line_word(&rest, word, sizeof(word)) &&
-               (!mmgr_text_equal(word, "=", PLATFORM_TEXT_TO_TERMINATOR)))
+               (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "=",
+                            .ci = EMBED_FALSE)))
         {
-            mmgr_bytes_copy(parameter[count], word, mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+            EMBED_CALL(
+                memor.cpy, MemoriaCfg, .dst = parameter[count], .src = word,
+                .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
             count += 1u;
         }
     }
@@ -68,7 +73,7 @@ static int krs_word_answers(const Word *word, unsigned int anchor, int signed_re
         }
         answer = (signed_read != 0) ? ladder_signed_answer(anchor, ladder_case->word) : answer;
         PreceptCase given;
-        mmgr_bytes_set(&given, 0, sizeof(given));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &given, .bytes = sizeof(given), .val = 0);
         given.operands = word->reads;
         for (unsigned int leaf = 0u; leaf < word->reads; leaf += 1u)
         {
@@ -141,7 +146,9 @@ int krs_text_named(const KrsForm *form, const unsigned int *order, char paramete
                 named = (order[leaf] == place) ? (leaf + 1u) : named;
             }
             if ((named >= parameters) ||
-                ((at + mmgr_text_length(parameter[named], PLATFORM_TEXT_TO_TERMINATOR) + 3u) >= room))
+                ((at +
+                  EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = parameter[named], .cap = PLATFORM_TEXT_TO_TERMINATOR) +
+                  3u) >= room))
             {
                 return 0;
             }
@@ -170,8 +177,10 @@ int krs_text_named(const KrsForm *form, const unsigned int *order, char paramete
 // the folder `path` lies in, into `folder`, which has room for `room`: "." where it names none
 void krs_folder_of(const char *path, char *folder, size_t room)
 {
-    const char *const slash = mmgr_text_char_last(path, '/', PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const back = mmgr_text_char_last(path, '\\', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const slash =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+    const char *const back =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
     const char *const last = ((slash != NULL) && ((back == NULL) || (slash > back))) ? slash : back;
     if (last == NULL)
     {

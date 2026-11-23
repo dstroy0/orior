@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // write.c: the writings written to the part and read back: each relation's forms written and answered, the answers
 // read, the writings loaded and read
-#include "writings_internal.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../../../platform/platform.h"
 #include "../../../../../engine/engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "writings_internal.h"
 
 // every fitting form written into a cubin of its own, with the list, the cases and the forms beside them: 0, or 2
 // where nothing could be read or written
@@ -186,13 +186,15 @@ void writings_answers_read(PlatformFile *answers, unsigned int count, unsigned i
     while (platform_file_text_read(line, sizeof(line), answers) != NULL)
     {
         const char *walk = NULL;
-        const unsigned long number = mmgr_text_unsigned_in(line, &walk, 10);
+        const unsigned long number =
+            EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = line, .end = &walk, .base = 10);
         if ((walk == line) || (number >= count))
         {
             continue;
         }
-        walk += mmgr_text_span(walk, " ", PLATFORM_TEXT_TO_TERMINATOR);
-        if (!mmgr_text_starts(walk, "answered", PLATFORM_TEXT_TO_TERMINATOR))
+        walk += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = walk, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
+        if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = walk, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "answered", .ci = EMBED_FALSE))
         {
             *refused += 1u;
             continue;
@@ -202,7 +204,8 @@ void writings_answers_read(PlatformFile *answers, unsigned int count, unsigned i
         while ((read < s_cases) && (*walk != '\0'))
         {
             const char *next = NULL;
-            answered[number][read] = (unsigned int)mmgr_text_unsigned_in(walk, &next, 16);
+            answered[number][read] =
+                (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = walk, .end = &next, .base = 16);
             if (next == walk)
             {
                 break;
@@ -261,13 +264,15 @@ int writings_load(const char *folder)
     s_form_count = 0u;
     while ((s_form_count < WRITINGS_FORMS_MAX) && (platform_file_text_read(line, sizeof(line), forms) != NULL))
     {
-        const char *const tab = mmgr_text_char(line, '\t', PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const tab =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
         if (tab != NULL)
         {
             {
                 VerbaLinea buffer_line = mmgr_line_over(s_forms[s_form_count], sizeof(s_forms[0]));
                 mmgr_line_put_max(&buffer_line, tab + 1,
-                                  (size_t)((int)mmgr_text_span_not(tab + 1, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)));
+                                  (size_t)((int)EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = tab + 1,
+                                                           .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\r\n")));
                 (void)mmgr_line_finish(&buffer_line);
             }
             s_form_count += 1u;

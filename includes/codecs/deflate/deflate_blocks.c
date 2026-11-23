@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // deflate_blocks.c: runs, trees and writing the blocks
-#include "deflate_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "deflate_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 static const unsigned char deflate_length_extra[DEFLATE_LENGTH_CODES] = {
     0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 1u, 1u, 1u, 1u, 2u, 2u, 2u, 2u, 3u, 3u, 3u, 3u, 4u, 4u, 4u, 4u, 5u, 5u, 5u, 5u, 0u};
@@ -28,8 +28,9 @@ static void deflate_runs(DeflateTrees *trees)
 {
     const unsigned int total = trees->literal_count + trees->distance_count;
     unsigned char joined[DEFLATE_LITERAL_CODES + DEFLATE_DISTANCE_CODES];
-    mmgr_bytes_copy(joined, trees->lengths, trees->literal_count);
-    mmgr_bytes_copy(joined + trees->literal_count, trees->lengths + DEFLATE_LITERAL_CODES, trees->distance_count);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = joined, .src = trees->lengths, .bytes = trees->literal_count);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = joined + trees->literal_count,
+               .src = trees->lengths + DEFLATE_LITERAL_CODES, .bytes = trees->distance_count);
     trees->run_count = 0u;
     unsigned int at = 0u;
     while (at < total)
@@ -85,9 +86,9 @@ static int deflate_trees(const DeflateToken *tokens, unsigned long long count, D
     unsigned long long literal_frequency[DEFLATE_LITERAL_CODES];
     unsigned long long distance_frequency[DEFLATE_DISTANCE_CODES];
     unsigned long long code_length_frequency[DEFLATE_CODE_LENGTH_CODES];
-    mmgr_bytes_set(literal_frequency, 0, sizeof(literal_frequency));
-    mmgr_bytes_set(distance_frequency, 0, sizeof(distance_frequency));
-    mmgr_bytes_set(code_length_frequency, 0, sizeof(code_length_frequency));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = literal_frequency, .bytes = sizeof(literal_frequency), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = distance_frequency, .bytes = sizeof(distance_frequency), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = code_length_frequency, .bytes = sizeof(code_length_frequency), .val = 0);
     for (unsigned long long token = 0ULL; token < count; token += 1ULL)
     {
         if (tokens[token].length == 0u)
@@ -169,18 +170,20 @@ static unsigned long long deflate_dynamic_bits(const DeflateToken *tokens, unsig
 
 static void deflate_fixed_trees(DeflateTrees *fixed)
 {
-    mmgr_bytes_set(fixed, 0, sizeof(*fixed));
-    mmgr_bytes_set(fixed->lengths, 8, 144u);
-    mmgr_bytes_set(fixed->lengths + 144u, 9, 112u);
-    mmgr_bytes_set(fixed->lengths + 256u, 7, 24u);
-    mmgr_bytes_set(fixed->lengths + 280u, 8, DEFLATE_LITERAL_CODES - 280u);
-    mmgr_bytes_set(fixed->lengths + DEFLATE_LITERAL_CODES, 5, DEFLATE_DISTANCE_CODES);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = fixed, .bytes = sizeof(*fixed), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = fixed->lengths, .bytes = 144u, .val = 8);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = fixed->lengths + 144u, .bytes = 112u, .val = 9);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = fixed->lengths + 256u, .bytes = 24u, .val = 7);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = fixed->lengths + 280u, .bytes = DEFLATE_LITERAL_CODES - 280u, .val = 8);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = fixed->lengths + DEFLATE_LITERAL_CODES, .bytes = DEFLATE_DISTANCE_CODES,
+               .val = 5);
     unsigned char literal_lengths[DEFLATE_LITERAL_CODES + 2u];
     unsigned int literal_codes[DEFLATE_LITERAL_CODES + 2u];
-    mmgr_bytes_copy(literal_lengths, fixed->lengths, DEFLATE_LITERAL_CODES);
-    mmgr_bytes_set(literal_lengths + DEFLATE_LITERAL_CODES, 8, 2u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = literal_lengths, .src = fixed->lengths, .bytes = DEFLATE_LITERAL_CODES);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = literal_lengths + DEFLATE_LITERAL_CODES, .bytes = 2u, .val = 8);
     deflate_codes(literal_lengths, DEFLATE_LITERAL_CODES + 2u, literal_codes);
-    mmgr_bytes_copy(fixed->codes, literal_codes, sizeof(unsigned int) * DEFLATE_LITERAL_CODES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = fixed->codes, .src = literal_codes,
+               .bytes = sizeof(unsigned int) * DEFLATE_LITERAL_CODES);
     deflate_codes(fixed->lengths + DEFLATE_LITERAL_CODES, DEFLATE_DISTANCE_CODES, fixed->codes + DEFLATE_LITERAL_CODES);
 }
 
@@ -286,7 +289,8 @@ static void deflate_write_stored(DeflateWriter *writer, const unsigned char *in,
         }
         if (take != 0ULL)
         {
-            mmgr_bytes_copy(writer->out + writer->written, in + at, (size_t)take);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = writer->out + writer->written, .src = in + at,
+                       .bytes = (size_t)take);
         }
         writer->written += take;
         at += take;

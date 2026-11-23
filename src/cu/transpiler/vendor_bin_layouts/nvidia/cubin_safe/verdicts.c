@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // verdicts.c: the verdicts: the gated encodings cleared, read line by line, added and loaded, whether a verdict is
 // ready and blocks, the admitted encodings cleared, read and stored, and a verdict's name
-#include "cubin_safe_internal.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../../../includes/parsers/line_read.h"
+#include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "cubin_safe_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 static unsigned long long *s_gated_low = NULL;
 static unsigned long long *s_gated_high = NULL;
@@ -36,10 +36,11 @@ static int cubin_safe_verdict_lines(const char *bytes, unsigned long long size)
     while (grown && (at < size))
     {
         // the next line, as much of it as a gated line contains
-        const char *const line_end = (const char *)mmgr_bytes_find(bytes + at, '\n', (size_t)(size - at));
+        const char *const line_end = (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = bytes + at,
+                                                              .bytes = (size_t)(size - at), .val = '\n');
         const size_t length = (line_end != NULL) ? (size_t)(line_end - (bytes + at)) : (size_t)(size - at);
         const size_t copied = (length < (sizeof(line) - 1u)) ? length : (sizeof(line) - 1u);
-        mmgr_bytes_copy(line, bytes + at, copied);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = line, .src = bytes + at, .bytes = copied);
         line[copied] = '\0';
         at += (unsigned long long)length + 1ULL;
         unsigned long long low = 0ULL;
@@ -187,10 +188,11 @@ int cubin_safe_admitted_read(const char *bytes, unsigned long long size)
     while (at < size)
     {
         // the next line, as much of it as a gated line contains
-        const char *const line_end = (const char *)mmgr_bytes_find(bytes + at, '\n', (size_t)(size - at));
+        const char *const line_end = (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = bytes + at,
+                                                              .bytes = (size_t)(size - at), .val = '\n');
         const size_t length = (line_end != NULL) ? (size_t)(line_end - (bytes + at)) : (size_t)(size - at);
         const size_t copied = (length < (sizeof(line) - 1u)) ? length : (sizeof(line) - 1u);
-        mmgr_bytes_copy(line, bytes + at, copied);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = line, .src = bytes + at, .bytes = copied);
         line[copied] = '\0';
         at += (unsigned long long)length + 1ULL;
         unsigned long long low = 0ULL;

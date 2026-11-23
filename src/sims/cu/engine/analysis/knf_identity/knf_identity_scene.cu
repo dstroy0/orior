@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // knf_identity_scene.cu: wide arithmetic, the scene, the camera and the pairs
 #include "knf_identity_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 void knf_wide_add(KnfWide *sum, long long term)
 {
@@ -51,7 +51,7 @@ void knf_departure_of(const OriorExactInteger *truth, const OriorExactInteger *d
 
 void knf_scene(SimScene *scene, SimBody *body, int with_bodies)
 {
-    mmgr_bytes_set(scene, 0, sizeof(*scene));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = scene, .bytes = sizeof(*scene), .val = 0);
     scene->frames = KNF_FRAMES;
     for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
     {
@@ -95,7 +95,7 @@ void knf_scene(SimScene *scene, SimBody *body, int with_bodies)
 
 void knf_camera(SimCamera *camera, unsigned long long key, unsigned long long pattern_range)
 {
-    mmgr_bytes_set(camera, 0, sizeof(*camera));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = camera, .bytes = sizeof(*camera), .val = 0);
     camera->key = key;
     camera->offset = 100ULL;
     camera->gain = 1ULL;
@@ -107,7 +107,8 @@ void knf_camera(SimCamera *camera, unsigned long long key, unsigned long long pa
 void knf_boxes(const SimScene *scene, KnfBox *box, unsigned short *boxes)
 {
     const unsigned long long side = scene->extent[0];
-    mmgr_bytes_set(boxes, 0, (size_t)(side * side * side) * sizeof(unsigned short));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = boxes, .bytes = (size_t)(side * side * side) * sizeof(unsigned short),
+               .val = 0);
     for (unsigned int index = 0u; index < scene->bodies; index += 1u)
     {
         const SimBody *const body = &scene->body[index];
@@ -191,13 +192,13 @@ static void knf_center(KnfRecord *record)
 int knf_project(SimResults *results, const unsigned short *lanes, KnfRecord *record)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     EngineHistory history;
-    mmgr_bytes_set(&history, 0, sizeof(history));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &history, .bytes = sizeof(history), .val = 0);
     history.history = record->history;
     history.cloud = record->cloud;
     EntropyHistoryProjectRequest request;
-    mmgr_bytes_set(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.volume = lanes;
     request.extent[0] = KNF_FRAMES;
     for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)

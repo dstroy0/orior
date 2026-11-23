@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // nrrd_header.c: the header's fields
-#include "nrrd_internal.h"
 #include "../../../src/cu/engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "nrrd_internal.h"
 
 static const NrrdType nrrd_type_table[] = {{"signed char", 1u, ENGINE_ELEMENT_SIGNED},
                                            {"int8", 1u, ENGINE_ELEMENT_SIGNED},
@@ -131,8 +131,11 @@ NrrdSpan nrrd_trim(NrrdSpan span)
 
 unsigned int nrrd_equals(NrrdSpan span, const char *word)
 {
-    const size_t size = mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR);
-    return ((span.length == size) && (mmgr_bytes_compare(span.text, word, size) == 0)) ? 1u : 0u;
+    const size_t size = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    return ((span.length == size) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = span.text, .other = word, .bytes = size) == 0))
+               ? 1u
+               : 0u;
 }
 
 unsigned int nrrd_listed(NrrdSpan span, const char *const *words, size_t count)

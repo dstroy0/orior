@@ -2,12 +2,30 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // fields.c: the fields: each field read off the part, what writes first, a mark, a swap and an address swap, a
 // redirect, and the fields named
-#include "fields_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "../../../../../../../includes/parsers/line_read.h"
 #include "../../../../../../platform/platform.h"
 #include "../../../../../engine/engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "../../../../../../../includes/parsers/line_read.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "fields_internal.h"
+#include "memoria_operor/memoria_operor.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int fields_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // the answers interface_sass_run wrote for the write pass's cubins, read against the form the first instruction
 // contains and labeled a bit a row to `record`. A bit the part refused, one it read inside a run the machine file
@@ -115,8 +133,9 @@ int fields_read(const char *machine_path, const char *instructions, const char *
         if (number == 0u)
         {
             const char *base = word;
-            have_baseline =
-                (mmgr_text_equal(type, "answered", PLATFORM_TEXT_TO_TERMINATOR)) && line_number(&base, 1, &baseline);
+            have_baseline = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                        .other = "answered", .ci = EMBED_FALSE)) &&
+                            line_number(&base, 1, &baseline);
             continue;
         }
         const unsigned int bit = number - 1u;
@@ -136,9 +155,12 @@ int fields_read(const char *machine_path, const char *instructions, const char *
             (void)mmgr_line_finish(&buffer_line);
         }
         const char *part = NULL;
-        if ((mmgr_text_equal(type, "refused", PLATFORM_TEXT_TO_TERMINATOR)) ||
-            (mmgr_text_equal(type, "hung", PLATFORM_TEXT_TO_TERMINATOR)) ||
-            (mmgr_text_equal(type, "skipped", PLATFORM_TEXT_TO_TERMINATOR)))
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "refused",
+                        .ci = EMBED_FALSE)) ||
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "hung",
+                        .ci = EMBED_FALSE)) ||
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "skipped",
+                        .ci = EMBED_FALSE)))
         {
             // a bit the part refused, one it ran too long on, and one blocked from the part as unsafe to run are each
             // no operand field; they share the first column and the row specifies which
@@ -164,7 +186,8 @@ int fields_read(const char *machine_path, const char *instructions, const char *
             {
                 hidden += 1u;
                 part = "read, no recorded run";
-                const size_t at = mmgr_text_length(hidden_bits, PLATFORM_TEXT_TO_TERMINATOR);
+                const size_t at =
+                    EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = hidden_bits, .cap = PLATFORM_TEXT_TO_TERMINATOR);
                 {
                     VerbaLinea buffer_line = mmgr_line_over(&hidden_bits[at], sizeof(hidden_bits) - at);
                     mmgr_line_put(&buffer_line, (at == 0u) ? "" : " ");
@@ -226,8 +249,9 @@ static int fields_writes_first(const char *operation)
     static const char *const reads[] = {"RET", "BRX", "JMX", "CALL", "BRA", "JMP", "EXIT", "BAR", "NOP"};
     for (unsigned int at = 0u; at < (sizeof(reads) / sizeof(reads[0])); at += 1u)
     {
-        if (mmgr_text_order(operation, reads[at], (size_t)(mmgr_text_length(reads[at], PLATFORM_TEXT_TO_TERMINATOR))) ==
-            0)
+        if (fields_text_order(operation, reads[at],
+                              (size_t)(EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = reads[at],
+                                                  .cap = PLATFORM_TEXT_TO_TERMINATOR))) == 0)
         {
             return 0;
         }
@@ -262,12 +286,14 @@ static void fields_swap(const char *operand, const char *put, char *out, size_t 
     size_t length = 0u;
     if (operand[0] == 'R')
     {
-        length =
-            (operand[1] == 'Z') ? 2u : (1u + mmgr_text_span(operand + 1, "0123456789", PLATFORM_TEXT_TO_TERMINATOR));
+        length = (operand[1] == 'Z') ? 2u
+                                     : (1u + EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = operand + 1,
+                                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "0123456789"));
     }
     const char *const rest = operand + length;
     const size_t rest_length =
-        mmgr_text_length(rest, PLATFORM_TEXT_TO_TERMINATOR) - (sass_high_half(operand) ? 3u : 0u);
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = rest, .cap = PLATFORM_TEXT_TO_TERMINATOR) -
+        (sass_high_half(operand) ? 3u : 0u);
     {
         VerbaLinea buffer_line = mmgr_line_over(out, room);
         mmgr_line_put(&buffer_line, put);
@@ -281,7 +307,8 @@ static void fields_swap(const char *operand, const char *put, char *out, size_t 
 // register is copied as it is. 1, or 0 where `out` will not contain it
 static int fields_address_swap(const char *operand, const char *put, char *out, size_t room)
 {
-    const char *const open = mmgr_text_char_last(operand, '[', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const open =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = operand, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '[');
     if ((open == NULL) || (open[1] != 'R') || ((open[2] != 'Z') && ((open[2] < '0') || (open[2] > '9'))))
     {
         VerbaLinea formed_line_1 = mmgr_line_over(out, room);
@@ -369,7 +396,8 @@ int fields_redirect(const char *instruction, char *redirected, size_t room, char
             fields_swap(parts.operand[operand], put, text, sizeof(text));
         }
         else if ((parts.type[operand] == SASS_OPERAND_ADDRESS) &&
-                 (mmgr_text_starts(parts.operation, "LDG", PLATFORM_TEXT_TO_TERMINATOR)))
+                 (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = parts.operation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "LDG", .ci = EMBED_FALSE)))
         {
             if (!fields_address_swap(parts.operand[operand], FIELDS_LOAD_ADDRESS, text, sizeof(text)))
             {
@@ -476,7 +504,8 @@ int fields_names(const char *machine_path, const char *instructions)
             }
             continue;
         }
-        if (mmgr_text_equal(text, base_text, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = base_text,
+                       .ci = EMBED_FALSE))
         {
             {
                 VerbaLinea *const output_line = platform_line_out();

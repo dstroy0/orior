@@ -4,14 +4,31 @@
 // the run's one clock, its two words, its code and its name
 #include "who.h"
 #include "../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "line_read.h"
 
 #include "../file_defs/qry/writer/qry_member.h"
 #include "verba_scribo/verba_scribo.h"
 
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int who_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // the sources whose numbers were requested, each looked up in the table once
 #define WHO_LOOKUPS 64u
@@ -66,14 +83,16 @@ static int who_table(const unsigned char **table, unsigned long long *size)
 {
     const char *const run_top = qry_member_top();
     char path[WHO_PATH_MAX_LEN + sizeof(WHO_TABLE) + 1u];
-    const size_t top = (run_top != NULL) ? mmgr_text_length(run_top, PLATFORM_TEXT_TO_TERMINATOR) : 0u;
+    const size_t top = (run_top != NULL)
+                           ? EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = run_top, .cap = PLATFORM_TEXT_TO_TERMINATOR)
+                           : 0u;
     if ((top == 0u) || (top >= WHO_PATH_MAX_LEN))
     {
         return 0;
     }
-    mmgr_bytes_copy(path, run_top, top);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = path, .src = run_top, .bytes = top);
     path[top] = '/';
-    mmgr_bytes_copy(path + top + 1u, WHO_TABLE, sizeof(WHO_TABLE));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = path + top + 1u, .src = WHO_TABLE, .bytes = sizeof(WHO_TABLE));
     return qry_member_file_blob(path, table, size);
 }
 
@@ -88,19 +107,21 @@ static int who_row(const unsigned char *table, unsigned long long size, unsigned
         return 0;
     }
     unsigned long long value = 0ULL;
-    const char *const tab = mmgr_text_char(line, '\t', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const tab =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
     *number = 0u;
     source[0] = '\0';
     if ((line[0] != '0') || (line[1] != 'x') || (tab == NULL) || ((tab - line) != 6) || !who_hex(line + 2, 4u, &value))
     {
         return 1;
     }
-    const size_t length = mmgr_text_span_not(tab + 1, "\r", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length =
+        EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = tab + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\r");
     if (length >= WHO_PATH_MAX_LEN)
     {
         return 1;
     }
-    mmgr_bytes_copy(source, tab + 1, length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = source, .src = tab + 1, .bytes = length);
     source[length] = '\0';
     // four hex digits are below 0x10000, which an unsigned int represents
     *number = (unsigned int)value;
@@ -127,7 +148,7 @@ static int who_same_characters(const char *one, const char *other, size_t length
 static unsigned int who_source_number(const char *file)
 {
     char plain[WHO_PATH_MAX_LEN];
-    const size_t length = mmgr_text_length(file, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = file, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const char *const run_top = qry_member_top();
     if ((run_top == NULL) || (length >= WHO_PATH_MAX_LEN))
     {
@@ -137,7 +158,7 @@ static unsigned int who_source_number(const char *file)
     {
         plain[at] = (file[at] == '\\') ? '/' : file[at];
     }
-    const size_t top = mmgr_text_length(run_top, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t top = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = run_top, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const char *name = plain;
     if ((length > top) && who_same_characters(plain, run_top, top) && (plain[top] == '/'))
     {
@@ -158,7 +179,8 @@ static unsigned int who_source_number(const char *file)
     }
     while (who_row(table, size, &at, &number, source))
     {
-        if ((number != 0u) && (mmgr_text_equal(source, name, PLATFORM_TEXT_TO_TERMINATOR)))
+        if ((number != 0u) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = source, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                          .other = name, .ci = EMBED_FALSE)))
         {
             return number;
         }
@@ -176,10 +198,13 @@ static unsigned int who_program_number(void)
     {
         return 0u;
     }
-    const char *const slash = mmgr_text_char_last(path, '/', PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const back = mmgr_text_char_last(path, '\\', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const slash =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+    const char *const back =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
     const char *const base = (back > slash) ? (back + 1) : ((slash != NULL) ? (slash + 1) : path);
-    const size_t stem = mmgr_text_span_not(base, ".", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t stem =
+        EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = base, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".");
     const unsigned char *table = NULL;
     unsigned long long size = 0ULL;
     unsigned long long at = 0ULL;
@@ -193,17 +218,23 @@ static unsigned int who_program_number(void)
     }
     while (who_row(table, size, &at, &number, source))
     {
-        const char *const own = (mmgr_text_char_last(source, '/', PLATFORM_TEXT_TO_TERMINATOR) != NULL)
-                                    ? (mmgr_text_char_last(source, '/', PLATFORM_TEXT_TO_TERMINATOR) + 1)
+        const char *const own = (EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = source,
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/') != NULL)
+                                    ? (EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = source,
+                                                  .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/') +
+                                       1)
                                     : source;
-        if ((number == 0u) || (mmgr_text_order(own, base, (size_t)(stem)) != 0) || (own[stem] != '.'))
+        if ((number == 0u) || (who_text_order(own, base, (size_t)(stem)) != 0) || (own[stem] != '.'))
         {
             continue;
         }
         const char *const type = own + stem;
-        if ((!mmgr_text_equal(type, ".h", PLATFORM_TEXT_TO_TERMINATOR)) &&
-            (!mmgr_text_equal(type, ".cuh", PLATFORM_TEXT_TO_TERMINATOR)) &&
-            (!mmgr_text_equal(type, ".hpp", PLATFORM_TEXT_TO_TERMINATOR)))
+        if ((!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".h",
+                         .ci = EMBED_FALSE)) &&
+            (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".cuh",
+                         .ci = EMBED_FALSE)) &&
+            (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".hpp",
+                         .ci = EMBED_FALSE)))
         {
             found = number;
         }
@@ -276,8 +307,9 @@ void who_code(Who who, char *code, size_t room)
 int who_read(const char *code, Who *who)
 {
     unsigned long long words[2];
-    if ((mmgr_text_length(code, PLATFORM_TEXT_TO_TERMINATOR) < WHO_CODE_CHARACTERS) || !who_hex(code, 16u, &words[0]) ||
-        !who_hex(code + 16, 16u, &words[1]))
+    if ((EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = code, .cap = PLATFORM_TEXT_TO_TERMINATOR) <
+         WHO_CODE_CHARACTERS) ||
+        !who_hex(code, 16u, &words[0]) || !who_hex(code + 16, 16u, &words[1]))
     {
         return 0;
     }

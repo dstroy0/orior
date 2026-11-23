@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_client_socket.c: connecting, spawning, sending and receiving
-#include "tessera_client_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera_client_internal.h"
 
 #if defined(_WIN32)
 _Alignas(8) static const char s_client_quote[] = "\"";
@@ -37,13 +37,16 @@ TesseraConnect tessera_connect(TesseraClient *client, const char *endpoint)
     }
 #else
     struct sockaddr_un address;
-    mmgr_bytes_set(&address, 0, sizeof(address));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &address, .bytes = sizeof(address), .val = 0);
     address.sun_family = AF_UNIX;
-    if (mmgr_text_length(endpoint, PLATFORM_TEXT_TO_TERMINATOR) >= sizeof(address.sun_path))
+    if (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = endpoint, .cap = PLATFORM_TEXT_TO_TERMINATOR) >=
+        sizeof(address.sun_path))
     {
         return TESSERA_CONNECT_FAILED;
     }
-    mmgr_bytes_copy(address.sun_path, endpoint, mmgr_text_length(endpoint, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = address.sun_path, .src = endpoint,
+               .bytes =
+                   EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = endpoint, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
     // the connection closes on exec: a program this process starts never leaves its job open
     client->socket_descriptor = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (client->socket_descriptor < 0)
@@ -69,7 +72,8 @@ static int tessera_daemon_owns_lock(const unsigned char device[TESSERA_DEVICE_BY
     {
         return 0;
     }
-    VerbaLinea line = {lock_path, ENGINE_PATH_CAPACITY, mmgr_text_length(lock_path, PLATFORM_TEXT_TO_TERMINATOR)};
+    VerbaLinea line = {lock_path, ENGINE_PATH_CAPACITY,
+                       EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = lock_path, .cap = PLATFORM_TEXT_TO_TERMINATOR)};
     mmgr_line_put(&line, s_client_lock);
     if (mmgr_line_finish(&line) == 0ULL)
     {
@@ -119,9 +123,9 @@ int tessera_spawn_and_connect(TesseraClient *client, const TesseraJobSubmit *sub
     }
     STARTUPINFOA startup;
     PROCESS_INFORMATION daemon;
-    mmgr_bytes_set(&startup, 0, sizeof(startup));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &startup, .bytes = sizeof(startup), .val = 0);
     startup.cb = sizeof(startup);
-    mmgr_bytes_set(&daemon, 0, sizeof(daemon));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &daemon, .bytes = sizeof(daemon), .val = 0);
     if (!CreateProcessA(NULL, command, NULL, NULL, FALSE, DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP, NULL, NULL,
                         &startup, &daemon))
     {
@@ -315,11 +319,11 @@ int tessera_readable(TesseraClient *client, unsigned long long deadline)
 
 void tessera_frame_start(const TesseraClient *client, TesseraFrame *frame, unsigned int type)
 {
-    mmgr_bytes_set(frame, 0, sizeof(*frame));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = frame, .bytes = sizeof(*frame), .val = 0);
     frame->magic = TESSERA_MAGIC;
     frame->version = TESSERA_VERSION;
     frame->type = type;
-    mmgr_bytes_copy(frame->device, client->device, TESSERA_DEVICE_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = frame->device, .src = client->device, .bytes = TESSERA_DEVICE_BYTES);
     frame->signum = client->signum;
     frame->identity = client->identity;
     frame->luid = client->luid;

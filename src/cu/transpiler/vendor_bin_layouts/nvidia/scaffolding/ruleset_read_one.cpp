@@ -6,7 +6,7 @@
 //     ruleset_read_one <form> <argument> ...
 //     ruleset_read_one predicate_bitxor P0 P1 P2
 #include "../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "sass_target.h"
 #include "target.h"
 
@@ -22,21 +22,24 @@ static int read_one_scratch(void *context, const char *bank, VerbaLinea *name)
     static unsigned int temporaries;
     static unsigned int wides;
     static unsigned int predicates;
-    if (mmgr_text_equal(bank, "temporary", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = bank, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "temporary",
+                   .ci = EMBED_FALSE))
     {
         temporaries += 1u;
         mmgr_line_ch(name, 'R');
         mmgr_line_decimal(name, 99u + temporaries, 1u);
         return 1;
     }
-    if (mmgr_text_equal(bank, "wide", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = bank, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "wide",
+                   .ci = EMBED_FALSE))
     {
         wides += 1u;
         mmgr_line_ch(name, 'R');
         mmgr_line_decimal(name, 119u + wides, 1u);
         return 1;
     }
-    if (mmgr_text_equal(bank, "predicate", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = bank, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "predicate",
+                   .ci = EMBED_FALSE))
     {
         predicates += 1u;
         mmgr_line_ch(name, 'P');

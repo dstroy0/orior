@@ -1,9 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "grow.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-
+#include "grow.h"
+#include "memoria_operor/memoria_operor.h"
 
 #define GROW_CHECK(condition_, evacaddr_, error_, type_)                                                               \
     engine_error_check((condition_), (type_), ENGINE_MODULE_GROW, (unsigned int)__LINE__, (const void *)(evacaddr_),   \
@@ -19,7 +18,7 @@ extern "C" long grow_leaves(const EngineBody *bodies, unsigned int count, Engine
     {
         return GROW_ERROR;
     }
-    mmgr_bytes_set(leaves, 0, sizeof(*leaves));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = leaves, .bytes = sizeof(*leaves), .val = 0);
     const size_t capacity = (size_t)count + 1u;
     leaves->peaks =
         (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
@@ -42,7 +41,7 @@ extern "C" long grow_leaves(const EngineBody *bodies, unsigned int count, Engine
         platform_cell_released(leaves->moments, platform_place_g_program_owner);
         platform_cell_released(leaves->touches, platform_place_g_program_owner);
         platform_cell_released(leaves->joined, platform_place_g_program_owner);
-        mmgr_bytes_set(leaves, 0, sizeof(*leaves));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = leaves, .bytes = sizeof(*leaves), .val = 0);
         return GROW_ERROR;
     }
     for (unsigned int leaf = 0u; leaf < count; leaf += 1u)
@@ -51,8 +50,10 @@ extern "C" long grow_leaves(const EngineBody *bodies, unsigned int count, Engine
         leaves->peaks[leaf] = body->peak;
         leaves->sizes[leaf] = body->mass;
         leaves->touches[leaf] = body->touches;
-        mmgr_bytes_copy(&leaves->sums[(size_t)leaf * 3u], body->sums, 3u * sizeof(unsigned long long));
-        mmgr_bytes_copy(&leaves->moments[(size_t)leaf * 6u], body->moments, 6u * sizeof(unsigned long long));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &leaves->sums[(size_t)leaf * 3u], .src = body->sums,
+                   .bytes = 3u * sizeof(unsigned long long));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &leaves->moments[(size_t)leaf * 6u], .src = body->moments,
+                   .bytes = 6u * sizeof(unsigned long long));
     }
     leaves->leaf_count = count;
     leaves->joined_count = 0u;
@@ -69,7 +70,8 @@ extern "C" void grow_group_voxels(const EngineGroupRequest *request)
     {
         leaf_at_peak[request->peaks[leaf]] = (int)leaf;
     }
-    mmgr_bytes_set(start, 0, ((size_t)request->leaf_count + 2u) * sizeof(unsigned int));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = start, .bytes = ((size_t)request->leaf_count + 2u) * sizeof(unsigned int),
+               .val = 0);
     // each pass reads its first run at voxel 0, and an empty volume reads no label
     unsigned int run_label = 0u;
     int run_leaf = -1;

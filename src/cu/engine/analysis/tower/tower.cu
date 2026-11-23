@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tower.cu: the tower's kernels and plan
+#include "memoria_operor/memoria_operor.h"
 #include "tower_internal.h"
-#include "memoria_operor/memoria_linea.h"
 
 __device__ static long long tower_floor_shift(long long value, unsigned int shift)
 {
@@ -208,7 +208,7 @@ void tower_floors(const unsigned long long *extent, TowerFloors *floors)
 {
     floors->count = 0u;
     TowerStep step;
-    mmgr_bytes_set(&step, 0, sizeof(step));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &step, .bytes = sizeof(step), .val = 0);
     step.stride[3] = 1ULL;
     step.stride[2] = extent[3];
     step.stride[1] = extent[2] * extent[3];

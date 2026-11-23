@@ -14,10 +14,10 @@
 //
 // None changes a file that it seals, approves or checks. The exit is 0 where each write or verify of a seal, key and
 // approval succeeded. It is 1 where one failed, and 2 where the words are none of the above
-#include "ksg_tool.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "ksg_tool.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../qry/writer/qry_writer_internal.h"
 #include "verba_scribo/verba_scribo.h"
@@ -117,12 +117,12 @@ static PlatformFile *ksg_seal_opened(const char *path, unsigned char *stored_tra
     unsigned char head[KREP_HEAD_BYTES];
     unsigned char stored_head[KREP_HEAD_BYTES];
     ksg_head(head);
-    const int opened = (seal != NULL) &&
-                       (platform_file_seek(seal, -(long)KSG_TRAILER_BYTES, PLATFORM_FILE_FROM_END) == 0) &&
-                       (platform_file_read_items(stored_trailer, 1u, KSG_TRAILER_BYTES, seal) == KSG_TRAILER_BYTES) &&
-                       (platform_file_seek(seal, 0L, PLATFORM_FILE_FROM_START) == 0) &&
-                       (platform_file_read_items(stored_head, 1u, sizeof(stored_head), seal) == sizeof(stored_head)) &&
-                       (mmgr_bytes_compare(stored_head, head, sizeof(head)) == 0);
+    const int opened =
+        (seal != NULL) && (platform_file_seek(seal, -(long)KSG_TRAILER_BYTES, PLATFORM_FILE_FROM_END) == 0) &&
+        (platform_file_read_items(stored_trailer, 1u, KSG_TRAILER_BYTES, seal) == KSG_TRAILER_BYTES) &&
+        (platform_file_seek(seal, 0L, PLATFORM_FILE_FROM_START) == 0) &&
+        (platform_file_read_items(stored_head, 1u, sizeof(stored_head), seal) == sizeof(stored_head)) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = stored_head, .other = head, .bytes = sizeof(head)) == 0);
     if (!opened && (seal != NULL))
     {
         (void)platform_file_close(seal);
@@ -218,7 +218,8 @@ static int ksg_leaf_check(void *context, const unsigned char *leaf, unsigned lon
     const int read =
         platform_file_read_items(stored_trailer, 1u, sizeof(stored_trailer), checking->seal) == sizeof(stored_trailer);
     checking->leaves += 1ULL;
-    if (read && (mmgr_bytes_compare(stored_trailer, leaf, KSG_SIGNUM_BYTES) == 0))
+    if (read &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = stored_trailer, .other = leaf, .bytes = KSG_SIGNUM_BYTES) == 0))
     {
         return 1;
     }
@@ -258,7 +259,8 @@ static int ksg_checked(const char *path, const KsaApproval *required, unsigned i
     const int size_matches = ksg_word_read(trailer) == ksg_word_read(stored_trailer);
     const int count_matches = (ksg_word_read(trailer + 16u) == ksg_word_read(stored_trailer + 16u)) &&
                               (ksg_word_read(stored_trailer + 8u) == KSG_LINE_MAX);
-    const int root_matches = mmgr_bytes_compare(trailer + 24u, stored_trailer + 24u, KSG_SIGNUM_BYTES) == 0;
+    const int root_matches = EMBED_CALL(memor.cmp, MemoriaCfg, .src = trailer + 24u, .other = stored_trailer + 24u,
+                                        .bytes = KSG_SIGNUM_BYTES) == 0;
     const int seal_matches = sealed && (checking.differ == 0ULL) && size_matches && count_matches && root_matches;
     if (checking.differ > KSG_NAMED_MAX)
     {
@@ -312,15 +314,22 @@ static int ksg_usage(void)
 
 int program_main(int count, char **words)
 {
-    if ((count == 5) && (mmgr_text_equal(words[1], "keys", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count == 5) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "keys", .ci = EMBED_FALSE)))
     {
         const int made = ksg_keys_made(words[2], words[3], words[4]);
         ksg_print_flush();
         return made ? 0 : 1;
     }
-    const int sealing = (count >= 3) && (mmgr_text_equal(words[1], "seal", PLATFORM_TEXT_TO_TERMINATOR));
-    const int approving = (count >= 4) && (mmgr_text_equal(words[1], "approve", PLATFORM_TEXT_TO_TERMINATOR));
-    const int checking = (count >= 3) && (mmgr_text_equal(words[1], "check", PLATFORM_TEXT_TO_TERMINATOR));
+    const int sealing =
+        (count >= 3) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "seal", .ci = EMBED_FALSE));
+    const int approving =
+        (count >= 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "approve", .ci = EMBED_FALSE));
+    const int checking =
+        (count >= 3) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "check", .ci = EMBED_FALSE));
     if (!sealing && !approving && !checking)
     {
         return ksg_usage();
@@ -329,7 +338,8 @@ int program_main(int count, char **words)
     unsigned int required = 0u;
     int whole = 1;
     while (checking && ((first + 1) < count) &&
-           (mmgr_text_equal(words[first], "--approver", PLATFORM_TEXT_TO_TERMINATOR)))
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[first], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--approver", .ci = EMBED_FALSE)))
     {
         if ((required == KSG_APPROVERS_MAX) || !ksg_public_read(words[first + 1], &s_required[required]))
         {

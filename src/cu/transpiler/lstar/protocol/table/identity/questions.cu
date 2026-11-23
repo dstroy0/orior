@@ -2,353 +2,772 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // questions.cu: the values a case is made of, a run's blobs read as text, and the links and questions the stick's
 // manifest lists
-#include "identity_internal.h"
 #include "../../../../../../platform/platform.h"
+#include "identity_internal.h"
 
-// the operations that transfer control or wait, which cubin_safe.h's rule 2 blocks from the part: a question containing
-// one is not put to the part as written
+// the operations that transfer control or wait, which cubin_safe.h's rule 2 blocks from the part. No question that
+// holds one goes to the part as written
 static const char *const s_control_or_wait[] = {
     "BRA",      "BRX",   "JMP", "JMX",    "CALL",      "RET", "EXIT", "BSSY", "BSYNC",  "BREAK",  "BMOV",
     "WARPSYNC", "YIELD", "BAR", "DEPBAR", "NANOSLEEP", "BPT", "RTT",  "KILL", "RPCMOV", "RETIRE", "PMTRIG"};
 
-// the latest blob of `name` in the run (qry_member.h) as text, empty where no run's writer runs or the run
-// contains none
-std::string run_blob_text(const char *name)
+// the `size` bytes at `bytes` copied into a cell of the temporary tier, terminated; NULL where the pool cannot meet it
+static char *run_bytes_copied(const unsigned char *bytes, unsigned long long size, size_t *copied)
 {
-    const unsigned char *bytes = NULL;
-    unsigned long long size = 0ULL;
-    if (!qry_member_blob(name, &bytes, &size, NULL))
+    char *const cell =
+        (char *)platform_cell_taken(size + 1ULL, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    if (cell == NULL)
     {
-        return std::string();
+        *copied = 0u;
+        return NULL;
     }
     // a blob is at max the buffer's bytes, which a size_t counts
-    return std::string(reinterpret_cast<const char *>(bytes), static_cast<size_t>(size));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = cell, .src = bytes, .bytes = (size_t)size);
+    cell[size] = '\0';
+    *copied = (size_t)size;
+    return cell;
 }
 
-// the file at `path` as the run stores it (qry_member_file): its latest blob, or the file where the run stores none;
-// empty where neither is there
-std::string run_file_text(const std::string &path)
+char *run_blob_read(const char *name, size_t *size)
 {
     const unsigned char *bytes = NULL;
-    unsigned long long size = 0ULL;
-    if (!qry_member_file_blob(path.c_str(), &bytes, &size))
+    unsigned long long blob_size = 0ULL;
+    if (!qry_member_blob(name, &bytes, &blob_size, NULL))
     {
-        return std::string();
+        *size = 0u;
+        return NULL;
     }
-    // a file read whole is at max what a size_t counts
-    const std::string text(reinterpret_cast<const char *>(bytes), static_cast<size_t>(size));
-    return text;
+    return run_bytes_copied(bytes, blob_size, size);
 }
 
-// `written` passed to the run's writer whole: as the current file at its path, or as a blob named by the path's own
-// name. 1, or 0 where no run's writer runs or it was not passed
-int run_closed(const RunWritten *written)
+char *run_file_read(const char *path, size_t *size)
+{
+    const unsigned char *bytes = NULL;
+    unsigned long long file_size = 0ULL;
+    if (!qry_member_file_blob(path, &bytes, &file_size))
+    {
+        *size = 0u;
+        return NULL;
+    }
+    return run_bytes_copied(bytes, file_size, size);
+}
+
+int run_closed(RunWritten *written)
 {
     QryShared *const run = qry_member_run();
+    const char *const path = written->path.text;
     if (run == NULL)
     {
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "orior_klq_identity: no query writer runs to write ");
-            mmgr_line_put(output_line, written->path.c_str());
-            mmgr_line_put(output_line, ": ");
-            mmgr_line_put(output_line, QRY_ENVIRONMENT);
-            mmgr_line_put(output_line, " names no .qry a writer has open");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "orior_klq_identity: no query writer runs to write ");
+        mmgr_line_put(output_line, path);
+        mmgr_line_put(output_line, ": ");
+        mmgr_line_put(output_line, QRY_ENVIRONMENT);
+        mmgr_line_put(output_line, " names no .qry a writer has open");
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+        return 0;
+    }
+    const unsigned long long size = platform_text_size(&written->text);
+    const char *const bytes = platform_text_bytes(&written->text);
+    if (bytes == NULL)
+    {
         return 0;
     }
     if (written->filed)
     {
-        return qry_member_filed(written->path.c_str(), written->text.data(), written->text.size());
+        return qry_member_filed(path, bytes, size) != 0;
     }
-    const size_t slash = written->path.find_last_of("/\\");
-    const std::string name = (slash == std::string::npos) ? written->path : written->path.substr(slash + 1u);
-    return qry_member_append(name.c_str(), written->text.data(), written->text.size(), QRY_ORDINARY) != 0;
+    const char *const slash =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+    const char *const back =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
+    const char *const last = ((back != NULL) && ((slash == NULL) || (back > slash))) ? back : slash;
+    return qry_member_append((last != NULL) ? (last + 1) : path, bytes, size, QRY_ORDINARY) != 0;
 }
 
-// 1 where the link, as written or read as its type, transfers control or waits, which cubin_safe.h's rule 2 blocks from
-// the part, EXIT alone excepted
-int rule_broken(const std::string &link)
+int rule_broken(const char *link)
 {
-    const size_t guarded = (link[0] == '@') ? link.find(' ') + 1u : 0u;
-    const std::string operation = link.substr(guarded, link.find_first_of(". ", guarded) - guarded);
-    return (operation != "EXIT") && std::any_of(std::begin(s_control_or_wait), std::end(s_control_or_wait),
-                                                [&](const char *control) { return operation == control; });
+    const CarrierPiece text = carrier_piece_of(link);
+    size_t guarded = 0u;
+    if (link[0] == '@')
+    {
+        const char *const space =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = link, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ' ');
+        // the guard ends at its space, which lies past the link's start. A guard with no space after it leaves the
+        // operation at the link's start
+        guarded = (space != NULL) ? ((size_t)(space - link) + 1u) : 0u;
+    }
+    size_t end = guarded;
+    while ((end < text.length) && (link[end] != '.') && (link[end] != ' '))
+    {
+        end += 1u;
+    }
+    const CarrierPiece operation = {&link[guarded], end - guarded};
+    if (identity_piece_is(operation, "EXIT"))
+    {
+        return 0;
+    }
+    for (size_t at = 0u; at < (sizeof(s_control_or_wait) / sizeof(s_control_or_wait[0])); at += 1u)
+    {
+        if (identity_piece_is(operation, s_control_or_wait[at]))
+        {
+            return 1;
+        }
+    }
+    return 0;
 }
 
-// the text with each hexadecimal number written in decimal
-static std::string numbers_decimal(const std::string &text)
+// the `length` bytes of `text` with each hexadecimal number written in decimal, onto `out`
+static void numbers_decimal(const char *text, size_t length, PlatformText *out)
 {
-    std::string decimal;
-    static const std::regex s_hex("0x([0-9a-fA-F]+)");
-    std::sregex_iterator walk(text.begin(), text.end(), s_hex);
+    static TablePatternOnce s_hex;
+    TableWalk walk;
+    table_walk_begun(&walk, table_once(&s_hex, "0x([0-9a-fA-F]+)", 0), text, length);
     size_t at = 0u;
-    for (; walk != std::sregex_iterator(); ++walk)
+    while (table_walk_next(&walk))
     {
-        decimal += text.substr(at, (size_t)walk->position() - at);
-        decimal += std::to_string(std::stoull((*walk)[1].str(), nullptr, 16));
-        at = (size_t)(walk->position() + walk->length());
+        const RegexpSpan whole = walk.match.group[0];
+        (void)mmgr_line_put_n(&out->line, &text[at], (size_t)whole.from - at);
+        size_t digits_length = 0u;
+        const char *const digits = table_walk_group(&walk, 1u, &digits_length);
+        char number[32] = {0};
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = number, .src = digits,
+                   .bytes = (digits_length < 31u) ? digits_length : 31u);
+        mmgr_line_decimal(&out->line,
+                          EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = number, .end = NULL, .base = 16), 1u);
+        at = (size_t)whole.to;
     }
-    decimal += text.substr(at);
-    return decimal;
+    table_walk_ended(&walk);
+    (void)mmgr_line_put_n(&out->line, &text[at], length - at);
 }
 
-// an operand with its registers read as their type and its numbers in decimal
-static std::string operand_type(std::string text)
+// an operand with its registers read as their type and its numbers in decimal, onto `out`
+static void operand_type(CarrierPiece operand, PlatformText *out)
 {
-    static const std::regex s_reuse("\\.reuse");
-    static const std::regex s_uniform("\\bUR[0-9]+\\b");
-    static const std::regex s_register("\\bR[0-9]+\\b");
-    static const std::regex s_predicate("(^|[^A-Z_])P[0-6]\\b");
-    text = std::regex_replace(text, s_reuse, "");
-    text = std::regex_replace(text, s_uniform, "UR");
-    text = std::regex_replace(text, s_register, "R");
-    text = std::regex_replace(text, s_predicate, "$1P");
-    return numbers_decimal(text);
+    static TablePatternOnce s_reuse;
+    static TablePatternOnce s_uniform;
+    static TablePatternOnce s_register;
+    static TablePatternOnce s_predicate;
+    PlatformText text;
+    identity_text_begun(&text);
+    (void)mmgr_line_put_n(&text.line, operand.text, operand.length);
+    identity_replaced(&text, table_once(&s_reuse, "\\.reuse", 0), "");
+    identity_replaced(&text, table_once(&s_uniform, "\\bUR[0-9]+\\b", 0), "UR");
+    identity_replaced(&text, table_once(&s_register, "\\bR[0-9]+\\b", 0), "R");
+    identity_replaced(&text, table_once(&s_predicate, "(^|[^A-Z_])P[0-6]\\b", 0), "$1P");
+    const unsigned long long size = platform_text_size(&text);
+    numbers_decimal(platform_text_bytes(&text), (size_t)size, out);
+    platform_text_ended(&text);
 }
 
-// the registers an instruction names, in order
-static std::string registers_named(const std::string &text)
+// the pattern of a register an instruction names
+static const TablePattern *named_pattern(void)
 {
-    static const std::regex s_named("\\b(UR[0-9]+|R[0-9]+|P[0-6])\\b");
-    std::string named;
-    for (std::sregex_iterator walk(text.begin(), text.end(), s_named); walk != std::sregex_iterator(); ++walk)
+    static TablePatternOnce s_named;
+    return table_once(&s_named, "\\b(UR[0-9]+|R[0-9]+|P[0-6])\\b", 0);
+}
+
+// 1 where a part of the link the reader reads now passed the room of its record
+static thread_local int t_link_full = 0;
+
+// the registers an instruction names, in order, each with a space after it, into `registers`
+static void registers_named(CarrierPiece text, IdentityLine *registers)
+{
+    PlatformText named;
+    identity_text_begun(&named);
+    TableWalk walk;
+    table_walk_begun(&walk, named_pattern(), text.text, text.length);
+    while (table_walk_next(&walk))
     {
-        named += walk->str() + " ";
+        size_t length = 0u;
+        const char *const each = table_walk_group(&walk, 0u, &length);
+        (void)mmgr_line_put_n(&named.line, each, length);
+        mmgr_line_ch(&named.line, ' ');
     }
+    table_walk_ended(&walk);
+    t_link_full |= !IDENTITY_KEPT(&named, *registers);
+}
+
+// each register `text` names, put down in the link's placeholders under the terminated `placeholder`
+static void placeholders_named(CarrierPiece text, const char *placeholder, Link *link)
+{
+    TableWalk walk;
+    table_walk_begun(&walk, named_pattern(), text.text, text.length);
+    while (table_walk_next(&walk))
+    {
+        size_t length = 0u;
+        const char *const each = table_walk_group(&walk, 0u, &length);
+        if (link->placeholder_count >= LINK_PARTS_MAX)
+        {
+            t_link_full = 1;
+            continue;
+        }
+        LinkPlaceholder *const named = &link->placeholders[link->placeholder_count];
+        t_link_full |= !identity_name_set(named->placeholder, sizeof(named->placeholder), placeholder,
+                                          PLATFORM_TEXT_TO_TERMINATOR);
+        t_link_full |= !identity_name_set(named->name, sizeof(named->name), each, length);
+        link->placeholder_count += 1u;
+    }
+    table_walk_ended(&walk);
+}
+
+// the `length` bytes of `text` put after the `*count` words of `words`, which hold `most`: 1, or 0 where they are full
+// or the word does not fit
+static int link_word_put(LinkWord *words, unsigned int *count, unsigned int most, const char *text, size_t length)
+{
+    if (*count >= most)
+    {
+        return 0;
+    }
+    const int set = IDENTITY_SET(words[*count], text, length);
+    *count += 1u;
+    return set;
+}
+
+CarrierPiece trimmed(CarrierPiece text)
+{
+    size_t first = 0u;
+    while ((first < text.length) && carrier_space(text.text[first]))
+    {
+        first += 1u;
+    }
+    if (first == text.length)
+    {
+        const CarrierPiece empty = {text.text, 0u};
+        return empty;
+    }
+    size_t last = text.length;
+    while ((last > first) && (carrier_space(text.text[last - 1u]) || (text.text[last - 1u] == ';')))
+    {
+        last -= 1u;
+    }
+    // where every byte from the first kept is a space or a semicolon, the rest stays whole
+    if (last == first)
+    {
+        last = text.length;
+    }
+    const CarrierPiece kept = {&text.text[first], last - first};
+    return kept;
+}
+
+// a number read in hex from the bytes of `piece`
+static unsigned long long piece_hex(CarrierPiece piece)
+{
+    char number[32] = {0};
+    const size_t length = (piece.length < 31u) ? piece.length : 31u;
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = number, .src = piece.text, .bytes = length);
+    const int prefixed = (number[0] == '0') && ((number[1] == 'x') || (number[1] == 'X'));
+    return EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = prefixed ? &number[2] : number, .end = NULL,
+                      .base = 16);
+}
+
+int link_read(CarrierPiece line, Link *link)
+{
+    t_link_full = 0;
+    static TablePatternOnce s_address;
+    static TablePatternOnce s_comment;
+    static TablePatternOnce s_instruction;
+    static TablePatternOnce s_self;
+    TableMatch address;
+    const int addressed =
+        table_search(table_once(&s_address, "/\\*([0-9a-f]{4,})\\*/", 0), line.text, line.length, &address);
+    size_t address_length = 0u;
+    const char *const address_text = addressed ? table_group(&address, 1u, line.text, &address_length) : "";
+    const CarrierPiece address_piece = {address_text, address_length};
+    PlatformText uncommented;
+    identity_text_begun(&uncommented);
+    table_replaced(table_once(&s_comment, "/\\*.*?\\*/", 0), line.text, line.length, "", &uncommented);
+    const unsigned long long uncommented_size = platform_text_size(&uncommented);
+    const CarrierPiece bare = trimmed(carrier_piece_of(platform_text_bytes(&uncommented)));
+    TableMatch matched;
+    if ((bare.length == 0u) ||
+        !table_matched(table_once(&s_instruction, "^(@!?[A-Z0-9]+\\s+)?[A-Z][A-Z0-9_.]*(\\s.*)?$", 1), bare.text,
+                       bare.length, &matched))
+    {
+        platform_text_ended(&uncommented);
+        return 0;
+    }
+    (void)uncommented_size;
+    TableMatch self;
+    if (addressed && table_matched(table_once(&s_self, "^BRA\\s+0x([0-9a-f]+)$", 1), bare.text, bare.length, &self))
+    {
+        size_t target_length = 0u;
+        const char *const target = table_group(&self, 1u, bare.text, &target_length);
+        const CarrierPiece target_piece = {target, target_length};
+        if (piece_hex(target_piece) == piece_hex(address_piece))
+        {
+            platform_text_ended(&uncommented);
+            return -1;
+        }
+    }
+    // the written text kept in the link, which the pieces below read through `written`
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = link, .bytes = sizeof(*link), .val = 0);
+    t_link_full |= !IDENTITY_SET(link->exact, bare.text, bare.length);
+    if (addressed)
+    {
+        t_link_full |= !IDENTITY_SET(link->position, address_text, address_length);
+    }
+    const unsigned long long address_value = addressed ? piece_hex(address_piece) : 0ULL;
+    platform_text_ended(&uncommented);
+    PlatformText type;
+    identity_text_begun(&type);
+    const CarrierPiece written = carrier_piece_of(link->exact.text);
+    CarrierPiece text = written;
+    if (text.text[0] == '@')
+    {
+        const size_t space = carrier_space_at(text);
+        const CarrierPiece guard = {text.text, space};
+        operand_type(guard, &type);
+        mmgr_line_ch(&type.line, ' ');
+        placeholders_named(guard, "g", link);
+        text = trimmed(carrier_after(text, space));
+    }
+    const size_t space = carrier_space_at(text);
+    (void)mmgr_line_put_n(&type.line, text.text, space);
+    if (space != text.length)
+    {
+        mmgr_line_ch(&type.line, ' ');
+        // the operands joined, a comma and a space before each once the joined text holds anything
+        const unsigned long long joined_from = platform_text_size(&type);
+        size_t cut = 0u;
+        CarrierPiece piece;
+        unsigned int placeholder = 0u;
+        const CarrierPiece operands = carrier_after(text, space);
+        while (carrier_piece_next(operands, ',', &cut, &piece))
+        {
+            if (platform_text_size(&type) > joined_from)
+            {
+                mmgr_line_put(&type.line, ", ");
+            }
+            operand_type(trimmed(piece), &type);
+            char number[LINK_PLACEHOLDER_BYTES];
+            VerbaLinea number_line = mmgr_line_over(number, sizeof(number));
+            mmgr_line_decimal(&number_line, placeholder, 1u);
+            (void)mmgr_line_finish(&number_line);
+            placeholders_named(piece, number, link);
+            placeholder += 1u;
+        }
+    }
+    // The link with each register a mark and each literal operand another, the registers and the literals in the order
+    // written. Its spaces go as one, and its numbers in decimal. The target of an operation that aims at an address of
+    // the code is a position in the chain. It goes as its distance in links from the link itself. A barrier's number, a
+    // mask or a count is a literal
+    static TablePatternOnce s_reuse;
+    static TablePatternOnce s_spaces;
+    static TablePatternOnce s_literal;
+    static TablePatternOnce s_target;
+    PlatformText plain_text;
+    identity_text_begun(&plain_text);
+    (void)mmgr_line_put_n(&plain_text.line, written.text, written.length);
+    identity_replaced(&plain_text, table_once(&s_reuse, "\\.reuse", 0), "");
+    identity_replaced(&plain_text, table_once(&s_spaces, "\\s+", 0), " ");
+    const CarrierPiece plain = carrier_piece_of(platform_text_bytes(&plain_text));
+    size_t operation_first = 0u;
+    if (plain.text[0] == '@')
+    {
+        const char *const at_space =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = plain.text, .cap = plain.length, .byte = ' ');
+        // the guard ends at its space, which lies past the text's start
+        operation_first = (at_space != NULL) ? ((size_t)(at_space - plain.text) + 1u) : plain.length;
+    }
+    size_t operation_last = operation_first;
+    while ((operation_last < plain.length) && (plain.text[operation_last] != ' '))
+    {
+        operation_last += 1u;
+    }
+    size_t name_end = operation_first;
+    while ((name_end < plain.length) && (plain.text[name_end] != '.') && (plain.text[name_end] != ' '))
+    {
+        name_end += 1u;
+    }
+    const CarrierPiece operation_name = {&plain.text[operation_first], name_end - operation_first};
+    static const char *const s_aimed[] = {"BRA", "JMP", "CALL", "BSSY"};
+    int transfers = 0;
+    for (size_t at = 0u; at < (sizeof(s_aimed) / sizeof(s_aimed[0])); at += 1u)
+    {
+        transfers |= identity_piece_is(operation_name, s_aimed[at]) ? 1 : 0;
+    }
+    PlatformText shaped;
+    identity_text_begun(&shaped);
+    (void)mmgr_line_put_n(&shaped.line, plain.text, operation_last);
+    if (operation_last < plain.length)
+    {
+        size_t cut = 0u;
+        CarrierPiece piece;
+        unsigned int at = 0u;
+        const CarrierPiece operands = carrier_after(plain, operation_last + 1u);
+        while (carrier_piece_next(operands, ',', &cut, &piece))
+        {
+            const CarrierPiece each = trimmed(piece);
+            mmgr_line_put(&shaped.line, (at == 0u) ? " " : ", ");
+            TableMatch shape;
+            if (transfers && addressed &&
+                table_matched(table_once(&s_target, "^0x[0-9a-f]+$", 1), each.text, each.length, &shape))
+            {
+                const long long distance = ((long long)piece_hex(each) - (long long)address_value) / 16;
+                t_link_full |=
+                    !link_word_put(link->targets, &link->target_count, LINK_LITERALS_MAX, each.text, each.length);
+                char distance_text[32];
+                VerbaLinea distance_line = mmgr_line_over(distance_text, sizeof(distance_text));
+                mmgr_line_put(&distance_line, (distance < 0) ? "." : ".+");
+                mmgr_line_decimal_signed(&distance_line, distance);
+                const size_t distance_length = mmgr_line_finish(&distance_line);
+                t_link_full |= !link_word_put(link->distances, &link->distance_count, LINK_LITERALS_MAX, distance_text,
+                                              distance_length);
+                mmgr_line_ch(&shaped.line, '\x03');
+            }
+            else if (table_matched(table_once(&s_literal,
+                                              "^-?(0x[0-9a-f]+|[0-9]+(\\.[0-9]+)?(e[+-][0-9]+)?|[+-]?INF|[+-]?QNAN)$",
+                                              1),
+                                   each.text, each.length, &shape))
+            {
+                PlatformText literal;
+                identity_text_begun(&literal);
+                numbers_decimal(each.text, each.length, &literal);
+                if (link->literal_count < LINK_LITERALS_MAX)
+                {
+                    t_link_full |= !IDENTITY_KEPT(&literal, link->literals[link->literal_count]);
+                    link->literal_count += 1u;
+                }
+                else
+                {
+                    platform_text_ended(&literal);
+                    t_link_full = 1;
+                }
+                mmgr_line_ch(&shaped.line, '\x02');
+            }
+            else
+            {
+                (void)mmgr_line_put_n(&shaped.line, each.text, each.length);
+            }
+            at += 1u;
+        }
+    }
+    platform_text_ended(&plain_text);
+    const unsigned long long shaped_size = platform_text_size(&shaped);
+    const char *const shaped_bytes = platform_text_bytes(&shaped);
+    PlatformText marked;
+    identity_text_begun(&marked);
+    TableWalk walk;
+    table_walk_begun(&walk, named_pattern(), shaped_bytes, (size_t)shaped_size);
+    size_t at = 0u;
+    while (table_walk_next(&walk))
+    {
+        const RegexpSpan whole = walk.match.group[0];
+        (void)mmgr_line_put_n(&marked.line, &shaped_bytes[at], (size_t)whole.from - at);
+        mmgr_line_ch(&marked.line, '\x01');
+        size_t length = 0u;
+        const char *const each = table_walk_group(&walk, 0u, &length);
+        if (link->named_count < LINK_PARTS_MAX)
+        {
+            t_link_full |= !IDENTITY_SET(link->named[link->named_count], each, length);
+            link->named_count += 1u;
+        }
+        else
+        {
+            t_link_full = 1;
+        }
+        at = (size_t)whole.to;
+    }
+    table_walk_ended(&walk);
+    (void)mmgr_line_put_n(&marked.line, &shaped_bytes[at], (size_t)shaped_size - at);
+    PlatformText marked_decimal;
+    identity_text_begun(&marked_decimal);
+    const unsigned long long marked_size = platform_text_size(&marked);
+    numbers_decimal(platform_text_bytes(&marked), (size_t)marked_size, &marked_decimal);
+    platform_text_ended(&marked);
+    platform_text_ended(&shaped);
+    t_link_full |= !IDENTITY_KEPT(&marked_decimal, link->marked);
+    registers_named(written, &link->registers);
+    t_link_full |= !IDENTITY_KEPT(&type, link->type);
+    if (t_link_full)
+    {
+        // a link with more parts or longer texts than its record holds reads as no link, and the read says so
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  a link holds more than the bounds of its record in identity_internal.h: ");
+        mmgr_line_put(output_line, link->exact.text);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+        return 0;
+    }
+    return 1;
+}
+
+// one row of the stick's manifest: its number, its category and its C
+struct QuestionNamed
+{
+    IdentityName number;
+    IdentityName category;
+    char text[IDENTITY_C_BYTES];
+};
+
+// The rows of the manifest whose number is 4 bytes, into one cell of the temporary tier that the caller gives back,
+// sorted by number. A number the manifest gives twice keeps each row in the order written. NULL where the file does
+// not read, holds no such row, or the pool cannot meet the cell
+static QuestionNamed *manifest_read(const char *manifest, unsigned long long *count)
+{
+    *count = 0ULL;
+    size_t manifest_size = 0u;
+    char *const table = identity_file_read(manifest, &manifest_size);
+    const CarrierPiece rows = {(table != NULL) ? table : "", manifest_size};
+    QuestionNamed *named = NULL;
+    // two walks: the first counts the rows, and the second fills one cell taken once at that count
+    for (unsigned int walk = 0u; walk < 2u; walk += 1u)
+    {
+        if (walk == 1u)
+        {
+            named = (*count != 0ULL) ? (QuestionNamed *)platform_cell_cleared(*count, sizeof(QuestionNamed),
+                                                                              platform_place_g_program_owner,
+                                                                              PLATFORM_TIER_TEMPORARY)
+                                     : NULL;
+            if (named == NULL)
+            {
+                break;
+            }
+            *count = 0ULL;
+        }
+        size_t cut = 0u;
+        CarrierPiece row;
+        while (identity_line_next(rows, &cut, &row))
+        {
+            const char *const first =
+                EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = row.text, .cap = row.length, .byte = '\t');
+            // the first tab lies at or past the row's start
+            const size_t first_at = (first != NULL) ? (size_t)(first - row.text) : row.length;
+            const char *const second = (first_at < row.length)
+                                           ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = &row.text[first_at + 1u],
+                                                        .cap = row.length - first_at - 1u, .byte = '\t')
+                                           : NULL;
+            if ((first_at != 4u) || (second == NULL))
+            {
+                continue;
+            }
+            if (walk == 1u)
+            {
+                // the second tab lies past the first
+                const size_t second_at = (size_t)(second - row.text);
+                QuestionNamed *const entry = &named[*count];
+                const CarrierPiece text = trimmed(carrier_after(row, second_at + 1u));
+                (void)IDENTITY_SET(entry->number, row.text, 4u);
+                (void)IDENTITY_SET(entry->category, &row.text[5], second_at - 5u);
+                (void)identity_name_set(entry->text, sizeof(entry->text), text.text, text.length);
+            }
+            *count += 1ULL;
+        }
+    }
+    platform_cell_released(table, platform_place_g_program_owner);
+    if ((named != NULL) && !identity_sorted(named, *count, [](const QuestionNamed &one, const QuestionNamed &other) {
+            return identity_order_text(one.number.text, other.number.text) < 0;
+        }))
+    {
+        platform_cell_released(named, platform_place_g_program_owner);
+        named = NULL;
+    }
+    *count = (named != NULL) ? *count : 0ULL;
     return named;
 }
 
-// each register `text` names, put down in `placeholders`
-static void placeholders_named(const std::string &text, const std::string &placeholder,
-                               std::vector<std::pair<std::string, std::string>> *placeholders)
+// the manifest's row of `number`, the last it gives where it gives the number twice, or NULL where it gives none
+static const QuestionNamed *manifest_row(const QuestionNamed *named, unsigned long long count, const char *number)
 {
-    static const std::regex s_named("\\b(UR[0-9]+|R[0-9]+|P[0-6])\\b");
-    for (std::sregex_iterator walk(text.begin(), text.end(), s_named); walk != std::sregex_iterator(); ++walk)
+    const unsigned long long after = identity_lower(
+        named, count, [number](const QuestionNamed &row) { return identity_order_text(row.number.text, number) <= 0; });
+    return ((after != 0ULL) && identity_same(named[after - 1ULL].number.text, number)) ? &named[after - 1ULL] : NULL;
+}
+
+// the files that did not read, said
+static void questions_unread(const char *listing, const char *manifest)
+{
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, "  ");
+    mmgr_line_put(output_line, listing);
+    mmgr_line_put(output_line, " or ");
+    mmgr_line_put(output_line, manifest);
+    mmgr_line_put(output_line, " could not be read");
+    mmgr_line_ch(output_line, '\n');
+    platform_line_out_ended();
+}
+
+// The places of the question's chain ordered by exact text, into its `by_exact`, a run of one text by place. 1, or 0
+// where the pool cannot meet the sort
+int question_ordered(Question *question)
+{
+    for (unsigned long long at = 0ULL; at < question->links; at += 1ULL)
     {
-        placeholders->push_back(std::make_pair(placeholder, walk->str()));
+        question->by_exact[at] = at;
     }
+    const Link *const chain = question->chain;
+    return identity_sorted(question->by_exact, question->links,
+                           [chain](unsigned long long one, unsigned long long other) {
+                               return identity_order_text(chain[one].exact.text, chain[other].exact.text) < 0;
+                           });
 }
 
-std::string trimmed(const std::string &text)
+int questions_read(const char *listing, const char *manifest, Questions *questions)
 {
-    const size_t first = text.find_first_not_of(" \t\r\n");
-    const size_t last = text.find_last_not_of(" \t\r\n;");
-    return (first == std::string::npos) ? std::string() : text.substr(first, last - first + 1u);
-}
-
-// the line of a listing as a link: 1, 0 where it is no instruction, or -1 where it is the branch to itself past the
-// last exit, after which nothing of the chain is reached
-int link_read(const std::string &line, Link *link)
-{
-    static const std::regex s_address("/\\*([0-9a-f]{4,})\\*/");
-    static const std::regex s_comment("/\\*.*?\\*/");
-    std::smatch address;
-    const int addressed = std::regex_search(line, address, s_address);
-    std::string text = trimmed(std::regex_replace(line, s_comment, ""));
-    static const std::regex s_instruction("^(@!?[A-Z0-9]+\\s+)?[A-Z][A-Z0-9_.]*(\\s.*)?$");
-    if (text.empty() || !std::regex_match(text, s_instruction))
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = questions, .bytes = sizeof(*questions), .val = 0);
+    unsigned long long named_count = 0ULL;
+    QuestionNamed *const named = manifest_read(manifest, &named_count);
+    size_t listing_size = 0u;
+    char *const file = identity_file_read(listing, &listing_size);
+    if ((file == NULL) || (named == NULL))
     {
+        platform_cell_released(file, platform_place_g_program_owner);
+        platform_cell_released(named, platform_place_g_program_owner);
+        questions_unread(listing, manifest);
         return 0;
     }
-    static const std::regex s_self("^BRA\\s+0x([0-9a-f]+)$");
-    std::smatch self;
-    if (addressed && std::regex_match(text, self, s_self) &&
-        (std::stoull(self[1].str(), nullptr, 16) == std::stoull(address[1].str(), nullptr, 16)))
+    static TablePatternOnce s_function;
+    const TablePattern *const function_pattern = table_once(&s_function, "Function : measuring_stick_([0-9]+)", 0);
+    const CarrierPiece listing_text = {file, listing_size};
+    // Two walks of the listing. The first counts the questions and the links. The second fills the three cells of the
+    // questions, each taken once at its count and never grown
+    unsigned long long counts[2] = {0ULL, 0ULL};
+    int whole = 1;
+    for (unsigned int walk = 0u; whole && (walk < 2u); walk += 1u)
     {
-        return -1;
-    }
-    const std::string written = text;
-    link->placeholders.clear();
-    std::string guard;
-    if (text[0] == '@')
-    {
-        const size_t space = text.find_first_of(" \t");
-        guard = operand_type(text.substr(0u, space)) + " ";
-        placeholders_named(text.substr(0u, space), "g", &link->placeholders);
-        text = trimmed(text.substr(space));
-    }
-    const size_t space = text.find_first_of(" \t");
-    std::string type = guard + text.substr(0u, space);
-    if (space != std::string::npos)
-    {
-        std::stringstream operands(text.substr(space));
-        std::string piece;
-        std::string joined;
-        unsigned int placeholder = 0u;
-        while (std::getline(operands, piece, ','))
+        if (walk == 1u)
         {
-            joined += (joined.empty() ? "" : ", ") + operand_type(trimmed(piece));
-            placeholders_named(piece, std::to_string(placeholder), &link->placeholders);
-            placeholder += 1u;
+            questions->question =
+                (Question *)platform_cell_cleared((counts[0] != 0ULL) ? counts[0] : 1ULL, sizeof(Question),
+                                                  platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT);
+            questions->links = (Link *)platform_cell_cleared((counts[1] != 0ULL) ? counts[1] : 1ULL, sizeof(Link),
+                                                             platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT);
+            questions->places = (unsigned long long *)platform_cell_cleared(
+                (counts[1] != 0ULL) ? counts[1] : 1ULL, sizeof(unsigned long long), platform_place_g_program_owner,
+                PLATFORM_TIER_PERSISTENT);
+            whole = (questions->question != NULL) && (questions->links != NULL) && (questions->places != NULL);
+            if (!whole)
+            {
+                break;
+            }
         }
-        type += " " + joined;
+        int ended = 1;
+        unsigned long long question_at = 0ULL;
+        unsigned long long link_at = 0ULL;
+        Question *question = NULL;
+        size_t cut = 0u;
+        CarrierPiece line;
+        while (identity_line_next(listing_text, &cut, &line))
+        {
+            TableMatch function;
+            if (table_search(function_pattern, line.text, line.length, &function))
+            {
+                if (walk == 1u)
+                {
+                    size_t number_length = 0u;
+                    const char *const number = table_group(&function, 1u, line.text, &number_length);
+                    question = &questions->question[question_at];
+                    (void)IDENTITY_SET(question->number, number, number_length);
+                    const QuestionNamed *const row = manifest_row(named, named_count, question->number.text);
+                    if (row != NULL)
+                    {
+                        (void)IDENTITY_SET_TEXT(question->category, row->category.text);
+                        (void)identity_name_set(question->text, sizeof(question->text), row->text,
+                                                PLATFORM_TEXT_TO_TERMINATOR);
+                    }
+                    question->chain = &questions->links[link_at];
+                    question->by_exact = &questions->places[link_at];
+                }
+                question_at += 1ULL;
+                ended = 0;
+                continue;
+            }
+            Link link;
+            const int read = ended ? 0 : link_read(line, &link);
+            ended = ended || (read < 0);
+            if (read <= 0)
+            {
+                continue;
+            }
+            if (walk == 1u)
+            {
+                questions->links[link_at] = link;
+                question->links += 1ULL;
+            }
+            link_at += 1ULL;
+        }
+        counts[0] = question_at;
+        counts[1] = link_at;
     }
-    text = written;
-    // the link with each register a mark and each literal operand another, the registers and the literals in the order
-    // written, its spaces one and its numbers decimal. The target of an operation that aims at an address of the code
-    // is a position in the chain and is written as its distance in links from the link itself: a barrier's number, a
-    // mask or a count is a literal
-    static const std::regex s_reuse("\\.reuse");
-    static const std::regex s_spaces("\\s+");
-    static const std::regex s_named("\\b(UR[0-9]+|R[0-9]+|P[0-6])\\b");
-    static const std::regex s_literal("^-?(0x[0-9a-f]+|[0-9]+(\\.[0-9]+)?(e[+-][0-9]+)?|[+-]?INF|[+-]?QNAN)$");
-    static const std::regex s_target("^0x[0-9a-f]+$");
-    const std::string plain = std::regex_replace(std::regex_replace(written, s_reuse, ""), s_spaces, " ");
-    link->marked.clear();
-    link->named.clear();
-    link->literals.clear();
-    link->targets.clear();
-    link->distances.clear();
-    const size_t operation_first = (plain[0] == '@') ? plain.find(' ') + 1u : 0u;
-    const size_t operation_last = plain.find(' ', operation_first);
-    const std::string operation_name =
-        plain.substr(operation_first, plain.find_first_of(". ", operation_first) - operation_first);
-    static const char *const s_aimed[] = {"BRA", "JMP", "CALL", "BSSY"};
-    const int transfers =
-        std::any_of(std::begin(s_aimed), std::end(s_aimed), [&](const char *aimed) { return operation_name == aimed; });
-    std::vector<std::string> pieces;
-    if (operation_last != std::string::npos)
+    questions->count = whole ? counts[0] : 0ULL;
+    platform_cell_released(file, platform_place_g_program_owner);
+    platform_cell_released(named, platform_place_g_program_owner);
+    for (unsigned long long at = 0ULL; whole && (at < questions->count); at += 1ULL)
     {
-        std::stringstream operands(plain.substr(operation_last + 1u));
-        std::string piece;
-        while (std::getline(operands, piece, ','))
-        {
-            pieces.push_back(trimmed(piece));
-        }
-    }
-    const std::string head = plain.substr(0u, operation_last);
-    std::string rebuilt;
-    for (size_t at = 0u; at < pieces.size(); at += 1u)
-    {
-        std::string piece = pieces[at];
-        if (transfers && addressed && std::regex_match(piece, s_target))
-        {
-            const long long distance =
-                ((long long)std::stoull(piece, nullptr, 16) - (long long)std::stoull(address[1].str(), nullptr, 16)) /
-                16;
-            link->targets.push_back(piece);
-            link->distances.push_back("." + std::string((distance < 0) ? "" : "+") + std::to_string(distance));
-            piece = "\x03";
-        }
-        else if (std::regex_match(piece, s_literal))
-        {
-            link->literals.push_back(numbers_decimal(piece));
-            piece = "\x02";
-        }
-        rebuilt += ((at == 0u) ? " " : ", ") + piece;
-    }
-    const std::string shaped = head + rebuilt;
-    size_t at = 0u;
-    for (std::sregex_iterator walk(shaped.begin(), shaped.end(), s_named); walk != std::sregex_iterator(); ++walk)
-    {
-        link->marked += shaped.substr(at, (size_t)walk->position() - at) + "\x01";
-        link->named.push_back(walk->str());
-        at = (size_t)(walk->position() + walk->length());
-    }
-    link->marked = numbers_decimal(link->marked + shaped.substr(at));
-    link->exact = text;
-    link->registers = registers_named(text);
-    link->type = type;
-    link->position = addressed ? address[1].str() : std::string();
-    return 1;
-}
-
-int questions_read(const char *listing, const char *manifest, std::vector<Question> *questions)
-{
-    std::map<std::string, std::pair<std::string, std::string>> named;
-    std::ifstream table(manifest);
-    std::string row;
-    while (std::getline(table, row))
-    {
-        const size_t first = row.find('\t');
-        const size_t second = row.find('\t', first + 1u);
-        if ((first == 4u) && (second != std::string::npos))
-        {
-            named[row.substr(0u, 4u)] = std::make_pair(row.substr(5u, second - 5u), trimmed(row.substr(second + 1u)));
-        }
-    }
-    std::ifstream file(listing);
-    if (!file || named.empty())
-    {
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "  ");
-            mmgr_line_put(output_line, listing);
-            mmgr_line_put(output_line, " or ");
-            mmgr_line_put(output_line, manifest);
-            mmgr_line_put(output_line, " could not be read");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
-        return 0;
-    }
-    static const std::regex s_function("Function : measuring_stick_([0-9]+)");
-    std::string line;
-    int ended = 1;
-    while (std::getline(file, line))
-    {
-        std::smatch function;
-        if (std::regex_search(line, function, s_function))
-        {
-            Question question;
-            question.number = function[1].str();
-            question.category = named[question.number].first;
-            question.text = named[question.number].second;
-            questions->push_back(question);
-            ended = 0;
-            continue;
-        }
-        Link link;
-        const int read = ended ? 0 : link_read(line, &link);
-        ended = ended || (read < 0);
-        if (read > 0)
-        {
-            // a link written more than once in a listing is recorded at its max basal position
-            questions->back().exact[link.exact] += 1u;
-            questions->back().links.insert(std::make_pair(link.exact, link));
-            questions->back().chain.push_back(link);
-        }
+        whole = question_ordered(&questions->question[at]);
     }
     // the chain runs question by question in the order of their numbers
-    std::sort(questions->begin(), questions->end(),
-              [](const Question &one, const Question &other) { return one.number < other.number; });
-    return 1;
+    whole =
+        whole && identity_sorted(questions->question, questions->count, [](const Question &one, const Question &other) {
+            return identity_order_text(one.number.text, other.number.text) < 0;
+        });
+    if (!whole)
+    {
+        questions_ended(questions);
+        identity_path_said(listing, ": the pool cannot meet its questions");
+    }
+    return whole;
 }
 
-// the context of the link at `position` in the question's chain: for each register it names, the nearest link before
-// it and the nearest after it that name the same register, each written as which side, the placeholder the link names
-// it in, the placeholder the other names it in, and the other's link. Nothing but the names the links share is read
-std::string member_context(const Question &question, const std::string &position)
+// the bytes of one entry of a link's context, its terminator among them: two placeholders and the other link's type
+#define CONTEXT_ENTRY_BYTES (IDENTITY_LINE_BYTES + 32u)
+
+// the entries of one context at max: each placeholder of the link, each side, each placeholder of the other link
+#define CONTEXT_ENTRIES_MAX (LINK_PARTS_MAX * 2u * LINK_PARTS_MAX)
+
+struct ContextEntry
 {
-    size_t at = 0u;
-    while ((at < question.chain.size()) && (question.chain[at].position != position))
+    char text[CONTEXT_ENTRY_BYTES];
+};
+
+void member_context(const Question *question, const char *position, PlatformText *out)
+{
+    unsigned long long at = 0ULL;
+    const unsigned long long chain = question->links;
+    while ((at < chain) && !identity_same(question->chain[at].position.text, position))
     {
-        at += 1u;
+        at += 1ULL;
     }
-    if (at == question.chain.size())
+    if (at == chain)
     {
-        return std::string();
+        return;
     }
-    std::set<std::string> entries;
-    const Link &link = question.chain[at];
-    for (const auto &placeholder : link.placeholders)
+    ContextEntry *const entries = (ContextEntry *)platform_cell_taken(
+        CONTEXT_ENTRIES_MAX * sizeof(ContextEntry), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    if (entries == NULL)
     {
+        return;
+    }
+    unsigned int entry_count = 0u;
+    const Link *const link = &question->chain[at];
+    for (unsigned int each = 0u; each < link->placeholder_count; each += 1u)
+    {
+        const LinkPlaceholder *const placeholder = &link->placeholders[each];
         for (int side = 0; side < 2; side += 1)
         {
-            const int step = (side == 0) ? -1 : 1;
-            for (long walk = (long)at + step; (walk >= 0) && (walk < (long)question.chain.size()); walk += step)
+            const long step = (side == 0) ? -1 : 1;
+            // a chain's links are far below 2^63
+            for (long walk = (long)at + step; (walk >= 0) && (walk < (long)chain); walk += step)
             {
-                const Link &other = question.chain[(size_t)walk];
+                const Link *const other = &question->chain[walk];
                 int named = 0;
-                for (const auto &other_placeholder : other.placeholders)
+                for (unsigned int other_at = 0u; other_at < other->placeholder_count; other_at += 1u)
                 {
-                    if (other_placeholder.second == placeholder.second)
+                    const LinkPlaceholder *const other_placeholder = &other->placeholders[other_at];
+                    if (identity_same(other_placeholder->name, placeholder->name) &&
+                        (entry_count < CONTEXT_ENTRIES_MAX))
                     {
-                        entries.insert(std::string((side == 0) ? "before " : "after ") + placeholder.first + " " +
-                                       other_placeholder.first + " " + other.type);
+                        VerbaLinea entry = mmgr_line_over(entries[entry_count].text, CONTEXT_ENTRY_BYTES);
+                        mmgr_line_put(&entry, (side == 0) ? "before " : "after ");
+                        mmgr_line_put(&entry, placeholder->placeholder);
+                        mmgr_line_ch(&entry, ' ');
+                        mmgr_line_put(&entry, other_placeholder->placeholder);
+                        mmgr_line_ch(&entry, ' ');
+                        mmgr_line_put(&entry, other->type.text);
+                        (void)mmgr_line_finish(&entry);
+                        entry_count += 1u;
                         named = 1;
                     }
                 }
@@ -359,35 +778,54 @@ std::string member_context(const Question &question, const std::string &position
             }
         }
     }
-    std::string context;
-    for (const std::string &entry : entries)
+    // the entries in the order of their bytes, each once
+    identity_sorted_in_place(entries, entry_count, [](const ContextEntry &one, const ContextEntry &other) {
+        return identity_order_text(one.text, other.text) < 0;
+    });
+    unsigned int written = 0u;
+    for (unsigned int each = 0u; each < entry_count; each += 1u)
     {
-        context += (context.empty() ? "" : ";") + entry;
-    }
-    return context;
-}
-
-// the links of `one` past those of `other`, counted
-std::vector<std::string> links_past(const Question &one, const Question &other)
-{
-    std::vector<std::string> past;
-    for (const auto &entry : one.exact)
-    {
-        const auto found = other.exact.find(entry.first);
-        const unsigned int there = (found == other.exact.end()) ? 0u : found->second;
-        for (unsigned int extra = there; extra < entry.second; extra += 1u)
+        if ((each != 0u) && identity_same(entries[each].text, entries[each - 1u].text))
         {
-            past.push_back(entry.first);
+            continue;
         }
+        mmgr_line_put(&out->line, (written == 0u) ? "" : ";");
+        mmgr_line_put(&out->line, entries[each].text);
+        written += 1u;
     }
-    return past;
+    platform_cell_released(entries, platform_place_g_program_owner);
 }
 
-// 1 where the question's operands and result are integers, which the host computes as every system does
-int question_integer(const Question &question)
+void links_past(const Question *one, const Question *other, PlatformArray *past)
 {
-    static const std::set<std::string> s_categories = {
-        "operator", "compound", "unary", "conversion", "conditional", "statement", "test", "pressure", "text_identity"};
-    return s_categories.count(question.category) && (question.text.find("float") == std::string::npos) &&
-           (question.text.find("double") == std::string::npos) && (question.text.find("__") == std::string::npos);
+    for (unsigned long long at = 0ULL; at < one->links;)
+    {
+        const unsigned long long place = one->by_exact[at];
+        const char *const exact = one->chain[place].exact.text;
+        unsigned long long end = at;
+        while ((end < one->links) && identity_same(one->chain[one->by_exact[end]].exact.text, exact))
+        {
+            end += 1ULL;
+        }
+        unsigned long long other_first = 0ULL;
+        const unsigned long long there = question_exact_run(other, exact, &other_first);
+        for (unsigned long long extra = there; extra < (end - at); extra += 1ULL)
+        {
+            (void)platform_array_appended(past, &place);
+        }
+        at = end;
+    }
+}
+
+int question_integer(const Question *question)
+{
+    static const char *const s_categories[] = {"operator",  "compound", "unary",    "conversion",   "conditional",
+                                               "statement", "test",     "pressure", "text_identity"};
+    int integer = 0;
+    for (size_t at = 0u; at < (sizeof(s_categories) / sizeof(s_categories[0])); at += 1u)
+    {
+        integer |= identity_same(question->category.text, s_categories[at]) ? 1 : 0;
+    }
+    const char *const text = question->text;
+    return integer && !identity_has(text, "float") && !identity_has(text, "double") && !identity_has(text, "__");
 }

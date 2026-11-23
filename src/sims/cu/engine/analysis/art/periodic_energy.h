@@ -3,8 +3,8 @@
 #ifndef PERIODIC_ENERGY_H
 #define PERIODIC_ENERGY_H
 
+#include "memoria_operor/memoria_operor.h"
 #include "sim.h"
-#include "memoria_operor/memoria_linea.h"
 
 #define ENERGY_THREADS 128ULL
 
@@ -197,7 +197,7 @@ static inline int energy_recover(SimResults *results, const long long *values, u
 static inline void energy_shuffle(const long long *values, long long *shuffled, unsigned long long length,
                                   unsigned long long key)
 {
-    mmgr_bytes_copy(shuffled, values, (size_t)length * sizeof(long long));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = shuffled, .src = values, .bytes = (size_t)length * sizeof(long long));
     // fewer than two values shuffle to themselves, and length - 1 would wrap at 0
     if (length < 2ULL)
     {

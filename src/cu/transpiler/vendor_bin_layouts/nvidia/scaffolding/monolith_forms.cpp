@@ -30,9 +30,9 @@
 // what whole is).
 #include "../../../../../../utils/test/src/cu/engine/analysis/cycle/record_programs.h"
 #include "../../../../engine/engine_note.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the cubin writer is C and its headers carry no guard of their own: this file names the linkage here
 extern "C"
@@ -1461,7 +1461,8 @@ static std::vector<Question> questions_read(const char *path)
             continue;
         }
         Question question;
-        question.tag = (unsigned int)mmgr_text_unsigned_in(parts[0].c_str(), NULL, 10);
+        question.tag = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = parts[0].c_str(),
+                                                .end = NULL, .base = 10);
         question.form = parts[1];
         question.key = parts[2];
         for (size_t at = 3u; at < parts.size(); at += 1u)
@@ -1476,7 +1477,10 @@ static std::vector<Question> questions_read(const char *path)
             role.name = parts[at].substr(role.fixed ? 1u : 0u, equals - (role.fixed ? 1u : 0u));
             const std::vector<std::string> fields = line_split(parts[at].substr(equals + 1u), ':');
             role.place = fields[0];
-            role.word = (fields.size() > 1u) ? (unsigned int)mmgr_text_unsigned_in(fields[1].c_str(), NULL, 10) : 0u;
+            role.word = (fields.size() > 1u)
+                            ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = fields[1].c_str(),
+                                                       .end = NULL, .base = 10)
+                            : 0u;
             role.type = (fields.size() > 2u) ? fields[2] : std::string();
             role.number = (role.place == "number") ? fields[1] : std::string();
             role.opaque = (fields.size() > 4u) && (fields[3] == "number");
@@ -1508,7 +1512,7 @@ static std::map<unsigned int, std::vector<std::string>> sass_blocks(const char *
         const size_t open = text.find("/*");
         const size_t address = text.find("*/");
         if ((open == std::string::npos) || (address == std::string::npos) || (open > address) ||
-            !mmgr_text_is_hex((unsigned char)text[open + 2u]))
+            !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_HEX, .byte = (unsigned char)text[open + 2u]))
         {
             continue;
         }
@@ -1526,7 +1530,8 @@ static std::map<unsigned int, std::vector<std::string>> sass_blocks(const char *
         }
         if (instruction.compare(0u, 7u, "PMTRIG ") == 0)
         {
-            tag = (unsigned int)mmgr_text_unsigned_in(instruction.c_str() + 7, NULL, 16);
+            tag = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = instruction.c_str() + 7,
+                                           .end = NULL, .base = 16);
             continue;
         }
         blocks[tag].push_back(instruction);
@@ -1560,7 +1565,8 @@ static std::map<unsigned int, std::vector<std::string>> ptx_blocks(const char *p
         text.pop_back();
         if (text.compare(0u, 13u, "pmevent.mask ") == 0)
         {
-            tag = (unsigned int)mmgr_text_unsigned_in(text.c_str() + 13, NULL, 10);
+            tag = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = text.c_str() + 13, .end = NULL,
+                                           .base = 10);
             continue;
         }
         blocks[tag].push_back(trim(text));
@@ -1598,7 +1604,8 @@ static size_t sass_register(const std::string &operand, size_t from, size_t *len
 // the number of the register `token`, R7 or P3
 static unsigned int token_number(const std::string &token)
 {
-    return (unsigned int)mmgr_text_unsigned_in(token.c_str() + 1, NULL, 10);
+    return (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = token.c_str() + 1, .end = NULL,
+                                    .base = 10);
 }
 
 // the operands that an instruction writes: its first, and every predicate straight after it, where it writes any. None
@@ -1609,7 +1616,9 @@ static unsigned int sass_written(const Instruction &instruction)
                                          "WARPSYNC", "BAR", "CALL", "RET",  "NOP",   "ATOM.E.ADD.STRONG.GPU.RZ"};
     for (const char *const none : s_none)
     {
-        if (instruction.operation.compare(0u, mmgr_text_length(none, PLATFORM_TEXT_TO_TERMINATOR), none) == 0)
+        if (instruction.operation.compare(
+                0u, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = none, .cap = PLATFORM_TEXT_TO_TERMINATOR), none) ==
+            0)
         {
             return 0u;
         }
@@ -1670,7 +1679,8 @@ static std::string hex_number(const std::string &decimal)
 // decimal. A word past the sign bit can also be the negative that it reads as when signed. 1 where the name applies
 static int number_named(std::string *named, const std::string &number, const std::string &name, std::string *why)
 {
-    const unsigned long long word = mmgr_text_unsigned_in(number.c_str(), NULL, 10);
+    const unsigned long long word =
+        EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = number.c_str(), .end = NULL, .base = 10);
     const std::string negative = ((word >= 0x80000000ULL) && (word <= 0xffffffffULL))
                                      ? std::to_string(-(long long)(0x100000000ULL - word))
                                      : number;
@@ -1715,7 +1725,9 @@ static std::string numbers_named(const std::string &text, const Question &questi
             continue;
         }
         const unsigned long long word =
-            (role.number[0] == '-') ? 0ULL : mmgr_text_unsigned_in(role.number.c_str(), NULL, 10);
+            (role.number[0] == '-')
+                ? 0ULL
+                : EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = role.number.c_str(), .end = NULL, .base = 10);
         if (number_named(&named, role.number, "{" + role.name + "}", why) || (word <= 0xffffffffULL))
         {
             continue;
@@ -1744,7 +1756,9 @@ static int number_carried(const std::string &text, const Role &role)
         low = text.find(named, low + 1u);
     }
     const unsigned long long word =
-        (role.number[0] == '-') ? 0ULL : mmgr_text_unsigned_in(role.number.c_str(), NULL, 10);
+        (role.number[0] == '-')
+            ? 0ULL
+            : EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = role.number.c_str(), .end = NULL, .base = 10);
     const std::string negative = ((word >= 0x80000000ULL) && (word <= 0xffffffffULL))
                                      ? std::to_string(-(long long)(0x100000000ULL - word))
                                      : role.number;
@@ -1803,11 +1817,13 @@ static bool signedness_only(const std::string &now, const std::string &read,
     bool any = false;
     while (true)
     {
-        while ((here < now.size()) && (mmgr_text_is_space((unsigned char)now[here]) != 0))
+        while ((here < now.size()) &&
+               (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_SPACE, .byte = (unsigned char)now[here]) != 0))
         {
             here += 1u;
         }
-        while ((there < read.size()) && (mmgr_text_is_space((unsigned char)read[there]) != 0))
+        while ((there < read.size()) &&
+               (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_SPACE, .byte = (unsigned char)read[there]) != 0))
         {
             there += 1u;
         }
@@ -1873,8 +1889,10 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
     };
     auto offset_of = [](const std::string &address) -> unsigned int {
         const size_t plus = address.find('+');
-        return (plus == std::string::npos) ? 0u
-                                           : (unsigned int)mmgr_text_unsigned_in(address.c_str() + plus + 1u, NULL, 16);
+        return (plus == std::string::npos)
+                   ? 0u
+                   : (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = address.c_str() + plus + 1u,
+                                              .end = NULL, .base = 16);
     };
     // `operand` with each register it reads written as its value's name between two \x02
     auto read_names = [&](const std::string &operand) -> std::string {
@@ -1902,7 +1920,8 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
         if ((operands.size() >= 2u) && (operands.back().compare(0u, 10u, "c[0x0][0x1") == 0) &&
             ((operation == "MOV") || (operation == "IMAD.MOV.U32")))
         {
-            const unsigned int place = (unsigned int)mmgr_text_unsigned_in(operands.back().c_str() + 7, NULL, 16);
+            const unsigned int place = (unsigned int)EMBED_CALL(
+                cellul.to_ulong_in, TransfiguroCfg, .src = operands.back().c_str() + 7, .end = NULL, .base = 16);
             if ((place >= 0x160u) && (place < 0x170u))
             {
                 bases->in_low = (place == 0x160u) ? (int)token_number(operands[0]) : bases->in_low;
@@ -2278,7 +2297,8 @@ static Read ptx_read(const Question &question, const std::vector<std::string> &l
             *base = operand.substr(1u, ((plus == std::string::npos) ? (operand.size() - 1u) : plus) - 1u);
             return (plus == std::string::npos)
                        ? 0u
-                       : (unsigned int)mmgr_text_unsigned_in(operand.c_str() + plus + 1u, NULL, 10);
+                       : (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                                  .src = operand.c_str() + plus + 1u, .end = NULL, .base = 10);
         };
         if ((operation.compare(0u, 19u, "ld.volatile.global.") == 0) && (operands.size() == 2u))
         {
@@ -2514,8 +2534,10 @@ static int sass_assembles(const std::string &text, const Question &question)
         // type
         if ((role.place == "number") || role.opaque)
         {
-            const unsigned long long word =
-                (role.number[0] == '-') ? 0ULL : mmgr_text_unsigned_in(role.number.c_str(), NULL, 10);
+            const unsigned long long word = (role.number[0] == '-')
+                                                ? 0ULL
+                                                : EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                                             .src = role.number.c_str(), .end = NULL, .base = 10);
             const std::string high = "{" + role.name + "}.hi";
             size_t at = filled.find(high);
             while (at != std::string::npos)
@@ -3194,14 +3216,19 @@ static int forms_read(const char *questions_path, const char *listing, const cha
 
 int program_main(int count, char **words)
 {
-    if ((count == 6) && (mmgr_text_equal(words[1], "write", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count == 6) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "write", .ci = EMBED_FALSE)))
     {
         return forms_write(words[2], words[3], words[4], words[5]);
     }
-    if (((count == 9) || (count == 10)) && (mmgr_text_equal(words[1], "read", PLATFORM_TEXT_TO_TERMINATOR)))
+    if (((count == 9) || (count == 10)) &&
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "read",
+                    .ci = EMBED_FALSE)))
     {
         return forms_read(words[2], words[3], words[4], words[5], words[6], words[7], words[8],
-                          (count == 10) && (mmgr_text_equal(words[9], "apply", PLATFORM_TEXT_TO_TERMINATOR)));
+                          (count == 10) &&
+                              (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[9],
+                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "apply", .ci = EMBED_FALSE)));
     }
     {
         EngineNote engine_note;

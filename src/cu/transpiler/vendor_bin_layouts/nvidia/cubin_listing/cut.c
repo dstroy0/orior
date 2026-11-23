@@ -1,11 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cut.c: a cubin's listing cut into each kernel's, every label a kernel's lines name put as the offset it is at
-#include "../cubin_listing.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
-
+#include "../cubin_listing.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the offset a label carries before the instruction it is before is read
 #define CUBIN_LABEL_UNSET (~0ULL)
@@ -57,7 +56,7 @@ static int cubin_text_added(CubinListingCut *cut, const char *bytes, size_t size
         cut->text = larger;
         cut->text_room = grown;
     }
-    mmgr_bytes_copy(cut->text + cut->text_size, bytes, size);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = cut->text + cut->text_size, .src = bytes, .bytes = size);
     cut->text_size += size;
     return 1;
 }
@@ -137,7 +136,8 @@ static int cubin_code_section(const char *listing, size_t begin, size_t end, siz
     }
     // `.section` and a space: `.sectioninfo` and `.sectionflags` open no section
     if (((end - at) <= (sizeof(s_section) - 1u)) ||
-        (mmgr_bytes_compare(listing + at, s_section, sizeof(s_section) - 1u) != 0) ||
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = listing + at, .other = s_section, .bytes = sizeof(s_section) - 1u) !=
+         0) ||
         !cubin_blank(listing[at + (sizeof(s_section) - 1u)]))
     {
         return 0;
@@ -147,7 +147,8 @@ static int cubin_code_section(const char *listing, size_t begin, size_t end, siz
     {
         at += 1u;
     }
-    if (((end - at) < (sizeof(s_code) - 1u)) || (mmgr_bytes_compare(listing + at, s_code, sizeof(s_code) - 1u) != 0))
+    if (((end - at) < (sizeof(s_code) - 1u)) ||
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = listing + at, .other = s_code, .bytes = sizeof(s_code) - 1u) != 0))
     {
         *length = 0u;
         return 1;
@@ -196,12 +197,14 @@ static int cubin_section_written(const char *listing, CubinSection *section, uns
         const size_t end = section->lines[line].end;
         while (written_ok && (at < end))
         {
-            const char *const open = (const char *)mmgr_bytes_find(listing + at, '`', end - at);
+            const char *const open =
+                (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = listing + at, .bytes = end - at, .val = '`');
             size_t mark = (open != NULL) ? (size_t)(open - listing) : end;
             // a note the cubin carries for an instruction, `(*"BRANCH_TARGETS ..."*)`, is the container's and no part
             // of the instruction: it is where a raw read prints one space, and the note and the spaces before it
             // are put as that space
-            const char *const note = (const char *)mmgr_bytes_find(listing + at, '(', mark - at);
+            const char *const note =
+                (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = listing + at, .bytes = mark - at, .val = '(');
             const int noted = (note != NULL) && (((size_t)(note - listing) + 1u) < end) && (note[1] == '*');
             const char *const note_end = noted ? cubin_note_end(listing, (size_t)(note - listing) + 2u, end) : NULL;
             if (note_end != NULL)
@@ -223,7 +226,8 @@ static int cubin_section_written(const char *listing, CubinSection *section, uns
             }
             // `(<label>): the label put as its offset where the section sets it, the mark retained as printed otherwise
             const char *const close = ((at + 2u) < end) && (listing[at + 1u] == '(')
-                                          ? (const char *)mmgr_bytes_find(listing + at + 2u, ')', end - (at + 2u))
+                                          ? (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = listing + at + 2u,
+                                                                     .bytes = end - (at + 2u), .val = ')')
                                           : NULL;
             size_t found = section->label_count;
             const size_t name = at + 2u;
@@ -231,7 +235,8 @@ static int cubin_section_written(const char *listing, CubinSection *section, uns
             for (size_t label = 0u; (close != NULL) && (label < section->label_count); label += 1u)
             {
                 if ((section->labels[label].length == length) &&
-                    (mmgr_bytes_compare(listing + section->labels[label].begin, listing + name, length) == 0))
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = listing + section->labels[label].begin,
+                                .other = listing + name, .bytes = length) == 0))
                 {
                     found = label;
                 }
@@ -279,7 +284,7 @@ static int cubin_room(void **items, size_t *room, size_t count, size_t size)
 int cubin_listing_cut(const char *listing, size_t length, const char *const *names, unsigned int count,
                       CubinListingCut *cut)
 {
-    mmgr_bytes_set(cut, 0, sizeof(*cut));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = cut, .bytes = sizeof(*cut), .val = 0);
     cut->start = (size_t *)platform_cell_cleared((size_t)count + 1u, sizeof(size_t), platform_place_g_program_owner, 0);
     cut->size = (size_t *)platform_cell_cleared((size_t)count + 1u, sizeof(size_t), platform_place_g_program_owner, 0);
     cut->found = (int *)platform_cell_cleared((size_t)count + 1u, sizeof(int), platform_place_g_program_owner, 0);
@@ -288,13 +293,14 @@ int cubin_listing_cut(const char *listing, size_t length, const char *const *nam
         return 0;
     }
     CubinSection section;
-    mmgr_bytes_set(&section, 0, sizeof(section));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &section, .bytes = sizeof(section), .val = 0);
     unsigned int kernel = count;
     int written_ok = 1;
     size_t at = 0u;
     while (written_ok && (at < length))
     {
-        const char *const newline = (const char *)mmgr_bytes_find(listing + at, '\n', length - at);
+        const char *const newline =
+            (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = listing + at, .bytes = length - at, .val = '\n');
         size_t end = (newline != NULL) ? (size_t)(newline - listing) : length;
         const size_t next = end + 1u;
         end = ((end > at) && (listing[end - 1u] == '\r')) ? (end - 1u) : end;
@@ -313,8 +319,11 @@ int cubin_listing_cut(const char *listing, size_t length, const char *const *nam
             kernel = count;
             for (unsigned int one = 0u; (name_length != 0u) && (one < count); one += 1u)
             {
-                if ((mmgr_text_length(names[one], PLATFORM_TEXT_TO_TERMINATOR) == name_length) &&
-                    (mmgr_bytes_compare(names[one], listing + name, name_length) == 0) && !cut->found[one])
+                if ((EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = names[one], .cap = PLATFORM_TEXT_TO_TERMINATOR) ==
+                     name_length) &&
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = names[one], .other = listing + name,
+                                .bytes = name_length) == 0) &&
+                    !cut->found[one])
                 {
                     kernel = one;
                 }
@@ -366,5 +375,5 @@ void cubin_listing_cut_freed(CubinListingCut *cut)
     platform_cell_released(cut->start, platform_place_g_program_owner);
     platform_cell_released(cut->size, platform_place_g_program_owner);
     platform_cell_released(cut->found, platform_place_g_program_owner);
-    mmgr_bytes_set(cut, 0, sizeof(*cut));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = cut, .bytes = sizeof(*cut), .val = 0);
 }

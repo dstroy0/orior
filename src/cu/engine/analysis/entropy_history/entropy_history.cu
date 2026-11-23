@@ -1,13 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "entropy_history.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "entropy_history.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "crc.h"
 
 #include <cuda_runtime.h>
-
 
 static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success");
 
@@ -216,7 +215,7 @@ extern "C" long entropy_history_project(const EntropyHistoryProjectRequest *requ
             history->cloud[(size_t)((one * windows) + other)] = history->cloud[(size_t)((other * windows) + one)];
         }
     }
-    mmgr_bytes_copy(history->extent, request->extent, sizeof(history->extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = history->extent, .src = request->extent, .bytes = sizeof(history->extent));
     history->windows = windows;
     history->sample = request->sample;
     history->payload_crc = crc_words(CRC_TABLE, history->history, words);

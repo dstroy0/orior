@@ -6,9 +6,8 @@
 #endif
 #include "tessera_measure.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
-
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -92,7 +91,7 @@ static void tessera_uuid_text(const unsigned char device[TESSERA_DEVICE_BYTES], 
     static const char digits[17] = "0123456789abcdef";
     static const unsigned int dashes[4] = {4u, 6u, 8u, 10u};
     unsigned int at = 0u;
-    mmgr_bytes_copy(text, "GPU-", 4u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = text, .src = "GPU-", .bytes = 4u);
     at = 4u;
     unsigned int dash = 0u;
     for (unsigned int byte = 0u; byte < TESSERA_DEVICE_BYTES; byte += 1u)
@@ -218,7 +217,7 @@ int tessera_measure_device(TesseraMeasure *measure, unsigned long long *capacity
         return 1;
     }
     TesseraNvmlMemory memory;
-    mmgr_bytes_set(&memory, 0, sizeof(memory));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &memory, .bytes = sizeof(memory), .val = 0);
     if (measure->memory_info(measure->device, &memory) != TESSERA_NVML_SUCCESS)
     {
         return 0;
@@ -231,28 +230,34 @@ int tessera_measure_device(TesseraMeasure *measure, unsigned long long *capacity
 #if defined(_WIN32)
 static int tessera_instance_field(const char *name, const char *label, unsigned long long *value)
 {
-    const char *const found = mmgr_text_find(name, label, PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const found = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = label, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if (found == NULL)
     {
         return 0;
     }
-    const char *const start = found + mmgr_text_length(label, PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const start =
+        found + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = label, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const int hexadecimal = (start[0] == '0') && ((start[1] == 'x') || (start[1] == 'X'));
     const char *end = NULL;
-    *value = mmgr_text_unsigned_in(hexadecimal ? (start + 2) : start, &end, hexadecimal ? 16 : 10);
+    *value = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = hexadecimal ? (start + 2) : start, .end = &end,
+                        .base = hexadecimal ? 16 : 10);
     return end != (hexadecimal ? (start + 2) : start);
 }
 
 static int tessera_instance_luid(const char *name, unsigned long long *luid)
 {
-    const char *const found = mmgr_text_find(name, "luid_", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const found = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = "luid_", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     unsigned long long high = 0ULL;
     unsigned long long low = 0ULL;
     if ((found == NULL) || !tessera_instance_field(found, "luid_", &high))
     {
         return 0;
     }
-    const char *const second = mmgr_text_find(found + 5, "_0x", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const second =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = found + 5, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "_0x",
+                   .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if ((second == NULL) || !tessera_instance_field(second, "_", &low))
     {
         return 0;
@@ -357,7 +362,9 @@ static unsigned long long tessera_started(unsigned long long pid)
     char line[ENGINE_PATH_CAPACITY];
     const int read = platform_file_text_read(line, sizeof(line), stat) != NULL;
     platform_file_close(stat);
-    const char *const after_name = read ? mmgr_text_char_last(line, ')', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+    const char *const after_name = read ? EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = line,
+                                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ')')
+                                        : NULL;
     if (after_name == NULL)
     {
         return 0ULL;
@@ -365,10 +372,11 @@ static unsigned long long tessera_started(unsigned long long pid)
     const char *field = after_name + 2;
     for (unsigned int skipped = 0u; (field != NULL) && (skipped < 19u); skipped += 1u)
     {
-        field = mmgr_text_char(field, ' ', PLATFORM_TEXT_TO_TERMINATOR);
+        field = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = field, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ' ');
         field = (field != NULL) ? (field + 1) : NULL;
     }
-    return (field != NULL) ? mmgr_text_unsigned_in(field, NULL, 10) : 0ULL;
+    return (field != NULL) ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = field, .end = NULL, .base = 10)
+                           : 0ULL;
 }
 #endif
 

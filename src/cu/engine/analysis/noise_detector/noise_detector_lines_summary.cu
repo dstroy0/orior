@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_lines_summary.cu: line and plane noise summarized
-#include "noise_detector_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "noise_detector_internal.h"
 
 static const char *const NOISE_LINE_NAMES[NOISE_LINE_TYPES] = {"row", "column", "plane"};
 
@@ -55,7 +55,7 @@ static void noise_lines_summary(const char *name, const NoiseLineCell cells[NOIS
     for (unsigned int type = 0u; type < NOISE_LINE_TYPES; type += 1u)
     {
         NoiseLineCell pooled;
-        mmgr_bytes_set(&pooled, 0, sizeof(pooled));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &pooled, .bytes = sizeof(pooled), .val = 0);
         for (unsigned int level_bin = NOISE_SUMMARY_FIRST_BIN; level_bin <= NOISE_SUMMARY_LAST_BIN; level_bin += 1u)
         {
             const NoiseLineCell *const cell = &cells[(type * NOISE_LEVEL_BINS) + level_bin];
@@ -447,7 +447,7 @@ extern "C" long noise_lines_set(const NoiseSetRequest *request)
         (NoisePlanePool *)platform_cell_taken(sizeof(NoisePlanePool), platform_place_g_program_owner, 0);
     ok = ok && NOISE_DETECTOR_CHECK(pool != NULL, &pool, error, ENGINE_ERROR_RESOURCE);
     NoiseStaticPool still;
-    mmgr_bytes_set(&still, 0, sizeof(still));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &still, .bytes = sizeof(still), .val = 0);
     const unsigned long long began = engine_clock_microseconds();
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
     {

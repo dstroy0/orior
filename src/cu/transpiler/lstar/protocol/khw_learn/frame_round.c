@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frame_round.c: the frame round: each place of the kernel put at the probe place in its variants over cases that reach
 // a second block, and the places that answered retained as forms
-#include "khw_learn_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "khw_learn_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 // one variant of a place: the encoding and the place it came from
 typedef struct
@@ -172,7 +172,7 @@ unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover)
     static unsigned int s_pooled_at[2u * KHW_PLACES * KHW_VARIANTS_A_PLACE];
     unsigned int variants = 0u;
     KhwFrameFields fields;
-    mmgr_bytes_set(&fields, 0, sizeof(fields));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &fields, .bytes = sizeof(fields), .val = 0);
     fields.guarded = khw_field_read("guard", &fields.guard_first, &fields.guard_bits);
     fields.every_predicate = fields.guarded ? ((1ULL << fields.guard_bits) - 1ULL) : 0ULL;
     fields.immediate = khw_field_read("immediate", &fields.immediate_first, &fields.immediate_bits);
@@ -234,7 +234,7 @@ unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover)
             continue;
         }
         KhwAnswered form;
-        mmgr_bytes_set(&form, 0, sizeof(form));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &form, .bytes = sizeof(form), .val = 0);
         form.low = s_variants[at].low;
         form.high = s_variants[at].high;
         // a variant the set's form answers for already, a turn of it, is that form, and enters nowhere

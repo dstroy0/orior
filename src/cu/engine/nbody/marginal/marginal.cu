@@ -1,10 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "marginal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include <cuda_runtime.h>
-
 
 #define MARGINAL_BLOCK 128u
 
@@ -167,7 +166,7 @@ extern "C" long marginal_run(const MarginalRequest *request)
     if (ok && (request->question_count != 0u))
     {
         MarginalLaunch launch;
-        mmgr_bytes_set(&launch, 0, sizeof(launch));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &launch, .bytes = sizeof(launch), .val = 0);
         launch.questions = questions;
         launch.question_count = request->question_count;
         launch.sources = sources;

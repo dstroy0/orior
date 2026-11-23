@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_pixels.cu: the noise table and pixel noise
-#include "noise_detector_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "noise_detector_internal.h"
 
 // opens <set>/<file> for writing and writes its header
 int noise_table_open(const char *set, const char *file, const char *header, char path[ENGINE_PATH_CAPACITY],
@@ -142,7 +142,8 @@ static long noise_pixels_sample(const unsigned short *volume, const unsigned lon
                                   ENGINE_ERROR_RESOURCE);
     if (ok != 0)
     {
-        mmgr_bytes_set(maps, 0, (size_t)NOISE_PIXEL_CELLS(plane_voxels) * sizeof(unsigned long long));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = maps,
+                   .bytes = (size_t)NOISE_PIXEL_CELLS(plane_voxels) * sizeof(unsigned long long), .val = 0);
         const unsigned long long middle = depth / 2ULL;
         // frame by frame and plane by plane. The volume is read in order; the first frame also counts the voxels
         for (unsigned long long frame = 0ULL; frame < frames; frame += 1ULL)

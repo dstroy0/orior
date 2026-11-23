@@ -46,15 +46,16 @@
 // file is written before querying and the carrier is passed that same path. The vendor's writer runs in a gate mode,
 // which stores every place of the kernel whole under its own encoding so the gate reads a question against what the
 // part has already run, and a final mode, which at the end stores only the forms the part named.
-#include "khw_learn_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "khw_learn_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 int program_main(int count, char **word)
 {
     int split = 0;
-    while ((split < count) && (!mmgr_text_equal(word[split], "--", PLATFORM_TEXT_TO_TERMINATOR)))
+    while ((split < count) && (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = word[split],
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "--", .ci = EMBED_FALSE)))
     {
         split += 1;
     }
@@ -97,40 +98,52 @@ int program_main(int count, char **word)
     int costs = 0;
     for (int at = 7; at < split; at += 1)
     {
-        if ((mmgr_text_equal(word[at], "--position", PLATFORM_TEXT_TO_TERMINATOR)) && ((at + 1) < split))
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = word[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "--position", .ci = EMBED_FALSE)) &&
+            ((at + 1) < split))
         {
-            enumerate = (unsigned int)mmgr_text_unsigned_in(word[at + 1], NULL, 10);
+            enumerate = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = word[at + 1], .end = NULL,
+                                                 .base = 10);
             at += 1;
         }
-        else if ((mmgr_text_equal(word[at], "--forms", PLATFORM_TEXT_TO_TERMINATOR)) && ((at + 1) < split))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = word[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--forms", .ci = EMBED_FALSE)) &&
+                 ((at + 1) < split))
         {
             forms = word[at + 1];
             at += 1;
         }
-        else if ((mmgr_text_equal(word[at], "--seeds", PLATFORM_TEXT_TO_TERMINATOR)) && ((at + 1) < split))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = word[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--seeds", .ci = EMBED_FALSE)) &&
+                 ((at + 1) < split))
         {
             seeds = word[at + 1];
             at += 1;
         }
-        else if (mmgr_text_equal(word[at], "--discover", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = word[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--discover", .ci = EMBED_FALSE))
         {
             discover = 1;
         }
-        else if (mmgr_text_equal(word[at], "--turns", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = word[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--turns", .ci = EMBED_FALSE))
         {
             turns = 1;
         }
-        else if (mmgr_text_equal(word[at], "--registers", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = word[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--registers", .ci = EMBED_FALSE))
         {
             registers = 1;
         }
-        else if (mmgr_text_equal(word[at], "--costs", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = word[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--costs", .ci = EMBED_FALSE))
         {
             costs = 1;
         }
         else
         {
-            rounds = (unsigned int)mmgr_text_unsigned_in(word[at], NULL, 10);
+            rounds =
+                (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = word[at], .end = NULL, .base = 10);
         }
     }
     if (!khw_kernel_read())
@@ -157,12 +170,16 @@ int program_main(int count, char **word)
     }
     // R beside the machine file, its .kqr, so that no question the part has answered is put to it again
     char record[1024];
-    const size_t stem = mmgr_text_length(s_path, PLATFORM_TEXT_TO_TERMINATOR) -
-                        (((mmgr_text_length(s_path, PLATFORM_TEXT_TO_TERMINATOR) > 4u) &&
-                          (mmgr_text_equal(s_path + mmgr_text_length(s_path, PLATFORM_TEXT_TO_TERMINATOR) - 4u, ".khw",
-                                           PLATFORM_TEXT_TO_TERMINATOR)))
-                             ? 4u
-                             : 0u);
+    const size_t stem =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_path, .cap = PLATFORM_TEXT_TO_TERMINATOR) -
+        (((EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_path, .cap = PLATFORM_TEXT_TO_TERMINATOR) > 4u) &&
+          (EMBED_CALL(
+              cellul.eq, CatenaFinitaCfg,
+              .src = s_path +
+                     EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_path, .cap = PLATFORM_TEXT_TO_TERMINATOR) - 4u,
+              .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".khw", .ci = EMBED_FALSE)))
+             ? 4u
+             : 0u);
     // how far a container's code reaches, from the .ksc beside the machine file, for a register refusal the cross gives
     char reach[1024];
     {
@@ -255,7 +272,7 @@ int program_main(int count, char **word)
     if ((discover != 0) || (turns != 0) || (registers != 0) || (costs != 0))
     {
         KhwAnswered kernel;
-        mmgr_bytes_set(&kernel, 0, sizeof(kernel));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &kernel, .bytes = sizeof(kernel), .val = 0);
         unsigned long long nanoseconds = 0ULL;
         unsigned int probe_place = 0u;
         if (!khw_first_round(&kernel, &probe_place, &nanoseconds) || (probe_place == s_kernel_places))
@@ -296,7 +313,7 @@ int program_main(int count, char **word)
                 // queried but its fields left for the turns and register passes to query once a cross read them, as
                 // of any form. The relation is the real instruction the part already ran, safe to query without a cross
                 KhwAnswered form;
-                mmgr_bytes_set(&form, 0, sizeof(form));
+                EMBED_CALL(memor.set, MemoriaCfg, .dst = &form, .bytes = sizeof(form), .val = 0);
                 if (khw_relation_queried(probe_low, probe_high, &form))
                 {
                     form.phase = KHW_PHASE_DISCOVERED;
@@ -483,7 +500,7 @@ int program_main(int count, char **word)
         return 0;
     }
     KhwAnswered kernel;
-    mmgr_bytes_set(&kernel, 0, sizeof(kernel));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &kernel, .bytes = sizeof(kernel), .val = 0);
     unsigned long long nanoseconds = 0ULL;
     unsigned int probe_place = 0u;
     const int related = khw_first_round(&kernel, &probe_place, &nanoseconds);
@@ -513,7 +530,8 @@ int program_main(int count, char **word)
     }
     // a dry channel carries every question by nothing: the kernel answers no relation, and the pass goes on with the
     // position the .ksc names, every round put through the airlock as on a live channel and nothing launched
-    const int dry = !related && (mmgr_text_starts(s_pool[0].refused, "dry:", PLATFORM_TEXT_TO_TERMINATOR));
+    const int dry = !related && (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = s_pool[0].refused,
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "dry:", .ci = EMBED_FALSE));
     if (!related && !dry)
     {
         {

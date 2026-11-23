@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zip_index.c: the index, folders and member data
-#include "zip_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "zip_internal.h"
 
 static const unsigned char zip_local[4u] = {'P', 'K', 0x03u, 0x04u};
 
@@ -37,7 +37,9 @@ static int zip_order_spans(const unsigned char *left, unsigned long long left_le
                            unsigned long long right_length)
 {
     const unsigned long long shorter = (left_length < right_length) ? left_length : right_length;
-    const int differ = (shorter != 0ULL) ? mmgr_bytes_compare(left, right, (size_t)shorter) : 0;
+    const int differ = (shorter != 0ULL)
+                           ? EMBED_CALL(memor.cmp, MemoriaCfg, .src = left, .other = right, .bytes = (size_t)shorter)
+                           : 0;
     if (differ != 0)
     {
         return differ;
@@ -91,8 +93,8 @@ int zip_archive_index(ZipArchive *archive, EngineError *error)
         void *const sort_room = platform_cell_taken((unsigned long long)((size_t)archive->entries) *
                                                         (unsigned long long)(sizeof(unsigned long long)),
                                                     platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(entry_at, (size_t)archive->entries, sizeof(unsigned long long), zip_order_entries,
-                              sort_room);
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = entry_at, .bytes = sizeof(unsigned long long),
+                         .scratch = sort_room, .count = (size_t)archive->entries, .order = zip_order_entries);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     s_zip_sorting = NULL;
@@ -119,7 +121,8 @@ int zip_folder_find(const ZipArchive *archive, const char *folder, unsigned long
     {
         return 0;
     }
-    const unsigned long long folder_length = mmgr_text_length(folder, PLATFORM_TEXT_TO_TERMINATOR);
+    const unsigned long long folder_length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = folder, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     unsigned long long low = 0ULL;
     unsigned long long high = archive->entries;
     while (low < high)
@@ -162,13 +165,15 @@ const ZipArchive *zip_archive_cached(const EngineIngestTools *tools, const char 
     {
         return NULL;
     }
-    if (!ZIP_CHECK((path != NULL) && (mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR) < ZIP_PATH_CAPACITY), &path,
-                   error, ENGINE_ERROR_REQUEST))
+    if (!ZIP_CHECK((path != NULL) && (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path,
+                                                 .cap = PLATFORM_TEXT_TO_TERMINATOR) < ZIP_PATH_CAPACITY),
+                   &path, error, ENGINE_ERROR_REQUEST))
     {
         return NULL;
     }
     ZipResident *const resident = &s_zip_resident;
-    if ((resident->valid != 0) && (mmgr_text_equal(resident->path, path, PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((resident->valid != 0) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = resident->path,
+                                              .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = path, .ci = EMBED_FALSE)))
     {
         return &resident->archive;
     }
@@ -178,7 +183,8 @@ const ZipArchive *zip_archive_cached(const EngineIngestTools *tools, const char 
         zip_archive_release(&resident->archive);
         return NULL;
     }
-    mmgr_bytes_copy(resident->path, path, mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = resident->path, .src = path,
+               .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
     resident->valid = 1;
     return &resident->archive;
 }
@@ -190,7 +196,7 @@ void zip_resident_release(void)
     {
         zip_archive_release(&resident->archive);
     }
-    mmgr_bytes_set(resident, 0, sizeof(*resident));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
 }
 
 int zip_member_data(const EngineIngestTools *tools, const char *path, const ZipArchive *archive, const ZipEntry *entry,
@@ -202,7 +208,8 @@ int zip_member_data(const EngineIngestTools *tools, const char *path, const ZipA
                        ((archive->file_bytes - entry->local_offset) >= 30ULL),
                    entry, error, ENGINE_ERROR_REQUEST) ||
         !ZIP_IO(zip_fetch(tools, path, entry->local_offset, 30ULL, local), local, error) ||
-        !ZIP_CHECK(mmgr_bytes_compare(local, zip_local, sizeof zip_local) == 0, local, error, ENGINE_ERROR_REQUEST))
+        !ZIP_CHECK(EMBED_CALL(memor.cmp, MemoriaCfg, .src = local, .other = zip_local, .bytes = sizeof zip_local) == 0,
+                   local, error, ENGINE_ERROR_REQUEST))
     {
         return 0;
     }
@@ -228,7 +235,7 @@ static int zip_member_unpack(const EngineIngestTools *tools, const unsigned char
         {
             return 0;
         }
-        mmgr_bytes_copy(out, packed, (size_t)entry->uncompressed);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = packed, .bytes = (size_t)entry->uncompressed);
     }
     else
     {
@@ -278,7 +285,7 @@ long long zip_member_read(const EngineIngestTools *tools, const char *path, cons
 int zip_span_read(const EngineIngestTools *tools, const char *path, const ZipArchive *archive, const ZipEntry *entries,
                   unsigned long long count, ZipSpan *span, EngineError *error)
 {
-    mmgr_bytes_set(span, 0, sizeof(*span));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = span, .bytes = sizeof(*span), .val = 0);
     if (!ZIP_CHECK((tools != NULL) && (path != NULL) && (archive != NULL) && (entries != NULL) && (count != 0ULL),
                    entries, error, ENGINE_ERROR_REQUEST))
     {
@@ -336,7 +343,8 @@ long long zip_span_member(const EngineIngestTools *tools, const ZipSpan *span, c
         return ZIP_ERROR;
     }
     const unsigned char *const local = span->bytes + (entry->local_offset - span->first);
-    if (!ZIP_CHECK(mmgr_bytes_compare(local, zip_local, sizeof zip_local) == 0, local, error, ENGINE_ERROR_REQUEST))
+    if (!ZIP_CHECK(EMBED_CALL(memor.cmp, MemoriaCfg, .src = local, .other = zip_local, .bytes = sizeof zip_local) == 0,
+                   local, error, ENGINE_ERROR_REQUEST))
     {
         return ZIP_ERROR;
     }
@@ -355,5 +363,5 @@ long long zip_span_member(const EngineIngestTools *tools, const ZipSpan *span, c
 void zip_span_release(ZipSpan *span)
 {
     platform_cell_released(span->bytes, platform_place_g_program_owner);
-    mmgr_bytes_set(span, 0, sizeof(*span));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = span, .bytes = sizeof(*span), .val = 0);
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chaitin_omega_terms.cu: terms: counting, unranking, reduction
 #include "chaitin_omega_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the closed-under-k count of n-bit codes; k past n - 1 counts as n - 1, since no variable of an n-bit
 // code is bound further out than that
@@ -18,7 +18,7 @@ unsigned long long omega_count(const OmegaCounts *counts, unsigned int length, u
 
 void omega_count_all(OmegaCounts *counts)
 {
-    mmgr_bytes_set(counts->count, 0, sizeof(counts->count));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = counts->count, .bytes = sizeof(counts->count), .val = 0);
     for (unsigned int length = 2u; length <= counts->length; length += 1u)
     {
         for (unsigned int depth = 0u; depth < length; depth += 1u)
@@ -231,7 +231,8 @@ static int omega_grows_forever(const std::vector<int> &stored, const std::vector
         const size_t size = stored_ends[from] - from;
         for (unsigned int to = from + 1u; to <= range; to += 1u)
         {
-            if (((ends[to] - to) == size) && (mmgr_bytes_compare(&stored[from], &term[to], size * sizeof(int)) == 0))
+            if (((ends[to] - to) == size) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &stored[from],
+                                                         .other = &term[to], .bytes = size * sizeof(int)) == 0))
             {
                 return 1;
             }

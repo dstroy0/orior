@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_child.c: the job's folders and records, the daemon channel, the wait and the child
-#include "tessera_run_internal.h"
 #include "../../../../platform/platform.h"
 #include "../../engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera_run_internal.h"
 
 _Alignas(8) static const char s_run_unwatched[] =
     "  tessera_run: the command runs with no child to watch it: its records could not be made under the "
@@ -79,7 +79,7 @@ void run_record_launched(RunChannel *channel, unsigned long long pid)
 static int run_records_place(RunChannel *channel, const EngineSignum *signum)
 {
     unsigned char host[TESSERA_DEVICE_BYTES];
-    mmgr_bytes_set(host, 0, sizeof(host));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = host, .bytes = sizeof(host), .val = 0);
     char *const records = channel->records;
     const size_t capacity = sizeof(channel->records);
     // the capacity is a buffer size this file allocates, which an unsigned int counts
@@ -87,7 +87,7 @@ static int run_records_place(RunChannel *channel, const EngineSignum *signum)
     {
         return 0;
     }
-    size_t at = mmgr_text_length(records, PLATFORM_TEXT_TO_TERMINATOR);
+    size_t at = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = records, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     VerbaLinea formed_line_1 = mmgr_line_over(records + at, capacity - at);
     mmgr_line_ch(&formed_line_1, (char)(RUN_SEPARATOR));
     mmgr_line_put(&formed_line_1, s_run_children);
@@ -98,7 +98,7 @@ static int run_records_place(RunChannel *channel, const EngineSignum *signum)
     {
         return 0;
     }
-    at = mmgr_text_length(records, PLATFORM_TEXT_TO_TERMINATOR);
+    at = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = records, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     VerbaLinea formed_line_2 = mmgr_line_over(records + at, capacity - at);
     mmgr_line_ch(&formed_line_2, (char)(RUN_SEPARATOR));
     mmgr_line_hex(&formed_line_2, run_self_pid(), 16u);
@@ -110,7 +110,7 @@ static int run_records_place(RunChannel *channel, const EngineSignum *signum)
     {
         return 0;
     }
-    at = mmgr_text_length(records, PLATFORM_TEXT_TO_TERMINATOR);
+    at = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = records, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     for (unsigned int byte = 0u; byte < ENGINE_SIGNUM_BYTES; byte += 1u)
     {
         if ((at + 3u) > capacity)
@@ -139,9 +139,13 @@ char **run_channel_open(RunChannel *channel, const RunRequest *request, char *co
     if (channel->across)
     {
         inside_at = 1;
-        while ((inside_at < count) && (!mmgr_text_equal(words[inside_at], "-e", PLATFORM_TEXT_TO_TERMINATOR)) &&
-               (!mmgr_text_equal(words[inside_at], "--exec", PLATFORM_TEXT_TO_TERMINATOR)) &&
-               (!mmgr_text_equal(words[inside_at], "--", PLATFORM_TEXT_TO_TERMINATOR)))
+        while ((inside_at < count) &&
+               (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[inside_at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "-e", .ci = EMBED_FALSE)) &&
+               (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[inside_at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--exec", .ci = EMBED_FALSE)) &&
+               (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[inside_at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--", .ci = EMBED_FALSE)))
         {
             inside_at += 1;
         }
@@ -151,7 +155,8 @@ char **run_channel_open(RunChannel *channel, const RunRequest *request, char *co
             {
                 const char *const error_text = s_run_wsl_unmeasured;
                 platform_terminal_write(1, error_text,
-                                        (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+                                        (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = error_text,
+                                                                       .cap = PLATFORM_TEXT_TO_TERMINATOR));
             }
             return NULL;
         }
@@ -189,7 +194,8 @@ char **run_channel_open(RunChannel *channel, const RunRequest *request, char *co
         {
             const char *const error_text = s_run_unwatched;
             platform_terminal_write(1, error_text,
-                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+                                    (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = error_text,
+                                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR));
         }
         return NULL;
     }
@@ -197,14 +203,14 @@ char **run_channel_open(RunChannel *channel, const RunRequest *request, char *co
     (void)platform_file_removed(run_path_joined(channel->records, ".child", path, sizeof(path)) ? path : "");
     (void)platform_file_removed(run_path_joined(channel->records, ".log", path, sizeof(path)) ? path : "");
     // the words before the command's own, a count at least 0. It converts exactly
-    mmgr_bytes_copy(watched, words, (size_t)inside_at * sizeof(char *));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = watched, .src = words, .bytes = (size_t)inside_at * sizeof(char *));
     watched[inside_at] = channel->program;
     watched[inside_at + 1] = "--parent";
     watched[inside_at + 2] = channel->named_records;
     watched[inside_at + 3] = "--";
     // the command's own words, a positive count. It converts exactly
-    mmgr_bytes_copy(watched + inside_at + RUN_WATCH_WORDS, words + inside_at,
-                    (size_t)(count - inside_at) * sizeof(char *));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = watched + inside_at + RUN_WATCH_WORDS, .src = words + inside_at,
+               .bytes = (size_t)(count - inside_at) * sizeof(char *));
     watched[count + RUN_WATCH_WORDS] = NULL;
     channel->open = 1;
     *started_count = count + RUN_WATCH_WORDS;
@@ -265,7 +271,7 @@ static void run_channel_refresh(RunChannel *channel)
         }
         if (channel->bound && (numbers[0] == channel->child))
         {
-            mmgr_bytes_copy(channel->state, state, sizeof(channel->state));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = channel->state, .src = state, .bytes = sizeof(channel->state));
         }
     }
     run_record_write(channel);
@@ -281,7 +287,8 @@ void run_channel_close(RunChannel *channel)
     }
     run_record_close(channel);
     char path[ENGINE_PATH_CAPACITY];
-    const int ended = mmgr_text_equal(channel->state, "ended", PLATFORM_TEXT_TO_TERMINATOR);
+    const int ended = EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = channel->state, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                 .other = "ended", .ci = EMBED_FALSE);
     PlatformFile *const logged = (!ended && run_path_joined(channel->records, ".log", path, sizeof(path)))
                                      ? platform_file_open(path, "rb")
                                      : NULL;
@@ -429,7 +436,9 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
     {
         run_pause(RUN_GREETING_MICROSECONDS);
         const int fields = run_record_read(parent, state, parent_fields);
-        bound = (fields == 3) && (mmgr_text_equal(state, "launched", PLATFORM_TEXT_TO_TERMINATOR));
+        bound =
+            (fields == 3) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = state, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = "launched", .ci = EMBED_FALSE));
     }
     if (!bound)
     {
@@ -484,7 +493,7 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
     run_log(records, entry);
     run_child_write(records, "confirmed", self, 0ULL, 0ULL, 0, 0);
     RunChild child;
-    mmgr_bytes_set(&child, 0, sizeof(child));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &child, .bytes = sizeof(child), .val = 0);
     if (!run_start(&child, arguments + request->command, count - request->command, mask, NULL))
     {
         {

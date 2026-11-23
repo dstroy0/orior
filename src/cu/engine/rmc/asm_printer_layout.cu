@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // asm_printer_layout.cu: the program and rulesets arranged, and the host's lists
 #include "asm_printer_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the assembly printer's program, as the build stored it, encoded by keymath and arranged by key_schedule into
 // `program`'s key and layout: 1 where they are, else 0 and why on `error_message`
@@ -47,7 +47,7 @@ static int asm_printer_program_layout(AsmPrinterProgram *program, VerbaLinea *er
 int asm_printer_ruleset_build(const Ruleset *rules, const TargetInfo *target, const char *header,
                               AsmPrinterRuleset *text_rules, VerbaLinea *error)
 {
-    mmgr_bytes_set(text_rules, 0, sizeof(*text_rules));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = text_rules, .bytes = sizeof(*text_rules), .val = 0);
     if ((rules->schema->form_count != OPCODE_COUNT) || (rules->schema->bank_count != REGCLASS_COUNT) ||
         (rules->schema->fixed_count != PHYSREG_COUNT))
     {
@@ -184,7 +184,7 @@ int asm_printer_host(const AsmPrinterRuleset *text_rules, const MachineInstr *it
 {
     const AsmPrinterLists forms = asm_printer_lists(text_rules);
     AsmPrinterHostRun run;
-    mmgr_bytes_set(&run, 0, sizeof(run));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &run, .bytes = sizeof(run), .val = 0);
     run.record_first = (unsigned long long *)asm_printer_host_cell(count, sizeof(unsigned long long));
     if (run.record_first == NULL)
     {

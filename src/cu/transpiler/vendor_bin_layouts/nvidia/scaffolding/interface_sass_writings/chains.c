@@ -1,12 +1,30 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chains.c: the chains: a chain read, a form put at a link, the chains written for each relation and read back
-#include "writings_internal.h"
+#include "../../../../../../../includes/parsers/line_read.h"
 #include "../../../../../../platform/platform.h"
 #include "../../../../../engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "../../../../../../../includes/parsers/line_read.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "writings_internal.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int chains_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // one node of a chain: its precept, and the register text of each operand, a leaf's or an earlier node's
 typedef struct
@@ -19,8 +37,9 @@ typedef struct
 // into `nodes` with its children first, its register text into `operand`: 1, or 0 where it does not read
 static int writings_chain_read(const char **walk, WritingsNode *nodes, unsigned int *count, char *operand, size_t room)
 {
-    *walk += mmgr_text_span(*walk, " ", PLATFORM_TEXT_TO_TERMINATOR);
-    const size_t length = mmgr_text_span(*walk, "abcdefghijklmnopqrstuvwxyz0123456789", PLATFORM_TEXT_TO_TERMINATOR);
+    *walk += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = *walk, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
+    const size_t length = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = *walk, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = "abcdefghijklmnopqrstuvwxyz0123456789");
     char name[16];
     if ((length == 0u) || (length >= sizeof(name)))
     {
@@ -38,7 +57,8 @@ static int writings_chain_read(const char **walk, WritingsNode *nodes, unsigned 
             {"w0", WRITINGS_LEFT}, {"w1", WRITINGS_RIGHT}, {"zero", "RZ"}, {"ones", WRITINGS_ONES}};
         for (unsigned int at = 0u; at < 4u; at += 1u)
         {
-            if (mmgr_text_equal(name, leaves[at][0], PLATFORM_TEXT_TO_TERMINATOR))
+            if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = leaves[at][0], .ci = EMBED_FALSE))
             {
                 VerbaLinea formed_line_1 = mmgr_line_over(operand, room);
                 mmgr_line_put(&formed_line_1, leaves[at][1]);
@@ -51,10 +71,13 @@ static int writings_chain_read(const char **walk, WritingsNode *nodes, unsigned 
     unsigned int precept = PRECEPT_COUNT;
     for (unsigned int at = 0u; at < PRECEPT_COUNT; at += 1u)
     {
-        precept = (mmgr_text_equal(name, s_precept_text[at], PLATFORM_TEXT_TO_TERMINATOR)) ? at : precept;
+        precept = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = s_precept_text[at], .ci = EMBED_FALSE))
+                      ? at
+                      : precept;
     }
     WritingsNode node;
-    mmgr_bytes_set(&node, 0, sizeof(node));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &node, .bytes = sizeof(node), .val = 0);
     {
         VerbaLinea buffer_line = mmgr_line_over(node.operand[1], sizeof(node.operand[1]));
         mmgr_line_put(&buffer_line, "RZ");
@@ -64,12 +87,13 @@ static int writings_chain_read(const char **walk, WritingsNode *nodes, unsigned 
     *walk += 1;
     int read =
         (precept < PRECEPT_COUNT) && writings_chain_read(walk, nodes, count, node.operand[0], sizeof(node.operand[0]));
-    *walk += mmgr_text_span(*walk, " ", PLATFORM_TEXT_TO_TERMINATOR);
+    *walk += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = *walk, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
     if (read && (**walk == ','))
     {
         *walk += 1;
         read = writings_chain_read(walk, nodes, count, node.operand[1], sizeof(node.operand[1]));
-        *walk += mmgr_text_span(*walk, " ", PLATFORM_TEXT_TO_TERMINATOR);
+        *walk +=
+            EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = *walk, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
     }
     if (!read || (**walk != ')') || (*count >= WRITINGS_CHAIN_NODES))
     {
@@ -101,12 +125,14 @@ static int writings_put(const char *writing, const char *to, const char *left, c
     {
         const int starts =
             (*walk == 'R') &&
-            ((walk == writing) || (mmgr_text_char(" ,[-~!", walk[-1], PLATFORM_TEXT_TO_TERMINATOR) != NULL));
+            ((walk == writing) || (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = " ,[-~!",
+                                              .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = walk[-1]) != NULL));
         unsigned int which = 3u;
         for (unsigned int one = 0u; starts && (one < 3u); one += 1u)
         {
-            const size_t length = mmgr_text_length(from[one], PLATFORM_TEXT_TO_TERMINATOR);
-            if ((mmgr_text_order(walk, from[one], (size_t)(length)) == 0) &&
+            const size_t length =
+                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = from[one], .cap = PLATFORM_TEXT_TO_TERMINATOR);
+            if ((chains_text_order(walk, from[one], (size_t)(length)) == 0) &&
                 ((walk[length] < '0') || (walk[length] > '9')))
             {
                 which = one;
@@ -118,7 +144,7 @@ static int writings_put(const char *writing, const char *to, const char *left, c
             mmgr_line_put(&formed_line_2, into[which]);
             (void)mmgr_line_finish(&formed_line_2);
             at += (size_t)(int)formed_line_2.at;
-            walk += mmgr_text_length(from[which], PLATFORM_TEXT_TO_TERMINATOR);
+            walk += EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = from[which], .cap = PLATFORM_TEXT_TO_TERMINATOR);
             continue;
         }
         out[at] = *walk;
@@ -382,9 +408,11 @@ int writings_chains_read(const char *folder, const char *record)
         s_chain_anchor[count] = LADDER_ANCHOR_COUNT;
         for (unsigned int anchor = 0u; anchor < LADDER_ANCHOR_COUNT; anchor += 1u)
         {
-            s_chain_anchor[count] = (mmgr_text_equal(operator_name, s_anchor_text[anchor], PLATFORM_TEXT_TO_TERMINATOR))
-                                        ? anchor
-                                        : s_chain_anchor[count];
+            s_chain_anchor[count] =
+                (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = operator_name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = s_anchor_text[anchor], .ci = EMBED_FALSE))
+                    ? anchor
+                    : s_chain_anchor[count];
         }
         count += 1u;
     }

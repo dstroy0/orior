@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ka_psi_separate.cu: wide arithmetic, the grid and separation
-#include "ka_psi_internal.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../../platform/platform.h"
+#include "ka_psi_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 void psi_all_scales(SimResults *results, const PsiCase *psi_case, const PsiScale *scale, unsigned long long tilt,
                     const OriorExactInteger *measured_widest)
@@ -331,7 +331,8 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
         void *const sort_room =
             platform_cell_taken((unsigned long long)((size_t)count) * (unsigned long long)(sizeof(PsiImage)),
                                 platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(images, (size_t)count, sizeof(PsiImage), psi_image_order, sort_room);
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = images, .bytes = sizeof(PsiImage), .scratch = sort_room,
+                         .count = (size_t)count, .order = psi_image_order);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     PsiWide least = psi_wide_difference(images[1].value, images[0].value);
@@ -468,7 +469,8 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
         void *const sort_room =
             platform_cell_taken((unsigned long long)((size_t)count) * (unsigned long long)(sizeof(PsiImage)),
                                 platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(images, (size_t)count, sizeof(PsiImage), psi_image_order, sort_room);
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = images, .bytes = sizeof(PsiImage), .scratch = sort_room,
+                         .count = (size_t)count, .order = psi_image_order);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     PsiWide truncated = psi_wide_difference(images[1].value, images[0].value);

@@ -5,7 +5,7 @@
 #ifndef TREE_FOLDER_H
 #define TREE_FOLDER_H
 
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "verba_scribo/verba_linea.h"
 
 #include <stddef.h>
@@ -16,7 +16,7 @@
 static inline int tree_folder_from(const char *file, unsigned int ups, const char *rest, char *folder, size_t bytes)
 {
     VerbaLinea line = mmgr_line_over(folder, bytes);
-    size_t end = mmgr_text_length(file, (size_t)-1);
+    size_t end = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = file, .cap = (size_t)-1);
     size_t slash = end;
     for (size_t at = 0u; at < end; at += 1u)
     {

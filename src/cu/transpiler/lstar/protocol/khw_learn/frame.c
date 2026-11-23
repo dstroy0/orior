@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frame.c: the frame round: the frame relation each place answers read by the gate (Open 6.4)
-#include "khw_learn_internal.h"
 #include "../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "khw_learn_internal.h"
 
 // the register the part's .ksc names fixed `name`, `run answers <n> fixed <name>`, or KHW_FIXED_NONE where it names
 // none
@@ -23,8 +23,10 @@ unsigned int khw_fixed_register(const char *name)
     for (unsigned int at = 0u; at < s_file.lines; at += 1u)
     {
         if (ksc_row_read(s_file.line[at], "run", &s_row) &&
-            (mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)) &&
-            (mmgr_text_equal(s_row.question, query_text, PLATFORM_TEXT_TO_TERMINATOR)))
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.answer, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "answers", .ci = EMBED_FALSE)) &&
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = query_text, .ci = EMBED_FALSE)))
         {
             // a register's number is at max eight hex digits
             found = (unsigned int)s_row.value;
@@ -47,7 +49,8 @@ int khw_field_read(const char *name, unsigned int *first, unsigned int *bits)
         unsigned int from = 0u;
         unsigned int width = 0u;
         if (ksc_field_read(s_file.line[at], read, sizeof(read), &from, &width) &&
-            (mmgr_text_equal(read, name, PLATFORM_TEXT_TO_TERMINATOR)))
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = read, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = name,
+                        .ci = EMBED_FALSE)))
         {
             *first = from;
             *bits = width;

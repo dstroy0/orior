@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // forms.c: the forms: a question probed, an operand, a form's text, lines and addresses, a memory form's text and
 // lines, the tally and the value, a form run and every form probed
-#include "unprinted_internal.h"
 #include "../../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "unprinted_internal.h"
 
 // how a form's unprinted run answered, value by value
 typedef struct
@@ -70,7 +70,8 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, Plat
     // the instruction read back through the machine file, which gives its text where the reader defines its field
     char read[SASS_MACHINE_TEXT];
     if (!sass_encoding_read(&s_machine, low, high, 0ULL, read, sizeof(read)) ||
-        (!mmgr_text_equal(read, question->turned, PLATFORM_TEXT_TO_TERMINATOR)))
+        (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = read, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                     .other = question->turned, .ci = EMBED_FALSE)))
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  ");
@@ -89,7 +90,8 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, Plat
         const UnprintedFixed *const one = &question->fixed[at];
         if (one->bits != 0u)
         {
-            const size_t written = mmgr_text_length(fixed, PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t written =
+                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = fixed, .cap = PLATFORM_TEXT_TO_TERMINATOR);
             {
                 VerbaLinea buffer_line = mmgr_line_over(&fixed[written], sizeof(fixed) - written);
                 mmgr_line_put(&buffer_line, ", bit ");
@@ -118,7 +120,7 @@ int unprinted_query(const UnprintedQuestion *question, unsigned int number, Plat
     const unsigned long long values = 1ULL << question->bits;
     for (unsigned long long value = 0ULL; value < values; value += 1ULL)
     {
-        mmgr_bytes_copy(s_turned, s_code, (size_t)code_size);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_turned, .src = s_code, .bytes = (size_t)code_size);
         unprinted_place_write(s_turned, place, question->fixed, UNPRINTED_FIXED, question->first, question->bits,
                               value);
         unsigned int answered[UNPRINTED_COPIES] = {0u, 0u, 0u, 0u};
@@ -193,12 +195,14 @@ static int unprinted_operand(const char *base, unsigned int type, unsigned int m
 {
     static const char *const s_marks[] = {"", "-", "~", "!"};
     const char *const displayed = (mark < (sizeof(s_marks) / sizeof(s_marks[0]))) ? s_marks[mark] : "";
-    const char *const dot = mmgr_text_char(base, '.', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const dot =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = base, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.');
     const char *const after = (dot != NULL) ? dot : "";
     switch (type)
     {
     case SASS_OPERAND_REGISTER:
-        if ((place != 0u) && (mmgr_text_starts(base, "RZ", PLATFORM_TEXT_TO_TERMINATOR)))
+        if ((place != 0u) && (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = base,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "RZ", .ci = EMBED_FALSE)))
         {
             VerbaLinea formed_line_1 = mmgr_line_over(operand, room);
             mmgr_line_put(&formed_line_1, displayed);
@@ -217,8 +221,12 @@ static int unprinted_operand(const char *base, unsigned int type, unsigned int m
         VerbaLinea formed_line_43 = mmgr_line_over(operand, room);
         mmgr_line_put(&formed_line_43, displayed);
         mmgr_line_put(&formed_line_43,
-                      (place == 0u) ? "P0"
-                                    : ((mmgr_text_equal(base, "PT", PLATFORM_TEXT_TO_TERMINATOR)) ? "PT" : "P1"));
+                      (place == 0u)
+                          ? "P0"
+                          : ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = base, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = "PT", .ci = EMBED_FALSE))
+                                 ? "PT"
+                                 : "P1"));
         (void)mmgr_line_finish(&formed_line_43);
         return (int)formed_line_43.at < (int)room;
     }
@@ -226,8 +234,12 @@ static int unprinted_operand(const char *base, unsigned int type, unsigned int m
         VerbaLinea formed_line_44 = mmgr_line_over(operand, room);
         mmgr_line_put(&formed_line_44, displayed);
         mmgr_line_put(&formed_line_44,
-                      (place == 0u) ? "UR6"
-                                    : ((mmgr_text_equal(base, "URZ", PLATFORM_TEXT_TO_TERMINATOR)) ? "URZ" : "UR4"));
+                      (place == 0u)
+                          ? "UR6"
+                          : ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = base, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = "URZ", .ci = EMBED_FALSE))
+                                 ? "URZ"
+                                 : "UR4"));
         (void)mmgr_line_finish(&formed_line_44);
         return (int)formed_line_44.at < (int)room;
     }
@@ -242,7 +254,10 @@ static int unprinted_operand(const char *base, unsigned int type, unsigned int m
         return (place != 0u) &&
                ((formed_line_64 = mmgr_line_over(operand, room), mmgr_line_put(&formed_line_64, displayed),
                  mmgr_line_put(&formed_line_64,
-                               (mmgr_text_starts(base, "c[0x0]", PLATFORM_TEXT_TO_TERMINATOR)) ? "c[0x0][0x0]" : base),
+                               (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = base,
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "c[0x0]", .ci = EMBED_FALSE))
+                                   ? "c[0x0][0x0]"
+                                   : base),
                  (void)mmgr_line_finish(&formed_line_64), (int)formed_line_64.at) < (int)room);
     }
     default:
@@ -362,7 +377,10 @@ static int unprinted_memory_text(const SassForm *form, char *text, size_t room, 
         case SASS_OPERAND_PREDICATE: {
             VerbaLinea formed_line_45 = mmgr_line_over(operand, sizeof(operand));
             mmgr_line_put(&formed_line_45,
-                          (mmgr_text_equal(base.operand[place], "PT", PLATFORM_TEXT_TO_TERMINATOR)) ? "PT" : "P0");
+                          (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = base.operand[place],
+                                      .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "PT", .ci = EMBED_FALSE))
+                              ? "PT"
+                              : "P0");
             (void)mmgr_line_finish(&formed_line_45);
             (void)formed_line_45.at;
         }
@@ -371,8 +389,11 @@ static int unprinted_memory_text(const SassForm *form, char *text, size_t room, 
             VerbaLinea formed_line_46 = mmgr_line_over(operand, sizeof(operand));
             mmgr_line_put(&formed_line_46, "[R4");
             mmgr_line_put(&formed_line_46,
-                          (mmgr_text_find(base.operand[place], ".64", PLATFORM_TEXT_TO_TERMINATOR) != NULL) ? ".64"
-                                                                                                            : "");
+                          (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = base.operand[place],
+                                      .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".64",
+                                      .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL)
+                              ? ".64"
+                              : "");
             mmgr_line_put(&formed_line_46, "+0x8]");
             (void)mmgr_line_finish(&formed_line_46);
             (void)formed_line_46.at;
@@ -419,7 +440,8 @@ static void unprinted_tally_otherwise(UnprintedTally *tally, unsigned long long 
 {
     char digits[64];
     unprinted_binary(value, (bits < 63u) ? bits : 63u, digits);
-    const size_t at = mmgr_text_length(tally->otherwise, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t at =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = tally->otherwise, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     {
         VerbaLinea buffer_line = mmgr_line_over(&tally->otherwise[at], sizeof(tally->otherwise) - at);
         mmgr_line_put(&buffer_line, (at == 0u) ? "" : "; ");
@@ -452,7 +474,7 @@ static void unprinted_form_run(const unsigned int *places, unsigned int copies, 
     unprinted_value(bits, field_value, 0ULL, &count);
     for (unsigned long long start = 0ULL; start < count; start += copies)
     {
-        mmgr_bytes_copy(s_turned, s_code, (size_t)code_size);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_turned, .src = s_code, .bytes = (size_t)code_size);
         for (unsigned int copy = 0u; (copy < copies) && ((start + copy) < count); copy += 1u)
         {
             unprinted_place_write(s_turned, places[copy], NULL, 0u, run->first, bits,
@@ -468,7 +490,7 @@ static void unprinted_form_run(const unsigned int *places, unsigned int copies, 
             int alone = ran;
             if (!ran && (copies > 1u))
             {
-                mmgr_bytes_copy(s_turned, s_code, (size_t)code_size);
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_turned, .src = s_code, .bytes = (size_t)code_size);
                 unprinted_place_write(s_turned, places[0], NULL, 0u, run->first, bits, value);
                 alone = unprinted_run(s_turned, code_size, answered, ended, sizeof(ended));
                 word = answered[0];
@@ -625,7 +647,7 @@ void unprinted_forms(PlatformFile *record)
             const unsigned int bits = (run->last - run->first) + 1u;
             const unsigned long long field_value = unprinted_bits_read(low, high, run->first, bits);
             UnprintedTally tally;
-            mmgr_bytes_set(&tally, 0, sizeof(tally));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &tally, .bytes = sizeof(tally), .val = 0);
             unprinted_form_run(places, copies, 16ULL * count, run, field_value, own, &tally);
             unread += (tally.alike == tally.queried) ? 1u : 0u;
             char digits[64];

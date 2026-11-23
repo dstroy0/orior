@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // airlock.c: the airlock: the cross run over the list and passed or gated, the questions named and relisted, the check
 // traced, and a register refusal put again with the count raised
-#include "run_channel_internal.h"
 #include "../../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "run_channel_internal.h"
 
 // The words `command`, ended by NULL, run as a process given `limit_microseconds`, what it printed passed as the blob
 // returned: the code it exited with, or -1 where it was not started or did not exit of its own
@@ -56,7 +56,8 @@ static int run_channel_airlock_passed(unsigned int questions)
     for (size_t at = 0u; at < s_channel.list_size;)
     {
         const char *const line = s_channel_list + at;
-        const char *const end = (const char *)mmgr_bytes_find(line, '\n', s_channel.list_size - at);
+        const char *const end = (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = line,
+                                                         .bytes = s_channel.list_size - at, .val = '\n');
         const size_t line_length = (end != NULL) ? (size_t)(end - line) : (s_channel.list_size - at);
         at += line_length + 1u;
         // a line is `<code> <registers> <cases> <answers> <probe> <launches>`: the answers are its fourth word
@@ -65,11 +66,12 @@ static int run_channel_airlock_passed(unsigned int questions)
         {
             spaces += (line[fourth] == ' ') ? 1u : 0u;
         }
-        mmgr_bytes_copy(renamed + length, line, fourth);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = renamed + length, .src = line, .bytes = fourth);
         length += fourth;
-        mmgr_bytes_copy(renamed + length, RUN_AIRLOCK_ANSWERS, sizeof(RUN_AIRLOCK_ANSWERS) - 1u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = renamed + length, .src = RUN_AIRLOCK_ANSWERS,
+                   .bytes = sizeof(RUN_AIRLOCK_ANSWERS) - 1u);
         length += sizeof(RUN_AIRLOCK_ANSWERS) - 1u;
-        mmgr_bytes_copy(renamed + length, line + fourth, line_length - fourth);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = renamed + length, .src = line + fourth, .bytes = line_length - fourth);
         length += line_length - fourth;
         renamed[length] = '\n';
         length += 1u;
@@ -267,7 +269,9 @@ unsigned int run_channel_raised(RunQuestion *const *questions, unsigned int firs
         run_channel_named(at, alone, code_name, cases_name, answers_name);
         VerbaLinea stem_line = {stem, sizeof(stem), 0ULL};
         mmgr_line_put(&stem_line, RUN_AIRLOCK_ANSWERS);
-        mmgr_line_put_max(&stem_line, answers_name, mmgr_text_span_not(answers_name, ".", PLATFORM_TEXT_TO_TERMINATOR));
+        mmgr_line_put_max(&stem_line, answers_name,
+                          EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = answers_name,
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "."));
         const size_t stem_length = (size_t)mmgr_line_finish(&stem_line);
         unsigned int clearing = 0u;
         int gated = 0;
@@ -275,10 +279,12 @@ unsigned int run_channel_raised(RunQuestion *const *questions, unsigned int firs
         for (unsigned long long walk = 0ULL; walk < size;)
         {
             const char *const line = (const char *)(gated_list + walk);
-            const char *const end = (const char *)mmgr_bytes_find(line, '\n', (size_t)(size - walk));
+            const char *const end = (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = line,
+                                                             .bytes = (size_t)(size - walk), .val = '\n');
             const size_t length = (end != NULL) ? (size_t)(end - line) : (size_t)(size - walk);
             walk += (unsigned long long)length + 1ULL;
-            if ((length <= stem_length) || (mmgr_bytes_compare(line, stem, stem_length) != 0) ||
+            if ((length <= stem_length) ||
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = line, .other = stem, .bytes = stem_length) != 0) ||
                 (line[stem_length] != ' '))
             {
                 continue;
@@ -289,8 +295,10 @@ unsigned int run_channel_raised(RunQuestion *const *questions, unsigned int firs
             mmgr_line_put_max(&text_line, line + stem_length + 1u, length - stem_length - 1u);
             mmgr_line_finish(&text_line);
             const char *after = NULL;
-            const unsigned long long count_read = mmgr_text_unsigned_in(text, &after, 10);
-            const char *const why = after + mmgr_text_span(after, " ", PLATFORM_TEXT_TO_TERMINATOR);
+            const unsigned long long count_read =
+                EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = text, .end = &after, .base = 10);
+            const char *const why = after + EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = after,
+                                                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
             char message[RUN_LINE_MAX_LEN + 640u];
             VerbaLinea message_line = {message, sizeof(message), 0ULL};
             mmgr_line_put(&message_line, "gated, ");

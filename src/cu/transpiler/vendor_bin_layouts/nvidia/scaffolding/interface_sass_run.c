@@ -22,12 +22,12 @@
 // pause after each launch prevents a run of launches from flooding the part and taking the display down with it. Exit 0
 // where every line ran, 2 where the list or the device was not reached.
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../includes/parsers/line_read.h"
 #include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../cubin_safe.h"
-#include "../../../../../../includes/parsers/line_read.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include <cuda.h>
 #include <windows.h>
@@ -85,7 +85,7 @@ static int sass_run_cases(const char *path)
         fits = (count < SASS_RUN_THREADS);
         if (fits)
         {
-            mmgr_bytes_copy(s_cases[count], words, sizeof(words));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_cases[count], .src = words, .bytes = sizeof(words));
             count += 1u;
         }
     }
@@ -141,7 +141,8 @@ static CUresult sass_run_one(const char *kernel)
 int program_main(int count, char **words)
 {
     // the safety airlock: the vendor's verdict read into the gate where it is given, and retained for the part
-    if ((count >= 3) && (mmgr_text_equal(words[1], "--gated", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count >= 3) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "--gated", .ci = EMBED_FALSE)))
     {
         if (!cubin_safe_verdict_load(words[2]))
         {
@@ -173,7 +174,8 @@ int program_main(int count, char **words)
         }
         return 2;
     }
-    const unsigned long max = (count == 7) ? mmgr_text_unsigned_in(words[6], NULL, 10) : 0UL;
+    const unsigned long max =
+        (count == 7) ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = words[6], .end = NULL, .base = 10) : 0UL;
     if ((count >= 6) && !sass_run_cases(words[5]))
     {
         {
@@ -222,7 +224,8 @@ int program_main(int count, char **words)
         }
         return 2;
     }
-    const unsigned long first = mmgr_text_unsigned_in(words[3], NULL, 10);
+    const unsigned long first =
+        EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = words[3], .end = NULL, .base = 10);
     char line[SASS_RUN_LINE];
     unsigned long number = 0UL;
     while (platform_file_text_read(line, sizeof(line), list) != NULL)
@@ -243,7 +246,8 @@ int program_main(int count, char **words)
         }
         // a line the writer blocked from the part: its turned operation key contains a control transfer, a wait or no
         // form, and running it could loop or stall the part. It is answered without the device
-        if (mmgr_text_equal(path, "skip", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "skip",
+                       .ci = EMBED_FALSE))
         {
             {
                 mmgr_line_decimal(platform_file_line(answers), number, 1u);

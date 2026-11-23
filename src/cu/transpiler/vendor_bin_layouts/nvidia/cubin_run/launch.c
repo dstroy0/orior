@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // launch.c: the launch: the host's clock and its turn given up, the launch bounded and timed, the answers read, the
 // container out, and a dry run written
-#include "cubin_run_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "cubin_run_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 CubinRunClocks s_clocks;
 
@@ -239,7 +239,8 @@ CubinRunStatus cubin_run_launch(const CubinRunDriver *driver, const char *kernel
     }
     for (unsigned int thread = 0u; thread < count; thread += 1u)
     {
-        mmgr_bytes_copy(given[thread], s_cases[thread % s_case_count], sizeof(s_cases[0]));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = given[thread], .src = s_cases[thread % s_case_count],
+                   .bytes = sizeof(s_cases[0]));
     }
     const unsigned long long load_began = cubin_run_host_now();
     CubinRunStatus status = s_context_set ? 0 : driver->init(0u);
@@ -321,9 +322,11 @@ unsigned int s_facets = 0u;
 void cubin_run_container_out(const char *answers_path, const unsigned char *container, unsigned long long size)
 {
     char path[CUBIN_RUN_LINE];
-    const char *const dot = mmgr_text_char_last(answers_path, '.', PLATFORM_TEXT_TO_TERMINATOR);
-    const int stem =
-        (dot != NULL) ? (int)(dot - answers_path) : (int)mmgr_text_length(answers_path, PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const dot = EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = answers_path,
+                                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.');
+    const int stem = (dot != NULL) ? (int)(dot - answers_path)
+                                   : (int)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = answers_path,
+                                                     .cap = PLATFORM_TEXT_TO_TERMINATOR);
     {
         VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
         mmgr_line_put_max(&buffer_line, answers_path, (size_t)(stem));
@@ -383,7 +386,8 @@ void cubin_run_dry_written(unsigned long long code_size, unsigned int registers,
     for (unsigned long long place = 0ULL; (place + 16ULL) <= code_size; place += 16ULL)
     {
         const int base_matches =
-            ((place + 16ULL) <= base_size) && (mmgr_bytes_compare(&s_code[place], &s_base[place], 16u) == 0);
+            ((place + 16ULL) <= base_size) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &s_code[place], .other = &s_base[place], .bytes = 16u) == 0);
         if (base_matches && !(s_facets & CUBIN_FACET_QUERY))
         {
             continue;

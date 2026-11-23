@@ -3,10 +3,10 @@
 // fields.c: the fields: bits written, a register's, a constant's, an address's and an operand's value, the fields of a
 // type and the field at a place, the places of an instruction found, the high word written, and the control word made
 // safe
-#include "sass_assemble_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sass_assemble_internal.h"
 
 // the fields a type of operand may sit in, in the order an instruction fills them
 static const SassField s_register_fields[] = {
@@ -52,34 +52,42 @@ void sass_bits_write(unsigned long long *low, unsigned long long *high, unsigned
 // of a number is its high word, which sass_operand_value takes
 unsigned long long sass_register_value(const char *text)
 {
-    if (mmgr_text_starts(text, "RZ", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "RZ",
+                   .ci = EMBED_FALSE))
     {
         return 255ULL;
     }
-    if (mmgr_text_starts(text, "PT", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "PT",
+                   .ci = EMBED_FALSE))
     {
         return 7ULL;
     }
     const char *const digits = text + ((text[0] == 'U') ? 2u : 1u);
-    return mmgr_text_unsigned_in(digits, NULL, 10) + (sass_high_half(text) ? 1ULL : 0ULL);
+    return EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = digits, .end = NULL, .base = 10) +
+           (sass_high_half(text) ? 1ULL : 0ULL);
 }
 
 // the offset a constant names, c[bank][offset], and the bank through `bank`. The offset may be a sum, each term after
 // a +, as sass.krs writes a kernel's parameter at the target's base and the parameter's own place, c[0x0][0x160+8]
 unsigned long long sass_constant_value(const char *text, unsigned long long *bank)
 {
-    const char *const first = mmgr_text_char(text, '[', PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const second = (first != NULL) ? mmgr_text_char(first + 1, '[', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
-    *bank = (first != NULL) ? mmgr_text_unsigned_in(first + 1, NULL, 0) : 0ULL;
+    const char *const first =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '[');
+    const char *const second = (first != NULL) ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = first + 1,
+                                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '[')
+                                               : NULL;
+    *bank = (first != NULL) ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = first + 1, .end = NULL, .base = 0)
+                            : 0ULL;
     if (second == NULL)
     {
         return 0ULL;
     }
     const char *walk = NULL;
-    unsigned long long offset = mmgr_text_unsigned_in(second + 1, &walk, 0);
+    unsigned long long offset =
+        EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = second + 1, .end = &walk, .base = 0);
     while (*walk == '+')
     {
-        offset += mmgr_text_unsigned_in(walk + 1, &walk, 0);
+        offset += EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = walk + 1, .end = &walk, .base = 0);
     }
     return offset;
 }
@@ -87,9 +95,13 @@ unsigned long long sass_constant_value(const char *text, unsigned long long *ban
 // the base register an address names, [R2.64+0x4], and its offset through `offset`
 static unsigned long long sass_address_value(const char *text, unsigned long long *offset)
 {
-    const char *const open = mmgr_text_char_last(text, '[', PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const plus = (open != NULL) ? mmgr_text_char(open, '+', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
-    *offset = (plus != NULL) ? mmgr_text_unsigned_in(plus + 1, NULL, 0) : 0ULL;
+    const char *const open =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '[');
+    const char *const plus = (open != NULL) ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = open,
+                                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '+')
+                                            : NULL;
+    *offset =
+        (plus != NULL) ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = plus + 1, .end = NULL, .base = 0) : 0ULL;
     return (open != NULL) ? sass_register_value(open + 1) : 0ULL;
 }
 
@@ -112,8 +124,9 @@ int sass_operand_value(const SassInstructionParts *parts, unsigned int place, un
         // is the pair's second register, and for a number it is the number's high word. strtoull stops at the dot:
         // so the stem is read and shifted; a negative number is shifted as the 64-bit word it is written into
         const unsigned long long whole =
-            (text[0] == '-') ? (unsigned long long)(-(long long)mmgr_text_unsigned_in(text + 1, NULL, 0))
-                             : mmgr_text_unsigned_in(text, NULL, 0);
+            (text[0] == '-') ? (unsigned long long)(-(long long)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                                                           .src = text + 1, .end = NULL, .base = 0))
+                             : EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = text, .end = NULL, .base = 0);
         *value = sass_high_half(text) ? (whole >> 32u) : whole;
         return 1;
     }
@@ -186,11 +199,12 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
     sass_instruction_read(form->text, &base);
     for (unsigned int place = 0u; place < form->operands; place += 1u)
     {
-        mmgr_bytes_set(&places[place], 0, sizeof(places[place]));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &places[place], .bytes = sizeof(places[place]), .val = 0);
         const unsigned int type = form->type[place];
         // a label that names a symbol and not a label of the text is a relocation: the field contains nothing and
         // the loader fills it. The instruction is then checked against the one the form was seen with
-        const char *const open = mmgr_text_char(base.operand[place], '(', PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const open = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = base.operand[place],
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '(');
         const int relocated = (type == SASS_OPERAND_LABEL) && ((open == NULL) || (open[1] != '.'));
         if ((type == SASS_OPERAND_UNKNOWN) || (type == SASS_OPERAND_SYSTEM) || relocated)
         {

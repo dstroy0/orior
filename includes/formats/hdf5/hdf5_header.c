@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_header.c: the file's opening and the object header's messages
-#include "hdf5_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "hdf5_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 int hdf5_open(Hdf5File *file, const char *path, const EngineIngestTools *tools)
 {
-    mmgr_bytes_set(file, 0, sizeof(*file));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = file, .bytes = sizeof(*file), .val = 0);
     file->path = path;
     file->tools = tools;
     file->budget = HDF5_BUDGET;
@@ -32,7 +32,7 @@ int hdf5_open(Hdf5File *file, const char *path, const EngineIngestTools *tools)
         {
             return 0;
         }
-        found = (mmgr_bytes_compare(probe, signature, sizeof(probe)) == 0);
+        found = (EMBED_CALL(memor.cmp, MemoriaCfg, .src = probe, .other = signature, .bytes = sizeof(probe)) == 0);
         place = found ? place : ((place == 0ULL) ? 512ULL : (place * 2ULL));
     }
     if (!found)
@@ -150,7 +150,7 @@ Hdf5Walk hdf5_header_walk(Hdf5File *file, unsigned long long address, Hdf5Messag
     {
         return hdf5_walk_error(file, "an object header past the end of the file");
     }
-    const int modern = (mmgr_bytes_compare(prefix, "OHDR", 4u) == 0);
+    const int modern = (EMBED_CALL(memor.cmp, MemoriaCfg, .src = prefix, .other = "OHDR", .bytes = 4u) == 0);
     const unsigned int flags = prefix[5u];
     const size_t times = (modern && ((flags & 0x20u) != 0u)) ? 16u : 0u;
     const size_t phases = (modern && ((flags & 0x10u) != 0u)) ? 4u : 0u;
@@ -192,7 +192,9 @@ Hdf5Walk hdf5_header_walk(Hdf5File *file, unsigned long long address, Hdf5Messag
         const size_t length = (size_t)chain[next].length;
         const int sound =
             (block != NULL) &&
-            (!modern || ((length >= 8u) && (mmgr_bytes_compare(block, "OCHK", 4u) == 0) && hdf5_sealed(block, length)));
+            (!modern ||
+             ((length >= 8u) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = block, .other = "OCHK", .bytes = 4u) == 0) &&
+              hdf5_sealed(block, length)));
         step = !sound
                    ? hdf5_walk_error(file, "an object header continuation whose signature or checksum does not match")
                : modern
@@ -320,7 +322,7 @@ Hdf5Walk hdf5_object_fill(Hdf5File *file, Hdf5Object *object, Hdf5Cursor *cursor
         return hdf5_walk_error(file, "a malformed fill value message");
     }
     unsigned char *const fill_value = old ? object->old_fill : object->fill;
-    mmgr_bytes_copy(fill_value, value, (size_t)((size < 8ULL) ? size : 8ULL));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = fill_value, .src = value, .bytes = (size_t)((size < 8ULL) ? size : 8ULL));
     object->has_fill = object->has_fill || !old;
     object->has_old_fill = object->has_old_fill || old;
     object->fill_bytes = old ? object->fill_bytes : size;

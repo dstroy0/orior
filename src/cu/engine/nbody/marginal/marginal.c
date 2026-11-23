@@ -1,10 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "marginal.h"
-#include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
-
+#include "../../../../platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
 
 _Static_assert(MARGINAL_LIMBS <= ORIOR_EXACT_LIMBS, "marginal: the host's exact integer must represent every sum");
 
@@ -150,7 +149,8 @@ long marginal_run_host(const MarginalRequest *request)
     {
         return MARGINAL_ERROR;
     }
-    mmgr_bytes_set(request->option_sums, 0, (size_t)request->option_count * MARGINAL_LIMBS * sizeof(unsigned int));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request->option_sums,
+               .bytes = (size_t)request->option_count * MARGINAL_LIMBS * sizeof(unsigned int), .val = 0);
     for (unsigned int question = 0u; question < request->question_count; question += 1u)
     {
         if ((marginal_arrangements(request, &request->questions[question]) == MARGINAL_ERROR) ||

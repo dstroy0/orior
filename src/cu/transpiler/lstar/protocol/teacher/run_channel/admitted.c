@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // admitted.c: the admission: a gated question's conference of cross, gate and record, the round checked, the carrier's
 // output passed, one question traced and queried
-#include "run_channel_internal.h"
-#include "../../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../../includes/parsers/line_read.h"
+#include "../../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "run_channel_internal.h"
 
 // The conferences the gate calls for the round the airlock last read: each question of `questions` from `first` to
 // `count` whose answer the pop gave is a block under the key rule (RUN_GATE_KEY_RULE), read against what the cross
@@ -36,7 +36,9 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         run_channel_named(at, alone, code_name, cases_name, answers_name);
         VerbaLinea stem_line = {stem, sizeof(stem), 0ULL};
         mmgr_line_put(&stem_line, RUN_AIRLOCK_ANSWERS);
-        mmgr_line_put_max(&stem_line, answers_name, mmgr_text_span_not(answers_name, ".", PLATFORM_TEXT_TO_TERMINATOR));
+        mmgr_line_put_max(&stem_line, answers_name,
+                          EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = answers_name,
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "."));
         mmgr_line_finish(&stem_line);
         VerbaLinea popped_line = {popped, sizeof(popped), 0ULL};
         mmgr_line_put(&popped_line, RUN_AIRLOCK_ANSWERS);
@@ -55,22 +57,26 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         VerbaLinea verdict_line = {verdict, sizeof(verdict), 0ULL};
         mmgr_line_put_max(&verdict_line, (const char *)answer, (answer_size < 159ULL) ? answer_size : 159ULL);
         mmgr_line_finish(&verdict_line);
-        verdict[mmgr_text_span_not(verdict, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
+        verdict[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = verdict, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = "\r\n")] = '\0';
         if (!run_channel_key_gated(verdict))
         {
             continue;
         }
         // the cross's clear readings of the question, the lines of the read list that lead with its stem: its probe
         // place's, or every instruction's of a question read whole, each `<operation> <low> <high>`
-        const size_t stem_length = mmgr_text_length(stem, PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t stem_length =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = stem, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         unsigned int clear = 0u;
         for (unsigned long long walk = 0ULL; walk < size;)
         {
             const char *const line = (const char *)(read + walk);
-            const char *const end = (const char *)mmgr_bytes_find(line, '\n', (size_t)(size - walk));
+            const char *const end = (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = line,
+                                                             .bytes = (size_t)(size - walk), .val = '\n');
             const size_t length = (end != NULL) ? (size_t)(end - line) : (size_t)(size - walk);
             walk += (unsigned long long)length + 1ULL;
-            clear += ((length > stem_length) && (mmgr_bytes_compare(line, stem, stem_length) == 0) &&
+            clear += ((length > stem_length) &&
+                      (EMBED_CALL(memor.cmp, MemoriaCfg, .src = line, .other = stem, .bytes = stem_length) == 0) &&
                       (line[stem_length] == ' '))
                          ? 1u
                          : 0u;
@@ -130,14 +136,16 @@ static unsigned int run_channel_admitted(RunQuestion *const *questions, unsigned
         unsigned int taught = 0u;
         unsigned int ruled = 0u;
         OverseerRuling ruling;
-        mmgr_bytes_set(&ruling, 0, sizeof(ruling));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &ruling, .bytes = sizeof(ruling), .val = 0);
         for (unsigned long long walk = 0ULL; walk < size;)
         {
             const char *const line = (const char *)(read + walk);
-            const char *const end = (const char *)mmgr_bytes_find(line, '\n', (size_t)(size - walk));
+            const char *const end = (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = line,
+                                                             .bytes = (size_t)(size - walk), .val = '\n');
             const size_t length = (end != NULL) ? (size_t)(end - line) : (size_t)(size - walk);
             walk += (unsigned long long)length + 1ULL;
-            if ((length <= stem_length) || (mmgr_bytes_compare(line, stem, stem_length) != 0) ||
+            if ((length <= stem_length) ||
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = line, .other = stem, .bytes = stem_length) != 0) ||
                 (line[stem_length] != ' '))
             {
                 continue;
@@ -242,7 +250,7 @@ void run_channel_output_passed(const InterfaceAnswer *answer)
     mmgr_line_ch(&ending_line, '\n');
     // the line fits RUN_CARRIER_ENDING, and the output retained fits the rest
     const unsigned long long line = mmgr_line_finish(&ending_line);
-    mmgr_bytes_copy(s_carrier_text + line, s_carrier_output, copied);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_carrier_text + line, .src = s_carrier_output, .bytes = copied);
     qry_member_append("carrier.txt", s_carrier_text, line + copied, clean ? QRY_ORDINARY : QRY_PANIC);
 }
 

@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_terms_main.cu: the mix and main
-#include "noise_terms_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "noise_terms_internal.h"
 
 static const unsigned long long TERMS_FLAT_LIGHT[TERMS_FLAT_LIGHTS] = {100ULL, 200ULL, 400ULL};
 
@@ -57,7 +57,7 @@ int program_main(int argc, char **argv)
          sim_status_check(&results, cudaMalloc((void **)&device_lanes, (size_t)lane_bytes), "lanes");
     sim_check(&results, ok, "the scene's buffers");
     SimScene scene;
-    mmgr_bytes_set(&scene, 0, sizeof(scene));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &scene, .bytes = sizeof(scene), .val = 0);
     scene.frames = TERMS_FRAMES;
     scene.extent[0] = TERMS_DEPTH;
     scene.extent[1] = TERMS_HEIGHT;
@@ -197,7 +197,7 @@ int program_main(int argc, char **argv)
             mmgr_line_put(&results.line,
                           "  the null with each voxel taking 1/8 of each x neighbor's value after the draw"
                           "\n");
-            mmgr_bytes_copy(drawn, lanes, (size_t)lane_bytes);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = drawn, .src = lanes, .bytes = (size_t)lane_bytes);
             terms_crosstalk_mix(lanes, drawn);
             terms_crosstalk(&results, lanes, TERMS_CROSSTALK_EIGHTHS);
         }

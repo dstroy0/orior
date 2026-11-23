@@ -4,7 +4,7 @@
 #include "key_schedule_core.h"
 
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 #define KEY_SCHEDULE_CHECK(condition_, evacaddr_, error_, type_)                                                       \
     engine_error_check((condition_), (type_), ENGINE_MODULE_KEY_SCHEDULE, (unsigned int)__LINE__,                      \
@@ -39,7 +39,7 @@ extern "C" long key_schedule_layout(const EngineKey *key, EngineKeyLayout *layou
     {
         return KEY_SCHEDULE_ERROR;
     }
-    mmgr_bytes_set(layout, 0u, sizeof(*layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = layout, .bytes = sizeof(*layout), .val = 0u);
     const unsigned int count = key->terms;
     // the table of terms is a resource of the layout, and the weights gather in ephemeral work before they join it
     DeviceTerm *const terms =
@@ -48,7 +48,7 @@ extern "C" long key_schedule_layout(const EngineKey *key, EngineKeyLayout *layou
     {
         return KEY_SCHEDULE_ERROR;
     }
-    mmgr_bytes_set(terms, 0u, (size_t)count * sizeof(DeviceTerm));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = terms, .bytes = (size_t)count * sizeof(DeviceTerm), .val = 0u);
     layout->term_table = terms;
     PlatformArray weights;
     platform_array_begun(&weights, sizeof(unsigned int), KEY_SCHEDULE_PLACE, 1);
@@ -93,8 +93,8 @@ extern "C" long key_schedule_layout(const EngineKey *key, EngineKeyLayout *layou
                 key_schedule_release(layout);
                 return KEY_SCHEDULE_ERROR;
             }
-            mmgr_bytes_copy(platform_array_at(&weights, first), &key->limbs[row->first],
-                            (size_t)(added * sizeof(unsigned int)));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = platform_array_at(&weights, first), .src = &key->limbs[row->first],
+                       .bytes = (size_t)(added * sizeof(unsigned int)));
             const unsigned int used = out->row_limbs + out->in_limbs + 2u;
             columns = (used > columns) ? used : columns;
             const unsigned long long half = (unsigned long long)(out->taps / 2u);
@@ -128,7 +128,8 @@ extern "C" long key_schedule_layout(const EngineKey *key, EngineKeyLayout *layou
     }
     if (weights.count != 0ULL)
     {
-        mmgr_bytes_copy(layout->weights, weights.cell, (size_t)(weights.count * sizeof(unsigned int)));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = layout->weights, .src = weights.cell,
+                   .bytes = (size_t)(weights.count * sizeof(unsigned int)));
     }
     layout->weight_count = weights.count;
     platform_array_ended(&weights);
@@ -147,7 +148,7 @@ extern "C" void key_schedule_release(EngineKeyLayout *layout)
 {
     platform_cell_released(layout->term_table, KEY_SCHEDULE_PLACE);
     platform_cell_released(layout->weights, KEY_SCHEDULE_PLACE);
-    mmgr_bytes_set(layout, 0u, sizeof(*layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = layout, .bytes = sizeof(*layout), .val = 0u);
 }
 
 // one ephemeral cell of `count` elements of `bytes` each, all zero, or NULL where the pool cannot meet it
@@ -156,7 +157,7 @@ static void *key_schedule_work(unsigned long long count, unsigned long long byte
     void *const work = platform_cell_taken(count * bytes, KEY_SCHEDULE_PLACE, 1);
     if (work != NULL)
     {
-        mmgr_bytes_set(work, 0u, (size_t)(count * bytes));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = work, .bytes = (size_t)(count * bytes), .val = 0u);
     }
     return work;
 }
@@ -190,7 +191,7 @@ extern "C" long key_schedule_record_layout(const KeyScheduleRecordRequest *reque
     }
     const EngineRecordKey *const key = request->key;
     EngineRecordLayout *const layout = request->layout;
-    mmgr_bytes_set(layout, 0u, sizeof(*layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = layout, .bytes = sizeof(*layout), .val = 0u);
     const unsigned long long count = key->steps;
     // the table of steps is a resource of the layout, and the rest is the ephemeral work of the core
     DeviceRecordStep *const steps =
@@ -206,7 +207,7 @@ extern "C" long key_schedule_record_layout(const KeyScheduleRecordRequest *reque
                                 layout, error, ENGINE_ERROR_RESOURCE);
     if (ok)
     {
-        mmgr_bytes_set(steps, 0u, (size_t)(count * sizeof(DeviceRecordStep)));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = steps, .bytes = (size_t)(count * sizeof(DeviceRecordStep)), .val = 0u);
     }
     KeyScheduleCoreLayout core_layout{};
     core_layout.terms = key->term;
@@ -255,7 +256,8 @@ extern "C" long key_schedule_record_layout(const KeyScheduleRecordRequest *reque
             key_schedule_record_release(layout);
             return KEY_SCHEDULE_ERROR;
         }
-        mmgr_bytes_copy(layout->table_values, key->table_values, (size_t)key->table_word_count * sizeof(unsigned int));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = layout->table_values, .src = key->table_values,
+                   .bytes = (size_t)key->table_word_count * sizeof(unsigned int));
         layout->table_word_count = key->table_word_count;
     }
     layout->steps = key->steps;
@@ -275,5 +277,5 @@ extern "C" void key_schedule_record_release(EngineRecordLayout *layout)
 {
     platform_cell_released(layout->step_table, KEY_SCHEDULE_PLACE);
     platform_cell_released(layout->table_values, KEY_SCHEDULE_PLACE);
-    mmgr_bytes_set(layout, 0u, sizeof(*layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = layout, .bytes = sizeof(*layout), .val = 0u);
 }

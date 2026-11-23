@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zstd_frame.c: sequences, XXH64, blocks, frames and the decoder
-#include "zstd_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "zstd_internal.h"
 
 static const long zstd_literal_length_predefined[ZSTD_LITERAL_LENGTH_SYMBOLS] = {
     4L, 3L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 2L, 1L, 1L,  1L,  2L,  2L,
@@ -206,7 +206,8 @@ static int zstd_block(ZstdDecoder *decoder, ZstdSpan *input, int *last)
         {
             return 0;
         }
-        mmgr_bytes_set(&decoder->out[decoder->written], input->bytes[0u], (size_t)size);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &decoder->out[decoder->written], .bytes = (size_t)size,
+                   .val = input->bytes[0u]);
         decoder->written += size;
         zstd_advance(input, 1ULL);
         return 1;
@@ -223,7 +224,11 @@ static int zstd_block(ZstdDecoder *decoder, ZstdSpan *input, int *last)
         {
             return 0;
         }
-        mmgr_bytes_move(&decoder->out[decoder->written], content.bytes, (size_t)size);
+        (((const unsigned char *)(&decoder->out[decoder->written]) <= (const unsigned char *)(content.bytes))
+             ? EMBED_CALL(memor.move_down, MemoriaCfg, .dst = &decoder->out[decoder->written], .src = content.bytes,
+                          .bytes = (size_t)size)
+             : EMBED_CALL(memor.move_up, MemoriaCfg, .dst = &decoder->out[decoder->written], .src = content.bytes,
+                          .bytes = (size_t)size));
         decoder->written += size;
         return 1;
     }
@@ -336,7 +341,7 @@ long long zstd_decode(const EngineBytesRequest *request)
     {
         if (written > 0ULL)
         {
-            mmgr_bytes_set(request->out, 0, (size_t)written);
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = request->out, .bytes = (size_t)written, .val = 0);
         }
         return ENGINE_BYTES_ERROR;
     }

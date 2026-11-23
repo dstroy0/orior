@@ -2,14 +2,33 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_listing.cu: the listing, geff arrays, lanes and the iapx codec
 #include "../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "engine_internal.h"
 #include "engine_note.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int engine_listing_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 static int entry_order_names(const void *left, const void *right)
 {
-    return mmgr_text_order(*(const char *const *)left, *(const char *const *)right, PLATFORM_TEXT_TO_TERMINATOR);
+    return engine_listing_text_order(*(const char *const *)left, *(const char *const *)right,
+                                     PLATFORM_TEXT_TO_TERMINATOR);
 }
 
 static unsigned int entry_listing(const char *directory, char ***names, int samples_of_set)
@@ -57,18 +76,20 @@ static unsigned int entry_listing(const char *directory, char ***names, int samp
         {
             if (entry_ends(stem, ENTRY_SOURCE_SUFFIXES[suffix]))
             {
-                stem[mmgr_text_length(stem, PLATFORM_TEXT_TO_TERMINATOR) -
-                     mmgr_text_length(ENTRY_SOURCE_SUFFIXES[suffix], PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
+                stem[EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = stem, .cap = PLATFORM_TEXT_TO_TERMINATOR) -
+                     EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = ENTRY_SOURCE_SUFFIXES[suffix],
+                                .cap = PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
                 has_sample = 1;
             }
         }
         if (has_sample != 0)
         {
-            const size_t size = mmgr_text_length(stem, PLATFORM_TEXT_TO_TERMINATOR) + 1u;
+            const size_t size =
+                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = stem, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u;
             char *const copy = (char *)platform_cell_taken(size, platform_place_g_program_owner, 0);
             if (copy != NULL)
             {
-                mmgr_bytes_copy(copy, stem, size);
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy, .src = stem, .bytes = size);
             }
             if ((copy != NULL) && (platform_array_appended(&found, &copy) == 0))
             {
@@ -105,7 +126,8 @@ static unsigned int entry_listing(const char *directory, char ***names, int samp
         // the room of the sort, on the temporary tier, which goes back as the sort ends
         void *const sort_room =
             platform_cell_taken(count * (unsigned long long)(sizeof(char *)), platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(listed, (size_t)count, sizeof(char *), entry_order_names, sort_room);
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = listed, .bytes = sizeof(char *), .scratch = sort_room,
+                         .count = (size_t)count, .order = entry_order_names);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     *names = listed;
@@ -181,12 +203,12 @@ extern "C" void engine_geff_release(EngineGeff *geff)
     platform_cell_released(geff->node_identity, platform_place_g_program_owner);
     platform_cell_released(geff->node_place, platform_place_g_program_owner);
     platform_cell_released(geff->edge_ends, platform_place_g_program_owner);
-    mmgr_bytes_set(geff, 0, sizeof(*geff));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = geff, .bytes = sizeof(*geff), .val = 0);
 }
 
 extern "C" long engine_geff_read(const char *path, EngineGeff *geff)
 {
-    mmgr_bytes_set(geff, 0, sizeof(*geff));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = geff, .bytes = sizeof(*geff), .val = 0);
     static const char *const PLACES[4] = {"nodes/props/t/values", "nodes/props/z/values", "nodes/props/y/values",
                                           "nodes/props/x/values"};
     unsigned long long rows = 0ULL;
@@ -209,10 +231,11 @@ extern "C" long engine_geff_read(const char *path, EngineGeff *geff)
     ok = ok && (geff->node_identity != NULL) && (geff->node_place != NULL);
     for (unsigned long long node = 0ULL; ok && (node < geff->nodes); node += 1ULL)
     {
-        mmgr_bytes_copy(&geff->node_identity[node], &ids[8ULL * node], 8u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &geff->node_identity[node], .src = &ids[8ULL * node], .bytes = 8u);
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
         {
-            mmgr_bytes_copy(&geff->node_place[(4ULL * node) + axis], &places[axis][8ULL * node], 8u);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &geff->node_place[(4ULL * node) + axis],
+                       .src = &places[axis][8ULL * node], .bytes = 8u);
         }
     }
     if (ok)
@@ -242,7 +265,7 @@ extern "C" long engine_iapx_head(const char *set, const char *sample, unsigned l
     }
     char path[ENTRY_PATH_CAPACITY];
     EngineStream stream;
-    mmgr_bytes_set(&stream, 0, sizeof(stream));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &stream, .bytes = sizeof(stream), .val = 0);
     if ((ENGINE_CHECK(engine_sample_path(path, sizeof(path), set, sample, ENTRY_CRYSTAL_SUFFIX) != 0, sample, error,
                       ENGINE_ERROR_REQUEST) == 0) ||
         (krep_crystal_head(path, &stream, NULL, error) == 0))
@@ -251,7 +274,7 @@ extern "C" long engine_iapx_head(const char *set, const char *sample, unsigned l
         engine_error_latch(error);
         return ENGINE_ERROR;
     }
-    mmgr_bytes_copy(extent, stream.extent, sizeof(stream.extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = extent, .src = stream.extent, .bytes = sizeof(stream.extent));
     return 0L;
 }
 
@@ -278,7 +301,7 @@ int entry_iapx_decode(const EngineStream *stream, const unsigned short *device_l
         return 0;
     }
     CompressionDecodeRequest code;
-    mmgr_bytes_set(&code, 0, sizeof(code));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &code, .bytes = sizeof(code), .val = 0);
     code.offsets = stream->offsets;
     code.chunks = stream->chunks;
     code.stream = stream->stream;
@@ -291,9 +314,9 @@ int entry_iapx_decode(const EngineStream *stream, const unsigned short *device_l
         return 0;
     }
     TowerLowerRequest lower;
-    mmgr_bytes_set(&lower, 0, sizeof(lower));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lower, .bytes = sizeof(lower), .val = 0);
     lower.device_lanes = device_lanes;
-    mmgr_bytes_copy(lower.extent, stream->extent, sizeof(lower.extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lower.extent, .src = stream->extent, .bytes = sizeof(lower.extent));
     lower.mismatches = mismatches;
     lower.device_rebuilt = device_rebuilt;
     lower.rebuilt = rebuilt;
@@ -304,14 +327,14 @@ int entry_iapx_decode(const EngineStream *stream, const unsigned short *device_l
 int entry_iapx_encode(const unsigned short *device_lanes, const unsigned long long extent[4], EngineStream *stream,
                       unsigned int *floors, EngineError *error)
 {
-    mmgr_bytes_set(stream, 0, sizeof(*stream));
-    mmgr_bytes_copy(stream->extent, extent, sizeof(stream->extent));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = stream, .bytes = sizeof(*stream), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = stream->extent, .src = extent, .bytes = sizeof(stream->extent));
     const int *coefficients = NULL;
     unsigned int *scratch = NULL;
     TowerLiftRequest lift;
-    mmgr_bytes_set(&lift, 0, sizeof(lift));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lift, .bytes = sizeof(lift), .val = 0);
     lift.device_lanes = device_lanes;
-    mmgr_bytes_copy(lift.extent, extent, sizeof(lift.extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lift.extent, .src = extent, .bytes = sizeof(lift.extent));
     lift.coefficients = &coefficients;
     lift.scratch = &scratch;
     lift.floors = floors;
@@ -321,7 +344,7 @@ int entry_iapx_encode(const unsigned short *device_lanes, const unsigned long lo
         return 0;
     }
     CompressionEncodeRequest code;
-    mmgr_bytes_set(&code, 0, sizeof(code));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &code, .bytes = sizeof(code), .val = 0);
     code.device_coefficients = coefficients;
     code.count = entry_lanes(extent);
     code.device_scratch = scratch;
@@ -353,9 +376,9 @@ extern "C" long engine_lattice_bits(const int *values, const unsigned long long 
     if (ok != 0)
     {
         TowerLiftRequest lift;
-        mmgr_bytes_set(&lift, 0, sizeof(lift));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &lift, .bytes = sizeof(lift), .val = 0);
         lift.device_values = device_values;
-        mmgr_bytes_copy(lift.extent, extent, sizeof(lift.extent));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lift.extent, .src = extent, .bytes = sizeof(lift.extent));
         lift.coefficients = &coefficients;
         lift.scratch = &scratch;
         lift.floors = &floors;
@@ -366,9 +389,9 @@ extern "C" long engine_lattice_bits(const int *values, const unsigned long long 
     {
         // the offsets and the stream are compression's own, retained for its next call; only the bits are retained
         EngineStream stream;
-        mmgr_bytes_set(&stream, 0, sizeof(stream));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &stream, .bytes = sizeof(stream), .val = 0);
         CompressionEncodeRequest code;
-        mmgr_bytes_set(&code, 0, sizeof(code));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &code, .bytes = sizeof(code), .val = 0);
         code.device_coefficients = coefficients;
         code.count = lanes;
         code.device_scratch = scratch;

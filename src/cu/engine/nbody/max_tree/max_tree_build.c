@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_build.c: the tree built
-#include "max_tree_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "max_tree_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 OriorExactInteger g_compare_left;
 OriorExactInteger g_compare_right;
@@ -94,7 +94,7 @@ static long max_tree_grow(const unsigned int *residual, unsigned int depth, unsi
     {
         return MAX_TREE_ERROR;
     }
-    mmgr_bytes_set(tree, 0, sizeof(*tree));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = tree, .bytes = sizeof(*tree), .val = 0);
     const size_t voxels = (size_t)depth * height * width;
     if (voxels > 0xFFFFFFFEu)
     {
@@ -115,7 +115,7 @@ static long max_tree_grow(const unsigned int *residual, unsigned int depth, unsi
         platform_cell_released(tree->parent, platform_place_g_program_owner);
         platform_cell_released(zpar, (unsigned int)platform_place_g_engine_owner);
         platform_cell_released(arrived, (unsigned int)platform_place_g_engine_owner);
-        mmgr_bytes_set(tree, 0, sizeof(*tree));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = tree, .bytes = sizeof(*tree), .val = 0);
         return MAX_TREE_ERROR;
     }
     unsigned int admitted = 0u;
@@ -132,7 +132,7 @@ static long max_tree_grow(const unsigned int *residual, unsigned int depth, unsi
         platform_cell_released(tree->parent, platform_place_g_program_owner);
         platform_cell_released(zpar, (unsigned int)platform_place_g_engine_owner);
         platform_cell_released(arrived, (unsigned int)platform_place_g_engine_owner);
-        mmgr_bytes_set(tree, 0, sizeof(*tree));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = tree, .bytes = sizeof(*tree), .val = 0);
         return MAX_TREE_ERROR;
     }
     unsigned int order_count = 0u;
@@ -150,7 +150,8 @@ static long max_tree_grow(const unsigned int *residual, unsigned int depth, unsi
         void *const sort_room =
             platform_cell_taken((unsigned long long)(order_count) * (unsigned long long)(sizeof(unsigned int)),
                                 platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(tree->order, order_count, sizeof(unsigned int), max_tree_compare, sort_room);
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = tree->order, .bytes = sizeof(unsigned int),
+                         .scratch = sort_room, .count = order_count, .order = max_tree_compare);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     s_ordering_residual = NULL;
@@ -235,8 +236,10 @@ int max_tree_equal(const MaxTree *left, const MaxTree *right)
     {
         return 0;
     }
-    return (mmgr_bytes_compare(left->parent, right->parent, (size_t)left->voxels * sizeof(unsigned int)) == 0) &&
-           (mmgr_bytes_compare(left->order, right->order, (size_t)left->admitted * sizeof(unsigned int)) == 0);
+    return (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->parent, .other = right->parent,
+                       .bytes = (size_t)left->voxels * sizeof(unsigned int)) == 0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->order, .other = right->order,
+                       .bytes = (size_t)left->admitted * sizeof(unsigned int)) == 0);
 }
 
 void max_tree_release(MaxTree *tree)
@@ -247,7 +250,7 @@ void max_tree_release(MaxTree *tree)
     }
     platform_cell_released(tree->parent, platform_place_g_program_owner);
     platform_cell_released(tree->order, platform_place_g_program_owner);
-    mmgr_bytes_set(tree, 0, sizeof(*tree));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = tree, .bytes = sizeof(*tree), .val = 0);
 }
 
 static int max_tree_ranges(const unsigned int *residual, unsigned int voxel, unsigned int level)

@@ -177,7 +177,7 @@ void tower_test_oracle(const unsigned long long extent[4], const TowerLiftingSte
 int tower_test_load(const TowerTestSteps *steps, const unsigned int *outputs, unsigned int output_count,
                     const unsigned int *field_bits, unsigned int fields, TowerTestLoaded *loaded)
 {
-    mmgr_bytes_set(loaded, 0, sizeof(*loaded));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = loaded, .bytes = sizeof(*loaded), .val = 0);
     // a program's steps are far below 2^32
     const KeymathRecordRequest encode_request = {steps->step, steps->count, field_bits,    fields,
                                                  1u,          outputs,      output_count,  NULL,
@@ -218,7 +218,7 @@ void tower_test_free(TowerTestLoaded *loaded)
     }
     key_schedule_record_release(&loaded->layout);
     keymath_record_release(&loaded->key);
-    mmgr_bytes_set(loaded, 0, sizeof(*loaded));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = loaded, .bytes = sizeof(*loaded), .val = 0);
 }
 
 // Run a loaded program over the volumes' records on the host and on the device. 1 where both ran and agree word for
@@ -254,7 +254,8 @@ int tower_test_run(TowerTestLoaded *loaded, const unsigned int *atoms, unsigned 
     cudaFree(device_atoms);
     cudaFree(device_record);
     const int same = (host_ran != 0) && (ok != 0) &&
-                     (mmgr_bytes_compare(host_out, out, (size_t)volumes * out_limbs * sizeof(unsigned int)) == 0);
+                     (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = out,
+                                 .bytes = (size_t)volumes * out_limbs * sizeof(unsigned int)) == 0);
     platform_cell_released(host_out, platform_place_g_program_owner);
     return same;
 }
@@ -265,14 +266,14 @@ int tower_test_kernels(const unsigned long long extent[4], const unsigned short 
                        int *crystal, unsigned short *rebuilt, unsigned int lanes)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const int *coefficients = NULL;
     unsigned int *scratch = NULL;
     unsigned int floors = 0u;
     TowerLiftRequest lift;
-    mmgr_bytes_set(&lift, 0, sizeof(lift));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lift, .bytes = sizeof(lift), .val = 0);
     lift.device_lanes = device_volume;
-    mmgr_bytes_copy(lift.extent, extent, sizeof(lift.extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lift.extent, .src = extent, .bytes = sizeof(lift.extent));
     lift.coefficients = &coefficients;
     lift.scratch = &scratch;
     lift.floors = &floors;
@@ -284,9 +285,9 @@ int tower_test_kernels(const unsigned long long extent[4], const unsigned short 
     unsigned long long mismatches = 1ull;
     const unsigned short *device_rebuilt = NULL;
     TowerLowerRequest lower;
-    mmgr_bytes_set(&lower, 0, sizeof(lower));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lower, .bytes = sizeof(lower), .val = 0);
     lower.device_lanes = device_volume;
-    mmgr_bytes_copy(lower.extent, extent, sizeof(lower.extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lower.extent, .src = extent, .bytes = sizeof(lower.extent));
     lower.mismatches = &mismatches;
     lower.device_rebuilt = &device_rebuilt;
     lower.rebuilt = rebuilt;
@@ -320,12 +321,12 @@ int tower_test_build(const unsigned long long extent[4], const TowerTestRuleset 
                      const unsigned int *in, unsigned int in_count, unsigned int *out, TowerTestSteps *steps)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned int start = steps->count;
     unsigned int count = start;
     TowerRecordRequest request;
-    mmgr_bytes_set(&request, 0, sizeof(request));
-    mmgr_bytes_copy(request.extent, extent, sizeof(request.extent));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.extent, .src = extent, .bytes = sizeof(request.extent));
     request.rules = ruleset->rules;
     request.rule_count = ruleset->rule_count;
     request.in_registers = in;

@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // nrrd_read.c: the data file, the layout and the read
-#include "nrrd_internal.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
+#include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "nrrd_internal.h"
 
 static const char *const nrrd_ignored[] = {
     "content",     "number",      "block size",   "blocksize",        "min",         "max",       "old min",
@@ -32,7 +32,8 @@ static unsigned int nrrd_data_file(NrrdSpan value, NrrdFields *fields)
     NrrdSpan rest = value;
     NrrdSpan token = {NULL, 0ULL};
     const int listed = nrrd_token(&rest, &token) && nrrd_equals(token, "LIST");
-    const int formatted = (mmgr_bytes_find(value.text, '%', (size_t)value.length) != NULL);
+    const int formatted =
+        (EMBED_CALL(memor.chr, MemoriaCfg, .src = value.text, .bytes = (size_t)value.length, .val = '%') != NULL);
     if ((value.length == 0ULL) || listed || formatted)
     {
         {
@@ -50,7 +51,8 @@ static unsigned int nrrd_data_file(NrrdSpan value, NrrdFields *fields)
 
 static unsigned int nrrd_field(NrrdSpan line, NrrdFields *fields)
 {
-    const char *const colon = mmgr_bytes_find(line.text, ':', (size_t)line.length);
+    const char *const colon =
+        EMBED_CALL(memor.chr, MemoriaCfg, .src = line.text, .bytes = (size_t)line.length, .val = ':');
     if (colon == NULL)
     {
         return 0u;
@@ -155,8 +157,10 @@ static unsigned int nrrd_fields(const char *header, unsigned long long length, u
         const NrrdSpan line = {header + at, line_end - at};
         if (line_number == 0ULL)
         {
-            const int magic = (line.length == 8ULL) && (mmgr_bytes_compare(line.text, "NRRD000", 7u) == 0) &&
-                              (line.text[7u] >= '1') && (line.text[7u] <= '5');
+            const int magic =
+                (line.length == 8ULL) &&
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = line.text, .other = "NRRD000", .bytes = 7u) == 0) &&
+                (line.text[7u] >= '1') && (line.text[7u] <= '5');
             if (!magic)
             {
                 return 0u;
@@ -235,8 +239,8 @@ static char *nrrd_join(const char *header_path, NrrdSpan name)
     {
         return NULL;
     }
-    mmgr_bytes_copy(joined, header_path, directory_length);
-    mmgr_bytes_copy(joined + directory_length, name.text, (size_t)name.length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = joined, .src = header_path, .bytes = directory_length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = joined + directory_length, .src = name.text, .bytes = (size_t)name.length);
     joined[directory_length + (size_t)name.length] = '\0';
     return joined;
 }
@@ -422,7 +426,8 @@ static unsigned int nrrd_inflate(const EngineIngestTools *tools, const char *dat
     platform_cell_released(packed, platform_place_g_program_owner);
     if (ok)
     {
-        mmgr_bytes_copy(out, unpacked + layout->byte_skip + offset, (size_t)wanted);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = unpacked + layout->byte_skip + offset,
+                   .bytes = (size_t)wanted);
     }
     platform_cell_released(unpacked, platform_place_g_program_owner);
     return ok ? 1u : 0u;
@@ -466,7 +471,7 @@ long long nrrd_read(const EngineArrayRead *request)
     platform_cell_released(layout.data_path, platform_place_g_program_owner);
     if (!copied)
     {
-        mmgr_bytes_set(request->out, 0, (size_t)wanted);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = request->out, .bytes = (size_t)wanted, .val = 0);
         return -1LL;
     }
     if (layout.big_endian != 0u)

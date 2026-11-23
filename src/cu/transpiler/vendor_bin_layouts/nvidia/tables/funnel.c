@@ -3,10 +3,9 @@
 // funnel.c: the vendor's tables read off a capture of its disassembler: the records, the instruction set unpacked
 // from its LZ4 archive, and the latencies gathered from the copies out of their buffer
 #include "funnel.h"
-#include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../../../includes/parsers/line_read.h"
-
+#include "../../../../../platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the max an archive unpacks to: a table is a few million bytes, and a header past this is no header
 #define TABLES_MAX (256u * 1024u * 1024u)
@@ -29,7 +28,7 @@ int tables_text_added(TablesText *text, const void *bytes, size_t count)
         text->bytes = grown;
         text->room = room;
     }
-    mmgr_bytes_copy(text->bytes + text->length, bytes, count);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = text->bytes + text->length, .src = bytes, .bytes = count);
     text->length += count;
     return 1;
 }
@@ -223,7 +222,8 @@ unsigned int tables_funnelled(const unsigned char *bytes, size_t size, TablesTex
             lead += 1u;
         }
         if (!buffer_found && copy && (record.size - lead >= sizeof(s_latencies_head) - 1u) &&
-            (mmgr_bytes_compare(record.bytes + lead, s_latencies_head, sizeof(s_latencies_head) - 1u) == 0))
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = record.bytes + lead, .other = s_latencies_head,
+                        .bytes = sizeof(s_latencies_head) - 1u) == 0))
         {
             buffer_found = 1;
             buffer = record.from;

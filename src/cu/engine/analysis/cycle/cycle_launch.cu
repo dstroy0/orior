@@ -4,7 +4,7 @@
 #include "cycle_internal.h"
 
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the owner that the cells of a loaded key and of a launch count to
 #define CYCLE_KEY_PLACE ((unsigned int)platform_place_g_engine_owner)
@@ -27,7 +27,7 @@ extern "C" long cycle_key_load(const EngineKeyLayout *layout, CycleKey **key_out
     int ok = CYCLE_CHECK(key != NULL, key_out, error, ENGINE_ERROR_RESOURCE);
     if (ok)
     {
-        mmgr_bytes_set(key, 0u, sizeof(CycleKey));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = key, .bytes = sizeof(CycleKey), .val = 0u);
     }
     ok = ok && CYCLE_STATUS_CHECK(cudaMalloc((void **)&key->device_terms, (size_t)layout->terms * sizeof(DeviceTerm)),
                                   &key->device_terms, error);
@@ -82,7 +82,7 @@ extern "C" void cycle_resident_release(void)
     cudaFree(resident->scratch);
     cudaFree(resident->table);
     cudaFree(resident->folds);
-    mmgr_bytes_set(resident, 0u, sizeof(*resident));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0u);
 }
 
 // The stack that a launch grew past `before`, given back once its work ends. The runtime raises the stack limit to the
@@ -243,7 +243,7 @@ extern "C" long cycle_run(const CycleRunRequest *request)
     platform_cell_released(table, CYCLE_KEY_PLACE);
 
     CycleLaunch launch;
-    mmgr_bytes_set(&launch, 0u, sizeof(launch));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &launch, .bytes = sizeof(launch), .val = 0u);
     launch.extent[0] = extent->depth;
     launch.extent[1] = extent->height;
     launch.extent[2] = extent->width;

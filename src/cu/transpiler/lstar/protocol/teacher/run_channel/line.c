@@ -2,18 +2,36 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // line.c: the line: a gate block on an unknown operation key read, the conference a fault or refusal calls, the line a
 // panic opens ruled on and closed, the halt, and what the teacher reported
-#include "run_channel_internal.h"
 #include "../../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "run_channel_internal.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int line_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 int run_channel_key_gated(const char *refused)
 {
-    return mmgr_text_order(refused, RUN_GATE_KEY_RULE, (size_t)(sizeof(RUN_GATE_KEY_RULE) - 1u)) == 0;
+    return line_text_order(refused, RUN_GATE_KEY_RULE, (size_t)(sizeof(RUN_GATE_KEY_RULE) - 1u)) == 0;
 }
 
 int run_channel_vendor_gated(const char *refused)
 {
-    return mmgr_text_order(refused, RUN_GATE_VENDOR_RULE, (size_t)(sizeof(RUN_GATE_VENDOR_RULE) - 1u)) == 0;
+    return line_text_order(refused, RUN_GATE_VENDOR_RULE, (size_t)(sizeof(RUN_GATE_VENDOR_RULE) - 1u)) == 0;
 }
 
 RunChannel s_channel;
@@ -27,7 +45,9 @@ char s_cases_text[RUN_CASES_TEXT];
 // `message` passed to the run's trace: where there is no run, it is reported to none
 void run_channel_trace_line(const char *message)
 {
-    qry_member_append("trace", message, mmgr_text_length(message, PLATFORM_TEXT_TO_TERMINATOR), QRY_ORDINARY);
+    qry_member_append("trace", message,
+                      EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = message, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                      QRY_ORDINARY);
 }
 
 // `message` written as the refusal of `question`, cut at the room the refusal has
@@ -95,8 +115,10 @@ void run_channel_conference_called(const RunQuestion *question, const char *how,
     mmgr_line_put(&name_line, identity);
     mmgr_line_finish(&name_line);
     // a blob's name takes no space: each space of the identity an underscore
-    for (char *space = mmgr_text_char(name, ' ', PLATFORM_TEXT_TO_TERMINATOR); space != NULL;
-         space = mmgr_text_char(space, ' ', PLATFORM_TEXT_TO_TERMINATOR))
+    for (char *space =
+             EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ' ');
+         space != NULL;
+         space = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = space, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ' '))
     {
         *space = '_';
     }
@@ -240,7 +262,9 @@ void run_channel_panic_written(unsigned int questions, unsigned long long round,
     mmgr_line_decimal(&line, answered, 0u);
     mmgr_line_put(&line, " answered before it ended; the question it was carrying: ");
     mmgr_line_put_max(&line, carrying, RUN_LINE_MAX_LEN);
-    if ((carrying[0] == '\0') || (carrying[mmgr_text_length(carrying, PLATFORM_TEXT_TO_TERMINATOR) - 1u] != '\n'))
+    if ((carrying[0] == '\0') ||
+        (carrying[EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = carrying, .cap = PLATFORM_TEXT_TO_TERMINATOR) - 1u] !=
+         '\n'))
     {
         mmgr_line_ch(&line, '\n');
     }

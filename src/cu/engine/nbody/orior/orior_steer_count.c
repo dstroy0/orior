@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_steer_count.c: sweeping the probes and counting
+#include "memoria_operor/memoria_operor.h"
 #include "orior_internal.h"
-#include "memoria_operor/memoria_linea.h"
 
 /**
  * @brief The sweep itself, which the public entry names.
@@ -178,7 +178,7 @@ size_t orior_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, c
         }
         if (index == count)
         {
-            if (mmgr_bytes_compare(corpus + at, needle, needle_len) == 0)
+            if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = corpus + at, .other = needle, .bytes = needle_len) == 0)
             {
                 found += 1u;
             }
@@ -232,7 +232,7 @@ size_t orior_steer_count(const uint8_t *corpus, size_t corpus_len, const uint8_t
         }
         if (index == ORIOR_STEER_ANCHORS)
         {
-            if (mmgr_bytes_compare(corpus + at, needle, needle_len) == 0)
+            if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = corpus + at, .other = needle, .bytes = needle_len) == 0)
             {
                 found += 1u;
             }

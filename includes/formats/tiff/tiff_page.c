@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tiff_page.c: a page's extent, its chunks and their decoders
-#include "tiff_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tiff_internal.h"
 
 static const unsigned long long tiff_tag_numbers[TIFF_TAGS] = {256ULL, 257ULL, 258ULL, 259ULL, 266ULL, 270ULL,
                                                                273ULL, 277ULL, 278ULL, 279ULL, 284ULL, 317ULL,
@@ -122,7 +122,7 @@ static int tiff_page_extent(TiffFile *file, TiffPage *page, const TiffEntry *fou
 
 int tiff_page(TiffFile *file, unsigned long long ifd, TiffPage *page)
 {
-    mmgr_bytes_set(page, 0, sizeof(*page));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = page, .bytes = sizeof(*page), .val = 0);
     if (file->reason != NULL)
     {
         return file->reason == NULL;
@@ -148,7 +148,7 @@ int tiff_page(TiffFile *file, unsigned long long ifd, TiffPage *page)
         return tiff_fail(file, "out of memory");
     }
     TiffEntry found[TIFF_TAGS];
-    mmgr_bytes_set(found, 0, sizeof(found));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = found, .bytes = sizeof(found), .val = 0);
     if (tiff_fetch(file, ifd + count_bytes, table_bytes, table))
     {
         for (unsigned long long entry = 0ULL; entry < entries; entry += 1ULL)
@@ -173,7 +173,8 @@ int tiff_page(TiffFile *file, unsigned long long ifd, TiffPage *page)
                     found[at].present = 1u;
                     found[at].type = type;
                     found[at].count = count;
-                    mmgr_bytes_copy(found[at].value, &raw[4u + value_bytes], value_bytes);
+                    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = found[at].value, .src = &raw[4u + value_bytes],
+                               .bytes = value_bytes);
                 }
             }
         }
@@ -330,7 +331,8 @@ static long long tiff_packbits_decode(const EngineBytesRequest *request)
             {
                 return ENGINE_BYTES_ERROR;
             }
-            mmgr_bytes_copy(&request->out[produced], &request->in[at], (size_t)literal);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &request->out[produced], .src = &request->in[at],
+                       .bytes = (size_t)literal);
             at += literal;
             produced += literal;
         }
@@ -341,7 +343,8 @@ static long long tiff_packbits_decode(const EngineBytesRequest *request)
             {
                 return ENGINE_BYTES_ERROR;
             }
-            mmgr_bytes_set(&request->out[produced], request->in[at], (size_t)run);
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &request->out[produced], .bytes = (size_t)run,
+                       .val = request->in[at]);
             at += 1ULL;
             produced += run;
         }

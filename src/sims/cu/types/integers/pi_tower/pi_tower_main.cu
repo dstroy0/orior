@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_tower_main.cu: main
-#include "pi_tower_internal.h"
 #include "../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "pi_tower_internal.h"
 
 static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const std::vector<PiWide> &denominators,
                           const std::vector<PiWide> &floors, unsigned int from_bits, unsigned int to_bits,
@@ -30,11 +30,14 @@ int program_main(int count, char **arguments)
         return sim_close(&results, "pi tower");
     }
     // 15: pi_tower segment d [digits], d whole or base^exponent and 0 allowed, digits 1 to PI_TOWER_SEGMENT_MAX
-    if ((count >= 3) && (count <= 4) && (mmgr_text_equal(arguments[1], "segment", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count >= 3) && (count <= 4) &&
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = "segment", .ci = EMBED_FALSE)))
     {
         PiWide position = pi_tower_unsigned(0ULL);
         PiWide digits = pi_tower_unsigned(PI_TOWER_SEGMENT_DIGITS);
-        const int placed = (mmgr_text_equal(arguments[2], "0", PLATFORM_TEXT_TO_TERMINATOR)) ||
+        const int placed = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[2],
+                                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "0", .ci = EMBED_FALSE)) ||
                            (pi_tower_request(arguments[2], &position) != 0);
         const int sized = (count == 3) || ((pi_tower_request(arguments[3], &digits) != 0) &&
                                            (pi_tower_compare(digits, pi_tower_unsigned(PI_TOWER_SEGMENT_MAX)) <= 0));

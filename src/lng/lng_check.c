@@ -8,12 +8,11 @@
 // The check prints each defect, and the run exits 1 where it finds one. A finding does not fail the run. The run exits
 // 2 where it cannot read a table, the schema or gnascor
 #include "../cu/engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "lng.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_scribo.h"
-
 
 #define LNG_SCHEMA "src/cu/engine/rmc/machine_ir_types.h"
 #define LNG_GNASCOR "src/cu/transpiler/gnascor.md"
@@ -77,9 +76,15 @@ int program_main(int argc, char **argv)
     lng_check_read(LNG_LADDER);
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
-        const char *const opened = mmgr_text_find(s_file.line[line], "anchor_(", PLATFORM_TEXT_TO_TERMINATOR);
-        const char *const quote = (opened != NULL) ? mmgr_text_char(opened, '"', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
-        const char *const closed = (quote != NULL) ? mmgr_text_char(quote + 1, '"', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+        const char *const opened =
+            EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = s_file.line[line], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "anchor_(", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+        const char *const quote = (opened != NULL) ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = opened,
+                                                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '"')
+                                                   : NULL;
+        const char *const closed = (quote != NULL) ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = quote + 1,
+                                                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '"')
+                                                   : NULL;
         if (closed != NULL)
         {
             LngList text = {NULL, 0u, 0u};
@@ -213,9 +218,11 @@ int program_main(int argc, char **argv)
                 // gnascor lists the transpiler's words, and no target's row answers for one
                 found =
                     (lng_cell(&table, row, "target")[0] == '\0') &&
-                    (mmgr_text_equal(lng_cell(&table, row, "word"), listed_words.text[at],
-                                     PLATFORM_TEXT_TO_TERMINATOR)) &&
-                    (mmgr_text_equal(lng_cell(&table, row, "type"), s_listed_type[type], PLATFORM_TEXT_TO_TERMINATOR));
+                    (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell(&table, row, "word"),
+                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = listed_words.text[at],
+                                .ci = EMBED_FALSE)) &&
+                    (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lng_cell(&table, row, "type"),
+                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_listed_type[type], .ci = EMBED_FALSE));
             }
             if (!found)
             {
@@ -257,7 +264,9 @@ int program_main(int argc, char **argv)
         int witnessed = 0;
         for (unsigned int column = 0u; column < read->head.count; column += 1u)
         {
-            witnessed = witnessed || (mmgr_text_equal(read->head.text[column], "witness", PLATFORM_TEXT_TO_TERMINATOR));
+            witnessed =
+                witnessed || (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = read->head.text[column],
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "witness", .ci = EMBED_FALSE));
         }
         if (!witnessed)
         {
@@ -266,7 +275,7 @@ int program_main(int argc, char **argv)
         }
         char name[256];
         lng_target_of(tables.text[at], name, sizeof(name));
-        const size_t length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         name[(length > 4u) ? (length - 4u) : length] = '\0';
         lng_list_add(&target_names, name);
         lng_target_check(&table, read, name, &defects, &findings);
@@ -335,9 +344,12 @@ int program_main(int argc, char **argv)
     {
         const char *const word = lng_cell(&table, row, "word");
         const char *const type = lng_cell(&table, row, "type");
-        const int naming = (mmgr_text_equal(type, "thing", PLATFORM_TEXT_TO_TERMINATOR)) ||
-                           (mmgr_text_equal(type, "doing", PLATFORM_TEXT_TO_TERMINATOR)) ||
-                           (mmgr_text_equal(type, "gluing", PLATFORM_TEXT_TO_TERMINATOR));
+        const int naming = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                       .other = "thing", .ci = EMBED_FALSE)) ||
+                           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                       .other = "doing", .ci = EMBED_FALSE)) ||
+                           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                       .other = "gluing", .ci = EMBED_FALSE));
         int named = (lng_map_get(&used, word) != NULL);
         if (!naming || named)
         {
@@ -354,7 +366,9 @@ int program_main(int argc, char **argv)
         }
         for (unsigned int at = 0u; (at < names.count) && !named; at += 1u)
         {
-            named = (mmgr_text_find(names.text[at], marked.text[0], PLATFORM_TEXT_TO_TERMINATOR) != NULL);
+            named = (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = names.text[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = marked.text[0], .other_cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .ci = EMBED_FALSE) != NULL);
         }
         lng_list_free(&marked);
         if (!named)
@@ -376,15 +390,19 @@ int program_main(int argc, char **argv)
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
         const char *const text_line = s_file.line[line];
-        const char *const equals = mmgr_text_char(text_line, '=', PLATFORM_TEXT_TO_TERMINATOR);
-        if ((!mmgr_text_starts(text_line, "form ", PLATFORM_TEXT_TO_TERMINATOR)) || (equals == NULL))
+        const char *const equals =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = text_line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '=');
+        if ((!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = text_line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = "form ", .ci = EMBED_FALSE)) ||
+            (equals == NULL))
         {
             continue;
         }
         const char *const name = text_line + 5;
-        const size_t space = mmgr_text_span(name, " \t\v\f\r\x1c\x1d\x1e\x1f", PLATFORM_TEXT_TO_TERMINATOR);
-        const size_t length =
-            mmgr_text_span_not(&name[space], " \t\v\f\r\x1c\x1d\x1e\x1f=", PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t space = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                        .other = " \t\v\f\r\x1c\x1d\x1e\x1f");
+        const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &name[space],
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \t\v\f\r\x1c\x1d\x1e\x1f=");
         if ((&name[space] >= equals) || (length == 0u))
         {
             continue;

@@ -10,9 +10,10 @@ extern "C"
 {
 #endif
 
-    // `truthy` a number the relation is true at and `falsy` one past it that it does not. Each is moved to the middle
-    // the relation gives the same answer as until the two are adjacent, `predicate` given `context` at every middle and
-    // never the two ends themselves. The truthy end, the greatest number the relation is true at before the bound
+    // `truthy` a number the relation is true at and `falsy` one past it that it does not. The walk moves each to the
+    // middle the relation gives the same answer as, until the two are adjacent. `predicate` gets `context` at every
+    // middle, and never at the two ends themselves. The truthy end, the greatest number the relation is true at before
+    // the bound
     static inline unsigned long long frame_greatest(int (*predicate)(unsigned long long, void *), void *context,
                                                     unsigned long long truthy, unsigned long long falsy)
     {

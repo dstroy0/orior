@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_record.cu: the error recorded for the caller, and the record layout on the device
-#include "engine_internal.h"
 #include "../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "engine_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 extern "C" void engine_percent_of(unsigned long long numerator, unsigned long long denominator,
                                   unsigned long long *percent, unsigned long long *tenth)
@@ -31,7 +31,8 @@ extern "C" unsigned int engine_sort_unique(unsigned long long *keys, unsigned in
         void *const sort_room =
             platform_cell_taken((unsigned long long)(count) * (unsigned long long)(sizeof(unsigned long long)),
                                 platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(keys, count, sizeof(unsigned long long), engine_order_keys, sort_room);
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = keys, .bytes = sizeof(unsigned long long), .scratch = sort_room,
+                         .count = count, .order = engine_order_keys);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     unsigned int unique_count = 1u;
@@ -63,7 +64,7 @@ extern "C" void engine_error_read(EngineError *error)
 
 extern "C" void engine_error_clear(void)
 {
-    mmgr_bytes_set(&s_engine_error, 0, sizeof(s_engine_error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_engine_error, .bytes = sizeof(s_engine_error), .val = 0);
 }
 
 extern "C" long engine_key_encode(const EngineStep *steps, unsigned int count, CycleKey **key, EngineError *error)
@@ -208,7 +209,7 @@ extern "C" long engine_record_host(const EngineRecordRequest *request, const Eng
         return ENGINE_ERROR;
     }
     CycleRecordHostRequest run;
-    mmgr_bytes_set(&run, 0, sizeof(run));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &run, .bytes = sizeof(run), .val = 0);
     run.layout = &layout;
     for (unsigned int member = 0u; member < ENGINE_RECORD_MEMBERS_MAX; member += 1u)
     {
@@ -235,10 +236,10 @@ extern "C" long engine_record_sweep(const EngineRecordSweep *request)
     const size_t index_words = (request->index != NULL) ? (size_t)request->count * members : 0u;
     const size_t out_words = (size_t)request->count * cycle_record_out_limbs(request->record);
     CycleRecordRunRequest run;
-    mmgr_bytes_set(&run, 0, sizeof(run));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &run, .bytes = sizeof(run), .val = 0);
     run.error = error;
     unsigned int *device_in[ENGINE_RECORD_MEMBERS_MAX];
-    mmgr_bytes_set(device_in, 0, sizeof(device_in));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = device_in, .bytes = sizeof(device_in), .val = 0);
     unsigned int *device_index = NULL;
     unsigned int *device_out = NULL;
     int ok =

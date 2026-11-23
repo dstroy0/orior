@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "sim_camera.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim_camera.h"
 
 #define LATTICE_KEY 0x4E424F4459ULL
 
@@ -27,7 +27,7 @@
 
 static void lattice_scene(SimScene *scene, SimBody *body)
 {
-    mmgr_bytes_set(scene, 0, sizeof(*scene));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = scene, .bytes = sizeof(*scene), .val = 0);
     scene->frames = LATTICE_FRAMES;
     scene->extent[0] = LATTICE_DEPTH;
     scene->extent[1] = LATTICE_ROWS;
@@ -66,7 +66,7 @@ static void lattice_scene(SimScene *scene, SimBody *body)
 
 static void lattice_camera(SimCamera *camera)
 {
-    mmgr_bytes_set(camera, 0, sizeof(*camera));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = camera, .bytes = sizeof(*camera), .val = 0);
     camera->key = LATTICE_KEY;
     camera->offset = 100ULL;
     camera->gain = 1ULL;
@@ -278,14 +278,15 @@ int program_main(int count, char **arguments)
     const char *out = NULL;
     for (int argument = 1; argument + 1 < count; argument += 1)
     {
-        if (mmgr_text_equal(arguments[argument], "--out", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[argument], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--out", .ci = EMBED_FALSE))
         {
             out = arguments[argument + 1];
         }
     }
 
     SimBody body[LATTICE_BODIES];
-    mmgr_bytes_set(body, 0, sizeof(body));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = body, .bytes = sizeof(body), .val = 0);
     SimScene scene;
     lattice_scene(&scene, body);
     SimCamera camera;
@@ -334,7 +335,9 @@ int program_main(int count, char **arguments)
     {
         sim_truth_host(&scene, reference);
         lattice_print_scene(&results, &scene, truth);
-        sim_check(&results, mmgr_bytes_compare(truth, reference, (size_t)truth_words * sizeof(unsigned long long)) == 0,
+        sim_check(&results,
+                  EMBED_CALL(memor.cmp, MemoriaCfg, .src = truth, .other = reference,
+                             .bytes = (size_t)truth_words * sizeof(unsigned long long)) == 0,
                   "every body's device truth equals the host walk of its box");
         unsigned long long signal_differ = 0ULL;
         for (unsigned long long index = 0ULL; index < lanes_count; index += 1ULL)
@@ -362,7 +365,7 @@ int program_main(int count, char **arguments)
     }
 
     SimCamera quiet;
-    mmgr_bytes_set(&quiet, 0, sizeof(quiet));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &quiet, .bytes = sizeof(quiet), .val = 0);
     quiet.gain = 1ULL;
     ok = ok && sim_render(&results, &scene, &quiet, device_lanes, NULL, NULL, &clipped);
     ok = ok &&
@@ -385,7 +388,9 @@ int program_main(int count, char **arguments)
                           "second render read");
     if (ok)
     {
-        sim_check(&results, mmgr_bytes_compare(lanes, again, (size_t)lanes_count * sizeof(unsigned short)) == 0,
+        sim_check(&results,
+                  EMBED_CALL(memor.cmp, MemoriaCfg, .src = lanes, .other = again,
+                             .bytes = (size_t)lanes_count * sizeof(unsigned short)) == 0,
                   "a second render of the same key is identical");
     }
     if (ok && (out != NULL))

@@ -1,8 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#include "memoria_operor/memoria_operor.h"
 #include "residual.h"
-#include "memoria_operor/memoria_linea.h"
-
 
 #define RESIDUAL_CHECK(condition_, evacaddr_, error_, type_)                                                           \
     engine_error_check((condition_), (type_), ENGINE_MODULE_RESIDUAL, (unsigned int)__LINE__,                          \
@@ -43,14 +42,16 @@ extern "C" long residual_program(const EngineResidualRequest *request, EngineSte
     {
         return RESIDUAL_ERROR;
     }
-    mmgr_bytes_set(program, 0, RESIDUAL_STEPS * sizeof(EngineStep));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = RESIDUAL_STEPS * sizeof(EngineStep), .val = 0);
     unsigned int at = 0u;
     // the comb runs before the save, and both terms take it alike
     program[at].operation = ENGINE_COMB;
-    mmgr_bytes_copy(program[at].orders, request->comb, sizeof(program[at].orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program[at].orders, .src = request->comb,
+               .bytes = sizeof(program[at].orders));
     at += 1u;
     program[at].operation = ENGINE_SMOOTH;
-    mmgr_bytes_copy(program[at].orders, request->smooth_orders, sizeof(program[at].orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program[at].orders, .src = request->smooth_orders,
+               .bytes = sizeof(program[at].orders));
     at += 1u;
     for (unsigned int spacing = 0u; spacing < ENGINE_SPACINGS; spacing += 1u)
     {
@@ -65,7 +66,8 @@ extern "C" long residual_program(const EngineResidualRequest *request, EngineSte
     program[at].operation = ENGINE_SAVE;
     at += 1u;
     program[at].operation = ENGINE_SMOOTH;
-    mmgr_bytes_copy(program[at].orders, request->background_orders, sizeof(program[at].orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program[at].orders, .src = request->background_orders,
+               .bytes = sizeof(program[at].orders));
     at += 1u;
     for (unsigned int spacing = 0u; spacing < ENGINE_SPACINGS; spacing += 1u)
     {

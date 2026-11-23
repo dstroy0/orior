@@ -2,172 +2,242 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // klq_identity.cu: the identities a language's questions carry, read off the measuring stick and written to Lstar.klq
 //
-//   orior_klq_identity slice <nvcc listing> <manifest> <stick .cu> <folder> [<ours folder>]
-//   orior_klq_identity read <folder> <Lstar.klq> <ruleset>...
-//   orior_klq_identity known <nvcc listing> <manifest> <folder> <candidate>...
-//   orior_klq_identity permute <nvcc listing> <manifest> <folder>
-//   orior_klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...
-//   orior_klq_identity stall <ours folder> <host answers> <ksc> <folder> <machine> -- <carrier>...
-//   orior_klq_identity frame <ours folder> <host answers> <ksc> <folder> -- <carrier>...
-//   orior_klq_identity fixed <ours folder> <host answers> <ksc> <folder> -- <carrier>...
-//   orior_klq_identity register <ours folder> <host answers> <ksc> <folder> -- <carrier>...
-//   orior_klq_identity curve <ours folder> <host answers> <ksc> <folder> <task>... -- <carrier>...
-//   orior_klq_identity queue <ours folder> <host answers> <ksc> <folder> <manifest> -- <carrier>...
-//   orior_klq_identity text_identity <ours folder> <host answers> <ksc> <folder> <Lstar.klq> <manifest> -- <carrier>...
-//   orior_klq_identity pair <ours folder> <host answers> <ksc> <folder> <Lstar.klq> <machine> -- <carrier>...
+//   `orior_klq_identity slice <nvcc listing> <manifest> <stick .cu> <folder> [<ours folder>]`
+//   `orior_klq_identity read <folder> <Lstar.klq> <ruleset>...`
+//   `orior_klq_identity known <nvcc listing> <manifest> <folder> <candidate>...`
+//   `orior_klq_identity permute <nvcc listing> <manifest> <folder>`
+//   `orior_klq_identity broken <nvcc listing> <manifest> <folder> <ours>... -- <ruleset>...`
+//   `orior_klq_identity stall <ours folder> <host answers> <ksc> <folder> <machine> -- <carrier>...`
+//   `orior_klq_identity frame <ours folder> <host answers> <ksc> <folder> -- <carrier>...`
+//   `orior_klq_identity fixed <ours folder> <host answers> <ksc> <folder> -- <carrier>...`
+//   `orior_klq_identity register <ours folder> <host answers> <ksc> <folder> -- <carrier>...`
+//   `orior_klq_identity curve <ours folder> <host answers> <ksc> <folder> <task>... -- <carrier>...`
+//   `orior_klq_identity queue <ours folder> <host answers> <ksc> <folder> <manifest> -- <carrier>...`
+//   `orior_klq_identity text_identity <ours folder> <host answers> <ksc> <folder> <Lstar.klq> <manifest> --
+//   <carrier>...` `orior_klq_identity pair <ours folder> <host answers> <ksc> <folder> <Lstar.klq> <machine> --
+//   <carrier>...`
 //
-// Two of the stick's questions whose nvcc listings are the same but for one link a side are a slice, and the two
-// links are the slice's identity: each an instruction with its registers read as their type and its literals as
-// written. The rest of the two listings is the same register for register, and the two links name the same registers:
-// nothing but the two links sets the questions apart. An identity is carried by every slice whose links are its own,
-// and each of them is information about it. Members the same are the same identity, and the carriers of one identity
-// are distinguished by address, the position of each member in the chain: question by question, then link by link
-// within a question. Where two carriers contend, the one whose max basal member sits first comes first, and an
-// identity's address is its first carrier's.
+// Two of the stick's questions whose nvcc listings are the same but for one link a side are a slice. The two links are
+// the slice's identity: each an instruction with its registers read as their type and its literals as written. The
+// rest of the two listings is the same register for register, and the two links name the same registers. Nothing but
+// the two links sets the questions apart.
 //
-// A chain reads in its grammar and carries its whole intent, and a member's place in that grammar is its context: for
-// each register its link names, the nearest link before it and the nearest after it in its own chain that name the same
-// register, with the placeholder each names it in. No link's meaning is read, only the names links share. The carriers
-// of one identity are gathered by context, each context the same members in one place of the grammar, addressed by its
-// max basal carrier and given a verdict of its own.
+// Every slice whose links are its own carries an identity, and each of them is information about it. Members the same
+// are the same identity. The carriers of one identity differ by address, each member's position in the chain:
+// question by question, then link by link within a question. Where two carriers contend, the one whose max basal
+// member sits first comes first, and an identity's address is its first carrier's.
 //
-// A question's chain as a whole is an identity too, and so is each window of it: each recorded at the first address it
-// occurs at, each primitive a link that first occurs where it is, and each chain a signature of the identities it
-// is read as, its primitives and its operands, with a number its contents in their order give it.
+// A chain reads in its grammar and carries its whole intent, and a member's place in that grammar is its context. For
+// each register its link names, the nearest link before it and the nearest after it in its own chain that name the
+// same register. Each goes with the placeholder it names the register in. The read takes no link's sense, only the
+// names links share. Context gathers the carriers of one identity, each context the same members in one place of the
+// grammar. Its max basal carrier addresses each context, and each gets a verdict of its own.
 //
-// Every file a mode writes goes through the run's writer (qry_member.h): a current file of the tree, Lstar.klq, the
-// .ksc, the .kqr or the .kdm, written by it in the file's place (qry_member_filed), and a table of the run's own a blob
-// of the run named by the table's own name. slice passes the run slices.txt, each slice a line, chains.txt, the
-// primitives and the chains, and host_questions.cpp, every question whose operands and result are integers that a slice
-// represents, that is a task of register pressure, or that <ours folder> contains the engine's chain for, compiled for
-// the host as C++ with the arity every kernel shares. The host computes each over every case, and its answers are the
-// blob IDENTITY_HOST_ANSWERS of the run (qry_member.h), as is every <host answers> named above; read then gives each
-// identity its verdict: the first case the two questions of one of its slices answer apart closes it as two operations,
-// and an identity alike on every case queried stays open with its count of cases. A case the host's C would trap on or
-// leave undefined is queried of nothing. Each identity is written to Lstar.klq after its keys, with the forms of the
-// given rulesets whose texts write its links, and with the rule a link breaks where querying the part as written would
+// A question's chain as a whole is an identity too, and so is each window of it. Each goes in the record at the first
+// address it occurs at. Each primitive is a link that first occurs where it is. Each chain is a signature of the
+// identities the read finds in it, its primitives and its operands. Its contents in their order give it a number.
+//
+// Every file a mode writes goes through the run's writer (qry_member.h). The writer writes a current file of the tree,
+// Lstar.klq, the .ksc, the .kqr or the .kdm, in the file's place (qry_member_filed). A table of the run's own is a blob
+// of the run named by the table's own name. The slice mode passes the run slices.txt, each slice a line, and
+// chains.txt, the primitives and the chains. It passes host_questions.cpp too, compiled for the host as C++ with the
+// arity every kernel shares.
+//
+// It holds every question whose operands and result are integers that a slice represents. Then each task of register
+// pressure, and each question <ours folder> contains the engine's chain for. The host computes each over every case,
+// and its answers are the blob IDENTITY_HOST_ANSWERS of the run (qry_member.h). Every <host answers> named above is
+// that blob too. Then read gives each identity its verdict. The first case the two questions of one of its slices
+// answer apart closes it as two operations.
+//
+// An identity alike on every case queried stays open with its count of cases. Nothing queries a case the host's C
+// would trap on or leave undefined. Each identity goes to Lstar.klq after its keys, with the forms of the given
+// rulesets whose texts write its links. With it goes the rule a link breaks where a query of the part as written would
 // end it
-#include "identity/identity_internal.h"
 #include "../../../../../platform/platform.h"
+#include "identity/identity_internal.h"
+
+// The pool the identity asks for: the slice's windows, one cell of about 300 MB on the temporary tier, and every pair's
+// question beside them
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 30u;
+
+// The carrier's words: `words` from `first` on. The words end at a NULL, since `words` is the process's argv
+static const char *const *carrier_words(char **words, int first)
+{
+    return (const char *const *)(words + first);
+}
+
+// 1 where the word is the terminated `text`
+static int word_is(const char *word, const char *text)
+{
+    return EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = text,
+                      .ci = EMBED_FALSE);
+}
+
+// the place of the first lone -- in `words` from `first`, or `count` where none follows
+static int marker_at(char **words, int first, int count)
+{
+    int at = first;
+    while ((at < count) && !word_is(words[at], "--"))
+    {
+        at += 1;
+    }
+    return at;
+}
+
+// The words from `first` to `last` as paths, in a cell of the temporary tier the caller gives back. NULL where the
+// pool cannot meet it
+static IdentityPath *words_as_paths(char **words, int first, int last)
+{
+    // `last` is at least `first`, and the words of a command are far below 2^31
+    const unsigned long long count = (unsigned long long)(last - first);
+    IdentityPath *const paths =
+        (IdentityPath *)platform_cell_taken(((count != 0ULL) ? count : 1ULL) * sizeof(IdentityPath),
+                                            platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    for (unsigned long long at = 0ULL; (paths != NULL) && (at < count); at += 1ULL)
+    {
+        (void)identity_name_set(paths[at].text, sizeof(paths[at].text), words[first + (int)at],
+                                PLATFORM_TEXT_TO_TERMINATOR);
+    }
+    return paths;
+}
+
+// The files the words from `first` to `last` name, into `paths`, which the caller ends: 1, or 0 where the pool cannot
+// meet a cell
+static int candidates_given(char **words, int first, int last, PlatformArray *paths)
+{
+    platform_array_begun(paths, sizeof(IdentityPath), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    IdentityPath *const given = words_as_paths(words, first, last);
+    if (given == NULL)
+    {
+        return 0;
+    }
+    // `last` is at least `first`
+    candidate_paths(given, (unsigned long long)(last - first), paths);
+    platform_cell_released(given, platform_place_g_program_owner);
+    return 1;
+}
+
+// the words from `first` to `last` as task names, into a cell of the temporary tier the caller gives back, or NULL
+static IdentityName *words_as_names(char **words, int first, int last)
+{
+    // `last` is at least `first`
+    const unsigned long long count = (unsigned long long)(last - first);
+    IdentityName *const names =
+        (IdentityName *)platform_cell_taken(((count != 0ULL) ? count : 1ULL) * sizeof(IdentityName),
+                                            platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    for (unsigned long long at = 0ULL; (names != NULL) && (at < count); at += 1ULL)
+    {
+        (void)IDENTITY_SET_TEXT(names[at], words[first + (int)at]);
+    }
+    return names;
+}
 
 int program_main(int count, char **words)
 {
-    if ((count >= 10) && (std::string(words[1]) == "pair") && (std::string(words[8]) == "--"))
+    if ((count >= 10) && word_is(words[1], "pair") && word_is(words[8], "--"))
     {
-        std::vector<const char *> carrier(words + 9, words + count);
-        carrier.push_back(NULL);
-        // the frame queried, the fixed registers queried and the banks walked first in the same run: the container
-        // returned and the least opening, then the probe place, zero and what each register contains at it, then the
-        // last register and the last predicate, each answer written to the .ksc and its record closed before the pairs
-        // open theirs; a query the record contains is not put again. The part's fields the walks read are in the .ksc
-        // already, written by khw_write when the part was learned
-        identity_frame(words[2], words[3], words[4], words[5], carrier.data());
+        const char *const *const given = carrier_words(words, 9);
+        const char *const folder = words[5];
+        // The frame queried, the fixed registers queried and the banks walked first in the same run. The container
+        // returned and the least opening, then the probe place, zero and what each register contains at it. Then the
+        // last register and the last predicate. Each answer goes to the .ksc and its record closes before the pairs
+        // open theirs. The run never puts again a query the record contains. The part's fields the walks read are in
+        // the .ksc already, written by khw_write when the run learned the part
+        identity_frame(words[2], words[3], words[4], folder, given);
         record_close();
-        identity_fixed(words[2], words[3], words[4], words[5], carrier.data());
+        identity_fixed(words[2], words[3], words[4], folder, given);
         record_close();
-        identity_register(words[2], words[3], words[4], words[5], carrier.data());
+        identity_register(words[2], words[3], words[4], folder, given);
         record_close();
-        identity_predicate(words[2], words[3], words[4], words[5], carrier.data());
+        identity_predicate(words[2], words[3], words[4], folder, given);
         record_close();
-        identity_past(words[2], words[3], words[4], words[5], carrier.data());
+        identity_past(words[2], words[3], words[4], folder, given);
         record_close();
-        return identity_pair(words[2], words[3], words[4], words[6], words[7], carrier.data());
+        return identity_pair(words[2], words[3], words[4], words[6], words[7], given);
     }
-    if ((count >= 10) && (std::string(words[1]) == "cost") &&
-        ((std::string(words[8]) == "--") || ((count >= 11) && (std::string(words[9]) == "--"))))
+    if ((count >= 10) && word_is(words[1], "cost") &&
+        (word_is(words[8], "--") || ((count >= 11) && word_is(words[9], "--"))))
     {
         // the machine file's forms placed by the vendor's writer, costed beside the arrangements where named
-        const int with_forms = (std::string(words[8]) != "--");
-        std::vector<const char *> carrier(words + (with_forms ? 10 : 9), words + count);
-        carrier.push_back(NULL);
+        const int with_forms = !word_is(words[8], "--");
         return identity_cost(words[2], words[3], words[4], words[5], words[6], words[7], with_forms ? words[8] : NULL,
-                             carrier.data());
+                             carrier_words(words, with_forms ? 10 : 9));
     }
-    if ((count >= 10) && (std::string(words[1]) == "text_identity") && (std::string(words[8]) == "--"))
+    if ((count >= 10) && word_is(words[1], "text_identity") && word_is(words[8], "--"))
     {
-        std::vector<const char *> carrier(words + 9, words + count);
-        carrier.push_back(NULL);
-        return identity_text(words[2], words[3], words[4], words[6], words[7], carrier.data());
+        return identity_text(words[2], words[3], words[4], words[6], words[7], carrier_words(words, 9));
     }
-    if ((count >= 9) && (std::string(words[1]) == "queue") && (std::string(words[7]) == "--"))
+    if ((count >= 9) && word_is(words[1], "queue") && word_is(words[7], "--"))
     {
-        std::vector<const char *> carrier(words + 8, words + count);
-        carrier.push_back(NULL);
-        return identity_queue(words[2], words[3], words[4], words[5], words[6], carrier.data());
+        return identity_queue(words[2], words[3], words[4], words[5], words[6], carrier_words(words, 8));
     }
     // the carrier's words follow a lone --
-    if ((count >= 9) && (std::string(words[1]) == "stall") && (std::string(words[7]) == "--"))
+    if ((count >= 9) && word_is(words[1], "stall") && word_is(words[7], "--"))
     {
-        std::vector<const char *> carrier(words + 8, words + count);
-        carrier.push_back(NULL);
-        return identity_stall(words[2], words[3], words[4], words[5], words[6], carrier.data());
+        return identity_stall(words[2], words[3], words[4], words[5], words[6], carrier_words(words, 8));
     }
-    if ((count >= 8) && (std::string(words[1]) == "frame") && (std::string(words[6]) == "--"))
+    if ((count >= 8) && word_is(words[1], "frame") && word_is(words[6], "--"))
     {
-        std::vector<const char *> carrier(words + 7, words + count);
-        carrier.push_back(NULL);
-        return identity_frame(words[2], words[3], words[4], words[5], carrier.data());
+        return identity_frame(words[2], words[3], words[4], words[5], carrier_words(words, 7));
     }
-    if ((count >= 8) && (std::string(words[1]) == "fixed") && (std::string(words[6]) == "--"))
+    if ((count >= 8) && word_is(words[1], "fixed") && word_is(words[6], "--"))
     {
-        std::vector<const char *> carrier(words + 7, words + count);
-        carrier.push_back(NULL);
-        return identity_fixed(words[2], words[3], words[4], words[5], carrier.data());
+        return identity_fixed(words[2], words[3], words[4], words[5], carrier_words(words, 7));
     }
-    if ((count >= 8) && (std::string(words[1]) == "register") && (std::string(words[6]) == "--"))
+    if ((count >= 8) && word_is(words[1], "register") && word_is(words[6], "--"))
     {
-        std::vector<const char *> carrier(words + 7, words + count);
-        carrier.push_back(NULL);
-        return identity_register(words[2], words[3], words[4], words[5], carrier.data());
+        return identity_register(words[2], words[3], words[4], words[5], carrier_words(words, 7));
     }
-    if ((count >= 8) && (std::string(words[1]) == "past") && (std::string(words[6]) == "--"))
+    if ((count >= 8) && word_is(words[1], "past") && word_is(words[6], "--"))
     {
-        std::vector<const char *> carrier(words + 7, words + count);
-        carrier.push_back(NULL);
-        return identity_past(words[2], words[3], words[4], words[5], carrier.data());
+        return identity_past(words[2], words[3], words[4], words[5], carrier_words(words, 7));
     }
-    // the tasks are given up to a lone --, the carrier's words after it
-    if ((count >= 9) && (std::string(words[1]) == "curve"))
+    // the tasks go up to a lone --, the carrier's words after it
+    if ((count >= 9) && word_is(words[1], "curve"))
     {
-        std::vector<std::string> tasks;
-        int at = 6;
-        for (; (at < count) && (std::string(words[at]) != "--"); at += 1)
+        const int at = marker_at(words, 6, count);
+        IdentityName *const tasks = words_as_names(words, 6, at);
+        if ((tasks != NULL) && (at > 6) && ((at + 1) < count))
         {
-            tasks.push_back(words[at]);
+            // the tasks lie between the mode's words and the --
+            const int answer = identity_curve(words[2], words[3], words[4], words[5], tasks,
+                                              (unsigned long long)(at - 6), carrier_words(words, at + 1));
+            platform_cell_released(tasks, platform_place_g_program_owner);
+            return answer;
         }
-        if (!tasks.empty() && ((at + 1) < count))
-        {
-            std::vector<const char *> carrier(words + at + 1, words + count);
-            carrier.push_back(NULL);
-            return identity_curve(words[2], words[3], words[4], words[5], tasks, carrier.data());
-        }
+        platform_cell_released(tasks, platform_place_g_program_owner);
     }
-    // the paths of ours are given up to a lone --, the rulesets after it
-    if ((count >= 6) && (std::string(words[1]) == "broken"))
+    // the paths of ours go up to a lone --, the rulesets after it
+    if ((count >= 6) && word_is(words[1], "broken"))
     {
-        std::vector<std::string> ours_paths;
-        int at = 5;
-        for (; (at < count) && (std::string(words[at]) != "--"); at += 1)
-        {
-            ours_paths.push_back(words[at]);
-        }
-        at += (at < count) ? 1 : 0;
-        return identity_broken(words[2], words[3], words[4], candidate_paths(ours_paths), count - at, words + at);
+        const int marker = marker_at(words, 5, count);
+        const int at = marker + ((marker < count) ? 1 : 0);
+        PlatformArray paths;
+        const int read = candidates_given(words, 5, marker, &paths);
+        const int answer = read ? identity_broken(words[2], words[3], words[4], (const IdentityPath *)paths.cell,
+                                                  paths.count, count - at, words + at)
+                                : 1;
+        platform_array_ended(&paths);
+        return answer;
     }
-    if ((count == 5) && (std::string(words[1]) == "permute"))
+    if ((count == 5) && word_is(words[1], "permute"))
     {
         return identity_permute(words[2], words[3], words[4]);
     }
-    if ((count >= 5) && (std::string(words[1]) == "known"))
+    if ((count >= 5) && word_is(words[1], "known"))
     {
-        return identity_known(words[2], words[3], words[4],
-                              candidate_paths(std::vector<std::string>(words + 5, words + count)));
+        PlatformArray paths;
+        const int read = candidates_given(words, 5, count, &paths);
+        const int answer =
+            read ? identity_known(words[2], words[3], words[4], (const IdentityPath *)paths.cell, paths.count) : 1;
+        platform_array_ended(&paths);
+        return answer;
     }
-    if (((count == 6) || (count == 7)) && (std::string(words[1]) == "slice"))
+    if (((count == 6) || (count == 7)) && word_is(words[1], "slice"))
     {
         return identity_slice(words[2], words[3], words[4], words[5], (count == 7) ? words[6] : "");
     }
-    if ((count >= 4) && (std::string(words[1]) == "read"))
+    if ((count >= 4) && word_is(words[1], "read"))
     {
         return identity_read(words[2], words[3], count - 4, words + 4);
     }

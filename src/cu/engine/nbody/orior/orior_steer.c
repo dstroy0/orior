@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_steer.c: the census and the steering probe order
+#include "memoria_operor/memoria_operor.h"
 #include "orior_internal.h"
-#include "memoria_operor/memoria_linea.h"
 
 /* ---- the steering, folded in ---- */
 
@@ -13,7 +13,7 @@ void orior_field_census(const uint8_t *corpus, size_t corpus_len, OriorFieldCens
         return;
     }
 
-    mmgr_bytes_set(census, 0, sizeof(*census));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = census, .bytes = sizeof(*census), .val = 0);
     if ((corpus == NULL) || (corpus_len == 0u))
     {
         return;

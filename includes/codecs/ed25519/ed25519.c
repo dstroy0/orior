@@ -4,10 +4,9 @@
 // 64-bit words, the limbs carried as the curve's arithmetic needs; a point is its extended coordinates X, Y, Z and T.
 // A signed word shifted right preserves its sign, as every compiler the tree builds with shifts it
 #include "ed25519.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../sha512/sha512.h"
-
 
 // the limbs of a field element, and the bytes of a scalar's reduction
 #define ED25519_LIMBS 16u
@@ -36,7 +35,7 @@ static const long long s_order[32] = {0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 
 
 static void ed25519_set(Ed25519Field out, const Ed25519Field in)
 {
-    mmgr_bytes_copy(out, in, sizeof(Ed25519Field));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = in, .bytes = sizeof(Ed25519Field));
 }
 
 // each limb carried into the next, the last's carry folded back as 38 times it, 2^256 being 38 mod 2^255 - 19
@@ -107,7 +106,8 @@ static int ed25519_differ(const Ed25519Field one, const Ed25519Field other)
     unsigned char packed_other[32];
     ed25519_packed(packed_one, one);
     ed25519_packed(packed_other, other);
-    return mmgr_bytes_compare(packed_one, packed_other, sizeof(packed_one)) != 0;
+    return EMBED_CALL(memor.cmp, MemoriaCfg, .src = packed_one, .other = packed_other, .bytes = sizeof(packed_one)) !=
+           0;
 }
 
 // the low bit of a field element reduced
@@ -465,5 +465,5 @@ int ed25519_verify(const unsigned char public_key[ED25519_PUBLIC_BYTES], const v
     ed25519_scaled_base(base, signature + 32u);
     ed25519_point_added(point, base);
     ed25519_point_packed(again, point);
-    return mmgr_bytes_compare(again, signature, 32u) == 0;
+    return EMBED_CALL(memor.cmp, MemoriaCfg, .src = again, .other = signature, .bytes = 32u) == 0;
 }

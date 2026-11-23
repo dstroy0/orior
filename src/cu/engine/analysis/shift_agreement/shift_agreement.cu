@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // shift_agreement.cu: the kernels and the agreement's arithmetic
-#include "shift_agreement_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "shift_agreement_internal.h"
 
 __device__ static unsigned long long lag_length(unsigned int index, const AgreementLayout *layout)
 {
@@ -344,7 +344,7 @@ const AxisTables *axis_tables(unsigned int length)
         cudaFree(tables->roots[0]);
         cudaFree(tables->roots[1]);
         platform_cell_released(tables->negation, platform_place_g_program_owner);
-        mmgr_bytes_set(tables, 0, sizeof(*tables));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = tables, .bytes = sizeof(*tables), .val = 0);
         return NULL;
     }
     tables->length = length;

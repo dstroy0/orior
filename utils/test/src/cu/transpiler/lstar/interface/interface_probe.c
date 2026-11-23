@@ -7,9 +7,9 @@
 // A probe for the interface test: one question a process, named by its first word, posed to the host part and its
 // system. Built with no optimization: each question reaches the part as written. The operands are volatile: no compiler
 // folds a division it can see is undefined, and the part itself answers
-#include <limits.h>
 #include "../../../../../../../src/platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,7 +80,8 @@ int program_main(int count, char **arguments)
         // the errors go out after the output, through the platform as the output did, and so each line ends in one byte
         platform_terminal_write(1, "err: ", 5ULL);
         platform_terminal_write(1, arguments[2],
-                                (unsigned long long)mmgr_text_length(arguments[2], PLATFORM_TEXT_TO_TERMINATOR));
+                                (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = arguments[2],
+                                                               .cap = PLATFORM_TEXT_TO_TERMINATOR));
         platform_terminal_write(1, "\n", 1ULL);
         return 0;
     }

@@ -6,10 +6,10 @@
 // shared memory, the monotonic clock and nanosleep are POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
 #endif
-#include "../qry_writer_internal.h"
 #include "../../../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "../qry_writer_internal.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #if !defined(_WIN32)
 #include <errno.h>
@@ -21,6 +21,24 @@
 #include <time.h>
 #include <unistd.h>
 
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int posix_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
+
 // the object's name, `/qry-` and the hash of the .qry's path in hex
 static void qry_shared_named(const char *path, char *name)
 {
@@ -31,7 +49,7 @@ static void qry_shared_named(const char *path, char *name)
     {
         hash = (hash ^ (unsigned char)*at) * 0x100000001b3ULL;
     }
-    mmgr_bytes_copy(name, s_prefix, sizeof(s_prefix) - 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = name, .src = s_prefix, .bytes = sizeof(s_prefix) - 1u);
     for (unsigned int digit = 0u; digit < 16u; digit += 1u)
     {
         name[sizeof(s_prefix) - 1u + digit] = s_digits[(hash >> (60u - (4u * digit))) & 0xfULL];
@@ -105,15 +123,16 @@ int qry_writer_file_closed(long long file)
 static void qry_writer_folder_synced(const char *path)
 {
     char folder[QRY_WRITER_TOP_MAX_LEN + QRY_NAME_MAX_LEN + 2u];
-    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const cut = mmgr_text_char_last(path, '/', PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const cut =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
     if ((cut == NULL) || (length >= sizeof(folder)))
     {
         return;
     }
     // the cut is inside the path; its place is therefore not negative and below its length
     const size_t folder_len = (cut == path) ? 1u : (size_t)(cut - path);
-    mmgr_bytes_copy(folder, path, folder_len);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = folder, .src = path, .bytes = folder_len);
     folder[folder_len] = '\0';
     const int opened = open(folder, O_RDONLY | O_CLOEXEC);
     if (opened >= 0)
@@ -326,14 +345,15 @@ int qry_member_named(char *path, size_t room)
     for (char **each = environ; (each != NULL) && (*each != NULL); each += 1)
     {
         const size_t named = sizeof(QRY_ENVIRONMENT) - 1u;
-        if ((mmgr_text_order(*each, QRY_ENVIRONMENT, (size_t)(named)) == 0) && ((*each)[named] == '='))
+        if ((posix_text_order(*each, QRY_ENVIRONMENT, (size_t)(named)) == 0) && ((*each)[named] == '='))
         {
-            const size_t length = mmgr_text_length(*each + named + 1u, PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t length =
+                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = *each + named + 1u, .cap = PLATFORM_TEXT_TO_TERMINATOR);
             if ((length == 0u) || (length >= room))
             {
                 return 0;
             }
-            mmgr_bytes_copy(path, *each + named + 1u, length + 1u);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = path, .src = *each + named + 1u, .bytes = length + 1u);
             return 1;
         }
     }

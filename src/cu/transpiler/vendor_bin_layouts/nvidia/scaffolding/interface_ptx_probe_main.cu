@@ -45,23 +45,30 @@ int program_main(int count, char **arguments)
     const ProbeName t8 = probe_temporary(&writer, 8u);
     const ProbeName t0 = probe_temporary(&writer, 0u);
     const ProbeName w0 = probe_wide(&writer, 0u);
-    if (mmgr_text_equal(question, "membership", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "membership", .ci = EMBED_FALSE))
     {
         return probe_membership(&writer, header, major, minor);
     }
-    if ((mmgr_text_equal(question, "cubins", PLATFORM_TEXT_TO_TERMINATOR)) && (count > 2))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "cubins",
+                    .ci = EMBED_FALSE)) &&
+        (count > 2))
     {
         return probe_cubins(&writer, header, major, minor, arguments[2]);
     }
-    if ((mmgr_text_equal(question, "run", PLATFORM_TEXT_TO_TERMINATOR)) && (count > 2))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "run",
+                    .ci = EMBED_FALSE)) &&
+        (count > 2))
     {
         return probe_cubin_run(arguments[2], count, arguments);
     }
-    if (mmgr_text_equal(question, "clocks", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "clocks",
+                   .ci = EMBED_FALSE))
     {
         return probe_clocks(device);
     }
-    if (mmgr_text_equal(question, "alive", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "alive",
+                   .ci = EMBED_FALSE))
     {
         const ProbeName t1 = probe_temporary(&writer, 1u);
         char body[PROBE_HEADER_BYTES];
@@ -70,7 +77,8 @@ int program_main(int count, char **arguments)
         (void)mmgr_line_finish(&body_line);
         return probe_single(&writer, header, body, major, minor);
     }
-    if (mmgr_text_equal(question, "address", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "address",
+                   .ci = EMBED_FALSE))
     {
         // the load reads the sixteenth byte of the device's address space
         char body[PROBE_HEADER_BYTES];
@@ -81,7 +89,8 @@ int program_main(int count, char **arguments)
         (void)mmgr_line_finish(&body_line);
         return probe_single(&writer, header, body, major, minor);
     }
-    if (mmgr_text_equal(question, "misaligned", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "misaligned", .ci = EMBED_FALSE))
     {
         // the case's own input, one byte in: a 32-bit load from an address that is not a multiple of 4
         char body[PROBE_HEADER_BYTES];
@@ -91,11 +100,13 @@ int program_main(int count, char **arguments)
         (void)mmgr_line_finish(&body_line);
         return probe_single(&writer, header, body, major, minor);
     }
-    if (mmgr_text_equal(question, "trap", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "trap",
+                   .ci = EMBED_FALSE))
     {
         return probe_single(&writer, header, "\ttrap;\n", major, minor);
     }
-    if (mmgr_text_equal(question, "lacking", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "lacking",
+                   .ci = EMBED_FALSE))
     {
         return probe_single(&writer, header,
                             "\t{\n\t.reg .pred \t%interface_elected;\n\t.reg .b32 \t%interface_leader;\n"

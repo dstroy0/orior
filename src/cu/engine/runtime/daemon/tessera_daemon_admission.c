@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_daemon_admission.c: frames, admission, the handler and the timer
-#include "tessera_daemon_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera_daemon_internal.h"
 
 _Alignas(8) static const char s_daemon_precalc[] = "precalc saved\n";
 _Alignas(8) static const char s_daemon_reason_grace[] = "reserved past its grace time over its signum's last peak";
@@ -11,11 +11,11 @@ _Alignas(8) static const char s_daemon_reason_ended[] = "its process ended";
 
 void daemon_frame_start(TesseraFrame *frame, unsigned int type, unsigned long long identity)
 {
-    mmgr_bytes_set(frame, 0, sizeof(*frame));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = frame, .bytes = sizeof(*frame), .val = 0);
     frame->magic = TESSERA_MAGIC;
     frame->version = TESSERA_VERSION;
     frame->type = type;
-    mmgr_bytes_copy(frame->device, g_daemon.device, TESSERA_DEVICE_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = frame->device, .src = g_daemon.device, .bytes = TESSERA_DEVICE_BYTES);
     frame->identity = identity;
     frame->luid = g_daemon.luid;
 }
@@ -123,7 +123,8 @@ void daemon_handle(TesseraPeer *peer, const TesseraFrame *frame)
     if (frame->type == TESSERA_REQUEST_SUBMIT)
     {
         const int acceptable = (peer->identity == 0ULL) && (peer->lost_identity == 0ULL) &&
-                               (mmgr_bytes_compare(frame->device, g_daemon.device, TESSERA_DEVICE_BYTES) == 0) &&
+                               (EMBED_CALL(memor.cmp, MemoriaCfg, .src = frame->device, .other = g_daemon.device,
+                                           .bytes = TESSERA_DEVICE_BYTES) == 0) &&
                                (frame->luid == g_daemon.luid) && (frame->declared != 0ULL) &&
                                (frame->sweep_microseconds != 0ULL);
         TesseraJobRequest request;

@@ -3,9 +3,27 @@
 // cycle_compile_cache.cu: the cache, compiling and linking, the PTX header
 #include "../../../../platform/platform.h"
 #include "../../engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "cycle_compile_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int cycle_compile_cache_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // the target for relocatable cubin, then the target for LTO-IR
 static CycleTarget s_cycle_lane_targets[2];
@@ -41,11 +59,13 @@ int cycle_cache_read(const char *path, const char *source, unsigned long long le
     unsigned long long stored = 0ULL;
     if (size >= head)
     {
-        mmgr_bytes_copy(&stored, &bytes[magic], sizeof(stored));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &stored, .src = &bytes[magic], .bytes = sizeof(stored));
     }
-    const int ok = (mmgr_line_ok(&contents.line) != 0) && (size >= head) &&
-                   (mmgr_bytes_compare(bytes, s_cycle_cache_magic, (size_t)magic) == 0) && (stored == length) &&
-                   ((size - head) > stored) && (mmgr_bytes_compare(&bytes[head], source, (size_t)length) == 0);
+    const int ok =
+        (mmgr_line_ok(&contents.line) != 0) && (size >= head) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes, .other = s_cycle_cache_magic, .bytes = (size_t)magic) == 0) &&
+        (stored == length) && ((size - head) > stored) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &bytes[head], .other = source, .bytes = (size_t)length) == 0);
     const int taken = ok && cycle_image_taken(image, &bytes[head + stored], size - (head + stored));
     platform_text_ended(&contents);
     return taken;
@@ -264,15 +284,19 @@ const CycleTarget *cycle_target(int major, int minor, int lto, int report)
 // opens so
 static int cycle_ptx_header_line(const char *ptx, const char *opening, VerbaLinea *lines)
 {
-    const size_t opening_length = mmgr_text_length(opening, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t opening_length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = opening, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const char *line = ptx;
     while (*line != '\0')
     {
-        const char *const end = mmgr_text_char(line, '\n', PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const end =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\n');
         // a line ends past its start, and its length is never negative
         const size_t length =
-            (end != NULL) ? (size_t)(end - line) : mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
-        if ((length >= opening_length) && (mmgr_bytes_compare(line, opening, opening_length) == 0))
+            (end != NULL) ? (size_t)(end - line)
+                          : EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+        if ((length >= opening_length) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = line, .other = opening, .bytes = opening_length) == 0))
         {
             (void)mmgr_line_put_n(lines, line, length);
             mmgr_line_ch(lines, '\n');
@@ -294,7 +318,7 @@ static void cycle_ptx_header_lines(const char *ptx, char *lines, size_t bytes)
                          cycle_ptx_header_line(ptx, ".target ", &written) &&
                          cycle_ptx_header_line(ptx, ".address_size ", &address_line);
     (void)mmgr_line_finish(&address_line);
-    const int wide = complete && (mmgr_text_order(address, ".address_size 64\n", sizeof(address)) == 0);
+    const int wide = complete && (cycle_compile_cache_text_order(address, ".address_size 64\n", sizeof(address)) == 0);
     mmgr_line_put(&written, address);
     (void)mmgr_line_finish(&written);
     if ((wide == 0) || (mmgr_line_ok(&written) == 0))
@@ -340,7 +364,8 @@ const char *cycle_ptx_header(int major, int minor, int report)
         mmgr_line_put(&question_line, "extern \"C\" __global__ void cycle_probe(void)\n{\n}\n");
         (void)mmgr_line_finish(&question_line);
     }
-    const unsigned long long question_length = mmgr_text_length(question, sizeof(question));
+    const unsigned long long question_length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = question, .cap = sizeof(question));
     char folder[PLATFORM_PATH_BYTES];
     char path[PLATFORM_PATH_BYTES];
     const int cached = cycle_cache_folder(folder, sizeof(folder));
@@ -389,8 +414,9 @@ const char *cycle_ptx_header(int major, int minor, int report)
         compiler->destroy(&program);
         if ((header->lines[0] != '\0') && (cached != 0))
         {
-            cycle_cache_write(folder, path, question, question_length, header->lines,
-                              mmgr_text_length(header->lines, sizeof(header->lines)));
+            cycle_cache_write(
+                folder, path, question, question_length, header->lines,
+                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = header->lines, .cap = sizeof(header->lines)));
         }
     }
     if (report != 0)

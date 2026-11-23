@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // period_select.cu: the lattice, the null axis, selection, reading and printing
-#include "period_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "period_internal.h"
 
 int period_lattice_fill(const PeriodRequest *request, PeriodLattice *lattice, unsigned long long *voxels)
 {
@@ -24,7 +24,7 @@ int period_lattice_fill(const PeriodRequest *request, PeriodLattice *lattice, un
         }
         count *= extent;
     }
-    mmgr_bytes_set(lattice, 0, sizeof(*lattice));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = lattice, .bytes = sizeof(*lattice), .val = 0);
     lattice->rank = rank;
     unsigned long long stride = 1ULL;
     for (unsigned int axis = rank; axis > 0u; axis -= 1u)
@@ -132,7 +132,7 @@ int period_request_valid(const PeriodRequest *request, unsigned long long entrie
 
 void period_axis_open(const PeriodLattice *lattice, unsigned int axis, PeriodAxis *result)
 {
-    mmgr_bytes_set(result, 0, sizeof(*result));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = result, .bytes = sizeof(*result), .val = 0);
     result->extent = lattice->extent[axis];
     result->lags = lattice->extent[axis] / 2u;
     result->pairs_per_lag = lattice->pairs[axis];
@@ -161,11 +161,11 @@ static int period_null_axis(const PeriodRequest *request, const PeriodLattice *l
     // only this axis's lags are counted: the strongest peak is read from them alone
     const unsigned long long begin = lattice->first[axis];
     const unsigned long long end = begin + (lattice->extent[axis] / 2u);
-    int ok =
-        PERIOD_STATUS_CHECK(cudaGetLastError(), device_shuffled, error) &&
-        period_count(shuffled_pass, lattice, begin, end, error) &&
-        PERIOD_CHECK(mmgr_bytes_compare(histogram, shuffled_pass->histogram, PERIOD_VALUES * sizeof(unsigned int)) == 0,
-                     shuffled_pass->histogram, error, ENGINE_ERROR_LOGIC);
+    int ok = PERIOD_STATUS_CHECK(cudaGetLastError(), device_shuffled, error) &&
+             period_count(shuffled_pass, lattice, begin, end, error) &&
+             PERIOD_CHECK(EMBED_CALL(memor.cmp, MemoriaCfg, .src = histogram, .other = shuffled_pass->histogram,
+                                     .bytes = PERIOD_VALUES * sizeof(unsigned int)) == 0,
+                          shuffled_pass->histogram, error, ENGINE_ERROR_LOGIC);
     if (ok != 0)
     {
         PeriodAxis drawn;
@@ -189,7 +189,8 @@ void period_select(const unsigned long long *same, const PeriodLattice *lattice,
         void *const sort_room =
             platform_cell_taken((unsigned long long)((size_t)count) * (unsigned long long)(sizeof(PeriodMargin)),
                                 platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(band, (size_t)count, sizeof(PeriodMargin), period_margin_compare, sort_room);
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = band, .bytes = sizeof(PeriodMargin), .scratch = sort_room,
+                         .count = (size_t)count, .order = period_margin_compare);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     result->band_count = count;
@@ -282,7 +283,7 @@ extern "C" long period_read(const PeriodRequest *request)
         ok = PERIOD_CHECK(counted == voxels, histogram, error, ENGINE_ERROR_LOGIC);
     }
     PeriodMeasurement *const measurement = request->measurement;
-    mmgr_bytes_set(measurement, 0, sizeof(*measurement));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = measurement, .bytes = sizeof(*measurement), .val = 0);
     measurement->rank = lattice.rank;
     measurement->voxels = voxels;
     measurement->collisions = collisions;
@@ -311,11 +312,13 @@ extern "C" long period_read(const PeriodRequest *request)
     }
     if ((ok != 0) && (request->agreement != NULL) && (entries != 0ULL))
     {
-        mmgr_bytes_copy(request->agreement, agreement, (size_t)entries * sizeof(unsigned long long));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->agreement, .src = agreement,
+                   .bytes = (size_t)entries * sizeof(unsigned long long));
     }
     if ((ok != 0) && (request->band != NULL))
     {
-        mmgr_bytes_copy(request->band, bands, (size_t)(draws * lattice.rank) * sizeof(PeriodMargin));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->band, .src = bands,
+                   .bytes = (size_t)(draws * lattice.rank) * sizeof(PeriodMargin));
     }
     platform_cell_released(histogram, (unsigned int)platform_place_g_engine_owner);
     platform_cell_released(shuffled_histogram, (unsigned int)platform_place_g_engine_owner);

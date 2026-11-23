@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_clips.cu: spikes and clipping
-#include "noise_detector_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "noise_detector_internal.h"
 
 __device__ static void noise_spikes_flush(unsigned long long *cells, unsigned int level_bin,
                                           unsigned long long run[NOISE_SPIKE_SUMS])
@@ -250,7 +250,8 @@ static void noise_clips_range(const NoiseClips *clips, unsigned int *least, unsi
 // the triples, spikes and dips pooled over the summary's level bins, means 40 to 199
 void noise_spikes_pooled(const NoiseClips *clips, unsigned long long pooled[NOISE_SPIKE_SUMS])
 {
-    mmgr_bytes_set(pooled, 0, (size_t)NOISE_SPIKE_SUMS * sizeof(unsigned long long));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = pooled, .bytes = (size_t)NOISE_SPIKE_SUMS * sizeof(unsigned long long),
+               .val = 0);
     for (unsigned int level_bin = NOISE_SUMMARY_FIRST_BIN; level_bin <= NOISE_SUMMARY_LAST_BIN; level_bin += 1u)
     {
         for (unsigned int sum = 0u; sum < NOISE_SPIKE_SUMS; sum += 1u)

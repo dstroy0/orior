@@ -5,13 +5,31 @@
 #include "../../src/cu/engine/rmc/codegen_device.h"
 #include "../../src/cu/engine/rmc/codegen_device_internal.h"
 #include "../file_defs/krs/ruleset_flat.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int codegen_reader_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // 1 where two texts are the same
 static int ruleset_same_text(const char *left, const char *right)
 {
-    return mmgr_text_order(left, right, PLATFORM_TEXT_TO_TERMINATOR) == 0;
+    return codegen_reader_text_order(left, right, PLATFORM_TEXT_TO_TERMINATOR) == 0;
 }
 
 // 1 where two lists of `count` templates are the same: their pieces and placeholders
@@ -22,8 +40,8 @@ static int ruleset_same_templates(const InstrTemplate *left, const InstrTemplate
     {
         same = (left[at].placeholder_count == right[at].placeholder_count) &&
                ((left[at].placeholder_count == 0u) ||
-                (mmgr_bytes_compare(left[at].placeholders, right[at].placeholders,
-                                    (size_t)left[at].placeholder_count * sizeof(unsigned int)) == 0));
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left[at].placeholders, .other = right[at].placeholders,
+                            .bytes = (size_t)left[at].placeholder_count * sizeof(unsigned int)) == 0));
         for (unsigned int piece = 0u; (same != 0) && (piece <= left[at].placeholder_count); piece += 1u)
         {
             same = ruleset_same_text(left[at].pieces[piece], right[at].pieces[piece]);
@@ -87,9 +105,12 @@ int ruleset_same(const Ruleset *left, const Ruleset *right)
            ruleset_same_texts(left->fixed, right->fixed, schema->fixed_count) &&
            ruleset_same_templates(left->forms, right->forms, schema->form_count) &&
            ruleset_same_constructs(left->constructs, right->constructs, schema->form_count) &&
-           (mmgr_bytes_compare(left->bank_given, right->bank_given, schema->bank_count) == 0) &&
-           (mmgr_bytes_compare(left->fixed_given, right->fixed_given, schema->fixed_count) == 0) &&
-           (mmgr_bytes_compare(left->form_given, right->form_given, schema->form_count) == 0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->bank_given, .other = right->bank_given,
+                       .bytes = schema->bank_count) == 0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->fixed_given, .other = right->fixed_given,
+                       .bytes = schema->fixed_count) == 0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->form_given, .other = right->form_given,
+                       .bytes = schema->form_count) == 0) &&
            (left->building == right->building) && (left->building_parameter_count == right->building_parameter_count) &&
            ruleset_same_texts(left->building_parameters, right->building_parameters, left->building_parameter_count);
 }

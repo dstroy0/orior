@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // platform_windows.c: the platform on Windows. The pages come from VirtualAlloc, a thread from CreateThread, an address
 // wait from WaitOnAddress, the clock from the performance counter, and the streams from WriteFile
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "platform_internal.h"
 
 #if defined(_WIN32)
@@ -90,7 +90,7 @@ int platform_worker_started(PlatformWorker *worker, void (*run)(void *context), 
         return 0;
     }
     _Static_assert(sizeof(HANDLE) <= PLATFORM_WORKER_HANDLE_BYTES, "a HANDLE fits the handle of a worker");
-    mmgr_bytes_copy(worker->handle, &started, sizeof(started));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = worker->handle, .src = &started, .bytes = sizeof(started));
     worker->running = 1;
     return 1;
 }
@@ -102,7 +102,7 @@ void platform_worker_joined(PlatformWorker *worker)
         return;
     }
     HANDLE started = NULL;
-    mmgr_bytes_copy(&started, worker->handle, sizeof(started));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &started, .src = worker->handle, .bytes = sizeof(started));
     (void)WaitForSingleObject(started, INFINITE);
     (void)CloseHandle(started);
     worker->running = 0;
@@ -363,6 +363,44 @@ int platform_folder_made(const char *path)
     return (attributes != INVALID_FILE_ATTRIBUTES) && ((attributes & FILE_ATTRIBUTE_DIRECTORY) != 0u);
 }
 
+int platform_folder_listed(const char *path, PlatformFolderEntry each, void *context)
+{
+    const DWORD attributes = GetFileAttributesA(path);
+    if ((attributes == INVALID_FILE_ATTRIBUTES) || ((attributes & FILE_ATTRIBUTE_DIRECTORY) == 0u))
+    {
+        return 0;
+    }
+    char pattern[PLATFORM_PATH_BYTES];
+    VerbaLinea line = mmgr_line_over(pattern, sizeof(pattern));
+    mmgr_line_put(&line, path);
+    mmgr_line_put(&line, "\\*");
+    (void)mmgr_line_finish(&line);
+    if (!mmgr_line_ok(&line))
+    {
+        return 0;
+    }
+    WIN32_FIND_DATAA entry;
+    const HANDLE search =
+        FindFirstFileExA(pattern, FindExInfoBasic, &entry, FindExSearchNameMatch, NULL, FIND_FIRST_EX_LARGE_FETCH);
+    if (search == INVALID_HANDLE_VALUE)
+    {
+        return 0;
+    }
+    do
+    {
+        const int dot = EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = entry.cFileName,
+                                   .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".", .ci = EMBED_FALSE) ||
+                        EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = entry.cFileName,
+                                   .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "..", .ci = EMBED_FALSE);
+        if (!dot)
+        {
+            each(context, entry.cFileName, (entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0u);
+        }
+    } while (FindNextFileA(search, &entry) != 0);
+    (void)FindClose(search);
+    return 1;
+}
+
 unsigned long long platform_process_id(void)
 {
     return (unsigned long long)GetCurrentProcessId();
@@ -427,7 +465,8 @@ long platform_program_run_in(const char *const *arguments, const char *folder, c
     unsigned long long length = 1ULL;
     for (unsigned long long at = 0ULL; arguments[at] != NULL; at += 1ULL)
     {
-        length += 3ULL + (unsigned long long)mmgr_text_length(arguments[at], (size_t)-1);
+        length +=
+            3ULL + (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = arguments[at], .cap = (size_t)-1);
     }
     char *const line = (char *)platform_cell_taken(length, (unsigned int)platform_place_g_program_owner, 1);
     if (line == NULL)

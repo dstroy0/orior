@@ -9,8 +9,8 @@
 // reads the image from and writes its records to. It compiles as C++
 
 #include "../../../../../../../src/platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "record_programs.h"
 #include "target.h"
 
@@ -55,7 +55,8 @@ static int record_image_layout(PlatformArray *memory, const unsigned int *words,
     }
     if (count != 0ull)
     {
-        mmgr_bytes_copy(platform_array_at(memory, held), words, (size_t)(count * sizeof(unsigned int)));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = platform_array_at(memory, held), .src = words,
+                   .bytes = (size_t)(count * sizeof(unsigned int)));
     }
     return 1;
 }
@@ -193,7 +194,7 @@ static int record_image_write(const char *path, const RecordImage *image)
 static int record_image_number(const char **at, unsigned int base, unsigned long long *value)
 {
     const char *end = NULL;
-    *value = (unsigned long long)mmgr_text_unsigned_in(*at, &end, base);
+    *value = (unsigned long long)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = *at, .end = &end, .base = base);
     const int read = (end != NULL) && (end != *at);
     *at = (end != NULL) ? end : *at;
     return read;

@@ -2,11 +2,29 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // forms.c: the forms: the vendor's run, the forms, costs and givens read, a form's cost and given, and the forms of a
 // word ranked
-#include "../../../parsers/line_read.h"
 #include "../../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "../../../parsers/line_read.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "krs_write_internal.h"
+#include "memoria_operor/memoria_operor.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int forms_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // each form's cost as the part's .ksc stores it: its encoding, its least launch m and its spread s
 typedef struct
@@ -58,36 +76,44 @@ unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
     for (unsigned long long at = 0ULL; (at < rows) && (s_forms < KRS_FORMS); at += 1ULL)
     {
         FormsBlobRow row;
-        mmgr_bytes_copy(&row, bytes + (at * sizeof(FormsBlobRow)), sizeof(row));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &row, .src = bytes + (at * sizeof(FormsBlobRow)),
+                   .bytes = sizeof(row));
         row.relation[sizeof(row.relation) - 1u] = '\0';
         row.text[sizeof(row.text) - 1u] = '\0';
-        const size_t prefix = mmgr_text_length(KRS_READS_LADDER, PLATFORM_TEXT_TO_TERMINATOR);
-        const char *const name = (mmgr_text_order(row.relation, KRS_READS_LADDER, (size_t)(prefix)) == 0)
+        const size_t prefix =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = KRS_READS_LADDER, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const name = (forms_text_order(row.relation, KRS_READS_LADDER, (size_t)(prefix)) == 0)
                                      ? (row.relation + prefix)
                                      : row.relation;
         unsigned int anchor = (unsigned int)LADDER_ANCHOR_COUNT;
         for (unsigned int each = 0u; each < (unsigned int)LADDER_ANCHOR_COUNT; each += 1u)
         {
-            anchor = (mmgr_text_equal(s_anchor_text[each], name, PLATFORM_TEXT_TO_TERMINATOR)) ? each : anchor;
+            anchor = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_anchor_text[each],
+                                 .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = name, .ci = EMBED_FALSE))
+                         ? each
+                         : anchor;
         }
         // the form of a frame relation or of a predicate relation goes out as a form of the schema. That is the form
         // that the table beside this writer maps it to. A predicate relation read as signed goes under its relation
         // with `.signed` after it
         const int predicate = (anchor != (unsigned int)LADDER_ANCHOR_COUNT) && ladder_predicate(anchor);
-        if ((mmgr_text_order(row.relation, KRS_READS_FRAME,
-                             (size_t)(mmgr_text_length(KRS_READS_FRAME, PLATFORM_TEXT_TO_TERMINATOR))) == 0) ||
+        if ((forms_text_order(row.relation, KRS_READS_FRAME,
+                              (size_t)(EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = KRS_READS_FRAME,
+                                                  .cap = PLATFORM_TEXT_TO_TERMINATOR))) == 0) ||
             predicate)
         {
             static const char s_signed[] = ".signed";
-            const size_t relation = mmgr_text_length(row.relation, PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t relation =
+                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = row.relation, .cap = PLATFORM_TEXT_TO_TERMINATOR);
             const size_t marked = (predicate && (row.signed_read != 0u)) ? (sizeof(s_signed) - 1u) : 0u;
             if ((s_frame_forms < KRS_FRAME_FORMS) && ((relation + marked) < KRS_FRAME_RELATION))
             {
                 KrsFrameForm *const frame_form = &s_frame_form[s_frame_forms];
-                mmgr_bytes_copy(frame_form->relation, row.relation, relation);
-                mmgr_bytes_copy(frame_form->relation + relation, s_signed, marked);
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = frame_form->relation, .src = row.relation, .bytes = relation);
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = frame_form->relation + relation, .src = s_signed,
+                           .bytes = marked);
                 frame_form->relation[relation + marked] = '\0';
-                mmgr_bytes_copy(frame_form->text, row.text, sizeof(row.text));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = frame_form->text, .src = row.text, .bytes = sizeof(row.text));
                 s_frame_forms += 1u;
             }
             continue;
@@ -100,7 +126,7 @@ unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
         s_form[s_forms].signed_read = (int)row.signed_read;
         s_form[s_forms].low = row.low;
         s_form[s_forms].high = row.high;
-        mmgr_bytes_copy(s_form[s_forms].text, row.text, sizeof(row.text));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_form[s_forms].text, .src = row.text, .bytes = sizeof(row.text));
         s_forms += 1u;
     }
     return s_forms;
@@ -119,7 +145,8 @@ unsigned int krs_costs_read(const char *path)
         KrsCost cost;
         const char *question = s_row.question;
         if (ksc_row_read(s_file.line[at], "run", &s_row) &&
-            (mmgr_text_equal(s_row.answer, "answers", PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.answer, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "answers", .ci = EMBED_FALSE)) &&
             line_characters(&question, "cost ") && line_number(&question, 1, &cost.low) &&
             line_number(&question, 1, &cost.high) && line_number(&question, 1, &cost.spread))
         {
@@ -163,9 +190,11 @@ unsigned int krs_given_read(const char *path)
         char name[KRS_NAME];
         const char *at = line;
         if (line_word(&at, type, sizeof(type)) && line_word(&at, name, sizeof(name)) &&
-            (mmgr_text_equal(type, "form", PLATFORM_TEXT_TO_TERMINATOR)))
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "form",
+                        .ci = EMBED_FALSE)))
         {
-            line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
+            line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "\r\n")] = '\0';
             {
                 VerbaLinea buffer_line = mmgr_line_over(s_given[s_givens], sizeof(s_given[s_givens]));
                 mmgr_line_put(&buffer_line, line);
@@ -187,7 +216,8 @@ const char *krs_given_of(const char *name)
 {
     for (unsigned int at = 0u; at < s_givens; at += 1u)
     {
-        if (mmgr_text_equal(s_given_name[at], name, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_given_name[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = name, .ci = EMBED_FALSE))
         {
             return s_given[at];
         }
@@ -215,13 +245,18 @@ unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writer
                 mmgr_line_put(&buffer_line, "}");
                 (void)mmgr_line_finish(&buffer_line);
             }
-            carries = carries && (mmgr_text_find(form->text, place_text, PLATFORM_TEXT_TO_TERMINATOR) != NULL);
+            carries = carries && (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = form->text,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = place_text,
+                                             .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL);
         }
         if (!carries)
         {
             continue;
         }
-        unsigned int operands = (mmgr_text_char(form->text, ' ', PLATFORM_TEXT_TO_TERMINATOR) != NULL) ? 1u : 0u;
+        unsigned int operands = (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = form->text,
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ' ') != NULL)
+                                    ? 1u
+                                    : 0u;
         for (const char *walk = form->text; *walk != '\0'; walk += 1)
         {
             operands += (*walk == ',') ? 1u : 0u;

@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_seal.cu: side bytes, the seal and the crystal's verification
-#include "engine_internal.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "engine_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 int entry_side_pack(EngineSideSection *section, EngineError *error)
 {
@@ -65,14 +65,21 @@ int entry_side_same(const EngineSideBytes *one, const EngineSideBytes *other)
     {
         return 1;
     }
-    return (mmgr_bytes_compare(one->pixel_at, other->pixel_at, words) == 0) &&
-           (mmgr_bytes_compare(one->pixel_stored, other->pixel_stored, words) == 0) &&
-           (mmgr_bytes_compare(one->byte_start, other->byte_start, fenced) == 0) &&
-           (mmgr_bytes_compare(one->name_start, other->name_start, fenced) == 0) &&
-           (mmgr_bytes_compare(one->member_crc, other->member_crc, words) == 0) &&
-           (mmgr_bytes_compare(one->member_bytes, other->member_bytes, words) == 0) &&
-           (mmgr_bytes_compare(one->bytes, other->bytes, (size_t)one->byte_start[leaves]) == 0) &&
-           (mmgr_bytes_compare(one->names, other->names, (size_t)one->name_start[leaves]) == 0);
+    return (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->pixel_at, .other = other->pixel_at, .bytes = words) == 0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->pixel_stored, .other = other->pixel_stored, .bytes = words) ==
+            0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->byte_start, .other = other->byte_start, .bytes = fenced) ==
+            0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->name_start, .other = other->name_start, .bytes = fenced) ==
+            0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->member_crc, .other = other->member_crc, .bytes = words) ==
+            0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->member_bytes, .other = other->member_bytes, .bytes = words) ==
+            0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->bytes, .other = other->bytes,
+                       .bytes = (size_t)one->byte_start[leaves]) == 0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->names, .other = other->names,
+                       .bytes = (size_t)one->name_start[leaves]) == 0);
 }
 
 #define ENTRY_SAMPLE_WORDS 12u
@@ -81,7 +88,8 @@ int entry_side_same(const EngineSideBytes *one, const EngineSideBytes *other)
 
 int entry_signum_same(const EngineSignum *one, const EngineSignum *other)
 {
-    return mmgr_bytes_compare(one->bytes, other->bytes, ENGINE_SIGNUM_BYTES) == 0;
+    return EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->bytes, .other = other->bytes, .bytes = ENGINE_SIGNUM_BYTES) ==
+           0;
 }
 
 static int entry_keyed(ObsignatioLevel level, const unsigned char *bytes, unsigned long long count, EngineSignum *out,
@@ -176,7 +184,8 @@ static int entry_seal_stream(const EngineStream *stream, const EngineSignum *lea
     }
     entry_words_place(buffer, stream->offsets, stream->chunks);
     entry_words_place(&buffer[offset_bytes], &stream->bits, 1ULL);
-    mmgr_bytes_copy(&buffer[offset_bytes + 8ULL], leaves, (size_t)(ENGINE_SIGNUM_BYTES * stream->chunks));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &buffer[offset_bytes + 8ULL], .src = leaves,
+               .bytes = (size_t)(ENGINE_SIGNUM_BYTES * stream->chunks));
     const int ok = entry_keyed(OBSIGNATIO_LEVEL_STREAM, buffer, bytes, root, error);
     platform_cell_released(buffer, platform_place_g_program_owner);
     return ok;
@@ -198,8 +207,10 @@ static int entry_seal_side_inflated(const EngineSideSection *section, EngineSign
 static int entry_seal_side_root(EngineSignum *roots, EngineError *error)
 {
     unsigned char both[2u * ENGINE_SIGNUM_BYTES];
-    mmgr_bytes_copy(both, roots[ENGINE_SEAL_SIDE_STORED].bytes, ENGINE_SIGNUM_BYTES);
-    mmgr_bytes_copy(&both[ENGINE_SIGNUM_BYTES], roots[ENGINE_SEAL_SIDE_INFLATED].bytes, ENGINE_SIGNUM_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = both, .src = roots[ENGINE_SEAL_SIDE_STORED].bytes,
+               .bytes = ENGINE_SIGNUM_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &both[ENGINE_SIGNUM_BYTES], .src = roots[ENGINE_SEAL_SIDE_INFLATED].bytes,
+               .bytes = ENGINE_SIGNUM_BYTES);
     return entry_keyed(OBSIGNATIO_LEVEL_SIDE, both, sizeof(both), &roots[ENGINE_SEAL_SIDE], error);
 }
 
@@ -231,7 +242,7 @@ static int entry_seal_members(const EngineSideSection *section, EngineSignum *ro
         at = &at[8ULL * leaves];
         entry_words_place(at, side->member_bytes, leaves);
         at = &at[8ULL * leaves];
-        mmgr_bytes_copy(at, side->names, (size_t)names);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = at, .src = side->names, .bytes = (size_t)names);
     }
     const int ok = entry_keyed(OBSIGNATIO_LEVEL_MEMBERS, buffer, bytes, root, error);
     platform_cell_released(buffer, platform_place_g_program_owner);
@@ -258,16 +269,20 @@ static int entry_seal_sample(const EngineStream *stream, const EngineSideSection
     unsigned char byte[(8u * ENTRY_SAMPLE_WORDS) + (ENTRY_SAMPLE_ROOTS * ENGINE_SIGNUM_BYTES)];
     entry_words_place(byte, words, ENTRY_SAMPLE_WORDS);
     unsigned char *const roots = &byte[8u * ENTRY_SAMPLE_WORDS];
-    mmgr_bytes_copy(roots, seal->lane_nodes[seal->lane_count - 1ULL].bytes, ENGINE_SIGNUM_BYTES);
-    mmgr_bytes_copy(&roots[ENGINE_SIGNUM_BYTES], seal->roots[ENGINE_SEAL_STREAM].bytes, ENGINE_SIGNUM_BYTES);
-    mmgr_bytes_copy(&roots[2u * ENGINE_SIGNUM_BYTES], seal->roots[ENGINE_SEAL_SIDE].bytes, ENGINE_SIGNUM_BYTES);
-    mmgr_bytes_copy(&roots[3u * ENGINE_SIGNUM_BYTES], seal->roots[ENGINE_SEAL_MEMBERS].bytes, ENGINE_SIGNUM_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = roots, .src = seal->lane_nodes[seal->lane_count - 1ULL].bytes,
+               .bytes = ENGINE_SIGNUM_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &roots[ENGINE_SIGNUM_BYTES], .src = seal->roots[ENGINE_SEAL_STREAM].bytes,
+               .bytes = ENGINE_SIGNUM_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &roots[2u * ENGINE_SIGNUM_BYTES],
+               .src = seal->roots[ENGINE_SEAL_SIDE].bytes, .bytes = ENGINE_SIGNUM_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &roots[3u * ENGINE_SIGNUM_BYTES],
+               .src = seal->roots[ENGINE_SEAL_MEMBERS].bytes, .bytes = ENGINE_SIGNUM_BYTES);
     return entry_keyed(OBSIGNATIO_LEVEL_SAMPLE, byte, sizeof(byte), &seal->roots[ENGINE_SEAL_SAMPLE], error);
 }
 
 static int entry_seal_open(const EngineStream *stream, EngineSeal *seal, EngineError *error)
 {
-    mmgr_bytes_set(seal, 0, sizeof(*seal));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = seal, .bytes = sizeof(*seal), .val = 0);
     seal->lane_count = obsignatio_lanes_nodes(stream->extent);
     seal->chunk_count = stream->chunks;
     seal->lane_nodes = (EngineSignum *)platform_cell_cleared((size_t)seal->lane_count + 1u, sizeof(EngineSignum),
@@ -307,7 +322,7 @@ int entry_crystal_verify(const EngineStream *file, EngineSideSection *section, c
                          EngineError *error)
 {
     record->crystal_read = 1ULL;
-    mmgr_bytes_copy(record->extent, file->extent, sizeof(record->extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = record->extent, .src = file->extent, .bytes = sizeof(record->extent));
     record->root = seal->roots[ENGINE_SEAL_SAMPLE];
     EngineSeal fresh;
     int ok = entry_seal_open(file, &fresh, error);
@@ -396,11 +411,13 @@ unsigned long long entry_report_capacity(char *const *samples, unsigned long lon
                                          const char *set)
 {
     const unsigned long long fixed =
-        mmgr_text_length(source, ENTRY_PATH_CAPACITY) + mmgr_text_length(set, ENTRY_PATH_CAPACITY);
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = source, .cap = ENTRY_PATH_CAPACITY) +
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = set, .cap = ENTRY_PATH_CAPACITY);
     unsigned long long needed = (2ULL * ENTRY_ROW_TEXT) + fixed;
     for (unsigned long long sample = 0ULL; sample < reached; sample += 1ULL)
     {
-        needed += ENTRY_ROW_TEXT + fixed + mmgr_text_length(samples[sample], ENTRY_PATH_CAPACITY);
+        needed += ENTRY_ROW_TEXT + fixed +
+                  EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = samples[sample], .cap = ENTRY_PATH_CAPACITY);
     }
     return needed;
 }

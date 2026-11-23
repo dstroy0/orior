@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // asm_printer_program.cu: the ruleset flattened for the core's build, its memory, and what the build arranged stored
 #include "asm_printer_internal.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the lists of a flat ruleset as the fill writes them: the characters and texts so far
 struct AsmPrinterFlatFill
@@ -18,11 +18,13 @@ struct AsmPrinterFlatFill
 static unsigned int asm_printer_flat_text(AsmPrinterFlatFill *fill, const char *text)
 {
     // the ruleset's texts and characters are far fewer than 2^32; the build errors on more than its tables contain
-    const unsigned int length = (unsigned int)mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
+    const unsigned int length =
+        (unsigned int)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     if (fill->texts != NULL)
     {
         const AsmPrinterCoreText taken = {fill->character_count, length};
-        mmgr_bytes_copy(&fill->characters[fill->character_count], text, length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &fill->characters[fill->character_count], .src = text,
+                   .bytes = length);
         fill->texts[fill->text_count] = taken;
     }
     fill->character_count += length;
@@ -81,7 +83,7 @@ static unsigned int asm_printer_flat_fill(const Ruleset *rules, const char *head
 
 int asm_printer_flatten(const Ruleset *rules, const TargetInfo *target, const char *header, AsmPrinterFlat *flat)
 {
-    mmgr_bytes_set(flat, 0, sizeof(*flat));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = flat, .bytes = sizeof(*flat), .val = 0);
     AsmPrinterCoreRules *const flattened = &flat->rules;
     AsmPrinterFlatFill count = {NULL, NULL, 0u, 0u};
     const unsigned int placeholders = asm_printer_flat_fill(rules, header, &count, NULL, flattened);
@@ -206,7 +208,8 @@ int asm_printer_words_taken(AsmPrinterWords *words, const unsigned int *from, un
     words->count = (words->words != NULL) ? count : 0ULL;
     if ((words->words != NULL) && (count != 0ULL))
     {
-        mmgr_bytes_copy(words->words, from, (size_t)(count * sizeof(unsigned int)));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = words->words, .src = from,
+                   .bytes = (size_t)(count * sizeof(unsigned int)));
     }
     return (words->words != NULL) ? 1 : 0;
 }
@@ -221,8 +224,8 @@ void asm_printer_words_ended(AsmPrinterWords *words)
 int asm_printer_words_same(const AsmPrinterWords *left, const AsmPrinterWords *right)
 {
     return (left->count == right->count) &&
-           ((left->count == 0ULL) ||
-            (mmgr_bytes_compare(left->words, right->words, (size_t)(left->count * sizeof(unsigned int))) == 0));
+           ((left->count == 0ULL) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->words, .other = right->words,
+                                                 .bytes = (size_t)(left->count * sizeof(unsigned int))) == 0));
 }
 
 int asm_printer_store(const AsmPrinterCoreBuild *build, AsmPrinterRuleset *text_rules)
@@ -261,11 +264,14 @@ int asm_printer_store(const AsmPrinterCoreBuild *build, AsmPrinterRuleset *text_
     ok = ok && (program->steps != NULL);
     if (program->steps != NULL)
     {
-        mmgr_bytes_copy(program->steps, build->steps, (size_t)build->step_count * sizeof(EngineRecordStep));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program->steps, .src = build->steps,
+                   .bytes = (size_t)build->step_count * sizeof(EngineRecordStep));
     }
-    mmgr_bytes_copy(program->field_bits, build->field_bits, sizeof(program->field_bits));
-    mmgr_bytes_copy(program->field_offset, build->field_offset, sizeof(program->field_offset));
-    mmgr_bytes_copy(program->tables, build->tables, sizeof(program->tables));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program->field_bits, .src = build->field_bits,
+               .bytes = sizeof(program->field_bits));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program->field_offset, .src = build->field_offset,
+               .bytes = sizeof(program->field_offset));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program->tables, .src = build->tables, .bytes = sizeof(program->tables));
     for (unsigned int table = 0u; table < ASM_PRINTER_TABLES; table += 1u)
     {
         const unsigned long long rows = 1ULL << build->tables[table].index_bits;

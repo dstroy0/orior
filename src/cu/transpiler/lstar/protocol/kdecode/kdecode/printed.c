@@ -4,16 +4,17 @@
 // the columns of a table, the format oracle, a change, and the table
 #include "../../../../../../../includes/parsers/who.h"
 #include "../../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../table_text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "kdecode_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the word at `place` of the retained row `row`
 static unsigned long long kdecode_row_word(const KdecodeRow *row, size_t place)
 {
     unsigned long long word = 0ULL;
-    mmgr_bytes_copy(&word, row->words_at + (place * 8u), 8u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &word, .src = row->words_at + (place * 8u), .bytes = 8u);
     return word;
 }
 
@@ -120,18 +121,23 @@ static void kdecode_column_printed(const KdecodeRun *run, const KdecodeOracle *o
                                    unsigned long long value)
 {
     const char *const form = column->form;
-    const char *const either = mmgr_text_char(form, '|', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const either =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = form, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '|');
     char family[KDECODE_WORD] = "";
-    if ((form[0] == '<') && (mmgr_text_char(form, '>', PLATFORM_TEXT_TO_TERMINATOR) != NULL))
+    if ((form[0] == '<') &&
+        (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = form, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '>') != NULL))
     {
         // the family is the form's word, between its brackets
         VerbaLinea word = {family, sizeof(family), 0ULL};
         mmgr_line_put_max(&word, form + 1,
-                          (unsigned long long)(mmgr_text_char(form, '>', PLATFORM_TEXT_TO_TERMINATOR) - form - 1));
+                          (unsigned long long)(EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = form,
+                                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '>') -
+                                               form - 1));
         mmgr_line_finish(&word);
     }
     const char *const named = kdecode_code_named(oracle, family, value);
-    if (mmgr_text_equal(family, "key", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = family, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "key",
+                   .ci = EMBED_FALSE))
     {
         const KdecodeBlob *const blob = kdecode_key_named(run, value);
         kdecode_decimal_displayed(value);
@@ -141,7 +147,8 @@ static void kdecode_column_printed(const KdecodeRun *run, const KdecodeOracle *o
             mmgr_line_put_n(&s_displayed, blob->name, blob->name_length);
         }
     }
-    else if (mmgr_text_equal(family, "text", PLATFORM_TEXT_TO_TERMINATOR))
+    else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = family, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "text",
+                        .ci = EMBED_FALSE))
     {
         kdecode_text_printed(run, 0ULL, value);
     }
@@ -163,7 +170,9 @@ static void kdecode_column_printed(const KdecodeRun *run, const KdecodeOracle *o
         mmgr_line_ch(&s_displayed, ' ');
         mmgr_line_put(&s_displayed, named);
     }
-    else if (kdecode_family_given(oracle, family) || (mmgr_text_equal(family, "hash", PLATFORM_TEXT_TO_TERMINATOR)) ||
+    else if (kdecode_family_given(oracle, family) ||
+             (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = family, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "hash",
+                         .ci = EMBED_FALSE)) ||
              (either != NULL))
     {
         kdecode_hex_displayed(value);
@@ -224,7 +233,7 @@ static const KdecodeOracle *kdecode_format_oracle(const KdecodeRun *run, unsigne
         size_t length = 0u;
         while ((length < 4u) && (run->file[at].type[length] != '\0'))
         {
-            stem[length] = (char)mmgr_text_lower((unsigned char)run->file[at].type[length]);
+            stem[length] = (char)EMBED_CALL(ascii.lower, AsciiCfg, .byte = (unsigned char)run->file[at].type[length]);
             length += 1u;
         }
         stem[length] = '\0';
@@ -367,7 +376,8 @@ int kdecode_table(const char *path, const char *table, int raw, unsigned long lo
     mmgr_line_put(&oracle_line, table);
     mmgr_line_put(&oracle_line, ".oracle.tsv");
     mmgr_line_finish(&oracle_line);
-    const int texts = (mmgr_text_equal(table, TABLE_TEXTS, PLATFORM_TEXT_TO_TERMINATOR));
+    const int texts = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = table, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = TABLE_TEXTS, .ci = EMBED_FALSE));
     const int columned =
         !raw && !texts && kdecode_oracle_read(&run, oracle_path, &s_oracle, 0) && (s_oracle.columns != 0u);
     for (unsigned int at = 0u; columned && (at < s_oracle.columns); at += 1u)

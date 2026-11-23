@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // probe.c: the probe: a file read and written, bits and words read and written, the binary and the text, the kernel, a
 // place found and written, and one question run on the part
-#include "unprinted_internal.h"
 #include "../../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "unprinted_internal.h"
 
 SassMachine s_machine;
 
@@ -106,12 +106,15 @@ void unprinted_binary(unsigned long long value, unsigned int bits, char *text)
 // contains no such line or `text` will not fit the whole
 int unprinted_text(const char *kernel_text, const char *lines, char *text, size_t room)
 {
-    const char *const line = mmgr_text_find(kernel_text, "\nIADD3 ", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const line =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = kernel_text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "\nIADD3 ", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if (line == NULL)
     {
         return 0;
     }
-    const char *const after = mmgr_text_char(line + 1, '\n', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const after =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\n');
     const size_t before = (size_t)(line - kernel_text) + 1u;
     VerbaLinea formed_line_1 = mmgr_line_over(text, room);
     mmgr_line_put_max(&formed_line_1, kernel_text, (size_t)((int)before));
@@ -124,11 +127,13 @@ int unprinted_text(const char *kernel_text, const char *lines, char *text, size_
 // the kernel the kernel's text opens with, `.text.<kernel>:`, into `kernel`: 1, or 0 where it opens otherwise
 int unprinted_kernel(const char *kernel_text, char *kernel, size_t room)
 {
-    if (!mmgr_text_starts(kernel_text, ".text.", PLATFORM_TEXT_TO_TERMINATOR))
+    if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = kernel_text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = ".text.", .ci = EMBED_FALSE))
     {
         return 0;
     }
-    const size_t length = mmgr_text_span_not(kernel_text + 6, ":\r\n", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = kernel_text + 6,
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ":\r\n");
     VerbaLinea formed_line_7;
     return (kernel_text[6u + length] == ':') &&
            ((formed_line_7 = mmgr_line_over(kernel, room),
@@ -180,7 +185,7 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
                   size_t room)
 {
     CubinWrite written;
-    mmgr_bytes_set(&written, 0, sizeof(written));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &written, .bytes = sizeof(written), .val = 0);
     written.pattern = s_pattern;
     written.pattern_size = s_pattern_size;
     written.kernel = s_kernel;
@@ -235,11 +240,11 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
                              (char *)"00000001", (char *)"00000004", NULL};
     const InterfaceProbe probe = {command, output, UNPRINTED_LIMIT};
     InterfaceAnswer answer;
-    mmgr_bytes_set(&answer, 0, sizeof(answer));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &answer, .bytes = sizeof(answer), .val = 0);
     answer.output = s_output;
     answer.output_capacity = sizeof(s_output);
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     if (interface_probe_run(&probe, &answer, &error) != 0L)
     {
         {
@@ -249,21 +254,29 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
         }
         return 0;
     }
-    const char *const line = mmgr_text_find(s_output, "answered ", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const line =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = s_output, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "answered ", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if ((answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ULL) || (line == NULL))
     {
         // the runner names the error the part raised on a line of its own, "error <number> <name>"
-        const char *const raised = mmgr_text_find(s_output, "error ", PLATFORM_TEXT_TO_TERMINATOR);
-        const char *const name = (raised != NULL) ? mmgr_text_char(raised + 6, ' ', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+        const char *const raised =
+            EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = s_output, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "error ", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+        const char *const name = (raised != NULL) ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = raised + 6,
+                                                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ' ')
+                                                  : NULL;
         {
             VerbaLinea buffer_line = mmgr_line_over(ended, room);
             mmgr_line_put(&buffer_line, interface_ending_name(answer.ending));
             mmgr_line_put(&buffer_line, ", code ");
             mmgr_line_decimal(&buffer_line, answer.code, 1u);
             mmgr_line_put(&buffer_line, (name != NULL) ? ", " : "");
-            mmgr_line_put_max(
-                &buffer_line, (name != NULL) ? name + 1 : "",
-                (size_t)((name != NULL) ? (int)mmgr_text_span_not(name + 1, "\r\n", PLATFORM_TEXT_TO_TERMINATOR) : 0));
+            mmgr_line_put_max(&buffer_line, (name != NULL) ? name + 1 : "",
+                              (size_t)((name != NULL)
+                                           ? (int)EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = name + 1,
+                                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\r\n")
+                                           : 0));
             (void)mmgr_line_finish(&buffer_line);
         }
         return 0;
@@ -273,7 +286,8 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
     for (unsigned int word = 0u; word < UNPRINTED_COPIES; word += 1u)
     {
         const char *after = NULL;
-        answered[word] = (unsigned int)mmgr_text_unsigned_in(walk, &after, 16);
+        answered[word] =
+            (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = walk, .end = &after, .base = 16);
         walk = after;
     }
     return 1;

@@ -3,10 +3,28 @@
 // encoding.c: the encoding read: bits read, signed values, the open bits, a form relocated and landed, a name within, a
 // holder named, the places an encoding matches, an encoding's form, an operand read, the encoding read, and the loop
 // walked
-#include "sass_assemble_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sass_assemble_internal.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int encoding_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // one form that matches an encoding, where its operands sit, and how many bits it leaves to them
 typedef struct
@@ -109,7 +127,9 @@ static int sass_form_relocated(const SassForm *form, const SassPlace *places)
 // is read as the place it lands, which a number in the same bits does not specify
 static int sass_form_lands(const SassForm *form, const SassForm *other)
 {
-    if ((other == NULL) || (!mmgr_text_equal(form->operation, other->operation, PLATFORM_TEXT_TO_TERMINATOR)) ||
+    if ((other == NULL) ||
+        (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = form->operation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                     .other = other->operation, .ci = EMBED_FALSE)) ||
         (form->operands != other->operands))
     {
         return 0;
@@ -126,21 +146,27 @@ static int sass_form_lands(const SassForm *form, const SassForm *other)
 // `plain` carries `named` carries too, as IMAD.IADD carries IMAD's and IMAD.MOV.U32 carries IMAD.U32's
 static int sass_name_within(const char *plain, const char *named)
 {
-    const size_t length = mmgr_text_span_not(plain, ".", PLATFORM_TEXT_TO_TERMINATOR);
-    int within =
-        (mmgr_text_span_not(named, ".", PLATFORM_TEXT_TO_TERMINATOR) == length) &&
-        (mmgr_text_order(plain, named, (size_t)(length)) == 0) &&
-        (mmgr_text_length(plain, PLATFORM_TEXT_TO_TERMINATOR) < mmgr_text_length(named, PLATFORM_TEXT_TO_TERMINATOR));
+    const size_t length =
+        EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = plain, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".");
+    int within = (EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = named, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = ".") == length) &&
+                 (encoding_text_order(plain, named, (size_t)(length)) == 0) &&
+                 (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = plain, .cap = PLATFORM_TEXT_TO_TERMINATOR) <
+                  EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = named, .cap = PLATFORM_TEXT_TO_TERMINATOR));
     for (const char *walk = plain + length; within && (*walk == '.');
-         walk += 1u + mmgr_text_span_not(walk + 1, ".", PLATFORM_TEXT_TO_TERMINATOR))
+         walk += 1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = walk + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                 .other = "."))
     {
-        const size_t modifier = 1u + mmgr_text_span_not(walk + 1, ".", PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t modifier = 1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = walk + 1,
+                                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".");
         int carried = 0;
         for (const char *seek = named + length; !carried && (*seek == '.');
-             seek += 1u + mmgr_text_span_not(seek + 1, ".", PLATFORM_TEXT_TO_TERMINATOR))
+             seek += 1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = seek + 1,
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "."))
         {
-            carried = ((1u + mmgr_text_span_not(seek + 1, ".", PLATFORM_TEXT_TO_TERMINATOR)) == modifier) &&
-                      (mmgr_text_order(seek, walk, (size_t)(modifier)) == 0);
+            carried = ((1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = seek + 1,
+                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".")) == modifier) &&
+                      (encoding_text_order(seek, walk, (size_t)(modifier)) == 0);
         }
         within = carried;
     }
@@ -228,7 +254,8 @@ static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned l
             {
                 continue;
             }
-            mmgr_bytes_copy(holder.places, placed[number].places, sizeof(holder.places));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = holder.places, .src = placed[number].places,
+                       .bytes = sizeof(holder.places));
             holder.open = placed[number].open;
         }
         else
@@ -295,7 +322,7 @@ static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned l
     }
     if (found != NULL)
     {
-        mmgr_bytes_copy(places, found->places, sizeof(found->places));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = places, .src = found->places, .bytes = sizeof(found->places));
     }
     return (found != NULL) ? found->form : NULL;
 }
@@ -413,7 +440,10 @@ static void sass_operand_read(const SassForm *form, const SassInstructionParts *
         const unsigned long long offset =
             (place->has_offset != 0) ? sass_bits_read(low, high, place->offset.first, place->offset.bits) : 0ULL;
         const char *const wide =
-            (mmgr_text_find(base->operand[at], ".64", PLATFORM_TEXT_TO_TERMINATOR) != NULL) ? ".64" : "";
+            (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = base->operand[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = ".64", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL)
+                ? ".64"
+                : "";
         char named[16];
         VerbaLinea formed_line_23;
         VerbaLinea formed_line_24;

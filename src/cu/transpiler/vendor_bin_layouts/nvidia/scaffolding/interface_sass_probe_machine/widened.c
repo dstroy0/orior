@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // widened.c: the machine widened: a form's fields, an operation named, what a widening contains, the machine widened,
 // its fields, the sweep's carriers, the machine swept, and two machines the same
-#include "probe_machine_internal.h"
 #include "../../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "probe_machine_internal.h"
 
 // one form's fields found: each of its 128 bits turned over and decoded, and each run of bits that changes one
 // printed operand retained as that operand's, then the run of an operand it carries and does not print. 1, or 0 where
@@ -65,10 +65,12 @@ static int sass_form_fields(SassForm *form, const char *architecture, const char
 // reads. The three are one refusal wearing three definitions, and a form stored under any of them is a false branch
 static int sass_operation_named(const char *operation)
 {
-    const size_t length = mmgr_text_length(operation, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = operation, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     return (length != 0u) && (operation[length - 1u] != '.') &&
-           (mmgr_text_find(operation, "INVALID", PLATFORM_TEXT_TO_TERMINATOR) == NULL) &&
-           (mmgr_text_find(operation, "???", PLATFORM_TEXT_TO_TERMINATOR) == NULL);
+           (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = operation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "INVALID", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) == NULL) &&
+           (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = operation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "???", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) == NULL);
 }
 
 // 1 where `text` is an instruction a form can be stored from: the disassembler took it, it names an operation it could
@@ -81,8 +83,10 @@ static int sass_operation_named(const char *operation)
 // moved, or its control bits -- is turned away by sass_machine_take, which finds the operation and the types
 static int sass_widened_matches(const char *text, SassInstructionParts *parts)
 {
-    if ((mmgr_text_equal(text, "illegal", PLATFORM_TEXT_TO_TERMINATOR)) ||
-        (mmgr_text_equal(text, "unprinted", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "illegal",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "unprinted",
+                    .ci = EMBED_FALSE)))
     {
         return 0;
     }
@@ -149,11 +153,15 @@ unsigned int sass_machine_widen(SassMachine *machine, const char *architecture, 
                 // what the decoder reported about this one bit, for the .ksc: it refused the encoding, it took it and
                 // printed no line, or it named it. Every bit of every form goes through here: they are counted and
                 // not stored whole
-                sass_class_count(SASS_CHANNEL_DECODE,
-                                 (mmgr_text_equal(text, "illegal", PLATFORM_TEXT_TO_TERMINATOR)) ? SASS_CLASS_ILLEGAL
-                                 : (mmgr_text_equal(text, "unprinted", PLATFORM_TEXT_TO_TERMINATOR))
-                                     ? SASS_CLASS_NOTHING
-                                     : SASS_CLASS_ANSWERS);
+                sass_class_count(
+                    SASS_CHANNEL_DECODE,
+                    (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = "illegal", .ci = EMBED_FALSE))
+                        ? SASS_CLASS_ILLEGAL
+                    : (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "unprinted", .ci = EMBED_FALSE))
+                        ? SASS_CLASS_NOTHING
+                        : SASS_CLASS_ANSWERS);
                 if (sass_widened_matches(text, &parts))
                 {
                     sass_machine_take(machine, text, s_low[1u + bit], s_high[1u + bit], &found_form);
@@ -211,7 +219,9 @@ int sass_machine_fields(SassMachine *machine, const char *architecture, const ch
         const SassForm *const was = &machine->form[number];
         const SassForm *const now = &s_again.form[number];
         differed += ((number >= s_again.forms) || (was->low != now->low) || (was->high != now->high) ||
-                     (was->runs != now->runs) || (!mmgr_text_equal(was->text, now->text, PLATFORM_TEXT_TO_TERMINATOR)))
+                     (was->runs != now->runs) ||
+                     (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = was->text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = now->text, .ci = EMBED_FALSE)))
                         ? 1u
                         : 0u;
     }
@@ -311,13 +321,19 @@ unsigned int sass_machine_sweep(SassMachine *machine, const char *architecture, 
             for (unsigned int at = 0u; at < count; at += 1u)
             {
                 const char *const text = s_texts[at];
-                sass_class_count(SASS_CHANNEL_DECODE,
-                                 (mmgr_text_equal(text, "illegal", PLATFORM_TEXT_TO_TERMINATOR)) ? SASS_CLASS_ILLEGAL
-                                 : (mmgr_text_equal(text, "unprinted", PLATFORM_TEXT_TO_TERMINATOR))
-                                     ? SASS_CLASS_NOTHING
-                                     : SASS_CLASS_ANSWERS);
-                named += ((!mmgr_text_equal(text, "illegal", PLATFORM_TEXT_TO_TERMINATOR)) &&
-                          (!mmgr_text_equal(text, "unprinted", PLATFORM_TEXT_TO_TERMINATOR)))
+                sass_class_count(
+                    SASS_CHANNEL_DECODE,
+                    (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = "illegal", .ci = EMBED_FALSE))
+                        ? SASS_CLASS_ILLEGAL
+                    : (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "unprinted", .ci = EMBED_FALSE))
+                        ? SASS_CLASS_NOTHING
+                        : SASS_CLASS_ANSWERS);
+                named += ((!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                       .other = "illegal", .ci = EMBED_FALSE)) &&
+                          (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                       .other = "unprinted", .ci = EMBED_FALSE)))
                              ? 1u
                              : 0u;
                 SassInstructionParts parts;
@@ -382,7 +398,8 @@ int sass_machine_same(const SassMachine *machine, const char *machines)
         const SassForm *const filled = &s_tree.form[number];
         const SassForm *const found = &machine->form[number];
         differed += ((filled->low != found->low) || (filled->high != found->high) ||
-                     (!mmgr_text_equal(filled->text, found->text, PLATFORM_TEXT_TO_TERMINATOR)) ||
+                     (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = filled->text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = found->text, .ci = EMBED_FALSE)) ||
                      (filled->runs != found->runs))
                         ? 1u
                         : 0u;

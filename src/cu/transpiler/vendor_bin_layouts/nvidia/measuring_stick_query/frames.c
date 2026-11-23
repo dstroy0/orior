@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frames.c: the pieces set aside from the accumulated run read alone by a pool of reader threads, each frame read
 // against the vendor, and what the cross reports of an instruction read clear or blocked
-#include "msq_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "msq_internal.h"
 
 // the pool marked failed for `why`, the first reason given recorded as the pool's
 static void msq_failed(MsqPool *pool, const char *why)
@@ -66,7 +66,7 @@ void *msq_pool_worker(void *argument)
 {
     MsqPool *const pool = (MsqPool *)argument;
     MsqReader reader;
-    mmgr_bytes_set(&reader, 0, sizeof(reader));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &reader, .bytes = sizeof(reader), .val = 0);
     reader.output_room = 8ULL << 20u;
     reader.output = (char *)platform_cell_taken((size_t)reader.output_room, platform_place_g_program_owner, 0);
     if (reader.output == NULL)
@@ -112,7 +112,7 @@ unsigned int msq_processors(void)
 // clean or stops at no instruction it names. 1, or 0 where a reading could not be run or the system gave no memory
 int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read)
 {
-    mmgr_bytes_set(read, 0, sizeof(*read));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = read, .bytes = sizeof(*read), .val = 0);
     const size_t instructions = (size_t)(frame->size / 16ULL);
     unsigned char *const copy =
         (unsigned char *)platform_cell_taken((size_t)frame->size + 1u, platform_place_g_program_owner, 0);
@@ -123,7 +123,7 @@ int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read)
         platform_cell_released(copy, platform_place_g_program_owner);
         return 0;
     }
-    mmgr_bytes_copy(copy, frame->bytes, (size_t)frame->size);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy, .src = frame->bytes, .bytes = (size_t)frame->size);
     const MsqBytes run = {copy, frame->size};
     while (1)
     {
@@ -153,7 +153,7 @@ int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read)
         }
         read->illegal[read->illegal_count] = address;
         read->illegal_count += 1u;
-        mmgr_bytes_copy(copy + address, s_nop, sizeof(s_nop));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy + address, .src = s_nop, .bytes = sizeof(s_nop));
     }
 }
 
@@ -161,7 +161,7 @@ void msq_frame_free(MsqFrame *read)
 {
     platform_cell_released(read->illegal, platform_place_g_program_owner);
     msq_listing_free(&read->listing);
-    mmgr_bytes_set(read, 0, sizeof(*read));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = read, .bytes = sizeof(*read), .val = 0);
 }
 
 // 1 where the instruction `body` is a control transfer or a wait (s_control) other than the EXIT a kernel ends in, by
@@ -175,14 +175,15 @@ int msq_control_read(const char *body)
     {
         length += 1u;
     }
-    if ((length == 4u) && (mmgr_bytes_compare(body + start, "EXIT", 4u) == 0))
+    if ((length == 4u) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = body + start, .other = "EXIT", .bytes = 4u) == 0))
     {
         return 0;
     }
     for (size_t at = 0u; at < (sizeof(s_control) / sizeof(s_control[0])); at += 1u)
     {
-        if ((mmgr_text_length(s_control[at], PLATFORM_TEXT_TO_TERMINATOR) == length) &&
-            (mmgr_bytes_compare(body + start, s_control[at], length) == 0))
+        if ((EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_control[at], .cap = PLATFORM_TEXT_TO_TERMINATOR) ==
+             length) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = body + start, .other = s_control[at], .bytes = length) == 0))
         {
             return 1;
         }
@@ -205,8 +206,8 @@ void msq_clear_reported(MsqVerdicts *verdicts, const MsqQuestion *question, cons
     }
     unsigned long long low = 0ULL;
     unsigned long long high = 0ULL;
-    mmgr_bytes_copy(&low, encoding, 8u);
-    mmgr_bytes_copy(&high, encoding + 8u, 8u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &low, .src = encoding, .bytes = 8u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &high, .src = encoding + 8u, .bytes = 8u);
     char clear[400];
     VerbaLinea formed_line_1 = mmgr_line_over(clear, sizeof(clear));
     mmgr_line_put(&formed_line_1, question->stem);
@@ -241,8 +242,8 @@ void msq_gate_reported(MsqVerdicts *verdicts, const MsqQuestion *question, const
     {
         unsigned long long low = 0ULL;
         unsigned long long high = 0ULL;
-        mmgr_bytes_copy(&low, encoding, 8u);
-        mmgr_bytes_copy(&high, encoding + 8u, 8u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &low, .src = encoding, .bytes = 8u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &high, .src = encoding + 8u, .bytes = 8u);
         char line[48];
         VerbaLinea formed_line_2 = mmgr_line_over(line, sizeof(line));
         mmgr_line_hex(&formed_line_2, low, 16u);
@@ -296,12 +297,17 @@ void msq_gate_reported(MsqVerdicts *verdicts, const MsqQuestion *question, const
 // the stem of `name`: past its last `/` or `\`, short of its last `.`
 void msq_stem(const char *name, char *stem, size_t room)
 {
-    const char *const forward = mmgr_text_char_last(name, '/', PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const back = mmgr_text_char_last(name, '\\', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const forward =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+    const char *const back =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
     const char *const slash = ((forward != NULL) && ((back == NULL) || (forward > back))) ? forward : back;
     const char *const base = (slash != NULL) ? (slash + 1) : name;
-    const char *const dot = mmgr_text_char_last(base, '.', PLATFORM_TEXT_TO_TERMINATOR);
-    const size_t length = (dot != NULL) ? (size_t)(dot - base) : mmgr_text_length(base, PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const dot =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = base, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.');
+    const size_t length =
+        (dot != NULL) ? (size_t)(dot - base)
+                      : EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = base, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     {
         VerbaLinea buffer_line = mmgr_line_over(stem, room);
         mmgr_line_put_max(&buffer_line, base, (size_t)((int)length));
@@ -312,13 +318,17 @@ void msq_stem(const char *name, char *stem, size_t room)
 // `name` short of its last `.`, the extension past it put in its place
 void msq_extension_put(const char *name, const char *extension, char *put, size_t room)
 {
-    const char *const forward = mmgr_text_char_last(name, '/', PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const back = mmgr_text_char_last(name, '\\', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const forward =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+    const char *const back =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
     const char *const slash = ((forward != NULL) && ((back == NULL) || (forward > back))) ? forward : back;
-    const char *const dot = mmgr_text_char_last(name, '.', PLATFORM_TEXT_TO_TERMINATOR);
-    const size_t length = ((dot != NULL) && ((slash == NULL) || (dot > slash)))
-                              ? (size_t)(dot - name)
-                              : mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const dot =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.');
+    const size_t length =
+        ((dot != NULL) && ((slash == NULL) || (dot > slash)))
+            ? (size_t)(dot - name)
+            : EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     {
         VerbaLinea buffer_line = mmgr_line_over(put, room);
         mmgr_line_put_max(&buffer_line, name, (size_t)((int)length));

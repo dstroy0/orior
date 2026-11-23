@@ -4,7 +4,7 @@
 #include "cycle_record_internal.h"
 
 #include "../../engine_note.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the owner that the cells of a loaded record count to
 #define CYCLE_RECORD_PLACE ((unsigned int)platform_place_g_engine_owner)
@@ -15,7 +15,7 @@ static void *cycle_record_cell(unsigned long long bytes)
     void *const cell = platform_cell_taken(bytes, CYCLE_RECORD_PLACE, 0);
     if (cell != NULL)
     {
-        mmgr_bytes_set(cell, 0u, (size_t)bytes);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = cell, .bytes = (size_t)bytes, .val = 0u);
     }
     return cell;
 }
@@ -38,13 +38,13 @@ extern "C" const EngineProgramBlock *cycle_record_block(const CycleRecord *recor
 }
 
 // The registers of the compiled program arranged in shared memory. The places of a thread take a word each, and the
-// signs of the file a byte each. The threads are as many as the shared memory of one thread block fits beside that of the
-// kernel. They are a whole number of warps, up to CYCLE_BLOCK where a warp fits.
+// signs of the file a byte each. The threads are as many as the shared memory of one thread block fits beside that of
+// the kernel. They are a whole number of warps, up to CYCLE_BLOCK where a warp fits.
 //
 // A program written as PTX that calls nothing allocates its registers itself, takes no places, and runs CYCLE_BLOCK
-// threads a thread block. The kernel may take that much, and it prefers shared memory to L1. The call asks the device how
-// many such thread blocks it fits at once. 0 where not one thread fits its registers, or where the runtime errors on any
-// of it. The program then stays on the interpreter
+// threads a thread block. The kernel may take that much, and it prefers shared memory to L1. The call asks the device
+// how many such thread blocks it fits at once. 0 where not one thread fits its registers, or where the runtime errors
+// on any of it. The program then stays on the interpreter
 static int cycle_record_share(CycleRecord *record, size_t kernel_bytes)
 {
     int device = 0;
@@ -156,11 +156,12 @@ extern "C" long cycle_record_load(const EngineRecordLayout *layout, CycleRecord 
         cycle_record_release(record);
         return CYCLE_ERROR;
     }
-    mmgr_bytes_copy(program, layout->step_table, (size_t)step_bytes);
-    mmgr_bytes_copy(program + step_bytes, extent, sizeof(extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program, .src = layout->step_table, .bytes = (size_t)step_bytes);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program + step_bytes, .src = extent, .bytes = sizeof(extent));
     if (table_bytes != 0ULL)
     {
-        mmgr_bytes_copy(program + step_bytes + sizeof(extent), layout->table_values, (size_t)table_bytes);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program + step_bytes + sizeof(extent), .src = layout->table_values,
+                   .bytes = (size_t)table_bytes);
     }
     const ObsignatioSignumRequest signum = {
         program, (size_t)program_bytes, NULL, OBSIGNATIO_MODE_HASH, record->block->signature.bytes, ENGINE_SIGNUM_BYTES,
@@ -185,7 +186,8 @@ extern "C" long cycle_record_load(const EngineRecordLayout *layout, CycleRecord 
     record->steps = layout->steps;
     record->members = layout->members;
     record->file_limbs = layout->file_limbs;
-    mmgr_bytes_copy(record->in_limbs, layout->in_limbs, sizeof(record->in_limbs));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = record->in_limbs, .src = layout->in_limbs,
+               .bytes = sizeof(record->in_limbs));
     record->out_limbs = layout->out_limbs;
     record->table_words = layout->table_word_count;
     for (unsigned int step = 0u; step < layout->steps; step += 1u)
@@ -205,8 +207,9 @@ extern "C" long cycle_record_load(const EngineRecordLayout *layout, CycleRecord 
     }
     if ((cycle_environment_set("CYCLE_RECORD_INTERPRET") == 0) && (compiled == 0))
     {
-        // every call above succeeded, and an error that the runtime still retains belongs to the attempt. The interpreter
-        // runs in its place, and the call drops the error before a run reads the last error of the runtime as its own
+        // every call above succeeded, and an error that the runtime still retains belongs to the attempt. The
+        // interpreter runs in its place, and the call drops the error before a run reads the last error of the runtime
+        // as its own
         cudaGetLastError();
     }
     // a host program has no device grant: its thread blocks are the host's threads, of one thread each

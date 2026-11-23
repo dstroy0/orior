@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tower_record.cu: the tower as record floors
+#include "memoria_operor/memoria_operor.h"
 #include "tower_internal.h"
-#include "memoria_operor/memoria_linea.h"
 
 // the ruleset tower_forward_kernel and tower_inverse_kernel run: the highs less floor((x_2j + x_(2j+2)) / 2), then the
 // lows plus floor((d_(j-1) + d_j + 2) / 4)
@@ -258,8 +258,10 @@ static long tower_record_run(const TowerRecordRequest *request, int inverse)
         platform_cell_released(registers, platform_place_g_program_owner);
         return TOWER_ERROR;
     }
-    mmgr_bytes_copy(named, request->in_registers, (size_t)lanes * sizeof(unsigned int));
-    mmgr_bytes_copy(registers, request->in_registers, (size_t)lanes * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = named, .src = request->in_registers,
+               .bytes = (size_t)lanes * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = registers, .src = request->in_registers,
+               .bytes = (size_t)lanes * sizeof(unsigned int));
     TowerFloors floors;
     tower_floors(request->extent, &floors);
     // counted first. A program its step names or the caller's capacity cannot fit errors before a step is written
@@ -288,7 +290,8 @@ static long tower_record_run(const TowerRecordRequest *request, int inverse)
     }
     if (ok)
     {
-        mmgr_bytes_copy(request->out_registers, named, (size_t)lanes * sizeof(unsigned int));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->out_registers, .src = named,
+                   .bytes = (size_t)lanes * sizeof(unsigned int));
         // the count was bounded by 2^32 - 1 above. It narrows to the program's next step exactly
         *request->count = (unsigned int)counted.count;
     }

@@ -6,11 +6,11 @@
 // machine file after those two, the folder is one an earlier run left its cubins in and only the loop query is put:
 // exit 0 where a form came back on every count, 1 where none did, 2 where the machine file was not read. Given
 // `queries` and a machine file, the questions are compiled and only the queries are put (sass_queries_main)
-#include "interface_sass_probe_main/probe_main_internal.h"
 #include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "interface_sass_probe_main/probe_main_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 int program_main(int count, char **arguments)
 {
@@ -30,11 +30,13 @@ int program_main(int count, char **arguments)
     probe->folder = arguments[2];
     probe->prober = arguments[1];
     probe->machine = &s_sass_machine;
-    if ((count > 4) && (mmgr_text_equal(arguments[3], "loop", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count > 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[3], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                   .other = "loop", .ci = EMBED_FALSE)))
     {
         return sass_loop_main(probe, arguments[4]);
     }
-    if ((count > 4) && (mmgr_text_equal(arguments[3], "queries", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count > 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[3], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                   .other = "queries", .ci = EMBED_FALSE)))
     {
         return sass_queries_main(probe, arguments[4]);
     }
@@ -116,7 +118,7 @@ int program_main(int count, char **arguments)
     }
     // every instruction listed, assembled back from its text alone, then disassembled and same to that text
     SassCheck tally;
-    mmgr_bytes_set(&tally, 0, sizeof(tally));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &tally, .bytes = sizeof(tally), .val = 0);
     unsigned int differed = 0u;
     if (sass_list(probe, "kernel", &s_sass_kernel))
     {
@@ -163,7 +165,7 @@ int program_main(int count, char **arguments)
     // learned with. Those are refused and never guessed at: the reader working. Counting them beside the
     // questions would read as a break where it is a frontier: they are counted and named on their own
     SassCheck reached;
-    mmgr_bytes_set(&reached, 0, sizeof(reached));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &reached, .bytes = sizeof(reached), .val = 0);
     unsigned int resident_differed = 0u;
     if (sass_list(probe, "resident", &s_sass_resident))
     {

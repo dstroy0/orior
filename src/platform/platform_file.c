@@ -4,9 +4,9 @@
 // A file written goes through a line of MMgr over its buffer, and the line passes the buffer to the system as it fills.
 // A file read holds the bytes of its last read in the same buffer. Each call answers as the call of the C library that
 // its comment in platform.h names
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "platform_internal.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
 
 // a text file writes a line's end as two bytes on Windows, and on no other system, as the C library does
 #if defined(_WIN32)
@@ -39,20 +39,20 @@ static int platform_file_passed(void *context, const char *bytes, size_t size)
 
 PlatformFile *platform_file_open(const char *path, const char *mode)
 {
-    const int kind = (mode[0] == 'r') ? 0 : ((mode[0] == 'w') ? 1 : ((mode[0] == 'a') ? 2 : -1));
+    const int type = (mode[0] == 'r') ? 0 : ((mode[0] == 'w') ? 1 : ((mode[0] == 'a') ? 2 : -1));
     const int binary = (mode[0] != '\0') && (mode[1] == 'b');
     const int whole = (mode[0] != '\0') && ((binary != 0) ? (mode[2] == '\0') : (mode[1] == '\0'));
-    if ((kind < 0) || !whole)
+    if ((type < 0) || !whole)
     {
         return NULL;
     }
-    const unsigned long long handle = platform_stream_opened(path, kind);
+    const unsigned long long handle = platform_stream_opened(path, type);
     if (handle == 0ULL)
     {
         return NULL;
     }
     // a file written after its end tells its end before the first write, as the C library places it
-    if ((kind == 2) && (platform_stream_placed(handle, 0LL, 2) < 0))
+    if ((type == 2) && (platform_stream_placed(handle, 0LL, 2) < 0))
     {
         (void)platform_stream_shut(handle);
         return NULL;
@@ -65,7 +65,7 @@ PlatformFile *platform_file_open(const char *path, const char *mode)
         return NULL;
     }
     file->handle = handle;
-    file->writing = (kind != 0) ? 1 : 0;
+    file->writing = (type != 0) ? 1 : 0;
     file->text = ((binary == 0) && (PLATFORM_FILE_TEXT_ENDS != 0)) ? 1 : 0;
     file->failed = 0;
     file->ended = 0;
@@ -125,7 +125,7 @@ size_t platform_file_write_items(const void *bytes, size_t size, size_t count, P
 
 int platform_file_text_put(const char *text, PlatformFile *file)
 {
-    const size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     return (platform_file_write_items(text, 1u, length, file) == length) ? 0 : PLATFORM_FILE_END;
 }
 
@@ -204,7 +204,7 @@ size_t platform_file_read_items(void *out, size_t size, size_t count, PlatformFi
     {
         const size_t left = file->held - file->taken;
         const size_t piece = ((total - got) < left) ? (total - got) : left;
-        (void)mmgr_bytes_copy(into + got, file->buffer + file->taken, piece);
+        (void)EMBED_CALL(memor.cpy, MemoriaCfg, .dst = into + got, .src = file->buffer + file->taken, .bytes = piece);
         file->taken += piece;
         got += piece;
     }

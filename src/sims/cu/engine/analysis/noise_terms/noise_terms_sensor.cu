@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_terms_sensor.cu: static columns, ladder, crosstalk, charge and blur
-#include "noise_terms_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "noise_terms_internal.h"
 
 // The static voxels the ladder reads, counted by column along x, where the ladder's scene sets the level: the
 // detector's rule (noise_detector_lines.cu:155-234) run again on the host. A voxel that changes, never touches either
@@ -31,11 +31,12 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
         (unsigned int)platform_place_g_program_owner, 0);
     const int ok = (totals != NULL) && (squares != NULL) && (least != NULL) && (max != NULL) && (mask != NULL) &&
                    (counted != NULL);
-    mmgr_bytes_set(columns, 0, (size_t)TERMS_WIDTH * sizeof(unsigned long long));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = columns, .bytes = (size_t)TERMS_WIDTH * sizeof(unsigned long long),
+               .val = 0);
     *ceiling = 0ULL;
     if (ok != 0)
     {
-        mmgr_bytes_set(least, 0xFF, (size_t)voxels * sizeof(unsigned short));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = least, .bytes = (size_t)voxels * sizeof(unsigned short), .val = 0xFF);
         for (unsigned long long frame = 0ULL; frame < TERMS_FRAMES; frame += 1ULL)
         {
             const unsigned short *const lane = &lanes[frame * voxels];
@@ -126,7 +127,7 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
 void terms_ladder(SimResults *results, const unsigned short *lanes)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     NoiseLadderMeasurement measurement;
     const int ok = noise_ladder_volume(lanes, TERMS_EXTENT, &measurement, &error) == 0L;
     sim_check(results, ok, "the ladder read the volume");
@@ -216,7 +217,7 @@ void terms_crosstalk_mix(unsigned short *lanes, const unsigned short *drawn)
 void terms_crosstalk(SimResults *results, const unsigned short *lanes, unsigned long long along_x_eighths)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     NoiseCrosstalkMeasurement measurement;
     const int ok = noise_crosstalk_volume(lanes, TERMS_EXTENT, &measurement, &error) == 0L;
     sim_check(results, ok, "the crosstalk pass read the volume");
@@ -260,7 +261,7 @@ void terms_crosstalk(SimResults *results, const unsigned short *lanes, unsigned 
 void terms_charge(SimResults *results, const unsigned short *bias, const unsigned short *dark, const SimCamera *camera)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     NoiseChargeMeasurement measurement;
     const int ok = noise_charge_series(bias, dark, TERMS_EXTENT, &measurement, &error) == 0L;
     sim_check(results, ok, "the charge pass read the series");
@@ -296,7 +297,7 @@ void terms_thinned(SimResults *results, const unsigned short *bias, const unsign
                    unsigned long long expected_denominator)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     NoiseChargeMeasurement measurement;
     const int ok = noise_charge_series(bias, lit, TERMS_EXTENT, &measurement, &error) == 0L;
     sim_check(results, ok && (measurement.gain_read != 0), "the charge pass read the lit series against the bias");

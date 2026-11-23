@@ -4,15 +4,15 @@
 // and the file tabled by a who
 #include "../../../../src/cu/transpiler/lstar/protocol/table_text.h"
 #include "../../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../parsers/who.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "krep_records_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 void krep_open(KrepFile *file, const char *type)
 {
     krep_free(file);
-    mmgr_bytes_copy(file->type, type, 4u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = file->type, .src = type, .bytes = 4u);
 }
 
 int krep_read(KrepFile *file, const char *path, const char *type, char *error, size_t room)
@@ -24,12 +24,13 @@ int krep_read(KrepFile *file, const char *path, const char *type, char *error, s
     {
         return 1;
     }
-    if ((size < KREP_HEAD_BYTES) || (mmgr_bytes_compare(bytes, KREP_MAGIC, 8u) != 0))
+    if ((size < KREP_HEAD_BYTES) ||
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes, .other = KREP_MAGIC, .bytes = 8u) != 0))
     {
         return 2;
     }
     const char *stopped = NULL;
-    if (mmgr_bytes_compare(bytes + 8u, type, 4u) != 0)
+    if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes + 8u, .other = type, .bytes = 4u) != 0)
     {
         stopped = "is not of the type read";
     }
@@ -115,8 +116,8 @@ static unsigned long long krep_filed(const KrepFile *file, const char *path, Who
     static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     const size_t room = sizeof(s_text_bytes);
     unsigned char head[KREP_HEAD_BYTES];
-    mmgr_bytes_copy(head, KREP_MAGIC, 8u);
-    mmgr_bytes_copy(head + 8u, file->type, 4u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = head, .src = KREP_MAGIC, .bytes = 8u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = head + 8u, .src = file->type, .bytes = 4u);
     krep_half_put(head + 12u, KREP_VERSION);
     size_t text = verba_textus.put_n(&(VerbaTextusCfg){
         .out = s_text_bytes, .cap = room, .at = 0u, .text = (const char *)head, .text_len = sizeof(head)});
@@ -146,8 +147,9 @@ static unsigned long long krep_filed(const KrepFile *file, const char *path, Who
     if ((time != 0ULL) && (name != NULL))
     {
         // the file's row of the table files (files.oracle.tsv): the who that wrote it, its record and its name
-        unsigned long long row[4] = {0ULL, 0ULL, time,
-                                     table_text(name, mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR))};
+        unsigned long long row[4] = {
+            0ULL, 0ULL, time,
+            table_text(name, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR))};
         who_words(who, row);
         qry_member_append(TABLE_FILES, row, sizeof(row), QRY_CRITICAL);
     }
@@ -163,7 +165,7 @@ int krep_write_by(const KrepFile *file, const char *path, Who who)
     // the file its rows put together written, the view of its table, and not the one stored: its bytes' blob linked to
     // the head row of the rows it was written from
     KrepFile view;
-    mmgr_bytes_set(&view, 0, sizeof(view));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &view, .bytes = sizeof(view), .val = 0);
     const unsigned long long written = krep_viewed(file, &view) ? krep_filed(&view, path, who) : 0ULL;
     krep_free(&view);
     if (written != 0ULL)
@@ -189,7 +191,7 @@ void krep_free(KrepFile *file)
     platform_cell_released(file->text, platform_place_g_program_owner);
     platform_cell_released(file->text_length, platform_place_g_program_owner);
     platform_cell_released(file->text_slot, platform_place_g_program_owner);
-    mmgr_bytes_set(file, 0, sizeof(*file));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = file, .bytes = sizeof(*file), .val = 0);
 }
 
 int krep_record_put(KrepFile *file, unsigned int at, unsigned int code, const unsigned long long *words,
@@ -220,9 +222,14 @@ int krep_record_put(KrepFile *file, unsigned int at, unsigned int code, const un
     }
     if (count != 0u)
     {
-        mmgr_bytes_copy(copy, words, (size_t)count * sizeof(unsigned long long));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy, .src = words,
+                   .bytes = (size_t)count * sizeof(unsigned long long));
     }
-    mmgr_bytes_move(&file->record[at + 1u], &file->record[at], (size_t)(file->records - at) * sizeof(KrepRecord));
+    (((const unsigned char *)(&file->record[at + 1u]) <= (const unsigned char *)(&file->record[at]))
+         ? EMBED_CALL(memor.move_down, MemoriaCfg, .dst = &file->record[at + 1u], .src = &file->record[at],
+                      .bytes = (size_t)(file->records - at) * sizeof(KrepRecord))
+         : EMBED_CALL(memor.move_up, MemoriaCfg, .dst = &file->record[at + 1u], .src = &file->record[at],
+                      .bytes = (size_t)(file->records - at) * sizeof(KrepRecord)));
     file->record[at].code = code;
     file->record[at].count = count;
     file->record[at].word = copy;
@@ -255,7 +262,11 @@ void krep_record_drop(KrepFile *file, unsigned int at)
         krep_row_passed(file, file->key, who, KREP_ROW_DROP, numbers, 1u, NULL, 0ULL, QRY_ORDINARY);
     }
     platform_cell_released(file->record[at].word, platform_place_g_program_owner);
-    mmgr_bytes_move(&file->record[at], &file->record[at + 1u], (size_t)(file->records - at - 1u) * sizeof(KrepRecord));
+    (((const unsigned char *)(&file->record[at]) <= (const unsigned char *)(&file->record[at + 1u]))
+         ? EMBED_CALL(memor.move_down, MemoriaCfg, .dst = &file->record[at], .src = &file->record[at + 1u],
+                      .bytes = (size_t)(file->records - at - 1u) * sizeof(KrepRecord))
+         : EMBED_CALL(memor.move_up, MemoriaCfg, .dst = &file->record[at], .src = &file->record[at + 1u],
+                      .bytes = (size_t)(file->records - at - 1u) * sizeof(KrepRecord)));
     file->records -= 1u;
 }
 
@@ -273,7 +284,8 @@ int krep_record_set(KrepFile *file, unsigned int at, const unsigned long long *w
     }
     if (count != 0u)
     {
-        mmgr_bytes_copy(copy, words, (size_t)count * sizeof(unsigned long long));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy, .src = words,
+                   .bytes = (size_t)count * sizeof(unsigned long long));
     }
     platform_cell_released(file->record[at].word, platform_place_g_program_owner);
     file->record[at].word = copy;
@@ -301,7 +313,8 @@ int krep_tabled_by(KrepFile *file, QryShared *buffer, const char *table, const c
     file->table = table;
     unsigned long long words[2];
     who_words(who, words);
-    const unsigned long long length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
+    const unsigned long long length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const unsigned long long head[3] = {krep_half_of((const unsigned char *)file->type), KREP_VERSION, length};
     file->key = krep_row_passed(file, 0ULL, words, KREP_ROW_HEAD, head, 3u, name, length, QRY_CRITICAL);
     for (unsigned int number = 1u; (file->key != 0ULL) && (number <= file->texts); number += 1u)

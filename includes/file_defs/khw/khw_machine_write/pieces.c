@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pieces.c: the pieces: a word and a run read, the pieces of the vendor's listing read, what a read contains, a piece's
 // reading and name, a form's name and text composed, and a form stored
-#include "khw_machine_write_internal.h"
 #include "../../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "khw_machine_write_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 // one piece of a name as the vendor's table gives it
 typedef struct
@@ -74,20 +74,25 @@ int khw_pieces_read(const char *path)
     char line[1024];
     while (platform_file_text_read(line, sizeof(line), file) != NULL)
     {
-        line[mmgr_text_span_not(line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
+        line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\r\n")] = '\0';
         if ((line[0] == '#') || (line[0] == '\0') || (s_pieces == KHW_PIECES))
         {
             continue;
         }
-        char *const piece = mmgr_text_char(line, '\t', PLATFORM_TEXT_TO_TERMINATOR);
-        char *const reads = (piece != NULL) ? mmgr_text_char(piece + 1, '\t', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+        char *const piece =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
+        char *const reads = (piece != NULL) ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = piece + 1,
+                                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t')
+                                            : NULL;
         if (reads == NULL)
         {
             continue;
         }
         *piece = '\0';
         *reads = '\0';
-        char *const gloss = mmgr_text_char(reads + 1, '\t', PLATFORM_TEXT_TO_TERMINATOR);
+        char *const gloss =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = reads + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
         if (gloss != NULL)
         {
             *gloss = '\0';
@@ -128,9 +133,10 @@ int khw_pieces_read(const char *path)
 // 1 where the reads of `piece` contain `word` whole, and not as part of a longer one
 static int khw_reads_contain(const KhwPiece *piece, const char *word)
 {
-    const size_t length = mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const char *at = piece->reads;
-    while ((at = mmgr_text_find(at, word, PLATFORM_TEXT_TO_TERMINATOR)) != NULL)
+    while ((at = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = word,
+                            .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE)) != NULL)
     {
         const int before = (at == piece->reads) || (*(at - 1) == ' ');
         const int after = (at[length] == '\0') || (at[length] == ' ');
@@ -148,7 +154,8 @@ const char *khw_piece_reading(const char *type, const char *word)
 {
     for (unsigned int at = 0u; at < s_pieces; at += 1u)
     {
-        if ((mmgr_text_equal(s_piece[at].type, type, PLATFORM_TEXT_TO_TERMINATOR)) &&
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_piece[at].type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = type, .ci = EMBED_FALSE)) &&
             khw_reads_contain(&s_piece[at], word))
         {
             return s_piece[at].piece;
@@ -162,8 +169,10 @@ static const char *khw_piece_named(const char *type, const char *text)
 {
     for (unsigned int at = 0u; at < s_pieces; at += 1u)
     {
-        if ((mmgr_text_equal(s_piece[at].type, type, PLATFORM_TEXT_TO_TERMINATOR)) &&
-            (mmgr_text_equal(s_piece[at].piece, text, PLATFORM_TEXT_TO_TERMINATOR)))
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_piece[at].type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = type, .ci = EMBED_FALSE)) &&
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_piece[at].piece, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = text, .ci = EMBED_FALSE)))
         {
             return s_piece[at].piece;
         }
@@ -201,8 +210,10 @@ static void khw_name_composed(const KhwForm *form, char *written, size_t room)
     }
     for (unsigned int piece = 0u; piece < s_pieces; piece += 1u)
     {
-        if ((mmgr_text_equal(s_piece[piece].type, "count", PLATFORM_TEXT_TO_TERMINATOR)) &&
-            (mmgr_text_equal(s_piece[piece].piece, sources, PLATFORM_TEXT_TO_TERMINATOR)) &&
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_piece[piece].type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "count", .ci = EMBED_FALSE)) &&
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_piece[piece].piece, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = sources, .ci = EMBED_FALSE)) &&
             khw_reads_contain(&s_piece[piece], form->relation))
         {
             VerbaLinea formed_line_2 = mmgr_line_over(&written[at], room - at);
@@ -347,7 +358,8 @@ static unsigned int khw_printed_runs(const KhwForm *form, unsigned int *order)
         }
     }
     const char *const pattern = khw_piece_reading("order", form->relation);
-    if ((pattern == NULL) || (mmgr_text_length(pattern, PLATFORM_TEXT_TO_TERMINATOR) != count))
+    if ((pattern == NULL) ||
+        (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = pattern, .cap = PLATFORM_TEXT_TO_TERMINATOR) != count))
     {
         return count;
     }
@@ -370,7 +382,7 @@ static unsigned int khw_printed_runs(const KhwForm *form, unsigned int *order)
         taken[found] = 1u;
         ordered[each] = order[found];
     }
-    mmgr_bytes_copy(order, ordered, count * sizeof(order[0]));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = order, .src = ordered, .bytes = count * sizeof(order[0]));
     return count;
 }
 

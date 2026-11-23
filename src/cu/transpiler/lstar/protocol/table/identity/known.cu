@@ -2,441 +2,685 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // known.cu: the known and the permute: the engine's writing of the stick sifted through what nvcc writes, and nvcc's
 // chains put together by their categories
-#include "identity_internal.h"
 #include "../../../../../../platform/platform.h"
+#include "identity_internal.h"
 
-// Each candidate chain sifted through the identities nvcc's chains contain, before anything of it is put to the part:
-// its whole known at an address, or read as the longest known windows from each link, with every link whose primitive
-// nvcc never writes and every two links side by side nvcc never writes so, each known apart. A part unknown that rule 2
-// blocks from the part is marked with the rule. The run's blob known.txt contains a candidate a group of lines
-int identity_known(const char *listing, const char *manifest, const std::string &folder,
-                   const std::vector<std::string> &paths)
+// The first occurrence of a window where nvcc's chains contain it, its constituents the same link for link. It
+// goes into `first`: 1, or 0 where nvcc's chains contain no such window
+static int window_known(const Questions *questions, const Windows *windows, const Question *candidate,
+                        unsigned long long link, unsigned long long length, unsigned long long identity,
+                        Occurrence *first)
 {
-    std::vector<Question> questions;
+    Occurrence found;
+    if (!window_occurrence(windows, identity, &found) ||
+        !windows_same(&questions->question[found.question], found.link, candidate, link, length))
+    {
+        return 0;
+    }
+    *first = found;
+    return 1;
+}
+
+// the window rendered as known.txt and permutations.txt write it, each line's end but the last a semicolon, onto `line`
+static void window_joined(const Question *question, unsigned long long first, unsigned long long length,
+                          VerbaLinea *line)
+{
+    PlatformText rendered;
+    identity_text_begun(&rendered);
+    window_render(question, first, length, &rendered);
+    const unsigned long long size = platform_text_size(&rendered);
+    const char *const bytes = platform_text_bytes(&rendered);
+    for (unsigned long long at = 0ULL; (bytes != NULL) && ((at + 1ULL) < size); at += 1ULL)
+    {
+        mmgr_line_ch(line, (bytes[at] == '\n') ? ';' : bytes[at]);
+    }
+    platform_text_ended(&rendered);
+}
+
+// what the sift of the candidates counts
+struct KnownCounts
+{
+    unsigned long long candidates;
+    unsigned int wholes;
+    unsigned int permutations;
+    unsigned int strangers;
+    unsigned int unknown_primitives;
+    unsigned int unknown_pairs;
+    unsigned int flagged;
+};
+
+// One candidate sifted through the identities nvcc's chains contain, onto `file`, and counted. `identities` holds the
+// candidate's links
+static void candidate_sifted(const Questions *questions, const Windows *windows, const Question *candidate,
+                             unsigned long long *identities, RunWritten *file, KnownCounts *counts)
+{
+    VerbaLinea *const line = &file->text.line;
+    // a chain's links are far below 2^32
+    const unsigned int links = (unsigned int)candidate->links;
+    const unsigned long long whole_identity = windows_walked(candidate, 0ULL, ~0ULL, NULL);
+    Occurrence whole = {0u, 0u, 0u};
+    const int known_whole = window_known(questions, windows, candidate, 0ULL, links, whole_identity, &whole);
+    mmgr_line_put(line, "candidate ");
+    mmgr_line_put(line, candidate->number.text);
+    mmgr_line_put(line, " ");
+    mmgr_line_hex(line, whole_identity, 16u);
+    mmgr_line_put(line, " ");
+    if (known_whole)
+    {
+        mmgr_line_put(line, "known ");
+        address_text(questions, whole.question, whole.link, line);
+    }
+    else
+    {
+        mmgr_line_put(line, "unknown");
+    }
+    mmgr_line_ch(line, '\n');
+    if (known_whole)
+    {
+        counts->wholes += 1u;
+        return;
+    }
+    mmgr_line_put(line, "constituents");
+    for (unsigned int link = 0u; link < links;)
+    {
+        const unsigned long long made = window_identities(candidate, link, identities);
+        unsigned int length = 0u;
+        // a chain's links are far below 2^32
+        for (unsigned int longest = (unsigned int)made; (longest > 0u) && (length == 0u); longest -= 1u)
+        {
+            Occurrence first = {0u, 0u, 0u};
+            if (window_known(questions, windows, candidate, link, longest, identities[longest - 1u], &first))
+            {
+                mmgr_line_ch(line, ' ');
+                address_text(questions, first.question, first.link, line);
+                mmgr_line_ch(line, '/');
+                mmgr_line_decimal(line, longest, 1u);
+                length = longest;
+            }
+        }
+        if (length == 0u)
+        {
+            mmgr_line_put(line, " ?");
+            mmgr_line_put(line, candidate->chain[link].position.text);
+            length = 1u;
+        }
+        link += length;
+    }
+    mmgr_line_ch(line, '\n');
+    unsigned int unknown_here = 0u;
+    for (unsigned int link = 0u; link < links; link += 1u)
+    {
+        unsigned long long pair[2] = {0ULL, 0ULL};
+        (void)windows_walked(candidate, link, 2ULL, pair);
+        Occurrence ignored = {0u, 0u, 0u};
+        const int alone = window_known(questions, windows, candidate, link, 1ULL, pair[0], &ignored);
+        const int paired =
+            ((link + 1u) < links) ? window_known(questions, windows, candidate, link, 2ULL, pair[1], &ignored) : 1;
+        const int next_alone = ((link + 1u) < links)
+                                   ? window_known(questions, windows, candidate, link + 1u, 1ULL,
+                                                  windows_walked(candidate, link + 1u, 1ULL, NULL), &ignored)
+                                   : 0;
+        const Link *const written = &candidate->chain[link];
+        const int ruled = rule_broken(written->exact.text);
+        if (!alone)
+        {
+            mmgr_line_put(line, "unknown ");
+            mmgr_line_put(line, written->position.text);
+            mmgr_line_put(line, " ");
+            window_render(candidate, link, 1ULL, &file->text);
+            mmgr_line_put(line, ruled ? " rule 2: its form transfers control or waits" : "");
+            mmgr_line_ch(line, '\n');
+            counts->unknown_primitives += 1u;
+            unknown_here += 1u;
+            counts->flagged += ruled ? 1u : 0u;
+        }
+        // two links each known alone and never written side by side
+        if (alone && next_alone && !paired)
+        {
+            mmgr_line_put(line, "unpaired ");
+            mmgr_line_put(line, written->position.text);
+            mmgr_line_put(line, " ");
+            window_joined(candidate, link, 2ULL, line);
+            mmgr_line_put(line, ";\n");
+            counts->unknown_pairs += 1u;
+            unknown_here += 1u;
+        }
+    }
+    if (unknown_here == 0u)
+    {
+        counts->permutations += 1u;
+    }
+    else
+    {
+        counts->strangers += 1u;
+    }
+}
+
+// Each candidate chain sifted through the identities nvcc's chains contain, before anything of it goes to the
+// part. Its whole has a known address, or it reads as the longest known windows from each link. Every link whose
+// primitive nvcc never writes, and every two links side by side nvcc never writes so, goes apart as unknown. A
+// part unknown that rule 2 blocks from the part carries the rule. The run's blob known.txt contains a candidate a
+// group of lines
+int identity_known(const char *listing, const char *manifest, const char *folder, const IdentityPath *paths,
+                   unsigned long long count)
+{
+    Questions questions;
     if (!questions_read(listing, manifest, &questions))
     {
         return 1;
     }
-    const std::unordered_map<unsigned long long, Occurrence> windows = windows_counted(questions);
-    std::vector<Question> candidates;
-    for (const std::string &path : paths)
+    Windows windows;
+    if (!windows_counted(&questions, &windows))
     {
-        candidates_read(path, &candidates);
+        questions_ended(&questions);
+        return 1;
     }
-    const std::string path = folder + "/known.txt";
-    RunWritten file = {path, 0, std::string()};
-    // the first occurrence of a window where nvcc's chains contain it, its constituents the same link for link
-    const auto known = [&](const Question &candidate, unsigned int link, unsigned int length,
-                           unsigned long long identity) -> const Occurrence * {
-        const auto found = windows.find(identity);
-        if ((found == windows.end()) || (window_render(questions[found->second.question], found->second.link, length) !=
-                                         window_render(candidate, link, length)))
-        {
-            return nullptr;
-        }
-        return &found->second;
-    };
-    unsigned int wholes = 0u;
-    unsigned int permutations = 0u;
-    unsigned int strangers = 0u;
-    unsigned int unknown_primitives = 0u;
-    unsigned int unknown_pairs = 0u;
-    unsigned int flagged = 0u;
-    for (const Question &candidate : candidates)
+    RunWritten file;
+    run_written_begun(&file, identity_path_joined(folder, "/known.txt").text, 0);
+    KnownCounts counts;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &counts, .bytes = sizeof(counts), .val = 0);
+    int whole = 1;
+    // the candidates file by file, each file's chains in the order it writes them
+    for (unsigned long long at = 0ULL; whole && (at < count); at += 1ULL)
     {
-        if (candidate.chain.empty())
+        Questions candidates;
+        if (!candidates_read(paths[at].text, &candidates))
         {
-            continue;
+            whole = 0;
+            break;
         }
-        const unsigned int links = (unsigned int)candidate.chain.size();
-        const std::vector<unsigned long long> from_first = window_identities(candidate, 0u);
-        const Occurrence *const whole = known(candidate, 0u, links, from_first.back());
-        char number[17];
+        for (unsigned long long candidate_at = 0ULL; candidate_at < candidates.count; candidate_at += 1ULL)
         {
-            VerbaLinea buffer_line = mmgr_line_over(number, sizeof(number));
-            mmgr_line_hex(&buffer_line, from_first.back(), 16u);
-            (void)mmgr_line_finish(&buffer_line);
-        }
-        {
-            TextNote text_note;
-            text_note_begun(&text_note, &(&file)->text);
-            mmgr_line_put(&text_note.line, "candidate ");
-            mmgr_line_put(&text_note.line, candidate.number.c_str());
-            mmgr_line_put(&text_note.line, " ");
-            mmgr_line_put(&text_note.line, number);
-            mmgr_line_put(&text_note.line, " ");
-            mmgr_line_put(&text_note.line,
-                          (whole == nullptr)
-                              ? "unknown"
-                              : ("known " + address_text(questions, whole->question, whole->link)).c_str());
-            mmgr_line_ch(&text_note.line, '\n');
-            text_note_written(&text_note);
-        }
-        if (whole != nullptr)
-        {
-            wholes += 1u;
-            continue;
-        }
-        std::string read;
-        for (unsigned int link = 0u; link < links;)
-        {
-            const std::vector<unsigned long long> identities = window_identities(candidate, link);
-            unsigned int length = 0u;
-            for (unsigned int longest = (unsigned int)identities.size(); (longest > 0u) && (length == 0u);
-                 longest -= 1u)
+            const Question *const candidate = &candidates.question[candidate_at];
+            if (candidate->links == 0ULL)
             {
-                const Occurrence *const first = known(candidate, link, longest, identities[longest - 1u]);
-                if (first != nullptr)
-                {
-                    read += " " + address_text(questions, first->question, first->link) + "/" + std::to_string(longest);
-                    length = longest;
-                }
+                continue;
             }
-            if (length == 0u)
+            unsigned long long *const identities = (unsigned long long *)platform_cell_taken(
+                candidate->links * sizeof(unsigned long long), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+            if (identities == NULL)
             {
-                read += " ?" + candidate.chain[link].position;
-                length = 1u;
+                identity_path_said(paths[at].text, ": the pool cannot meet the identities of a candidate");
+                whole = 0;
+                break;
             }
-            link += length;
+            candidate_sifted(&questions, &windows, candidate, identities, &file, &counts);
+            platform_cell_released(identities, platform_place_g_program_owner);
         }
-        {
-            TextNote text_note;
-            text_note_begun(&text_note, &(&file)->text);
-            mmgr_line_put(&text_note.line, "constituents");
-            mmgr_line_put(&text_note.line, read.c_str());
-            mmgr_line_ch(&text_note.line, '\n');
-            text_note_written(&text_note);
-        }
-        unsigned int unknown_here = 0u;
-        for (unsigned int link = 0u; link < links; link += 1u)
-        {
-            const std::vector<unsigned long long> identities = window_identities(candidate, link);
-            const int alone = known(candidate, link, 1u, identities[0]) != nullptr;
-            const int paired = ((link + 1u) < links) ? (known(candidate, link, 2u, identities[1]) != nullptr) : 1;
-            const int next_alone =
-                ((link + 1u) < links)
-                    ? (known(candidate, link + 1u, 1u, window_identities(candidate, link + 1u)[0]) != nullptr)
-                    : 0;
-            const Link &written = candidate.chain[link];
-            const std::string rule = rule_broken(written.exact) ? " rule 2: its form transfers control or waits" : "";
-            if (!alone)
-            {
-                {
-                    TextNote text_note;
-                    text_note_begun(&text_note, &(&file)->text);
-                    mmgr_line_put(&text_note.line, "unknown ");
-                    mmgr_line_put(&text_note.line, written.position.c_str());
-                    mmgr_line_put(&text_note.line, " ");
-                    mmgr_line_put(&text_note.line, window_render(candidate, link, 1u).c_str());
-                    mmgr_line_put(&text_note.line, rule.c_str());
-                    mmgr_line_ch(&text_note.line, '\n');
-                    text_note_written(&text_note);
-                }
-                unknown_primitives += 1u;
-                unknown_here += 1u;
-                flagged += rule.empty() ? 0u : 1u;
-            }
-            // two links each known alone and never written side by side
-            if (alone && next_alone && !paired)
-            {
-                std::string pair = window_render(candidate, link, 2u);
-                std::replace(pair.begin(), pair.end(), '\n', ';');
-                {
-                    TextNote text_note;
-                    text_note_begun(&text_note, &(&file)->text);
-                    mmgr_line_put(&text_note.line, "unpaired ");
-                    mmgr_line_put(&text_note.line, written.position.c_str());
-                    mmgr_line_put(&text_note.line, " ");
-                    mmgr_line_put(&text_note.line, pair.c_str());
-                    mmgr_line_ch(&text_note.line, '\n');
-                    text_note_written(&text_note);
-                }
-                unknown_pairs += 1u;
-                unknown_here += 1u;
-            }
-        }
-        if (unknown_here == 0u)
-        {
-            permutations += 1u;
-        }
-        else
-        {
-            strangers += 1u;
-        }
+        counts.candidates += candidates.count;
+        questions_ended(&candidates);
     }
-    if (!run_closed(&file))
+    windows_ended(&windows);
+    questions_ended(&questions);
+    const int closed = whole && run_closed(&file);
+    run_written_ended(&file);
+    if (!closed)
     {
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "  ");
-            mmgr_line_put(output_line, path.c_str());
-            mmgr_line_put(output_line, " could not be written");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
+        identity_path_said(file.path.text, " could not be written");
         return 1;
     }
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  ");
-        mmgr_line_put(output_line, path.c_str());
+        mmgr_line_put(output_line, file.path.text);
         mmgr_line_put(output_line, ": ");
-        mmgr_line_decimal(output_line, (unsigned int)candidates.size(), 1u);
+        mmgr_line_decimal(output_line, counts.candidates, 1u);
         mmgr_line_put(output_line, " candidates, ");
-        mmgr_line_decimal(output_line, wholes, 1u);
+        mmgr_line_decimal(output_line, counts.wholes, 1u);
         mmgr_line_put(output_line, " known whole, ");
-        mmgr_line_decimal(output_line, permutations, 1u);
+        mmgr_line_decimal(output_line, counts.permutations, 1u);
         mmgr_line_put(output_line, " not known whole but every link and every two side by side known, ");
-        mmgr_line_decimal(output_line, strangers, 1u);
+        mmgr_line_decimal(output_line, counts.strangers, 1u);
         mmgr_line_put(output_line, " with a part nvcc never writes");
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    {
-        VerbaLinea *const output_line = platform_line_out();
-        mmgr_line_put(output_line, "  parts unknown: ");
-        mmgr_line_decimal(output_line, unknown_primitives, 1u);
-        mmgr_line_put(output_line, " links, ");
-        mmgr_line_decimal(output_line, flagged, 1u);
-        mmgr_line_put(output_line, " of them blocked from the part by rule 2, ");
-        mmgr_line_decimal(output_line, unknown_pairs, 1u);
-        mmgr_line_put(output_line, " pairs side by side");
-        mmgr_line_ch(output_line, '\n');
-        platform_line_out_ended();
-    }
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, "  parts unknown: ");
+    mmgr_line_decimal(output_line, counts.unknown_primitives, 1u);
+    mmgr_line_put(output_line, " links, ");
+    mmgr_line_decimal(output_line, counts.flagged, 1u);
+    mmgr_line_put(output_line, " of them blocked from the part by rule 2, ");
+    mmgr_line_decimal(output_line, counts.unknown_pairs, 1u);
+    mmgr_line_put(output_line, " pairs side by side");
+    mmgr_line_ch(output_line, '\n');
+    platform_line_out_ended();
     return 0;
 }
 
-// the root of `type` among the categories, each type joined to the types it was found in a slice with
-static std::string category_root(std::map<std::string, std::string> *parent, const std::string &type)
+// a type of link at its first occurrence: the question and the link it is at, and the type, which lies in the link
+// [BORROWS]
+struct TypeFirst
 {
-    std::string root = type;
-    while ((*parent)[root] != root)
+    unsigned int question;
+    unsigned int link;
+    const char *type;
+};
+
+// one member of a category: the root of its category, its place in the order of first occurrence, and its type
+struct CategoryMember
+{
+    unsigned int root;
+    unsigned int order;
+    unsigned int type;
+};
+
+// one category: the first of its members in the members ordered by root, and how many they are
+struct Category
+{
+    unsigned int first;
+    unsigned int count;
+};
+
+// one window the permutations put that nvcc never writes. Its identity, its place in the order put, the question and
+// its link, and the type put in
+struct PermutedPut
+{
+    unsigned long long identity;
+    unsigned long long order;
+    unsigned int question;
+    unsigned int link;
+    unsigned int member;
+};
+
+// The types of link and their categories, in cells of the temporary tier. Each type at its first occurrence ordered by
+// type, each type's parent among them, each category's members, and the category of each root or CATEGORY_NONE
+#define CATEGORY_NONE (~0u)
+
+struct Categories
+{
+    TypeFirst *types;
+    unsigned int type_count;
+    unsigned int *parent;
+    CategoryMember *members;
+    Category *categories;
+    unsigned int category_count;
+    unsigned int *category_of_root;
+};
+
+static void categories_ended(Categories *categories)
+{
+    platform_cell_released(categories->category_of_root, platform_place_g_program_owner);
+    platform_cell_released(categories->categories, platform_place_g_program_owner);
+    platform_cell_released(categories->members, platform_place_g_program_owner);
+    platform_cell_released(categories->parent, platform_place_g_program_owner);
+    platform_cell_released(categories->types, platform_place_g_program_owner);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = categories, .bytes = sizeof(*categories), .val = 0);
+}
+
+// the place of the type `type` among the types
+static unsigned int type_place(const Categories *categories, const char *type)
+{
+    // the types are far below 2^32
+    return (unsigned int)identity_lower(categories->types, categories->type_count, [type](const TypeFirst &one) {
+        return identity_order_text(one.type, type) < 0;
+    });
+}
+
+// the root of the type at `type` among the categories, each type joined to the types a slice finds it with
+static unsigned int category_root(Categories *categories, unsigned int type)
+{
+    unsigned int root = type;
+    while (categories->parent[root] != root)
     {
-        root = (*parent)[root];
+        root = categories->parent[root];
     }
-    for (std::string walk = type; walk != root;)
+    for (unsigned int walk = type; walk != root;)
     {
-        const std::string next = (*parent)[walk];
-        (*parent)[walk] = root;
+        const unsigned int next = categories->parent[walk];
+        categories->parent[walk] = root;
         walk = next;
     }
     return root;
 }
 
-// The parts of nvcc's chains put together by their categories, no part's meaning read: two links a slice sets apart
-// are for each other, and each link joined to another so, at any remove, is of its category. Each link of each chain
-// is was for by every other of its category naming as many registers, the registers of the link it is for given
-// to it, and queried in the window of the link before it and the link after: a window nvcc writes somewhere is known,
-// and one it never writes is a question, recorded at the first address it arises at with its count. A link put in that
-// rule 2 blocks from the part is marked with the rule. The run's blob permutations.txt contains the categories, each
-// with its members at the first address each occurs at, then the questions in the order of their addresses
-int identity_permute(const char *listing, const char *manifest, const std::string &folder)
+// a cell of the temporary tier of `count` elements of `size` bytes, at least one
+static void *permute_cell(unsigned long long count, unsigned long long size)
 {
-    std::vector<Question> questions;
+    return platform_cell_taken(((count != 0ULL) ? count : 1ULL) * size, platform_place_g_program_owner,
+                               PLATFORM_TIER_TEMPORARY);
+}
+
+// The types of the questions' links each at its first occurrence, each its own category. Then joined by the slices,
+// and the categories' members in the order of first occurrence. 1, or 0 where the pool cannot meet a cell
+static int categories_read(const Questions *questions, Categories *categories)
+{
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = categories, .bytes = sizeof(*categories), .val = 0);
+    unsigned long long links = 0ULL;
+    for (unsigned long long at = 0ULL; at < questions->count; at += 1ULL)
+    {
+        links += questions->question[at].links;
+    }
+    categories->types = (TypeFirst *)permute_cell(links, sizeof(TypeFirst));
+    if (categories->types == NULL)
+    {
+        return 0;
+    }
+    unsigned long long count = 0ULL;
+    for (unsigned int question = 0u; question < questions->count; question += 1u)
+    {
+        const Question *const current = &questions->question[question];
+        for (unsigned int link = 0u; link < current->links; link += 1u)
+        {
+            const TypeFirst first = {question, link, current->chain[link].type.text};
+            categories->types[count] = first;
+            count += 1ULL;
+        }
+    }
+    // the types ordered by their bytes, each kept at its first occurrence
+    if (!identity_sorted(categories->types, count, [](const TypeFirst &one, const TypeFirst &other) {
+            return identity_order_text(one.type, other.type) < 0;
+        }))
+    {
+        categories_ended(categories);
+        return 0;
+    }
+    unsigned int kept = 0u;
+    for (unsigned long long at = 0ULL; at < count; at += 1ULL)
+    {
+        if ((kept == 0u) || !identity_same(categories->types[kept - 1u].type, categories->types[at].type))
+        {
+            categories->types[kept] = categories->types[at];
+            kept += 1u;
+        }
+    }
+    categories->type_count = kept;
+    categories->parent = (unsigned int *)permute_cell(kept, sizeof(unsigned int));
+    categories->members = (CategoryMember *)permute_cell(kept, sizeof(CategoryMember));
+    categories->categories = (Category *)permute_cell(kept, sizeof(Category));
+    categories->category_of_root = (unsigned int *)permute_cell(kept, sizeof(unsigned int));
+    if ((categories->parent == NULL) || (categories->members == NULL) || (categories->categories == NULL) ||
+        (categories->category_of_root == NULL))
+    {
+        categories_ended(categories);
+        return 0;
+    }
+    for (unsigned int at = 0u; at < kept; at += 1u)
+    {
+        categories->parent[at] = at;
+        categories->category_of_root[at] = CATEGORY_NONE;
+    }
+    for (unsigned long long one = 0ULL; one < questions->count; one += 1ULL)
+    {
+        for (unsigned long long other = one + 1ULL; other < questions->count; other += 1ULL)
+        {
+            const Link *left = NULL;
+            const Link *right = NULL;
+            if (slice_found(&questions->question[one], &questions->question[other], &left, &right))
+            {
+                const unsigned int left_root = category_root(categories, type_place(categories, left->type.text));
+                const unsigned int right_root = category_root(categories, type_place(categories, right->type.text));
+                categories->parent[left_root] = right_root;
+            }
+        }
+    }
+    // each type in the order of its first occurrence, then grouped by its category's root in that order
+    for (unsigned int at = 0u; at < kept; at += 1u)
+    {
+        const CategoryMember member = {0u, 0u, at};
+        categories->members[at] = member;
+    }
+    const TypeFirst *const types = categories->types;
+    identity_sorted_in_place(
+        categories->members, kept, [types](const CategoryMember &one, const CategoryMember &other) {
+            const TypeFirst &left = types[one.type];
+            const TypeFirst &right = types[other.type];
+            return (left.question != right.question) ? (left.question < right.question) : (left.link < right.link);
+        });
+    for (unsigned int at = 0u; at < kept; at += 1u)
+    {
+        categories->members[at].order = at;
+        categories->members[at].root = category_root(categories, categories->members[at].type);
+    }
+    if (!identity_sorted(categories->members, kept,
+                         [](const CategoryMember &one, const CategoryMember &other) { return one.root < other.root; }))
+    {
+        categories_ended(categories);
+        return 0;
+    }
+    for (unsigned int at = 0u; at < kept;)
+    {
+        unsigned int end = at;
+        while ((end < kept) && (categories->members[end].root == categories->members[at].root))
+        {
+            end += 1u;
+        }
+        const Category category = {at, end - at};
+        categories->categories[categories->category_count] = category;
+        categories->category_count += 1u;
+        at = end;
+    }
+    // the categories in the order of their first members
+    const CategoryMember *const members = categories->members;
+    identity_sorted_in_place(categories->categories, categories->category_count,
+                             [members](const Category &one, const Category &other) {
+                                 return members[one.first].order < members[other.first].order;
+                             });
+    for (unsigned int at = 0u; at < categories->category_count; at += 1u)
+    {
+        categories->category_of_root[members[categories->categories[at].first].root] = at;
+    }
+    return 1;
+}
+
+// The window the permutation puts at link `link` of `current`. The link before it, the link with the member put in,
+// and the link after, each where the chain holds it. The window's links go into `links`, three at max
+static void permuted_window(const Questions *questions, const Categories *categories, const Question *current,
+                            unsigned int link, unsigned int member, Link *links, Question *window)
+{
+    const Link *const own = &current->chain[link];
+    const TypeFirst *const at = &categories->types[member];
+    Link substitute = questions->question[at->question].chain[at->link];
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = substitute.named, .src = own->named, .bytes = sizeof(substitute.named));
+    substitute.named_count = own->named_count;
+    substitute.position = own->position;
+    // a chain's links are far below 2^32
+    const unsigned int chain_length = (unsigned int)current->links;
+    const unsigned int last = (chain_length < (link + 2u)) ? chain_length : (link + 2u);
+    unsigned int count = 0u;
+    for (unsigned int within = (link == 0u) ? 0u : (link - 1u); within < last; within += 1u)
+    {
+        links[count] = (within == link) ? substitute : current->chain[within];
+        count += 1u;
+    }
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = window, .bytes = sizeof(*window), .val = 0);
+    window->number = current->number;
+    window->chain = links;
+    window->links = count;
+}
+
+// The parts of nvcc's chains put together by their categories. The walk reads no part for what it means. Two
+// links a slice sets apart are for each other, and each link joined to another so, at any remove, is of its
+// category. Every other member of its category that names as many registers goes in for each link of each chain.
+// The registers of the link it is for go to it.
+//
+// The window of the link before it and the link after queries it. A window nvcc writes somewhere goes as known.
+// One it never writes is a question, recorded at the first address it arises at with its count. A link put in
+// that rule 2 blocks from the part carries the rule. The run's blob permutations.txt contains the categories,
+// each with its members at the first address each occurs at. Then it contains the questions in the order of
+// their addresses
+int identity_permute(const char *listing, const char *manifest, const char *folder)
+{
+    Questions questions;
     if (!questions_read(listing, manifest, &questions))
     {
         return 1;
     }
-    const std::unordered_map<unsigned long long, Occurrence> windows = windows_counted(questions);
-    // the first occurrence of every type of link, and each type its own category before any slice joins it
-    std::map<std::string, std::pair<unsigned int, unsigned int>> first_type;
-    std::map<std::string, std::string> parent;
-    for (unsigned int question = 0u; question < questions.size(); question += 1u)
+    Windows windows;
+    Categories categories;
+    if (!windows_counted(&questions, &windows))
     {
-        for (unsigned int link = 0u; link < questions[question].chain.size(); link += 1u)
-        {
-            const std::string &type = questions[question].chain[link].type;
-            first_type.insert(std::make_pair(type, std::make_pair(question, link)));
-            parent.insert(std::make_pair(type, type));
-        }
+        questions_ended(&questions);
+        return 1;
     }
-    for (size_t one = 0u; one < questions.size(); one += 1u)
+    if (!categories_read(&questions, &categories))
     {
-        for (size_t other = one + 1u; other < questions.size(); other += 1u)
-        {
-            const Link *left = nullptr;
-            const Link *right = nullptr;
-            if (slice_found(questions[one], questions[other], &left, &right))
-            {
-                const std::string left_root = category_root(&parent, left->type);
-                const std::string right_root = category_root(&parent, right->type);
-                parent[left_root] = right_root;
-            }
-        }
+        windows_ended(&windows);
+        questions_ended(&questions);
+        identity_path_said(folder, "/permutations.txt: the pool cannot meet the categories");
+        return 1;
     }
-    // each category's members in the order of their first occurrence
-    std::vector<std::pair<std::pair<unsigned int, unsigned int>, std::string>> ordered;
-    for (const auto &type : first_type)
-    {
-        ordered.push_back(std::make_pair(type.second, type.first));
-    }
-    std::sort(ordered.begin(), ordered.end());
-    std::map<std::string, std::vector<std::string>> categories;
-    std::vector<std::string> roots;
-    for (const auto &type : ordered)
-    {
-        const std::string root = category_root(&parent, type.second);
-        if (categories[root].empty())
-        {
-            roots.push_back(root);
-        }
-        categories[root].push_back(type.second);
-    }
-    std::unordered_map<unsigned long long, Permuted> permuted;
-    std::vector<unsigned long long> permuted_order;
+    PlatformArray puts;
+    platform_array_begun(&puts, sizeof(PermutedPut), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     unsigned long long known = 0ULL;
     unsigned long long put = 0ULL;
-    for (unsigned int question = 0u; question < questions.size(); question += 1u)
+    Link window_links[3];
+    Question window;
+    for (unsigned int question = 0u; question < questions.count; question += 1u)
     {
-        const std::vector<Link> &chain = questions[question].chain;
-        for (unsigned int link = 0u; link < chain.size(); link += 1u)
+        const Question *const current = &questions.question[question];
+        for (unsigned int link = 0u; link < current->links; link += 1u)
         {
-            const std::vector<std::string> &members = categories[category_root(&parent, chain[link].type)];
-            for (const std::string &member : members)
+            const Link *const own = &current->chain[link];
+            const unsigned int root = category_root(&categories, type_place(&categories, own->type.text));
+            const unsigned int category_at = categories.category_of_root[root];
+            const Category *const category =
+                (category_at != CATEGORY_NONE) ? &categories.categories[category_at] : NULL;
+            for (unsigned int member_at = 0u; (category != NULL) && (member_at < category->count); member_at += 1u)
             {
-                const std::pair<unsigned int, unsigned int> &at = first_type.at(member);
-                const Link &source = questions[at.first].chain[at.second];
-                if ((member == chain[link].type) || (source.named.size() != chain[link].named.size()))
+                const unsigned int member = categories.members[category->first + member_at].type;
+                const TypeFirst *const at = &categories.types[member];
+                const Link *const source = &questions.question[at->question].chain[at->link];
+                if (identity_same(at->type, own->type.text) || (source->named_count != own->named_count))
                 {
                     continue;
                 }
-                Link substitute = source;
-                substitute.named = chain[link].named;
-                substitute.position = chain[link].position;
-                Question window;
-                window.number = questions[question].number;
-                for (unsigned int within = (link == 0u) ? 0u : link - 1u;
-                     within < std::min((unsigned int)chain.size(), link + 2u); within += 1u)
-                {
-                    window.chain.push_back((within == link) ? substitute : chain[within]);
-                }
-                const unsigned int length = (unsigned int)window.chain.size();
-                const unsigned long long identity = window_identities(window, 0u).back();
-                const std::string rendered = window_render(window, 0u, length);
-                put += 1ULL;
-                const auto found = windows.find(identity);
-                if ((found != windows.end()) &&
-                    (window_render(questions[found->second.question], found->second.link, length) == rendered))
+                permuted_window(&questions, &categories, current, link, member, window_links, &window);
+                // a window holds at max three links
+                const unsigned int length = (unsigned int)window.links;
+                const unsigned long long identity = windows_walked(&window, 0ULL, ~0ULL, NULL);
+                Occurrence found;
+                if (window_occurrence(&windows, identity, &found) &&
+                    windows_same(&questions.question[found.question], found.link, &window, 0ULL, length))
                 {
                     known += 1ULL;
+                    put += 1ULL;
                     continue;
                 }
-                const auto inserted = permuted.insert(
-                    std::make_pair(identity, Permuted{question, link, 0u, rendered, chain[link].type, member}));
-                if (inserted.second)
-                {
-                    permuted_order.push_back(identity);
-                }
-                inserted.first->second.count += 1u;
+                const PermutedPut permuted = {identity, put, question, link, member};
+                (void)platform_array_appended(&puts, &permuted);
+                put += 1ULL;
             }
         }
     }
-    const std::string path = folder + "/permutations.txt";
-    RunWritten file = {path, 0, std::string()};
-    unsigned int joined = 0u;
-    for (const std::string &root : roots)
+    windows_ended(&windows);
+    // the puts of one identity together, each run's first its first occurrence and its length its count
+    PermutedPut *const put_cells = (PermutedPut *)puts.cell;
+    (void)identity_sorted(put_cells, puts.count, [](const PermutedPut &one, const PermutedPut &other) {
+        return one.identity < other.identity;
+    });
+    unsigned long long distinct = 0ULL;
+    for (unsigned long long at = 0ULL; at < puts.count;)
     {
-        const std::vector<std::string> &members = categories[root];
-        if (members.size() < 2u)
+        unsigned long long end = at;
+        while ((end < puts.count) && (put_cells[end].identity == put_cells[at].identity))
+        {
+            end += 1ULL;
+        }
+        // the run's first goes forward to the place of its question, its count in the place of its identity
+        PermutedPut first = put_cells[at];
+        first.identity = end - at;
+        put_cells[distinct] = first;
+        distinct += 1ULL;
+        at = end;
+    }
+    // the questions in the order each first arose
+    identity_sorted_in_place(put_cells, distinct,
+                             [](const PermutedPut &one, const PermutedPut &other) { return one.order < other.order; });
+    RunWritten file;
+    run_written_begun(&file, identity_path_joined(folder, "/permutations.txt").text, 0);
+    VerbaLinea *const line = &file.text.line;
+    unsigned int joined = 0u;
+    for (unsigned int category_at = 0u; category_at < categories.category_count; category_at += 1u)
+    {
+        const Category *const category = &categories.categories[category_at];
+        if (category->count < 2u)
         {
             continue;
         }
         joined += 1u;
-        const std::pair<unsigned int, unsigned int> &first = first_type.at(members[0]);
+        const TypeFirst *const first = &categories.types[categories.members[category->first].type];
+        mmgr_line_put(line, "category ");
+        address_text(&questions, first->question, first->link, line);
+        mmgr_line_put(line, " ");
+        mmgr_line_decimal(line, category->count, 1u);
+        mmgr_line_ch(line, '\n');
+        for (unsigned int member_at = 0u; member_at < category->count; member_at += 1u)
         {
-            TextNote text_note;
-            text_note_begun(&text_note, &(&file)->text);
-            mmgr_line_put(&text_note.line, "category ");
-            mmgr_line_put(&text_note.line, address_text(questions, first.first, first.second).c_str());
-            mmgr_line_put(&text_note.line, " ");
-            mmgr_line_decimal(&text_note.line, (unsigned int)members.size(), 1u);
-            mmgr_line_ch(&text_note.line, '\n');
-            text_note_written(&text_note);
-        }
-        for (const std::string &member : members)
-        {
-            const std::pair<unsigned int, unsigned int> &at = first_type.at(member);
-            {
-                TextNote text_note;
-                text_note_begun(&text_note, &(&file)->text);
-                mmgr_line_put(&text_note.line, "member ");
-                mmgr_line_put(&text_note.line, address_text(questions, at.first, at.second).c_str());
-                mmgr_line_put(&text_note.line, " ");
-                mmgr_line_put(&text_note.line, member.c_str());
-                mmgr_line_ch(&text_note.line, '\n');
-                text_note_written(&text_note);
-            }
+            const TypeFirst *const at = &categories.types[categories.members[category->first + member_at].type];
+            mmgr_line_put(line, "member ");
+            address_text(&questions, at->question, at->link, line);
+            mmgr_line_put(line, " ");
+            mmgr_line_put(line, at->type);
+            mmgr_line_ch(line, '\n');
         }
     }
     unsigned int flagged = 0u;
-    for (const unsigned long long identity : permuted_order)
+    PlatformText rendered;
+    identity_text_begun(&rendered);
+    for (unsigned long long order_at = 0ULL; order_at < distinct; order_at += 1ULL)
     {
-        const Permuted &question = permuted.at(identity);
-        std::string window = question.window;
-        window.pop_back();
-        std::replace(window.begin(), window.end(), '\n', ';');
+        const PermutedPut *const question = &put_cells[order_at];
+        const Question *const current = &questions.question[question->question];
+        const char *const to = categories.types[question->member].type;
+        mmgr_line_put(line, "question ");
+        address_text(&questions, question->question, question->link, line);
+        mmgr_line_put(line, " ");
+        mmgr_line_decimal(line, question->identity, 1u);
+        mmgr_line_put(line, "\nfrom ");
+        mmgr_line_put(line, current->chain[question->link].type.text);
+        mmgr_line_put(line, "\nto ");
+        mmgr_line_put(line, to);
+        mmgr_line_put(line, "\nwindow ");
+        // the window less its last line's end, each line's end within it a semicolon
+        permuted_window(&questions, &categories, current, question->link, question->member, window_links, &window);
+        platform_text_reset(&rendered);
+        window_render(&window, 0ULL, window.links, &rendered);
+        const unsigned long long window_length = platform_text_size(&rendered);
+        const char *const window_text = platform_text_bytes(&rendered);
+        for (unsigned long long at = 0ULL; (window_text != NULL) && ((at + 1ULL) < window_length); at += 1ULL)
         {
-            TextNote text_note;
-            text_note_begun(&text_note, &(&file)->text);
-            mmgr_line_put(&text_note.line, "question ");
-            mmgr_line_put(&text_note.line, address_text(questions, question.question, question.link).c_str());
-            mmgr_line_put(&text_note.line, " ");
-            mmgr_line_decimal(&text_note.line, question.count, 1u);
-            mmgr_line_put(&text_note.line, "\nfrom ");
-            mmgr_line_put(&text_note.line, question.from.c_str());
-            mmgr_line_put(&text_note.line, "\nto ");
-            mmgr_line_put(&text_note.line, question.to.c_str());
-            mmgr_line_put(&text_note.line, "\nwindow ");
-            mmgr_line_put(&text_note.line, window.c_str());
-            mmgr_line_ch(&text_note.line, '\n');
-            text_note_written(&text_note);
+            mmgr_line_ch(line, (window_text[at] == '\n') ? ';' : window_text[at]);
         }
-        if (rule_broken(question.to))
+        mmgr_line_ch(line, '\n');
+        if (rule_broken(to))
         {
-            {
-                TextNote text_note;
-                text_note_begun(&text_note, &(&file)->text);
-                mmgr_line_put(&text_note.line, "rule 2 ");
-                mmgr_line_put(&text_note.line, question.to.c_str());
-                mmgr_line_put(&text_note.line, ": its form transfers control or waits");
-                mmgr_line_ch(&text_note.line, '\n');
-                text_note_written(&text_note);
-            }
+            mmgr_line_put(line, "rule 2 ");
+            mmgr_line_put(line, to);
+            mmgr_line_put(line, ": its form transfers control or waits");
+            mmgr_line_ch(line, '\n');
             flagged += 1u;
         }
     }
-    if (!run_closed(&file))
+    platform_text_ended(&rendered);
+    platform_array_ended(&puts);
+    const unsigned int type_count = categories.type_count;
+    categories_ended(&categories);
+    questions_ended(&questions);
+    const int closed = run_closed(&file);
+    run_written_ended(&file);
+    if (!closed)
     {
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "  ");
-            mmgr_line_put(output_line, path.c_str());
-            mmgr_line_put(output_line, " could not be written");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
+        identity_path_said(file.path.text, " could not be written");
         return 1;
     }
-    {
-        VerbaLinea *const output_line = platform_line_out();
-        mmgr_line_put(output_line, "  ");
-        mmgr_line_put(output_line, path.c_str());
-        mmgr_line_put(output_line, ": ");
-        mmgr_line_decimal(output_line, (unsigned int)first_type.size(), 1u);
-        mmgr_line_put(output_line, " types of link in ");
-        mmgr_line_decimal(output_line, joined, 1u);
-        mmgr_line_put(output_line, " categories of more than one, ");
-        mmgr_line_decimal(output_line, put, 1u);
-        mmgr_line_put(output_line, " windows put, ");
-        mmgr_line_decimal(output_line, known, 1u);
-        mmgr_line_put(output_line, " of them nvcc writes, ");
-        mmgr_line_decimal(output_line, (unsigned int)permuted_order.size(), 1u);
-        mmgr_line_put(output_line, " questions, ");
-        mmgr_line_decimal(output_line, flagged, 1u);
-        mmgr_line_put(output_line, " of them blocked from the part by rule 2");
-        mmgr_line_ch(output_line, '\n');
-        platform_line_out_ended();
-    }
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, "  ");
+    mmgr_line_put(output_line, file.path.text);
+    mmgr_line_put(output_line, ": ");
+    mmgr_line_decimal(output_line, type_count, 1u);
+    mmgr_line_put(output_line, " types of link in ");
+    mmgr_line_decimal(output_line, joined, 1u);
+    mmgr_line_put(output_line, " categories of more than one, ");
+    mmgr_line_decimal(output_line, put, 1u);
+    mmgr_line_put(output_line, " windows put, ");
+    mmgr_line_decimal(output_line, known, 1u);
+    mmgr_line_put(output_line, " of them nvcc writes, ");
+    mmgr_line_decimal(output_line, distinct, 1u);
+    mmgr_line_put(output_line, " questions, ");
+    mmgr_line_decimal(output_line, flagged, 1u);
+    mmgr_line_put(output_line, " of them blocked from the part by rule 2");
+    mmgr_line_ch(output_line, '\n');
+    platform_line_out_ended();
     return 0;
 }

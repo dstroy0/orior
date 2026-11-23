@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_plane_ring_report.cu: rings, paths and printing
-#include "pi_plane_internal.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "pi_plane_internal.h"
 
 // the rings mod floor(pi 2^k): drawn, and each bit
 // read against the bit at its angle one ring in, against keyed shuffles of the rings' bits
@@ -137,7 +137,7 @@ std::vector<long long> plane_path_cells(const PlaneExtent &extent, const char *p
             const int negative = (*at == '-') ? 1 : 0;
             const char *const digits = at + negative;
             const char *end = digits;
-            const embed_word magnitude = mmgr_text_unsigned(digits, &end);
+            const embed_word magnitude = EMBED_CALL(cellul.to_ulong, TransfiguroCfg, .src = digits, .end = &end);
             if (end == digits)
             {
                 break;
@@ -182,7 +182,8 @@ const char *plane_text(int count, char **arguments, const char *name)
 {
     for (int argument = 1; argument + 1 < count; argument += 1)
     {
-        if (mmgr_text_equal(arguments[argument], name, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[argument], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = name, .ci = EMBED_FALSE))
         {
             return arguments[argument + 1];
         }
@@ -194,7 +195,8 @@ std::string plane_directory(int count, char **arguments)
 {
     for (int argument = 1; argument + 1 < count; argument += 1)
     {
-        if (mmgr_text_equal(arguments[argument], "--out", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[argument], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--out", .ci = EMBED_FALSE))
         {
             return arguments[argument + 1];
         }
@@ -209,10 +211,12 @@ unsigned int plane_number(int count, char **arguments, const char *name, unsigne
 {
     for (int argument = 1; argument + 1 < count; argument += 1)
     {
-        if (mmgr_text_equal(arguments[argument], name, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[argument], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = name, .ci = EMBED_FALSE))
         {
             // a request past its max errors in its reader. The conversion's range does not matter here
-            return (unsigned int)mmgr_text_unsigned_in(arguments[argument + 1], NULL, 10);
+            return (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = arguments[argument + 1],
+                                            .end = NULL, .base = 10);
         }
     }
     return fallback;

@@ -1,11 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "unit_sweep.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../runtime/device_pool/device_pool.h"
+#include "memoria_operor/memoria_operor.h"
+#include "unit_sweep.h"
 
 #include <cuda_runtime.h>
-
 
 #define UNIT_SWEEP_THREADS 256u
 
@@ -749,5 +748,5 @@ extern "C" void unit_sweep_release(void)
     cudaFree(buffers->wide_planes);
     cudaFree(buffers->disagreements);
     cudaFree(buffers->over_width);
-    mmgr_bytes_set(buffers, 0, sizeof(*buffers));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = buffers, .bytes = sizeof(*buffers), .val = 0);
 }

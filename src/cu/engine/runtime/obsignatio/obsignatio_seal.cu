@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // obsignatio_seal.cu: levels, bits, the seal and the lanes
-#include "obsignatio_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "obsignatio_internal.h"
 
 #if (defined(__CUDACC__))
 
@@ -247,13 +247,14 @@ extern "C" long obsignatio_level_key(ObsignatioLevel level, unsigned char *key, 
         return OBSIGNATIO_ERROR;
     }
     // the context's chars are hashed as the unsigned bytes they are stored as
-    const ObsignatioSignumRequest request = {(const unsigned char *)context,
-                                             mmgr_text_length(context, PLATFORM_TEXT_TO_TERMINATOR),
-                                             NULL,
-                                             OBSIGNATIO_MODE_CONTEXT,
-                                             key,
-                                             OBSIGNATIO_KEY_BYTES,
-                                             error};
+    const ObsignatioSignumRequest request = {
+        (const unsigned char *)context,
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = context, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+        NULL,
+        OBSIGNATIO_MODE_CONTEXT,
+        key,
+        OBSIGNATIO_KEY_BYTES,
+        error};
     return obsignatio_signum(&request);
 }
 
@@ -287,7 +288,10 @@ extern "C" long obsignatio_seal_verify(const ObsignatioSealRequest *request)
     {
         return OBSIGNATIO_ERROR;
     }
-    return (mmgr_bytes_compare(rebuilt, request->signum, OBSIGNATIO_SIGNUM_BYTES) == 0) ? 1L : 0L;
+    return (EMBED_CALL(memor.cmp, MemoriaCfg, .src = rebuilt, .other = request->signum,
+                       .bytes = OBSIGNATIO_SIGNUM_BYTES) == 0)
+               ? 1L
+               : 0L;
 }
 
 extern "C" unsigned long long obsignatio_lanes_nodes(const unsigned long long *extent)

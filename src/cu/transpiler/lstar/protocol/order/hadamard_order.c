@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hadamard_order.c: the known order of queries, its solve, and the read of whether the links contend
 #include "hadamard_order.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../counterexample/ladder.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../../../../../../includes/exact_types/integers/exact_integer.h"
-
 
 // the count of ones in `word`
 static unsigned int bits_set(unsigned int word)
@@ -84,7 +83,7 @@ unsigned int hadamard_sweep_covers(unsigned int links, unsigned int seed, unsign
     // queries at the two ends and the middle
     const unsigned int counts[3] = {1u, (links + 1u) / 2u, links};
     const unsigned int count = counts[row % 3u];
-    mmgr_bytes_set(covered, 0, links);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = covered, .bytes = links, .val = 0);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         covered[order[at]] = 1u;

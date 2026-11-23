@@ -11,7 +11,7 @@
 #include "../engine/rmc/asm_printer.h"
 #include "../engine/rmc/code_generator.h"
 #include "../engine/rmc/target_internal.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 
 #include <functional>
 #include <map>
@@ -192,7 +192,8 @@ static inline int ruleset_relations_strings(const std::string *paths, unsigned i
     char (*const given)[PLATFORM_PATH_BYTES] = (char (*)[PLATFORM_PATH_BYTES])held.data();
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        (void)mmgr_text_copy(given[at], paths[at].c_str(), PLATFORM_PATH_BYTES);
+        (void)EMBED_CALL(cellul.copy, CatenaFinitaCfg, .src = paths[at].c_str(), .cap = PLATFORM_PATH_BYTES,
+                         .dst = given[at]);
     }
     char why[RULESET_ERROR_BYTES];
     VerbaLinea line = mmgr_line_over(why, sizeof(why));

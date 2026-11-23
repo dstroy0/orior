@@ -21,13 +21,12 @@
 #include "cubin_listing.h"
 #include "../../../../platform/platform.h"
 #include "../../../engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "cubin_write.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../lstar/interface/interface.h"
-
 
 // one code of the list: its number, its kernel's name, its bytes and their size, its exits, and 1 where it is set
 // aside to be read alone
@@ -58,12 +57,12 @@ static int listing_read(const char *nvdisasm, const char *architecture, char *pa
     for (unsigned int tried = 0u; tried < 2u; tried += 1u)
     {
         InterfaceAnswer answer;
-        mmgr_bytes_set(&answer, 0, sizeof(answer));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &answer, .bytes = sizeof(answer), .val = 0);
         answer.output = s_output;
         answer.output_capacity = s_output_room;
         const InterfaceProbe probe = {(architecture != NULL) ? raw : whole, NULL, 0ULL};
         EngineError error;
-        mmgr_bytes_set(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         s_starts += 1u;
         if ((interface_probe_run(&probe, &answer, &error) != 0L) || (answer.ending == INTERFACE_ENDING_NOT_STARTED))
         {
@@ -95,7 +94,8 @@ static int listing_stopped_at(unsigned long long *address)
     const size_t marker_length = sizeof(s_address_marker) - 1u;
     for (unsigned long long at = 0ULL; (at + marker_length) < s_output_size; at += 1ULL)
     {
-        if (mmgr_bytes_compare(s_output + at, s_address_marker, marker_length) != 0)
+        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = s_output + at, .other = s_address_marker,
+                       .bytes = marker_length) != 0)
         {
             continue;
         }
@@ -151,7 +151,8 @@ static int listing_raw_cleared(QryShared *run, ListedCode *codes, unsigned int c
             start[at] = size;
             if (!codes[at].aside)
             {
-                mmgr_bytes_copy(joined + size, codes[at].code, (size_t)codes[at].size);
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = joined + size, .src = codes[at].code,
+                           .bytes = (size_t)codes[at].size);
                 size += codes[at].size;
             }
         }
@@ -247,7 +248,7 @@ static int listing_cubin_read(QryShared *run, ListedCode *codes, unsigned int co
                (listing_read(nvdisasm, NULL, path) == 0);
     platform_cell_released(cubin, platform_place_g_program_owner);
     CubinListingCut cut;
-    mmgr_bytes_set(&cut, 0, sizeof(cut));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &cut, .bytes = sizeof(cut), .val = 0);
     read = read && cubin_listing_cut(s_output, (size_t)s_output_size, names, retained, &cut);
     for (unsigned int at = 0u; read && (at < retained); at += 1u)
     {
@@ -280,7 +281,8 @@ static int listing_line(const unsigned char *list, unsigned long long size, unsi
     {
         return 0;
     }
-    const unsigned char *const end = (const unsigned char *)mmgr_bytes_find(list + *at, '\n', (size_t)(size - *at));
+    const unsigned char *const end = (const unsigned char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = list + *at,
+                                                                       .bytes = (size_t)(size - *at), .val = '\n');
     size_t length = (end != NULL) ? (size_t)(end - (list + *at)) : (size_t)(size - *at);
     const unsigned long long next = *at + length + 1ULL;
     length = ((length != 0u) && (list[*at + length - 1u] == '\r')) ? (length - 1u) : length;
@@ -355,16 +357,20 @@ int program_main(int count, char **words)
             continue;
         }
         ListedCode *const code = &codes[code_count];
-        const char *const forward = mmgr_text_char_last(line, '/', PLATFORM_TEXT_TO_TERMINATOR);
-        const char *const back = mmgr_text_char_last(line, '\\', PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const forward =
+            EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+        const char *const back =
+            EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
         const char *const slash = ((forward != NULL) && ((back == NULL) || (forward > back))) ? forward : back;
         const char *const base = (slash != NULL) ? (slash + 1) : line;
-        const char *const dot = mmgr_text_char_last(base, '.', PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const dot =
+            EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = base, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.');
         {
             VerbaLinea buffer_line = mmgr_line_over(code->number, sizeof(code->number));
             mmgr_line_put_max(&buffer_line, base,
                               (size_t)((int)((dot != NULL) ? (size_t)(dot - base)
-                                                           : mmgr_text_length(base, PLATFORM_TEXT_TO_TERMINATOR))));
+                                                           : EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = base,
+                                                                        .cap = PLATFORM_TEXT_TO_TERMINATOR))));
             (void)mmgr_line_finish(&buffer_line);
         }
         {
@@ -393,7 +399,7 @@ int program_main(int count, char **words)
             (cubin_exits_read(pattern, pattern_size, code->kernel, first_exit, 1u) == 1u) &&
             ((first_exit[0] + 16ULL) <= size))
         {
-            mmgr_bytes_copy(&exit_low, pattern + offset + first_exit[0], 8u);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &exit_low, .src = pattern + offset + first_exit[0], .bytes = 8u);
             exit_known = 1;
         }
         code_count += 1u;

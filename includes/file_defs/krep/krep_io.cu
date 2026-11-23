@@ -1,15 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // krep_io.cu: words, limbs, the head and the seal
-#include "krep_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "krep_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 static int krep_host_little(void)
 {
     const unsigned int probe = 1u;
     unsigned char first = 0u;
-    mmgr_bytes_copy(&first, &probe, 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &first, .src = &probe, .bytes = 1u);
     return (first == 1u) ? 1 : 0;
 }
 
@@ -111,8 +111,10 @@ extern "C" int krep_head_read(PlatformFile *file, const char *type)
     unsigned char magic[8];
     char named[4];
     unsigned int version = 0u;
-    return (platform_file_read_items(magic, 1u, 8u, file) == 8u) && (mmgr_bytes_compare(magic, KREP_MAGIC, 8u) == 0) &&
-           (platform_file_read_items(named, 1u, 4u, file) == 4u) && (mmgr_bytes_compare(named, type, 4u) == 0) &&
+    return (platform_file_read_items(magic, 1u, 8u, file) == 8u) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = magic, .other = KREP_MAGIC, .bytes = 8u) == 0) &&
+           (platform_file_read_items(named, 1u, 4u, file) == 4u) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = named, .other = type, .bytes = 4u) == 0) &&
            (krep_limbs_read(file, &version, 1u) != 0) && (version == KREP_VERSION);
 }
 
@@ -169,7 +171,8 @@ extern "C" unsigned long long krep_crystal_bytes(const EngineStream *stream, con
 static void krep_crystal_head_words(const EngineStream *stream, const EngineSideSection *section,
                                     const EngineSeal *seal, unsigned long long head[KREP_CRYSTAL_HEAD_WORDS])
 {
-    mmgr_bytes_copy(&head[KREP_HEAD_EXTENT], stream->extent, 4u * sizeof(unsigned long long));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &head[KREP_HEAD_EXTENT], .src = stream->extent,
+               .bytes = 4u * sizeof(unsigned long long));
     head[KREP_HEAD_CHUNKS] = stream->chunks;
     head[KREP_HEAD_BITS] = stream->bits;
     head[KREP_HEAD_LANE_OFFSET] = stream->lane_offset;
@@ -271,11 +274,13 @@ extern "C" int krep_crystal_write(const KrepCrystalRequest *request)
 int krep_crystal_head_from(const char *path, PlatformFile *crystal, EngineStream *stream,
                            unsigned long long head[KREP_CRYSTAL_HEAD_WORDS], EngineError *error)
 {
-    mmgr_bytes_set(head, 0, KREP_CRYSTAL_HEAD_WORDS * sizeof(unsigned long long));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = head, .bytes = KREP_CRYSTAL_HEAD_WORDS * sizeof(unsigned long long),
+               .val = 0);
     const int ok = KREP_IO(crystal != NULL, path, error) &&
                    KREP_IO(krep_head_read(crystal, KREP_TYPE_CRYSTAL) != 0, crystal, error) &&
                    KREP_IO(krep_words_read(crystal, head, KREP_CRYSTAL_HEAD_WORDS) != 0, head, error);
-    mmgr_bytes_copy(stream->extent, &head[KREP_HEAD_EXTENT], 4u * sizeof(unsigned long long));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = stream->extent, .src = &head[KREP_HEAD_EXTENT],
+               .bytes = 4u * sizeof(unsigned long long));
     stream->chunks = head[KREP_HEAD_CHUNKS];
     stream->bits = head[KREP_HEAD_BITS];
     stream->lane_offset = head[KREP_HEAD_LANE_OFFSET];
@@ -328,7 +333,7 @@ static int krep_members_read(PlatformFile *crystal, const unsigned long long hea
 int krep_side_read(PlatformFile *crystal, const unsigned long long head[KREP_CRYSTAL_HEAD_WORDS],
                    EngineSideSection *section, EngineError *error)
 {
-    mmgr_bytes_set(section, 0, sizeof(*section));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = section, .bytes = sizeof(*section), .val = 0);
     if (head[KREP_HEAD_LEAVES] == 0ULL)
     {
         return 1;

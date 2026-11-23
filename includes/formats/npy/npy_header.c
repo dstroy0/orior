@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // npy_header.c: loading and the header's dictionary
-#include "npy_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "npy_internal.h"
 
 unsigned long long npy_load(const unsigned char *bytes, unsigned int count)
 {
@@ -56,7 +56,7 @@ unsigned int npy_source_fetch(const NpySource *source, unsigned long long offset
     }
     if (source->memory != NULL)
     {
-        mmgr_bytes_copy(out, source->memory + offset, (size_t)bytes);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = source->memory + offset, .bytes = (size_t)bytes);
         return 1u;
     }
     return npy_file_fetch(source->tools, source->path, source->base + offset, bytes, out);
@@ -135,8 +135,9 @@ static unsigned int npy_quoted(NpyText *text, unsigned long long *start, unsigne
 static unsigned int npy_word(NpyText *text, const char *word)
 {
     npy_space(text);
-    const size_t size = mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR);
-    if (((text->length - text->at) < size) || (mmgr_bytes_compare(text->text + text->at, word, size) != 0))
+    const size_t size = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    if (((text->length - text->at) < size) ||
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = text->text + text->at, .other = word, .bytes = size) != 0))
     {
         return 0u;
     }
@@ -146,8 +147,10 @@ static unsigned int npy_word(NpyText *text, const char *word)
 
 static unsigned int npy_named(const unsigned char *defined, unsigned long long length, const char *name)
 {
-    const size_t size = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
-    return ((length == size) && (mmgr_bytes_compare(defined, name, size) == 0)) ? 1u : 0u;
+    const size_t size = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    return ((length == size) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = defined, .other = name, .bytes = size) == 0))
+               ? 1u
+               : 0u;
 }
 
 static unsigned int npy_description(const unsigned char *defined, unsigned long long length, NpyLayout *layout)

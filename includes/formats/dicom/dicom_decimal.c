@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // dicom_decimal.c: decimal strings and the order of slices
 #include "dicom_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 static int dicom_decimal_parse(const unsigned char *text, unsigned long long length, DicomDecimal *out,
                                EngineError *error)
@@ -224,7 +224,9 @@ static int dicom_uid_compare(const unsigned char *left, unsigned long long left_
         {
             return (one_span < other_span) ? -1 : 1;
         }
-        const int differ = (one_span != 0ULL) ? mmgr_bytes_compare(left + one, right + other, (size_t)one_span) : 0;
+        const int differ = (one_span != 0ULL) ? EMBED_CALL(memor.cmp, MemoriaCfg, .src = left + one,
+                                                           .other = right + other, .bytes = (size_t)one_span)
+                                              : 0;
         if (differ != 0)
         {
             return (differ < 0) ? -1 : 1;
@@ -265,7 +267,8 @@ int dicom_order_slices(const void *left, const void *right)
         return uid;
     }
     const unsigned long long shorter = (one->name_length < other->name_length) ? one->name_length : other->name_length;
-    const int named = mmgr_bytes_compare(one->name, other->name, (size_t)shorter);
+    const int named =
+        EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->name, .other = other->name, .bytes = (size_t)shorter);
     if (named != 0)
     {
         return named;

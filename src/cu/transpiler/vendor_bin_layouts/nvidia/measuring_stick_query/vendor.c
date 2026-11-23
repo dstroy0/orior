@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // vendor.c: the vendor's instruction set for the part the cross reads for, and whether its disassembler reads a piece
-#include "msq_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "msq_internal.h"
 
 #include "../tables/read.h"
 
@@ -64,8 +64,8 @@ int msq_vendor_reads(const MsqBytes *piece)
     {
         unsigned long long low = 0ULL;
         unsigned long long high = 0ULL;
-        mmgr_bytes_copy(&low, piece->bytes + at, 8u);
-        mmgr_bytes_copy(&high, piece->bytes + at + 8u, 8u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &low, .src = piece->bytes + at, .bytes = 8u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &high, .src = piece->bytes + at + 8u, .bytes = 8u);
         if (tables_class_of(&s_tables, low, high) == NULL)
         {
             return 0;

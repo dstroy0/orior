@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_root.cu: the root pattern
-#include "noise_detector_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "noise_detector_internal.h"
 
 // the box's voxels, 0 where an axis is empty or the count passes NOISE_ROOT_VOXELS_MAX
 static unsigned long long noise_root_voxels(const unsigned long long box[4])
@@ -80,7 +80,7 @@ static void noise_root_pattern(const int *values, const unsigned long long box[4
     unsigned long long extent[4];
     noise_root_extent(term, box, extent);
     const unsigned long long cells = extent[0] * extent[1] * extent[2] * extent[3];
-    mmgr_bytes_set(sums, 0, (size_t)cells * sizeof(unsigned long long));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = sums, .bytes = (size_t)cells * sizeof(unsigned long long), .val = 0);
     unsigned long long place[4] = {0ULL, 0ULL, 0ULL, 0ULL};
     for (unsigned long long at = 0ULL; at < voxels; at += 1ULL)
     {
@@ -139,7 +139,7 @@ extern "C" long noise_root_box(const NoiseRootRequest *request)
         return NOISE_DETECTOR_ERROR;
     }
     NoiseRootMeasurement *const measurement = request->measurement;
-    mmgr_bytes_set(measurement, 0, sizeof(*measurement));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = measurement, .bytes = sizeof(*measurement), .val = 0);
     measurement->root = NOISE_ROOT_TERMS;
     int *const values = (int *)platform_cell_taken((unsigned long long)((size_t)voxels * sizeof(int)),
                                                    (unsigned int)platform_place_g_engine_owner, 0);
@@ -183,14 +183,15 @@ extern "C" long noise_root_box(const NoiseRootRequest *request)
     }
     if (ok && (request->residual != NULL))
     {
-        mmgr_bytes_copy(request->residual, (root < NOISE_ROOT_TERMS) ? residual : values, (size_t)voxels * sizeof(int));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->residual,
+                   .src = (root < NOISE_ROOT_TERMS) ? residual : values, .bytes = (size_t)voxels * sizeof(int));
     }
     if (ok && (request->pattern != NULL) && (root < NOISE_ROOT_TERMS))
     {
         unsigned long long extent[4];
         noise_root_extent(root, box, extent);
-        mmgr_bytes_copy(request->pattern, pattern,
-                        (size_t)(extent[0] * extent[1] * extent[2] * extent[3]) * sizeof(int));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->pattern, .src = pattern,
+                   .bytes = (size_t)(extent[0] * extent[1] * extent[2] * extent[3]) * sizeof(int));
     }
     platform_cell_released(values, (unsigned int)platform_place_g_engine_owner);
     platform_cell_released(residual, (unsigned int)platform_place_g_engine_owner);

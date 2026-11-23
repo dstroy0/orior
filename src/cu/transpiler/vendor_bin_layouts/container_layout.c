@@ -3,9 +3,8 @@
 // container_layout.c: a container's layout read from its file, and looked up by name
 #include "container_layout.h"
 #include "../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
-
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 // one tab-separated word of `line` from `at`, into `word`; the place the next word starts, or 0 at the end
 static unsigned int layout_word(const char *line, unsigned int at, char *word, unsigned int room)
@@ -40,7 +39,7 @@ int container_layout_read(ContainerLayout *layout, const char *path)
         }
         return 0;
     }
-    mmgr_bytes_set(layout, 0, sizeof(*layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = layout, .bytes = sizeof(*layout), .val = 0);
     {
         VerbaLinea buffer_line = mmgr_line_over(layout->from, sizeof(layout->from));
         mmgr_line_put(&buffer_line, path);
@@ -73,22 +72,29 @@ int container_layout_read(ContainerLayout *layout, const char *path)
         }
         char value[LAYOUT_TEXT_MAX_LEN];
         at = layout_word(line, at, value, sizeof(value));
-        if (mmgr_text_equal(type, "field", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "field",
+                       .ci = EMBED_FALSE))
         {
             char width[LAYOUT_TEXT_MAX_LEN];
             row->type = LAYOUT_FIELD;
-            row->offset = mmgr_text_unsigned_in(value, NULL, 10);
+            row->offset = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = value, .end = NULL, .base = 10);
             layout_word(line, at, width, sizeof(width));
-            row->width = (unsigned int)mmgr_text_unsigned_in(width, NULL, 10);
+            row->width =
+                (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = width, .end = NULL, .base = 10);
         }
-        else if ((mmgr_text_equal(type, "size", PLATFORM_TEXT_TO_TERMINATOR)) ||
-                 (mmgr_text_equal(type, "tag", PLATFORM_TEXT_TO_TERMINATOR)))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "size", .ci = EMBED_FALSE)) ||
+                 (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "tag", .ci = EMBED_FALSE)))
         {
-            row->type = (mmgr_text_equal(type, "size", PLATFORM_TEXT_TO_TERMINATOR)) ? (unsigned int)LAYOUT_SIZE
-                                                                                     : (unsigned int)LAYOUT_TAG;
-            row->offset = mmgr_text_unsigned_in(value, NULL, 10);
+            row->type = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "size", .ci = EMBED_FALSE))
+                            ? (unsigned int)LAYOUT_SIZE
+                            : (unsigned int)LAYOUT_TAG;
+            row->offset = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = value, .end = NULL, .base = 10);
         }
-        else if (mmgr_text_equal(type, "name", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "name", .ci = EMBED_FALSE))
         {
             row->type = LAYOUT_NAME;
             {
@@ -97,7 +103,8 @@ int container_layout_read(ContainerLayout *layout, const char *path)
                 (void)mmgr_line_finish(&buffer_line);
             }
         }
-        else if (mmgr_text_equal(type, "container", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "container", .ci = EMBED_FALSE))
         {
             // the container the system accepted, which the pattern's reader takes (cubin_pattern_read)
             continue;
@@ -129,7 +136,8 @@ static const LayoutRow *layout_row(const ContainerLayout *layout, const char *na
     for (unsigned int at = 0u; at < layout->rows; at += 1u)
     {
         if ((layout->row[at].type == type) &&
-            (mmgr_text_equal(layout->row[at].name, name, PLATFORM_TEXT_TO_TERMINATOR)))
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = layout->row[at].name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = name, .ci = EMBED_FALSE)))
         {
             return &layout->row[at];
         }
@@ -182,7 +190,9 @@ int layout_text(const ContainerLayout *layout, const char *name, const char *par
         return 0;
     }
     // {part} is all a name is in for. What a part is called belongs to the program and not to the format
-    const char *const is = mmgr_text_find(row->text, "{part}", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const is =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = row->text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "{part}", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if (is == NULL)
     {
         {

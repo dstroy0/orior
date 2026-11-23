@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // costs.c: the costs and the fields written, and the pass enumerated
-#include "khw_learn_internal.h"
-#include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../includes/parsers/who.h"
+#include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "khw_learn_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the code of a costs question: the kernel's places before the position, `copies` of the form `low` and `high` from the
 // position on, and the kernel's places after the position after them; the kernel as the part accepted it where `copies`
@@ -32,11 +32,12 @@ static int khw_cost_timed(unsigned int copies, unsigned long long low, unsigned 
             khw_word_write(&s_cost_code[(s_probe_place + copy) * KHW_INSTRUCTION], 0u, low);
             khw_word_write(&s_cost_code[(s_probe_place + copy) * KHW_INSTRUCTION], 8u, high);
         }
-        mmgr_bytes_copy(&s_cost_code[(s_probe_place + copies) * KHW_INSTRUCTION],
-                        &s_kernel_text[(s_probe_place + 1u) * KHW_INSTRUCTION], (size_t)after * KHW_INSTRUCTION);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &s_cost_code[(s_probe_place + copies) * KHW_INSTRUCTION],
+                   .src = &s_kernel_text[(s_probe_place + 1u) * KHW_INSTRUCTION],
+                   .bytes = (size_t)after * KHW_INSTRUCTION);
         places = s_probe_place + copies + after;
     }
-    mmgr_bytes_set(&s_cost_question, 0, sizeof(s_cost_question));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_cost_question, .bytes = sizeof(s_cost_question), .val = 0);
     s_cost_question.code = s_cost_code;
     s_cost_question.code_size = (unsigned long long)places * KHW_INSTRUCTION;
     s_cost_question.registers = s_registers;
@@ -85,12 +86,15 @@ unsigned int khw_costs_queried(const char *path)
     const unsigned char *machine = NULL;
     unsigned long long machine_size = 0ULL;
     const char *const machine_name = qry_member_file_name(s_path);
-    const size_t named = (machine_name != NULL) ? mmgr_text_length(machine_name, PLATFORM_TEXT_TO_TERMINATOR) : 0u;
+    const size_t named = (machine_name != NULL) ? EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = machine_name,
+                                                             .cap = PLATFORM_TEXT_TO_TERMINATOR)
+                                                : 0u;
     unsigned long long at = 0ULL;
     const QryRecord *record = NULL;
     while ((named != 0u) && (machine == NULL) && qry_member_read(&at, &record))
     {
-        if ((record->name_length == named) && (mmgr_bytes_compare(QRY_RECORD_NAME(record), machine_name, named) == 0))
+        if ((record->name_length == named) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = QRY_RECORD_NAME(record),
+                                                          .other = machine_name, .bytes = named) == 0))
         {
             machine = QRY_RECORD_BLOB(record);
             machine_size = record->blob_length;
@@ -285,7 +289,8 @@ void khw_fields_written(const char *path)
     ksc_read(&s_read, path);
     for (unsigned int at = 0u; at < s_read.lines; at += 1u)
     {
-        if (!mmgr_text_starts(s_read.line[at], "field ", PLATFORM_TEXT_TO_TERMINATOR))
+        if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = s_read.line[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "field ", .ci = EMBED_FALSE))
         {
             ksc_line_add(&s_stored, s_read.line[at]);
         }
@@ -360,7 +365,7 @@ void khw_enumerate(unsigned int place, const char *forms)
     if (known == 0u)
     {
         KhwAnswered form;
-        mmgr_bytes_set(&form, 0, sizeof(form));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &form, .bytes = sizeof(form), .val = 0);
         form.low = khw_word_read(&s_kernel_text[place * KHW_INSTRUCTION], 0u);
         form.high = khw_word_read(&s_kernel_text[place * KHW_INSTRUCTION], 8u);
         khw_turns_queried(&form, word);

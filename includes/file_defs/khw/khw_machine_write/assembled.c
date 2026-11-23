@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // assembled.c: the texts the protocol passes, each assembled against the machine file with every stall safe, and passed
 // back to the run
-#include "khw_machine_write_internal.h"
 #include "../../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "khw_machine_write_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
 
@@ -21,12 +21,14 @@ static char s_reason[QRY_NAME_MAX_LEN + 64u];
 // `first` and then `second` appended to the run as KHW_ASSEMBLED_REASON, the reason the texts were not assembled: 0
 static int khw_assembled_reason(const char *first, const char *second)
 {
-    const size_t first_length = mmgr_text_length(first, PLATFORM_TEXT_TO_TERMINATOR);
-    const size_t second_length = mmgr_text_length(second, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t first_length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = first, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t second_length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = second, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     if ((first_length + second_length) <= sizeof(s_reason))
     {
-        mmgr_bytes_copy(s_reason, first, first_length);
-        mmgr_bytes_copy(s_reason + first_length, second, second_length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_reason, .src = first, .bytes = first_length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_reason + first_length, .src = second, .bytes = second_length);
         qry_member_append(KHW_ASSEMBLED_REASON, s_reason, first_length + second_length, QRY_ORDINARY);
     }
     return 0;
@@ -52,7 +54,7 @@ int khw_texts_assembled(const char *path, const char *answers)
     // the call's number, the digits after `call ` on the first line
     static const char s_call[] = "call ";
     unsigned long long from = sizeof(s_call) - 1u;
-    if ((size < from) || (mmgr_bytes_compare(texts, s_call, (size_t)from) != 0))
+    if ((size < from) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = texts, .other = s_call, .bytes = (size_t)from) != 0))
     {
         return khw_assembled_reason(answers, " names no call");
     }
@@ -72,26 +74,27 @@ int khw_texts_assembled(const char *path, const char *answers)
     while (from < size)
     {
         // the rest of the blob, which a size_t counts as the blob fits the buffer
-        const unsigned char *const end =
-            (const unsigned char *)mmgr_bytes_find(texts + from, '\f', (size_t)(size - from));
+        const unsigned char *const end = (const unsigned char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = texts + from,
+                                                                           .bytes = (size_t)(size - from), .val = '\f');
         const size_t length = (end == NULL) ? 0u : (size_t)(end - (texts + from));
         if ((end == NULL) || (taken == KHW_ASSEMBLED_TEXTS) || (length > KHW_ASSEMBLED_TEXT_BYTES))
         {
             return khw_assembled_reason(answers, " contains a text past the room to assemble it");
         }
-        mmgr_bytes_copy(s_text, texts + from, length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_text, .src = texts + from, .bytes = length);
         s_text[length] = '\0';
         const unsigned int instructions =
             sass_assemble_lines(&s_machine, s_text, SASS_CONTROL_SAFE, s_assembled + written + sizeof(unsigned int),
                                 KHW_INSTRUCTION * KHW_ASSEMBLED_MAX);
-        mmgr_bytes_copy(s_assembled + written, &instructions, sizeof(instructions));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_assembled + written, .src = &instructions,
+                   .bytes = sizeof(instructions));
         written += sizeof(instructions) + ((size_t)instructions * KHW_INSTRUCTION);
         taken += 1u;
         // past the form feed and the line's end after it
         from = (unsigned long long)(end - texts) + 2ULL;
     }
-    mmgr_bytes_copy(s_assembled, &call, sizeof(call));
-    mmgr_bytes_copy(s_assembled + sizeof(call), &taken, sizeof(taken));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_assembled, .src = &call, .bytes = sizeof(call));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_assembled + sizeof(call), .src = &taken, .bytes = sizeof(taken));
     if (!qry_member_append(KHW_ASSEMBLED, s_assembled, written, QRY_ORDINARY))
     {
         return khw_assembled_reason(KHW_ASSEMBLED, " could not be appended to the run");

@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_nodes.c: nodes and probes
-#include "max_tree_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "max_tree_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 static void max_tree_part(const unsigned int *residual, const MaxTree *theirs, const MaxTree *mine)
 {
@@ -105,7 +105,7 @@ int max_tree_poc(const unsigned int *residual, unsigned int depth, unsigned int 
     }
     const size_t voxels = (size_t)depth * height * width;
     const size_t plane = (size_t)height * width;
-    mmgr_bytes_set(bound, 0, voxels * 3u);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = bound, .bytes = voxels * 3u, .val = 0);
     unsigned int *const left = (unsigned int *)platform_cell_taken(
         (unsigned long long)(voxels * 3u * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
     unsigned int *const right = (unsigned int *)platform_cell_taken(
@@ -213,7 +213,7 @@ int max_tree_poc(const unsigned int *residual, unsigned int depth, unsigned int 
     }
 
     MaxTree tree;
-    mmgr_bytes_set(&tree, 0, sizeof(tree));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &tree, .bytes = sizeof(tree), .val = 0);
     ok = (ok != 0) && (max_tree_build_bound(residual, depth, height, width, bound, &tree) >= 0L);
     const int built = ok;
     ok = (ok != 0) && (max_tree_equal(&reference, &tree) != 0);
@@ -251,7 +251,7 @@ void max_tree_nodes_release(MaxTreeNodes *nodes)
     platform_cell_released(nodes->subtree_end, platform_place_g_program_owner);
     platform_cell_released(nodes->root, platform_place_g_program_owner);
     platform_cell_released(nodes->own, platform_place_g_program_owner);
-    mmgr_bytes_set(nodes, 0, sizeof(*nodes));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = nodes, .bytes = sizeof(*nodes), .val = 0);
 }
 
 // the node arrays numbered in DFS order from the canonical voxels: `node_of` names each canonical voxel's place among
@@ -400,7 +400,7 @@ long max_tree_nodes(const MaxTreeNodesRequest *request)
     const unsigned int *const residual = request->residual;
     const MaxTree *const tree = request->tree;
     MaxTreeNodes *const nodes = request->nodes;
-    mmgr_bytes_set(nodes, 0, sizeof(*nodes));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = nodes, .bytes = sizeof(*nodes), .val = 0);
     const size_t voxels = tree->voxels;
     const unsigned int admitted = tree->admitted;
     unsigned int *const rank = (unsigned int *)platform_cell_taken(
@@ -522,7 +522,8 @@ long max_tree_probe_levels(const MaxTreeProbeRequest *request)
         void *const sort_room =
             platform_cell_taken((unsigned long long)(probes) * (unsigned long long)(sizeof(unsigned long long)),
                                 platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(keys, probes, sizeof(unsigned long long), max_tree_key_compare, sort_room);
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = keys, .bytes = sizeof(unsigned long long), .scratch = sort_room,
+                         .count = probes, .order = max_tree_key_compare);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     for (unsigned int at = 0u; at < probes; at += 1u)

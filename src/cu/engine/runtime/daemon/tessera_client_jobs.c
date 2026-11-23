@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_client_jobs.c: self reports, submitting, waiting and releasing jobs
-#include "tessera_client_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera_client_internal.h"
 
 #if !defined(_WIN32)
 static int tessera_self_report(TesseraClient *client)
@@ -158,7 +158,7 @@ static long tessera_decided(TesseraClient *client, TesseraTicket *ticket, unsign
 long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client, TesseraTicket *ticket)
 {
     *client = NULL;
-    mmgr_bytes_set(ticket, 0, sizeof(*ticket));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = ticket, .bytes = sizeof(*ticket), .val = 0);
     if (!TESSERA_CHECK((submit->declared != 0ULL) && (submit->sweep_microseconds != 0ULL) &&
                            (submit->override_budget <= 1u),
                        submit, submit->error, ENGINE_ERROR_REQUEST))
@@ -179,7 +179,7 @@ long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client, 
     pthread_mutex_init(&made->watch, NULL);
     pthread_cond_init(&made->woken, NULL);
 #endif
-    mmgr_bytes_copy(made->device, submit->device, TESSERA_DEVICE_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = made->device, .src = submit->device, .bytes = TESSERA_DEVICE_BYTES);
     made->luid = submit->luid;
     made->signum = submit->signum;
     made->declared = submit->declared;

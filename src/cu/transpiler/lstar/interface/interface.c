@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface.c: a probe run through the interface: its output stored, ended and read back, the host's clock, and the
 // probe run to its end on whichever platform runs it (platform/windows.c, platform/posix.c)
+#include "memoria_operor/memoria_operor.h"
 #include "platform/interface_internal.h"
-#include "memoria_operor/memoria_linea.h"
 
 // `read` bytes of the probe's output at `piece` stored in the answer, as many as its capacity contains past the
 // `*total` before them, and counted whole
@@ -16,7 +16,7 @@ void interface_output_appended(InterfaceAnswer *answer, unsigned long long *tota
     if ((answer->output != NULL) && (copied != 0ULL))
     {
         // a copy is at max one piece, which a size_t represents
-        mmgr_bytes_copy(answer->output + *total, piece, (size_t)copied);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = answer->output + *total, .src = piece, .bytes = (size_t)copied);
     }
     *total += read;
 }

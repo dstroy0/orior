@@ -1,12 +1,30 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // written.c: what the pass writes: the run's texts, the runs read, the answers and the working set
-#include "../../../parsers/who.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../../../src/platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "../../../parsers/who.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "khw_write.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_scribo.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int written_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // the text that a writer here puts together: its bytes, the room that they have, and the offset of the write. The
 // offset is the room once a write did not fit
@@ -119,8 +137,10 @@ int khw_runs_read(KhwAnswered *answered, const char *text)
     unsigned int words = 0u;
     for (const char *at = text; *at != '\0';)
     {
-        at += mmgr_text_span(at, " \t\r\n", PLATFORM_TEXT_TO_TERMINATOR);
-        const size_t length = mmgr_text_span_not(at, " \t\r\n", PLATFORM_TEXT_TO_TERMINATOR);
+        at +=
+            EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \t\r\n");
+        const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = at,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \t\r\n");
         words += (length != 0u) ? 1u : 0u;
         at += length;
     }
@@ -152,12 +172,18 @@ int khw_runs_read(KhwAnswered *answered, const char *text)
             // character after it. The character's place among the four is its type, and no character is a register's
             const char *end = NULL;
             const int none =
-                (mmgr_text_order(place, KHW_PLACE_NONE_TEXT,
-                                 (size_t)(mmgr_text_length(KHW_PLACE_NONE_TEXT, PLATFORM_TEXT_TO_TERMINATOR))) == 0);
-            answered->place[run] = none ? KHW_PLACE_NONE : (unsigned int)mmgr_text_unsigned_in(place, &end, 10);
-            end = none ? (place + mmgr_text_length(KHW_PLACE_NONE_TEXT, PLATFORM_TEXT_TO_TERMINATOR)) : end;
+                (written_text_order(place, KHW_PLACE_NONE_TEXT,
+                                    (size_t)(EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = KHW_PLACE_NONE_TEXT,
+                                                        .cap = PLATFORM_TEXT_TO_TERMINATOR))) == 0);
+            answered->place[run] = none ? KHW_PLACE_NONE
+                                        : (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = place,
+                                                                   .end = &end, .base = 10);
+            end = none ? (place + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = KHW_PLACE_NONE_TEXT,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR))
+                       : end;
             const char *const character = ((end != NULL) && (*end != '\0'))
-                                              ? mmgr_text_char(KHW_TYPE_CHARACTERS, *end, PLATFORM_TEXT_TO_TERMINATOR)
+                                              ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = KHW_TYPE_CHARACTERS,
+                                                           .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = *end)
                                               : NULL;
             answered->type[run] =
                 (character != NULL) ? (unsigned int)(character - KHW_TYPE_CHARACTERS) : KHW_TYPE_REGISTER;

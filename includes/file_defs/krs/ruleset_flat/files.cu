@@ -73,10 +73,12 @@ static void ruleset_part_named(const char *path, char *part, size_t bytes)
     size_t at = 0u;
     while (at < size)
     {
-        const char *const newline = mmgr_text_char(&bytes_read[at], '\n', size - at);
+        const char *const newline =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = &bytes_read[at], .cap = size - at, .byte = '\n');
         // a line ends at or past its start
         const size_t end = (newline != NULL) ? (size_t)(newline - bytes_read) : size;
-        if (((end - at) >= 5u) && (mmgr_bytes_compare(&bytes_read[at], "part ", 5u) == 0))
+        if (((end - at) >= 5u) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &bytes_read[at], .other = "part ", .bytes = 5u) == 0))
         {
             size_t stop = at + 5u;
             while ((stop < end) && (bytes_read[stop] != ' ') && (bytes_read[stop] != '\t') &&
@@ -99,7 +101,7 @@ unsigned int ruleset_paths(const RulesetSchema *schema, const char *path,
 {
     (void)schema;
     unsigned int count = 0u;
-    (void)mmgr_text_copy(paths[count], path, PLATFORM_PATH_BYTES);
+    (void)EMBED_CALL(cellul.copy, CatenaFinitaCfg, .src = path, .cap = PLATFORM_PATH_BYTES, .dst = paths[count]);
     count += 1u;
     char named[PLATFORM_PATH_BYTES];
     ruleset_part_named(path, named, sizeof(named));
@@ -119,8 +121,11 @@ unsigned int ruleset_paths(const RulesetSchema *schema, const char *path,
         }
     }
     // the folds the .ksc beside the file contains as forms, where it has one, as the run stores it
-    const char *const dot = mmgr_text_char_last(path, '.', PLATFORM_TEXT_TO_TERMINATOR);
-    const size_t stem = (dot != NULL) ? (size_t)(dot - path) : mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const dot =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.');
+    const size_t stem = (dot != NULL)
+                            ? (size_t)(dot - path)
+                            : EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     VerbaLinea ksc = mmgr_line_over(paths[count], PLATFORM_PATH_BYTES);
     (void)mmgr_line_put_n(&ksc, path, stem);
     mmgr_line_put(&ksc, ".ksc");
@@ -165,15 +170,18 @@ int ruleset_text(const RulesetSchema *schema, const char *path, PlatformText *te
         // a .kdm and a .ksc, the code reads only the ruleset lines
         const char *const read_bytes = platform_text_bytes(&read);
         const size_t read_size = (size_t)platform_text_size(&read);
-        const size_t path_length = mmgr_text_length(paths[at], PLATFORM_PATH_BYTES);
-        const int krs = (path_length >= 4u) && (mmgr_bytes_compare(&paths[at][path_length - 4u], ".krs", 4u) == 0);
+        const size_t path_length =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = paths[at], .cap = PLATFORM_PATH_BYTES);
+        const int krs = (path_length >= 4u) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &paths[at][path_length - 4u],
+                                                           .other = ".krs", .bytes = 4u) == 0);
         if (krs == 0)
         {
             ruleset_lines_read(read_bytes, read_size, text);
         }
         else
         {
-            const char *const opening = mmgr_text_char(read_bytes, '\n', read_size);
+            const char *const opening =
+                EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = read_bytes, .cap = read_size, .byte = '\n');
             if (opening != NULL)
             {
                 // the newline lies inside the read, at or past its start

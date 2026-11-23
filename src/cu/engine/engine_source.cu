@@ -1,16 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_source.cu: zip names, the source's type, its description and its bytes
-#include "engine_internal.h"
 #include "../../platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "engine_internal.h"
 #include "engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 int entry_ends(const char *path, const char *suffix)
 {
-    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
-    const size_t size = mmgr_text_length(suffix, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t size = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = suffix, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     int same = (length >= size);
     for (size_t at = 0u; same && (at < size); at += 1u)
     {
@@ -24,7 +24,7 @@ int entry_ends(const char *path, const char *suffix)
 static int entry_zip_names(const char *path, const char *member)
 {
     EngineError probe;
-    mmgr_bytes_set(&probe, 0, sizeof(probe));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &probe, .bytes = sizeof(probe), .val = 0);
     const ZipArchive *const archive = zip_archive_cached(entry_ingest_tools(), path, &probe);
     unsigned long long first = 0ULL;
     unsigned long long count = 0ULL;
@@ -32,7 +32,7 @@ static int entry_zip_names(const char *path, const char *member)
     {
         return archive != NULL;
     }
-    const size_t length = mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = member, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     int named = 0;
     for (unsigned long long at = 0ULL; (named == 0) && (at < archive->entries); at += 1ULL)
     {
@@ -41,9 +41,12 @@ static int entry_zip_names(const char *path, const char *member)
         {
             return 0;
         }
-        const int stem = (entry.name_length >= length) && (mmgr_bytes_compare(entry.name, member, length) == 0);
-        named = stem && ((entry.name_length == length) || ((entry.name_length == (length + 4u)) &&
-                                                           (mmgr_bytes_compare(entry.name + length, ".npy", 4u) == 0)));
+        const int stem = (entry.name_length >= length) &&
+                         (EMBED_CALL(memor.cmp, MemoriaCfg, .src = entry.name, .other = member, .bytes = length) == 0);
+        named = stem &&
+                ((entry.name_length == length) ||
+                 ((entry.name_length == (length + 4u)) &&
+                  (EMBED_CALL(memor.cmp, MemoriaCfg, .src = entry.name + length, .other = ".npy", .bytes = 4u) == 0)));
     }
     return named;
 }
@@ -69,11 +72,12 @@ static EntrySourceType entry_source_type(const char *path, const char *member)
     static unsigned char cached_head[352];
     static long long cached_read = -1LL;
     unsigned char head[352];
-    mmgr_bytes_set(head, 0, sizeof(head));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = head, .bytes = sizeof(head), .val = 0);
     long long bytes_read = -1LL;
-    if ((cached_read >= 0LL) && (mmgr_text_equal(cached_path, path, PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((cached_read >= 0LL) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = cached_path,
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = path, .ci = EMBED_FALSE)))
     {
-        mmgr_bytes_copy(head, cached_head, sizeof(head));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = head, .src = cached_head, .bytes = sizeof(head));
         bytes_read = cached_read;
     }
     else
@@ -85,12 +89,15 @@ static EntrySourceType entry_source_type(const char *path, const char *member)
         range.out = head;
         bytes_read = stack_file_read(&range);
         const int cacheable =
-            (bytes_read >= 0LL) && (mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR) < sizeof(cached_path));
+            (bytes_read >= 0LL) && (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path,
+                                               .cap = PLATFORM_TEXT_TO_TERMINATOR) < sizeof(cached_path));
         cached_read = cacheable ? bytes_read : -1LL;
         if (cacheable)
         {
-            mmgr_bytes_copy(cached_path, path, mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR) + 1u);
-            mmgr_bytes_copy(cached_head, head, sizeof(head));
+            EMBED_CALL(
+                memor.cpy, MemoriaCfg, .dst = cached_path, .src = path,
+                .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = cached_head, .src = head, .bytes = sizeof(head));
         }
     }
     if (bytes_read < 8LL)
@@ -106,28 +113,31 @@ static EntrySourceType entry_source_type(const char *path, const char *member)
     {
         return ENTRY_SOURCE_TIFF;
     }
-    if ((mmgr_bytes_compare(head, "\x89HDF\r\n\x1a\n", 8u) == 0) || entry_ends(path, ".h5") ||
-        entry_ends(path, ".hdf5") || entry_ends(path, ".ims"))
+    if ((EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = "\x89HDF\r\n\x1a\n", .bytes = 8u) == 0) ||
+        entry_ends(path, ".h5") || entry_ends(path, ".hdf5") || entry_ends(path, ".ims"))
     {
         return ENTRY_SOURCE_HDF5;
     }
-    if (mmgr_bytes_compare(head, "PAR1", 4u) == 0)
+    if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = "PAR1", .bytes = 4u) == 0)
     {
         return ENTRY_SOURCE_PARQUET;
     }
-    if ((mmgr_bytes_compare(head, "PK\x03\x04", 4u) == 0) && dicom_zip_has_member(entry_ingest_tools(), path, member))
+    if ((EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = "PK\x03\x04", .bytes = 4u) == 0) &&
+        dicom_zip_has_member(entry_ingest_tools(), path, member))
     {
         return ENTRY_SOURCE_DICOM;
     }
-    if ((mmgr_bytes_compare(head, "PK\x03\x04", 4u) == 0) && (member != NULL) && !entry_zip_names(path, member))
+    if ((EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = "PK\x03\x04", .bytes = 4u) == 0) && (member != NULL) &&
+        !entry_zip_names(path, member))
     {
         return ENTRY_SOURCE_NO_MEMBER;
     }
-    if ((mmgr_bytes_compare(head, "\x93NUMPY", 6u) == 0) || (mmgr_bytes_compare(head, "PK\x03\x04", 4u) == 0))
+    if ((EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = "\x93NUMPY", .bytes = 6u) == 0) ||
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = "PK\x03\x04", .bytes = 4u) == 0))
     {
         return ENTRY_SOURCE_NPY;
     }
-    if (mmgr_bytes_compare(head, "NRRD000", 7u) == 0)
+    if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = "NRRD000", .bytes = 7u) == 0)
     {
         return ENTRY_SOURCE_NRRD;
     }
@@ -141,7 +151,7 @@ static EntrySourceType entry_source_type(const char *path, const char *member)
 
 static int entry_source_describe(const char *path, const char *member, EntrySource *source, EngineError *error)
 {
-    mmgr_bytes_set(source, 0, sizeof(*source));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = source, .bytes = sizeof(*source), .val = 0);
     source->type = entry_source_type(path, member);
     source->member = member;
     const EngineIngestTools *const tools = entry_ingest_tools();
@@ -287,7 +297,9 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
     const EngineArrayExtent *const array_extent = &source->extent;
     const unsigned int rank = array_extent->rank;
     char axes[ENGINE_ARRAY_RANK];
-    const size_t stated = (request->axes != NULL) ? mmgr_text_length(request->axes, PLATFORM_TEXT_TO_TERMINATOR) : 0u;
+    const size_t stated = (request->axes != NULL) ? EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = request->axes,
+                                                               .cap = PLATFORM_TEXT_TO_TERMINATOR)
+                                                  : 0u;
     int ok = (rank != 0u) && ((request->axes == NULL) || (stated == rank));
     // a c axis, at max one, gives its lanes at the channel requested; every other axis is one of t z y x
     int channel_axis = -1;

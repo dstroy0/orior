@@ -4,8 +4,8 @@
 // (kfile_lines.h)
 #include "kfile_lines.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_scribo.h"
 
 #include "../klang/klang.h"
@@ -13,13 +13,31 @@
 #include "../../../src/cu/transpiler/lstar/protocol/table_text.h"
 #include "../../parsers/who.h"
 
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int kfile_lines_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
+
 // `length` characters at `text` copied into an allocation of their own, ended: NULL where there was no memory
 static char *kfile_lines_copy(const char *text, size_t length)
 {
     char *const copy = (char *)platform_cell_taken(length + 1u, platform_place_g_program_owner, 0);
     if (copy != NULL)
     {
-        mmgr_bytes_copy(copy, text, length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy, .src = text, .bytes = length);
         copy[length] = '\0';
     }
     return copy;
@@ -65,7 +83,8 @@ int kfile_lines_read(KfileLines *file, const char *path)
     {
         // a file read whole is at max what a size_t counts
         const char *const start = (const char *)(bytes + at);
-        const char *const end = (const char *)mmgr_bytes_find(start, '\n', (size_t)(size - at));
+        const char *const end =
+            (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = start, .bytes = (size_t)(size - at), .val = '\n');
         size_t length = (end != NULL) ? (size_t)(end - start) : (size_t)(size - at);
         at += (unsigned long long)length + ((end != NULL) ? 1ULL : 0ULL);
         length -= ((length != 0u) && (start[length - 1u] == '\r')) ? 1u : 0u;
@@ -103,8 +122,9 @@ int kfile_lines_write_by(const KfileLines *file, const char *path, Who who)
     if ((time != 0ULL) && (name != NULL))
     {
         // the file's row of the table files (files.oracle.tsv): the who that wrote it, its record and its name
-        unsigned long long row[4] = {0ULL, 0ULL, time,
-                                     table_text(name, mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR))};
+        unsigned long long row[4] = {
+            0ULL, 0ULL, time,
+            table_text(name, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR))};
         who_words(who, row);
         qry_member_append(TABLE_FILES, row, sizeof(row), QRY_CRITICAL);
     }
@@ -118,12 +138,13 @@ void kfile_lines_free(KfileLines *file)
         platform_cell_released(file->line[at], platform_place_g_program_owner);
     }
     platform_cell_released(file->line, platform_place_g_program_owner);
-    mmgr_bytes_set(file, 0, sizeof(*file));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = file, .bytes = sizeof(*file), .val = 0);
 }
 
 int kfile_lines_line_add(KfileLines *file, const char *text)
 {
-    char *const copy = kfile_lines_copy(text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR));
+    char *const copy = kfile_lines_copy(
+        text, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR));
     if ((copy == NULL) || !kfile_lines_room(file, 1u))
     {
         platform_cell_released(copy, platform_place_g_program_owner);
@@ -136,8 +157,9 @@ int kfile_lines_line_add(KfileLines *file, const char *text)
 
 int kfile_lines_line_replaced(KfileLines *file, unsigned int at, const char *text)
 {
-    char *const copy =
-        (at < file->lines) ? kfile_lines_copy(text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR)) : NULL;
+    char *const copy = (at < file->lines) ? kfile_lines_copy(text, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text,
+                                                                              .cap = PLATFORM_TEXT_TO_TERMINATOR))
+                                          : NULL;
     if (copy == NULL)
     {
         return 0;
@@ -154,17 +176,23 @@ void kfile_lines_line_drop(KfileLines *file, unsigned int at)
         return;
     }
     platform_cell_released(file->line[at], platform_place_g_program_owner);
-    mmgr_bytes_move(&file->line[at], &file->line[at + 1u], (size_t)(file->lines - at - 1u) * sizeof(char *));
+    (((const unsigned char *)(&file->line[at]) <= (const unsigned char *)(&file->line[at + 1u]))
+         ? EMBED_CALL(memor.move_down, MemoriaCfg, .dst = &file->line[at], .src = &file->line[at + 1u],
+                      .bytes = (size_t)(file->lines - at - 1u) * sizeof(char *))
+         : EMBED_CALL(memor.move_up, MemoriaCfg, .dst = &file->line[at], .src = &file->line[at + 1u],
+                      .bytes = (size_t)(file->lines - at - 1u) * sizeof(char *)));
     file->lines -= 1u;
 }
 
 int kfile_lines_who_line(const char *line, Who *who, int *has_who)
 {
-    if (!mmgr_text_starts(line, "who ", PLATFORM_TEXT_TO_TERMINATOR))
+    if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "who ",
+                    .ci = EMBED_FALSE))
     {
         return 0;
     }
-    if (mmgr_text_equal(line + 4, "-", PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = line + 4, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "-",
+                   .ci = EMBED_FALSE))
     {
         *has_who = 0;
         return 1;
@@ -226,20 +254,23 @@ unsigned int kfile_lines_put_by(KfileLines *file, unsigned int at, const char *c
     if (!own)
     {
         kfile_lines_who_written(who, 1, whose, sizeof(whose));
-        made[next] = kfile_lines_copy(whose, mmgr_text_length(whose, PLATFORM_TEXT_TO_TERMINATOR));
+        made[next] = kfile_lines_copy(
+            whose, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = whose, .cap = PLATFORM_TEXT_TO_TERMINATOR));
         ok = ok && (made[next] != NULL);
         next += 1u;
     }
     for (unsigned int line = 0u; line < count; line += 1u)
     {
-        made[next] = kfile_lines_copy(lines[line], mmgr_text_length(lines[line], PLATFORM_TEXT_TO_TERMINATOR));
+        made[next] = kfile_lines_copy(lines[line], EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = lines[line],
+                                                              .cap = PLATFORM_TEXT_TO_TERMINATOR));
         ok = ok && (made[next] != NULL);
         next += 1u;
     }
     if (!own && follows)
     {
         kfile_lines_who_written(there, there_has_who, whose, sizeof(whose));
-        made[next] = kfile_lines_copy(whose, mmgr_text_length(whose, PLATFORM_TEXT_TO_TERMINATOR));
+        made[next] = kfile_lines_copy(
+            whose, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = whose, .cap = PLATFORM_TEXT_TO_TERMINATOR));
         ok = ok && (made[next] != NULL);
         next += 1u;
     }
@@ -252,8 +283,12 @@ unsigned int kfile_lines_put_by(KfileLines *file, unsigned int at, const char *c
         platform_cell_released(made, platform_place_g_program_owner);
         return 0u;
     }
-    mmgr_bytes_move(&file->line[at + put], &file->line[at], (size_t)(file->lines - at) * sizeof(char *));
-    mmgr_bytes_copy(&file->line[at], made, (size_t)put * sizeof(char *));
+    (((const unsigned char *)(&file->line[at + put]) <= (const unsigned char *)(&file->line[at]))
+         ? EMBED_CALL(memor.move_down, MemoriaCfg, .dst = &file->line[at + put], .src = &file->line[at],
+                      .bytes = (size_t)(file->lines - at) * sizeof(char *))
+         : EMBED_CALL(memor.move_up, MemoriaCfg, .dst = &file->line[at + put], .src = &file->line[at],
+                      .bytes = (size_t)(file->lines - at) * sizeof(char *)));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &file->line[at], .src = made, .bytes = (size_t)put * sizeof(char *));
     file->lines += put;
     platform_cell_released(made, platform_place_g_program_owner);
     return put;
@@ -344,7 +379,7 @@ static int kfile_lines_entry_order(const void *left, const void *right)
 {
     const KfileLinesEntry *const one = (const KfileLinesEntry *)left;
     const KfileLinesEntry *const other = (const KfileLinesEntry *)right;
-    const int order = mmgr_text_order(one->text, other->text, PLATFORM_TEXT_TO_TERMINATOR);
+    const int order = kfile_lines_text_order(one->text, other->text, PLATFORM_TEXT_TO_TERMINATOR);
     return (order != 0) ? order : ((one->at < other->at) ? -1 : ((one->at > other->at) ? 1 : 0));
 }
 
@@ -392,7 +427,8 @@ int kfile_lines_written_by(KfileLines *file, unsigned int first, const char *con
         void *const sort_room =
             platform_cell_taken((unsigned long long)(entry_count) * (unsigned long long)(sizeof(KfileLinesEntry)),
                                 platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(entries, entry_count, sizeof(KfileLinesEntry), kfile_lines_entry_order, sort_room);
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = entries, .bytes = sizeof(KfileLinesEntry), .scratch = sort_room,
+                         .count = entry_count, .order = kfile_lines_entry_order);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     KfileLines made = {NULL, 0u, 0u};
@@ -406,18 +442,23 @@ int kfile_lines_written_by(KfileLines *file, unsigned int first, const char *con
         while (low < high)
         {
             const unsigned int middle = low + ((high - low) / 2u);
-            low = (mmgr_text_order(entries[middle].text, lines[line], PLATFORM_TEXT_TO_TERMINATOR) < 0) ? (middle + 1u)
-                                                                                                        : low;
-            high =
-                (mmgr_text_order(entries[middle].text, lines[line], PLATFORM_TEXT_TO_TERMINATOR) < 0) ? high : middle;
+            low = (kfile_lines_text_order(entries[middle].text, lines[line], PLATFORM_TEXT_TO_TERMINATOR) < 0)
+                      ? (middle + 1u)
+                      : low;
+            high = (kfile_lines_text_order(entries[middle].text, lines[line], PLATFORM_TEXT_TO_TERMINATOR) < 0)
+                       ? high
+                       : middle;
         }
-        while ((low < entry_count) && (mmgr_text_equal(entries[low].text, lines[line], PLATFORM_TEXT_TO_TERMINATOR)) &&
+        while ((low < entry_count) &&
+               (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = entries[low].text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = lines[line], .ci = EMBED_FALSE)) &&
                taken[entries[low].at])
         {
             low += 1u;
         }
-        const int found =
-            (low < entry_count) && (mmgr_text_equal(entries[low].text, lines[line], PLATFORM_TEXT_TO_TERMINATOR));
+        const int found = (low < entry_count) &&
+                          (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = entries[low].text,
+                                      .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = lines[line], .ci = EMBED_FALSE));
         if (found)
         {
             taken[entries[low].at] = 1u;

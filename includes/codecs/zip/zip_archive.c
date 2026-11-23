@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zip_archive.c: opening an archive and walking its entries
-#include "zip_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 #include "zip_crc_tables.h"
+#include "zip_internal.h"
 
 static const unsigned char zip_central[4u] = {'P', 'K', 0x01u, 0x02u};
 
@@ -81,7 +81,7 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
     {
         return 0;
     }
-    mmgr_bytes_set(archive, 0, sizeof(*archive));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = archive, .bytes = sizeof(*archive), .val = 0);
     const long long size = tools->size(path);
     if (!ZIP_IO(size >= 0LL, path, error) || !ZIP_CHECK(size >= 22LL, path, error, ENGINE_ERROR_REQUEST))
     {
@@ -105,7 +105,8 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
     for (unsigned long long at = tail_bytes - 21ULL; (record == tail_bytes) && (at > 0ULL); at -= 1ULL)
     {
         const unsigned char *const candidate = tail + at - 1ULL;
-        const int signed_here = (mmgr_bytes_compare(candidate, zip_end, sizeof zip_end) == 0);
+        const int signed_here =
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = candidate, .other = zip_end, .bytes = sizeof zip_end) == 0);
         record =
             (signed_here && ((at - 1ULL + 22ULL + zip_load(candidate + 20u, 2u)) == tail_bytes)) ? (at - 1ULL) : record;
     }
@@ -125,7 +126,8 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
     platform_cell_released(tail, platform_place_g_program_owner);
     unsigned char locator[20u];
     const int located = (end_offset >= 20ULL) && zip_fetch(tools, path, end_offset - 20ULL, 20ULL, locator) &&
-                        (mmgr_bytes_compare(locator, zip_wide_locator, sizeof zip_wide_locator) == 0);
+                        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = locator, .other = zip_wide_locator,
+                                    .bytes = sizeof zip_wide_locator) == 0);
     if (located)
     {
         const unsigned long long record_offset = zip_load(locator + 8u, 8u);
@@ -134,8 +136,9 @@ int zip_archive_open(const EngineIngestTools *tools, const char *path, ZipArchiv
                            (record_offset <= end_offset) && ((end_offset - record_offset) >= 56ULL),
                        locator, error, ENGINE_ERROR_REQUEST) ||
             !ZIP_IO(zip_fetch(tools, path, record_offset, 56ULL, wide), wide, error) ||
-            !ZIP_CHECK(mmgr_bytes_compare(wide, zip_wide_end, sizeof zip_wide_end) == 0, wide, error,
-                       ENGINE_ERROR_REQUEST))
+            !ZIP_CHECK(EMBED_CALL(memor.cmp, MemoriaCfg, .src = wide, .other = zip_wide_end,
+                                  .bytes = sizeof zip_wide_end) == 0,
+                       wide, error, ENGINE_ERROR_REQUEST))
         {
             return 0;
         }
@@ -181,7 +184,7 @@ void zip_archive_release(ZipArchive *archive)
 {
     platform_cell_released(archive->directory, platform_place_g_program_owner);
     platform_cell_released(archive->entry_at, platform_place_g_program_owner);
-    mmgr_bytes_set(archive, 0, sizeof(*archive));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = archive, .bytes = sizeof(*archive), .val = 0);
 }
 
 int zip_entry_next(const ZipArchive *archive, unsigned long long *at, ZipEntry *entry, EngineError *error)
@@ -193,7 +196,9 @@ int zip_entry_next(const ZipArchive *archive, unsigned long long *at, ZipEntry *
         return 0;
     }
     const unsigned char *const fixed = archive->directory + start;
-    if (!ZIP_CHECK(mmgr_bytes_compare(fixed, zip_central, sizeof zip_central) == 0, fixed, error, ENGINE_ERROR_REQUEST))
+    if (!ZIP_CHECK(EMBED_CALL(memor.cmp, MemoriaCfg, .src = fixed, .other = zip_central, .bytes = sizeof zip_central) ==
+                       0,
+                   fixed, error, ENGINE_ERROR_REQUEST))
     {
         return 0;
     }

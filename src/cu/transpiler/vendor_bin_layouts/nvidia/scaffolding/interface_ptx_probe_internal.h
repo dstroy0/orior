@@ -24,8 +24,8 @@
 // exits 4. Exit 2 where the probe could not query at all
 #include "../../../../../platform/platform.h"
 #include "../../../../engine/rmc/machine_ir_builder.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "ptx_target.h"
 
 #include <cuda_runtime.h>

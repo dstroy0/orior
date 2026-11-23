@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zstd_literals.c: Huffman streams, literals, tables and copies
+#include "memoria_operor/memoria_operor.h"
 #include "zstd_internal.h"
-#include "memoria_operor/memoria_linea.h"
 
 static const ZstdTableType zstd_weight_type = {NULL, 0u, 0u, ZSTD_WEIGHT_SYMBOLS, ZSTD_WEIGHT_ACCURACY_MAXIMUM};
 
@@ -166,7 +166,8 @@ int zstd_literals(ZstdDecoder *decoder, ZstdSpan *input)
         }
         else
         {
-            mmgr_bytes_set(decoder->literal_buffer, input->bytes[0u], (size_t)regenerated);
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = decoder->literal_buffer, .bytes = (size_t)regenerated,
+                       .val = input->bytes[0u]);
             decoder->literals = decoder->literal_buffer;
         }
         decoder->literal_count = regenerated;
@@ -281,7 +282,12 @@ int zstd_literal_copy(ZstdDecoder *decoder, unsigned long long length)
     {
         return 0;
     }
-    mmgr_bytes_move(&decoder->out[decoder->written], &decoder->literals[decoder->literals_used], (size_t)length);
+    (((const unsigned char *)(&decoder->out[decoder->written]) <=
+      (const unsigned char *)(&decoder->literals[decoder->literals_used]))
+         ? EMBED_CALL(memor.move_down, MemoriaCfg, .dst = &decoder->out[decoder->written],
+                      .src = &decoder->literals[decoder->literals_used], .bytes = (size_t)length)
+         : EMBED_CALL(memor.move_up, MemoriaCfg, .dst = &decoder->out[decoder->written],
+                      .src = &decoder->literals[decoder->literals_used], .bytes = (size_t)length));
     decoder->literals_used += length;
     decoder->written += length;
     return 1;
@@ -298,7 +304,7 @@ int zstd_match_copy(ZstdDecoder *decoder, unsigned long long offset, unsigned lo
     const unsigned char *const source = target - offset;
     if (offset >= length)
     {
-        mmgr_bytes_copy(target, source, (size_t)length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = target, .src = source, .bytes = (size_t)length);
     }
     else
     {

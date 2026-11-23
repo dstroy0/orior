@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // windows.c: the probe on Windows: the rule a fault names, the command line, the program found, the pipe drained
 // by a thread, and the probe started in a job of its own and run to its end or its limit
-#include "interface_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "interface_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 #if defined(_WIN32)
 // the rule a Windows fault names: an unhandled exception ends its process with the exception's NTSTATUS as its code
@@ -52,10 +52,12 @@ static InterfaceFault interface_fault_of(unsigned long long code)
 // C runtime splits them back (as tessera_run_windows.c writes a job's): `line`, or NULL where it does not fit
 static char *interface_command_line(const char *program, char *const *words, char *line, size_t room)
 {
-    size_t capacity = 1u + (2u * mmgr_text_length(program, PLATFORM_TEXT_TO_TERMINATOR)) + 3u;
+    size_t capacity =
+        1u + (2u * EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = program, .cap = PLATFORM_TEXT_TO_TERMINATOR)) + 3u;
     for (size_t at = 1u; words[at] != NULL; at += 1u)
     {
-        capacity += (2u * mmgr_text_length(words[at], PLATFORM_TEXT_TO_TERMINATOR)) + 3u;
+        capacity +=
+            (2u * EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = words[at], .cap = PLATFORM_TEXT_TO_TERMINATOR)) + 3u;
     }
     if (capacity > room)
     {
@@ -71,11 +73,14 @@ static char *interface_command_line(const char *program, char *const *words, cha
             length += 1u;
         }
         const int quoted =
-            (word[0] == '\0') || ((word[mmgr_text_span_not(word, " \t\n\v\"", PLATFORM_TEXT_TO_TERMINATOR)] != '\0'));
+            (word[0] == '\0') || ((word[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = word,
+                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \t\n\v\"")] != '\0'));
         if (!quoted)
         {
-            mmgr_bytes_copy(line + length, word, mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR));
-            length += mmgr_text_length(word, PLATFORM_TEXT_TO_TERMINATOR);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = line + length, .src = word,
+                       .bytes =
+                           EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR));
+            length += EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR);
             continue;
         }
         line[length] = '"';
@@ -114,7 +119,9 @@ static const char *interface_program_found(const char *program, char *found, siz
     static char s_path[32768];
     const DWORD length_path = GetEnvironmentVariableA("PATH", s_path, (DWORD)sizeof(s_path));
     const char *const path = ((length_path != 0u) && (length_path < sizeof(s_path))) ? s_path : NULL;
-    if (((program[mmgr_text_span_not(program, "\\/:", PLATFORM_TEXT_TO_TERMINATOR)] != '\0')) || (path == NULL))
+    if (((program[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = program, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "\\/:")] != '\0')) ||
+        (path == NULL))
     {
         return program;
     }
@@ -214,7 +221,7 @@ void interface_launch_given(void)
 long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error)
 {
     SECURITY_ATTRIBUTES inherited;
-    mmgr_bytes_set(&inherited, 0, sizeof(inherited));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &inherited, .bytes = sizeof(inherited), .val = 0);
     inherited.nLength = sizeof(inherited);
     inherited.bInheritHandle = TRUE;
     HANDLE output = INVALID_HANDLE_VALUE;
@@ -253,19 +260,19 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
                                               probe->command, command_line, sizeof(command_line));
     const HANDLE job = CreateJobObjectA(NULL, NULL);
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits;
-    mmgr_bytes_set(&limits, 0, sizeof(limits));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &limits, .bytes = sizeof(limits), .val = 0);
     limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
     const int limited =
         (job != NULL) && SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits));
     STARTUPINFOA startup;
-    mmgr_bytes_set(&startup, 0, sizeof(startup));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &startup, .bytes = sizeof(startup), .val = 0);
     startup.cb = sizeof(startup);
     startup.dwFlags = STARTF_USESTDHANDLES;
     startup.hStdInput = input;
     startup.hStdOutput = output;
     startup.hStdError = output;
     PROCESS_INFORMATION started;
-    mmgr_bytes_set(&started, 0, sizeof(started));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &started, .bytes = sizeof(started), .val = 0);
     // a fault in the probe ends it with no dialog to wait on: the error mode is inherited, and set back once it starts
     const UINT mode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
     const unsigned long long began = interface_now();

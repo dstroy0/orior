@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chaitin_omega.cu: the kernel, the ledger and the device run
-#include "chaitin_omega_internal.h"
 #include "../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "chaitin_omega_internal.h"
 
 // the bytes of one thread's buffers, each rounded to 16
 static __host__ __device__ size_t omega_buffers_bytes(unsigned int tokens, unsigned int token_capacity)
@@ -148,7 +148,7 @@ static void omega_ledger_read(const char *path, std::vector<OmegaLedgerJob> &job
         unsigned long long fate[6];
         unsigned long long contradictions = 0ULL;
         unsigned long long max[4];
-        const size_t written = mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t written = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         if ((written == 0u) || (line[written - 1u] != '\n'))
         {
             continue;
@@ -160,7 +160,8 @@ static void omega_ledger_read(const char *path, std::vector<OmegaLedgerJob> &job
         while (fields < OMEGA_LEDGER_FIELDS)
         {
             const char *end = at;
-            const embed_word value = mmgr_text_unsigned_in(at, &end, 10u);
+            const embed_word value =
+                EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = at, .end = &end, .base = 10u);
             if (end == at)
             {
                 break;

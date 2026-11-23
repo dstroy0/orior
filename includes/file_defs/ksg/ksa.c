@@ -4,11 +4,10 @@
 // them out. Each scheme signs KSA_CONTEXT and then the seal's trailer
 #include "ksa.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../../codecs/ed25519/ed25519.h"
-
 
 _Static_assert(ED25519_SEED_BYTES <= KSA_SECRET_MAX, "an Ed25519 seed fits a ksa secret");
 _Static_assert(ED25519_PUBLIC_BYTES <= KSA_KEY_MAX, "an Ed25519 public key fits a ksa key");
@@ -51,15 +50,17 @@ static const KsaScheme s_schemes[] = {
 // the message a scheme signs for the seal whose trailer is `trailer`, into `message`
 static void ksa_message(const unsigned char *trailer, unsigned char *message)
 {
-    mmgr_bytes_copy(message, KSA_CONTEXT, sizeof(KSA_CONTEXT) - 1u);
-    mmgr_bytes_copy(message + (sizeof(KSA_CONTEXT) - 1u), trailer, KSG_TRAILER_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = message, .src = KSA_CONTEXT, .bytes = sizeof(KSA_CONTEXT) - 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = message + (sizeof(KSA_CONTEXT) - 1u), .src = trailer,
+               .bytes = KSG_TRAILER_BYTES);
 }
 
 const KsaScheme *ksa_scheme_named(const char *name)
 {
     for (unsigned int at = 0u; at < KSA_SCHEMES; at += 1u)
     {
-        if (mmgr_text_equal(s_schemes[at].name, name, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_schemes[at].name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = name, .ci = EMBED_FALSE))
         {
             return &s_schemes[at];
         }
@@ -71,7 +72,7 @@ const KsaScheme *ksa_scheme_tagged(const char *tag)
 {
     for (unsigned int at = 0u; at < KSA_SCHEMES; at += 1u)
     {
-        if (mmgr_bytes_compare(s_schemes[at].tag, tag, KSA_TAG_BYTES) == 0)
+        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = s_schemes[at].tag, .other = tag, .bytes = KSA_TAG_BYTES) == 0)
         {
             return &s_schemes[at];
         }
@@ -85,7 +86,8 @@ const char *ksa_scheme_names(void)
     size_t used = 0u;
     for (unsigned int at = 0u; at < KSA_SCHEMES; at += 1u)
     {
-        const size_t length = mmgr_text_length(s_schemes[at].name, PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t length =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_schemes[at].name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         if ((used + length + 2u) > sizeof(s_names))
         {
             break;
@@ -95,7 +97,7 @@ const char *ksa_scheme_names(void)
             s_names[used] = ' ';
             used += 1u;
         }
-        mmgr_bytes_copy(s_names + used, s_schemes[at].name, length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_names + used, .src = s_schemes[at].name, .bytes = length);
         used += length;
     }
     s_names[used] = '\0';
@@ -106,8 +108,8 @@ void ksa_approved(const KsaScheme *scheme, const unsigned char *secret, const un
                   KsaApproval *approval)
 {
     unsigned char message[KSA_MESSAGE_BYTES];
-    mmgr_bytes_set(approval, 0, sizeof(*approval));
-    mmgr_bytes_copy(approval->tag, scheme->tag, KSA_TAG_BYTES);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = approval, .bytes = sizeof(*approval), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = approval->tag, .src = scheme->tag, .bytes = KSA_TAG_BYTES);
     approval->key_bytes = scheme->key_bytes;
     approval->signature_bytes = scheme->signature_bytes;
     scheme->public_of(secret, approval->key);

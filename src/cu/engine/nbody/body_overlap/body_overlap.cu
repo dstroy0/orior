@@ -1,12 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "body_overlap.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
 #include "../../runtime/radix_keys/radix_keys.h"
+#include "body_overlap.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include <cuda_runtime.h>
-
 
 #define BODY_OVERLAP_BLOCK 256u
 
@@ -166,7 +165,7 @@ static void release_overlap(OverlapResident *resident)
     platform_cell_released(resident->host_offsets, platform_place_g_program_owner);
     platform_cell_released(resident->host_pairs, platform_place_g_program_owner);
     platform_cell_released(resident->host_lengths, platform_place_g_program_owner);
-    mmgr_bytes_set(resident, 0, sizeof(*resident));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
 }
 
 extern "C" void body_overlap_release(void)
@@ -257,7 +256,7 @@ static int overlap_view(const BodyOverlapRequest *args, OverlapView *view)
     {
         return 0;
     }
-    mmgr_bytes_set(view, 0, sizeof(*view));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = view, .bytes = sizeof(*view), .val = 0);
     view->axes = args->axes;
     unsigned long long product = 1ULL;
     for (unsigned int axis = 0u; axis < args->axes; axis += 1u)

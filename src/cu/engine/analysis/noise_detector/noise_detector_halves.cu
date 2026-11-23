@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_halves.cu: halves
-#include "noise_detector_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "noise_detector_internal.h"
 
 // One thread a camera pixel: its values in the planes below the middle and in those from it up, each summed over the
 // frames.
@@ -215,7 +215,7 @@ extern "C" long noise_neighbors_volume(const unsigned short *volume, const unsig
     {
         // each radius's sums pooled over the summary's level bins, means 40 to 199
         unsigned long long pooled[NOISE_NEIGHBORS_SUMS];
-        mmgr_bytes_set(pooled, 0, sizeof(pooled));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = pooled, .bytes = sizeof(pooled), .val = 0);
         for (unsigned int level_bin = NOISE_SUMMARY_FIRST_BIN; level_bin <= NOISE_SUMMARY_LAST_BIN; level_bin += 1u)
         {
             for (unsigned int sum = 0u; sum < NOISE_NEIGHBORS_SUMS; sum += 1u)
@@ -249,8 +249,8 @@ extern "C" long noise_clips_volume(const unsigned short *volume, const unsigned 
              (noise_clips_sample(volume, extent, clips, error) == 0L);
     if (ok != 0)
     {
-        mmgr_bytes_copy(counts, clips->counts, sizeof(clips->counts));
-        mmgr_bytes_copy(box, clips->box, sizeof(clips->box));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = counts, .src = clips->counts, .bytes = sizeof(clips->counts));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = box, .src = clips->box, .bytes = sizeof(clips->box));
         noise_spikes_pooled(clips, spikes);
     }
     platform_cell_released(clips, (unsigned int)platform_place_g_engine_owner);

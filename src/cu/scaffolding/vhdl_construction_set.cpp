@@ -12,13 +12,31 @@
 #include "../../../includes/file_defs/krep/krep.h"
 #include "../../platform/platform.h"
 #include "../engine/engine_note.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "crc.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 #include "vhdl_target.h"
 #include "yosys_script.h"
 
 #include <stddef.h>
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int vhdl_construction_set_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // the most parameters of a form, and the bytes of a form's or a parameter's name, the terminator among them
 #define CONSTRUCTION_PARAMETERS 32u
@@ -47,16 +65,18 @@ static int construction_copied(const char *bytes, size_t length, char *out, size
 // 1 where it is such a line and each name fits its bytes
 static int construction_line(const char *line, size_t length, ConstructionForm *form)
 {
-    const char *const found = mmgr_text_char(line, '=', length);
+    const char *const found = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = length, .byte = '=');
     // the equals sign lies inside the line, at or past its start
     const size_t equals = ((found != NULL) && (found < (line + length))) ? (size_t)(found - line) : length;
     // the program resident is an entity of its own around the lane, not a form a state contains
-    const int resident = (length >= 18u) && (mmgr_bytes_compare(line, "form program_unit ", 18u) == 0);
-    if ((length < 5u) || (mmgr_bytes_compare(line, "form ", 5u) != 0) || (equals == length) || (resident != 0))
+    const int resident = (length >= 18u) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = line,
+                                                        .other = "form program_unit ", .bytes = 18u) == 0);
+    if ((length < 5u) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = line, .other = "form ", .bytes = 5u) != 0) ||
+        (equals == length) || (resident != 0))
     {
         return 0;
     }
-    mmgr_bytes_set(form, 0, sizeof(*form));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = form, .bytes = sizeof(*form), .val = 0);
     int named = 0;
     int fits = 1;
     size_t word = 5u;
@@ -107,7 +127,8 @@ static void construction_forms(const char *path, PlatformArray *forms)
     size_t at = 0u;
     while (at < size)
     {
-        const char *const newline = mmgr_text_char(&bytes[at], '\n', size - at);
+        const char *const newline =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = &bytes[at], .cap = size - at, .byte = '\n');
         // a line ends at or past its start
         const size_t end = (newline != NULL) ? (size_t)(newline - bytes) : size;
         ConstructionForm form;
@@ -137,14 +158,14 @@ static ConstructionType construction_type(const char *parameter)
     const char *const named = (parameter[0] == '_') ? (parameter + 1) : parameter;
     for (const char *const name : predicates)
     {
-        if (mmgr_text_order(named, name, PLATFORM_TEXT_TO_TERMINATOR) == 0)
+        if (vhdl_construction_set_text_order(named, name, PLATFORM_TEXT_TO_TERMINATOR) == 0)
         {
             return CONSTRUCTION_BOOLEAN;
         }
     }
     for (const char *const name : integers)
     {
-        if (mmgr_text_order(named, name, PLATFORM_TEXT_TO_TERMINATOR) == 0)
+        if (vhdl_construction_set_text_order(named, name, PLATFORM_TEXT_TO_TERMINATOR) == 0)
         {
             return CONSTRUCTION_INTEGER;
         }
@@ -181,9 +202,13 @@ static int construction_after(const char *path, const char *label, unsigned long
     int found = 0;
     while ((found == 0) && (platform_file_text_read(line, sizeof(line), file) != NULL))
     {
-        const char *const at = mmgr_text_find(line, label, PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const at = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                          .other = label, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
         found = at != NULL;
-        *number = found ? mmgr_text_unsigned_in(at + mmgr_text_length(label, PLATFORM_TEXT_TO_TERMINATOR), NULL, 10)
+        *number = found ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                     .src = at + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = label,
+                                                            .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                                     .end = NULL, .base = 10)
                         : *number;
     }
     platform_file_close(file);
@@ -402,7 +427,8 @@ static int construction_table(const char *path, const PlatformArray *costs, cons
     }
     if (costs->count != 0ULL)
     {
-        mmgr_bytes_copy(words, costs->cell, (size_t)(costs->count * sizeof(unsigned long long)));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = words, .src = costs->cell,
+                   .bytes = (size_t)(costs->count * sizeof(unsigned long long)));
     }
     for (unsigned long long at = 0ULL; at < name_bytes; at += 1ULL)
     {
@@ -410,13 +436,14 @@ static int construction_table(const char *path, const PlatformArray *costs, cons
     }
     const KrepFormTable table = {costs->count, name_words, crc_words(CRC_TABLE, words, (size_t)word_count), words};
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     KrepFormTable back;
     const int written = krep_forms_write(path, &table, &error);
     const int read = written && krep_forms_read(path, &back, &error);
-    const int same =
-        read && (back.forms == table.forms) && (back.name_words == table.name_words) && (back.crc == table.crc) &&
-        (mmgr_bytes_compare(back.words, table.words, (size_t)(word_count * sizeof(unsigned long long))) == 0);
+    const int same = read && (back.forms == table.forms) && (back.name_words == table.name_words) &&
+                     (back.crc == table.crc) &&
+                     (EMBED_CALL(memor.cmp, MemoriaCfg, .src = back.words, .other = table.words,
+                                 .bytes = (size_t)(word_count * sizeof(unsigned long long))) == 0);
     if (read)
     {
         krep_forms_release(&back);
@@ -440,7 +467,9 @@ static int construction_package(const Ruleset *rules, PlatformText *package)
         return 0;
     }
     const char *const written = platform_text_bytes(package);
-    const char *const end = mmgr_text_find(written, s_package_end, PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const end =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = written, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = s_package_end, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if (end == NULL)
     {
         construction_noted("lane_open contains no package body", "", "");

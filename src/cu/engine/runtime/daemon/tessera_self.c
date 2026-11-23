@@ -1,10 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "tessera.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
-
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -68,8 +67,11 @@ int tessera_self_paravirtual(void)
     {
         platform_file_close(kernel);
     }
-    return read && ((mmgr_text_find(release, "microsoft", PLATFORM_TEXT_TO_TERMINATOR) != NULL) ||
-                    (mmgr_text_find(release, "WSL", PLATFORM_TEXT_TO_TERMINATOR) != NULL));
+    return read &&
+           ((EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = release, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "microsoft", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL) ||
+            (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = release, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "WSL", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL));
 #endif
 }
 
@@ -92,7 +94,7 @@ int tessera_self_measure(unsigned long long luid, unsigned long long *used)
     // each symbol is converted back to the type it was exported with
     const TesseraKmtQuery query = (TesseraKmtQuery)dlsym(library, "D3DKMTQueryVideoMemoryInfo");
     TesseraKmtAdapter adapters[TESSERA_SELF_ADAPTERS];
-    mmgr_bytes_set(adapters, 0, sizeof(adapters));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = adapters, .bytes = sizeof(adapters), .val = 0);
     TesseraKmtAdapters listed = {TESSERA_SELF_ADAPTERS, adapters};
     int ok = (enumerate != NULL) && (query != NULL) && (enumerate(&listed) == 0) && (listed.count != 0u);
     int chosen = -1;
@@ -109,7 +111,7 @@ int tessera_self_measure(unsigned long long luid, unsigned long long *used)
     if (ok)
     {
         TesseraKmtVideoMemory memory;
-        mmgr_bytes_set(&memory, 0, sizeof(memory));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &memory, .bytes = sizeof(memory), .val = 0);
         memory.process = NULL;
         memory.adapter = adapters[chosen].adapter;
         memory.segment_group = TESSERA_SELF_LOCAL_SEGMENTS;
@@ -228,7 +230,8 @@ unsigned long long tessera_self_host_mask(void)
     if ((named != NULL) && (named[0] != '\0'))
     {
         const char *end = NULL;
-        const unsigned long long value = mmgr_text_unsigned_in(named, &end, 10);
+        const unsigned long long value =
+            EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = named, .end = &end, .base = 10);
         reserved = (*end == '\0') ? value : reserved;
     }
     // one core at least is always left to the jobs

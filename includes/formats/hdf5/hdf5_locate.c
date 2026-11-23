@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_locate.c: finding a dataset, the survey, and the checks on it
-#include "hdf5_internal.h"
-#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "hdf5_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 static Hdf5Walk hdf5_group_links(Hdf5File *file, unsigned long long header, Hdf5LinkVisit visit, void *state,
                                  const char *name, size_t name_length)
@@ -35,7 +35,8 @@ static Hdf5Walk hdf5_find_link(Hdf5File *file, void *state, const unsigned char 
 {
     Hdf5Find *const find = (Hdf5Find *)state;
     (void)file;
-    if ((name_length != find->length) || (mmgr_bytes_compare(name, find->name, name_length) != 0))
+    if ((name_length != find->length) ||
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = name, .other = find->name, .bytes = name_length) != 0))
     {
         return HDF5_WALK_ON;
     }
@@ -129,7 +130,7 @@ static Hdf5Walk hdf5_survey_link(Hdf5File *file, void *state, const unsigned cha
         return hdf5_walk_error(file, "a member path longer than the survey supports");
     }
     survey->path[mark] = '/';
-    mmgr_bytes_copy(&survey->path[mark + 1u], name, name_length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &survey->path[mark + 1u], .src = name, .bytes = name_length);
     survey->path_length = mark + 1u + name_length;
     survey->path[survey->path_length] = '\0';
     Hdf5Object object;
@@ -212,7 +213,7 @@ int hdf5_locate(Hdf5File *file, const char *member, unsigned long long *address)
         return hdf5_survey(file, address);
     }
     unsigned long long current = file->root;
-    const size_t length = mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = member, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     size_t at = 0u;
     while (at < length)
     {

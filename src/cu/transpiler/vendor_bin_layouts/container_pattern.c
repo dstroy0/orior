@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // container_pattern.c: a pattern's tables, sections and attributes read where the layout specifies, each place checked
 // inside the pattern
-#include "container_write_internal.h"
 #include "../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "container_write_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 unsigned long long container_value_read(const unsigned char *bytes, unsigned int width)
 {
@@ -20,7 +20,7 @@ unsigned long long container_value_read(const unsigned char *bytes, unsigned int
 // every place the emitter uses, taken out of `layout`. 1, or 0 with the missing row named by the layout itself
 int container_places_read(const ContainerLayout *layout, Places *places)
 {
-    mmgr_bytes_set(places, 0, sizeof(*places));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = places, .bytes = sizeof(*places), .val = 0);
     const int read_ok =
         layout_field(layout, "header.segment_table", &places->segment_table, &places->segment_table_width) &&
         layout_field(layout, "header.section_table", &places->section_table, &places->section_table_width) &&
@@ -178,7 +178,8 @@ int container_pattern_matches(const Places *places, const unsigned char *pattern
         }
         const unsigned long long name =
             container_value_read(&pattern[at + places->section_name], places->section_name_width);
-        if ((name >= names_size) || (mmgr_bytes_find(&pattern[names_at + name], '\0', names_size - name) == NULL))
+        if ((name >= names_size) || (EMBED_CALL(memor.chr, MemoriaCfg, .src = &pattern[names_at + name],
+                                                .bytes = names_size - name, .val = '\0') == NULL))
         {
             return 0;
         }
@@ -219,7 +220,8 @@ unsigned int container_registers_read(const ContainerLayout *layout, const unsig
         const unsigned long long at = table + ((unsigned long long)index * entry);
         const unsigned long long name =
             strings + container_value_read(&pattern[at + places.section_name], places.section_name_width);
-        if (mmgr_text_equal((const char *)&pattern[name], named, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = (const char *)&pattern[name],
+                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = named, .ci = EMBED_FALSE))
         {
             found =
                 (unsigned int)(container_value_read(&pattern[at + places.section_info], places.section_info_width) >>
@@ -248,7 +250,8 @@ int container_part_code(const ContainerLayout *layout, const unsigned char *patt
         const unsigned long long at = table + ((unsigned long long)index * entry);
         const unsigned long long name =
             strings + container_value_read(&pattern[at + places.section_name], places.section_name_width);
-        if (!mmgr_text_equal((const char *)&pattern[name], named, PLATFORM_TEXT_TO_TERMINATOR))
+        if (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = (const char *)&pattern[name],
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = named, .ci = EMBED_FALSE))
         {
             continue;
         }
@@ -280,7 +283,8 @@ unsigned int container_exits_read(const ContainerLayout *layout, const unsigned 
         const unsigned long long at = table + ((unsigned long long)index * entry);
         const unsigned long long name =
             strings + container_value_read(&pattern[at + places.section_name], places.section_name_width);
-        if (!mmgr_text_equal((const char *)&pattern[name], named, PLATFORM_TEXT_TO_TERMINATOR))
+        if (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = (const char *)&pattern[name],
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = named, .ci = EMBED_FALSE))
         {
             continue;
         }
@@ -351,7 +355,8 @@ unsigned int container_named_sections(const ContainerLayout *layout, const unsig
     {
         return 0u;
     }
-    const unsigned long long length = (unsigned long long)mmgr_text_length(code, PLATFORM_TEXT_TO_TERMINATOR);
+    const unsigned long long length =
+        (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = code, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     unsigned int found = 0u;
     for (unsigned long long index = 0ULL; index < count; index += 1ULL)
     {
@@ -359,7 +364,8 @@ unsigned int container_named_sections(const ContainerLayout *layout, const unsig
         const unsigned long long name =
             container_value_read(&container[at + places.section_name], places.section_name_width);
         if ((name >= names_size) || (length > (names_size - name)) ||
-            (mmgr_bytes_compare(&container[names_at + name], code, length) != 0))
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &container[names_at + name], .other = code, .bytes = length) !=
+             0))
         {
             continue;
         }
@@ -388,7 +394,10 @@ unsigned int container_section_named(const Places *places, const unsigned char *
         const unsigned long long at =
             strings +
             container_value_read(&pattern[sections[index].was_at + places->section_name], places->section_name_width);
-        found = (mmgr_text_equal((const char *)&pattern[at], name, PLATFORM_TEXT_TO_TERMINATOR)) ? index : found;
+        found = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = (const char *)&pattern[at],
+                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = name, .ci = EMBED_FALSE))
+                    ? index
+                    : found;
     }
     return found;
 }

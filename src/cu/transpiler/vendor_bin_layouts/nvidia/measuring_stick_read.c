@@ -14,12 +14,30 @@
 // file is read as the run stores it (kfile_lines.h), and the record is passed to the run's writer, which writes it.
 //
 //     orior_measuring_stick_read <nvcc listing> <manifest> <sass.krs> <record> [<engine.tsv> <engine directory>]
-#include "measuring_stick_read/stick_internal.h"
 #include "../../../../platform/platform.h"
 #include "../../../engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "measuring_stick_read/stick_internal.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_scribo.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int measuring_stick_read_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // the record, written into s_record_bytes and passed whole to the run's writer, `s_record_at` bytes so far, the room
 // once a write did not fit
@@ -57,7 +75,8 @@ int program_main(int argc, char **argv)
                 "orior_measuring_stick_read <nvcc listing> <manifest> <sass.krs> <record> [<engine.tsv> <engine "
                 "directory>]\n";
             platform_terminal_write(1, error_text,
-                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+                                    (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = error_text,
+                                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR));
         }
         return 2;
     }
@@ -74,7 +93,8 @@ int program_main(int argc, char **argv)
     {
         char *cell[3] = {NULL, NULL, NULL};
         const unsigned int cells = stick_cells(s_file.line[line], cell, 3u);
-        if ((cells == 3u) && (!mmgr_text_equal(cell[0], "number", PLATFORM_TEXT_TO_TERMINATOR)))
+        if ((cells == 3u) && (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = cell[0],
+                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "number", .ci = EMBED_FALSE)))
         {
             char name[256];
             {
@@ -84,13 +104,16 @@ int program_main(int argc, char **argv)
                 (void)mmgr_line_finish(&buffer_line);
             }
             unsigned int at = 0u;
-            while ((at < manifests) && (!mmgr_text_equal(manifest[at].name, name, PLATFORM_TEXT_TO_TERMINATOR)))
+            while ((at < manifests) &&
+                   (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = manifest[at].name,
+                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = name, .ci = EMBED_FALSE)))
             {
                 at += 1u;
             }
             if (at == manifests)
             {
-                manifest[at].name = stick_copy(name, mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR));
+                manifest[at].name = stick_copy(
+                    name, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR));
                 manifests += 1u;
             }
             platform_cell_released(manifest[at].category, platform_place_g_program_owner);
@@ -117,7 +140,8 @@ int program_main(int argc, char **argv)
     {
         for (unsigned int one = 0u; one < manifests; one += 1u)
         {
-            if (mmgr_text_equal(manifest[one].name, s_kernel[at].name, PLATFORM_TEXT_TO_TERMINATOR))
+            if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = manifest[one].name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = s_kernel[at].name, .ci = EMBED_FALSE))
             {
                 stick[sticks] = s_kernel[at];
                 stick[sticks].category = manifest[one].category;
@@ -132,7 +156,8 @@ int program_main(int argc, char **argv)
         void *const sort_room =
             platform_cell_taken((unsigned long long)(sticks) * (unsigned long long)(sizeof(StickKernel)),
                                 platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(stick, sticks, sizeof(StickKernel), stick_kernel_order, sort_room);
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = stick, .bytes = sizeof(StickKernel), .scratch = sort_room,
+                         .count = sticks, .order = stick_kernel_order);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     // every name the table contains, in the order of the names, and each operation stored where it is past the room
@@ -147,14 +172,16 @@ int program_main(int argc, char **argv)
         void *const sort_room =
             platform_cell_taken((unsigned long long)(s_names) * (unsigned long long)(sizeof(unsigned int)),
                                 platform_place_g_program_owner, 1);
-        (void)mmgr_bytes_sort(order, s_names, sizeof(unsigned int), stick_name_order, sort_room);
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = order, .bytes = sizeof(unsigned int), .scratch = sort_room,
+                         .count = s_names, .order = stick_name_order);
         platform_cell_released(sort_room, platform_place_g_program_owner);
     }
     if (operations_room < s_names)
     {
         operations = (unsigned char *)stick_allocated(
             platform_cell_grown(operations, operations_room, s_names + 1u, platform_place_g_program_owner, 0));
-        mmgr_bytes_set(&operations[operations_room], 0, (s_names + 1u) - operations_room);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &operations[operations_room],
+                   .bytes = (s_names + 1u) - operations_room, .val = 0);
         operations_room = s_names + 1u;
     }
 
@@ -180,7 +207,9 @@ int program_main(int argc, char **argv)
     for (unsigned int at = 0u; at < sticks; at += 1u)
     {
         unsigned int one = 0u;
-        while ((one < categories) && (!mmgr_text_equal(category[one], stick[at].category, PLATFORM_TEXT_TO_TERMINATOR)))
+        while ((one < categories) &&
+               (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = category[one], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = stick[at].category, .ci = EMBED_FALSE)))
         {
             one += 1u;
         }
@@ -237,7 +266,9 @@ int program_main(int argc, char **argv)
         for (unsigned int at = 0u; at < sticks; at += 1u)
         {
             const StickEngine *const entry = stick_engine_of(stick[at].name);
-            if ((entry == NULL) || (!mmgr_text_equal(entry->answer, "answered", PLATFORM_TEXT_TO_TERMINATOR)))
+            if ((entry == NULL) ||
+                (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = entry->answer, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "answered", .ci = EMBED_FALSE)))
             {
                 continue;
             }
@@ -247,7 +278,10 @@ int program_main(int argc, char **argv)
             text += entry->text;
             stick_counted(&entry->operations, count);
             stick_counted(&stick[at].operations, other);
-            parity += (mmgr_bytes_compare(count, other, s_names * sizeof(unsigned int)) == 0) ? 1u : 0u;
+            parity += (EMBED_CALL(memor.cmp, MemoriaCfg, .src = count, .other = other,
+                                  .bytes = s_names * sizeof(unsigned int)) == 0)
+                          ? 1u
+                          : 0u;
         }
         record_text("- kernels the engine answers: ");
         record_number(answered);
@@ -272,7 +306,9 @@ int program_main(int argc, char **argv)
         for (unsigned int at = 0u; at < sticks; at += 1u)
         {
             const StickEngine *const entry = stick_engine_of(stick[at].name);
-            if ((entry == NULL) || (!mmgr_text_equal(entry->answer, "answered", PLATFORM_TEXT_TO_TERMINATOR)))
+            if ((entry == NULL) ||
+                (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = entry->answer, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "answered", .ci = EMBED_FALSE)))
             {
                 continue;
             }
@@ -307,12 +343,16 @@ int program_main(int argc, char **argv)
         for (unsigned int at = 0u; at < sticks; at += 1u)
         {
             const StickEngine *const entry = stick_engine_of(stick[at].name);
-            if ((entry == NULL) || (mmgr_text_equal(entry->answer, "answered", PLATFORM_TEXT_TO_TERMINATOR)))
+            if ((entry == NULL) ||
+                (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = entry->answer, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "answered", .ci = EMBED_FALSE)))
             {
                 continue;
             }
             unsigned int one = 0u;
-            while ((one < notes) && (!mmgr_text_equal(note[one], entry->note, PLATFORM_TEXT_TO_TERMINATOR)))
+            while ((one < notes) &&
+                   (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = note[one], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = entry->note, .ci = EMBED_FALSE)))
             {
                 one += 1u;
             }
@@ -336,7 +376,7 @@ int program_main(int argc, char **argv)
                 }
                 best = ((best == notes) || (note_kernels[one] > note_kernels[best]) ||
                         ((note_kernels[one] == note_kernels[best]) &&
-                         (mmgr_text_order(note[one], note[best], PLATFORM_TEXT_TO_TERMINATOR) < 0)))
+                         (measuring_stick_read_text_order(note[one], note[best], PLATFORM_TEXT_TO_TERMINATOR) < 0)))
                            ? one
                            : best;
             }

@@ -5,7 +5,7 @@
 
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 #define KEYMATH_CHECK(condition_, evacaddr_, error_, type_)                                                            \
     engine_error_check((condition_), (type_), ENGINE_MODULE_KEYMATH, (unsigned int)__LINE__,                           \
@@ -77,7 +77,8 @@ static int encode_row_copied(PlatformArray *into, const PlatformArray *from)
     {
         return 0;
     }
-    mmgr_bytes_copy(into->cell, from->cell, (size_t)(from->count * from->element));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = into->cell, .src = from->cell,
+               .bytes = (size_t)(from->count * from->element));
     return 1;
 }
 
@@ -281,7 +282,7 @@ static int encode_key_placed(const PlatformArray *running, EngineKey *key, Engin
         // Explicit cast reads the element as the term that it holds
         const EncodeTerm *const term = (const EncodeTerm *)platform_array_at(running, at);
         EngineKeyTerm *const out = &key->term[at];
-        mmgr_bytes_set(out, 0u, sizeof(*out));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = out, .bytes = sizeof(*out), .val = 0u);
         out->negative = term->negative;
         out->shift = term->shift;
         for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
@@ -331,7 +332,7 @@ extern "C" long keymath_encode(const KeymathEncodeRequest *request)
     {
         return KEYMATH_ERROR;
     }
-    mmgr_bytes_set(request->key, 0u, sizeof(*request->key));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request->key, .bytes = sizeof(*request->key), .val = 0u);
     // the one term of the start: each axis a row of the one weight 1
     PlatformArray running;
     platform_array_begun(&running, sizeof(EncodeTerm), KEYMATH_PLACE, 1);
@@ -389,14 +390,15 @@ extern "C" long keymath_encode(const KeymathEncodeRequest *request)
             encode_terms_ended(&saved);
             ok = KEYMATH_CHECK(encode_terms_copied(&saved, &running), doing, error, ENGINE_ERROR_RESOURCE);
             has_saved = 1;
-            mmgr_bytes_copy(saved_half, running_half, sizeof(saved_half));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = saved_half, .src = running_half, .bytes = sizeof(saved_half));
         }
         else if ((doing->operation == ENGINE_SCALE_SUBTRACT) && (has_saved != 0))
         {
             // terms subtracted half a voxel apart are no residual of one voxel
             PlatformArray next;
-            ok = KEYMATH_CHECK(mmgr_bytes_compare(saved_half, running_half, sizeof(saved_half)) == 0, doing, error,
-                               ENGINE_ERROR_REQUEST) &&
+            ok = KEYMATH_CHECK(EMBED_CALL(memor.cmp, MemoriaCfg, .src = saved_half, .other = running_half,
+                                          .bytes = sizeof(saved_half)) == 0,
+                               doing, error, ENGINE_ERROR_REQUEST) &&
                  KEYMATH_CHECK(encode_terms_copied(&next, &saved), doing, error, ENGINE_ERROR_RESOURCE);
             for (unsigned long long at = 0ULL; ok && (at < next.count); at += 1ULL)
             {
@@ -434,7 +436,7 @@ extern "C" void keymath_key_release(EngineKey *key)
 {
     platform_cell_released(key->term, KEYMATH_PLACE);
     platform_cell_released(key->limbs, KEYMATH_PLACE);
-    mmgr_bytes_set(key, 0u, sizeof(*key));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = key, .bytes = sizeof(*key), .val = 0u);
 }
 
 // The record encoding. keymath_core_record_encode (keymath_core.h), which the device runs as well, arranges the term,
@@ -454,7 +456,7 @@ extern "C" long keymath_record_encode(const KeymathRecordRequest *request)
     {
         return KEYMATH_ERROR;
     }
-    mmgr_bytes_set(request->key, 0u, sizeof(*request->key));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request->key, .bytes = sizeof(*request->key), .val = 0u);
     const unsigned long long count = request->count;
     // the work of the encoding is ephemeral, and the key is a resource that the caller gives back
     EngineRecordTerm *const terms =
@@ -470,9 +472,9 @@ extern "C" long keymath_record_encode(const KeymathRecordRequest *request)
         platform_cell_released(terms, KEYMATH_PLACE);
         return KEYMATH_ERROR;
     }
-    mmgr_bytes_set(terms, 0u, (size_t)(count * sizeof(EngineRecordTerm)));
-    mmgr_bytes_set(never_negative, 0u, (size_t)count);
-    mmgr_bytes_set(forms, 0u, (size_t)(count * sizeof(KeymathCoreAffine)));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = terms, .bytes = (size_t)(count * sizeof(EngineRecordTerm)), .val = 0u);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = never_negative, .bytes = (size_t)count, .val = 0u);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = forms, .bytes = (size_t)(count * sizeof(KeymathCoreAffine)), .val = 0u);
     unsigned int bound[KEYMATH_BOUND_LIMBS];
     KeymathCoreEncode encoding{};
     encoding.steps = request->steps;
@@ -530,7 +532,8 @@ extern "C" long keymath_record_encode(const KeymathRecordRequest *request)
         keymath_record_release(key);
         return KEYMATH_ERROR;
     }
-    mmgr_bytes_copy(key->output, request->outputs, (size_t)request->output_count * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = key->output, .src = request->outputs,
+               .bytes = (size_t)request->output_count * sizeof(unsigned int));
     key->steps = request->count;
     key->members = request->members;
     key->outputs = request->output_count;
@@ -562,8 +565,8 @@ extern "C" long keymath_record_encode(const KeymathRecordRequest *request)
             key->table[table].index_bits = source->index_bits;
             key->table[table].out_bits = source->out_bits;
             key->table[table].values = NULL;
-            mmgr_bytes_copy(&key->table_values[at], source->values,
-                            (size_t)(entries * out_limbs * sizeof(unsigned int)));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &key->table_values[at], .src = source->values,
+                       .bytes = (size_t)(entries * out_limbs * sizeof(unsigned int)));
             at += entries * out_limbs;
         }
         key->table_word_count = words;
@@ -577,5 +580,5 @@ extern "C" void keymath_record_release(EngineRecordKey *key)
     platform_cell_released(key->output, KEYMATH_PLACE);
     platform_cell_released(key->table, KEYMATH_PLACE);
     platform_cell_released(key->table_values, KEYMATH_PLACE);
-    mmgr_bytes_set(key, 0u, sizeof(*key));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = key, .bytes = sizeof(*key), .val = 0u);
 }

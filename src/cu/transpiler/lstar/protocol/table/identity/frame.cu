@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frame.cu: the frame queried of the part: the container the vendor's writer makes loaded and returned from, and the
 // least opening a kernel runs with (Open 6.3)
-#include "frame_walk.h"
 #include "../../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "frame_walk.h"
 #include "identity_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
-// the kernel the system accepted, as the vendor's writer appends it to the run in its kernel mode (kernel_blob.h): the
-// latest blob of KERNEL_BLOB_NAME read where the run stores it, every place of it whatever place the writer names,
-// into `code`, `places` of them, and the registers a thread of it uses into `registers`. The frame's queries and the
-// fixed registers' start from the whole kernel. 1, or 0 where the run contains no kernel this reads
 int frame_kernel_read(const unsigned char **code, unsigned int *places, unsigned int *registers)
 {
     const unsigned char *kernel = NULL;
@@ -21,7 +17,7 @@ int frame_kernel_read(const unsigned char **code, unsigned int *places, unsigned
     {
         return 0;
     }
-    mmgr_bytes_copy(&head, kernel, sizeof(head));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &head, .src = kernel, .bytes = sizeof(head));
     if ((head.places == 0u) || ((kernel_size - sizeof(head)) < (16ULL * head.places)))
     {
         return 0;
@@ -32,13 +28,13 @@ int frame_kernel_read(const unsigned char **code, unsigned int *places, unsigned
     return 1;
 }
 
-// what one variant of the kernel is put as and what came of it, for the walk's `predicate`: the whole kernel's own
-// answers are the reference every variant is checked against
+// what one variant of the kernel goes as and what came of it, for the walk's `predicate`. The whole kernel's own
+// answers are the reference the walk checks every variant against
 struct FrameQuery
 {
-    const std::vector<unsigned char> *kernel;
-    const std::vector<std::string> *reference;
-    const std::vector<unsigned int> *places;
+    const IdentityCode *kernel;
+    const HostCases *reference;
+    const unsigned int *places;
     RunQuestion *question;
     unsigned long long *queries;
     RunWritten *table;
@@ -48,41 +44,55 @@ struct FrameQuery
 static int frame_matches(unsigned long long dropped, void *context)
 {
     FrameQuery *const query = (FrameQuery *)context;
-    const std::vector<unsigned char> variant(query->kernel->begin() + (std::ptrdiff_t)(dropped * 16ULL),
-                                             query->kernel->end());
-    const int alike = question_alike(variant, *query->reference, *query->places, query->question, query->queries);
+    IdentityCode variant;
+    identity_code_begun(&variant, PLATFORM_TIER_TEMPORARY);
+    const unsigned long long from = dropped * 16ULL;
+    const unsigned long long kept = (from < query->kernel->count) ? (query->kernel->count - from) : 0ULL;
+    if (platform_array_counted(&variant, kept) && (kept != 0ULL))
     {
-        TextNote text_note;
-        text_note_begun(&text_note, &query->table->text);
-        mmgr_line_put(&text_note.line, "opening ");
-        mmgr_line_decimal(&text_note.line, dropped, 1u);
-        mmgr_line_put(&text_note.line, " ");
-        mmgr_line_put(&text_note.line, alike ? "truthy" : "falsy");
-        mmgr_line_put(&text_note.line, alike ? "" : ": ");
-        mmgr_line_put(&text_note.line, alike ? "" : query->question->refused);
-        mmgr_line_ch(&text_note.line, '\n');
-        text_note_written(&text_note);
+        // a kernel is at max the pool's bytes, which a size_t counts
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = variant.cell, .src = (const unsigned char *)query->kernel->cell + from,
+                   .bytes = (size_t)kept);
     }
-    {
-        VerbaLinea *const output_line = platform_line_out();
-        mmgr_line_put(output_line, "  opening from ");
-        mmgr_line_decimal(output_line, dropped, 1u);
-        mmgr_line_put(output_line, ": ");
-        mmgr_line_put(output_line, alike ? "truthy" : "falsy");
-        mmgr_line_ch(output_line, '\n');
-        platform_line_out_ended();
-    }
+    const int alike = question_alike(&variant, query->reference, query->places, query->question, query->queries);
+    platform_array_ended(&variant);
+    VerbaLinea *const line = &query->table->text.line;
+    mmgr_line_put(line, "opening ");
+    mmgr_line_decimal(line, dropped, 1u);
+    mmgr_line_put(line, " ");
+    mmgr_line_put(line, alike ? "truthy" : "falsy");
+    mmgr_line_put(line, alike ? "" : ": ");
+    mmgr_line_put(line, alike ? "" : query->question->refused);
+    mmgr_line_ch(line, '\n');
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, "  opening from ");
+    mmgr_line_decimal(output_line, dropped, 1u);
+    mmgr_line_put(output_line, ": ");
+    mmgr_line_put(output_line, alike ? "truthy" : "falsy");
+    mmgr_line_ch(output_line, '\n');
+    platform_line_out_ended();
     return alike;
 }
 
-// The frame queried (Open 6.3): the kernel the system accepted, its body the ladder's relation at its probe place, is
-// put whole over every case with no host value to check it against, and an answer on every case means the container the
-// vendor's writer makes is loaded and returned from: `run answers 00000001 container returned`. Its answers are then
-// the reference: the kernel with its first k places dropped is put, k walked by halving to the greatest that still
-// answers every case as the whole kernel does, the least opening a kernel runs with: `run answers <k> opening least`.
-// Each variant and its verdict is a line of the run's blob frame.txt. 0 where both rows are written or the run is dry,
-// 1 otherwise with the reason printed
-int identity_frame(const char *engine, const char *answers, const char *ksc, const std::string &folder,
+// a line on the output stream: the frame's name, then `first`, then `second`
+static void frame_said(const char *first, const char *second)
+{
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, "orior_klq_identity frame: ");
+    mmgr_line_put(output_line, first);
+    mmgr_line_put(output_line, second);
+    mmgr_line_ch(output_line, '\n');
+    platform_line_out_ended();
+}
+
+// the bytes of one answer of the whole kernel, its terminator among them: a 64-bit value in hex
+#define FRAME_ANSWER_BYTES 24u
+
+// the places of the cases the frame goes over, and the whole kernel's answer to each, which the reference points into
+static unsigned int s_frame_places[RUN_CASES_MAX];
+static char s_frame_answers[IDENTITY_CASES][FRAME_ANSWER_BYTES];
+
+int identity_frame(const char *engine, const char *answers, const char *ksc, const char *folder,
                    const char *const *carrier)
 {
     (void)engine;
@@ -94,58 +104,53 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
     {
         return 1;
     }
-    std::vector<unsigned char> kernel(code, code + (16u * (size_t)places));
+    IdentityCode kernel;
+    identity_code_begun(&kernel, PLATFORM_TIER_TEMPORARY);
+    if (platform_array_counted(&kernel, 16ULL * places) && (places != 0u))
+    {
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = kernel.cell, .src = code, .bytes = 16u * (size_t)places);
+    }
     if (!run_channel_open(carrier, 60000000ULL))
     {
+        platform_array_ended(&kernel);
         return 1;
     }
     record_open(ksc, "frame");
     static RunQuestion s_question;
     s_question.place = RUN_PLACE_NONE;
     s_question.registers = registers;
-    std::vector<unsigned int> case_places;
-    stall_cases(&s_question, &case_places);
+    stall_cases(&s_question, s_frame_places);
     // no host value checks the whole kernel: the query is whether the part answers it at all
-    const std::vector<std::string> nothing(IDENTITY_CASES, "-");
+    static HostCases s_nothing;
+    host_cases_filled(&s_nothing, "-");
     unsigned long long queries = 0ULL;
-    RunWritten table = {(folder + "/frame.txt"), 0, std::string()};
-    const int returned = question_alike(kernel, nothing, case_places, &s_question, &queries);
-    {
-        TextNote text_note;
-        text_note_begun(&text_note, &(&table)->text);
-        mmgr_line_put(&text_note.line, "container ");
-        mmgr_line_put(&text_note.line, returned ? "returned" : "not returned");
-        mmgr_line_put(&text_note.line, returned ? "" : ": ");
-        mmgr_line_put(&text_note.line, returned ? "" : s_question.refused);
-        mmgr_line_ch(&text_note.line, '\n');
-        text_note_written(&text_note);
-    }
-    const int dry = mmgr_text_starts(s_question.refused, "skipped dry", PLATFORM_TEXT_TO_TERMINATOR);
+    RunWritten table;
+    run_written_begun(&table, identity_path_joined(folder, "/frame.txt").text, 0);
+    const int returned = question_alike(&kernel, &s_nothing, s_frame_places, &s_question, &queries);
+    mmgr_line_put(&table.text.line, "container ");
+    mmgr_line_put(&table.text.line, returned ? "returned" : "not returned");
+    mmgr_line_put(&table.text.line, returned ? "" : ": ");
+    mmgr_line_put(&table.text.line, returned ? "" : s_question.refused);
+    mmgr_line_ch(&table.text.line, '\n');
+    const int dry = EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = s_question.refused,
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "skipped dry", .ci = EMBED_FALSE);
     if (!returned)
     {
-        run_closed(&table);
+        (void)run_closed(&table);
+        run_written_ended(&table);
         run_channel_close();
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "orior_klq_identity frame: ");
-            mmgr_line_put(output_line, dry ? "the run is dry, and nothing is written"
-                                           : "the container was not returned from, and nothing is written");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
+        frame_said(dry ? "the run is dry, and nothing is written"
+                       : "the container was not returned from, and nothing is written",
+                   "");
+        platform_array_ended(&kernel);
         return dry ? 0 : 1;
     }
-    if (!ksc_answers_write(ksc, "container", std::vector<std::string>{"run answers 00000001 container returned"}))
+    if (!ksc_answer_write(ksc, "container", "run answers 00000001 container returned"))
     {
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "orior_klq_identity frame: ");
-            mmgr_line_put(output_line, ksc);
-            mmgr_line_put(output_line, " could not be written");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
+        frame_said(ksc, " could not be written");
+        run_written_ended(&table);
         run_channel_close();
+        platform_array_ended(&kernel);
         return 1;
     }
     {
@@ -156,66 +161,50 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    // the whole kernel's own answers, case by case, are what every variant is checked against
-    std::vector<std::string> reference(IDENTITY_CASES, "-");
+    // the whole kernel's own answers, case by case, are what the walk checks every variant against
+    static HostCases s_reference;
+    host_cases_filled(&s_reference, "-");
     for (unsigned int place = 0u; place < s_question.cases; place += 1u)
     {
-        char answered[24];
-        {
-            VerbaLinea buffer_line = mmgr_line_over(answered, sizeof(answered));
-            mmgr_line_hex(&buffer_line, s_question.answered[place], 1u);
-            (void)mmgr_line_finish(&buffer_line);
-        }
-        reference[case_places[place]] = answered;
+        const unsigned int at = s_frame_places[place];
+        VerbaLinea buffer_line = mmgr_line_over(s_frame_answers[at], sizeof(s_frame_answers[at]));
+        mmgr_line_hex(&buffer_line, s_question.answered[place], 1u);
+        (void)mmgr_line_finish(&buffer_line);
+        s_reference.answer[at] = s_frame_answers[at];
     }
-    FrameQuery query = {&kernel, &reference, &case_places, &s_question, &queries, &table};
+    FrameQuery query = {&kernel, &s_reference, s_frame_places, &s_question, &queries, &table};
     const unsigned long long from = frame_greatest(frame_matches, &query, 0ULL, (unsigned long long)places);
-    if (!run_closed(&table))
+    platform_array_ended(&kernel);
+    const int closed = run_closed(&table);
+    run_written_ended(&table);
+    if (!closed)
     {
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "orior_klq_identity frame: ");
-            mmgr_line_put(output_line, folder.c_str());
-            mmgr_line_put(output_line, "/frame.txt could not be written");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
+        frame_said(folder, "/frame.txt could not be written");
         run_channel_close();
         return 1;
     }
     run_channel_close();
     char row[64];
+    VerbaLinea row_line = mmgr_line_over(row, sizeof(row));
+    mmgr_line_put(&row_line, "run answers ");
+    mmgr_line_hex(&row_line, from, 8u);
+    mmgr_line_put(&row_line, " opening least");
+    (void)mmgr_line_finish(&row_line);
+    if (!ksc_answer_write(ksc, "opening", row))
     {
-        VerbaLinea buffer_line = mmgr_line_over(row, sizeof(row));
-        mmgr_line_put(&buffer_line, "run answers ");
-        mmgr_line_hex(&buffer_line, from, 8u);
-        mmgr_line_put(&buffer_line, " opening least");
-        (void)mmgr_line_finish(&buffer_line);
-    }
-    if (!ksc_answers_write(ksc, "opening", std::vector<std::string>{row}))
-    {
-        {
-            VerbaLinea *const output_line = platform_line_out();
-            mmgr_line_put(output_line, "orior_klq_identity frame: ");
-            mmgr_line_put(output_line, ksc);
-            mmgr_line_put(output_line, " could not be written");
-            mmgr_line_ch(output_line, '\n');
-            platform_line_out_ended();
-        }
+        frame_said(ksc, " could not be written");
         return 1;
     }
-    {
-        VerbaLinea *const output_line = platform_line_out();
-        mmgr_line_put(output_line, "orior_klq_identity frame: the least opening begins at place ");
-        mmgr_line_decimal(output_line, from, 1u);
-        mmgr_line_put(output_line, " of ");
-        mmgr_line_decimal(output_line, places, 1u);
-        mmgr_line_put(output_line, ", over ");
-        mmgr_line_decimal(output_line, queries, 1u);
-        mmgr_line_put(output_line, " queries, written to ");
-        mmgr_line_put(output_line, ksc);
-        mmgr_line_ch(output_line, '\n');
-        platform_line_out_ended();
-    }
+    VerbaLinea *const output_line = platform_line_out();
+    mmgr_line_put(output_line, "orior_klq_identity frame: the least opening begins at place ");
+    mmgr_line_decimal(output_line, from, 1u);
+    mmgr_line_put(output_line, " of ");
+    mmgr_line_decimal(output_line, places, 1u);
+    mmgr_line_put(output_line, ", over ");
+    mmgr_line_decimal(output_line, queries, 1u);
+    mmgr_line_put(output_line, " queries, written to ");
+    mmgr_line_put(output_line, ksc);
+    mmgr_line_ch(output_line, '\n');
+    platform_line_out_ended();
     return 0;
 }

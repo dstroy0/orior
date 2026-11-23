@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // driver.c: the driver opened by name with every entry point taken, and the part's fault telemetry: the management
 // library and the system's event log opened, drained before a launch and read after it for a fault
-#include "cubin_run_internal.h"
 #include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "cubin_run_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 // The part's fault telemetry, the driver's management layer (NVML), reached by name and by its own entry points as the
 // driver is, and nothing of its vendor's toolchain compiled against. What cubin_safe's rule 8 reads after each launch:
@@ -120,8 +120,10 @@ static void cubin_run_xid_stored(unsigned long long xid, const char *text)
             mmgr_line_put(&buffer_line, text);
             (void)mmgr_line_finish(&buffer_line);
         }
-        for (char *semicolon = mmgr_text_char(s_xid_text[s_xid_count], ';', PLATFORM_TEXT_TO_TERMINATOR);
-             semicolon != NULL; semicolon = mmgr_text_char(semicolon, ';', PLATFORM_TEXT_TO_TERMINATOR))
+        for (char *semicolon = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = s_xid_text[s_xid_count],
+                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ';');
+             semicolon != NULL; semicolon = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = semicolon,
+                                                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ';'))
         {
             *semicolon = ',';
         }
@@ -146,20 +148,30 @@ static int cubin_run_event_xml(void *event, char *xml, size_t room)
 // the number `xml` contains in the tag `tag`, past its attributes, or 0 where it contains no such tag
 static unsigned long long cubin_run_event_number(const char *xml, const char *tag)
 {
-    const char *const opened = mmgr_text_find(xml, tag, PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const closed = (opened != NULL) ? mmgr_text_char(opened, '>', PLATFORM_TEXT_TO_TERMINATOR) : NULL;
-    return (closed != NULL) ? mmgr_text_unsigned_in(closed + 1, NULL, 10) : 0ULL;
+    const char *const opened = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = xml, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                          .other = tag, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+    const char *const closed = (opened != NULL) ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = opened,
+                                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '>')
+                                                : NULL;
+    return (closed != NULL) ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = closed + 1, .end = NULL, .base = 10)
+                            : 0ULL;
 }
 
 // the text of the driver's error in `xml` into `text`, which has room for `room`: its second datum, the first the
 // device, or its first where it contains one alone
 static void cubin_run_event_text(const char *xml, char *text, size_t room)
 {
-    const char *datum = mmgr_text_find(xml, "<Data>", PLATFORM_TEXT_TO_TERMINATOR);
+    const char *datum = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = xml, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                   .other = "<Data>", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     const char *const second =
-        (datum != NULL) ? mmgr_text_find(datum + 6, "<Data>", PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+        (datum != NULL) ? EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = datum + 6, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = "<Data>", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE)
+                        : NULL;
     datum = (second != NULL) ? second : datum;
-    const char *const end = (datum != NULL) ? mmgr_text_find(datum, "</Data>", PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+    const char *const end =
+        (datum != NULL) ? EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = datum, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = "</Data>", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE)
+                        : NULL;
     // a datum is far below what an int counts
     {
         VerbaLinea buffer_line = mmgr_line_over(text, room);
@@ -299,7 +311,7 @@ void cubin_run_telemetry_drain(void)
     s_xid_count = 0u;
     while (s_telemetry_ready)
     {
-        mmgr_bytes_set(&event, 0, sizeof(event));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &event, .bytes = sizeof(event), .val = 0);
         if (s_telemetry.set_wait(s_telemetry_set, &event, 0u) != 0)
         {
             break;
@@ -323,7 +335,7 @@ int cubin_run_telemetry_faulted(CubinRunStatus status)
     CubinRunXidEvent event;
     while (s_telemetry_ready)
     {
-        mmgr_bytes_set(&event, 0, sizeof(event));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &event, .bytes = sizeof(event), .val = 0);
         if (s_telemetry.set_wait(s_telemetry_set, &event, 0u) != 0)
         {
             break;

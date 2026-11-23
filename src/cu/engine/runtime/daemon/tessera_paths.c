@@ -1,10 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "tessera_text.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
-
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera_text.h"
 
 #if defined(_WIN32)
 #define TESSERA_SEPARATOR '\\'
@@ -25,7 +24,7 @@ _Alignas(8) static const char s_tessera_lost[] = "lostandfound";
 
 int tessera_text_staged(VerbaLinea *line, const char *text)
 {
-    const size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     char *const staged =
         (char *)platform_cell_cleared((unsigned long long)((length / 8u) + 1u), (unsigned long long)(8u),
                                       (unsigned int)platform_place_g_engine_owner, 0);
@@ -34,7 +33,7 @@ int tessera_text_staged(VerbaLinea *line, const char *text)
         line->at = line->capacity;
         return 0;
     }
-    mmgr_bytes_copy(staged, text, length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = staged, .src = text, .bytes = length);
     mmgr_line_put(line, staged);
     platform_cell_released(staged, (unsigned int)platform_place_g_engine_owner);
     return 1;
@@ -152,7 +151,7 @@ int tessera_path_lost(const unsigned char device[TESSERA_DEVICE_BYTES], unsigned
         return 0;
     }
     VerbaLinea line = {path, capacity, 0ULL};
-    line.at = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
+    line.at = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     mmgr_line_ch(&line, TESSERA_SEPARATOR);
     mmgr_line_put(&line, s_tessera_lost);
     mmgr_line_ch(&line, TESSERA_SEPARATOR);

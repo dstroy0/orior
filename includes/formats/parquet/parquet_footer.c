@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // parquet_footer.c: the footer's schema, row groups and column chunks
-#include "parquet_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "parquet_internal.h"
 
 _Static_assert(PARQUET_MAGIC_BYTES == (sizeof(PARQUET_MAGIC) - 1u),
                "PARQUET_MAGIC_BYTES: must count the bytes of PARQUET_MAGIC without its terminator");
@@ -93,7 +93,8 @@ static int parquet_schema_element_read(ParquetCursor *cursor, ParquetFooter *foo
     {
         path[parent->path_bytes] = '.';
     }
-    mmgr_bytes_copy(path + parent->path_bytes + separator, name, (size_t)name_bytes);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = path + parent->path_bytes + separator, .src = name,
+               .bytes = (size_t)name_bytes);
     path[path_bytes] = '\0';
     if (children == 0ULL)
     {
@@ -104,7 +105,7 @@ static int parquet_schema_element_read(ParquetCursor *cursor, ParquetFooter *foo
             return 0;
         }
         ParquetLeaf *const leaf = &footer->leaf[footer->leaf_count];
-        mmgr_bytes_copy(leaf->path, path, (size_t)path_bytes + 1u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = leaf->path, .src = path, .bytes = (size_t)path_bytes + 1u);
         leaf->physical = (ParquetPhysical)physical;
         leaf->fixed_bytes = (unsigned int)fixed_bytes;
         leaf->definition_max = definition;
@@ -172,8 +173,9 @@ static int parquet_path_match(ParquetCursor *cursor, const char *leaf_path)
             matches = matches && (at < PARQUET_PATH_BYTES) && (leaf_path[at] == '.');
             at += 1ULL;
         }
-        matches = matches && ((at + length) < PARQUET_PATH_BYTES) &&
-                  (mmgr_bytes_compare(leaf_path + at, name, (size_t)length) == 0);
+        matches =
+            matches && ((at + length) < PARQUET_PATH_BYTES) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = leaf_path + at, .other = name, .bytes = (size_t)length) == 0);
         at += length;
     }
     return matches && (cursor->broken == 0u) && (at < PARQUET_PATH_BYTES) && (leaf_path[at] == '\0');
@@ -361,7 +363,7 @@ static int parquet_file_metadata_read(ParquetCursor *cursor, ParquetFooter *foot
 
 int parquet_footer_read(const EngineIngestTools *tools, const char *path, ParquetFooter *footer, EngineError *error)
 {
-    mmgr_bytes_set(footer, 0, sizeof(*footer));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = footer, .bytes = sizeof(*footer), .val = 0);
     if (!PARQUET_CHECK((tools != NULL) && (tools->size != NULL) && (tools->read != NULL) && (path != NULL), &tools,
                        error, ENGINE_ERROR_REQUEST))
     {
@@ -383,7 +385,8 @@ int parquet_footer_read(const EngineIngestTools *tools, const char *path, Parque
     range.bytes = PARQUET_TRAILER_BYTES;
     range.out = trailer;
     if (!PARQUET_CHECK((tools->read(&range) == (long long)PARQUET_TRAILER_BYTES) &&
-                           (mmgr_bytes_compare(trailer + PARQUET_MAGIC_BYTES, PARQUET_MAGIC, PARQUET_MAGIC_BYTES) == 0),
+                           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = trailer + PARQUET_MAGIC_BYTES,
+                                       .other = PARQUET_MAGIC, .bytes = PARQUET_MAGIC_BYTES) == 0),
                        path, error, ENGINE_ERROR_REQUEST))
     {
         return 0;

@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_daemon_state.c: the daemon's lock, clocks, state file, history and tickets
-#include "tessera_daemon_internal.h"
 #include "../../../../platform/platform.h"
 #include "../../engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera_daemon_internal.h"
 
 _Alignas(8) static const char s_daemon_history[] = "history";
 _Alignas(8) static const char s_daemon_history_fresh[] = "history.fresh";
@@ -127,12 +127,12 @@ void daemon_wait_until(unsigned long long when)
 int daemon_directories_make(const char *path)
 {
     char walk[ENGINE_PATH_CAPACITY];
-    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     if (length >= sizeof(walk))
     {
         return 0;
     }
-    mmgr_bytes_copy(walk, path, length + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = walk, .src = path, .bytes = length + 1u);
     for (size_t at = 1u; at <= length; at += 1u)
     {
         const int separator = (walk[at] == '/') || (walk[at] == '\\') || (walk[at] == '\0');
@@ -218,13 +218,13 @@ int daemon_history_load(void)
     platform_file_close(file);
     const unsigned long long sealed = total - OBSIGNATIO_SIGNUM_BYTES;
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioSealRequest seal = {bytes, sealed, (bytes != NULL) ? bytes + sealed : NULL, &error};
     ok = ok && (obsignatio_seal_verify(&seal) == 1L);
     for (unsigned long long at = 0ULL; ok && (at < sealed); at += TESSERA_HISTORY_RECORD)
     {
         TesseraHistory entry;
-        mmgr_bytes_copy(entry.signum.bytes, bytes + at, ENGINE_SIGNUM_BYTES);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = entry.signum.bytes, .src = bytes + at, .bytes = ENGINE_SIGNUM_BYTES);
         entry.peak = daemon_get_long(bytes + at + ENGINE_SIGNUM_BYTES);
         entry.duration = daemon_get_long(bytes + at + ENGINE_SIGNUM_BYTES + 8u);
         ok = tessera_ledger_remember(&g_daemon.ledger, &entry);
@@ -270,12 +270,12 @@ int daemon_history_save(void)
     {
         const TesseraHistory *const entry = &g_daemon.ledger.history[at];
         unsigned char *const record = bytes + (at * TESSERA_HISTORY_RECORD);
-        mmgr_bytes_copy(record, entry->signum.bytes, ENGINE_SIGNUM_BYTES);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = record, .src = entry->signum.bytes, .bytes = ENGINE_SIGNUM_BYTES);
         daemon_put_long(record + ENGINE_SIGNUM_BYTES, entry->peak);
         daemon_put_long(record + ENGINE_SIGNUM_BYTES + 8u, entry->duration);
     }
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioSealRequest seal = {bytes, sealed, bytes + sealed, &error};
     int ok = obsignatio_seal(&seal) == 0L;
     PlatformFile *const file = ok ? platform_file_open(fresh, "wb") : NULL;
@@ -323,7 +323,7 @@ static int daemon_ticket_seal_write(const char *path, const char *text, unsigned
     static const char s_hex[] = "0123456789abcdef";
     unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioSealRequest seal = {(const unsigned char *)text, length, signum, &error};
     if (obsignatio_seal(&seal) != 0L)
     {
@@ -413,7 +413,8 @@ int daemon_ticket_note(unsigned long long identity, const TesseraPeer *peer, con
     platform_file_close(file);
     const size_t seal_line = (sizeof(s_daemon_seal) - 1u) + (2u * OBSIGNATIO_SIGNUM_BYTES) + 1u;
     if (!at_end || (length < seal_line) || (text[length - 1u] != '\n') ||
-        (mmgr_bytes_compare(text + (length - seal_line), s_daemon_seal, sizeof(s_daemon_seal) - 1u) != 0))
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = text + (length - seal_line), .other = s_daemon_seal,
+                    .bytes = sizeof(s_daemon_seal) - 1u) != 0))
     {
         return 0;
     }
@@ -439,14 +440,14 @@ int daemon_ticket_note(unsigned long long identity, const TesseraPeer *peer, con
         signum[byte] = (unsigned char)value;
     }
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioSealRequest seal = {(const unsigned char *)text, body, signum, &error};
     // the note is a whole line, its newline included
-    const size_t added = mmgr_text_length(note, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t added = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = note, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     if ((obsignatio_seal_verify(&seal) != 1L) || ((body + added) >= sizeof(text)))
     {
         return 0;
     }
-    mmgr_bytes_copy(text + body, note, added);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = text + body, .src = note, .bytes = added);
     return daemon_ticket_seal_write(path, text, body + added);
 }

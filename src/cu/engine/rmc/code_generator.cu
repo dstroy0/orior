@@ -2,13 +2,31 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../../../includes/file_defs/krs/ruleset_reader.h"
 #include "../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "code_generator.h"
 #include "codegen_core.h"
 #include "embed_atomic.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include <stddef.h>
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int code_generator_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 static const RulesetName s_opcode_names[OPCODE_COUNT] = {OPCODES(OPCODE_WRITTEN)};
 
@@ -229,7 +247,8 @@ static int code_generator_appended(PlatformArray *to, const PlatformArray *from)
     }
     if (from->count != 0ULL)
     {
-        mmgr_bytes_copy(platform_array_at(to, held), from->cell, (size_t)(from->count * from->element));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = platform_array_at(to, held), .src = from->cell,
+                   .bytes = (size_t)(from->count * from->element));
     }
     return 1;
 }
@@ -377,7 +396,7 @@ static unsigned int code_generator_live_max(const IrProgram *program, const unsi
 // NULL where the pool cannot meet the cell
 static const RulesetSchema *code_generator_schema(const char *file)
 {
-    const size_t length = mmgr_text_length(file, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = file, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     unsigned char *const cell = (unsigned char *)platform_cell_cleared(1ULL, sizeof(RulesetSchema) + length + 1u,
                                                                        platform_place_g_program_owner, 0);
     if (cell == NULL)
@@ -385,7 +404,7 @@ static const RulesetSchema *code_generator_schema(const char *file)
         return NULL;
     }
     char *const named = (char *)(cell + sizeof(RulesetSchema));
-    mmgr_bytes_copy(named, file, length + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = named, .src = file, .bytes = length + 1u);
     RulesetSchema *const schema = (RulesetSchema *)cell;
     const RulesetSchema made = {
         named,           NULL,         NULL, s_opcode_names, OPCODE_COUNT, s_regclass_names, REGCLASS_COUNT,
@@ -445,9 +464,10 @@ CodeGenerator &code_generator(const char *file)
     for (unsigned int at = 0u; (generator == NULL) && (at < s_code_generator_count); at += 1u)
     {
         const RulesetSchema *const schema = s_code_generators[at]->schema();
-        generator = ((schema != NULL) && (mmgr_text_order(schema->file, file, PLATFORM_TEXT_TO_TERMINATOR) == 0))
-                        ? s_code_generators[at]
-                        : NULL;
+        generator =
+            ((schema != NULL) && (code_generator_text_order(schema->file, file, PLATFORM_TEXT_TO_TERMINATOR) == 0))
+                ? s_code_generators[at]
+                : NULL;
     }
     if (generator == NULL)
     {
@@ -678,7 +698,8 @@ int CodeGenerator::decide(const EngineRecordLayout *layout, const ScheduleModel 
         decision.step_words[at] = lane.temps + (2u * lane.wides);
     }
     // the lane calls nothing; it uses places in shared memory only where its ruleset gives shared 1
-    *places = (mmgr_text_order(rules->shared, "1", PLATFORM_TEXT_TO_TERMINATOR) == 0) ? layout->file_limbs : 0u;
+    *places =
+        (code_generator_text_order(rules->shared, "1", PLATFORM_TEXT_TO_TERMINATOR) == 0) ? layout->file_limbs : 0u;
     const unsigned int place_count = *places;
     const unsigned int *const error = decision.errors;
     const unsigned int tables = lane.tables;
@@ -851,10 +872,10 @@ ScheduleCosts CodeGenerator::schedule_costs(const ScheduleModel &model) const
         costs.cost[form] = model.other;
         for (unsigned int at = 0u; at < model.cost_count; at += 1u)
         {
-            costs.cost[form] =
-                (mmgr_text_order(model.cost[at].form, s_opcode_names[form].text, PLATFORM_TEXT_TO_TERMINATOR) == 0)
-                    ? model.cost[at].cost
-                    : costs.cost[form];
+            costs.cost[form] = (code_generator_text_order(model.cost[at].form, s_opcode_names[form].text,
+                                                          PLATFORM_TEXT_TO_TERMINATOR) == 0)
+                                   ? model.cost[at].cost
+                                   : costs.cost[form];
         }
     }
     costs.budget = model.budget;

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // operands.c: the operands: the machine's listing, the same operation root, an operand dropped, changed, twinned or
 // gained, a form turned, and a form unprinted
-#include "probe_machine_internal.h"
 #include "../../../../../../platform/platform.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "probe_machine_internal.h"
 
 // the encodings one form is decoded with: itself, and the 128 that are one bit from it
 unsigned long long s_low[SASS_ENCODINGS];
@@ -43,7 +43,8 @@ static int sass_operation_root_same(const char *one, const char *other)
 // BAR.SYNC's barrier with BAR.SYNCALL, is the operation's bit and not the operand's
 static unsigned int sass_operand_dropped(const SassInstructionParts *base, const SassInstructionParts *parts)
 {
-    const int named = (mmgr_text_equal(parts->operation, base->operation, PLATFORM_TEXT_TO_TERMINATOR));
+    const int named = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts->operation,
+                                  .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = base->operation, .ci = EMBED_FALSE));
     for (unsigned int dropped = 0u; dropped < base->operands; dropped += 1u)
     {
         const int type =
@@ -52,7 +53,8 @@ static unsigned int sass_operand_dropped(const SassInstructionParts *base, const
         for (unsigned int place = 0u; rest && (place < parts->operands); place += 1u)
         {
             const unsigned int was = (place < dropped) ? place : (place + 1u);
-            rest = (mmgr_text_equal(parts->operand[place], base->operand[was], PLATFORM_TEXT_TO_TERMINATOR)) &&
+            rest = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts->operand[place],
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = base->operand[was], .ci = EMBED_FALSE)) &&
                    (parts->mark[place] == base->mark[was]);
         }
         if (rest != 0)
@@ -73,7 +75,8 @@ unsigned int sass_operand_changed(const SassInstructionParts *base, const char *
 {
     SassInstructionParts parts;
     sass_instruction_read(text, &parts);
-    if ((!mmgr_text_equal(parts.guard, base->guard, PLATFORM_TEXT_TO_TERMINATOR)) ||
+    if ((!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts.guard, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                     .other = base->guard, .ci = EMBED_FALSE)) ||
         !sass_operation_root_same(parts.operation, base->operation))
     {
         return base->operands;
@@ -86,7 +89,8 @@ unsigned int sass_operand_changed(const SassInstructionParts *base, const char *
     {
         return base->operands;
     }
-    const int renamed = (!mmgr_text_equal(parts.operation, base->operation, PLATFORM_TEXT_TO_TERMINATOR));
+    const int renamed = (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts.operation,
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = base->operation, .ci = EMBED_FALSE));
     unsigned int changed = base->operands;
     unsigned int count = 0u;
     // operands that print one field twice, as BAR.SYNC R0, R0 prints its one register: each that moved carried the
@@ -94,15 +98,19 @@ unsigned int sass_operand_changed(const SassInstructionParts *base, const char *
     int twins = 1;
     for (unsigned int place = 0u; place < base->operands; place += 1u)
     {
-        if ((!mmgr_text_equal(parts.operand[place], base->operand[place], PLATFORM_TEXT_TO_TERMINATOR)) ||
+        if ((!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts.operand[place], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = base->operand[place], .ci = EMBED_FALSE)) ||
             (parts.mark[place] != base->mark[place]))
         {
             changed = (count == 0u) ? place : changed;
             count += 1u;
-            twins = twins &&
-                    (mmgr_text_equal(base->operand[place], base->operand[changed], PLATFORM_TEXT_TO_TERMINATOR)) &&
-                    (mmgr_text_equal(parts.operand[place], parts.operand[changed], PLATFORM_TEXT_TO_TERMINATOR)) &&
-                    (base->type[place] == base->type[changed]);
+            twins =
+                twins &&
+                (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = base->operand[place], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = base->operand[changed], .ci = EMBED_FALSE)) &&
+                (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts.operand[place], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = parts.operand[changed], .ci = EMBED_FALSE)) &&
+                (base->type[place] == base->type[changed]);
         }
     }
     // a renamed operation carries the field only where the operand that moved is still the type it was
@@ -121,9 +129,12 @@ unsigned int sass_operand_twin(const SassInstructionParts *base, const char *tex
     sass_instruction_read(text, &parts);
     for (unsigned int place = operand + 1u; (parts.operands == base->operands) && (place < base->operands); place += 1u)
     {
-        if ((mmgr_text_equal(base->operand[place], base->operand[operand], PLATFORM_TEXT_TO_TERMINATOR)) &&
-            (mmgr_text_equal(parts.operand[place], parts.operand[operand], PLATFORM_TEXT_TO_TERMINATOR)) &&
-            (!mmgr_text_equal(parts.operand[place], base->operand[place], PLATFORM_TEXT_TO_TERMINATOR)))
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = base->operand[place], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = base->operand[operand], .ci = EMBED_FALSE)) &&
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts.operand[place], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = parts.operand[operand], .ci = EMBED_FALSE)) &&
+            (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts.operand[place], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = base->operand[place], .ci = EMBED_FALSE)))
         {
             return place;
         }
@@ -152,13 +163,16 @@ static int sass_operand_gained(const SassInstructionParts *base, const char *tex
 {
     SassInstructionParts parts;
     sass_instruction_read(text, &parts);
-    int same_base = (mmgr_text_equal(parts.guard, base->guard, PLATFORM_TEXT_TO_TERMINATOR)) &&
+    int same_base = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts.guard, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = base->guard, .ci = EMBED_FALSE)) &&
                     sass_operation_root_same(parts.operation, base->operation) &&
-                    (!mmgr_text_equal(parts.operation, base->operation, PLATFORM_TEXT_TO_TERMINATOR)) &&
+                    (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts.operation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                 .other = base->operation, .ci = EMBED_FALSE)) &&
                     (parts.operands == (base->operands + 1u));
     for (unsigned int place = 0u; same_base && (place < base->operands); place += 1u)
     {
-        same_base = (mmgr_text_equal(parts.operand[place], base->operand[place], PLATFORM_TEXT_TO_TERMINATOR));
+        same_base = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts.operand[place],
+                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = base->operand[place], .ci = EMBED_FALSE));
     }
     return same_base;
 }

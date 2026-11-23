@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // container_write.c: one container written from another, with new code in it for one part or many, driven by a layout
 // file
-#include "container_write_internal.h"
 #include "../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-
+#include "container_write_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 static void value_put(unsigned char *bytes, unsigned int width, unsigned long long value)
 {
@@ -51,7 +50,7 @@ static unsigned long long attributes_written(const Places *places, const unsigne
             }
             return 0ULL;
         }
-        mmgr_bytes_copy(written, bytes, size);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = written, .src = bytes, .bytes = size);
         return size;
     }
     const unsigned long long before = (unsigned long long)(found - bytes);
@@ -70,7 +69,7 @@ static unsigned long long attributes_written(const Places *places, const unsigne
         }
         return 0ULL;
     }
-    mmgr_bytes_copy(written, bytes, before);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = written, .src = bytes, .bytes = before);
     written[before] = (unsigned char)places->attribute_format_value;
     written[before + 1u] = (unsigned char)places->attribute_exits;
     value_put(&written[before + 2u], 2u, 4ULL * exit_count);
@@ -78,7 +77,8 @@ static unsigned long long attributes_written(const Places *places, const unsigne
     {
         value_put(&written[before + places->attribute_header + (4ULL * number)], 4u, exits[number]);
     }
-    mmgr_bytes_copy(&written[before + places->attribute_header + (4ULL * exit_count)], &bytes[after], size - after);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &written[before + places->attribute_header + (4ULL * exit_count)],
+               .src = &bytes[after], .bytes = size - after);
     return whole;
 }
 
@@ -264,7 +264,8 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
         return 0;
     }
     unsigned char *const all = block;
-    mmgr_bytes_copy(all, section_list[all_info].bytes, section_list[all_info].size);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = all, .src = section_list[all_info].bytes,
+               .bytes = section_list[all_info].size);
     section_list[all_info].bytes = all;
     unsigned long long used = section_list[all_info].size;
     for (unsigned int part = 0u; found && (part < args->part_count); part += 1u)
@@ -328,17 +329,19 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
         platform_cell_released(place, platform_place_g_program_owner);
         return 0;
     }
-    mmgr_bytes_set(written, 0, whole);
-    mmgr_bytes_copy(written, pattern, places.header_bytes);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = written, .bytes = whole, .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = written, .src = pattern, .bytes = places.header_bytes);
     value_put(&written[places.section_table], places.section_table_width, new_sections);
     value_put(&written[places.segment_table], places.segment_table_width, new_segments);
     for (unsigned int index = 0u; index < sections; index += 1u)
     {
         unsigned char *const header = &written[new_sections + ((unsigned long long)index * section_entry)];
-        mmgr_bytes_copy(header, &pattern[section_list[index].was_at], section_entry);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = header, .src = &pattern[section_list[index].was_at],
+                   .bytes = section_entry);
         if (index != 0u)
         {
-            mmgr_bytes_copy(&written[section_list[index].goes_at], section_list[index].bytes, section_list[index].size);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &written[section_list[index].goes_at],
+                       .src = section_list[index].bytes, .bytes = section_list[index].size);
             value_put(&header[places.section_offset], places.section_offset_width, section_list[index].goes_at);
             if (section_list[index].type != places.section_type_nobits)
             {
@@ -365,7 +368,7 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
     {
         const unsigned long long was = segment_table + ((unsigned long long)index * segment_entry);
         unsigned char *const header = &written[new_segments + ((unsigned long long)index * segment_entry)];
-        mmgr_bytes_copy(header, &pattern[was], segment_entry);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = header, .src = &pattern[was], .bytes = segment_entry);
         const unsigned long long was_at =
             container_value_read(&pattern[was + places.segment_offset], places.segment_offset_width);
         const unsigned long long was_size =

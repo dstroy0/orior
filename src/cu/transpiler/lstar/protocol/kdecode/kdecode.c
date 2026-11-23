@@ -38,9 +38,9 @@
 // file was read, 1 where one was not
 #include "../../../../../../includes/parsers/who.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "kdecode/kdecode_internal.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_linea.h"
 
 int program_main(int count, char **words)
@@ -53,39 +53,49 @@ int program_main(int count, char **words)
     const char *blob = NULL;
     int latest = 0;
     int given = 1;
-    while ((given < count) && (mmgr_text_starts(words[given], "--", PLATFORM_TEXT_TO_TERMINATOR)))
+    while ((given < count) && (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = words[given],
+                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "--", .ci = EMBED_FALSE)))
     {
-        if (mmgr_text_equal(words[given], "--raw", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[given], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--raw", .ci = EMBED_FALSE))
         {
             raw = 1;
             given += 1;
         }
-        else if ((mmgr_text_equal(words[given], "--from", PLATFORM_TEXT_TO_TERMINATOR)) && ((given + 1) < count) &&
-                 kdecode_number(words[given + 1], &from))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[given], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--from", .ci = EMBED_FALSE)) &&
+                 ((given + 1) < count) && kdecode_number(words[given + 1], &from))
         {
             given += 2;
         }
-        else if ((mmgr_text_equal(words[given], "--to", PLATFORM_TEXT_TO_TERMINATOR)) && ((given + 1) < count) &&
-                 kdecode_number(words[given + 1], &to))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[given], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--to", .ci = EMBED_FALSE)) &&
+                 ((given + 1) < count) && kdecode_number(words[given + 1], &to))
         {
             given += 2;
         }
-        else if ((mmgr_text_equal(words[given], "--count", PLATFORM_TEXT_TO_TERMINATOR)) && ((given + 1) < count) &&
-                 kdecode_number(words[given + 1], &slice))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[given], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--count", .ci = EMBED_FALSE)) &&
+                 ((given + 1) < count) && kdecode_number(words[given + 1], &slice))
         {
             given += 2;
         }
-        else if ((mmgr_text_equal(words[given], "--table", PLATFORM_TEXT_TO_TERMINATOR)) && ((given + 1) < count))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[given], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--table", .ci = EMBED_FALSE)) &&
+                 ((given + 1) < count))
         {
             table = words[given + 1];
             given += 2;
         }
-        else if ((mmgr_text_equal(words[given], "--blob", PLATFORM_TEXT_TO_TERMINATOR)) && ((given + 1) < count))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[given], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--blob", .ci = EMBED_FALSE)) &&
+                 ((given + 1) < count))
         {
             blob = words[given + 1];
             given += 2;
         }
-        else if (mmgr_text_equal(words[given], "--latest", PLATFORM_TEXT_TO_TERMINATOR))
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[given], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--latest", .ci = EMBED_FALSE))
         {
             latest = 1;
             given += 1;
@@ -125,7 +135,7 @@ int program_main(int count, char **words)
             continue;
         }
         if (!qry_member_file_blob(words[given], &bytes, &size) || (size < KREP_HEAD_BYTES) ||
-            (mmgr_bytes_compare(bytes, KREP_MAGIC, 8u) != 0))
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes, .other = KREP_MAGIC, .bytes = 8u) != 0))
         {
             const int ran = kdecode_run_whole(bytes, size);
             kdecode_displayed_passed(1);
@@ -137,9 +147,9 @@ int program_main(int count, char **words)
             continue;
         }
         char type[4];
-        mmgr_bytes_copy(type, bytes + 8u, 4u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = type, .src = bytes + 8u, .bytes = 4u);
         char error[1400];
-        if (!raw && (mmgr_bytes_compare(type, KQR_TYPE, 4u) == 0))
+        if (!raw && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = type, .other = KQR_TYPE, .bytes = 4u) == 0))
         {
             if (!kqr_read(&s_record, words[given], "-", error, sizeof(error)))
             {

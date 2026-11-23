@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "shift_agreement.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-
+#include "memoria_operor/memoria_operor.h"
 
 _Static_assert(sizeof(unsigned int) == 4u, "shift_agreement: unsigned int must be 32 bits, a residue");
 _Static_assert(sizeof(unsigned long long) == 8u, "shift_agreement: unsigned long long must be 64 bits, a product");
@@ -240,7 +239,7 @@ long shift_agreement_host(ShiftAgreementRequest *args)
     args->agreement = reflected[best];
     if (args->counts != NULL)
     {
-        mmgr_bytes_copy(args->counts, reflected, total * sizeof(unsigned int));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = args->counts, .src = reflected, .bytes = total * sizeof(unsigned int));
     }
     platform_cell_released(reflected, (unsigned int)platform_place_g_engine_owner);
     platform_cell_released(moved, (unsigned int)platform_place_g_engine_owner);

@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_sass_probe_check.c: one kernel's text found in what a toolchain printed, and every form of the machine
 // assembled again and read back, which shows whether a form carries what the part read from it (sass_machine.h)
-#include "interface_sass_probe.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "interface_sass_probe.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../sass_assemble.h"
 #include "../sass_machine.h"
-
 
 unsigned int sass_text_read(const char *output, const char *kernel, char *text, unsigned int room)
 {
@@ -26,42 +25,57 @@ unsigned int sass_text_read(const char *output, const char *kernel, char *text, 
     const char *walk = output;
     while ((walk != NULL) && (*walk != '\0'))
     {
-        const size_t length = mmgr_text_span_not(walk, "\n", PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = walk,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\n");
         char line[SASS_TEXT * 2u];
         const size_t taken = (length < (sizeof(line) - 1u)) ? length : (sizeof(line) - 1u);
-        mmgr_bytes_copy(line, walk, taken);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = line, .src = walk, .bytes = taken);
         line[taken] = '\0';
         // the disassembler's output ends its lines the way the host does, and a carriage return is none of the text
-        line[mmgr_text_span_not(line, "\r", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
+        line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\r")] = '\0';
         walk += length + ((walk[length] == '\n') ? 1u : 0u);
         // a listing contains a section a function, and only the kernel's own is written back. .sectioninfo names no
         // section, and the name it shares the front of is not a line that opens one
-        const char *const section = mmgr_text_find(line, ".section", PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const section =
+            EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = ".section", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
         if ((section != NULL) && ((section[8] == ' ') || (section[8] == '\t')))
         {
-            inside = (mmgr_text_find(line, wanted, PLATFORM_TEXT_TO_TERMINATOR) != NULL) ? 1 : 0;
+            inside = (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                 .other = wanted, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL)
+                         ? 1
+                         : 0;
             continue;
         }
         if (inside == 0)
         {
             continue;
         }
-        const char *const address = mmgr_text_find(line, "/*", PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const address =
+            EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "/*",
+                       .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
         const char *chosen = NULL;
         size_t copied = 0u;
-        if ((address != NULL) && (mmgr_text_length(address, PLATFORM_TEXT_TO_TERMINATOR) > 8u) && (address[6] == '*') &&
-            (address[7] == '/'))
+        if ((address != NULL) &&
+            (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = address, .cap = PLATFORM_TEXT_TO_TERMINATOR) > 8u) &&
+            (address[6] == '*') && (address[7] == '/'))
         {
             // an instruction: its text lies past the address, /*0000*/, and before the encoding printed after it
             chosen = address + 8;
-            const char *const encoding = mmgr_text_find(chosen, "/*", PLATFORM_TEXT_TO_TERMINATOR);
-            copied = (encoding != NULL) ? (size_t)(encoding - chosen)
-                                        : mmgr_text_length(chosen, PLATFORM_TEXT_TO_TERMINATOR);
+            const char *const encoding =
+                EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = chosen, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = "/*", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+            copied = (encoding != NULL)
+                         ? (size_t)(encoding - chosen)
+                         : EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = chosen, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         }
-        else if ((line[0] == '.') && (line[mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR) - 1u] == ':'))
+        else if ((line[0] == '.') &&
+                 (line[EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR) - 1u] ==
+                  ':'))
         {
             chosen = line;
-            copied = mmgr_text_length(line, PLATFORM_TEXT_TO_TERMINATOR);
+            copied = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         }
         if (chosen == NULL)
         {
@@ -78,7 +92,7 @@ unsigned int sass_text_read(const char *output, const char *kernel, char *text, 
         }
         if ((copied != 0u) && ((at + copied + 1u) < room))
         {
-            mmgr_bytes_copy(&text[at], chosen, copied);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &text[at], .src = chosen, .bytes = copied);
             at += (unsigned int)copied;
             text[at] = '\n';
             at += 1u;
@@ -102,7 +116,8 @@ static void sass_reuse_cut(const char *text, char *without, size_t room)
     size_t at = 0u;
     for (const char *walk = text; (*walk != '\0') && (at < (room - 1u)); walk += 1)
     {
-        if (mmgr_text_starts(walk, ".reuse", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = walk, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = ".reuse", .ci = EMBED_FALSE))
         {
             walk += 5;
             continue;
@@ -202,7 +217,8 @@ unsigned int sass_machine_check(const SassMachine *machine, const SassListing *l
                 char read[SASS_TEXT];
                 sass_reuse_cut(s_check_queried[at], query_text, sizeof(query_text));
                 sass_reuse_cut(s_check_texts[at], read, sizeof(read));
-                const int same = (mmgr_text_equal(query_text, read, PLATFORM_TEXT_TO_TERMINATOR));
+                const int same = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = query_text,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = read, .ci = EMBED_FALSE));
                 tally->same_text += same ? 1u : 0u;
                 differed += same ? 0u : 1u;
                 if (!same && (differed <= report))

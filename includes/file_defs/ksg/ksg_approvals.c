@@ -4,12 +4,11 @@
 // randomness and stored as k-files, the secret protected from every reader but its owner; a seal approved and the
 // approval put in the list beside it through `<file>.ksa.part`, made durable and put in its place whole; and every
 // approval in a list verified against its seal, with the approvers a check requires found among those that are valid
-#include "ksg_tool.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "ksg_tool.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../qry/writer/qry_writer_internal.h"
-
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -55,7 +54,7 @@ static unsigned long long ksg_word_got(const unsigned char *bytes)
 static void ksg_head_of(const char *type, unsigned char *head)
 {
     ksg_head(head);
-    mmgr_bytes_copy(head + 8u, type, 4u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = head + 8u, .src = type, .bytes = 4u);
 }
 
 // `size` bytes of the system's randomness into `bytes`: 1, or 0 where it gave none
@@ -128,10 +127,11 @@ static const KsaScheme *ksg_key_read(const char *path, const char *type, int sec
     char tag[KSA_TAG_BYTES];
     ksg_head_of(type, head);
     PlatformFile *const file = platform_file_open(path, "rb");
-    const int opened = (file != NULL) &&
-                       (platform_file_read_items(stored_head, 1u, sizeof(stored_head), file) == sizeof(stored_head)) &&
-                       (mmgr_bytes_compare(stored_head, head, sizeof(head)) == 0) &&
-                       (platform_file_read_items(tag, 1u, sizeof(tag), file) == sizeof(tag));
+    const int opened =
+        (file != NULL) &&
+        (platform_file_read_items(stored_head, 1u, sizeof(stored_head), file) == sizeof(stored_head)) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = stored_head, .other = head, .bytes = sizeof(head)) == 0) &&
+        (platform_file_read_items(tag, 1u, sizeof(tag), file) == sizeof(tag));
     const KsaScheme *const scheme = opened ? ksa_scheme_tagged(tag) : NULL;
     const unsigned int count = (scheme == NULL) ? 0u : (secret ? scheme->secret_bytes : scheme->key_bytes);
     const int read = (scheme != NULL) && (platform_file_read_items(bytes, 1u, count, file) == count);
@@ -177,7 +177,7 @@ int ksg_keys_made(const char *name, const char *secret_path, const char *public_
     const unsigned long long public_sizes[3] = {KREP_HEAD_BYTES, KSA_TAG_BYTES, scheme->key_bytes};
     const int made = ksg_written(secret_path, secret_pieces, secret_sizes, 3u, 1) &&
                      ksg_written(public_path, public_pieces, public_sizes, 3u, 0);
-    mmgr_bytes_set(secret, 0, sizeof(secret));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = secret, .bytes = sizeof(secret), .val = 0);
     if (!made)
     {
         ksg_print("the keys could not be written\n");
@@ -192,13 +192,13 @@ int ksg_keys_made(const char *name, const char *secret_path, const char *public_
 
 int ksg_public_read(const char *public_path, KsaApproval *key)
 {
-    mmgr_bytes_set(key, 0, sizeof(*key));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = key, .bytes = sizeof(*key), .val = 0);
     const KsaScheme *const scheme = ksg_key_read(public_path, KSA_PUBLIC_TYPE, 0, key->key);
     if (scheme == NULL)
     {
         return 0;
     }
-    mmgr_bytes_copy(key->tag, scheme->tag, KSA_TAG_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = key->tag, .src = scheme->tag, .bytes = KSA_TAG_BYTES);
     key->key_bytes = scheme->key_bytes;
     return 1;
 }
@@ -218,7 +218,7 @@ static int ksg_list_read(const char *path)
     unsigned char word[8];
     ksg_head_of(KSA_TYPE, head);
     int whole = (platform_file_read_items(stored_head, 1u, sizeof(stored_head), file) == sizeof(stored_head)) &&
-                (mmgr_bytes_compare(stored_head, head, sizeof(head)) == 0) &&
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = stored_head, .other = head, .bytes = sizeof(head)) == 0) &&
                 (platform_file_read_items(word, 1u, sizeof(word), file) == sizeof(word));
     const unsigned long long count = whole ? ksg_word_got(word) : 0ULL;
     whole = whole && (count <= KSA_APPROVALS_MAX);
@@ -260,14 +260,15 @@ static int ksg_list_written(const char *path)
     for (unsigned long long one = 0ULL; one < s_list.count; one += 1ULL)
     {
         const KsaApproval *const approval = &s_list.approval[one];
-        mmgr_bytes_copy(s_bytes + at, approval->tag, KSA_TAG_BYTES);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_bytes + at, .src = approval->tag, .bytes = KSA_TAG_BYTES);
         at += KSA_TAG_BYTES;
         ksg_word_put(approval->key_bytes, s_bytes + at);
         ksg_word_put(approval->signature_bytes, s_bytes + at + 8u);
         at += 16u;
-        mmgr_bytes_copy(s_bytes + at, approval->key, approval->key_bytes);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_bytes + at, .src = approval->key, .bytes = approval->key_bytes);
         at += approval->key_bytes;
-        mmgr_bytes_copy(s_bytes + at, approval->signature, approval->signature_bytes);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_bytes + at, .src = approval->signature,
+                   .bytes = approval->signature_bytes);
         at += approval->signature_bytes;
     }
     const unsigned char *const pieces[1] = {s_bytes};
@@ -278,8 +279,9 @@ static int ksg_list_written(const char *path)
 // whether two approvals are by the same key
 static int ksg_same_key(const KsaApproval *one, const KsaApproval *other)
 {
-    return (mmgr_bytes_compare(one->tag, other->tag, KSA_TAG_BYTES) == 0) && (one->key_bytes == other->key_bytes) &&
-           (mmgr_bytes_compare(one->key, other->key, one->key_bytes) == 0);
+    return (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->tag, .other = other->tag, .bytes = KSA_TAG_BYTES) == 0) &&
+           (one->key_bytes == other->key_bytes) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->key, .other = other->key, .bytes = one->key_bytes) == 0);
 }
 
 int ksg_approval_added(const char *secret_path, const char *path, const unsigned char *trailer)
@@ -292,7 +294,7 @@ int ksg_approval_added(const char *secret_path, const char *path, const unsigned
     }
     KsaApproval approval;
     ksa_approved(scheme, secret, trailer, &approval);
-    mmgr_bytes_set(secret, 0, sizeof(secret));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = secret, .bytes = sizeof(secret), .val = 0);
     if (!ksg_list_read(path))
     {
         ksg_print(path);

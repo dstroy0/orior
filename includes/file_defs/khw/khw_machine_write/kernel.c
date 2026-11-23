@@ -1,10 +1,28 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // kernel.c: the kernel: its code read, its forms stored, the runs and the answers read, and the listing given
-#include "khw_machine_write_internal.h"
 #include "../../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "khw_machine_write_internal.h"
+#include "memoria_operor/memoria_operor.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int kernel_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // the kernel, read out of the container in the layout at `path`. That is the bytes of the container, the part where it
 // enters, the registers that a thread of it uses, and its code. The result is 1, or 0 with the reason printed
@@ -43,7 +61,7 @@ int khw_kernel_read(const char *path)
         }
         return 0;
     }
-    mmgr_bytes_copy(s_kernel_text, &s_pattern[offsets[0]], (size_t)sizes[0]);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_kernel_text, .src = &s_pattern[offsets[0]], .bytes = (size_t)sizes[0]);
     s_kernel_places = (unsigned int)(sizes[0] / KHW_INSTRUCTION);
     s_registers = cubin_registers_read(s_pattern, s_pattern_size, s_kernel);
     if (s_registers == 0u)
@@ -127,8 +145,10 @@ static int khw_runs_read(KhwForm *answered_form, const char *text)
     unsigned int words = 0u;
     for (const char *at = text; *at != '\0';)
     {
-        at += mmgr_text_span(at, " \t\r\n", PLATFORM_TEXT_TO_TERMINATOR);
-        const size_t length = mmgr_text_span_not(at, " \t\r\n", PLATFORM_TEXT_TO_TERMINATOR);
+        at +=
+            EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \t\r\n");
+        const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = at,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \t\r\n");
         words += (length != 0u) ? 1u : 0u;
         at += length;
     }
@@ -162,12 +182,18 @@ static int khw_runs_read(KhwForm *answered_form, const char *text)
             // character after it. The character's place among the four is its type, and no character is a register's
             const char *end = NULL;
             const int none =
-                (mmgr_text_order(place, SASS_RUN_NO_PLACE_TEXT,
-                                 (size_t)(mmgr_text_length(SASS_RUN_NO_PLACE_TEXT, PLATFORM_TEXT_TO_TERMINATOR))) == 0);
-            answered_form->place[run] = none ? SASS_RUN_NO_PLACE : (unsigned int)mmgr_text_unsigned_in(place, &end, 10);
-            end = none ? (place + mmgr_text_length(SASS_RUN_NO_PLACE_TEXT, PLATFORM_TEXT_TO_TERMINATOR)) : end;
+                (kernel_text_order(place, SASS_RUN_NO_PLACE_TEXT,
+                                   (size_t)(EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = SASS_RUN_NO_PLACE_TEXT,
+                                                       .cap = PLATFORM_TEXT_TO_TERMINATOR))) == 0);
+            answered_form->place[run] = none ? SASS_RUN_NO_PLACE
+                                             : (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                                                        .src = place, .end = &end, .base = 10);
+            end = none ? (place + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = SASS_RUN_NO_PLACE_TEXT,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR))
+                       : end;
             const char *const character = ((end != NULL) && (*end != '\0'))
-                                              ? mmgr_text_char(KHW_TYPE_CHARACTERS, *end, PLATFORM_TEXT_TO_TERMINATOR)
+                                              ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = KHW_TYPE_CHARACTERS,
+                                                           .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = *end)
                                               : NULL;
             answered_form->type[run] =
                 (character != NULL) ? (unsigned int)(character - KHW_TYPE_CHARACTERS) : KHW_TYPE_REGISTER;
@@ -212,8 +238,8 @@ unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int r
     unsigned long long next = 0ULL;
     while ((next < size) && (read < room))
     {
-        const unsigned char *const end =
-            (const unsigned char *)mmgr_bytes_find(bytes + next, '\n', (size_t)(size - next));
+        const unsigned char *const end = (const unsigned char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = bytes + next,
+                                                                           .bytes = (size_t)(size - next), .val = '\n');
         const size_t length = (end != NULL) ? (size_t)(end - (bytes + next)) : (size_t)(size - next);
         {
             VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
@@ -226,7 +252,7 @@ unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int r
             continue;
         }
         KhwForm answered_form;
-        mmgr_bytes_set(&answered_form, 0, sizeof(answered_form));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &answered_form, .bytes = sizeof(answered_form), .val = 0);
         const char *runs_at = line;
         if (!line_word(&runs_at, answered_form.relation, sizeof(answered_form.relation)) ||
             !line_signed(&runs_at, &answered_form.signed_read) ||

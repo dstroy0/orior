@@ -4,12 +4,13 @@
 // and emptied, a code named and its family given, the blobs of a run retained where they are, and the oracle read
 // from the run
 #include "../../../../../../../includes/parsers/line_read.h"
-#include "../../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../../../../includes/parsers/who.h"
+#include "../../../../../../platform/platform.h"
 #include "../../table_text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "kdecode_internal.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_scribo.h"
 
 KqrRecord s_record;
@@ -123,14 +124,15 @@ static int kdecode_field(const char *line, unsigned int field, char *word, size_
     const char *at = line;
     for (unsigned int passed = 0u; passed < field; passed += 1u)
     {
-        at = mmgr_text_char(at, '\t', PLATFORM_TEXT_TO_TERMINATOR);
+        at = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
         if (at == NULL)
         {
             return 0;
         }
         at += 1;
     }
-    const size_t length = mmgr_text_span_not(at, "\t\r\n", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length =
+        EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\t\r\n");
     VerbaLinea copied = {word, room, 0ULL};
     mmgr_line_put_max(&copied, at, (length < room) ? length : (room - 1u));
     mmgr_line_finish(&copied);
@@ -155,7 +157,10 @@ static void kdecode_oracle_parsed(const unsigned char *bytes, unsigned long long
         {
             continue;
         }
-        if (!codes_only && (mmgr_text_equal(where, "row", PLATFORM_TEXT_TO_TERMINATOR)) && (oracle->type[0] == '\0'))
+        if (!codes_only &&
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = where, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "row",
+                        .ci = EMBED_FALSE)) &&
+            (oracle->type[0] == '\0'))
         {
             (void)verba_finis.finish(
                 &(VerbaFinisCfg){.out = oracle->type,
@@ -163,7 +168,8 @@ static void kdecode_oracle_parsed(const unsigned char *bytes, unsigned long long
                                  .at = verba_textus.put_clip(&(VerbaTextusCfg){
                                      .out = oracle->type, .cap = sizeof(oracle->type), .at = 0u, .text = type})});
         }
-        if (!codes_only && (mmgr_text_starts(where, "column ", PLATFORM_TEXT_TO_TERMINATOR)))
+        if (!codes_only && (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = where, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                       .other = "column ", .ci = EMBED_FALSE)))
         {
             const char *place_at = where + 7;
             unsigned long long place = 0ULL;
@@ -182,12 +188,17 @@ static void kdecode_oracle_parsed(const unsigned char *bytes, unsigned long long
                                      .cap = sizeof(column->form),
                                      .at = verba_textus.put_clip(&(VerbaTextusCfg){
                                          .out = column->form, .cap = sizeof(column->form), .at = 0u, .text = form})});
-                const char *const gloss = mmgr_text_char_last(s_line, '\t', PLATFORM_TEXT_TO_TERMINATOR);
-                const char *const named =
-                    (gloss != NULL) ? mmgr_text_find(gloss, ".oracle.tsv", PLATFORM_TEXT_TO_TERMINATOR) : NULL;
+                const char *const gloss = EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = s_line,
+                                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
+                const char *const named = (gloss != NULL)
+                                              ? EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = gloss,
+                                                           .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".oracle.tsv",
+                                                           .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE)
+                                              : NULL;
                 const char *start = named;
                 while ((start != NULL) && (start > gloss) &&
-                       (mmgr_text_is_alnum((unsigned char)start[-1]) || (start[-1] == '_')))
+                       (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_ALNUM, .byte = (unsigned char)start[-1]) ||
+                        (start[-1] == '_')))
                 {
                     start -= 1;
                 }
@@ -203,12 +214,16 @@ static void kdecode_oracle_parsed(const unsigned char *bytes, unsigned long long
                     ((unsigned int)place >= oracle->columns) ? ((unsigned int)place + 1u) : oracle->columns;
             }
         }
-        if ((mmgr_text_starts(code, "0x", PLATFORM_TEXT_TO_TERMINATOR)) && (oracle->codes < KDECODE_CODES_MAX))
+        if ((EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = code, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "0x",
+                        .ci = EMBED_FALSE)) &&
+            (oracle->codes < KDECODE_CODES_MAX))
         {
             // a family numbered past its name, `record 1`, is the family its name gives
             KdecodeCode *const one = &oracle->code[oracle->codes];
             VerbaLinea family = {one->family, sizeof(one->family), 0ULL};
-            mmgr_line_put_max(&family, where, mmgr_text_span_not(where, " ", PLATFORM_TEXT_TO_TERMINATOR));
+            mmgr_line_put_max(&family, where,
+                              EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = where,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " "));
             mmgr_line_finish(&family);
             (void)verba_finis.finish(
                 &(VerbaFinisCfg){.out = one->name,
@@ -226,7 +241,7 @@ static void kdecode_oracle_parsed(const unsigned char *bytes, unsigned long long
 void kdecode_oracle_free(KdecodeOracle *oracle)
 {
     oracle->type[0] = '\0';
-    mmgr_bytes_set(oracle->column, 0, sizeof(oracle->column));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = oracle->column, .bytes = sizeof(oracle->column), .val = 0);
     oracle->columns = 0u;
     oracle->codes = 0u;
 }
@@ -237,7 +252,8 @@ const char *kdecode_code_named(const KdecodeOracle *oracle, const char *family, 
     for (unsigned int at = 0u; at < oracle->codes; at += 1u)
     {
         if ((oracle->code[at].value == value) &&
-            (mmgr_text_equal(oracle->code[at].family, family, PLATFORM_TEXT_TO_TERMINATOR)))
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = oracle->code[at].family, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = family, .ci = EMBED_FALSE)))
         {
             return oracle->code[at].name;
         }
@@ -250,7 +266,8 @@ int kdecode_family_given(const KdecodeOracle *oracle, const char *family)
 {
     for (unsigned int at = 0u; at < oracle->codes; at += 1u)
     {
-        if (mmgr_text_equal(oracle->code[at].family, family, PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = oracle->code[at].family, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = family, .ci = EMBED_FALSE))
         {
             return 1;
         }
@@ -286,8 +303,8 @@ static void kdecode_text_stored(KdecodeRun *run, unsigned long long file, unsign
 // 1 where the `name_length` characters at `name` are the text `text`
 static int kdecode_name_is(const char *name, unsigned int name_length, const char *text)
 {
-    return (mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR) == name_length) &&
-           (mmgr_bytes_compare(name, text, name_length) == 0);
+    return (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR) == name_length) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = name, .other = text, .bytes = name_length) == 0);
 }
 
 // an oracle the run contains stored, `size` bytes at `bytes` under its name, in place of an earlier blob of the name:
@@ -297,7 +314,8 @@ static void kdecode_content_stored(KdecodeRun *run, const char *name, unsigned i
 {
     size_t place = 0u;
     while ((place < run->content_count) && ((run->contents[place].name_length != name_length) ||
-                                            (mmgr_bytes_compare(run->contents[place].name, name, name_length) != 0)))
+                                            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = run->contents[place].name,
+                                                        .other = name, .bytes = name_length) != 0)))
     {
         place += 1u;
     }
@@ -329,7 +347,8 @@ void kdecode_blob(void *context, const char *name, unsigned int name_length, uns
     run->blob[run->blobs] = (KdecodeBlob){sequence, name, name_length};
     run->blobs += 1u;
     const unsigned int suffix = (unsigned int)(sizeof(".oracle.tsv") - 1u);
-    if ((name_length > suffix) && (mmgr_bytes_compare(name + name_length - suffix, ".oracle.tsv", suffix) == 0))
+    if ((name_length > suffix) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = name + name_length - suffix,
+                                              .other = ".oracle.tsv", .bytes = suffix) == 0))
     {
         kdecode_content_stored(run, name, name_length, bytes, size);
     }

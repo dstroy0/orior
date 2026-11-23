@@ -5,9 +5,8 @@
 // next address in a fresh probe.
 #include "bus_enum_walk.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
-
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the types classify_walk wrote, read into `answers`, the types, from `next` on. How many it answered in order; a
 // line out of order, past the addresses it was given, or not three numbers ends the read where it is
@@ -20,20 +19,21 @@ static unsigned long long bus_enum_walk_read(const QueryWalk *walk, const char *
     while (read < given)
     {
         const char *end = NULL;
-        const unsigned long long address = mmgr_text_unsigned_in(at, &end, 16);
+        const unsigned long long address =
+            EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = at, .end = &end, .base = 16);
         if (end == at)
         {
             break;
         }
         at = end;
-        const unsigned long type = mmgr_text_unsigned_in(at, &end, 16);
+        const unsigned long type = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = at, .end = &end, .base = 16);
         if (end == at)
         {
             break;
         }
         at = end;
         // the read-back word, read past
-        mmgr_text_unsigned_in(at, &end, 16);
+        EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = at, .end = &end, .base = 16);
         if (end == at)
         {
             break;

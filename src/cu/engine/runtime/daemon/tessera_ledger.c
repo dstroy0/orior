@@ -6,9 +6,8 @@
 // add. An array that does not grow is left to the core, which errors where it needs the array.
 #include "tessera_ledger.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 #include "tessera_ledger_core.h"
-
 
 // `items` grown to contain `wanted` of `size` bytes each, its capacity doubled until it does
 static int tessera_grow(void **items, unsigned long long *capacity, unsigned long long wanted, size_t size)
@@ -46,7 +45,7 @@ static int tessera_reserve(TesseraLedger *ledger, TesseraCallType type)
 
 int tessera_ledger_open(TesseraLedger *ledger)
 {
-    mmgr_bytes_set(ledger, 0, sizeof(*ledger));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = ledger, .bytes = sizeof(*ledger), .val = 0);
     ledger->next_identity = 1ULL;
     return 1;
 }
@@ -56,7 +55,7 @@ void tessera_ledger_close(TesseraLedger *ledger)
     platform_cell_released(ledger->jobs, platform_place_g_program_owner);
     platform_cell_released(ledger->history, platform_place_g_program_owner);
     platform_cell_released(ledger->heap, platform_place_g_program_owner);
-    mmgr_bytes_set(ledger, 0, sizeof(*ledger));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = ledger, .bytes = sizeof(*ledger), .val = 0);
 }
 
 void tessera_ledger_device(TesseraLedger *ledger, unsigned long long capacity, unsigned long long in_use)

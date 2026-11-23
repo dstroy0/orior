@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_main.c: tessera_run's main
-#include "tessera_run_internal.h"
-#include "cellularum_laboro/cellularum_linea.h"
 #include "../../../../platform/platform.h"
 #include "../../engine_note.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera_run_internal.h"
 
 _Alignas(8) static const
     char s_run_usage[] = "  tessera_run: --processors <count> [--name <text>] [--child] -- <command> [arguments]\n"
@@ -16,13 +16,14 @@ _Alignas(8) static const
 int program_main(int count, char **arguments)
 {
     RunRequest request;
-    mmgr_bytes_set(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     if (!run_arguments(count, arguments, &request))
     {
         {
             const char *const error_text = s_run_usage;
             platform_terminal_write(1, error_text,
-                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+                                    (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = error_text,
+                                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR));
         }
         return RUN_FAILED;
     }
@@ -49,16 +50,17 @@ int program_main(int count, char **arguments)
         return run_child(&request, arguments, count, mask, label);
     }
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     char daemon[ENGINE_PATH_CAPACITY];
     TesseraJobSubmit submit;
-    mmgr_bytes_set(&submit, 0, sizeof(submit));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &submit, .bytes = sizeof(submit), .val = 0);
     if (!run_daemon_path(daemon, sizeof(daemon)) || !run_signum(&request, arguments, count, &submit.signum, &error))
     {
         {
             const char *const error_text = s_run_unsubmitted;
             platform_terminal_write(1, error_text,
-                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+                                    (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = error_text,
+                                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR));
         }
         return RUN_FAILED;
     }
@@ -112,13 +114,13 @@ int program_main(int count, char **arguments)
         engine_note_written(&engine_note);
     }
     RunChannel channel;
-    mmgr_bytes_set(&channel, 0, sizeof(channel));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &channel, .bytes = sizeof(channel), .val = 0);
     int started_count = count - request.command;
     char **const watched = run_channel_open(&channel, &request, arguments + request.command, count - request.command,
                                             &submit.signum, &started_count);
     char *const *const words = (watched != NULL) ? watched : (arguments + request.command);
     RunChild child;
-    mmgr_bytes_set(&child, 0, sizeof(child));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &child, .bytes = sizeof(child), .val = 0);
     int code = RUN_NOT_STARTED;
     // the whole processors of the reservation, and never none: a job reserves its tracked peak where that is more than
     // it named, and the count of whole ones in it is what the command may run on

@@ -1,11 +1,29 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tiff_metadata.c: rows, chains, ImageJ and OME metadata
-#include "tiff_internal.h"
-#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tiff_internal.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int tiff_metadata_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 int tiff_page_rows(TiffFile *file, const TiffPage *page, TiffScratch *scratch, unsigned long long row_first,
                    unsigned long long row_end, unsigned char *out)
@@ -44,7 +62,8 @@ int tiff_page_rows(TiffFile *file, const TiffPage *page, TiffScratch *scratch, u
             {
                 const unsigned char *const source = &scratch->chunk[(row - top) * page->chunk_width * element_bytes];
                 unsigned char *const target = &out[(((row - row_first) * page->width) + left) * element_bytes];
-                mmgr_bytes_copy(target, source, (size_t)(columns * element_bytes));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = target, .src = source,
+                           .bytes = (size_t)(columns * element_bytes));
             }
         }
     }
@@ -143,15 +162,16 @@ static int tiff_digits(const char *text, size_t length, unsigned long long *valu
 static void tiff_imagej_value(TiffFile *file, const char *text, const char *key, unsigned long long *value,
                               unsigned int *present)
 {
-    const size_t key_length = mmgr_text_length(key, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t key_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     for (const char *line = text; (line != NULL) && !*present;
-         line = mmgr_text_char(line, '\n', PLATFORM_TEXT_TO_TERMINATOR))
+         line = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\n'))
     {
         line += (*line == '\n') ? 1u : 0u;
-        if ((mmgr_text_order(line, key, (size_t)(key_length)) == 0) && (line[key_length] == '='))
+        if ((tiff_metadata_text_order(line, key, (size_t)(key_length)) == 0) && (line[key_length] == '='))
         {
             const char *const digits = &line[key_length + 1u];
-            const size_t length = mmgr_text_span_not(digits, "\r\n", PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = digits,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\r\n");
             *present = 1u;
             if (!tiff_digits(digits, length, value))
             {
@@ -226,11 +246,13 @@ int tiff_imagej(TiffFile *file, const char *text, unsigned long long pages, unsi
 
 static const char *tiff_xml_element(const char *text, const char *name)
 {
-    const size_t length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
-    for (const char *at = mmgr_text_char(text, '<', PLATFORM_TEXT_TO_TERMINATOR); at != NULL;
-         at = mmgr_text_char(at + 1u, '<', PLATFORM_TEXT_TO_TERMINATOR))
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    for (const char *at =
+             EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '<');
+         at != NULL;
+         at = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = at + 1u, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '<'))
     {
-        if (mmgr_text_order(at + 1u, name, (size_t)(length)) == 0)
+        if (tiff_metadata_text_order(at + 1u, name, (size_t)(length)) == 0)
         {
             const char after = at[length + 1u];
             if ((after == ' ') || (after == '\t') || (after == '\r') || (after == '\n') || (after == '>') ||
@@ -245,12 +267,12 @@ static const char *tiff_xml_element(const char *text, const char *name)
 
 static const char *tiff_xml_attribute(const char *tag, const char *tag_end, const char *name, size_t *length)
 {
-    const size_t name_length = mmgr_text_length(name, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t name_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     for (const char *at = tag + 1u; (size_t)(tag_end - at) > (name_length + 2u); at += 1u)
     {
         const char before = *(at - 1u);
         const int spaced = (before == ' ') || (before == '\t') || (before == '\r') || (before == '\n');
-        if (spaced && (mmgr_text_order(at, name, (size_t)(name_length)) == 0) && (at[name_length] == '=') &&
+        if (spaced && (tiff_metadata_text_order(at, name, (size_t)(name_length)) == 0) && (at[name_length] == '=') &&
             ((at[name_length + 1u] == '"') || (at[name_length + 1u] == '\'')))
         {
             const char quote = at[name_length + 1u];
@@ -303,7 +325,8 @@ static void tiff_ome_candidates(TiffFile *file, const char *text)
     for (const char *pixels = tiff_xml_element(text, "Pixels"); pixels != NULL;
          pixels = tiff_xml_element(pixels + 1u, "Pixels"))
     {
-        const char *const tag_end = mmgr_text_char(pixels, '>', PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const tag_end =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = pixels, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '>');
         if (tag_end == NULL)
         {
             break;
@@ -358,7 +381,8 @@ int tiff_ome(TiffFile *file, const TiffPage *page, const char *text, unsigned lo
         tiff_ome_candidates(file, text);
         return tiff_fail(file, "the OME-XML contains more than one image");
     }
-    const char *const pixels_end = mmgr_text_char(pixels, '>', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const pixels_end =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = pixels, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '>');
     if (pixels_end == NULL)
     {
         return tiff_fail(file, "OME-XML that ends inside the Pixels element");
@@ -391,14 +415,19 @@ int tiff_ome(TiffFile *file, const TiffPage *page, const char *text, unsigned lo
     {
         return tiff_fail(file, "an OME SizeZ or SizeT of 0");
     }
-    if ((order == NULL) || (order_length != 5u) || (!mmgr_text_starts(order, "XY", PLATFORM_TEXT_TO_TERMINATOR)) ||
-        (mmgr_bytes_find(order, 'Z', 5u) == NULL) || (mmgr_bytes_find(order, 'C', 5u) == NULL) ||
-        (mmgr_bytes_find(order, 'T', 5u) == NULL))
+    if ((order == NULL) || (order_length != 5u) ||
+        (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = order, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "XY",
+                     .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(memor.chr, MemoriaCfg, .src = order, .bytes = 5u, .val = 'Z') == NULL) ||
+        (EMBED_CALL(memor.chr, MemoriaCfg, .src = order, .bytes = 5u, .val = 'C') == NULL) ||
+        (EMBED_CALL(memor.chr, MemoriaCfg, .src = order, .bytes = 5u, .val = 'T') == NULL))
     {
         return tiff_fail(file, "an OME DimensionOrder that is not XY followed by Z, C and T");
     }
-    const size_t z_place = (size_t)((const char *)mmgr_bytes_find(order, 'Z', 5u) - order);
-    const size_t t_place = (size_t)((const char *)mmgr_bytes_find(order, 'T', 5u) - order);
+    const size_t z_place =
+        (size_t)((const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = order, .bytes = 5u, .val = 'Z') - order);
+    const size_t t_place =
+        (size_t)((const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = order, .bytes = 5u, .val = 'T') - order);
     const unsigned long long z_stride = (z_place < t_place) ? 1ULL : extent_t;
     const unsigned long long t_stride = (z_place < t_place) ? extent_z : 1ULL;
     unsigned long long planes = 0ULL;
@@ -407,14 +436,19 @@ int tiff_ome(TiffFile *file, const TiffPage *page, const char *text, unsigned lo
     {
         return tiff_fail(file, "the OME SizeZ and SizeT do not multiply to the number of pages");
     }
-    const char *const closing = mmgr_text_find(pixels_end, "</Pixels", PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const region_end =
-        (closing != NULL) ? closing : (pixels_end + mmgr_text_length(pixels_end, PLATFORM_TEXT_TO_TERMINATOR));
+    const char *const closing =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = pixels_end, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "</Pixels", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+    const char *const region_end = (closing != NULL)
+                                       ? closing
+                                       : (pixels_end + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = pixels_end,
+                                                                  .cap = PLATFORM_TEXT_TO_TERMINATOR));
     for (const char *data = tiff_xml_element(pixels_end, "TiffData");
          (file->reason == NULL) && (data != NULL) && (data < region_end);
          data = tiff_xml_element(data + 1u, "TiffData"))
     {
-        const char *const data_end = mmgr_text_char(data, '>', PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const data_end =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = data, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '>');
         if (data_end == NULL)
         {
             return tiff_fail(file, "OME-XML that ends inside a TiffData element");

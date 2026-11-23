@@ -2,10 +2,28 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // names.c: the names: a name stored, copied and numbered, a kernel named, a line read and spaced, a guard and a form's
 // guard, and the operation of a line
-#include "stick_internal.h"
 #include "../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "stick_internal.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int names_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // the table of names: each operation's name at its number, and a hash of the names to their numbers
 char **s_name;
@@ -27,7 +45,8 @@ void *stick_allocated(void *pointer)
         {
             const char *const error_text = "orior_measuring_stick_read: the system gave no memory\n";
             platform_terminal_write(1, error_text,
-                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+                                    (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = error_text,
+                                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR));
         }
         platform_process_ended(2);
     }
@@ -38,7 +57,7 @@ void *stick_allocated(void *pointer)
 char *stick_copy(const char *text, size_t length)
 {
     char *const copy = (char *)stick_allocated(platform_cell_taken(length + 1u, platform_place_g_program_owner, 0));
-    mmgr_bytes_copy(copy, text, length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy, .src = text, .bytes = length);
     copy[length] = '\0';
     return copy;
 }
@@ -70,7 +89,7 @@ unsigned int stick_named(const char *text, size_t length)
     while (s_hash[slot] != 0u)
     {
         const char *const name_text = s_name[s_hash[slot] - 1u];
-        if ((mmgr_text_order(name_text, text, (size_t)(length)) == 0) && (name_text[length] == '\0'))
+        if ((names_text_order(name_text, text, (size_t)(length)) == 0) && (name_text[length] == '\0'))
         {
             return s_hash[slot] - 1u;
         }
@@ -81,7 +100,8 @@ unsigned int stick_named(const char *text, size_t length)
         {
             const char *const error_text = "orior_measuring_stick_read: more operations than the table supports\n";
             platform_terminal_write(1, error_text,
-                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+                                    (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = error_text,
+                                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR));
         }
         platform_process_ended(2);
     }
@@ -105,7 +125,8 @@ void stick_read(const char *path)
         {
             const char *const error_text = "orior_measuring_stick_read: the system gave no memory\n";
             platform_terminal_write(1, error_text,
-                                    (unsigned long long)mmgr_text_length(error_text, PLATFORM_TEXT_TO_TERMINATOR));
+                                    (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = error_text,
+                                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR));
         }
         platform_process_ended(2);
     }
@@ -114,7 +135,8 @@ void stick_read(const char *path)
 // the place past the space at `text`
 const char *stick_spaced(const char *text)
 {
-    return text + mmgr_text_span(text, s_space, PLATFORM_TEXT_TO_TERMINATOR);
+    return text +
+           EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_space);
 }
 
 // the length of a guard at `text`, `@!?U?P[T0-9]+` and the space after it, or 0 where none is there
@@ -133,8 +155,11 @@ size_t stick_guard(const char *text)
         return 0u;
     }
     at += 1u;
-    const size_t marks = mmgr_text_span(&text[at], "T0123456789", PLATFORM_TEXT_TO_TERMINATOR);
-    const size_t space = (marks != 0u) ? mmgr_text_span(&text[at + marks], s_space, PLATFORM_TEXT_TO_TERMINATOR) : 0u;
+    const size_t marks = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "T0123456789");
+    const size_t space = (marks != 0u) ? EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[at + marks],
+                                                    .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_space)
+                                       : 0u;
     return (space != 0u) ? (at + marks + space) : 0u;
 }
 
@@ -149,15 +174,16 @@ size_t stick_form_guard(const char *text)
     at += 1u;
     at += (text[at] == '!') ? 1u : 0u;
     at += (text[at] == '{') ? 1u : 0u;
-    const size_t name = mmgr_text_span(&text[at], "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_",
-                                       PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t name = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                   .other = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
     if (name == 0u)
     {
         return 0u;
     }
     at += name;
     at += (text[at] == '}') ? 1u : 0u;
-    const size_t space = mmgr_text_span(&text[at], s_space, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t space = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = s_space);
     return (space != 0u) ? (at + space) : 0u;
 }
 
@@ -166,37 +192,44 @@ size_t stick_form_guard(const char *text)
 int stick_operation_of(const char *line, unsigned int *operation)
 {
     const char *at = stick_spaced(line);
-    if (!mmgr_text_starts(at, "/*", PLATFORM_TEXT_TO_TERMINATOR))
+    if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "/*",
+                    .ci = EMBED_FALSE))
     {
         return 0;
     }
     at += 2;
-    const size_t digits = mmgr_text_span(at, "0123456789abcdef", PLATFORM_TEXT_TO_TERMINATOR);
-    if ((digits < 4u) || (!mmgr_text_starts(&at[digits], "*/", PLATFORM_TEXT_TO_TERMINATOR)))
+    const size_t digits = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = "0123456789abcdef");
+    if ((digits < 4u) || (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = &at[digits],
+                                      .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "*/", .ci = EMBED_FALSE)))
     {
         return 0;
     }
     at += digits + 2u;
-    const size_t space = mmgr_text_span(at, s_space, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t space =
+        EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_space);
     if (space == 0u)
     {
         return 0;
     }
     at += space;
-    const char *const end = mmgr_text_char(at, ';', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const end =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ';');
     if (end == NULL)
     {
         return 0;
     }
     // the instruction, the space before its `;` cut
     size_t length = (size_t)(end - at);
-    while ((length != 0u) && (mmgr_text_char(s_space, at[length - 1u], PLATFORM_TEXT_TO_TERMINATOR) != NULL))
+    while ((length != 0u) && (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = s_space,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = at[length - 1u]) != NULL))
     {
         length -= 1u;
     }
     char *const instruction = stick_copy(at, length);
     const char *const text = stick_spaced(instruction + stick_guard(instruction));
-    const size_t word = mmgr_text_span_not(text, s_space, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t word =
+        EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_space);
     const int found = (word != 0u);
     if (found)
     {

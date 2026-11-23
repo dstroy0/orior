@@ -9,10 +9,10 @@
 #ifndef KLANG_H
 #define KLANG_H
 
-#include <stddef.h>
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include <stddef.h>
 #include <string.h>
 
 // the max characters of a language's name
@@ -31,7 +31,8 @@ typedef struct
 // 1 where the `length` characters at `at` are `token`, the `token_length` of them
 static inline int klang_token_at(const char *text, size_t length, size_t at, const char *token, size_t token_length)
 {
-    return ((at + token_length) <= length) && (mmgr_bytes_compare(&text[at], token, token_length) == 0);
+    return ((at + token_length) <= length) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &text[at], .other = token, .bytes = token_length) == 0);
 }
 
 // The first block of `lang` in the `length` characters at `text` from `from` on into `block`: 1, or 0 where none opens
@@ -40,17 +41,17 @@ static inline int klang_block_find(const char *text, size_t length, size_t from,
 {
     char opener[KLANG_NAME + 8u];
     char closer[KLANG_NAME + 8u];
-    const size_t name = mmgr_text_length(lang, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t name = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = lang, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     if ((name == 0u) || (name >= KLANG_NAME))
     {
         return 0;
     }
-    mmgr_bytes_copy(opener, "__", 2u);
-    mmgr_bytes_copy(&opener[2], lang, name);
-    mmgr_bytes_copy(&opener[2u + name], "__(", 4u);
-    mmgr_bytes_copy(closer, ")__", 3u);
-    mmgr_bytes_copy(&closer[3], lang, name);
-    mmgr_bytes_copy(&closer[3u + name], "__", 3u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = opener, .src = "__", .bytes = 2u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &opener[2], .src = lang, .bytes = name);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &opener[2u + name], .src = "__(", .bytes = 4u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = closer, .src = ")__", .bytes = 3u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &closer[3], .src = lang, .bytes = name);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &closer[3u + name], .src = "__", .bytes = 3u);
     const size_t opener_length = name + 5u;
     const size_t closer_length = name + 5u;
     for (size_t at = from; at < length; at += 1u)

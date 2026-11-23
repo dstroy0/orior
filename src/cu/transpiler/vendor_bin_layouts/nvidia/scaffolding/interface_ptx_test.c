@@ -5,12 +5,11 @@
 // integers; then the illegal operations, each queried from a fresh process, since a fault on the device leaves its
 // context unusable; and after each, a fresh process whose device answers. The first argument is interface_ptx_probe's
 // path, the second a folder for the probes' output
-#include "../../../lstar/interface/interface.h"
 #include "../../../../../platform/platform.h"
 #include "../../../../engine/engine_note.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
-
+#include "../../../lstar/interface/interface.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #define INTERFACE_PTX_CAPACITY 65536u
 // a question's limit: the membership queries assemble and run a kernel for each question
@@ -56,11 +55,11 @@ static int interface_ptx_probe(InterfacePtxTest *test, const char *question, Int
     }
     char *const command[] = {(char *)test->probe, (char *)question, NULL};
     const InterfaceProbe probe = {command, path, INTERFACE_PTX_LIMIT};
-    mmgr_bytes_set(answer, 0, sizeof(*answer));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = answer, .bytes = sizeof(*answer), .val = 0);
     answer->output = s_interface_ptx_output;
     answer->output_capacity = sizeof(s_interface_ptx_output);
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     if (interface_probe_run(&probe, answer, &error) != 0L)
     {
         {
@@ -121,11 +120,12 @@ static void interface_ptx_alive(InterfacePtxTest *test, const char *after)
         mmgr_line_put(&buffer_line, ": the device answers 6 + 7 = 0x0000000d");
         (void)mmgr_line_finish(&buffer_line);
     }
-    interface_ptx_check(
-        test,
-        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL) &&
-            (mmgr_text_find(s_interface_ptx_output, "answered 0000000d", PLATFORM_TEXT_TO_TERMINATOR) != NULL),
-        what);
+    interface_ptx_check(test,
+                        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL) &&
+                            (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = s_interface_ptx_output,
+                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "answered 0000000d",
+                                        .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL),
+                        what);
 }
 
 // an illegal operation the device errors: the probe exits 3 having printed the CUDA error, which `error` names where
@@ -135,8 +135,12 @@ static void interface_ptx_error(InterfacePtxTest *test, const char *question, co
     InterfaceAnswer answer;
     const int result = interface_ptx_probe(test, question, &answer);
     const int named = (error == NULL)
-                          ? (mmgr_text_find(s_interface_ptx_output, "error ", PLATFORM_TEXT_TO_TERMINATOR) != NULL)
-                          : (mmgr_text_find(s_interface_ptx_output, error, PLATFORM_TEXT_TO_TERMINATOR) != NULL);
+                          ? (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = s_interface_ptx_output,
+                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "error ",
+                                        .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL)
+                          : (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = s_interface_ptx_output,
+                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = error,
+                                        .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL);
     interface_ptx_check(test, result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 3ULL) && named,
                         what);
 }
@@ -160,11 +164,13 @@ int program_main(int count, char **arguments)
     interface_ptx_alive(&test, "nothing");
 
     int result = interface_ptx_probe(&test, "membership", &answer);
-    interface_ptx_check(&test,
-                        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL) &&
-                            (mmgr_text_find(s_interface_ptx_output, " questions, 0 with a case that differs",
-                                            PLATFORM_TEXT_TO_TERMINATOR) != NULL),
-                        "membership: every defined answer of every form agrees with the host's integers");
+    interface_ptx_check(
+        &test,
+        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL) &&
+            (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = s_interface_ptx_output, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = " questions, 0 with a case that differs", .other_cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .ci = EMBED_FALSE) != NULL),
+        "membership: every defined answer of every form agrees with the host's integers");
 
     interface_ptx_error(&test, "address", "error 700 cudaErrorIllegalAddress",
                         "a load from address 16 errors as an illegal address (700)");
@@ -176,10 +182,12 @@ int program_main(int count, char **arguments)
     interface_ptx_alive(&test, "a trap");
 
     result = interface_ptx_probe(&test, "lacking", &answer);
-    interface_ptx_check(&test,
-                        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 4ULL) &&
-                            (mmgr_text_find(s_interface_ptx_output, "errored", PLATFORM_TEXT_TO_TERMINATOR) != NULL),
-                        "elect.sync, which PTX gives sm_90 and later, errors in the toolchain for this device");
+    interface_ptx_check(
+        &test,
+        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 4ULL) &&
+            (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = s_interface_ptx_output, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "errored", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL),
+        "elect.sync, which PTX gives sm_90 and later, errors in the toolchain for this device");
     interface_ptx_alive(&test, "an instruction the part lacks");
 
     {

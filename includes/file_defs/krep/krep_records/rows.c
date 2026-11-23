@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // rows.c: the rows: a number's halves, a number read, put and added, the hash, a row passed to the run with its who, a
 // record's row and a text's, the text slots grown, and a text taken
-#include "../../../parsers/who.h"
 #include "../../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "../../../parsers/who.h"
 #include "krep_records_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the 32-bit word of the four little-endian bytes at `bytes`, the head's version
 unsigned int krep_half_of(const unsigned char *bytes)
@@ -161,7 +161,8 @@ unsigned int krep_text_slot(const KrepFile *file, const char *bytes, unsigned lo
     while (file->text_slot[at] != 0u)
     {
         const unsigned int slot = file->text_slot[at] - 1u;
-        if ((file->text_length[slot] == length) && (mmgr_bytes_compare(file->text[slot], bytes, (size_t)length) == 0))
+        if ((file->text_length[slot] == length) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = file->text[slot], .other = bytes, .bytes = (size_t)length) == 0))
         {
             return at;
         }
@@ -233,7 +234,7 @@ unsigned long long krep_text_taken(KrepFile *file, const char *bytes, unsigned l
     {
         return 0ULL;
     }
-    mmgr_bytes_copy(copy, bytes, (size_t)length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy, .src = bytes, .bytes = (size_t)length);
     copy[length] = '\0';
     const unsigned int slot = krep_text_slot(file, bytes, length);
     file->text[file->texts] = copy;

@@ -3,13 +3,12 @@
 // ksg_seal.c: a file's seal made as its bytes are written, as ksg.h positions it out: each line a leaf passed on as it
 // ends, the leaves joined two by two as they come, at max KSG_DEPTH nodes waiting, and the root over the size, the max
 // bytes of a leaf and the top node
-#include "ksg.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "ksg.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../../../src/cu/engine/runtime/obsignatio/obsignatio_internal.h"
-
 
 // `size` bytes signed with `key`, as obsignatio's keyed signum on the host, into `out`: 1
 static int ksg_signed(const unsigned char *key, const void *bytes, unsigned long long size, unsigned char *out)
@@ -22,8 +21,8 @@ static int ksg_signed(const unsigned char *key, const void *bytes, unsigned long
 static int ksg_joined(const KsgSeal *seal, const unsigned char *left, const unsigned char *right, unsigned char *out)
 {
     unsigned char both[2u * KSG_SIGNUM_BYTES];
-    mmgr_bytes_copy(both, left, KSG_SIGNUM_BYTES);
-    mmgr_bytes_copy(both + KSG_SIGNUM_BYTES, right, KSG_SIGNUM_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = both, .src = left, .bytes = KSG_SIGNUM_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = both + KSG_SIGNUM_BYTES, .src = right, .bytes = KSG_SIGNUM_BYTES);
     return ksg_signed(seal->node_key, both, sizeof(both), out);
 }
 
@@ -59,14 +58,14 @@ static int ksg_line_sealed(KsgSeal *seal)
             return 0;
         }
     }
-    mmgr_bytes_copy(seal->waiting[seal->depth], node, KSG_SIGNUM_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = seal->waiting[seal->depth], .src = node, .bytes = KSG_SIGNUM_BYTES);
     seal->depth += 1u;
     return 1;
 }
 
 int ksg_seal_begun(KsgSeal *seal, KsgLeaf leaf, void *context)
 {
-    mmgr_bytes_set(seal, 0, sizeof(*seal));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = seal, .bytes = sizeof(*seal), .val = 0);
     seal->leaf = leaf;
     seal->context = context;
     seal->whole = obsignatio_host_level_key(OBSIGNATIO_LEVEL_ROW, seal->row_key) &&
@@ -101,7 +100,7 @@ int ksg_seal_ended(KsgSeal *seal, unsigned char *root, unsigned char *trailer)
         return 0;
     }
     unsigned char top[KSG_SIGNUM_BYTES];
-    mmgr_bytes_copy(top, seal->waiting[seal->depth - 1u], KSG_SIGNUM_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = top, .src = seal->waiting[seal->depth - 1u], .bytes = KSG_SIGNUM_BYTES);
     for (unsigned int at = seal->depth - 1u; at > 0u; at -= 1u)
     {
         if (!ksg_joined(seal, seal->waiting[at - 1u], top, top))
@@ -112,7 +111,7 @@ int ksg_seal_ended(KsgSeal *seal, unsigned char *root, unsigned char *trailer)
     unsigned char rooted[16u + KSG_SIGNUM_BYTES];
     ksg_word(seal->size, rooted);
     ksg_word(KSG_LINE_MAX, rooted + 8u);
-    mmgr_bytes_copy(rooted + 16u, top, KSG_SIGNUM_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = rooted + 16u, .src = top, .bytes = KSG_SIGNUM_BYTES);
     if (!ksg_signed(seal->file_key, rooted, sizeof(rooted), root))
     {
         return 0;
@@ -120,33 +119,40 @@ int ksg_seal_ended(KsgSeal *seal, unsigned char *root, unsigned char *trailer)
     ksg_word(seal->size, trailer);
     ksg_word(KSG_LINE_MAX, trailer + 8u);
     ksg_word(seal->leaves, trailer + 16u);
-    mmgr_bytes_copy(trailer + 24u, root, KSG_SIGNUM_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = trailer + 24u, .src = root, .bytes = KSG_SIGNUM_BYTES);
     return 1;
 }
 
 int ksg_type_sealed(const char *path)
 {
-    const char *const dot = mmgr_text_char_last(path, '.', PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const slash = mmgr_text_char_last(path, '/', PLATFORM_TEXT_TO_TERMINATOR);
-    const char *const back = mmgr_text_char_last(path, '\\', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const dot =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.');
+    const char *const slash =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+    const char *const back =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
     if ((dot == NULL) || ((slash != NULL) && (slash > dot)) || ((back != NULL) && (back > dot)))
     {
         return 0;
     }
-    if ((mmgr_text_equal(dot, ".g", PLATFORM_TEXT_TO_TERMINATOR)) ||
-        (mmgr_text_equal(dot, ".gsm", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = dot, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".g",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = dot, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".gsm",
+                    .ci = EMBED_FALSE)))
     {
         return 1;
     }
     static const char *const s_own[] = {".ksg", ".ksa", ".ksk", ".kpk"};
     for (unsigned int at = 0u; at < (sizeof(s_own) / sizeof(s_own[0])); at += 1u)
     {
-        if (mmgr_text_equal(dot, s_own[at], PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = dot, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_own[at],
+                       .ci = EMBED_FALSE))
         {
             return 0;
         }
     }
-    const size_t characters = mmgr_text_length(dot + 1, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t characters =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = dot + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     int lower = (dot[1] == 'k') && (characters >= 3u) && (characters <= 6u);
     size_t at = 1u;
     while (lower && (at <= characters))
@@ -159,8 +165,8 @@ int ksg_type_sealed(const char *path)
 
 void ksg_head(unsigned char *head)
 {
-    mmgr_bytes_copy(head, KREP_MAGIC, 8u);
-    mmgr_bytes_copy(head + 8u, KSG_TYPE, 4u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = head, .src = KREP_MAGIC, .bytes = 8u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = head + 8u, .src = KSG_TYPE, .bytes = 4u);
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
         // the version is one 32-bit limb, low byte first, each byte shifted down to its own

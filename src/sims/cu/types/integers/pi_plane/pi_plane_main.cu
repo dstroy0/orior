@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_plane_main.cu: main
+#include "memoria_operor/memoria_operor.h"
 #include "pi_plane_internal.h"
-#include "memoria_operor/memoria_linea.h"
 
 static const unsigned int s_plane_fibonacci[PLANE_FIBONACCI] = {
     1u, 2u, 3u, 5u, 8u, 13u, 21u, 34u, 55u, 89u, 144u, 233u, 377u, 610u, 987u, 1597u, 2584u, 4181u, 6765u, 10946u};
@@ -87,8 +87,8 @@ int program_main(int count, char **arguments)
         plane_lag_host(bits.data(), bits_count, host_longest.data());
         longest[0] = 0u;
         sim_check(&results,
-                  mmgr_bytes_compare(longest.data(), host_longest.data(), (size_t)bits_count * sizeof(unsigned int)) ==
-                      0,
+                  EMBED_CALL(memor.cmp, MemoriaCfg, .src = longest.data(), .other = host_longest.data(),
+                             .bytes = (size_t)bits_count * sizeof(unsigned int)) == 0,
                   "the device's longest run at every difference equals the host's, for pi");
     }
 

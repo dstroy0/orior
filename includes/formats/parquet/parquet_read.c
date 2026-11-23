@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // parquet_read.c: a parquet file's members, the one cached decoded, and its lanes and side
-#include "parquet_internal.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "parquet_internal.h"
 
 #define PARQUET_FOOTER_MEMBER "footer"
 
@@ -36,7 +36,7 @@ static void parquet_resident_release(void)
     platform_cell_released(resident->member, platform_place_g_program_owner);
     platform_cell_released(resident->footer, platform_place_g_program_owner);
     parquet_column_release(&resident->column);
-    mmgr_bytes_set(resident, 0, sizeof(*resident));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
 }
 
 // the row group and leaf a member names, `<row group>/<leaf path>` with the row group in decimal and no leading zero
@@ -57,7 +57,8 @@ static int parquet_member_find(const ParquetFooter *footer, const char *member, 
     }
     for (unsigned int place = 0u; place < footer->leaf_count; place += 1u)
     {
-        if (mmgr_text_equal(footer->leaf[place].path, &member[at + 1u], PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = footer->leaf[place].path, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = &member[at + 1u], .ci = EMBED_FALSE))
         {
             *row_group = group;
             *leaf = place;
@@ -69,11 +70,11 @@ static int parquet_member_find(const ParquetFooter *footer, const char *member, 
 
 static char *parquet_copy(const char *text)
 {
-    const size_t size = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR) + 1u;
+    const size_t size = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u;
     char *const copy = (char *)platform_cell_taken(size, platform_place_g_program_owner, 0);
     if (copy != NULL)
     {
-        mmgr_bytes_copy(copy, text, size);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy, .src = text, .bytes = size);
     }
     return copy;
 }
@@ -85,8 +86,11 @@ static int parquet_open(const EngineIngestTools *tools, const char *path, const 
     {
         return 0;
     }
-    if ((resident->valid != 0) && (mmgr_text_equal(resident->path, path, PLATFORM_TEXT_TO_TERMINATOR)) &&
-        (mmgr_text_equal(resident->member, member, PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((resident->valid != 0) &&
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = resident->path, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = path, .ci = EMBED_FALSE)) &&
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = resident->member, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = member, .ci = EMBED_FALSE)))
     {
         return 1;
     }
@@ -102,7 +106,8 @@ static int parquet_open(const EngineIngestTools *tools, const char *path, const 
         return 0;
     }
     int ok = 1;
-    if (mmgr_text_equal(member, PARQUET_FOOTER_MEMBER, PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = member, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = PARQUET_FOOTER_MEMBER, .ci = EMBED_FALSE))
     {
         ParquetBytes *const values = &resident->column.values;
         values->room = resident->footer->footer_bytes + 1ULL;
@@ -146,7 +151,7 @@ static unsigned long long parquet_lanes(void)
 
 static void parquet_extent(EngineArrayExtent *extent)
 {
-    mmgr_bytes_set(extent, 0, sizeof(*extent));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = extent, .bytes = sizeof(*extent), .val = 0);
     extent->rank = 1u;
     extent->sizes[0] = parquet_lanes();
     extent->axes[0] = 'x';
@@ -179,7 +184,7 @@ static void parquet_side_release(EngineSideBytes *side)
     platform_cell_released(side->names, platform_place_g_program_owner);
     platform_cell_released(side->member_crc, platform_place_g_program_owner);
     platform_cell_released(side->member_bytes, platform_place_g_program_owner);
-    mmgr_bytes_set(side, 0, sizeof(*side));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = side, .bytes = sizeof(*side), .val = 0);
 }
 
 // the side leaves of the kept member: its byte count, eight bytes little-endian, and the levels of a leaf. Then the
@@ -207,9 +212,10 @@ static int parquet_side_fill(EngineSideBytes *side, EngineError *error)
     for (unsigned long long leaf = 0ULL; leaf < leaves; leaf += 1ULL)
     {
         byte_total += sizes[leaf];
-        named += mmgr_text_length(PARQUET_SIDE_NAMES[leaf], PLATFORM_TEXT_TO_TERMINATOR);
+        named += EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = PARQUET_SIDE_NAMES[leaf],
+                            .cap = PLATFORM_TEXT_TO_TERMINATOR);
     }
-    mmgr_bytes_set(side, 0, sizeof(*side));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = side, .bytes = sizeof(*side), .val = 0);
     side->pixel_at = (unsigned long long *)platform_cell_cleared((size_t)leaves + 1u, sizeof(unsigned long long),
                                                                  platform_place_g_program_owner, 0);
     side->pixel_stored = (unsigned long long *)platform_cell_cleared((size_t)leaves + 1u, sizeof(unsigned long long),
@@ -236,17 +242,20 @@ static int parquet_side_fill(EngineSideBytes *side, EngineError *error)
     unsigned long long name_at = 0ULL;
     for (unsigned long long leaf = 0ULL; leaf < leaves; leaf += 1ULL)
     {
-        const size_t name_length = mmgr_text_length(PARQUET_SIDE_NAMES[leaf], PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t name_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = PARQUET_SIDE_NAMES[leaf],
+                                              .cap = PLATFORM_TEXT_TO_TERMINATOR);
         side->byte_start[leaf] = byte_at;
         if (sizes[leaf] != 0ULL)
         {
-            mmgr_bytes_copy(side->bytes + byte_at, parts[leaf], (size_t)sizes[leaf]);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = side->bytes + byte_at, .src = parts[leaf],
+                       .bytes = (size_t)sizes[leaf]);
         }
         side->member_crc[leaf] = zip_crc32(side->bytes + byte_at, sizes[leaf]);
         side->member_bytes[leaf] = sizes[leaf];
         byte_at += sizes[leaf];
         side->name_start[leaf] = name_at;
-        mmgr_bytes_copy(side->names + name_at, PARQUET_SIDE_NAMES[leaf], name_length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = side->names + name_at, .src = PARQUET_SIDE_NAMES[leaf],
+                   .bytes = name_length);
         name_at += name_length;
     }
     side->byte_start[leaves] = byte_at;
@@ -282,9 +291,10 @@ long long parquet_read(const EngineArrayRead *request)
     const ParquetBytes *const values = &s_parquet_resident.column.values;
     if (values->count != 0ULL)
     {
-        mmgr_bytes_copy(request->out, values->bytes, (size_t)values->count);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->out, .src = values->bytes, .bytes = (size_t)values->count);
     }
-    mmgr_bytes_set(request->out + values->count, 0, (size_t)(total - values->count));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request->out + values->count, .bytes = (size_t)(total - values->count),
+               .val = 0);
     const int sided = (request->side == NULL) || parquet_side_fill(request->side, error);
     parquet_resident_release();
     // the total fits the caller's capacity, a size in memory, and so fits a long long
@@ -295,7 +305,7 @@ unsigned int parquet_members(const EngineIngestTools *tools, const char *path, c
 {
     *names = NULL;
     EngineError probe;
-    mmgr_bytes_set(&probe, 0, sizeof(probe));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &probe, .bytes = sizeof(probe), .val = 0);
     ParquetFooter *const footer =
         (ParquetFooter *)platform_cell_taken(sizeof(ParquetFooter), platform_place_g_program_owner, 0);
     if ((footer == NULL) || !parquet_footer_read(tools, path, footer, &probe))
@@ -319,7 +329,8 @@ unsigned int parquet_members(const EngineIngestTools *tools, const char *path, c
         for (unsigned int leaf = 0u; ok && (leaf < footer->leaf_count); leaf += 1u)
         {
             // a row group's decimal, a slash, the leaf's path and its terminator
-            const size_t size = 12u + mmgr_text_length(footer->leaf[leaf].path, PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t size = 12u + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = footer->leaf[leaf].path,
+                                                 .cap = PLATFORM_TEXT_TO_TERMINATOR);
             listed[at] = (char *)platform_cell_taken(size, platform_place_g_program_owner, 0);
             VerbaLinea formed_line_1;
             ok = (listed[at] != NULL) &&

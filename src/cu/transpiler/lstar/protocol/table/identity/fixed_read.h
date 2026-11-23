@@ -21,11 +21,11 @@ extern "C"
         FIXED_CASE_WORD_1
     } FixedType;
 
-    // The type the values `values`, one a case and case t on thread t, are read as, against the host's thread number
-    // and the case's words `first` and `second`. A store of 32 bits leaves the record's low word, and each value is
-    // read at that width. The lane's number where every value is its case's number; a case word where every value is
-    // it; the record where the values step 16 a case and the index where they step 32, each the low word of an address;
-    // nothing where they are 0, one constant, or fewer than two
+    // The type of the values `values`, one a case and case t on thread t, read against the host's thread number and the
+    // case's words `first` and `second`. A store of 32 bits leaves the record's low word, and the read takes each value
+    // at that width. The lane's number where every value is its case's number. A case word where every value is it. The
+    // record where the values step 16 a case and the index where they step 32, each the low word of an address. Nothing
+    // where they are 0, one constant, or fewer than two
     static inline FixedType fixed_type(const unsigned long long *values, const unsigned int *first,
                                        const unsigned int *second, unsigned int cases)
     {
@@ -61,7 +61,8 @@ extern "C"
                         : FIXED_NOTHING;
     }
 
-    // the question a type's row is written under, `run answers <n> <question>`, and empty where nothing is fixed
+    // the question the mode writes a type's row under, `run answers <n> <question>`, and empty where the type has no
+    // fixed register
     static inline const char *fixed_type_question(FixedType type)
     {
         switch (type)

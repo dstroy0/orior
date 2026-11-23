@@ -2,17 +2,35 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // read.c: the record read: each line's type, a line read as a query, the text form read whole, the queries read once
 // each, the record read from its file, and the record viewed at a run's queries table
-#include "../../../parsers/line_read.h"
 #include "../../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "../../../parsers/line_read.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "kqr_internal.h"
+#include "memoria_operor/memoria_operor.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int read_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 // 1 where `line` is of the type `type`: its first word, and a space or its end after it
 static int kqr_line_type(const char *line, const char *type)
 {
-    const size_t length = mmgr_text_length(type, PLATFORM_TEXT_TO_TERMINATOR);
-    return (mmgr_text_order(line, type, (size_t)(length)) == 0) && ((line[length] == ' ') || (line[length] == '\0'));
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    return (read_text_order(line, type, (size_t)(length)) == 0) && ((line[length] == ' ') || (line[length] == '\0'));
 }
 
 // the `length` bytes at `text`, as many of them as fit, into `out`, which has room for `room`, and ended
@@ -36,7 +54,8 @@ static size_t kqr_error_put(char *error, size_t room, size_t at, const char *tex
 // 1, or 0 where it has no identity or no answer the oracle gives
 static int kqr_line_identity(const char *line, KqrIdentity *identity, unsigned int *answer, const char **rest)
 {
-    const char *at = mmgr_text_char(line, ' ', PLATFORM_TEXT_TO_TERMINATOR);
+    const char *at =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ' ');
     if (at == NULL)
     {
         return 0;
@@ -45,7 +64,7 @@ static int kqr_line_identity(const char *line, KqrIdentity *identity, unsigned i
     const char *end = at;
     for (unsigned int word = 0u; (word < 7u) && (end != NULL); word += 1u)
     {
-        end = mmgr_text_char(end, ' ', PLATFORM_TEXT_TO_TERMINATOR);
+        end = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = end, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ' ');
         end += ((end != NULL) && (word < 6u)) ? 1 : 0;
     }
     char text[256];
@@ -60,13 +79,14 @@ static int kqr_line_identity(const char *line, KqrIdentity *identity, unsigned i
         return 0;
     }
     const char *const name_start = end + 1;
-    const size_t length = mmgr_text_span_not(name_start, " ", PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = name_start,
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
     char name[16];
     if (length >= sizeof(name))
     {
         return 0;
     }
-    mmgr_bytes_copy(name, name_start, length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = name, .src = name_start, .bytes = length);
     name[length] = '\0';
     *answer = kqr_answer_of(name);
     *rest = name_start + length + ((name_start[length] == ' ') ? 1u : 0u);
@@ -91,8 +111,10 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
     while ((stopped == NULL) && line_read(bytes, size, &at, s_line, sizeof(s_line)))
     {
         number += 1u;
-        s_line[mmgr_text_span_not(s_line, "\r\n", PLATFORM_TEXT_TO_TERMINATOR)] = '\0';
-        if (s_line[mmgr_text_span(s_line, " ", PLATFORM_TEXT_TO_TERMINATOR)] == '\0')
+        s_line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = s_line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "\r\n")] = '\0';
+        if (s_line[EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = s_line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = " ")] == '\0')
         {
             continue;
         }
@@ -100,7 +122,9 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
         unsigned long long words[5] = {0ULL, 0ULL, 0ULL, 0ULL, 0ULL};
         if ((number == 1u) && kqr_line_type(s_line, "kqr"))
         {
-            const char *const named = s_line + 3 + mmgr_text_span(s_line + 3, " ", PLATFORM_TEXT_TO_TERMINATOR);
+            const char *const named = s_line + 3 +
+                                      EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = s_line + 3,
+                                                 .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
             record->file.record[0].word[0] = kqr_text_number(record, named);
         }
         else if (s_line[0] == '#')
@@ -111,7 +135,8 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
         else if (kqr_line_type(s_line, "cycle"))
         {
             const char *const after = s_line + 6;
-            const size_t length = mmgr_text_span_not(after, " ", PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = after,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
             stopped = kqr_number_read(after, length, 10, &words[0]) ? NULL : "a cycle with no number";
             words[1] = kqr_text_number(record, after + length + ((after[length] == ' ') ? 1u : 0u));
             krep_record_add(&record->file, KQR_CYCLE_RECORD, words, 2u);
@@ -120,30 +145,42 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
         {
             const int seed = kqr_line_type(s_line, "seed");
             const char *const after = s_line + (seed ? 5 : 6);
-            stopped = kqr_number_read(after, mmgr_text_length(after, PLATFORM_TEXT_TO_TERMINATOR), 10, &words[0])
-                          ? NULL
-                          : "a seed or a round of no number";
+            stopped =
+                kqr_number_read(
+                    after, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = after, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                    10, &words[0])
+                    ? NULL
+                    : "a seed or a round of no number";
             krep_record_add(&record->file, seed ? KQR_SEED_RECORD : KQR_ROUND_RECORD, words, 1u);
         }
         else if (kqr_line_type(s_line, "pair"))
         {
-            const char *field = s_line + 4 + mmgr_text_span(s_line + 4, " ", PLATFORM_TEXT_TO_TERMINATOR);
-            const size_t first = mmgr_text_span_not(field, " ", PLATFORM_TEXT_TO_TERMINATOR);
+            const char *field = s_line + 4 +
+                                EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = s_line + 4,
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
+            const size_t first = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = field,
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
             char text[KQR_VERDICT];
             kqr_text_cut(text, sizeof(text), field, first);
             words[0] = kqr_text_number(record, text);
-            field += first + mmgr_text_span(field + first, " ", PLATFORM_TEXT_TO_TERMINATOR);
-            const size_t second = mmgr_text_span_not(field, " ", PLATFORM_TEXT_TO_TERMINATOR);
+            field += first + EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = field + first,
+                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
+            const size_t second = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = field,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
             kqr_text_cut(text, sizeof(text), field, second);
             words[1] = kqr_text_number(record, text);
-            field += second + mmgr_text_span(field + second, " ", PLATFORM_TEXT_TO_TERMINATOR);
+            field += second + EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = field + second,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
             // the hash of the pair's reads, sixteen hex digits ahead of the verdict, where the record contains one
-            const size_t gap = mmgr_text_span_not(field, " ", PLATFORM_TEXT_TO_TERMINATOR);
+            const size_t gap = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = field,
+                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
             words[2] = ((gap == 16u) && (field[gap] == ' ') &&
-                        (mmgr_text_span(field, "0123456789abcdef", PLATFORM_TEXT_TO_TERMINATOR) >= 16u))
+                        (EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = field, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "0123456789abcdef") >= 16u))
                            ? 1ULL
                            : 0ULL;
-            words[3] = words[2] ? mmgr_text_unsigned_in(field, NULL, 16) : 0ULL;
+            words[3] =
+                words[2] ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = field, .end = NULL, .base = 16) : 0ULL;
             field += words[2] ? 17 : 0;
             words[4] = kqr_text_number(record, field);
             stopped = (field[0] != '\0') ? NULL : "a pair with no verdict";
@@ -151,18 +188,21 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
         }
         else if (kqr_line_type(s_line, "sample"))
         {
-            mmgr_bytes_set(&s_sample, 0, sizeof(s_sample));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_sample, .bytes = sizeof(s_sample), .val = 0);
             stopped = kqr_line_identity(s_line, &s_sample.identity, &s_sample.answer, &rest)
                           ? NULL
                           : "a sample with no identity or no answer";
             if ((stopped == NULL) && (s_sample.answer == KQR_ANSWERS))
             {
                 const char *after = NULL;
-                s_sample.nanoseconds = mmgr_text_unsigned_in(rest, &after, 10);
+                s_sample.nanoseconds =
+                    EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = rest, .end = &after, .base = 10);
                 const char *least_after = NULL;
-                const unsigned long long least = mmgr_text_unsigned_in(after, &least_after, 10);
+                const unsigned long long least =
+                    EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = after, .end = &least_after, .base = 10);
                 const char *max_after = NULL;
-                const unsigned long long max = mmgr_text_unsigned_in(least_after, &max_after, 10);
+                const unsigned long long max =
+                    EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = least_after, .end = &max_after, .base = 10);
                 s_sample.launched = ((least_after != after) && (max_after != least_after)) ? 1 : 0;
                 s_sample.least = s_sample.launched ? least : 0ULL;
                 s_sample.max = s_sample.launched ? max : 0ULL;
@@ -170,7 +210,7 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
             else if (stopped == NULL)
             {
                 kqr_text_cut(s_sample.refusal, sizeof(s_sample.refusal), rest,
-                             mmgr_text_length(rest, PLATFORM_TEXT_TO_TERMINATOR));
+                             EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = rest, .cap = PLATFORM_TEXT_TO_TERMINATOR));
             }
             if (stopped == NULL)
             {
@@ -190,7 +230,8 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
                 const char *after = NULL;
                 while ((*rest != '\0') && (s_query.words < KQR_WORDS))
                 {
-                    s_query.word[s_query.words] = mmgr_text_unsigned_in(rest, &after, 16);
+                    s_query.word[s_query.words] =
+                        EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = rest, .end = &after, .base = 16);
                     if (after == rest)
                     {
                         break;
@@ -202,7 +243,7 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
             else if (stopped == NULL)
             {
                 kqr_text_cut(s_query.refusal, sizeof(s_query.refusal), rest,
-                             mmgr_text_length(rest, PLATFORM_TEXT_TO_TERMINATOR));
+                             EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = rest, .cap = PLATFORM_TEXT_TO_TERMINATOR));
             }
             if (stopped == NULL)
             {
@@ -224,18 +265,23 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
         char digits[24];
         const size_t digits_at =
             verba_numerus.u64(&(VerbaNumerusCfg){.out = digits, .cap = sizeof(digits), .at = 0u, .val = number});
-        size_t error_at = kqr_error_put(error, room, 0u, path, mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR));
+        size_t error_at =
+            kqr_error_put(error, room, 0u, path,
+                          EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR));
         error_at = kqr_error_put(error, room, error_at, ":", 1u);
         error_at = kqr_error_put(error, room, error_at, digits, digits_at);
         error_at = kqr_error_put(error, room, error_at, ": ", 2u);
-        if (mmgr_text_equal(stopped, "is no line of a query record", PLATFORM_TEXT_TO_TERMINATOR))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = stopped, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "is no line of a query record", .ci = EMBED_FALSE))
         {
             error_at = kqr_error_put(error, room, error_at, s_line,
-                                     mmgr_text_span_not(s_line, " ", PLATFORM_TEXT_TO_TERMINATOR));
+                                     EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = s_line,
+                                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " "));
             error_at = kqr_error_put(error, room, error_at, " ", 1u);
         }
         error_at =
-            kqr_error_put(error, room, error_at, stopped, mmgr_text_length(stopped, PLATFORM_TEXT_TO_TERMINATOR));
+            kqr_error_put(error, room, error_at, stopped,
+                          EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = stopped, .cap = PLATFORM_TEXT_TO_TERMINATOR));
         verba_finis.finish(&(VerbaFinisCfg){.out = error, .cap = room, .at = error_at});
         return 0;
     }
@@ -249,7 +295,7 @@ static void kqr_queries_once(KqrRecord *record)
     static KqrQuery s_query;
     static KqrQuery s_before;
     static unsigned long long s_words[KQR_QUERY_WORDS + KQR_WORDS + 1u];
-    mmgr_bytes_set(record->slot, 0, KQR_SLOTS * sizeof(unsigned int));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = record->slot, .bytes = KQR_SLOTS * sizeof(unsigned int), .val = 0);
     unsigned int at = 0u;
     while (at < record->file.records)
     {
@@ -281,7 +327,8 @@ int kqr_read(KqrRecord *record, const char *path, const char *member, char *erro
     {
         static const char s_no_room[] = ": no room for the table of queries";
         const size_t error_at =
-            kqr_error_put(error, room, 0u, path, mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR));
+            kqr_error_put(error, room, 0u, path,
+                          EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR));
         verba_finis.finish(&(VerbaFinisCfg){
             .out = error, .cap = room, .at = kqr_error_put(error, room, error_at, s_no_room, sizeof(s_no_room) - 1u)});
         return 0;
@@ -294,8 +341,9 @@ int kqr_read(KqrRecord *record, const char *path, const char *member, char *erro
         const unsigned char *bytes = NULL;
         unsigned long long size = 0ULL;
         krep_open(&record->file, KQR_TYPE);
-        const unsigned long long named =
-            krep_text_number(&record->file, member, mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR));
+        const unsigned long long named = krep_text_number(
+            &record->file, member,
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = member, .cap = PLATFORM_TEXT_TO_TERMINATOR));
         krep_record_add(&record->file, KQR_MEMBER_RECORD, &named, 1u);
         ok = qry_member_file_blob(path, &bytes, &size) && kqr_text_read(record, bytes, size, path, error, room);
         if (ok)
@@ -305,8 +353,9 @@ int kqr_read(KqrRecord *record, const char *path, const char *member, char *erro
     }
     else if (ok && ((record->file.records == 0u) || (record->file.record[0].code != KQR_MEMBER_RECORD)))
     {
-        const unsigned long long named =
-            krep_text_number(&record->file, member, mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR));
+        const unsigned long long named = krep_text_number(
+            &record->file, member,
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = member, .cap = PLATFORM_TEXT_TO_TERMINATOR));
         ok = krep_record_put(&record->file, 0u, KQR_MEMBER_RECORD, &named, 1u);
     }
     if (!ok)
@@ -324,25 +373,28 @@ int kqr_viewed_at(KqrRecord *record, const char *path, const char *name, const c
     {
         static const char s_no_room[] = ": no room for the table of queries";
         const size_t error_at =
-            kqr_error_put(error, room, 0u, path, mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR));
+            kqr_error_put(error, room, 0u, path,
+                          EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR));
         verba_finis.finish(&(VerbaFinisCfg){
             .out = error, .cap = room, .at = kqr_error_put(error, room, error_at, s_no_room, sizeof(s_no_room) - 1u)});
         return 0;
     }
     int ok = krep_viewed_at(path, KQR_TABLE, name, &record->file, error, room);
-    if (ok && (mmgr_bytes_compare(record->file.type, KQR_TYPE, 4u) != 0))
+    if (ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = record->file.type, .other = KQR_TYPE, .bytes = 4u) != 0))
     {
         static const char s_no_kqr[] = ": the record in " KQR_TABLE " is no .kqr";
         const size_t error_at =
-            kqr_error_put(error, room, 0u, path, mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR));
+            kqr_error_put(error, room, 0u, path,
+                          EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR));
         verba_finis.finish(&(VerbaFinisCfg){
             .out = error, .cap = room, .at = kqr_error_put(error, room, error_at, s_no_kqr, sizeof(s_no_kqr) - 1u)});
         ok = 0;
     }
     if (ok && ((record->file.records == 0u) || (record->file.record[0].code != KQR_MEMBER_RECORD)))
     {
-        const unsigned long long named =
-            krep_text_number(&record->file, member, mmgr_text_length(member, PLATFORM_TEXT_TO_TERMINATOR));
+        const unsigned long long named = krep_text_number(
+            &record->file, member,
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = member, .cap = PLATFORM_TEXT_TO_TERMINATOR));
         ok = krep_record_put(&record->file, 0u, KQR_MEMBER_RECORD, &named, 1u);
     }
     if (!ok)

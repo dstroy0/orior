@@ -1,16 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_tower_bbp.cu: the BBP sum, certificate and lanes
+#include "memoria_operor/memoria_operor.h"
 #include "pi_tower_internal.h"
-#include "memoria_operor/memoria_linea.h"
 
 // the run on the device: the tail's lanes reduced to the first total, then sweep after sweep of term lanes, each sweep
 // one cycle of the term program over as many lanes as the device supports at once, reduced with the total carried in
 int pi_tower_bbp_sum(SimResults *results, PiTowerBbp *bbp, int report, PiTowerBbpRun *run)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
-    mmgr_bytes_set(run, 0, sizeof(*run));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = run, .bytes = sizeof(*run), .val = 0);
     unsigned int *inputs = NULL;
     unsigned int *buffers[2] = {NULL, NULL};
     unsigned int *index = NULL;
@@ -228,7 +228,7 @@ static PiTowerSegment pi_tower_bbp_segment(SimResults *results, const PiWide &po
 {
     PiTowerSegment result = {1, 1, 1, 1, 0u};
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     segment->clear();
     std::string pending;
     while ((result.ran != 0) && (result.finished != 0) && (segment->size() < digits))
@@ -286,7 +286,7 @@ void pi_tower_segment_request(SimResults *results, int count, char **arguments, 
                               unsigned int digits)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long lanes = pi_tower_bbp_lanes();
     unsigned long long declared = 0ULL;
     const int planned = (lanes != 0ULL) && pi_tower_segment_declared(position, digits, lanes, &declared, &error);

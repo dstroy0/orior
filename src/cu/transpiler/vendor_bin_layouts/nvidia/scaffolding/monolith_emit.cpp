@@ -22,8 +22,8 @@ extern "C"
 #include "../../../../engine/engine_note.h"
 #include "../sass_assemble.h"
 #include "../sass_machine.h"
-#include "cellularum_laboro/cellularum_linea.h"
-#include "memoria_operor/memoria_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 }
 
 #include "../../../../../platform/platform.h"
@@ -86,7 +86,7 @@ struct EmitLine
 static VerbaLinea emit_after(char *text, size_t room)
 {
     VerbaLinea line = mmgr_line_over(text, room);
-    line.at = mmgr_text_length(text, room);
+    line.at = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = room);
     return line;
 }
 
@@ -119,13 +119,16 @@ static void emit_set(char *to, size_t room, const char *from)
 // 1 where the terminated `text` contains `needle`
 static int emit_has(const char *text, const char *needle)
 {
-    return mmgr_text_find(text, needle, PLATFORM_TEXT_TO_TERMINATOR) != NULL;
+    return EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = needle,
+                      .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL;
 }
 
 // the place of `needle` in the terminated `text` from `from`, or `none` where it is not there
 static size_t emit_place(const char *text, const char *needle, size_t from, size_t none)
 {
-    const char *const found = mmgr_text_find(&text[from], needle, PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const found =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = &text[from], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = needle, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     // a found needle lies at or past its search's start
     return (found != NULL) ? (size_t)(found - text) : none;
 }
@@ -133,13 +136,14 @@ static size_t emit_place(const char *text, const char *needle, size_t from, size
 // 1 where the terminated `text` begins with `prefix`
 static int emit_begins(const char *text, const char *prefix)
 {
-    const size_t length = mmgr_text_length(prefix, PLATFORM_TEXT_TO_TERMINATOR);
-    return mmgr_bytes_compare(text, prefix, length) == 0;
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = prefix, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    return EMBED_CALL(memor.cmp, MemoriaCfg, .src = text, .other = prefix, .bytes = length) == 0;
 }
 
 static int emit_same(const char *left, const char *right)
 {
-    return mmgr_text_equal(left, right, PLATFORM_TEXT_TO_TERMINATOR);
+    return EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = left, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = right,
+                      .ci = EMBED_FALSE);
 }
 
 // The `length` bytes of `text` into `plain` with their whitespace run together, and their closing semicolon and the
@@ -179,9 +183,9 @@ static int emit_word(const char *text, size_t length, size_t from, unsigned long
 {
     for (size_t at = from; (at + 5u) <= length; at += 1u)
     {
-        if (mmgr_bytes_compare(&text[at], "/* 0x", 5u) == 0)
+        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &text[at], .other = "/* 0x", .bytes = 5u) == 0)
         {
-            *word = mmgr_text_unsigned_in(&text[at + 5u], NULL, 16);
+            *word = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = &text[at + 5u], .end = NULL, .base = 16);
             return 1;
         }
     }
@@ -191,10 +195,10 @@ static int emit_word(const char *text, size_t length, size_t from, unsigned long
 // the place of `needle` in the `length` bytes of `text` from `from`, or `length` where it is not there
 static size_t emit_find_n(const char *text, size_t length, const char *needle, size_t from)
 {
-    const size_t size = mmgr_text_length(needle, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t size = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = needle, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     for (size_t at = from; (at + size) <= length; at += 1u)
     {
-        if (mmgr_bytes_compare(&text[at], needle, size) == 0)
+        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &text[at], .other = needle, .bytes = size) == 0)
         {
             return at;
         }
@@ -263,7 +267,7 @@ static EmitLine *emit_listing(const char *path, unsigned long long *count)
             continue;
         }
         EmitLine *const one = &read[*count];
-        one->address = mmgr_text_unsigned_in(&line[open + 2u], NULL, 16);
+        one->address = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = &line[open + 2u], .end = NULL, .base = 16);
         const size_t text_end = emit_find_n(line, length, ";", close);
         emit_plain(&line[close + 2u], text_end - close - 2u, one->text, sizeof(one->text));
         if (!emit_word(line, length, close, &one->low))
@@ -283,13 +287,16 @@ static EmitLine *emit_listing(const char *path, unsigned long long *count)
 // the tag a line is, PMTRIG's immediate, or 0 where it is no tag
 static unsigned int emit_tag(const EmitLine *line)
 {
-    return emit_begins(line->text, "PMTRIG ") ? (unsigned int)mmgr_text_unsigned_in(line->text + 7u, NULL, 16) : 0u;
+    return emit_begins(line->text, "PMTRIG ")
+               ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = line->text + 7u, .end = NULL,
+                                          .base = 16)
+               : 0u;
 }
 
 // a line's operands split at their commas into `operands`, its operation and guard dropped; their count
 static unsigned int emit_operands(const char *text, EmitName *operands)
 {
-    const size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     unsigned int count = 0u;
     size_t at = (text[0] == '@') ? (emit_place(text, " ", 0u, length) + 1u) : 0u;
     at = (at <= length) ? emit_place(text, " ", at, length) : length;
@@ -503,7 +510,7 @@ static const char *emit_hex(unsigned long long value, unsigned int width, EmitNa
 // count
 static unsigned int emit_modifiers(const char *text, EmitName *modifiers)
 {
-    const size_t length = mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const size_t begin = (text[0] == '@') ? (emit_place(text, " ", 0u, length) + 1u) : 0u;
     const size_t end = (begin <= length) ? emit_place(text, " ", begin, length) : length;
     unsigned int count = 0u;
@@ -612,7 +619,8 @@ static void emit_unread_read(const char *path, const SassMachine *machine)
         const char *const line = &file[at];
         const size_t length = end - at;
         at = end + 1u;
-        if ((length < 3u) || (mmgr_bytes_compare(line, "| ", 2u) != 0) || (line[2] < '0') || (line[2] > '9'))
+        if ((length < 3u) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = line, .other = "| ", .bytes = 2u) != 0) ||
+            (line[2] < '0') || (line[2] > '9'))
         {
             continue;
         }
@@ -633,7 +641,8 @@ static void emit_unread_read(const char *path, const SassMachine *machine)
         {
             continue;
         }
-        const unsigned int number = (unsigned int)mmgr_text_unsigned_in(cells.cell[0], NULL, 10);
+        const unsigned int number =
+            (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = cells.cell[0], .end = NULL, .base = 10);
         if ((number == 0u) || (number > EMIT_QUESTIONS_MAX))
         {
             continue;
@@ -651,13 +660,18 @@ static void emit_unread_read(const char *path, const SassMachine *machine)
         {
             emit_add_n(question->instruction, sizeof(question->instruction), cells.cell[1] + 1u, cells.length[1] - 2u);
         }
-        question->first = (unsigned int)mmgr_text_unsigned_in(bits, NULL, 10);
-        question->last = (dash == bits_length) ? 0u : (unsigned int)mmgr_text_unsigned_in(bits + dash + 1u, NULL, 10);
+        question->first =
+            (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = bits, .end = NULL, .base = 10);
+        question->last = (dash == bits_length)
+                             ? 0u
+                             : (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = bits + dash + 1u,
+                                                        .end = NULL, .base = 10);
         static const char s_printed[] = ", as printed";
         const size_t printed_length = sizeof(s_printed) - 1u;
         const int as_printed =
             (cells.length[5] > printed_length) &&
-            (mmgr_bytes_compare(cells.cell[5] + cells.length[5] - printed_length, s_printed, printed_length) == 0);
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = cells.cell[5] + cells.length[5] - printed_length,
+                        .other = s_printed, .bytes = printed_length) == 0);
         question->printed = question->printed && as_printed &&
                             (emit_find_n(bits, bits_length, ",", 0u) == bits_length) && (dash != bits_length);
     }
@@ -693,7 +707,7 @@ static void emit_unread_forms_read(const char *path, const SassMachine *machine)
         const char *const line = &file[at];
         const size_t length = end - at;
         at = end + 1u;
-        if ((length < 3u) || (mmgr_bytes_compare(line, "| `", 3u) != 0))
+        if ((length < 3u) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = line, .other = "| `", .bytes = 3u) != 0))
         {
             continue;
         }
@@ -730,10 +744,14 @@ static void emit_unread_forms_read(const char *path, const SassMachine *machine)
         {
             continue;
         }
-        const unsigned int first = (unsigned int)mmgr_text_unsigned_in(cells.cell[2], NULL, 10);
-        const unsigned int last = (unsigned int)mmgr_text_unsigned_in(cells.cell[2] + dash + 1u, NULL, 10);
-        const unsigned long alike = mmgr_text_unsigned_in(cells.cell[5], NULL, 10);
-        const unsigned long questioned = mmgr_text_unsigned_in(cells.cell[5] + of + 4u, NULL, 10);
+        const unsigned int first =
+            (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = cells.cell[2], .end = NULL, .base = 10);
+        const unsigned int last = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg,
+                                                           .src = cells.cell[2] + dash + 1u, .end = NULL, .base = 10);
+        const unsigned long alike =
+            EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = cells.cell[5], .end = NULL, .base = 10);
+        const unsigned long questioned =
+            EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = cells.cell[5] + of + 4u, .end = NULL, .base = 10);
         if ((last < first) || (((last - first) + 1u) > EMIT_UNREAD_FORMS_WIDEST) || (alike != questioned) ||
             (questioned == 0UL))
         {
@@ -786,7 +804,7 @@ static void emit_our_text(char *text, size_t room, const SassMachine *machine)
                                       (form->run[number].last == 101u));
         }
         const char *const operand = parts.operand[place];
-        const size_t length = mmgr_text_length(text, room);
+        const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = room);
         const size_t at = emit_place(text, operand, 0u, length);
         if ((parts.type[place] == SASS_OPERAND_ADDRESS) && displayed && (operand[0] == '[') && (at != length))
         {
@@ -932,10 +950,12 @@ static void emit_instruction(unsigned int block, const EmitLine *line, const Sas
     // A branch's target is the address its text names. The listing prints it bare and our assembler reads a bare
     // number as the immediate itself. The text goes to the assembler as a label, `(0x...), which it counts from the
     // instruction after the branch, and the address is given as the label's
-    const size_t length = mmgr_text_length(line->text, sizeof(line->text));
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line->text, .cap = sizeof(line->text));
     const size_t branch = emit_place(line->text, "BRA 0x", 0u, length);
     const unsigned long long target =
-        (branch == length) ? 0ULL : mmgr_text_unsigned_in(line->text + branch + 6u, NULL, 16);
+        (branch == length)
+            ? 0ULL
+            : EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = line->text + branch + 6u, .end = NULL, .base = 16);
     EmitText put = {{0}};
     if (branch == length)
     {
@@ -1075,8 +1095,8 @@ static void emit_reads(const SassMachine *machine, const unsigned char *code, un
     {
         unsigned long long word_low = 0ULL;
         unsigned long long word_high = 0ULL;
-        mmgr_bytes_copy(&word_low, &code[16u * at], 8u);
-        mmgr_bytes_copy(&word_high, &code[(16u * at) + 8u], 8u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &word_low, .src = &code[16u * at], .bytes = 8u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &word_high, .src = &code[(16u * at) + 8u], .bytes = 8u);
         char text[256];
         if (sass_encoding_read(machine, word_low, word_high, address + (16ULL * at), text, sizeof(text)))
         {
@@ -1183,7 +1203,7 @@ static void emit_error(unsigned int block, unsigned int count, const SassMachine
     if ((guard != nullptr) && (guard->text[0] == '@'))
     {
         const size_t skip = (guard->text[1] == '!') ? 2u : 1u;
-        const size_t length = mmgr_text_length(guard->text, sizeof(guard->text));
+        const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = guard->text, .cap = sizeof(guard->text));
         const size_t space = emit_place(guard->text, " ", 0u, length);
         where.text[0] = '\0';
         emit_add_n(where.text, sizeof(where.text), guard->text + skip, (space > skip) ? (space - skip) : 0u);
@@ -1242,7 +1262,7 @@ static void emit_jump(unsigned int block, unsigned int count, const SassMachine 
         emit_row(block, precept, "", "", "", "", "", "loop_back_if", "NVIDIA's block contains no guarded branch");
         return;
     }
-    const size_t length = mmgr_text_length(guard->text, sizeof(guard->text));
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = guard->text, .cap = sizeof(guard->text));
     const size_t space = emit_place(guard->text, " ", 0u, length);
     EmitName where = {{0}};
     emit_add_n(where.text, sizeof(where.text), guard->text + 1u, (space > 1u) ? (space - 1u) : 0u);
@@ -1257,8 +1277,8 @@ static void emit_jump(unsigned int block, unsigned int count, const SassMachine 
         label ? sass_assemble_lines(machine, written.text, SASS_CONTROL_BASE, code, sizeof(code)) : 0u;
     unsigned long long low = 0ULL;
     unsigned long long high = 0ULL;
-    mmgr_bytes_copy(&low, &code[0], 8u);
-    mmgr_bytes_copy(&high, &code[8], 8u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &low, .src = &code[0], .bytes = 8u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &high, .src = &code[8], .bytes = 8u);
     char text[256];
     EmitText reads = {{0}};
     if (assembled == 0u)
@@ -1694,7 +1714,8 @@ static void emit_noted(const char *head, const char *text, const char *tail)
 
 int program_main(int count, char **arguments)
 {
-    const int all = (count > 2) && (mmgr_text_equal(arguments[2], "all", PLATFORM_TEXT_TO_TERMINATOR));
+    const int all = (count > 2) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[2],
+                                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "all", .ci = EMBED_FALSE));
     if ((count < 3) || (count > 5) || (all && (count < 4)))
     {
         emit_noted(
@@ -1731,7 +1752,7 @@ int program_main(int count, char **arguments)
     for (unsigned long long at = 0ULL; at < line_count; at += 1ULL)
     {
         const char *const text = lines[at].text;
-        const size_t length = mmgr_text_length(text, sizeof(lines[at].text));
+        const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = sizeof(lines[at].text));
         const size_t uniform = emit_place(text, "ULDC.64 UR", 0u, length);
         if ((uniform != length) && emit_has(text, "c[0x0][0x118]"))
         {
@@ -1754,7 +1775,8 @@ int program_main(int count, char **arguments)
     }
     else
     {
-        const unsigned int block = (unsigned int)mmgr_text_unsigned_in(arguments[2], nullptr, 10);
+        const unsigned int block = (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = arguments[2],
+                                                            .end = nullptr, .base = 10);
         if ((block == 0u) || (block > PRECEPT_COUNT))
         {
             EngineNote engine_note;

@@ -30,9 +30,9 @@
 #include "../../../../src/platform/platform.h"
 #include "../../krs/ruleset_flat.h"
 #include "../../qry/writer/qry_member.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "code_generator.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 #include "target_internal.h"
 #include "verba_scribo/verba_scribo.h"
 
@@ -77,21 +77,24 @@ struct KlqName
 // the terminated `text` as a name
 static KlqName klq_name_of(const char *text)
 {
-    const KlqName name = {text, mmgr_text_length(text, PLATFORM_TEXT_TO_TERMINATOR)};
+    const KlqName name = {text,
+                          EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR)};
     return name;
 }
 
 // 1 where two names hold the same bytes
 static int klq_names_same(KlqName left, KlqName right)
 {
-    return (left.length == right.length) && (mmgr_bytes_compare(left.text, right.text, left.length) == 0);
+    return (left.length == right.length) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left.text, .other = right.text, .bytes = left.length) == 0);
 }
 
 // 1 where `line` begins with the terminated `prefix`
 static int klq_begins(KlqName line, const char *prefix)
 {
-    const size_t length = mmgr_text_length(prefix, PLATFORM_TEXT_TO_TERMINATOR);
-    return (line.length >= length) && (mmgr_bytes_compare(line.text, prefix, length) == 0);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = prefix, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    return (line.length >= length) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = line.text, .other = prefix, .bytes = length) == 0);
 }
 
 // `length` bytes of `text` written after what the text at `bytes` contains, `*at` of them so far
@@ -345,8 +348,11 @@ static void bridge_lines_read(const char *bytes, size_t size, KlqLine *lines, un
         at = end + 1u;
         line.length -= ((line.length != 0u) && (line.text[line.length - 1u] == '\r')) ? 1u : 0u;
         const int verdict = klq_begins(line, "open ") || klq_begins(line, "closed ");
-        const int set = (mmgr_text_char(line.text, ' ', line.length) == NULL) && (line.length > suffix) &&
-                        (mmgr_bytes_compare(&line.text[line.length - suffix], s_set_suffix, suffix) == 0);
+        const int set =
+            (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line.text, .cap = line.length, .byte = ' ') == NULL) &&
+            (line.length > suffix) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &line.text[line.length - suffix], .other = s_set_suffix,
+                        .bytes = suffix) == 0);
         const int concept_line = klq_begins(line, "concept_coherence ");
         const int intent = klq_begins(line, "intent_coherence ");
         const int beneath_pair = (pair_key.length != 0u) && (verdict || set || concept_line || intent);
@@ -478,10 +484,12 @@ int program_main(int argc, char **argv)
             continue;
         }
         const char *const file = argv[2u + language];
-        const char *const dot = mmgr_text_char_last(file, '.', PLATFORM_TEXT_TO_TERMINATOR);
+        const char *const dot =
+            EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = file, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.');
         // the stem ends at the last dot, which is at or past the file's first byte
         const KlqName stem = {file, (dot != NULL) ? (size_t)(dot - file)
-                                                  : mmgr_text_length(file, PLATFORM_TEXT_TO_TERMINATOR)};
+                                                  : EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = file,
+                                                               .cap = PLATFORM_TEXT_TO_TERMINATOR)};
         char map_path[PLATFORM_PATH_BYTES];
         klq_path(folder, stem, ".klm", map_path);
         failed |= (map_write(map_path, stem, &s_sets[language], schema) == 0) ? 1 : 0;

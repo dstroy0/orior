@@ -6,8 +6,7 @@
 #include "platform_internal.h"
 
 // the bytes of the pool where the program declares none, the fewest that the platform places
-EMBED_WEAK_DEFAULT(g_program_pool_bytes)
-EMBED_WEAK const unsigned long long EMBED_WEAK_NAME(g_program_pool_bytes) = 0ULL;
+EMBED_WEAK_ZERO(const unsigned long long, g_program_pool_bytes)
 
 int main(int argc, char **argv)
 {

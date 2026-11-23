@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "lz4.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include <limits.h>
 
@@ -132,7 +132,8 @@ static int lz4_block(Lz4Walk *walk)
         }
         if (literal_length != 0ULL)
         {
-            mmgr_bytes_copy(walk->out + walk->written, walk->in + at, (size_t)literal_length);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = walk->out + walk->written, .src = walk->in + at,
+                       .bytes = (size_t)literal_length);
         }
         at += literal_length;
         walk->written += literal_length;
@@ -165,7 +166,7 @@ static int lz4_block(Lz4Walk *walk)
         const unsigned char *const source = target - offset;
         if (offset >= match_length)
         {
-            mmgr_bytes_copy(target, source, (size_t)match_length);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = target, .src = source, .bytes = (size_t)match_length);
         }
         else
         {
@@ -182,7 +183,7 @@ static long long lz4_error(const EngineBytesRequest *request, unsigned long long
 {
     if (touched != 0ULL)
     {
-        mmgr_bytes_set(request->out, 0, (size_t)touched);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = request->out, .bytes = (size_t)touched, .val = 0);
     }
     return ENGINE_BYTES_ERROR;
 }
@@ -277,7 +278,8 @@ static int lz4_frame(Lz4Frames *frames)
             }
             if (block_size != 0ULL)
             {
-                mmgr_bytes_copy(request->out + frames->written, block, (size_t)block_size);
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->out + frames->written, .src = block,
+                           .bytes = (size_t)block_size);
             }
             frames->written += block_size;
         }

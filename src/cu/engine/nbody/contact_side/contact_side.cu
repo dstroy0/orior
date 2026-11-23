@@ -1,8 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "contact_side.h"
-#include "memoria_operor/memoria_linea.h"
-
+#include "memoria_operor/memoria_operor.h"
 
 typedef struct
 {
@@ -43,7 +42,8 @@ extern "C" long contact_side_difference_program(const ContactSideDifferenceReque
     }
     const unsigned long long unit =
         engine_common_unit(engine_common_unit(request->voxel_pm[0], request->voxel_pm[1]), request->voxel_pm[2]);
-    mmgr_bytes_set(program, 0, CONTACT_SIDE_DIFFERENCE_STEPS * sizeof(EngineRecordStep));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = CONTACT_SIDE_DIFFERENCE_STEPS * sizeof(EngineRecordStep),
+               .val = 0);
     ContactSideWriter writer = {program, CONTACT_SIDE_DIFFERENCE_STEPS, 0u};
     const unsigned int one_mass =
         contact_side_put(&writer, ENGINE_RECORD_FIELD, request->mass_field, 0u, CONTACT_SIDE_ONE);
@@ -68,7 +68,8 @@ extern "C" long contact_side_sign_program(const ContactSideSignRequest *request,
                                           EngineRecordStep program[CONTACT_SIDE_SIGN_STEPS],
                                           unsigned int outputs[CONTACT_SIDE_SIGN_OUTPUTS])
 {
-    mmgr_bytes_set(program, 0, CONTACT_SIDE_SIGN_STEPS * sizeof(EngineRecordStep));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = CONTACT_SIDE_SIGN_STEPS * sizeof(EngineRecordStep),
+               .val = 0);
     ContactSideWriter writer = {program, CONTACT_SIDE_SIGN_STEPS, 0u};
     const unsigned int one = contact_side_constant(&writer, 1ULL);
     unsigned int dot = 0u;

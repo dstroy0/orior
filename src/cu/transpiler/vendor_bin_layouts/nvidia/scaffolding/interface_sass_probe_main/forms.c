@@ -1,10 +1,28 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // forms.c: the forms: the listing, the operations taken and counted, a form printed, a bit read, and the fields
-#include "probe_main_internal.h"
 #include "../../../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "probe_main_internal.h"
+
+// the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
+// comes first, 0 where they are the same, above 0 where `right` does
+static inline int forms_text_order(const char *left, const char *right, size_t cap)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = cap);
+    const size_t right_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = cap);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    const size_t reach = (shorter < cap) ? (shorter + 1u) : cap;
+    const size_t differs =
+        EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = left, .cap = reach, .other = right, .ci = EMBED_FALSE);
+    if (differs >= reach)
+    {
+        return 0;
+    }
+    // a byte of a text read as unsigned, and its order as a signed count
+    return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
+}
 
 SassProbe s_sass_probe;
 SassMachine s_sass_machine;
@@ -123,7 +141,10 @@ static unsigned int sass_operation_count(const SassListing *listing, const char 
     {
         SassParts parts;
         sass_parts_read(listing->instructions[number].text, &parts);
-        found += (mmgr_text_equal(parts.operation, operation, PLATFORM_TEXT_TO_TERMINATOR)) ? 1u : 0u;
+        found += (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts.operation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = operation, .ci = EMBED_FALSE))
+                     ? 1u
+                     : 0u;
     }
     return found;
 }
@@ -157,12 +178,16 @@ void sass_form_print(const char *name, const SassListing *form, const SassListin
             {
                 SassParts other;
                 sass_parts_read(counted->instructions[before].text, &other);
-                earlier = earlier || (mmgr_text_equal(other.operation, parts.operation, PLATFORM_TEXT_TO_TERMINATOR));
+                earlier = earlier ||
+                          (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = other.operation,
+                                      .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = parts.operation, .ci = EMBED_FALSE));
             }
             const unsigned int here = sass_operation_count(counted, parts.operation);
             const unsigned int there = sass_operation_count(against, parts.operation);
             // NOP fills the code to its alignment and is none of a form's
-            if (!earlier && (here > there) && (!mmgr_text_equal(parts.operation, "NOP", PLATFORM_TEXT_TO_TERMINATOR)))
+            if (!earlier && (here > there) &&
+                (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts.operation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "NOP", .ci = EMBED_FALSE)))
             {
                 VerbaLinea *const output_line = platform_line_out();
                 mmgr_line_put(output_line, " ");
@@ -191,8 +216,10 @@ static void sass_bit_read(const SassParts *base, const char *base_text, const ch
         mmgr_line_put(&buffer_line, text);
         (void)mmgr_line_finish(&buffer_line);
     }
-    if ((mmgr_text_equal(text, "illegal", PLATFORM_TEXT_TO_TERMINATOR)) ||
-        (mmgr_text_equal(text, "unprinted", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "illegal",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "unprinted",
+                    .ci = EMBED_FALSE)))
     {
         {
             VerbaLinea buffer_line = mmgr_line_over(category, SASS_CATEGORY);
@@ -201,7 +228,8 @@ static void sass_bit_read(const SassParts *base, const char *base_text, const ch
         }
         return;
     }
-    if (mmgr_text_equal(text, base_text, PLATFORM_TEXT_TO_TERMINATOR))
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = base_text,
+                   .ci = EMBED_FALSE))
     {
         {
             VerbaLinea buffer_line = mmgr_line_over(category, SASS_CATEGORY);
@@ -210,11 +238,14 @@ static void sass_bit_read(const SassParts *base, const char *base_text, const ch
         }
         return;
     }
-    if (!mmgr_text_equal(parts.operation, base->operation, PLATFORM_TEXT_TO_TERMINATOR))
+    if (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts.operation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = base->operation, .ci = EMBED_FALSE))
     {
-        const size_t stem = mmgr_text_span_not(base->operation, ".", PLATFORM_TEXT_TO_TERMINATOR);
-        const int same_stem = (mmgr_text_span_not(parts.operation, ".", PLATFORM_TEXT_TO_TERMINATOR) == stem) &&
-                              (mmgr_text_order(parts.operation, base->operation, (size_t)(stem)) == 0);
+        const size_t stem = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = base->operation,
+                                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".");
+        const int same_stem = (EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = parts.operation,
+                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".") == stem) &&
+                              (forms_text_order(parts.operation, base->operation, (size_t)(stem)) == 0);
         {
             VerbaLinea buffer_line = mmgr_line_over(category, SASS_CATEGORY);
             mmgr_line_put(&buffer_line, same_stem ? "modifier" : "operation");
@@ -229,7 +260,8 @@ static void sass_bit_read(const SassParts *base, const char *base_text, const ch
         }
         return;
     }
-    if (!mmgr_text_equal(parts.predicate, base->predicate, PLATFORM_TEXT_TO_TERMINATOR))
+    if (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts.predicate, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = base->predicate, .ci = EMBED_FALSE))
     {
         {
             VerbaLinea buffer_line = mmgr_line_over(category, SASS_CATEGORY);
@@ -251,7 +283,8 @@ static void sass_bit_read(const SassParts *base, const char *base_text, const ch
     unsigned int which = 0u;
     for (unsigned int operand = 0u; (operand < parts.operands) && (operand < base->operands); operand += 1u)
     {
-        if (!mmgr_text_equal(parts.operand[operand], base->operand[operand], PLATFORM_TEXT_TO_TERMINATOR))
+        if (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parts.operand[operand], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = base->operand[operand], .ci = EMBED_FALSE))
         {
             changed += 1u;
             which = operand;
@@ -366,8 +399,11 @@ int sass_fields(SassProbe *probe, const SassOperation *operation)
         }
         // a modifier bit is a run of its own, since each names a modifier of its own
         const int joined = (bit < SASS_BITS) && (bit != 0u) &&
-                           (mmgr_text_equal(category, run_category, PLATFORM_TEXT_TO_TERMINATOR)) &&
-                           (!mmgr_text_equal(category, "modifier", PLATFORM_TEXT_TO_TERMINATOR)) && (bit != 64u);
+                           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = category, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                       .other = run_category, .ci = EMBED_FALSE)) &&
+                           (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = category, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                        .other = "modifier", .ci = EMBED_FALSE)) &&
+                           (bit != 64u);
         if (!joined && (bit != 0u))
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -385,8 +421,8 @@ int sass_fields(SassProbe *probe, const SassOperation *operation)
         if (!joined)
         {
             run_start = bit;
-            mmgr_bytes_copy(run_category, category, sizeof(run_category));
-            mmgr_bytes_copy(run_example, example, sizeof(run_example));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = run_category, .src = category, .bytes = sizeof(run_category));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = run_example, .src = example, .bytes = sizeof(run_example));
         }
     }
     if (bits != NULL)

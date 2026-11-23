@@ -17,13 +17,12 @@
 // ruleset, and its pipes.
 #include "../../../src/cu/transpiler/lstar/protocol/gate/chain_build.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../qry/writer/qry_member.h"
 #include "kdm.h"
 #include "verba_scribo/verba_scribo.h"
-
 
 #define KDM_TEXT_MAX_LEN 160u
 #define KDM_ROWS (LADDER_ANCHOR_COUNT * CHAIN_MAX)
@@ -89,7 +88,8 @@ static void kdm_costs_read(const char *path)
     for (unsigned int at = 0u; (at < s_file.lines) && (s_cost_row_count < KDM_ROWS); at += 1u)
     {
         if (!kdm_row_read(s_file.line[at], &s_row) ||
-            (mmgr_text_length(s_row.chain, PLATFORM_TEXT_TO_TERMINATOR) >= sizeof(s_cost_rows[0].text)))
+            (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_row.chain, .cap = PLATFORM_TEXT_TO_TERMINATOR) >=
+             sizeof(s_cost_rows[0].text)))
         {
             continue;
         }
@@ -102,8 +102,8 @@ static void kdm_costs_read(const char *path)
         row->runs = s_row.runs;
         // the code does not carry a cost that is not an exact rational of decimal digits. It refuses the cost, and
         // the row reads as never timed
-        if ((kdm_exact_text(s_row.cost) == 0) ||
-            (mmgr_text_length(s_row.cost, PLATFORM_TEXT_TO_TERMINATOR) >= sizeof(row->cost)))
+        if ((kdm_exact_text(s_row.cost) == 0) || (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_row.cost,
+                                                             .cap = PLATFORM_TEXT_TO_TERMINATOR) >= sizeof(row->cost)))
         {
             row->runs = 0u;
             row->cost[0] = '\0';
@@ -123,7 +123,9 @@ static const KdmCostRow *kdm_cost(const char *text)
 {
     for (unsigned int at = 0u; at < s_cost_row_count; at += 1u)
     {
-        if ((mmgr_text_equal(s_cost_rows[at].text, text, PLATFORM_TEXT_TO_TERMINATOR)) && (s_cost_rows[at].runs != 0u))
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_cost_rows[at].text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = text, .ci = EMBED_FALSE)) &&
+            (s_cost_rows[at].runs != 0u))
         {
             return &s_cost_rows[at];
         }
@@ -247,7 +249,9 @@ int program_main(int count, char **word)
         {
             chain_text(&set.chain[at], text, sizeof(text));
             unsigned int seen = 0u;
-            while ((seen < distinct) && (!mmgr_text_equal(s_written[seen], text, PLATFORM_TEXT_TO_TERMINATOR)))
+            while ((seen < distinct) &&
+                   (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_written[seen], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = text, .ci = EMBED_FALSE)))
             {
                 seen += 1u;
             }
@@ -255,7 +259,7 @@ int program_main(int count, char **word)
             {
                 continue;
             }
-            mmgr_bytes_copy(s_written[distinct], text, sizeof(text));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_written[distinct], .src = text, .bytes = sizeof(text));
             distinct += 1u;
             const KdmCostRow *const cost_row = kdm_cost(text);
             if (cost_row == NULL)

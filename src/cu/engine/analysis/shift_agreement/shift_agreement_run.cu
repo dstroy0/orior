@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // shift_agreement_run.cu: the axis, volumes and the run
-#include "shift_agreement_internal.h"
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
+#include "shift_agreement_internal.h"
 
 static int agreement_axis(unsigned int *values, AgreementLayout layout, unsigned int axis, int inverse)
 {
@@ -51,7 +51,7 @@ static int agreement_axis(unsigned int *values, AgreementLayout layout, unsigned
 static int agreement_layout(unsigned int axes, const unsigned int *extents, const unsigned int *weights,
                             AgreementLayout *layout)
 {
-    mmgr_bytes_set(layout, 0, sizeof(*layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = layout, .bytes = sizeof(*layout), .val = 0);
     layout->axes = axes;
     unsigned long long voxels = 1ULL;
     unsigned long long padded_total = 1ULL;
@@ -129,11 +129,11 @@ static int reserve_volumes(size_t total, size_t words)
     }
     device_pool_release(&resident->pool);
     platform_cell_released(resident->cached_words, platform_place_g_program_owner);
-    mmgr_bytes_set(resident, 0, sizeof(*resident));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
     resident->cached = SHIFT_AGREEMENT_NONE_CACHED;
     // the run errors without detail, and the pool's error is recorded here and dropped
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     DevicePoolTakeRequest takes[SHIFT_AGREEMENT_SLICES];
     const DevicePoolPlan plan = plan_volumes(total, words, &error, takes);
     const DevicePoolReserveRequest reserve = {&plan, &resident->pool, &error};
@@ -150,7 +150,7 @@ static int reserve_volumes(size_t total, size_t words)
     {
         device_pool_release(&resident->pool);
         platform_cell_released(resident->cached_words, platform_place_g_program_owner);
-        mmgr_bytes_set(resident, 0, sizeof(*resident));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
         resident->cached = SHIFT_AGREEMENT_NONE_CACHED;
         return 0;
     }
@@ -165,13 +165,14 @@ static int reserve_negation(const AgreementLayout *layout)
 {
     NegationResident *const resident = &s_negation_resident;
     if ((resident->negation != NULL) && (resident->axes == layout->axes) &&
-        (mmgr_bytes_compare(resident->padded, layout->padded, sizeof(resident->padded)) == 0))
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = resident->padded, .other = layout->padded,
+                    .bytes = sizeof(resident->padded)) == 0))
     {
         return 1;
     }
     s_volumes_resident.cached = SHIFT_AGREEMENT_NONE_CACHED;
     cudaFree(resident->negation);
-    mmgr_bytes_set(resident, 0, sizeof(*resident));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
     size_t entries = 0u;
     for (unsigned int axis = 0u; axis < layout->axes; axis += 1u)
     {
@@ -191,8 +192,8 @@ static int reserve_negation(const AgreementLayout *layout)
         ok = (tables != NULL) ? 1 : 0;
         if (ok != 0)
         {
-            mmgr_bytes_copy(&host[layout->table_offsets[axis]], tables->negation,
-                            (size_t)layout->padded[axis] * sizeof(unsigned int));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &host[layout->table_offsets[axis]], .src = tables->negation,
+                       .bytes = (size_t)layout->padded[axis] * sizeof(unsigned int));
         }
     }
     ok = ok && (cudaMalloc((void **)&resident->negation, (entries + 1u) * sizeof(unsigned int)) == cudaSuccess);
@@ -202,11 +203,12 @@ static int reserve_negation(const AgreementLayout *layout)
     if (ok == 0)
     {
         cudaFree(resident->negation);
-        mmgr_bytes_set(resident, 0, sizeof(*resident));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
         return 0;
     }
     resident->axes = layout->axes;
-    mmgr_bytes_copy(resident->padded, layout->padded, sizeof(resident->padded));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = resident->padded, .src = layout->padded,
+               .bytes = sizeof(resident->padded));
     return 1;
 }
 
@@ -270,10 +272,12 @@ extern "C" long shift_agreement_run(ShiftAgreementRequest *args)
     unsigned long long *const device_before = resident->before;
     unsigned long long *const device_after = resident->after;
     // the retained transform was scattered by its own extents, and one padding and one word count cover several extents
-    const int reuse =
-        (ok != 0) && (resident->cached != SHIFT_AGREEMENT_NONE_CACHED) && (resident->cached_axes == layout.axes) &&
-        (mmgr_bytes_compare(resident->cached_extents, layout.extents, sizeof(resident->cached_extents)) == 0) &&
-        (mmgr_bytes_compare(resident->cached_words, args->before, words * sizeof(unsigned long long)) == 0);
+    const int reuse = (ok != 0) && (resident->cached != SHIFT_AGREEMENT_NONE_CACHED) &&
+                      (resident->cached_axes == layout.axes) &&
+                      (EMBED_CALL(memor.cmp, MemoriaCfg, .src = resident->cached_extents, .other = layout.extents,
+                                  .bytes = sizeof(resident->cached_extents)) == 0) &&
+                      (EMBED_CALL(memor.cmp, MemoriaCfg, .src = resident->cached_words, .other = args->before,
+                                  .bytes = words * sizeof(unsigned long long)) == 0);
     unsigned int *roles[SHIFT_AGREEMENT_VOLUMES - 1u] = {NULL, NULL, NULL};
     unsigned int filled = 0u;
     for (unsigned int at = 0u; (ok != 0) && (at < SHIFT_AGREEMENT_VOLUMES); at += 1u)
@@ -373,7 +377,8 @@ extern "C" long shift_agreement_run(ShiftAgreementRequest *args)
         args->agreement = winner_count;
         if (args->counts != NULL)
         {
-            mmgr_bytes_copy(args->counts, host_counts, total * sizeof(unsigned int));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = args->counts, .src = host_counts,
+                       .bytes = total * sizeof(unsigned int));
         }
         answer = 0L;
     }
@@ -383,9 +388,11 @@ extern "C" long shift_agreement_run(ShiftAgreementRequest *args)
         if (resident->volumes[at] == moved)
         {
             resident->cached = at;
-            mmgr_bytes_copy(resident->cached_words, args->after, words * sizeof(unsigned long long));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = resident->cached_words, .src = args->after,
+                       .bytes = words * sizeof(unsigned long long));
             resident->cached_axes = layout.axes;
-            mmgr_bytes_copy(resident->cached_extents, layout.extents, sizeof(resident->cached_extents));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = resident->cached_extents, .src = layout.extents,
+                       .bytes = sizeof(resident->cached_extents));
         }
     }
     platform_cell_released(host_counts, platform_place_g_program_owner);

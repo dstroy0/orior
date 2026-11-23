@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // floor_track_floors.cu: floors, the engine and the planes kernel
 #include "floor_track_internal.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the tower's own floor shift, toward minus infinity, as tower_*.cu takes it
 static long long track_floor_shift(long long value, unsigned int shift)
@@ -49,7 +49,8 @@ void track_floor_host(const unsigned short *lanes, long long *work, long long *b
         const unsigned long long active = TRACK_SIDE >> level;
         for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
         {
-            mmgr_bytes_copy(before, work, (size_t)TRACK_SAMPLES * sizeof(long long));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = before, .src = work,
+                       .bytes = (size_t)TRACK_SAMPLES * sizeof(long long));
             for (unsigned long long z = 0ULL; z < active; z += 1ULL)
             {
                 for (unsigned long long y = 0ULL; y < active; y += 1ULL)
@@ -83,12 +84,12 @@ void track_floor_host(const unsigned short *lanes, long long *work, long long *b
 int track_floor_engine(const unsigned short *device_lanes, int *crystal, int *corner, unsigned short *floor_values)
 {
     EngineError error;
-    mmgr_bytes_set(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const int *coefficients = NULL;
     unsigned int *scratch = NULL;
     unsigned int floors = 0u;
     TowerLiftRequest lift;
-    mmgr_bytes_set(&lift, 0, sizeof(lift));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lift, .bytes = sizeof(lift), .val = 0);
     lift.device_lanes = device_lanes;
     lift.extent[0] = 1ULL;
     lift.extent[1] = TRACK_SIDE;
@@ -120,8 +121,8 @@ int track_floor_engine(const unsigned short *device_lanes, int *crystal, int *co
     unsigned long long mismatches = 0ULL;
     const unsigned short *device_rebuilt = NULL;
     TowerLowerRequest lower;
-    mmgr_bytes_set(&lower, 0, sizeof(lower));
-    mmgr_bytes_copy(lower.extent, floor_extent, sizeof(lower.extent));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lower, .bytes = sizeof(lower), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lower.extent, .src = floor_extent, .bytes = sizeof(lower.extent));
     lower.mismatches = &mismatches;
     lower.device_rebuilt = &device_rebuilt;
     lower.rebuilt = floor_values;
