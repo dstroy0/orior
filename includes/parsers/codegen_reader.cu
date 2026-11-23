@@ -117,8 +117,8 @@ int ruleset_same(const Ruleset *left, const Ruleset *right)
 
 #if (defined(__CUDACC__))
 
-// the read in one thread (ruleset_core_read), since each line is read against every line before it. The read stored in
-// device memory and left there as it ended
+// the read in one thread (ruleset_core_read), as the read sets each line against every line before it. The read stored
+// in device memory and left there as it ended
 __global__ void codegen_reader_read(RulesetCoreRead *read)
 {
     if (codegen_device_thread() != 0ULL)
@@ -214,8 +214,8 @@ int ruleset_scratch_device(const Ruleset *rules, const unsigned int *banks, AsmP
         return 0;
     }
     const unsigned long long words = (4ULL * forms) + 1ULL;
-    scratch->words =
-        (unsigned int *)platform_cell_cleared(words, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    scratch->words = (unsigned int *)platform_cell_cleared(words, sizeof(unsigned int), platform_place_g_program_owner,
+                                                           PLATFORM_TIER_TEMPORARY);
     DeviceArena scratch_arena{};
     scratch_arena.ok = (scratch->words != NULL) ? 1 : 0;
     RulesetCoreScratch arranged{};

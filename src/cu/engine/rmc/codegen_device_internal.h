@@ -23,9 +23,10 @@ int layout_same(const EngineRecordLayout *left, const EngineRecordLayout *right)
 // the max a scan or a selection counts, as cub takes its counts
 #define CODEGEN_COUNT_MAX 0x7FFFFFFFULL
 
-// what the steps leave for the lane's own forms, a word each: the max temporaries, 64-bit temporaries and predicates
-// any step took, 1 where any reads the tables, where a form breaks the lane and where a step is one the lane does not
-// use, and what the last step left taken in each bank, which the lane's own forms go on from
+// What the steps leave for the lane's own forms, a word each. They are the max temporaries, 64-bit temporaries and
+// predicates that any step took. A flag is 1 where a step reads the tables, a form breaks the lane, or a step is one
+// the lane does not use. Last, what the last step left taken in each bank, where the lane's own
+// forms go on from
 enum CodegenSummary
 {
     CODEGEN_TEMPS_MAX = 0,
@@ -40,8 +41,8 @@ enum CodegenSummary
     CODEGEN_SUMMARY = 9
 };
 
-// the lane's parts in the text's order: the note, the header, the lane's opening and declarations, the body's opening,
-// the body (its opening, the steps and its close), and the lane's end
+// The lane's parts in the text's order: the note, the header, the lane's opening and declarations, and the body's
+// opening. Then the body (its opening, the steps and its close), and the lane's end
 enum CodegenPart
 {
     CODEGEN_NOTE = 0,
@@ -129,8 +130,8 @@ __global__ void codegen_device_index(unsigned int *records, unsigned long long r
 __global__ void codegen_device_bytes(const unsigned int *out, unsigned long long lanes, unsigned int out_limbs,
                                      unsigned int offset, unsigned char *bytes);
 
-// how keymath's encoding or key_schedule's layout ended on the device: 1 in `ok` where it finished, else its end and
-// where; and, from the layout, the file's limbs and the record's bits
+// How keymath's encode or key_schedule's layout ended on the device: 1 in `ok` where it finished, else its end and
+// where. From the layout, also the file's limbs and the record's bits
 struct LayoutEnd
 {
     int ok;
@@ -158,7 +159,8 @@ template <typename Element> static Element *codegen_device_take(DeviceArena *mem
     const unsigned long long bytes = ((count == 0ULL) ? 1ULL : count) * sizeof(Element);
     if (memory->allocations.element == 0ULL)
     {
-        platform_array_begun(&memory->allocations, sizeof(void *), platform_place_g_program_owner, 0);
+        platform_array_begun(&memory->allocations, sizeof(void *), platform_place_g_program_owner,
+                             PLATFORM_TIER_TEMPORARY);
     }
     if ((memory->ok != 0) && (cudaMalloc(&taken, (size_t)bytes) == cudaSuccess))
     {

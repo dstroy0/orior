@@ -24,10 +24,10 @@ static inline int target_rulesets_text_order(const char *left, const char *right
     return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
 }
 
-// the ruleset at `path` read whole into `rules` against its schema: 1 where its first line is krs 1, every entry is
-// valid, and every bank, fixed register and form the code generator names is given with the ruleset's name, toolchain
-// and header, else 0 with the reason in rules->error. A line that begins with # is a comment, and a blank line is
-// nothing
+// The ruleset at `path` read whole into `rules` against its schema. The answer is 1 where its first line is krs 1 and
+// every entry is valid. Also every bank, fixed register and form that the code generator names must be there, with
+// the ruleset's name, toolchain and header. Else the answer is 0 with the reason in rules->error. A line that begins
+// with # is a comment, and a blank line is nothing
 static int ruleset_read(Ruleset *rules, const char *path)
 {
     PlatformText ruleset_text;
@@ -211,6 +211,24 @@ void ruleset_folds_read(Ruleset *rules)
     const size_t put_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = put, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const char *const bytes = platform_text_bytes(&ksc);
     const size_t size = (size_t)platform_text_size(&ksc);
+    // The call counts the fold lines first, and the folds take their room once at that count. The ruleset holds them
+    // for the whole process. An array that grows step by step leaves its old cells under the cells after it
+    unsigned long long fold_lines = 0ULL;
+    for (size_t count_at = 0u; count_at < size;)
+    {
+        const char *const newline =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = &bytes[count_at], .cap = size - count_at, .byte = '\n');
+        // a line ends at or past its start
+        const size_t count_end = (newline != NULL) ? (size_t)(newline - bytes) : size;
+        fold_lines +=
+            (((count_end - count_at) >= folds_length) &&
+             (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &bytes[count_at], .other = folds, .bytes = folds_length) == 0))
+                ? 1ULL
+                : 0ULL;
+        count_at = count_end + 1u;
+    }
+    (void)platform_array_counted(&rules->folds, fold_lines);
+    (void)platform_array_counted(&rules->folds, 0ULL);
     size_t line_at = 0u;
     while (line_at < size)
     {
@@ -395,10 +413,10 @@ static const char *ruleset_scratch_taken(PlatformArray *taken, unsigned int key,
     return ((const RulesetScratchTaken *)platform_array_at(taken, taken->count - 1ULL))->name;
 }
 
-// Form `name` of `rules` written onto `text`, `argument` holding as many arguments as it takes, in the order of its
-// parameters. That is its text cut at them. Where the ruleset gives it as a construct, each line of the construct is
-// written the same way, and a scratch register comes from `scratch` the first time a writing names it. `broken` set
-// where a scratch register cannot be taken
+// Form `name` of `rules` written onto `text`, with as many arguments in `argument` as it takes, in the order of its
+// parameters. That is its text cut at them. Where the ruleset gives it as a construct, the call writes each line of
+// the construct the same way. A scratch register comes from `scratch` the first time a writing names it. The call
+// sets `broken` where it cannot take a scratch register
 static void ruleset_opcode_text(const Ruleset *rules, VerbaLinea *text, unsigned int name, const char *const *argument,
                                 const ScratchRegisters *scratch, int *broken)
 {
@@ -408,16 +426,17 @@ static void ruleset_opcode_text(const Ruleset *rules, VerbaLinea *text, unsigned
     if (construct->line_count == 0u)
     {
         const InstrTemplate *const form = &rules->forms[name];
-        // an err is the operation being an error on this language: it writes nothing and breaks what it was written
-        // into. A program that needs it is refused. It is not written with a hole in it. A form the ruleset does not
-        // give is open (P10) and breaks the writing the same way. A nop writes nothing and the writing goes on
+        // An err says the operation is an error on this language: it writes nothing and breaks what it goes into. The
+        // writer refuses a program that needs it, and never writes the program with a hole in it. A form the ruleset
+        // does not give is open (P10) and breaks the writing the same way. A nop writes nothing and the writing goes
+        // on
         if ((rules->form_given[name] == (unsigned char)RULESET_CORE_GIVEN_ERR) || (rules->form_given[name] == 0u))
         {
             *broken = 1;
             return;
         }
-        // a scratch register the text names comes from `scratch` the first time the writing names it, in the order the
-        // text names them, as the core counts them (ruleset_core_scratch)
+        // A scratch register that the text names comes from `scratch` the first time the writing names it. The order
+        // is the order of the text, as the core counts them (ruleset_core_scratch)
         mmgr_line_put(text, form->pieces[0]);
         for (unsigned int at = 0u; at < form->placeholder_count; at += 1u)
         {
@@ -438,7 +457,7 @@ static void ruleset_opcode_text(const Ruleset *rules, VerbaLinea *text, unsigned
         platform_array_ended(&taken);
         return;
     }
-    // the scratch registers this writing has taken, each by its bank and number
+    // the scratch registers that this writing took, each by its bank and number
     for (unsigned int line_at = 0u; line_at < construct->line_count; line_at += 1u)
     {
         const PseudoLine *const line = &construct->lines[line_at];
@@ -500,8 +519,8 @@ unsigned int *ruleset_scratch(const Ruleset *rules, const unsigned int *banks)
         return NULL;
     }
     const unsigned long long arguments = (unsigned long long)flat.argument_count + 1ULL;
-    unsigned int *const scratch = (unsigned int *)platform_cell_cleared((4ULL * forms) + 1ULL, sizeof(unsigned int),
-                                                                        platform_place_g_program_owner, 0);
+    unsigned int *const scratch = (unsigned int *)platform_cell_cleared(
+        (4ULL * forms) + 1ULL, sizeof(unsigned int), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     unsigned char *const counted = (unsigned char *)platform_cell_cleared((unsigned long long)forms + 1ULL, 1ULL,
                                                                           platform_place_g_program_owner, 1);
     RulesetCoreFrame *const frames = (RulesetCoreFrame *)platform_cell_cleared(
@@ -540,8 +559,8 @@ unsigned int *ruleset_scratch(const Ruleset *rules, const unsigned int *banks)
     return scratch;
 }
 
-// what a scratch register by its bank's name needs to answer one by the bank's place: the ruleset whose schema names
-// the bank, and the scratch by name
+// What a scratch register by its bank's name needs to answer one by the bank's place. That is the ruleset whose schema
+// names the bank, and the scratch by name
 struct RulesetNamedContext
 {
     const RulesetSchema *schema;
@@ -555,8 +574,8 @@ static int ruleset_scratch_by_name(void *context, unsigned int bank, VerbaLinea 
            (by_name->named->taken(by_name->named->context, by_name->schema->banks[bank].text, name) != 0);
 }
 
-// a form written by the name its .krs file gives it, for a reader outside the code generator (target.h), a construct's
-// scratch taken of `scratch` by its bank's name
+// A form written by the name its .krs file gives it, for a reader outside the code generator (target.h). A
+// construct's scratch comes from `scratch` by its bank's name
 int ruleset_form_written(const Ruleset *rules, const char *name, const char *const *arguments, unsigned int count,
                          const RulesetNamedScratch *scratch, VerbaLinea *text)
 {
@@ -581,7 +600,7 @@ int ruleset_register_written(const Ruleset *rules, const char *bank, unsigned in
     {
         return 0;
     }
-    // a bank's written form takes one parameter, the register's number, in every placeholder it is cut at
+    // a bank's written form takes one parameter, the register's number, in every placeholder that cuts it
     const InstrTemplate *const form = &rules->banks[named];
     mmgr_line_put(text, form->pieces[0]);
     for (unsigned int at = 0u; at < form->placeholder_count; at += 1u)

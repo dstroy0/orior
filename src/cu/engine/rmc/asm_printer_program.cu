@@ -66,7 +66,7 @@ static unsigned int asm_printer_flat_fill(const Ruleset *rules, const char *head
     {
         const InstrTemplate *const bank_form = &rules->banks[bank];
         flattened->bank_piece_first[bank] = fill->text_count;
-        // a bank's placeholders are one where it is read, and a count far below 2^32 where it is not
+        // a bank's placeholders are one where the read takes it, and a count far below 2^32 where it does not
         flattened->bank_placeholders[bank] = bank_form->placeholder_count;
         for (unsigned int piece = 0u; piece <= bank_form->placeholder_count; piece += 1u)
         {
@@ -92,7 +92,7 @@ int asm_printer_flatten(const Ruleset *rules, const TargetInfo *target, const ch
     (void)ruleset_cell_place(&plan, (unsigned long long)count.character_count + 1ULL, 1ULL);
     (void)ruleset_cell_place(&plan, (unsigned long long)count.text_count + 1ULL, sizeof(AsmPrinterCoreText));
     (void)ruleset_cell_place(&plan, (unsigned long long)placeholders + 1ULL, sizeof(unsigned int));
-    flat->cell = platform_cell_cleared(plan.used, 1ULL, platform_place_g_program_owner, 0);
+    flat->cell = platform_cell_cleared(plan.used, 1ULL, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     if (flat->cell == NULL)
     {
         return 0;
@@ -187,7 +187,7 @@ int asm_printer_memory_size(AsmPrinterMemory *memory, AsmPrinterCoreBuild *build
 {
     RulesetCellPlan plan = {NULL, 0ULL};
     asm_printer_memory_layout(&plan, build);
-    memory->cell = platform_cell_cleared(plan.used, 1ULL, platform_place_g_program_owner, 0);
+    memory->cell = platform_cell_cleared(plan.used, 1ULL, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     plan.base = (unsigned char *)memory->cell;
     plan.used = 0ULL;
     asm_printer_memory_layout(&plan, build);
@@ -204,7 +204,7 @@ int asm_printer_words_taken(AsmPrinterWords *words, const unsigned int *from, un
 {
     // a list takes at least one word, and is never empty
     words->words = (unsigned int *)platform_cell_cleared((count != 0ULL) ? count : 1ULL, sizeof(unsigned int),
-                                                         platform_place_g_program_owner, 0);
+                                                         platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     words->count = (words->words != NULL) ? count : 0ULL;
     if ((words->words != NULL) && (count != 0ULL))
     {
@@ -254,12 +254,12 @@ int asm_printer_store(const AsmPrinterCoreBuild *build, AsmPrinterRuleset *text_
     {
         text_rules->target_numbers[number] = build->target_numbers[number];
     }
-    // what keymath and key_schedule take, stored for the device's layout, each table pointing at its values where they
-    // are stored
+    // what keymath and key_schedule take, stored for the device's layout. Each table points at its values where the
+    // store holds them
     AsmPrinterProgram *const program = &text_rules->program;
-    program->steps =
-        (EngineRecordStep *)platform_cell_cleared((build->step_count != 0u) ? build->step_count : 1u,
-                                                  sizeof(EngineRecordStep), platform_place_g_program_owner, 0);
+    program->steps = (EngineRecordStep *)platform_cell_cleared((build->step_count != 0u) ? build->step_count : 1u,
+                                                               sizeof(EngineRecordStep), platform_place_g_program_owner,
+                                                               PLATFORM_TIER_TEMPORARY);
     program->step_count = (program->steps != NULL) ? build->step_count : 0u;
     ok = ok && (program->steps != NULL);
     if (program->steps != NULL)

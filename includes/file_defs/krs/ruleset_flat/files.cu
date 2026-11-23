@@ -31,7 +31,8 @@ int ruleset_bytes_read(const char *path, PlatformText *text)
 // A text begun for a ruleset's files, which holds RULESET_FILE_MAX characters and one more, for the caller to refuse
 void ruleset_text_begun(PlatformText *text)
 {
-    platform_text_begun(text, (unsigned long long)RULESET_FILE_MAX + 2ULL, platform_place_g_program_owner, 0);
+    platform_text_begun(text, (unsigned long long)RULESET_FILE_MAX + 2ULL, platform_place_g_program_owner,
+                        PLATFORM_TIER_TEMPORARY);
 }
 
 // The lines of the .kdm of a part, or of a .ksc that a ruleset reads, onto `lines`. That is the text of each of its

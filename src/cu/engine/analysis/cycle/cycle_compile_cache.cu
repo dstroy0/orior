@@ -71,8 +71,8 @@ int cycle_cache_read(const char *path, const char *source, unsigned long long le
     return taken;
 }
 
-// the source and its image written beside the name and then renamed to it, and no reader finds half a file; a name
-// already taken is left as it is
+// The source and its image written beside the name and then renamed to it, and no reader finds half a file. The call
+// leaves a name that is already taken as it is
 void cycle_cache_write(const char *folder, const char *path, const char *source, unsigned long long length,
                        const void *image, unsigned long long count)
 {
@@ -121,8 +121,8 @@ static void cycle_log_noted(const char *head, const char *log)
     engine_note_written(&engine_note);
 }
 
-// the source compiled by NVRTC as relocatable code for the device's architecture: a relocatable cubin, or LTO-IR where
-// `lto`; 0 where it errors, its log then on stderr when reporting
+// The source compiled by NVRTC as relocatable code for the device's architecture: a relocatable cubin, or LTO-IR where
+// `lto`. 0 where it errors, and its log then goes to stderr where the call reports
 int cycle_program_compile(const char *source, const char *name, int major, int minor, int lto, int report,
                           CycleImage *image)
 {
@@ -184,9 +184,9 @@ int cycle_program_compile(const char *source, const char *name, int major, int m
     return (image->bytes != NULL) ? 1 : 0;
 }
 
-// a program's relocatable image linked alone by nvJitLink into one cubin, its resident and its lane in the one text,
-// with link-time optimization where `lto`; where `ptx` the program is PTX's text, NUL and all, which nvJitLink
-// assembles as it links. 0 where it errors, its log then on stderr when reporting
+// A program's relocatable image linked alone by nvJitLink into one cubin, its resident and its lane in the one text,
+// with link-time optimization where `lto`. Where `ptx` the program is PTX's text, NUL and all, which nvJitLink
+// assembles as it links. 0 where it errors, and its log then goes to stderr where the call reports
 int cycle_program_link(const CycleTarget *lane_target, const void *object, unsigned long long count, int lto, int ptx,
                        int report, CycleImage *cubin)
 {
@@ -252,7 +252,8 @@ const CycleTarget *cycle_target(int major, int minor, int lto, int report)
     // a text with no max has not begun: it begins at the target's first naming
     if (lane_target->source.max == 0ULL)
     {
-        platform_text_begun(&lane_target->source, CYCLE_TARGET_SOURCE_BYTES, platform_place_g_program_owner, 0);
+        platform_text_begun(&lane_target->source, CYCLE_TARGET_SOURCE_BYTES, platform_place_g_program_owner,
+                            PLATFORM_TIER_MOVABLE);
     }
     lane_target->tried = 1;
     lane_target->ready = 1;
@@ -308,7 +309,7 @@ static int cycle_ptx_header_line(const char *ptx, const char *opening, VerbaLine
 }
 
 // The .version, .target and .address_size lines of a PTX text, the first of each, in that order, into `lines`, `bytes`
-// of it. Empty where one is missing or the address size is not 64, which the lane's pointers are written for
+// of it. Empty where one is not there or the address size is not 64, the size the lane's pointers take
 static void cycle_ptx_header_lines(const char *ptx, char *lines, size_t bytes)
 {
     VerbaLinea written = mmgr_line_over(lines, bytes);
@@ -332,8 +333,7 @@ static CyclePtxHeader s_cycle_ptx_header;
 // the bytes of the question put to NVRTC for PTX's header, its terminator among them
 #define CYCLE_PTX_QUESTION_BYTES 256u
 
-// the header's three lines; empty where NVRTC cannot be queried or does not answer, which leaves programs to the C
-// source
+// the header's three lines; empty where NVRTC gives no answer, which leaves programs to the C source
 const char *cycle_ptx_header(int major, int minor, int report)
 {
     CyclePtxHeader *const header = &s_cycle_ptx_header;

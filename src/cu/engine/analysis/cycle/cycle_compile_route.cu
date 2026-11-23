@@ -7,18 +7,35 @@
 #include "cycle_compile_internal.h"
 #include "memoria_operor/memoria_operor.h"
 
-// the programs compiled in this process, a CycleCompiledProgram each; the array begins at its first program
-static PlatformArray s_cycle_programs;
+// the programs that one process compiles at once, at max
+#define CYCLE_PROGRAMS_MAX 1024u
+
+// The programs compiled in this process, a CycleCompiledProgram each, in a table at a fixed bound with their count. A
+// program past the bound does not load, and the load reports it
+static CycleCompiledProgram s_cycle_programs[CYCLE_PROGRAMS_MAX];
+static unsigned long long s_cycle_program_count = 0ULL;
 
 // the bytes a lane's text holds at max
 #define CYCLE_LANE_TEXT_BYTES (1ULL << 30u)
 
+// the program added to the table: 1, or 0 where the table holds CYCLE_PROGRAMS_MAX already
+static int cycle_program_kept(const CycleCompiledProgram *program)
+{
+    if (s_cycle_program_count == CYCLE_PROGRAMS_MAX)
+    {
+        return 0;
+    }
+    s_cycle_programs[s_cycle_program_count] = *program;
+    s_cycle_program_count += 1ULL;
+    return 1;
+}
+
 // the program of this process whose source is the `length` bytes at `text`, else NULL
 static CycleCompiledProgram *cycle_program_found(const char *text, unsigned long long length)
 {
-    for (unsigned long long at = 0ULL; at < s_cycle_programs.count; at += 1ULL)
+    for (unsigned long long at = 0ULL; at < s_cycle_program_count; at += 1ULL)
     {
-        CycleCompiledProgram *const program = (CycleCompiledProgram *)platform_array_at(&s_cycle_programs, at);
+        CycleCompiledProgram *const program = &s_cycle_programs[at];
         if ((program->length == length) && platform_movable_same(program->source, 0ULL, text, length))
         {
             return program;
@@ -27,19 +44,15 @@ static CycleCompiledProgram *cycle_program_found(const char *text, unsigned long
     return NULL;
 }
 
-// the program found in this process by its text, else in the cache, else built and cached in both, then loaded as a
-// library: PTX where `ptx`, which nvJitLink assembles as it links it alone, else C source that
-// NVRTC compiles first. `written` is the whole nanoseconds the text took to write, for the report. 0 where the build or
-// the load failed
+// The program found in this process by its text, else in the cache, else built and cached in both. Then the call loads
+// it as a library: PTX where `ptx`, which nvJitLink assembles as it links it alone, else C source that NVRTC compiles
+// first. `written` is the whole nanoseconds the text took to write, for the report. 0 where the build or the load
+// failed
 static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *record, const CycleTarget *lane_target,
                               const char *text, unsigned long long length, int ptx, int lto, unsigned long long written,
                               int report)
 {
     const char *const type = (ptx != 0) ? "PTX" : ((lto != 0) ? "LTO-IR" : "relocatable cubin");
-    if (s_cycle_programs.element == 0ULL)
-    {
-        platform_array_begun(&s_cycle_programs, sizeof(CycleCompiledProgram), platform_place_g_program_owner, 0);
-    }
     CycleCompiledProgram *const held = cycle_program_found(text, length);
     if (held != NULL)
     {
@@ -103,7 +116,7 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
         (cubin.bytes != NULL) && (program.source != NULL) &&
         (cudaLibraryLoadData(&program.library, cubin.bytes, NULL, NULL, 0u, NULL, NULL, 0u) == cudaSuccess) &&
         (cudaLibraryGetKernel(&program.kernel, program.library, "cycle_program") == cudaSuccess) &&
-        platform_array_appended(&s_cycle_programs, &program);
+        cycle_program_kept(&program);
     const unsigned long long cubin_bytes = cubin.count;
     const int had_cubin = cubin.bytes != NULL;
     cycle_image_ended(&cubin);
@@ -200,9 +213,9 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
 // unloads it
 void cycle_program_release(cudaKernel_t kernel)
 {
-    for (unsigned long long at = 0ULL; (kernel != NULL) && (at < s_cycle_programs.count); at += 1ULL)
+    for (unsigned long long at = 0ULL; (kernel != NULL) && (at < s_cycle_program_count); at += 1ULL)
     {
-        CycleCompiledProgram *const program = (CycleCompiledProgram *)platform_array_at(&s_cycle_programs, at);
+        CycleCompiledProgram *const program = &s_cycle_programs[at];
         if (program->kernel == kernel)
         {
             program->holders -= 1ULL;
@@ -211,13 +224,13 @@ void cycle_program_release(cudaKernel_t kernel)
                 cudaLibraryUnload(program->library);
                 platform_movable_released(program->source, platform_place_g_program_owner);
                 // the programs after it move down one place, and the order of the rest holds
-                const unsigned long long after = s_cycle_programs.count - at - 1ULL;
+                const unsigned long long after = s_cycle_program_count - at - 1ULL;
                 (((const unsigned char *)(program) <= (const unsigned char *)(program + 1))
                      ? EMBED_CALL(memor.move_down, MemoriaCfg, .dst = program, .src = program + 1,
                                   .bytes = (size_t)(after * sizeof(CycleCompiledProgram)))
                      : EMBED_CALL(memor.move_up, MemoriaCfg, .dst = program, .src = program + 1,
                                   .bytes = (size_t)(after * sizeof(CycleCompiledProgram))));
-                (void)platform_array_counted(&s_cycle_programs, s_cycle_programs.count - 1ULL);
+                s_cycle_program_count -= 1ULL;
             }
             break;
         }
@@ -231,13 +244,14 @@ static TargetInfo cycle_target_info(const CycleTarget *lane_target)
                       g_cycle_compiler.major, g_cycle_compiler.minor, g_cycle_prelude};
 }
 
-// Rule (i): a program stored as PTX routed between its two rulesets by its local frame against the device's stack
-// limit. A frame past the limit has the runtime grow the stack for every resident thread at a run's first launch, and
-// cycle_stack_return gives it back once the run is done: 7.449 to 10.130 ms a run on the record tests, against 0.127 to
-// 1.630 ms for frames within the limit (engine_table item 11(f)). Past the limit the program is built as
-// C source as well, and the smaller frame runs, the C source's wherever it fits and the PTX's does not; the
-// other's reference is given back. Where the C source does not build, or its frame cannot be read, the PTX runs.
-// CYCLE_RECORD_RETAIN_PTX=1 turns the rule off: a program stored as PTX runs as PTX
+// Rule (i): a program stored as PTX, routed between its two rulesets by its local frame against the device's stack
+// limit. Past the limit, the runtime grows the stack of every resident thread at the first launch.
+// cycle_stack_return gives it back once the run ends. Past the limit the call also builds the program as C source.
+// The smaller frame runs: the C source's wherever it fits and the PTX's does not. The call gives the other's reference
+// back.
+//
+// Where the C source does not build, or the call cannot read its frame, the PTX runs. CYCLE_RECORD_RETAIN_PTX=1 turns
+// the rule off: a program stored as PTX runs as PTX
 static void cycle_record_route(const EngineRecordLayout *layout, CycleRecord *record, const CycleTarget *lane_target,
                                int lto, int report)
 {
@@ -317,9 +331,9 @@ static void cycle_record_route(const EngineRecordLayout *layout, CycleRecord *re
 }
 
 // How deep the device's writing of lanes is in this thread. 0 where none is under way. 1 while the device writes a
-// lane: the assembly printer's own program is compiled then, and the device writes its lane too. 2 while the device
-// writes the assembly printer's own lane: the assembly printer then runs on the interpreter, the one program not
-// compiled, and the bootstrap closes there
+// lane: the call compiles the assembly printer's own program then, and the device writes its lane too. 2 while the
+// device writes the assembly printer's own lane. The assembly printer then runs on the interpreter, the one program
+// that no compile builds, and the bootstrap closes there
 static thread_local int s_cycle_codegen_depth = 0;
 
 // the depth at which the assembly printer writes its own lane
@@ -332,16 +346,21 @@ struct CycleWritten
     unsigned long long count;
 };
 
-// the texts that the device wrote in this process and that the host's matched, a CycleWritten each. The device writes
-// each text once. The array begins at its first text
-static PlatformArray s_cycle_codegen_written;
+// the texts that the device writes in one process, at max
+#define CYCLE_WRITTEN_MAX 1024u
+
+// The texts that the device wrote in this process and that the host's matched, a CycleWritten each. They are in a
+// table at a fixed bound with their count. The device writes each text once. The table keeps no text past the bound,
+// and the device writes that text again
+static CycleWritten s_cycle_codegen_written[CYCLE_WRITTEN_MAX];
+static unsigned long long s_cycle_codegen_written_count = 0ULL;
 
 // 1 where the device wrote the `length` bytes at `text` before in this process
 static int cycle_codegen_written_before(const char *text, unsigned long long length)
 {
-    for (unsigned long long at = 0ULL; at < s_cycle_codegen_written.count; at += 1ULL)
+    for (unsigned long long at = 0ULL; at < s_cycle_codegen_written_count; at += 1ULL)
     {
-        const CycleWritten *const written = (const CycleWritten *)platform_array_at(&s_cycle_codegen_written, at);
+        const CycleWritten *const written = &s_cycle_codegen_written[at];
         if ((written->count == length) && platform_movable_same(written->cell, 0ULL, text, length))
         {
             return 1;
@@ -369,24 +388,22 @@ static void cycle_codegen_read_noted(const char *head, const char *name, const c
     engine_note_written(&engine_note);
 }
 
-// The lane as the device writes it from the step table (codegen_device.h), the path every lane takes: the ruleset's
-// file read on the device and its written forms arranged once for the target and the header, the forms decided on the
-// device a thread a step, arranged as the assembly printer's records there, written by the record machine a lane a byte
-// and gathered. The host code generator's text is the check: the device's ruleset, its written forms and its text are
-// checked against the host's word for word and byte for byte. Returns 1 where the device's text is built, and 0, with
-// the step that differed on stderr, where the device did not write it or any of the three is apart from the host's.
-// The device splits the lane where `generator`'s program() splits it. A text the device wrote before in this process
-// is not written again
+// The lane as the device writes it from the step table (codegen_device.h), the path every lane takes. The device reads
+// the ruleset's file and arranges its written forms once for the target and the header. It decides the forms a thread
+// a step and arranges them as the assembly printer's records there. The record machine writes them a lane a byte, and
+// the call gathers them.
+//
+// The host code generator's text is the check. The call checks the device's ruleset, its written forms and its text
+// against the host's, word for word and byte for byte. The answer is 1 where the device built its text. It is 0 where
+// the device did not write it or any of the three differs from the host's, with the step that differed on stderr. The
+// device splits the lane where `generator`'s program() splits it. The device does not write a text again that it
+// wrote before in this process
 static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset *rules, const TargetInfo *target,
                                    const char *header, const EngineRecordLayout *layout, unsigned int places,
                                    int report, PlatformText *text)
 {
     const char *const host_text = platform_text_bytes(text);
     const unsigned long long host_length = platform_text_size(text);
-    if (s_cycle_codegen_written.element == 0ULL)
-    {
-        platform_array_begun(&s_cycle_codegen_written, sizeof(CycleWritten), platform_place_g_program_owner, 0);
-    }
     if (cycle_codegen_written_before(host_text, host_length) != 0)
     {
         if (report != 0)
@@ -414,12 +431,14 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
     s_cycle_codegen_depth += 1;
     const int built = asm_printer_ruleset_build(rules, target, header, &text_rules, &error);
     // the ruleset's file read on the device as well, and the device's built from where it is the host's as read
-    Ruleset *const device_read =
-        (Ruleset *)platform_cell_cleared(1ULL, sizeof(Ruleset), platform_place_g_program_owner, 0);
+    Ruleset *const device_read = (Ruleset *)platform_cell_cleared(1ULL, sizeof(Ruleset), platform_place_g_program_owner,
+                                                                  PLATFORM_TIER_TEMPORARY);
     if (device_read != NULL)
     {
         device_read->schema = rules->schema;
-        platform_array_begun(&device_read->folds, sizeof(RulesetFold), platform_place_g_program_owner, 0);
+        device_read->tier = PLATFORM_TIER_TEMPORARY;
+        platform_array_begun(&device_read->folds, sizeof(RulesetFold), platform_place_g_program_owner,
+                             PLATFORM_TIER_TEMPORARY);
         ruleset_released(device_read);
     }
     char read_error_text[RULESET_ERROR_BYTES];
@@ -482,7 +501,7 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
         mmgr_line_ch(&engine_note.line, '\n');
         engine_note_written(&engine_note);
     }
-    // the lane is written only from the device's own ruleset, read and built where it is the host's
+    // the device writes the lane only from its own ruleset, read and built where it is the host's
     if ((built != 0) && ((read_same == 0) || (rules_same == 0)))
     {
         mmgr_line_put(&error, "its ruleset on the device is not the host's");
@@ -555,7 +574,12 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
     {
         // the device's text is the host's byte for byte, and the host's stays where it is
         const CycleWritten kept = {cycle_kept(device_text, device_length), device_length};
-        if ((kept.cell != NULL) && !platform_array_appended(&s_cycle_codegen_written, &kept))
+        if ((kept.cell != NULL) && (s_cycle_codegen_written_count < CYCLE_WRITTEN_MAX))
+        {
+            s_cycle_codegen_written[s_cycle_codegen_written_count] = kept;
+            s_cycle_codegen_written_count += 1ULL;
+        }
+        else
         {
             platform_movable_released(kept.cell, platform_place_g_program_owner);
         }
@@ -564,14 +588,15 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
     return same;
 }
 
-// the program's lane written as PTX and built, else its C source compiled by NVRTC and built, found in this process or
-// the cache where either was built before, and the places it occupies in shared memory set. PTX is not written where
-// the block is LTO-IR, CYCLE_RECORD_NVRTC=1 or CYCLE_RECORD_HOST_C=1, and a program stored as PTX is routed by rule
-// (i). Under CYCLE_RECORD_HOST_C=1 the C source is built by the host's compiler in place of NVRTC. 0 where it stays on
-// the interpreter: no NVRTC or nvJitLink, a step neither supports, a C source whose ruleset c.krs errored, a compile,
-// link or load that failed, or the assembly printer run while it writes its own lane. Every lane is written by the
-// device (cycle_codegen_on_device) but the assembly printer's own: CYCLE_ERROR, with ENGINE_ERROR_LOGIC in `error`,
-// where the device's lane is not the host code generator's
+// The program's lane written as PTX and built, else its C source compiled by NVRTC and built. The call finds it in
+// this process or the cache where either build happened before, and sets the places it occupies in shared memory. The
+// call writes no PTX where the block is LTO-IR, CYCLE_RECORD_NVRTC=1 or CYCLE_RECORD_HOST_C=1. Rule (i) routes a
+// program stored as PTX. Under CYCLE_RECORD_HOST_C=1 the host's compiler builds the C source in place of NVRTC.
+//
+// 0 where it stays on the interpreter. That is no NVRTC or nvJitLink, a step neither supports, or a C source whose
+// ruleset c.krs errored. It is also a compile, link or load that failed, or the assembly printer run while it writes
+// its own lane. The device (cycle_codegen_on_device) writes every lane but the assembly printer's own. The answer is
+// CYCLE_ERROR, with ENGINE_ERROR_LOGIC in `error`, where the device's lane is not the host code generator's
 int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, EngineError *error)
 {
     const int report = cycle_environment_set("CYCLE_RECORD_REPORT");

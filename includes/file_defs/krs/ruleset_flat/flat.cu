@@ -4,10 +4,11 @@
 // the template, what is stored, and the constructs
 #include "ruleset_flat_internal.h"
 
-// a cell of `bytes` from the pool, every byte zero, on the program's owner
-static void *ruleset_cell_taken(unsigned long long bytes)
+// A cell of `bytes` from the pool, every byte zero, on the program's owner and on `tier`. The persistent tier holds
+// what the process keeps, and the temporary tier what one call gives back before it returns
+static void *ruleset_cell_taken(unsigned long long bytes, int tier)
 {
-    return platform_cell_cleared((bytes != 0ULL) ? bytes : 1ULL, 1ULL, platform_place_g_program_owner, 0);
+    return platform_cell_cleared((bytes != 0ULL) ? bytes : 1ULL, 1ULL, platform_place_g_program_owner, tier);
 }
 
 // The `length` bytes at `bytes` placed on `plan` with a terminator after them. On a pass with a base, the copy, else
@@ -59,26 +60,35 @@ int ruleset_relations_read(const char (*paths)[PLATFORM_PATH_BYTES], unsigned in
     memory->labels = NULL;
     PlatformText all;
     ruleset_text_begun(&all);
-    PlatformArray files;
-    platform_array_begun(&files, sizeof(RulesetCoreSpan), platform_place_g_program_owner, 0);
+    // the span of each file in the text, one cell of the temporary tier at the count of the files
+    RulesetCoreSpan *const files = (RulesetCoreSpan *)platform_cell_taken(
+        (unsigned long long)count * sizeof(RulesetCoreSpan), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned long long files_count = 0ULL;
     unsigned int lines = count + 1u;
-    for (unsigned int file = 0u; file < count; file += 1u)
+    for (unsigned int file = 0u; (files != NULL) && (file < count); file += 1u)
     {
         const unsigned long long first = platform_text_size(&all);
         if (ruleset_bytes_read(paths[file], &all) == 0)
         {
             mmgr_line_put(error, paths[file]);
+            platform_cell_released(files, platform_place_g_program_owner);
             platform_text_ended(&all);
-            platform_array_ended(&files);
             return 0;
         }
-        // a set of files is bounded under RULESET_FILE_MAX characters, which 32 bits count
+        // a set of files stays under RULESET_FILE_MAX characters, which 32 bits count
         const RulesetCoreSpan span = {(unsigned int)first, (unsigned int)(platform_text_size(&all) - first)};
-        (void)platform_array_appended(&files, &span);
+        files[files_count] = span;
+        files_count += 1ULL;
+        // the file's newlines, each found with a jump from the one before it
         const char *const read = platform_text_bytes(&all);
-        for (unsigned long long at = first; at < (first + span.length); at += 1ULL)
+        const char *const end = &read[first + span.length];
+        const char *newline =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = &read[first], .cap = (size_t)span.length, .byte = '\n');
+        while (newline != NULL)
         {
-            lines += (read[at] == '\n') ? 1u : 0u;
+            lines += 1u;
+            newline = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = newline + 1, .cap = (size_t)(end - (newline + 1)),
+                                 .byte = '\n');
         }
     }
     const RulesetCoreSchema none = {NULL, NULL, NULL, 0u, NULL, 0u, NULL, 0u};
@@ -97,15 +107,15 @@ int ruleset_relations_read(const char (*paths)[PLATFORM_PATH_BYTES], unsigned in
     RulesetCellPlan plan = {NULL, 0ULL};
     ruleset_relation_layout(&plan, characters, count, lines, relation_capacity, relations, &labels);
     plan.used += label_bytes;
-    memory->cell = ruleset_cell_taken(plan.used);
-    const int taken = (memory->cell != NULL) && (files.count == (unsigned long long)count) && mmgr_line_ok(&all.line);
+    memory->cell = ruleset_cell_taken(plan.used, PLATFORM_TIER_PERSISTENT);
+    const int taken = (memory->cell != NULL) && (files_count == (unsigned long long)count) && mmgr_line_ok(&all.line);
     if (taken == 0)
     {
         mmgr_line_put(error, "the pool cannot meet the read");
         platform_cell_released(memory->cell, platform_place_g_program_owner);
         memory->cell = NULL;
         platform_text_ended(&all);
-        platform_array_ended(&files);
+        platform_cell_released(files, platform_place_g_program_owner);
         return 0;
     }
     plan.base = (unsigned char *)memory->cell;
@@ -113,7 +123,7 @@ int ruleset_relations_read(const char (*paths)[PLATFORM_PATH_BYTES], unsigned in
     ruleset_relation_layout(&plan, characters, count, lines, relation_capacity, relations, &labels);
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = (void *)relations->text, .src = platform_text_bytes(&all),
                .bytes = (size_t)characters);
-    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = (void *)relations->files, .src = files.cell,
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = (void *)relations->files, .src = files,
                .bytes = (size_t)count * sizeof(RulesetCoreSpan));
     for (unsigned int file = 0u; file < count; file += 1u)
     {
@@ -123,7 +133,7 @@ int ruleset_relations_read(const char (*paths)[PLATFORM_PATH_BYTES], unsigned in
     }
     memory->labels = labels;
     platform_text_ended(&all);
-    platform_array_ended(&files);
+    platform_cell_released(files, platform_place_g_program_owner);
     relations->file_count = count;
     relations->entry_capacity = lines;
     relations->relation_capacity = relation_capacity;
@@ -206,7 +216,7 @@ void ruleset_flat_schema(const RulesetSchema *schema, RulesetFlat *flat)
     RulesetCellPlan plan = {NULL, 0ULL};
     ruleset_flat_layout(schema, &plan, &flat->schema);
     flat->bytes = plan.used;
-    flat->cell = ruleset_cell_taken(plan.used);
+    flat->cell = ruleset_cell_taken(plan.used, PLATFORM_TIER_TEMPORARY);
     plan.base = (unsigned char *)flat->cell;
     plan.used = 0ULL;
     if (flat->cell == NULL)
@@ -242,10 +252,10 @@ void ruleset_flat_ended(RulesetFlat *flat)
 
 void ruleset_capacities(unsigned int text_length, RulesetCoreRead *read)
 {
-    // every character written is one of the file's or is for an escape of two; every piece begins a text or follows a
-    // placeholder, each at least three characters of the file, and every text is at least a line's; every word is at
-    // least a character and a space, and a head's parameters are its words a form's fixed registers are folded into its
-    // text past the characters read, at max once each
+    // Every character written is one of the file's or is for an escape of two. Every piece begins a text or follows a
+    // placeholder, each at least three characters of the file, and every text is at least a line's. Every word is at
+    // least a character and a space, and a head's parameters are its words. The read folds a form's fixed registers
+    // into its text past the characters read, at max once each
     read->character_capacity = (2u * text_length) + 2u;
     read->piece_capacity = (2u * text_length) + 2u;
     read->word_capacity = text_length + 2u;
@@ -283,7 +293,7 @@ int ruleset_memory_size(RulesetMemory *memory, RulesetCoreRead *read)
     RulesetCellPlan plan = {NULL, 0ULL};
     ruleset_memory_layout(&plan, read);
     memory->bytes = plan.used;
-    memory->cell = ruleset_cell_taken(plan.used);
+    memory->cell = ruleset_cell_taken(plan.used, PLATFORM_TIER_TEMPORARY);
     plan.base = (unsigned char *)memory->cell;
     plan.used = 0ULL;
     ruleset_memory_layout(&plan, read);
@@ -521,7 +531,7 @@ void ruleset_store(const RulesetCoreRead *read, const char *text, Ruleset *rules
     rules->cell = NULL;
     RulesetCellPlan plan = {NULL, 0ULL};
     ruleset_store_pass(&plan, read, text, rules);
-    rules->cell = ruleset_cell_taken(plan.used);
+    rules->cell = ruleset_cell_taken(plan.used, rules->tier);
     rules->building = read->building;
     VerbaLinea error = mmgr_line_over(rules->error, sizeof(rules->error));
     if (rules->cell == NULL)
@@ -604,7 +614,7 @@ int ruleset_flat_constructs(const Ruleset *rules, RulesetFlatConstructs *flat)
     RulesetCellPlan plan = {NULL, 0ULL};
     ruleset_constructs_layout(&plan, flat);
     flat->bytes = plan.used;
-    flat->cell = ruleset_cell_taken(plan.used);
+    flat->cell = ruleset_cell_taken(plan.used, PLATFORM_TIER_TEMPORARY);
     if (flat->cell == NULL)
     {
         return 0;

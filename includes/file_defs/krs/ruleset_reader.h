@@ -137,6 +137,9 @@ struct Ruleset
     unsigned int building;
     const char **building_parameters;
     unsigned int building_parameter_count;
+    // The tier of `cell`. A ruleset that the process keeps takes the persistent tier, 0. A ruleset that one call reads
+    // and gives back before it returns takes PLATFORM_TIER_TEMPORARY
+    int tier;
     void *cell;
     // the folds of the .ksc of the ruleset's name beside it, a RulesetFold each, none where there is no such file
     PlatformArray folds;
