@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chaitin_omega_mass.cu: mass, simple types and the host's workers
 #include "chaitin_omega_internal.h"
+#include "embed_atomic.h"
 #include "memoria_operor/memoria_operor.h"
 
-// an independent parse of a code of exactly `length` bits: 1 where it is one closed term using every bit
+// an independent parse of a code of exactly `length` bits: 1 where it is one closed term that takes every bit
 int omega_parse(unsigned long long code, unsigned int length, unsigned int *at, unsigned int depth)
 {
     if ((*at + 2u) > length)
@@ -75,9 +76,10 @@ static unsigned long long omega_mass_of(unsigned int length, int up)
 }
 
 // a(n), the mass of every n-bit term code, closed or not: a variable, a lambda, or an application
-void omega_all_mass(std::vector<unsigned long long> &mass, int up)
+void omega_all_mass(OmegaMass *all, int up)
 {
-    mass.assign(OMEGA_COUNTED + 1u, 0ULL);
+    unsigned long long *const mass = all->value;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = mass, .bytes = sizeof(all->value), .val = 0u);
     for (unsigned int length = 2u; length <= OMEGA_COUNTED; length += 1u)
     {
         unsigned long long pairs = 0ULL;
@@ -91,23 +93,43 @@ void omega_all_mass(std::vector<unsigned long long> &mass, int up)
     }
 }
 
-// c(n, 0) rounded up, the mass of the n-bit closed codes, from c(n, k) closed under k lambdas; past k = n - 1
-// every variable fits and c is a(n)
-void omega_closed_mass(const std::vector<unsigned long long> &all_up, std::vector<unsigned long long> &closed)
+// A table of masses by length and depth, the depths of each length below it: length n holds n + 1 depths from
+// n (n + 1) / 2. It is one cell of the temporary tier at the count of every length's depths
+typedef struct
 {
-    std::vector<std::vector<unsigned long long>> under(OMEGA_COUNTED + 1u);
-    for (unsigned int length = 0u; length <= OMEGA_COUNTED; length += 1u)
+    unsigned long long *value;
+} OmegaUnder;
+
+static size_t omega_under_at(unsigned int length, unsigned int depth)
+{
+    return (((size_t)length * ((size_t)length + 1u)) / 2u) + depth;
+}
+
+static void omega_under_taken(OmegaUnder *under)
+{
+    const size_t count = omega_under_at(OMEGA_COUNTED + 1u, 0u);
+    under->value = (unsigned long long *)omega_taken(count, sizeof(unsigned long long), 1);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = under->value, .bytes = count * sizeof(unsigned long long), .val = 0u);
+}
+
+// the mass closed under `depth` at `length`; k >= n - 1 reads the mass of every code of the length
+static unsigned long long omega_under_read(const OmegaUnder *under, const unsigned long long *all, unsigned int length,
+                                           unsigned int depth)
+{
+    if (length < 2u)
     {
-        under[length].assign(length + 1u, 0ULL);
+        return 0ULL;
     }
-    // under[n][k] for k < n; k >= n - 1 reads a(n)
-    auto read = [&](unsigned int length, unsigned int depth) -> unsigned long long {
-        if (length < 2u)
-        {
-            return 0ULL;
-        }
-        return ((depth + 1u) >= length) ? all_up[length] : under[length][depth];
-    };
+    return ((depth + 1u) >= length) ? all[length] : under->value[omega_under_at(length, depth)];
+}
+
+// c(n, 0) rounded up, the mass of the n-bit closed codes, from c(n, k) closed under k lambdas. Past k = n - 1 every
+// variable fits, and c is a(n)
+void omega_closed_mass(const OmegaMass *all_up, OmegaMass *closed)
+{
+    OmegaUnder under;
+    omega_under_taken(&under);
+    const unsigned long long *const all = all_up->value;
     for (unsigned int length = 2u; length <= OMEGA_COUNTED; length += 1u)
     {
         for (unsigned int depth = 0u; (depth + 1u) < length; depth += 1u)
@@ -115,26 +137,33 @@ void omega_closed_mass(const std::vector<unsigned long long> &all_up, std::vecto
             unsigned long long pairs = 0ULL;
             for (unsigned int left = 2u; (left + 4u) <= length; left += 1u)
             {
-                pairs += omega_mass_product(read(left, depth), read(length - 2u - left, depth), 1);
+                pairs += omega_mass_product(omega_under_read(&under, all, left, depth),
+                                            omega_under_read(&under, all, length - 2u - left, depth), 1);
             }
-            under[length][depth] = ((read(length - 2u, depth + 1u) + pairs + 3ULL) / 4ULL);
+            under.value[omega_under_at(length, depth)] =
+                ((omega_under_read(&under, all, length - 2u, depth + 1u) + pairs + 3ULL) / 4ULL);
         }
     }
-    closed.assign(OMEGA_COUNTED + 1u, 0ULL);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = closed->value, .bytes = sizeof(closed->value), .val = 0u);
     for (unsigned int length = 2u; length <= OMEGA_COUNTED; length += 1u)
     {
-        closed[length] = read(length, 0u);
+        closed->value[length] = omega_under_read(&under, all, length, 0u);
     }
+    omega_given(under.value);
 }
 
 // the mass of the n-bit closed terms already in normal form, rounded down: such a term halts without a step.
-// Every one past L adds to the halted mass uncounted by any run. A normal form is a lambda over a normal form or a
-// neutral term; a neutral term is a variable or a neutral term applied to a normal form.
-void omega_normal_mass(std::vector<unsigned long long> &normal_closed)
+// Every one past L adds to the halted mass uncounted by any run. A normal form is a lambda over a normal form, or a
+// neutral term. A neutral term is a variable, or a neutral term applied to a normal form.
+void omega_normal_mass(OmegaMass *normal_closed)
 {
     // the unconstrained pair first: every variable fits once k reaches n - 1
-    std::vector<unsigned long long> normal_all(OMEGA_COUNTED + 1u, 0ULL);
-    std::vector<unsigned long long> neutral_all(OMEGA_COUNTED + 1u, 0ULL);
+    static OmegaMass s_normal_all;
+    static OmegaMass s_neutral_all;
+    unsigned long long *const normal_all = s_normal_all.value;
+    unsigned long long *const neutral_all = s_neutral_all.value;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = normal_all, .bytes = sizeof(s_normal_all.value), .val = 0u);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = neutral_all, .bytes = sizeof(s_neutral_all.value), .val = 0u);
     for (unsigned int length = 2u; length <= OMEGA_COUNTED; length += 1u)
     {
         unsigned long long pairs = 0ULL;
@@ -145,21 +174,10 @@ void omega_normal_mass(std::vector<unsigned long long> &normal_closed)
         neutral_all[length] = omega_mass_of(length, 0) + (pairs / 4ULL);
         normal_all[length] = neutral_all[length] + (normal_all[length - 2u] / 4ULL);
     }
-    std::vector<std::vector<unsigned long long>> normal(OMEGA_COUNTED + 1u);
-    std::vector<std::vector<unsigned long long>> neutral(OMEGA_COUNTED + 1u);
-    for (unsigned int length = 0u; length <= OMEGA_COUNTED; length += 1u)
-    {
-        normal[length].assign(length + 1u, 0ULL);
-        neutral[length].assign(length + 1u, 0ULL);
-    }
-    auto read = [&](std::vector<std::vector<unsigned long long>> &under, std::vector<unsigned long long> &all,
-                    unsigned int length, unsigned int depth) -> unsigned long long {
-        if (length < 2u)
-        {
-            return 0ULL;
-        }
-        return ((depth + 1u) >= length) ? all[length] : under[length][depth];
-    };
+    OmegaUnder normal;
+    OmegaUnder neutral;
+    omega_under_taken(&normal);
+    omega_under_taken(&neutral);
     for (unsigned int length = 2u; length <= OMEGA_COUNTED; length += 1u)
     {
         for (unsigned int depth = 0u; (depth + 1u) < length; depth += 1u)
@@ -167,27 +185,36 @@ void omega_normal_mass(std::vector<unsigned long long> &normal_closed)
             unsigned long long pairs = 0ULL;
             for (unsigned int left = 2u; (left + 4u) <= length; left += 1u)
             {
-                pairs += omega_mass_product(read(neutral, neutral_all, left, depth),
-                                            read(normal, normal_all, length - 2u - left, depth), 0);
+                pairs += omega_mass_product(omega_under_read(&neutral, neutral_all, left, depth),
+                                            omega_under_read(&normal, normal_all, length - 2u - left, depth), 0);
             }
-            neutral[length][depth] = pairs / 4ULL;
-            normal[length][depth] = neutral[length][depth] + (read(normal, normal_all, length - 2u, depth + 1u) / 4ULL);
+            const size_t at = omega_under_at(length, depth);
+            neutral.value[at] = pairs / 4ULL;
+            normal.value[at] =
+                neutral.value[at] + (omega_under_read(&normal, normal_all, length - 2u, depth + 1u) / 4ULL);
         }
     }
-    normal_closed.assign(OMEGA_COUNTED + 1u, 0ULL);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = normal_closed->value, .bytes = sizeof(normal_closed->value), .val = 0u);
     for (unsigned int length = 2u; length <= OMEGA_COUNTED; length += 1u)
     {
-        normal_closed[length] = read(normal, normal_all, length, 0u);
+        normal_closed->value[length] = omega_under_read(&normal, normal_all, length, 0u);
     }
+    omega_given(neutral.value);
+    omega_given(normal.value);
 }
 
 static unsigned int omega_type_new(OmegaTypes *types, int arrow, unsigned int from, unsigned int to)
 {
-    const unsigned int made = (unsigned int)types->parent.size();
-    types->parent.push_back(made);
-    types->from.push_back(from);
-    types->to.push_back(to);
-    types->arrow.push_back((unsigned char)arrow);
+    if (types->count == OMEGA_TYPES_MAX)
+    {
+        omega_refused("the types of a program pass their table");
+    }
+    const unsigned int made = types->count;
+    types->parent[made] = made;
+    types->from[made] = from;
+    types->to[made] = to;
+    types->arrow[made] = (unsigned char)arrow;
+    types->count += 1u;
     return made;
 }
 
@@ -244,16 +271,21 @@ static int omega_type_unify(OmegaTypes *types, unsigned int one, unsigned int ot
 }
 
 // the type of the subterm at `at` into `type`, and one past it into `end`; 0 where no simple type exists
-static int omega_type_infer(OmegaTypes *types, const std::vector<int> &term, size_t at, unsigned int *type, size_t *end)
+static int omega_type_infer(OmegaTypes *types, const OmegaTokens *term, size_t at, unsigned int *type, size_t *end)
 {
-    const int token = term[at];
+    const int token = term->token[at];
     if (token == OMEGA_LAMBDA)
     {
         const unsigned int argument = omega_type_new(types, 0, 0u, 0u);
-        types->bound.push_back(argument);
+        if (types->bound_count == OMEGA_TYPES_MAX)
+        {
+            omega_refused("the bound variables of a program pass their table");
+        }
+        types->bound[types->bound_count] = argument;
+        types->bound_count += 1u;
         unsigned int body = 0u;
         const int ok = omega_type_infer(types, term, at + 1u, &body, end);
-        types->bound.pop_back();
+        types->bound_count -= 1u;
         *type = omega_type_new(types, 1, argument, body);
         return ok;
     }
@@ -271,22 +303,18 @@ static int omega_type_infer(OmegaTypes *types, const std::vector<int> &term, siz
         *type = result;
         return omega_type_unify(types, function, omega_type_new(types, 1, argument, result));
     }
-    *type = types->bound[types->bound.size() - (size_t)token];
+    *type = types->bound[types->bound_count - (unsigned int)token];
     *end = at + 1u;
     return 1;
 }
 
-static int omega_simply_typed(const std::vector<int> &term)
+static int omega_simply_typed(OmegaTypes *types, const OmegaTokens *term)
 {
-    static thread_local OmegaTypes types;
-    types.parent.clear();
-    types.from.clear();
-    types.to.clear();
-    types.arrow.clear();
-    types.bound.clear();
+    types->count = 0u;
+    types->bound_count = 0u;
     unsigned int type = 0u;
     size_t end = 0u;
-    return omega_type_infer(&types, term, 0u, &type, &end);
+    return omega_type_infer(types, term, 0u, &type, &end);
 }
 
 void omega_results_open(OmegaResults *results)
@@ -310,16 +338,17 @@ void omega_champion(unsigned long long *max, unsigned long long *champion, unsig
     }
 }
 
-// one term's fate into the results. A run that halted leaves the normal form in `term`; any other has the type
-// certificate read off the program itself, since the run left the term reduced.
+// One term's fate into the results. A run that halted leaves the normal form in the rewrite's term. Any other has the
+// type certificate read off the program itself, as the run left the term reduced.
 void omega_settle(const OmegaCounts *counts, unsigned int length, unsigned long long index, OmegaFate fate,
-                  unsigned int taken, std::vector<int> &term, OmegaResults *results)
+                  unsigned int taken, OmegaRewrite *rewrite, OmegaResults *results)
 {
+    OmegaTokens *const term = &rewrite->term;
     if (fate != OMEGA_HALTS)
     {
-        term.clear();
+        term->count = 0u;
         omega_unrank(counts, length, 0u, index, term);
-        const int typed = omega_simply_typed(term);
+        const int typed = omega_simply_typed(&rewrite->types, term);
         // a typable term halts. A proven loop or unbounded growth that types is a broken proof
         results->contradictions += ((typed != 0) && ((fate == OMEGA_LOOPS) || (fate == OMEGA_DIVERGES))) ? 1ULL : 0ULL;
         fate = ((typed != 0) && ((fate == OMEGA_OPEN) || (fate == OMEGA_GREW))) ? OMEGA_TYPED : fate;
@@ -351,66 +380,115 @@ void omega_merge(OmegaResults *into, const OmegaResults *one)
     }
 }
 
-static void omega_worker(const OmegaCounts *counts, const std::vector<unsigned long long> *chunk_length,
-                         const std::vector<unsigned long long> *chunk_from, std::atomic<unsigned long long> *next_chunk,
-                         OmegaResults *results)
+// the workers that the host runs: a worker for each processor, at max OMEGA_WORKERS_MAX
+unsigned int omega_workers(void)
 {
-    std::vector<int> term;
-    std::vector<int> next;
-    std::vector<int> stored;
-    term.reserve(counts->tokens + 64u);
-    next.reserve(counts->tokens + 64u);
-    stored.reserve(counts->tokens + 64u);
-    omega_results_open(results);
+    const unsigned int processors = platform_processors();
+    return (processors < OMEGA_WORKERS_MAX) ? processors : OMEGA_WORKERS_MAX;
+}
+
+// the chunks of the terms that the host's workers take in turn: a length and the rank of its first term
+typedef struct
+{
+    unsigned int length;
+    unsigned long long from;
+} OmegaChunk;
+
+// what one of the host's workers reads and writes: the chunks, the next chunk that the workers share, its tables and
+// its tally
+typedef struct
+{
+    const OmegaCounts *counts;
+    const OmegaChunk *chunks;
+    unsigned long long chunk_count;
+    embed_atomic_u64 *next_chunk;
+    OmegaRewrite rewrite;
+    OmegaResults results;
+} OmegaWorker;
+
+static void omega_worker(void *context)
+{
+    OmegaWorker *const worker = (OmegaWorker *)context;
+    const OmegaCounts *const counts = worker->counts;
+    omega_results_open(&worker->results);
     for (;;)
     {
-        const unsigned long long chunk = next_chunk->fetch_add(1ULL);
-        if (chunk >= chunk_length->size())
+        const unsigned long long chunk = (unsigned long long)EMBED_CALL(
+            embed_atomic_u64_fetch_add, EmbedAtomicU64FetchAddCfg, .word = worker->next_chunk, .value = 1ULL);
+        if (chunk >= worker->chunk_count)
         {
             return;
         }
-        const unsigned int length = (unsigned int)(*chunk_length)[chunk];
-        const unsigned long long from = (*chunk_from)[chunk];
+        const unsigned int length = worker->chunks[chunk].length;
+        const unsigned long long from = worker->chunks[chunk].from;
         const unsigned long long total = omega_count(counts, length, 0u);
         const unsigned long long to = ((from + OMEGA_CHUNK) < total) ? (from + OMEGA_CHUNK) : total;
         for (unsigned long long index = from; index < to; index += 1ULL)
         {
-            term.clear();
-            omega_unrank(counts, length, 0u, index, term);
+            worker->rewrite.term.count = 0u;
+            omega_unrank(counts, length, 0u, index, &worker->rewrite.term);
             unsigned int taken = 0u;
-            const OmegaFate fate = omega_run(term, next, stored, counts->steps, counts->tokens, &taken);
-            omega_settle(counts, length, index, fate, taken, term, results);
+            const OmegaFate fate = omega_run(&worker->rewrite, counts->steps, counts->tokens, &taken);
+            omega_settle(counts, length, index, fate, taken, &worker->rewrite, &worker->results);
         }
     }
 }
 
-// every closed term through `max` bits run on the host's threads
+// Every closed term through `max` bits run on the host's threads. The call counts the chunks first, then takes one
+// cell of the temporary tier at that count. The workers' states are one cell of the temporary tier, which the call
+// gives back after its wait
 void omega_host(const OmegaCounts *counts, unsigned int max, unsigned int workers, OmegaResults *fates)
 {
-    std::vector<unsigned long long> chunk_length;
-    std::vector<unsigned long long> chunk_from;
+    unsigned long long chunk_count = 0ULL;
+    for (unsigned int length = 2u; length <= max; length += 1u)
+    {
+        const unsigned long long total = omega_count(counts, length, 0u);
+        chunk_count += (total + OMEGA_CHUNK - 1ULL) / OMEGA_CHUNK;
+    }
+    OmegaChunk *const chunks = (OmegaChunk *)omega_taken(chunk_count, sizeof(OmegaChunk), 1);
+    unsigned long long filled = 0ULL;
     for (unsigned int length = 2u; length <= max; length += 1u)
     {
         for (unsigned long long from = 0ULL; from < omega_count(counts, length, 0u); from += OMEGA_CHUNK)
         {
-            chunk_length.push_back(length);
-            chunk_from.push_back(from);
+            chunks[filled].length = length;
+            chunks[filled].from = from;
+            filled += 1ULL;
         }
     }
-    std::vector<OmegaResults> tallies(workers);
-    std::vector<std::thread> threads;
-    std::atomic<unsigned long long> next_chunk(0ULL);
+    embed_atomic_u64 next_chunk;
+    EMBED_CALL(embed_atomic_u64_store, EmbedAtomicU64StoreCfg, .word = &next_chunk, .value = 0ULL);
+    OmegaWorker *const states = (OmegaWorker *)omega_taken(workers, sizeof(OmegaWorker), 1);
+    static PlatformWorker s_threads[OMEGA_WORKERS_MAX];
+    const size_t room = omega_rewrite_room(counts->tokens);
     for (unsigned int worker = 0u; worker < workers; worker += 1u)
     {
-        threads.emplace_back(omega_worker, counts, &chunk_length, &chunk_from, &next_chunk, &tallies[worker]);
+        states[worker].counts = counts;
+        states[worker].chunks = chunks;
+        states[worker].chunk_count = chunk_count;
+        states[worker].next_chunk = &next_chunk;
+        omega_rewrite_taken(&states[worker].rewrite, room, 1);
     }
-    for (std::thread &thread : threads)
+    for (unsigned int worker = 0u; worker < workers; worker += 1u)
     {
-        thread.join();
+        if (platform_worker_started(&s_threads[worker], omega_worker, &states[worker]) == 0)
+        {
+            omega_refused("the system refused a worker");
+        }
+    }
+    for (unsigned int worker = 0u; worker < workers; worker += 1u)
+    {
+        platform_worker_joined(&s_threads[worker]);
     }
     omega_results_open(fates);
     for (unsigned int worker = 0u; worker < workers; worker += 1u)
     {
-        omega_merge(fates, &tallies[worker]);
+        omega_merge(fates, &states[worker].results);
     }
+    for (unsigned int worker = workers; worker > 0u; worker -= 1u)
+    {
+        omega_rewrite_given(&states[worker - 1u].rewrite);
+    }
+    omega_given(states);
+    omega_given(chunks);
 }

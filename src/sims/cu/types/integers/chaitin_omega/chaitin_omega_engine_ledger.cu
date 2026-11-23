@@ -5,16 +5,24 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "chaitin_omega_internal.h"
 
-// the engine's ledger: one line a finished job, "engine" first and "end" last. A line cut anywhere is not a job
-void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &jobs)
+// The engine's ledger: one line a finished job, "engine" first and "end" last. A line cut anywhere is not a job. The
+// text is a cell of the temporary tier. The jobs go in one cell of the persistent tier at the count of the ledger's
+// lines, which `jobs` names. The answer is their count [RETURNS OWNERSHIP]
+size_t omega_engine_ledger_read(const char *path, OmegaEngineJob **jobs)
 {
-    PlatformFile *file = platform_file_open(path, "r");
-    if (file == NULL)
+    *jobs = NULL;
+    size_t length = 0u;
+    char *const text = omega_text_read(path, &length);
+    if (text == NULL)
     {
-        return;
+        return 0u;
     }
+    OmegaEngineJob *const read_jobs =
+        (OmegaEngineJob *)omega_taken(omega_text_lines(text, length) + 1u, sizeof(OmegaEngineJob), 0);
+    size_t count = 0u;
     char line[1024];
-    while (platform_file_text_read(line, (int)sizeof(line), file) != NULL)
+    size_t line_at = 0u;
+    while (omega_text_line(text, length, &line_at, line, sizeof(line)) != 0)
     {
         OmegaEngineJob job;
         omega_results_open(&job.results);
@@ -23,7 +31,7 @@ void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &job
         unsigned long long max[4];
         int read = 0;
         const size_t written = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR);
-        if ((written == 0u) || (line[written - 1u] != '\n'))
+        if (written == 0u)
         {
             continue;
         }
@@ -88,9 +96,12 @@ void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &job
         job.results.max_bits[job.length] = max[2];
         job.results.bits_champion[job.length] = max[3];
         job.settled = job.count;
-        jobs.push_back(job);
+        read_jobs[count] = job;
+        count += 1u;
     }
-    platform_file_close(file);
+    omega_given(text);
+    *jobs = read_jobs;
+    return count;
 }
 
 int omega_engine_ledger_write(const char *path, const OmegaEngineJob *job)
@@ -152,7 +163,7 @@ int omega_engine_ledger_write(const char *path, const OmegaEngineJob *job)
 }
 
 void omega_engine_settle(const OmegaCounts *counts, OmegaEngineJob *job, const OmegaSettled *settled,
-                         std::vector<int> &scratch, std::vector<OmegaSettled> *crossed)
+                         OmegaRewrite *rewrite, OmegaCrossed *crossed)
 {
     OmegaResults *const results = &job->results;
     if (settled->fate == OMEGA_HALTS)
@@ -166,12 +177,17 @@ void omega_engine_settle(const OmegaCounts *counts, OmegaEngineJob *job, const O
     else
     {
         // the type certificate and the contradiction check, read off the program
-        omega_settle(counts, settled->length, settled->index, (OmegaFate)settled->fate, 0u, scratch, results);
+        omega_settle(counts, settled->length, settled->index, (OmegaFate)settled->fate, 0u, rewrite, results);
     }
     job->settled += 1ULL;
     if (settled->length <= OMEGA_ENGINE_CROSS_MAX)
     {
-        crossed->push_back(*settled);
+        if (crossed->count == crossed->room)
+        {
+            omega_refused("the terms settled for the check pass their table");
+        }
+        crossed->settled[crossed->count] = *settled;
+        crossed->count += 1u;
     }
 }
 
@@ -234,7 +250,7 @@ int omega_buffer_scan(SimResults *results, OmegaBuffer *scratch, const unsigned 
     return ok;
 }
 
-// a grid for a launch over `count` items, each thread taking every stride-th
+// a grid for a launch over `count` items, where each thread takes every stride-th
 unsigned int omega_pool_grid(unsigned long long count)
 {
     const unsigned long long blocks = (count + OMEGA_POOL_BLOCK - 1ULL) / OMEGA_POOL_BLOCK;
@@ -302,13 +318,13 @@ int omega_pool_insert_job(SimResults *results, OmegaBuffer *buffers, const Omega
 // a term's bytes across a round's buffers: itself twice, its settled record and its twelve sizes and bases
 #define OMEGA_ENGINE_TERM_BYTES ((2u * sizeof(OmegaTerm)) + sizeof(OmegaSettled) + (12u * sizeof(unsigned long long)))
 
-// a token's bytes across a round's buffers: its token, its watcher's copy and a spine end, each twice (16 each), its
-// two frames (2), its record and its plan (8 each at max), its index pair (8), its reduct and the reduct's spine
-// end (8 each): 90, taken as 96
+// A token's bytes across a round's buffers: its token, its watcher's copy and a spine end, each twice (16 each). Also
+// its two frames (2), its record and its plan (8 each at max), and its index pair (8). Also its reduct and the
+// reduct's spine end (8 each): 90, rounded up to 96
 #define OMEGA_ENGINE_TOKEN_BYTES 96ULL
 
-// The bytes a run on the engine declares to tessera: its first round's admitted terms, each at max tokens its
-// length allows (a token takes 2 bits at least), and the counts it copies to the device.
+// The bytes a run on the engine declares to tessera. They are its first round's admitted terms, each at the max tokens
+// that its length allows. A token takes 2 bits at least. Also the counts it copies to the device.
 unsigned long long omega_engine_declared(const OmegaCounts *counts)
 {
     unsigned long long terms = 0ULL;

@@ -79,9 +79,9 @@ static inline __device__ int omega_pool_grows(const OmegaToken *stored, const un
     return 0;
 }
 
-// A walk over one subterm tracking the lambdas above each token. The frames, one byte each in the pool's frame
-// buffer at the term's own place, store the children still to start and whether the frame is a lambda; a subterm has
-// no more frames open than it has tokens.
+// A walk over one subterm, which tracks the lambdas above each token. The frames are one byte each in the pool's
+// frame buffer at the term's own place. A frame stores the children still to start and whether the frame is a
+// lambda. A subterm has no more frames open than it has tokens.
 typedef struct
 {
     unsigned char *frames;
@@ -108,7 +108,7 @@ static inline __device__ void omega_walk_open(OmegaWalk *walk, OmegaToken token)
     }
 }
 
-// after a variable: every frame whose children have all started is ended
+// after a variable: the walk ends every frame whose children all started
 static inline __device__ void omega_walk_close(OmegaWalk *walk)
 {
     while ((walk->top > 0ULL) && ((walk->frames[walk->top - 1ULL] & 3u) == 0u))
@@ -169,8 +169,8 @@ static inline __device__ int omega_pool_take(const unsigned int *record, unsigne
     return 1;
 }
 
-// the reduct's token from the source token s and its plan: a body token at depth p, or an argument's token put
-// under p lambdas with b lambdas above it inside the argument, or a copy
+// the reduct's token from the source token s and its plan. The token is a body token at depth p, or a copy. Or it is
+// an argument's token under p lambdas, with b lambdas above it inside the argument
 //   s - body . [s > p + 1] + argument . [s > b] . p
 typedef struct
 {

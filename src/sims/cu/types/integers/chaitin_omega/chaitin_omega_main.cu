@@ -6,40 +6,121 @@
 #include "chaitin_omega_internal.h"
 #include "memoria_operor/memoria_operor.h"
 
-// a term from its code, for the checks below
-static std::vector<int> omega_term(const char *code)
+// The pool. Each of the host's workers holds the tables of its rewrite. They are at the room of the run's token budget,
+// or at OMEGA_TERM_MAX where the run has none
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 31u;
+
+// a term from its code into `term`, for the checks below
+static void omega_term(const char *code, OmegaTokens *term)
 {
-    std::vector<int> term;
     size_t at = 0u;
     while (code[at] != '\0')
     {
         if (code[at] == '0')
         {
-            term.push_back((code[at + 1u] == '0') ? OMEGA_LAMBDA : OMEGA_APPLY);
+            omega_put(term, (code[at + 1u] == '0') ? OMEGA_LAMBDA : OMEGA_APPLY);
             at += 2u;
         }
         else
         {
-            int index = 0;
-            while (code[at] == '1')
-            {
-                index += 1;
-                at += 1u;
-            }
-            term.push_back(index);
+            const size_t ones = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &code[at],
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "1");
+            at += ones;
+            // a run of ones within a code of the checks, far below 2^31. An int stores its count
+            omega_put(term, (int)ones);
             at += 1u;
         }
     }
-    return term;
 }
 
+// the fate of the term of the code, its rewrite's tables on the temporary tier at the room of the budget
 static OmegaFate omega_fate_of(const char *code, unsigned int steps, unsigned int tokens)
 {
-    std::vector<int> term = omega_term(code);
-    std::vector<int> next;
-    std::vector<int> stored;
+    OmegaRewrite rewrite;
+    omega_rewrite_taken(&rewrite, omega_rewrite_room(tokens), 1);
+    omega_term(code, &rewrite.term);
     unsigned int taken = 0u;
-    return omega_run(term, next, stored, steps, tokens, &taken);
+    const OmegaFate fate = omega_run(&rewrite, steps, tokens, &taken);
+    omega_rewrite_given(&rewrite);
+    return fate;
+}
+
+// What one worker of the check of the engine's terms reads and writes: its range of the terms and its tables. Also
+// whether every term of it agreed
+typedef struct
+{
+    const OmegaCounts *counts;
+    const OmegaCrossed *crossed;
+    size_t first;
+    size_t last;
+    OmegaRewrite rewrite;
+    int same;
+} OmegaCrossWorker;
+
+static void omega_cross_worker(void *context)
+{
+    OmegaCrossWorker *const state = (OmegaCrossWorker *)context;
+    state->same = 1;
+    for (size_t at = state->first; at < state->last; at += 1u)
+    {
+        const OmegaSettled *const one = &state->crossed->settled[at];
+        if (one->fate == OMEGA_GREW)
+        {
+            continue;
+        }
+        state->rewrite.term.count = 0u;
+        omega_unrank(state->counts, one->length, 0u, one->index, &state->rewrite.term);
+        unsigned int taken = 0u;
+        const OmegaFate fate = omega_run(&state->rewrite, (unsigned int)one->steps + 1u, 0xFFFFFFFFu, &taken);
+        state->same =
+            state->same && ((int)fate == one->fate) &&
+            ((fate != OMEGA_HALTS) || ((taken == one->steps) && (omega_code_bits(&state->rewrite.term) == one->bits)));
+    }
+}
+
+// Every term the engine settled, run again by omega_run: 1 where each agrees. Fewer than 4096 terms run on this
+// thread, and the host's workers share more. The workers' states are one cell of the temporary tier, which the call
+// gives back after its wait
+static int omega_cross(const OmegaCounts *counts, const OmegaCrossed *crossed, unsigned int workers)
+{
+    const unsigned int used = (crossed->count < 4096u) ? 1u : workers;
+    OmegaCrossWorker *const states = (OmegaCrossWorker *)omega_taken(used, sizeof(OmegaCrossWorker), 1);
+    static PlatformWorker s_threads[OMEGA_WORKERS_MAX];
+    const size_t room = omega_rewrite_room(0xFFFFFFFFu);
+    for (unsigned int worker = 0u; worker < used; worker += 1u)
+    {
+        states[worker].counts = counts;
+        states[worker].crossed = crossed;
+        states[worker].first = (crossed->count * worker) / used;
+        states[worker].last = (crossed->count * (worker + 1u)) / used;
+        omega_rewrite_taken(&states[worker].rewrite, room, 1);
+    }
+    if (used == 1u)
+    {
+        omega_cross_worker(&states[0]);
+    }
+    else
+    {
+        for (unsigned int worker = 0u; worker < used; worker += 1u)
+        {
+            if (platform_worker_started(&s_threads[worker], omega_cross_worker, &states[worker]) == 0)
+            {
+                omega_refused("the system refused a worker");
+            }
+        }
+        for (unsigned int worker = 0u; worker < used; worker += 1u)
+        {
+            platform_worker_joined(&s_threads[worker]);
+        }
+    }
+    int every = 1;
+    for (unsigned int worker = used; worker > 0u; worker -= 1u)
+    {
+        every = every && states[worker - 1u].same;
+        omega_rewrite_given(&states[worker - 1u].rewrite);
+    }
+    omega_given(states);
+    return every;
 }
 
 // the bits of a mass scaled by 2^64
@@ -76,8 +157,8 @@ int program_main(int argc, char **argv)
     SimResults results;
     sim_open(&results, line_buffer);
     static OmegaCounts counts;
-    // L alone runs on the engine, bounded by nothing. L, steps and tokens run the budgeted kernel on the device
-    // ("cpu" after them: on the host), retained as the cross-check. "--ledger <path>" plans either run as jobs.
+    // L alone runs on the engine, which nothing bounds. L, steps and tokens run the budgeted kernel on the device. With
+    // "cpu" after them they run on the host, kept as the cross-check. "--ledger <path>" plans either run as jobs.
     counts.length = (argc > 1) ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = argv[1],
                                                           .end = NULL, .base = 10)
                                : OMEGA_LENGTH_DEFAULT;
@@ -121,7 +202,7 @@ int program_main(int argc, char **argv)
     }
     omega_count_all(&counts);
 
-    // the enumeration is checked against an independent parse of every code
+    // the sim checks the enumeration against an independent parse of every code
     int counted = 1;
     const unsigned int parsed_max = (counts.length < OMEGA_PARSED_MAX) ? counts.length : OMEGA_PARSED_MAX;
     for (unsigned int length = 2u; length <= parsed_max; length += 1u)
@@ -136,18 +217,21 @@ int program_main(int argc, char **argv)
     }
     sim_check(&results, counted, "the closed term counts equal a parse of every code through 22 bits");
     int ranked = 1;
+    // a term of a program, at max half as many tokens as OMEGA_LENGTH_MAX bits
+    int term_tokens[OMEGA_LENGTH_MAX];
+    OmegaTokens term = {term_tokens, 0u, OMEGA_LENGTH_MAX};
     for (unsigned int length = 2u; (length <= 16u) && (length <= counts.length); length += 1u)
     {
         for (unsigned long long index = 0ULL; index < omega_count(&counts, length, 0u); index += 1ULL)
         {
-            std::vector<int> term;
-            omega_unrank(&counts, length, 0u, index, term);
+            term.count = 0u;
+            omega_unrank(&counts, length, 0u, index, &term);
             unsigned long long bits = 0ULL;
-            for (size_t at = 0u; at < term.size(); at += 1u)
+            for (size_t at = 0u; at < term.count; at += 1u)
             {
-                bits += (term[at] <= 0) ? 2ULL : ((unsigned long long)term[at] + 1ULL);
+                bits += (term.token[at] <= 0) ? 2ULL : ((unsigned long long)term.token[at] + 1ULL);
             }
-            ranked = ranked && (bits == length) && (omega_end(term.data(), 0u) == term.size());
+            ranked = ranked && (bits == length) && (omega_end(term.token, 0u) == term.count);
         }
     }
     sim_check(&results, ranked, "every unranked term through 16 bits is one term of its length");
@@ -170,17 +254,26 @@ int program_main(int argc, char **argv)
         return sim_close(&results, "chaitin_omega");
     }
 
-    // every closed term of at max L bits, run on the device unless the host is requested for
-    const unsigned int workers = (std::thread::hardware_concurrency() == 0u) ? 1u : std::thread::hardware_concurrency();
+    // every closed term of at max L bits, run on the device unless the request names the host
+    const unsigned int workers = omega_workers();
     static OmegaResults fates;
     unsigned int device_threads = 0u;
     unsigned long long host_runs = 0ULL;
     unsigned long long jobs_run = 0ULL;
     unsigned long long jobs_retained = 0ULL;
-    const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+    const unsigned long long start = platform_clock_ns();
     OmegaEngineReport engine_report;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &engine_report, .bytes = sizeof(engine_report), .val = 0);
-    std::vector<OmegaSettled> crossed;
+    // the terms that the engine settles through OMEGA_ENGINE_CROSS_MAX bits, at most every closed term to that length
+    OmegaCrossed crossed = {NULL, 0u, 0u, 0ULL};
+    if (on_engine != 0)
+    {
+        for (unsigned int length = 2u; (length <= OMEGA_ENGINE_CROSS_MAX) && (length <= counts.length); length += 1u)
+        {
+            crossed.room += (size_t)omega_count(&counts, length, 0u);
+        }
+        crossed.settled = (OmegaSettled *)omega_taken(crossed.room, sizeof(OmegaSettled), 0);
+    }
     if (on_engine != 0)
     {
         if (omega_engine(&results, &counts, ledger, &engine_report, &crossed, &fates) == 0)
@@ -200,7 +293,8 @@ int program_main(int argc, char **argv)
     {
         omega_host(&counts, counts.length, workers, &fates);
     }
-    const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    // the nanoseconds since the start, as seconds in a double
+    const double seconds = (double)(platform_clock_ns() - start) / 1000000000.0;
     if (on_device != 0)
     {
         // the host's run of the same terms under the same budgets must give every fate and busy beaver alike
@@ -225,49 +319,32 @@ int program_main(int argc, char **argv)
     }
     if (on_engine != 0)
     {
-        // every term the engine settled through 24 bits, run again by omega_run with steps enough to reach the step
-        // the engine settled it at and no token budget: the same fate, and for a halt the same step and the same
-        // normal form. A loop is limited to its fate alone, and a term that grew, by the growth proof or parked as
-        // outgrown, is not run again
-        std::atomic<int> every(1);
-        omega_engine_threads(crossed.size(), workers, [&crossed, &every](size_t first, size_t last) {
-            std::vector<int> term;
-            std::vector<int> next;
-            std::vector<int> stored;
-            int same = 1;
-            for (size_t at = first; at < last; at += 1u)
-            {
-                const OmegaSettled *const one = &crossed[at];
-                if (one->fate == OMEGA_GREW)
-                {
-                    continue;
-                }
-                term.clear();
-                omega_unrank(&counts, one->length, 0u, one->index, term);
-                unsigned int taken = 0u;
-                const OmegaFate fate =
-                    omega_run(term, next, stored, (unsigned int)one->steps + 1u, 0xFFFFFFFFu, &taken);
-                same = same && ((int)fate == one->fate) &&
-                       ((fate != OMEGA_HALTS) || ((taken == one->steps) && (omega_code_bits(term) == one->bits)));
-            }
-            if (same == 0)
-            {
-                every = 0;
-            }
-        });
+        // Every term the engine settled through 24 bits, run again by omega_run with no token budget. The steps reach
+        // the step that the engine settled it at. It must have the same fate, and for a halt the same step and the
+        // same normal form. A loop shows its fate alone. The check does not run a term that grew again, whether by
+        // the growth proof or as a parked term.
+        //
+        // Where the run takes on a term through 24 bits, at least one must settle. A run that takes each such job from
+        // its ledger has no term to check
+        const int every = omega_cross(&counts, &crossed, workers);
         sim_check(
-            &results, (every.load() != 0) && !crossed.empty(),
+            &results, (every != 0) && ((crossed.count != 0u) || (crossed.owed == 0ULL)),
             "every term the engine settled through 24 bits, those that grew aside: omega_run gives the same fate, "
             "and for a halt the same step and the same normal form");
     }
+    omega_given(crossed.settled);
 
     // the mass past L, counted
-    std::vector<unsigned long long> all_down;
-    std::vector<unsigned long long> all_up;
-    std::vector<unsigned long long> closed_up;
-    omega_all_mass(all_down, 0);
-    omega_all_mass(all_up, 1);
-    omega_closed_mass(all_up, closed_up);
+    static OmegaMass s_all_down;
+    static OmegaMass s_all_up;
+    static OmegaMass s_closed_up;
+    static OmegaMass s_normal_down;
+    const unsigned long long *const all_down = s_all_down.value;
+    const unsigned long long *const closed_up = s_closed_up.value;
+    const unsigned long long *const normal_down = s_normal_down.value;
+    omega_all_mass(&s_all_down, 0);
+    omega_all_mass(&s_all_up, 1);
+    omega_closed_mass(&s_all_up, &s_closed_up);
     unsigned long long parsed = 0ULL;
     for (unsigned int length = 2u; length <= OMEGA_COUNTED; length += 1u)
     {
@@ -279,8 +356,7 @@ int program_main(int argc, char **argv)
         remaining += closed_up[length];
     }
     sim_check(&results, parsed <= OMEGA_ONE, "the counted parse mass stays below 1");
-    std::vector<unsigned long long> normal_down;
-    omega_normal_mass(normal_down);
+    omega_normal_mass(&s_normal_down);
     unsigned long long normal_end = 0ULL;
     int normal_within = 1;
     for (unsigned int length = 2u; length <= OMEGA_COUNTED; length += 1u)
@@ -297,23 +373,23 @@ int program_main(int argc, char **argv)
     OriorExactInteger four;
     OriorExactInteger programs;
     // a halt is a normal form reached or a type found
-    std::vector<unsigned long long> halted(counts.length + 1u, 0ULL);
-    std::vector<unsigned long long> unsettled(counts.length + 1u, 0ULL);
+    unsigned long long halted[OMEGA_LENGTH_MAX + 1u] = {0ULL};
+    unsigned long long unsettled[OMEGA_LENGTH_MAX + 1u] = {0ULL};
     for (unsigned int length = 0u; length <= counts.length; length += 1u)
     {
         halted[length] = fates.fate[OMEGA_HALTS][length] + fates.fate[OMEGA_TYPED][length];
         unsettled[length] = fates.fate[OMEGA_OPEN][length] + fates.fate[OMEGA_GREW][length];
     }
-    omega_dyadic(&lower, halted.data(), counts.length);
+    omega_dyadic(&lower, halted, counts.length);
     sim_check(&results, fates.contradictions == 0ULL,
               "no term proven to loop or to grow forever has a simple type (every typable term halts)");
-    omega_dyadic(&open, unsettled.data(), counts.length);
-    std::vector<unsigned long long> closed_counts(counts.length + 1u, 0ULL);
+    omega_dyadic(&open, unsettled, counts.length);
+    unsigned long long closed_counts[OMEGA_LENGTH_MAX + 1u] = {0ULL};
     for (unsigned int length = 2u; length <= counts.length; length += 1u)
     {
         closed_counts[length] = omega_count(&counts, length, 0u);
     }
-    omega_dyadic(&programs, closed_counts.data(), counts.length);
+    omega_dyadic(&programs, closed_counts, counts.length);
     // the fixed point's 2^-62 scaled to 2^-64
     sim_exact_unsigned(&tail, remaining);
     sim_exact_unsigned(&four, 4ULL);
@@ -461,9 +537,9 @@ int program_main(int argc, char **argv)
         mmgr_line_put(&results.line, settled ? "    " : "  >=");
         mmgr_line_decimal_columns(&results.line, fates.max_steps[length], 8u);
         mmgr_line_put(&results.line, "  ");
-        std::vector<int> champion;
-        omega_unrank(&counts, length, 0u, fates.steps_champion[length], champion);
-        omega_code_text(&results.line, champion);
+        term.count = 0u;
+        omega_unrank(&counts, length, 0u, fates.steps_champion[length], &term);
+        omega_code_text(&results.line, &term);
         for (unsigned int pad = length; pad < 42u; pad += 1u)
         {
             mmgr_line_ch(&results.line, ' ');
@@ -471,16 +547,16 @@ int program_main(int argc, char **argv)
         mmgr_line_put(&results.line, settled ? "  " : ">=");
         mmgr_line_decimal_columns(&results.line, fates.max_bits[length], 8u);
         mmgr_line_put(&results.line, "  ");
-        champion.clear();
-        omega_unrank(&counts, length, 0u, fates.bits_champion[length], champion);
-        omega_code_text(&results.line, champion);
+        term.count = 0u;
+        omega_unrank(&counts, length, 0u, fates.bits_champion[length], &term);
+        omega_code_text(&results.line, &term);
         mmgr_line_ch(&results.line, '\n');
         sim_flush(&results);
     }
     // BusyBeaverWiki's BB lambda (OEIS A333479) from 4 through 33 bits; 0 where no closed term exists. The entries
-    // equal the terms of OEIS's b-file for A333479 at 4 to 33. A row with a term still open
-    // gives only a lower bound, and the published value is the true max. The two meeting means the run
-    // reached the max; past 33 the maxima outgrow any space here (327686 bits at 34)
+    // equal the terms of OEIS's b-file for A333479 at 4 to 33. A row with a term still open gives only a lower bound,
+    // and the published value is the true max. Where the two meet, the run reached the max. Past 33 the maxima outgrow
+    // any space here (327686 bits at 34)
     static const unsigned long long published_max[34] = {
         0ULL,  0ULL,  0ULL,  0ULL,  4ULL,  0ULL,   6ULL,   7ULL,   8ULL,   9ULL,   10ULL, 11ULL,
         12ULL, 13ULL, 14ULL, 15ULL, 16ULL, 17ULL,  18ULL,  19ULL,  20ULL,  22ULL,  24ULL, 26ULL,

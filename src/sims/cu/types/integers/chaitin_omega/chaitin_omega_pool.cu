@@ -18,27 +18,27 @@ int omega_program_load(OmegaProgram *program, EngineError *error)
 {
     EngineRecordStep steps[OMEGA_PROGRAM_OUT + 1u];
     unsigned int count = 0u;
-    omega_program_step(steps, &count, ENGINE_RECORD_FIELD_SIGNED, 0u, 0u, 0u); // 0 s
-    omega_program_step(steps, &count, ENGINE_RECORD_FIELD, 1u, 0u, 1u);        // 1 p
-    omega_program_step(steps, &count, ENGINE_RECORD_FIELD, 2u, 0u, 1u);        // 2 b
-    omega_program_step(steps, &count, ENGINE_RECORD_FIELD, 3u, 0u, 1u);        // 3 body
-    omega_program_step(steps, &count, ENGINE_RECORD_FIELD, 4u, 0u, 1u);        // 4 argument
-    omega_program_step(steps, &count, ENGINE_RECORD_CONSTANT, 1u, 0u, 0u);     // 5 1
-    omega_program_step(steps, &count, ENGINE_RECORD_SUM, 1u, 5u, 0u);          // 6 p + 1
-    omega_program_step(steps, &count, ENGINE_RECORD_COMPARE, 0u, 6u, 0u);      // 7 sign(s - p - 1)
-    omega_program_step(steps, &count, ENGINE_RECORD_ABSOLUTE, 7u, 0u, 0u);     // 8
-    omega_program_step(steps, &count, ENGINE_RECORD_SUM, 7u, 8u, 0u);          // 9 2 [s > p + 1]
-    omega_program_step(steps, &count, ENGINE_RECORD_CONSTANT, 2u, 0u, 0u);     // 10 2
-    omega_program_step(steps, &count, ENGINE_RECORD_QUOTIENT, 9u, 10u, 0u);    // 11 [s > p + 1]
-    omega_program_step(steps, &count, ENGINE_RECORD_PRODUCT, 3u, 11u, 0u);     // 12 the body's move in
-    omega_program_step(steps, &count, ENGINE_RECORD_COMPARE, 0u, 2u, 0u);      // 13 sign(s - b)
-    omega_program_step(steps, &count, ENGINE_RECORD_ABSOLUTE, 13u, 0u, 0u);    // 14
-    omega_program_step(steps, &count, ENGINE_RECORD_SUM, 13u, 14u, 0u);        // 15 2 [s > b]
-    omega_program_step(steps, &count, ENGINE_RECORD_QUOTIENT, 15u, 10u, 0u);   // 16 [s > b]
-    omega_program_step(steps, &count, ENGINE_RECORD_PRODUCT, 16u, 1u, 0u);     // 17 [s > b] p
-    omega_program_step(steps, &count, ENGINE_RECORD_PRODUCT, 4u, 17u, 0u);     // 18 the argument's move out
-    omega_program_step(steps, &count, ENGINE_RECORD_DIFFERENCE, 0u, 12u, 0u);  // 19
-    omega_program_step(steps, &count, ENGINE_RECORD_SUM, 19u, 18u, 0u);        // 20 the reduct's token
+    omega_program_step(steps, &count, ENGINE_RECORD_FIELD_SIGNED, 0u, 0u, 0u); // 0) s
+    omega_program_step(steps, &count, ENGINE_RECORD_FIELD, 1u, 0u, 1u);        // 1) p
+    omega_program_step(steps, &count, ENGINE_RECORD_FIELD, 2u, 0u, 1u);        // 2) b
+    omega_program_step(steps, &count, ENGINE_RECORD_FIELD, 3u, 0u, 1u);        // 3) body
+    omega_program_step(steps, &count, ENGINE_RECORD_FIELD, 4u, 0u, 1u);        // 4) argument
+    omega_program_step(steps, &count, ENGINE_RECORD_CONSTANT, 1u, 0u, 0u);     // 5) 1
+    omega_program_step(steps, &count, ENGINE_RECORD_SUM, 1u, 5u, 0u);          // 6) p + 1
+    omega_program_step(steps, &count, ENGINE_RECORD_COMPARE, 0u, 6u, 0u);      // 7) sign(s - p - 1)
+    omega_program_step(steps, &count, ENGINE_RECORD_ABSOLUTE, 7u, 0u, 0u);     // 8)
+    omega_program_step(steps, &count, ENGINE_RECORD_SUM, 7u, 8u, 0u);          // 9) 2 [s > p + 1]
+    omega_program_step(steps, &count, ENGINE_RECORD_CONSTANT, 2u, 0u, 0u);     // 10) 2
+    omega_program_step(steps, &count, ENGINE_RECORD_QUOTIENT, 9u, 10u, 0u);    // 11) [s > p + 1]
+    omega_program_step(steps, &count, ENGINE_RECORD_PRODUCT, 3u, 11u, 0u);     // 12) the body's move in
+    omega_program_step(steps, &count, ENGINE_RECORD_COMPARE, 0u, 2u, 0u);      // 13) sign(s - b)
+    omega_program_step(steps, &count, ENGINE_RECORD_ABSOLUTE, 13u, 0u, 0u);    // 14)
+    omega_program_step(steps, &count, ENGINE_RECORD_SUM, 13u, 14u, 0u);        // 15) 2 [s > b]
+    omega_program_step(steps, &count, ENGINE_RECORD_QUOTIENT, 15u, 10u, 0u);   // 16) [s > b]
+    omega_program_step(steps, &count, ENGINE_RECORD_PRODUCT, 16u, 1u, 0u);     // 17) [s > b] p
+    omega_program_step(steps, &count, ENGINE_RECORD_PRODUCT, 4u, 17u, 0u);     // 18) the argument's move out
+    omega_program_step(steps, &count, ENGINE_RECORD_DIFFERENCE, 0u, 12u, 0u);  // 19)
+    omega_program_step(steps, &count, ENGINE_RECORD_SUM, 19u, 18u, 0u);        // 20) the reduct's token
     const unsigned int field_bits[5] = {program->token_bits, program->depth_bits, program->bound_bits, 1u, 1u};
     const unsigned int field_offset[5] = {0u, 0u, program->depth_bits, program->depth_bits + program->bound_bits,
                                           program->depth_bits + program->bound_bits + 1u};
@@ -249,7 +249,8 @@ __global__ void omega_pool_place(const OmegaTerm *terms, unsigned long long live
     }
 }
 
-// a sweep's reduct tokens read back out of the machine's records; one that does not fit a token is marked unread
+// a sweep's reduct tokens read back out of the machine's records. The call marks one that does not fit a token as
+// unread
 __global__ void omega_pool_unpack(const unsigned int *out, unsigned long long lanes, unsigned int out_limbs,
                                   unsigned int offset, unsigned int bits, OmegaToken *reducts, OmegaRoundTotals *totals)
 {
@@ -262,8 +263,8 @@ __global__ void omega_pool_unpack(const unsigned int *out, unsigned long long la
     }
 }
 
-// Phase three, a thread a stepping term: its reduct watched as omega_run watches it. The spine ends of the reduct
-// go to `ends` at the term's out base plus its place in the pool, which leaves each term out_size + 1 of them.
+// Phase three, a thread a term that steps: its reduct watched as omega_run watches it. The spine ends of the reduct
+// go to `ends` at the term's out base plus its place in the pool. Each term thus has out_size + 1 of them.
 __global__ void omega_pool_watch(OmegaTerm *terms, unsigned long long live, const OmegaToken *reducts,
                                  const unsigned long long *out_bases, const OmegaToken *stored,
                                  const unsigned long long *stored_ends, unsigned long long *ends)
@@ -328,7 +329,7 @@ __global__ void omega_pool_settled(const OmegaTerm *terms, unsigned long long li
 }
 
 // the sizes each retained term takes in the next round's buffers: its place, its tokens, its watcher's copy and that
-// copy's spine ends; a settled term takes none
+// copy's spine ends. A settled term takes none
 __global__ void omega_pool_retained_sizes(const OmegaTerm *terms, unsigned long long live, unsigned long long *places,
                                           unsigned long long *token_sizes, unsigned long long *stored_sizes,
                                           unsigned long long *end_sizes)
@@ -388,7 +389,7 @@ __global__ void omega_pool_retain(const OmegaTerm *terms, unsigned long long liv
             moved.ends_base = end_bases[at];
             if (term->stored_again != 0u)
             {
-                // read from the reduct, which the block's other threads are still copying out of, not into
+                // read from the reduct. The block's other threads still copy out of it, not into it
                 moved.stored_range = omega_pool_spine(reduct, term->out_size, &retained_ends[end_bases[at]]);
             }
             retained[places[at]] = moved;

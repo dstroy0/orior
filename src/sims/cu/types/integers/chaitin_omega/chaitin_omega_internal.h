@@ -11,7 +11,7 @@
 
 #define OMEGA_ENGINE_NONE (~0ULL)
 
-// the terms settled on the engine are checked against omega_run through this length
+// the sim checks the terms settled on the engine against omega_run through this length
 #define OMEGA_ENGINE_CROSS_MAX 24u
 
 typedef long long OmegaToken;
@@ -57,7 +57,7 @@ typedef struct
     unsigned int unread;
 } OmegaRoundTotals;
 
-// the round's widths, from which the reduct program is encoded and the records are arranged
+// the round's widths, from which keymath encodes the reduct program and the scheduler arranges the records
 typedef struct
 {
     unsigned int token_bits;
@@ -76,6 +76,17 @@ typedef struct
     unsigned long long steps;
     unsigned long long bits;
 } OmegaSettled;
+
+// The terms that the engine settled through OMEGA_ENGINE_CROSS_MAX bits, for the check against omega_run. They are one
+// cell of the persistent tier at the count of the closed terms through that length, with their count. `owed` counts
+// the terms through that length in the jobs that the run takes on. A job from the ledger adds none
+typedef struct
+{
+    OmegaSettled *settled;
+    size_t count;
+    size_t room;
+    unsigned long long owed;
+} OmegaCrossed;
 
 #include "chaitin_omega_pool_terms.h"
 
@@ -125,27 +136,6 @@ __global__ void omega_pool_insert(const unsigned long long *counts, unsigned int
                                   unsigned long long ends_end, OmegaTerm *terms, OmegaToken *tokens, OmegaToken *stored,
                                   unsigned long long *stored_ends);
 
-// a function over [0, count) cut across the host's threads
-template <typename Work> static void omega_engine_threads(size_t count, unsigned int workers, Work work)
-{
-    if (count < 4096u)
-    {
-        work((size_t)0u, count);
-        return;
-    }
-    std::vector<std::thread> threads;
-    for (unsigned int worker = 0u; worker < workers; worker += 1u)
-    {
-        const size_t first = (count * worker) / workers;
-        const size_t last = (count * (worker + 1u)) / workers;
-        threads.emplace_back(work, first, last);
-    }
-    for (std::thread &thread : threads)
-    {
-        thread.join();
-    }
-}
-
 typedef struct
 {
     unsigned int length;
@@ -155,7 +145,7 @@ typedef struct
     OmegaResults results;
 } OmegaEngineJob;
 
-void omega_engine_ledger_read(const char *path, std::vector<OmegaEngineJob> &jobs);
+size_t omega_engine_ledger_read(const char *path, OmegaEngineJob **jobs);
 
 int omega_engine_ledger_write(const char *path, const OmegaEngineJob *job);
 
@@ -173,11 +163,11 @@ typedef struct
 } OmegaEngineReport;
 
 void omega_engine_settle(const OmegaCounts *counts, OmegaEngineJob *job, const OmegaSettled *settled,
-                         std::vector<int> &scratch, std::vector<OmegaSettled> *crossed);
+                         OmegaRewrite *rewrite, OmegaCrossed *crossed);
 
-// A device buffer that only grows. 0 where the device cannot allocate `bytes`: the failed allocation's error is cleared
-// and the buffer is left as it was. -1 where a copy into the larger buffer fails. `preserve` carries the buffer's bytes
-// over.
+// A device buffer that only grows. 0 where the device cannot allocate `bytes`. The call then clears the failed
+// allocation's error and leaves the buffer as it was. -1 where a copy into the larger buffer fails. `preserve` carries
+// the buffer's bytes over.
 typedef struct
 {
     void *data;
@@ -252,6 +242,6 @@ int omega_pool_insert_job(SimResults *results, OmegaBuffer *buffers, const Omega
 unsigned long long omega_engine_declared(const OmegaCounts *counts);
 
 int omega_engine(SimResults *results, const OmegaCounts *counts, const char *ledger, OmegaEngineReport *report,
-                 std::vector<OmegaSettled> *crossed, OmegaResults *fates);
+                 OmegaCrossed *crossed, OmegaResults *fates);
 
 #endif

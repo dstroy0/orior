@@ -4,18 +4,32 @@
 #include "chaitin_omega_internal.h"
 #include "memoria_operor/memoria_operor.h"
 
+// the reduct programs at max, one for each set of widths that a round needs
+#define OMEGA_PROGRAMS_MAX 256u
+
+// The reduct programs that the run loaded, each with its key of widths, in a table at a fixed bound with their count.
+// The widths of the rounds take few values, and a search of the table finds a program again
+static OmegaProgram s_programs[OMEGA_PROGRAMS_MAX];
+static unsigned long long s_program_keys[OMEGA_PROGRAMS_MAX];
+static size_t s_program_count = 0u;
+
 int omega_engine(SimResults *results, const OmegaCounts *counts, const char *ledger, OmegaEngineReport *report,
-                 std::vector<OmegaSettled> *crossed, OmegaResults *fates)
+                 OmegaCrossed *crossed, OmegaResults *fates)
 {
     omega_results_open(fates);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = report, .bytes = sizeof(*report), .val = 0);
-    std::vector<OmegaEngineJob> retained;
-    if (ledger != NULL)
+    OmegaEngineJob *retained = NULL;
+    const size_t retained_count = (ledger != NULL) ? omega_engine_ledger_read(ledger, &retained) : 0u;
+    // The plan: each length in rank order, cut every OMEGA_ENGINE_JOB terms. The call counts the jobs first, then takes
+    // one cell of the temporary tier at that count, and gives it back before it returns
+    size_t job_room = 0u;
+    for (unsigned int length = 2u; length <= counts->length; length += 1u)
     {
-        omega_engine_ledger_read(ledger, retained);
+        const unsigned long long total = omega_count(counts, length, 0u);
+        job_room += (size_t)((total + OMEGA_ENGINE_JOB - 1ULL) / OMEGA_ENGINE_JOB);
     }
-    // the plan: each length in rank order, cut every OMEGA_ENGINE_JOB terms
-    std::vector<OmegaEngineJob> jobs;
+    OmegaEngineJob *const jobs = (OmegaEngineJob *)omega_taken(job_room, sizeof(OmegaEngineJob), 1);
+    size_t job_count = 0u;
     for (unsigned int length = 2u; length <= counts->length; length += 1u)
     {
         const unsigned long long total = omega_count(counts, length, 0u);
@@ -28,11 +42,11 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
             job.settled = 0ULL;
             omega_results_open(&job.results);
             const OmegaEngineJob *found = NULL;
-            for (const OmegaEngineJob &one : retained)
+            for (size_t at = 0u; at < retained_count; at += 1u)
             {
-                if ((one.length == length) && (one.from == from) && (one.count == job.count))
+                if ((retained[at].length == length) && (retained[at].from == from) && (retained[at].count == job.count))
                 {
-                    found = &one;
+                    found = &retained[at];
                     break;
                 }
             }
@@ -42,18 +56,20 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
                 report->jobs_retained += 1ULL;
                 continue;
             }
-            jobs.push_back(job);
+            jobs[job_count] = job;
+            job_count += 1u;
+            crossed->owed += (length <= OMEGA_ENGINE_CROSS_MAX) ? job.count : 0ULL;
         }
     }
-    std::map<unsigned long long, OmegaProgram> programs;
+    omega_given(retained);
     EngineError error;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     OmegaBuffer buffers[OMEGA_BUFFERS];
     EMBED_CALL(memor.set, MemoriaCfg, .dst = buffers, .bytes = sizeof(buffers), .val = 0);
     OmegaPoolExtent extent = {0ULL, 0ULL, 0ULL, 0ULL};
-    std::vector<OmegaSettled> settled;
-    std::vector<unsigned long long> out_sizes;
-    std::vector<int> scratch;
+    // the tables of the settle's type check, for a program of OMEGA_LENGTH_MAX bits at max
+    OmegaRewrite rewrite;
+    omega_rewrite_taken(&rewrite, OMEGA_LENGTH_MAX, 1);
     const size_t word = sizeof(unsigned long long);
     int ok = (omega_buffer_reserve(&buffers[OMEGA_BUFFER_COUNTS], sizeof(counts->count), 0) == 1) &&
              (omega_buffer_reserve(&buffers[OMEGA_BUFFER_TOTALS], sizeof(OmegaRoundTotals), 0) == 1);
@@ -67,12 +83,12 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
                                 "engine: counts");
     OmegaRoundTotals *const totals = OMEGA_BUFFER(buffers, OMEGA_BUFFER_TOTALS, OmegaRoundTotals);
     size_t next_job = 0u;
-    const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+    const unsigned long long start = platform_clock_ns();
     unsigned long long report_at = 1ULL;
-    while ((ok != 0) && ((next_job < jobs.size()) || (extent.live > 0ULL)))
+    while ((ok != 0) && ((next_job < job_count) || (extent.live > 0ULL)))
     {
         // jobs join while fewer than OMEGA_ENGINE_REFILL terms are live and the device fits them beside the rest
-        while ((ok != 0) && (next_job < jobs.size()) && (extent.live < OMEGA_ENGINE_REFILL))
+        while ((ok != 0) && (next_job < job_count) && (extent.live < OMEGA_ENGINE_REFILL))
         {
             const int admitted =
                 omega_pool_insert_job(results, buffers, &jobs[next_job], (unsigned int)next_job, &extent);
@@ -134,24 +150,34 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
         // the record program for this round's widths
         const unsigned long long key = ((unsigned long long)widths.token_bits << 40u) |
                                        ((unsigned long long)widths.depth_bits << 20u) | widths.bound_bits;
-        if (programs.find(key) == programs.end())
+        size_t found_program = s_program_count;
+        for (size_t at = 0u; at < s_program_count; at += 1u)
         {
-            OmegaProgram program;
-            program.token_bits = widths.token_bits;
-            program.depth_bits = widths.depth_bits;
-            program.bound_bits = widths.bound_bits;
-            if (omega_program_load(&program, &error) == 0)
+            found_program = (s_program_keys[at] == key) ? at : found_program;
+        }
+        if (found_program == s_program_count)
+        {
+            if (s_program_count == OMEGA_PROGRAMS_MAX)
+            {
+                omega_refused("the reduct programs pass their table");
+            }
+            OmegaProgram *const made = &s_programs[s_program_count];
+            made->token_bits = widths.token_bits;
+            made->depth_bits = widths.depth_bits;
+            made->bound_bits = widths.bound_bits;
+            if (omega_program_load(made, &error) == 0)
             {
                 sim_check(results, 0, "engine: the reduct program encodes and loads for the round's widths");
                 ok = 0;
                 break;
             }
-            programs[key] = program;
+            s_program_keys[s_program_count] = key;
+            s_program_count += 1u;
         }
-        const OmegaProgram *const program = &programs[key];
+        const OmegaProgram *const program = &s_programs[found_program];
         const unsigned int out_limbs = program->layout.out_limbs;
-        // the round's buffers. While the device cannot fit them, the stepping term with the largest reduct is parked
-        // as outgrown and the reducts arranged again without it
+        // The round's buffers. While the device cannot fit them, the run parks the stepping term with the largest
+        // reduct as outgrown and arranges the reducts again without it
         const OmegaBufferName round_buffers[19] = {OMEGA_BUFFER_PACKED,          OMEGA_BUFFER_PLANS,
                                                    OMEGA_BUFFER_INDEX,           OMEGA_BUFFER_OUT,
                                                    OMEGA_BUFFER_REDUCTS,         OMEGA_BUFFER_REDUCT_ENDS,
@@ -205,16 +231,19 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
             {
                 continue;
             }
-            out_sizes.resize((size_t)extent.live);
-            ok = sim_status_check(results,
-                                  cudaMemcpy(out_sizes.data(), device_out_sizes, live_bytes, cudaMemcpyDeviceToHost),
+            // the reduct sizes of the live terms, in a cell of the temporary tier at their count
+            unsigned long long *const out_sizes =
+                (unsigned long long *)omega_taken(extent.live, sizeof(unsigned long long), 1);
+            ok = sim_status_check(results, cudaMemcpy(out_sizes, device_out_sizes, live_bytes, cudaMemcpyDeviceToHost),
                                   "engine: reduct sizes");
             size_t largest = 0u;
-            for (size_t at = 1u; at < out_sizes.size(); at += 1u)
+            for (size_t at = 1u; at < (size_t)extent.live; at += 1u)
             {
                 largest = (out_sizes[at] > out_sizes[largest]) ? at : largest;
             }
-            if ((ok != 0) && (out_sizes[largest] == 0ULL))
+            const unsigned long long largest_size = out_sizes[largest];
+            omega_given(out_sizes);
+            if ((ok != 0) && (largest_size == 0ULL))
             {
                 sim_check(results, 0, "engine: the device fits a round once every reduct is parked");
                 ok = 0;
@@ -298,7 +327,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
             break;
         }
         report->rounds += 1ULL;
-        // the settled leave the pool into their jobs; a job whose every term settled is written to the ledger
+        // the settled leave the pool into their jobs; the ledger takes a job whose every term settled
         omega_pool_settled<<<omega_pool_grid(extent.live), OMEGA_POOL_BLOCK>>>(
             terms, extent.live, OMEGA_BUFFER(buffers, OMEGA_BUFFER_SETTLED, OmegaSettled), totals);
         unsigned long long settled_count = 0ULL;
@@ -306,18 +335,19 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
              sim_status_check(
                  results, cudaMemcpy(&settled_count, &totals->settled, sizeof(settled_count), cudaMemcpyDeviceToHost),
                  "engine: settled count");
-        settled.resize((size_t)settled_count);
+        // the round's settled terms, in a cell of the temporary tier at their count
+        OmegaSettled *const settled = (OmegaSettled *)omega_taken(ok ? settled_count : 0ULL, sizeof(OmegaSettled), 1);
         ok = ok && ((settled_count == 0ULL) ||
                     sim_status_check(results,
-                                     cudaMemcpy(settled.data(), buffers[OMEGA_BUFFER_SETTLED].data,
+                                     cudaMemcpy(settled, buffers[OMEGA_BUFFER_SETTLED].data,
                                                 (size_t)settled_count * sizeof(OmegaSettled), cudaMemcpyDeviceToHost),
                                      "engine: settled read"));
-        for (size_t at = 0u; (ok != 0) && (at < settled.size()); at += 1u)
+        for (size_t at = 0u; (ok != 0) && (at < (size_t)settled_count); at += 1u)
         {
             const OmegaSettled *const one = &settled[at];
             report->max_steps = (one->steps > report->max_steps) ? one->steps : report->max_steps;
             OmegaEngineJob *const job = &jobs[one->job];
-            omega_engine_settle(counts, job, one, scratch, crossed);
+            omega_engine_settle(counts, job, one, &rewrite, crossed);
             if (job->settled == job->count)
             {
                 if ((ledger != NULL) && (omega_engine_ledger_write(ledger, job) == 0))
@@ -329,6 +359,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
                 report->jobs_run += 1ULL;
             }
         }
+        omega_given(settled);
         // the retained terms move into the other buffer of each pair, in pool order
         unsigned long long *const places = OMEGA_BUFFER(buffers, OMEGA_BUFFER_PLACES, unsigned long long);
         unsigned long long *const token_sizes = OMEGA_BUFFER(buffers, OMEGA_BUFFER_TOKEN_SIZES, unsigned long long);
@@ -373,7 +404,8 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
         extent = retained_extent;
         if (report->rounds == report_at)
         {
-            const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+            // the nanoseconds since the start, as seconds in a double
+            const double seconds = (double)(platform_clock_ns() - start) / 1000000000.0;
             mmgr_line_put(&results->line, "  round ");
             mmgr_line_decimal(&results->line, report->rounds, 1u);
             mmgr_line_put(&results->line, ": ");
@@ -381,7 +413,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
             mmgr_line_put(&results->line, " live, ");
             mmgr_line_decimal(&results->line, report->jobs_run, 1u);
             mmgr_line_put(&results->line, " of ");
-            mmgr_line_decimal(&results->line, jobs.size(), 1u);
+            mmgr_line_decimal(&results->line, job_count, 1u);
             mmgr_line_put(&results->line, " jobs done, ");
             mmgr_line_decimal(&results->line, report->records, 1u);
             mmgr_line_put(&results->line, " records swept, the largest term ");
@@ -393,13 +425,16 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
             report_at *= 2ULL;
         }
     }
-    for (std::map<unsigned long long, OmegaProgram>::iterator one = programs.begin(); one != programs.end(); ++one)
+    for (size_t at = s_program_count; at > 0u; at -= 1u)
     {
-        omega_program_free(&one->second);
+        omega_program_free(&s_programs[at - 1u]);
     }
+    s_program_count = 0u;
     for (unsigned int buffer = 0u; buffer < (unsigned int)OMEGA_BUFFERS; buffer += 1u)
     {
         omega_buffer_release(&buffers[buffer]);
     }
+    omega_rewrite_given(&rewrite);
+    omega_given(jobs);
     return ok;
 }
