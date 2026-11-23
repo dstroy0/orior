@@ -76,7 +76,7 @@ fi
 if [ "$SIM" = "noise_terms" ] || [ "$SIM" = "noise_floor" ]; then
     MODULE_SOURCES+=("${NOISE_DETECTOR_SOURCES[@]}")
 fi
-# noise_root finds each planted term as a box's root noise, pricing it through the tower and compression's coder
+# noise_root finds each planted term as a box's root noise, and prices it through the tower and compression's coder
 if [ "$SIM" = "noise_root" ]; then
     MODULE_SOURCES+=("${NOISE_DETECTOR_SOURCES[@]}" "$TOWER_CU/tower.cu" "$TOWER_CU/tower_record.cu" "$TOWER_CU/tower_run.cu" "$DEVICE_POOL_CU/device_pool.cu"
                      "$COMPRESSION_CU/compression.cu")
@@ -170,8 +170,8 @@ for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_I
     esac
 done
 
-# a sim that uses the device is a job on the device's tessera daemon: the client goes into the sim, and the daemon
-# is built beside it, where the sim starts it when none answers
+# A sim that uses the device is a job on the device's tessera daemon. The client goes into the sim, and the script
+# builds the daemon beside it, where the sim starts it when none answers
 DAEMON_OBJECTS=()
 for name in tessera_client_{socket,jobs} tessera_paths tessera_frame tessera_self tessera_ledger tessera_measure \
             tessera_daemon_{state,admission,peers,main}; do
@@ -187,7 +187,7 @@ SEAL_OBJECTS=()
 for name in obsignatio_{hash,seal}; do
     object="$OUT/${name}_sim.$EXTENSION"
     rm -f "$object"
-    nvcc "${HOST_FLAGS[@]}" -O2 "${GENCODE[@]}" "${WIDTH[@]}" "${INCLUDES[@]}" -c "$OBSIGNATIO_CU/$name.cu" -o "$object"
+    nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${WIDTH[@]}" "${INCLUDES[@]}" -c "$OBSIGNATIO_CU/$name.cu" -o "$object"
     [ -f "$object" ] || { echo "  build failed: $name.cu did not compile"; exit 1; }
     SEAL_OBJECTS+=("$object")
 done
@@ -200,7 +200,7 @@ nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${LONG_PATHS[@]}" -o "$DAEMON" "${DAEMO
     "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}" "${EXACT_TYPES_LIBRARIES[@]}"
 [ -f "$DAEMON" ] || { echo "  build failed: the tessera daemon did not link"; exit 1; }
 
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${WIDTH[@]}" "${INCLUDES[@]}" "${LONG_PATHS[@]}" -o "$BINARY" \
+nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${WIDTH[@]}" "${INCLUDES[@]}" "${LONG_PATHS[@]}" -o "$BINARY" \
     "${SOURCES[@]}" "$SIMS/cu/sim_job.cu" "${MODULE_SOURCES[@]}" "${OBJECTS[@]}" "${SEAL_OBJECTS[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build $SIM"; exit 1; }
 

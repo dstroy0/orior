@@ -862,7 +862,6 @@ src/sims/cu/types/integers/pi_tower/pi_tower_internal.h	53
 src/sims/cu/types/integers/pi_tower/pi_tower_main.cu	4
 src/sims/cu/types/integers/pi_tower/pi_tower_records.cu	7
 src/sims/cu/types/integers/pi_tower/pi_tower_walk.cu	8
-src/sims/run.sh	3
 theory/theory/Salishan/generate.sh	3
 utils/maint/analysis/sound/binary_sound.py	50
 utils/maint/analysis/survey/crystal_edge_sweep.py	22
