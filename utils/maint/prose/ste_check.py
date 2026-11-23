@@ -39,6 +39,8 @@ LIMIT_PROCEDURAL = 20
 LIMIT_DESCRIPTIVE = 25
 LIMIT_PARAGRAPH = 6
 
+# What a code span, a link target or a formula reads as in prose: one word that no rule counts
+CODE_SPAN = " CODE "
 DOCUMENT_NAMES = ("README.md", "CONTRIBUTING.md", "SECURITY.md")
 DOCUMENT_FOLDERS = ("docs",)
 SKIPPED_FOLDERS = ("build", "deps", "node_modules", ".git", ".lake", "third_party", "vendor")
@@ -88,7 +90,7 @@ def prose_lines(text):
     licence = False
     for number, line in enumerate(text.splitlines(), 1):
         stripped = line.strip()
-        if stripped.startswith("```") or stripped.startswith("~~~"):
+        if stripped.startswith(("```", "~~~")):
             fenced = not fenced
             continue
         if fenced:
@@ -111,10 +113,10 @@ def prose_lines(text):
         if licence or stripped.startswith("|") or stripped.startswith("<") or line.startswith("    "):
             out.append((number, ""))
             continue
-        prose = re.sub(r"`[^`]*`", " CODE ", stripped)
+        prose = re.sub(r"`[^`]*`", CODE_SPAN, stripped)
         prose = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", prose)
-        prose = re.sub(r"https?://\S+", " CODE ", prose)
-        prose = re.sub(r"\$[^$]*\$", " CODE ", prose)
+        prose = re.sub(r"https?://\S+", CODE_SPAN, prose)
+        prose = re.sub(r"\$[^$]*\$", CODE_SPAN, prose)
         prose = EMPHASIS.sub("", prose)
         out.append((number, prose))
     return out
@@ -240,7 +242,6 @@ def main(argv):
     names_file = os.path.join(base, "ste_names.txt")
     names = word_list(names_file) if os.path.isfile(names_file) else set()
     counts = {}
-    displayed = 0
     for path in documents(paths):
         key = os.path.relpath(path).replace("\\", "/")
         rows = findings(path, approved, names)
@@ -248,7 +249,6 @@ def main(argv):
         if ratchet is None and write is None:
             for number, rule, what in rows:
                 print("%s:%d: %s: %s" % (key, number, rule, what))
-                displayed += 1
     if write is not None:
         allowed = ratchet_read(write)
         with open(write, "w", encoding="utf-8", newline="\n") as handle:
