@@ -4,9 +4,9 @@
 # Writes monolith_differences.md: the monolith's tagged build, a block at a time, held against what our compiler
 # writes (monolith_emit.cpp).
 #
-# NVIDIA's compiler builds the tagged monolith once and its listing is the answer key. monolith_emit is linked from
-# the code generator's objects, the machine file's reader and our assembler, and reads sass.krs, the machine file and
-# the word web as they are.
+# NVIDIA's compiler builds the tagged monolith once, and its listing is the answer key. The script links monolith_emit
+# from the code generator's objects, the machine file's reader and our assembler. The tool reads sass.krs, the machine
+# file and the word web as they are.
 #
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_emit.sh [arch]
 set -u
@@ -50,15 +50,32 @@ nvcc "${HOST_FLAGS[@]}" -cubin -arch="$ARCH" -O3 -DMONOLITH_TAGGED=1 -o "$OUT/mo
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/monolith.cu" || exit 1
 cuobjdump -sass -fun monolith "$OUT/monolith_tagged.cubin" > "$OUT/monolith_tagged.listing" || exit 1
 
+# 0 where an object needs a compile: no object is there, or its source or a header that its last compile read is
+# newer than it. Each compile writes the files that it reads into the object's .d file (-MMD)
+stale()
+{
+    local source="$1"
+    local object="$2"
+    local depend="${object%.o}.d"
+    if [ ! -f "$object" ] || [ ! -f "$depend" ] || [ "$source" -nt "$object" ]; then
+        return 0
+    fi
+    local header
+    for header in $(sed -e '1s/^.*\.o:[[:space:]]*//' -e 's/\\//g' "$depend"); do
+        [ "$header" -nt "$object" ] && return 0
+    done
+    return 1
+}
+
 OBJECTS=()
 for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu "$HERE/sass_target.cu"; do
     case "$(basename "$source")" in
         asm_printer_*.cu | codegen*.cu) continue ;;
     esac
     object="$OUT/$(basename "$source").o"
-    if [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then
+    if stale "$source" "$object"; then
         "$FILE_DEFS_CXX" -std=c++17 -O1 -w -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$CODEGEN" -I "$CODEGEN_CU" \
-            -I "$CODEGEN_CU_2" -I "$HERE" -x c++ -c "$source" -o "$object" || exit 1
+            -I "$CODEGEN_CU_2" -I "$HERE" -MMD -MF "${object%.o}.d" -x c++ -c "$source" -o "$object" || exit 1
     fi
     OBJECTS+=("$object")
 done

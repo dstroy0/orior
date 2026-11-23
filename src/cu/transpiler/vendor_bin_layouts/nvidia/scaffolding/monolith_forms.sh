@@ -7,7 +7,7 @@
 #
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_forms.sh [apply] [arch]
 #
-# With apply, each form whose every question reads whole and alike is written into sass.krs and ptx.krs in place.
+# With apply, the tool writes each form whose every question reads whole and alike into sass.krs and ptx.krs in place.
 set -u
 
 APPLY=""
@@ -34,6 +34,10 @@ NO_ROUNDING="$TOP/includes/exact_types/integers"
 source "$TOP/includes/file_defs/file_defs.sh"
 OUT="$TOP/build/monolith/forms"
 mkdir -p "$OUT"
+# The tool is a member of a query run (qry_run.sh). The run's writer writes sass.ksc in its place as the run ends, and
+# a tool with no run writes no file through it
+source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"
+qry_writer_built "$OUT"
 
 ARCH="${1:-}"
 if [ -z "$ARCH" ]; then
@@ -56,11 +60,29 @@ esac
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/includes/codecs/crc" -I "$CYCLE"
     -I "$CYCLE_CU" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$KEYMATH" -I "$KEYMATH_CU" -I "$KEY_SCHEDULE"
     -I "$KEY_SCHEDULE_CU" -I "$NO_ROUNDING" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$TOP/utils/test/src/cu/engine/analysis/cycle")
+
+# 0 where an object needs a compile: no object is there, or its source or a header that its last compile read is
+# newer than it. Each compile writes the files that it reads into the object's .d file (-MMD)
+stale()
+{
+    local source="$1"
+    local object="$2"
+    local depend="${object%.o}.d"
+    if [ ! -f "$object" ] || [ ! -f "$depend" ] || [ "$source" -nt "$object" ]; then
+        return 0
+    fi
+    local header
+    for header in $(sed -e '1s/^.*\.o:[[:space:]]*//' -e 's/\\//g' "$depend"); do
+        [ "$header" -nt "$object" ] && return 0
+    done
+    return 1
+}
+
 OBJECTS=()
 for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}"; do
     object="$OUT/$(basename "$source" .c).o"
-    if [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then
-        cc -std=c11 -O2 -w "${INCLUDES[@]}" -c "$source" -o "$object" || exit 1
+    if stale "$source" "$object"; then
+        cc -std=c11 -O2 -w "${INCLUDES[@]}" -MMD -MF "${object%.o}.d" -c "$source" -o "$object" || exit 1
     fi
     OBJECTS+=("$object")
 done
@@ -70,31 +92,34 @@ for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODE
         asm_printer_*.cu | codegen*.cu) continue ;;
     esac
     object="$OUT/$(basename "$source").o"
-    if [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then
-        "$FILE_DEFS_CXX" -std=c++17 -O2 -w "${INCLUDES[@]}" -x c++ -c "$source" -o "$object" || exit 1
+    if stale "$source" "$object"; then
+        "$FILE_DEFS_CXX" -std=c++17 -O2 -w "${INCLUDES[@]}" -MMD -MF "${object%.o}.d" -x c++ -c "$source" -o "$object" ||
+            exit 1
     fi
     OBJECTS+=("$object")
 done
-# the machine file's reader and our assembler, which every SASS form read is assembled through before it is written, and
-# the system classification the folds this pass finds are written into (interface_sass_probe_class.c)
+# The machine file's reader and our assembler, which assemble each SASS form that the tool reads before it writes the
+# form. Then the system classification, which takes the folds that this pass finds (interface_sass_probe_class.c)
 for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c"; do
     object="$OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_').o"
-    if [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then
+    if stale "$source" "$object"; then
         cc -std=c11 -O2 -w -I "$TOP/src/cu/engine" -I "$TOP/includes/parsers" \
-            -I "$TOP/src/cu/transpiler/lstar/interface" "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" -o "$object" || exit 1
+            -I "$TOP/src/cu/transpiler/lstar/interface" "${FILE_DEFS_MMGR_FLAGS[@]}" -MMD -MF "${object%.o}.d" \
+            -c "$source" -o "$object" || exit 1
     fi
     OBJECTS+=("$object")
 done
 "$FILE_DEFS_CXX" -std=c++17 -O2 -Wall "${INCLUDES[@]}" -c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_forms.cpp" -o "$OUT/monolith_forms.o" || exit 1
-"$FILE_DEFS_CXX" -o "$OUT/monolith_forms" "$OUT/monolith_forms.o" "${OBJECTS[@]}" -lpthread || exit 1
+"$FILE_DEFS_CXX" -o "$OUT/monolith_forms" "$OUT/monolith_forms.o" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 
-# the rulesets are named from the top of the tree, which is where the generator reads them from
+# the paths of the rulesets start at the top of the tree, which is where the generator reads them from
 cd "$TOP" || exit 1
+run_started "$OUT/qry"
 "$OUT/monolith_forms" write "$RULESETS/c.krs" "$RULESETS/ptx.krs" "$OUT/monolith_forms.cu" "$OUT/questions.tsv" || exit 1
 nvcc "${HOST_FLAGS[@]}" -cubin -arch="$ARCH" -O3 -o "$OUT/monolith_forms.cubin" "$OUT/monolith_forms.cu" || exit 1
 nvcc "${HOST_FLAGS[@]}" -ptx -arch="$ARCH" -O3 -o "$OUT/monolith_forms.ptx" "$OUT/monolith_forms.cu" || exit 1
 cuobjdump -sass "$OUT/monolith_forms.cubin" > "$OUT/monolith_forms.sass" || exit 1
 "$OUT/monolith_forms" read "$OUT/questions.tsv" "$OUT/monolith_forms.sass" "$OUT/monolith_forms.ptx" \
-    "$RULESETS/sass.krs" "$RULESETS/ptx.krs" "src/cu/transpiler/lstar/protocol/table/sm_86.khw" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_forms.md" \
+    "$RULESETS/sass.krs" "$RULESETS/ptx.krs" "$RULESETS/sm_86.khw" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_forms.md" \
     $APPLY || exit 1
