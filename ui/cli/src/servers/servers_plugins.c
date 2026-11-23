@@ -10,6 +10,7 @@
 // `{plugin, method, params, request}`, `request` the id of a request pending until the plugin answers it, null for a
 // notification
 #include "../command_line/callback_cfg.h"
+#include "../machine/overseer.h"
 #include "../plugins/plugins.h"
 #include "../toolchains/toolchains.h"
 #include "servers_internal.h"
@@ -99,6 +100,193 @@ typedef struct
 {
     CliPluginServer *plugin;
 } CliPluginHanding;
+
+// What a plugin's server sends unprompted. Its diagnostics go to the servers' own receiver, and the servers store them.
+// Each other message goes to the window as the event `plugin-server`. A request's answer waits until the plugin
+// answers it through cli_servers_plugin_answer
+static void plugins_recv(const CliLspRecvCfg *args)
+{
+    CliPluginServer *const plugin = (CliPluginServer *)args->context;
+    if (cellul.eq(
+            &(CatenaFinitaCfg){.src = args->method, .other = "textDocument/publishDiagnostics", .cap = CLI_POOL_BYTES}))
+    {
+        cli_servers_recv(&(CliLspRecvCfg){.context = &plugin->sink,
+                                          .method = args->method,
+                                          .params = args->params,
+                                          .size = args->size,
+                                          .answer = args->answer});
+        return;
+    }
+    char request[64];
+    const int later = EMBED_CALL(cli_lsp.answer_later, CliLspCfg, .id = request, .capacity = sizeof(request));
+    const unsigned long long capacity = args->size + 512ULL;
+    char *const text = g_cli_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
+    VerbaLinea event = mmgr_line_over(text, (text != NULL) ? capacity : 0ULL);
+    mmgr_line_put(&event, "{\"plugin\":");
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &event,
+               .text_bytes = (const unsigned char *)plugin->id,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = plugin->id, .cap = CLI_NAME_MAX_LEN}));
+    mmgr_line_put(&event, ",\"method\":");
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &event,
+               .text_bytes = (const unsigned char *)args->method,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = args->method, .cap = CLI_POOL_BYTES}));
+    mmgr_line_put(&event, ",\"params\":");
+    mmgr_line_put_n(&event, args->params, args->size);
+    mmgr_line_put(&event, ",\"request\":");
+    mmgr_line_put(&event, later ? request : "null");
+    mmgr_line_put(&event, "}");
+    if ((plugin->sink.emit != NULL) && mmgr_line_ok(&event))
+    {
+        EMBED_CALL(plugin->sink.emit, CliEachEventJsonSizeCfg, .context = plugin->sink.context,
+                   .event = "plugin-server", .json = text, .size = event.at);
+    }
+    g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
+}
+
+// What one start of a plugin's server holds: the start's own arguments, the place that it takes, and whether its
+// server started
+typedef struct
+{
+    const CliServersRootSinkCfg *start;
+    unsigned int at;
+    int started;
+} PluginsStarting;
+
+// the languages of the plugin's `server` read into its place: each name, and its name in the protocol from `ids`
+static void plugins_languages_read(const CliJson *json, unsigned int server, CliPluginServer *plugin)
+{
+    const unsigned int languages = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                              .object = server, .name = "languages");
+    const unsigned int ids = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                        .object = server, .name = "ids");
+    plugin->languages = 0u;
+    unsigned int item = EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json,
+                                   .node = languages, .type = CFG_JSON_ARRAY)
+                            ? json->node[languages].first
+                            : CLI_JSON_NONE;
+    while ((item != CLI_JSON_NONE) && (plugin->languages < CLI_SERVERS_LANGUAGES))
+    {
+        const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = json, .node = item, .length_pointer = NULL);
+        const char *const named =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = (name != NULL) ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                           .json_read = json, .object = ids, .name = name)
+                                              : CLI_JSON_NONE,
+                       .length_pointer = NULL);
+        if (name != NULL)
+        {
+            (void)cellul.copy(
+                &(CatenaFinitaCfg){.dst = plugin->language[plugin->languages], .src = name, .cap = CLI_NAME_MAX_LEN});
+            (void)cellul.copy(&(CatenaFinitaCfg){.dst = plugin->named[plugin->languages],
+                                                 .src = (named != NULL) ? named : name,
+                                                 .cap = CLI_NAME_MAX_LEN});
+            plugin->languages += 1u;
+        }
+        item = json->node[item].next;
+    }
+}
+
+// The plugin's server started from its kept plugin.json, as cli_plugins_settings_of passes the plugin. Its toolchain
+// finds its program. Its first words come before the words of its `args`. The options take `{folder}` as
+// the program's folder
+static void plugins_started(const CliEachPluginCfg *args)
+{
+    PluginsStarting *const starting = (PluginsStarting *)args->context;
+    const CliServersRootSinkCfg *const start = starting->start;
+    const CliJson *const json = args->plugin->json;
+    const unsigned int server = EMBED_CALL(cli_plugins_setting_table.setting, CliPluginsSettingCfg, .json = json,
+                                           .node = args->plugin->root, .key = "server");
+    char program[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
+    if (server == CLI_JSON_NONE)
+    {
+        mmgr_line_put(start->err_msg, "the plugin's plugin.json names no server");
+        return;
+    }
+    if (!EMBED_CALL(cli_servers_err_msg_json_internal.plugin_program, CliServersErrMsgJsonCtx,
+                    .err_msg = start->err_msg, .json = json, .server_u32 = server, .program = program,
+                    .folder_out = folder))
+    {
+        return;
+    }
+    CliWords *const words = (CliWords *)g_cli_guard->temporary_buf_alloc(sizeof(CliWords), g_cli_servers_owner);
+    const unsigned long long capacity = (start->length * 2ULL) + CLI_PATH_MAX_LEN + 16ULL;
+    char *const options = g_cli_guard->temporary_buf_alloc(capacity, g_cli_servers_owner);
+    if ((words == NULL) || (options == NULL))
+    {
+        mmgr_line_put(start->err_msg, "no room to start the plugin's server");
+        g_cli_guard->persistent_buf_release(words, g_cli_servers_owner);
+        g_cli_guard->persistent_buf_release(options, g_cli_servers_owner);
+        return;
+    }
+    words->count = 0u;
+    words->used = 0u;
+    words->full = 0;
+    for (unsigned int at = 0u; at < start->firsts; at += 1u)
+    {
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
+                   .word_text = start->first_characters[at]);
+    }
+    EMBED_CALL(cli_servers_json_server_internal.plugin_args, CliServersJsonServerCtx, .json = json,
+               .server_u32 = server, .folder = folder, .words = words);
+    VerbaLinea optioned = mmgr_line_over(options, capacity);
+    EMBED_CALL(cli_servers_text_internal.plugin_folder_append, CliServersTextCtx, .written = &optioned,
+               .text = (start->options != NULL) ? start->options : "null",
+               .length = (start->options != NULL) ? start->length : 4ULL, .folder = folder, .escaped = 1);
+    CliPluginServer *const plugin = &s_plugin[starting->at];
+    (void)cellul.copy(&(CatenaFinitaCfg){.dst = plugin->id, .src = start->id, .cap = CLI_NAME_MAX_LEN});
+    plugins_languages_read(json, server, plugin);
+    plugin->sink = (start->sink != NULL) ? *start->sink : (CliServersSink){0};
+    CliLsp *const lsp =
+        (!words->full && mmgr_line_ok(&optioned))
+            ? EMBED_CALL(cli_lsp_err_msg.start, CliLspErrMsgCfg, .err_msg = start->err_msg, .program = program,
+                         .request = words->word_text, .count = words->count, .root = start->root, .options = options,
+                         .length = optioned.at, .recv = plugins_recv, .context = plugin, .overseen = start->id,
+                         .overseen_role = CLI_OVERSEER_SERVER)
+            : NULL;
+    plugin->lsp = lsp;
+    plugin->used = (lsp != NULL);
+    starting->started = (lsp != NULL);
+    g_cli_guard->persistent_buf_release(words, g_cli_servers_owner);
+    g_cli_guard->persistent_buf_release(options, g_cli_servers_owner);
+}
+
+int cli_servers_plugin_start(const CliServersRootSinkCfg *args)
+{
+    if (EMBED_CALL(plugins_position, ServersPluginsCtx, .id = args->id) < CLI_SERVERS_PLUGINS)
+    {
+        return 1;
+    }
+    unsigned int at = 0u;
+    while ((at < CLI_SERVERS_PLUGINS) && s_plugin[at].used)
+    {
+        at += 1u;
+    }
+    if (at == CLI_SERVERS_PLUGINS)
+    {
+        mmgr_line_put(args->err_msg, "the servers of too many plugins run");
+        return 0;
+    }
+    PluginsStarting starting = {args, at, 0};
+    (void)EMBED_CALL(cli_plugins_settings_of_table.of, CliPluginsSettingsOfCfg, .id = args->id, .each = plugins_started,
+                     .context = &starting);
+    return starting.started;
+}
+
+int cli_servers_plugin_answer(const CliServersErrMsgIdCfg *args)
+{
+    CliLsp *const lsp = EMBED_CALL(cli_servers_err_msg_server_internal.plugin_get, CliServersErrMsgServerCtx,
+                                   .id = args->id, .err_msg = args->err_msg);
+    const int done =
+        (lsp != NULL) && EMBED_CALL(cli_lsp_answered_table.answered, CliLspAnsweredCfg, .lsp = lsp, .id = args->request,
+                                    .result = args->result_text, .size = args->length, .err_msg = args->err_msg);
+    if (lsp != NULL)
+    {
+        EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = lsp);
+    }
+    return done;
+}
 
 void cli_servers_plugin_stop(const CliServersRootSinkCfg *args)
 {

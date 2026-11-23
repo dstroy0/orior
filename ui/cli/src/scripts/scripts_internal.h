@@ -32,6 +32,10 @@ int cli_scripts_path(const CliScriptsPathCtx *args);
 // thread of the server `lsp`. The call's result goes into `answer`, or `{"oriorError": why}`. A call that waits on the
 // reader's answer writes nothing, and its answer goes to `lsp` later (scripts_calls.c)
 void cli_scripts_call(const CliScriptsCallCtx *args);
+// The event `plugin-server` of a plugin's language server, `size` bytes of JSON {plugin, method, params, request}.
+// A worker thread takes it to the plugin's host, in the order that the events come. Other events go nowhere
+// (scripts_server.c)
+void cli_scripts_server_emit(const CliEachEventJsonSizeCfg *args);
 
 typedef struct
 {

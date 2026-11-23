@@ -6,8 +6,14 @@
 // waits. The window asks the reader, and the answer goes back to the host when the reader answers
 #include "../command_line/pool.h"
 #include "../servers/lsp.h"
+#include "../servers/servers.h"
 #include "../text/json_tree.h"
 #include "scripts_internal.h"
+
+// The most words that a server's start puts before the words of its plugin.json. Then how long a request to a
+// plugin's server waits for its answer, in milliseconds
+#define CLI_SCRIPTS_SERVER_WORDS 32u
+#define CLI_SCRIPTS_SERVER_WAIT_MS 30000ULL
 
 // The most calls that wait on the reader at once, and the most bytes of the params that one wait keeps. Then the most
 // bytes of a file that a call reads, and the right of an entry that needs no right
@@ -54,6 +60,7 @@ typedef struct
     const char *why;
     char *path_out;
     int may_wait;
+    int asks_answer;
 } ScriptsCallsCtx;
 
 // an answer of the error `why`, as the host rejects a call's promise with it
@@ -143,17 +150,150 @@ static void calls_files_write(const ScriptsCallsCtx *args)
     }
 }
 
-// One entry of the calls: its name, the right that it needs, and what it does
+// the JSON of the place `index` of the call's args written on `out`, null where the call has no such place
+EMBED_INLINE void calls_json(const ScriptsCallsCtx *args)
+{
+    const unsigned int node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                         .json_read = args->json, .array = args->args, .index = args->index);
+    if (node == CLI_JSON_NONE)
+    {
+        mmgr_line_put(args->answer, "null");
+        return;
+    }
+    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = args->json, .node = node,
+               .out = args->answer, .indent = 0u, .sorted = 0);
+}
+
+// A JSON argument of the call written into a cell of the call's own, with its bytes into `size`. The cell takes twice
+// the `size` bytes of the tree's texts, for the escapes that the writing adds. The cell, or NULL where no cell is free
+// or the writing does not fit. The caller gives the cell back
+static char *calls_json_alloc(const ScriptsCallsCtx *args, unsigned long long *size)
+{
+    const unsigned long long capacity = (args->size * 2ULL) + 64ULL;
+    char *const text = g_cli_guard->temporary_buf_alloc(capacity, g_cli_scripts_owner);
+    VerbaLinea written = mmgr_line_over(text, (text != NULL) ? capacity : 0ULL);
+    EMBED_CALL(calls_json, ScriptsCallsCtx, .json = args->json, .args = args->args, .index = args->index,
+               .answer = &written);
+    *size = mmgr_line_ok(&written) ? written.at : 0ULL;
+    if ((text != NULL) && !mmgr_line_ok(&written))
+    {
+        g_cli_guard->persistent_buf_release(text, g_cli_scripts_owner);
+        return NULL;
+    }
+    return text;
+}
+
+// server.start(options, words): the plugin's server started at the tree's top, with the JSON `options` as its first
+// options. The strings of `words` come before the words of its plugin.json. Its messages go to the plugin's host
+static void calls_server_start(const ScriptsCallsCtx *args)
+{
+    unsigned long long length = 0ULL;
+    char *const options = calls_json_alloc(
+        &(ScriptsCallsCtx){.json = args->json, .args = args->args, .index = 0u, .size = args->json->used}, &length);
+    const unsigned int words = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = args->json, .array = args->args, .index = 1u);
+    const char *first[CLI_SCRIPTS_SERVER_WORDS];
+    unsigned int firsts = 0u;
+    while ((firsts < CLI_SCRIPTS_SERVER_WORDS) &&
+           ((first[firsts] =
+                 EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
+                            .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                               .json_read = args->json, .array = words, .index = firsts),
+                            .length_pointer = NULL)) != NULL))
+    {
+        firsts += 1u;
+    }
+    CliServersSink sink = cli_servers_problems_sink(&(CliServersProblemsCfg){.root = s_rooted ? s_root : NULL});
+    sink.emit = cli_scripts_server_emit;
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    const int started = s_rooted && (options != NULL) &&
+                        EMBED_CALL(cli_servers_plugin_start_table.plugin_start, CliServersRootSinkCfg, .root = s_root,
+                                   .sink = &sink, .err_msg = &err_msg, .id = args->id, .options = options,
+                                   .length = length, .first_characters = first, .firsts = firsts);
+    g_cli_guard->persistent_buf_release(options, g_cli_scripts_owner);
+    (void)mmgr_line_finish(&err_msg);
+    if (started)
+    {
+        mmgr_line_put(args->answer, "null");
+        return;
+    }
+    EMBED_CALL(calls_refused, ScriptsCallsCtx, .answer = args->answer, .why = !s_rooted ? "no tree is open" : why);
+}
+
+// server.stop(): the plugin's server stopped, where it runs
+static void calls_server_stop(const ScriptsCallsCtx *args)
+{
+    EMBED_CALL(cli_servers_root_sink.plugin_stop, CliServersRootSinkCfg, .id = args->id);
+    mmgr_line_put(args->answer, "null");
+}
+
+// server.request(method, params) and server.notify(method, params): a request to the plugin's server, its result the
+// call's answer, or a notification, null after
+EMBED_INLINE void calls_server_sent(const ScriptsCallsCtx *args)
+{
+    const char *const method =
+        EMBED_CALL(calls_string, ScriptsCallsCtx, .json = args->json, .args = args->args, .index = 0u);
+    unsigned long long length = 0ULL;
+    char *const params = calls_json_alloc(
+        &(ScriptsCallsCtx){.json = args->json, .args = args->args, .index = 1u, .size = args->json->used}, &length);
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    const unsigned long long before = args->answer->at;
+    const int sent =
+        (method != NULL) && (params != NULL) &&
+        (args->asks_answer ? EMBED_CALL(cli_servers_err_msg.plugin_request, CliServersErrMsgCfg, .err_msg = &err_msg,
+                                        .id = args->id, .length = length, .method = method, .params = params,
+                                        .wait = CLI_SCRIPTS_SERVER_WAIT_MS, .result = args->answer)
+                           : EMBED_CALL(cli_servers_err_msg.plugin_notify, CliServersErrMsgCfg, .err_msg = &err_msg,
+                                        .id = args->id, .length = length, .method = method, .params = params));
+    g_cli_guard->persistent_buf_release(params, g_cli_scripts_owner);
+    (void)mmgr_line_finish(&err_msg);
+    if (sent && args->asks_answer && (args->answer->at == before))
+    {
+        mmgr_line_put(args->answer, "null");
+    }
+    else if (sent && !args->asks_answer)
+    {
+        mmgr_line_put(args->answer, "null");
+    }
+    else if (!sent)
+    {
+        args->answer->at = before;
+        EMBED_CALL(calls_refused, ScriptsCallsCtx, .answer = args->answer,
+                   .why = (method == NULL) ? "the call names no method" : why);
+    }
+}
+
+static void calls_server_request(const ScriptsCallsCtx *args)
+{
+    EMBED_CALL(calls_server_sent, ScriptsCallsCtx, .id = args->id, .json = args->json, .args = args->args,
+               .answer = args->answer, .asks_answer = 1);
+}
+
+static void calls_server_notify(const ScriptsCallsCtx *args)
+{
+    EMBED_CALL(calls_server_sent, ScriptsCallsCtx, .id = args->id, .json = args->json, .args = args->args,
+               .answer = args->answer, .asks_answer = 0);
+}
+
+// One entry of the calls: its name, the right that it needs, and what it does. An entry that waits on a server runs
+// on a thread of its own, and its answer goes to the host later
 typedef struct
 {
     const char *name;
     unsigned int right;
     void (*run)(const ScriptsCallsCtx *args);
+    int later;
 } ScriptsCallEntry;
 
 static const ScriptsCallEntry s_calls[] = {
-    {"files.read", CLI_SCRIPTS_READS, calls_files_read},
-    {"files.write", CLI_SCRIPTS_WRITES, calls_files_write},
+    {"files.read", CLI_SCRIPTS_READS, calls_files_read, 0},
+    {"files.write", CLI_SCRIPTS_WRITES, calls_files_write, 0},
+    {"server.start", CLI_SCRIPTS_NO_RIGHT, calls_server_start, 1},
+    {"server.stop", CLI_SCRIPTS_NO_RIGHT, calls_server_stop, 0},
+    {"server.request", CLI_SCRIPTS_NO_RIGHT, calls_server_request, 1},
+    {"server.notify", CLI_SCRIPTS_NO_RIGHT, calls_server_notify, 0},
 };
 
 // the call kept until the reader answers the right `right`: its params copied, the server kept, and the request left
@@ -196,6 +336,59 @@ EMBED_INLINE int calls_held(const ScriptsCallsCtx *args)
     {
         g_cli_guard->persistent_buf_release(params, g_cli_scripts_owner);
         return 0;
+    }
+    return 1;
+}
+
+// One call that runs on a thread of its own: the thread, the call's plugin, and the server that waits on its answer.
+// Then the request's id as JSON, and the call's params in the cell of the record
+typedef struct
+{
+    CliThread thread;
+    char id[CLI_NAME_MAX_LEN];
+    CliLsp *lsp;
+    char request[64];
+    unsigned long long size;
+    char params[];
+} ScriptsLater;
+
+static void calls_later_run(void *context);
+
+// the call run on a thread of its own: its params copied, the server kept, and the request left unanswered. 1, or 0
+// where the call cannot wait, and the caller runs it at once
+EMBED_INLINE int calls_later(const ScriptsCallsCtx *args)
+{
+    char request[64];
+    if ((args->lsp == NULL) || !EMBED_CALL(cli_lsp.answer_later, CliLspCfg, .id = request, .capacity = sizeof(request)))
+    {
+        return 0;
+    }
+    static const char s_no_room[] = "{\"oriorError\":\"no room for the call\"}";
+    static const char s_no_thread[] = "{\"oriorError\":\"no thread for the call\"}";
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    ScriptsLater *const later = (ScriptsLater *)g_cli_guard->persistent_buf_alloc(
+        sizeof(ScriptsLater) + args->size + 1ULL, g_cli_scripts_owner);
+    if (later == NULL)
+    {
+        (void)EMBED_CALL(cli_lsp_answered_table.answered, CliLspAnsweredCfg, .lsp = args->lsp, .id = request,
+                         .result = s_no_room, .size = sizeof(s_no_room) - 1u, .err_msg = &err_msg);
+        return 1;
+    }
+    (void)cellul.copy(&(CatenaFinitaCfg){.dst = later->id, .src = args->id, .cap = CLI_NAME_MAX_LEN});
+    (void)cellul.copy(&(CatenaFinitaCfg){.dst = later->request, .src = request, .cap = sizeof(later->request)});
+    later->lsp = args->lsp;
+    later->size = args->size;
+    memor.cpy(&(MemoriaCfg){.dst = later->params, .src = args->params, .bytes = (embed_word)args->size});
+    later->params[args->size] = '\0';
+    later->thread = (CliThread){calls_later_run, later, 0u};
+    EMBED_CALL(cli_lsp_context.ref, CliLspContextCfg, .lsp = args->lsp);
+    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &later->thread))
+    {
+        EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = args->lsp);
+        g_cli_guard->persistent_buf_release(later, g_cli_scripts_owner);
+        (void)EMBED_CALL(cli_lsp_answered_table.answered, CliLspAnsweredCfg, .lsp = args->lsp, .id = request,
+                         .result = s_no_thread, .size = sizeof(s_no_thread) - 1u, .err_msg = &err_msg);
     }
     return 1;
 }
@@ -261,6 +454,12 @@ EMBED_INLINE int calls_run(const ScriptsCallsCtx *args)
             return 1;
         }
     }
+    if (s_calls[at].later && args->may_wait &&
+        EMBED_CALL(calls_later, ScriptsCallsCtx, .id = args->id, .lsp = args->lsp, .params = args->params,
+                   .size = args->size))
+    {
+        return 0;
+    }
     EMBED_CALL(s_calls[at].run, ScriptsCallsCtx, .id = args->id, .json = args->json, .args = call_args,
                .answer = args->answer);
     return 1;
@@ -287,6 +486,23 @@ EMBED_INLINE int calls_read_run(const ScriptsCallsCtx *args)
                    .size = args->size, .answer = args->answer, .json = &json, .root = root, .may_wait = args->may_wait);
     g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
     return answered;
+}
+
+// the thread of one call: the call run, its answer sent to the server that waits on it, and the record given back
+static void calls_later_run(void *context)
+{
+    ScriptsLater *const later = (ScriptsLater *)context;
+    char *const answer_text = g_cli_guard->temporary_buf_alloc(CLI_LSP_ANSWERED, g_cli_scripts_owner);
+    VerbaLinea answer = mmgr_line_over(answer_text, (answer_text != NULL) ? CLI_LSP_ANSWERED : 0ULL);
+    (void)EMBED_CALL(calls_read_run, ScriptsCallsCtx, .id = later->id, .lsp = later->lsp, .params = later->params,
+                     .size = later->size, .answer = &answer, .may_wait = 0);
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    (void)EMBED_CALL(cli_lsp_answered_table.answered, CliLspAnsweredCfg, .lsp = later->lsp, .id = later->request,
+                     .result = answer_text, .size = mmgr_line_ok(&answer) ? answer.at : 0ULL, .err_msg = &err_msg);
+    EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = later->lsp);
+    g_cli_guard->persistent_buf_release(answer_text, g_cli_scripts_owner);
+    g_cli_guard->persistent_buf_release(later, g_cli_scripts_owner);
 }
 
 void cli_scripts_call(const CliScriptsCallCtx *args)

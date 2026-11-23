@@ -315,9 +315,11 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args);
 // Then a request sent to it, with a wait of up to `wait` milliseconds for its answer into `result`. Then a
 // notification sent to it. Last, an answer to a request it sent, of the id `request` the window got, with `length`
 // bytes of JSON `result`. Each 1, or 0 with why (servers_plugins.c)
+int cli_servers_plugin_start(const CliServersRootSinkCfg *args);
 void cli_servers_plugin_stop(const CliServersRootSinkCfg *args);
 int cli_servers_plugin_request(const CliServersErrMsgCfg *args);
 int cli_servers_plugin_notify(const CliServersErrMsgCfg *args);
+int cli_servers_plugin_answer(const CliServersErrMsgIdCfg *args);
 // The text of a file that the editor has open goes into `out` a window at a time. The measure writes the bytes of that
 // text into `size`. Each returns 1, or 0 where the editor has no text of the file
 int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args);
@@ -605,6 +607,24 @@ EMBED_TABLE_LAYOUT(CliServersErrMsgNs, plugin_request, plugin_notify);
 EMBED_TABLE_STORAGE CliServersErrMsgNs cli_servers_err_msg EMBED_UNUSED = {
     .plugin_request = cli_servers_plugin_request,
     .plugin_notify = cli_servers_plugin_notify,
+};
+
+typedef struct
+{
+    int (*plugin_start)(const CliServersRootSinkCfg *args);
+} CliServersPluginStartNs;
+EMBED_TABLE_LAYOUT(CliServersPluginStartNs, plugin_start);
+EMBED_TABLE_STORAGE CliServersPluginStartNs cli_servers_plugin_start_table EMBED_UNUSED = {
+    .plugin_start = cli_servers_plugin_start,
+};
+
+typedef struct
+{
+    int (*plugin_answer)(const CliServersErrMsgIdCfg *args);
+} CliServersErrMsgIdNs;
+EMBED_TABLE_LAYOUT(CliServersErrMsgIdNs, plugin_answer);
+EMBED_TABLE_STORAGE CliServersErrMsgIdNs cli_servers_err_msg_id EMBED_UNUSED = {
+    .plugin_answer = cli_servers_plugin_answer,
 };
 
 typedef struct
