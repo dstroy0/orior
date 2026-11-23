@@ -1,6 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_plane_arith.cu: exact arithmetic, shapes and orders
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "pi_plane_internal.h"
 
 static int s_plane_error = 0;
@@ -64,7 +66,7 @@ static OriorExactInteger plane_quotient(const OriorExactInteger &numerator, cons
     return quotient;
 }
 
-// 2^bits . arctan(1 / x) within terms + 1: the alternating series, each term floored
+// 2^bits . arctan(1 / x) within terms + 1: the series with signs in turn, each term floored
 static OriorExactInteger plane_arctan(unsigned long long x, unsigned int bits, unsigned long long *terms)
 {
     const OriorExactInteger square = plane_exact_unsigned(x * x);
@@ -83,8 +85,9 @@ static OriorExactInteger plane_arctan(unsigned long long x, unsigned int bits, u
     return total;
 }
 
-// the bits of pi - 3 after the point, most significant first, where Machin's bracket agrees on all of them
-int plane_bits(SimResults *results, unsigned int count, std::vector<unsigned char> *bits)
+// the bits of pi - 3 after the point, most significant first, into the `count` bytes at `bits`, where Machin's
+// bracket agrees on all of them
+int plane_bits(SimResults *results, unsigned int count, unsigned char *bits)
 {
     const unsigned int precision = count + PLANE_GUARD;
     unsigned long long fifth_terms = 0ULL;
@@ -92,31 +95,29 @@ int plane_bits(SimResults *results, unsigned int count, std::vector<unsigned cha
     const OriorExactInteger fifth = plane_arctan(5ULL, precision, &fifth_terms);
     const OriorExactInteger far = plane_arctan(239ULL, precision, &far_terms);
     const OriorExactInteger middle = plane_difference(plane_product(fifth, plane_exact_unsigned(16ULL)),
-                                                       plane_product(far, plane_exact_unsigned(4ULL)));
-    const OriorExactInteger spread =
-        plane_exact_unsigned((16ULL * (fifth_terms + 1ULL)) + (4ULL * (far_terms + 1ULL)));
+                                                      plane_product(far, plane_exact_unsigned(4ULL)));
+    const OriorExactInteger spread = plane_exact_unsigned((16ULL * (fifth_terms + 1ULL)) + (4ULL * (far_terms + 1ULL)));
     const OriorExactInteger guard = plane_power_two(PLANE_GUARD);
     const OriorExactInteger below = plane_quotient(plane_difference(middle, spread), guard);
     const OriorExactInteger above = plane_quotient(plane_sum(middle, spread), guard);
     const int agree = (s_plane_error == 0) && (orior_exact_compare(&below, &above) == 0);
     const OriorExactInteger turn =
         plane_difference(below, plane_product(plane_exact_unsigned(3ULL), plane_power_two(count)));
-    bits->assign(count, 0u);
     for (unsigned int place = 1u; place <= count; place += 1u)
     {
         const unsigned int bit = count - place;
         // one bit of a 32-bit limb, taken from the bottom after the shift
-        (*bits)[place - 1u] = (unsigned char)((turn.limb[bit / 32u] >> (bit % 32u)) & 1u);
+        bits[place - 1u] = (unsigned char)((turn.limb[bit / 32u] >> (bit % 32u)) & 1u);
     }
     unsigned long long leading = 0ULL;
     for (unsigned int place = 0u; place < 64u; place += 1u)
     {
-        leading = (leading << 1u) | (unsigned long long)(*bits)[place];
+        leading = (leading << 1u) | (unsigned long long)bits[place];
     }
     unsigned long long ones = 0ULL;
     for (unsigned int place = 0u; place < count; place += 1u)
     {
-        ones += (unsigned long long)(*bits)[place];
+        ones += (unsigned long long)bits[place];
     }
     VerbaLinea *const line = &results->line;
     mmgr_line_put(line, "  pi by Machin's formula at ");
@@ -133,27 +134,80 @@ int plane_bits(SimResults *results, unsigned int count, std::vector<unsigned cha
     return agree && (leading == PLANE_PUBLISHED_BITS);
 }
 
-// the shape's pixels from each bit's place; 0 where two bits land on one pixel
-int plane_extent_place(PlaneExtent *extent, const std::string &name, const std::vector<long long> &rows,
-                       const std::vector<long long> &columns)
+// the run ended with `why`, as a table passes its bound or the pool gives no cell
+void plane_refused(const char *why)
 {
-    extent->name = name;
+    static const char s_head[] = "pi_plane: ";
+    platform_terminal_write(1, s_head, (unsigned long long)(sizeof(s_head) - 1u));
+    platform_terminal_write(
+        1, why,
+        (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = why, .cap = PLATFORM_TEXT_TO_TERMINATOR));
+    platform_terminal_write(1, "\n", 1ULL);
+    platform_process_ended(2);
+}
+
+// A cell of `count` elements of `size` bytes, on the temporary tier where `ephemeral` is 1 and on the persistent tier
+// where it is 0. The run ends where the pool gives no cell [RETURNS OWNERSHIP]
+void *plane_taken(unsigned long long count, unsigned long long size, int ephemeral)
+{
+    void *const cell = platform_cell_taken(count * size, (unsigned int)platform_place_g_program_owner, ephemeral);
+    if ((cell == NULL) && ((count * size) != 0ULL))
+    {
+        plane_refused("the pool gave no cell");
+    }
+    return cell;
+}
+
+// a cell that plane_taken gave, given back [TAKES OWNERSHIP]
+void plane_given(void *cell)
+{
+    platform_cell_released(cell, (unsigned int)platform_place_g_program_owner);
+}
+
+// the cells of a shape given back [TAKES OWNERSHIP]
+void plane_extent_given(PlaneExtent *extent)
+{
+    plane_given(extent->cell);
+    extent->cell = NULL;
+    extent->cell_count = 0u;
+}
+
+// the name of a shape, terminated, which the run ends on where it passes the room
+void plane_name_set(PlaneExtent *extent, const char *name)
+{
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    if (length >= PLANE_NAME_BYTES)
+    {
+        plane_refused("the name of a shape passes its room");
+    }
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = extent->name, .src = name, .bytes = length + 1u);
+}
+
+// the shape's pixels from the place of each of `count` bits; 0 where two bits land on one pixel
+int plane_extent_place(PlaneExtent *extent, const char *name, const long long *rows, const long long *columns,
+                       size_t count)
+{
+    plane_name_set(extent, name);
     long long top = rows[0];
     long long bottom = rows[0];
     long long left = columns[0];
     long long right = columns[0];
-    for (size_t bit = 1u; bit < rows.size(); bit += 1u)
+    for (size_t bit = 1u; bit < count; bit += 1u)
     {
-        top = std::min(top, rows[bit]);
-        bottom = std::max(bottom, rows[bit]);
-        left = std::min(left, columns[bit]);
-        right = std::max(right, columns[bit]);
+        top = (rows[bit] < top) ? rows[bit] : top;
+        bottom = (rows[bit] > bottom) ? rows[bit] : bottom;
+        left = (columns[bit] < left) ? columns[bit] : left;
+        right = (columns[bit] > right) ? columns[bit] : right;
     }
     // both spans are at least one and below the bit count. They widen to unsigned exactly
     extent->height = (unsigned long long)(bottom - top + 1LL);
     extent->width = (unsigned long long)(right - left + 1LL);
-    extent->cell.assign((size_t)(extent->height * extent->width), -1LL);
-    for (size_t bit = 0u; bit < rows.size(); bit += 1u)
+    extent->cell_count = (size_t)(extent->height * extent->width);
+    extent->cell = (long long *)plane_taken(extent->cell_count, sizeof(long long), 0);
+    // every byte 0xFF makes every cell -1
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = extent->cell, .bytes = extent->cell_count * sizeof(long long),
+               .val = 0xFFu);
+    for (size_t bit = 0u; bit < count; bit += 1u)
     {
         // the offsets from the top left corner are never negative
         const size_t index =
@@ -170,22 +224,30 @@ int plane_extent_place(PlaneExtent *extent, const std::string &name, const std::
 
 int plane_rows(PlaneExtent *extent, unsigned int count, unsigned long long width)
 {
-    std::vector<long long> rows(count);
-    std::vector<long long> columns(count);
+    long long *const rows = (long long *)plane_taken(count, sizeof(long long), 1);
+    long long *const columns = (long long *)plane_taken(count, sizeof(long long), 1);
     for (unsigned int bit = 0u; bit < count; bit += 1u)
     {
         // the row and column are below the bit count. They fit a signed word
         rows[bit] = (long long)(bit / width);
         columns[bit] = (long long)(bit % width);
     }
-    return plane_extent_place(extent, "rows_" + std::to_string(width), rows, columns);
+    char name[PLANE_NAME_BYTES];
+    VerbaLinea line = mmgr_line_over(name, sizeof(name));
+    mmgr_line_put(&line, "rows_");
+    mmgr_line_decimal(&line, width, 1u);
+    (void)mmgr_line_finish(&line);
+    const int placed = plane_extent_place(extent, name, rows, columns, count);
+    plane_given(columns);
+    plane_given(rows);
+    return placed;
 }
 
 // row k stores k + 1 bits, left aligned
 int plane_tower(PlaneExtent *extent, unsigned int count)
 {
-    std::vector<long long> rows(count);
-    std::vector<long long> columns(count);
+    long long *const rows = (long long *)plane_taken(count, sizeof(long long), 1);
+    long long *const columns = (long long *)plane_taken(count, sizeof(long long), 1);
     long long row = 0LL;
     long long start = 0LL;
     for (unsigned int bit = 0u; bit < count; bit += 1u)
@@ -199,7 +261,10 @@ int plane_tower(PlaneExtent *extent, unsigned int count)
         // the bit's index is below 2^15. It fits a signed word
         columns[bit] = (long long)bit - start;
     }
-    return plane_extent_place(extent, "tower", rows, columns);
+    const int placed = plane_extent_place(extent, "tower", rows, columns, count);
+    plane_given(columns);
+    plane_given(rows);
+    return placed;
 }
 
 int plane_half(const PlanePoint &point)
@@ -207,29 +272,36 @@ int plane_half(const PlanePoint &point)
     return (point.y < 0LL) || ((point.y == 0LL) && (point.x < 0LL));
 }
 
-// by the square of the radius, then counterclockwise from the positive x axis, in integers
-bool plane_ring_before(const PlanePoint &left, const PlanePoint &right)
+// By the square of the radius, then counterclockwise from the positive x axis, in integers. Two points tie only where
+// they are one point
+int plane_ring_order(const void *left_point, const void *right_point)
 {
+    const PlanePoint &left = *(const PlanePoint *)left_point;
+    const PlanePoint &right = *(const PlanePoint *)right_point;
     const long long left_radius = (left.x * left.x) + (left.y * left.y);
     const long long right_radius = (right.x * right.x) + (right.y * right.y);
     if (left_radius != right_radius)
     {
-        return left_radius < right_radius;
+        return (left_radius < right_radius) ? -1 : 1;
     }
     const int left_half = plane_half(left);
     const int right_half = plane_half(right);
     if (left_half != right_half)
     {
-        return left_half < right_half;
+        return (left_half < right_half) ? -1 : 1;
     }
-    return ((left.x * right.y) - (left.y * right.x)) > 0LL;
+    const long long cross = (left.x * right.y) - (left.y * right.x);
+    return (cross > 0LL) ? -1 : ((cross < 0LL) ? 1 : 0);
 }
 
-bool plane_raster_before(const PlanePoint &left, const PlanePoint &right)
+// the rows from the top, each from the left
+int plane_raster_order(const void *left_point, const void *right_point)
 {
+    const PlanePoint &left = *(const PlanePoint *)left_point;
+    const PlanePoint &right = *(const PlanePoint *)right_point;
     if (left.y != right.y)
     {
-        return left.y > right.y;
+        return (left.y > right.y) ? -1 : 1;
     }
-    return left.x < right.x;
+    return (left.x < right.x) ? -1 : ((left.x > right.x) ? 1 : 0);
 }

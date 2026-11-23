@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_plane_lag.cu: lag, spread and depth
+#include "memoria_operor/memoria_operor.h"
 #include "pi_plane_internal.h"
 
 // the longest run of equal bits along the progressions of difference lag, one thread a lag, the bits in shared memory
@@ -85,40 +86,46 @@ unsigned int plane_lag_max(const unsigned int *longest, unsigned int count, unsi
     return best;
 }
 
-// the spread of the ones over 2^scale classes of the bits' index, sum over the classes of (2 ones - size)^2. By
+// The spread of the ones over 2^scale classes of the bits' index, sum over the classes of (2 ones - size)^2. By
 // residue, a class is one place on every arm of the twindragon; by block, it is one whole sub-dragon.
 unsigned long long plane_spread(const unsigned char *bits, unsigned int count, unsigned int scale, int by_block)
 {
+    // the ones of each class, for every scale to PLANE_SCALES
+    static long long s_ones[1u << PLANE_SCALES];
     const unsigned int classes = 1u << scale;
     const unsigned int size = count / classes;
-    std::vector<long long> ones(classes, 0LL);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = s_ones, .bytes = classes * sizeof(long long), .val = 0u);
     for (unsigned int bit = 0u; bit < classes * size; bit += 1u)
     {
         const unsigned int place = (by_block != 0) ? (bit / size) : (bit % classes);
-        ones[place] += (long long)bits[bit];
+        s_ones[place] += (long long)bits[bit];
     }
     unsigned long long spread = 0ULL;
     for (unsigned int place = 0u; place < classes; place += 1u)
     {
         // the size is below 2^15. It fits a signed word
-        const long long excess = (2LL * ones[place]) - (long long)size;
+        const long long excess = (2LL * s_ones[place]) - (long long)size;
         // a square is never negative
         spread += (unsigned long long)(excess * excess);
     }
     return spread;
 }
 
-// each pixel's depth, the fewest steps to a pixel no bit lands on or past the shape's edge, stepping to the four
-// neighbors; 1 on the edge, and PLANE_DEPTHS for that depth and deeper. 0 where no bit lands.
-std::vector<unsigned int> plane_depth(const PlaneExtent &extent)
+// Each pixel's depth into `depth`, one for each cell of the shape. The depth is the fewest steps to the four
+// neighbors that reach a pixel no bit lands on, or the shape's edge. It is 1 on the edge, and PLANE_DEPTHS for that
+// depth and deeper. It is 0 where no bit lands.
+void plane_depth(const PlaneExtent &extent, unsigned int *depth)
 {
     // the extents are below 2^16. They fit a signed word
     const long long height = (long long)extent.height;
     const long long width = (long long)extent.width;
     const long long step_row[4] = {-1LL, 1LL, 0LL, 0LL};
     const long long step_column[4] = {0LL, 0LL, -1LL, 1LL};
-    std::vector<unsigned int> depth(extent.cell.size(), 0u);
-    std::vector<long long> frontier;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = depth, .bytes = extent.cell_count * sizeof(unsigned int), .val = 0u);
+    // the cells of one level and of the next, each in a cell of the temporary tier: a cell is on one level alone
+    long long *frontier = (long long *)plane_taken(extent.cell_count, sizeof(long long), 1);
+    long long *next = (long long *)plane_taken(extent.cell_count, sizeof(long long), 1);
+    size_t frontier_count = 0u;
     for (long long row = 0LL; row < height; row += 1LL)
     {
         for (long long column = 0LL; column < width; column += 1LL)
@@ -138,15 +145,17 @@ std::vector<unsigned int> plane_depth(const PlaneExtent &extent)
             {
                 depth[index] = 1u;
                 // the index is below 2^31. It fits a signed word
-                frontier.push_back((long long)index);
+                frontier[frontier_count] = (long long)index;
+                frontier_count += 1u;
             }
         }
     }
-    for (unsigned int level = 2u; !frontier.empty(); level += 1u)
+    for (unsigned int level = 2u; frontier_count != 0u; level += 1u)
     {
-        std::vector<long long> next;
-        for (const long long index : frontier)
+        size_t next_count = 0u;
+        for (size_t at = 0u; at < frontier_count; at += 1u)
         {
+            const long long index = frontier[at];
             const long long row = index / width;
             const long long column = index % width;
             for (unsigned int neighbor = 0u; neighbor < 4u; neighbor += 1u)
@@ -163,29 +172,34 @@ std::vector<unsigned int> plane_depth(const PlaneExtent &extent)
                 {
                     depth[near] = level;
                     // the index is below 2^31. It fits a signed word
-                    next.push_back((long long)near);
+                    next[next_count] = (long long)near;
+                    next_count += 1u;
                 }
             }
         }
-        frontier.swap(next);
+        long long *const swapped = frontier;
+        frontier = next;
+        next = swapped;
+        frontier_count = next_count;
     }
-    for (unsigned int &each : depth)
+    plane_given(next);
+    plane_given(frontier);
+    for (size_t index = 0u; index < extent.cell_count; index += 1u)
     {
-        each = std::min(each, PLANE_DEPTHS);
+        depth[index] = (depth[index] < PLANE_DEPTHS) ? depth[index] : PLANE_DEPTHS;
     }
-    return depth;
 }
 
 // the ones at each depth, and their spread over the depths, sum over the depths of (2 ones - size)^2
-unsigned long long plane_depth_spread(const PlaneExtent &extent, const std::vector<unsigned int> &depth,
-                                      const unsigned char *bits, unsigned long long *ones, unsigned long long *sizes)
+unsigned long long plane_depth_spread(const PlaneExtent &extent, const unsigned int *depth, const unsigned char *bits,
+                                      unsigned long long *ones, unsigned long long *sizes)
 {
     for (unsigned int level = 0u; level <= PLANE_DEPTHS; level += 1u)
     {
         ones[level] = 0ULL;
         sizes[level] = 0ULL;
     }
-    for (size_t index = 0u; index < extent.cell.size(); index += 1u)
+    for (size_t index = 0u; index < extent.cell_count; index += 1u)
     {
         if (extent.cell[index] >= 0LL)
         {

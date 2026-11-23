@@ -1,47 +1,70 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pi_plane_rings.cu: rings, turns and spirals
+#include "memoria_operor/memoria_operor.h"
 #include "pi_plane_internal.h"
 
 // ring k contains floor(pi 2^k) bits, floor(pi 2^(k + 1)) = 2 floor(pi 2^k) + pi's bit k + 1; the rings that fit max
-std::vector<unsigned long long> plane_ring_sizes(const std::vector<unsigned char> &bits, unsigned long long max)
+void plane_ring_sizes(const unsigned char *bits, size_t count, unsigned long long max, PlaneRings *rings)
 {
-    std::vector<unsigned long long> sizes;
+    rings->count = 0u;
     unsigned long long size = 3ULL;
     unsigned long long total = 0ULL;
-    for (size_t level = 0u; (level < bits.size()) && (total + size <= max); level += 1u)
+    for (size_t level = 0u; (level < count) && (total + size <= max); level += 1u)
     {
-        sizes.push_back(size);
+        if (rings->count == PLANE_RINGS_MAX)
+        {
+            plane_refused("the rings pass their table");
+        }
+        rings->size[rings->count] = size;
+        rings->count += 1u;
         total += size;
         size = (2ULL * size) + (unsigned long long)bits[level];
     }
-    return sizes;
 }
 
-unsigned long long plane_ring_total(const std::vector<unsigned long long> &sizes)
+unsigned long long plane_ring_total(const PlaneRings *rings)
 {
     unsigned long long total = 0ULL;
-    for (const unsigned long long size : sizes)
+    for (size_t ring = 0u; ring < rings->count; ring += 1u)
     {
-        total += size;
+        total += rings->size[ring];
     }
     return total;
 }
 
-// each bit against its parent, the bit at the same angle one ring in, place floor(j c_(k - 1) / c_k): how many agree,
-// and the longest chain of equal bits running outward
-PlaneRingMeasurement plane_ring_read(const std::vector<unsigned long long> &sizes, const unsigned char *bits)
+// the largest ring
+static unsigned long long plane_ring_largest(const PlaneRings *rings)
+{
+    unsigned long long largest = 0ULL;
+    for (size_t ring = 0u; ring < rings->count; ring += 1u)
+    {
+        largest = (rings->size[ring] > largest) ? rings->size[ring] : largest;
+    }
+    return largest;
+}
+
+// Each bit against its parent, the bit at the same angle one ring in, place floor(j c_(k - 1) / c_k). The answer is
+// how many agree, and the longest chain of equal bits that runs outward
+PlaneRingMeasurement plane_ring_read(const PlaneRings *rings, const unsigned char *bits)
 {
     PlaneRingMeasurement measurement = {0ULL, 0ULL, 1ULL, 0ULL, 0ULL};
-    std::vector<unsigned long long> previous_run;
+    // the chains that end on one ring and on the ring before it, in two cells of the temporary tier at the largest
+    const unsigned long long largest = plane_ring_largest(rings);
+    unsigned long long *previous_run = (unsigned long long *)plane_taken(largest, sizeof(unsigned long long), 1);
+    unsigned long long *run = (unsigned long long *)plane_taken(largest, sizeof(unsigned long long), 1);
     unsigned long long start = 0ULL;
     unsigned long long previous_start = 0ULL;
-    for (size_t ring = 0u; ring < sizes.size(); ring += 1u)
+    for (size_t ring = 0u; ring < rings->count; ring += 1u)
     {
-        std::vector<unsigned long long> run((size_t)sizes[ring], 1ULL);
-        for (unsigned long long place = 0ULL; (ring > 0u) && (place < sizes[ring]); place += 1ULL)
+        const unsigned long long size = rings->size[ring];
+        for (unsigned long long place = 0ULL; place < size; place += 1ULL)
         {
-            const unsigned long long parent = (place * sizes[ring - 1u]) / sizes[ring];
+            run[(size_t)place] = 1ULL;
+        }
+        for (unsigned long long place = 0ULL; (ring > 0u) && (place < size); place += 1ULL)
+        {
+            const unsigned long long parent = (place * rings->size[ring - 1u]) / size;
             const int same = bits[start + place] == bits[previous_start + parent];
             measurement.pairs += 1ULL;
             measurement.agree += same ? 1ULL : 0ULL;
@@ -53,29 +76,38 @@ PlaneRingMeasurement plane_ring_read(const std::vector<unsigned long long> &size
                 measurement.run_place = place;
             }
         }
-        previous_run.swap(run);
+        unsigned long long *const swapped = previous_run;
+        previous_run = run;
+        run = swapped;
         previous_start = start;
-        start += sizes[ring];
+        start += size;
     }
+    plane_given(run);
+    plane_given(previous_run);
     return measurement;
 }
 
 // the rings unrolled, ring k row k, bit j across [j W / c_k, (j + 1) W / c_k), each pixel the share of ones on it
-int plane_ring_unrolled(const std::vector<unsigned long long> &sizes, const unsigned char *bits,
-                        const std::string &path)
+int plane_ring_unrolled(const PlaneRings *rings, const unsigned char *bits, const char *path)
 {
     const unsigned long long width = PLANE_RING_UNROLLED_WIDTH;
-    const unsigned long long height = sizes.size() * PLANE_RING_ROW;
-    std::vector<unsigned char> pixels((size_t)(width * height), (unsigned char)PLANE_EMPTY_SHADE);
+    const unsigned long long height = rings->count * PLANE_RING_ROW;
+    unsigned char *const pixels = (unsigned char *)plane_taken(width * height, 1u, 1);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = pixels, .bytes = (size_t)(width * height), .val = PLANE_EMPTY_SHADE);
+    unsigned long long *const ones = (unsigned long long *)plane_taken(width, sizeof(unsigned long long), 1);
+    unsigned long long *const counted = (unsigned long long *)plane_taken(width, sizeof(unsigned long long), 1);
     unsigned long long start = 0ULL;
-    for (size_t ring = 0u; ring < sizes.size(); ring += 1u)
+    for (size_t ring = 0u; ring < rings->count; ring += 1u)
     {
-        std::vector<unsigned long long> ones((size_t)width, 0ULL);
-        std::vector<unsigned long long> counted((size_t)width, 0ULL);
-        for (unsigned long long place = 0ULL; place < sizes[ring]; place += 1ULL)
+        const unsigned long long size = rings->size[ring];
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = ones, .bytes = (size_t)width * sizeof(unsigned long long), .val = 0u);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = counted, .bytes = (size_t)width * sizeof(unsigned long long),
+                   .val = 0u);
+        for (unsigned long long place = 0ULL; place < size; place += 1ULL)
         {
-            const unsigned long long from = (place * width) / sizes[ring];
-            const unsigned long long to = std::max(from + 1ULL, ((place + 1ULL) * width) / sizes[ring]);
+            const unsigned long long from = (place * width) / size;
+            const unsigned long long reach = ((place + 1ULL) * width) / size;
+            const unsigned long long to = (reach > (from + 1ULL)) ? reach : (from + 1ULL);
             for (unsigned long long column = from; column < to; column += 1ULL)
             {
                 ones[(size_t)column] += (unsigned long long)bits[start + place];
@@ -91,9 +123,13 @@ int plane_ring_unrolled(const std::vector<unsigned long long> &sizes, const unsi
                     (unsigned char)((255ULL * ones[(size_t)column]) / counted[(size_t)column]);
             }
         }
-        start += sizes[ring];
+        start += size;
     }
-    return plane_png(path, pixels, width, height, 1u);
+    const int written = plane_png(path, pixels, width, height, 1u);
+    plane_given(counted);
+    plane_given(ones);
+    plane_given(pixels);
+    return written;
 }
 
 // a signed quotient by 2^shift, rounded toward zero, as CORDIC takes it
@@ -109,7 +145,7 @@ static long long plane_round(long long numerator, long long denominator)
                               : -(((-numerator) + (denominator / 2LL)) / denominator);
 }
 
-PlaneTurn plane_turn(const std::vector<unsigned char> &bits)
+PlaneTurn plane_turn(const unsigned char *bits)
 {
     PlaneTurn turn;
     const long long one = 1LL << PLANE_FIXED;
@@ -183,35 +219,39 @@ static void plane_turn_point(const PlaneTurn &turn, unsigned long long place, un
     *row = -plane_round(radius * y, turn.gain);
 }
 
-// the rings as circles, ring k at radius 2^(k - 1) times the scale, bit j at the fraction j / c_k of the turn, each
-// pixel the share of ones on it, the ground gray
-int plane_ring_circle(const std::vector<unsigned long long> &sizes, const unsigned char *bits, const PlaneTurn &turn,
-                      size_t rings, long long scale, const std::string &path)
+// The rings as circles, ring k at radius 2^(k - 1) times the scale, bit j at the fraction j / c_k of the turn. Each
+// pixel is the share of ones on it, and the ground is gray
+int plane_ring_circle(const PlaneRings *rings, const unsigned char *bits, const PlaneTurn &turn, size_t ring_count,
+                      long long scale, const char *path)
 {
-    const long long range = ((1LL << (rings - 2u)) * scale) + 4LL;
+    const long long range = ((1LL << (ring_count - 2u)) * scale) + 4LL;
     const unsigned long long side = (unsigned long long)((2LL * range) + 1LL);
-    std::vector<unsigned long long> ones((size_t)(side * side), 0ULL);
-    std::vector<unsigned long long> counted((size_t)(side * side), 0ULL);
+    const size_t area = (size_t)(side * side);
+    unsigned long long *const ones = (unsigned long long *)plane_taken(area, sizeof(unsigned long long), 1);
+    unsigned long long *const counted = (unsigned long long *)plane_taken(area, sizeof(unsigned long long), 1);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = ones, .bytes = area * sizeof(unsigned long long), .val = 0u);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = counted, .bytes = area * sizeof(unsigned long long), .val = 0u);
     unsigned long long start = 0ULL;
-    for (size_t ring = 0u; ring < rings; ring += 1u)
+    for (size_t ring = 0u; ring < ring_count; ring += 1u)
     {
-        // ring 0, radius a half, is drawn at the center
+        // the sim draws ring 0, radius a half, at the center
         const long long radius = (ring == 0u) ? 0LL : ((1LL << (ring - 1u)) * scale);
-        for (unsigned long long place = 0ULL; place < sizes[ring]; place += 1ULL)
+        for (unsigned long long place = 0ULL; place < rings->size[ring]; place += 1ULL)
         {
             long long column = 0LL;
             long long row = 0LL;
-            plane_turn_point(turn, place, sizes[ring], radius, &column, &row);
+            plane_turn_point(turn, place, rings->size[ring], radius, &column, &row);
             // the point lies within the radius of the center. The index is never negative
             const size_t index =
                 (size_t)(((unsigned long long)(row + range) * side) + (unsigned long long)(column + range));
             ones[index] += (unsigned long long)bits[start + place];
             counted[index] += 1ULL;
         }
-        start += sizes[ring];
+        start += rings->size[ring];
     }
-    std::vector<unsigned char> pixels((size_t)(side * side), (unsigned char)PLANE_EMPTY_SHADE);
-    for (size_t index = 0u; index < pixels.size(); index += 1u)
+    unsigned char *const pixels = (unsigned char *)plane_taken(area, 1u, 1);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = pixels, .bytes = area, .val = PLANE_EMPTY_SHADE);
+    for (size_t index = 0u; index < area; index += 1u)
     {
         if (counted[index] != 0ULL)
         {
@@ -219,21 +259,28 @@ int plane_ring_circle(const std::vector<unsigned long long> &sizes, const unsign
             pixels[index] = (unsigned char)((255ULL * ones[index]) / counted[index]);
         }
     }
-    return plane_png(path, pixels, side, side, 1u);
+    const int written = plane_png(path, pixels, side, side, 1u);
+    plane_given(pixels);
+    plane_given(counted);
+    plane_given(ones);
+    return written;
 }
 
-void plane_shuffle(const std::vector<unsigned char> &bits, unsigned int draw, std::vector<unsigned char> *drawn)
+// the `count` bits into `drawn`, then a keyed Fisher-Yates shuffle of them
+void plane_shuffle(const unsigned char *bits, size_t count, unsigned int draw, unsigned char *drawn)
 {
-    *drawn = bits;
-    for (size_t place = drawn->size() - 1u; place > 0u; place -= 1u)
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = drawn, .src = bits, .bytes = count);
+    for (size_t place = count - 1u; place > 0u; place -= 1u)
     {
         // the draw is below place + 1, a bit's index. It narrows to size_t exactly
         const size_t other = (size_t)sim_draw_below(PLANE_KEY ^ ((unsigned long long)draw << 32u), place, place + 1u);
-        std::swap((*drawn)[place], (*drawn)[other]);
+        const unsigned char held = drawn[place];
+        drawn[place] = drawn[other];
+        drawn[other] = held;
     }
 }
 
-// the spirals are read at every slope from -this to this, in 1 / PLANE_RING_UNROLLED_WIDTH of a turn a ring
+// the sim reads the spirals at every slope from -this to this, in 1 / PLANE_RING_UNROLLED_WIDTH of a turn a ring
 #define PLANE_RING_SLOPES 32LL
 
 static long long plane_floor_quotient(long long numerator, long long denominator)
@@ -242,22 +289,22 @@ static long long plane_floor_quotient(long long numerator, long long denominator
     return (((numerator % denominator) != 0LL) && (numerator < 0LL)) ? (quotient - 1LL) : quotient;
 }
 
-// each bit against the bit one ring in at its angle turned back by slope / W of a turn: on the unrolled rings, a line
-// leaning slope pixels a row, and on the circle a logarithmic spiral
-static unsigned long long plane_ring_slope(const std::vector<unsigned long long> &sizes, const unsigned char *bits,
-                                           long long slope, unsigned long long *pairs)
+// Each bit against the bit one ring in at its angle turned back by slope / W of a turn. On the unrolled rings that is
+// a line that leans slope pixels a row, and on the circle a logarithmic spiral
+static unsigned long long plane_ring_slope(const PlaneRings *rings, const unsigned char *bits, long long slope,
+                                           unsigned long long *pairs)
 {
     // the width is 2^11. It fits a signed word
     const long long width = (long long)PLANE_RING_UNROLLED_WIDTH;
     unsigned long long agree = 0ULL;
-    unsigned long long start = sizes[0];
+    unsigned long long start = rings->size[0];
     unsigned long long previous_start = 0ULL;
     *pairs = 0ULL;
-    for (size_t ring = 1u; ring < sizes.size(); ring += 1u)
+    for (size_t ring = 1u; ring < rings->count; ring += 1u)
     {
         // the sizes are below 2^15. They fit a signed word, and every product below stays under 2^45
-        const long long size = (long long)sizes[ring];
-        const long long inner = (long long)sizes[ring - 1u];
+        const long long size = (long long)rings->size[ring];
+        const long long inner = (long long)rings->size[ring - 1u];
         for (long long place = 0LL; place < size; place += 1LL)
         {
             const long long turned = plane_floor_quotient(((place * width) - (slope * size)) * inner, size * width);
@@ -269,14 +316,14 @@ static unsigned long long plane_ring_slope(const std::vector<unsigned long long>
             *pairs += 1ULL;
         }
         previous_start = start;
-        start += sizes[ring];
+        start += rings->size[ring];
     }
     return agree;
 }
 
 // the spirals' excess over every slope, sum over the slopes of (2 agree - pairs)^2, and the best slope
-static unsigned long long plane_ring_spirals(const std::vector<unsigned long long> &sizes, const unsigned char *bits,
-                                             long long *best_slope, unsigned long long *best_agree)
+static unsigned long long plane_ring_spirals(const PlaneRings *rings, const unsigned char *bits, long long *best_slope,
+                                             unsigned long long *best_agree)
 {
     unsigned long long excess = 0ULL;
     *best_slope = 0LL;
@@ -284,7 +331,7 @@ static unsigned long long plane_ring_spirals(const std::vector<unsigned long lon
     for (long long slope = -PLANE_RING_SLOPES; slope <= PLANE_RING_SLOPES; slope += 1LL)
     {
         unsigned long long pairs = 0ULL;
-        const unsigned long long agree = plane_ring_slope(sizes, bits, slope, &pairs);
+        const unsigned long long agree = plane_ring_slope(rings, bits, slope, &pairs);
         // both counts are below 2^16. They fit a signed word
         const long long lean = (2LL * (long long)agree) - (long long)pairs;
         // a square is never negative
@@ -298,27 +345,27 @@ static unsigned long long plane_ring_spirals(const std::vector<unsigned long lon
     return excess;
 }
 
-// one block of the rings' bits read for spirals against keyed shuffles of the same block
-void plane_ring_spiral_read(SimResults *results, const std::vector<unsigned long long> &sizes,
-                            const std::vector<unsigned char> &block, unsigned int draws, const char *label)
+// one block of the rings' bits, `count` of them, read for spirals against keyed shuffles of the same block
+void plane_ring_spiral_read(SimResults *results, const PlaneRings *rings, const unsigned char *block, size_t count,
+                            unsigned int draws, const char *label)
 {
     VerbaLinea *const line = &results->line;
     long long slope = 0LL;
     unsigned long long agree = 0ULL;
-    const unsigned long long excess = plane_ring_spirals(sizes, block.data(), &slope, &agree);
-    std::vector<unsigned long long> excess_band;
-    std::vector<unsigned long long> agree_band;
-    std::vector<unsigned char> drawn;
+    const unsigned long long excess = plane_ring_spirals(rings, block, &slope, &agree);
+    unsigned long long *const excess_band = (unsigned long long *)plane_taken(draws, sizeof(unsigned long long), 1);
+    unsigned long long *const agree_band = (unsigned long long *)plane_taken(draws, sizeof(unsigned long long), 1);
+    unsigned char *const drawn = (unsigned char *)plane_taken(count, 1u, 1);
     for (unsigned int draw = 0u; draw < draws; draw += 1u)
     {
-        plane_shuffle(block, draw, &drawn);
+        plane_shuffle(block, count, draw, drawn);
         long long drawn_slope = 0LL;
         unsigned long long drawn_agree = 0ULL;
-        excess_band.push_back(plane_ring_spirals(sizes, drawn.data(), &drawn_slope, &drawn_agree));
-        agree_band.push_back(drawn_agree);
+        excess_band[draw] = plane_ring_spirals(rings, drawn, &drawn_slope, &drawn_agree);
+        agree_band[draw] = drawn_agree;
     }
     unsigned long long pairs = 0ULL;
-    const unsigned long long radial = plane_ring_slope(sizes, block.data(), 0LL, &pairs);
+    const unsigned long long radial = plane_ring_slope(rings, block, 0LL, &pairs);
     mmgr_line_put(line, "  ");
     mmgr_line_put(line, label);
     mmgr_line_put(line, ": the radial agreement ");
@@ -329,7 +376,7 @@ void plane_ring_spiral_read(SimResults *results, const std::vector<unsigned long
     mmgr_line_decimal_signed(line, slope);
     mmgr_line_put(line, ", agrees on ");
     mmgr_line_decimal(line, agree, 1u);
-    plane_band_print(line, agree_band, agree);
+    plane_band_print(line, agree_band, draws, agree);
     mmgr_line_put(line, "  ");
     mmgr_line_put(line, label);
     mmgr_line_put(line, ": the spirals' excess over every slope from -");
@@ -338,6 +385,9 @@ void plane_ring_spiral_read(SimResults *results, const std::vector<unsigned long
     mmgr_line_decimal(line, PLANE_RING_SLOPES, 1u);
     mmgr_line_put(line, ", ");
     mmgr_line_decimal(line, excess, 1u);
-    plane_band_print(line, excess_band, excess);
+    plane_band_print(line, excess_band, draws, excess);
     sim_flush(results);
+    plane_given(drawn);
+    plane_given(agree_band);
+    plane_given(excess_band);
 }
