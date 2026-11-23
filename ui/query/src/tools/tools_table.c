@@ -423,7 +423,7 @@ const QueryTool g_query_tools[] = {
      s_none,
      s_none},
     {"orior_measuring_stick_engine",
-     {s_stick_engine_c, NULL},
+     {s_stick_engine_c, s_regexp_c, NULL},
      {s_stick_engine_keys, s_codegen, s_stick_engine_targets, NULL},
      s_stick_engine_tool,
      1,
