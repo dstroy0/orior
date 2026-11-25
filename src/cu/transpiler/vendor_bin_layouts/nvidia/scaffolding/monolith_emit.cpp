@@ -263,9 +263,11 @@ static size_t emit_line_end(const char *text, size_t size, size_t at)
     return (newline != NULL) ? (size_t)(newline - text) : ((at < size) ? size : at);
 }
 
-// NVIDIA's listing read into its instructions, a cell of the run that the caller gives back, `*count` of them. Each is
-// an address and text with its low word, and the next line carries its high word
-static EmitLine *emit_listing(const char *path, unsigned long long *count)
+// NVIDIA's listing read into its instructions, `*count` of them. Each is an address and text with its low word, and
+// the next line carries its high word. The instructions are one movable cell, which the answer names, and the caller
+// gives it back. The cell has room for one instruction a line, and a move of the pool can move it. NULL where the file
+// does not read or the pool cannot meet the cell [RETURNS OWNERSHIP]
+static const void *emit_listing(const char *path, unsigned long long *count)
 {
     *count = 0ULL;
     size_t size = 0u;
@@ -277,10 +279,8 @@ static EmitLine *emit_listing(const char *path, unsigned long long *count)
     {
         lines += 1ULL;
     }
-    EmitLine *const read =
-        (file != NULL) ? (EmitLine *)platform_cell_cleared(lines, sizeof(EmitLine), platform_place_g_program_owner,
-                                                           PLATFORM_TIER_PERSISTENT)
-                       : NULL;
+    const void *const read =
+        (file != NULL) ? platform_movable_taken(lines * sizeof(EmitLine), platform_place_g_program_owner) : NULL;
     for (size_t at = 0u; (read != NULL) && (at < size);)
     {
         const size_t end = emit_line_end(file, size, at);
@@ -293,19 +293,23 @@ static EmitLine *emit_listing(const char *path, unsigned long long *count)
         {
             continue;
         }
-        EmitLine *const one = &read[*count];
-        one->address = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = &line[open + 2u], .end = NULL, .base = 16);
+        // the instruction made here, and written into the cell at its place once its high word reads
+        EmitLine one{};
+        one.address = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = &line[open + 2u], .end = NULL, .base = 16);
         const size_t text_end = emit_find_n(line, length, ";", close);
-        emit_plain(&line[close + 2u], text_end - close - 2u, one->text, sizeof(one->text));
-        if (!emit_word(line, length, close, &one->low))
+        emit_plain(&line[close + 2u], text_end - close - 2u, one.text, sizeof(one.text));
+        if (!emit_word(line, length, close, &one.low))
         {
             continue;
         }
         // the next line carries the high word, and the read goes on past it
         const size_t next_end = (at < size) ? emit_line_end(file, size, at) : size;
-        const int high = (at < size) && emit_word(&file[at], next_end - at, 0u, &one->high);
+        const int high = (at < size) && emit_word(&file[at], next_end - at, 0u, &one.high);
         at = (at < size) ? (next_end + 1u) : at;
-        *count += (high != 0) ? 1ULL : 0ULL;
+        if ((high != 0) && platform_movable_written(read, *count * sizeof(EmitLine), &one, sizeof(one)))
+        {
+            *count += 1ULL;
+        }
     }
     platform_cell_released(file, platform_place_g_program_owner);
     return read;
@@ -1567,20 +1571,23 @@ static void emit_word_written(unsigned int block, unsigned int count, const Sass
              recorded_difference.text, recorded_bits.text);
 }
 
-// block `block` of the listing checked against our reader, our assembler and our compiler, printed and recorded
-static void emit_block(const EmitLine *lines, unsigned long long line_count, unsigned int block,
-                       const SassMachine *machine, const Ruleset *rules)
+// Block `block` of the listing checked against our reader, our assembler and our compiler, printed and recorded. The
+// listing's `line_count` instructions are the movable cell `lines`, and the call reads each one out of it by its place
+static void emit_block(const void *lines, unsigned long long line_count, unsigned int block, const SassMachine *machine,
+                       const Ruleset *rules)
 {
     const unsigned int precept = block - 1u;
     unsigned int count = 0u;
     int inside = 0;
     for (unsigned long long at = 0ULL; at < line_count; at += 1ULL)
     {
-        const unsigned int tag = emit_tag(&lines[at]);
+        EmitLine line{};
+        (void)platform_movable_read(lines, at * sizeof(EmitLine), &line, sizeof(line));
+        const unsigned int tag = emit_tag(&line);
         inside = (tag == block) ? 1 : ((tag != 0u) ? 0 : inside);
         if ((inside != 0) && (tag == 0u) && (count < EMIT_PASSAGE_MAX))
         {
-            s_passage[count] = lines[at];
+            s_passage[count] = line;
             emit_our_text(s_passage[count].text, sizeof(s_passage[count].text), machine);
             count += 1u;
         }
@@ -1770,12 +1777,14 @@ int program_main(int count, char **arguments)
         platform_line_out_ended();
     }
     unsigned long long line_count = 0ULL;
-    EmitLine *const lines = emit_listing(arguments[1], &line_count);
+    const void *const lines = emit_listing(arguments[1], &line_count);
     // the kernel's descriptor register, from the line that loads c[0x0][0x118] into a uniform register pair
     for (unsigned long long at = 0ULL; at < line_count; at += 1ULL)
     {
-        const char *const text = lines[at].text;
-        const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = sizeof(lines[at].text));
+        EmitLine line{};
+        (void)platform_movable_read(lines, at * sizeof(EmitLine), &line, sizeof(line));
+        const char *const text = line.text;
+        const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = sizeof(line.text));
         const size_t uniform = emit_place(text, "ULDC.64 UR", 0u, length);
         if ((uniform != length) && emit_has(text, "c[0x0][0x118]"))
         {
@@ -1818,6 +1827,6 @@ int program_main(int count, char **arguments)
     }
     platform_text_ended(&s_bits);
     platform_text_ended(&s_table);
-    platform_cell_released(lines, platform_place_g_program_owner);
+    platform_movable_released(lines, platform_place_g_program_owner);
     return status;
 }
