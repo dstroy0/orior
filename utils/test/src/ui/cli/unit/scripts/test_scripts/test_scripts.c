@@ -3,9 +3,10 @@
 // test_scripts.c: the hosts of the script plugins, with a plugin of the test's own in a fresh ORIOR_HOME. An ask starts
 // the host and answers. The state that the plugin keeps comes back after a stop, and an unknown command fails. A read
 // of a file outside reads, or of a right that the reader refused, fails. A read or a write that the reader allowed
-// reads or writes the file. A read of a right with no answer waits on the question. The tree's files are their paths
-// from its top. A whole path in the tree gives its path from the top, and a path outside gives null. A host past its
-// memory ends, and the next ask starts it again. A quiet stops the host
+// reads or writes the file. A read of a right with no answer waits on the question. The tree's files are those that
+// reads names, and a refused reads refuses them. A whole path in the tree gives its path from the top, and a path
+// outside gives null. A secret that the plugin keeps reads back, a secret that it forgets reads null, and a key that
+// secrets does not list fails. A host past its memory ends, and the next ask starts it again. A quiet stops the host
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/plugins/plugins.h"
 #include "ui/cli/src/scripts/scripts.h"
@@ -14,7 +15,8 @@
 
 // The plugin's code: a count that it keeps, and a growth past its memory. A read of a file that reads lists, and a
 // read of a file that it does not list. A write of a file that writes lists. The tree's files in order, and the path
-// in the tree of a whole path. Each call answers what it got, or 'refused'
+// in the tree of a whole path. A secret kept and then read, a secret forgotten and then read, and a secret of a key
+// that secrets does not list. Each call answers what it got, or 'refused'
 static const char s_code[] =
     "let count = orior.state?.count ?? 0;\n"
     "orior.commands.on('count', (value) => { count += Number(value ?? 1); return { count }; });\n"
@@ -25,13 +27,18 @@ static const char s_code[] =
     "return 'written'; }));\n"
     "orior.commands.on('files', async () => (await orior.tree.files()).sort());\n"
     "orior.commands.on('relative', (path) => orior.tree.relative(path));\n"
+    "orior.commands.on('keep', (value) => tried(async () => { await orior.secrets.write('token', value); "
+    "return orior.secrets.read('token'); }));\n"
+    "orior.commands.on('forget', () => tried(async () => { await orior.secrets.write('token', null); "
+    "return orior.secrets.read('token'); }));\n"
+    "orior.commands.on('keepUnlisted', () => tried(() => orior.secrets.write('other', 'kept')));\n"
     "orior.commands.on('grow', () => { const all = []; for (;;) { all.push(new Array(1 << 20).fill(all.length)); } "
     "});\n"
     "orior.keep(() => ({ count }));\n";
 static const char s_manifest[] =
     "{\"id\": \"counter\", \"name\": \"Counter\", \"version\": \"1.0.0\", \"type\": \"script\", "
     "\"api\": 5, \"main\": \"plugin.js\", \"resources\": {\"memoryMiB\": 64}, \"reads\": [\"a.txt\"], "
-    "\"writes\": [\"out/*.txt\"]}";
+    "\"writes\": [\"out/*.txt\"], \"secrets\": [\"token\"]}";
 static char s_tree[CLI_PATH_MAX_LEN];
 static int s_written;
 static char s_answer[4096];
@@ -183,10 +190,17 @@ void test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_
 }
 
 // The tree's checks come before the write, because the write adds a file to the tree
-void test_the_files_of_the_tree_are_its_paths_from_its_top(void)
+void test_the_files_of_the_tree_are_those_that_reads_names_from_its_top(void)
 {
+    counter_answered(CLI_SCRIPTS_READS, CLI_SCRIPTS_ALLOWED);
     TEST_ASSERT_TRUE_MESSAGE(counter_asked("files", "null"), s_why);
-    TEST_ASSERT_EQUAL_STRING("[\"a.txt\",\"b.txt\",\"out/keep.txt\"]", s_answer);
+    TEST_ASSERT_EQUAL_STRING("[\"a.txt\"]", s_answer);
+}
+
+void test_the_files_of_the_tree_that_the_reader_refused_are_refused(void)
+{
+    counter_answered(CLI_SCRIPTS_READS, CLI_SCRIPTS_REFUSED);
+    TEST_ASSERT_FALSE(counter_asked("files", "null"));
 }
 
 void test_a_whole_path_in_the_tree_gives_its_path_from_the_top(void)
@@ -207,6 +221,44 @@ void test_a_path_outside_the_tree_gives_null(void)
 {
     TEST_ASSERT_TRUE_MESSAGE(counter_asked("relative", "\"/elsewhere/x.txt\""), s_why);
     TEST_ASSERT_EQUAL_STRING("null", s_answer);
+}
+
+// The test ignores the check where the machine has no keychain. A secret that the test stores and forgets tells
+static void keychain_required(void)
+{
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    if (!EMBED_CALL(cli_err_msg_service_internal.keychain_store, CliErrMsgServiceCtx, .service = "plugin counter",
+                    .account = "probe", .secret = "probe", .err_msg = &err_msg))
+    {
+        TEST_IGNORE_MESSAGE("no keychain on this machine");
+    }
+    (void)EMBED_CALL(cli_err_msg_service_internal.keychain_forget, CliErrMsgServiceCtx, .service = "plugin counter",
+                     .account = "probe", .err_msg = &err_msg);
+}
+
+void test_a_secret_that_the_plugin_keeps_reads_back(void)
+{
+    keychain_required();
+    counter_answered(CLI_SCRIPTS_SECRETS, CLI_SCRIPTS_ALLOWED);
+    TEST_ASSERT_TRUE_MESSAGE(counter_asked("keep", "\"kept token\""), s_why);
+    TEST_ASSERT_EQUAL_STRING("\"kept token\"", s_answer);
+}
+
+void test_a_secret_that_the_plugin_forgets_reads_null(void)
+{
+    keychain_required();
+    counter_answered(CLI_SCRIPTS_SECRETS, CLI_SCRIPTS_ALLOWED);
+    TEST_ASSERT_TRUE_MESSAGE(counter_asked("keep", "\"kept token\""), s_why);
+    TEST_ASSERT_TRUE_MESSAGE(counter_asked("forget", "null"), s_why);
+    TEST_ASSERT_EQUAL_STRING("null", s_answer);
+}
+
+void test_a_secret_of_a_key_that_secrets_does_not_list_is_refused(void)
+{
+    counter_answered(CLI_SCRIPTS_SECRETS, CLI_SCRIPTS_ALLOWED);
+    TEST_ASSERT_TRUE_MESSAGE(counter_asked("keepUnlisted", "null"), s_why);
+    TEST_ASSERT_EQUAL_STRING("\"refused\"", s_answer);
 }
 
 void test_a_write_that_the_reader_allowed_writes_the_file(void)

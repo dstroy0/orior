@@ -111,8 +111,9 @@ EMBED_INLINE int cli_tree_above(const RootCtx *args)
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
                        .at = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES}), .set = "/\\");
         slash = (slash_end != 0ULL) ? (folder + (slash_end - 1ULL)) : slash;
-        // a root, `C:\` or `/`, is where no separator is left past its first
-        if ((slash == NULL) || (slash == folder) || ((slash == (folder + 2)) && (folder[1] == ':')))
+        // a root is where the path keeps no separator past the separator that ends its top
+        const unsigned long long top = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = folder);
+        if ((slash == NULL) || (slash == folder) || ((top != 0ULL) && (slash == (folder + top - 1ULL))))
         {
             if ((slash != NULL) && (slash[1] != '\0'))
             {
@@ -330,7 +331,7 @@ int cli_inside(const CliRootCtx *args)
         return 0;
     }
     // each part a name or `.`: one that climbs out, or a root of its own, is refused before anything touches the disk
-    const int rooted = (rest[0] == '/') || (rest[0] == '\\') || ((rest[0] != '\0') && (rest[1] == ':'));
+    const int rooted = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = rest) != 0ULL;
     const char *part = rest;
     while (!rooted && (*part != '\0'))
     {
@@ -364,8 +365,7 @@ void cli_full(const CliRootCtx *args)
                     .joined = args->joined, .err_msg = &err_msg))
     {
         // a whole path is the path it names, and any other is written under the tree
-        const int whole = (args->relative[0] == '/') || (args->relative[0] == '\\') ||
-                          ((args->relative[0] != '\0') && (args->relative[1] == ':'));
+        const int whole = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = args->relative) != 0ULL;
         VerbaLinea line = {args->joined, CLI_PATH_MAX_LEN, 0ULL};
         mmgr_line_put(&line, whole ? "" : args->root);
         mmgr_line_put(&line, whole ? "" : "/");
@@ -438,14 +438,15 @@ void cli_relative(const CliPathRootCtx *args)
 int cli_path_parent(const CliPathOutTypeCtx *args)
 {
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
-    const unsigned long long root = ((length >= 2ULL) && (args->path[1] == ':')) ? 3ULL : 1ULL;
+    // the path's top stays whole, and a path with no top keeps its first byte
+    const unsigned long long top = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = args->path);
+    const unsigned long long kept = (top != 0ULL) ? top : 1ULL;
+    const unsigned long long root = (kept > length) ? length : kept;
     length = (root + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->path + root,
                                 .at = length - root, .set = "/\\"));
-    unsigned long long slash = length;
-    for (unsigned long long at = 0ULL; at < length; at += 1ULL)
-    {
-        slash = ((args->path[at] == '/') || (args->path[at] == '\\')) ? at : slash;
-    }
+    const unsigned long long slash_end = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                                    .text = args->path, .at = length, .set = "/\\");
+    const unsigned long long slash = (slash_end != 0ULL) ? (slash_end - 1ULL) : length;
     if ((slash == length) || ((slash + 1ULL) == length))
     {
         return 0;

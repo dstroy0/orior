@@ -192,6 +192,10 @@ unsigned char *cli_file_piece_alloc(const CliPathCtx *args);
 // the bytes of every file under `root`, the folders of version control and of cargo's build passed over: the request a
 // tree's pool is made for (machine/file_cell.c)
 unsigned long long cli_tree_bytes(const CliPathRootCtx *args);
+// The bytes of the top of `path`, where a whole path starts. On Windows the top is a drive, `C:` and the separator
+// after it, or one separator. Elsewhere it is one `/`. 0 where `path` is no whole path (platform/windows_files.c,
+// platform/posix_files.c)
+unsigned long long cli_path_top(const CliPathCtx *args);
 // the system's number for why the call just made failed, read before any other call; and its reason written after
 // `err_msg`, as ": Access is denied. (os error 5)" (platform/windows_files.c, platform/posix_files.c)
 unsigned int cli_system_error(void);
@@ -1328,12 +1332,14 @@ typedef struct
     unsigned char *(*file_alloc)(const CliPathCtx *args);
     unsigned char *(*file_alloc_utf8)(const CliPathCtx *args);
     unsigned char *(*file_piece_alloc)(const CliPathCtx *args);
+    unsigned long long (*top)(const CliPathCtx *args);
 } CliPathNs;
-EMBED_TABLE_LAYOUT(CliPathNs, file_alloc, file_alloc_utf8, file_piece_alloc);
+EMBED_TABLE_LAYOUT(CliPathNs, file_alloc, file_alloc_utf8, file_piece_alloc, top);
 EMBED_TABLE_STORAGE CliPathNs cli_path_internal EMBED_UNUSED = {
     .file_alloc = cli_file_alloc,
     .file_alloc_utf8 = cli_file_alloc_utf8,
     .file_piece_alloc = cli_file_piece_alloc,
+    .top = cli_path_top,
 };
 
 typedef struct

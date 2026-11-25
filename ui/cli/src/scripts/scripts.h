@@ -34,13 +34,14 @@ extern "C"
 #define CLI_SCRIPTS_EVENT 1u
 #define CLI_SCRIPTS_SERVER 2u
 
-// The rights of a plugin.json, in the order of the store. The plugin reads the tree's files, writes them, and reaches
-// hosts on the network. Then the reader's answer for one right. The window did not ask yet, the reader refused the
-// right, or the reader allowed it
+// The rights of a plugin.json, in the order of the store. The plugin reads the tree's files, writes them, reaches
+// hosts on the network, and keeps secrets in the system's keychain. Then the reader's answer for one right. The window
+// did not ask yet, the reader refused the right, or the reader allowed it
 #define CLI_SCRIPTS_READS 0u
 #define CLI_SCRIPTS_WRITES 1u
 #define CLI_SCRIPTS_REACHES 2u
-#define CLI_SCRIPTS_RIGHTS 3u
+#define CLI_SCRIPTS_SECRETS 3u
+#define CLI_SCRIPTS_RIGHTS 4u
 #define CLI_SCRIPTS_UNASKED 0u
 #define CLI_SCRIPTS_REFUSED 1u
 #define CLI_SCRIPTS_ALLOWED 2u
@@ -48,7 +49,8 @@ extern "C"
     typedef struct CliScriptsRightsCfg CliScriptsRightsCfg;
 
     // whether the list of the right `right` in the plugin.json of `id` names `name`. For reads and writes, `name` is a
-    // path from the tree's top with `/` between its names. For reaches, `name` is a host (scripts_rights.c)
+    // path from the tree's top with `/` between its names. For reaches, `name` is a host. For secrets, `name` is a key,
+    // and an item `*` names every key (scripts_rights.c)
     int cli_scripts_rights_named(const CliScriptsRightsCfg *args);
     // the reader's answer for the right `right` of the plugin `id`, from the store in plugin_state/<id>.rights.json
     unsigned int cli_scripts_rights_answer(const CliScriptsRightsCfg *args);

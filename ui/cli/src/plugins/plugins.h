@@ -38,8 +38,9 @@
 //
 //   reads, writes           The patterns of the tree's files that a script plugin reads and writes. `*` is any
 //                           characters but `/`, and `**` is any folders. `reaches` holds the hosts that the plugin
-//                           reaches on the network, and `*.` before a host means any host under it. The plugin gets
-//                           only these, and only after the reader permits it.
+//                           reaches on the network, and `*.` before a host means any host under it. `secrets` holds
+//                           the keys of the secrets that the plugin keeps in the system's keychain, and `*` is every
+//                           key. The plugin gets only these, and only after the reader permits it.
 //
 // The plugins that come with orior are under ui/plugins, and the build puts them into the program (plugins_bundled.c,
 // from bundle/plugins_bundle.c). The reader's plugins are under `plugins/` in orior's own folder. A reader's plugin
@@ -65,6 +66,7 @@ typedef struct CliPluginsIdKeyCfg CliPluginsIdKeyCfg;
 typedef struct CliPluginsLanguagesPathCfg CliPluginsLanguagesPathCfg;
 typedef struct CliPluginsGrammarOfCfg CliPluginsGrammarOfCfg;
 typedef struct CliPluginsJsonOutCfg CliPluginsJsonOutCfg;
+typedef struct CliPluginsJsonWriteCfg CliPluginsJsonWriteCfg;
 typedef struct CliPluginsEachCfg CliPluginsEachCfg;
 typedef struct CliPluginsIdEachCfg CliPluginsIdEachCfg;
 typedef struct CliPluginColorCfg CliPluginColorCfg;
@@ -262,6 +264,10 @@ unsigned int cli_plugins_draft_tree(const CliPluginsErrMsgJsonSpecCfg *args);
 // constant, a string and a number, where the plugin has each. Each line ends with "\n"
 void cli_plugins_text_get(const CliPluginsJsonOutCfg *args);
 void cli_plugins_sample_get(const CliPluginsJsonOutCfg *args);
+// The plugin `plugin` of `json` written as plugin.json, laid out as cli_plugins_text_get lays it out, in a folder of
+// its id under `dir`. The folder goes into `folder`, sized for CLI_PATH_MAX_LEN. The call keeps a plugin.json already
+// there, unless `replace`. 1, or 0 with why given (plugins_text.c)
+int cli_plugins_json_write(const CliPluginsJsonWriteCfg *args);
 // the plugin that the answers request, written in a folder of its id under `dir`, with a sample file beside it. The
 // folder goes into `folder`, sized for CLI_PATH_MAX_LEN. The call keeps a plugin of that id already there, unless
 // `replace`. The second call does the same under the reader's plugins folder. 1, or 0 with why given
@@ -347,6 +353,16 @@ struct CliPluginsJsonOutCfg
     const CliJson *json;
     VerbaLinea *out;
     unsigned int plugin;
+};
+
+struct CliPluginsJsonWriteCfg
+{
+    const CliJson *json;
+    unsigned int plugin;
+    const char *dir;
+    int replace;
+    char *folder;
+    VerbaLinea *err_msg;
 };
 
 struct CliPluginsEachCfg
@@ -579,6 +595,15 @@ EMBED_TABLE_LAYOUT(CliPluginsJsonOutNs, text_get, sample_get);
 EMBED_TABLE_STORAGE CliPluginsJsonOutNs cli_plugins_json_out EMBED_UNUSED = {
     .text_get = cli_plugins_text_get,
     .sample_get = cli_plugins_sample_get,
+};
+
+typedef struct
+{
+    int (*write)(const CliPluginsJsonWriteCfg *args);
+} CliPluginsJsonWriteNs;
+EMBED_TABLE_LAYOUT(CliPluginsJsonWriteNs, write);
+EMBED_TABLE_STORAGE CliPluginsJsonWriteNs cli_plugins_json_write_table EMBED_UNUSED = {
+    .write = cli_plugins_json_write,
 };
 
 typedef struct

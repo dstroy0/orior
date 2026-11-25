@@ -14,6 +14,20 @@ unsigned int cli_system_error(void)
     return (unsigned int)GetLastError();
 }
 
+unsigned long long cli_path_top(const CliPathCtx *args)
+{
+    const char *const path = args->path;
+    if ((path[0] == '/') || (path[0] == '\\'))
+    {
+        return 1ULL;
+    }
+    if ((path[0] == '\0') || (path[1] != ':'))
+    {
+        return 0ULL;
+    }
+    return ((path[2] == '/') || (path[2] == '\\')) ? 3ULL : 2ULL;
+}
+
 void cli_system_reason(const CliErrorCtx *args)
 {
     char reason[512];

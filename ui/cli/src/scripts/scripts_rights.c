@@ -1,9 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // scripts_rights.c: the rights of a script plugin (scripts.h). The plugin's plugin.json lists the patterns of the
-// tree's files that it reads and writes, and the hosts that it reaches. A pattern reads as a line of a `.gitignore`
-// reads (text/patterns.h). A host that starts with `*.` names each host under it. The reader answers once for each
-// right of each plugin, and plugin_state/<id>.rights.json keeps the answers
+// tree's files that it reads and writes, the hosts that it reaches, and the keys of the secrets that it keeps. A
+// pattern reads as a line of a `.gitignore` reads (text/patterns.h). A host that starts with `*.` names each host under
+// it, and a key `*` names every key. The reader answers once for each right of each plugin, and
+// plugin_state/<id>.rights.json keeps the answers
 #include "../command_line/pool.h"
 #include "../plugins/plugins.h"
 #include "../text/json_tree.h"
@@ -16,7 +17,7 @@
 
 // The names of the rights, as plugin.json and the store write them. Then the names of the answers in the store, each
 // at the place of its value
-static const char *const s_rights[CLI_SCRIPTS_RIGHTS] = {"reads", "writes", "reaches"};
+static const char *const s_rights[CLI_SCRIPTS_RIGHTS] = {"reads", "writes", "reaches", "secrets"};
 static const char *const s_answers[3] = {"unasked", "refused", "allowed"};
 
 // One list of a plugin.json: the right that it is of, its items, each with its end, and how many it has
@@ -131,6 +132,17 @@ int cli_scripts_rights_named(const CliScriptsRightsCfg *args)
         while (!named && (at < list->items))
         {
             named = EMBED_CALL(rights_host, ScriptsRightsCtx, .pattern = list->item[at], .name = args->name);
+            at += 1u;
+        }
+    }
+    else if (args->right == CLI_SCRIPTS_SECRETS)
+    {
+        unsigned int at = 0u;
+        while (!named && (at < list->items))
+        {
+            named = cellul.eq(&(CatenaFinitaCfg){.src = list->item[at], .other = "*", .cap = 2u}) ||
+                    cellul.eq(
+                        &(CatenaFinitaCfg){.src = list->item[at], .other = args->name, .cap = CLI_SCRIPTS_RIGHTS_ITEM});
             at += 1u;
         }
     }

@@ -185,7 +185,8 @@ its word.
 File, Plugins reads a catalog of plugins others publish, at an address the reader names on the web or
 on this machine, and installs a plugin the search finds from its package, a JSON file of its files by
 name, where its hash and its version are those the catalog gives. A script plugin's plugin.json
-says what it reads and writes, as patterns of the tree's files, and the hosts it reaches. It runs
+says what it reads and writes, as patterns of the tree's files, and the hosts it reaches. It also
+names the keys of the secrets it keeps in the system's keychain. It runs
 only once the reader lets it, Install letting it as the catalog showed, and each call is retained to
 what it asked for. A plugin is updated only by Update, and an update that asks for more waits for
 Let It Run.

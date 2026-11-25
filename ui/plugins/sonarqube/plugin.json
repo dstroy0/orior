@@ -9,6 +9,7 @@
   "reads": ["**"],
   "writes": [".sonarlint/*.json"],
   "reaches": ["localhost", "127.0.0.1", "host.docker.internal", "*.sonarcloud.io", "*.sonarqube.us"],
+  "secrets": ["*"],
   "server": {
     "toolchain": "sonarqube-ide",
     "program": "java",

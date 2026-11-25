@@ -22,6 +22,11 @@ unsigned int cli_system_error(void)
     return (unsigned int)errno;
 }
 
+unsigned long long cli_path_top(const CliPathCtx *args)
+{
+    return (args->path[0] == '/') ? 1ULL : 0ULL;
+}
+
 // An errno value and its standard name, as <errno.h> defines it
 typedef struct
 {

@@ -4,7 +4,7 @@
 // file at an address the reader names, on the web or on this machine:
 //
 //   { "orior": "plugin catalog", "plugins": [ { "id", "name", "version", "about", "package",
-//     "sha256", "reads", "writes", "reaches" }, ... ] }
+//     "sha256", "reads", "writes", "reaches", "secrets" }, ... ] }
 //
 // and each plugin's package a JSON file, at `package`, an address of its own or one from the catalog's, containing the
 // plugin's files by name:
@@ -29,7 +29,7 @@ static CliCatalogWorkState s_catalog_work_state;
 
 // an entry's fields that are texts, and those that are lists of texts, in the order serde writes them
 static const char *const s_texts[6] = {"id", "name", "version", "about", "package", "sha256"};
-static const char *const s_lists[3] = {"reads", "writes", "reaches"};
+static const char *const s_lists[4] = {"reads", "writes", "reaches", "secrets"};
 
 int cli_plugin_catalog_lock(const CliPluginCatalogCtx *args)
 {
@@ -154,7 +154,7 @@ int cli_plugin_catalog_entry_read(const CliPluginCatalogErrMsgCfg *args)
             return 0;
         }
     }
-    for (unsigned int at = 0u; at < 3u; at += 1u)
+    for (unsigned int at = 0u; at < (unsigned int)(sizeof(s_lists) / sizeof(s_lists[0])); at += 1u)
     {
         const unsigned int field = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = args->json, .object = args->entry_u32, .name = s_lists[at]);
