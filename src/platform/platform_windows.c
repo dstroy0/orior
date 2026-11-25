@@ -291,7 +291,10 @@ unsigned long long platform_stream_opened(const char *path, int type)
 {
     const DWORD access = (type == 0) ? GENERIC_READ : ((type == 1) ? GENERIC_WRITE : FILE_APPEND_DATA);
     const DWORD disposition = (type == 0) ? OPEN_EXISTING : ((type == 1) ? CREATE_ALWAYS : OPEN_ALWAYS);
-    const HANDLE file = CreateFileA(path, access, FILE_SHARE_READ, NULL, disposition, FILE_ATTRIBUTE_NORMAL, NULL);
+    // The file shares reads and writes with the other handles of it, as fopen shares them. A read then opens a file
+    // that another handle holds open to write. A handle that shares no write keeps the refusal it asks for
+    const HANDLE file =
+        CreateFileA(path, access, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, disposition, FILE_ATTRIBUTE_NORMAL, NULL);
     // Explicit cast carries the handle as the integer that platform_file.c holds, and a handle is never 0
     return (file == INVALID_HANDLE_VALUE) ? 0ULL : (unsigned long long)(uintptr_t)file;
 }
