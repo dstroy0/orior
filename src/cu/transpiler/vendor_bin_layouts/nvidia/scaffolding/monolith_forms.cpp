@@ -1206,7 +1206,8 @@ static void gather_lane(const Krs *c, const HostProgram *program, int reuse)
         return;
     }
     PlatformArray decided;
-    platform_array_begun(&decided, sizeof(MachineInstr), platform_place_g_program_owner, 0);
+    // the lane's decided instructions, for this call alone: a cell of the temporary tier
+    platform_array_begun(&decided, sizeof(MachineInstr), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     unsigned int places = 0u;
     if (c_target().decided(&loaded.layout, &places, &decided) == 0)
     {
@@ -2650,9 +2651,11 @@ static int question_read(const char *line, size_t length, Question *question)
     return 1;
 }
 
-// The questions at `path`, a line each, in one cell taken at the count of the lines: their count into `count`. Each
-// line ends at its newline, with the carriage returns and the newlines at its end cut
-static Question *questions_read(const char *path, unsigned int *count)
+// The questions at `path`, a line each, and their count into `count`. Each line ends at its newline, with the carriage
+// returns and the newlines at its end cut. The reader builds them in a cell of the temporary tier at the count of the
+// lines. It then keeps them in one movable cell, which the answer names. NULL where the file does not read [RETURNS
+// OWNERSHIP]
+static const void *questions_read(const char *path, unsigned int *count)
 {
     *count = 0u;
     size_t size = 0u;
@@ -2662,17 +2665,27 @@ static Question *questions_read(const char *path, unsigned int *count)
         return NULL;
     }
     const unsigned int lines = forms_lines_counted(file, size);
-    Question *const questions = (Question *)forms_allocated(platform_cell_cleared(
-        (lines != 0u) ? lines : 1u, sizeof(Question), platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
+    Question *const built = (Question *)forms_allocated(platform_cell_cleared(
+        (lines != 0u) ? lines : 1u, sizeof(Question), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY));
     for (size_t at = 0u; at < size;)
     {
         const size_t end = forms_chr_n(file, size, '\n', at);
         const size_t length = forms_end_outside(&file[at], end - at, "\r\n");
-        *count += question_read(&file[at], length, &questions[*count]) ? 1u : 0u;
+        *count += question_read(&file[at], length, &built[*count]) ? 1u : 0u;
         at = end + 1u;
     }
+    const void *const questions = krs_kept(built, *count, sizeof(Question));
+    platform_cell_released(built, platform_place_g_program_owner);
     platform_cell_released(file, platform_place_g_program_owner);
     return questions;
+}
+
+// the question `at` of the movable cell `questions`, read out of it
+static Question question_at(const void *questions, unsigned int at)
+{
+    Question question{};
+    (void)platform_movable_read(questions, (unsigned long long)at * sizeof(Question), &question, sizeof(question));
+    return question;
 }
 
 // one line of a block of the listing or of the PTX: the tag it is behind and its instruction
@@ -2682,11 +2695,11 @@ struct BlockLine
     FormsLine text;
 };
 
-// The lines of a listing or of the PTX, in one cell in the order of their tags. The lines of a tag stay in their own
-// order
+// The lines of a listing or of the PTX, `count` of them, in the order of their tags. The lines of a tag stay in their
+// own order. They are one movable cell that `lines` names
 struct Blocks
 {
-    BlockLine *lines;
+    const void *lines;
     unsigned int count;
 };
 
@@ -2697,18 +2710,29 @@ static int block_line_order(const void *left, const void *right)
     return (one == other) ? 0 : ((one < other) ? -1 : 1);
 }
 
-// the lines at `blocks` put in the order of their tags, stable
-static void blocks_sorted(Blocks *blocks)
+// The `count` lines at `built` put in the order of their tags, stable, and kept in one movable cell. The cell at
+// `built` is the caller's, of the temporary tier, and goes back here
+static Blocks blocks_kept(BlockLine *built, unsigned int count)
 {
-    if (blocks->count < 2u)
+    if (count >= 2u)
     {
-        return;
+        void *const spare = forms_allocated(platform_cell_taken(
+            (unsigned long long)count * sizeof(BlockLine), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY));
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = built, .bytes = sizeof(BlockLine), .scratch = spare,
+                         .count = count, .order = block_line_order);
+        platform_cell_released(spare, platform_place_g_program_owner);
     }
-    void *const spare = forms_allocated(platform_cell_taken((unsigned long long)blocks->count * sizeof(BlockLine),
-                                                            platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY));
-    (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = blocks->lines, .bytes = sizeof(BlockLine), .scratch = spare,
-                     .count = blocks->count, .order = block_line_order);
-    platform_cell_released(spare, platform_place_g_program_owner);
+    const Blocks blocks = {krs_kept(built, count, sizeof(BlockLine)), count};
+    platform_cell_released(built, platform_place_g_program_owner);
+    return blocks;
+}
+
+// the line `at` of `blocks`, read out of its cell
+static BlockLine block_line(const Blocks *blocks, unsigned int at)
+{
+    BlockLine line{};
+    (void)platform_movable_read(blocks->lines, (unsigned long long)at * sizeof(BlockLine), &line, sizeof(line));
+    return line;
 }
 
 // the first line of `blocks` behind `tag`, or the count where none is; the lines behind it into `count`
@@ -2719,7 +2743,7 @@ static unsigned int blocks_of(const Blocks *blocks, unsigned int tag, unsigned i
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        if (blocks->lines[middle].tag < tag)
+        if (block_line(blocks, middle).tag < tag)
         {
             low = middle + 1u;
         }
@@ -2733,7 +2757,7 @@ static unsigned int blocks_of(const Blocks *blocks, unsigned int tag, unsigned i
     while (end < high)
     {
         const unsigned int middle = end + ((high - end) / 2u);
-        if (blocks->lines[middle].tag <= tag)
+        if (block_line(blocks, middle).tag <= tag)
         {
             end = middle + 1u;
         }
@@ -2790,16 +2814,17 @@ static int sass_line_read(const char *line, size_t length, FormsLine *instructio
 // to size the cell, and the lines then go in the order of their tags
 static Blocks sass_blocks(const char *path)
 {
-    Blocks blocks = {NULL, 0u};
+    const Blocks none = {NULL, 0u};
     size_t size = 0u;
     char *const file = forms_file_read(path, &size);
     if (file == NULL)
     {
-        return blocks;
+        return none;
     }
     const unsigned int lines = forms_lines_counted(file, size);
-    blocks.lines = (BlockLine *)forms_allocated(platform_cell_cleared(
-        (lines != 0u) ? lines : 1u, sizeof(BlockLine), platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
+    BlockLine *const built = (BlockLine *)forms_allocated(platform_cell_cleared(
+        (lines != 0u) ? lines : 1u, sizeof(BlockLine), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY));
+    unsigned int count = 0u;
     unsigned int tag = 0u;
     for (size_t at = 0u; at < size;)
     {
@@ -2818,12 +2843,12 @@ static Blocks sass_blocks(const char *path)
                                            .base = 16);
             continue;
         }
-        blocks.lines[blocks.count].tag = tag;
-        blocks.lines[blocks.count].text = instruction;
-        blocks.count += 1u;
+        built[count].tag = tag;
+        built[count].text = instruction;
+        count += 1u;
     }
+    const Blocks blocks = blocks_kept(built, count);
     platform_cell_released(file, platform_place_g_program_owner);
-    blocks_sorted(&blocks);
     return blocks;
 }
 
@@ -2832,16 +2857,17 @@ static Blocks sass_blocks(const char *path)
 // the lines then go in the order of their tags
 static Blocks ptx_blocks(const char *path)
 {
-    Blocks blocks = {NULL, 0u};
+    const Blocks none = {NULL, 0u};
     size_t size = 0u;
     char *const file = forms_file_read(path, &size);
     if (file == NULL)
     {
-        return blocks;
+        return none;
     }
     const unsigned int lines = forms_lines_counted(file, size);
-    blocks.lines = (BlockLine *)forms_allocated(platform_cell_cleared(
-        (lines != 0u) ? lines : 1u, sizeof(BlockLine), platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
+    BlockLine *const built = (BlockLine *)forms_allocated(platform_cell_cleared(
+        (lines != 0u) ? lines : 1u, sizeof(BlockLine), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY));
+    unsigned int count = 0u;
     unsigned int tag = 0u;
     int inside = 0;
     for (size_t at = 0u; at < size;)
@@ -2871,12 +2897,12 @@ static Blocks ptx_blocks(const char *path)
                                            .base = 10);
             continue;
         }
-        blocks.lines[blocks.count].tag = tag;
-        blocks.lines[blocks.count].text = forms_trim(text.text);
-        blocks.count += 1u;
+        built[count].tag = tag;
+        built[count].text = forms_trim(text.text);
+        count += 1u;
     }
+    const Blocks blocks = blocks_kept(built, count);
     platform_cell_released(file, platform_place_g_program_owner);
-    blocks_sorted(&blocks);
     return blocks;
 }
 
@@ -4319,8 +4345,10 @@ static void flat_cell_put(VerbaLinea *line, const char *text, PlatformText *flat
     cell_put(line, bytes, size);
 }
 
-// a question's three regions joined, its loads, its form and its stores, into `lines`: their count
-static unsigned int regions_joined(const Blocks *blocks, unsigned int tag, const char **lines, unsigned int room)
+// A question's three regions joined, its loads, its form and its stores: their count. Each line goes out of its cell
+// into `copies`, and `lines` names each copy. Both hold `room` lines
+static unsigned int regions_joined(const Blocks *blocks, unsigned int tag, const char **lines, FormsLine *copies,
+                                   unsigned int room)
 {
     const unsigned int regions[3] = {MONOLITH_FORMS_LOADS + tag, tag, MONOLITH_FORMS_STORES + tag};
     unsigned int joined = 0u;
@@ -4334,7 +4362,8 @@ static unsigned int regions_joined(const Blocks *blocks, unsigned int tag, const
             {
                 forms_refused("a question's regions hold more lines than the table holds", "", 0u);
             }
-            lines[joined] = blocks->lines[first + at].text.text;
+            copies[joined] = block_line(blocks, first + at).text;
+            lines[joined] = copies[joined].text;
             joined += 1u;
         }
     }
@@ -4701,29 +4730,30 @@ static void settle(Verdict *verdict, const char *text, const char *why)
     }
 }
 
-// A reading of a question off the SASS or the PTX: the form, the question, and the text it adopts, empty where it
-// adopts none. The readings go in one cell at the count of the questions. A reading settles its form where it is a
-// question of the SASS that loads no number and the system folds nothing of. A question of the SASS that loads no
-// number constrains its form, folded or not
+// A reading of a question off the SASS or the PTX: the form, and the question's place among the questions. Then the
+// text it adopts, empty where it adopts none. The readings go in one cell at the count of the questions. A reading
+// settles its form where it is a question of the SASS that loads no number and the system folds nothing of. A question
+// of the SASS that loads no number constrains its form, folded or not
 struct FormReading
 {
     FormState *state;
-    const Question *question;
+    unsigned int question;
     int settles;
     int constrains;
     char text[FORMS_READ_BYTES];
 };
 
 // 1 where `text` assembles for the banks of every question that constrains the form of `state`
-static int assembles_everywhere(const FormReading *readings, unsigned int count, const FormState *state,
-                                const char *text)
+static int assembles_everywhere(const void *questions, const FormReading *readings, unsigned int count,
+                                const FormState *state, const char *text)
 {
     int everywhere = 1;
     for (unsigned int at = 0u; everywhere && (at < count); at += 1u)
     {
         if ((readings[at].state == state) && readings[at].constrains)
         {
-            everywhere = sass_assembles(text, readings[at].question);
+            const Question question = question_at(questions, readings[at].question);
+            everywhere = sass_assembles(text, &question);
         }
     }
     return everywhere;
@@ -4830,18 +4860,21 @@ static void sass_bases_read(const Blocks *blocks, Bases *bases)
 {
     static const Question s_nothing = {};
     static const char *s_lines[FORMS_BLOCK_MAX];
+    // the block's lines out of their cell, which s_lines names
+    static FormsLine s_copies[FORMS_BLOCK_MAX];
     static Read s_read;
     for (unsigned int at = 0u; (at < blocks->count) && ((bases->in_low < 0) || (bases->out_low < 0));)
     {
         unsigned int count = 0u;
-        const unsigned int first = blocks_of(blocks, blocks->lines[at].tag, &count);
+        const unsigned int first = blocks_of(blocks, block_line(blocks, at).tag, &count);
         if (count > FORMS_BLOCK_MAX)
         {
             forms_refused("a block holds more lines than the table holds", "", 0u);
         }
         for (unsigned int one = 0u; one < count; one += 1u)
         {
-            s_lines[one] = blocks->lines[first + one].text.text;
+            s_copies[one] = block_line(blocks, first + one).text;
+            s_lines[one] = s_copies[one].text;
         }
         sass_read(&s_nothing, s_lines, count, bases, &s_read);
         at = first + count;
@@ -4858,7 +4891,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
                       const char *ptx_krs, const char *machine, const char *record, int apply)
 {
     unsigned int question_count = 0u;
-    const Question *const questions = questions_read(questions_path, &question_count);
+    const void *const questions = questions_read(questions_path, &question_count);
     s_machine_read = sass_machine_read(&s_machine, machine);
     static Krs s_sass;
     static Krs s_ptx_rules;
@@ -4879,6 +4912,8 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     static PtxBases s_ptx_bases;
     static const Question s_nothing = {};
     static const char *s_lines[3u * FORMS_BLOCK_MAX];
+    // the lines of the block that the pass reads, out of their cell, which s_lines names
+    static FormsLine s_copies[3u * FORMS_BLOCK_MAX];
     static Read s_read;
     // the code sets the bases in whichever block the compiler opens the entry into
     sass_bases_read(&sass_lines, &bases);
@@ -4890,7 +4925,8 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     }
     for (unsigned int at = 0u; at < opening_count; at += 1u)
     {
-        s_lines[at] = ptx_lines.lines[opening + at].text.text;
+        s_copies[at] = block_line(&ptx_lines, opening + at).text;
+        s_lines[at] = s_copies[at].text;
     }
     ptx_read(&s_nothing, s_lines, opening_count, &s_ptx_bases, &s_read);
     record_put(out, "# The forms read off NVIDIA's compiler\n\n");
@@ -4918,10 +4954,11 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     static char s_why[FORMS_WHY_BYTES];
     for (unsigned int at = 0u; at < question_count; at += 1u)
     {
-        const Question *const question = &questions[at];
+        const Question question_read_out = question_at(questions, at);
+        const Question *const question = &question_read_out;
         const int from_ptx = (question->tag >= MONOLITH_FORMS_PTX);
         const unsigned int count =
-            regions_joined(from_ptx ? &sass_lines : &ptx_lines, question->tag, s_lines, 3u * FORMS_BLOCK_MAX);
+            regions_joined(from_ptx ? &sass_lines : &ptx_lines, question->tag, s_lines, s_copies, 3u * FORMS_BLOCK_MAX);
         if (from_ptx)
         {
             sass_read(question, s_lines, count, &bases, &s_read);
@@ -4987,7 +5024,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         FormReading *const reading = &readings[reading_count];
         reading_count += 1u;
         reading->state = state;
-        reading->question = question;
+        reading->question = at;
         reading->settles = 0;
         reading->constrains = 0;
         forms_set_n(reading->text, sizeof(reading->text), s_text, forms_length(s_text));
@@ -5062,7 +5099,8 @@ static int forms_read(const char *questions_path, const char *listing, const cha
             {
                 const FormReading *const earlier = &readings[before - 1u];
                 if ((earlier->state == state) && earlier->settles &&
-                    forms_same(earlier->question->key.text, readings[one].question->key.text))
+                    forms_same(question_at(questions, earlier->question).key.text,
+                               question_at(questions, readings[one].question).key.text))
                 {
                     whole = forms_same(earlier->text, readings[one].text);
                     break;
@@ -5085,7 +5123,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
                 continue;
             }
             const char *const text = readings[one].text;
-            if (assembles_everywhere(readings, reading_count, state, text) &&
+            if (assembles_everywhere(questions, readings, reading_count, state, text) &&
                 ((chosen[0] == '\0') || forms_same(text, now) ||
                  (!forms_same(chosen, now) && (text_instructions(text) < text_instructions(chosen)))))
             {
@@ -5109,7 +5147,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         // the loaded reading places the numbers of the form in registers. It is the form only where it also assembles
         // for every written-in number that the tests of the form used. Else it is a form only for operands that the
         // written-in questions never used
-        if (assembles_everywhere(readings, reading_count, state, state->loaded.text))
+        if (assembles_everywhere(questions, readings, reading_count, state, state->loaded.text))
         {
             state->sass = state->loaded;
         }
@@ -5126,8 +5164,12 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         }
         for (unsigned int one = 0u; one < reading_count; one += 1u)
         {
-            if ((readings[one].state != state) || !readings[one].constrains ||
-                sass_assembles(state->sass.text, readings[one].question))
+            if ((readings[one].state != state) || !readings[one].constrains)
+            {
+                continue;
+            }
+            const Question question = question_at(questions, readings[one].question);
+            if (sass_assembles(state->sass.text, &question))
             {
                 continue;
             }
@@ -5271,7 +5313,8 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     sass_class_read(rulesets.text, stem.text);
     for (unsigned int at = 0u; at < question_count; at += 1u)
     {
-        const Question *const question = &questions[at];
+        const Question question_read_out = question_at(questions, at);
+        const Question *const question = &question_read_out;
         for (unsigned int one = 0u; one < question->role_count; one += 1u)
         {
             const Role *const role = &question->roles[one];
