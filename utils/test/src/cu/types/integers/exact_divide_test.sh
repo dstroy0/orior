@@ -31,7 +31,7 @@ esac
 
 rm -f "$BINARY"
 exact_types_compile divide "${EXACT_TYPES_ARITHMETIC[@]}" || exit 1
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${EXACT_TYPES_FLAGS[@]}" -o "$BINARY" "$TEST/exact_divide_test.cu" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${EXACT_TYPES_FLAGS[@]}" -o "$BINARY" "$TEST/exact_divide_test.cu" \
     "${EXACT_TYPES_OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 

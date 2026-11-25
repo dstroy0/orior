@@ -2,12 +2,13 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-# A program that uses the device is a job on the device's tessera daemon (engine/runtime/daemon, submitted through
-# sims/cu/sim_job.cu). TESSERA_INCLUDES are the headers the program and sim_job.cu read. tessera_build compiles the
-# client objects the program links and the seal its job's signum is taken with, and builds the daemon beside the
-# program, where the program starts it when none answers. It reads TOP, OUT, EXTENSION, HOST_FLAGS, GENCODE and
-# INCLUDES, takes a suffix for its objects and then the line's objects the daemon links, and sets the arrays
-# TESSERA_OBJECTS and TESSERA_SEAL. tessera_run_build, after it, builds tessera_run beside the daemon.
+# A program that uses the device is a job on the device's tessera daemon (engine/runtime/daemon). The program submits
+# it through sims/cu/sim_job.cu. TESSERA_INCLUDES are the headers the program and sim_job.cu read.
+#
+# `tessera_build` compiles the client objects that the program links, and the seal that signs its job. It builds the
+# daemon beside the program, which starts it when none answers. It reads TOP, OUT, EXTENSION, HOST_FLAGS, GENCODE and
+# INCLUDES. It takes a suffix for its objects, then the line's objects that the daemon links. It sets the arrays
+# TESSERA_OBJECTS and TESSERA_SEAL. After it, `tessera_run_build` builds tessera_run beside the daemon.
 TESSERA_INCLUDES=(-I "$ENGINE/../../sims/cu" -I "$ENGINE/runtime/daemon" -I "$ENGINE/runtime/obsignatio"
                   -I "$ENGINE/../../cu/engine/runtime/obsignatio")
 # the daemon and tessera_run are programs of the platform, as every program is. They link its process stage, its pool
@@ -45,10 +46,10 @@ tessera_build()
         rm -f "$object"
         case "$(uname -s)" in
             MINGW*|MSYS*|CYGWIN*)
-                nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${includes[@]}" -c "$daemon_directory/$name.c" \
+                nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${includes[@]}" -c "$daemon_directory/$name.c" \
                     -o "$object" ;;
             *)
-                cc -std=c11 -O2 -fPIC "${includes[@]}" -c "$daemon_directory/$name.c" -o "$object" ;;
+                cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${includes[@]}" -c "$daemon_directory/$name.c" -o "$object" ;;
         esac
         [ -f "$object" ] || { echo "  build failed: $name.c did not compile"; return 1; }
         case "$name" in
@@ -61,7 +62,7 @@ tessera_build()
     for name in obsignatio_{hash,seal}; do
         object="$OUT/${name}_${suffix}.$EXTENSION"
         rm -f "$object"
-        nvcc "${HOST_FLAGS[@]}" -O2 "${GENCODE[@]}" "${includes[@]}" -c "$ENGINE/../../cu/engine/runtime/obsignatio/$name.cu" \
+        nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${includes[@]}" -c "$ENGINE/../../cu/engine/runtime/obsignatio/$name.cu" \
             -o "$object"
         [ -f "$object" ] || { echo "  build failed: $name.cu did not compile"; return 1; }
         TESSERA_SEAL+=("$object")
@@ -72,7 +73,7 @@ tessera_build()
     TESSERA_PLATFORM=("${EXACT_TYPES_OBJECTS[@]}")
     EXACT_TYPES_OBJECTS=("${caller_objects[@]+"${caller_objects[@]}"}")
     rm -f "$daemon"
-    nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${long_paths[@]}" -o "$daemon" "${daemon_objects[@]}" \
+    nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${GENCODE[@]}" "${long_paths[@]}" -o "$daemon" "${daemon_objects[@]}" \
         "${linea_objects[@]}" "${TESSERA_PLATFORM[@]}" "${TESSERA_SEAL[@]}" "${daemon_libraries[@]}" \
         "${EXACT_TYPES_LIBRARIES[@]}"
     [ -f "$daemon" ] || { echo "  build failed: the tessera daemon did not link"; return 1; }
@@ -108,15 +109,15 @@ tessera_run_build()
         rm -f "$object"
         case "$(uname -s)" in
             MINGW*|MSYS*|CYGWIN*)
-                nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${includes[@]}" -c "$ENGINE/runtime/daemon/$name.c" \
+                nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${includes[@]}" -c "$ENGINE/runtime/daemon/$name.c" \
                     -o "$object" ;;
             *)
-                cc -std=c11 -O2 -fPIC "${includes[@]}" -c "$ENGINE/runtime/daemon/$name.c" -o "$object" ;;
+                cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${includes[@]}" -c "$ENGINE/runtime/daemon/$name.c" -o "$object" ;;
         esac
         [ -f "$object" ] || { echo "  build failed: $name.c did not compile"; return 1; }
         run_objects+=("$object")
     done
-    nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${long_paths[@]}" -o "$run" "${run_objects[@]}" "${TESSERA_OBJECTS[@]}" \
+    nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${GENCODE[@]}" "${long_paths[@]}" -o "$run" "${run_objects[@]}" "${TESSERA_OBJECTS[@]}" \
         "${linea_objects[@]}" "${TESSERA_PLATFORM[@]}" "${TESSERA_SEAL[@]}" "${run_libraries[@]}" \
         "${EXACT_TYPES_LIBRARIES[@]}"
     [ -f "$run" ] || { echo "  build failed: tessera_run did not link"; return 1; }

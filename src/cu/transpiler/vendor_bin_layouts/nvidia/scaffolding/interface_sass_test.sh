@@ -79,19 +79,19 @@ for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/int
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
         *)
-            cc -std=c11 -O2 "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            cc "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O2 "${INCLUDES[@]}" -c "$source" -o "$object" ;;
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
     [ -n "${FORMAT_SOURCE[$source]:-}" ] && FORMAT_OBJECTS+=("$object")
 done
 # the SASS probe is a program of the platform too, and takes MMgr's line with the platform from PLATFORM_LINK
-nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: the interface's SASS probe did not link"; exit 1; }
-# the probe reads rulesets and writes forms; the code generator's assembly printer (asm_printer_*.cu) and the code
-# generator on the device (codegen*.cu) run on the record machine, which the probe does not link
+# The probe reads rulesets and writes forms. The record machine runs the code generator's assembly printer
+# (asm_printer_*.cu) and the code generator on the device (codegen*.cu). The probe does not link the record machine
 CODEGEN_SOURCES=()
 for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu; do
     case "$(basename "$source")" in
@@ -99,7 +99,7 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_de
         *) CODEGEN_SOURCES+=("$source") ;;
     esac
 done
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" \
     -o "$PROBE" "$TEST_CU"/interface_ptx_probe_{questions,runs,main}.cu "$TEST_CU/ptx_target.cu" \
     "${CODEGEN_SOURCES[@]}" "${FORMAT_OBJECTS[@]}" -lnvrtc -lnvJitLink "${PLATFORM_LINK[@]}"
 [ -f "$PROBE" ] || { echo "  build failed: the PTX probe did not build"; exit 1; }
@@ -107,8 +107,8 @@ source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"
 qry_writer_built "$OUT"
 run_started "$OUT/qry"
 
-# SASS_PATTERN names the sass folder of an earlier run: the part is asked how it loops against those cubins and the
-# machine file the tree holds for the first architecture, and nothing is learned again
+# SASS_PATTERN names the sass folder of an earlier run. The probe asks the part how it loops against those cubins and
+# the machine file that the tree holds for the first architecture. The probe learns nothing again
 if [ -n "${SASS_PATTERN:-}" ]; then
     [ -f "$SASS_PATTERN/form_0.cubin" ] || { echo "  no form_0.cubin in $SASS_PATTERN"; exit 1; }
     FIRST="${ARCHES%% *}"
@@ -118,8 +118,8 @@ if [ -n "${SASS_PATTERN:-}" ]; then
     exit "$STATUS"
 fi
 mkdir -p "$OUT/sass"
-# SASS_LEARN set learns the machine again through the disassembler, bit by bit, which runs past half an hour; unset,
-# the queries are put against the machine file the tree holds for the first architecture
+# With SASS_LEARN set, the probe learns the machine again through the disassembler, bit by bit, past half an hour.
+# With it unset, the probe puts the queries against the machine file that the tree holds for the first architecture
 if [ -z "${SASS_LEARN:-}" ]; then
     FIRST="${ARCHES%% *}"
     "$BINARY" "$PROBE" "$OUT/sass" queries "$TOP/src/cu/transpiler/lstar/protocol/table/$FIRST.khw"

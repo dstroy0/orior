@@ -6,20 +6,20 @@
 #
 #   bash utils/maint/engine/build_gpu_arm.sh [--limbs N] [--digits N] [--positions N] [sm_XX ...]
 #
-#   --limbs N       exact width in 32 bit limbs, a power of two from 1 to 32768 (default: the
-#                   header's 128). exact_integer.h errors on any other value at compile time.
-#   --digits N      decimal digit floor, needed where the width is below 4096 bits
-#   --positions N   positions in the planted run (default: the bench's 4096). At 32768 limbs one
-#                   position is 128 KiB on the host and twice that on the device.
+#   - `--limbs N` is the exact width in 32 bit limbs, a power of two from 1 to 32768. The default is
+#     the header's 128. exact_integer.h errors on any other value at compile time.
+#   - `--digits N` is the decimal digit floor, which a width below 4096 bits needs.
+#   - `--positions N` is the positions in the planted run. The default is the bench's 4096. At 32768
+#     limbs one position is 128 KiB on the host and twice that on the device.
 #
-# nvcc needs a host compiler and on Windows that host compiler is MSVC, never MinGW. The rest of
+# `nvcc` needs a host compiler, and on Windows that host compiler is MSVC, never MinGW. The rest of
 # this tree builds with MinGW, and MinGW objects do not link against MSVC objects. The GPU arm
-# gets its own build and does not join the CMake one. Everything it needs is compiled here by the
-# same host compiler nvcc is driving. That retains the ABI consistent inside this binary.
+# gets its own build and does not join the CMake one. The host compiler of nvcc compiles all that
+# it needs here. That keeps the ABI the same inside this binary.
 #
-# Architectures default to the one this machine carries. Naming others compiles for them as well.
-# That is how an architecture nobody here owns is checked: the code has to compile and the assembler
-# has to accept it for that target, and only running it is left unverified.
+# The architectures default to the one this machine carries. Naming others compiles for them too.
+# So the code compiles, and the assembler takes it, for an architecture that nobody here owns. The
+# script does not run the code there.
 set -u
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -75,18 +75,16 @@ for one in $ARCHES; do
     GENCODE="$GENCODE -gencode arch=compute_${NUM},code=${one}"
 done
 
-# Removed before the build. A previous binary cannot survive a failed compile and be run as
-# though it were this one. This script did exactly that for a week: nvcc failed on a header, a
-# binary from Sep 9 was still sitting here, the file existence test below passed, and the bench ran
-# the stale one and reported a device engine that "agreed" with the portable engine at 1.01x. It
-# agreed because it WAS the portable engine, carrying no CUDA at all, and the ratio wandering
-# between 1.01x and 1.14x across runs was two runs of identical code.
+# The script deletes the binary before the build. A binary of an earlier build must not outlast a
+# compile that fails. The bench would then run it as though it were this one, and the test below
+# would pass on its file.
 rm -f "$OUT/bench_exact_gpu.exe"
 
-# PIPESTATUS and not $?, because the pipe into grep would otherwise report grep's status and grep
-# succeeds whatever nvcc did. A filter on the output must never decide whether the build passed.
-# Unquoted. An empty WIDTH_DEFINES has to expand to no argument at all, and quoted it would pass an
-# empty one to nvcc.
+# PIPESTATUS and not $?, as the pipe into grep would otherwise give grep's status. Grep succeeds
+# whatever nvcc did. A filter on the output must never decide whether the build passed.
+#
+# WIDTH_DEFINES has no quotes. An empty WIDTH_DEFINES must expand to no argument at all. With
+# quotes it would pass an empty one to nvcc.
 # the defines of the width as words, split where WIDTH_DEFINES has spaces
 # shellcheck disable=SC2206
 WIDTH_WORDS=($WIDTH_DEFINES)
@@ -95,7 +93,7 @@ HOST_FLAGS=(-ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor)
 EXACT_TYPES_EXTRA=(-DORIOR_EXACT_HAVE_CUDA=1 "${WIDTH_WORDS[@]}")
 exact_types_compile gpu_arm "${EXACT_TYPES_ARITHMETIC[@]}" || exit 1
 # shellcheck disable=SC2086
-nvcc -ccbin "$MSVC_BIN" -O2 $GENCODE \
+nvcc -ccbin "$MSVC_BIN" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -O2 $GENCODE \
     "${EXACT_TYPES_FLAGS[@]}" \
     -DORIOR_EXACT_HAVE_CUDA=1 $WIDTH_DEFINES \
     -o "$OUT/bench_exact_gpu.exe" \
@@ -106,9 +104,9 @@ nvcc -ccbin "$MSVC_BIN" -O2 $GENCODE \
     2>&1 | grep -viE "^\s*$|Copyright|Microsoft \(R\)|exact_integer\.c$|arm\.c$|bench_exact_arms\.c$|arm_cuda\.cu$" | head -20
 NVCC_STATUS=${PIPESTATUS[0]}
 
-# Both conditions, because each one alone has been wrong here. A status of zero with no file is a
-# linker that wrote nothing; a file with a nonzero status is the stale binary this script used to
-# run. Neither is a build.
+# Both conditions, as each one alone passes a build that failed. A status of zero with no file is
+# a linker that wrote nothing. A file with a status other than zero is a stale binary. Neither is
+# a build.
 if [ "$NVCC_STATUS" -ne 0 ] || [ ! -f "$OUT/bench_exact_gpu.exe" ]; then
     echo "  build failed: nvcc exited $NVCC_STATUS"
     exit 1

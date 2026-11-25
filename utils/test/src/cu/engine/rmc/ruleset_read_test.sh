@@ -26,7 +26,7 @@ OBJECTS=()
 for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}"; do
     object="$OUT/$(basename "$source" .c)_rr.o"
     rm -f "$object"
-    cc -std=c11 -O2 "${INCLUDES[@]}" -c "$source" -o "$object"
+    cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 "${INCLUDES[@]}" -c "$source" -o "$object"
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
@@ -36,11 +36,11 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_de
     esac
     object="$OUT/$(basename "$source")_rr.o"
     rm -f "$object"
-    "$FILE_DEFS_CXX" -std=c++17 -O2 -Wall -Wextra "${INCLUDES[@]}" -x c++ -c "$source" -o "$object"
+    "$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -std=c++20 -O2 -Wall -Wextra "${INCLUDES[@]}" -x c++ -c "$source" -o "$object"
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
-"$FILE_DEFS_CXX" -o "$BINARY" "${OBJECTS[@]}" -static "${EXACT_TYPES_LIBRARIES[@]}"
+"$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -o "$BINARY" "${OBJECTS[@]}" -static "${EXACT_TYPES_LIBRARIES[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: the test did not link"; exit 1; }
 
 "$BINARY" "$@"

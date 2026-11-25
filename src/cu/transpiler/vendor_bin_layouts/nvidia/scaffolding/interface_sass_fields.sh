@@ -12,11 +12,13 @@
 # argument. The earlier run, for its pattern cubin, kernel and PTX probe, defaults to the newest under build/.
 #
 # This runs turned-over instructions on the part. A turned bit that made a backward branch would make a loop that
-# never ends and hangs the part, and the display watchdog's reset under the run's load can hold a kernel DPC past its
-# watchdog and stop the whole machine with a DPC_WATCHDOG_VIOLATION. The runner holds every cubin to cubin_safe on the
-# host first, and a cubin holding a branch or a wait never reaches the driver. The per-pass timeout cap below ends a
-# waiting runner and cannot clear a part the kernel wedged. The contexts that reach such a loop, and the bound an
-# ask carries against them, are P9 of theory/workbooks/Lstar_protocol/query_protocol_table.md.
+# never ends, and the loop hangs the part. Under the run's load, the display watchdog's reset can hold a kernel DPC
+# past its watchdog. That stops the whole machine with a DPC_WATCHDOG_VIOLATION.
+#
+# The runner holds every cubin to cubin_safe on the host first. A cubin that holds a branch or a wait never reaches
+# the driver. The cap on each pass below ends a runner that waits, and cannot clear a part that the kernel wedged. The
+# contexts that reach such a loop, and the bound an ask carries against them, are P9 of
+# theory/workbooks/Lstar_protocol/query_protocol_table.md.
 set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -32,9 +34,9 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) PYTHON=python ;;
     *) PYTHON=python3 ;;
 esac
-# the seconds a single runner pass is given before it is cut off: a bit-flip that turns the instruction into a loop
-# that never ends hangs the part until the display watchdog resets it, and the cap ends the waiting runner without
-# clearing the part
+# The seconds that one runner pass has before the cap ends it. A bit-flip that turns the instruction into a loop that
+# never ends hangs the part until the display watchdog resets it. The cap ends the runner that waits, and does not
+# clear the part
 CAP=6
 mkdir -p "$OUT"
 
@@ -49,11 +51,11 @@ fi
 [ -f "$RUN/sass/form_0.cubin" ] && [ -f "$RUN/sass/form_0.text" ] || { echo "  no earlier run with sass/form_0"; exit 1; }
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$CUB" -I "$INT" -I "$KRS")
-cc -std=c11 -O1 -Wall "${INCLUDES[@]}" -o "$OUT/interface_sass_probe_fields" \
+cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O1 -Wall "${INCLUDES[@]}" -o "$OUT/interface_sass_probe_fields" \
     "$INT/interface.c" "$INT"/platform/*.c "$INT/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" \
     "$HERE/interface_sass_probe_fields.c" "$HERE"/interface_sass_probe_fields/*.c "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
-# the runner holds every cubin to cubin_safe on the host before the driver is passed it
-cc -std=c11 -O1 -Wall -I "$CUDA/include" -o "$OUT/interface_sass_run" "$HERE/interface_sass_run.c" \
+# the runner holds every cubin to cubin_safe on the host before it passes the cubin to the driver
+cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O1 -Wall -I "$CUDA/include" -o "$OUT/interface_sass_run" "$HERE/interface_sass_run.c" \
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" \
     -L "$CUDA/lib/x64" -lcuda 2>/dev/null "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || { echo "  the runner did not link against the CUDA driver"; exit 1; }
 
@@ -80,8 +82,8 @@ while IFS= read -r line; do
     esac
     seen="$seen|$trimmed|"
     printf '%s\n' "$trimmed" > "$ONE"
-    # the list from the form before is cleared first: a form that does not assemble writes no list and is passed over,
-    # never run on the cubins of the one before it
+    # The loop clears the list of the form before first. A form that does not assemble writes no list. The loop then
+    # goes past it, and never runs it on the cubins of the form before it
     rm -f "$OUT/list.txt"
     "$OUT/interface_sass_probe_fields" "$PATTERN" "$KERNEL_TEXT" "$MACHINE" "$(cygpath -m "$OUT")" "$ONE" > /dev/null || continue
     [ -f "$OUT/list.txt" ] || continue

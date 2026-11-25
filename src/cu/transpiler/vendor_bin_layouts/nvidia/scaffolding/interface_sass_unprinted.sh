@@ -4,14 +4,14 @@
 # Asks the part what the bits the disassembler does not print do (interface_sass_probe_unprinted.c), and writes
 # interface_sass_unprinted.md beside this script whole.
 #
-# The runner, the pattern cubin and the kernel's text are an earlier SASS probe run's: the newest folder under build/
-# whose sass/ holds form_0.cubin and form_0.text, and the PTX probe that run built beside it. Nothing is compiled
-# for the device and no disassembler is run.
+# The runner, the pattern cubin and the kernel's text are an earlier SASS probe run's. That run is the newest folder
+# under build/ whose sass/ holds form_0.cubin and form_0.text, and the PTX probe that run built beside it. The script
+# compiles nothing for the device and runs no disassembler.
 #
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_unprinted.sh [--forms] [<earlier run folder>]
 #
-# With --forms, every form holding an operand it does not print is asked instead, and interface_sass_unprinted_forms.md
-# is written.
+# With --forms, the script asks every form that holds an operand it does not print instead. It then writes
+# interface_sass_unprinted_forms.md.
 set -u
 
 FORMS=""
@@ -47,11 +47,11 @@ for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/int
               "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$HERE/interface_sass_probe_unprinted.c" "$HERE"/interface_sass_probe_unprinted/*.c; do
     object="$OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_')"
     object="${object%.c}.o"
-    cc -std=c11 -O1 -Wall -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$INTERFACE" -I "$KRS_C" \
+    cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O1 -Wall -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$INTERFACE" -I "$KRS_C" \
         "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
-cc -o "$OUT/interface_sass_probe_unprinted" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
+cc "${FILE_DEFS_LTO_CC[@]}" -o "$OUT/interface_sass_probe_unprinted" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 
 cd "$TOP" || exit 1
 "$OUT/interface_sass_probe_unprinted" "$RUNNER" "$RUN/sass/form_0.cubin" "$RUN/sass/form_0.text" \

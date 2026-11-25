@@ -28,11 +28,11 @@ case "$(uname -s)" in
         OBJECT=obj
         build_host()
         {
-            nvcc -ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor -Xcompiler "/std:c11 /O2 /W4" "${INCLUDES[@]}" "$@"
+            nvcc -ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /W4" "${INCLUDES[@]}" "$@"
         }
         build_device()
         {
-            nvcc -ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor -Xcompiler -W4 -O2 "${INCLUDES[@]}" "$@" -lpdh
+            nvcc -ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor -Xcompiler -W4 -std=c++20 -O2 "${INCLUDES[@]}" "$@" -lpdh
         }
         build_seal()
         {
@@ -46,12 +46,12 @@ case "$(uname -s)" in
         OBJECT=o
         build_host()
         {
-            cc -std=c11 -O2 -Wall -Wextra "${INCLUDES[@]}" "$@"
+            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -Wall -Wextra "${INCLUDES[@]}" "$@"
         }
         if command -v nvcc > /dev/null 2>&1; then
             build_device()
             {
-                nvcc -O2 -Xcompiler -Wall "${INCLUDES[@]}" "$@" -ldl
+                nvcc -std=c++20 -O2 -Xcompiler -Wall "${INCLUDES[@]}" "$@" -ldl
             }
             build_seal()
             {
@@ -59,15 +59,15 @@ case "$(uname -s)" in
             }
             DEVICE_TOOLCHAIN=1
         else
-            # a part with no CUDA toolchain (the Pi) builds the seal as C++ and links with c++; the daemon and
-            # tessera_run are built and tested, and the two tests that take device memory are not
+            # A part with no CUDA toolchain (the Pi) builds the seal as C++ and links with c++. The script builds and
+            # tests the daemon and tessera_run, and leaves out the two tests that take device memory
             build_device()
             {
-                "$FILE_DEFS_CXX" -O2 -Wall -Wextra "${INCLUDES[@]}" "$@" -ldl -lpthread
+                "$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -std=c++20 -O2 -Wall -Wextra "${INCLUDES[@]}" "$@" -ldl -lpthread
             }
             build_seal()
             {
-                "$FILE_DEFS_CXX" -std=c++17 -O2 -Wall -Wextra "${INCLUDES[@]}" -c -x c++ "$@"
+                "$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -std=c++20 -O2 -Wall -Wextra "${INCLUDES[@]}" -c -x c++ "$@"
             }
             DEVICE_TOOLCHAIN=0
         fi
@@ -105,7 +105,7 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
         rm -f "$MEASURE_OBJECT" "$SELF_OBJECT"
         build_host -c "$MODULE/tessera_measure.c" -o "$MEASURE_OBJECT"
         build_host -c "$MODULE/tessera_self.c" -o "$SELF_OBJECT"
-        build_device "$TEST/tessera_measure_test.cu" "$MEASURE_OBJECT" "$SELF_OBJECT" "${PLATFORM_LINK[@]}" \
+        build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "$TEST/tessera_measure_test.cu" "$MEASURE_OBJECT" "$SELF_OBJECT" "${PLATFORM_LINK[@]}" \
             "${LONG_PATHS[@]}" \
             -o "$OUT/tessera_measure_test$SUFFIX"
         run_one tessera_measure_test
@@ -113,8 +113,8 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
         echo "  tessera_measure_test not built: no CUDA toolchain"
     fi
 
-    # the tests' daemons answer endpoints of their own ($TESSERA_RUNTIME), apart from the daemons real jobs use: a pipe
-    # name on Windows, and on Linux a short folder, since a socket's path holds 108 bytes
+    # The tests' daemons answer endpoints of their own ($TESSERA_RUNTIME), apart from the daemons that real jobs use.
+    # The endpoint is a pipe name on Windows, and on Linux a short folder, since a socket's path holds 108 bytes
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*) RUNTIME="tessera_test_$$" ;;
         *) RUNTIME="$(mktemp -d /tmp/tessera_test.XXXXXX)" ;;
@@ -148,10 +148,10 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
             *) DAEMON_OBJECTS+=("$object"); CLIENT_OBJECTS+=("$object") ;;
         esac
     done
-    build_device "${DAEMON_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${PLATFORM_LINK[@]}" "${LONG_PATHS[@]}" -o "$OUT/tessera_daemon$SUFFIX"
+    build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${DAEMON_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${PLATFORM_LINK[@]}" "${LONG_PATHS[@]}" -o "$OUT/tessera_daemon$SUFFIX"
     [ -f "$OUT/tessera_daemon$SUFFIX" ] || { echo "  build failed: the daemon did not link"; FAILED=1; }
     if [ "$DEVICE_TOOLCHAIN" = "1" ]; then
-        build_device "$TEST/tessera_job_test.cu" "${CLIENT_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${PLATFORM_LINK[@]}" \
+        build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "$TEST/tessera_job_test.cu" "${CLIENT_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${PLATFORM_LINK[@]}" \
             "${LONG_PATHS[@]}" \
             -o "$OUT/tessera_job_test$SUFFIX"
     fi
@@ -181,7 +181,7 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
         build_host -c "$MODULE/$name.c" -o "$object"
         RUN_OBJECTS+=("$object")
     done
-    build_device "${RUN_OBJECTS[@]}" "${CLIENT_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${PLATFORM_LINK[@]}" \
+    build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${RUN_OBJECTS[@]}" "${CLIENT_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${PLATFORM_LINK[@]}" \
         "${LONG_PATHS[@]}" \
         -o "$OUT/tessera_run$SUFFIX"
     build_host "$TEST/tessera_burn.c" "${PLATFORM_LINK[@]}" -o "$OUT/tessera_burn$SUFFIX"
@@ -195,10 +195,13 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
         STATUS=$?
         echo "  tessera_run_test exit $STATUS"
         [ "$STATUS" -eq 0 ] || FAILED=1
-        # once it holds, tessera_run and the daemon it starts are published together into build/tessera_host, where
-        # every build that wraps itself in a host job finds them; the device daemons beside the programs are untouched.
-        # A copy that is running is renamed aside first (Windows lets a running program be renamed, not overwritten),
-        # and the jobs already under it retain it; the ones set aside before are removed once nothing runs them
+        # Once the test holds, the script publishes tessera_run and the daemon it starts together into
+        # build/tessera_host. Every build that wraps itself in a host job finds them there. The script does not touch
+        # the device daemons beside the programs.
+        #
+        # The script first moves a copy that runs aside under another name. Windows lets a program that runs take a
+        # new name, but not a new body. The jobs already under the copy keep it. The script deletes the copies that it
+        # set aside before, once nothing runs them
         if [ "$STATUS" -eq 0 ] && [ "$FINAL" != "$OUT" ]; then
             HOST="$FINAL/tessera_host"
             mkdir -p "$HOST"

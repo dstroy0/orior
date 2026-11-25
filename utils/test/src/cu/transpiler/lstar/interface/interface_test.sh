@@ -48,21 +48,21 @@ for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/int
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
         *)
-            cc -std=c11 -O2 "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            cc "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O2 "${INCLUDES[@]}" -c "$source" -o "$object" ;;
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
-        nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
-        nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /Od" "${INCLUDES[@]}" -o "$PROBE" "$TEST/interface_probe.c" \
+        nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
+        nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /Od" "${INCLUDES[@]}" -o "$PROBE" "$TEST/interface_probe.c" \
             "${PLATFORM_LINK[@]}" ;;
     *)
-        cc -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
-        cc -std=c11 -O0 "${INCLUDES[@]}" -o "$PROBE" "$TEST/interface_probe.c" "${PLATFORM_LINK[@]}" ;;
+        cc "${FILE_DEFS_LTO_CC[@]}" -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
+        cc "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O0 "${INCLUDES[@]}" -o "$PROBE" "$TEST/interface_probe.c" "${PLATFORM_LINK[@]}" ;;
 esac
 [ -f "$BINARY" ] || { echo "  build failed: the interface test did not link"; exit 1; }
 [ -f "$PROBE" ] || { echo "  build failed: the probe did not build"; exit 1; }

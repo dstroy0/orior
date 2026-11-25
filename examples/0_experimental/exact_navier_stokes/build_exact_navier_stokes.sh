@@ -31,7 +31,7 @@ for report in exact_navier_stokes_on_torus exact_navier_stokes_cascade; do
         cascade) [ "$report" = exact_navier_stokes_cascade ] || continue ;;
         *) echo "usage: build_exact_navier_stokes.sh [torus|cascade]"; exit 2 ;;
     esac
-    "${CC:-cc}" -std=c11 -O2 -Wall -Wextra "${WIDTH[@]}" "${EXACT_TYPES_FLAGS[@]}" -o "$OUT/$report" "$HERE/$report.c" \
+    "${CC:-cc}" "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O2 -Wall -Wextra "${WIDTH[@]}" "${EXACT_TYPES_FLAGS[@]}" -o "$OUT/$report" "$HERE/$report.c" \
         "${SOURCES[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
     "$OUT/$report" || STATUS=1
 done

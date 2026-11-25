@@ -41,10 +41,10 @@ for source in "$TEST/check_test.c" "$CHECK/points_check.c" "$CHECK/output_check.
     rm -f "$binary"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /W4 /D_CRT_SECURE_NO_WARNINGS" "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$binary" "$source" \
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /W4 /D_CRT_SECURE_NO_WARNINGS" "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$binary" "$source" \
                 "${PLATFORM_LINK[@]}" ;;
         *)
-            cc -std=c11 -O2 -Wall -Wextra "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$binary" "$source" "${PLATFORM_LINK[@]}" ;;
+            cc "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O2 -Wall -Wextra "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$binary" "$source" "${PLATFORM_LINK[@]}" ;;
     esac
     [ -f "$binary" ] || { echo "  build failed: $(basename "$source") did not build"; exit 1; }
 done
@@ -53,7 +53,7 @@ if [ "${BUILD_ONLY:-0}" = "1" ]; then
     exit 0
 fi
 
-# the cases are written under the build directory
+# the test writes the cases under the build directory
 SET="$OUT/check_test_set"
 rm -rf "$SET"
 "$OUT/check_test$SUFFIX" "$SET" || { echo "  check_test could not write its cases"; exit 1; }

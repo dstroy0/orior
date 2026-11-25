@@ -22,7 +22,9 @@ CODEGEN_CU_2="$TOP/includes/parsers"
 CUBIN="$TOP/includes/parsers"
 KRS_C="$TOP/includes/parsers"
 OUT="$TOP/build/monolith/emit"
-mkdir -p "$OUT"
+# the objects, in a folder that the LTO flags name, so that an object of other flags is not current
+OBJECT_OUT="$OUT/objects_$FILE_DEFS_LTO_KEY"
+mkdir -p "$OUT" "$OBJECT_OUT"
 
 ARCH="${1:-}"
 if [ -z "$ARCH" ]; then
@@ -72,22 +74,22 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_de
     case "$(basename "$source")" in
         asm_printer_*.cu | codegen*.cu) continue ;;
     esac
-    object="$OUT/$(basename "$source").o"
+    object="$OBJECT_OUT/$(basename "$source").o"
     if stale "$source" "$object"; then
-        "$FILE_DEFS_CXX" -std=c++17 -O1 -w -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$CODEGEN" -I "$CODEGEN_CU" \
+        "$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -std=c++20 -O1 -w -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$CODEGEN" -I "$CODEGEN_CU" \
             -I "$CODEGEN_CU_2" -I "$HERE" -MMD -MF "${object%.o}.d" -x c++ -c "$source" -o "$object" || exit 1
     fi
     OBJECTS+=("$object")
 done
 for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c; do
-    object="$OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_').o"
-    cc -std=c11 -O1 -w -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$KRS_C" \
+    object="$OBJECT_OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_').o"
+    cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O1 -w -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$KRS_C" \
         "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
-"$FILE_DEFS_CXX" -std=c++17 -O1 -Wall -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$CODEGEN" -I "$CODEGEN_CU" \
+"$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -std=c++20 -O1 -Wall -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$CODEGEN" -I "$CODEGEN_CU" \
     -I "$CODEGEN_CU_2" -I "$CUBIN" -c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_emit.cpp" -o "$OUT/monolith_emit.o" || exit 1
-"$FILE_DEFS_CXX" -o "$OUT/monolith_emit" "$OUT/monolith_emit.o" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
+"$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -o "$OUT/monolith_emit" "$OUT/monolith_emit.o" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 
 cd "$TOP" || exit 1
 "$OUT/monolith_emit" "build/monolith/emit/monolith_tagged.listing" all \

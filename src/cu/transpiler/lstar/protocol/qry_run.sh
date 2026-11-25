@@ -4,13 +4,15 @@
 # the run QRY names; a run's .qry holds every record of the run, and every file a member wrote is written in its place
 # as the run ends. A file a member reads that the run does not hold is read from the disk into the run as it is read.
 #
-#     source src/cu/transpiler/lstar/protocol/qry_run.sh
-#     qry_writer_built <folder>      the writer built into <folder> where its sources are newer, QRY_WRITER its path
-#     run_started <folder>           where QRY names a .qry whose writer runs, the script joins that run; else
-#                                    query<n>-<datetime>.qry is made in <folder>, <n> one past the highest it holds, its
-#                                    writer started, and asked to stop as the script ends however it ends
-#     run_filed <file>               the standard input appended as the file <file>, which the writer writes in its
-#                                    place as the run ends
+#     `source src/cu/transpiler/lstar/protocol/qry_run.sh`
+#
+#   - `qry_writer_built <folder>`    the writer built into <folder> where its sources are newer, QRY_WRITER its path.
+#   - `run_started <folder>`         where QRY names a .qry whose writer runs, the script joins that run. Else it
+#                                    makes query<n>-<datetime>.qry in <folder>, <n> one past the highest it holds.
+#                                    It starts its writer. It asks the writer to stop as the script ends, however it
+#                                    ends.
+#   - `run_filed <file>`             the standard input appended as the file <file>. The writer writes it in its
+#                                    place as the run ends.
 QRY_SOURCE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 QRY_TOP="$(cd "$QRY_SOURCE/../../../../.." && pwd)"
 export QRY_TOP
@@ -33,7 +35,7 @@ qry_writer_built() {
     done
     if [ "$stale" -eq 1 ]; then
         mkdir -p "$1"
-        cc -std=c11 -O2 -Wall -Wextra -o "$QRY_WRITER" "${sources[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" ||
+        cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -Wall -Wextra -o "$QRY_WRITER" "${sources[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" ||
             { echo "  build failed: orior_qry_writer did not compile"; exit 1; }
     fi
 }
@@ -57,7 +59,7 @@ run_started() {
     QRY_WRITER_PROCESS=$!
     trap 'run_stopped' EXIT
     local waited=0
-    # the writer makes the run's shared memory and then its .qry, and the .qry located says the run is made
+    # the writer makes the run's shared memory and then its .qry. Where the .qry exists, the run exists
     until [ -f "$QRY" ]; do
         sleep 0.01
         waited=$((waited + 1))

@@ -39,7 +39,7 @@ for WIDTH in ${EXACT_TEST_WIDTHS:-"-DORIOR_EXACT_LIMBS=128u" "-DORIOR_EXACT_LIMB
     rm -f "$BINARY"
     EXACT_TYPES_EXTRA=("$WIDTH" "$@")
     exact_types_compile "transform_$NAME" "${EXACT_TYPES_ARITHMETIC[@]}" > "$OUT/build_$NAME.log" 2>&1 &&
-        nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "$WIDTH" "$@" "${EXACT_TYPES_FLAGS[@]}" -o "$BINARY" \
+        nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "$WIDTH" "$@" "${EXACT_TYPES_FLAGS[@]}" -o "$BINARY" \
             "$TEST/exact_transform_test.cu" "${EXACT_TYPES_OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" \
             >> "$OUT/build_$NAME.log" 2>&1
     [ -f "$BINARY" ] || { echo "  build failed at $WIDTH:"; cat "$OUT/build_$NAME.log"; exit 1; }

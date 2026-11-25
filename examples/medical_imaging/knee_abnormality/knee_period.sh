@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
 # Builds knee_period, the knee's period pass on the record machine, with the engine it calls and the tessera daemon
-# beside it, and prints the binary's path on its last line.
+# beside it. It prints the binary's path on its last line.
 #
 #   Usage:  bash examples/medical_imaging/knee_abnormality/knee_period.sh [sm_NN ...]
 set -u
@@ -114,10 +114,10 @@ for source in "${PORTABLE_SOURCES[@]}"; do
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" \
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" \
                 -o "$object" ;;
         *)
-            cc -std=c11 -O2 -fPIC "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$object" ;;
+            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$object" ;;
     esac
     [ -f "$object" ] || { echo "  build failed: $source did not compile"; exit 1; }
     OBJECTS+=("$object")
@@ -131,9 +131,9 @@ for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" -o "$object" ;;
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" -o "$object" ;;
         *)
-            cc -std=c11 -O2 -fPIC "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" -o "$object" ;;
+            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" -o "$object" ;;
     esac
     [ -f "$object" ] || { echo "  build failed: $name.c did not compile"; exit 1; }
     OBJECTS+=("$object")
@@ -142,7 +142,7 @@ done
 tessera_build knee "${LINEA_OBJECTS[@]}" || exit 1
 
 rm -f "$BINARY"
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -fmad=false "${GENCODE[@]}" "${LINK_FLAGS[@]}" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -fmad=false "${GENCODE[@]}" "${LINK_FLAGS[@]}" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" \
     -o "$BINARY" "${SOURCES[@]}" "${OBJECTS[@]}" "${TESSERA_OBJECTS[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build knee_period"; exit 1; }
 case "$(uname -s)" in

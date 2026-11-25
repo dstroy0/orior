@@ -19,7 +19,7 @@ if command -v nvcc >/dev/null 2>&1 && [ -n "$MSVC_BIN" ] && [ -n "$CAP" ]; then
     HOST_FLAGS=(-ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor)
     EXACT_TYPES_EXTRA=(-DORIOR_EXACT_HAVE_CUDA=1)
     exact_types_compile cell_shift "${EXACT_TYPES_ARITHMETIC[@]}" || exit 1
-    nvcc -ccbin "$MSVC_BIN" -O2 -gencode "arch=compute_${ARCH#sm_},code=${ARCH}" \
+    nvcc -ccbin "$MSVC_BIN" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -O2 -gencode "arch=compute_${ARCH#sm_},code=${ARCH}" \
         -I "$NO_ROUNDING" "${EXACT_TYPES_FLAGS[@]}" \
         -DORIOR_EXACT_HAVE_CUDA=1 \
         -o "$OUT/cell_shift.exe" \
@@ -30,7 +30,7 @@ if command -v nvcc >/dev/null 2>&1 && [ -n "$MSVC_BIN" ] && [ -n "$CAP" ]; then
     STATUS=$?
 else
     echo "  portable engine only: no nvcc, no host compiler, or no device"
-    cc -O2 -std=c11 -I "$NO_ROUNDING" "${EXACT_TYPES_FLAGS[@]}" \
+    cc "${FILE_DEFS_LTO_CC[@]}" -O2 -std=c11 -I "$NO_ROUNDING" "${EXACT_TYPES_FLAGS[@]}" \
         -o "$OUT/cell_shift.exe" \
         "$ROOT/src/cell_shift.c" \
         "${EXACT_TYPES_ARITHMETIC[@]}" \

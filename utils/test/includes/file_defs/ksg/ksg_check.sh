@@ -14,10 +14,10 @@ OUT="$TOP/build/ksg"
 mkdir -p "$OUT"
 source "$TOP/includes/file_defs/file_defs.sh"
 source "$TOP/includes/exact_types/exact_types.sh"
-# a program built before under the other name, with or without .exe, would be run in place of the one built here
+# the script would otherwise run a program that an earlier build made under the other name, with or without .exe
 rm -f "$OUT/ksg_check" "$OUT/ksg_check.exe" "$OUT/ksg" "$OUT/ksg.exe"
 
-"${CC:-cc}" -std=c11 -O2 -Wall -Wextra -o "$OUT/ksg_check" "$HERE/ksg_check.c" \
+"${CC:-cc}" "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O2 -Wall -Wextra -o "$OUT/ksg_check" "$HERE/ksg_check.c" \
     "$TOP/includes/file_defs/ksg/ksg_seal.c" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 "$OUT/ksg_check" || exit 1
 
@@ -27,7 +27,7 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) RANDOMNESS=(-lbcrypt) ;;
     *) RANDOMNESS=() ;;
 esac
-"${CC:-cc}" -std=c11 -O2 -Wall -o "$OUT/ksg" "$TOP/includes/file_defs/ksg/ksg.c" \
+"${CC:-cc}" "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O2 -Wall -o "$OUT/ksg" "$TOP/includes/file_defs/ksg/ksg.c" \
     "$TOP/includes/file_defs/ksg/ksg_approvals.c" "$TOP/includes/file_defs/ksg/ksa.c" \
     "$TOP/includes/file_defs/ksg/ksg_seal.c" "$TOP/includes/codecs/ed25519/ed25519.c" \
     "$TOP/includes/codecs/sha512/sha512.c" "$TOP"/includes/file_defs/qry/writer/platform/*.c \
@@ -51,9 +51,9 @@ else
     echo "  FAIL a sealed .gsm held, named its changed line alone and held again"
 fi
 
-# its approvals: an approver's keys made, the seal approved, checked with the approver asked for; a second key that did
-# not approve asked for and refused; the file changed and sealed again, its approval no longer holding; and two
-# approvers both holding
+# Its approvals: an approver's keys made, and the seal approved, then checked with the approver asked for. A second
+# key that did not approve, asked for and refused. The file changed and sealed again, where its approval does not
+# hold. Two approvers that both hold
 approved=0
 KEYS="$OUT/keys"
 rm -rf "$KEYS"

@@ -47,7 +47,7 @@ source "$TOP/includes/exact_types/exact_types.sh"
 exact_types_platform_link tower_edge_test || exit 1
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOWER" -I "$TOWER_CU" -I "$DEVICE_POOL" "${FILE_DEFS_MMGR_FLAGS[@]}")
 rm -f "$BINARY"
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
     "$TEST/tower_edge_test.cu" "$TOWER_CU/tower.cu" "$TOWER_CU/tower_record.cu" "$TOWER_CU/tower_run.cu" "$DEVICE_POOL_CU/device_pool.cu" "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 

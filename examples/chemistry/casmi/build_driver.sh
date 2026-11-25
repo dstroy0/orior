@@ -118,9 +118,9 @@ for source in "${PORTABLE[@]}"; do
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$object" ;;
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$object" ;;
         *)
-            cc -std=c11 -O2 -fPIC "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$object" ;;
+            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$object" ;;
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
@@ -131,15 +131,15 @@ for source in "${PORTABLE[@]}"; do
 done
 tessera_build casmi_driver "${LINEA_OBJECTS[@]}" || exit 1
 
-# The engine's sources, each compiled alone, through the compile cache under a key of src/ only: its tree at HEAD,
-# its uncommitted changes and its untracked files, and the toolkit. The tree's own key covers every file of the
+# The engine's sources, each compiled alone, through the compile cache under a key of src/ only. The key is its tree
+# at HEAD, its uncommitted changes and its untracked files, and the toolkit. The tree's own key covers every file of the
 # repository; an edit here would compile the engine again. Under this key a build compiles only what changed in
 # src/. Four compile at a time
 ENGINE_KEY="$({ git -C "$TOP" rev-parse HEAD:src; git -C "$TOP" diff HEAD --binary -- src;
                 git -C "$TOP" ls-files -o --exclude-standard -- src | while read -r path; do
                     echo "$path"; sha256sum < "$TOP/$path"; done;
                 nvcc --version 2> /dev/null; } | sha256sum | cut -d ' ' -f 1)"
-COMPILE_FLAGS=("${HOST_FLAGS[@]}" -std=c++17 -O2 -fmad=false "${GENCODE[@]}" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}")
+COMPILE_FLAGS=("${HOST_FLAGS[@]}" -std=c++20 -O2 -fmad=false "${GENCODE[@]}" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}")
 ENGINE_OBJECTS=()
 running=0
 for source in "${SOURCES[@]}" "$TOP/src/sims/cu/sim_job.cu"; do
@@ -158,7 +158,7 @@ for object in "${ENGINE_OBJECTS[@]}"; do
 done
 
 rm -f "$BINARY"
-nvcc "${COMPILE_FLAGS[@]}" "${LINK_FLAGS[@]}" \
+nvcc "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${COMPILE_FLAGS[@]}" "${LINK_FLAGS[@]}" \
     -o "$BINARY" "$ROOT/src/casmi_driver/casmi_driver.cu" "$ROOT/src/ingest/ingest.cu" \
     "$ROOT"/src/rank/rank*.cu \
     "${ENGINE_OBJECTS[@]}" "${OBJECTS[@]}" "${TESSERA_OBJECTS[@]}"

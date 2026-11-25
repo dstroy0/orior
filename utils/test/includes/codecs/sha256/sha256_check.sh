@@ -16,7 +16,7 @@ mkdir -p "$OUT"
 source "$TOP/includes/file_defs/file_defs.sh"
 
 source "$TOP/includes/exact_types/exact_types.sh"
-cc -std=c11 -O2 -Wall -Wextra "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$OUT/sha256_check" "$HERE/sha256_check.c" \
+cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -Wall -Wextra "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$OUT/sha256_check" "$HERE/sha256_check.c" \
     "$TOP/includes/codecs/sha256/sha256.c" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 "$OUT/sha256_check" "$VECTORS/nist_cavp_sha256shortmsg.rsp" "$VECTORS/nist_cavp_sha256longmsg.rsp" \
     "$VECTORS/nist_cavp_bit_sha256shortmsg.rsp" "$VECTORS/nist_cavp_bit_sha256longmsg.rsp" \

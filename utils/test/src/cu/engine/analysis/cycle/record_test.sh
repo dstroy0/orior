@@ -32,15 +32,15 @@ case "$(uname -s)" in
         [ -n "$MSVC_BIN" ] || { echo "  no host compiler nvcc accepts on this platform was found."; exit 1; }
         build_c()
         {
-            nvcc -ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" -c "$1" -o "$2"
+            nvcc -ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" -c "$1" -o "$2"
         }
         build_cpp()
         {
-            nvcc -ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor -std=c++17 -O2 "${INCLUDES[@]}" -c "$1" -o "$2"
+            nvcc -ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor -std=c++20 -O2 "${INCLUDES[@]}" -c "$1" -o "$2"
         }
         link_all()
         {
-            nvcc -ccbin "$MSVC_BIN" -o "$BINARY" "$@"
+            nvcc -ccbin "$MSVC_BIN" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -o "$BINARY" "$@"
         }
         ;;
     *)
@@ -48,15 +48,15 @@ case "$(uname -s)" in
         EXTENSION=o
         build_c()
         {
-            cc -std=c11 -O2 -Wall -Wextra "${INCLUDES[@]}" -c "$1" -o "$2"
+            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -Wall -Wextra "${INCLUDES[@]}" -c "$1" -o "$2"
         }
         build_cpp()
         {
-            "$FILE_DEFS_CXX" -std=c++17 -O2 -Wall -Wextra "${INCLUDES[@]}" -x c++ -c "$1" -o "$2"
+            "$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -std=c++20 -O2 -Wall -Wextra "${INCLUDES[@]}" -x c++ -c "$1" -o "$2"
         }
         link_all()
         {
-            "$FILE_DEFS_CXX" -o "$BINARY" "$@"
+            "$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -o "$BINARY" "$@"
         }
         ;;
 esac

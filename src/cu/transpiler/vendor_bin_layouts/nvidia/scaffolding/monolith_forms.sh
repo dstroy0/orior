@@ -33,7 +33,9 @@ KEY_SCHEDULE_CU="$TOP/src/cu/engine/analysis/key_schedule"
 NO_ROUNDING="$TOP/includes/exact_types/integers"
 source "$TOP/includes/file_defs/file_defs.sh"
 OUT="$TOP/build/monolith/forms"
-mkdir -p "$OUT"
+# the objects, in a folder that the LTO flags name, so that an object of other flags is not current
+OBJECT_OUT="$OUT/objects_$FILE_DEFS_LTO_KEY"
+mkdir -p "$OUT" "$OBJECT_OUT"
 # The tool is a member of a query run (qry_run.sh). The run's writer writes sass.ksc in its place as the run ends, and
 # a tool with no run writes no file through it
 source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"
@@ -80,9 +82,9 @@ stale()
 
 OBJECTS=()
 for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}"; do
-    object="$OUT/$(basename "$source" .c).o"
+    object="$OBJECT_OUT/$(basename "$source" .c).o"
     if stale "$source" "$object"; then
-        cc -std=c11 -O2 -w "${INCLUDES[@]}" -MMD -MF "${object%.o}.d" -c "$source" -o "$object" || exit 1
+        cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -w "${INCLUDES[@]}" -MMD -MF "${object%.o}.d" -c "$source" -o "$object" || exit 1
     fi
     OBJECTS+=("$object")
 done
@@ -91,9 +93,9 @@ for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODE
     case "$(basename "$source")" in
         asm_printer_*.cu | codegen*.cu) continue ;;
     esac
-    object="$OUT/$(basename "$source").o"
+    object="$OBJECT_OUT/$(basename "$source").o"
     if stale "$source" "$object"; then
-        "$FILE_DEFS_CXX" -std=c++17 -O2 -w "${INCLUDES[@]}" -MMD -MF "${object%.o}.d" -x c++ -c "$source" -o "$object" ||
+        "$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -std=c++20 -O2 -w "${INCLUDES[@]}" -MMD -MF "${object%.o}.d" -x c++ -c "$source" -o "$object" ||
             exit 1
     fi
     OBJECTS+=("$object")
@@ -102,16 +104,16 @@ done
 # form. Then the system classification, which takes the folds that this pass finds (interface_sass_probe_class.c)
 for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c"; do
-    object="$OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_').o"
+    object="$OBJECT_OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_').o"
     if stale "$source" "$object"; then
-        cc -std=c11 -O2 -w -I "$TOP/src/cu/engine" -I "$TOP/includes/parsers" \
+        cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -w -I "$TOP/src/cu/engine" -I "$TOP/includes/parsers" \
             -I "$TOP/src/cu/transpiler/lstar/interface" "${FILE_DEFS_MMGR_FLAGS[@]}" -MMD -MF "${object%.o}.d" \
             -c "$source" -o "$object" || exit 1
     fi
     OBJECTS+=("$object")
 done
-"$FILE_DEFS_CXX" -std=c++17 -O2 -Wall "${INCLUDES[@]}" -c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_forms.cpp" -o "$OUT/monolith_forms.o" || exit 1
-"$FILE_DEFS_CXX" -o "$OUT/monolith_forms" "$OUT/monolith_forms.o" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
+"$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -std=c++20 -O2 -Wall "${INCLUDES[@]}" -c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_forms.cpp" -o "$OUT/monolith_forms.o" || exit 1
+"$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -o "$OUT/monolith_forms" "$OUT/monolith_forms.o" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 
 # the paths of the rulesets start at the top of the tree, which is where the generator reads them from
 cd "$TOP" || exit 1

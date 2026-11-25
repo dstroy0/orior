@@ -64,9 +64,12 @@ for module in "${MODULES[@]}"; do
     INCLUDES+=(-I "$ROOT/src/$module")
 done
 
-# the objects are retained per width in one place, and an object is compiled again only where its source, or a header in a
-# directory the build reads, is newer than it
-OBJECT_DIRECTORY="$BUILD_ROOT/build/navier_stokes_objects_${SIM_EXACT_LIMBS:-default}"
+# The build keeps the objects of each width and set of flags in one place. The flags are the C++ standard of the .cu
+# sources and the LTO flags of file_defs.sh. The build compiles an object again only where its source, or a header in
+# a directory that the build reads, is newer than it
+CU_STANDARD=-std=c++20
+OBJECT_KEY="$(printf '%s\n' "$CU_STANDARD" "${FILE_DEFS_LTO_NVCC[*]}" "${FILE_DEFS_LTO_CC[*]}" | cksum | cut -d' ' -f1)"
+OBJECT_DIRECTORY="$BUILD_ROOT/build/navier_stokes_objects_${SIM_EXACT_LIMBS:-default}_$OBJECT_KEY"
 mkdir -p "$OBJECT_DIRECTORY"
 HEADER_DIRECTORIES=("$SIMS_CU" "$FILE_DEFS_MMGR_TOP/src/verba_scribo" "$NO_ROUNDING" "$CFG_JSON" "$DAEMON_DIRECTORY" "$OBSIGNATIO" "$OBSIGNATIO_CU")
 for module in "${MODULES[@]}"; do
@@ -89,9 +92,9 @@ build_object()
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${WIDTH[@]}" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${WIDTH[@]}" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
         *)
-            cc -std=c11 -O2 -fPIC "${WIDTH[@]}" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${WIDTH[@]}" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
 }
@@ -103,7 +106,7 @@ build_unit()
     local object="$2"
     current "$source" "$object" && return 0
     rm -f "$object"
-    nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${WIDTH[@]}" "${INCLUDES[@]}" -c "$source" -o "$object"
+    nvcc "${HOST_FLAGS[@]}" "$CU_STANDARD" -O2 "${WIDTH[@]}" "${INCLUDES[@]}" -c "$source" -o "$object"
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
 }
 
@@ -114,7 +117,7 @@ for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPE
     build_object "$source" "$object"
     OBJECTS+=("$object")
 done
-# sim_close releases a tessera job, and the drivers submit none: the client is linked and never asked
+# sim_close releases a tessera job, and the drivers submit none. The build links the client, and nothing calls it
 for name in tessera_client_{socket,jobs} tessera_paths tessera_frame tessera_self; do
     object="$OBJECT_DIRECTORY/$name.$EXTENSION"
     build_object "$DAEMON_DIRECTORY/$name.c" "$object"
@@ -124,7 +127,7 @@ for name in obsignatio_{hash,seal}; do
     object="$OBJECT_DIRECTORY/$name.$EXTENSION"
     if ! current "$OBSIGNATIO_CU/$name.cu" "$object"; then
         rm -f "$object"
-        nvcc "${HOST_FLAGS[@]}" -O2 "${WIDTH[@]}" "${INCLUDES[@]}" -c "$OBSIGNATIO_CU/$name.cu" -o "$object"
+        nvcc "${HOST_FLAGS[@]}" "$CU_STANDARD" -O2 "${WIDTH[@]}" "${INCLUDES[@]}" -c "$OBSIGNATIO_CU/$name.cu" -o "$object"
     fi
     [ -f "$object" ] || { echo "  build failed: $name.cu did not compile"; exit 1; }
     OBJECTS+=("$object")
@@ -140,7 +143,7 @@ build_unit "$ROOT/src/$PROGRAM/$PROGRAM.cu" "$OBJECT_DIRECTORY/$PROGRAM.$EXTENSI
 OBJECTS+=("$OBJECT_DIRECTORY/$PROGRAM.$EXTENSION")
 
 rm -f "$BINARY"
-nvcc "${HOST_FLAGS[@]}" "${LINK_FLAGS[@]}" -O2 -o "$BINARY" "${OBJECTS[@]}"
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${LINK_FLAGS[@]}" -O2 -o "$BINARY" "${OBJECTS[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build $PROGRAM"; exit 1; }
 
 "$BINARY" "$CFG"

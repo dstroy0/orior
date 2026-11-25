@@ -38,7 +38,7 @@ rm -f "$BINARY"
 # the test is a program of the platform, and links MMgr's line with the platform (exact_types_platform_link)
 source "$TOP/../includes/exact_types/exact_types.sh"
 exact_types_platform_link faces || exit 1
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${INCLUDES[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$BINARY" "$TEST/faces_test.cu" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${INCLUDES[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$BINARY" "$TEST/faces_test.cu" \
     "$FACES/faces_find.cu" "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 if [ "${BUILD_ONLY:-0}" = "1" ]; then
@@ -46,8 +46,8 @@ if [ "${BUILD_ONLY:-0}" = "1" ]; then
     exit 0
 fi
 
-# the synthetic sets are written under the build directory, afresh each run: an error's set holds no .faces a run
-# before left
+# the test writes the synthetic sets under the build directory, afresh each run. An error's set holds no .faces that
+# a run before left
 rm -rf "$OUT/faces_test_set"
 mkdir -p "$OUT/faces_test_set"
 "$BINARY" "$OUT/faces_test_set"

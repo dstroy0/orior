@@ -24,7 +24,7 @@ for source in "${SOURCES[@]}" "$HERE/lng.h" "$TOP/includes/file_defs/klang/klang
     [ "$source" -nt "$built" ] && stale=1
 done
 if [ "$stale" -eq 1 ]; then
-    cc -std=c11 -O2 -Wall -Wextra -o "$BINARY" "${SOURCES[@]}" || { echo "  build failed: lng_check did not compile"; exit 2; }
+    cc "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O2 -Wall -Wextra -o "$BINARY" "${SOURCES[@]}" || { echo "  build failed: lng_check did not compile"; exit 2; }
 fi
 cd "$TOP" || exit 2
 "$BINARY"

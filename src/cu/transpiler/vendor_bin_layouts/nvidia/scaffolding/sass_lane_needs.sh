@@ -30,15 +30,15 @@ INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/includes/codecs/crc" -I "$CYCLE" -I "
 OBJECTS=()
 for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c; do
     object="$OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_').o"
-    cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$TOP/includes/parsers" \
+    cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$TOP/includes/parsers" \
         "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
-# cycle.c is the host oracle that runs a lane, which nothing here does: only the encoder and the layout are wanted,
-# and on this host cycle.c wants __ehdr_start, which the linker gives an ELF and not a PE
+# cycle.c is the host oracle that runs a lane, which nothing here does. This needs only the encoder and the layout.
+# On this host cycle.c wants __ehdr_start, which the linker gives an ELF and not a PE
 for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}"; do
     object="$OUT/$(basename "$source" .c).o"
-    cc -std=c11 -O2 -Wall -Wextra "${INCLUDES[@]}" -c "$source" -o "$object" || exit 1
+    cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -Wall -Wextra "${INCLUDES[@]}" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
 # the assembly printer and the device's code generator run on the record machine and call the host oracle, the
@@ -49,11 +49,11 @@ for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODE
         asm_printer_*.cu | codegen*.cu) continue ;;
     esac
     object="$OUT/$(basename "$source").o"
-    "$FILE_DEFS_CXX" -std=c++17 -O2 -Wall "${INCLUDES[@]}" -x c++ -c "$source" -o "$object" || exit 1
+    "$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -std=c++20 -O2 -Wall "${INCLUDES[@]}" -x c++ -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
-"$FILE_DEFS_CXX" -o "$OUT/sass_lane_needs" "${OBJECTS[@]}" -lpthread || exit 1
+"$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -o "$OUT/sass_lane_needs" "${OBJECTS[@]}" -lpthread || exit 1
 
-# the ruleset is named from the top of the tree, which is where the generator reads it from
+# the path of the ruleset starts at the top of the tree, which is where the generator reads it from
 cd "$TOP" || exit 1
 "$OUT/sass_lane_needs"

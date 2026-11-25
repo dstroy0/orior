@@ -32,14 +32,14 @@ case "$(uname -s)" in
         ;;
 esac
 
-# NVIDIA's compiler builds the monolith once; its cubin is the answer key the part is asked to read back
+# NVIDIA's compiler builds the monolith once. Its cubin is the answer key that the part reads back
 "$CUDA/bin/nvcc" "${HOST_FLAGS[@]}" -cubin -arch="$ARCH" -O3 -o "$OUT/monolith.cubin" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/monolith.cu" || { echo "  the monolith did not build"; exit 1; }
 
 # the runner is host code that loads the cubin and asks the part for its entries. It is a program of the platform,
 # and links the CUDA driver and the platform
 source "$TOP/includes/exact_types/exact_types.sh"
-cc -std=c11 -O2 -Wall -I "$CUDA/include" -o "$OUT/monolith_run" "$HERE/monolith_run.c" \
+cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -Wall -I "$CUDA/include" -o "$OUT/monolith_run" "$HERE/monolith_run.c" \
     "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" -L "$CUDA/lib/x64" -lcuda || {
     echo "  the runner did not link against the CUDA driver"
     exit 1

@@ -48,7 +48,7 @@ exact_types_platform_link shift_agreement_reserve_test || exit 1
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$SHIFT" -I "$SHIFT_CU" -I "$DEVICE_POOL" "${FILE_DEFS_MMGR_FLAGS[@]}")
 rm -f "$BINARY"
 # the test is host arithmetic: it links the module's device code but asks nothing of the device, and is no job
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
     "$TEST/shift_agreement_reserve_test.cu" "$SHIFT_CU/shift_agreement.cu" "$SHIFT_CU/shift_agreement_run.cu" "$DEVICE_POOL_CU/device_pool.cu" "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 if [ "${BUILD_ONLY:-0}" = "1" ]; then

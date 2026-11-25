@@ -68,6 +68,6 @@ fi
 # the codecs copy and fill through MMgr, whose sources the check compiles beside them
 source "$TOP/includes/file_defs/file_defs.sh"
 source "$TOP/includes/exact_types/exact_types.sh"
-"${CC:-cc}" -std=c11 -O2 -Wall -Wextra "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$OUT/pbkdf2_check" "$HERE/pbkdf2_check.c" \
+"${CC:-cc}" "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O2 -Wall -Wextra "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$OUT/pbkdf2_check" "$HERE/pbkdf2_check.c" \
     "$TOP/includes/codecs/pbkdf2/pbkdf2.c" "$TOP/includes/codecs/sha512/sha512.c" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 "$OUT/pbkdf2_check" "${FILES[@]}"

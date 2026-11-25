@@ -80,10 +80,10 @@ exact_types_compile()
         rm -f "$object"
         case "$(uname -s)" in
         MINGW* | MSYS* | CYGWIN*)
-            nvcc "${host[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${extra[@]}" "${EXACT_TYPES_FLAGS[@]}" \
-                -c "$source" -o "$object"
+            nvcc "${host[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${extra[@]}" \
+                "${EXACT_TYPES_FLAGS[@]}" -c "$source" -o "$object"
             ;;
-        *) cc -std=c11 -O2 -fPIC "${extra[@]}" "${EXACT_TYPES_FLAGS[@]}" -c "$source" -o "$object" ;;
+        *) cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${extra[@]}" "${EXACT_TYPES_FLAGS[@]}" -c "$source" -o "$object" ;;
         esac
         [ -f "$object" ] || {
             echo "  build failed: $(basename "$source") did not compile"

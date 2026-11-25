@@ -105,15 +105,19 @@ for module in "${MODULES[@]}"; do
         [ -f "$source" ] && MODULE_SOURCES+=("$source")
     done
 done
-# Each source compiles to an object of its own, retained between builds in a folder named for the flags it is built with,
-# and compiles again only where its object is missing, or its source or a header of the engine's is newer. As many
-# compile at once as the host has processors, ENGINE_JOBS where it is set, and the library is linked once from the
-# objects.
+# Each source compiles to an object of its own. The build keeps the objects between builds, in a folder named for the
+# flags that build them. A source compiles again only where its object does not exist, or where its source or a header
+# of the engine's is newer. As many compile at once as the host has processors, or ENGINE_JOBS where the caller sets
+# it. The build links the library once from the objects.
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) SUFFIX=obj ;;
     *) SUFFIX=o ;;
 esac
-KEY="$(printf '%s\n' "$(uname -s)" "$ARCHES" "${EXACT_FLAGS[*]}" "${DEFINES[*]}" "${HOST_FLAGS[*]}" | cksum | cut -d' ' -f1)"
+# The C++ standard of the .cu sources. The key of the objects covers it and the LTO flags of file_defs.sh. An object
+# that other flags compiled does not link with these
+CU_STANDARD=-std=c++20
+KEY="$(printf '%s\n' "$(uname -s)" "$ARCHES" "${EXACT_FLAGS[*]}" "${DEFINES[*]}" "${HOST_FLAGS[*]}" "$CU_STANDARD" \
+    "${FILE_DEFS_LTO_NVCC[*]}" "${FILE_DEFS_LTO_CC[*]}" | cksum | cut -d' ' -f1)"
 CACHE="$FINAL/engine_objects/$KEY"
 mkdir -p "$CACHE"
 JOBS="${ENGINE_JOBS:-$(nproc 2> /dev/null || echo 4)}"
@@ -132,8 +136,9 @@ stale() {
     [ -z "${OBJECT_TIME["$1"]:-}" ] || [ "$2" -nt "$1" ] || [ "${NEWEST_HEADER:-0}" -gt "${OBJECT_TIME["$1"]}" ]
 }
 
-# the source `$2` compiled to the object `$1` by the words after them: written beside it and put in its place once it
-# is whole, and where it does not compile, listed in FAILED with the compiler's words retained beside the object
+# The source `$2` compiled to the object `$1` by the words after them. The object goes beside its place first, and
+# into its place once it is whole. A source that does not compile goes in FAILED, and the compiler's words stay beside
+# the object
 compiled() {
     local object="$1" source="$2" part="${1%.*}.part.$SUFFIX"
     shift 2
@@ -155,22 +160,22 @@ queued() {
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
-        C_WORDS=(nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${DEFINES[@]}" "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
-        EXACT_WORDS=(nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}")
+        C_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${DEFINES[@]}" "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
+        EXACT_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}")
         ;;
     *)
-        C_WORDS=(cc -std=c11 -O2 -g -fPIC "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
-        EXACT_WORDS=(cc -std=c11 -O2 -g -fPIC "${EXACT_FLAGS[@]}")
+        C_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
+        EXACT_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${EXACT_FLAGS[@]}")
         ;;
 esac
-CU_WORDS=(nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -fmad=false "${GENCODE[@]}" "${DEFINES[@]}" "${MODULE_INCLUDES[@]}"
+CU_WORDS=(nvcc "${HOST_FLAGS[@]}" "$CU_STANDARD" -O2 -fmad=false "${GENCODE[@]}" "${DEFINES[@]}" "${MODULE_INCLUDES[@]}"
           "${EXACT_FLAGS[@]}")
 
 OBJECTS=()
 COMPILED=0
 BEGAN=$(date +%s)
-# each source with the words it compiles by, its object named by its path under src, every object retained for the link
-# and the stale ones compiled
+# Each source with the words it compiles by, and its object named by its path under src. The link takes every object,
+# and the stale ones compile again first
 listed() {
     local source="$1" relative="${1#"$TOP/src/"}" object
     shift
@@ -219,7 +224,7 @@ fi
 echo "  compiled $COMPILED of ${#OBJECTS[@]} objects, $JOBS at once, in $(( $(date +%s) - BEGAN )) s; the rest were current"
 
 BEGAN=$(date +%s)
-nvcc "${HOST_FLAGS[@]}" -shared "${LINK_FLAGS[@]}" -o "$LIBRARY" "${OBJECTS[@]}"
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -shared "${LINK_FLAGS[@]}" -o "$LIBRARY" "${OBJECTS[@]}"
 NVCC_STATUS=$?
 
 if [ "$NVCC_STATUS" -ne 0 ] || [ ! -f "$LIBRARY" ]; then
@@ -227,7 +232,7 @@ if [ "$NVCC_STATUS" -ne 0 ] || [ ! -f "$LIBRARY" ]; then
     exit 1
 fi
 echo "  linked $LIBRARY in $(( $(date +%s) - BEGAN )) s"
-# the objects linked, a line each, for a program that links the engine into itself: on Windows the library gives a
-# program only the calls the engine marks for export
+# The objects linked, a line each, for a program that links the engine into itself. On Windows the library gives a
+# program only the calls that the engine marks for export
 printf '%s\n' "${OBJECTS[@]}" > "$OUT/cell_tracking_engine.objects"
 build_publish "$LIBRARY" || exit 1

@@ -16,7 +16,7 @@ KRS="$TOP/includes/parsers"
 OUT="$TOP/build/cubin_safe"
 mkdir -p "$OUT"
 
-cc -std=c11 -O2 -Wall -Wextra -o "$OUT/cubin_safe_check" "$HERE/cubin_safe_check.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c \
+cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -Wall -Wextra -o "$OUT/cubin_safe_check" "$HERE/cubin_safe_check.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 "$OUT/cubin_safe_check" "$TOP/src/cu/transpiler/lstar/protocol/table/sm_86.khw" "$@"

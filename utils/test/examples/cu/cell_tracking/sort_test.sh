@@ -60,9 +60,9 @@ for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPE
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
         *)
-            cc -std=c11 -O2 -fPIC "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}" -c "$source" -o "$object" ;;
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
@@ -74,7 +74,7 @@ done
 # the test is a job on the device's tessera daemon, built beside it
 tessera_build sort "${LINEA_OBJECTS[@]}" || exit 1
 
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
     "$TEST/sort_test.cu" "$ENGINE/../../sims/cu/sim_job.cu" "$SORT/sort_link.cu" "$SCAN/drift.cu" \
     "$DEVICE_POOL_CU/device_pool.cu" "${OBJECTS[@]}" "${TESSERA_OBJECTS[@]}" "${TESSERA_SEAL[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
@@ -84,7 +84,7 @@ if [ "${BUILD_ONLY:-}" = "1" ]; then
     exit 0
 fi
 
-# the synthetic set's samples are written under the build directory
+# the test writes the synthetic set's samples under the build directory
 mkdir -p "$OUT/sort_test_set"
 "$BINARY" "$OUT/sort_test_set"
 STATUS=$?

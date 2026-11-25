@@ -6,15 +6,15 @@
 #
 #   bash utils/maint/engine/build_gpu_scan.sh [sm_XX ...]
 #
-# The companion of build_gpu_arm.sh, for the scan family instead of the exact one. nvcc needs a host
-# compiler and on Windows that host compiler is MSVC, never MinGW. The rest of this tree builds with
-# MinGW, and MinGW objects do not link against MSVC objects. The GPU arm gets its own build and
-# does not join the CMake one. Everything it needs is compiled here by the same host compiler nvcc is
-# driving. That retains the ABI consistent inside this binary.
+# The companion of build_gpu_arm.sh, for the scan family in place of the exact one. `nvcc` needs a
+# host compiler, and on Windows that host compiler is MSVC, never MinGW. The rest of this tree
+# builds with MinGW, and MinGW objects do not link against MSVC objects. The GPU arm gets its own
+# build and does not join the CMake one. The host compiler of nvcc compiles all that it needs here.
+# That keeps the ABI the same inside this binary.
 #
-# Architectures default to the one this machine carries. Naming others compiles for them as well.
-# That is how an architecture nobody here owns is checked: the code has to compile and the assembler
-# has to accept it for that target, and only running it is left unverified.
+# The architectures default to the one this machine carries. Naming others compiles for them too.
+# So the code compiles, and the assembler takes it, for an architecture that nobody here owns. The
+# script does not run the code there.
 set -u
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -44,17 +44,17 @@ for one in $ARCHES; do
     GENCODE="$GENCODE -gencode arch=compute_${NUM},code=${one}"
 done
 
-# Removed before the build. A previous binary cannot survive a failed compile and be run as though
-# it were this one. build_gpu_arm.sh carried a week-long bug of exactly that shape: a stale binary
-# passed the existence test and was benched as though it were the new one.
+# The script deletes the binary before the build. A binary of an earlier build must not outlast a
+# compile that fails. The bench would then run it as though it were this one, and the test below
+# would pass on its file.
 rm -f "$OUT/bench_steer_gpu.exe"
 
-# PIPESTATUS and not $?, because the pipe into grep would otherwise report grep's status and grep
-# succeeds whatever nvcc did. A filter on the output must never decide whether the build passed.
+# PIPESTATUS and not $?, as the pipe into grep would otherwise give grep's status. Grep succeeds
+# whatever nvcc did. A filter on the output must never decide whether the build passed.
 source "$ROOT/includes/exact_types/exact_types.sh"
 HOST_FLAGS=(-ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor)
 exact_types_compile gpu_scan "${EXACT_TYPES_ARITHMETIC[@]}" || exit 1
-nvcc -ccbin "$MSVC_BIN" -O2 $GENCODE \
+nvcc -ccbin "$MSVC_BIN" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -O2 $GENCODE \
     -I "$ROOT/src/cu/engine/nbody/orior" \
     "${EXACT_TYPES_FLAGS[@]}" \
     -DORIOR_STEER_HAVE_CUDA=1 \
@@ -68,9 +68,9 @@ nvcc -ccbin "$MSVC_BIN" -O2 $GENCODE \
     2>&1 | grep -viE "^\s*$|Copyright|Microsoft \(R\)|scan_cuda\.cu$|scan\.c$|orior\.c$|exact_integer\.c$|arm\.c$|bench_steer_arms\.c$" | head -30
 NVCC_STATUS=${PIPESTATUS[0]}
 
-# Both conditions, because each one alone has been wrong in the sibling script. A status of zero with
-# no file is a linker that wrote nothing; a file with a nonzero status is a stale binary. Neither is a
-# build.
+# Both conditions, as each one alone passes a build that failed. A status of zero with no file is
+# a linker that wrote nothing. A file with a status other than zero is a stale binary. Neither is
+# a build.
 if [ "$NVCC_STATUS" -ne 0 ] || [ ! -f "$OUT/bench_steer_gpu.exe" ]; then
     echo "  build failed: nvcc exited $NVCC_STATUS"
     exit 1

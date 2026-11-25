@@ -64,17 +64,17 @@ for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/int
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
         *)
-            cc -std=c11 -O2 "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            cc "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O2 "${INCLUDES[@]}" -c "$source" -o "$object" ;;
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
-nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: the interface's PTX test did not link"; exit 1; }
-# the probe reads rulesets and writes forms; the code generator's assembly printer (asm_printer_*.cu) and the code
-# generator on the device (codegen*.cu) run on the record machine, which the probe does not link
+# The probe reads rulesets and writes forms. The record machine runs the code generator's assembly printer
+# (asm_printer_*.cu) and the code generator on the device (codegen*.cu). The probe does not link the record machine
 CODEGEN_SOURCES=()
 for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu; do
     case "$(basename "$source")" in
@@ -89,15 +89,15 @@ for source in "${FILE_DEFS_FORMATS[@]}"; do
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" \
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" \
                 -o "$object" ;;
         *)
-            cc -std=c11 -O2 "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" -o "$object" ;;
+            cc "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O2 "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" -o "$object" ;;
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     FORMAT_OBJECTS+=("$object")
 done
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" \
     -o "$PROBE" "$TEST_CU"/interface_ptx_probe_{questions,runs,main}.cu "$TEST_CU/ptx_target.cu" \
     "${CODEGEN_SOURCES[@]}" "${FORMAT_OBJECTS[@]}" -lnvrtc -lnvJitLink "${PLATFORM_LINK[@]}"
 [ -f "$PROBE" ] || { echo "  build failed: the PTX probe did not build"; exit 1; }
@@ -107,8 +107,8 @@ mkdir -p "$OUT/probes" "$OUT/probes_flagless"
 STATUS=$?
 echo "  interface ptx test exit $STATUS"
 
-# again in a ruleset whose carry chains and product are constructs of more basic forms, with no instruction that
-# sets or reads the condition code (utils/test/src/cu/engine/rmc/rulesets/flagless)
+# Again, in a ruleset whose carry chains and product are constructs of more basic forms. No instruction of it sets or
+# reads the condition code (utils/test/src/cu/engine/rmc/rulesets/flagless)
 FLAGLESS="$TEST/../../../../../../utils/test/src/cu/engine/rmc/rulesets/flagless"
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) FLAGLESS="$(cygpath -m "$FLAGLESS")" ;;

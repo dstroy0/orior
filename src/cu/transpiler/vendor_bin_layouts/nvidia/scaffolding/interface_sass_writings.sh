@@ -14,8 +14,8 @@
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_writings.sh [<earlier run folder>]
 #
 # The earlier run, for its pattern cubin and kernel, defaults to the newest under build/ and the harness's build. With
-# WRITINGS_SEARCHED set, the search and the chains already in build/writings are retained and only the descent's cases are
-# put.
+# WRITINGS_SEARCHED set, the script keeps the search and the chains already in build/writings, and puts only the
+# descent's cases.
 set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,8 +34,8 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) PYTHON=python ;;
     *) PYTHON=python3 ;;
 esac
-# the cubins a runner pass runs at max, and the seconds a pass is given before it is cut off: a pass short enough
-# that only a cubin that never ends reaches the cap
+# The cubins that a runner pass runs at max, and the seconds that a pass has before the cap ends it. The pass is short
+# enough that only a cubin that never ends reaches the cap
 MAX=100
 CAP=60
 mkdir -p "$OUT"
@@ -48,14 +48,14 @@ fi
 [ -f "$RUN/sass/form_0.cubin" ] && [ -f "$RUN/sass/form_0.text" ] || { echo "  no earlier run with sass/form_0"; exit 1; }
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$CUB" -I "$INT" -I "$KRS" -I "$BOOT")
-cc -std=c11 -O1 -Wall "${INCLUDES[@]}" -o "$OUT/interface_sass_writings" "$HERE/interface_sass_writings.c" "$HERE"/interface_sass_writings/*.c \
+cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O1 -Wall "${INCLUDES[@]}" -o "$OUT/interface_sass_writings" "$HERE/interface_sass_writings.c" "$HERE"/interface_sass_writings/*.c \
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
-# the runner holds every cubin to cubin_safe on the host before the driver is passed it
-cc -std=c11 -O1 -Wall -I "$CUDA/include" -o "$OUT/interface_sass_run" "$HERE/interface_sass_run.c" \
+# the runner holds every cubin to cubin_safe on the host before it passes the cubin to the driver
+cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O1 -Wall -I "$CUDA/include" -o "$OUT/interface_sass_run" "$HERE/interface_sass_run.c" \
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" \
     -L "$CUDA/lib/x64" -lcuda 2>/dev/null "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || { echo "  the runner did not link against the CUDA driver"; exit 1; }
 # the descent is orior's own, and orior reads exact integers
-cc -std=c11 -O2 -Wall -I "$SIFT" "${EXACT_TYPES_FLAGS[@]}" -o "$OUT/gate_descent" \
+cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -Wall -I "$SIFT" "${EXACT_TYPES_FLAGS[@]}" -o "$OUT/gate_descent" \
     "$TOP/utils/test/src/cu/transpiler/lstar/protocol/gate_descent.c" "$BOOT/gate/chain_build.c" \
     "$SIFT/orior_core.c" "$SIFT/orior_field.c" "$SIFT/orior_steer.c" "$SIFT/orior_steer_count.c" \
     "$SIFT/orior_steer_plan.c" "$SIFT/scan.c" "${FILE_DEFS_FORMATS[@]}" "${EXACT_TYPES_ARITHMETIC[@]}" \
@@ -66,13 +66,13 @@ WIN_OUT="$(cygpath -m "$OUT")"
 PATTERN="$(cygpath -m "$RUN")/sass/form_0.cubin"
 KERNEL_TEXT="$(cygpath -m "$RUN")/sass/form_0.text"
 
-# every cubin of the list in `$1` run over the cases in `$3`, the search's where none is named, its answers into `$2`,
-# the runner started again past each refusal
+# Every cubin of the list in `$1` run over the cases in `$3`, or over the search's cases where `$3` names none. Its
+# answers go into `$2`, and the runner starts again past each refusal
 run_list() {
     local list="$1" answers="$2" cases="${3:-$WIN_OUT/cases.txt}"
     local held="${answers%.txt}.gated.txt" first=0 guard=0 status last hung crossed
-    # the airlock: the vendor reads every cubin of the list before any reaches the part, and the runner is passed that
-    # verdict always; without it the runner holds every cubin off the part
+    # The airlock: the vendor reads every cubin of the list before any reaches the part. The runner always gets that
+    # verdict. Without it, the runner holds every cubin off the part
     "$PYTHON" "$HERE/interface_sass_withheld.py" "$list" "$CUDA/bin/nvdisasm" SM86 "$WIN_OUT/cross" "$held"
     crossed=$?
     [ "$crossed" = 2 ] && { echo "  cross: the vendor's reader was not reached; nothing goes to the part"; return 1; }
@@ -107,8 +107,8 @@ if [ -z "${WRITINGS_SEARCHED:-}" ]; then
     "$OUT/interface_sass_writings" chains-read "$WIN_OUT" "$(cygpath -m "$HERE")/interface_sass_chains.md" || exit 1
 fi
 
-# the descent's cases for each relation put to every arrangement it ran over, its .kdm and its cases written by the
-# writer of the run this script joins or starts in <out>/qry (qry_run.sh)
+# The descent's cases for each relation, put to every arrangement it ran over. The writer of the run that this script
+# joins or starts in <out>/qry (qry_run.sh) writes its .kdm and its cases
 DESCENT="$OUT/descent"
 rm -rf "$DESCENT"
 mkdir -p "$DESCENT"
@@ -130,8 +130,8 @@ for name in $(sed -n "s/^  \([a-z]*\) *the target's half written to .*/\1/p" "$D
 done
 "$OUT/interface_sass_writings" descent-read "$(cygpath -m "$HERE")/interface_sass_descent.md" "${PAIRS[@]}" || exit 1
 
-# the ruleset's forms for the word web's words checked against the writings found; a form that does not hold is reported and
-# ends nothing
+# The ruleset's forms for the word web's words, checked against the writings found. The check reports a form that does
+# not hold, and the form ends nothing
 "$OUT/interface_sass_writings" krs-read "$WIN_OUT" "$(cygpath -m "$TOP")/src/cu/transpiler/lstar/protocol/table/sass.krs" \
     "$(cygpath -m "$HERE")/interface_sass_krs.md"
 exit 0

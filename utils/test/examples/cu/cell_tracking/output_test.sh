@@ -39,7 +39,7 @@ rm -f "$BINARY"
 # the test is a program of the platform, and links MMgr's line with the platform (exact_types_platform_link)
 source "$TOP/../includes/exact_types/exact_types.sh"
 exact_types_platform_link output || exit 1
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -DOUTPUT_TEST_FAULTS "${INCLUDES[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$BINARY" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -DOUTPUT_TEST_FAULTS "${INCLUDES[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$BINARY" \
     "$TEST/output_test.cu" "$OUTPUT/output_graph.cu" "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 if [ "${BUILD_ONLY:-0}" = "1" ]; then
@@ -47,7 +47,7 @@ if [ "${BUILD_ONLY:-0}" = "1" ]; then
     exit 0
 fi
 
-# the synthetic set's samples are written under the build directory
+# the test writes the synthetic set's samples under the build directory
 mkdir -p "$OUT/output_test_set"
 "$BINARY" "$OUT/output_test_set"
 STATUS=$?

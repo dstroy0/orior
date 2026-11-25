@@ -20,7 +20,7 @@ source "$TOP/includes/exact_types/exact_types.sh"
 OUT="$TOP/build/proof_boundary_inheritance/$(uname -s | tr "[:upper:]" "[:lower:]")"
 mkdir -p "$OUT"
 
-"${CC:-cc}" -std=c11 -O2 -Wall -Wextra -DORIOR_EXACT_LIMBS=256u "${EXACT_TYPES_FLAGS[@]}" \
+"${CC:-cc}" "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O2 -Wall -Wextra -DORIOR_EXACT_LIMBS=256u "${EXACT_TYPES_FLAGS[@]}" \
     -o "$OUT/proof_boundary_inheritance" "$HERE/proof_boundary_inheritance.c" "$RING/torus_fields.c" \
     "${EXACT_TYPES_ARITHMETIC[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 "$OUT/proof_boundary_inheritance"

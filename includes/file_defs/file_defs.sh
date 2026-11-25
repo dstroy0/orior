@@ -36,6 +36,33 @@ FILE_DEFS_MMGR_FLAGS=(-I "$FILE_DEFS_MMGR_TOP/include" -I "$FILE_DEFS_MMGR_TOP/s
     -I "$FILE_DEFS_SOURCE/../embedded_types/include" -DMMGR_ENABLE_DMA=0 -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ALIGN_BYTES=32)
 FILE_DEFS_MMGR=("${FILE_DEFS_MMGR_FLAGS[@]}")
 
+# MMgr builds with link-time optimization, and a program that links it does too. The linker then sees each guard and
+# each table of MMgr as the constant it is. It resolves each call through them to its callee and inlines it, and no
+# call through a table stays indirect.
+#
+# FILE_DEFS_LTO_NVCC goes on each nvcc line that compiles a C source with the host compiler of nvcc, and
+# FILE_DEFS_LTO_NVCC_LINK on each nvcc line that links. MSVC compiles with -GL and links with -LTCG. Each option
+# starts with a dash, as the shell of MSYS makes a path of a word that starts with a slash. FILE_DEFS_LTO_CC goes on
+# each line of cc or c++, which compiles and links with -flto.
+#
+# Elsewhere the linker plugin of gcc optimizes the objects that -flto compiled at each link. An nvcc line that links
+# takes no flag there. A flag there would compile the host code of each .cu source on that line with -flto too
+case "$(uname -s)" in
+MINGW* | MSYS* | CYGWIN*)
+    FILE_DEFS_LTO_NVCC=(-Xcompiler -GL)
+    FILE_DEFS_LTO_NVCC_LINK=(-Xlinker -LTCG)
+    ;;
+*)
+    FILE_DEFS_LTO_NVCC=(-Xcompiler -flto)
+    FILE_DEFS_LTO_NVCC_LINK=()
+    ;;
+esac
+FILE_DEFS_LTO_CC=(-flto)
+# FILE_DEFS_LTO_KEY names the LTO flags. A script that keeps its objects between builds names their folder with it.
+# The script then takes no object that other flags built as current
+FILE_DEFS_LTO_KEY="$(printf '%s\n' "${FILE_DEFS_LTO_NVCC[*]}" "${FILE_DEFS_LTO_NVCC_LINK[*]}" "${FILE_DEFS_LTO_CC[*]}" |
+    cksum | cut -d' ' -f1)"
+
 # FILE_DEFS_LINEA, the sources of the line of MMgr (verba_scribo/verba_linea.h) and of the modules that it reaches. It
 # is for a program that writes its text through the line alone, and builds with FILE_DEFS_MMGR_FLAGS.
 # Each compiles under the C11 of MSVC. A module that MMgr builds with atomics or packed enums does not

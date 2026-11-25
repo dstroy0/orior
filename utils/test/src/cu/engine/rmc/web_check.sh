@@ -17,7 +17,7 @@ build_stamp web_check
 
 BINARY="$OUT/web_check"
 rm -f "$BINARY"
-cc -std=c11 -O2 -Wall -Wextra -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -o "$BINARY" "$TEST/web_check.c" \
+cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -Wall -Wextra -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -o "$BINARY" "$TEST/web_check.c" \
     "${EXACT_TYPES_PLATFORM_PROGRAM[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: web_check.c did not compile"; exit 1; }
 

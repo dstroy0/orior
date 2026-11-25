@@ -72,9 +72,9 @@ qasm_c_object()
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
         *)
-            cc -std=c11 -O2 -fPIC "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}" -c "$source" -o "$object" ;;
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; return 1; }
 }
@@ -84,7 +84,7 @@ qasm_cu_object()
     local source="$1"
     local object="$2"
     rm -f "$object"
-    nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -c "$source" -o "$object"
+    nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -c "$source" -o "$object"
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; return 1; }
 }
 
@@ -119,8 +119,8 @@ qasm_build()
         qasm_cu_object "$source" "$object" || return 1
         OBJECTS+=("$object")
     done
-    # a run on the device is a job on the device's tessera daemon: the client goes into the program, and the daemon
-    # is built beside it, where the program starts it when none answers
+    # A run on the device is a job on the device's tessera daemon. The client goes into the program. The script builds
+    # the daemon beside the program, which starts it when none answers
     DAEMON_OBJECTS=()
     local name
     for name in tessera_client_{socket,jobs} tessera_paths tessera_frame tessera_self tessera_ledger tessera_measure \
@@ -137,14 +137,14 @@ qasm_build()
     for name in obsignatio_{hash,seal}; do
         object="$OUT/${name}_cu.$EXTENSION"
         rm -f "$object"
-        nvcc "${HOST_FLAGS[@]}" -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -c "$OBSIGNATIO_CU/$name.cu" -o "$object"
+        nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -c "$OBSIGNATIO_CU/$name.cu" -o "$object"
         [ -f "$object" ] || { echo "  build failed: $name.cu did not compile"; return 1; }
         SEAL_OBJECTS+=("$object")
     done
     OBJECTS+=("${SEAL_OBJECTS[@]}")
     DAEMON="$OUT/tessera_daemon$EXECUTABLE"
     rm -f "$DAEMON"
-    nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${LONG_PATHS[@]}" -o "$DAEMON" "${DAEMON_OBJECTS[@]}" \
+    nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${GENCODE[@]}" "${LONG_PATHS[@]}" -o "$DAEMON" "${DAEMON_OBJECTS[@]}" \
         "${LINEA_OBJECTS[@]}" "${PLATFORM_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}" \
         "${EXACT_TYPES_LIBRARIES[@]}"
     [ -f "$DAEMON" ] || { echo "  build failed: the tessera daemon did not link"; return 1; }
@@ -158,7 +158,7 @@ qasm_link()
     local sources=("$@")
     BINARY="$OUT/$name$EXECUTABLE"
     rm -f "$BINARY"
-    nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" "${LONG_PATHS[@]}" -o "$BINARY" \
+    nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" "${LONG_PATHS[@]}" -o "$BINARY" \
         "${sources[@]}" "${OBJECTS[@]}"
     [ -f "$BINARY" ] || { echo "  build failed: $name did not link"; return 1; }
     return 0

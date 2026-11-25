@@ -18,7 +18,7 @@ esac
 
 rm -f "$BINARY"
 # the host arms alone: the build carries no device renderer, and the device entry points answer 0
-cc -std=c11 -Wall -Wextra -O2 -I "$RENDER" -o "$BINARY" "$TEST/orior_raster_reduce_test.c" "$RENDER/orior_raster.c" \
+cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -Wall -Wextra -O2 -I "$RENDER" -o "$BINARY" "$TEST/orior_raster_reduce_test.c" "$RENDER/orior_raster.c" \
     "$RENDER/orior_raster_output.c" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: cc could not build the test"; exit 1; }
 

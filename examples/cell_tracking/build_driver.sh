@@ -136,9 +136,9 @@ for source in "${PORTABLE_SOURCES[@]}"; do
     rm -f "$OBJECT"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT" ;;
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT" ;;
         *)
-            cc -std=c11 -O2 -g -fPIC "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT" ;;
+            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT" ;;
     esac
     [ -f "$OBJECT" ] || { echo "  build failed: $source did not compile"; exit 1; }
     PORTABLE_OBJECTS+=("$OBJECT")
@@ -155,17 +155,17 @@ for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
     rm -f "$EXACT_OBJECT"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" \
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" \
                 -o "$EXACT_OBJECT" ;;
         *)
-            cc -std=c11 -O2 -g -fPIC "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" -o "$EXACT_OBJECT" ;;
+            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" -o "$EXACT_OBJECT" ;;
     esac
     [ -f "$EXACT_OBJECT" ] || { echo "  build failed: $name.c did not compile"; exit 1; }
     PORTABLE_OBJECTS+=("$EXACT_OBJECT")
 done
 
-# every run of the driver is a job on the device's tessera daemon: the client goes into the driver, and the daemon
-# is built and published beside it, where the driver starts it when none answers
+# Every run of the driver is a job on the device's tessera daemon. The client goes into the driver. The script builds
+# the daemon and publishes it beside the driver, which starts it when none answers
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) SUFFIX=.exe; OBJECT_SUFFIX=obj; DAEMON_LIBRARIES=(-lpdh) ;;
     *) SUFFIX=; OBJECT_SUFFIX=o; DAEMON_LIBRARIES=(-ldl -lpthread) ;;
@@ -178,10 +178,10 @@ for name in tessera_client_{socket,jobs} tessera_paths tessera_frame tessera_sel
     rm -f "$OBJECT"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${FUNCTIONAL_INCLUDES[@]}" \
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${FUNCTIONAL_INCLUDES[@]}" \
                 -c "$ENGINE/runtime/daemon/$name.c" -o "$OBJECT" ;;
         *)
-            cc -std=c11 -O2 -g -fPIC "${FUNCTIONAL_INCLUDES[@]}" -c "$ENGINE/runtime/daemon/$name.c" -o "$OBJECT" ;;
+            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${FUNCTIONAL_INCLUDES[@]}" -c "$ENGINE/runtime/daemon/$name.c" -o "$OBJECT" ;;
     esac
     [ -f "$OBJECT" ] || { echo "  build failed: cu/engine/runtime/daemon$name.c did not compile"; exit 1; }
     case "$name" in
@@ -197,17 +197,17 @@ SEAL_OBJECTS=()
 for name in obsignatio_{hash,seal}; do
     SEAL_OBJECT="$OUT/${name}_daemon.$OBJECT_SUFFIX"
     rm -f "$SEAL_OBJECT"
-    nvcc "${HOST_FLAGS[@]}" -O2 "${GENCODE[@]}" "${FUNCTIONAL_INCLUDES[@]}" -c "$ENGINE/../../cu/engine/runtime/obsignatio/$name.cu" \
+    nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${FUNCTIONAL_INCLUDES[@]}" -c "$ENGINE/../../cu/engine/runtime/obsignatio/$name.cu" \
         -o "$SEAL_OBJECT"
     SEAL_OBJECTS+=("$SEAL_OBJECT")
 done
-nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${LINK_FLAGS[@]}" -o "$DAEMON" "${TESSERA_DAEMON_OBJECTS[@]}" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${GENCODE[@]}" "${LINK_FLAGS[@]}" -o "$DAEMON" "${TESSERA_DAEMON_OBJECTS[@]}" \
     "${LINEA_OBJECTS[@]}" "${PLATFORM_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}" "${EXACT_TYPES_LIBRARIES[@]}"
 [ -f "$DAEMON" ] || { echo "  build failed: the tessera daemon did not link"; exit 1; }
 echo "  built $DAEMON"
 
 rm -f "$BINARY"
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -fmad=false "${GENCODE[@]}" "${EXTRA_DEFINES[@]}" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -fmad=false "${GENCODE[@]}" "${EXTRA_DEFINES[@]}" \
     "${LINK_FLAGS[@]}" "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}" \
     -o "$BINARY" \
     "${FUNCTIONAL_SOURCES[@]}" \

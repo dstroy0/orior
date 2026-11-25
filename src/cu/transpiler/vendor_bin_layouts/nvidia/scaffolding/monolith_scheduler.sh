@@ -41,7 +41,7 @@ case "$(uname -s)" in
         ;;
 esac
 
-# every source built to a cubin, each named for its path; a cubin already newer than its source is retained
+# every source built to a cubin, each named for its path. A cubin already newer than its source stays
 built=0
 passed=0
 CUBINS=()
@@ -60,7 +60,7 @@ while IFS= read -r source; do
     CUBINS+=("$cubin")
 done < <(find "$TOP/src/cu" -name '*.cu' | sort)
 
-cc -std=c11 -O1 -Wall -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$KRS_C" -I "$INT" \
+cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O1 -Wall -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$KRS_C" -I "$INT" \
     -o "$OUT/monolith_scheduler" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_scheduler.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_scheduler/*.c "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" \
     "$INT/interface.c" "$INT"/platform/*.c "$INT/interface_names.c" "${EXACT_TYPES_PLATFORM_PROGRAM[@]}" || exit 1
 

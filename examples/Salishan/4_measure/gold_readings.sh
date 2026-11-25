@@ -3,10 +3,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #
 # Builds gold_readings, the gold standard corpora's record programs, with the record compiler and the tessera client
-# beside it, writes its input from the corpora, runs it, and writes its records beside this file and its figures,
-# the TeX macros the Salishan research paper reads, to build/salishan_gold/gold_figures.tex. It then reads the papers
-# again from their tool extractions, the lines sift_extract.py sorts nearer the pure corpus than English, and writes
-# those records to records/gold_readings_sifted.txt and their figures to build/salishan_gold/gold_figures_sifted.tex.
+# beside it. It writes its input from the corpora and runs it. It writes its records beside this file, and its
+# figures, the TeX macros the Salishan research paper reads, to build/salishan_gold/gold_figures.tex. It then reads
+# the papers again from their tool extractions: the lines that sift_extract.py sorts nearer the pure corpus than
+# English. It writes those records to records/gold_readings_sifted.txt, and their figures to
+# build/salishan_gold/gold_figures_sifted.tex.
 #
 #   Usage:  bash examples/Salishan/4_measure/gold_readings.sh [sm_NN ...]
 set -u
@@ -73,9 +74,9 @@ for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_I
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
         *)
-            cc -std=c11 -O2 -fPIC "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}" -c "$source" -o "$object" ;;
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
@@ -86,7 +87,7 @@ for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_I
 done
 tessera_build gold "${LINEA_OBJECTS[@]}" || exit 1
 
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
     "$HERE/gold_readings.cu" "$SIMS_CU/sim_job.cu" "$CYCLE_CU"/cycle*.cu "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu \
     "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "${OBJECTS[@]}" "${TESSERA_OBJECTS[@]}" "${TESSERA_SEAL[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build gold_readings"; exit 1; }

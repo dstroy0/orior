@@ -65,7 +65,7 @@ if [ "$STACK" -gt 0 ]; then
         *) ulimit -s unlimited 2>/dev/null || ulimit -s "$(ulimit -H -s)" ;;
     esac
 fi
-"${CC:-cc}" -std=c11 -O2 -Wall -Wextra -DORIOR_EXACT_LIMBS="$LIMBS" "${DIGITS[@]}" "${EXACT_TYPES_FLAGS[@]}" \
+"${CC:-cc}" "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O2 -Wall -Wextra -DORIOR_EXACT_LIMBS="$LIMBS" "${DIGITS[@]}" "${EXACT_TYPES_FLAGS[@]}" \
     -o "$OUT/$PROGRAM" "$HERE/$PROGRAM.c" "${SOURCES[@]}" "${LINK[@]}" "${EXACT_TYPES_LIBRARIES[@]}" -lm || exit 1
 # The programs read and write paths from the top of the tree.
 cd "$TOP" || exit 1

@@ -4,6 +4,11 @@
 // randomness and stored as k-files, the secret protected from every reader but its owner; a seal approved and the
 // approval put in the list beside it through `<file>.ksa.part`, made durable and put in its place whole; and every
 // approval in a list verified against its seal, with the approvers a check requires found among those that are valid
+
+// POSIX 2008 gives O_CLOEXEC, which C11 alone hides. The setting comes before the first header, as each header reads it
+#if !defined(_WIN32)
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include "../../../src/platform/platform.h"
 #include "ksg_tool.h"
 #include "memoria_operor/memoria_operor.h"
@@ -85,8 +90,8 @@ static int ksg_random(unsigned char *bytes, unsigned long long size)
 #endif
 }
 
-// `count` pieces written as the file `path` through `<path>.part`, made durable and put in its place, protected from
-// every reader but its owner where `secret` is 1: 1, or 0 where it was not
+// `count` pieces written as the file `path` through `<path>.part`, made durable and put in its place. Where `secret`
+// is 1, the call protects the file from every reader but its owner. The answer is 1, or 0 where the write failed
 static int ksg_written(const char *path, const unsigned char *const *pieces, const unsigned long long *sizes,
                        unsigned int count, int secret)
 {
@@ -233,7 +238,7 @@ static int ksg_list_read(const char *path)
         whole = whole && (key_bytes <= KSA_KEY_MAX) && (signature_bytes <= KSA_SIGNATURE_MAX) &&
                 (platform_file_read_items(approval->key, 1u, (size_t)key_bytes, file) == key_bytes) &&
                 (platform_file_read_items(approval->signature, 1u, (size_t)signature_bytes, file) == signature_bytes);
-        // each count was bounded at max KSA_KEY_MAX or KSA_SIGNATURE_MAX just above
+        // the checks just above bound each count at max KSA_KEY_MAX or KSA_SIGNATURE_MAX
         approval->key_bytes = (unsigned int)key_bytes;
         approval->signature_bytes = (unsigned int)signature_bytes;
     }

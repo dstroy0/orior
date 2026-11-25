@@ -8,8 +8,8 @@
 #     src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_take.sh --fields [machine file] [architecture]
 #
 # The second form gives every form the machine file holds its fields again and writes the file. It is one query run,
-# query<n>-<datetime>.qry in build/interface_sass_take/qry (qry_run.sh), whose writer writes the machine file in its
-# place, which therefore is in the tree.
+# query<n>-<datetime>.qry in build/interface_sass_take/qry (qry_run.sh). Its writer writes the machine file in its
+# place, which is in the tree.
 set -u
 
 TOP="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../../.." && pwd)"
@@ -35,10 +35,10 @@ for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/int
               "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_take.c"; do
     object="$OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_')"
     object="${object%.c}.o"
-    cc -std=c11 -O2 -w "${INCLUDES[@]}" -c "$source" -o "$object" || exit 1
+    cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -w "${INCLUDES[@]}" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
-cc -o "$OUT/interface_sass_probe_take" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
+cc "${FILE_DEFS_LTO_CC[@]}" -o "$OUT/interface_sass_probe_take" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" || exit 1
 run_started "$OUT/qry"
 if [ "$LISTING" = "--fields" ]; then
     "$OUT/interface_sass_probe_take" --fields "$MACHINE" "$ARCH" "$OUT/decode"

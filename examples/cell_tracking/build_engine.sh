@@ -113,12 +113,12 @@ for source in "${PORTABLE_SOURCES[@]}"; do
         MINGW*|MSYS*|CYGWIN*)
             OBJECT="$OUT/${name}_portable.obj"
             rm -f "$OBJECT"
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${DEFINES[@]}" \
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${DEFINES[@]}" \
                 "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT"
             ;;
         *)
             rm -f "$OBJECT"
-            cc -std=c11 -O2 -g -fPIC "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT"
+            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT"
             ;;
     esac
     if [ ! -f "$OBJECT" ]; then
@@ -135,16 +135,16 @@ for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
     rm -f "$EXACT_OBJECT"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" \
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" \
                 -o "$EXACT_OBJECT" ;;
         *)
-            cc -std=c11 -O2 -g -fPIC "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" -o "$EXACT_OBJECT" ;;
+            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" -o "$EXACT_OBJECT" ;;
     esac
     [ -f "$EXACT_OBJECT" ] || { echo "  build failed: $name.c did not compile"; exit 1; }
     PORTABLE_OBJECTS+=("$EXACT_OBJECT")
 done
 
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -fmad=false "${GENCODE[@]}" -shared \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -fmad=false "${GENCODE[@]}" -shared \
     "${LINK_FLAGS[@]}" "${DEFINES[@]}" \
     "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}" \
     -o "$LIBRARY" \

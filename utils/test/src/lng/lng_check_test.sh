@@ -15,7 +15,8 @@ TOP="$(cd "$HERE/../../../.." && pwd)"
 source "$TOP/includes/file_defs/file_defs.sh"
 source "$TOP/includes/exact_types/exact_types.sh"
 OUT="$TOP/build/lng"
-OBJECTS="$OUT/lng_check_test_objects"
+# the objects, in a folder that the LTO flags name, so that an object of other flags is not current
+OBJECTS="$OUT/lng_check_test_objects_$FILE_DEFS_LTO_KEY"
 LNG="$TOP/theory/lng"
 mkdir -p "$OUT" "$OBJECTS"
 
@@ -53,7 +54,7 @@ place=0
 for source in "${sources[@]}"; do
     # the place in front of the name keeps two sources with one name apart
     object="$OBJECTS/${place}_$(basename "${source%.c}").o"
-    cc -std=c11 -O2 -Wall -Wextra "${flags[@]}" -c -o "$object" "$source" ||
+    cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -Wall -Wextra "${flags[@]}" -c -o "$object" "$source" ||
         { echo "  build failed: $(basename "$source") did not compile"; exit 2; }
     objects+=("$object")
     place=$((place + 1))

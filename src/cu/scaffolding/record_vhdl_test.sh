@@ -43,7 +43,7 @@ for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_I
               "$CYCLE/cycle.c"; do
     object="$OUT/$(basename "$source" .c)_vhdl.o"
     rm -f "$object"
-    cc -std=c11 -O2 -Wall -Wextra "${INCLUDES[@]}" -c "$source" -o "$object"
+    cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -Wall -Wextra "${INCLUDES[@]}" -c "$source" -o "$object"
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
@@ -51,22 +51,22 @@ for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODE
               "$TEST/vhdl_target.cu" "$TEST/yosys_script.cu" "$TEST/record_vhdl_test.cpp"; do
     object="$OUT/$(basename "$source")_vhdl.o"
     rm -f "$object"
-    "$FILE_DEFS_CXX" -std=c++17 -O2 -Wall -Wextra "${INCLUDES[@]}" -x c++ -c "$source" -o "$object"
+    "$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -std=c++20 -O2 -Wall -Wextra "${INCLUDES[@]}" -x c++ -c "$source" -o "$object"
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
-"$FILE_DEFS_CXX" -o "$BINARY" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}"
+"$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -o "$BINARY" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: the test did not link"; exit 1; }
 
-# The work folder holds a folder for each job, made new for each run. It is on the ext4 filesystem of the tests where
-# WSL mounts one, because a drive that WSL shares with Windows (/mnt) takes GHDL's small writes slowly
+# The work folder holds a folder for each job, made new for each run. Where WSL mounts the ext4 filesystem of the
+# tests, the work folder is on it. A drive that WSL shares with Windows (/mnt) takes GHDL's small writes slowly
 WORK="$OUT/record_vhdl_work"
 if [ -d /mnt/orior_test ] && [ -w /mnt/orior_test ]; then
     WORK="/mnt/orior_test/record_vhdl_work"
 fi
 rm -rf "$WORK"
 mkdir -p "$WORK"
-# where Yosys is on the path too, each lane is synthesized as well
+# where Yosys is on the path too, the test synthesizes each lane as well
 SYNTHESIS=()
 if command -v yosys > /dev/null 2>&1; then
     SYNTHESIS=(--synthesis)

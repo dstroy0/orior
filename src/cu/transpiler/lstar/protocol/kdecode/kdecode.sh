@@ -5,8 +5,8 @@
 # each k-file of records written for a person to read, each who named through the who table, or the rows of a table of
 # each run given, raw or decoded through the table's oracle.
 #
-#     src/cu/transpiler/lstar/protocol/kdecode/kdecode.sh [--raw] [--from <record>] [--count <records>] <file>...
-#     src/cu/transpiler/lstar/protocol/kdecode/kdecode.sh [--raw] [--from <key>] [--to <key>] [--count <rows>] --table <table> <run.qry>...
+#     `src/cu/transpiler/lstar/protocol/kdecode/kdecode.sh [--raw] [--from <record>] [--count <records>] <file>...`
+#     `src/cu/transpiler/lstar/protocol/kdecode/kdecode.sh [--raw] [--from <key>] [--to <key>] [--count <rows>] --table <table> <run.qry>...`
 set -u
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,6 +27,6 @@ for source in "${SOURCES[@]}" "$HERE"/kdecode/*.h "$TOP/includes/file_defs/kqr/k
     [ "$source" -nt "$built" ] && stale=1
 done
 if [ "$stale" -eq 1 ]; then
-    cc -std=c11 -O2 -Wall -Wextra -o "$BINARY" "${SOURCES[@]}" || { echo "  build failed: orior_kdecode did not compile"; exit 2; }
+    cc "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O2 -Wall -Wextra -o "$BINARY" "${SOURCES[@]}" || { echo "  build failed: orior_kdecode did not compile"; exit 2; }
 fi
 "$BINARY" "$@"
