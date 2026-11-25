@@ -479,12 +479,15 @@ void cli_job_runs_reported(const CliJobRunsReportCfg *args)
         }
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_room, .seen = seen);
     }
-    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
+    const embed_word stamp =
+        EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, .epoch = cli_ticket_epoch(), .ticket = ticket);
     // Explicit cast carries the cell's token as the pass's entry, and as the word the slot holds
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)cell;
-    embed_u64 seen_word = 0u;
-    (void)embed_ticket_ring_pass_grant(&s_turnstiles, address, &s_reports, stamp, &seen_word);
-    (void)embed_ticket_ring_pass_push(&s_turnstiles, address, &s_reports, stamp, (void *)(embed_word)cell, &seen_word);
+    embed_word seen_word = 0u;
+    (void)EMBED_CALL(embed_ticket_ring_pass_grant, EmbedTicketRingPassGrantCfg, .set = &s_turnstiles,
+                     .address = address, .ring = &s_reports, .stamp = stamp, .found_stamp = &seen_word);
+    (void)EMBED_CALL(embed_ticket_ring_pass_push, EmbedTicketRingPassPushCfg, .set = &s_turnstiles, .address = address,
+                     .ring = &s_reports, .stamp = stamp, .job = (void *)(embed_word)cell, .found_stamp = &seen_word);
     if (s_woken != NULL)
     {
         s_woken();
@@ -497,7 +500,7 @@ void cli_job_runs_reported(const CliJobRunsReportCfg *args)
 EMBED_INLINE char *report_popped(const JobRunsCtx *args)
 {
     JobRunsReport *const report = args->popped;
-    embed_u64 stamp = 0u;
+    embed_word stamp = 0u;
     if (!cli_ticket_pushed(&s_reports, s_taken, &stamp))
     {
         return NULL;
@@ -505,8 +508,9 @@ EMBED_INLINE char *report_popped(const JobRunsCtx *args)
     // Explicit cast carries the pop's place as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)&s_taken;
     void *popped = NULL;
-    embed_u64 seen_word = 0u;
-    (void)embed_ticket_ring_pass_pop(&s_turnstiles, address, &s_reports, stamp, &popped, &seen_word);
+    embed_word seen_word = 0u;
+    (void)EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, .set = &s_turnstiles, .address = address,
+                     .ring = &s_reports, .stamp = stamp, .job = &popped, .found_stamp = &seen_word);
     const CarcerMovableEntry *const cell = popped;
     (void)g_cli_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .dst = report, .bytes = sizeof(*report)});
@@ -521,7 +525,8 @@ EMBED_INLINE char *report_popped(const JobRunsCtx *args)
         text[report->length] = '\0';
     }
     (void)g_cli_guard->movable_buf_release(cell, g_cli_job_runs_owner);
-    (void)embed_ticket_ring_drain_release(&s_turnstiles, &s_reports, stamp, &seen_word);
+    (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, .set = &s_turnstiles,
+                     .ring = &s_reports, .stamp = stamp, .found_stamp = &seen_word);
     s_taken += 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_room);
     return text;

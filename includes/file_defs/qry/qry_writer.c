@@ -20,10 +20,10 @@
 //
 // The two member words are for a script, which is no member itself. The exit is 0 where each record and file went
 // whole, or where the member did its task. It is 1 where not, and 2 where the words are not those
-#include "../ksg/ksg_writing.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "../ksg/ksg_writing.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "qry_read.h"
 #include "writer/qry_writer_internal.h"
 
@@ -58,14 +58,14 @@ static int qry_writer_record_put(QryShared *shared, const unsigned char *record,
         return 1;
     }
     // a record fits half a ring, whose bytes a size_t counts
-    mmgr_bytes_copy(qry_shared_records(shared) + tail, record, (size_t)bytes);
+    memor.cpy(&(MemoriaCfg){.dst = qry_shared_records(shared) + tail, .src = record, .bytes = (size_t)bytes});
     s_account[0] += 1ULL;
     s_account[1] += bytes;
     qry_shared_schedule(shared)[scheduled] = tail;
     atomic_store(&shared->tail, tail + bytes);
     atomic_store(&shared->scheduled, scheduled + 1ULL);
     QryRecord head;
-    mmgr_bytes_copy(&head, record, sizeof(head));
+    memor.cpy(&(MemoriaCfg){.dst = &head, .src = record, .bytes = sizeof(head)});
     // the line that the first panic opens, and the first panic after a decision shut it
     const unsigned long long panicked = atomic_load(&shared->panicked);
     s_account[4] += (head.priority == QRY_PANIC) ? 1ULL : 0ULL;
@@ -94,7 +94,7 @@ static const unsigned char *qry_writer_ring_head(QryRing *ring, QryRecord *head)
     }
     unsigned long long place = at & (QRY_WRITER_RING_BYTES - 1ULL);
     unsigned long long time = 0ULL;
-    mmgr_bytes_copy(&time, ring->bytes + place, sizeof(time));
+    memor.cpy(&(MemoriaCfg){.dst = &time, .src = ring->bytes + place, .bytes = sizeof(time)});
     if (time == QRY_WRITER_WRAP)
     {
         at += QRY_WRITER_RING_BYTES - place;
@@ -105,7 +105,7 @@ static const unsigned char *qry_writer_ring_head(QryRing *ring, QryRecord *head)
             return NULL;
         }
     }
-    mmgr_bytes_copy(head, ring->bytes + place, sizeof(*head));
+    memor.cpy(&(MemoriaCfg){.dst = head, .src = ring->bytes + place, .bytes = sizeof(*head)});
     return ring->bytes + place;
 }
 
@@ -166,7 +166,7 @@ static int qry_writer_next_taken(QryShared *shared, long long file, int *taken)
         return 1;
     }
     unsigned long long crc = 0ULL;
-    mmgr_bytes_copy(&crc, at + bytes - 8ULL, sizeof(crc));
+    memor.cpy(&(MemoriaCfg){.dst = &crc, .src = at + bytes - 8ULL, .bytes = sizeof(crc)});
     int whole = 1;
     if (qry_record_crc(at, bytes - 8ULL) == crc)
     {
@@ -189,7 +189,7 @@ static int qry_writer_files_placed(QryShared *shared)
     static char s_placed[QRY_WRITER_TOP_MAX_LEN + QRY_NAME_MAX_LEN + 2u];
     static KsgWriting s_writing;
     _Static_assert(sizeof(s_placed) <= KSG_PATH_MAX_LEN, "a placed file's path fits a sealed writer's");
-    const size_t top = mmgr_text_length(shared->top, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t top = cellul.len(&(CatenaFinitaCfg){.src = shared->top, .cap = PLATFORM_TEXT_TO_TERMINATOR});
     int whole = 1;
     for (unsigned long long at = atomic_load(&shared->scheduled); (top != 0u) && (at != 0ULL); at -= 1ULL)
     {
@@ -219,11 +219,12 @@ static int qry_writer_files_placed(QryShared *shared)
             continue;
         }
         s_written[slot] = hash;
-        mmgr_bytes_copy(s_placed, shared->top, top);
+        memor.cpy(&(MemoriaCfg){.dst = s_placed, .src = shared->top, .bytes = top});
         s_placed[top] = '/';
-        mmgr_bytes_copy(s_placed + top + 1u, name, record->name_length);
+        memor.cpy(&(MemoriaCfg){.dst = s_placed + top + 1u, .src = name, .bytes = record->name_length});
         s_placed[top + 1u + record->name_length] = '\0';
-        if (mmgr_text_find(s_placed + top + 1u, "..", PLATFORM_TEXT_TO_TERMINATOR) != NULL)
+        if (cellul.find(&(CatenaFinitaCfg){
+                .src = s_placed + top + 1u, .other = "..", .cap = PLATFORM_TEXT_TO_TERMINATOR}) != NULL)
         {
             continue;
         }
@@ -262,16 +263,18 @@ static int qry_writer_member(const char *qry, const char *path)
 
 int program_main(int count, char **words)
 {
-    if ((count == 3) && (mmgr_text_equal(words[1], "--stop", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count == 3) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = words[1], .other = "--stop", .cap = PLATFORM_TEXT_TO_TERMINATOR})))
     {
         return qry_writer_member(words[2], NULL);
     }
-    if ((count == 4) && (mmgr_text_equal(words[1], "--filed", PLATFORM_TEXT_TO_TERMINATOR)))
+    if ((count == 4) &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = words[1], .other = "--filed", .cap = PLATFORM_TEXT_TO_TERMINATOR})))
     {
         return qry_writer_member(words[2], words[3]);
     }
     if (((count != 3) && (count != 4)) || (words[1][0] == '-') ||
-        (mmgr_text_length(words[2], PLATFORM_TEXT_TO_TERMINATOR) >= QRY_WRITER_TOP_MAX_LEN))
+        (cellul.len(&(CatenaFinitaCfg){.src = words[2], .cap = PLATFORM_TEXT_TO_TERMINATOR}) >= QRY_WRITER_TOP_MAX_LEN))
     {
         return 2;
     }
@@ -288,7 +291,10 @@ int program_main(int count, char **words)
     {
         return 1;
     }
-    mmgr_bytes_copy(shared->top, words[2], mmgr_text_length(words[2], PLATFORM_TEXT_TO_TERMINATOR) + 1u);
+    memor.cpy(&(MemoriaCfg){
+        .dst = shared->top,
+        .src = words[2],
+        .bytes = cellul.len(&(CatenaFinitaCfg){.src = words[2], .cap = PLATFORM_TEXT_TO_TERMINATOR}) + 1u});
     shared->members = members;
     shared->places = places;
     shared->run_bytes = run_bytes;
@@ -327,11 +333,14 @@ int program_main(int count, char **words)
     s_account[2] = atomic_load(&shared->corrupt);
     s_account[3] = atomic_load(&shared->unplaced);
     s_account[5] = now - started;
-    mmgr_bytes_copy(s_record, &head, sizeof(head));
-    mmgr_bytes_copy(s_record + sizeof(head), QRY_WRITER_ACCOUNT, sizeof(QRY_WRITER_ACCOUNT) - 1u);
-    mmgr_bytes_copy(s_record + sizeof(head) + sizeof(QRY_WRITER_ACCOUNT) - 1u, s_account, sizeof(s_account));
+    memor.cpy(&(MemoriaCfg){.dst = s_record, .src = &head, .bytes = sizeof(head)});
+    memor.cpy(&(MemoriaCfg){
+        .dst = s_record + sizeof(head), .src = QRY_WRITER_ACCOUNT, .bytes = sizeof(QRY_WRITER_ACCOUNT) - 1u});
+    memor.cpy(&(MemoriaCfg){.dst = s_record + sizeof(head) + sizeof(QRY_WRITER_ACCOUNT) - 1u,
+                            .src = s_account,
+                            .bytes = sizeof(s_account)});
     const unsigned long long crc = qry_record_crc(s_record, sizeof(s_record) - 8u);
-    mmgr_bytes_copy(s_record + sizeof(s_record) - 8u, &crc, sizeof(crc));
+    memor.cpy(&(MemoriaCfg){.dst = s_record + sizeof(s_record) - 8u, .src = &crc, .bytes = sizeof(crc)});
     whole &= qry_writer_record_put(shared, s_record, sizeof(s_record), file);
     whole &= qry_writer_file_closed(file);
     whole &= qry_writer_files_placed(shared);

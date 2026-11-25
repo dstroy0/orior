@@ -64,7 +64,9 @@ embed_u32 embed_thread_place(void)
 {
     if (t_place_plus_one == 0u)
     {
-        t_place_plus_one = embed_atomic_u32_fetch_add(&s_places_given, 1u) + 1u;
+        t_place_plus_one = EMBED_CALL(embed_atomic_u32_table.fetch_add, EmbedAtomicU32FetchAddCfg,
+                                      .word = &s_places_given, .value = 1u) +
+                           1u;
     }
     return t_place_plus_one - 1u;
 }
@@ -80,8 +82,8 @@ static embed_atomic_word s_mover_wake = EMBED_ATOMIC_INIT(0u);
 
 static void platform_mover_woken(void)
 {
-    (void)embed_atomic_word_fetch_add(&s_mover_wake, 1u);
-    embed_word_wake(&s_mover_wake);
+    (void)EMBED_CALL(embed_atomic_word_table.fetch_add, EmbedAtomicWordFetchAddCfg, .word = &s_mover_wake, .value = 1u);
+    EMBED_CALL(embed_word_wake, EmbedWordWakeCfg, .word = &s_mover_wake);
 }
 
 static void platform_mover_entered(void *context)
@@ -110,8 +112,10 @@ static embed_bool platform_mover_waited(uint32_t milliseconds)
     {
         return EMBED_FALSE;
     }
-    const embed_atomic_word_value seen = embed_atomic_word_load(&s_mover_wake);
-    (void)embed_word_wait(&s_mover_wake, seen, (embed_word)milliseconds * (embed_word)1000000u);
+    const embed_atomic_word_value seen =
+        EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = &s_mover_wake);
+    (void)EMBED_CALL(embed_word_wait, EmbedWordWaitCfg, .word = &s_mover_wake, .old_value = seen,
+                     .nanoseconds = (embed_word)milliseconds * (embed_word)1000000u);
     return (embed_bool)(EMBED_ATOMIC_LOAD(&s_mover_ending) == 0u);
 }
 

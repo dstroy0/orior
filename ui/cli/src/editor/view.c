@@ -5838,25 +5838,28 @@ static void view_pair_job(const CliServersJobCfg *args)
         return;
     }
     const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&s_pair_ticket, 1u);
-    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
+    const embed_word stamp =
+        EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, .epoch = cli_ticket_epoch(), .ticket = ticket);
     // Explicit cast carries the cell's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)landed;
-    embed_u64 seen = 0u;
+    embed_word seen = 0u;
     // The entry comes free once the view thread takes and releases the answer a lap before it. This worker sleeps on
     // the room's wake until then, and the view thread's pops stay in the order of the tickets
     for (;;)
     {
         const unsigned int room = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_pair_room);
         if (cli_ticket_room(&s_pair_ring, ticket) &&
-            embed_ticket_ring_pass_grant(&s_pair_turnstiles, address, &s_pair_ring, stamp, &seen))
+            EMBED_CALL(embed_ticket_ring_pass_grant, EmbedTicketRingPassGrantCfg, .set = &s_pair_turnstiles,
+                       .address = address, .ring = &s_pair_ring, .stamp = stamp, .found_stamp = &seen))
         {
             break;
         }
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_pair_room, .seen = room);
     }
     // Explicit cast carries the entry, read only, as the ring's job
-    (void)embed_ticket_ring_pass_push(&s_pair_turnstiles, address, &s_pair_ring, stamp, (void *)(embed_word)landed,
-                                      &seen);
+    (void)EMBED_CALL(embed_ticket_ring_pass_push, EmbedTicketRingPassPushCfg, .set = &s_pair_turnstiles,
+                     .address = address, .ring = &s_pair_ring, .stamp = stamp, .job = (void *)(embed_word)landed,
+                     .found_stamp = &seen);
     cli_document_colored_wake();
 }
 
@@ -5866,20 +5869,21 @@ static void view_pair_answers_taken(void)
 {
     if (!s_pair_ring_positioned)
     {
-        embed_ticket_ring_begin(
-            &s_pair_ring,
-            (EmbedTicketRingSlot *)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_VIEW_PAIRS),
-            CLI_VIEW_PAIR_SHIFT);
+        EMBED_CALL(embed_ticket_ring_begin, EmbedTicketRingBeginCfg, .ring = &s_pair_ring,
+                   .slots = (EmbedTicketRingSlot *)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg,
+                                                                      .part = CLI_RINGS_VIEW_PAIRS),
+                   .shift = CLI_VIEW_PAIR_SHIFT);
         s_pair_ring_positioned = 1;
     }
     // Explicit cast carries the ring's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)&s_pair_ring;
-    embed_u64 stamp = 0u;
+    embed_word stamp = 0u;
     while (cli_ticket_pushed(&s_pair_ring, s_pair_taken, &stamp))
     {
         void *job = NULL;
-        embed_u64 seen = 0u;
-        if (!embed_ticket_ring_pass_pop(&s_pair_turnstiles, address, &s_pair_ring, stamp, &job, &seen))
+        embed_word seen = 0u;
+        if (!EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, .set = &s_pair_turnstiles,
+                        .address = address, .ring = &s_pair_ring, .stamp = stamp, .job = &job, .found_stamp = &seen))
         {
             break;
         }
@@ -5892,7 +5896,8 @@ static void view_pair_answers_taken(void)
         {
             s_pair_answer = answer;
         }
-        (void)embed_ticket_ring_drain_release(&s_pair_turnstiles, &s_pair_ring, stamp, &seen);
+        (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, .set = &s_pair_turnstiles,
+                         .ring = &s_pair_ring, .stamp = stamp, .found_stamp = &seen);
         s_pair_taken += 1u;
         // a worker asleep for the entry's room wakes to it
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_pair_room);

@@ -79,10 +79,11 @@ EMBED_INLINE int within_queue(const DapWithinCtx *args)
 {
     CliDapQueue *const queue = args->queue;
     const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&queue->ticket, 1u);
-    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
+    const embed_word stamp =
+        EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, .epoch = cli_ticket_epoch(), .ticket = ticket);
     // Explicit cast carries the cell's token as the pass's entry, and as the word the slot holds
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)args->message;
-    embed_u64 seen = 0u;
+    embed_word seen = 0u;
     for (;;)
     {
         const unsigned int room = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_queue_wake);
@@ -92,14 +93,16 @@ EMBED_INLINE int within_queue(const DapWithinCtx *args)
             return 0;
         }
         if (cli_ticket_room(&queue->ring, ticket) &&
-            embed_ticket_ring_pass_grant(&queue->turnstiles, address, &queue->ring, stamp, &seen))
+            EMBED_CALL(embed_ticket_ring_pass_grant, EmbedTicketRingPassGrantCfg, .set = &queue->turnstiles,
+                       .address = address, .ring = &queue->ring, .stamp = stamp, .found_stamp = &seen))
         {
             break;
         }
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_queue_wake, .seen = room);
     }
-    (void)embed_ticket_ring_pass_push(&queue->turnstiles, address, &queue->ring, stamp,
-                                      (void *)(embed_word)args->message, &seen);
+    (void)EMBED_CALL(embed_ticket_ring_pass_push, EmbedTicketRingPassPushCfg, .set = &queue->turnstiles,
+                     .address = address, .ring = &queue->ring, .stamp = stamp, .job = (void *)(embed_word)args->message,
+                     .found_stamp = &seen);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_queue_wake);
     return 1;
 }
@@ -123,7 +126,7 @@ EMBED_INLINE int within_push(const DapWithinCtx *args)
 EMBED_INLINE const CarcerMovableEntry *within_pop(const DapWithinCtx *args)
 {
     CliDapQueue *const queue = args->queue;
-    embed_u64 stamp = 0u;
+    embed_word stamp = 0u;
     for (;;)
     {
         const unsigned int came = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_queue_wake);
@@ -138,11 +141,13 @@ EMBED_INLINE const CarcerMovableEntry *within_pop(const DapWithinCtx *args)
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_queue_wake, .seen = came);
     }
     void *popped = NULL;
-    embed_u64 seen = 0u;
+    embed_word seen = 0u;
     // Explicit cast carries the queue's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)queue;
-    (void)embed_ticket_ring_pass_pop(&queue->turnstiles, address, &queue->ring, stamp, &popped, &seen);
-    (void)embed_ticket_ring_drain_release(&queue->turnstiles, &queue->ring, stamp, &seen);
+    (void)EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, .set = &queue->turnstiles,
+                     .address = address, .ring = &queue->ring, .stamp = stamp, .job = &popped, .found_stamp = &seen);
+    (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, .set = &queue->turnstiles,
+                     .ring = &queue->ring, .stamp = stamp, .found_stamp = &seen);
     queue->taken += 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_queue_wake);
     return popped;
@@ -161,7 +166,8 @@ EMBED_INLINE void within_clear(const DapWithinCtx *args)
     CliDapQueue *const queue = args->queue;
     for (unsigned int at = 0u; (queue->ring.slots != NULL) && (at < CLI_DAP_RING_SLOTS); at += 1u)
     {
-        const embed_u64 stamp = embed_atomic_u64_load(&queue->ring.slots[at].stamp);
+        const embed_word stamp =
+            EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = &queue->ring.slots[at].stamp);
         if (((stamp & EMBED_TICKET_PUSHED_BIT) != 0u) && ((stamp & EMBED_TICKET_POPPED_BIT) == 0u))
         {
             (void)g_cli_guard->movable_buf_release(queue->ring.slots[at].job, g_cli_debug_owner);
@@ -176,8 +182,9 @@ EMBED_INLINE void within_clear(const DapWithinCtx *args)
                                              : ((unsigned long long)CLI_DAP_RING_SLOTS * sizeof(EmbedTicketRingSlot))));
     memor.set(&(MemoriaCfg){
         .dst = slots, .val = 0, .bytes = (unsigned long long)CLI_DAP_RING_SLOTS * sizeof(EmbedTicketRingSlot)});
-    embed_ticket_ring_begin(&queue->ring, slots, CLI_DAP_RING_SHIFT);
-    embed_atomic_u32_store(&queue->ticket, 0u);
+    EMBED_CALL(embed_ticket_ring_begin, EmbedTicketRingBeginCfg, .ring = &queue->ring, .slots = slots,
+               .shift = CLI_DAP_RING_SHIFT);
+    EMBED_CALL(embed_atomic_u32_table.store, EmbedAtomicU32StoreCfg, .word = &queue->ticket, .value = 0u);
     queue->taken = 0u;
     queue->closed = 0;
 }

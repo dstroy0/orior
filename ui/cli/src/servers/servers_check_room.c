@@ -27,9 +27,10 @@ int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args)
     {
         EmbedTicketRingSlot *const slots =
             (EmbedTicketRingSlot *)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_SERVERS_CHECK);
-        embed_ticket_ring_begin(&queue->waiting.ring, slots, CLI_SERVERS_CHECK_RING_SHIFT);
-        embed_ticket_ring_begin(&queue->first.ring, slots + (1u << CLI_SERVERS_CHECK_RING_SHIFT),
-                                CLI_SERVERS_CHECK_FIRST_SHIFT);
+        EMBED_CALL(embed_ticket_ring_begin, EmbedTicketRingBeginCfg, .ring = &queue->waiting.ring, .slots = slots,
+                   .shift = CLI_SERVERS_CHECK_RING_SHIFT);
+        EMBED_CALL(embed_ticket_ring_begin, EmbedTicketRingBeginCfg, .ring = &queue->first.ring,
+                   .slots = slots + (1u << CLI_SERVERS_CHECK_RING_SHIFT), .shift = CLI_SERVERS_CHECK_FIRST_SHIFT);
         queue->positioned = 1;
     }
     if ((queue->files_cell != NULL) && (queue->files_max >= bytes) && (queue->file_at_max >= positions))
@@ -78,7 +79,7 @@ int cli_servers_check_queue_append(const CliServersQueueCtx *args)
     }
     // the ring full, the file is refused; the queuing threads hold the queue's lock, so the ticket read here is the
     // one taken below, and a checker only makes room
-    const embed_u32 ticket = embed_atomic_u32_load(&ring->ticket);
+    const embed_u32 ticket = EMBED_CALL(embed_atomic_u32_table.load, EmbedAtomicU32LoadCfg, .word = &ring->ticket);
     if (!cli_ticket_room(&ring->ring, ticket))
     {
         return 0;
@@ -93,7 +94,9 @@ int cli_servers_check_queue_append(const CliServersQueueCtx *args)
     {
         return 0;
     }
-    const CliServersQueued head = {args->waiting->server, embed_atomic_u64_load(&queue->generation), args->file, size};
+    const CliServersQueued head = {
+        args->waiting->server,
+        EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &queue->generation), args->file, size};
     (void)g_cli_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = job, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
     (void)g_cli_guard->movable_buf_write(
@@ -101,12 +104,16 @@ int cli_servers_check_queue_append(const CliServersQueueCtx *args)
     (void)g_cli_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = job, .offset = sizeof(head) + size + 1u, .src = args->waiting->id, .bytes = named});
     (void)EMBED_ATOMIC_ADD_32(&ring->ticket, 1u);
-    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
+    const embed_word stamp =
+        EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, .epoch = cli_ticket_epoch(), .ticket = ticket);
     // Explicit cast carries the cell's token as the pass's entry, and as the word the slot holds
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)job;
-    embed_u64 seen = 0u;
-    (void)embed_ticket_ring_pass_grant(&ring->turnstiles, address, &ring->ring, stamp, &seen);
-    (void)embed_ticket_ring_pass_push(&ring->turnstiles, address, &ring->ring, stamp, (void *)(embed_word)job, &seen);
+    embed_word seen = 0u;
+    (void)EMBED_CALL(embed_ticket_ring_pass_grant, EmbedTicketRingPassGrantCfg, .set = &ring->turnstiles,
+                     .address = address, .ring = &ring->ring, .stamp = stamp, .found_stamp = &seen);
+    (void)EMBED_CALL(embed_ticket_ring_pass_push, EmbedTicketRingPassPushCfg, .set = &ring->turnstiles,
+                     .address = address, .ring = &ring->ring, .stamp = stamp, .job = (void *)(embed_word)job,
+                     .found_stamp = &seen);
     if ((args->file != CLI_SERVERS_NO_FILE) && (args->file < queue->file_at_max))
     {
         static const unsigned char s_waiting = 1u;
@@ -125,8 +132,10 @@ unsigned int cli_servers_check_waiting(const CliServersQueueCfg *args)
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
         // the checkers take tickets ahead of the pushes, so the taken past the pushed count as none waiting
-        const embed_u32 pushed = embed_atomic_u32_load(&rings[at]->ticket);
-        const embed_u32 taken = embed_atomic_u32_load(&rings[at]->taken);
+        const embed_u32 pushed =
+            EMBED_CALL(embed_atomic_u32_table.load, EmbedAtomicU32LoadCfg, .word = &rings[at]->ticket);
+        const embed_u32 taken =
+            EMBED_CALL(embed_atomic_u32_table.load, EmbedAtomicU32LoadCfg, .word = &rings[at]->taken);
         waiting += (pushed > taken) ? pushed - taken : 0u;
     }
     return waiting;

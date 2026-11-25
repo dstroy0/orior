@@ -87,7 +87,7 @@ void utf8_set_fill(const Utf8SetFillCfg *args)
         // Explicit cast reads the byte as unsigned before it is repeated into every lane
         const embed_u8 byte = (embed_u8)args->set[at];
         args->filled_out->word_text[at] = MMGR_SWAR_ONES * (embed_word)byte;
-        args->filled_out->lane_at[at] = embed_lane_fill_byte(byte);
+        args->filled_out->lane_at[at] = EMBED_CALL(embed_lane_fill_byte, EmbedLaneFillByteCfg, .byte = byte);
     }
 }
 
@@ -116,24 +116,25 @@ static unsigned long long utf8_walk(const Utf8Ctx *args)
     unsigned long long place = at;
     while ((args->size - place) >= EMBED_LANE_BYTES)
     {
-        const embed_lane loaded = embed_lane_load(bytes + place);
+        const embed_lane loaded = EMBED_CALL(embed_lane_load, EmbedLaneLoadCfg, .at = bytes + place);
         embed_lane_mask in_lanes = 0u;
         for (unsigned int one = 0u; one < filled->count; one += 1u)
         {
-            in_lanes |= embed_lane_bytes_equal(loaded, filled->lane_at[one]);
+            in_lanes |= EMBED_CALL(embed_lane_bytes_equal, EmbedLaneBytesEqualCfg, .one = loaded,
+                                   .other = filled->lane_at[one]);
         }
         const embed_lane_mask hit = args->in ? in_lanes : (embed_lane_mask)(EMBED_LANE_MASK_ALL & ~in_lanes);
         if (hit != 0u)
         {
-            return place + embed_lane_mask_first(hit);
+            return place + EMBED_CALL(embed_lane_mask_first, EmbedLaneMaskFirstCfg, .mask = hit);
         }
         place += EMBED_LANE_BYTES;
     }
     const embed_word every = mask.lanes_below(&(ScrutMaskCfg){.bytes = MMGR_SWAR_BYTES});
     while ((args->size - place) >= MMGR_SWAR_BYTES)
     {
-        const embed_word found = EMBED_CALL(utf8_word.in, Utf8WordCfg,
-                                            .loaded = word.load(&(ScrutWordCfg){.at = bytes + place}), .filled = filled);
+        const embed_word found = EMBED_CALL(
+            utf8_word.in, Utf8WordCfg, .loaded = word.load(&(ScrutWordCfg){.at = bytes + place}), .filled = filled);
         const embed_word hit = args->in ? found : (every & ~found);
         if (hit != 0u)
         {

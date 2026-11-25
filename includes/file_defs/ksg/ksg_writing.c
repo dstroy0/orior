@@ -4,8 +4,8 @@
 // file calls, which make each file durable and put it in its place
 #include "ksg_writing.h"
 #include "../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../qry/writer/qry_writer_internal.h"
 
@@ -14,14 +14,14 @@
 // `path` with `suffix` after it into `out`, which has room for KSG_PATH_MAX_LEN: 1, or 0 where it does not fit
 static int ksg_named(const char *path, const char *suffix, char *out)
 {
-    const size_t length = mmgr_text_length(path, PLATFORM_TEXT_TO_TERMINATOR);
-    const size_t more = mmgr_text_length(suffix, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR});
+    const size_t more = cellul.len(&(CatenaFinitaCfg){.src = suffix, .cap = PLATFORM_TEXT_TO_TERMINATOR});
     if ((length + more) >= KSG_PATH_MAX_LEN)
     {
         return 0;
     }
-    mmgr_bytes_copy(out, path, length);
-    mmgr_bytes_copy(out + length, suffix, more + 1u);
+    memor.cpy(&(MemoriaCfg){.dst = out, .src = path, .bytes = length});
+    memor.cpy(&(MemoriaCfg){.dst = out + length, .src = suffix, .bytes = more + 1u});
     return 1;
 }
 

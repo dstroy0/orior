@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qry_read.c: a .qry's records read where they lie, each checked against its CRC
 #include "qry_read.h"
-#include "memoria_operor/memoria_linea.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../../codecs/crc/crc_key.h"
 
@@ -28,7 +28,7 @@ int qry_record_read(const unsigned char *bytes, unsigned long long size, unsigne
     {
         return 0;
     }
-    mmgr_bytes_copy(&head, bytes + *at, sizeof(head));
+    memor.cpy(&(MemoriaCfg){.dst = &head, .src = bytes + *at, .bytes = sizeof(head)});
     const unsigned long long whole = QRY_RECORD_BYTES(head.name_length, head.blob_length);
     if ((head.name_length == 0u) || (head.name_length > QRY_NAME_MAX_LEN) || (head.blob_length > size) ||
         (whole > (size - *at)))
@@ -36,7 +36,7 @@ int qry_record_read(const unsigned char *bytes, unsigned long long size, unsigne
         return 0;
     }
     unsigned long long stored_crc = 0ULL;
-    mmgr_bytes_copy(&stored_crc, bytes + *at + whole - 8ULL, sizeof(stored_crc));
+    memor.cpy(&(MemoriaCfg){.dst = &stored_crc, .src = bytes + *at + whole - 8ULL, .bytes = sizeof(stored_crc)});
     if (qry_record_crc(bytes + *at, whole - 8ULL) != stored_crc)
     {
         return 0;

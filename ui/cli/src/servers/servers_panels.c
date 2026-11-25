@@ -223,8 +223,9 @@ static void panels_hover_ring_positioned(void)
     EmbedTicketRingSlot *const slots =
         (EmbedTicketRingSlot *)(void *)EMBED_CALL(cli_rings.part, CliRingsPartCfg, .part = CLI_RINGS_HOVER_ANSWERS);
     memor.set(&(MemoriaCfg){.dst = slots, .val = 0, .bytes = CLI_PANELS_HOVER_RING_BYTES});
-    embed_ticket_ring_begin(&s_hover_ring, slots, CLI_PANELS_HOVER_RING_SHIFT);
-    embed_atomic_u32_store(&s_hover_ticket, 0u);
+    EMBED_CALL(embed_ticket_ring_begin, EmbedTicketRingBeginCfg, .ring = &s_hover_ring, .slots = slots,
+               .shift = CLI_PANELS_HOVER_RING_SHIFT);
+    EMBED_CALL(embed_atomic_u32_table.store, EmbedAtomicU32StoreCfg, .word = &s_hover_ticket, .value = 0u);
     s_hover_taken = 0u;
     s_hover_ring_positioned = 1;
 }
@@ -674,21 +675,24 @@ static void panels_hover_job(const CliServersJobCfg *args)
         return;
     }
     const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&s_hover_ticket, 1u);
-    const embed_u64 stamp = embed_ticket_stamp(cli_ticket_epoch(), ticket);
+    const embed_word stamp =
+        EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, .epoch = cli_ticket_epoch(), .ticket = ticket);
     // Explicit cast carries the cell's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)landed;
-    embed_u64 seen = 0u;
+    embed_word seen = 0u;
     // a ring with no free entry has answers the view thread did not take yet: this answer goes back, and the next ask
     // reads anew
     if (!cli_ticket_room(&s_hover_ring, ticket) ||
-        !embed_ticket_ring_pass_grant(&s_hover_turnstiles, address, &s_hover_ring, stamp, &seen))
+        !EMBED_CALL(embed_ticket_ring_pass_grant, EmbedTicketRingPassGrantCfg, .set = &s_hover_turnstiles,
+                    .address = address, .ring = &s_hover_ring, .stamp = stamp, .found_stamp = &seen))
     {
         (void)g_cli_guard->movable_buf_release(landed, g_cli_servers_owner);
         return;
     }
     // Explicit cast carries the entry, read only, as the ring's job
-    (void)embed_ticket_ring_pass_push(&s_hover_turnstiles, address, &s_hover_ring, stamp, (void *)(embed_word)landed,
-                                      &seen);
+    (void)EMBED_CALL(embed_ticket_ring_pass_push, EmbedTicketRingPassPushCfg, .set = &s_hover_turnstiles,
+                     .address = address, .ring = &s_hover_ring, .stamp = stamp, .job = (void *)(embed_word)landed,
+                     .found_stamp = &seen);
 }
 
 // On the view thread: the call pops every answer on the ring in the order of its ticket. An answer to the ask that
@@ -702,12 +706,13 @@ EMBED_INLINE void panels_hover_answers_taken(const PanelsCtx *args)
     panels_hover_ring_positioned();
     // Explicit cast carries the ring's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)&s_hover_ring;
-    embed_u64 stamp = 0u;
+    embed_word stamp = 0u;
     while (cli_ticket_pushed(&s_hover_ring, s_hover_taken, &stamp))
     {
         void *job = NULL;
-        embed_u64 seen = 0u;
-        if (!embed_ticket_ring_pass_pop(&s_hover_turnstiles, address, &s_hover_ring, stamp, &job, &seen))
+        embed_word seen = 0u;
+        if (!EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, .set = &s_hover_turnstiles,
+                        .address = address, .ring = &s_hover_ring, .stamp = stamp, .job = &job, .found_stamp = &seen))
         {
             break;
         }
@@ -737,7 +742,8 @@ EMBED_INLINE void panels_hover_answers_taken(const PanelsCtx *args)
             }
         }
         (void)g_cli_guard->movable_buf_release(landed, g_cli_servers_owner);
-        (void)embed_ticket_ring_drain_release(&s_hover_turnstiles, &s_hover_ring, stamp, &seen);
+        (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, .set = &s_hover_turnstiles,
+                         .ring = &s_hover_ring, .stamp = stamp, .found_stamp = &seen);
         s_hover_taken += 1u;
     }
 }

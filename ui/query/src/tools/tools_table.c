@@ -21,21 +21,23 @@ const char *const g_query_file_defs[] = {"includes/file_defs/qry/writer/qry_memb
                                          "includes/file_defs/krf/krf.c",
                                          NULL};
 
-// MMgr, which every program of the tree writes, copies, compares and scans its text through: its modules' sources,
-// each folder's, and of impensa_ancorae_acus's profiles, each a source of its own, the one MMgr's build takes where
-// none is named, generic
+// MMgr's sources. Every program of the tree writes, copies, compares and scans its text through them. The list gives
+// each module's folder. From impensa_ancorae_acus it gives the common source and the generic profile, which MMgr's
+// build takes where the build names no profile
 const char *const g_query_mmgr[] = {
     "includes/mmgr/src/ascii_persona_bitorum/*.c", "includes/mmgr/src/bitorum_introitus_exitus/*.c",
-    "includes/mmgr/src/cellularum_laboro/*.c", "includes/mmgr/src/clz/*.c",
+    "includes/mmgr/src/cellularum_laboro/*.c", "includes/mmgr/src/clz/*.c", "includes/mmgr/src/config/*.c",
     "includes/mmgr/src/confinium_exclusivum_infinitas/*.c", "includes/mmgr/src/confinium_externum/*.c",
     "includes/mmgr/src/endian/*.c", "includes/mmgr/src/fractio/*.c",
     // the cellblock through the platform's unit, which leaves out the weak table of no owners (platform_carcer.c)
+    "includes/mmgr/src/impensa_ancorae_acus/impensa_ancorae_acus.c",
     "includes/mmgr/src/impensa_ancorae_acus/impensa_ancorae_acus_generic.c", "src/platform/platform_carcer.c",
     "includes/mmgr/src/memoria_anularis/*.c", "includes/mmgr/src/memoria_externa/*.c",
-    "includes/mmgr/src/memoria_operor/*.c", "includes/mmgr/src/memoriam_praetereo/*.c",
-    "includes/mmgr/src/numeros_scribo/*.c", "includes/mmgr/src/octetus_introitus_exitus/*.c",
-    "includes/mmgr/src/proximus_operor/*.c", "includes/mmgr/src/spatium/*.c", "includes/mmgr/src/transformo/*.c",
-    "includes/mmgr/src/verba_scribo/*.c", "includes/mmgr/src/verbum_scrutor/*.c",
+    "includes/mmgr/src/memoria_operor/*.c", "includes/mmgr/src/memoria_vector/*.c",
+    "includes/mmgr/src/memoriam_praetereo/*.c", "includes/mmgr/src/numeros_scribo/*.c",
+    "includes/mmgr/src/octetus_introitus_exitus/*.c", "includes/mmgr/src/proximus_operor/*.c",
+    "includes/mmgr/src/spatium/*.c", "includes/mmgr/src/transformo/*.c", "includes/mmgr/src/verba_scribo/*.c",
+    "includes/mmgr/src/verbum_scrutor/*.c",
     // the platform: main and the process stage, the pool, and the calls into the system. It defines the host's
     // address wait, wake and clock, which the turnstiles of LocusCarcerum sleep, wake and stamp through. Every program
     // defines program_main and no main

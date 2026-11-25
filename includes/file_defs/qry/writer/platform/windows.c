@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // windows.c: the run on Windows: the shared memory a named section reserved whole and given memory as it is used, the
 // .qry a file handle, the one clock the performance counter, and the pause a sleep
-#include "../qry_writer_internal.h"
 #include "../../../../../src/platform/platform.h"
-#include "memoria_operor/memoria_linea.h"
-#include "cellularum_laboro/cellularum_linea.h"
+#include "../qry_writer_internal.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -40,7 +40,7 @@ static void qry_shared_named(const char *path, char *name)
                                                                       : (unsigned char)*at;
         hash = (hash ^ folded) * 0x100000001b3ULL;
     }
-    mmgr_bytes_copy(name, s_prefix, sizeof(s_prefix) - 1u);
+    memor.cpy(&(MemoriaCfg){.dst = name, .src = s_prefix, .bytes = sizeof(s_prefix) - 1u});
     for (unsigned int digit = 0u; digit < 16u; digit += 1u)
     {
         name[sizeof(s_prefix) - 1u + digit] = s_digits[(hash >> (60u - (4u * digit))) & 0xfULL];
@@ -148,14 +148,14 @@ int qry_writer_stream_put(const char *qry, const char *name, unsigned int name_l
                           unsigned long long size)
 {
     char path[QRY_WRITER_TOP_MAX_LEN + QRY_NAME_MAX_LEN + 2u];
-    const size_t length = mmgr_text_length(qry, PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = qry, .cap = PLATFORM_TEXT_TO_TERMINATOR});
     if ((length >= QRY_WRITER_TOP_MAX_LEN) || (name_length > QRY_NAME_MAX_LEN))
     {
         return 0;
     }
-    mmgr_bytes_copy(path, qry, length);
+    memor.cpy(&(MemoriaCfg){.dst = path, .src = qry, .bytes = length});
     path[length] = ':';
-    mmgr_bytes_copy(path + length + 1u, name, name_length);
+    memor.cpy(&(MemoriaCfg){.dst = path + length + 1u, .src = name, .bytes = name_length});
     path[length + 1u + name_length] = '\0';
     wchar_t wide[QRY_WIDE_MAX_LEN];
     const HANDLE file = qry_wide(path, wide)

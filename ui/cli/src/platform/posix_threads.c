@@ -45,11 +45,14 @@ extern int __ulock_wake(embed_u32 operation, void *address, embed_u64 wake_value
 #define CLI_ULOCK_NO_ERRNO 0x01000000u
 #endif
 
-int embed_word_wait(embed_atomic_word *atomic_word, embed_atomic_word_value seen, embed_u64 nanoseconds)
+int embed_word_wait(const EmbedWordWaitCfg *args)
 {
+    embed_atomic_word *const atomic_word = args->word;
+    const embed_atomic_word_value seen = args->old_value;
+    const embed_word nanoseconds = args->nanoseconds;
     if (nanoseconds == 0u)
     {
-        return embed_atomic_word_load(atomic_word) != seen;
+        return EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = atomic_word) != seen;
     }
 #if defined(__linux__)
     struct timespec span;
@@ -74,21 +77,22 @@ int embed_word_wait(embed_atomic_word *atomic_word, embed_atomic_word_value seen
     struct timespec span;
     span.tv_sec = (time_t)(slept / 1000000000ULL);
     span.tv_nsec = (long)(slept % 1000000000ULL);
-    if (embed_atomic_word_load(atomic_word) == seen)
+    if (EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = atomic_word) == seen)
     {
         (void)nanosleep(&span, NULL);
     }
 #endif
-    return embed_atomic_word_load(atomic_word) != seen;
+    return EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = atomic_word) != seen;
 }
 
-void embed_word_wake(embed_atomic_word *atomic_word)
+void embed_word_wake(const EmbedWordWakeCfg *args)
 {
+    embed_atomic_word *const atomic_word = args->word;
 #if defined(__linux__)
     (void)syscall(SYS_futex, (void *)&atomic_word->value, FUTEX_WAKE_PRIVATE, CLI_FUTEX_WAKE_ALL, NULL, NULL, 0);
 #elif defined(__APPLE__)
-    (void)__ulock_wake(CLI_ULOCK_COMPARE_AND_WAIT64 | CLI_ULOCK_WAKE_ALL | CLI_ULOCK_NO_ERRNO, (void *)&atomic_word->value,
-                       0u);
+    (void)__ulock_wake(CLI_ULOCK_COMPARE_AND_WAIT64 | CLI_ULOCK_WAKE_ALL | CLI_ULOCK_NO_ERRNO,
+                       (void *)&atomic_word->value, 0u);
 #else
     (void)atomic_word;
 #endif
@@ -105,16 +109,18 @@ typedef struct
 static int wake_sleep(const PosixThreadsCtx *args)
 {
     // the word's wait takes nanoseconds: a sleep past what they count sleeps with no end
-    return embed_word_wait(&args->wake->generation, args->seen,
-                           (args->milliseconds < (EMBED_WAIT_INFINITE / 1000000ULL))
-                               ? (embed_u64)args->milliseconds * 1000000ULL
-                               : EMBED_WAIT_INFINITE);
+    return EMBED_CALL(embed_word_wait, EmbedWordWaitCfg, .word = &args->wake->generation, .old_value = args->seen,
+                      .nanoseconds = (args->milliseconds < (EMBED_WAIT_INFINITE / 1000000ULL))
+                                         ? (embed_word)args->milliseconds * 1000000ULL
+                                         : EMBED_WAIT_INFINITE);
 }
 
 int cli_wake_wait_for(const CliWakeCtx *args)
 {
-    return EMBED_CALL(wake_sleep, PosixThreadsCtx, .wake = args->wake,
-                      .seen = embed_atomic_word_load(&args->wake->generation), .milliseconds = args->milliseconds_u64);
+    return EMBED_CALL(
+        wake_sleep, PosixThreadsCtx, .wake = args->wake,
+        .seen = EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg, .word = &args->wake->generation),
+        .milliseconds = args->milliseconds_u64);
 }
 
 int cli_wake_wait_seen_for(const CliWakeCtx *args)
@@ -125,7 +131,8 @@ int cli_wake_wait_seen_for(const CliWakeCtx *args)
 
 unsigned int cli_wake_read(const CliWakeCtx *args)
 {
-    return (unsigned int)embed_atomic_word_load(&args->wake->generation);
+    return (unsigned int)EMBED_CALL(embed_atomic_word_table.load, EmbedAtomicWordLoadCfg,
+                                    .word = &args->wake->generation);
 }
 
 void cli_wake_wait_seen(const CliWakeCtx *args)
@@ -141,8 +148,9 @@ void cli_wake_wait_seen(const CliWakeCtx *args)
 
 void cli_wake_all(const CliWakeCtx *args)
 {
-    (void)embed_atomic_word_fetch_add(&args->wake->generation, 1u);
-    embed_word_wake(&args->wake->generation);
+    (void)EMBED_CALL(embed_atomic_word_table.fetch_add, EmbedAtomicWordFetchAddCfg, .word = &args->wake->generation,
+                     .value = 1u);
+    EMBED_CALL(embed_word_wake, EmbedWordWakeCfg, .word = &args->wake->generation);
 }
 
 static void *cli_thread_entry(void *supplied)

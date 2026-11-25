@@ -61,10 +61,10 @@ EMBED_INLINE void pool_log(const PoolCtx *args)
     }
 }
 
-embed_u64 embed_clock_ns(void)
+embed_word embed_clock_ns(void)
 {
     // the one clock: the microsecond clock in nanoseconds, which stamps a turnstile's badge and a cell's take alike
-    return (embed_u64)cli_clock_microseconds() * 1000u;
+    return (embed_word)cli_clock_microseconds() * 1000u;
 }
 
 embed_u64 mmgr_carcer_hw_clock_ns(void)
@@ -88,13 +88,15 @@ static _Thread_local embed_u32 t_pool_place_plus_one;
 // a free place taken off the stack: its place plus one, or 0 where the stack is empty
 static embed_u32 pool_place_popped(void)
 {
-    embed_u64 head = embed_atomic_u64_load(&s_pool_place_free);
+    embed_u64 head = EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_pool_place_free);
     while ((head & 0xffffffffULL) != 0ULL)
     {
         const embed_u32 top = (embed_u32)(head & 0xffffffffULL);
-        const embed_u32 next = embed_atomic_u32_load(&s_pool_place_next[top - 1u]);
+        const embed_u32 next =
+            EMBED_CALL(embed_atomic_u32_table.load, EmbedAtomicU32LoadCfg, .word = &s_pool_place_next[top - 1u]);
         const embed_u64 after = (((head >> 32u) + 1ULL) << 32u) | (embed_u64)next;
-        if (embed_atomic_u64_swap_if(&s_pool_place_free, &head, after))
+        if (EMBED_CALL(embed_atomic_u64_table.swap_if, EmbedAtomicU64SwapIfCfg, .word = &s_pool_place_free,
+                       .expected = &head, .value = after))
         {
             return top;
         }
@@ -109,7 +111,11 @@ embed_u32 embed_thread_place(void)
     if (t_pool_place_plus_one == 0u)
     {
         const embed_u32 popped = pool_place_popped();
-        t_pool_place_plus_one = (popped != 0u) ? popped : (embed_atomic_u32_fetch_add(&s_pool_places_given, 1u) + 1u);
+        t_pool_place_plus_one = (popped != 0u)
+                                    ? popped
+                                    : (EMBED_CALL(embed_atomic_u32_table.fetch_add, EmbedAtomicU32FetchAddCfg,
+                                                  .word = &s_pool_places_given, .value = 1u) +
+                                       1u);
     }
     return t_pool_place_plus_one - 1u;
 }
@@ -123,12 +129,14 @@ void cli_thread_place_released(void)
         return;
     }
     t_pool_place_plus_one = 0u;
-    embed_u64 head = embed_atomic_u64_load(&s_pool_place_free);
+    embed_u64 head = EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &s_pool_place_free);
     for (;;)
     {
-        embed_atomic_u32_store(&s_pool_place_next[plus_one - 1u], (embed_u32)(head & 0xffffffffULL));
+        EMBED_CALL(embed_atomic_u32_table.store, EmbedAtomicU32StoreCfg, .word = &s_pool_place_next[plus_one - 1u],
+                   .value = (embed_u32)(head & 0xffffffffULL));
         const embed_u64 after = (((head >> 32u) + 1ULL) << 32u) | (embed_u64)plus_one;
-        if (embed_atomic_u64_swap_if(&s_pool_place_free, &head, after))
+        if (EMBED_CALL(embed_atomic_u64_table.swap_if, EmbedAtomicU64SwapIfCfg, .word = &s_pool_place_free,
+                       .expected = &head, .value = after))
         {
             return;
         }
