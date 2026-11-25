@@ -216,12 +216,14 @@ EMBED_INLINE void plugins_table_release(const CarcerMovableEntry *table)
 // the token of the table, with the gate shut: the call builds the table where no call built it before
 EMBED_INLINE const CarcerMovableEntry *plugins_table_held(void)
 {
-    if (embed_atomic_word_load(&s_kept) == 0u)
+    if (EMBED_CALL(embed_atomic_word_load, EmbedAtomicWordLoadCfg, .word = &s_kept) == 0u)
     {
         // the token goes through the atomic word as the integer of its address
-        embed_atomic_word_store(&s_kept, (embed_atomic_word_value)(embed_word)plugins_kept_build());
+        EMBED_CALL(embed_atomic_word_store, EmbedAtomicWordStoreCfg, .word = &s_kept,
+                   .value = (embed_atomic_word_value)(embed_word)plugins_kept_build());
     }
-    return (const CarcerMovableEntry *)(embed_word)embed_atomic_word_load(&s_kept);
+    return (const CarcerMovableEntry *)(embed_word)EMBED_CALL(embed_atomic_word_load, EmbedAtomicWordLoadCfg,
+                                                              .word = &s_kept);
 }
 
 // The plugin `at` of the table copied out, with the gate shut. Its record goes into `kept`, and its tree into `json`, a
@@ -463,8 +465,9 @@ void cli_plugins_settings_changed(void)
     const CarcerMovableEntry *const table = plugins_kept_build();
     cli_gate_shut(&s_kept_gate);
     // the token goes through the atomic word as the integer of its address
-    const CarcerMovableEntry *const before = (const CarcerMovableEntry *)(embed_word)embed_atomic_word_exchange(
-        &s_kept, (embed_atomic_word_value)(embed_word)table);
+    const CarcerMovableEntry *const before = (const CarcerMovableEntry *)(embed_word)EMBED_CALL(
+        embed_atomic_word_exchange, EmbedAtomicWordExchangeCfg, .word = &s_kept,
+        .value = (embed_atomic_word_value)(embed_word)table);
     plugins_table_release(before);
     cli_gate_opened(&s_kept_gate);
 }
@@ -472,8 +475,8 @@ void cli_plugins_settings_changed(void)
 void cli_plugins_settings_end(void)
 {
     cli_gate_shut(&s_kept_gate);
-    const CarcerMovableEntry *const before =
-        (const CarcerMovableEntry *)(embed_word)embed_atomic_word_exchange(&s_kept, (embed_atomic_word_value)0u);
+    const CarcerMovableEntry *const before = (const CarcerMovableEntry *)(embed_word)EMBED_CALL(
+        embed_atomic_word_exchange, EmbedAtomicWordExchangeCfg, .word = &s_kept, .value = (embed_atomic_word_value)0u);
     plugins_table_release(before);
     cli_gate_opened(&s_kept_gate);
 }
