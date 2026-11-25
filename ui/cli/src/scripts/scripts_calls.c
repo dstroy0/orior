@@ -5,6 +5,7 @@
 // right's list of plugin.json, and the reader must allow the right. A call of a right that the reader did not answer
 // waits. The window asks the reader, and the answer goes back to the host when the reader answers
 #include "../command_line/pool.h"
+#include "../editor/files.h"
 #include "../servers/lsp.h"
 #include "../servers/servers.h"
 #include "../text/json_tree.h"
@@ -148,6 +149,81 @@ static void calls_files_write(const ScriptsCallsCtx *args)
     {
         mmgr_line_put(args->answer, "null");
     }
+}
+
+// One listing of the tree's files into an answer: the answer, and whether a path went into it before
+typedef struct
+{
+    VerbaLinea *answer;
+    int listed;
+} ScriptsListing;
+
+// one file of the tree written into the answer as a JSON string, with a comma before each file but the first
+static void calls_tree_listed(const CliEachPathLengthCfg *args)
+{
+    ScriptsListing *const listing = (ScriptsListing *)args->context;
+    if (listing->listed)
+    {
+        mmgr_line_ch(listing->answer, ',');
+    }
+    listing->listed = 1;
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = listing->answer,
+               .text_bytes = (const unsigned char *)args->path, .length = args->length);
+}
+
+// tree.files(): the tree's files as a JSON array, each its path from the top with `/` between its folders. Git gives
+// the list where git reads the tree. The call refuses a list that does not fit in one answer, and never cuts it
+static void calls_tree_files(const ScriptsCallsCtx *args)
+{
+    if (!s_rooted)
+    {
+        EMBED_CALL(calls_refused, ScriptsCallsCtx, .answer = args->answer, .why = "no tree is open");
+        return;
+    }
+    const unsigned long long before = args->answer->at;
+    ScriptsListing listing = {args->answer, 0};
+    mmgr_line_ch(args->answer, '[');
+    int git = 0;
+    const int whole = EMBED_CALL(cli_files_root_each_context.list, CliFilesRootEachContextCfg, .root = s_root,
+                                 .each = calls_tree_listed, .context = &listing, .git_pointer = &git);
+    mmgr_line_ch(args->answer, ']');
+    if (!whole || !mmgr_line_ok(args->answer))
+    {
+        args->answer->at = before;
+        EMBED_CALL(calls_refused, ScriptsCallsCtx, .answer = args->answer,
+                   .why = whole ? "the tree's files do not fit in one answer"
+                                : "the tree has more files than one list holds");
+    }
+}
+
+// tree.relative(path): the path from the tree's top of a whole path, with `/` between its folders, as a JSON string. A
+// file of a mount is under the mount's name. null where the path is outside the tree and its mounts
+static void calls_tree_relative(const ScriptsCallsCtx *args)
+{
+    const char *const path =
+        EMBED_CALL(calls_string, ScriptsCallsCtx, .json = args->json, .args = args->args, .index = 0u);
+    if (path == NULL)
+    {
+        EMBED_CALL(calls_refused, ScriptsCallsCtx, .answer = args->answer, .why = "the path is no string");
+        return;
+    }
+    if (!s_rooted)
+    {
+        EMBED_CALL(calls_refused, ScriptsCallsCtx, .answer = args->answer, .why = "no tree is open");
+        return;
+    }
+    char relative[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .path = path, .root = s_root, .relative_out = relative);
+    // A path outside the tree and its mounts comes back whole. It starts at the top of a system or at a drive
+    const int outside = (relative[0] == '/') || ((relative[0] != '\0') && (relative[1] == ':'));
+    if (outside)
+    {
+        mmgr_line_put(args->answer, "null");
+        return;
+    }
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->answer,
+               .text_bytes = (const unsigned char *)relative,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_PATH_MAX_LEN}));
 }
 
 // the JSON of the place `index` of the call's args written on `out`, null where the call has no such place
@@ -294,6 +370,8 @@ static const ScriptsCallEntry s_calls[] = {
     {"server.stop", CLI_SCRIPTS_NO_RIGHT, calls_server_stop, 0},
     {"server.request", CLI_SCRIPTS_NO_RIGHT, calls_server_request, 1},
     {"server.notify", CLI_SCRIPTS_NO_RIGHT, calls_server_notify, 0},
+    {"tree.files", CLI_SCRIPTS_NO_RIGHT, calls_tree_files, 1},
+    {"tree.relative", CLI_SCRIPTS_NO_RIGHT, calls_tree_relative, 0},
 };
 
 // the call kept until the reader answers the right `right`: its params copied, the server kept, and the request left

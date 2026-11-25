@@ -5,6 +5,7 @@
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/plugins/plugins.h"
 #include "ui/cli/src/scripts/scripts.h"
+#include "ui/cli/src/text/json_tree.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -15,6 +16,9 @@ extern void test_a_read_of_a_file_that_reads_does_not_list_is_refused(void);
 extern void test_a_read_that_the_reader_refused_is_refused(void);
 extern void test_a_read_that_the_reader_allowed_reads_the_file(void);
 extern void test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_it(void);
+extern void test_the_files_of_the_tree_are_its_paths_from_its_top(void);
+extern void test_a_whole_path_in_the_tree_gives_its_path_from_the_top(void);
+extern void test_a_path_outside_the_tree_gives_null(void);
 extern void test_a_write_that_the_reader_allowed_writes_the_file(void);
 extern void test_an_unknown_command_fails(void);
 extern void test_a_host_past_its_memory_ends_and_the_next_ask_starts_it_again(void);
@@ -80,16 +84,19 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/scripts/test_scripts/test_scripts.c");
-  run_test(test_an_ask_starts_the_host_and_answers, "test_an_ask_starts_the_host_and_answers", 132);
-  run_test(test_the_kept_state_comes_back_after_a_stop, "test_the_kept_state_comes_back_after_a_stop", 139);
-  run_test(test_a_read_of_a_file_that_reads_does_not_list_is_refused, "test_a_read_of_a_file_that_reads_does_not_list_is_refused", 148);
-  run_test(test_a_read_that_the_reader_refused_is_refused, "test_a_read_that_the_reader_refused_is_refused", 155);
-  run_test(test_a_read_that_the_reader_allowed_reads_the_file, "test_a_read_that_the_reader_allowed_reads_the_file", 162);
-  run_test(test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_it, "test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_it", 169);
-  run_test(test_a_write_that_the_reader_allowed_writes_the_file, "test_a_write_that_the_reader_allowed_writes_the_file", 181);
-  run_test(test_an_unknown_command_fails, "test_an_unknown_command_fails", 197);
-  run_test(test_a_host_past_its_memory_ends_and_the_next_ask_starts_it_again, "test_a_host_past_its_memory_ends_and_the_next_ask_starts_it_again", 202);
-  run_test(test_a_quiet_stops_the_host, "test_a_quiet_stops_the_host", 209);
+  run_test(test_an_ask_starts_the_host_and_answers, "test_an_ask_starts_the_host_and_answers", 136);
+  run_test(test_the_kept_state_comes_back_after_a_stop, "test_the_kept_state_comes_back_after_a_stop", 143);
+  run_test(test_a_read_of_a_file_that_reads_does_not_list_is_refused, "test_a_read_of_a_file_that_reads_does_not_list_is_refused", 152);
+  run_test(test_a_read_that_the_reader_refused_is_refused, "test_a_read_that_the_reader_refused_is_refused", 159);
+  run_test(test_a_read_that_the_reader_allowed_reads_the_file, "test_a_read_that_the_reader_allowed_reads_the_file", 166);
+  run_test(test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_it, "test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_it", 173);
+  run_test(test_the_files_of_the_tree_are_its_paths_from_its_top, "test_the_files_of_the_tree_are_its_paths_from_its_top", 186);
+  run_test(test_a_whole_path_in_the_tree_gives_its_path_from_the_top, "test_a_whole_path_in_the_tree_gives_its_path_from_the_top", 192);
+  run_test(test_a_path_outside_the_tree_gives_null, "test_a_path_outside_the_tree_gives_null", 206);
+  run_test(test_a_write_that_the_reader_allowed_writes_the_file, "test_a_write_that_the_reader_allowed_writes_the_file", 212);
+  run_test(test_an_unknown_command_fails, "test_an_unknown_command_fails", 228);
+  run_test(test_a_host_past_its_memory_ends_and_the_next_ask_starts_it_again, "test_a_host_past_its_memory_ends_and_the_next_ask_starts_it_again", 233);
+  run_test(test_a_quiet_stops_the_host, "test_a_quiet_stops_the_host", 240);
 
   return UNITY_END();
 }

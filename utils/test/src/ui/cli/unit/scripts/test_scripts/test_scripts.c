@@ -3,16 +3,18 @@
 // test_scripts.c: the hosts of the script plugins, with a plugin of the test's own in a fresh ORIOR_HOME. An ask starts
 // the host and answers. The state that the plugin keeps comes back after a stop, and an unknown command fails. A read
 // of a file outside reads, or of a right that the reader refused, fails. A read or a write that the reader allowed
-// reads or writes the file. A read of a right with no answer waits on the question. A host past its memory ends, and
-// the next ask starts it again. A quiet stops the host
+// reads or writes the file. A read of a right with no answer waits on the question. The tree's files are their paths
+// from its top. A whole path in the tree gives its path from the top, and a path outside gives null. A host past its
+// memory ends, and the next ask starts it again. A quiet stops the host
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/plugins/plugins.h"
 #include "ui/cli/src/scripts/scripts.h"
+#include "ui/cli/src/text/json_tree.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 // The plugin's code: a count that it keeps, and a growth past its memory. A read of a file that reads lists, and a
-// read of a file that it does not list. A write of a file that writes lists. Each call answers what it got, or
-// 'refused'
+// read of a file that it does not list. A write of a file that writes lists. The tree's files in order, and the path
+// in the tree of a whole path. Each call answers what it got, or 'refused'
 static const char s_code[] =
     "let count = orior.state?.count ?? 0;\n"
     "orior.commands.on('count', (value) => { count += Number(value ?? 1); return { count }; });\n"
@@ -21,6 +23,8 @@ static const char s_code[] =
     "orior.commands.on('readUnlisted', () => tried(() => orior.files.read('b.txt')));\n"
     "orior.commands.on('write', () => tried(async () => { await orior.files.write('out/c.txt', 'made'); "
     "return 'written'; }));\n"
+    "orior.commands.on('files', async () => (await orior.tree.files()).sort());\n"
+    "orior.commands.on('relative', (path) => orior.tree.relative(path));\n"
     "orior.commands.on('grow', () => { const all = []; for (;;) { all.push(new Array(1 << 20).fill(all.length)); } "
     "});\n"
     "orior.keep(() => ({ count }));\n";
@@ -176,6 +180,33 @@ void test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_
     TEST_ASSERT_EQUAL_STRING("counter reads files of the tree", s_question);
     TEST_ASSERT_EQUAL_UINT(CLI_SCRIPTS_ALLOWED, EMBED_CALL(cli_scripts_rights.answer, CliScriptsRightsCfg,
                                                            .id = "counter", .right = CLI_SCRIPTS_READS));
+}
+
+// The tree's checks come before the write, because the write adds a file to the tree
+void test_the_files_of_the_tree_are_its_paths_from_its_top(void)
+{
+    TEST_ASSERT_TRUE_MESSAGE(counter_asked("files", "null"), s_why);
+    TEST_ASSERT_EQUAL_STRING("[\"a.txt\",\"b.txt\",\"out/keep.txt\"]", s_answer);
+}
+
+void test_a_whole_path_in_the_tree_gives_its_path_from_the_top(void)
+{
+    counter_written();
+    char path[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_tree, .relative = "out/keep.txt", .joined = path);
+    char value[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea quoted = {value, sizeof(value), 0ULL};
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &quoted,
+               .text_bytes = (const unsigned char *)path, .length = CLI_UNITY_LENGTH(path));
+    (void)mmgr_line_finish(&quoted);
+    TEST_ASSERT_TRUE_MESSAGE(counter_asked("relative", value), s_why);
+    TEST_ASSERT_EQUAL_STRING("\"out/keep.txt\"", s_answer);
+}
+
+void test_a_path_outside_the_tree_gives_null(void)
+{
+    TEST_ASSERT_TRUE_MESSAGE(counter_asked("relative", "\"/elsewhere/x.txt\""), s_why);
+    TEST_ASSERT_EQUAL_STRING("null", s_answer);
 }
 
 void test_a_write_that_the_reader_allowed_writes_the_file(void)
