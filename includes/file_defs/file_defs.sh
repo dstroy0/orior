@@ -48,10 +48,13 @@ FILE_DEFS_LINEA+=("$FILE_DEFS_MMGR_TOP/src/impensa_ancorae_acus/impensa_ancorae_
     "$FILE_DEFS_MMGR_TOP/src/impensa_ancorae_acus/impensa_ancorae_acus_generic.c")
 
 # the sources of each module, and of the profiles of impensa_ancorae_acus, each a source of its own. Of the profiles,
-# it takes the one that the build of MMgr takes where the build names none: generic
+# it takes the one that the build of MMgr takes where the build names none: generic. It does not take the string
+# shim, which MMgr links only into a program with no C library. Its memset, memcpy, memmove and memcmp would take the
+# place of the C library's
 for FILE_DEFS_MODULE in "$FILE_DEFS_MMGR_TOP"/src/*/*.c; do
     case "$FILE_DEFS_MODULE" in
     */impensa_ancorae_acus/impensa_ancorae_acus_*.c) ;;
+    */config/mmgr_string_shim.c) ;;
     *) FILE_DEFS_MMGR+=("$FILE_DEFS_MODULE") ;;
     esac
 done
