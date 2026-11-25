@@ -1451,12 +1451,12 @@ struct StickAsked
     StickWord word;
 };
 
-// What a round needs from the listing of nvcc about one kernel, each of its kinds a part of one cell of the kernel's.
+// What a round needs from the listing of nvcc about one kernel, each of its types a part of one cell of the kernel's.
 // That is each form that moved a word of the constant bank, and the word. Then each multiply by a power of two with
 // its parameter and the log2. Then the form of each load with its offset into the elements. Then each form that moved
 // a word into a wide or into a word used once. Last, each test that a select read over, with the test of its
 // complement
-enum StickAskedKind
+enum StickAskedType
 {
     STICK_MOVED = 0,
     STICK_MULTIPLIED = 1,
@@ -1464,7 +1464,7 @@ enum StickAskedKind
     STICK_COPIED = 3,
     STICK_COPIED_ONCE = 4,
     STICK_COMPLEMENTED = 5,
-    STICK_ASKED_KINDS = 6
+    STICK_ASKED_TYPES = 6
 };
 
 // each write put to the assembler of a machine, and 1 where it assembled. The engine puts a write once, and reads its
@@ -2337,8 +2337,8 @@ struct StickKernel
         nonnegative_count += 1u;
     }
 
-    // what the listing of nvcc must show of `form`, of `kind`, kept for the round
-    void asked_kept(StickAskedKind kind, unsigned int form, unsigned int parameter, unsigned int number,
+    // what the listing of nvcc must show of `form`, of `type`, kept for the round
+    void asked_kept(StickAskedType type, unsigned int form, unsigned int parameter, unsigned int number,
                     const char *word)
     {
         if (asked_count >= written_room)
@@ -2352,8 +2352,8 @@ struct StickKernel
         kept->parameter = parameter;
         kept->number = number;
         STICK_SET(kept->word, word);
-        // the kind sits in the parameter's high bits, and a parameter's place is far below 2^24
-        kept->parameter |= (unsigned int)kind << 24u;
+        // the type sits in the parameter's high bits, and a parameter's place is far below 2^24
+        kept->parameter |= (unsigned int)type << 24u;
     }
 
     // the parameter of the kernel named `name` [BORROWS], NULL where it has none
@@ -5561,10 +5561,10 @@ static void stick_round(const Ruleset *cu, const Ruleset *sass, const SassMachin
         for (unsigned int one = 0u; one < kernel->asked_count; one += 1u)
         {
             const StickAsked *const asked = &kernel->asked[one];
-            const StickAskedKind kind = (StickAskedKind)(asked->parameter >> 24u);
+            const StickAskedType type = (StickAskedType)(asked->parameter >> 24u);
             const unsigned int parameter = asked->parameter & 0x00FFFFFFu;
             const unsigned int form = asked->form;
-            if (kind == STICK_MOVED)
+            if (type == STICK_MOVED)
             {
                 stick_fold_line_kept(&s_openings, stick_fold_line(form, "register", 0u, 1));
                 if (stick_listing_contains(nvcc, "", stick_constant(asked->word.text).text, 0))
@@ -5572,7 +5572,7 @@ static void stick_round(const Ruleset *cu, const Ruleset *sass, const SassMachin
                     stick_fold_line_kept(&s_found, stick_fold_line(form, "register", 0u, 0));
                 }
             }
-            else if (kind == STICK_MULTIPLIED)
+            else if (type == STICK_MULTIPLIED)
             {
                 stick_fold_line_kept(&s_openings, stick_fold_line(form, "pow2", parameter, 1));
                 if (stick_listing_contains(nvcc, stick_operation_of(sass, stick_shift_of(form)).text,
@@ -5581,16 +5581,16 @@ static void stick_round(const Ruleset *cu, const Ruleset *sass, const SassMachin
                     stick_fold_line_kept(&s_found, stick_fold_line(form, "pow2", parameter, 0));
                 }
             }
-            else if ((kind == STICK_COPIED) || (kind == STICK_COPIED_ONCE))
+            else if ((type == STICK_COPIED) || (type == STICK_COPIED_ONCE))
             {
-                const char *const type = (kind == STICK_COPIED) ? "register" : "word_used_once";
-                stick_fold_line_kept(&s_openings, stick_fold_line(form, type, 1u, 1));
+                const char *const fold_name = (type == STICK_COPIED) ? "register" : "word_used_once";
+                stick_fold_line_kept(&s_openings, stick_fold_line(form, fold_name, 1u, 1));
                 if (moves == 0)
                 {
-                    stick_fold_line_kept(&s_found, stick_fold_line(form, type, 1u, 0));
+                    stick_fold_line_kept(&s_found, stick_fold_line(form, fold_name, 1u, 0));
                 }
             }
-            else if (kind == STICK_COMPLEMENTED)
+            else if (type == STICK_COMPLEMENTED)
             {
                 // the system tests a select's test as its complement where its listing writes the complement's
                 // operation and not the test's
@@ -5601,7 +5601,7 @@ static void stick_round(const Ruleset *cu, const Ruleset *sass, const SassMachin
                     stick_fold_line_kept(&s_found, stick_fold_line(form, "complement", 0u, 0));
                 }
             }
-            else if (kind == STICK_OFFSETS)
+            else if (type == STICK_OFFSETS)
             {
                 stick_fold_line_kept(&s_openings, stick_fold_line(form, "offset", 1u, 1));
                 StickWord offset;

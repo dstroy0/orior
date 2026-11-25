@@ -434,13 +434,13 @@ static const char *forms_text_copy(PlatformText *text, PlatformText *copy, size_
 // ---------------------------------------------------------------------------------------------------------------
 // the rulesets
 
-// The kinds of a ruleset's line: a form with its parameters, a bank's text and a fixed register's text
-enum KrsKind
+// The types of a ruleset's line: a form with its parameters, a bank's text and a fixed register's text
+enum KrsType
 {
     KRS_FORM,
     KRS_BANK,
     KRS_FIXED,
-    KRS_KINDS
+    KRS_TYPES
 };
 
 // One line of a ruleset: its name, the place and bytes of its text in the ruleset's text cell, and its parameters from
@@ -454,14 +454,14 @@ struct KrsEntry
     unsigned int parameter_count;
 };
 
-// A ruleset as this reads it: its texts, a form's with the escapes read, in one cell. Then the lines of each kind in a
-// cell of the kind, in the order of their names, each once. Then the parameters of the forms in one cell. Each cell is
+// A ruleset as this reads it: its texts, a form's with the escapes read, in one cell. Then the lines of each type in a
+// cell of the type, in the order of their names, each once. Then the parameters of the forms in one cell. Each cell is
 // of the persistent tier, taken once at its count
 struct Krs
 {
     char *text;
-    KrsEntry *entries[KRS_KINDS];
-    unsigned int counts[KRS_KINDS];
+    KrsEntry *entries[KRS_TYPES];
+    unsigned int counts[KRS_TYPES];
     FormsWord *parameters;
     unsigned int parameter_count;
 };
@@ -472,12 +472,12 @@ static const char *krs_text(const Krs *krs, const KrsEntry *entry)
     return &krs->text[entry->text];
 }
 
-// the line of `kind` named `name`, or NULL where the ruleset has none
-static const KrsEntry *krs_find(const Krs *krs, unsigned int kind, const char *name)
+// the line of `type` named `name`, or NULL where the ruleset has none
+static const KrsEntry *krs_find(const Krs *krs, unsigned int type, const char *name)
 {
-    const KrsEntry *const entries = krs->entries[kind];
+    const KrsEntry *const entries = krs->entries[type];
     unsigned int low = 0u;
-    unsigned int high = krs->counts[kind];
+    unsigned int high = krs->counts[type];
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
@@ -490,13 +490,13 @@ static const KrsEntry *krs_find(const Krs *krs, unsigned int kind, const char *n
             high = middle;
         }
     }
-    return ((low < krs->counts[kind]) && forms_same(entries[low].name, name)) ? &entries[low] : NULL;
+    return ((low < krs->counts[type]) && forms_same(entries[low].name, name)) ? &entries[low] : NULL;
 }
 
 // the text of the form, the bank or the fixed register named `name`, or "" where the ruleset has none [BORROWS]
-static const char *krs_text_of(const Krs *krs, unsigned int kind, const char *name)
+static const char *krs_text_of(const Krs *krs, unsigned int type, const char *name)
 {
-    const KrsEntry *const entry = krs_find(krs, kind, name);
+    const KrsEntry *const entry = krs_find(krs, type, name);
     return (entry != NULL) ? krs_text(krs, entry) : "";
 }
 
@@ -543,9 +543,9 @@ static void krs_lines_made(const unsigned char *bytes, unsigned long long size, 
 {
     *bytes_counted = 0u;
     krs->parameter_count = 0u;
-    for (unsigned int kind = 0u; kind < KRS_KINDS; kind += 1u)
+    for (unsigned int type = 0u; type < KRS_TYPES; type += 1u)
     {
-        krs->counts[kind] = 0u;
+        krs->counts[type] = 0u;
     }
     // a ruleset the run holds whole is at max what a size_t counts
     const char *const text = (const char *)bytes;
@@ -601,12 +601,12 @@ static void krs_lines_made(const unsigned char *bytes, unsigned long long size, 
         {
             continue;
         }
-        const unsigned int kind = form ? KRS_FORM : (bank ? KRS_BANK : KRS_FIXED);
+        const unsigned int type = form ? KRS_FORM : (bank ? KRS_BANK : KRS_FIXED);
         const char *const body = &line[equals + 3u];
         const size_t body_length = length - equals - 3u;
         if (filling)
         {
-            KrsEntry *const entry = &krs->entries[kind][krs->counts[kind]];
+            KrsEntry *const entry = &krs->entries[type][krs->counts[type]];
             forms_set_n(entry->name, sizeof(entry->name), head[1].text, forms_length(head[1].text));
             entry->text = *bytes_counted;
             entry->parameter_first = krs->parameter_count;
@@ -634,7 +634,7 @@ static void krs_lines_made(const unsigned char *bytes, unsigned long long size, 
             *bytes_counted += body_length + 1u;
         }
         krs->parameter_count += form ? (words - 2u) : 0u;
-        krs->counts[kind] += 1u;
+        krs->counts[type] += 1u;
     }
 }
 
@@ -642,7 +642,7 @@ static void krs_lines_made(const unsigned char *bytes, unsigned long long size, 
 #define KRS_LINE_BYTES 65536u
 
 // The ruleset at `path` read into `krs`, its lines counted first, then each cell taken at its count, then the lines
-// written. The lines of each kind then go in the order of their names, and a name a ruleset gives twice keeps its last
+// written. The lines of each type then go in the order of their names, and a name a ruleset gives twice keeps its last
 // line. 1, or 0 where the ruleset did not read
 static int krs_read(const char *path, Krs *krs)
 {
@@ -658,20 +658,20 @@ static int krs_read(const char *path, Krs *krs)
     krs_lines_made(bytes, size, krs, 0, s_line, sizeof(s_line), &text_bytes);
     krs->text = (char *)forms_allocated(
         platform_cell_taken(text_bytes + 1u, platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
-    for (unsigned int kind = 0u; kind < KRS_KINDS; kind += 1u)
+    for (unsigned int type = 0u; type < KRS_TYPES; type += 1u)
     {
-        krs->entries[kind] = (KrsEntry *)forms_allocated(
-            platform_cell_cleared((krs->counts[kind] != 0u) ? krs->counts[kind] : 1u, sizeof(KrsEntry),
+        krs->entries[type] = (KrsEntry *)forms_allocated(
+            platform_cell_cleared((krs->counts[type] != 0u) ? krs->counts[type] : 1u, sizeof(KrsEntry),
                                   platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
     }
     krs->parameters = (FormsWord *)forms_allocated(
         platform_cell_cleared((krs->parameter_count != 0u) ? krs->parameter_count : 1u, sizeof(FormsWord),
                               platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
     krs_lines_made(bytes, size, krs, 1, s_line, sizeof(s_line), &text_bytes);
-    for (unsigned int kind = 0u; kind < KRS_KINDS; kind += 1u)
+    for (unsigned int type = 0u; type < KRS_TYPES; type += 1u)
     {
-        KrsEntry *const entries = krs->entries[kind];
-        const unsigned int count = krs->counts[kind];
+        KrsEntry *const entries = krs->entries[type];
+        const unsigned int count = krs->counts[type];
         if (count >= 2u)
         {
             void *const spare = forms_allocated(platform_cell_taken(
@@ -689,7 +689,7 @@ static int krs_read(const char *path, Krs *krs)
                 kept += 1u;
             }
         }
-        krs->counts[kind] = kept;
+        krs->counts[type] = kept;
     }
     return 1;
 }
