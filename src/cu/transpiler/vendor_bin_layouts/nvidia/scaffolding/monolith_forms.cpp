@@ -454,10 +454,30 @@ struct KrsEntry
     unsigned int parameter_count;
 };
 
-// A ruleset as this reads it: its texts, a form's with the escapes read, in one cell. Then the lines of each type in a
-// cell of the type, in the order of their names, each once. Then the parameters of the forms in one cell. Each cell is
-// of the persistent tier, taken once at its count
+// the room of one line of a ruleset as the reader puts it together. No text of a line passes it
+#define KRS_LINE_BYTES 65536u
+
+// one text of a ruleset read out of its cell: its bytes, terminated, and their count
+struct KrsText
+{
+    char text[KRS_LINE_BYTES];
+    size_t length;
+};
+
+// A ruleset as this reads it, each table one movable cell that its id names. A move of the pool can move each cell.
+// The texts, a form's with the escapes read, are one cell. The lines of each type are one cell, in the order of their
+// names, each once. The parameters of the forms are one cell
 struct Krs
+{
+    const void *text;
+    const void *entries[KRS_TYPES];
+    unsigned int counts[KRS_TYPES];
+    const void *parameters;
+    unsigned int parameter_count;
+};
+
+// a ruleset as krs_read builds it, each table a cell of the temporary tier at its count
+struct KrsBuilt
 {
     char *text;
     KrsEntry *entries[KRS_TYPES];
@@ -466,22 +486,30 @@ struct Krs
     unsigned int parameter_count;
 };
 
-// the text of `entry` of `krs`, terminated [BORROWS]
-static const char *krs_text(const Krs *krs, const KrsEntry *entry)
+// the line `at` of `type` of `krs`, read out of its cell
+static KrsEntry krs_entry(const Krs *krs, unsigned int type, unsigned int at)
 {
-    return &krs->text[entry->text];
+    KrsEntry entry{};
+    (void)platform_movable_read(krs->entries[type], (unsigned long long)at * sizeof(KrsEntry), &entry, sizeof(entry));
+    return entry;
 }
 
-// the line of `type` named `name`, or NULL where the ruleset has none
-static const KrsEntry *krs_find(const Krs *krs, unsigned int type, const char *name)
+// the text of `entry` of `krs`, read out of its cell into `text`
+static void krs_text(const Krs *krs, const KrsEntry *entry, KrsText *text)
 {
-    const KrsEntry *const entries = krs->entries[type];
+    text->length = entry->length;
+    (void)platform_movable_read(krs->text, entry->text, text->text, entry->length + 1u);
+}
+
+// The line of `type` named `name` into `found`. The answer is 1, or 0 where the ruleset has none
+static int krs_find(const Krs *krs, unsigned int type, const char *name, KrsEntry *found)
+{
     unsigned int low = 0u;
     unsigned int high = krs->counts[type];
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        if (forms_order(entries[middle].name, name) < 0)
+        if (forms_order(krs_entry(krs, type, middle).name, name) < 0)
         {
             low = middle + 1u;
         }
@@ -490,14 +518,25 @@ static const KrsEntry *krs_find(const Krs *krs, unsigned int type, const char *n
             high = middle;
         }
     }
-    return ((low < krs->counts[type]) && forms_same(entries[low].name, name)) ? &entries[low] : NULL;
+    if (low == krs->counts[type])
+    {
+        return 0;
+    }
+    *found = krs_entry(krs, type, low);
+    return forms_same(found->name, name);
 }
 
-// the text of the form, the bank or the fixed register named `name`, or "" where the ruleset has none [BORROWS]
-static const char *krs_text_of(const Krs *krs, unsigned int type, const char *name)
+// the text of the form, the bank or the fixed register named `name` into `text`, empty where the ruleset has none
+static void krs_text_of(const Krs *krs, unsigned int type, const char *name, KrsText *text)
 {
-    const KrsEntry *const entry = krs_find(krs, type, name);
-    return (entry != NULL) ? krs_text(krs, entry) : "";
+    KrsEntry entry{};
+    if (krs_find(krs, type, name, &entry))
+    {
+        krs_text(krs, &entry, text);
+        return;
+    }
+    text->text[0] = '\0';
+    text->length = 0u;
 }
 
 static int krs_entry_order(const void *left, const void *right)
@@ -538,7 +577,7 @@ static void krs_unescaped(const char *text, size_t length, char *into, size_t *a
 // The lines of the ruleset in `bytes`, counted where `filling` is 0 and written where it is 1. A line is
 // `form <name> <parameters> = <text>`, `bank <name> = <text>` or `fixed <name> = <text>`. The code leaves out every
 // carriage return of a line. `line` is room for one line, and `bytes_counted` counts the bytes of the texts
-static void krs_lines_made(const unsigned char *bytes, unsigned long long size, Krs *krs, int filling, char *line,
+static void krs_lines_made(const unsigned char *bytes, unsigned long long size, KrsBuilt *krs, int filling, char *line,
                            size_t line_room, size_t *bytes_counted)
 {
     *bytes_counted = 0u;
@@ -638,12 +677,20 @@ static void krs_lines_made(const unsigned char *bytes, unsigned long long size, 
     }
 }
 
-// the room of one line of a ruleset as the reader puts it together
-#define KRS_LINE_BYTES 65536u
+// A table of `count` records of `size` bytes at `built` written into one movable cell, whose id the answer is. The
+// cell has room for one record where `count` is 0 [RETURNS OWNERSHIP]
+static const void *krs_kept(const void *built, unsigned long long count, unsigned long long size)
+{
+    const unsigned long long bytes = ((count != 0ULL) ? count : 1ULL) * size;
+    const void *const cell = forms_allocated((void *)platform_movable_taken(bytes, platform_place_g_program_owner));
+    (void)platform_movable_written(cell, 0ULL, built, bytes);
+    return cell;
+}
 
-// The ruleset at `path` read into `krs`, its lines counted first, then each cell taken at its count, then the lines
-// written. The lines of each type then go in the order of their names, and a name a ruleset gives twice keeps its last
-// line. 1, or 0 where the ruleset did not read
+// The ruleset at `path` read into `krs`. The reader counts its lines first, then takes each table on the temporary
+// tier at its count, then writes the lines. The lines of each type then go in the order of their names, and a name
+// that a ruleset gives twice keeps its last line. Each table then goes into one movable cell, and the temporary cells
+// go back. The answer is 1, or 0 where the ruleset did not read
 static int krs_read(const char *path, Krs *krs)
 {
     // the ruleset as the run stores it, or the disk where the run stores none (qry_member_file)
@@ -654,24 +701,25 @@ static int krs_read(const char *path, Krs *krs)
         return 0;
     }
     static char s_line[KRS_LINE_BYTES];
+    KrsBuilt built{};
     size_t text_bytes = 0u;
-    krs_lines_made(bytes, size, krs, 0, s_line, sizeof(s_line), &text_bytes);
-    krs->text = (char *)forms_allocated(
-        platform_cell_taken(text_bytes + 1u, platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
+    krs_lines_made(bytes, size, &built, 0, s_line, sizeof(s_line), &text_bytes);
+    built.text = (char *)forms_allocated(
+        platform_cell_taken(text_bytes + 1u, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY));
     for (unsigned int type = 0u; type < KRS_TYPES; type += 1u)
     {
-        krs->entries[type] = (KrsEntry *)forms_allocated(
-            platform_cell_cleared((krs->counts[type] != 0u) ? krs->counts[type] : 1u, sizeof(KrsEntry),
-                                  platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
+        built.entries[type] = (KrsEntry *)forms_allocated(
+            platform_cell_cleared((built.counts[type] != 0u) ? built.counts[type] : 1u, sizeof(KrsEntry),
+                                  platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY));
     }
-    krs->parameters = (FormsWord *)forms_allocated(
-        platform_cell_cleared((krs->parameter_count != 0u) ? krs->parameter_count : 1u, sizeof(FormsWord),
-                              platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
-    krs_lines_made(bytes, size, krs, 1, s_line, sizeof(s_line), &text_bytes);
+    built.parameters = (FormsWord *)forms_allocated(
+        platform_cell_cleared((built.parameter_count != 0u) ? built.parameter_count : 1u, sizeof(FormsWord),
+                              platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY));
+    krs_lines_made(bytes, size, &built, 1, s_line, sizeof(s_line), &text_bytes);
     for (unsigned int type = 0u; type < KRS_TYPES; type += 1u)
     {
-        KrsEntry *const entries = krs->entries[type];
-        const unsigned int count = krs->counts[type];
+        KrsEntry *const entries = built.entries[type];
+        const unsigned int count = built.counts[type];
         if (count >= 2u)
         {
             void *const spare = forms_allocated(platform_cell_taken(
@@ -689,15 +737,33 @@ static int krs_read(const char *path, Krs *krs)
                 kept += 1u;
             }
         }
-        krs->counts[type] = kept;
+        built.counts[type] = kept;
     }
+    krs->text = krs_kept(built.text, text_bytes + 1u, 1ULL);
+    for (unsigned int type = 0u; type < KRS_TYPES; type += 1u)
+    {
+        krs->entries[type] = krs_kept(built.entries[type], built.counts[type], sizeof(KrsEntry));
+        krs->counts[type] = built.counts[type];
+    }
+    krs->parameters = krs_kept(built.parameters, built.parameter_count, sizeof(FormsWord));
+    krs->parameter_count = built.parameter_count;
+    // the temporary cells go back in the reverse order of their takes
+    platform_cell_released(built.parameters, platform_place_g_program_owner);
+    for (unsigned int type = KRS_TYPES; type > 0u; type -= 1u)
+    {
+        platform_cell_released(built.entries[type - 1u], platform_place_g_program_owner);
+    }
+    platform_cell_released(built.text, platform_place_g_program_owner);
     return 1;
 }
 
-// the parameter `at` of the form `entry` of `krs` [BORROWS]
-static const char *krs_parameter(const Krs *krs, const KrsEntry *entry, unsigned int at)
+// the parameter `at` of the form `entry` of `krs`, read out of its cell
+static FormsWord krs_parameter(const Krs *krs, const KrsEntry *entry, unsigned int at)
 {
-    return krs->parameters[entry->parameter_first + at].text;
+    FormsWord word{};
+    (void)platform_movable_read(krs->parameters, (unsigned long long)(entry->parameter_first + at) * sizeof(FormsWord),
+                                &word, sizeof(word));
+    return word;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -710,12 +776,22 @@ struct FormsDeclared
     char type[FORMS_WORD_BYTES];
 };
 
-// the declarations a ruleset makes, in one cell in the order of their names, each once: `count` of them
+// The declarations a ruleset makes, `count` of them, in the order of their names, each once. They are one movable cell
+// that `declared` names
 struct FormsTypes
 {
-    FormsDeclared *declared;
+    const void *declared;
     unsigned int count;
 };
+
+// the declaration `at` of `types`, read out of its cell
+static FormsDeclared forms_declared_at(const FormsTypes *types, unsigned int at)
+{
+    FormsDeclared declared{};
+    (void)platform_movable_read(types->declared, (unsigned long long)at * sizeof(FormsDeclared), &declared,
+                                sizeof(declared));
+    return declared;
+}
 
 static int forms_declared_order(const void *left, const void *right)
 {
@@ -749,15 +825,16 @@ static unsigned int forms_declared_settled(FormsDeclared *declared, unsigned int
     return kept;
 }
 
-// the type `types` declares `name` of, or NULL where it declares none [BORROWS]
-static const char *forms_type_of(const FormsTypes *types, const char *name)
+// The type that `types` declares `name` of, into `type`. The answer is 1, or 0 and `type` empty where it declares none
+static int forms_type_of(const FormsTypes *types, const char *name, FormsWord *type)
 {
+    type->text[0] = '\0';
     unsigned int low = 0u;
     unsigned int high = types->count;
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        if (forms_order(types->declared[middle].name, name) < 0)
+        if (forms_order(forms_declared_at(types, middle).name, name) < 0)
         {
             low = middle + 1u;
         }
@@ -766,7 +843,17 @@ static const char *forms_type_of(const FormsTypes *types, const char *name)
             high = middle;
         }
     }
-    return ((low < types->count) && forms_same(types->declared[low].name, name)) ? types->declared[low].type : NULL;
+    if (low == types->count)
+    {
+        return 0;
+    }
+    const FormsDeclared declared = forms_declared_at(types, low);
+    if (!forms_same(declared.name, name))
+    {
+        return 0;
+    }
+    FORMS_SET(*type, declared.type);
+    return 1;
 }
 
 // The declarations of c.krs, `type a, b, c;` each a line of its own, counted where `declared` is NULL and put at
@@ -777,9 +864,11 @@ static unsigned int c_declared_made(const Krs *c, FormsDeclared *declared)
     unsigned int count = 0u;
     for (unsigned int form = 0u; form < c->counts[KRS_FORM]; form += 1u)
     {
-        const KrsEntry *const entry = &c->entries[KRS_FORM][form];
-        const char *const text = krs_text(c, entry);
-        const size_t size = entry->length;
+        const KrsEntry entry = krs_entry(c, KRS_FORM, form);
+        KrsText form_text;
+        krs_text(c, &entry, &form_text);
+        const char *const text = form_text.text;
+        const size_t size = entry.length;
         for (size_t at = 0u; at < size;)
         {
             const size_t stop = forms_chr_n(text, size, '\n', at);
@@ -822,16 +911,26 @@ static unsigned int c_declared_made(const Krs *c, FormsDeclared *declared)
     return count;
 }
 
+// The declarations at `built`, `count` of them, settled and kept in one movable cell. The cell at `built` is the
+// caller's, of the temporary tier, and goes back here. The first of a name stays where `first` is 1, and the last
+// where it is 0
+static FormsTypes forms_types_kept(FormsDeclared *built, unsigned int count, int first)
+{
+    FormsTypes types;
+    types.count = forms_declared_settled(built, count, first);
+    types.declared = krs_kept(built, types.count, sizeof(FormsDeclared));
+    platform_cell_released(built, platform_place_g_program_owner);
+    return types;
+}
+
 // The C type each variable c.krs declares in a list of its own, `type a, b, c;`, by the variable's name. The first
 // declaration of a name, in the order of the forms' names, holds
 static FormsTypes c_declared(const Krs *c)
 {
-    FormsTypes types;
     const unsigned int count = c_declared_made(c, NULL);
-    types.declared = (FormsDeclared *)forms_allocated(platform_cell_cleared(
-        (count != 0u) ? count : 1u, sizeof(FormsDeclared), platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
-    types.count = forms_declared_settled(types.declared, c_declared_made(c, types.declared), 1);
-    return types;
+    FormsDeclared *const built = (FormsDeclared *)forms_allocated(platform_cell_cleared(
+        (count != 0u) ? count : 1u, sizeof(FormsDeclared), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY));
+    return forms_types_kept(built, c_declared_made(c, built), 1);
 }
 
 // the C type that a bank's registers contain: the type that its text casts to, or the type that declares its name as an
@@ -840,13 +939,15 @@ static FormsWord c_bank_type(const Krs *c, const char *bank)
 {
     FormsWord type;
     type.text[0] = '\0';
-    const KrsEntry *const found = krs_find(c, KRS_BANK, bank);
-    if (found == NULL)
+    KrsEntry found{};
+    if (!krs_find(c, KRS_BANK, bank, &found))
     {
         return type;
     }
-    const char *const text = krs_text(c, found);
-    const size_t length = found->length;
+    KrsText bank_text;
+    krs_text(c, &found, &bank_text);
+    const char *const text = bank_text.text;
+    const size_t length = found.length;
     if (forms_begins(text, "(("))
     {
         const size_t space = forms_chr_n(text, length, ' ', 2u);
@@ -867,19 +968,21 @@ static FormsWord c_bank_type(const Krs *c, const char *bank)
     FORMS_ADD(array, "[");
     for (unsigned int form = 0u; form < c->counts[KRS_FORM]; form += 1u)
     {
-        const KrsEntry *const entry = &c->entries[KRS_FORM][form];
-        const char *const form_text = krs_text(c, entry);
-        const size_t at = forms_find_n(form_text, entry->length, array.text, 0u);
-        if (at == entry->length)
+        const KrsEntry entry = krs_entry(c, KRS_FORM, form);
+        KrsText read_text;
+        krs_text(c, &entry, &read_text);
+        const char *const form_text = read_text.text;
+        const size_t at = forms_find_n(form_text, entry.length, array.text, 0u);
+        if (at == entry.length)
         {
             continue;
         }
         // the space before the type: the last at or before the place before `at`, or the last of the text where `at`
         // is 0
-        const size_t searched = (at == 0u) ? entry->length : at;
+        const size_t searched = (at == 0u) ? entry.length : at;
         const size_t space = forms_chr_last(form_text, searched, ' ');
         const size_t begin = (space == searched) ? 0u : (space + 1u);
-        FORMS_SET_N(type, &form_text[begin], (begin <= at) ? (at - begin) : (entry->length - begin));
+        FORMS_SET_N(type, &form_text[begin], (begin <= at) ? (at - begin) : (entry.length - begin));
         return type;
     }
     return type;
@@ -955,7 +1058,9 @@ static int lane_form_alike(const LaneForm *one, const LaneForm *other)
 // 1 where c.krs's text for the form writes the chain's carry, and through `reads` whether it reads it
 static int form_carries(const Krs *c, const char *name, int *reads)
 {
-    const char *const text = krs_text_of(c, KRS_FORM, name);
+    KrsText form_text;
+    krs_text_of(c, KRS_FORM, name, &form_text);
+    const char *const text = form_text.text;
     const size_t named = forms_count(text, "carry");
     const size_t written = forms_count(text, "&carry");
     *reads = (named > written) ? 1 : 0;
@@ -966,24 +1071,26 @@ static int form_carries(const Krs *c, const char *name, int *reads)
 // declaration, a label, a note, a jump or the resident
 static int form_is_question(const Krs *c, const char *name)
 {
-    const KrsEntry *const found = krs_find(c, KRS_FORM, name);
-    if ((found == NULL) || (found->parameter_count == 0u))
+    KrsEntry found{};
+    if (!krs_find(c, KRS_FORM, name, &found) || (found.parameter_count == 0u))
     {
         return 0;
     }
-    const char *const text = krs_text(c, found);
-    const size_t length = found->length;
+    KrsText form_text;
+    krs_text(c, &found, &form_text);
+    const char *const text = form_text.text;
+    const size_t length = found.length;
     const size_t first = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text, .cap = length, .other = " \t\n");
     if ((first == length) || forms_begins(&text[first], "//") || forms_has(text, "goto") || forms_has(text, "return") ||
         forms_has(text, "__global__") || (text[length - 1u] != '\n') || forms_has(text, ":\n"))
     {
         return 0;
     }
-    for (unsigned int at = 0u; at < found->parameter_count; at += 1u)
+    for (unsigned int at = 0u; at < found.parameter_count; at += 1u)
     {
         FormsWord indexed;
         FORMS_SET(indexed, "[{");
-        FORMS_ADD(indexed, krs_parameter(c, found, at));
+        FORMS_ADD(indexed, krs_parameter(c, &found, at).text);
         FORMS_ADD(indexed, "}]");
         if (forms_has(text, indexed.text))
         {
@@ -1249,15 +1356,16 @@ static Instruction instruction_read(const char *text)
 // ---------------------------------------------------------------------------------------------------------------
 // the monolith written
 
-// The writer of the monolith: the rulesets and the types they declare, and the helpers of the lane's opening. Then the
-// body and the rows of the questions, each a movable text. Then the tags and the words taken from `in` and `out`
+// The writer of the monolith: the rulesets and the types they declare, and the line of c.krs that opens the lane. The
+// first `helpers_length` bytes of its text are the helpers. Then the body and the rows of the questions, each a
+// movable text. Then the tags and the words taken from `in` and `out`
 struct Writer
 {
     const Krs *c;
     const Krs *ptx;
     FormsTypes declared;
     FormsTypes ptx_types;
-    const char *helpers;
+    KrsEntry helpers;
     size_t helpers_length;
     PlatformText body;
     PlatformText rows;
@@ -1362,9 +1470,10 @@ static FormsWord writer_type(const Writer *writer, const Argument *argument, For
     }
     if (argument->type == OPERAND_PHYSREG)
     {
-        FORMS_SET(*variable, krs_text_of(writer->c, KRS_FIXED, s_fixed_names[argument->which]));
-        const char *const declared = forms_type_of(&writer->declared, variable->text);
-        FORMS_SET(type, (declared != NULL) ? declared : "");
+        KrsText fixed_text;
+        krs_text_of(writer->c, KRS_FIXED, s_fixed_names[argument->which], &fixed_text);
+        FORMS_SET(*variable, fixed_text.text);
+        (void)forms_type_of(&writer->declared, variable->text, &type);
     }
     return type;
 }
@@ -1458,8 +1567,8 @@ static void writer_question(Writer *writer, const LaneForm *question, unsigned i
     {
         const LaneForm *const lane_form = &question[one];
         const char *const name = s_form_names[lane_form->form];
-        const KrsEntry *const form = krs_find(writer->c, KRS_FORM, name);
-        if (form == NULL)
+        KrsEntry form{};
+        if (!krs_find(writer->c, KRS_FORM, name, &form))
         {
             forms_refused("c.krs gives no form of a question: ", name, forms_length(name));
         }
@@ -1474,14 +1583,19 @@ static void writer_question(Writer *writer, const LaneForm *question, unsigned i
         FORMS_ADD(row, lane_form_key(lane_form).text);
         PlatformText text;
         forms_text_begun(&text);
-        mmgr_line_put(&text.line, krs_text(writer->c, form));
+        {
+            KrsText form_text;
+            krs_text(writer->c, &form, &form_text);
+            mmgr_line_put(&text.line, form_text.text);
+        }
         PlatformText stores;
         forms_text_begun(&stores);
         size_t size = 0u;
         const int conditional = forms_has(forms_text_bytes(&text, &size), "if (");
-        for (unsigned int at = 0u; at < form->parameter_count; at += 1u)
+        for (unsigned int at = 0u; at < form.parameter_count; at += 1u)
         {
-            const char *const parameter = krs_parameter(writer->c, form, at);
+            const FormsWord parameter_word = krs_parameter(writer->c, &form, at);
+            const char *const parameter = parameter_word.text;
             const Argument *const argument = &lane_form->arguments[at];
             FormsWord variable;
             const FormsWord type = writer_type(writer, argument, &variable);
@@ -1548,11 +1662,14 @@ static void writer_question(Writer *writer, const LaneForm *question, unsigned i
         int launch_loaded = 0;
         for (unsigned int fixed = 0u; fixed < writer->c->counts[KRS_FIXED]; fixed += 1u)
         {
-            const KrsEntry *const entry = &writer->c->entries[KRS_FIXED][fixed];
-            const char *const variable = krs_text(writer->c, entry);
-            const char *const type = forms_type_of(&writer->declared, variable);
-            if (forms_same(variable, "carry") || (type == NULL) ||
-                !forms_names(forms_text_bytes(&text, &size), variable))
+            const KrsEntry entry = krs_entry(writer->c, KRS_FIXED, fixed);
+            KrsText fixed_text;
+            krs_text(writer->c, &entry, &fixed_text);
+            const char *const variable = fixed_text.text;
+            FormsWord fixed_type;
+            const int typed = forms_type_of(&writer->declared, variable, &fixed_type);
+            const char *const type = fixed_type.text;
+            if (forms_same(variable, "carry") || !typed || !forms_names(forms_text_bytes(&text, &size), variable))
             {
                 continue;
             }
@@ -1564,12 +1681,14 @@ static void writer_question(Writer *writer, const LaneForm *question, unsigned i
             mmgr_line_put(&writer->body.line, " = ");
             mmgr_line_put(&writer->body.line, writer_load(type, word).text);
             mmgr_line_put(&writer->body.line, ";\n");
-            writer_role(&row, "\t!", entry->name, "in", word, type);
+            writer_role(&row, "\t!", entry.name, "in", word, type);
             launch_loaded = launch_loaded || forms_same(variable, "launch");
         }
         // the launch, where c.krs names it as no fixed register and the loop above has not loaded it
-        const char *const launch_type = forms_type_of(&writer->declared, "launch");
-        if ((launch_type != NULL) && !launch_loaded && forms_names(forms_text_bytes(&text, &size), "launch"))
+        FormsWord launch_word;
+        const int launch_typed = forms_type_of(&writer->declared, "launch", &launch_word);
+        const char *const launch_type = launch_word.text;
+        if (launch_typed && !launch_loaded && forms_names(forms_text_bytes(&text, &size), "launch"))
         {
             const unsigned int word = writer_take(&writer->in_words, launch_type);
             mmgr_line_put(&writer->body.line, "        const ");
@@ -1615,9 +1734,11 @@ static unsigned int ptx_declared_made(const Krs *ptx, FormsDeclared *declared)
     unsigned int count = 0u;
     for (unsigned int form = 0u; form < ptx->counts[KRS_FORM]; form += 1u)
     {
-        const KrsEntry *const entry = &ptx->entries[KRS_FORM][form];
-        const char *const text = krs_text(ptx, entry);
-        const size_t length = entry->length;
+        const KrsEntry entry = krs_entry(ptx, KRS_FORM, form);
+        KrsText form_text;
+        krs_text(ptx, &entry, &form_text);
+        const char *const text = form_text.text;
+        const size_t length = entry.length;
         for (size_t at = forms_find_n(text, length, ".reg .", 0u); at < length;)
         {
             const size_t type_from = at + 6u;
@@ -1658,12 +1779,10 @@ static unsigned int ptx_declared_made(const Krs *ptx, FormsDeclared *declared)
 // ruleset write. The last declaration of a name, in the order of the forms' names, holds
 static FormsTypes ptx_declared(const Krs *ptx)
 {
-    FormsTypes types;
     const unsigned int count = ptx_declared_made(ptx, NULL);
-    types.declared = (FormsDeclared *)forms_allocated(platform_cell_cleared(
-        (count != 0u) ? count : 1u, sizeof(FormsDeclared), platform_place_g_program_owner, PLATFORM_TIER_PERSISTENT));
-    types.count = forms_declared_settled(types.declared, ptx_declared_made(ptx, types.declared), 0);
-    return types;
+    FormsDeclared *const built = (FormsDeclared *)forms_allocated(platform_cell_cleared(
+        (count != 0u) ? count : 1u, sizeof(FormsDeclared), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY));
+    return forms_types_kept(built, ptx_declared_made(ptx, built), 0);
 }
 
 // the PTX type a register of `bank` stores, through the prefix ptx.krs names the bank's registers with
@@ -1671,16 +1790,17 @@ static FormsWord ptx_bank_type(const Writer *writer, const char *bank)
 {
     FormsWord type;
     type.text[0] = '\0';
-    const KrsEntry *const entry = krs_find(writer->ptx, KRS_BANK, bank);
-    if (entry == NULL)
+    KrsEntry entry{};
+    if (!krs_find(writer->ptx, KRS_BANK, bank, &entry))
     {
         return type;
     }
-    const char *const text = krs_text(writer->ptx, entry);
+    KrsText bank_text;
+    krs_text(writer->ptx, &entry, &bank_text);
+    const char *const text = bank_text.text;
     FormsWord prefix;
-    FORMS_SET_N(prefix, text, forms_chr_n(text, entry->length, '{', 0u));
-    const char *const found = forms_type_of(&writer->ptx_types, prefix.text);
-    FORMS_SET(type, (found != NULL) ? found : "");
+    FORMS_SET_N(prefix, text, forms_chr_n(text, entry.length, '{', 0u));
+    (void)forms_type_of(&writer->ptx_types, prefix.text, &type);
     return type;
 }
 
@@ -1927,13 +2047,15 @@ static void ptx_joined(VerbaLinea *line, const FormsLine *operands, unsigned int
 static void writer_ptx_question(Writer *writer, const LaneForm *lane_form, int alternate)
 {
     const char *const name = s_form_names[lane_form->form];
-    const KrsEntry *const form = krs_find(writer->ptx, KRS_FORM, name);
-    if (form == NULL)
+    KrsEntry form{};
+    if (!krs_find(writer->ptx, KRS_FORM, name, &form))
     {
         return;
     }
-    const char *const form_text = krs_text(writer->ptx, form);
-    const size_t form_size = form->length;
+    KrsText read_text;
+    krs_text(writer->ptx, &form, &read_text);
+    const char *const form_text = read_text.text;
+    const size_t form_size = form.length;
     writer->ptx_tag += 1u;
     const unsigned int tag = MONOLITH_FORMS_PTX + writer->ptx_tag;
     static PtxQuestion s_question;
@@ -1967,9 +2089,10 @@ static void writer_ptx_question(Writer *writer, const LaneForm *lane_form, int a
         at = percent + 1u;
     }
     unsigned int opaque = 0u;
-    for (unsigned int at = 0u; at < form->parameter_count; at += 1u)
+    for (unsigned int at = 0u; at < form.parameter_count; at += 1u)
     {
-        const char *const parameter = krs_parameter(writer->ptx, form, at);
+        const FormsWord parameter_word = krs_parameter(writer->ptx, &form, at);
+        const char *const parameter = parameter_word.text;
         const Argument *const argument = &lane_form->arguments[at];
         FormsWord type;
         type.text[0] = '\0';
@@ -1979,10 +2102,13 @@ static void writer_ptx_question(Writer *writer, const LaneForm *lane_form, int a
         }
         else if (argument->type == OPERAND_PHYSREG)
         {
-            const KrsEntry *const fixed = krs_find(writer->ptx, KRS_FIXED, s_fixed_names[argument->which]);
-            const char *const declared =
-                (fixed == NULL) ? NULL : forms_type_of(&writer->ptx_types, krs_text(writer->ptx, fixed));
-            FORMS_SET(type, (declared != NULL) ? declared : "");
+            KrsEntry fixed{};
+            if (krs_find(writer->ptx, KRS_FIXED, s_fixed_names[argument->which], &fixed))
+            {
+                KrsText fixed_text;
+                krs_text(writer->ptx, &fixed, &fixed_text);
+                (void)forms_type_of(&writer->ptx_types, fixed_text.text, &type);
+            }
         }
         FormsWord braced;
         FORMS_SET(braced, "{");
@@ -2064,7 +2190,8 @@ static void writer_ptx_question(Writer *writer, const LaneForm *lane_form, int a
     // the fixed registers the text names, each loaded as an argument is: the ruleset's name for it where it has one
     for (unsigned int declared = 0u; declared < writer->ptx_types.count; declared += 1u)
     {
-        const char *const register_name = writer->ptx_types.declared[declared].name;
+        const FormsDeclared declaration = forms_declared_at(&writer->ptx_types, declared);
+        const char *const register_name = declaration.name;
         FormsWord mark;
         FORMS_SET(mark, "%");
         FORMS_ADD(mark, register_name);
@@ -2077,15 +2204,16 @@ static void writer_ptx_question(Writer *writer, const LaneForm *lane_form, int a
         FORMS_SET(role, &register_name[1]);
         for (unsigned int fixed = 0u; fixed < writer->ptx->counts[KRS_FIXED]; fixed += 1u)
         {
-            const KrsEntry *const entry = &writer->ptx->entries[KRS_FIXED][fixed];
-            if (forms_same(krs_text(writer->ptx, entry), register_name))
+            const KrsEntry entry = krs_entry(writer->ptx, KRS_FIXED, fixed);
+            KrsText fixed_text;
+            krs_text(writer->ptx, &entry, &fixed_text);
+            if (forms_same(fixed_text.text, register_name))
             {
-                FORMS_SET(role, entry->name);
+                FORMS_SET(role, entry.name);
             }
         }
         const int written = ptx_written(form_text, form_size, register_name);
-        const FormsWord placed =
-            ptx_operand(question, role.text, writer->ptx_types.declared[declared].type, 1, written != 1, written != 0);
+        const FormsWord placed = ptx_operand(question, role.text, declaration.type, 1, written != 1, written != 0);
         ptx_register_replaced(&text, register_name, placed.text);
     }
     // the carry flag: set from a word before a form that reads it, read into a word after a form that writes it
@@ -2229,15 +2357,18 @@ static int forms_write(const char *c_path, const char *ptx_path, const char *mon
         gather_lane(&s_c, &bare, reuse);
         host_inexact(&program, &bare);
         gather_lane(&s_c, &program, reuse);
-        // the two tables the program reads through, sized as the host oracle sizes them
-        unsigned int *const wide = (unsigned int *)platform_cell_taken(
-            (unsigned long long)(512u * sizeof(unsigned int)), (unsigned int)platform_place_g_program_owner, 0);
-        unsigned int *const narrow = (unsigned int *)platform_cell_taken(
-            (unsigned long long)(4096u * sizeof(unsigned int)), (unsigned int)platform_place_g_program_owner, 0);
+        // The two tables the program reads through, sized as the host oracle sizes them. They are cells of the
+        // temporary tier for this pass, which go back in the reverse order of their takes
+        unsigned int *const wide =
+            (unsigned int *)platform_cell_taken((unsigned long long)(512u * sizeof(unsigned int)),
+                                                (unsigned int)platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+        unsigned int *const narrow =
+            (unsigned int *)platform_cell_taken((unsigned long long)(4096u * sizeof(unsigned int)),
+                                                (unsigned int)platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
         host_tables(&program, wide, narrow);
         gather_lane(&s_c, &program, reuse);
-        platform_cell_released(wide, (unsigned int)platform_place_g_program_owner);
         platform_cell_released(narrow, (unsigned int)platform_place_g_program_owner);
+        platform_cell_released(wide, (unsigned int)platform_place_g_program_owner);
     }
     static Writer s_writer;
     Writer *const writer = &s_writer;
@@ -2253,13 +2384,15 @@ static int forms_write(const char *c_path, const char *ptx_path, const char *mon
     forms_kept_begun(&writer->body);
     forms_kept_begun(&writer->rows);
     // the helpers the lane's opening defines for the carry chains, everything it contains before the lane itself
-    const KrsEntry *const open = krs_find(&s_c, KRS_FORM, "lane_open");
-    if (open == NULL)
+    if (!krs_find(&s_c, KRS_FORM, "lane_open", &writer->helpers))
     {
         forms_refused("c.krs gives no form lane_open", "", 0u);
     }
-    writer->helpers = krs_text(&s_c, open);
-    writer->helpers_length = forms_find_n(writer->helpers, open->length, "extern \"C\" __device__", 0u);
+    {
+        KrsText open_text;
+        krs_text(&s_c, &writer->helpers, &open_text);
+        writer->helpers_length = forms_find_n(open_text.text, writer->helpers.length, "extern \"C\" __device__", 0u);
+    }
     for (unsigned int at = 0u; at < s_gathered_count; at += 1u)
     {
         const LaneForm *const question = &s_lane_forms[s_gathered[at].first];
@@ -2311,7 +2444,11 @@ static int forms_write(const char *c_path, const char *ptx_path, const char *mon
                         "s8;\n\n#define MONOLITH_TAG(tag_) asm volatile(\"pmevent.mask ");
     mmgr_line_ch(line, '%');
     mmgr_line_put(line, "0;\" ::\"n\"(tag_) : \"memory\")\n");
-    (void)mmgr_line_put_n(line, writer->helpers, writer->helpers_length);
+    {
+        KrsText open_text;
+        krs_text(writer->c, &writer->helpers, &open_text);
+        (void)mmgr_line_put_n(line, open_text.text, writer->helpers_length);
+    }
     mmgr_line_put(line,
                   "\nextern \"C\" __global__ void monolith_forms(const u32 *in, u32 *out)\n{\n    u32 carry = 0u;\n");
     size_t body_size = 0u;
@@ -4332,8 +4469,15 @@ static void read_adopted(const Read *read, const Krs *rules, const Question *que
 {
     text[0] = '\0';
     why[0] = '\0';
-    const KrsEntry *const found = krs_find(rules, KRS_FORM, question->form.text);
-    const char *const now = (found == NULL) ? "" : krs_text(rules, found);
+    KrsEntry found{};
+    const int has_form = krs_find(rules, KRS_FORM, question->form.text, &found);
+    KrsText now_text;
+    now_text.text[0] = '\0';
+    if (has_form)
+    {
+        krs_text(rules, &found, &now_text);
+    }
+    const char *const now = now_text.text;
     if (forms_has(read->text, "BRA") || forms_has(read->text, "bra "))
     {
         why_set(why, why_room, "the reading contains a branch", "");
@@ -4362,15 +4506,16 @@ static void read_adopted(const Read *read, const Krs *rules, const Question *que
         why_set(why, why_room, read->why, "");
         return;
     }
-    if (found == NULL)
+    if (!has_form)
     {
         why_set(why, why_room, "the ruleset contains no form of the name", "");
         return;
     }
     const size_t read_size = forms_length(read->text);
-    for (unsigned int at = 0u; at < found->parameter_count; at += 1u)
+    for (unsigned int at = 0u; at < found.parameter_count; at += 1u)
     {
-        const char *const parameter = krs_parameter(rules, found, at);
+        const FormsWord parameter_word = krs_parameter(rules, &found, at);
+        const char *const parameter = parameter_word.text;
         // the parameter itself, and not only its .hi, which names the other half
         FormsWord low;
         FORMS_SET(low, "{");
@@ -4404,8 +4549,8 @@ static void read_adopted(const Read *read, const Krs *rules, const Question *que
         const size_t close = forms_chr_n(text, length, '>', open);
         FormsWord fixed;
         FORMS_SET_N(fixed, &text[open + 1u], (close > open) ? (close - open - 1u) : 0u);
-        const KrsEntry *const named = krs_find(rules, KRS_FIXED, fixed.text);
-        if (named == NULL)
+        KrsEntry named{};
+        if (!krs_find(rules, KRS_FIXED, fixed.text, &named))
         {
             text[0] = '\0';
             why_set(why, why_room, "the ruleset names no fixed register ", fixed.text);
@@ -4414,7 +4559,9 @@ static void read_adopted(const Read *read, const Krs *rules, const Question *que
         static char s_rest[FORMS_READ_BYTES];
         forms_set_n(s_rest, sizeof(s_rest), &text[close + 1u], (close < length) ? (length - close - 1u) : 0u);
         text[open] = '\0';
-        forms_add(text, room, krs_text(rules, named));
+        KrsText fixed_text;
+        krs_text(rules, &named, &fixed_text);
+        forms_add(text, room, fixed_text.text);
         forms_add(text, room, s_rest);
     }
     // a register of the compiler's own left in the text: one the reading did not name. The walk jumps from one R or P
@@ -4927,7 +5074,9 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         {
             continue;
         }
-        const char *const now = krs_text_of(&s_sass, KRS_FORM, state->form.text);
+        KrsText now_text;
+        krs_text_of(&s_sass, KRS_FORM, state->form.text, &now_text);
+        const char *const now = now_text.text;
         const char *chosen = "";
         for (unsigned int one = 0u; one < reading_count; one += 1u)
         {
@@ -5027,8 +5176,12 @@ static int forms_read(const char *questions_path, const char *listing, const cha
             continue;
         }
         sass_forms += 1u;
-        const char *const sass_now = krs_text_of(&s_sass, KRS_FORM, state->form.text);
-        const char *const ptx_now = krs_text_of(&s_ptx_rules, KRS_FORM, state->form.text);
+        KrsText sass_text;
+        krs_text_of(&s_sass, KRS_FORM, state->form.text, &sass_text);
+        const char *const sass_now = sass_text.text;
+        KrsText ptx_text;
+        krs_text_of(&s_ptx_rules, KRS_FORM, state->form.text, &ptx_text);
+        const char *const ptx_now = ptx_text.text;
         FormsLine sass_state;
         verdict_state(&state->sass, sass_now, &sass_same, &sass_state);
         FormsLine ptx_state;
