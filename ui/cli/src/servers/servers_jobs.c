@@ -49,7 +49,7 @@ static void jobs_worker(void *context)
     for (;;)
     {
         const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&s_taken, 1u);
-        embed_u64 stamp = 0u;
+        embed_word stamp = 0u;
         for (;;)
         {
             const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);

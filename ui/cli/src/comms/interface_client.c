@@ -40,7 +40,7 @@ typedef struct
     const CliRegion *region;
     unsigned long long *delivered;
     VerbaLinea *err_msg;
-    embed_u64 stamp;
+    embed_word stamp;
 } InterfaceClientCtx;
 
 // the message of `size` bytes at `message` queued, its body in its entry or a region: a message past the queue's
@@ -120,10 +120,10 @@ EMBED_INLINE void client_recv(const InterfaceClientCtx *args)
 }
 
 // the next entry queued popped off the ring, where one is pushed, into `entry_out` with its stamp into `stamp_out`
-static int client_popped(CliIpcClient *client, CliIpcEntry **entry_out, embed_u64 *stamp_out)
+static int client_popped(CliIpcClient *client, CliIpcEntry **entry_out, embed_word *stamp_out)
 {
     void *job = NULL;
-    embed_u64 seen = 0u;
+    embed_word seen = 0u;
     // Explicit cast carries the end's address as the pass's entry
     if (!cli_ticket_pushed(&client->ring, client->taken, stamp_out) ||
         !EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, &client->turnstiles,
@@ -321,7 +321,7 @@ void cli_ipc_leave(const CliIpcClientCfg *args)
         wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &args->client->wake);
     }
     CliIpcEntry *entry = NULL;
-    embed_u64 stamp = 0u;
+    embed_word stamp = 0u;
     while (client_popped(args->client, &entry, &stamp))
     {
         if (entry->has_region)
@@ -386,7 +386,7 @@ int cli_ipc_send(const CliIpcErrMsgCfg *args)
 int cli_ipc_next(const CliIpcClientCfg *args)
 {
     const unsigned long long until = cli_clock_milliseconds() + args->wait;
-    embed_u64 stamp = 0u;
+    embed_word stamp = 0u;
     for (;;)
     {
         const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &args->client->wake);

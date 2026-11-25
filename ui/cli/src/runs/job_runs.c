@@ -499,7 +499,7 @@ void cli_job_runs_reported(const CliJobRunsReportCfg *args)
 EMBED_INLINE char *report_popped(const JobRunsCtx *args)
 {
     JobRunsReport *const report = args->popped;
-    embed_u64 stamp = 0u;
+    embed_word stamp = 0u;
     if (!cli_ticket_pushed(&s_reports, s_taken, &stamp))
     {
         return NULL;

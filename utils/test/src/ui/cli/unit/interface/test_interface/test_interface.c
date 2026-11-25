@@ -7,6 +7,7 @@
 // cellblock once its process is gone
 #include "ui/cli/src/comms/comms.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
+#include "ui/cli/src/comms/comms.h"
 #include "ui/cli/src/comms/interface.h"
 #include "ui/cli/src/comms/interface_internal.h"
 #include "ui/cli/src/comms/interface_serve.h"

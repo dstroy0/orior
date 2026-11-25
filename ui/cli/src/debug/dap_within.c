@@ -82,7 +82,7 @@ EMBED_INLINE int within_queue(const DapWithinCtx *args)
     const embed_u64 stamp = EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, cli_ticket_epoch(), ticket);
     // Explicit cast carries the cell's token as the pass's entry, and as the word the slot holds
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)args->message;
-    embed_u64 seen = 0u;
+    embed_word seen = 0u;
     for (;;)
     {
         const unsigned int room = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_queue_wake);
@@ -124,7 +124,7 @@ EMBED_INLINE int within_push(const DapWithinCtx *args)
 EMBED_INLINE const CarcerMovableEntry *within_pop(const DapWithinCtx *args)
 {
     CliDapQueue *const queue = args->queue;
-    embed_u64 stamp = 0u;
+    embed_word stamp = 0u;
     for (;;)
     {
         const unsigned int came = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_queue_wake);
@@ -139,7 +139,7 @@ EMBED_INLINE const CarcerMovableEntry *within_pop(const DapWithinCtx *args)
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_queue_wake, .seen = came);
     }
     void *popped = NULL;
-    embed_u64 seen = 0u;
+    embed_word seen = 0u;
     // Explicit cast carries the queue's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)queue;
     (void)EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, &queue->turnstiles, address, &queue->ring,

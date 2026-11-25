@@ -72,6 +72,12 @@ def marker_edges(lines):
     return found
 
 
+# The environments of a listing. A listing holds code and no sentence. Each line from the opener to
+# the closer is blank, and a finding does not point into a listing.
+LISTING_OPEN = re.compile(r"\\begin\s*\{(Verbatim|BVerbatim|LVerbatim|verbatim|lstlisting|minted)\*?\}")
+LISTING_CLOSE = re.compile(r"\\end\s*\{(Verbatim|BVerbatim|LVerbatim|verbatim|lstlisting|minted)\*?\}")
+
+
 def tex_prose(lines):
     """A LaTeX source with its markup blanked and its sentences left, line numbers preserved.
 
@@ -90,6 +96,11 @@ def tex_prose(lines):
     # opening and closing lines go with it
     listing = None
     for line in lines:
+        # A line of a listing, the opener and the closer with it, is blank
+        if listing or LISTING_OPEN.search(line):
+            listing = not LISTING_CLOSE.search(line)
+            retained.append("")
+            continue
         held = line
         if listing is not None:
             if re.search(r"\\end\{%s\}" % re.escape(listing), held):

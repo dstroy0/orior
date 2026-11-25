@@ -83,7 +83,7 @@ static void check_checker(void *context)
     for (;;)
     {
         const embed_u32 ticket = EMBED_ATOMIC_ADD_32(&ring->taken, 1u);
-        embed_u64 stamp = 0u;
+        embed_word stamp = 0u;
         for (;;)
         {
             const unsigned int ready = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_queue_ready);

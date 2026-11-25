@@ -32,10 +32,11 @@ const char *const g_query_mmgr[] = {
     "includes/mmgr/src/impensa_ancorae_acus/impensa_ancorae_acus.c",
     "includes/mmgr/src/impensa_ancorae_acus/impensa_ancorae_acus_generic.c", "src/platform/platform_carcer.c",
     "includes/mmgr/src/memoria_anularis/*.c", "includes/mmgr/src/memoria_externa/*.c",
-    "includes/mmgr/src/memoria_operor/*.c", "includes/mmgr/src/memoriam_praetereo/*.c",
-    "includes/mmgr/src/numeros_scribo/*.c", "includes/mmgr/src/octetus_introitus_exitus/*.c",
-    "includes/mmgr/src/proximus_operor/*.c", "includes/mmgr/src/spatium/*.c", "includes/mmgr/src/transformo/*.c",
-    "includes/mmgr/src/verba_scribo/*.c", "includes/mmgr/src/verbum_scrutor/*.c",
+    "includes/mmgr/src/memoria_operor/*.c", "includes/mmgr/src/memoria_vector/*.c",
+    "includes/mmgr/src/memoriam_praetereo/*.c", "includes/mmgr/src/numeros_scribo/*.c",
+    "includes/mmgr/src/octetus_introitus_exitus/*.c", "includes/mmgr/src/proximus_operor/*.c",
+    "includes/mmgr/src/spatium/*.c", "includes/mmgr/src/transformo/*.c", "includes/mmgr/src/verba_scribo/*.c",
+    "includes/mmgr/src/verbum_scrutor/*.c",
     // the platform: main and the process stage, the pool, and the calls into the system. It defines the host's
     // address wait, wake and clock, which the turnstiles of LocusCarcerum sleep, wake and stamp through. Every program
     // defines program_main and no main

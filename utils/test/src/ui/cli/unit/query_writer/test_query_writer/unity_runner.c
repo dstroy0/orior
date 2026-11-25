@@ -2,8 +2,8 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
-#include "ui/query/src/tools/tools_internal.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
+#include "ui/query/src/tools/tools_internal.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -82,19 +82,19 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/query_writer/test_query_writer/test_query_writer.c");
-  run_test(test_every_role_has_a_readable_name, "test_every_role_has_a_readable_name", 155);
-  run_test(test_the_c_compiler_is_found_on_the_path_or_reported, "test_the_c_compiler_is_found_on_the_path_or_reported", 167);
-  run_test(test_a_program_adjacent_nvcc_is_looked_for_adjacent_it, "test_a_program_adjacent_nvcc_is_looked_for_adjacent_it", 183);
-  run_test(test_a_missing_program_is_reported_by_its_name, "test_a_missing_program_is_reported_by_its_name", 201);
-  run_test(test_no_writer_runs_before_it_is_started, "test_no_writer_runs_before_it_is_started", 211);
-  run_test(test_the_writer_starts_and_comes_ready, "test_the_writer_starts_and_comes_ready", 217);
-  run_test(test_this_process_joins_the_run, "test_this_process_joins_the_run", 224);
-  run_test(test_a_record_is_read_back, "test_a_record_is_read_back", 230);
-  run_test(test_a_record_not_written_is_not_read, "test_a_record_not_written_is_not_read", 236);
-  run_test(test_the_writer_stops, "test_the_writer_stops", 242);
-  run_test(test_a_record_is_read_from_the_qry_once_the_writer_stopped, "test_a_record_is_read_from_the_qry_once_the_writer_stopped", 248);
-  run_test(test_a_name_is_read_complete_as_written, "test_a_name_is_read_complete_as_written", 254);
-  run_test(test_a_programs_exit_code_and_output_are_teed_into_the_run, "test_a_programs_exit_code_and_output_are_teed_into_the_run", 261);
+  run_test(test_every_role_has_a_readable_name, "test_every_role_has_a_readable_name", 171);
+  run_test(test_the_c_compiler_is_found_on_the_path_or_reported, "test_the_c_compiler_is_found_on_the_path_or_reported", 183);
+  run_test(test_a_program_adjacent_nvcc_is_looked_for_adjacent_it, "test_a_program_adjacent_nvcc_is_looked_for_adjacent_it", 200);
+  run_test(test_a_missing_program_is_reported_by_its_name, "test_a_missing_program_is_reported_by_its_name", 221);
+  run_test(test_no_writer_runs_before_it_is_started, "test_no_writer_runs_before_it_is_started", 233);
+  run_test(test_the_writer_starts_and_comes_ready, "test_the_writer_starts_and_comes_ready", 239);
+  run_test(test_this_process_joins_the_run, "test_this_process_joins_the_run", 246);
+  run_test(test_a_record_is_read_back, "test_a_record_is_read_back", 252);
+  run_test(test_a_record_not_written_is_not_read, "test_a_record_not_written_is_not_read", 258);
+  run_test(test_the_writer_stops, "test_the_writer_stops", 264);
+  run_test(test_a_record_is_read_from_the_qry_once_the_writer_stopped, "test_a_record_is_read_from_the_qry_once_the_writer_stopped", 270);
+  run_test(test_a_name_is_read_complete_as_written, "test_a_name_is_read_complete_as_written", 276);
+  run_test(test_a_programs_exit_code_and_output_are_teed_into_the_run, "test_a_programs_exit_code_and_output_are_teed_into_the_run", 283);
 
   return UNITY_END();
 }

@@ -60,7 +60,7 @@ typedef struct
     const CliReachEntry *entry;
     CliReachCommand *message;
     const CliReachCommand *message_read;
-    embed_u64 stamp;
+    embed_word stamp;
     const char *id;
     char mark;
     const char *text;
@@ -461,7 +461,7 @@ static void reach_wake(const ReachCtx *args)
 // The next command popped off the ring, into `command_out` with its stamp into `stamp_out`: 1 where the slot of the
 // next ticket carries that ticket with its push landed and this pass popped it, else 0, which is where no command
 // waits, where the next is granted and not yet pushed, or where another pass popped it first
-static int reach_popped(CliReachCommand **command_out, embed_u64 *stamp_out)
+static int reach_popped(CliReachCommand **command_out, embed_word *stamp_out)
 {
     if (!cli_ticket_pushed(&s_interface.ring,
                            EMBED_CALL(embed_atomic_u32_table.load, EmbedAtomicU32LoadCfg, .word = &s_interface.taken),
@@ -470,7 +470,7 @@ static int reach_popped(CliReachCommand **command_out, embed_u64 *stamp_out)
         return 0;
     }
     void *job = NULL;
-    embed_u64 seen = 0u;
+    embed_word seen = 0u;
     // Explicit cast carries the interface's address as the pass's entry
     if (!EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, &s_interface.turnstiles,
                     (embed_atomic_uptr_value)(embed_word)&s_interface, &s_interface.ring, *stamp_out, &job, &seen))
@@ -499,7 +499,7 @@ static void reach_released(const ReachCtx *args)
 static void reach_refused_all(void)
 {
     CliReachCommand *command = NULL;
-    embed_u64 stamp = 0u;
+    embed_word stamp = 0u;
     while (reach_popped(&command, &stamp))
     {
         command->ran = 0;
@@ -545,7 +545,7 @@ static int reach_received(const CliCommsRecvCfg *args)
     const embed_u64 stamp = EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, cli_ticket_epoch(), ticket);
     // Explicit cast carries the command's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)&command;
-    embed_u64 seen = 0u;
+    embed_word seen = 0u;
     for (;;)
     {
         const unsigned int room = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_interface.room);
@@ -671,7 +671,7 @@ int cli_reach_take(const CliReachCfg *args)
 {
     int taken = 0;
     CliReachCommand *command = NULL;
-    embed_u64 stamp = 0u;
+    embed_word stamp = 0u;
     // each command runs in the order of its ticket, and its slot goes back before its thread wakes, as the command's
     // stack frame ends once it does
     while (reach_popped(&command, &stamp))

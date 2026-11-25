@@ -288,7 +288,7 @@ EMBED_INLINE embed_u16 cli_ticket_epoch(void)
 
 // whether the slot of the ticket `next` carries that ticket with its push landed and no pop yet, its stamp with the
 // flag bits clear into `stamp_out`: what a consumer tests before it pops the next ticket in order
-EMBED_INLINE int cli_ticket_pushed(const EmbedTicketRing *ring, embed_u32 next, embed_u64 *stamp_out)
+EMBED_INLINE int cli_ticket_pushed(const EmbedTicketRing *ring, embed_u32 next, embed_word *stamp_out)
 {
     const embed_u64 current =
         EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg,

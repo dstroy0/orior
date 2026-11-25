@@ -83,7 +83,7 @@ static int serve_recv(const CliCommsRecvCfg *args)
     CliIpcEntry *const entry = &joined->entries[ticket & (CLI_IPC_ENTRIES - 1u)];
     // Explicit cast carries the entry's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)entry;
-    embed_u64 seen = 0u;
+    embed_word seen = 0u;
     // the slot is granted once the entry a lap before it is sent and released; this thread sleeps on the queue's
     // wake until then, and a message that comes once a thread of the place has ended is let go
     for (;;)
@@ -212,9 +212,9 @@ static void serve_drain(void *context)
             continue;
         }
         // the next entry pushed popped, in the order of the tickets, sent, and its slot released
-        embed_u64 stamp = 0u;
+        embed_word stamp = 0u;
         void *job = NULL;
-        embed_u64 found = 0u;
+        embed_word found = 0u;
         if (cli_ticket_pushed(&joined->ring, joined->taken, &stamp) &&
             // Explicit cast carries the place's address as the pass's entry
             EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, &joined->turnstiles,

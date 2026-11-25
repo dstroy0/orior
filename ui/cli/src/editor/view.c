@@ -5841,7 +5841,7 @@ static void view_pair_job(const CliServersJobCfg *args)
     const embed_u64 stamp = EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, cli_ticket_epoch(), ticket);
     // Explicit cast carries the cell's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)landed;
-    embed_u64 seen = 0u;
+    embed_word seen = 0u;
     // The entry comes free once the view thread takes and releases the answer a lap before it. This worker sleeps on
     // the room's wake until then, and the view thread's pops stay in the order of the tickets
     for (;;)
@@ -5875,7 +5875,7 @@ static void view_pair_answers_taken(void)
     }
     // Explicit cast carries the ring's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)&s_pair_ring;
-    embed_u64 stamp = 0u;
+    embed_word stamp = 0u;
     while (cli_ticket_pushed(&s_pair_ring, s_pair_taken, &stamp))
     {
         void *job = NULL;

@@ -24,7 +24,7 @@ EMBED_STATIC_ASSERT(sizeof(CliViewOrder) <= CLI_VIEW_ORDER_SEGMENT,
 typedef struct
 {
     EmbedTicketRing ring;
-    embed_u64 granted;
+    embed_word granted;
     embed_u32 ticket;
     embed_u32 taken;
     CliViewHits *buffer;
@@ -279,7 +279,7 @@ unsigned int cli_view_hit(const CliViewThreadCfg *args)
     CliViewHitsTransfer *const transfer = &s_view.hits[args->surface];
     // Explicit cast carries the transfer's address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)transfer;
-    embed_u64 stamp = 0u;
+    embed_word stamp = 0u;
     while (cli_ticket_pushed(&transfer->ring, transfer->taken, &stamp))
     {
         void *job = NULL;
@@ -322,7 +322,7 @@ static CliViewHits *view_hits_next(const ViewThreadCtx *args)
 static void view_hits_publish(const ViewThreadCtx *args)
 {
     CliViewHitsTransfer *const transfer = &s_view.hits[args->surface];
-    embed_u64 seen = 0u;
+    embed_word seen = 0u;
     // Explicit cast carries the transfer's address as the pass's entry
     (void)EMBED_CALL(embed_ticket_ring_pass_push, EmbedTicketRingPassPushCfg, &s_view.hits_turnstiles,
                      (embed_atomic_uptr_value)(embed_word)transfer, &transfer->ring, transfer->granted,

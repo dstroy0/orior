@@ -299,7 +299,7 @@ static void problems_reported(const CliServerDiagnosticsCfg *args)
     const embed_u64 stamp = EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, cli_ticket_epoch(), ticket);
     // Explicit cast carries the cell's token as the pass's entry, and as the word the ring's entry keeps
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)cell;
-    embed_u64 seen = 0u;
+    embed_word seen = 0u;
     for (;;)
     {
         const unsigned int room = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_problems.room);
@@ -378,7 +378,7 @@ static int problems_taken(void)
     int moved = 0;
     // Explicit cast carries the problems' address as the pass's entry
     const embed_atomic_uptr_value address = (embed_atomic_uptr_value)(embed_word)&s_problems;
-    embed_u64 stamp = 0u;
+    embed_word stamp = 0u;
     while (cli_ticket_pushed(&s_problems.ring, s_problems.taken, &stamp))
     {
         void *job = NULL;

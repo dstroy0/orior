@@ -61,10 +61,10 @@ EMBED_INLINE void pool_log(const PoolCtx *args)
     }
 }
 
-embed_u64 embed_clock_ns(void)
+embed_word embed_clock_ns(void)
 {
     // the one clock: the microsecond clock in nanoseconds, which stamps a turnstile's badge and a cell's take alike
-    return (embed_u64)cli_clock_microseconds() * 1000u;
+    return (embed_word)cli_clock_microseconds() * 1000u;
 }
 
 embed_u64 mmgr_carcer_hw_clock_ns(void)
