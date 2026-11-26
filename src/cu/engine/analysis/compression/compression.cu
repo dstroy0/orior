@@ -1,35 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "compression.h"
+#include "compression_internal.h"
 
-#include "../../../../platform/platform.h"
 #include "../../runtime/device_pool/device_pool.h"
 
 #include <cub/cub.cuh>
-#include <cuda_runtime.h>
-
-static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success");
-
-// cudaError_t enumerates non-negative codes below INT_MAX: the status converts to int exactly
-#define COMPRESSION_STATUS_CHECK(call_, evacaddr_, error_)                                                             \
-    engine_status_check((int)(call_), ENGINE_MODULE_COMPRESSION, (unsigned int)__LINE__, (const void *)(evacaddr_),    \
-                        (error_))
-
-#define COMPRESSION_CHECK(condition_, evacaddr_, error_, type_)                                                        \
-    engine_error_check((condition_), (type_), ENGINE_MODULE_COMPRESSION, (unsigned int)__LINE__,                       \
-                       (const void *)(evacaddr_), (error_))
-
-#define COMPRESSION_THREADS 256u
-
-#define COMPRESSION_BLOCK 64ULL
-
-#define COMPRESSION_CHUNK_BLOCKS 64ULL
-
-#define COMPRESSION_CHUNK (COMPRESSION_BLOCK * COMPRESSION_CHUNK_BLOCKS)
-
-#define COMPRESSION_K_BITS 5u
-
-#define COMPRESSION_ESCAPE 24u
 
 __device__ static unsigned int compression_block_k(const unsigned int *values, unsigned long long take,
                                                    unsigned long long *bits)
@@ -67,35 +42,56 @@ __device__ static unsigned int compression_block_k(const unsigned int *values, u
     return chosen;
 }
 
-__global__ static void compression_zigzag_kernel(const int *from, unsigned long long count, unsigned int *to)
+// the index of the thread in its grid, where a kernel walk starts
+__device__ static unsigned long long compression_thread_first(void)
 {
-    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
-    for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; index < count;
-         index += jump)
+    return ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x;
+}
+
+// the threads of the grid, the jump of a kernel walk
+__device__ static unsigned long long compression_thread_jump(void)
+{
+    return (unsigned long long)gridDim.x * blockDim.x;
+}
+
+__device__ void compression_zigzag_span(const int *from, unsigned long long count, unsigned int *to,
+                                        unsigned long long first, unsigned long long jump)
+{
+    for (unsigned long long index = first; index < count; index += jump)
     {
         const int value = from[index];
         to[index] = (value >= 0) ? (2u * (unsigned int)value) : ((2u * (unsigned int)(-value)) - 1u);
     }
 }
 
+__global__ static void compression_zigzag_kernel(const int *from, unsigned long long count, unsigned int *to)
+{
+    compression_zigzag_span(from, count, to, compression_thread_first(), compression_thread_jump());
+}
+
+__device__ void compression_measure_span(const unsigned int *values, unsigned long long count,
+                                         unsigned long long chunks, unsigned long long *chunk_bits,
+                                         unsigned long long first, unsigned long long jump)
+{
+    for (unsigned long long chunk = first; chunk < chunks; chunk += jump)
+    {
+        unsigned long long total = 0ULL;
+        for (unsigned long long start = chunk * COMPRESSION_CHUNK;
+             (start < count) && (start < ((chunk + 1ULL) * COMPRESSION_CHUNK)); start += COMPRESSION_BLOCK)
+        {
+            const unsigned long long take = ((count - start) < COMPRESSION_BLOCK) ? (count - start) : COMPRESSION_BLOCK;
+            unsigned long long bits = 0ULL;
+            (void)compression_block_k(&values[start], take, &bits);
+            total += bits;
+        }
+        chunk_bits[chunk] = total;
+    }
+}
+
 __global__ static void compression_measure_kernel(const unsigned int *values, unsigned long long count,
                                                   unsigned long long chunks, unsigned long long *chunk_bits)
 {
-    const unsigned long long chunk = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x;
-    if (chunk >= chunks)
-    {
-        return;
-    }
-    unsigned long long total = 0ULL;
-    for (unsigned long long start = chunk * COMPRESSION_CHUNK;
-         (start < count) && (start < ((chunk + 1ULL) * COMPRESSION_CHUNK)); start += COMPRESSION_BLOCK)
-    {
-        const unsigned long long take = ((count - start) < COMPRESSION_BLOCK) ? (count - start) : COMPRESSION_BLOCK;
-        unsigned long long bits = 0ULL;
-        (void)compression_block_k(&values[start], take, &bits);
-        total += bits;
-    }
-    chunk_bits[chunk] = total;
+    compression_measure_span(values, count, chunks, chunk_bits, compression_thread_first(), compression_thread_jump());
 }
 
 __device__ static void compression_put(unsigned int *stream, unsigned long long at, unsigned int field,
@@ -113,44 +109,50 @@ __device__ static void compression_put(unsigned int *stream, unsigned long long 
     }
 }
 
+__device__ void compression_write_span(const unsigned int *values, unsigned long long count, unsigned long long chunks,
+                                       const unsigned long long *offsets, unsigned int *stream,
+                                       unsigned long long first, unsigned long long jump)
+{
+    for (unsigned long long chunk = first; chunk < chunks; chunk += jump)
+    {
+        unsigned long long at = offsets[chunk];
+        for (unsigned long long start = chunk * COMPRESSION_CHUNK;
+             (start < count) && (start < ((chunk + 1ULL) * COMPRESSION_CHUNK)); start += COMPRESSION_BLOCK)
+        {
+            const unsigned long long take = ((count - start) < COMPRESSION_BLOCK) ? (count - start) : COMPRESSION_BLOCK;
+            unsigned long long bits = 0ULL;
+            const unsigned int k = compression_block_k(&values[start], take, &bits);
+            compression_put(stream, at, k, COMPRESSION_K_BITS);
+            at += COMPRESSION_K_BITS;
+            for (unsigned long long index = 0ULL; index < take; index += 1ULL)
+            {
+                const unsigned int value = values[start + index];
+                const unsigned int quotient = value >> k;
+                if (quotient < COMPRESSION_ESCAPE)
+                {
+                    compression_put(stream, at, (1u << quotient) - 1u, quotient);
+                    at += (unsigned long long)quotient + 1ULL;
+                    compression_put(stream, at, value & ((k == 0u) ? 0u : (0xFFFFFFFFu >> (32u - k))), k);
+                    at += k;
+                }
+                else
+                {
+                    compression_put(stream, at, (1u << COMPRESSION_ESCAPE) - 1u, COMPRESSION_ESCAPE);
+                    at += COMPRESSION_ESCAPE;
+                    compression_put(stream, at, value, 32u);
+                    at += 32ULL;
+                }
+            }
+        }
+    }
+}
+
 __global__ static void compression_write_kernel(const unsigned int *values, unsigned long long count,
                                                 unsigned long long chunks, const unsigned long long *offsets,
                                                 unsigned int *stream)
 {
-    const unsigned long long chunk = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x;
-    if (chunk >= chunks)
-    {
-        return;
-    }
-    unsigned long long at = offsets[chunk];
-    for (unsigned long long start = chunk * COMPRESSION_CHUNK;
-         (start < count) && (start < ((chunk + 1ULL) * COMPRESSION_CHUNK)); start += COMPRESSION_BLOCK)
-    {
-        const unsigned long long take = ((count - start) < COMPRESSION_BLOCK) ? (count - start) : COMPRESSION_BLOCK;
-        unsigned long long bits = 0ULL;
-        const unsigned int k = compression_block_k(&values[start], take, &bits);
-        compression_put(stream, at, k, COMPRESSION_K_BITS);
-        at += COMPRESSION_K_BITS;
-        for (unsigned long long index = 0ULL; index < take; index += 1ULL)
-        {
-            const unsigned int value = values[start + index];
-            const unsigned int quotient = value >> k;
-            if (quotient < COMPRESSION_ESCAPE)
-            {
-                compression_put(stream, at, (1u << quotient) - 1u, quotient);
-                at += (unsigned long long)quotient + 1ULL;
-                compression_put(stream, at, value & ((k == 0u) ? 0u : (0xFFFFFFFFu >> (32u - k))), k);
-                at += k;
-            }
-            else
-            {
-                compression_put(stream, at, (1u << COMPRESSION_ESCAPE) - 1u, COMPRESSION_ESCAPE);
-                at += COMPRESSION_ESCAPE;
-                compression_put(stream, at, value, 32u);
-                at += 32ULL;
-            }
-        }
-    }
+    compression_write_span(values, count, chunks, offsets, stream, compression_thread_first(),
+                           compression_thread_jump());
 }
 
 __device__ static unsigned int compression_get(const unsigned int *stream, unsigned long long at, unsigned int width)
@@ -165,42 +167,48 @@ __device__ static unsigned int compression_get(const unsigned int *stream, unsig
     return (unsigned int)((pair >> shift) & ((width == 32u) ? 0xFFFFFFFFULL : ((1ULL << width) - 1ULL)));
 }
 
+__device__ void compression_read_span(const unsigned int *stream, const unsigned long long *offsets,
+                                      unsigned long long count, unsigned long long chunks, int *to,
+                                      unsigned long long first, unsigned long long jump)
+{
+    for (unsigned long long chunk = first; chunk < chunks; chunk += jump)
+    {
+        unsigned long long at = offsets[chunk];
+        for (unsigned long long start = chunk * COMPRESSION_CHUNK;
+             (start < count) && (start < ((chunk + 1ULL) * COMPRESSION_CHUNK)); start += COMPRESSION_BLOCK)
+        {
+            const unsigned long long take = ((count - start) < COMPRESSION_BLOCK) ? (count - start) : COMPRESSION_BLOCK;
+            const unsigned int k = compression_get(stream, at, COMPRESSION_K_BITS);
+            at += COMPRESSION_K_BITS;
+            for (unsigned long long index = 0ULL; index < take; index += 1ULL)
+            {
+                const unsigned int window = compression_get(stream, at, COMPRESSION_ESCAPE);
+                const unsigned int quotient = (window == ((1u << COMPRESSION_ESCAPE) - 1u))
+                                                  ? COMPRESSION_ESCAPE
+                                                  : (unsigned int)(__ffs(~window) - 1);
+                unsigned int value = 0u;
+                if (quotient < COMPRESSION_ESCAPE)
+                {
+                    at += (unsigned long long)quotient + 1ULL;
+                    value = (quotient << k) | compression_get(stream, at, k);
+                    at += k;
+                }
+                else
+                {
+                    at += COMPRESSION_ESCAPE;
+                    value = compression_get(stream, at, 32u);
+                    at += 32ULL;
+                }
+                to[start + index] = ((value & 1u) == 0u) ? (int)(value >> 1u) : -(int)((value + 1u) >> 1u);
+            }
+        }
+    }
+}
+
 __global__ static void compression_read_kernel(const unsigned int *stream, const unsigned long long *offsets,
                                                unsigned long long count, unsigned long long chunks, int *to)
 {
-    const unsigned long long chunk = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x;
-    if (chunk >= chunks)
-    {
-        return;
-    }
-    unsigned long long at = offsets[chunk];
-    for (unsigned long long start = chunk * COMPRESSION_CHUNK;
-         (start < count) && (start < ((chunk + 1ULL) * COMPRESSION_CHUNK)); start += COMPRESSION_BLOCK)
-    {
-        const unsigned long long take = ((count - start) < COMPRESSION_BLOCK) ? (count - start) : COMPRESSION_BLOCK;
-        const unsigned int k = compression_get(stream, at, COMPRESSION_K_BITS);
-        at += COMPRESSION_K_BITS;
-        for (unsigned long long index = 0ULL; index < take; index += 1ULL)
-        {
-            const unsigned int window = compression_get(stream, at, COMPRESSION_ESCAPE);
-            const unsigned int quotient =
-                (window == ((1u << COMPRESSION_ESCAPE) - 1u)) ? COMPRESSION_ESCAPE : (unsigned int)(__ffs(~window) - 1);
-            unsigned int value = 0u;
-            if (quotient < COMPRESSION_ESCAPE)
-            {
-                at += (unsigned long long)quotient + 1ULL;
-                value = (quotient << k) | compression_get(stream, at, k);
-                at += k;
-            }
-            else
-            {
-                at += COMPRESSION_ESCAPE;
-                value = compression_get(stream, at, 32u);
-                at += 32ULL;
-            }
-            to[start + index] = ((value & 1u) == 0u) ? (int)(value >> 1u) : -(int)((value + 1u) >> 1u);
-        }
-    }
+    compression_read_span(stream, offsets, count, chunks, to, compression_thread_first(), compression_thread_jump());
 }
 
 static unsigned int compression_blocks(unsigned long long count)
@@ -209,9 +217,9 @@ static unsigned int compression_blocks(unsigned long long count)
     return (unsigned int)((needed < 65536ULL) ? ((needed == 0ULL) ? 1ULL : needed) : 65536ULL);
 }
 
-// each chunk's bits, each chunk's offset and the scan's scratch are slices of one pool, sized for the max chunks
-// requested so far. The stream is sized by the values themselves, known only once they are measured, and is a pool of
-// its own
+// The bits of each chunk, the offset of each chunk and the scratch of the scan are slices of one pool. The pool holds
+// the most chunks that a call asked for. The values set the size of the stream, which the call knows only after it
+// measures them. The stream is a pool of its own
 struct CompressionResident
 {
     DevicePool chunk_pool;
@@ -247,9 +255,9 @@ extern "C" void compression_resident_release(void)
 
 #define COMPRESSION_CHUNK_SLICES 3u
 
-// the chunk pool's slices for `chunks`, in the order they are arranged and taken: each chunk's bits, each chunk's
-// offset, and the scan's scratch of `scan_bytes`; the plan is arranged from them, and a pool reserved from it takes
-// them
+// The slices of the chunk pool for `chunks`: the bits of each chunk, the offset of each chunk, and the scratch of the
+// scan of `scan_bytes`. The plan puts them in that order, and the pool takes them in it. The plan comes from them, and
+// a pool that the plan reserves takes them
 static DevicePoolPlan compression_chunk_plan(size_t chunks, size_t scan_bytes, EngineError *error,
                                              DevicePoolTakeRequest takes[COMPRESSION_CHUNK_SLICES])
 {
@@ -290,7 +298,7 @@ static int compression_reserve_chunks(size_t chunks, EngineError *error)
     const DevicePoolPlan plan = compression_chunk_plan(chunks, scan_bytes, error, takes);
     const DevicePoolReserveRequest reserve = {&plan, &resident->chunk_pool, error};
     ok = ok && (device_pool_reserve(&reserve) == 0L);
-    // the slices are taken in the plan's order. Each lands where the plan positioned it out and none errors
+    // The pool takes the slices in the order of the plan. Each lands where the plan put it, and none errors
     for (unsigned int at = 0u; (ok != 0) && (at < COMPRESSION_CHUNK_SLICES); at += 1u)
     {
         ok = device_pool_take(&takes[at]) == 0L;
@@ -395,37 +403,48 @@ extern "C" long compression_encode(const CompressionEncodeRequest *request)
                                                                         resident->chunk_offsets, resident->stream);
         ok = COMPRESSION_STATUS_CHECK(cudaGetLastError(), resident->stream, error);
     }
-    if (ok != 0)
-    {
-        // an array with no element size has not begun: it begins at its first copy
-        if (resident->host_offsets.element == 0ULL)
-        {
-            platform_array_begun(&resident->host_offsets, sizeof(unsigned long long), platform_place_g_program_owner,
-                                 0);
-            platform_array_begun(&resident->host_stream, sizeof(unsigned int), platform_place_g_program_owner, 0);
-        }
-        ok = COMPRESSION_STATUS_CHECK(platform_array_counted(&resident->host_offsets, chunks) &&
-                                              platform_array_counted(&resident->host_stream, limbs + 1u)
-                                          ? cudaSuccess
-                                          : cudaErrorMemoryAllocation,
-                                      &resident->host_offsets, error);
-        ok = ok &&
-             COMPRESSION_STATUS_CHECK(cudaMemcpy(resident->host_offsets.cell, resident->chunk_offsets,
-                                                 (size_t)chunks * sizeof(unsigned long long), cudaMemcpyDeviceToHost),
-                                      resident->host_offsets.cell, error) &&
-             COMPRESSION_STATUS_CHECK(cudaMemcpy(resident->host_stream.cell, resident->stream,
-                                                 limbs * sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                                      resident->host_stream.cell, error);
-    }
+    unsigned long long *host_offsets = NULL;
+    unsigned int *host_stream = NULL;
+    ok = ok && compression_host_room(chunks, limbs, &host_offsets, &host_stream, error) &&
+         COMPRESSION_STATUS_CHECK(cudaMemcpy(host_offsets, resident->chunk_offsets,
+                                             (size_t)chunks * sizeof(unsigned long long), cudaMemcpyDeviceToHost),
+                                  host_offsets, error) &&
+         COMPRESSION_STATUS_CHECK(
+             cudaMemcpy(host_stream, resident->stream, limbs * sizeof(unsigned int), cudaMemcpyDeviceToHost),
+             host_stream, error);
     if (ok == 0)
     {
         return COMPRESSION_ERROR;
     }
     *request->chunks = chunks;
     *request->bits = bits;
-    *request->offsets = (const unsigned long long *)resident->host_offsets.cell;
-    *request->stream = (const unsigned int *)resident->host_stream.cell;
+    *request->offsets = host_offsets;
+    *request->stream = host_stream;
     return 0L;
+}
+
+int compression_host_room(unsigned long long chunks, unsigned long long limbs, unsigned long long **offsets,
+                          unsigned int **stream, EngineError *error)
+{
+    CompressionResident *const resident = &s_compression_resident;
+    // an array with no element size has not begun: it begins at its first copy
+    if (resident->host_offsets.element == 0ULL)
+    {
+        platform_array_begun(&resident->host_offsets, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+        platform_array_begun(&resident->host_stream, sizeof(unsigned int), platform_place_g_program_owner, 0);
+    }
+    if (!COMPRESSION_STATUS_CHECK(platform_array_counted(&resident->host_offsets, chunks) &&
+                                          platform_array_counted(&resident->host_stream, limbs + 1ULL)
+                                      ? cudaSuccess
+                                      : cudaErrorMemoryAllocation,
+                                  &resident->host_offsets, error))
+    {
+        return 0;
+    }
+    // Explicit casts read the cells of the arrays as the offsets and the words that they hold
+    *offsets = (unsigned long long *)resident->host_offsets.cell;
+    *stream = (unsigned int *)resident->host_stream.cell;
+    return 1;
 }
 
 extern "C" long compression_decode(const CompressionDecodeRequest *request)

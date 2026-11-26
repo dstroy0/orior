@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tower_job.cu: the lift of the tower as one job of the device (tower_lift_job). The host crosses the lattice and the
-// tables of the edges in, and the job lifts the lattice in one cooperative launch. It takes its scratch on the device,
-// syncs the grid between its stages, and leaves the overflow in its answer. The host crosses the coefficients and the
-// flag out, and agrees with the flag as tower_lift does.
+// tower_job.cu: the lift and the lower of the tower as jobs of the device (tower_lift_job, tower_lower_job). The host
+// crosses the lattice or the crystal and the tables of the edges in, and each job runs in one cooperative launch. It
+// takes its scratch on the device, syncs the grid between its stages, and leaves its flags in its answer. The host
+// crosses the answer out, and agrees with the flags as tower_lift and tower_lower do.
 #include "../../../../platform/platform.h"
 #include "../../../../platform/platform_device.h"
 #include "../../runtime/daemon/tessera_job.h"
@@ -115,49 +115,6 @@ __global__ void tower_lift_job_kernel(const TowerLiftJob *job)
     }
 }
 
-// The cells that a lift crosses in, last first as the temporary tier gives them back, and their count
-#define TOWER_JOB_CELLS_MAX (TOWER_FLOORS_MAX + 6u)
-struct TowerJobCells
-{
-    void *cell[TOWER_JOB_CELLS_MAX];
-    unsigned int count;
-};
-
-// `count` bytes of `bytes` crossed in, the cell kept for its give back. 1, or 0 where the crossing errors
-static int tower_job_in(TowerJobCells *cells, const void *bytes, unsigned long long count, void **cell)
-{
-    if ((cells->count >= TOWER_JOB_CELLS_MAX) ||
-        !tessera_job_crossed_in(bytes, count, platform_place_g_engine_owner, cell))
-    {
-        return 0;
-    }
-    cells->cell[cells->count] = *cell;
-    cells->count += 1u;
-    return 1;
-}
-
-// an empty cell of `count` bytes taken for the answer, kept for its give back. 1, or 0 where the take errors
-static int tower_job_room(TowerJobCells *cells, unsigned long long count, void **cell)
-{
-    if ((cells->count >= TOWER_JOB_CELLS_MAX) || !tessera_job_cell_taken(count, platform_place_g_engine_owner, cell))
-    {
-        return 0;
-    }
-    cells->cell[cells->count] = *cell;
-    cells->count += 1u;
-    return 1;
-}
-
-// every cell of the lift given back, the newest first
-static void tower_job_given(TowerJobCells *cells)
-{
-    while (cells->count > 0u)
-    {
-        cells->count -= 1u;
-        tessera_job_given(cells->cell[cells->count], platform_place_g_engine_owner);
-    }
-}
-
 extern "C" long tower_lift_job(const TowerLiftJobRequest *request)
 {
     if ((request == NULL) || (request->error == NULL))
@@ -188,13 +145,13 @@ extern "C" long tower_lift_job(const TowerLiftJobRequest *request)
     {
         return TOWER_ERROR;
     }
-    TowerJobCells cells;
-    cells.count = 0u;
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, platform_place_g_engine_owner);
     TowerJobEdge edges[TOWER_FLOORS_MAX];
     void *cell = NULL;
     int ok = (request->values != NULL)
-                 ? tower_job_in(&cells, request->values, job.count * sizeof(int), &cell)
-                 : tower_job_in(&cells, request->lanes, job.count * sizeof(unsigned short), &cell);
+                 ? tessera_job_cells_in(&cells, request->values, job.count * sizeof(int), &cell)
+                 : tessera_job_cells_in(&cells, request->lanes, job.count * sizeof(unsigned short), &cell);
     // Explicit casts read the cell as the lattice that crossed into it
     job.values = (request->values != NULL) ? (const int *)cell : NULL;
     job.lanes = (request->values != NULL) ? NULL : (const unsigned short *)cell;
@@ -203,24 +160,25 @@ extern "C" long tower_lift_job(const TowerLiftJobRequest *request)
         edges[at].floor = request->edges[at].floor;
         edges[at].index_bits = request->edges[at].index_bits;
         edges[at].inverse_at = 0ULL;
-        ok = tower_job_in(&cells, request->edges[at].forward,
-                          (1ULL << request->edges[at].index_bits) * sizeof(unsigned int), &cell);
+        ok = tessera_job_cells_in(&cells, request->edges[at].forward,
+                                  (1ULL << request->edges[at].index_bits) * sizeof(unsigned int), &cell);
         // Explicit cast reads the cell as the table that crossed into it
         edges[at].table = (const unsigned int *)cell;
     }
     job.edge_count = request->edge_count;
-    ok = ok && ((request->edge_count == 0u) ||
-                tower_job_in(&cells, edges, (unsigned long long)request->edge_count * sizeof(TowerJobEdge), &cell));
+    ok = ok &&
+         ((request->edge_count == 0u) ||
+          tessera_job_cells_in(&cells, edges, (unsigned long long)request->edge_count * sizeof(TowerJobEdge), &cell));
     // Explicit cast reads the cell as the edges that crossed into it
     job.edges = (request->edge_count != 0u) ? (const TowerJobEdge *)cell : NULL;
-    ok = ok && tower_job_room(&cells, job.count * sizeof(int), &cell);
+    ok = ok && tessera_job_cells_room(&cells, job.count * sizeof(int), &cell);
     // Explicit cast reads the cell as the room of the coefficients
     job.coefficients = (int *)cell;
-    ok = ok && tower_job_room(&cells, sizeof(unsigned int), &cell);
+    ok = ok && tessera_job_cells_room(&cells, sizeof(unsigned int), &cell);
     // Explicit cast reads the cell as the flag of the job
     job.flag = (unsigned int *)cell;
     void *job_cell = NULL;
-    ok = ok && tower_job_in(&cells, &job, sizeof(job), &job_cell);
+    ok = ok && tessera_job_cells_in(&cells, &job, sizeof(job), &job_cell);
     void *args[1] = {&job_cell};
     ok = TOWER_CHECK((ok != 0) && tessera_job_ran((const void *)tower_lift_job_kernel, TOWER_THREADS, args), request,
                      error, ENGINE_ERROR_RESOURCE);
@@ -231,7 +189,7 @@ extern "C" long tower_lift_job(const TowerLiftJobRequest *request)
          TOWER_CHECK(flag == 0u, request, error, ENGINE_ERROR_REQUEST) &&
          TOWER_CHECK(tessera_job_crossed_out(request->coefficients, job.coefficients, job.count * sizeof(int)), request,
                      error, ENGINE_ERROR_RESOURCE);
-    tower_job_given(&cells);
+    tessera_job_cells_given(&cells);
     if (ok == 0)
     {
         return TOWER_ERROR;
@@ -386,15 +344,15 @@ extern "C" long tower_lower_job(const TowerLowerJobRequest *request)
     {
         return TOWER_ERROR;
     }
-    TowerJobCells cells;
-    cells.count = 0u;
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, platform_place_g_engine_owner);
     TowerJobEdge edges[TOWER_FLOORS_MAX];
     void *cell = NULL;
-    int ok = tower_job_in(&cells, request->coefficients, job.count * sizeof(int), &cell);
+    int ok = tessera_job_cells_in(&cells, request->coefficients, job.count * sizeof(int), &cell);
     // Explicit cast reads the cell as the crystal that crossed into it, which the lower works on in place
     job.coefficients = (int *)cell;
-    ok = ok &&
-         ((request->lanes == NULL) || tower_job_in(&cells, request->lanes, job.count * sizeof(unsigned short), &cell));
+    ok = ok && ((request->lanes == NULL) ||
+                tessera_job_cells_in(&cells, request->lanes, job.count * sizeof(unsigned short), &cell));
     // Explicit cast reads the cell as the lanes that crossed into it
     job.lanes = (request->lanes != NULL) ? (const unsigned short *)cell : NULL;
     for (unsigned int at = 0u; (ok != 0) && (at < request->edge_count); at += 1u)
@@ -404,23 +362,24 @@ extern "C" long tower_lower_job(const TowerLowerJobRequest *request)
         edges[at].index_bits = request->edges[at].index_bits;
         edges[at].inverse_at = job.inverse_entries;
         job.inverse_entries += entries;
-        ok = tower_job_in(&cells, request->edges[at].forward, entries * sizeof(unsigned int), &cell);
+        ok = tessera_job_cells_in(&cells, request->edges[at].forward, entries * sizeof(unsigned int), &cell);
         // Explicit cast reads the cell as the table that crossed into it
         edges[at].table = (const unsigned int *)cell;
     }
     job.edge_count = request->edge_count;
-    ok = ok && ((request->edge_count == 0u) ||
-                tower_job_in(&cells, edges, (unsigned long long)request->edge_count * sizeof(TowerJobEdge), &cell));
+    ok = ok &&
+         ((request->edge_count == 0u) ||
+          tessera_job_cells_in(&cells, edges, (unsigned long long)request->edge_count * sizeof(TowerJobEdge), &cell));
     // Explicit cast reads the cell as the edges that crossed into it
     job.edges = (request->edge_count != 0u) ? (const TowerJobEdge *)cell : NULL;
-    ok = ok && tower_job_room(&cells, job.count * sizeof(unsigned short), &cell);
+    ok = ok && tessera_job_cells_room(&cells, job.count * sizeof(unsigned short), &cell);
     // Explicit cast reads the cell as the room of the rebuilt samples
     job.rebuilt = (unsigned short *)cell;
-    ok = ok && tower_job_room(&cells, sizeof(TowerLowerAnswer), &cell);
+    ok = ok && tessera_job_cells_room(&cells, sizeof(TowerLowerAnswer), &cell);
     // Explicit cast reads the cell as the answer of the lower
     job.answer = (TowerLowerAnswer *)cell;
     void *job_cell = NULL;
-    ok = ok && tower_job_in(&cells, &job, sizeof(job), &job_cell);
+    ok = ok && tessera_job_cells_in(&cells, &job, sizeof(job), &job_cell);
     void *args[1] = {&job_cell};
     ok = TOWER_CHECK((ok != 0) && tessera_job_ran((const void *)tower_lower_job_kernel, TOWER_THREADS, args), request,
                      error, ENGINE_ERROR_RESOURCE);
@@ -431,7 +390,7 @@ extern "C" long tower_lower_job(const TowerLowerJobRequest *request)
          TOWER_CHECK(answer.outside == 0u, request, error, ENGINE_ERROR_LOGIC) &&
          TOWER_CHECK(tessera_job_crossed_out(request->rebuilt, job.rebuilt, job.count * sizeof(unsigned short)),
                      request, error, ENGINE_ERROR_RESOURCE);
-    tower_job_given(&cells);
+    tessera_job_cells_given(&cells);
     if (ok == 0)
     {
         return TOWER_ERROR;

@@ -64,6 +64,13 @@ extern "C" int tessera_job_cell_taken(unsigned long long count, unsigned int pla
     return tessera_job_taken(count, place, 1, cell);
 }
 
+extern "C" int tessera_job_crossed_into(void *cell, const void *bytes, unsigned long long count)
+{
+    // Explicit cast takes the count of bytes in memory, which a size_t counts
+    return (count == 0ULL) ||
+           ((cell != NULL) && (cudaMemcpy(cell, bytes, (size_t)count, cudaMemcpyHostToDevice) == cudaSuccess));
+}
+
 extern "C" int tessera_job_crossed_out(void *bytes, const void *cell, unsigned long long count)
 {
     // Explicit cast takes the count of bytes in memory, which a size_t counts
@@ -101,4 +108,48 @@ extern "C" int tessera_job_ran(const void *kernel, unsigned int threads, void **
     const dim3 grid((unsigned int)(blocks_each * processors));
     return (cudaLaunchCooperativeKernel(kernel, grid, dim3(threads), args, 0, NULL) == cudaSuccess) &&
            (cudaDeviceSynchronize() == cudaSuccess);
+}
+
+extern "C" void tessera_job_cells_begun(TesseraJobCells *cells, unsigned int place)
+{
+    cells->count = 0u;
+    cells->place = place;
+}
+
+extern "C" int tessera_job_cells_kept(TesseraJobCells *cells, void *cell)
+{
+    if (cell == NULL)
+    {
+        return 1;
+    }
+    if (cells->count >= TESSERA_JOB_CELLS_MAX)
+    {
+        return 0;
+    }
+    cells->cell[cells->count] = cell;
+    cells->count += 1u;
+    return 1;
+}
+
+extern "C" int tessera_job_cells_in(TesseraJobCells *cells, const void *bytes, unsigned long long count, void **cell)
+{
+    *cell = NULL;
+    return (cells->count < TESSERA_JOB_CELLS_MAX) && tessera_job_crossed_in(bytes, count, cells->place, cell) &&
+           tessera_job_cells_kept(cells, *cell);
+}
+
+extern "C" int tessera_job_cells_room(TesseraJobCells *cells, unsigned long long count, void **cell)
+{
+    *cell = NULL;
+    return (cells->count < TESSERA_JOB_CELLS_MAX) && tessera_job_cell_taken(count, cells->place, cell) &&
+           tessera_job_cells_kept(cells, *cell);
+}
+
+extern "C" void tessera_job_cells_given(TesseraJobCells *cells)
+{
+    while (cells->count > 0u)
+    {
+        cells->count -= 1u;
+        tessera_job_given(cells->cell[cells->count], cells->place);
+    }
 }

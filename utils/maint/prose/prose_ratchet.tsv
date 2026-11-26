@@ -472,8 +472,6 @@ includes/window/top_menu.c	5
 includes/window/top_menu.h	4
 includes/window/work.h	4
 src/build_engine.sh	9
-src/cu/engine/analysis/compression/compression.cu	6
-src/cu/engine/analysis/compression/compression.h	3
 src/cu/engine/analysis/cycle/cycle.h	17
 src/cu/engine/analysis/cycle/cycle_compile.cu	22
 src/cu/engine/analysis/cycle/cycle_compile_cache.cu	8

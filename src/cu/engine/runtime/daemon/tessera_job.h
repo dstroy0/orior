@@ -25,6 +25,10 @@ extern "C"
     // answer into. 1, or 0 where the pool cannot meet the bytes
     int tessera_job_cell_taken(unsigned long long count, unsigned int place, void **cell);
 
+    // `count` bytes of `bytes` copied into the start of a cell that the job holds, such as a room of
+    // tessera_job_cell_taken with more bytes than the copy. 1, or 0 where the copy errors
+    int tessera_job_crossed_into(void *cell, const void *bytes, unsigned long long count);
+
     // `count` bytes of the cell copied back into `bytes` on the host: 1, or 0 where the copy errors
     int tessera_job_crossed_out(void *bytes, const void *cell, unsigned long long count);
 
@@ -35,6 +39,36 @@ extern "C"
     // its arguments `args`, and waited for. The call sets the stack of each thread first, as MMgr's CUDA guide asks. 1,
     // or 0 where the launch or the kernel errors
     int tessera_job_ran(const void *kernel, unsigned int threads, void **args);
+
+// the cells that one call of a job holds at max
+#define TESSERA_JOB_CELLS_MAX 96u
+
+    // The cells that one call of a job holds, counted to the owner at `place`, in the order that it took them. The
+    // call gives them back at its end, the newest first
+    typedef struct
+    {
+        void *cell[TESSERA_JOB_CELLS_MAX];
+        unsigned int count;
+        unsigned int place;
+    } TesseraJobCells;
+
+    // the list empty, for the owner at `place`
+    void tessera_job_cells_begun(TesseraJobCells *cells, unsigned int place);
+
+    // `count` bytes of `bytes` crossed in as tessera_job_crossed_in crosses them, the cell kept in the list. 1, or 0
+    // where the list is full or the crossing errors
+    int tessera_job_cells_in(TesseraJobCells *cells, const void *bytes, unsigned long long count, void **cell);
+
+    // an empty cell of `count` bytes taken as tessera_job_cell_taken takes it, the cell kept in the list. 1, or 0
+    // where the list is full or the take errors
+    int tessera_job_cells_room(TesseraJobCells *cells, unsigned long long count, void **cell);
+
+    // A cell that the job kernel took and left for the host, kept in the list for its give back. 1, or 0 where the
+    // list is full. A NULL cell is not kept, and the call gives 1
+    int tessera_job_cells_kept(TesseraJobCells *cells, void *cell);
+
+    // every cell of the list given back, the newest first, and the list empty
+    void tessera_job_cells_given(TesseraJobCells *cells);
 
 #ifdef __cplusplus
 }
