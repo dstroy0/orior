@@ -89,6 +89,24 @@ extern "C"
 
     long tower_lift_job(const TowerLiftJobRequest *request);
 
+    // A lower as one job of the device. The crystal `coefficients` of the lanes of the extent and the tables of the
+    // edges cross in, and `lanes` too where it is not NULL. The job inverts each table and lowers the crystal in one
+    // cooperative launch. The rebuilt samples cross out into `rebuilt`, and the count of the samples that differ from
+    // `lanes` into `mismatches`. A rebuilt value outside 16 bits errors as tower_lower errors on it.
+    typedef struct
+    {
+        const int *coefficients;
+        const unsigned short *lanes;
+        unsigned long long extent[4];
+        const TowerEdge *edges;
+        unsigned int edge_count;
+        unsigned long long *mismatches;
+        unsigned short *rebuilt;
+        EngineError *error;
+    } TowerLowerJobRequest;
+
+    long tower_lower_job(const TowerLowerJobRequest *request);
+
 // The ruleset of the wave transform. A line of values splits into two bands, the lows (its even values) and the highs
 // (its odd values). A lifting step moves one band by a rounded sum over the other:
 //     `target[a] += sign * floor((rounding + sum_k weight_k * other[a + offset_k]) / 2^shift)`.

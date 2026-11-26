@@ -1037,7 +1037,7 @@
       ]
     },
     "tower_job": {
-      "desc": "The lift of the tower as one job of the device, its lattice and edge tables crossed in through tessera and its coefficients crossed out, held to tower_lift coefficient for coefficient on seeded lattices with and without edges, and a value at the limit refused both ways.",
+      "desc": "The lift and the lower of the tower as jobs of the device, their lattices and edge tables crossed in through tessera and their answers crossed out. The lift agrees with tower_lift coefficient for coefficient on seeded lattices with and without edges, and a value at the limit errors both ways. The lower gives the lanes back after the lift job, and agrees with tower_lower sample for sample on a changed crystal.",
       "script": "utils/test/src/cu/engine/analysis/tower/tower_job_test.sh",
       "src": [
         "+<cu/engine/analysis/tower/*>",

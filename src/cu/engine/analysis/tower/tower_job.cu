@@ -12,12 +12,14 @@
 
 #include <cooperative_groups.h>
 
-// one edge as the job reads it: its floor, its index bits and its table in the memory of the device
+// One edge as the job reads it: its floor, its index bits and its table in the memory of the device. A lower also reads
+// the place of its inverse table in the one cell of the inverse tables, which the lower job takes and fills
 struct TowerJobEdge
 {
     unsigned int floor;
     unsigned int index_bits;
     const unsigned int *table;
+    unsigned long long inverse_at;
 };
 
 // What the job reads, which crosses in as one cell: the lattice, the floors, the edges and the cells of its answer
@@ -200,6 +202,7 @@ extern "C" long tower_lift_job(const TowerLiftJobRequest *request)
     {
         edges[at].floor = request->edges[at].floor;
         edges[at].index_bits = request->edges[at].index_bits;
+        edges[at].inverse_at = 0ULL;
         ok = tower_job_in(&cells, request->edges[at].forward,
                           (1ULL << request->edges[at].index_bits) * sizeof(unsigned int), &cell);
         // Explicit cast reads the cell as the table that crossed into it
@@ -234,5 +237,205 @@ extern "C" long tower_lift_job(const TowerLiftJobRequest *request)
         return TOWER_ERROR;
     }
     *request->floors = job.floors.count;
+    return 0L;
+}
+
+// What the lower answers. The first is the count of the samples that differ from the lanes. The second is a flag of 1
+// where a rebuilt value is outside 16 bits, or 2 where the device refuses a cell of the job
+struct TowerLowerAnswer
+{
+    unsigned long long mismatches;
+    unsigned int outside;
+};
+
+// What the lower reads, which crosses in as one cell. It holds the crystal, the lanes to compare, the floors and the
+// edges. It also holds the words of the inverse tables and the cells of the answer
+struct TowerLowerJob
+{
+    int *coefficients;
+    const unsigned short *lanes;
+    unsigned long long count;
+    unsigned long long extent[4];
+    TowerFloors floors;
+    const TowerJobEdge *edges;
+    unsigned int edge_count;
+    unsigned long long inverse_entries;
+    unsigned short *rebuilt;
+    TowerLowerAnswer *answer;
+};
+
+// the one cell of the inverse tables of the lower, which its first thread takes after the scratch
+static __device__ unsigned int *s_tower_inverse;
+
+// The edges of floor `floor_at` undone, the last edge first, each through its inverse table, then a sync of the grid
+static __device__ void tower_job_edges_undone(const TowerLowerJob *job, unsigned int floor_at,
+                                              const cooperative_groups::grid_group &grid)
+{
+    TowerStep region;
+    tower_edge_region(&job->floors, job->extent, floor_at, &region);
+    for (unsigned int scan = 0u; scan < job->edge_count; scan += 1u)
+    {
+        const TowerJobEdge *const edge = &job->edges[job->edge_count - 1u - scan];
+        if (edge->floor != floor_at)
+        {
+            continue;
+        }
+        tower_edge_span(job->coefficients, region, s_tower_inverse + edge->inverse_at, edge->index_bits,
+                        grid.thread_rank(), grid.size());
+        grid.sync();
+    }
+}
+
+// The lower. It takes the scratch and the cell of the inverse tables, and fills each inverse table from its forward
+// one. It undoes the edges of the last floor, then each level along each axis in reverse with the edges before it.
+// Then it counts the samples that differ from the lanes and narrows the crystal into the rebuilt samples
+__global__ void tower_lower_job_kernel(const TowerLowerJob *job)
+{
+    cooperative_groups::grid_group grid = cooperative_groups::this_grid();
+    const unsigned long long first = grid.thread_rank();
+    const unsigned long long jump = grid.size();
+    if (first == 0ULL)
+    {
+        // Explicit casts take the addresses of the cells as their ints and words
+        s_tower_scratch = (int *)platform_device_cell_taken(job->count * sizeof(int), platform_place_g_engine_owner, 1);
+        s_tower_inverse = (unsigned int *)platform_device_cell_taken(job->inverse_entries * sizeof(unsigned int),
+                                                                     platform_place_g_engine_owner, 1);
+        if ((s_tower_scratch == NULL) || ((s_tower_inverse == NULL) && (job->inverse_entries != 0ULL)))
+        {
+            job->answer->outside = 2u;
+        }
+    }
+    grid.sync();
+    if (job->answer->outside == 2u)
+    {
+        return;
+    }
+    // each inverse table, as many words as its forward one, the index that each word of the forward table names
+    for (unsigned int at = 0u; at < job->edge_count; at += 1u)
+    {
+        const TowerJobEdge *const edge = &job->edges[at];
+        const unsigned long long entries = 1ULL << edge->index_bits;
+        for (unsigned long long index = first; index < entries; index += jump)
+        {
+            // Explicit cast takes the index below 2^TOWER_EDGE_INDEX_BITS_MAX, which a word holds
+            s_tower_inverse[edge->inverse_at + edge->table[index]] = (unsigned int)index;
+        }
+    }
+    grid.sync();
+    tower_job_edges_undone(job, job->floors.count, grid);
+    for (unsigned int level = job->floors.count; level > 0u; level -= 1u)
+    {
+        for (unsigned int axis = 4u; axis > 0u; axis -= 1u)
+        {
+            TowerStep step = job->floors.step[level - 1u];
+            if (step.extent[axis - 1u] < 2ULL)
+            {
+                continue;
+            }
+            step.axis = axis - 1u;
+            tower_inverse_span(job->coefficients, s_tower_scratch, step, first, jump);
+            grid.sync();
+            tower_copy_span(s_tower_scratch, job->coefficients, step, first, jump);
+            grid.sync();
+        }
+        // the edges that the lift ran before the lifting of this level
+        tower_job_edges_undone(job, level - 1u, grid);
+    }
+    if (job->lanes != NULL)
+    {
+        tower_differ_span(job->coefficients, job->lanes, job->count, &job->answer->mismatches, first, jump);
+    }
+    tower_narrow_span(job->coefficients, job->count, job->rebuilt, &job->answer->outside, first, jump);
+    grid.sync();
+    if (first == 0ULL)
+    {
+        platform_device_cell_released(s_tower_inverse, platform_place_g_engine_owner);
+        platform_device_cell_released(s_tower_scratch, platform_place_g_engine_owner);
+        s_tower_inverse = NULL;
+        s_tower_scratch = NULL;
+    }
+}
+
+extern "C" long tower_lower_job(const TowerLowerJobRequest *request)
+{
+    if ((request == NULL) || (request->error == NULL))
+    {
+        return TOWER_ERROR;
+    }
+    EngineError *const error = request->error;
+    if (!TOWER_CHECK((request->coefficients != NULL) && (request->mismatches != NULL) && (request->rebuilt != NULL) &&
+                         ((request->edges != NULL) || (request->edge_count == 0u)) &&
+                         (request->edge_count <= TOWER_FLOORS_MAX),
+                     request, error, ENGINE_ERROR_REQUEST))
+    {
+        return TOWER_ERROR;
+    }
+    TowerLowerJob job;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &job, .bytes = sizeof(job), .val = 0);
+    job.count = tower_lanes(request->extent);
+    if (!TOWER_CHECK(job.count != 0ULL, request->extent, error, ENGINE_ERROR_REQUEST))
+    {
+        return TOWER_ERROR;
+    }
+    for (unsigned int axis = 0u; axis < 4u; axis += 1u)
+    {
+        job.extent[axis] = request->extent[axis];
+    }
+    tower_floors(request->extent, &job.floors);
+    if (tower_edge_check(request->edges, request->edge_count, job.floors.count, error) == 0)
+    {
+        return TOWER_ERROR;
+    }
+    TowerJobCells cells;
+    cells.count = 0u;
+    TowerJobEdge edges[TOWER_FLOORS_MAX];
+    void *cell = NULL;
+    int ok = tower_job_in(&cells, request->coefficients, job.count * sizeof(int), &cell);
+    // Explicit cast reads the cell as the crystal that crossed into it, which the lower works on in place
+    job.coefficients = (int *)cell;
+    ok = ok &&
+         ((request->lanes == NULL) || tower_job_in(&cells, request->lanes, job.count * sizeof(unsigned short), &cell));
+    // Explicit cast reads the cell as the lanes that crossed into it
+    job.lanes = (request->lanes != NULL) ? (const unsigned short *)cell : NULL;
+    for (unsigned int at = 0u; (ok != 0) && (at < request->edge_count); at += 1u)
+    {
+        const unsigned long long entries = 1ULL << request->edges[at].index_bits;
+        edges[at].floor = request->edges[at].floor;
+        edges[at].index_bits = request->edges[at].index_bits;
+        edges[at].inverse_at = job.inverse_entries;
+        job.inverse_entries += entries;
+        ok = tower_job_in(&cells, request->edges[at].forward, entries * sizeof(unsigned int), &cell);
+        // Explicit cast reads the cell as the table that crossed into it
+        edges[at].table = (const unsigned int *)cell;
+    }
+    job.edge_count = request->edge_count;
+    ok = ok && ((request->edge_count == 0u) ||
+                tower_job_in(&cells, edges, (unsigned long long)request->edge_count * sizeof(TowerJobEdge), &cell));
+    // Explicit cast reads the cell as the edges that crossed into it
+    job.edges = (request->edge_count != 0u) ? (const TowerJobEdge *)cell : NULL;
+    ok = ok && tower_job_room(&cells, job.count * sizeof(unsigned short), &cell);
+    // Explicit cast reads the cell as the room of the rebuilt samples
+    job.rebuilt = (unsigned short *)cell;
+    ok = ok && tower_job_room(&cells, sizeof(TowerLowerAnswer), &cell);
+    // Explicit cast reads the cell as the answer of the lower
+    job.answer = (TowerLowerAnswer *)cell;
+    void *job_cell = NULL;
+    ok = ok && tower_job_in(&cells, &job, sizeof(job), &job_cell);
+    void *args[1] = {&job_cell};
+    ok = TOWER_CHECK((ok != 0) && tessera_job_ran((const void *)tower_lower_job_kernel, TOWER_THREADS, args), request,
+                     error, ENGINE_ERROR_RESOURCE);
+    TowerLowerAnswer answer = {0ULL, 1u};
+    ok = ok && TOWER_CHECK(tessera_job_crossed_out(&answer, job.answer, sizeof(answer)), request, error,
+                           ENGINE_ERROR_RESOURCE);
+    ok = ok && TOWER_CHECK(answer.outside != 2u, request, error, ENGINE_ERROR_RESOURCE) &&
+         TOWER_CHECK(answer.outside == 0u, request, error, ENGINE_ERROR_LOGIC) &&
+         TOWER_CHECK(tessera_job_crossed_out(request->rebuilt, job.rebuilt, job.count * sizeof(unsigned short)),
+                     request, error, ENGINE_ERROR_RESOURCE);
+    tower_job_given(&cells);
+    if (ok == 0)
+    {
+        return TOWER_ERROR;
+    }
+    *request->mismatches = answer.mismatches;
     return 0L;
 }

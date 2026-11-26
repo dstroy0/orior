@@ -2,7 +2,8 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # The lift as one job of the device (tower_lift_job), held to tower_lift coefficient for coefficient on seeded lattices,
-# with and without edges, and a value at the limit refused both ways.
+# with and without edges, and a value at the limit refused both ways. The lower as one job (tower_lower_job) gives the
+# lanes back after the lift job, and lowers a changed crystal as tower_lower lowers it.
 set -u
 
 TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
