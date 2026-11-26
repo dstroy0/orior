@@ -1764,12 +1764,25 @@ static unsigned int s_timeout_source = GUI_WINDOW_WAKES;
 const char *const g_gui_window_wake_names[GUI_WINDOW_WAKES] = {
     "autohide", "scroll",  "slide",  "ground",   "preferences", "dialog", "wordmark", "caret",
     "sides",    "busy",    "panels", "terminal", "notices",     "menus",  "runs",     "search",
-    "git",      "preview", "comms",  "debug",    "tip",         "bead",   "overseer",
+    "git",      "preview", "comms",  "debug",    "tip",         "bead",   "overseer", "glide",
 };
 
 unsigned int gui_window_timeout_source(void)
 {
     return s_timeout_source;
+}
+
+// a stage from now while the window's own pointer or a hand glides, and 0 while none glides
+EMBED_INLINE unsigned long long window_glide_due_ms(const GuiWindowCtx *args)
+{
+    for (unsigned int hand = 0u; hand <= GUI_WINDOW_HANDS; hand += 1u)
+    {
+        if (args->window_read->glide[hand].active)
+        {
+            return cli_clock_milliseconds() + GUI_STAGE_MS;
+        }
+    }
+    return 0ULL;
 }
 
 static unsigned long long window_timeout_ms_called(const GuiWindowInputCfg *args)
@@ -1833,6 +1846,7 @@ static unsigned long long window_timeout_ms_called(const GuiWindowInputCfg *args
             : 0ULL,
         // the overseer's next tick while it has a record, or the next half blink while a dot blinks
         EMBED_CALL(cli_overseer.due_ms, CliOverseerCfg, .now_ms = now_ms),
+        EMBED_CALL(window_glide_due_ms, GuiWindowCtx, .window_read = window),
     };
     _Static_assert((sizeof(deadlines) / sizeof(deadlines[0])) == GUI_WINDOW_WAKES,
                    "each deadline of the window needs its name in g_gui_window_wake_names");
@@ -3572,7 +3586,7 @@ EMBED_INLINE int window_file_is(const GuiWindowCtx *args)
 EMBED_INLINE void window_path_whole(const GuiWindowCtx *args)
 {
     const char *const name = args->name;
-    const int whole = (name[0] == '/') || (name[0] == '\\') || ((name[0] != '\0') && (name[1] == ':'));
+    const int whole = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = name) != 0ULL;
     VerbaLinea line = {args->value_out, CLI_PATH_MAX_LEN, 0ULL};
     if (!whole)
     {
@@ -5928,7 +5942,7 @@ EMBED_INLINE void window_glide_step(const GuiWindowCtx *args)
         const float covered =
             ((float)glide->speed * (float)((since_ms < GUI_GLIDE_STALL_MS) ? since_ms : GUI_GLIDE_STALL_MS)) / 1000.0f;
         glide->last_ms = now_ms;
-        window->pending = 1;
+        // The glide's deadline brings the next step. A step owes a frame only where its move changes what shows
         if (covered <= 0.0f)
         {
             continue;
@@ -6137,6 +6151,12 @@ static int window_command_named(const char *command, const char *const *words, u
     if (window == NULL)
     {
         return 0;
+    }
+    // A command can change any part of the window, and it owes a frame. The pointer's command owes none of its own.
+    // Each input it drives owes the frame that its handler finds
+    if (!EMBED_CALL(window_is, GuiWindowCtx, .name = command, .key = "pointer"))
+    {
+        window->pending = 1;
     }
     // The door macros: a macro starts under a name or ends, the macros list, and one goes away. One goes to every host
     // as often as asked, on the hand the sender's name gives. The door holds each until the window steps, and a send
@@ -6682,7 +6702,8 @@ void gui_window_start(const GuiWindowCfg *args)
 static void window_step_called(const GuiWindowCfg *args)
 {
     GuiWindow *const window = args->window;
-    window->pending = cli_reach_take(&(CliReachCfg){.run = window_command_named}) || window->pending;
+    // each command owes the frame that window_command_named gives it
+    (void)cli_reach_take(&(CliReachCfg){.run = window_command_named});
     EMBED_CALL(window_glide_step, GuiWindowCtx, .window = window);
     // The door's read of the relative motion, kept as it came. It answers the counts added up since the last read, and
     // the counts start again. A count of a mouse moved for years is far inside 20 digits

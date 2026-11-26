@@ -47,7 +47,8 @@ int cli_paste_name(const CliFilesPathNameCtx *args)
     }
     const unsigned long long length = end - start;
     const int up = (length == 2ULL) && (args->path[start] == '.') && (args->path[start + 1ULL] == '.');
-    const int drive = (start == 0ULL) && (length == 2ULL) && (args->path[1] == ':');
+    const int drive = (start == 0ULL) && (length == 2ULL) &&
+                      (EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = args->path) >= 2ULL);
     if ((length == 0ULL) || (length >= CLI_PATH_MAX_LEN) || up || drive)
     {
         return 0;

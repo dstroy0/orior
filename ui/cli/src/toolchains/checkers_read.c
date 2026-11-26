@@ -117,8 +117,7 @@ unsigned int cli_checkers_file_get(const CliCheckersCtx *args)
         return EMBED_CALL(cli_checkers_path_internal.file, CliCheckersPathCtx, .findings = s_read->findings,
                           .path = s_read->path, .first = 0);
     }
-    const int absolute =
-        (supplied[0] == '/') || (supplied[0] == '\\') || ((supplied[0] != '\0') && (supplied[1] == ':'));
+    const int absolute = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = supplied) != 0ULL;
     char path[CLI_PATH_MAX_LEN];
     if (absolute)
     {

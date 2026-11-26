@@ -836,6 +836,12 @@ void gui_system_wake(const GuiSystemCfg *args)
     (void)write(args->system->wake_pipe[1], &one, 1u);
 }
 
+int gui_system_refresh_wait(void)
+{
+    // X11 gives no wait for the display's refresh to a window that draws through its own calls
+    return 0;
+}
+
 // `raster`'s pixels put after `at` of `data` as the icon property positions them, the width, the height and then each
 // pixel as a word: the words put
 EMBED_INLINE unsigned long system_icon_append(const SystemX11Ctx *args)

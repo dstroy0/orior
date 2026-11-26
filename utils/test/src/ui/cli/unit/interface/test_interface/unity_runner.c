@@ -2,6 +2,7 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
+#include "ui/cli/src/comms/comms.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/comms/comms.h"
 #include "ui/cli/src/comms/interface.h"
@@ -90,24 +91,24 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/interface/test_interface/test_interface.c");
-  run_test(test_a_process_joins_by_its_key, "test_a_process_joins_by_its_key", 348);
-  run_test(test_a_process_listens_on_its_channels, "test_a_process_listens_on_its_channels", 355);
-  run_test(test_a_message_on_its_channel_reaches_it, "test_a_message_on_its_channel_reaches_it", 361);
-  run_test(test_a_message_is_received_with_its_speaker, "test_a_message_is_received_with_its_speaker", 367);
-  run_test(test_a_note_is_received_by_both_its_listeners, "test_a_note_is_received_by_both_its_listeners", 377);
-  run_test(test_a_part_may_not_send_where_its_key_does_not_permit, "test_a_part_may_not_send_where_its_key_does_not_permit", 386);
-  run_test(test_a_part_may_not_listen_where_its_key_does_not_permit, "test_a_part_may_not_listen_where_its_key_does_not_permit", 393);
-  run_test(test_a_key_of_another_process_is_refused, "test_a_key_of_another_process_is_refused", 400);
-  run_test(test_a_key_of_no_part_is_refused, "test_a_key_of_no_part_is_refused", 407);
-  run_test(test_a_key_of_the_containers_own_is_refused, "test_a_key_of_the_containers_own_is_refused", 414);
-  run_test(test_a_persistent_key_is_accepted_from_any_process, "test_a_persistent_key_is_accepted_from_any_process", 421);
-  run_test(test_a_persistent_key_sends_on_its_own_channel, "test_a_persistent_key_sends_on_its_own_channel", 429);
-  run_test(test_a_persistent_key_receives_its_answer, "test_a_persistent_key_receives_its_answer", 437);
-  run_test(test_a_persistent_key_is_refused_a_channel_it_does_not_name, "test_a_persistent_key_is_refused_a_channel_it_does_not_name", 445);
-  run_test(test_a_key_not_persistent_is_accepted_from_its_own_process_alone, "test_a_key_not_persistent_is_accepted_from_its_own_process_alone", 451);
-  run_test(test_a_key_of_a_process_is_accepted_from_every_process_under_it, "test_a_key_of_a_process_is_accepted_from_every_process_under_it", 457);
-  run_test(test_a_frame_end_the_max_a_frame_accepts_is_not_read, "test_a_frame_end_the_max_a_frame_accepts_is_not_read", 480);
-  run_test(test_every_position_is_released_once_its_process_is_removed, "test_every_position_is_released_once_its_process_is_removed", 508);
+  run_test(test_a_process_joins_by_its_key, "test_a_process_joins_by_its_key", 349);
+  run_test(test_a_process_listens_on_its_channels, "test_a_process_listens_on_its_channels", 356);
+  run_test(test_a_message_on_its_channel_reaches_it, "test_a_message_on_its_channel_reaches_it", 362);
+  run_test(test_a_message_is_received_with_its_speaker, "test_a_message_is_received_with_its_speaker", 368);
+  run_test(test_a_note_is_received_by_both_its_listeners, "test_a_note_is_received_by_both_its_listeners", 378);
+  run_test(test_a_part_may_not_send_where_its_key_does_not_permit, "test_a_part_may_not_send_where_its_key_does_not_permit", 387);
+  run_test(test_a_part_may_not_listen_where_its_key_does_not_permit, "test_a_part_may_not_listen_where_its_key_does_not_permit", 394);
+  run_test(test_a_key_of_another_process_is_refused, "test_a_key_of_another_process_is_refused", 401);
+  run_test(test_a_key_of_no_part_is_refused, "test_a_key_of_no_part_is_refused", 408);
+  run_test(test_a_key_of_the_containers_own_is_refused, "test_a_key_of_the_containers_own_is_refused", 415);
+  run_test(test_a_persistent_key_is_accepted_from_any_process, "test_a_persistent_key_is_accepted_from_any_process", 422);
+  run_test(test_a_persistent_key_sends_on_its_own_channel, "test_a_persistent_key_sends_on_its_own_channel", 430);
+  run_test(test_a_persistent_key_receives_its_answer, "test_a_persistent_key_receives_its_answer", 438);
+  run_test(test_a_persistent_key_is_refused_a_channel_it_does_not_name, "test_a_persistent_key_is_refused_a_channel_it_does_not_name", 446);
+  run_test(test_a_key_not_persistent_is_accepted_from_its_own_process_alone, "test_a_key_not_persistent_is_accepted_from_its_own_process_alone", 452);
+  run_test(test_a_key_of_a_process_is_accepted_from_every_process_under_it, "test_a_key_of_a_process_is_accepted_from_every_process_under_it", 458);
+  run_test(test_a_frame_end_the_max_a_frame_accepts_is_not_read, "test_a_frame_end_the_max_a_frame_accepts_is_not_read", 481);
+  run_test(test_every_position_is_released_once_its_process_is_removed, "test_every_position_is_released_once_its_process_is_removed", 509);
 
   return UNITY_END();
 }

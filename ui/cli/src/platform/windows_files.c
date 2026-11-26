@@ -14,6 +14,47 @@ unsigned int cli_system_error(void)
     return (unsigned int)GetLastError();
 }
 
+unsigned long long cli_path_top(const CliPathCtx *args)
+{
+    const char *const path = args->path;
+    if ((path[0] == '/') || (path[0] == '\\'))
+    {
+        return 1ULL;
+    }
+    if ((path[0] == '\0') || (path[1] != ':'))
+    {
+        return 0ULL;
+    }
+    return ((path[2] == '/') || (path[2] == '\\')) ? 3ULL : 2ULL;
+}
+
+int cli_path_absolute(const CliPathCtx *args)
+{
+    const char *const path = args->path;
+    const char letter = (char)(path[0] | 0x20);
+    const int drive = (letter >= 'a') && (letter <= 'z') && (path[1] == ':') && ((path[2] == '\\') || (path[2] == '/'));
+    const int shared = ((path[0] == '\\') || (path[0] == '/')) && ((path[1] == '\\') || (path[1] == '/'));
+    return drive || shared;
+}
+
+void cli_path_onto(const CliPathJoinCtx *args)
+{
+    const char *const path = args->path;
+    const int drive = (path[0] != '\0') && (path[1] == ':');
+    const int separated = (path[0] == '/') || (path[0] == '\\');
+    const int shared = separated && ((path[1] == '/') || (path[1] == '\\'));
+    if (separated && !shared && (args->root[0] != '\0') && (args->root[1] == ':'))
+    {
+        mmgr_line_put_n(args->out, args->root, 2u);
+    }
+    else if (!drive && !separated)
+    {
+        mmgr_line_put(args->out, args->root);
+        mmgr_line_ch(args->out, '\\');
+    }
+    mmgr_line_put(args->out, path);
+}
+
 void cli_system_reason(const CliErrorCtx *args)
 {
     char reason[512];

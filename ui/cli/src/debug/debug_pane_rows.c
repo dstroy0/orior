@@ -48,10 +48,12 @@ typedef struct
 // whether `length` bytes of `text` start a path outside any tree: a root, a drive or a share
 EMBED_INLINE int rows_absolute(const DebugPaneRowsCtx *args)
 {
-    const char *const text = args->text;
-    return (args->length != 0ULL) &&
-           ((text[0] == '/') || (text[0] == '\\') ||
-            ((args->length > 2ULL) && (text[1] == ':') && ((text[2] == '/') || (text[2] == '\\'))));
+    // The call reads the top from the first three bytes of the text, with a terminator. The read stays inside the text.
+    // A drive with no separator after it is no root
+    char head[4] = {0};
+    memor.cpy(&(MemoriaCfg){.dst = head, .src = args->text, .bytes = (args->length < 3ULL) ? args->length : 3ULL});
+    const unsigned long long top = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = head);
+    return (top != 0ULL) && (top != 2ULL);
 }
 
 // a path the adapter wrote as the JSON string the pane reads it as: from the tree's top where it is under the tree

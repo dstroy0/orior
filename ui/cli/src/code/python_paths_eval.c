@@ -89,7 +89,7 @@ void cli_py_parent(const CliPythonPathsOutCtx *args)
     {
         length = 1ULL;
     }
-    else if ((at == 2ULL) && (args->path[1] == ':'))
+    else if ((at == 2ULL) && (EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = args->path) == 3ULL))
     {
         length = 3ULL;
     }
@@ -103,13 +103,7 @@ void cli_py_parent(const CliPythonPathsOutCtx *args)
 // whether a path is alone when it is joined onto another
 EMBED_INLINE int cli_absolute(const PythonPathsEvalCtx *args)
 {
-#if defined(_WIN32)
-    const int drive = (((args->part[0] | 0x20) >= 'a') && ((args->part[0] | 0x20) <= 'z')) && (args->part[1] == ':') &&
-                      EMBED_CALL(cli_parts, PythonPathsEvalCtx, .character = args->part[2]);
-    return drive || ((args->part[0] == '\\') && (args->part[1] == '\\'));
-#else
-    return args->part[0] == '/';
-#endif
+    return EMBED_CALL(cli_path_internal.absolute, CliPathCtx, .path = args->part);
 }
 
 // `part` joined onto `base` as `os.path.join` joins them, written into `out`

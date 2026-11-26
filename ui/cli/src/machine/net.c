@@ -177,12 +177,10 @@ int cli_net_local(const CliNetHostCfg *args)
 
 int cli_net_path(const CliNetAddressCfg *args)
 {
-    const char first = args->address[0];
-    return (first == '/') || (first == '\\') || (first == '.') ||
-           (cellul.starts(&(CatenaFinitaCfg){.src = args->address, .other = "file://", .cap = CLI_POOL_BYTES})) ||
-           ((cellul.len(&(CatenaFinitaCfg){.src = args->address, .cap = CLI_POOL_BYTES}) > 2u) &&
-            (((first | 0x20) >= 'a') && ((first | 0x20) <= 'z')) && (args->address[1] == ':') &&
-            ((args->address[2] == '\\') || (args->address[2] == '/')));
+    // A drive with no separator after it is no root, and `c:8080` stays a host and its port
+    const unsigned long long top = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = args->address);
+    return ((top != 0ULL) && (top != 2ULL)) || (args->address[0] == '.') ||
+           (cellul.starts(&(CatenaFinitaCfg){.src = args->address, .other = "file://", .cap = CLI_POOL_BYTES}));
 }
 
 // One address reached logged as a line of network.jsonl, the file cut to its last CLI_NET_LOG_MAX_LINES where it

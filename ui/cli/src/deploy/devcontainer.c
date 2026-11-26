@@ -160,9 +160,12 @@ void cli_devcontainer_name(const CliDevcontainerRootNameCfg *args)
     const char *base = end;
     base = args->root + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->root,
                                    .at = (unsigned long long)(base - args->root), .set = "/\\");
-    base += ((base < end) && (base[0] != '\0') && (end - base == 2) && (base[1] == ':')) ? 2 : 0;
-    // each character in lower case, retained where docker takes it in a name and a '-' where not, one for each character past
-    // ASCII; the '-' at each end left off
+    // a last part that is the top of a drive names no folder
+    base += ((base < end) && (end - base == 2) && (EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = base) >= 2ULL))
+                ? 2
+                : 0;
+    // Each character goes in lower case where docker takes it in a name. Each other character becomes a '-', one for
+    // each character past ASCII. The name keeps no '-' at either end
     char docker_name[CLI_PATH_MAX_LEN];
     unsigned long long length = 0ULL;
     {

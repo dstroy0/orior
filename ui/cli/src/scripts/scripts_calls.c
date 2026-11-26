@@ -23,6 +23,9 @@
 #define CLI_SCRIPTS_FILE_MAX (CLI_LSP_ANSWERED / 8ULL)
 #define CLI_SCRIPTS_NO_RIGHT CLI_SCRIPTS_RIGHTS
 
+// the bytes of the copy that a read of the keychain reads one secret into, its 0 with them
+#define CLI_SCRIPTS_SECRET_MAX 4096u
+
 // One call that waits on the reader: whether it holds its place, its plugin, and the right that it needs. Then the
 // server that waits on its answer, the request's id as JSON, and its params in a cell of the call's own
 typedef struct
@@ -151,17 +154,25 @@ static void calls_files_write(const ScriptsCallsCtx *args)
     }
 }
 
-// One listing of the tree's files into an answer: the answer, and whether a path went into it before
+// One listing of the tree's files into an answer: the answer, and the plugin whose reads hold the list. Then whether a
+// path went into the answer before
 typedef struct
 {
     VerbaLinea *answer;
+    const char *id;
     int listed;
 } ScriptsListing;
 
-// one file of the tree written into the answer as a JSON string, with a comma before each file but the first
+// One file of the tree that the plugin's reads names, written into the answer as a JSON string. A comma comes before
+// each file but the first
 static void calls_tree_listed(const CliEachPathLengthCfg *args)
 {
     ScriptsListing *const listing = (ScriptsListing *)args->context;
+    if (!EMBED_CALL(cli_scripts_rights.named, CliScriptsRightsCfg, .id = listing->id, .right = CLI_SCRIPTS_READS,
+                    .name = args->path))
+    {
+        return;
+    }
     if (listing->listed)
     {
         mmgr_line_ch(listing->answer, ',');
@@ -171,8 +182,9 @@ static void calls_tree_listed(const CliEachPathLengthCfg *args)
                .text_bytes = (const unsigned char *)args->path, .length = args->length);
 }
 
-// tree.files(): the tree's files as a JSON array, each its path from the top with `/` between its folders. Git gives
-// the list where git reads the tree. The call refuses a list that does not fit in one answer, and never cuts it
+// tree.files(): the tree's files that the plugin's reads names, as a JSON array, each its path from the top with `/`
+// between its folders. Git gives the list where git reads the tree. The call refuses a list that does not fit in one
+// answer, and never cuts it
 static void calls_tree_files(const ScriptsCallsCtx *args)
 {
     if (!s_rooted)
@@ -181,7 +193,7 @@ static void calls_tree_files(const ScriptsCallsCtx *args)
         return;
     }
     const unsigned long long before = args->answer->at;
-    ScriptsListing listing = {args->answer, 0};
+    ScriptsListing listing = {args->answer, args->id, 0};
     mmgr_line_ch(args->answer, '[');
     int git = 0;
     const int whole = EMBED_CALL(cli_files_root_each_context.list, CliFilesRootEachContextCfg, .root = s_root,
@@ -214,9 +226,8 @@ static void calls_tree_relative(const ScriptsCallsCtx *args)
     }
     char relative[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .path = path, .root = s_root, .relative_out = relative);
-    // A path outside the tree and its mounts comes back whole. It starts at the top of a system or at a drive
-    const int outside = (relative[0] == '/') || ((relative[0] != '\0') && (relative[1] == ':'));
-    if (outside)
+    // a path outside the tree and its mounts comes back whole, with a top of its own
+    if (EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = relative) != 0ULL)
     {
         mmgr_line_put(args->answer, "null");
         return;
@@ -224,6 +235,79 @@ static void calls_tree_relative(const ScriptsCallsCtx *args)
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->answer,
                .text_bytes = (const unsigned char *)relative,
                .length = cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_PATH_MAX_LEN}));
+}
+
+// the keychain's service of the plugin `id` into `path_out`, sized for CLI_NAME_MAX_LEN * 2: "plugin " and the id
+EMBED_INLINE void calls_secret_service(const ScriptsCallsCtx *args)
+{
+    VerbaLinea service = {args->path_out, CLI_NAME_MAX_LEN * 2u, 0ULL};
+    mmgr_line_put(&service, "plugin ");
+    mmgr_line_put(&service, args->id);
+    (void)mmgr_line_finish(&service);
+}
+
+// secrets.read(key): the secret that the plugin stored under `key` in the system's keychain, as a JSON string, null
+// where it stored none
+static void calls_secrets_read(const ScriptsCallsCtx *args)
+{
+    const char *const key =
+        EMBED_CALL(calls_string, ScriptsCallsCtx, .json = args->json, .args = args->args, .index = 0u);
+    if (key == NULL)
+    {
+        EMBED_CALL(calls_refused, ScriptsCallsCtx, .answer = args->answer, .why = "the key is no string");
+        return;
+    }
+    char service[CLI_NAME_MAX_LEN * 2u];
+    EMBED_CALL(calls_secret_service, ScriptsCallsCtx, .id = args->id, .path_out = service);
+    char secret[CLI_SCRIPTS_SECRET_MAX];
+    if (!EMBED_CALL(cli_service_internal.keychain_read, CliServiceCtx, .service = service, .account = key,
+                    .out = secret, .capacity = sizeof(secret)))
+    {
+        mmgr_line_put(args->answer, "null");
+        return;
+    }
+    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->answer,
+               .text_bytes = (const unsigned char *)secret,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = secret, .cap = sizeof(secret)}));
+}
+
+// secrets.write(key, secret): the secret stored under `key` in the system's keychain, or forgotten where it is null,
+// null after. The keychain refuses a secret past what it keeps, with the system's reason
+static void calls_secrets_write(const ScriptsCallsCtx *args)
+{
+    const char *const key =
+        EMBED_CALL(calls_string, ScriptsCallsCtx, .json = args->json, .args = args->args, .index = 0u);
+    const unsigned int node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                         .json_read = args->json, .array = args->args, .index = 1u);
+    const int forgets = (node == CLI_JSON_NONE) || (args->json->node[node].type == CFG_JSON_NULL);
+    const char *const secret = forgets ? NULL
+                                       : EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                    .json_read = args->json, .node = node, .length_pointer = NULL);
+    if (key == NULL)
+    {
+        EMBED_CALL(calls_refused, ScriptsCallsCtx, .answer = args->answer, .why = "the key is no string");
+        return;
+    }
+    if (!forgets && (secret == NULL))
+    {
+        EMBED_CALL(calls_refused, ScriptsCallsCtx, .answer = args->answer, .why = "the secret is no string or null");
+        return;
+    }
+    char service[CLI_NAME_MAX_LEN * 2u];
+    EMBED_CALL(calls_secret_service, ScriptsCallsCtx, .id = args->id, .path_out = service);
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    const int done = forgets ? EMBED_CALL(cli_err_msg_service_internal.keychain_forget, CliErrMsgServiceCtx,
+                                          .service = service, .account = key, .err_msg = &err_msg)
+                             : EMBED_CALL(cli_err_msg_service_internal.keychain_store, CliErrMsgServiceCtx,
+                                          .service = service, .account = key, .secret = secret, .err_msg = &err_msg);
+    (void)mmgr_line_finish(&err_msg);
+    if (!done)
+    {
+        EMBED_CALL(calls_refused, ScriptsCallsCtx, .answer = args->answer, .why = why);
+        return;
+    }
+    mmgr_line_put(args->answer, "null");
 }
 
 // the JSON of the place `index` of the call's args written on `out`, null where the call has no such place
@@ -354,24 +438,28 @@ static void calls_server_notify(const ScriptsCallsCtx *args)
 }
 
 // One entry of the calls: its name, the right that it needs, and what it does. An entry that waits on a server runs
-// on a thread of its own, and its answer goes to the host later
+// on a thread of its own, and its answer goes to the host later. Last, whether the first argument is what the right's
+// list must name. An entry of a right with no such argument holds itself to the list
 typedef struct
 {
     const char *name;
     unsigned int right;
     void (*run)(const ScriptsCallsCtx *args);
     int later;
+    int targeted;
 } ScriptsCallEntry;
 
 static const ScriptsCallEntry s_calls[] = {
-    {"files.read", CLI_SCRIPTS_READS, calls_files_read, 0},
-    {"files.write", CLI_SCRIPTS_WRITES, calls_files_write, 0},
-    {"server.start", CLI_SCRIPTS_NO_RIGHT, calls_server_start, 1},
-    {"server.stop", CLI_SCRIPTS_NO_RIGHT, calls_server_stop, 0},
-    {"server.request", CLI_SCRIPTS_NO_RIGHT, calls_server_request, 1},
-    {"server.notify", CLI_SCRIPTS_NO_RIGHT, calls_server_notify, 0},
-    {"tree.files", CLI_SCRIPTS_NO_RIGHT, calls_tree_files, 1},
-    {"tree.relative", CLI_SCRIPTS_NO_RIGHT, calls_tree_relative, 0},
+    {"files.read", CLI_SCRIPTS_READS, calls_files_read, 0, 1},
+    {"files.write", CLI_SCRIPTS_WRITES, calls_files_write, 0, 1},
+    {"server.start", CLI_SCRIPTS_NO_RIGHT, calls_server_start, 1, 0},
+    {"server.stop", CLI_SCRIPTS_NO_RIGHT, calls_server_stop, 0, 0},
+    {"server.request", CLI_SCRIPTS_NO_RIGHT, calls_server_request, 1, 0},
+    {"server.notify", CLI_SCRIPTS_NO_RIGHT, calls_server_notify, 0, 0},
+    {"tree.files", CLI_SCRIPTS_READS, calls_tree_files, 1, 0},
+    {"tree.relative", CLI_SCRIPTS_NO_RIGHT, calls_tree_relative, 0, 0},
+    {"secrets.read", CLI_SCRIPTS_SECRETS, calls_secrets_read, 0, 1},
+    {"secrets.write", CLI_SCRIPTS_SECRETS, calls_secrets_write, 0, 1},
 };
 
 // the call kept until the reader answers the right `right`: its params copied, the server kept, and the request left
@@ -496,22 +584,23 @@ EMBED_INLINE int calls_run(const ScriptsCallsCtx *args)
         return 1;
     }
     const unsigned int right = s_calls[at].right;
-    // the target of a right is the path or the host of the call's first argument
+    // the target of a right is the path, the host or the key of the call's first argument
     const char *const target =
-        (right == CLI_SCRIPTS_NO_RIGHT)
+        ((right == CLI_SCRIPTS_NO_RIGHT) || !s_calls[at].targeted)
             ? NULL
             : EMBED_CALL(calls_string, ScriptsCallsCtx, .json = args->json, .args = call_args, .index = 0u);
     if (right != CLI_SCRIPTS_NO_RIGHT)
     {
-        const int named = (target != NULL) && EMBED_CALL(cli_scripts_rights.named, CliScriptsRightsCfg, .id = args->id,
-                                                         .right = right, .name = target);
+        const int named =
+            !s_calls[at].targeted || ((target != NULL) && EMBED_CALL(cli_scripts_rights.named, CliScriptsRightsCfg,
+                                                                     .id = args->id, .right = right, .name = target));
         const unsigned int answer =
             named ? EMBED_CALL(cli_scripts_rights.answer, CliScriptsRightsCfg, .id = args->id, .right = right)
                   : CLI_SCRIPTS_REFUSED;
         if (!named)
         {
             EMBED_CALL(calls_refused, ScriptsCallsCtx, .answer = args->answer,
-                       .why = "the plugin's plugin.json does not list this file or host");
+                       .why = "the plugin's plugin.json does not list this file, host or key");
             return 1;
         }
         if (answer == CLI_SCRIPTS_REFUSED)
@@ -617,11 +706,13 @@ int cli_scripts_question(const CliScriptsQuestionCfg *args)
         return 0;
     }
     static const char *const s_titles[CLI_SCRIPTS_RIGHTS] = {" reads files of the tree", " writes files of the tree",
-                                                             " reaches hosts on the network"};
+                                                             " reaches hosts on the network",
+                                                             " keeps secrets in the system's keychain"};
     static const char *const s_bodies[CLI_SCRIPTS_RIGHTS] = {
         "The plugin reads the tree's files that its plugin.json names in reads.",
         "The plugin writes the tree's files that its plugin.json names in writes.",
-        "The plugin sends requests to the hosts that its plugin.json names in reaches."};
+        "The plugin sends requests to the hosts that its plugin.json names in reaches.",
+        "The plugin keeps the secrets that its plugin.json names in secrets, in the system's keychain."};
     mmgr_line_put(args->title, s_asking_id);
     mmgr_line_put(args->title, s_titles[s_asking_right]);
     mmgr_line_put(args->body, s_bodies[s_asking_right]);

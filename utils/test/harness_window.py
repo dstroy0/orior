@@ -253,7 +253,8 @@ def cmd_wheel(a):
     return 0
 
 
-FRAMES_LINE = re.compile(r"^frames (\d+) draw (\d+) (\d+) displayed (\d+) (\d+) moving (\d+) events (\d+) (\d+) gap (\d+)\s*$")
+FRAMES_LINE = re.compile(r"^frames (\d+) draw (\d+) (\d+) displayed (\d+) (\d+) moving (\d+) events (\d+) (\d+) gap (\d+)"
+                         r" passes (\d+) paced (\d+) frame_part (\d+) after (\d+)\s*$")
 
 
 def cmd_scroll(a):
@@ -298,16 +299,18 @@ def cmd_scroll(a):
 def frames_lines_print(offset):
     """The frames' telemetry lines the window wrote past `offset` of its error stream, one row each. A row holds the
     frames, the draw's mean and max, and the time from a frame's order to its display, mean and max. Then the events'
-    mean and max and the longest gap between frames on display, all in microseconds."""
+    mean and max and the longest gap between frames on display, all in microseconds. Then the passes of the view's
+    loop, and the passes that waited for the refresh because a move woke them."""
     with open(WINDOW_ERRORS, "rb") as retained:
         retained.seek(offset)
         text = retained.read().decode("utf-8", errors="replace")
     lines = [found.groups() for found in map(FRAMES_LINE.match, text.splitlines()) if found]
-    print("frames  draw_us mean max  shown_us mean max  events_us mean max  gap_max_us")
+    print("frames  draw_us mean max  shown_us mean max  events_us mean max  gap_max_us  passes  paced")
     for fields in lines:
-        frames, draw, draw_max, shown, shown_max, _, events, events_max, gap = (int(field) for field in fields)
-        print("%6d  %9d %6d  %8d %6d  %11d %6d  %11d" % (frames, draw, draw_max, shown, shown_max, events, events_max,
-                                                          gap))
+        frames, draw, draw_max, shown, shown_max, _, events, events_max, gap, passes, paced, _, _ = (
+            int(field) for field in fields)
+        print("%6d  %9d %6d  %8d %6d  %11d %6d  %11d  %6d  %5d" % (frames, draw, draw_max, shown, shown_max, events,
+                                                                    events_max, gap, passes, paced))
 
 
 def cmd_typing(a):
@@ -403,6 +406,92 @@ def cmd_move(a):
     pointer_place_write(a.x, a.y)
     print("window %d pointer moved to %d,%d through %d places%s" % (process_id, a.x, a.y, len(via),
                                                                      " by hand" if a.human else ""))
+    return 0
+
+
+def cmd_mouse(a):
+    """A mouse's moves posted to the window's queue for --seconds, as the system posts them for a mouse over the window.
+    A move goes at each of --rate reports a second while the hand moves, and none while it rests. The hand goes along a
+    person's path between places of the client, with a rest after each. The system's cursor does not move. Then the
+    processor seconds the window used over the run, and the frames' telemetry lines it wrote."""
+    if not windows_only():
+        return 1
+    import ctypes
+    import random
+    import time
+    from ctypes import wintypes
+
+    import harness_win32 as win
+
+    found = window_of(a.id, None)
+    if not found:
+        return 1
+    process_id, handle, _ = found
+    client = wintypes.RECT()
+    win.user32.GetClientRect(handle, ctypes.byref(client))
+    width, height = client.right - client.left, client.bottom - client.top
+    if (width < 40) or (height < 40):
+        print("window %d has no client to move over" % process_id)
+        return 1
+    # the client's top left on the screen, where the hit test's places start
+    origin = wintypes.POINT(0, 0)
+    win.user32.ClientToScreen(handle, ctypes.byref(origin))
+    WM_NCHITTEST, WM_SETCURSOR, HTCLIENT = 0x0084, 0x0020, 1
+    telemetry_on()
+    try:
+        offset = os.path.getsize(WINDOW_ERRORS)
+    except OSError:
+        offset = 0
+    rng = random.Random(a.seed)
+    report = 1.0 / a.rate
+    used_from = win.processor_seconds(process_id)
+    began = time.perf_counter()
+    here = (width // 2, height // 2)
+    posted = 0
+    while time.perf_counter() - began < a.seconds:
+        place = (rng.randint(20, width - 20), rng.randint(20, height - 20))
+        # the path's places at the times a hand reaches them. Each report then posts the place the hand is at
+        path = human_path(here, place, rng)
+        reached, at_time = [], 0.0
+        for x, y, pause in path:
+            at_time += pause
+            reached.append((at_time, x, y))
+        moved_from = time.perf_counter()
+        last = None
+        step = 0
+        while step < len(reached):
+            now = time.perf_counter() - moved_from
+            while (step < len(reached) - 1) and (reached[step][0] <= now):
+                step += 1
+            # the hand between the path's last place and its next, at the share of the time between them gone by
+            before = reached[step - 1] if step else (0.0, here[0], here[1])
+            span = reached[step][0] - before[0]
+            share = min(1.0, max(0.0, (now - before[0]) / span)) if span > 0.0 else 1.0
+            x = round(before[1] + (reached[step][1] - before[1]) * share)
+            y = round(before[2] + (reached[step][2] - before[2]) * share)
+            if (x, y) != last:
+                # The system asks the hit test and sets the cursor before each move. Both go to the window first
+                win.user32.PostMessageW(handle, WM_NCHITTEST, 0, ((origin.y + y) << 16) | ((origin.x + x) & 0xFFFF))
+                win.user32.PostMessageW(handle, WM_SETCURSOR, handle, (win.WM_MOUSEMOVE << 16) | HTCLIENT)
+                win.user32.PostMessageW(handle, win.WM_MOUSEMOVE, 0, (y << 16) | (x & 0xFFFF))
+                posted += 1
+                last = (x, y)
+            if now >= reached[-1][0]:
+                break
+            # A sleep here ends at the system timer's step, far longer than a report. The wait yields until the next
+            # report's time
+            due = time.perf_counter() + report
+            while time.perf_counter() < due:
+                time.sleep(0)
+        here = place
+        time.sleep(rng.uniform(0.15, 0.6))
+    took = time.perf_counter() - began
+    time.sleep(2.5)
+    used_to = win.processor_seconds(process_id)
+    used = (used_to - used_from) if (used_from is not None and used_to is not None) else -1.0
+    print("window %d: %d moves posted over %.1f s, at most %d a second; %.3f processor seconds, %.1f%% of a core"
+          % (process_id, posted, took, a.rate, used, 100.0 * used / (took + 2.5)))
+    frames_lines_print(offset)
     return 0
 
 
@@ -1451,6 +1540,13 @@ def register(sub):
     p.add_argument("--spacing", type=float, default=60.0, help="the milliseconds between characters")
     p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
     p.set_defaults(fn=cmd_typing)
+    p = window.add_parser("mouse", help="a mouse's moves posted to the window at a mouse's rate, the cursor unmoved, and "
+                                        "the processor and the frames over them")
+    p.add_argument("--rate", type=int, default=1000, help="the moves a second while the hand moves, a mouse's reports")
+    p.add_argument("--seconds", type=float, default=30.0, help="how long the hand moves and rests")
+    p.add_argument("--seed", type=int, default=1, help="the seed of the hand's places and paths")
+    p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
+    p.set_defaults(fn=cmd_mouse)
     p = window.add_parser("keymap", help="every key the keys command presses by name, with its virtual key")
     p.set_defaults(fn=cmd_keymap)
     p = window.add_parser("click", help="a press of the pointer posted to the window at a pixel of its client, dragged and released")

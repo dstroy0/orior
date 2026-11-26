@@ -219,8 +219,7 @@ void cli_plugins_sample_get(const CliPluginsJsonOutCfg *args)
     mmgr_line_put(args->out, ", count = 0x2a + 1.5e3;\n");
 }
 
-// the plugin `plugin` of `json` written under `dir` as cli_plugins_create_in writes one: 1, or 0 with why given
-EMBED_INLINE int plugins_write(const PluginsTextCtx *args)
+int cli_plugins_json_write(const CliPluginsJsonWriteCfg *args)
 {
     const CliJson *json = args->json;
     unsigned int plugin = args->plugin;
@@ -262,10 +261,30 @@ EMBED_INLINE int plugins_write(const PluginsTextCtx *args)
     CliGrownLine text;
     cli_grown_begin(&text, CLI_PLUGIN_TEXT_CAPACITY, g_cli_plugins_owner);
     EMBED_CALL(cli_plugins_json_out.text_get, CliPluginsJsonOutCfg, .json = json, .plugin = plugin, .out = &text.line);
-    int written =
+    const int written =
         mmgr_line_ok(&text.line) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
                                                .path = file, .bytes = text.cell, .size = cli_grown_size(&text));
     cli_grown_end(&text);
+    if (!written)
+    {
+        mmgr_line_put(args->err_msg, file);
+        mmgr_line_put(args->err_msg, ": it could not be written");
+    }
+    return written;
+}
+
+// The plugin `plugin` of `json` written under `dir` as cli_plugins_create_in writes one: its plugin.json, then a sample
+// file beside it. 1, or 0 with why given
+EMBED_INLINE int plugins_write(const PluginsTextCtx *args)
+{
+    const CliJson *json = args->json;
+    unsigned int plugin = args->plugin;
+    char *folder = args->folder;
+    if (!EMBED_CALL(cli_plugins_json_write_table.write, CliPluginsJsonWriteCfg, .json = json, .plugin = plugin,
+                    .dir = args->dir, .replace = args->replace, .folder = folder, .err_msg = args->err_msg))
+    {
+        return 0;
+    }
     const char *const extension =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                    .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json,
@@ -278,22 +297,17 @@ EMBED_INLINE int plugins_write(const PluginsTextCtx *args)
     mmgr_line_put(&sample_name, folder);
     mmgr_line_put(&sample_name, "/sample.");
     mmgr_line_put(&sample_name, (extension != NULL) ? extension : "txt");
-    // 1 where both are written, 0 where plugin.json is not, 2 where the sample is not
-    if (written)
+    CliGrownLine sample_text;
+    cli_grown_begin(&sample_text, CLI_PLUGIN_TEXT_CAPACITY, g_cli_plugins_owner);
+    EMBED_CALL(cli_plugins_json_out.sample_get, CliPluginsJsonOutCfg, .json = json, .plugin = plugin,
+               .out = &sample_text.line);
+    const int sampled = (mmgr_line_finish(&sample_name) != 0ULL) && mmgr_line_ok(&sample_text.line) &&
+                        EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = sample,
+                                   .bytes = sample_text.cell, .size = cli_grown_size(&sample_text));
+    cli_grown_end(&sample_text);
+    if (!sampled)
     {
-        CliGrownLine sample_text;
-        cli_grown_begin(&sample_text, CLI_PLUGIN_TEXT_CAPACITY, g_cli_plugins_owner);
-        EMBED_CALL(cli_plugins_json_out.sample_get, CliPluginsJsonOutCfg, .json = json, .plugin = plugin,
-                   .out = &sample_text.line);
-        const int sampled = (mmgr_line_finish(&sample_name) != 0ULL) && mmgr_line_ok(&sample_text.line) &&
-                            EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = sample,
-                                       .bytes = sample_text.cell, .size = cli_grown_size(&sample_text));
-        cli_grown_end(&sample_text);
-        written = sampled ? 1 : 2;
-    }
-    if (written != 1)
-    {
-        mmgr_line_put(args->err_msg, (written == 0) ? file : sample);
+        mmgr_line_put(args->err_msg, sample);
         mmgr_line_put(args->err_msg, ": it could not be written");
         return 0;
     }

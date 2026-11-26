@@ -345,8 +345,11 @@ EMBED_INLINE int cli_is_own(const ExecutablesDotnetCtx *args)
     const int script =
         (length > 3ULL) &&
         (memor.cmp(&(MemoriaCfg){.src = args->importer + length - 3ULL, .other = ".py", .bytes = 3u}) == 0);
-    const int absolute = (length > 0ULL) && ((args->importer[0] == '/') || (args->importer[0] == '\\') ||
-                                             ((length > 1ULL) && (args->importer[1] == ':')));
+    // The call reads the top from the first three bytes of the importer, with a terminator. The read stays inside the
+    // importer
+    char head[4] = {0};
+    memor.cpy(&(MemoriaCfg){.dst = head, .src = args->importer, .bytes = (length < 3ULL) ? length : 3ULL});
+    const int absolute = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = head) != 0ULL;
     if (script && absolute)
     {
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES});

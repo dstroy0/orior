@@ -79,46 +79,19 @@ void cli_plugins_palettes_each(const CliPluginsEachIdCfg *args)
                .context = (void *)(embed_word)args);
 }
 
-// The plugin's tree written whole as plugin.json in a folder of its id, under the reader's plugins folder. The
-// call lays the file out with cli_plugins_text_get. `written` is 1, or 0 where the call cannot make the folder or file
+// The plugin's kept tree written whole as the reader's plugin.json, through the plugins module's writer, in place of
+// the one there. `written` is 1, or 0 where the plugin has no tree or the writer refuses
 static void cli_palette_file_write(const CliEachPluginCfg *args)
 {
     int *const written = (int *)args->context;
     char dir[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
-    char file[CLI_PATH_MAX_LEN];
-    if ((args->plugin->json == NULL) || !EMBED_CALL(cli_folder_internal.home_plugins, CliFolderCtx, .folder_out = dir))
-    {
-        return;
-    }
-    VerbaLinea line = {folder, sizeof(folder), 0ULL};
-    mmgr_line_put(&line, dir);
-    mmgr_line_ch(&line, '/');
-    mmgr_line_put(&line, args->plugin->id);
-    VerbaLinea named = {file, sizeof(file), 0ULL};
-    if (mmgr_line_finish(&line) == 0ULL)
-    {
-        return;
-    }
-    mmgr_line_put(&named, folder);
-    mmgr_line_put(&named, "/plugin.json");
-    if ((mmgr_line_finish(&named) == 0ULL) ||
-        !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder))
-    {
-        return;
-    }
-    // the plugin arranged as its file positions it, each value on one line where it fits
-    CliGrownLine out;
-    cli_grown_begin(&out, CLI_PLUGIN_TEXT_CAPACITY, g_cli_plugins_owner);
-    if (out.cell == NULL)
-    {
-        return;
-    }
-    EMBED_CALL(cli_plugins_json_out.text_get, CliPluginsJsonOutCfg, .json = args->plugin->json,
-               .plugin = args->plugin->root, .out = &out.line);
-    *written = mmgr_line_ok(&out.line) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
-                                                     .path = file, .bytes = out.cell, .size = cli_grown_size(&out));
-    cli_grown_end(&out);
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    *written =
+        (args->plugin->json != NULL) && EMBED_CALL(cli_folder_internal.home_plugins, CliFolderCtx, .folder_out = dir) &&
+        EMBED_CALL(cli_plugins_json_write_table.write, CliPluginsJsonWriteCfg, .json = args->plugin->json,
+                   .plugin = args->plugin->root, .dir = dir, .replace = 1, .folder = folder, .err_msg = &err_msg);
 }
 
 int cli_plugins_palette_set(const CliPluginsIdNameValueCfg *args)

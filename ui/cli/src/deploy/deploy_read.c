@@ -331,8 +331,8 @@ int cli_deploy_read(const CliDeployRootCtx *args)
 // whether a character is white as Rust's char::is_whitespace has it
 EMBED_INLINE int read_white(const DeployReadCtx *args)
 {
-    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) || (args->character == 0x85u) ||
-           (args->character == 0xa0u) || (args->character == 0x1680u) ||
+    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) ||
+           (args->character == 0x85u) || (args->character == 0xa0u) || (args->character == 0x1680u) ||
            ((args->character >= 0x2000u) && (args->character <= 0x200au)) || (args->character == 0x2028u) ||
            (args->character == 0x2029u) || (args->character == 0x202fu) || (args->character == 0x205fu) ||
            (args->character == 0x3000u);
@@ -346,10 +346,11 @@ int cli_deploy_position(const CliDeployTextCtx *args)
     unsigned int character = 0u;
     for (unsigned long long at = 0ULL; at < length;)
     {
-        const unsigned long long reserved =
-            EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
-                       .text_bytes = (const unsigned char *)args->text, .length = length, .at = at, .character = &character);
-        start = ((start == at) && EMBED_CALL(read_white, DeployReadCtx, .character = character)) ? (at + reserved) : start;
+        const unsigned long long reserved = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                                                       .text_bytes = (const unsigned char *)args->text,
+                                                       .length = length, .at = at, .character = &character);
+        start =
+            ((start == at) && EMBED_CALL(read_white, DeployReadCtx, .character = character)) ? (at + reserved) : start;
         at += reserved;
         end = EMBED_CALL(read_white, DeployReadCtx, .character = character) ? end : at;
     }
@@ -358,11 +359,11 @@ int cli_deploy_position(const CliDeployTextCtx *args)
     const unsigned long long size = (end - start < sizeof(trimmed)) ? (end - start) : (sizeof(trimmed) - 1u);
     memor.cpy(&(MemoriaCfg){.dst = trimmed, .src = args->text + start, .bytes = (embed_word)size});
     trimmed[size] = '\0';
-    const int character_drive =
-        ((trimmed[0] >= 'a') && (trimmed[0] <= 'z')) || ((trimmed[0] >= 'A') && (trimmed[0] <= 'Z'));
-    const int drive = (size >= 2u) && character_drive && (trimmed[1] == ':') &&
-                      ((size == 2u) || (trimmed[2] == '/') || (trimmed[2] == '\\'));
-    if (!drive && (trimmed[0] != '/') && (trimmed[0] != '.') && (trimmed[0] != '\\'))
+    // The text is a path where it has a top, or starts at `.`. A drive with no separator after it is a path only where
+    // it is the whole text, and any other text is an address
+    const unsigned long long top = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = trimmed);
+    const int here = ((top != 0ULL) && ((top != 2ULL) || (size == 2u))) || (trimmed[0] == '.');
+    if (!here)
     {
         args->position_out->here = 0;
         return EMBED_CALL(cli_link_text.address_parse, CliLinkTextCfg, .text = trimmed,
@@ -370,28 +371,7 @@ int cli_deploy_position(const CliDeployTextCtx *args)
     }
     args->position_out->here = 1;
     VerbaLinea path = {args->position_out->path, sizeof(args->position_out->path), 0ULL};
-#if defined(_WIN32)
-    // a path with a drive is on its own, as Rust's join takes one, as does a share's
-    const int whole =
-        drive || (((trimmed[0] == '/') || (trimmed[0] == '\\')) && ((trimmed[1] == '/') || (trimmed[1] == '\\')));
-    const int rooted = !whole && !drive && ((trimmed[0] == '/') || (trimmed[0] == '\\'));
-    if (rooted && (args->root[0] != '\0') && (args->root[1] == ':'))
-    {
-        mmgr_line_put_n(&path, args->root, 2u);
-    }
-    else if (!whole && !rooted)
-    {
-        mmgr_line_put(&path, args->root);
-        mmgr_line_ch(&path, '\\');
-    }
-#else
-    if (trimmed[0] != '/')
-    {
-        mmgr_line_put(&path, args->root);
-        mmgr_line_ch(&path, '/');
-    }
-#endif
-    mmgr_line_put(&path, trimmed);
+    EMBED_CALL(cli_path_join_internal.onto, CliPathJoinCtx, .root = args->root, .path = trimmed, .out = &path);
     if (mmgr_line_finish(&path) == 0ULL)
     {
         mmgr_line_put(args->err_msg, trimmed);

@@ -144,7 +144,8 @@ EMBED_INLINE void cli_last_by_name(const DevcontainerReadCtx *args)
     const char *last = end;
     last = args->path + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                                    .at = (unsigned long long)(last - args->path), .set = "/\\");
-    last += (((end - last) == 2) && (last[1] == ':')) ? 2 : 0;
+    // a last part that is the top of a drive names no folder
+    last += (((end - last) == 2) && (EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = last) >= 2ULL)) ? 2 : 0;
     VerbaLinea line = {args->name, CLI_PATH_MAX_LEN, 0ULL};
     mmgr_line_put_n(&line, last, (unsigned long long)(end - last));
     mmgr_line_finish(&line);

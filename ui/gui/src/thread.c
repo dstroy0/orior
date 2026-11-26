@@ -10,6 +10,7 @@
 #include "../../cli/src/command_line/cli_internal.h"
 #include "../../cli/src/command_line/command_line.h"
 #include "../../cli/src/command_line/rings.h"
+#include "system.h"
 #include "window.h"
 
 EMBED_STATIC_ASSERT(sizeof(CliViewEvent) <= CLI_VIEW_EVENT_SEGMENT,
@@ -64,6 +65,15 @@ typedef struct
     void *context;
     EMBED_ALIGN(64) embed_atomic_u32 ending;
     EMBED_ALIGN(64) embed_atomic_u32 running;
+    // 1 while a move of the pointer waits in the event ring for a pass to take it. The system's thread sets it, and
+    // the view's thread clears it as a pass begins
+    EMBED_ALIGN(64) embed_atomic_u32 move_waiting;
+    // The count of the wakes that want a pass at once. These are the events other than a move of the pointer and the
+    // wakes from a module's thread. Other threads add to it, and the view's thread reads it
+    EMBED_ALIGN(64) embed_atomic_u32 prompt_wakes;
+    // prompt_wakes as the last pass began, and when that pass began
+    embed_u32 prompt_taken;
+    unsigned long long pass_ms;
     CliWake ended;
     int presenting_main;
     int presenting_preferences;
@@ -105,12 +115,18 @@ static CliView s_view;
 // draw took and the max of them, the microseconds from a frame's order to its showing and the max of them, and
 // the passes of the view's loop that a moving part paced. Then the microseconds the events took and the max of one
 // pass's events, and the max microseconds between two frames displayed, a gap of VIEW_GAP_IDLE_US or more left out as a
-// rest. Then the timed waits each of the window's deadlines set
+// rest. Then the passes of the view's loop, and the passes that waited for the refresh because a move of the pointer
+// woke them. Then the microseconds of all passes from the tick to the frame, and of the deadlines' scan. Then the timed
+// waits each of the window's deadlines set
 typedef struct
 {
     unsigned long long woken_by[GUI_WINDOW_WAKES];
     unsigned long long frames;
     unsigned long long moving_passes;
+    unsigned long long passes;
+    unsigned long long paced_passes;
+    unsigned long long frame_part_us;
+    unsigned long long after_us;
     unsigned long long draw_us;
     unsigned long long draw_max_us;
     unsigned long long displayed_us;
@@ -148,20 +164,27 @@ static void view_frame_telemetry_log(const ViewThreadCtx *args)
     }
     char wakes[512];
     VerbaLinea line = {wakes, sizeof(wakes), 0u, NULL, NULL, 0u};
-    if (told->frames != 0ULL)
+    // a line with passes and no frame divides the means by 1
+    if ((told->frames != 0ULL) || (told->passes != 0ULL))
     {
-        const unsigned long long counts[9] = {told->frames,
-                                              told->draw_us / told->frames,
-                                              told->draw_max_us,
-                                              told->displayed_us / told->frames,
-                                              told->displayed_max_us,
-                                              told->moving_passes,
-                                              told->events_us / told->frames,
-                                              told->events_max_us,
-                                              told->gap_max_us};
-        static const char *const s_names[9] = {"frames ",  " draw ",   " ", " displayed ", " ",
-                                               " moving ", " events ", " ", " gap "};
-        for (unsigned int at = 0u; at < 9u; at += 1u)
+        const unsigned long long divisor = (told->frames != 0ULL) ? told->frames : 1ULL;
+        const unsigned long long counts[13] = {told->frames,
+                                               told->draw_us / divisor,
+                                               told->draw_max_us,
+                                               told->displayed_us / divisor,
+                                               told->displayed_max_us,
+                                               told->moving_passes,
+                                               told->events_us / divisor,
+                                               told->events_max_us,
+                                               told->gap_max_us,
+                                               told->passes,
+                                               told->paced_passes,
+                                               told->frame_part_us,
+                                               told->after_us};
+        static const char *const s_names[13] = {"frames ",  " draw ",       " ",      " displayed ", " ",
+                                                " moving ", " events ",     " ",      " gap ",       " passes ",
+                                                " paced ",  " frame_part ", " after "};
+        for (unsigned int at = 0u; at < 13u; at += 1u)
         {
             mmgr_line_put(&line, s_names[at]);
             mmgr_line_decimal(&line, counts[at], 1u);
@@ -198,6 +221,10 @@ static void view_frame_telemetry_log(const ViewThreadCtx *args)
     told->gap_max_us = 0ULL;
     told->frames = 0ULL;
     told->moving_passes = 0ULL;
+    told->passes = 0ULL;
+    told->paced_passes = 0ULL;
+    told->frame_part_us = 0ULL;
+    told->after_us = 0ULL;
     told->draw_us = 0ULL;
     told->draw_max_us = 0ULL;
     told->displayed_us = 0ULL;
@@ -374,7 +401,21 @@ void cli_view_event(const CliViewThreadCfg *args)
         *written = *args->event;
         written->input.size = length;
         anularis.seg_publish(&(AnularisCfg){.ring = &s_view.event_ring});
-        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_view.wake);
+        // A mouse can send a move for each report, more than a thousand in a second. A move wakes the view's thread
+        // only where no move waits already, and the pass that takes it waits for the refresh. Then one pass takes all
+        // the moves of a refresh. Each other event wakes the view's thread for a pass at once
+        const int moved =
+            (args->event->type == CLI_VIEW_EVENT_INPUT) &&
+            ((args->event->input.type == GUI_INPUT_MOVED) || (args->event->input.type == GUI_INPUT_RELATIVE));
+        if (!moved)
+        {
+            (void)EMBED_ATOMIC_ADD_32(&s_view.prompt_wakes, 1u);
+            EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_view.wake);
+        }
+        else if (EMBED_ATOMIC_EXCHANGE_32(&s_view.move_waiting, 1u) == 0u)
+        {
+            EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_view.wake);
+        }
     }
 }
 
@@ -978,6 +1019,25 @@ static void view_run(void *context)
     for (;;)
     {
         const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_view.wake);
+        // A move of the pointer less than a refresh after the last pass waits for the display's next refresh. Then the
+        // pass takes it with each move that came during the wait. A wake that wants a pass at once ends this rule
+        const unsigned long long since_pass_ms = cli_clock_milliseconds() - s_view.pass_ms;
+        if ((EMBED_ATOMIC_LOAD(&s_view.move_waiting) != 0u) &&
+            (EMBED_ATOMIC_LOAD(&s_view.prompt_wakes) == s_view.prompt_taken) && (since_pass_ms < s_view.frame_ms))
+        {
+            s_frame_telemetry.paced_passes += 1ULL;
+            if (!gui_system_refresh_wait())
+            {
+                // the rest of a refresh is less than frame_ms, an unsigned int
+                EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx,
+                           .milliseconds = (unsigned int)(s_view.frame_ms - since_pass_ms));
+            }
+        }
+        // The pass takes the moves in the ring as it clears the mark. A move after the clear wakes the next pass
+        (void)EMBED_ATOMIC_EXCHANGE_32(&s_view.move_waiting, 0u);
+        s_view.prompt_taken = EMBED_ATOMIC_LOAD(&s_view.prompt_wakes);
+        s_view.pass_ms = cli_clock_milliseconds();
+        s_frame_telemetry.passes += 1ULL;
         const unsigned long long events_from_us = cli_clock_microseconds();
         view_events_take();
         EMBED_CALL(gui_window_table.step, GuiWindowCfg, .window = window);
@@ -991,6 +1051,7 @@ static void view_run(void *context)
         s_frame_telemetry.events_us += events_took_us;
         s_frame_telemetry.events_max_us =
             (events_took_us > s_frame_telemetry.events_max_us) ? events_took_us : s_frame_telemetry.events_max_us;
+        const unsigned long long frame_from_us = cli_clock_microseconds();
         const unsigned long long now_ms = cli_clock_milliseconds();
         if ((s_view.tick_at_ms != 0ULL) && (now_ms >= s_view.tick_at_ms))
         {
@@ -1014,18 +1075,25 @@ static void view_run(void *context)
         {
             break;
         }
+        const unsigned long long after_from_us = cli_clock_microseconds();
+        s_frame_telemetry.frame_part_us += after_from_us - frame_from_us;
         const unsigned long long after =
             EMBED_CALL(cli_window_input.timeout_ms, GuiWindowInputCfg, .window_read = window);
+        const unsigned long long scanned_us = cli_clock_microseconds();
+        s_frame_telemetry.after_us += scanned_us - after_from_us;
+        // a pass that draws no frame logs the telemetry too
+        EMBED_CALL(view_frame_telemetry_log, ViewThreadCtx, .now_us = scanned_us);
         if (after == 0ULL)
         {
             s_view.tick_at_ms = 0ULL;
             EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_view.wake, .seen = seen);
             continue;
         }
-        // While a part of the window moves, or the editor's scroll moves, the frames follow the showing: the next frame
-        // is drawn as the last one is displayed, and the device's flip queue holds each frame to the monitor's refresh.
-        // A timed wait sleeps to the system timer's step and misses refreshes, so a moving part does not wait on a
-        // timer
+        // While a part of the window moves, or the editor's scroll moves, each pass waits for the last frame on the
+        // screen. Then the pass waits for the display's next refresh, and the next pass draws the next frame. A present
+        // can return at once. The refresh paces the frames, and the present does not. A system with no refresh to
+        // wait for sleeps one refresh. Windows waits on the refresh, because a timed wait there sleeps to the step of
+        // the system timer
         if (window->autohide_moving || window->scroll_moving || window->buttons_moving)
         {
             s_view.tick_at_ms = cli_clock_milliseconds();
@@ -1033,6 +1101,11 @@ static void view_run(void *context)
             if (s_view.presenting_main)
             {
                 EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_view.wake, .seen = seen);
+            }
+            // A pass with no frame to show waits on the refresh too. No moving pass runs more often than the refresh
+            if (!gui_system_refresh_wait())
+            {
+                EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = s_view.frame_ms);
             }
             continue;
         }
@@ -1063,6 +1136,7 @@ static void view_run(void *context)
 // the view's thread
 static void view_woken(void)
 {
+    (void)EMBED_ATOMIC_ADD_32(&s_view.prompt_wakes, 1u);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_view.wake);
 }
 

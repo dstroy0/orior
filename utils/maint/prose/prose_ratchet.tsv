@@ -1377,7 +1377,6 @@ utils/test/src/ui/gui/git_test.c	1
 utils/test/src/ui/gui/glass_test.c	2
 utils/test/src/ui/gui/glyphs_test.c	1
 utils/test/src/ui/gui/ground_bench.c	1
-utils/test/src/ui/gui/gui_test.sh	10
 utils/test/src/ui/gui/icon_file.c	1
 utils/test/src/ui/gui/icons_test.c	1
 utils/test/src/ui/gui/lattice_test.c	1

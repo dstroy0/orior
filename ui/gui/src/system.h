@@ -78,6 +78,9 @@ void gui_system_present(const GuiSystemRasterCfg *args);
 void gui_system_present_part(const GuiSystemRasterCfg *args);
 // the window's thread woken, from any thread
 void gui_system_wake(const GuiSystemCfg *args);
+// The thread that calls waits until the display's next refresh, from any thread: 1, or 0 where the system has no
+// refresh to wait for. Then the caller paces itself
+int gui_system_refresh_wait(void);
 // the window minimized, maximized or restored, or asked to close
 void gui_system_act(const GuiSystemCfg *args);
 // the window's icon given to the system as `title_icon` and `taskbar_icon`, each a raster of the icon's pixels with
