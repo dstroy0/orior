@@ -66,8 +66,8 @@ static EntrySourceType entry_source_type(const char *path, const char *member)
     {
         return ENTRY_SOURCE_STACK;
     }
-    // a file's first bytes are read once and cached with its path: a run that describes many samples of one archive
-    // reads its head once
+    // The code reads a file's first bytes once and keeps them with its path. A run that describes many samples of one
+    // archive reads its head once
     static char cached_path[ENTRY_PATH_CAPACITY];
     static unsigned char cached_head[352];
     static long long cached_read = -1LL;
@@ -286,8 +286,8 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
     }
     EngineError *const error = request->error;
     *volume = NULL;
-    EntrySource *const source =
-        (EntrySource *)platform_cell_cleared(1u, sizeof(EntrySource), platform_place_g_program_owner, 0);
+    EntrySource *const source = (EntrySource *)platform_cell_cleared(
+        1u, sizeof(EntrySource), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     if ((ENGINE_CHECK(source != NULL, &source, error, ENGINE_ERROR_RESOURCE) == 0) ||
         (entry_source_describe(request->path, request->member, source, error) == 0))
     {
@@ -486,7 +486,7 @@ extern "C" int engine_source_find(const char *source, const char *sample, char *
 extern "C" long engine_source_lanes(const char *source, const char *sample, unsigned long long *lanes,
                                     EngineError *error)
 {
-    // the sample's source is found as ingest finds it and only described. No voxel is read
+    // the code finds the sample's source as ingest finds it, and only describes it. It reads no voxel
     if ((error == NULL) || (lanes == NULL))
     {
         return ENGINE_ERROR;

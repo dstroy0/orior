@@ -111,7 +111,7 @@ static int max_tree_slide_search(MaxTreeSlide *slide, unsigned int low, unsigned
     const unsigned int middle = low + ((high - low) / 2u);
     unsigned int *const middle_partition =
         (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)slide->probes + 1u) * sizeof(unsigned int)),
-                                            (unsigned int)platform_place_g_engine_owner, 0);
+                                            (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     MaxTreeSlideStep middle_step;
     const int ok = MAX_TREE_CHECK(middle_partition != NULL, &middle_partition, error, ENGINE_ERROR_RESOURCE) &&
                    max_tree_slide_partition(slide, middle, middle_partition, &middle_step) &&
@@ -158,12 +158,14 @@ extern "C" long max_tree_slide(const MaxTreeSlideRequest *request)
     const size_t voxels = resident->voxels;
     const size_t probe_capacity = (size_t)request->probe_count + 1u;
     unsigned int *device_probes = NULL;
-    slide.raw =
-        (unsigned int *)platform_cell_taken(probe_capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
-    unsigned int *const low_partition = (unsigned int *)platform_cell_taken(
-        (unsigned long long)(probe_capacity * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
-    unsigned int *const high_partition = (unsigned int *)platform_cell_taken(
-        (unsigned long long)(probe_capacity * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    slide.raw = (unsigned int *)platform_cell_taken(probe_capacity * sizeof(unsigned int),
+                                                    platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned int *const low_partition =
+        (unsigned int *)platform_cell_taken((unsigned long long)(probe_capacity * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned int *const high_partition =
+        (unsigned int *)platform_cell_taken((unsigned long long)(probe_capacity * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     int ok =
         MAX_TREE_CHECK(slide.raw != NULL, &slide.raw, error, ENGINE_ERROR_RESOURCE) &&
         MAX_TREE_CHECK(low_partition != NULL, &low_partition, error, ENGINE_ERROR_RESOURCE) &&

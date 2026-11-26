@@ -41,8 +41,8 @@ done
 rm -f "$BINARY"
 # the test is a program of the platform, and links MMgr's line with the platform (exact_types_platform_link)
 source "$TOP/includes/exact_types/exact_types.sh"
-exact_types_platform_link atomic || exit 1
-nvcc "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${HOST_FLAGS[@]}" "${GENCODE[@]}" -I "$EMBEDDED_TYPES" "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$BINARY" \
+exact_types_device_platform_link || exit 1
+nvcc "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true -std=c++20 -O2 "${HOST_FLAGS[@]}" "${GENCODE[@]}" -I "$EMBEDDED_TYPES" "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$BINARY" \
     "$TEST/atomic_device_test.cu" "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 

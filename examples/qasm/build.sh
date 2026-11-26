@@ -33,7 +33,6 @@ qasm_host_setup()
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
             EXECUTABLE=.exe
-            EXTENSION=obj
             MSVC_BIN="$(ls -d "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC"/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
             if [ -z "$MSVC_BIN" ]; then
                 MSVC_BIN="$(ls -d "/c/Program Files/Microsoft Visual Studio"/*/*/VC/Tools/MSVC/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
@@ -48,7 +47,6 @@ qasm_host_setup()
             ;;
         *)
             EXECUTABLE=
-            EXTENSION=o
             HOST_FLAGS=(-Xcompiler -fPIC)
             DAEMON_LIBRARIES=(-ldl -lpthread)
             ;;
@@ -65,86 +63,52 @@ qasm_host_setup()
     return 0
 }
 
-qasm_c_object()
-{
-    local source="$1"
-    local object="$2"
-    rm -f "$object"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
-        *)
-            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}" -c "$source" -o "$object" ;;
-    esac
-    [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; return 1; }
-}
-
-qasm_cu_object()
-{
-    local source="$1"
-    local object="$2"
-    rm -f "$object"
-    nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -c "$source" -o "$object"
-    [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; return 1; }
-}
-
 qasm_build()
 {
     source "$TOP/utils/maint/engine/build_stamp.sh"
     build_stamp "$1"
     qasm_host_setup || return 1
-    OBJECTS=()
-    LINEA_OBJECTS=()
-    # the process stage, the pool, the system calls and the carcer of the platform, which the daemon links too
-    PLATFORM_OBJECTS=()
-    local source
-    local object
-    # the formats with the line: the ruleset reader reads a ruleset's .ksc as the run stores it (qry_member.h)
-    for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
-                  "$CYCLE/cycle.c" "$QASM"/qasm_{exact,trig,lexer,expression,gates,statements,read}.c \
-                  "$QASM"/qasm_field_{rational,number}.c "$QASM/qasm_dense.c" "$QASM"/qasm_chain_{matrix,apply}.c \
-                  "$QASM"/qasm_symbolic_{polynomial,function}.c "$QASM"/qasm_lens_{hash,rank}.c; do
-        object="$OUT/$(basename "$source" .c)_c.$EXTENSION"
-        qasm_c_object "$source" "$object" || return 1
-        OBJECTS+=("$object")
-        case "$source" in
-            */mmgr/src/locus_carcerum/*|*/src/platform/*) PLATFORM_OBJECTS+=("$object") ;;
-            */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
-        esac
-    done
-    for source in "$QASM_CU/qasm.cu" "$QASM_CU/qasm_program.cu" "$QASM_CU/qasm_run.cu" "$QASM_CU"/qasm_self_{program,run}.cu "$CYCLE_CU"/cycle*.cu \
-                  "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu \
-                  "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu"; do
-        object="$OUT/$(basename "$source" .cu)_cu.$EXTENSION"
-        qasm_cu_object "$source" "$object" || return 1
-        OBJECTS+=("$object")
-    done
+    local c_words
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*)
+            c_words=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}") ;;
+        *)
+            c_words=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}") ;;
+    esac
+    local cu_words=(nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 -rdc=true "${GENCODE[@]}" "${INCLUDES[@]}")
+    # Each source compiles one time for its words (shared_objects.sh). The .cu sources reach the tables of MMgr in each
+    # pass of nvcc, and they compile with -rdc=true. The line of MMgr, the cellblock and the device hooks compile as CUDA
+    # (exact_types_device_line). The program and the daemon link them with the device link. The process stage, the pool
+    # and the system calls of the platform go in the daemon too
+    exact_types_device_line || return 1
+    LINEA_OBJECTS=("${EXACT_TYPES_DEVICE_LINE[@]}")
+    shared_objects_built c_words "${EXACT_TYPES_PLATFORM[@]}" || return 1
+    PLATFORM_OBJECTS=("${SHARED_OBJECTS[@]}")
+    # The formats with the line: the ruleset reader reads a ruleset's .ksc as the run stores it (qry_member.h)
+    shared_objects_built c_words "${FILE_DEFS_FORMATS[@]}" "${EXACT_TYPES_INTEGERS[@]}" \
+        "$CYCLE/cycle.c" "$QASM"/qasm_{exact,trig,lexer,expression,gates,statements,read}.c \
+        "$QASM"/qasm_field_{rational,number}.c "$QASM/qasm_dense.c" "$QASM"/qasm_chain_{matrix,apply}.c \
+        "$QASM"/qasm_symbolic_{polynomial,function}.c "$QASM"/qasm_lens_{hash,rank}.c || return 1
+    OBJECTS=("${LINEA_OBJECTS[@]}" "${PLATFORM_OBJECTS[@]}" "${SHARED_OBJECTS[@]}")
+    shared_objects_built cu_words "$QASM_CU/qasm.cu" "$QASM_CU/qasm_program.cu" "$QASM_CU/qasm_run.cu" \
+        "$QASM_CU"/qasm_self_{program,run}.cu "$CYCLE_CU"/cycle*.cu \
+        "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu \
+        "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" || return 1
+    OBJECTS+=("${SHARED_OBJECTS[@]}")
     # A run on the device is a job on the device's tessera daemon. The client goes into the program. The script builds
-    # the daemon beside the program, which starts it when none answers
-    DAEMON_OBJECTS=()
-    local name
-    for name in tessera_client_{socket,jobs} tessera_paths tessera_frame tessera_self tessera_ledger tessera_measure \
-                tessera_daemon_{state,admission,peers,main}; do
-        object="$OUT/${name}_c.$EXTENSION"
-        qasm_c_object "$DAEMON_DIRECTORY/$name.c" "$object" || return 1
-        case "$name" in
-            tessera_client_*) OBJECTS+=("$object") ;;
-            tessera_paths|tessera_frame|tessera_self) OBJECTS+=("$object"); DAEMON_OBJECTS+=("$object") ;;
-            *) DAEMON_OBJECTS+=("$object") ;;
-        esac
-    done
-    SEAL_OBJECTS=()
-    for name in obsignatio_{hash,seal}; do
-        object="$OUT/${name}_cu.$EXTENSION"
-        rm -f "$object"
-        nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -c "$OBSIGNATIO_CU/$name.cu" -o "$object"
-        [ -f "$object" ] || { echo "  build failed: $name.cu did not compile"; return 1; }
-        SEAL_OBJECTS+=("$object")
-    done
+    # the daemon beside the program, which starts it when none answers. The sources come as the two clients, then the
+    # three that the clients and the daemon both link, then the daemon's own
+    shared_objects_built c_words "$DAEMON_DIRECTORY"/tessera_client_{socket,jobs}.c \
+        "$DAEMON_DIRECTORY"/tessera_{paths,frame,self,ledger,measure}.c \
+        "$DAEMON_DIRECTORY"/tessera_daemon_{state,admission,peers,main}.c || return 1
+    OBJECTS+=("${SHARED_OBJECTS[@]:0:5}")
+    DAEMON_OBJECTS=("${SHARED_OBJECTS[@]:2}")
+    shared_objects_built cu_words "$OBSIGNATIO_CU"/obsignatio_{hash,seal}.cu || return 1
+    SEAL_OBJECTS=("${SHARED_OBJECTS[@]}")
     OBJECTS+=("${SEAL_OBJECTS[@]}")
     DAEMON="$OUT/tessera_daemon$EXECUTABLE"
     rm -f "$DAEMON"
-    nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${GENCODE[@]}" "${LONG_PATHS[@]}" -o "$DAEMON" "${DAEMON_OBJECTS[@]}" \
+    nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true "${GENCODE[@]}" "${LONG_PATHS[@]}" -o "$DAEMON" "${DAEMON_OBJECTS[@]}" \
         "${LINEA_OBJECTS[@]}" "${PLATFORM_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}" \
         "${EXACT_TYPES_LIBRARIES[@]}"
     [ -f "$DAEMON" ] || { echo "  build failed: the tessera daemon did not link"; return 1; }
@@ -158,7 +122,7 @@ qasm_link()
     local sources=("$@")
     BINARY="$OUT/$name$EXECUTABLE"
     rm -f "$BINARY"
-    nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" "${LONG_PATHS[@]}" -o "$BINARY" \
+    nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -rdc=true "${GENCODE[@]}" "${INCLUDES[@]}" "${LONG_PATHS[@]}" -o "$BINARY" \
         "${sources[@]}" "${OBJECTS[@]}"
     [ -f "$BINARY" ] || { echo "  build failed: $name did not link"; return 1; }
     return 0

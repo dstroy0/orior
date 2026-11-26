@@ -16,7 +16,6 @@ LINK_FLAGS=()
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         BINARY="$OUT/casmi_driver.exe"
-        EXTENSION=obj
         MSVC_BIN="$(ls -d "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC"/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
         if [ -z "$MSVC_BIN" ]; then
             MSVC_BIN="$(ls -d "/c/Program Files/Microsoft Visual Studio"/*/*/VC/Tools/MSVC/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
@@ -30,7 +29,6 @@ case "$(uname -s)" in
         ;;
     *)
         BINARY="$OUT/casmi_driver"
-        EXTENSION=o
         HOST_FLAGS=(-Xcompiler -fPIC)
         ;;
 esac
@@ -45,7 +43,7 @@ for one in $ARCHES; do
     GENCODE+=(-gencode "arch=compute_${one#sm_},code=${one}")
 done
 
-EXACT_ROOT="$ENGINE/../types/integers"
+EXACT_ROOT="$ENGINE/../../../includes/exact_types/integers"
 RESIDUAL_LIMBS="$(sed -n 's/^#define ENGINE_RESIDUAL_LIMBS \([0-9]*\)u.*/\1/p' "$ENGINE"/engine_config_*.h)"
 [ -n "$RESIDUAL_LIMBS" ] || { echo "  build failed: no ENGINE_RESIDUAL_LIMBS in engine_config_*.h"; exit 1; }
 QUESTION_LIMBS=$((RESIDUAL_LIMBS + 1))
@@ -65,7 +63,7 @@ MODULES=(../includes/formats/cfg_json ../includes/formats/stack ../includes/file
          cu/engine/analysis/compression cu/engine/analysis/tower cu/engine/runtime/device_pool
          cu/engine/analysis/entropy_history cu/engine/analysis/noise_detector cu/engine/runtime/schedule
          cu/engine/analysis/keymath cu/engine/analysis/key_schedule cu/engine/analysis/cycle
-         cu/engine/rmc ../includes/parsers
+         cu/engine/rmc ../includes/parsers ../includes/file_defs/krs/ruleset_flat ../includes/file_defs/klq
          cu/engine/runtime/radix_keys cu/engine/analysis/unit_sweep cu/engine/runtime/obsignatio
          cu/engine/analysis/residual cu/engine/nbody/max_tree cu/engine/nbody/flatten cu/engine/analysis/golden_bands
          cu/engine/analysis/residual_survey cu/engine/nbody/grow cu/engine/analysis/shift_agreement
@@ -79,7 +77,7 @@ INGEST=(../includes/formats/zarr ../includes/codecs/zstd ../includes/codecs/infl
         ../includes/formats/hdf5 ../includes/codecs/zip ../includes/formats/dicom ../includes/formats/npy
         ../includes/formats/nrrd ../includes/formats/nifti ../includes/formats/parquet)
 MODULES+=("${INGEST[@]}")
-INCLUDES=(-I "$ENGINE" -I "$ENGINE/../includes/codecs/crc" -I "$TOP/src/sims/cu" -I "$ROOT/src")
+INCLUDES=(-I "$ENGINE" -I "$ENGINE/../../../includes/codecs/crc" -I "$TOP/src/sims/cu" -I "$ROOT/src")
 SOURCES=("$ENGINE"/engine_{record,residual,files,zarr,source,listing,seal,report,history}.cu)
 for module in "${MODULES[@]}"; do
     folder="$(build_path "$module")"
@@ -91,14 +89,12 @@ for module in "${MODULES[@]}"; do
 done
 INCLUDES+=("${TESSERA_INCLUDES[@]}")
 # MMgr's line, which the engine writes its text through: its flags for every source, its sources among the portable ones
-source "$ENGINE/../includes/file_defs/file_defs.sh"
-source "$ENGINE/../includes/exact_types/exact_types.sh"
+source "$ENGINE/../../../includes/file_defs/file_defs.sh"
+source "$ENGINE/../../../includes/exact_types/exact_types.sh"
 # the exact sources reach MMgr and embedded_types through their own headers
 EXACT_FLAGS+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 INCLUDES+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 
-OBJECTS=()
-LINEA_OBJECTS=()
 PORTABLE=()
 for module in cu/engine/nbody/body_overlap cu/engine/analysis/shift_agreement ../includes/formats/cfg_json \
               cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/engine/nbody/heaviest_matching cu/engine/nbody/marginal \
@@ -111,51 +107,30 @@ done
 for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
     PORTABLE+=("$EXACT_ROOT/$name.c")
 done
-PORTABLE+=("$ROOT/src/parquet/parquet.c" "$ROOT/src/mass/mass.c")
-PORTABLE+=("${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}")
-for source in "${PORTABLE[@]}"; do
-    object="$OUT/$(basename "$source" .c)_casmi_driver.$EXTENSION"
-    rm -f "$object"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$object" ;;
-        *)
-            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$object" ;;
-    esac
-    [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
-    OBJECTS+=("$object")
-    case "$source" in
-        */mmgr/src/locus_carcerum/*) ;;
-        */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
-    esac
-done
-tessera_build casmi_driver "${LINEA_OBJECTS[@]}" || exit 1
+# the member reader of a query file, which the ruleset reader reads the blob of a ruleset through
+PORTABLE+=("$ROOT/src/parquet/parquet.c" "$ROOT/src/mass/mass.c" "$TOP/includes/file_defs/qry/writer/qry_member.c"
+    "$TOP/includes/file_defs/qry/writer/platform/"*.c "$TOP/includes/file_defs/qry/qry_read.c"
+    "${EXACT_TYPES_PLATFORM[@]}")
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        PORTABLE_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}") ;;
+    *)
+        PORTABLE_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}" "${EXACT_FLAGS[@]}") ;;
+esac
+# Each source compiles one time for its words (shared_objects.sh). The line of MMgr, the cellblock and the device hooks
+# compile as CUDA (exact_types_device_line). The driver and the tessera daemon link them with nvcc's device link
+exact_types_device_line || exit 1
+LINEA_OBJECTS=("${EXACT_TYPES_DEVICE_LINE[@]}")
+shared_objects_built PORTABLE_WORDS "${PORTABLE[@]}" || exit 1
+OBJECTS=("${LINEA_OBJECTS[@]}" "${SHARED_OBJECTS[@]}")
+tessera_build "${LINEA_OBJECTS[@]}" || exit 1
 
-# The engine's sources, each compiled alone, through the compile cache under a key of src/ only. The key is its tree
-# at HEAD, its uncommitted changes and its untracked files, and the toolkit. The tree's own key covers every file of the
-# repository; an edit here would compile the engine again. Under this key a build compiles only what changed in
-# src/. Four compile at a time
-ENGINE_KEY="$({ git -C "$TOP" rev-parse HEAD:src; git -C "$TOP" diff HEAD --binary -- src;
-                git -C "$TOP" ls-files -o --exclude-standard -- src | while read -r path; do
-                    echo "$path"; sha256sum < "$TOP/$path"; done;
-                nvcc --version 2> /dev/null; } | sha256sum | cut -d ' ' -f 1)"
-COMPILE_FLAGS=("${HOST_FLAGS[@]}" -std=c++20 -O2 -fmad=false "${GENCODE[@]}" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}")
-ENGINE_OBJECTS=()
-running=0
-for source in "${SOURCES[@]}" "$TOP/src/sims/cu/sim_job.cu"; do
-    object="$OUT/engine_$(printf '%s' "$source" | sha256sum | cut -c 1-12)_$(basename "$source" .cu).$EXTENSION"
-    ENGINE_OBJECTS+=("$object")
-    ( COMPILE_CACHE_KEY="$ENGINE_KEY" nvcc "${COMPILE_FLAGS[@]}" -c "$source" -o "$object" ) &
-    running=$((running + 1))
-    if [ "$running" -ge 4 ]; then
-        wait -n
-        running=$((running - 1))
-    fi
-done
-wait
-for object in "${ENGINE_OBJECTS[@]}"; do
-    [ -f "$object" ] || { echo "  build failed: $(basename "$object") did not compile"; exit 1; }
-done
+# The engine's sources, each compiled one time for these words. They reach the tables of MMgr in each pass, and they
+# compile with -rdc=true
+COMPILE_FLAGS=("${HOST_FLAGS[@]}" -std=c++20 -O2 -fmad=false -rdc=true "${GENCODE[@]}" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}")
+ENGINE_WORDS=(nvcc "${COMPILE_FLAGS[@]}")
+shared_objects_built ENGINE_WORDS "${SOURCES[@]}" "$TOP/src/sims/cu/sim_job.cu" || exit 1
+ENGINE_OBJECTS=("${SHARED_OBJECTS[@]}")
 
 rm -f "$BINARY"
 nvcc "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${COMPILE_FLAGS[@]}" "${LINK_FLAGS[@]}" \

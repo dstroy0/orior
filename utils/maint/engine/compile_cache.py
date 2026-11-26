@@ -1,33 +1,40 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-"""The build's compile cache: each source nvcc is given is compiled once to an object, and a later build of the same
-tree with the same flags links that object instead of compiling it again.
+"""The build's compile cache. Each source that nvcc gets compiles once to an object. A later build with the same flags
+links that object. It compiles the source again only where the source or a file that its compile read is newer.
 
-    compile_cache.py key <root> ...           prints the tree's key
+    compile_cache.py key <root> ...           prints the key of the roots
     compile_cache.py nvcc <real nvcc> <argument> ...
 
-`key` is what the objects of a build depend on besides their flags: the committed files, the uncommitted changes and
-the untracked files of each root that is a git checkout, or the commit a pinned export was taken from (its .pinned
-file), and the toolkit's version. build_stamp.sh computes it once a build and exports it as COMPILE_CACHE_KEY. It
-also writes, beside the objects, the roots and the headers whose names two of the roots' headers share.
+`key` is what the objects of a build depend on, past their flags and the files that each compile reads. It holds the
+roots, the headers whose names two of the roots' headers share, and the version of the toolkit. The script
+build_stamp.sh computes it once a build and exports it as COMPILE_CACHE_KEY. It also writes the roots and the
+shared-name headers beside the objects.
 
-`nvcc` is in for nvcc. Each .cu, .c or .cpp among the arguments is compiled alone with `-c` and every other
-argument but the output, into COMPILE_CACHE_DIR under a name made from the key, those arguments and the source's path;
-the ones not there yet are compiled COMPILE_CACHE_JOBS at a time (4 by default; the harness sets the processors a suite reserves). The
-call is then made again with each source replaced by its object, which only links. nvcc compiles each source of a
-call apart without -rdc. The objects are the ones it would have made. A call that asks for anything else (-E, -M,
--x, -rdc, -dc, -dlink, -ptx, -cubin, -fatbin, -lib, -shared, --version, no source) goes to nvcc as it is, and so does
-every call when COMPILE_CACHE_KEY or COMPILE_CACHE_DIR is unset.
+`nvcc` takes the place of nvcc. nvcc compiles each .cu, .c or .cpp of the arguments alone, with `-c` and each other
+argument but the output. The object goes into COMPILE_CACHE_DIR under a name that the key, those arguments and the
+path of the source make. Each compile writes the files that it reads into the .d file of the object (-MD). An object
+compiles again where it is not there, or where its source or a file of its .d file is newer than it.
 
-An include folder inside the roots is left out of an object's name unless one of the shared-name headers lies under
-it: every other header there has one file of its name. It is found as the same file from any set of folders, and
-the suites, each naming its own folders, link the same engine objects. An object one build is compiling is waited
-for by another (its .lock), for up to COMPILE_CACHE_WAIT seconds (900 by default), before that one compiles it too.
+Those compiles run COMPILE_CACHE_JOBS at a time: 4 where the caller sets none, and the processors of a suite where
+the harness sets it. Then the call runs again with each source replaced by its object, and that call only links. Each
+source of a call compiles apart, and with -rdc the link of the objects is the device link. The objects are the objects
+that nvcc makes itself.
+
+Any other call goes to nvcc as it is. Such a call asks for -E, -M, -x, -dc, -dlink, -ptx, -cubin, -fatbin, -lib,
+-shared or --version, or names no source. Each call goes to nvcc as it is where COMPILE_CACHE_KEY or
+COMPILE_CACHE_DIR has no value.
+
+The name of an object leaves out an include folder inside the roots, unless a shared-name header lies under it. Each
+other header there has one file of its name. Any set of folders finds the same file for it, and so the suites link the
+same engine objects with folders of their own. A build waits for an object that another build compiles (its .lock),
+for up to COMPILE_CACHE_WAIT seconds (900 where the caller sets none). After that time it compiles the object too.
 """
 
 import concurrent.futures
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -39,9 +46,9 @@ VALUED = {"-o", "-I", "-L", "-l", "-D", "-U", "-gencode", "-Xcompiler", "-Xlinke
           "-arch", "-code", "-include", "-isystem", "-std", "--output-file", "--compiler-bindir"}
 LINK_ONLY = {"-l", "-L", "-Xlinker", "-Xnvlink"}
 FOLDERS = {"-I", "-isystem"}
-BYPASS = {"-E", "-M", "-MM", "-MD", "-MMD", "-x", "-rdc", "-dc", "-dlink", "-ptx", "-cubin", "-fatbin", "-lib",
-          "-shared", "--shared", "--version", "-V", "--preprocess", "--relocatable-device-code", "--device-c",
-          "--device-link", "--lib", "-run", "--run", "-dryrun", "--dryrun"}
+BYPASS = {"-E", "-M", "-MM", "-MD", "-MMD", "-x", "-dc", "-dlink", "-ptx", "-cubin", "-fatbin", "-lib", "-shared",
+          "--shared", "--version", "-V", "--preprocess", "--device-c", "--device-link", "--lib", "-run", "--run",
+          "-dryrun", "--dryrun"}
 
 
 def git(root, *arguments):
@@ -57,26 +64,19 @@ def key(roots):
     headers = {}
     for root in roots:
         digest.update(b"root\0" + os.path.abspath(root).encode() + b"\0")
-        pinned = os.path.join(root, ".pinned")
-        if os.path.isfile(pinned):
-            with open(pinned, "rb") as handle:
-                digest.update(b"pinned\0" + handle.read())
+        if os.path.isfile(os.path.join(root, ".pinned")):
             for folder, _, names in os.walk(root):
                 for name in names:
                     if name.lower().endswith(HEADERS):
                         headers.setdefault(name, set()).add(same_path(os.path.join(folder, name)))
             continue
-        digest.update(git(root, "ls-files", "-s"))
-        digest.update(git(root, "diff", "HEAD", "--binary"))
-        for path in git(root, "ls-files", "-o", "--exclude-standard", "-z").split(b"\0"):
-            if path:
-                digest.update(path + b"\0")
-                with open(os.path.join(root, path.decode()), "rb") as handle:
-                    digest.update(hashlib.sha256(handle.read()).digest())
         for path in git(root, "ls-files", "-co", "--exclude-standard", "-z").split(b"\0"):
             name = os.path.basename(path.decode())
             if name.lower().endswith(HEADERS):
                 headers.setdefault(name, set()).add(same_path(os.path.join(root, path.decode())))
+    shared = sorted(path for paths in headers.values() if len(paths) > 1 for path in paths)
+    for path in shared:
+        digest.update(b"shared\0" + path.encode() + b"\0")
     real = shutil.which("nvcc")
     if real:
         digest.update(subprocess.run([real, "--version"], capture_output=True).stdout)
@@ -84,7 +84,6 @@ def key(roots):
     folder = os.environ.get("COMPILE_CACHE_DIR", "")
     if folder:
         os.makedirs(folder, exist_ok=True)
-        shared = sorted(path for paths in headers.values() if len(paths) > 1 for path in paths)
         lines = ["root " + same_path(root) for root in roots] + ["shared " + path for path in shared]
         written = os.path.join(folder, answer + ".roots")
         partial = "%s.%d.part" % (written, os.getpid())
@@ -126,8 +125,8 @@ def split(arguments):
 
 
 def named_flags(flags, folder, cache_key):
-    """The flags an object's name is made from: an include folder inside the roots is left out where no shared-name
-    header lies under it. Without the roots file every flag is retained."""
+    """The flags that make the name of an object. They leave out an include folder inside the roots where no
+    shared-name header lies under it. Without the roots file they hold every flag."""
     try:
         with open(os.path.join(folder, cache_key + ".roots"), encoding="utf-8") as handle:
             lines = handle.read().splitlines()
@@ -156,6 +155,29 @@ def named_flags(flags, folder, cache_key):
         retained.append(flags[at])
         at += 1
     return retained
+
+
+def stale(source, target):
+    """True where the object target of source compiles again. The object or its .d file is not there. Or the source
+    or a file that the .d file names is newer than the object. A space that the .d file escapes stays in its path."""
+    try:
+        made = os.path.getmtime(target)
+        with open(target + ".d", encoding="utf-8", errors="replace") as handle:
+            written = handle.read()
+    except OSError:
+        return True
+    words = re.split(r"(?<!\\)\s+", written.replace("\\\n", " "))
+    # the first word is the object, which the .d file names as its target, and its colon follows it
+    for word in [source] + words[1:]:
+        path = word.replace("\\ ", " ")
+        if not path or path == ":" or path.endswith(":"):
+            continue
+        try:
+            if os.path.getmtime(path) > made:
+                return True
+        except OSError:
+            return True
+    return False
 
 
 def main():
@@ -189,7 +211,7 @@ def main():
         lock = target + ".lock"
         began = time.monotonic()
         held = False
-        while not os.path.isfile(target):
+        while stale(source, target):
             try:
                 os.close(os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
                 held = True
@@ -199,15 +221,18 @@ def main():
                     break
                 time.sleep(1.0)
         try:
-            if os.path.isfile(target):
+            if not stale(source, target):
                 return 0
             partial = "%s.%d.part%s" % (target, os.getpid(), extension)
-            status = subprocess.run([real, "-c"] + compile_flags + [source, "-o", partial]).returncode
-            if status == 0 and os.path.isfile(partial):
+            status = subprocess.run([real, "-c"] + compile_flags + ["-MD", "-MF", partial + ".d", source, "-o",
+                                                                     partial]).returncode
+            if status == 0 and os.path.isfile(partial) and os.path.isfile(partial + ".d"):
+                os.replace(partial + ".d", target + ".d")
                 os.replace(partial, target)
                 return 0
-            if os.path.isfile(partial):
-                os.remove(partial)
+            for written in (partial, partial + ".d"):
+                if os.path.isfile(written):
+                    os.remove(written)
             return status or 1
         finally:
             if held:

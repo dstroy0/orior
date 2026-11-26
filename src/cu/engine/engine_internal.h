@@ -200,10 +200,15 @@ extern "C" int engine_source_find(const char *source, const char *sample, char *
 
 unsigned long long entry_lanes(const unsigned long long extent[4]);
 
-int entry_iapx_decode(const EngineStream *stream, const unsigned short *device_lanes, unsigned short *rebuilt,
-                      unsigned long long *mismatches, const unsigned short **device_rebuilt, EngineError *error);
+// The stream decoded and lowered in one job of the device. The rebuilt samples cross out into `rebuilt`, a room of the
+// lanes of the extent. The count of the samples that differ from `lanes` goes in `*mismatches`, 0 where `lanes` is
+// NULL. 1, or 0 with the error set
+int entry_iapx_decode(const EngineStream *stream, const unsigned short *lanes, unsigned short *rebuilt,
+                      unsigned long long *mismatches, EngineError *error);
 
-int entry_iapx_encode(const unsigned short *device_lanes, const unsigned long long extent[4], EngineStream *stream,
+// The samples `lanes` on the host lifted and encoded in one job of the device, the code in `stream`. 1, or 0 with the
+// error set
+int entry_iapx_encode(const unsigned short *lanes, const unsigned long long extent[4], EngineStream *stream,
                       unsigned int *floors, EngineError *error);
 
 int entry_side_pack(EngineSideSection *section, EngineError *error);
@@ -214,11 +219,16 @@ static_assert(OBSIGNATIO_SIGNUM_BYTES == ENGINE_SIGNUM_BYTES, "the engine's sign
 
 int entry_signum_same(const EngineSignum *one, const EngineSignum *other);
 
-int entry_seal_make(const unsigned short *device_lanes, const EngineStream *stream, const EngineSideSection *section,
+// The seal of a crystal. It holds the nodes of the samples `lanes` on the host and the leaves of the chunks of the
+// stream. It also holds the roots of the stream, the side and the sample
+int entry_seal_make(const unsigned short *lanes, const EngineStream *stream, const EngineSideSection *section,
                     EngineSeal *seal, EngineError *error);
 
+// The crystal read back and checked against its seal. The samples `source` on the host, where not NULL, count the
+// samples that differ. The rebuilt samples go in `rebuilt`, where not NULL, and else in a room that the call takes and
+// gives back
 int entry_crystal_verify(const EngineStream *file, EngineSideSection *section, const EngineSeal *seal,
-                         const unsigned short *device_source, unsigned short *rebuilt, EngineSampleRecord *record,
+                         const unsigned short *source, unsigned short *rebuilt, EngineSampleRecord *record,
                          EngineError *error);
 
 int entry_set_root(const EngineSignum *roots, unsigned long long count, EngineSignum *root, EngineError *error);

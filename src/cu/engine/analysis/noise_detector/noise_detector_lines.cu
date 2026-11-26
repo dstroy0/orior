@@ -26,9 +26,9 @@ void noise_wide_add_square(NoiseWide *sum, unsigned long long magnitude)
 // never touch either end of the lane
 #define NOISE_STATIC_SHARE 4ULL
 
-// One thread a line of one frame pair: its frame, its z plane, and its row (along x) or column (along y). The line's
-// frame differences are summed, their squares are summed, and so are its values, which place it in a level bin. Its
-// static members are counted, and their frame differences summed and squared and their values summed apart.
+// One thread a line of one frame pair: its frame, its z plane, and its row (along x) or column (along y). The thread
+// sums the line's frame differences, their squares, and its values, which place it in a level bin. It counts the
+// line's static members, and sums their frame differences, the squares of those, and their values apart.
 __global__ static void noise_lines_kernel(const unsigned short *lanes, const unsigned char *mask,
                                           unsigned long long frame_pairs, unsigned long long depth,
                                           unsigned long long height, unsigned long long width, unsigned int along_x,
@@ -177,28 +177,28 @@ static int noise_planes_rows(PlatformFile *table, const char *name, const NoiseP
 }
 
 // A quiet voxel's frame differences have a mean square of at max NOISE_QUIET_SLOPE times its mean plus
-// NOISE_QUIET_FLOOR. A still voxel's is 2 (g L + R^2), and the set's transfer curves (compression_table.md) give g at
-// max 1.162 and the read variance near 2.5, at max 0.6 of this bound at every level; a voxel that structure moves
-// through reads far past it.
+// NOISE_QUIET_FLOOR. A still voxel's is 2 (g L + R^2). The set's transfer curves (compression_table.md) give g at max
+// 1.162 and the read variance near 2.5, at max 0.6 of this bound at every level. A voxel that structure moves through
+// reads far past it.
 #define NOISE_QUIET_SLOPE 4ULL
 
 #define NOISE_QUIET_FLOOR 32ULL
 
-// Marks the static voxels: among those that change and never touch either end of the lane, and where quiet is set
-// that pass the spread test above, the dimmest 1 / NOISE_STATIC_SHARE by their mean over the frames, rounded down.
-// The ceiling is the highest mean retained. The pixel maps leave quiet unset: a hot pixel is loud and is what they
-// seek.
+// Marks the static voxels. They are the voxels that change and never touch either end of the lane, and that pass the
+// spread test above where quiet is 1. Of those, the call marks the dimmest 1 / NOISE_STATIC_SHARE by their mean over
+// the frames, rounded down. The ceiling is the highest mean that the call keeps. The pixel maps leave quiet unset: a
+// hot pixel is loud and is what they seek.
 int noise_static_mask(const unsigned short *volume, unsigned long long frames, unsigned long long voxels,
                       unsigned int quiet, unsigned char *mask, unsigned long long *ceiling)
 {
     unsigned long long *const totals = (unsigned long long *)platform_cell_cleared(
-        (size_t)voxels, sizeof(unsigned long long), platform_place_g_program_owner, 0);
-    unsigned short *const least = (unsigned short *)platform_cell_taken((size_t)voxels * sizeof(unsigned short),
-                                                                        platform_place_g_program_owner, 0);
-    unsigned short *const max = (unsigned short *)platform_cell_cleared((size_t)voxels, sizeof(unsigned short),
-                                                                        platform_place_g_program_owner, 0);
+        (size_t)voxels, sizeof(unsigned long long), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned short *const least = (unsigned short *)platform_cell_taken(
+        (size_t)voxels * sizeof(unsigned short), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned short *const max = (unsigned short *)platform_cell_cleared(
+        (size_t)voxels, sizeof(unsigned short), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     unsigned long long *const counted = (unsigned long long *)platform_cell_cleared(
-        NOISE_VALUES, sizeof(unsigned long long), platform_place_g_program_owner, 0);
+        NOISE_VALUES, sizeof(unsigned long long), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     unsigned long long *const squares =
         (quiet != 0u) ? (unsigned long long *)platform_cell_cleared((size_t)voxels, sizeof(unsigned long long),
                                                                     platform_place_g_program_owner, 0)
@@ -285,10 +285,10 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
     const unsigned long long voxels = depth * height * width;
     const unsigned long long plane_voxels = height * width;
     const unsigned long long longer = (height > width) ? height : width;
-    // every member square sum fits a word, and a plane's sum and level sum fit theirs; a plane's squared row sums
-    // total at max its voxels times its width times 65535 squared, its columns' at max its voxels times its height
-    // times that, and the longer side bounds both; every n^2 - n pooled totals at max the sample's voxel-frames times
-    // a plane's voxels, which a plane of at max 65535 squared voxels represents in a word
+    // Every member square sum fits a word, and a plane's sum and level sum fit theirs. A plane's squared row sums total
+    // at max its voxels times its width times 65535 squared. Its columns' total at max its voxels times its height
+    // times that, and the longer side bounds both. Every pooled n^2 - n totals at max the sample's voxel-frames times a
+    // plane's voxels. A plane of at max 65535 squared voxels holds that in a word
     const int bounded = (frames >= 2ULL) && (voxels != 0ULL) && (frames <= (~0ULL / voxels)) &&
                         ((frames * voxels) <= (~0ULL / (65535ULL * 65535ULL))) &&
                         (plane_voxels <= (0x7FFFFFFFFFFFFFFFULL / 131070ULL)) &&
@@ -316,22 +316,25 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
     unsigned long long *device_static_squares = NULL;
     unsigned long long *device_static_members = NULL;
     unsigned long long *device_static_levels = NULL;
-    long long *const sums = (long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, 0);
+    long long *const sums =
+        (long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     unsigned long long *const squares =
-        (unsigned long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, 0);
+        (unsigned long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     unsigned long long *const levels =
-        (unsigned long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, 0);
-    long long *const static_sums = (long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, 0);
+        (unsigned long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    long long *const static_sums =
+        (long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     unsigned long long *const static_squares =
-        (unsigned long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, 0);
+        (unsigned long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     unsigned long long *const static_members =
-        (unsigned long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, 0);
+        (unsigned long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     unsigned long long *const static_levels =
-        (unsigned long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, 0);
-    unsigned char *const mask = (unsigned char *)platform_cell_taken((size_t)voxels, platform_place_g_program_owner, 0);
+        (unsigned long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned char *const mask =
+        (unsigned char *)platform_cell_taken((size_t)voxels, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     const unsigned long long plane_count = frame_pairs * depth;
-    NoisePlane *const planes =
-        (NoisePlane *)platform_cell_taken((size_t)plane_count * sizeof(NoisePlane), platform_place_g_program_owner, 0);
+    NoisePlane *const planes = (NoisePlane *)platform_cell_taken(
+        (size_t)plane_count * sizeof(NoisePlane), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     int ok =
         NOISE_DETECTOR_CHECK((sums != NULL) && (squares != NULL) && (levels != NULL) && (static_sums != NULL) &&
                                  (static_squares != NULL) && (static_members != NULL) && (static_levels != NULL) &&

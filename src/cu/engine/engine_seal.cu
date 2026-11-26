@@ -25,7 +25,7 @@ int entry_side_pack(EngineSideSection *section, EngineError *error)
     pack.out = section->packed;
     pack.out_capacity = capacity;
     const long long packed = deflate_raw_encode(&pack);
-    // a packed count that is not errored is at least zero, and fits an unsigned long long exactly
+    // a packed count that is no error is at least zero, and fits an unsigned long long exactly
     section->packed_bytes = (packed >= 0LL) ? (unsigned long long)packed : 0ULL;
     return ENGINE_CHECK(packed >= 0LL, section->packed, error, ENGINE_ERROR_RESOURCE);
 }
@@ -48,7 +48,7 @@ static int entry_side_unpack(EngineSideSection *section, EngineError *error)
     unpack.out = section->side.bytes;
     unpack.out_capacity = bytes;
     const long long unpacked = inflate_raw_decode(&unpack);
-    // the count is compared against a size in memory, which fits a long long
+    // the check compares the count against a size in memory, which fits a long long
     return ENGINE_CHECK(unpacked == (long long)bytes, section->side.bytes, error, ENGINE_ERROR_LOGIC);
 }
 
@@ -117,58 +117,28 @@ static void entry_words_place(unsigned char *out, const unsigned long long *word
     }
 }
 
-static int entry_seal_lanes(const unsigned short *device_lanes, const unsigned long long extent[4], EngineSignum *nodes,
-                            unsigned long long count, EngineError *error)
+// the nodes of the samples `lanes` on the host, sealed in one job of the device into `nodes`
+static int entry_seal_lanes(const unsigned short *lanes, const unsigned long long extent[4], EngineSignum *nodes,
+                            EngineError *error)
 {
-    const size_t bytes = (size_t)count * sizeof(EngineSignum);
-    unsigned char *device_nodes = NULL;
-    int ok = ENGINE_STATUS_CHECK(cudaMalloc((void **)&device_nodes, bytes), &device_nodes, error);
-    if (ok)
-    {
-        const ObsignatioLanesRequest request = {device_lanes, extent, device_nodes, error};
-        ok = (obsignatio_lanes(&request) == 0L) &&
-             ENGINE_STATUS_CHECK(cudaMemcpy(nodes, device_nodes, bytes, cudaMemcpyDeviceToHost), nodes, error);
-    }
-    cudaFree(device_nodes);
-    return ok;
+    // Explicit cast writes the nodes as the bytes of their signa
+    const ObsignatioLanesJobRequest request = {lanes, extent, (unsigned char *)nodes, error};
+    return obsignatio_lanes_job(&request) == 0L;
 }
 
+// the leaves of the chunks of the stream, sealed in one job of the device into `leaves`
 static int entry_seal_chunks(const EngineStream *stream, EngineSignum *leaves, EngineError *error)
 {
     if (stream->chunks == 0ULL)
     {
         return 1;
     }
-    const size_t limbs = (size_t)((stream->bits + 31ULL) / 32ULL);
-    const size_t leaf_bytes = (size_t)stream->chunks * sizeof(EngineSignum);
-    unsigned long long *device_offsets = NULL;
-    unsigned int *device_limbs = NULL;
-    unsigned char *device_leaves = NULL;
     unsigned char key[OBSIGNATIO_KEY_BYTES];
-    int ok =
-        (obsignatio_level_key(OBSIGNATIO_LEVEL_CHUNK, key, error) == 0L) &&
-        ENGINE_STATUS_CHECK(cudaMalloc((void **)&device_offsets, (size_t)stream->chunks * sizeof(unsigned long long)),
-                            &device_offsets, error) &&
-        ENGINE_STATUS_CHECK(cudaMalloc((void **)&device_limbs, (limbs + 1u) * sizeof(unsigned int)), &device_limbs,
-                            error) &&
-        ENGINE_STATUS_CHECK(cudaMalloc((void **)&device_leaves, leaf_bytes), &device_leaves, error) &&
-        ENGINE_STATUS_CHECK(cudaMemcpy(device_offsets, stream->offsets,
-                                       (size_t)stream->chunks * sizeof(unsigned long long), cudaMemcpyHostToDevice),
-                            device_offsets, error) &&
-        ENGINE_STATUS_CHECK(
-            cudaMemcpy(device_limbs, stream->stream, limbs * sizeof(unsigned int), cudaMemcpyHostToDevice),
-            device_limbs, error);
-    if (ok)
-    {
-        const ObsignatioBitsRequest request = {device_limbs, device_offsets,        stream->chunks, stream->bits,
-                                               key,          OBSIGNATIO_MODE_KEYED, device_leaves,  error};
-        ok = (obsignatio_bits(&request) == 0L) &&
-             ENGINE_STATUS_CHECK(cudaMemcpy(leaves, device_leaves, leaf_bytes, cudaMemcpyDeviceToHost), leaves, error);
-    }
-    cudaFree(device_leaves);
-    cudaFree(device_limbs);
-    cudaFree(device_offsets);
-    return ok;
+    // Explicit cast writes the leaves as the bytes of their signa
+    const ObsignatioBitsJobRequest request = {
+        stream->stream,        stream->offsets,         stream->chunks, stream->bits, key,
+        OBSIGNATIO_MODE_KEYED, (unsigned char *)leaves, error};
+    return (obsignatio_level_key(OBSIGNATIO_LEVEL_CHUNK, key, error) == 0L) && (obsignatio_bits_job(&request) == 0L);
 }
 
 static int entry_seal_stream(const EngineStream *stream, const EngineSignum *leaves, EngineSignum *root,
@@ -177,7 +147,7 @@ static int entry_seal_stream(const EngineStream *stream, const EngineSignum *lea
     const unsigned long long offset_bytes = 8ULL * stream->chunks;
     const unsigned long long bytes = offset_bytes + 8ULL + (ENGINE_SIGNUM_BYTES * stream->chunks);
     unsigned char *const buffer =
-        (unsigned char *)platform_cell_taken((size_t)bytes, platform_place_g_program_owner, 0);
+        (unsigned char *)platform_cell_taken((size_t)bytes, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     if (ENGINE_CHECK(buffer != NULL, &buffer, error, ENGINE_ERROR_RESOURCE) == 0)
     {
         return 0;
@@ -293,11 +263,11 @@ static int entry_seal_open(const EngineStream *stream, EngineSeal *seal, EngineE
                         error, ENGINE_ERROR_RESOURCE);
 }
 
-int entry_seal_make(const unsigned short *device_lanes, const EngineStream *stream, const EngineSideSection *section,
+int entry_seal_make(const unsigned short *lanes, const EngineStream *stream, const EngineSideSection *section,
                     EngineSeal *seal, EngineError *error)
 {
     const int ok = entry_seal_open(stream, seal, error) &&
-                   entry_seal_lanes(device_lanes, stream->extent, seal->lane_nodes, seal->lane_count, error) &&
+                   entry_seal_lanes(lanes, stream->extent, seal->lane_nodes, error) &&
                    entry_seal_chunks(stream, seal->chunk_leaves, error) &&
                    entry_seal_stream(stream, seal->chunk_leaves, &seal->roots[ENGINE_SEAL_STREAM], error) &&
                    entry_seal_side_stored(section, &seal->roots[ENGINE_SEAL_SIDE_STORED], error) &&
@@ -318,9 +288,16 @@ static unsigned long long entry_roots_differ(const EngineSeal *fresh, const Engi
 }
 
 int entry_crystal_verify(const EngineStream *file, EngineSideSection *section, const EngineSeal *seal,
-                         const unsigned short *device_source, unsigned short *rebuilt, EngineSampleRecord *record,
+                         const unsigned short *source, unsigned short *rebuilt, EngineSampleRecord *record,
                          EngineError *error)
 {
+    // the room of the rebuilt samples, which the call takes and gives back where the caller gives none
+    unsigned short *const room =
+        (rebuilt != NULL)
+            ? NULL
+            : (unsigned short *)platform_cell_taken((size_t)entry_lanes(file->extent) * sizeof(unsigned short),
+                                                    platform_place_g_program_owner, 1);
+    unsigned short *const samples = (rebuilt != NULL) ? rebuilt : room;
     record->crystal_read = 1ULL;
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = record->extent, .src = file->extent, .bytes = sizeof(record->extent));
     record->root = seal->roots[ENGINE_SEAL_SAMPLE];
@@ -346,7 +323,6 @@ int entry_crystal_verify(const EngineStream *file, EngineSideSection *section, c
                                 entry_roots_differ(&fresh, seal, ENGINE_SEAL_SIDE_STORED) +
                                 entry_roots_differ(&fresh, seal, ENGINE_SEAL_MEMBERS);
     }
-    const unsigned short *device_rebuilt = NULL;
     ok = ok &&
          ENGINE_CHECK((record->chunks_differ == 0ULL) && (record->roots_differ == 0ULL), seal, error,
                       ENGINE_ERROR_LOGIC) &&
@@ -359,8 +335,9 @@ int entry_crystal_verify(const EngineStream *file, EngineSideSection *section, c
                                 entry_roots_differ(&fresh, seal, ENGINE_SEAL_SIDE);
     }
     ok = ok && ENGINE_CHECK(record->roots_differ == 0ULL, seal, error, ENGINE_ERROR_LOGIC) &&
-         (entry_iapx_decode(file, device_source, rebuilt, &record->voxels_differ, &device_rebuilt, error) != 0) &&
-         entry_seal_lanes(device_rebuilt, file->extent, fresh.lane_nodes, fresh.lane_count, error);
+         ENGINE_CHECK(samples != NULL, &samples, error, ENGINE_ERROR_RESOURCE) &&
+         (entry_iapx_decode(file, source, samples, &record->voxels_differ, error) != 0) &&
+         entry_seal_lanes(samples, file->extent, fresh.lane_nodes, error);
     const unsigned long long rows = file->extent[0] * file->extent[1] * file->extent[2];
     for (unsigned long long node = 0ULL; ok && (node < fresh.lane_count); node += 1ULL)
     {
@@ -382,6 +359,7 @@ int entry_crystal_verify(const EngineStream *file, EngineSideSection *section, c
                                 (record->voxels_differ == 0ULL),
                             seal, error, ENGINE_ERROR_LOGIC);
     krep_seal_release(&fresh);
+    platform_cell_released(room, platform_place_g_program_owner);
     return ok;
 }
 

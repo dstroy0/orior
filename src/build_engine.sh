@@ -105,59 +105,14 @@ for module in "${MODULES[@]}"; do
         [ -f "$source" ] && MODULE_SOURCES+=("$source")
     done
 done
-# Each source compiles to an object of its own. The build keeps the objects between builds, in a folder named for the
-# flags that build them. A source compiles again only where its object does not exist, or where its source or a header
-# of the engine's is newer. As many compile at once as the host has processors, or ENGINE_JOBS where the caller sets
-# it. The build links the library once from the objects.
-case "$(uname -s)" in
-    MINGW*|MSYS*|CYGWIN*) SUFFIX=obj ;;
-    *) SUFFIX=o ;;
-esac
-# The C++ standard of the .cu sources. The key of the objects covers it and the LTO flags of file_defs.sh. An object
-# that other flags compiled does not link with these
+# Each source compiles to an object of its own through shared_objects_built, one time for its words. An object compiles
+# again only where its source or a header that its last compile read is newer. As many compile at once as the host has
+# processors, or COMPILE_CACHE_JOBS where the harness sets it. The build links the library once from the objects.
+#
+# The .cu sources reach the tables of MMgr in each pass of nvcc. They compile with -rdc=true, and the library links
+# with the device link. The line of MMgr, the cellblock and the device hooks of the platform compile as CUDA
+# (exact_types_device_line). The library links them in place of their C objects
 CU_STANDARD=-std=c++20
-KEY="$(printf '%s\n' "$(uname -s)" "$ARCHES" "${EXACT_FLAGS[*]}" "${DEFINES[*]}" "${HOST_FLAGS[*]}" "$CU_STANDARD" \
-    "${FILE_DEFS_LTO_NVCC[*]}" "${FILE_DEFS_LTO_CC[*]}" | cksum | cut -d' ' -f1)"
-CACHE="$FINAL/engine_objects/$KEY"
-mkdir -p "$CACHE"
-JOBS="${ENGINE_JOBS:-$(nproc 2> /dev/null || echo 4)}"
-NEWEST_HEADER="$(find "$TOP/src/cu" "$TOP/src/engine" "$EXACT_ROOT" \( -name '*.h' -o -name '*.cuh' -o -name '*.hpp' \) \
-    -printf '%T@\n' 2> /dev/null | sort -n | tail -1)"
-NEWEST_HEADER="${NEWEST_HEADER%.*}"
-FAILED="$CACHE/failed.txt"
-rm -f "$FAILED"
-
-# every object's time, read in one call, and whether the object `$1` of the source `$2` compiles again
-declare -A OBJECT_TIME=()
-while read -r seconds object; do
-    OBJECT_TIME["$object"]="$seconds"
-done < <(stat -c '%Y %n' "$CACHE"/*."$SUFFIX" 2> /dev/null)
-stale() {
-    [ -z "${OBJECT_TIME["$1"]:-}" ] || [ "$2" -nt "$1" ] || [ "${NEWEST_HEADER:-0}" -gt "${OBJECT_TIME["$1"]}" ]
-}
-
-# The source `$2` compiled to the object `$1` by the words after them. The object goes beside its place first, and
-# into its place once it is whole. A source that does not compile goes in FAILED, and the compiler's words stay beside
-# the object
-compiled() {
-    local object="$1" source="$2" part="${1%.*}.part.$SUFFIX"
-    shift 2
-    if "$@" -c "$source" -o "$part" > "$object.log" 2>&1 && mv -f "$part" "$object"; then
-        rm -f "$object.log"
-    else
-        rm -f "$part"
-        echo "$source $object.log" >> "$FAILED"
-    fi
-}
-
-# a compile started in the background once fewer than JOBS run
-queued() {
-    while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do
-        wait -n
-    done
-    compiled "$@" &
-}
-
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         C_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${DEFINES[@]}" "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
@@ -168,63 +123,40 @@ case "$(uname -s)" in
         EXACT_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${EXACT_FLAGS[@]}")
         ;;
 esac
-CU_WORDS=(nvcc "${HOST_FLAGS[@]}" "$CU_STANDARD" -O2 -fmad=false "${GENCODE[@]}" "${DEFINES[@]}" "${MODULE_INCLUDES[@]}"
-          "${EXACT_FLAGS[@]}")
+CU_WORDS=(nvcc "${HOST_FLAGS[@]}" "$CU_STANDARD" -O2 -fmad=false -rdc=true "${GENCODE[@]}" "${DEFINES[@]}"
+          "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
 
-OBJECTS=()
-COMPILED=0
 BEGAN=$(date +%s)
-# Each source with the words it compiles by, and its object named by its path under src. The link takes every object,
-# and the stale ones compile again first
-listed() {
-    local source="$1" relative="${1#"$TOP/src/"}" object
-    shift
-    object="$CACHE/${relative//\//__}.$SUFFIX"
-    OBJECTS+=("$object")
-    if stale "$object" "$source"; then
-        COMPILED=$((COMPILED + 1))
-        queued "$object" "$source" "$@"
-    fi
-}
-for source in "${MODULE_SOURCES[@]}"; do
-    listed "$source" "${CU_WORDS[@]}"
-done
+shared_objects_built CU_WORDS "${MODULE_SOURCES[@]}" || exit 1
+OBJECTS=("${SHARED_OBJECTS[@]}")
+COMPILED=$SHARED_OBJECTS_COMPILED
+# The C sources: the portable C of the engine, the member reader of a query file and the platform of the program. The
+# ruleset reader reads the blob of a ruleset through the member reader, and exact_types takes its cells from the
+# platform. A folder with no C file leaves the pattern unexpanded, and it names no file to build.
+C_SOURCES=()
 for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching cu/engine/analysis/shift_agreement \
                 cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/engine/nbody/marginal \
                 ../includes/exact_types/integerfloats/double_fields ../includes/exact_types/integerfloats/decimal_double \
                 ../includes/exact_types/integers/exact_record "${INGEST[@]}"; do
-    # A folder with no C file leaves the pattern unexpanded, and it names no file to build.
     for source in "$TOP/src/$portable"/*.c; do
-        [ -f "$source" ] && listed "$source" "${C_WORDS[@]}"
+        [ -f "$source" ] && C_SOURCES+=("$source")
     done
 done
-for source in "${FILE_DEFS_LINEA[@]}"; do
-    listed "$source" "${C_WORDS[@]}"
-done
-# the member reader of a query file, which the ruleset reader reads a ruleset's blob through
-for source in "$TOP/includes/file_defs/qry/writer/qry_member.c" "$TOP/includes/file_defs/qry/writer/platform/"*.c \
-    "$TOP/includes/file_defs/qry/qry_read.c"; do
-    listed "$source" "${C_WORDS[@]}"
-done
-for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
-    listed "$EXACT_ROOT/$name.c" "${EXACT_WORDS[@]}"
-done
-# the platform of the program and the cellblock that it places, which exact_types takes its cells from
-for source in "${EXACT_TYPES_PLATFORM_LIBRARY[@]}" "${EXACT_TYPES_CARCER[@]}"; do
-    listed "$source" "${C_WORDS[@]}"
-done
-wait
-if [ -f "$FAILED" ]; then
-    while read -r source log; do
-        echo "  build failed: ${source#"$TOP/"} did not compile"
-        tail -20 "$log"
-    done < "$FAILED"
-    exit 1
-fi
-echo "  compiled $COMPILED of ${#OBJECTS[@]} objects, $JOBS at once, in $(( $(date +%s) - BEGAN )) s; the rest were current"
+C_SOURCES+=("$TOP/includes/file_defs/qry/writer/qry_member.c" "$TOP/includes/file_defs/qry/writer/platform/"*.c
+    "$TOP/includes/file_defs/qry/qry_read.c" "${EXACT_TYPES_PLATFORM_LIBRARY[@]}")
+shared_objects_built C_WORDS "${C_SOURCES[@]}" || exit 1
+OBJECTS+=("${SHARED_OBJECTS[@]}")
+COMPILED=$((COMPILED + SHARED_OBJECTS_COMPILED))
+shared_objects_built EXACT_WORDS "$EXACT_ROOT"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c || exit 1
+OBJECTS+=("${SHARED_OBJECTS[@]}")
+COMPILED=$((COMPILED + SHARED_OBJECTS_COMPILED))
+exact_types_device_line || exit 1
+OBJECTS+=("${EXACT_TYPES_DEVICE_LINE[@]}")
+COMPILED=$((COMPILED + SHARED_OBJECTS_COMPILED))
+echo "  compiled $COMPILED of ${#OBJECTS[@]} objects, $SHARED_OBJECTS_JOBS at once, in $(( $(date +%s) - BEGAN )) s; the rest were current"
 
 BEGAN=$(date +%s)
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -shared "${LINK_FLAGS[@]}" -o "$LIBRARY" "${OBJECTS[@]}"
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -shared -rdc=true "${GENCODE[@]}" "${LINK_FLAGS[@]}" -o "$LIBRARY" "${OBJECTS[@]}"
 NVCC_STATUS=$?
 
 if [ "$NVCC_STATUS" -ne 0 ] || [ ! -f "$LIBRARY" ]; then

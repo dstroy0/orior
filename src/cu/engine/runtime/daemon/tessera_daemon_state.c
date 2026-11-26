@@ -169,7 +169,7 @@ int daemon_state_file(const char *name, char *path)
     (void)mmgr_line_finish(&formed_line);
     // the line's count, or its capacity once a write did not fit
     const int written = (int)formed_line.at;
-    // a non-negative length is compared whole against the capacity
+    // the check compares a non-negative length whole against the capacity
     return (written >= 0) && ((unsigned int)written < ENGINE_PATH_CAPACITY);
 }
 
@@ -250,10 +250,11 @@ int daemon_history_save(void)
     {
         return 0;
     }
-    // every record, then the seal over them all; a history that is not saved is reported, never dropped silently
+    // every record, then the seal over them all. The daemon reports a history that it does not save, and never drops it
     const unsigned long long sealed = g_daemon.ledger.history_count * TESSERA_HISTORY_RECORD;
     const unsigned long long total = sealed + OBSIGNATIO_SIGNUM_BYTES;
-    unsigned char *const bytes = (unsigned char *)platform_cell_taken((size_t)total, platform_place_g_program_owner, 0);
+    unsigned char *const bytes =
+        (unsigned char *)platform_cell_taken((size_t)total, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     if (bytes == NULL)
     {
         {
@@ -313,13 +314,13 @@ static int daemon_ticket_path(unsigned long long identity, const TesseraPeer *pe
     mmgr_line_put(&formed_line_1, s_daemon_ticket);
     (void)mmgr_line_finish(&formed_line_1);
     const int written = (int)formed_line_1.at;
-    // a non-negative length is compared whole against the capacity
+    // the check compares a non-negative length whole against the capacity
     return (written >= 0) && ((unsigned int)written < ENGINE_PATH_CAPACITY);
 }
 
 static int daemon_ticket_seal_write(const char *path, const char *text, unsigned long long length)
 {
-    // the ticket's text, then a last line sealing every byte above it
+    // the ticket's text, then a last line that seals every byte above it
     static const char s_hex[] = "0123456789abcdef";
     unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
     EngineError error;
@@ -359,7 +360,7 @@ int daemon_ticket_write(unsigned long long identity, const TesseraPeer *peer, un
     {
         return 0;
     }
-    // the ticket names its job's signum whole: a lost job is found again by its request
+    // the ticket names its job's signum whole, so that its request finds a lost job again
     char signum[(2u * ENGINE_SIGNUM_BYTES) + 1u];
     for (unsigned int byte = 0u; byte < ENGINE_SIGNUM_BYTES; byte += 1u)
     {
@@ -389,14 +390,14 @@ int daemon_ticket_write(unsigned long long identity, const TesseraPeer *peer, un
     mmgr_line_put(&formed_line_2, "\n");
     (void)mmgr_line_finish(&formed_line_2);
     const int written = (int)formed_line_2.at;
-    // a non-negative length is compared whole against the capacity
+    // the check compares a non-negative length whole against the capacity
     return (written >= 0) && ((unsigned int)written < TESSERA_TICKET_CAPACITY) &&
            daemon_ticket_seal_write(path, text, (unsigned long long)written);
 }
 
 int daemon_ticket_note(unsigned long long identity, const TesseraPeer *peer, const char *note)
 {
-    // the note goes in only on a ticket whose seal verifies, and the ticket is sealed again with it
+    // the note goes in only on a ticket whose seal verifies, and the code seals the ticket again with it
     char path[ENGINE_PATH_CAPACITY];
     char text[TESSERA_TICKET_CAPACITY];
     if (!daemon_ticket_path(identity, peer, 0, path))

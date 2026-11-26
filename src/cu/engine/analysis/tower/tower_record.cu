@@ -17,7 +17,7 @@ static unsigned int tower_record_append(TowerRecordBuilder *builder, EngineRecor
         builder->steps[builder->count] = EngineRecordStep{operation, left, right, 0u};
     }
     builder->count += 1ULL;
-    // a program is written only once its count is bounded by 2^32 - 1, and a counted name past that errors unread
+    // the code writes a program only once 2^32 - 1 bounds its count. A counted name past that errors unread
     return (unsigned int)(builder->count - 1ULL);
 }
 
@@ -55,8 +55,8 @@ static unsigned int tower_record_floor_shift(TowerRecordBuilder *builder, unsign
                                tower_record_constant(builder, 1ULL << shift));
 }
 
-// one lifting step over a band: each value moves by sign * floor((rounding + sum_k weight_k * other[a + offset_k]) /
-// 2^shift), an index past either end of the other band taken at that end, and `undo` turns the sign
+// One lifting step over a band. Each value moves by sign * floor((rounding + sum_k weight_k * other[a + offset_k]) /
+// 2^shift). An index past either end of the other band takes that end, and `undo` turns the sign
 static void tower_record_lifting_step(TowerRecordBuilder *builder, const TowerLiftingStep &rule, int undo,
                                       unsigned int *target, unsigned long long target_count, const unsigned int *other,
                                       unsigned long long other_count)
@@ -105,10 +105,10 @@ static void tower_record_lifting_step(TowerRecordBuilder *builder, const TowerLi
     }
 }
 
-// one level along one line of `length` values, or its undoing. Lifting splits the line into its evens, the lows,
-// and its odds, the highs, runs the ruleset's steps in order and arranges the lows first and the highs after them, as
-// tower_forward_kernel positions them out; lowering reads the two bands back from there, runs the steps last first with
-// each sign turned, and interleaves them again, as tower_inverse_kernel does.
+// One level along one line of `length` values, or its inverse. Lifting splits the line into its evens, the lows, and
+// its odds, the highs. It runs the ruleset's steps in order, and puts the lows first and the highs after them, as
+// tower_forward_kernel places them. Lowering reads the two bands back from there. It runs the steps last first with
+// each sign turned, and interleaves the bands again, as tower_inverse_kernel does.
 static void tower_record_line(TowerRecordBuilder *builder, const TowerLiftingStep *rules, unsigned int rule_count,
                               unsigned int *registers, unsigned long long line, unsigned long long stride,
                               unsigned long long length, int inverse)
@@ -117,8 +117,8 @@ static void tower_record_line(TowerRecordBuilder *builder, const TowerLiftingSte
     const unsigned long long highs = length / 2ULL;
     // a band's k-th value sits at 2k or 2k + 1 along the interleaved line, and at k or lows + k along the lifted one.
     // The two bands share one cell, the highs after the lows
-    unsigned int *const low =
-        (unsigned int *)platform_cell_taken((lows + highs) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const low = (unsigned int *)platform_cell_taken(
+        (lows + highs) * sizeof(unsigned int), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     if (low == NULL)
     {
         builder->failed = 1;
@@ -156,9 +156,9 @@ static void tower_record_line(TowerRecordBuilder *builder, const TowerLiftingSte
     platform_cell_released(low, platform_place_g_program_owner);
 }
 
-// T, or T^-1 run from the last level and axis back, over a block's registers in place: the levels and axes
-// tower_lift and tower_lower walk, each axis whose active extent is 2 or more. The lines along an axis of a level go
-// in t, z, y, x order, and each line's first position comes from its index
+// T, or T^-1 run from the last level and axis back, over a block's registers in place. These are the levels and axes
+// that tower_lift and tower_lower walk, each axis whose active extent is 2 or more. The lines along an axis of a level
+// go in t, z, y, x order, and each line's first position comes from its index
 static void tower_record_build(TowerRecordBuilder *builder, const TowerLiftingStep *rules, unsigned int rule_count,
                                const TowerFloors &floors, unsigned int *registers, int inverse)
 {
@@ -248,10 +248,10 @@ static long tower_record_run(const TowerRecordRequest *request, int inverse)
         }
     }
     // the registers of the counted build and of the written one, each a copy of the block's registers in a cell
-    unsigned int *const named =
-        (unsigned int *)platform_cell_taken(lanes * sizeof(unsigned int), platform_place_g_program_owner, 0);
-    unsigned int *const registers =
-        (unsigned int *)platform_cell_taken(lanes * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const named = (unsigned int *)platform_cell_taken(
+        lanes * sizeof(unsigned int), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned int *const registers = (unsigned int *)platform_cell_taken(
+        lanes * sizeof(unsigned int), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     if (!TOWER_CHECK((named != NULL) && (registers != NULL), request, error, ENGINE_ERROR_RESOURCE))
     {
         platform_cell_released(named, platform_place_g_program_owner);
@@ -264,12 +264,13 @@ static long tower_record_run(const TowerRecordRequest *request, int inverse)
                .bytes = (size_t)lanes * sizeof(unsigned int));
     TowerFloors floors;
     tower_floors(request->extent, &floors);
-    // counted first. A program its step names or the caller's capacity cannot fit errors before a step is written
+    // counted first. A program that its step names or the caller's capacity cannot fit errors before any step goes in
     TowerRecordBuilder counted;
     counted.steps = NULL;
     counted.count = start;
     counted.failed = 0;
-    platform_array_begun(&counted.constants, sizeof(TowerConstant), platform_place_g_program_owner, 0);
+    platform_array_begun(&counted.constants, sizeof(TowerConstant), platform_place_g_program_owner,
+                         PLATFORM_TIER_TEMPORARY);
     tower_record_build(&counted, rules, rule_count, floors, named, inverse);
     platform_array_ended(&counted.constants);
     int ok =
@@ -283,7 +284,8 @@ static long tower_record_run(const TowerRecordRequest *request, int inverse)
         written.steps = request->steps;
         written.count = start;
         written.failed = 0;
-        platform_array_begun(&written.constants, sizeof(TowerConstant), platform_place_g_program_owner, 0);
+        platform_array_begun(&written.constants, sizeof(TowerConstant), platform_place_g_program_owner,
+                             PLATFORM_TIER_TEMPORARY);
         tower_record_build(&written, rules, rule_count, floors, registers, inverse);
         platform_array_ended(&written.constants);
         ok = TOWER_CHECK(written.failed == 0, &written, error, ENGINE_ERROR_RESOURCE);
@@ -292,7 +294,7 @@ static long tower_record_run(const TowerRecordRequest *request, int inverse)
     {
         EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->out_registers, .src = named,
                    .bytes = (size_t)lanes * sizeof(unsigned int));
-        // the count was bounded by 2^32 - 1 above. It narrows to the program's next step exactly
+        // the check above bounds the count by 2^32 - 1. It narrows to the program's next step exactly
         *request->count = (unsigned int)counted.count;
     }
     platform_cell_released(named, platform_place_g_program_owner);

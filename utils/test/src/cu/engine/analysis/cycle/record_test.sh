@@ -21,23 +21,18 @@ source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp record_test
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$CYCLE" -I "$CYCLE_CU" -I "$KEYMATH" -I "$KEYMATH_CU" -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$NO_ROUNDING" "${FILE_DEFS_MMGR_FLAGS[@]}")
+# The words of the C and of the C++, and the link. On Windows nvcc compiles the .cu sources with -x c++, as host C++
+# with no device pass, as the C++ compiler compiles them elsewhere
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         BINARY="$OUT/record_test.exe"
-        EXTENSION=obj
         MSVC_BIN="$(ls -d "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC"/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
         if [ -z "$MSVC_BIN" ]; then
             MSVC_BIN="$(ls -d "/c/Program Files/Microsoft Visual Studio"/*/*/VC/Tools/MSVC/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
         fi
         [ -n "$MSVC_BIN" ] || { echo "  no host compiler nvcc accepts on this platform was found."; exit 1; }
-        build_c()
-        {
-            nvcc -ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" -c "$1" -o "$2"
-        }
-        build_cpp()
-        {
-            nvcc -ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor -std=c++20 -O2 "${INCLUDES[@]}" -c "$1" -o "$2"
-        }
+        C_WORDS=(nvcc -ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}")
+        CPP_WORDS=(nvcc -ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor -std=c++20 -O2 -x c++ "${INCLUDES[@]}")
         link_all()
         {
             nvcc -ccbin "$MSVC_BIN" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -o "$BINARY" "$@"
@@ -45,15 +40,8 @@ case "$(uname -s)" in
         ;;
     *)
         BINARY="$OUT/record_test"
-        EXTENSION=o
-        build_c()
-        {
-            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -Wall -Wextra "${INCLUDES[@]}" -c "$1" -o "$2"
-        }
-        build_cpp()
-        {
-            "$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -std=c++20 -O2 -Wall -Wextra "${INCLUDES[@]}" -x c++ -c "$1" -o "$2"
-        }
+        C_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -Wall -Wextra "${INCLUDES[@]}")
+        CPP_WORDS=("$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -std=c++20 -O2 -Wall -Wextra "${INCLUDES[@]}" -x c++)
         link_all()
         {
             "$FILE_DEFS_CXX" "${FILE_DEFS_LTO_CC[@]}" -o "$BINARY" "$@"
@@ -62,22 +50,12 @@ case "$(uname -s)" in
 esac
 
 rm -f "$BINARY"
-OBJECTS=()
-for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
-              "$CYCLE/cycle.c" "$TEST/record_test.c"; do
-    object="$OUT/$(basename "$source" .c)_host.$EXTENSION"
-    rm -f "$object"
-    build_c "$source" "$object"
-    [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
-    OBJECTS+=("$object")
-done
-for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu"; do
-    object="$OUT/$(basename "$source" .cu)_host.$EXTENSION"
-    rm -f "$object"
-    build_cpp "$source" "$object"
-    [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
-    OBJECTS+=("$object")
-done
+# each source compiled one time for its words (shared_objects.sh)
+shared_objects_built C_WORDS "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" \
+    "${EXACT_TYPES_CARCER[@]}" "$CYCLE/cycle.c" "$TEST/record_test.c" || exit 1
+OBJECTS=("${SHARED_OBJECTS[@]}")
+shared_objects_built CPP_WORDS "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" || exit 1
+OBJECTS+=("${SHARED_OBJECTS[@]}")
 link_all "${OBJECTS[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: the test did not link"; exit 1; }
 

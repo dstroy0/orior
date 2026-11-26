@@ -22,14 +22,12 @@ extern "C" long obsignatio_signum(const ObsignatioSignumRequest *request)
     return 0L;
 }
 #if (defined(__CUDACC__))
-__global__ void obsignatio_chunk_kernel(const unsigned char *bytes, unsigned long long messages,
-                                        unsigned long long length, unsigned long long stride, unsigned long long chunks,
-                                        ObsignatioKey key, unsigned int mode, unsigned int *chaining,
-                                        unsigned char *signa)
+__device__ void obsignatio_chunk_span(const unsigned char *bytes, unsigned long long messages,
+                                      unsigned long long length, unsigned long long stride, unsigned long long chunks,
+                                      ObsignatioKey key, unsigned int mode, unsigned int *chaining,
+                                      unsigned char *signa, unsigned long long first, unsigned long long jump)
 {
-    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
-    for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x;
-         index < (messages * chunks); index += jump)
+    for (unsigned long long index = first; index < (messages * chunks); index += jump)
     {
         const unsigned long long message = index / chunks;
         const unsigned long long chunk = index % chunks;
@@ -49,5 +47,15 @@ __global__ void obsignatio_chunk_kernel(const unsigned char *bytes, unsigned lon
             obsignatio_chaining(&node, &chaining[index * OBSIGNATIO_CHAINING_WORDS]);
         }
     }
+}
+
+__global__ void obsignatio_chunk_kernel(const unsigned char *bytes, unsigned long long messages,
+                                        unsigned long long length, unsigned long long stride, unsigned long long chunks,
+                                        ObsignatioKey key, unsigned int mode, unsigned int *chaining,
+                                        unsigned char *signa)
+{
+    obsignatio_chunk_span(bytes, messages, length, stride, chunks, key, mode, chaining, signa,
+                          ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x,
+                          (unsigned long long)gridDim.x * blockDim.x);
 }
 #endif

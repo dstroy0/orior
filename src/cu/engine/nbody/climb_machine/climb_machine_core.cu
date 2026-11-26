@@ -137,8 +137,8 @@ __global__ static void machine_core_kernel(unsigned int items, const unsigned in
                 atomicAdd(error, 1u);
                 continue;
             }
-            // core_width widens from unsigned int to unsigned long long, matching the 64-bit offset item_bins is
-            // indexed by
+            // core_width widens from unsigned int to unsigned long long, to match the 64-bit offset that indexes
+            // item_bins
             unsigned long long *const bin = &item_bins[(unsigned long long)core_width * CLIMB_MACHINE_CORE_FIELDS];
             bin[0] += 1ULL;
             bin[1] += depth_place;
@@ -210,22 +210,22 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     machine->core_lag = (int *)platform_cell_taken(capacity * 3u * sizeof(int), platform_place_g_program_owner, 0);
     machine->core_width_first =
         (unsigned int *)platform_cell_taken((capacity + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
-    unsigned int *const listed_resident =
-        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
-    unsigned int *const listed_run_first =
-        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
-    unsigned int *const listed_run_end =
-        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
-    int *const listed_center =
-        (int *)platform_cell_taken(capacity * 3u * sizeof(int), platform_place_g_program_owner, 0);
-    unsigned int *const widths =
-        (unsigned int *)platform_cell_cleared(capacity, sizeof(unsigned int), platform_place_g_program_owner, 0);
-    size_t *const staged_at =
-        (size_t *)platform_cell_cleared(capacity, sizeof(size_t), platform_place_g_program_owner, 0);
-    unsigned int *const resident_first =
-        (unsigned int *)platform_cell_cleared(residents + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
-    unsigned int *const resident_order =
-        (unsigned int *)platform_cell_taken(capacity * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const listed_resident = (unsigned int *)platform_cell_taken(
+        capacity * sizeof(unsigned int), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned int *const listed_run_first = (unsigned int *)platform_cell_taken(
+        capacity * sizeof(unsigned int), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned int *const listed_run_end = (unsigned int *)platform_cell_taken(
+        capacity * sizeof(unsigned int), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    int *const listed_center = (int *)platform_cell_taken(capacity * 3u * sizeof(int), platform_place_g_program_owner,
+                                                          PLATFORM_TIER_TEMPORARY);
+    unsigned int *const widths = (unsigned int *)platform_cell_cleared(
+        capacity, sizeof(unsigned int), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    size_t *const staged_at = (size_t *)platform_cell_cleared(capacity, sizeof(size_t), platform_place_g_program_owner,
+                                                              PLATFORM_TIER_TEMPORARY);
+    unsigned int *const resident_first = (unsigned int *)platform_cell_cleared(
+        residents + 1u, sizeof(unsigned int), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned int *const resident_order = (unsigned int *)platform_cell_taken(
+        capacity * sizeof(unsigned int), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     int steps_succeeded =
         (widest != 0u) && (machine->core_earlier != NULL) && (machine->core_later != NULL) &&
         (machine->core_side != NULL) && (machine->core_leaf != NULL) && (machine->core_match != NULL) &&
@@ -424,7 +424,7 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
             unsigned int top_width = 0u;
             for (unsigned int width = 0u; width < widest; width += 1u)
             {
-                // width widens from unsigned int to size_t, matching the size_t offset item_bins is indexed by
+                // width widens from unsigned int to size_t, to match the size_t offset that indexes item_bins
                 top_width = (item_bins[(size_t)width * CLIMB_MACHINE_CORE_FIELDS] != 0ULL) ? (width + 1u) : top_width;
             }
             if ((staged_count + top_width) > staged_capacity)
@@ -440,7 +440,7 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
             }
             for (unsigned int width = top_width; steps_succeeded && (width > 0u); width -= 1u)
             {
-                // width - 1 widens from unsigned int to size_t, matching the size_t offset item_bins is indexed by
+                // width - 1 widens from unsigned int to size_t, to match the size_t offset that indexes item_bins
                 const size_t item_offset = (size_t)(width - 1u) * CLIMB_MACHINE_CORE_FIELDS;
                 const size_t staged_offset = (staged_count + width - 1u) * CLIMB_MACHINE_CORE_FIELDS;
                 for (unsigned int field = 0u; field < CLIMB_MACHINE_CORE_FIELDS; field += 1u)

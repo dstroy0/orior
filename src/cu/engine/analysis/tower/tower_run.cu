@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tower_run.cu: allocation, edges, lifting and lowering
 #include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_operor.h"
 #include "tower_internal.h"
 
 static int tower_reserve(size_t lanes, EngineError *error)
@@ -22,7 +21,7 @@ static int tower_reserve(size_t lanes, EngineError *error)
     const DevicePoolPlan plan = tower_plan(lanes, error, takes);
     const DevicePoolReserveRequest reserve = {&plan, &resident->pool, error};
     int ok = device_pool_reserve(&reserve) == 0L;
-    // the slices are taken in the plan's order. Each lands where the plan positioned it out and none errors
+    // The pool takes the slices in the order of the plan. Each lands where the plan put it, and none errors
     for (unsigned int at = 0u; (ok != 0) && (at < TOWER_SLICES); at += 1u)
     {
         ok = device_pool_take(&takes[at]) == 0L;
@@ -59,7 +58,7 @@ unsigned long long tower_lanes(const unsigned long long *extent)
     return lanes;
 }
 
-static int tower_edge_check(const TowerEdge *edges, unsigned int edge_count, unsigned int levels, EngineError *error)
+int tower_edge_check(const TowerEdge *edges, unsigned int edge_count, unsigned int levels, EngineError *error)
 {
     for (unsigned int at = 0u; at < edge_count; at += 1u)
     {
@@ -100,52 +99,12 @@ static int tower_edge_check(const TowerEdge *edges, unsigned int edge_count, uns
     return 1;
 }
 
-static void tower_active_extent(const TowerFloors &floors, const unsigned long long *extent, unsigned int floor_at,
-                                unsigned long long out[4])
-{
-    if ((floors.count == 0u))
-    {
-        for (unsigned int axis = 0u; axis < 4u; axis += 1u)
-        {
-            out[axis] = extent[axis];
-        }
-        return;
-    }
-    if (floor_at < floors.count)
-    {
-        for (unsigned int axis = 0u; axis < 4u; axis += 1u)
-        {
-            out[axis] = floors.step[floor_at].extent[axis];
-        }
-    }
-    else
-    {
-        for (unsigned int axis = 0u; axis < 4u; axis += 1u)
-        {
-            out[axis] = (floors.step[floors.count - 1u].extent[axis] + 1ULL) / 2ULL;
-        }
-    }
-}
-
 static int tower_edge_run(const TowerEdge *edges, unsigned int edge_count, const TowerFloors &floors,
                           const unsigned long long *extent, unsigned int floor_at, int inverse, EngineError *error)
 {
     TowerResident *const resident = &g_tower_resident;
     TowerStep region;
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = &region, .bytes = sizeof(region), .val = 0);
-    // the global strides are the full-extent strides, fixed constant across the in-place lifting levels
-    region.stride[3] = 1ULL;
-    region.stride[2] = extent[3];
-    region.stride[1] = extent[2] * extent[3];
-    region.stride[0] = extent[1] * extent[2] * extent[3];
-    unsigned long long active[4];
-    tower_active_extent(floors, extent, floor_at, active);
-    region.count = 1ULL;
-    for (unsigned int axis = 0u; axis < 4u; axis += 1u)
-    {
-        region.extent[axis] = active[axis];
-        region.count *= active[axis];
-    }
+    tower_edge_region(&floors, extent, floor_at, &region);
     int ok = 1;
     // a lift walks a floor's edges in array order, a lower walks them in reverse. A floor inverts as a stack
     for (unsigned int scan = 0u; (ok != 0) && (scan < edge_count); scan += 1u)
@@ -248,7 +207,7 @@ extern "C" long tower_lift(const TowerLiftRequest *request)
                                                                            step);
             ok = TOWER_STATUS_CHECK(cudaGetLastError(), resident->coefficients, error);
         }
-        // the edge for the next floor is arranged on the approximation this level just produced
+        // The edges of the next floor act on the approximation that this level made
         ok = ok && tower_edge_run(request->edges, request->edge_count, floors, request->extent,
                                   (unsigned int)(level + 1u), 0, error);
     }

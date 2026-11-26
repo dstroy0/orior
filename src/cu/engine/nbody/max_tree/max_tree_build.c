@@ -106,10 +106,12 @@ static long max_tree_grow(const unsigned int *residual, unsigned int depth, unsi
     tree->width = width;
     tree->parent =
         (unsigned int *)platform_cell_taken(voxels * sizeof(unsigned int), platform_place_g_program_owner, 0);
-    unsigned int *const zpar = (unsigned int *)platform_cell_taken((unsigned long long)(voxels * sizeof(unsigned int)),
-                                                                   (unsigned int)platform_place_g_engine_owner, 0);
-    unsigned char *const arrived = (unsigned char *)platform_cell_cleared(
-        (unsigned long long)(voxels), (unsigned long long)(1u), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const zpar =
+        (unsigned int *)platform_cell_taken((unsigned long long)(voxels * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned char *const arrived =
+        (unsigned char *)platform_cell_cleared((unsigned long long)(voxels), (unsigned long long)(1u),
+                                               (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     if ((tree->parent == NULL) || (zpar == NULL) || (arrived == NULL))
     {
         platform_cell_released(tree->parent, platform_place_g_program_owner);
@@ -266,12 +268,15 @@ int max_tree_valid(const unsigned int *residual, const MaxTree *tree, unsigned i
     }
     const size_t voxels = tree->voxels;
     const size_t plane = (size_t)tree->height * tree->width;
-    unsigned int *const located = (unsigned int *)platform_cell_taken(
-        (unsigned long long)(voxels * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
-    unsigned int *const flooded = (unsigned int *)platform_cell_taken(
-        (unsigned long long)(voxels * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
-    unsigned int *const waiting = (unsigned int *)platform_cell_taken(
-        (unsigned long long)(voxels * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const located =
+        (unsigned int *)platform_cell_taken((unsigned long long)(voxels * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned int *const flooded =
+        (unsigned int *)platform_cell_taken((unsigned long long)(voxels * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned int *const waiting =
+        (unsigned int *)platform_cell_taken((unsigned long long)(voxels * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     int ok = (located != NULL) && (flooded != NULL) && (waiting != NULL);
     for (unsigned int taken = 0u; (ok != 0) && (taken < levels); taken += 1u)
     {

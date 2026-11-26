@@ -6,8 +6,8 @@
 
 #include "tower.h"
 
-#include "../../runtime/device_pool/device_pool.h"
 #include "../../../../platform/platform.h"
+#include "../../runtime/device_pool/device_pool.h"
 
 #include <cuda_runtime.h>
 
@@ -56,6 +56,35 @@ __global__ void tower_narrow_kernel(const int *rebuilt, unsigned long long count
 
 unsigned int tower_blocks(unsigned long long count);
 
+// The region that the edges of floor `floor_at` act on: the extent of that floor, over the strides of the whole extent.
+// Those strides stay as they are across the levels that the lift works in place. The host and a job kernel both read
+// the region
+__host__ __device__ void tower_edge_region(const struct TowerFloors *floors, const unsigned long long *extent,
+                                           unsigned int floor_at, TowerStep *region);
+
+// 1 where each edge is a permutation of its index bits on a floor that the lattice has, else 0 with the error set
+int tower_edge_check(const TowerEdge *edges, unsigned int edge_count, unsigned int levels, EngineError *error);
+
+// The body of each kernel above as a walk of its own: the indexes from `first` on, `jump` apart. The kernel walks from
+// the index of its thread in its grid. A job kernel (tower_job.cu) walks from the rank of its thread in the whole grid,
+// between the syncs of its stages
+__device__ void tower_forward_span(const int *from, int *to, TowerStep step, unsigned int *overflow,
+                                   unsigned long long first, unsigned long long jump);
+__device__ void tower_inverse_span(const int *from, int *to, TowerStep step, unsigned long long first,
+                                   unsigned long long jump);
+__device__ void tower_copy_span(const int *from, int *to, TowerStep step, unsigned long long first,
+                                unsigned long long jump);
+__device__ void tower_edge_span(int *state, TowerStep region, const unsigned int *table, unsigned int index_bits,
+                                unsigned long long first, unsigned long long jump);
+__device__ void tower_widen_span(const unsigned short *lanes, unsigned long long count, int *to,
+                                 unsigned long long first, unsigned long long jump);
+__device__ void tower_take_span(const int *values, unsigned long long count, int *to, unsigned int *overflow,
+                                unsigned long long first, unsigned long long jump);
+__device__ void tower_differ_span(const int *rebuilt, const unsigned short *lanes, unsigned long long count,
+                                  unsigned long long *mismatches, unsigned long long first, unsigned long long jump);
+__device__ void tower_narrow_span(const int *rebuilt, unsigned long long count, unsigned short *to,
+                                  unsigned int *outside, unsigned long long first, unsigned long long jump);
+
 // the floors that an extent takes at max. Each floor halves every extent. An extent below 2^64 reaches 1 in 64
 #define TOWER_FLOORS_MAX 65u
 
@@ -68,8 +97,8 @@ struct TowerFloors
 
 void tower_floors(const unsigned long long *extent, TowerFloors *floors);
 
-// the coefficients, the scratch, the flag and the mismatch count are slices of one pool, sized for the max lanes
-// requested so far. The edge table grows apart, only when an edge is arranged
+// The coefficients, the scratch, the flag and the mismatch count are slices of one pool, which holds the most lanes
+// that a call asked for. The edge table grows apart, and only where a call puts an edge
 struct TowerResident
 {
     DevicePool pool;
@@ -99,9 +128,9 @@ struct TowerConstant
     unsigned int step;
 };
 
-// the record floors' writer: every step is counted, and written only where the caller's program is allocated. Each
-// constant is arranged once, where it is first read, and its register stored beside its value. `constants` holds a
-// TowerConstant for each
+// The writer of the record floors. It counts every step, and writes a step only where the program of the caller has
+// room. It puts each constant once, where a step first reads it, and keeps its register beside its value. `constants`
+// holds a TowerConstant for each
 struct TowerRecordBuilder
 {
     EngineRecordStep *steps;

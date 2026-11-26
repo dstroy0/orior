@@ -39,12 +39,43 @@ extern "C"
 
     long compression_decode(const CompressionDecodeRequest *request);
 
+    // An encode as one job of the device (tessera_job.h). The values `coefficients` on the host cross in. One
+    // cooperative launch zigzags, measures, scans and writes them on the device. The offsets and the stream cross out
+    // into the host cells that compression keeps until its next encode, as compression_encode gives them.
+    typedef struct
+    {
+        const int *coefficients;
+        unsigned long long count;
+        unsigned long long *chunks;
+        unsigned long long *bits;
+        const unsigned long long **offsets;
+        const unsigned int **stream;
+        EngineError *error;
+    } CompressionEncodeJobRequest;
+
+    long compression_encode_job(const CompressionEncodeJobRequest *request);
+
+    // A decode as one job of the device. The offsets and the stream on the host cross in, and one cooperative launch
+    // reads the values on the device. The values cross out into `coefficients`, a room of `count` ints on the host.
+    typedef struct
+    {
+        const unsigned long long *offsets;
+        unsigned long long chunks;
+        const unsigned int *stream;
+        unsigned long long bits;
+        unsigned long long count;
+        int *coefficients;
+        EngineError *error;
+    } CompressionDecodeJobRequest;
+
+    long compression_decode_job(const CompressionDecodeJobRequest *request);
+
     unsigned long long compression_chunks(unsigned long long count);
 
-    // the device bytes compression allocates for `count` values before it measures them: its chunk pool, each chunk's
-    // bits and offset beside the scan's scratch, rounded to the page; 0 for a count it errors. The stream is sized by
-    // the values and allocated as a pool of its own, whose bytes are the stream's limbs and one more, rounded to the
-    // page.
+    // The device bytes that compression takes for `count` values before it measures them, rounded to the page. That is
+    // its chunk pool: the bits and the offset of each chunk, and the scratch of the scan. 0 for a count that errors.
+    // The values set the size of the stream, which is a pool of its own. Its bytes are the limbs of the stream and one
+    // more, rounded to the page.
     unsigned long long compression_reserve_bytes(unsigned long long count);
 
     // frees the chunk pool and the stream compression retains between calls

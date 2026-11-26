@@ -5,10 +5,10 @@
 #include "memoria_operor/memoria_operor.h"
 #include "noise_detector_internal.h"
 
-// A sample's quiet static voxels, each one's frames in blocks of NOISE_MOMENT_BLOCK: a block's values less their mean
-// rounded to the nearest, raised to the powers 1 to 4 and summed, then binned by that mean. The fixed pattern leaves
-// with the mean. A block with a value past NOISE_MOMENT_RANGE of its mean is left out and counted. Every power sum
-// fits a word; frames past the last whole block are not read.
+// A sample's quiet static voxels, each one's frames in blocks of NOISE_MOMENT_BLOCK. The code takes a block's values
+// less their mean rounded to the nearest. It raises them to the powers 1 to 4, sums them, and bins them by that mean.
+// The fixed pattern leaves with the mean. The code leaves out and counts a block with a value past NOISE_MOMENT_RANGE
+// of its mean. Every power sum fits a word, and the code reads no frame past the last whole block.
 static long noise_moments_sample(const unsigned short *volume, const unsigned long long extent[4],
                                  NoiseMomentCell cells[NOISE_LEVEL_BINS], unsigned long long *ceiling,
                                  unsigned long long *sampled, unsigned long long *left_out, EngineError *error)
@@ -19,10 +19,10 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
     const unsigned long long square = NOISE_MOMENT_RANGE * NOISE_MOMENT_RANGE;
     const unsigned long long fourth = square * square;
     const unsigned long long spread = ((voxels != 0ULL) && (frames <= (~0ULL / voxels))) ? (frames * voxels) : ~0ULL;
-    // a block's |S1| is at max half its frames and each power at max its frames times the range to that power:
-    // S4 bounds every product the cells sum but S2^2, which they sum wide; sumS4 is at max the sample's voxel-frames
-    // times the range to the fourth, and the values at max the voxel-frames times the lane's top; the quiet mask
-    // stores to 65536 frames
+    // A block's |S1| is at max half its frames, and each power at max its frames times the range to that power. S4
+    // bounds every product that the cells sum but S2^2, which they sum wide. `sumS4` is at max the sample's
+    // voxel-frames times the range to the fourth. The values are at max the voxel-frames times the lane's top. The
+    // quiet mask stores to 65536 frames
     const int bounded = (blocks != 0ULL) && (frames <= 65536ULL) && (voxels != 0ULL) && (spread != ~0ULL) &&
                         (spread <= (NOISE_SIGNED_TOP / fourth)) && (spread <= (NOISE_SIGNED_TOP / NOISE_LANE_TOP));
     if (!NOISE_DETECTOR_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST))
@@ -33,7 +33,8 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
                .val = 0);
     *sampled = 0ULL;
     *left_out = 0ULL;
-    unsigned char *const mask = (unsigned char *)platform_cell_taken((size_t)voxels, platform_place_g_program_owner, 0);
+    unsigned char *const mask =
+        (unsigned char *)platform_cell_taken((size_t)voxels, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     int ok = NOISE_DETECTOR_CHECK(mask != NULL, &mask, error, ENGINE_ERROR_RESOURCE) &&
              NOISE_DETECTOR_CHECK(noise_static_mask(volume, frames, voxels, 1u, mask, ceiling) != 0, mask, error,
                                   ENGINE_ERROR_RESOURCE);
@@ -44,7 +45,7 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
     }
     // one more than the members. A sample with none still allocates
     unsigned long long *const places = (unsigned long long *)platform_cell_taken(
-        (size_t)(members + 1ULL) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
+        (size_t)(members + 1ULL) * sizeof(unsigned long long), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     ok = ok && NOISE_DETECTOR_CHECK(places != NULL, &places, error, ENGINE_ERROR_RESOURCE);
     if (ok != 0)
     {
@@ -197,7 +198,7 @@ extern "C" long noise_moments_set(const NoiseSetRequest *request)
         platform_line_out_ended();
     }
     NoiseMomentCell *const cells = (NoiseMomentCell *)platform_cell_taken(
-        (size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell), platform_place_g_program_owner, 0);
+        (size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     ok = ok && NOISE_DETECTOR_CHECK(cells != NULL, &cells, error, ENGINE_ERROR_RESOURCE);
     const unsigned long long began = engine_clock_microseconds();
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
@@ -293,7 +294,7 @@ static int noise_moments_cumulant(const NoiseMomentCell *cell, unsigned int orde
         falling *= frames - (long long)step;
     }
     noise_exact_word(&denominator, cell->blocks);
-    // the falling product of the block's frames is positive. It re-signs to unsigned long long exactly
+    // the descending product of the block's frames is positive. It re-signs to unsigned long long exactly
     noise_exact_word(&term, (unsigned long long)falling);
     int ok = orior_exact_multiply(&denominator, &term, &denominator) == ORIOR_EXACT_OK;
     if (order == 2u)
@@ -333,7 +334,7 @@ static int noise_moments_cumulant(const NoiseMomentCell *cell, unsigned int orde
         ok = quotient.limb[limb] == 0u;
     }
     ok = ok && (quotient.limb[1] < 0x80000000u);
-    // the magnitude is below 2^63 by the test above; the sign is stored apart
+    // the test above holds the magnitude below 2^63, and the code keeps the sign apart
     *thousandths =
         ok ? ((long long)(((unsigned long long)quotient.limb[1] << 32u) | quotient.limb[0]) * (long long)quotient.sign)
            : 0LL;
@@ -348,7 +349,7 @@ extern "C" long noise_moments_volume(const unsigned short *volume, const unsigne
         return NOISE_DETECTOR_ERROR;
     }
     NoiseMomentCell *const cells = (NoiseMomentCell *)platform_cell_taken(
-        (size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell), platform_place_g_program_owner, 0);
+        (size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     unsigned long long ceiling = 0ULL;
     unsigned long long sampled = 0ULL;
     unsigned long long left_out = 0ULL;

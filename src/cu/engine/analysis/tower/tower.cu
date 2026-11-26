@@ -35,11 +35,10 @@ __device__ static long long tower_high(const int *from, unsigned long long line,
     return (long long)from[line + ((2ULL * j + 1ULL) * stride)] - tower_floor_shift(left + right, 1u);
 }
 
-__global__ void tower_forward_kernel(const int *from, int *to, TowerStep step, unsigned int *overflow)
+__device__ void tower_forward_span(const int *from, int *to, TowerStep step, unsigned int *overflow,
+                                   unsigned long long first, unsigned long long jump)
 {
-    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
-    for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; index < step.count;
-         index += jump)
+    for (unsigned long long index = first; index < step.count; index += jump)
     {
         unsigned long long along = 0ULL;
         const unsigned long long line = tower_line(step, index, &along);
@@ -67,6 +66,12 @@ __global__ void tower_forward_kernel(const int *from, int *to, TowerStep step, u
     }
 }
 
+__global__ void tower_forward_kernel(const int *from, int *to, TowerStep step, unsigned int *overflow)
+{
+    tower_forward_span(from, to, step, overflow, ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x,
+                       (unsigned long long)gridDim.x * blockDim.x);
+}
+
 __device__ static long long tower_even(const int *from, unsigned long long line, unsigned long long stride,
                                        unsigned long long lows, unsigned long long highs, unsigned long long i)
 {
@@ -75,11 +80,10 @@ __device__ static long long tower_even(const int *from, unsigned long long line,
     return (long long)from[line + (i * stride)] - tower_floor_shift(before + after + 2LL, 2u);
 }
 
-__global__ void tower_inverse_kernel(const int *from, int *to, TowerStep step)
+__device__ void tower_inverse_span(const int *from, int *to, TowerStep step, unsigned long long first,
+                                   unsigned long long jump)
 {
-    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
-    for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; index < step.count;
-         index += jump)
+    for (unsigned long long index = first; index < step.count; index += jump)
     {
         unsigned long long along = 0ULL;
         const unsigned long long line = tower_line(step, index, &along);
@@ -104,11 +108,16 @@ __global__ void tower_inverse_kernel(const int *from, int *to, TowerStep step)
     }
 }
 
-__global__ void tower_copy_kernel(const int *from, int *to, TowerStep step)
+__global__ void tower_inverse_kernel(const int *from, int *to, TowerStep step)
 {
-    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
-    for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; index < step.count;
-         index += jump)
+    tower_inverse_span(from, to, step, ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x,
+                       (unsigned long long)gridDim.x * blockDim.x);
+}
+
+__device__ void tower_copy_span(const int *from, int *to, TowerStep step, unsigned long long first,
+                                unsigned long long jump)
+{
+    for (unsigned long long index = first; index < step.count; index += jump)
     {
         unsigned long long along = 0ULL;
         const unsigned long long lane = tower_line(step, index, &along) + (along * step.stride[step.axis]);
@@ -116,12 +125,17 @@ __global__ void tower_copy_kernel(const int *from, int *to, TowerStep step)
     }
 }
 
-__global__ void tower_edge_kernel(int *state, TowerStep region, const unsigned int *table, unsigned int index_bits)
+__global__ void tower_copy_kernel(const int *from, int *to, TowerStep step)
+{
+    tower_copy_span(from, to, step, ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x,
+                    (unsigned long long)gridDim.x * blockDim.x);
+}
+
+__device__ void tower_edge_span(int *state, TowerStep region, const unsigned int *table, unsigned int index_bits,
+                                unsigned long long first, unsigned long long jump)
 {
     const unsigned int mask = (1u << index_bits) - 1u;
-    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
-    for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; index < region.count;
-         index += jump)
+    for (unsigned long long index = first; index < region.count; index += jump)
     {
         unsigned long long offset = 0ULL;
         unsigned long long rest = index;
@@ -131,28 +145,38 @@ __global__ void tower_edge_kernel(int *state, TowerStep region, const unsigned i
             rest /= region.extent[axis - 1u];
             offset += digit * region.stride[axis - 1u];
         }
-        // the low index_bits are permuted, the high bits pass through. The map is a bijection on the word
+        // The table permutes the low index_bits, and the high bits pass through. The map is a bijection on the word
         const unsigned int word = (unsigned int)state[offset];
         state[offset] = (int)((word & ~mask) | table[word & mask]);
     }
 }
 
-__global__ void tower_widen_kernel(const unsigned short *lanes, unsigned long long count, int *to)
+__global__ void tower_edge_kernel(int *state, TowerStep region, const unsigned int *table, unsigned int index_bits)
 {
-    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
-    for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; index < count;
-         index += jump)
+    tower_edge_span(state, region, table, index_bits, ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x,
+                    (unsigned long long)gridDim.x * blockDim.x);
+}
+
+__device__ void tower_widen_span(const unsigned short *lanes, unsigned long long count, int *to,
+                                 unsigned long long first, unsigned long long jump)
+{
+    for (unsigned long long index = first; index < count; index += jump)
     {
         // a 16-bit lane widens to int exactly
         to[index] = (int)lanes[index];
     }
 }
 
-__global__ void tower_take_kernel(const int *values, unsigned long long count, int *to, unsigned int *overflow)
+__global__ void tower_widen_kernel(const unsigned short *lanes, unsigned long long count, int *to)
 {
-    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
-    for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; index < count;
-         index += jump)
+    tower_widen_span(lanes, count, to, ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x,
+                     (unsigned long long)gridDim.x * blockDim.x);
+}
+
+__device__ void tower_take_span(const int *values, unsigned long long count, int *to, unsigned int *overflow,
+                                unsigned long long first, unsigned long long jump)
+{
+    for (unsigned long long index = first; index < count; index += jump)
     {
         const int value = values[index];
         if ((value >= TOWER_LIMIT) || (value <= -TOWER_LIMIT))
@@ -163,13 +187,17 @@ __global__ void tower_take_kernel(const int *values, unsigned long long count, i
     }
 }
 
-__global__ void tower_differ_kernel(const int *rebuilt, const unsigned short *lanes, unsigned long long count,
-                                    unsigned long long *mismatches)
+__global__ void tower_take_kernel(const int *values, unsigned long long count, int *to, unsigned int *overflow)
 {
-    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
+    tower_take_span(values, count, to, overflow, ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x,
+                    (unsigned long long)gridDim.x * blockDim.x);
+}
+
+__device__ void tower_differ_span(const int *rebuilt, const unsigned short *lanes, unsigned long long count,
+                                  unsigned long long *mismatches, unsigned long long first, unsigned long long jump)
+{
     unsigned long long differ = 0ULL;
-    for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; index < count;
-         index += jump)
+    for (unsigned long long index = first; index < count; index += jump)
     {
         differ += (rebuilt[index] != (int)lanes[index]) ? 1ULL : 0ULL;
     }
@@ -179,23 +207,35 @@ __global__ void tower_differ_kernel(const int *rebuilt, const unsigned short *la
     }
 }
 
-__global__ void tower_narrow_kernel(const int *rebuilt, unsigned long long count, unsigned short *to,
-                                    unsigned int *outside)
+__global__ void tower_differ_kernel(const int *rebuilt, const unsigned short *lanes, unsigned long long count,
+                                    unsigned long long *mismatches)
 {
-    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
+    tower_differ_span(rebuilt, lanes, count, mismatches, ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x,
+                      (unsigned long long)gridDim.x * blockDim.x);
+}
+
+__device__ void tower_narrow_span(const int *rebuilt, unsigned long long count, unsigned short *to,
+                                  unsigned int *outside, unsigned long long first, unsigned long long jump)
+{
     unsigned int wide = 0u;
-    for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; index < count;
-         index += jump)
+    for (unsigned long long index = first; index < count; index += jump)
     {
         const int value = rebuilt[index];
         wide |= ((value & ~0xFFFF) != 0) ? 1u : 0u;
-        // the value is masked to its low 16 bits, which an unsigned short represents exactly
+        // The mask keeps the low 16 bits of the value, which an unsigned short represents exactly
         to[index] = (unsigned short)((unsigned int)value & 0xFFFFu);
     }
     if (wide != 0u)
     {
         atomicOr(outside, 1u);
     }
+}
+
+__global__ void tower_narrow_kernel(const int *rebuilt, unsigned long long count, unsigned short *to,
+                                    unsigned int *outside)
+{
+    tower_narrow_span(rebuilt, count, to, outside, ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x,
+                      (unsigned long long)gridDim.x * blockDim.x);
 }
 
 unsigned int tower_blocks(unsigned long long count)
@@ -265,8 +305,8 @@ int tower_edge_reserve(unsigned int entries, EngineError *error)
     return 1;
 }
 
-// the pool's slices for `lanes`, in the order they are arranged and taken: the coefficients, the scratch, the flag and
-// the mismatch count. The plan is arranged from them, and a pool reserved from it takes them
+// The slices of the pool for `lanes`: the coefficients, the scratch, the flag and the mismatch count. The plan puts them
+// in that order, and the pool takes them in it. The plan comes from them, and a pool that the plan reserves takes them
 DevicePoolPlan tower_plan(size_t lanes, EngineError *error, DevicePoolTakeRequest takes[TOWER_SLICES])
 {
     TowerResident *const resident = &g_tower_resident;
@@ -282,4 +322,33 @@ DevicePoolPlan tower_plan(size_t lanes, EngineError *error, DevicePoolTakeReques
         device_pool_plan_slice(&plan, requests[at].bytes);
     }
     return plan;
+}
+
+__host__ __device__ void tower_edge_region(const TowerFloors *floors, const unsigned long long *extent,
+                                           unsigned int floor_at, TowerStep *region)
+{
+    // the strides are the strides of the whole extent, which stay as they are across the levels that a lift works in
+    // place
+    region->stride[3] = 1ULL;
+    region->stride[2] = extent[3];
+    region->stride[1] = extent[2] * extent[3];
+    region->stride[0] = extent[1] * extent[2] * extent[3];
+    region->axis = 0u;
+    region->count = 1ULL;
+    for (unsigned int axis = 0u; axis < 4u; axis += 1u)
+    {
+        // The whole extent where the tower has no floor. Else the extent of the floor that the edges act on, or above
+        // the last floor the half of it that the last level leaves
+        unsigned long long active = extent[axis];
+        if ((floors->count != 0u) && (floor_at < floors->count))
+        {
+            active = floors->step[floor_at].extent[axis];
+        }
+        else if (floors->count != 0u)
+        {
+            active = (floors->step[floors->count - 1u].extent[axis] + 1ULL) / 2ULL;
+        }
+        region->extent[axis] = active;
+        region->count *= active;
+    }
 }

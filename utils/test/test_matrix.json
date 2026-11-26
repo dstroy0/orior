@@ -152,6 +152,17 @@
         "src/cu/engine/rmc"
       ]
     },
+    "tessera_crossing": {
+      "desc": "One job through the job interface of tessera: the values and an empty answer cross in, one cooperative launch takes its cells on the device, squares the values, syncs the grid and sums and counts them, decides on the device whether it takes a second cell, and the answer crosses out the host's.",
+      "script": "utils/test/src/cu/engine/runtime/daemon/tessera_crossing_test.sh",
+      "src": [
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/runtime/daemon"
+      ]
+    },
     "daemon": {
       "desc": "The tessera daemon: ledger, frame, measure, job and tessera_run tests.",
       "script": "utils/test/src/cu/engine/runtime/daemon/run.sh",
@@ -185,6 +196,16 @@
       ],
       "tests": [
         "includes/embedded_types"
+      ]
+    },
+    "platform_device": {
+      "desc": "The pool of the device on the GPU: one thread places it and takes a temporary cell, a grid writes each byte of the cell through its address and one thread reads each byte back and gives it back, a movable cell is written and read through its handle, a persistent take and give leave the pool as it was, and a take past the pool is refused.",
+      "script": "utils/test/src/platform/platform_device_test.sh",
+      "src": [
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/platform"
       ]
     },
     "double_fields": {
@@ -1013,6 +1034,59 @@
       "tests": [
         "src/cu/engine/runtime/daemon",
         "src/cu/engine/runtime/daemon"
+      ]
+    },
+    "engine_codec": {
+      "desc": "The codec of the engine from end to end, with the engine linked into the program. A seeded .npy sample is ingested: the encode and the seal run as jobs of the device, and the crystal is written, read back and verified. The proof of the set verifies it again, the load gives the samples back, and the bits of a lattice of ints equal the bits of tower_lift and compression_encode.",
+      "script": "utils/test/src/cu/engine/engine_codec_test.sh",
+      "src": [
+        "+<cu/engine/engine_listing.cu>",
+        "+<cu/engine/engine_seal.cu>",
+        "+<cu/engine/engine_report.cu>",
+        "+<cu/engine/analysis/tower/*>",
+        "+<cu/engine/analysis/compression/*>",
+        "+<cu/engine/runtime/obsignatio/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine"
+      ]
+    },
+    "obsignatio_job": {
+      "desc": "The seals of the lanes and of a stream of bits as jobs of the device, their bytes crossed in through tessera and their signa crossed out. The lanes job agrees with obsignatio_lanes node for node, with rows below one chunk and across three chunks. The bits job agrees with obsignatio_bits signum for signum, and an offset past the stream errors both ways.",
+      "script": "utils/test/src/cu/engine/runtime/obsignatio/obsignatio_job_test.sh",
+      "src": [
+        "+<cu/engine/runtime/obsignatio/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/runtime/obsignatio"
+      ]
+    },
+    "compression_job": {
+      "desc": "The encode and the decode of compression as jobs of the device, their values and streams crossed in through tessera and their answers crossed out. The encode job agrees with compression_encode in its chunks, bits, offsets and every word of its stream, below one chunk, across several chunks and past the escape. The decode job gives back the values that went in, and a count of 0 errors both ways.",
+      "script": "utils/test/src/cu/engine/analysis/compression/compression_job_test.sh",
+      "src": [
+        "+<cu/engine/analysis/compression/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/analysis/compression"
+      ]
+    },
+    "tower_job": {
+      "desc": "The lift and the lower of the tower as jobs of the device, their lattices and edge tables crossed in through tessera and their answers crossed out. The lift agrees with tower_lift coefficient for coefficient on seeded lattices with and without edges, and a value at the limit errors both ways. The lower gives the lanes back after the lift job, and agrees with tower_lower sample for sample on a changed crystal.",
+      "script": "utils/test/src/cu/engine/analysis/tower/tower_job_test.sh",
+      "src": [
+        "+<cu/engine/analysis/tower/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/analysis/tower"
       ]
     },
     "tower_edge": {

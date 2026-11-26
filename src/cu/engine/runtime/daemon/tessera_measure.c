@@ -79,7 +79,7 @@ struct TesseraProcess
 static void *tessera_symbol(void *library, const char *name)
 {
 #if defined(_WIN32)
-    // a procedure address is converted to a data pointer only to be converted back to its own type
+    // the code converts a procedure address to a data pointer only to convert it back to its own type
     return (void *)GetProcAddress((HMODULE)library, name);
 #else
     return dlsym(library, name);
@@ -146,20 +146,20 @@ TesseraMeasure *tessera_measure_open(const unsigned char device[TESSERA_DEVICE_B
     // under WSL NVML still reads the device whole, but each job's process reports its own bytes
     measure->reported = tessera_self_paravirtual();
 #if defined(_WIN32)
-    // the module handle is stored as an opaque pointer and converted back where it is used
+    // the code stores the module handle as an opaque pointer, and converts it back where it uses it
     measure->library = (void *)LoadLibraryA("nvml.dll");
 #else
     measure->library = dlopen("libnvidia-ml.so.1", RTLD_NOW);
 #endif
-    // each symbol is converted back to the type it was exported with
+    // the code converts each symbol back to the type that the library exports it with
     const TesseraNvmlInit init = (TesseraNvmlInit)tessera_symbol(measure->library, "nvmlInit_v2");
-    // each symbol is converted back to the type it was exported with
+    // the code converts each symbol back to the type that the library exports it with
     const TesseraNvmlHandle handle = (TesseraNvmlHandle)tessera_symbol(measure->library, "nvmlDeviceGetHandleByUUID");
-    // each symbol is converted back to the type it was exported with
+    // the code converts each symbol back to the type that the library exports it with
     measure->shutdown = (TesseraNvmlShutdown)tessera_symbol(measure->library, "nvmlShutdown");
-    // each symbol is converted back to the type it was exported with
+    // the code converts each symbol back to the type that the library exports it with
     measure->memory_info = (TesseraNvmlMemoryInfo)tessera_symbol(measure->library, "nvmlDeviceGetMemoryInfo");
-    // each symbol is converted back to the type it was exported with
+    // the code converts each symbol back to the type that the library exports it with
     measure->processes =
         (TesseraNvmlProcesses)tessera_symbol(measure->library, "nvmlDeviceGetComputeRunningProcesses_v3");
     char uuid[TESSERA_UUID_TEXT];
@@ -199,7 +199,7 @@ void tessera_measure_close(TesseraMeasure *measure)
     if (measure->library != NULL)
     {
 #if defined(_WIN32)
-        // the stored module handle is converted back to the type it was loaded as
+        // the code converts the stored module handle back to the type that the load gave it
         FreeLibrary((HMODULE)measure->library);
 #else
         dlclose(measure->library);
@@ -288,7 +288,7 @@ int tessera_measure_process(TesseraMeasure *measure, unsigned long long pid, uns
         return status == ERROR_SUCCESS;
     }
     PDH_FMT_COUNTERVALUE_ITEM_A *const items = (PDH_FMT_COUNTERVALUE_ITEM_A *)platform_cell_taken(
-        (unsigned long long)(bytes), (unsigned int)platform_place_g_engine_owner, 0);
+        (unsigned long long)(bytes), (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     if (items == NULL)
     {
         return 0;
@@ -322,7 +322,7 @@ int tessera_measure_process(TesseraMeasure *measure, unsigned long long pid, uns
     }
     TesseraNvmlProcess *const list = (TesseraNvmlProcess *)platform_cell_cleared(
         (unsigned long long)((size_t)count + 1u), (unsigned long long)(sizeof(TesseraNvmlProcess)),
-        (unsigned int)platform_place_g_engine_owner, 0);
+        (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     if (list == NULL)
     {
         return 0;

@@ -35,7 +35,7 @@ esac
 
 # each checker is a program of the platform, and links MMgr's line with the platform (exact_types_platform_link)
 source "$TOP/../includes/exact_types/exact_types.sh"
-exact_types_platform_link check || exit 1
+exact_types_platform_link || exit 1
 for source in "$TEST/check_test.c" "$CHECK/points_check.c" "$CHECK/output_check.c"; do
     binary="$OUT/$(basename "$source" .c)$SUFFIX"
     rm -f "$binary"

@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_extent.cu: the extent
-#include "climb_machine_internal.h"
 #include "../../../../platform/platform.h"
+#include "climb_machine_internal.h"
 
 __global__ static void machine_extent_kernel(const unsigned int *run_start, const unsigned int *run_length,
                                              const unsigned int *run_leaf, unsigned int runs, MachineGeometry geometry,
@@ -42,8 +42,8 @@ extern "C" int climb_machine_extents(ClimbMachine *machine, const ClimbMachineEx
     const unsigned int axes = CLIMB_MACHINE_EXTENT_FIELDS / 2u;
     // leaves widens from unsigned int to size_t before the multiply. Leaves * 6 cannot wrap in 32 bits
     const size_t fields = (size_t)leaves * CLIMB_MACHINE_EXTENT_FIELDS;
-    unsigned int *const initial_extents =
-        (unsigned int *)platform_cell_taken((fields + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const initial_extents = (unsigned int *)platform_cell_taken(
+        (fields + 1u) * sizeof(unsigned int), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     for (unsigned int leaf = 0u; (initial_extents != NULL) && (leaf < leaves); leaf += 1u)
     {
         for (unsigned int axis = 0u; axis < axes; axis += 1u)

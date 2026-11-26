@@ -31,7 +31,7 @@ int period_lattice_fill(const PeriodRequest *request, PeriodLattice *lattice, un
     {
         const unsigned long long extent = request->extent[axis - 1u];
         const unsigned long long lags = extent / 2ULL;
-        // every count here is at max the voxel count, which was bounded below 2^32. Each narrows exactly
+        // every count here is at max the voxel count, which the request bounds below 2^32. Each narrows exactly
         lattice->extent[axis - 1u] = (unsigned int)extent;
         lattice->stride[axis - 1u] = (unsigned int)stride;
         lattice->usable[axis - 1u] = (unsigned int)(extent - lags);
@@ -79,7 +79,7 @@ static unsigned int period_grid_columns(const PeriodLattice *lattice, EngineErro
     return (unsigned int)((columns != 0ULL) ? columns : 1ULL);
 }
 
-// the histogram, and the agreement at entries `begin` to `end` - 1 of the lag table, the rest left 0: a reading counts
+// The histogram, and the agreement at entries `begin` to `end` - 1 of the lag table, the rest left 0. A reading counts
 // every axis's lags, a null only the lags of the axis it shuffled, and the histogram alone counts none
 static int period_count(const PeriodPass *pass, const PeriodLattice *lattice, unsigned long long begin,
                         unsigned long long end, EngineError *error)
@@ -92,7 +92,7 @@ static int period_count(const PeriodPass *pass, const PeriodLattice *lattice, un
     if (ok != 0)
     {
         const unsigned long long needed = (pass->voxels + PERIOD_THREADS - 1ULL) / PERIOD_THREADS;
-        // the block count is bounded below the resident count, far below 2^32
+        // the resident count bounds the block count, far below 2^32
         const unsigned int blocks =
             (unsigned int)((needed < (unsigned long long)pass->columns) ? needed : pass->columns);
         period_histogram_kernel<<<blocks, PERIOD_THREADS>>>(pass->lanes, pass->voxels, pass->device_histogram);
@@ -101,7 +101,7 @@ static int period_count(const PeriodPass *pass, const PeriodLattice *lattice, un
     if ((ok != 0) && (end > begin))
     {
         const unsigned long long entries = end - begin;
-        // the row count is bounded at or below the grid's row limit
+        // the grid's row limit bounds the row count
         const unsigned int rows = (unsigned int)((entries < PERIOD_GRID_ROWS_MAX) ? entries : PERIOD_GRID_ROWS_MAX);
         const dim3 grid(pass->columns, rows, 1u);
         period_agreement_kernel<<<grid, PERIOD_THREADS>>>(pass->lanes, *lattice, begin, end, pass->device_agreement);
@@ -154,11 +154,11 @@ static int period_null_axis(const PeriodRequest *request, const PeriodLattice *l
     }
     const unsigned long long lines = lattice->voxels / lattice->extent[axis];
     const unsigned long long needed = (lines + PERIOD_THREADS - 1ULL) / PERIOD_THREADS;
-    // the block count is bounded below the resident count, far below 2^32
+    // the resident count bounds the block count, far below 2^32
     const unsigned int blocks =
         (unsigned int)((needed < (unsigned long long)shuffled_pass->columns) ? needed : shuffled_pass->columns);
     period_line_shuffle_kernel<<<blocks, PERIOD_THREADS>>>(device_shuffled, shuffle, *lattice, axis, lines);
-    // only this axis's lags are counted: the strongest peak is read from them alone
+    // the count takes only this axis's lags, and the code reads the strongest peak from them alone
     const unsigned long long begin = lattice->first[axis];
     const unsigned long long end = begin + (lattice->extent[axis] / 2u);
     int ok = PERIOD_STATUS_CHECK(cudaGetLastError(), device_shuffled, error) &&
@@ -248,20 +248,22 @@ extern "C" long period_read(const PeriodRequest *request)
     }
     const unsigned long long draws = request->draws;
     const size_t agreement_entries = (size_t)((entries != 0ULL) ? entries : 1ULL);
-    unsigned int *const histogram = (unsigned int *)platform_cell_taken(
-        (unsigned long long)(PERIOD_VALUES * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
-    unsigned int *const shuffled_histogram = (unsigned int *)platform_cell_taken(
-        (unsigned long long)(PERIOD_VALUES * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const histogram =
+        (unsigned int *)platform_cell_taken((unsigned long long)(PERIOD_VALUES * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned int *const shuffled_histogram =
+        (unsigned int *)platform_cell_taken((unsigned long long)(PERIOD_VALUES * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     unsigned long long *const agreement = (unsigned long long *)platform_cell_cleared(
         (unsigned long long)(agreement_entries), (unsigned long long)(sizeof(unsigned long long)),
-        (unsigned int)platform_place_g_engine_owner, 0);
+        (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     unsigned long long *const shuffled_agreement = (unsigned long long *)platform_cell_cleared(
         (unsigned long long)(agreement_entries), (unsigned long long)(sizeof(unsigned long long)),
-        (unsigned int)platform_place_g_engine_owner, 0);
+        (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     const size_t band_count = (size_t)((draws != 0ULL) ? (draws * lattice.rank) : 1ULL);
-    PeriodMargin *const bands = (PeriodMargin *)platform_cell_cleared((unsigned long long)(band_count),
-                                                                      (unsigned long long)(sizeof(PeriodMargin)),
-                                                                      (unsigned int)platform_place_g_engine_owner, 0);
+    PeriodMargin *const bands = (PeriodMargin *)platform_cell_cleared(
+        (unsigned long long)(band_count), (unsigned long long)(sizeof(PeriodMargin)),
+        (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     unsigned long long band_counts[ENGINE_ARRAY_RANK] = {0ULL};
     int ok = PERIOD_CHECK((histogram != NULL) && (shuffled_histogram != NULL) && (agreement != NULL) &&
                               (shuffled_agreement != NULL) && (bands != NULL),
@@ -352,13 +354,15 @@ extern "C" long period_draw(const PeriodRequest *request, unsigned long long dra
     }
     const unsigned long long entries = lattice.lag_total;
     const size_t agreement_entries = (size_t)((entries != 0ULL) ? entries : 1ULL);
-    unsigned int *const histogram = (unsigned int *)platform_cell_taken(
-        (unsigned long long)(PERIOD_VALUES * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
-    unsigned int *const shuffled_histogram = (unsigned int *)platform_cell_taken(
-        (unsigned long long)(PERIOD_VALUES * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const histogram =
+        (unsigned int *)platform_cell_taken((unsigned long long)(PERIOD_VALUES * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned int *const shuffled_histogram =
+        (unsigned int *)platform_cell_taken((unsigned long long)(PERIOD_VALUES * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     unsigned long long *const shuffled_agreement = (unsigned long long *)platform_cell_cleared(
         (unsigned long long)(agreement_entries), (unsigned long long)(sizeof(unsigned long long)),
-        (unsigned int)platform_place_g_engine_owner, 0);
+        (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     int ok = PERIOD_CHECK((histogram != NULL) && (shuffled_histogram != NULL) && (shuffled_agreement != NULL), request,
                           error, ENGINE_ERROR_RESOURCE) &&
              period_reserve(voxels, agreement_entries, error);
@@ -403,7 +407,8 @@ extern "C" int period_print(const PeriodMeasurement *measurement, VerbaLinea *ou
     }
     VerbaLinea line;
     line.capacity = PERIOD_ROW_TEXT * ((unsigned long long)measurement->rank + 1ULL);
-    line.out = (char *)platform_cell_taken((size_t)line.capacity, platform_place_g_program_owner, 0);
+    line.out =
+        (char *)platform_cell_taken((size_t)line.capacity, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     line.at = 0ULL;
     if (line.out == NULL)
     {

@@ -14,12 +14,13 @@ if [ ! -f "$ENGINE/engine_config.h" ]; then
     exit 1
 fi
 
-# a build's path: cu/..., cu/... and sims/... are the engine's, under src/, and anything else the project's
+# The folder of a path that a build names. Paths under engine/, c/, cu/, sims/ and ../includes/ are the repository's.
+# They start at its src folder, as the build of the engine reads them. Each other path is the project's
 build_path()
 {
     case "$1" in
         engine/*) printf '%s\n' "$ENGINE/${1#engine/}" ;;
-        c/* | cu/* | sims/*) printf '%s\n' "$ENGINE/../../$1" ;;
+        c/* | cu/* | sims/* | ../includes/*) printf '%s\n' "$ENGINE/../../$1" ;;
         *) printf '%s\n' "$TOP/$1" ;;
     esac
 }

@@ -150,7 +150,7 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
     report->samples = records;
     const unsigned long long began = engine_clock_microseconds();
     EngineSignum *const sample_roots = (EngineSignum *)platform_cell_cleared(
-        (size_t)request->count + 1u, sizeof(EngineSignum), platform_place_g_program_owner, 0);
+        (size_t)request->count + 1u, sizeof(EngineSignum), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     int ok = ENGINE_CHECK(sample_roots != NULL, &sample_roots, error, ENGINE_ERROR_RESOURCE);
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
     {
@@ -199,22 +199,16 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         source.side = NULL;
         record->source_read = ok ? 1ULL : 0ULL;
         const unsigned long long lanes = ok ? entry_lanes(extent) : 0ULL;
-        unsigned short *device_lanes = NULL;
-        ok = ok && ENGINE_CHECK(lanes != 0ULL, extent, error, ENGINE_ERROR_REQUEST) &&
-             ENGINE_STATUS_CHECK(cudaMalloc((void **)&device_lanes, (size_t)lanes * sizeof(unsigned short)),
-                                 &device_lanes, error) &&
-             ENGINE_STATUS_CHECK(
-                 cudaMemcpy(device_lanes, host_lanes, (size_t)lanes * sizeof(unsigned short), cudaMemcpyHostToDevice),
-                 device_lanes, error);
+        ok = ok && ENGINE_CHECK(lanes != 0ULL, extent, error, ENGINE_ERROR_REQUEST);
 
         EngineStream written;
         unsigned int floors = 0u;
         EMBED_CALL(memor.set, MemoriaCfg, .dst = &written, .bytes = sizeof(written), .val = 0);
         EngineSeal seal;
         EMBED_CALL(memor.set, MemoriaCfg, .dst = &seal, .bytes = sizeof(seal), .val = 0);
-        ok = ok && (entry_iapx_encode(device_lanes, extent, &written, &floors, error) != 0);
+        ok = ok && (entry_iapx_encode(host_lanes, extent, &written, &floors, error) != 0);
         written.lane_offset = lane_offset;
-        ok = ok && entry_seal_make(device_lanes, &written, &section, &seal, error);
+        ok = ok && entry_seal_make(host_lanes, &written, &section, &seal, error);
         const KrepCrystalRequest write = {iapx_path, &written, &section, &seal, error};
         ok = ok && (krep_crystal_write(&write) != 0);
         record->crystal_written = ok ? 1ULL : 0ULL;
@@ -238,14 +232,13 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
                               (file.lane_offset == written.lane_offset) &&
                               entry_signum_same(&back_seal.roots[ENGINE_SEAL_SAMPLE], &seal.roots[ENGINE_SEAL_SAMPLE]),
                           &file, error, ENGINE_ERROR_LOGIC) &&
-             entry_crystal_verify(&file, &back, &back_seal, device_lanes, rebuilt, record, error) &&
+             entry_crystal_verify(&file, &back, &back_seal, host_lanes, rebuilt, record, error) &&
              ENGINE_CHECK(entry_side_same(&back.side, &section.side), &back, error, ENGINE_ERROR_LOGIC);
         krep_crystal_release(&file);
         krep_side_release(&back);
         krep_seal_release(&back_seal);
-        cudaFree(device_lanes);
-        // the crystal read back from disk and rebuilt, against the lanes the source gave: the pixels are counted only
-        // where the two are not one block of bytes
+        // The crystal read back from disk and rebuilt, against the lanes the source gave. The code counts the pixels
+        // only where the two are not one block of bytes
         if (ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_lanes, .other = rebuilt,
                               .bytes = (size_t)lanes * sizeof(unsigned short)) != 0))
         {
@@ -311,7 +304,7 @@ extern "C" long engine_iapx_prove_set(const EngineSetRequest *request)
     report->samples = records;
     const unsigned long long began = engine_clock_microseconds();
     EngineSignum *const sample_roots = (EngineSignum *)platform_cell_cleared(
-        (size_t)request->count + 1u, sizeof(EngineSignum), platform_place_g_program_owner, 0);
+        (size_t)request->count + 1u, sizeof(EngineSignum), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     const int rooted = ENGINE_CHECK(sample_roots != NULL, &sample_roots, error, ENGINE_ERROR_RESOURCE);
     for (unsigned int sample = 0u; rooted && (sample < request->count); sample += 1u)
     {
@@ -414,7 +407,8 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
         VerbaLinea line;
         line.capacity =
             ENTRY_ROW_TEXT + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = sample, .cap = ENTRY_PATH_CAPACITY);
-        line.out = (char *)platform_cell_taken((size_t)line.capacity, platform_place_g_program_owner, 0);
+        line.out =
+            (char *)platform_cell_taken((size_t)line.capacity, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
         line.at = 0ULL;
         if (line.out != NULL)
         {

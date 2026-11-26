@@ -2,10 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_listing.cu: the listing, geff arrays, lanes and the iapx codec
 #include "../../platform/platform.h"
+#include "analysis/compression/compression_job.h"
+#include "analysis/tower/tower_job.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "engine_internal.h"
 #include "engine_note.h"
 #include "memoria_operor/memoria_operor.h"
+
+// the threads of each block of a job of the codec
+#define ENTRY_JOB_THREADS 256u
 
 // the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`
 // comes first, 0 where they are the same, above 0 where `right` does
@@ -292,68 +297,111 @@ unsigned long long entry_lanes(const unsigned long long extent[4])
     return lanes;
 }
 
-int entry_iapx_decode(const EngineStream *stream, const unsigned short *device_lanes, unsigned short *rebuilt,
-                      unsigned long long *mismatches, const unsigned short **device_rebuilt, EngineError *error)
+// The decode, then the lower of the crystal that the decode writes. The lower reads the crystal after the sync at the
+// end of the decode
+__global__ void entry_iapx_decode_job_kernel(const void *decode, const void *lower)
 {
-    int *coefficients = NULL;
-    if (tower_capacity(stream->extent, &coefficients, error) != 0L)
-    {
-        return 0;
-    }
-    CompressionDecodeRequest code;
+    cooperative_groups::grid_group grid = cooperative_groups::this_grid();
+    (void)compression_decode_staged(decode, grid);
+    (void)tower_lower_staged(lower, grid);
+}
+
+int entry_iapx_decode(const EngineStream *stream, const unsigned short *lanes, unsigned short *rebuilt,
+                      unsigned long long *mismatches, EngineError *error)
+{
+    TowerLowerJobRequest lower;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lower, .bytes = sizeof(lower), .val = 0);
+    lower.lanes = lanes;
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lower.extent, .src = stream->extent, .bytes = sizeof(lower.extent));
+    lower.mismatches = mismatches;
+    lower.rebuilt = rebuilt;
+    lower.error = error;
+    CompressionDecodeJobRequest code;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &code, .bytes = sizeof(code), .val = 0);
     code.offsets = stream->offsets;
     code.chunks = stream->chunks;
     code.stream = stream->stream;
     code.bits = stream->bits;
     code.count = entry_lanes(stream->extent);
-    code.device_coefficients = coefficients;
     code.error = error;
-    if (compression_decode(&code) != 0L)
-    {
-        return 0;
-    }
-    TowerLowerRequest lower;
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lower, .bytes = sizeof(lower), .val = 0);
-    lower.device_lanes = device_lanes;
-    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lower.extent, .src = stream->extent, .bytes = sizeof(lower.extent));
-    lower.mismatches = mismatches;
-    lower.device_rebuilt = device_rebuilt;
-    lower.rebuilt = rebuilt;
-    lower.error = error;
-    return (tower_lower(&lower) == 0L) ? 1 : 0;
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, platform_place_g_engine_owner);
+    TowerStage lower_stage;
+    CompressionStage code_stage;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lower_stage, .bytes = sizeof(lower_stage), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &code_stage, .bytes = sizeof(code_stage), .val = 0);
+    // the decode writes the values into the room of the crystal of the lower
+    int ok = tower_lower_stage_crossed(&lower, &cells, &lower_stage) &&
+             compression_decode_stage_crossed(&code, lower_stage.coefficients, &cells, &code_stage);
+    const void *decode_job = code_stage.job;
+    const void *lower_job = lower_stage.job;
+    // Explicit casts give the addresses of the records of the stages as the arguments of the kernel
+    void *args[2] = {(void *)&decode_job, (void *)&lower_job};
+    ok = ok &&
+         ENGINE_CHECK(tessera_job_ran((const void *)entry_iapx_decode_job_kernel, ENTRY_JOB_THREADS, args), stream,
+                      error, ENGINE_ERROR_RESOURCE) &&
+         compression_decode_stage_agreed(&code, &code_stage) && tower_lower_stage_agreed(&lower, &lower_stage);
+    tessera_job_cells_given(&cells);
+    return ok;
 }
 
-int entry_iapx_encode(const unsigned short *device_lanes, const unsigned long long extent[4], EngineStream *stream,
-                      unsigned int *floors, EngineError *error)
+// The lift, then the encode of the coefficients that the lift writes. The encode runs where the lift leaves no flag
+__global__ void entry_iapx_encode_job_kernel(const void *lift, const void *encode)
 {
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = stream, .bytes = sizeof(*stream), .val = 0);
-    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = stream->extent, .src = extent, .bytes = sizeof(stream->extent));
-    const int *coefficients = NULL;
-    unsigned int *scratch = NULL;
-    TowerLiftRequest lift;
+    cooperative_groups::grid_group grid = cooperative_groups::this_grid();
+    if (tower_lift_staged(lift, grid) != 0)
+    {
+        (void)compression_encode_staged(encode, grid);
+    }
+}
+
+// The lattice `lanes` or `values` on the host lifted and encoded in one job, the code of the stream in `stream`. 1, or
+// 0 with the error set
+static int entry_lattice_encoded(const unsigned short *lanes, const int *values, const unsigned long long extent[4],
+                                 EngineStream *stream, unsigned int *floors, EngineError *error)
+{
+    TowerLiftJobRequest lift;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &lift, .bytes = sizeof(lift), .val = 0);
-    lift.device_lanes = device_lanes;
+    lift.lanes = lanes;
+    lift.values = values;
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lift.extent, .src = extent, .bytes = sizeof(lift.extent));
-    lift.coefficients = &coefficients;
-    lift.scratch = &scratch;
     lift.floors = floors;
     lift.error = error;
-    if (tower_lift(&lift) != 0L)
-    {
-        return 0;
-    }
-    CompressionEncodeRequest code;
+    CompressionEncodeJobRequest code;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &code, .bytes = sizeof(code), .val = 0);
-    code.device_coefficients = coefficients;
     code.count = entry_lanes(extent);
-    code.device_scratch = scratch;
     code.chunks = &stream->chunks;
     code.bits = &stream->bits;
     code.offsets = &stream->offsets;
     code.stream = &stream->stream;
     code.error = error;
-    return (compression_encode(&code) == 0L) ? 1 : 0;
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, platform_place_g_engine_owner);
+    TowerStage lift_stage;
+    CompressionStage code_stage;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lift_stage, .bytes = sizeof(lift_stage), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &code_stage, .bytes = sizeof(code_stage), .val = 0);
+    // the encode reads the coefficients in the cell that the lift writes
+    int ok = tower_lift_stage_crossed(&lift, &cells, &lift_stage) &&
+             compression_encode_stage_crossed(&code, lift_stage.coefficients, &cells, &code_stage);
+    const void *lift_job = lift_stage.job;
+    const void *encode_job = code_stage.job;
+    // Explicit casts give the addresses of the records of the stages as the arguments of the kernel
+    void *args[2] = {(void *)&lift_job, (void *)&encode_job};
+    ok = ok &&
+         ENGINE_CHECK(tessera_job_ran((const void *)entry_iapx_encode_job_kernel, ENTRY_JOB_THREADS, args), stream,
+                      error, ENGINE_ERROR_RESOURCE) &&
+         tower_lift_stage_agreed(&lift, &lift_stage) && compression_encode_stage_agreed(&code, &code_stage, &cells);
+    tessera_job_cells_given(&cells);
+    return ok;
+}
+
+int entry_iapx_encode(const unsigned short *lanes, const unsigned long long extent[4], EngineStream *stream,
+                      unsigned int *floors, EngineError *error)
+{
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = stream, .bytes = sizeof(*stream), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = stream->extent, .src = extent, .bytes = sizeof(stream->extent));
+    return entry_lattice_encoded(lanes, NULL, extent, stream, floors, error);
 }
 
 extern "C" long engine_lattice_bits(const int *values, const unsigned long long extent[4], unsigned long long *bits,
@@ -364,45 +412,18 @@ extern "C" long engine_lattice_bits(const int *values, const unsigned long long 
         return ENGINE_ERROR;
     }
     const unsigned long long lanes = (extent != NULL) ? entry_lanes(extent) : 0ULL;
-    int *device_values = NULL;
-    int ok =
-        ENGINE_CHECK((values != NULL) && (bits != NULL) && (lanes != 0ULL), &values, error, ENGINE_ERROR_REQUEST) &&
-        ENGINE_STATUS_CHECK(cudaMalloc((void **)&device_values, (size_t)lanes * sizeof(int)), &device_values, error) &&
-        ENGINE_STATUS_CHECK(cudaMemcpy(device_values, values, (size_t)lanes * sizeof(int), cudaMemcpyHostToDevice),
-                            device_values, error);
-    const int *coefficients = NULL;
-    unsigned int *scratch = NULL;
     unsigned int floors = 0u;
+    // The offsets and the stream are the cells of compression, which it keeps for its next call. The call keeps the
+    // bits alone
+    EngineStream stream;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &stream, .bytes = sizeof(stream), .val = 0);
+    const int ok =
+        ENGINE_CHECK((values != NULL) && (bits != NULL) && (lanes != 0ULL), &values, error, ENGINE_ERROR_REQUEST) &&
+        entry_lattice_encoded(NULL, values, extent, &stream, &floors, error);
     if (ok != 0)
     {
-        TowerLiftRequest lift;
-        EMBED_CALL(memor.set, MemoriaCfg, .dst = &lift, .bytes = sizeof(lift), .val = 0);
-        lift.device_values = device_values;
-        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lift.extent, .src = extent, .bytes = sizeof(lift.extent));
-        lift.coefficients = &coefficients;
-        lift.scratch = &scratch;
-        lift.floors = &floors;
-        lift.error = error;
-        ok = tower_lift(&lift) == 0L;
+        *bits = stream.bits;
     }
-    if (ok != 0)
-    {
-        // the offsets and the stream are compression's own, retained for its next call; only the bits are retained
-        EngineStream stream;
-        EMBED_CALL(memor.set, MemoriaCfg, .dst = &stream, .bytes = sizeof(stream), .val = 0);
-        CompressionEncodeRequest code;
-        EMBED_CALL(memor.set, MemoriaCfg, .dst = &code, .bytes = sizeof(code), .val = 0);
-        code.device_coefficients = coefficients;
-        code.count = lanes;
-        code.device_scratch = scratch;
-        code.chunks = &stream.chunks;
-        code.bits = bits;
-        code.offsets = &stream.offsets;
-        code.stream = &stream.stream;
-        code.error = error;
-        ok = compression_encode(&code) == 0L;
-    }
-    cudaFree(device_values);
     if (ok == 0)
     {
         engine_error_frame(error);

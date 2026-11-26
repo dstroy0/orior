@@ -17,7 +17,7 @@ void noise_exact_wide(OriorExactInteger *value, const NoiseWide *wide)
     value->sign = ((wide->low | wide->high) != 0ULL) ? 1 : 0;
 }
 
-// the lines' summed squares against their members' squares, in thousandths rounded down; 0 where nothing was summed
+// the lines' summed squares against their members' squares, in thousandths rounded down. 0 where the sums hold nothing
 static int noise_line_per_mille(const NoiseWide *line_squares, unsigned long long member_squares,
                                 unsigned long long *per_mille)
 {
@@ -116,7 +116,7 @@ static int noise_exact_ratio(const OriorExactInteger *numerator, const OriorExac
     }
     const unsigned long long magnitude = ok ? (((unsigned long long)quotient.limb[1] << 32u) | quotient.limb[0]) : 0ULL;
     ok = ok && (magnitude <= 0x7FFFFFFFFFFFFFFFULL);
-    // the magnitude is below 2^63. It converts to long long exactly; the sign is stored apart
+    // the magnitude is below 2^63. It converts to long long exactly, and the code keeps the sign apart
     *ratio = ok ? ((long long)magnitude * (long long)quotient.sign) : 0LL;
     return ok;
 }
@@ -198,11 +198,15 @@ static void noise_planes_summary(const NoisePlanePool *pool)
     platform_line_flushed();
 }
 
-// The static layout's three shared variances against the independent part s, per mille and signed (each 0 where
-// nothing is shared), then s in thousandths of a lane unit squared. With each type's excess A its squared sums less T,
-// D_plane = K_plane - K_row - K_column: var_plane = (A_plane - A_row - A_column) / D_plane, var_row = A_row / K_row -
-// var_plane, var_column = A_column / K_column - var_plane, and s = T / M - var_row - var_column - var_plane, each
-// carried over the common denominator L = M K_row K_column D_plane so nothing is rounded before the last division.
+// The static layout's three shared variances against the independent part s, per mille and signed, each 0 where the
+// layout shares nothing. Then s in thousandths of a lane unit squared.
+//
+// Each type's excess A is its squared sums less T, and D_plane = K_plane - K_row - K_column. Then:
+//   `var_plane = (A_plane - A_row - A_column) / D_plane`
+//   `var_row = A_row / K_row - var_plane`
+//   `var_column = A_column / K_column - var_plane`
+//   `s = T / M - var_row - var_column - var_plane`
+// Each goes over the common denominator L = M K_row K_column D_plane. So no value rounds before the last division.
 void noise_static_readings(const NoiseStaticPool *still, long long readings[NOISE_STATIC_READINGS],
                            int valid[NOISE_STATIC_READINGS])
 {
@@ -439,12 +443,12 @@ extern "C" long noise_lines_set(const NoiseSetRequest *request)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    NoiseLineCell *const cells = (NoiseLineCell *)platform_cell_taken((size_t)NOISE_LINE_CELLS * sizeof(NoiseLineCell),
-                                                                      platform_place_g_program_owner, 0);
+    NoiseLineCell *const cells = (NoiseLineCell *)platform_cell_taken(
+        (size_t)NOISE_LINE_CELLS * sizeof(NoiseLineCell), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     ok = ok && NOISE_DETECTOR_CHECK(cells != NULL, &cells, error, ENGINE_ERROR_RESOURCE);
     // four exact integers, stored apart from the stack
-    NoisePlanePool *const pool =
-        (NoisePlanePool *)platform_cell_taken(sizeof(NoisePlanePool), platform_place_g_program_owner, 0);
+    NoisePlanePool *const pool = (NoisePlanePool *)platform_cell_taken(
+        sizeof(NoisePlanePool), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     ok = ok && NOISE_DETECTOR_CHECK(pool != NULL, &pool, error, ENGINE_ERROR_RESOURCE);
     NoiseStaticPool still;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &still, .bytes = sizeof(still), .val = 0);

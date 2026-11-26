@@ -24,7 +24,6 @@ HOST_FLAGS=()
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         BINARY="$OUT/period_record_test.exe"
-        EXTENSION=obj
         MSVC_BIN="$(ls -d "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC"/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
         if [ -z "$MSVC_BIN" ]; then
             MSVC_BIN="$(ls -d "/c/Program Files/Microsoft Visual Studio"/*/*/VC/Tools/MSVC/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
@@ -37,7 +36,6 @@ case "$(uname -s)" in
         ;;
     *)
         BINARY="$OUT/period_record_test"
-        EXTENSION=o
         HOST_FLAGS=(-Xcompiler -fPIC)
         ;;
 esac
@@ -55,29 +53,24 @@ done
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$MODULE" -I "$DEVICE_POOL" -I "$CYCLE" -I "$CODEGEN" -I "$LSTAR_PARSER" -I "$KEYMATH"
           -I "$KEY_SCHEDULE" -I "$NO_ROUNDING" -I "$EXACT_RECORD" "${FILE_DEFS_MMGR_FLAGS[@]}" "${TESSERA_INCLUDES[@]}")
 rm -f "$BINARY"
-OBJECTS=()
-LINEA_OBJECTS=()
-for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
-              "$CYCLE/cycle.c" "$EXACT_RECORD/exact_record.c"; do
-    object="$OUT/$(basename "$source" .c)_record.$EXTENSION"
-    rm -f "$object"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
-        *)
-            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}" -c "$source" -o "$object" ;;
-    esac
-    [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
-    OBJECTS+=("$object")
-    case "$source" in
-        */mmgr/src/locus_carcerum/*) ;;
-        */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
-    esac
-done
+# The sources that the program links, each compiled one time for these words (shared_objects.sh). The line of
+# MMgr, the cellblock and the device hooks compile as CUDA (exact_types_device_line), and the tessera daemon
+# links them too
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        SHARED_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}") ;;
+    *)
+        SHARED_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}") ;;
+esac
+exact_types_device_line || exit 1
+LINEA_OBJECTS=("${EXACT_TYPES_DEVICE_LINE[@]}")
+shared_objects_built SHARED_WORDS "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" \
+    "$CYCLE/cycle.c" "$EXACT_RECORD/exact_record.c" || exit 1
+OBJECTS=("${LINEA_OBJECTS[@]}" "${SHARED_OBJECTS[@]}")
 # the test is a job on the device's tessera daemon, built beside it
-tessera_build record "${LINEA_OBJECTS[@]}" || exit 1
+tessera_build "${LINEA_OBJECTS[@]}" || exit 1
 
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -rdc=true "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
     "$TEST"/period_record_test.cu "$TOP/src/sims/cu/sim_job.cu" "$MODULE"/period_{measure,select,record}.cu \
     "$DEVICE_POOL/device_pool.cu" "$CYCLE"/cycle*.cu "$CODEGEN"/*.cu "$LSTAR_PARSER"/*.cu "$KEYMATH/keymath.cu" \
     "$KEY_SCHEDULE/key_schedule.cu" "${OBJECTS[@]}" "${TESSERA_OBJECTS[@]}" "${TESSERA_SEAL[@]}"

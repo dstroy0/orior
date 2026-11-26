@@ -38,10 +38,9 @@ if [ -z "$ARCHES" ]; then
 fi
 echo "  architectures: $ARCHES"
 
-GENCODE=""
+GENCODE=()
 for one in $ARCHES; do
-    NUM="${one#sm_}"
-    GENCODE="$GENCODE -gencode arch=compute_${NUM},code=${one}"
+    GENCODE+=(-gencode "arch=compute_${one#sm_},code=${one}")
 done
 
 # The script deletes the binary before the build. A binary of an earlier build must not outlast a
@@ -53,18 +52,21 @@ rm -f "$OUT/bench_steer_gpu.exe"
 # whatever nvcc did. A filter on the output must never decide whether the build passed.
 source "$ROOT/includes/exact_types/exact_types.sh"
 HOST_FLAGS=(-ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor)
-exact_types_compile gpu_scan "${EXACT_TYPES_ARITHMETIC[@]}" || exit 1
-nvcc -ccbin "$MSVC_BIN" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -O2 $GENCODE \
+# The .cu reaches the tables of MMgr in each pass of nvcc. The line, the cellblock and the device hooks compile as
+# CUDA (exact_types_device_platform_link), and nvcc links the bench with its device link. The exact integers and
+# the C of the scan and of the arms compile as C11, each one time for its words
+EXACT_TYPES_EXTRA=(-I "$ROOT/src/cu/engine/nbody/orior" -DORIOR_STEER_HAVE_CUDA=1)
+exact_types_device_platform_link || exit 1
+exact_types_compile "${EXACT_TYPES_INTEGERS[@]}" "$ROOT/src/cu/engine/nbody/orior/scan.c" \
+    "$ROOT/src/cu/engine/nbody/orior"/orior_{core,steer,field,steer_plan,steer_count}.c \
+    "$ROOT/includes/exact_types/integers/arm.c" "$ROOT/utils/bench/bench_steer_arms.c" || exit 1
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -rdc=true "${GENCODE[@]}" \
     -I "$ROOT/src/cu/engine/nbody/orior" \
     "${EXACT_TYPES_FLAGS[@]}" \
     -DORIOR_STEER_HAVE_CUDA=1 \
     -o "$OUT/bench_steer_gpu.exe" \
     "$ROOT/src/cu/engine/nbody/orior/scan.cu" \
-    "$ROOT/src/cu/engine/nbody/orior/scan.c" \
-    "$ROOT/src/cu/engine/nbody/orior"/orior_{core,steer,field,steer_plan,steer_count}.c \
-    "${EXACT_TYPES_OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" \
-    "$ROOT/includes/exact_types/integers/arm.c" \
-    "$ROOT/utils/bench/bench_steer_arms.c" \
+    "${EXACT_TYPES_OBJECTS[@]}" "${PLATFORM_LINK[@]}" \
     2>&1 | grep -viE "^\s*$|Copyright|Microsoft \(R\)|scan_cuda\.cu$|scan\.c$|orior\.c$|exact_integer\.c$|arm\.c$|bench_steer_arms\.c$" | head -30
 NVCC_STATUS=${PIPESTATUS[0]}
 
