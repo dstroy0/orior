@@ -1036,6 +1036,18 @@
         "src/cu/engine/runtime/daemon"
       ]
     },
+    "tower_job": {
+      "desc": "The lift of the tower as one job of the device, its lattice and edge tables crossed in through tessera and its coefficients crossed out, held to tower_lift coefficient for coefficient on seeded lattices with and without edges, and a value at the limit refused both ways.",
+      "script": "utils/test/src/cu/engine/analysis/tower/tower_job_test.sh",
+      "src": [
+        "+<cu/engine/analysis/tower/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/analysis/tower"
+      ]
+    },
     "tower_edge": {
       "desc": "The tower's lookup edges.",
       "script": "utils/test/src/cu/engine/analysis/tower/tower_edge_test.sh",

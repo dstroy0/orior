@@ -45,7 +45,7 @@ rm -f "$BINARY"
 source "$TOP/includes/exact_types/exact_types.sh"
 exact_types_device_platform_link || exit 1
 nvcc "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true -std=c++20 -O2 "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${EXACT_TYPES_FLAGS[@]}" \
-    -o "$BINARY" "$TEST/tessera_crossing_test.cu" "$TOP/src/cu/engine/runtime/daemon/tessera_job.cu" "${PLATFORM_LINK[@]}"
+    -o "$BINARY" "$TEST/tessera_crossing_test.cu" "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 
 "$BINARY"

@@ -514,11 +514,7 @@ src/cu/engine/analysis/shift_agreement/shift_agreement.cu	2
 src/cu/engine/analysis/shift_agreement/shift_agreement.h	2
 src/cu/engine/analysis/shift_agreement/shift_agreement_internal.h	1
 src/cu/engine/analysis/shift_agreement/shift_agreement_run.cu	9
-src/cu/engine/analysis/tower/tower.cu	4
-src/cu/engine/analysis/tower/tower.h	20
-src/cu/engine/analysis/tower/tower_internal.h	4
 src/cu/engine/analysis/tower/tower_record.cu	8
-src/cu/engine/analysis/tower/tower_run.cu	2
 src/cu/engine/analysis/unit_sweep/unit_sweep.cu	18
 src/cu/engine/analysis/unit_sweep/unit_sweep.h	1
 src/cu/engine/engine.h	7

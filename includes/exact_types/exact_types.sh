@@ -84,7 +84,8 @@ exact_types_compile()
 # exact_types_device_line: the line of MMgr, the cellblock and the device hooks of the platform (platform_device.cu).
 # Each compiles as CUDA for both passes of nvcc, as the CUDA guide of MMgr says. A program of the device link of nvcc
 # (-rdc=true) links these in place of the C objects of the line and of the cellblock. Its .cu sources then reach the
-# tables of MMgr in each pass.
+# tables of MMgr in each pass. The line also holds the job interface of tessera (tessera_job.cu). That interface
+# crosses the bytes of a job in and out of the pool of the device.
 #
 # The compile takes the caller's HOST_FLAGS and GENCODE. EXACT_TYPES_DEVICE_LINE holds the objects. 0, or 1 where a
 # source did not compile
@@ -94,7 +95,8 @@ exact_types_device_line()
     local gencode=("${GENCODE[@]+"${GENCODE[@]}"}")
     local words=(nvcc "${host[@]}" -std=c++20 -O2 "${gencode[@]}" -rdc=true -x cu "${EXACT_TYPES_FLAGS[@]}")
     shared_objects_built words "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_CARCER[@]}" \
-        "$EXACT_TYPES_REPO/src/platform/platform_device.cu" || return 1
+        "$EXACT_TYPES_REPO/src/platform/platform_device.cu" \
+        "$EXACT_TYPES_REPO/src/cu/engine/runtime/daemon/tessera_job.cu" || return 1
     EXACT_TYPES_DEVICE_LINE=("${SHARED_OBJECTS[@]}")
     return 0
 }
