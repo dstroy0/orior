@@ -4,9 +4,9 @@
 #include "../../../../../platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "noise_terms_internal.h"
+
 // The pool of the program. The scene's lanes are 96 MiB. The drawn scene, the bias scene and the detector's cells
-// each take as much again, past the 64 MiB of a program that defines no pool
-// as much again each, past the 64 MiB that a program gets where it defines none
+// each take as much again. A program that defines no pool gets 64 MiB
 extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 30u;
 
 static const unsigned long long TERMS_FLAT_LIGHT[TERMS_FLAT_LIGHTS] = {100ULL, 200ULL, 400ULL};
