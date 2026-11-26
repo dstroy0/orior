@@ -152,6 +152,17 @@
         "src/cu/engine/rmc"
       ]
     },
+    "tessera_crossing": {
+      "desc": "One job through the job interface of tessera: the values and an empty answer cross in, one cooperative launch takes its cells on the device, squares the values, syncs the grid and sums and counts them, decides on the device whether it takes a second cell, and the answer crosses out the host's.",
+      "script": "utils/test/src/cu/engine/runtime/daemon/tessera_crossing_test.sh",
+      "src": [
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/runtime/daemon"
+      ]
+    },
     "daemon": {
       "desc": "The tessera daemon: ledger, frame, measure, job and tessera_run tests.",
       "script": "utils/test/src/cu/engine/runtime/daemon/run.sh",
