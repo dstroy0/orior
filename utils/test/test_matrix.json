@@ -1036,6 +1036,35 @@
         "src/cu/engine/runtime/daemon"
       ]
     },
+    "engine_codec": {
+      "desc": "The codec of the engine from end to end, with the engine linked into the program. A seeded .npy sample is ingested: the encode and the seal run as jobs of the device, and the crystal is written, read back and verified. The proof of the set verifies it again, the load gives the samples back, and the bits of a lattice of ints equal the bits of tower_lift and compression_encode.",
+      "script": "utils/test/src/cu/engine/engine_codec_test.sh",
+      "src": [
+        "+<cu/engine/engine_listing.cu>",
+        "+<cu/engine/engine_seal.cu>",
+        "+<cu/engine/engine_report.cu>",
+        "+<cu/engine/analysis/tower/*>",
+        "+<cu/engine/analysis/compression/*>",
+        "+<cu/engine/runtime/obsignatio/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine"
+      ]
+    },
+    "obsignatio_job": {
+      "desc": "The seals of the lanes and of a stream of bits as jobs of the device, their bytes crossed in through tessera and their signa crossed out. The lanes job agrees with obsignatio_lanes node for node, with rows below one chunk and across three chunks. The bits job agrees with obsignatio_bits signum for signum, and an offset past the stream errors both ways.",
+      "script": "utils/test/src/cu/engine/runtime/obsignatio/obsignatio_job_test.sh",
+      "src": [
+        "+<cu/engine/runtime/obsignatio/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/runtime/obsignatio"
+      ]
+    },
     "compression_job": {
       "desc": "The encode and the decode of compression as jobs of the device, their values and streams crossed in through tessera and their answers crossed out. The encode job agrees with compression_encode in its chunks, bits, offsets and every word of its stream, below one chunk, across several chunks and past the escape. The decode job gives back the values that went in, and a count of 0 errors both ways.",
       "script": "utils/test/src/cu/engine/analysis/compression/compression_job_test.sh",

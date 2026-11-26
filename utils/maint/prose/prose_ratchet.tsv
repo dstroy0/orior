@@ -519,11 +519,8 @@ src/cu/engine/engine.h	7
 src/cu/engine/engine_config_key.h	5
 src/cu/engine/engine_config_requests.h	26
 src/cu/engine/engine_files.cu	18
-src/cu/engine/engine_listing.cu	1
 src/cu/engine/engine_record.cu	1
-src/cu/engine/engine_report.cu	2
 src/cu/engine/engine_residual.cu	6
-src/cu/engine/engine_seal.cu	2
 src/cu/engine/engine_source.cu	3
 src/cu/engine/nbody/body_overlap/body_overlap.cu	1
 src/cu/engine/nbody/body_overlap/body_overlap.h	2
@@ -608,8 +605,6 @@ src/cu/engine/runtime/daemon/tessera_run_windows.c	16
 src/cu/engine/runtime/daemon/tessera_self.c	10
 src/cu/engine/runtime/device_pool/device_pool.cu	2
 src/cu/engine/runtime/device_pool/device_pool.h	9
-src/cu/engine/runtime/obsignatio/obsignatio_internal.h	6
-src/cu/engine/runtime/obsignatio/obsignatio_seal.cu	3
 src/cu/scaffolding/c_target.h	1
 src/cu/scaffolding/record_vhdl_test.cpp	5
 src/cu/scaffolding/record_vhdl_test.sh	2

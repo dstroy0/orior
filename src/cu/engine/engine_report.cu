@@ -199,22 +199,16 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         source.side = NULL;
         record->source_read = ok ? 1ULL : 0ULL;
         const unsigned long long lanes = ok ? entry_lanes(extent) : 0ULL;
-        unsigned short *device_lanes = NULL;
-        ok = ok && ENGINE_CHECK(lanes != 0ULL, extent, error, ENGINE_ERROR_REQUEST) &&
-             ENGINE_STATUS_CHECK(cudaMalloc((void **)&device_lanes, (size_t)lanes * sizeof(unsigned short)),
-                                 &device_lanes, error) &&
-             ENGINE_STATUS_CHECK(
-                 cudaMemcpy(device_lanes, host_lanes, (size_t)lanes * sizeof(unsigned short), cudaMemcpyHostToDevice),
-                 device_lanes, error);
+        ok = ok && ENGINE_CHECK(lanes != 0ULL, extent, error, ENGINE_ERROR_REQUEST);
 
         EngineStream written;
         unsigned int floors = 0u;
         EMBED_CALL(memor.set, MemoriaCfg, .dst = &written, .bytes = sizeof(written), .val = 0);
         EngineSeal seal;
         EMBED_CALL(memor.set, MemoriaCfg, .dst = &seal, .bytes = sizeof(seal), .val = 0);
-        ok = ok && (entry_iapx_encode(device_lanes, extent, &written, &floors, error) != 0);
+        ok = ok && (entry_iapx_encode(host_lanes, extent, &written, &floors, error) != 0);
         written.lane_offset = lane_offset;
-        ok = ok && entry_seal_make(device_lanes, &written, &section, &seal, error);
+        ok = ok && entry_seal_make(host_lanes, &written, &section, &seal, error);
         const KrepCrystalRequest write = {iapx_path, &written, &section, &seal, error};
         ok = ok && (krep_crystal_write(&write) != 0);
         record->crystal_written = ok ? 1ULL : 0ULL;
@@ -238,12 +232,11 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
                               (file.lane_offset == written.lane_offset) &&
                               entry_signum_same(&back_seal.roots[ENGINE_SEAL_SAMPLE], &seal.roots[ENGINE_SEAL_SAMPLE]),
                           &file, error, ENGINE_ERROR_LOGIC) &&
-             entry_crystal_verify(&file, &back, &back_seal, device_lanes, rebuilt, record, error) &&
+             entry_crystal_verify(&file, &back, &back_seal, host_lanes, rebuilt, record, error) &&
              ENGINE_CHECK(entry_side_same(&back.side, &section.side), &back, error, ENGINE_ERROR_LOGIC);
         krep_crystal_release(&file);
         krep_side_release(&back);
         krep_seal_release(&back_seal);
-        cudaFree(device_lanes);
         // The crystal read back from disk and rebuilt, against the lanes the source gave. The code counts the pixels
         // only where the two are not one block of bytes
         if (ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_lanes, .other = rebuilt,

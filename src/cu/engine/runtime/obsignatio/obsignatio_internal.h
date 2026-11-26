@@ -8,8 +8,9 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "obsignatio.h"
 
-// a part with no CUDA toolchain (the Pi, tessera on every target) compiles the seal as C++: the functions the host and
-// the device share are the host's alone, and the kernels and the calls that launch them are left out
+// A part with no CUDA toolchain (the Pi, tessera on every target) compiles the seal as C++. There the functions that
+// the host and the device share are the functions of the host alone. That part has no kernels and no calls that launch
+// them
 #if defined(__CUDACC__)
 #include <cuda_runtime.h>
 #define OBSIGNATIO_SHARED __host__ __device__
@@ -184,7 +185,7 @@ OBSIGNATIO_SHARED static inline unsigned int obsignatio_source_byte(const Obsign
     {
         pair |= (unsigned long long)source->limbs[(place / 32ULL) + 1ULL] << 32u;
     }
-    // the value is masked to at max 8 bits. It fits an unsigned int
+    // The mask keeps at max 8 bits of the value, which an unsigned int holds
     return (unsigned int)((pair >> shift) & ((1ULL << take) - 1ULL));
 }
 
@@ -369,7 +370,7 @@ static inline void obsignatio_host_digest(const unsigned char *key, unsigned int
 
 #define OBSIGNATIO_CONTEXT_PREFIX "obsignatio aeterna 2026-09-23 "
 
-// the context a level's key is drawn from, NULL for no level
+// the context that the key of a level comes from, NULL for no level
 static inline const char *obsignatio_context_of(ObsignatioLevel level)
 {
     switch (level)
@@ -416,7 +417,7 @@ static inline int obsignatio_host_level_key(ObsignatioLevel level, unsigned char
     {
         return 0;
     }
-    // the context's chars are hashed as the unsigned bytes they are stored as
+    // The hash reads the chars of the context as the unsigned bytes that hold them
     obsignatio_host_digest(NULL, OBSIGNATIO_MODE_CONTEXT, (const unsigned char *)context,
                            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = context, .cap = PLATFORM_TEXT_TO_TERMINATOR),
                            key, OBSIGNATIO_KEY_BYTES);
@@ -427,6 +428,24 @@ static inline int obsignatio_host_level_key(ObsignatioLevel level, unsigned char
 extern "C" long obsignatio_signum(const ObsignatioSignumRequest *request);
 #endif
 #if (defined(__CUDACC__))
+
+// The body of each kernel of obsignatio as a walk of its own: the indexes from `first` on, `jump` apart. The kernel
+// walks from the index of its thread in its grid. A job kernel (obsignatio_job.cu) walks from the rank of its thread in
+// the whole grid, between the syncs of its stages
+__device__ void obsignatio_chunk_span(const unsigned char *bytes, unsigned long long messages,
+                                      unsigned long long length, unsigned long long stride, unsigned long long chunks,
+                                      ObsignatioKey key, unsigned int mode, unsigned int *chaining,
+                                      unsigned char *signa, unsigned long long first, unsigned long long jump);
+__device__ void obsignatio_level_span(const unsigned int *from, unsigned long long messages, unsigned long long width,
+                                      ObsignatioKey key, unsigned int mode, unsigned int *to, unsigned char *signa,
+                                      unsigned long long first, unsigned long long jump);
+__device__ void obsignatio_bits_check_span(const unsigned long long *offsets, unsigned long long messages,
+                                           unsigned long long bits, unsigned int *broken, unsigned long long first,
+                                           unsigned long long jump);
+__device__ void obsignatio_bits_span(const unsigned int *limbs, const unsigned long long *offsets,
+                                     unsigned long long messages, unsigned long long bits, ObsignatioKey key,
+                                     unsigned int mode, unsigned char *signa, unsigned long long first,
+                                     unsigned long long jump);
 
 __global__ void obsignatio_chunk_kernel(const unsigned char *bytes, unsigned long long messages,
                                         unsigned long long length, unsigned long long stride, unsigned long long chunks,

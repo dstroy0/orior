@@ -8,14 +8,24 @@
 
 #if (defined(__CUDACC__))
 
-__global__ static void obsignatio_level_kernel(const unsigned int *from, unsigned long long messages,
-                                               unsigned long long width, ObsignatioKey key, unsigned int mode,
-                                               unsigned int *to, unsigned char *signa)
+// the index of the thread in its grid, where a kernel walk starts
+__device__ static unsigned long long obsignatio_thread_first(void)
+{
+    return ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x;
+}
+
+// the threads of the grid, the jump of a kernel walk
+__device__ static unsigned long long obsignatio_thread_jump(void)
+{
+    return (unsigned long long)gridDim.x * blockDim.x;
+}
+
+__device__ void obsignatio_level_span(const unsigned int *from, unsigned long long messages, unsigned long long width,
+                                      ObsignatioKey key, unsigned int mode, unsigned int *to, unsigned char *signa,
+                                      unsigned long long first, unsigned long long jump)
 {
     const unsigned long long half = (width + 1ULL) / 2ULL;
-    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
-    for (unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x;
-         index < (messages * half); index += jump)
+    for (unsigned long long index = first; index < (messages * half); index += jump)
     {
         const unsigned long long message = index / half;
         const unsigned long long pair = index % half;
@@ -44,6 +54,14 @@ __global__ static void obsignatio_level_kernel(const unsigned int *from, unsigne
     }
 }
 
+__global__ static void obsignatio_level_kernel(const unsigned int *from, unsigned long long messages,
+                                               unsigned long long width, ObsignatioKey key, unsigned int mode,
+                                               unsigned int *to, unsigned char *signa)
+{
+    obsignatio_level_span(from, messages, width, key, mode, to, signa, obsignatio_thread_first(),
+                          obsignatio_thread_jump());
+}
+
 static int obsignatio_launch_config(const void *kernel, unsigned long long work, unsigned int *grid,
                                     unsigned int *threads, EngineError *error)
 {
@@ -55,7 +73,7 @@ static int obsignatio_launch_config(const void *kernel, unsigned long long work,
     }
     // the occupancy query returns positive counts below INT_MAX. Both convert to unsigned exactly
     const unsigned long long wanted = (work + (unsigned long long)block - 1ULL) / (unsigned long long)block;
-    // the grid is capped at the occupancy grid, which fits an unsigned int
+    // The grid stops at the grid of the occupancy, which an unsigned int holds
     *grid = (wanted < (unsigned long long)least_grid) ? (unsigned int)wanted : (unsigned int)least_grid;
     // a positive block size below INT_MAX converts to unsigned exactly
     *threads = (unsigned int)block;
@@ -125,12 +143,11 @@ extern "C" long obsignatio_many(const ObsignatioManyRequest *request)
     return ok ? 0L : OBSIGNATIO_ERROR;
 }
 
-__global__ static void obsignatio_bits_check_kernel(const unsigned long long *offsets, unsigned long long messages,
-                                                    unsigned long long bits, unsigned int *broken)
+__device__ void obsignatio_bits_check_span(const unsigned long long *offsets, unsigned long long messages,
+                                           unsigned long long bits, unsigned int *broken, unsigned long long first,
+                                           unsigned long long jump)
 {
-    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
-    for (unsigned long long message = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; message < messages;
-         message += jump)
+    for (unsigned long long message = first; message < messages; message += jump)
     {
         const unsigned long long end = ((message + 1ULL) < messages) ? offsets[message + 1ULL] : bits;
         if ((offsets[message] > end) || (end > bits))
@@ -140,13 +157,18 @@ __global__ static void obsignatio_bits_check_kernel(const unsigned long long *of
     }
 }
 
-__global__ static void obsignatio_bits_kernel(const unsigned int *limbs, const unsigned long long *offsets,
-                                              unsigned long long messages, unsigned long long bits, ObsignatioKey key,
-                                              unsigned int mode, unsigned char *signa)
+__global__ static void obsignatio_bits_check_kernel(const unsigned long long *offsets, unsigned long long messages,
+                                                    unsigned long long bits, unsigned int *broken)
 {
-    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
-    for (unsigned long long message = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; message < messages;
-         message += jump)
+    obsignatio_bits_check_span(offsets, messages, bits, broken, obsignatio_thread_first(), obsignatio_thread_jump());
+}
+
+__device__ void obsignatio_bits_span(const unsigned int *limbs, const unsigned long long *offsets,
+                                     unsigned long long messages, unsigned long long bits, ObsignatioKey key,
+                                     unsigned int mode, unsigned char *signa, unsigned long long first,
+                                     unsigned long long jump)
+{
+    for (unsigned long long message = first; message < messages; message += jump)
     {
         const unsigned long long end = ((message + 1ULL) < messages) ? offsets[message + 1ULL] : bits;
         const unsigned long long length = end - offsets[message];
@@ -154,6 +176,14 @@ __global__ static void obsignatio_bits_kernel(const unsigned int *limbs, const u
                                          OBSIGNATIO_LENGTH_BYTES + ((length + 7ULL) / 8ULL)};
         obsignatio_digest(key.words, mode, &source, &signa[message * OBSIGNATIO_SIGNUM_BYTES], OBSIGNATIO_SIGNUM_BYTES);
     }
+}
+
+__global__ static void obsignatio_bits_kernel(const unsigned int *limbs, const unsigned long long *offsets,
+                                              unsigned long long messages, unsigned long long bits, ObsignatioKey key,
+                                              unsigned int mode, unsigned char *signa)
+{
+    obsignatio_bits_span(limbs, offsets, messages, bits, key, mode, signa, obsignatio_thread_first(),
+                         obsignatio_thread_jump());
 }
 
 extern "C" long obsignatio_bits(const ObsignatioBitsRequest *request)
@@ -246,7 +276,7 @@ extern "C" long obsignatio_level_key(ObsignatioLevel level, unsigned char *key, 
     {
         return OBSIGNATIO_ERROR;
     }
-    // the context's chars are hashed as the unsigned bytes they are stored as
+    // The hash reads the chars of the context as the unsigned bytes that hold them
     const ObsignatioSignumRequest request = {
         (const unsigned char *)context,
         EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = context, .cap = PLATFORM_TEXT_TO_TERMINATOR),

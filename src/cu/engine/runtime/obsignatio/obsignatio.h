@@ -114,6 +114,36 @@ extern "C"
 
     long obsignatio_lanes(const ObsignatioLanesRequest *request);
 
+    // The nodes of the lanes as one job of the device (tessera_job.h). The lanes on the host cross in. One cooperative
+    // launch seals the rows, the planes, the volumes and the lanes, as obsignatio_lanes seals them. The nodes cross
+    // out into `nodes`, a room of obsignatio_lanes_nodes(extent) signa on the host. A part with CUDA alone has it.
+    typedef struct
+    {
+        const unsigned short *lanes;
+        const unsigned long long *extent;
+        unsigned char *nodes;
+        EngineError *error;
+    } ObsignatioLanesJobRequest;
+
+    long obsignatio_lanes_job(const ObsignatioLanesJobRequest *request);
+
+    // The signa of the messages of a stream of bits as one job of the device. The words of the stream and the offsets
+    // on the host cross in. One cooperative launch checks the offsets and seals each message, as obsignatio_bits
+    // does. The signa cross out into `signa`, a room of `messages` signa on the host. A part with CUDA alone has it.
+    typedef struct
+    {
+        const unsigned int *limbs;
+        const unsigned long long *offsets;
+        unsigned long long messages;
+        unsigned long long bits;
+        const unsigned char *key;
+        unsigned int mode;
+        unsigned char *signa;
+        EngineError *error;
+    } ObsignatioBitsJobRequest;
+
+    long obsignatio_bits_job(const ObsignatioBitsJobRequest *request);
+
 #ifdef __cplusplus
 }
 #endif
