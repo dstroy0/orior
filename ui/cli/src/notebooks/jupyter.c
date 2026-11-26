@@ -132,20 +132,10 @@ static CliKernel *jupyter_position_alloc(void)
     return kernel;
 }
 
-// how a process that ended reports so, as Rust writes an exit status
+// how a process that ended reports so, as Rust writes an exit status on this system
 EMBED_INLINE void jupyter_status_write(const JupyterCtx *args)
 {
-#if defined(_WIN32)
-    mmgr_line_put(args->err_msg, "exit code: ");
-#else
-    if (args->code < 0LL)
-    {
-        mmgr_line_put(args->err_msg, "signal");
-        return;
-    }
-    mmgr_line_put(args->err_msg, "exit status: ");
-#endif
-    mmgr_line_decimal_signed(args->err_msg, args->code);
+    EMBED_CALL(cli_jupyter_system.status, CliJupyterSystemCtx, .err_msg = args->err_msg, .code = args->code);
 }
 
 // a socket of the kernel's connected, tried again while the kernel starts and its process is: 1, or 0 with why
@@ -223,12 +213,10 @@ EMBED_INLINE void jupyter_program(const JupyterCtx *args)
     // the four folders kernels/<name> and share/jupyter above the spec's folder, each cut at its separator
     for (unsigned int up = 0u; python && (up < 4u); up += 1u)
     {
-        while ((end > 0u) && (args->folder[end - 1u] != '/') && (args->folder[end - 1u] != '\\'))
-        {
-            end -= 1u;
-        }
-        python = (end > 0u);
-        end = python ? (end - 1u) : 0u;
+        const unsigned long long past = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                                   .text = args->folder, .at = end, .set = "/\\");
+        python = (past > 0u);
+        end = python ? (past - 1u) : 0u;
     }
     char program[CLI_PATH_MAX_LEN];
     if (python)
@@ -236,11 +224,8 @@ EMBED_INLINE void jupyter_program(const JupyterCtx *args)
         char prefix[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = prefix, .src = args->folder, .bytes = end});
         prefix[end] = '\0';
-#if defined(_WIN32)
-        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = prefix, .relative = "python.exe", .joined = program);
-#else
-        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = prefix, .relative = "bin/python3", .joined = program);
-#endif
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = prefix, .relative = cli_jupyter_system.env_python(),
+                   .joined = program);
         python = EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = program);
     }
     mmgr_line_put(&line, python ? program : given);
@@ -336,14 +321,7 @@ EMBED_INLINE int jupyter_process_start(const JupyterCtx *args)
                .size = CLI_PATH_TEXT);
     kernel->settings[count] = (CliSetting){"PATH", kernel->path};
     count += 1u;
-#if defined(_WIN32)
-    kernel->interrupt_event = cli_event_inheritable();
-    VerbaLinea number = {kernel->event_number, sizeof(kernel->event_number), 0ULL};
-    mmgr_line_decimal(&number, kernel->interrupt_event, 1u);
-    mmgr_line_finish(&number);
-    kernel->settings[count] = (CliSetting){"JPY_INTERRUPT_EVENT", kernel->event_number};
-    count += 1u;
-#endif
+    count = EMBED_CALL(cli_jupyter_system.interrupt_setting, CliJupyterSystemCtx, .kernel = kernel, .count = count);
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &kernel->spawned,
                     .words = kernel->words.word_text, .folder = folder, .settings = kernel->settings, .count = count,
                     .detached = 1, .inherited_handle = kernel->interrupt_event, .err_msg = err_msg))

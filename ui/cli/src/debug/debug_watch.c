@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // debug_watch.c: a stop where the bytes of a name change, as the adapter takes data breakpoints: each set again whole
-// with each one added; and through lldb's own watchpoints where lldb-dap on Windows ends at reporting the stop of one
+// with each one added; and through lldb's own watchpoints where lldb-dap ends at reporting the stop of one, as on
+// Windows
 #include "../text/text.h"
 #include "debug_internal.h"
 
@@ -10,14 +11,11 @@ typedef struct
     CliDebugSession *session;
     const char *data;
     VerbaLinea *err_msg;
-#if (defined(_WIN32))
     const char *text;
     unsigned long long size;
     unsigned int *number;
-#endif
 } DebugWatchCtx;
 
-#if defined(_WIN32)
 // the spaces a text is trimmed of
 static const char s_spaces[] = " \t\n\r\f\v";
 
@@ -33,28 +31,19 @@ EMBED_INLINE int watch_number(const DebugWatchCtx *args)
     // each piece of the text between the marks, the first before any, read to its first colon
     for (unsigned long long start = 0ULL; start <= size;)
     {
-        unsigned long long end = start;
-        while ((end + mark <= size) &&
-               (memor.cmp(&(MemoriaCfg){.src = text + end, .other = s_mark, .bytes = mark}) != 0))
-        {
-            end += 1ULL;
-        }
-        end = (end + mark <= size) ? end : size;
-        unsigned long long colon = start;
-        colon = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = colon,
-                           .size = end, .set = ":");
-        unsigned long long first = start;
-        unsigned long long last = colon;
-        while ((first < last) &&
-               (cellul.chr(&(CatenaFinitaCfg){.src = s_spaces, .cap = CLI_POOL_BYTES, .byte = text[first]}) != NULL))
-        {
-            first += 1ULL;
-        }
-        while ((last > first) && (cellul.chr(&(CatenaFinitaCfg){
-                                      .src = s_spaces, .cap = CLI_POOL_BYTES, .byte = text[last - 1ULL]}) != NULL))
-        {
-            last -= 1ULL;
-        }
+        // the next mark from `start`, or the text's end where none is left
+        const char *const found = cellul.find(
+            &(CatenaFinitaCfg){.src = text + start, .cap = size - start, .other = s_mark, .other_cap = mark});
+        const unsigned long long end = (found != NULL) ? (unsigned long long)(found - text) : size;
+        const unsigned long long colon = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                    .text = text, .at = start, .size = end, .set = ":");
+        // the piece before the colon, the spaces at either end left off
+        const unsigned long long first = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
+                                                    .text = text, .at = start, .size = colon, .set = s_spaces);
+        const unsigned long long last = (first < colon)
+                                            ? EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
+                                                         .text = text, .at = colon, .set = s_spaces)
+                                            : first;
         unsigned long long value = 0ULL;
         int digits = (last > first) && (last - first <= 10ULL);
         for (unsigned long long at = first; digits && (at < last); at += 1ULL)
@@ -113,18 +102,13 @@ EMBED_INLINE int watch_by_lldb(const DebugWatchCtx *args)
     }
     if (!EMBED_CALL(watch_number, DebugWatchCtx, .text = answer.out, .size = answer.at, .number = &number))
     {
-        unsigned long long start = 0ULL;
-        unsigned long long end = answer.at;
-        while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                     .src = s_spaces, .cap = CLI_POOL_BYTES, .byte = answer.out[start]}) != NULL))
-        {
-            start += 1ULL;
-        }
-        while ((end > start) && (cellul.chr(&(CatenaFinitaCfg){
-                                     .src = s_spaces, .cap = CLI_POOL_BYTES, .byte = answer.out[end - 1ULL]}) != NULL))
-        {
-            end -= 1ULL;
-        }
+        // lldb's answer, the spaces at either end left off
+        const unsigned long long start = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
+                                                    .text = answer.out, .at = 0ULL, .size = answer.at, .set = s_spaces);
+        const unsigned long long end = (start < answer.at)
+                                           ? EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
+                                                        .text = answer.out, .at = answer.at, .set = s_spaces)
+                                           : start;
         mmgr_line_put_n(err_msg, answer.out + start, end - start);
         return 0;
     }
@@ -141,7 +125,6 @@ EMBED_INLINE int watch_by_lldb(const DebugWatchCtx *args)
     session->watching = 1;
     return 1;
 }
-#endif
 
 // the data breakpoint `data` added to the session's and all of them set again
 EMBED_INLINE int watch_set(const DebugWatchCtx *args)
@@ -248,16 +231,15 @@ int cli_debug_watch_data(const CliDebugOutCfg *args)
         return 0;
     }
     int watched = 0;
-#if defined(_WIN32)
-    // lldb-dap on Windows ends where it reports a stop at a watchpoint; the watchpoint is lldb's own, and its script
-    // stops the program at the next instruction it runs
-    if (cellul.eq(&(CatenaFinitaCfg){.src = session->program, .other = "lldb-dap", .cap = CLI_POOL_BYTES}))
+    // Where lldb-dap ends as it reports a stop at a watchpoint, the watchpoint is lldb's own. Its script stops the
+    // program at the next instruction the program runs
+    if (g_cli_system_facts.lldb_watch_by_script &&
+        cellul.eq(&(CatenaFinitaCfg){.src = session->program, .other = "lldb-dap", .cap = CLI_POOL_BYTES}))
     {
         watched = EMBED_CALL(watch_by_lldb, DebugWatchCtx, .session = session, .data = data, .err_msg = args->err_msg)
                       ? 1
                       : -1;
     }
-#endif
     if (watched == 0)
     {
         watched =

@@ -18,11 +18,8 @@ static const char *const s_passed[4] = {"TERM", "COLORTERM", "LANG", "LC_ALL"};
 // whether impero runs inside a Flatpak's sandbox
 int cli_sandbox(void)
 {
-#if defined(__linux__)
-    return EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = "/.flatpak-info");
-#else
-    return 0;
-#endif
+    return g_cli_system_facts.on_linux &&
+           EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = "/.flatpak-info");
 }
 
 typedef struct

@@ -167,27 +167,7 @@ EMBED_INLINE int query_vendor_read(const StickCtx *args)
     memor.set(&(MemoriaCfg){.dst = &s_compile, .val = 0, .bytes = sizeof(s_compile)});
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_compile,
                .word_text = s_nvcc);
-#if defined(_WIN32)
-    char cl[QUERY_PATH_MAX_LEN];
-    char ignored_text[QUERY_LINE_MAX_LEN];
-    VerbaLinea ignored = {ignored_text, sizeof(ignored_text), 0ULL};
-    if (EMBED_CALL(query_program, StickCtx, .context_read = context, .role = QUERY_ROLE_CL, .path = cl,
-                   .err_msg = &ignored))
-    {
-        // the folder cl is in, nvcc's host compiler
-        char *const slash =
-            EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = cl,
-                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_POOL_BYTES}), .byte = '\\');
-        if (slash != NULL)
-        {
-            *slash = '\0';
-            EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_compile,
-                       .word_text = "-ccbin");
-            EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg,
-                       .words_words_pointer = &s_compile, .text = cl);
-        }
-    }
-#endif
+    EMBED_CALL(query_nvcc_host, QueryNvccCtx, .words = &s_compile, .programs = context->programs);
     static const char *const s_flags[7] = {"-cubin", "-arch=sm_86", "-O3", "-diag-suppress", "177", "-o", NULL};
     for (unsigned int at = 0u; s_flags[at] != NULL; at += 1u)
     {
@@ -333,7 +313,7 @@ EMBED_INLINE int query_codes_list(const StickCtx *args)
         mmgr_line_finish(&blob_line);
         VerbaLinea dis_line = {dis, sizeof(dis), 0ULL};
         mmgr_line_put_max(&dis_line, inner_code,
-                           cellul.len(&(CatenaFinitaCfg){.src = inner_code, .cap = CLI_POOL_BYTES}) - 4u);
+                          cellul.len(&(CatenaFinitaCfg){.src = inner_code, .cap = CLI_POOL_BYTES}) - 4u);
         mmgr_line_put(&dis_line, ".dis");
         mmgr_line_finish(&dis_line);
         if (!EMBED_CALL(query_blob_file, StickCtx, .run = run, .name = blob, .path_read = dis, .err_msg = err_msg))

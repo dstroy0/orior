@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// posix_ipc.c: the interface on Linux and macOS: a socket in a folder only the reader can open, the process at the other
-// end of each connection as the system reports it, and each descriptor that comes with the bytes read queued for the
-// frame that names it
+// posix_ipc.c: the interface on Linux and macOS: a socket in a folder only the reader can open, the process at the
+// other end of each connection as the system reports it, and each descriptor that comes with the bytes read queued for
+// the frame that names it
 #if !defined(_WIN32)
 // the peer's credentials and the socket's calls are POSIX and the systems' own, outside strict C11
 #if defined(__linux__)
@@ -263,5 +263,25 @@ void cli_ipc_close(const CliIpcCtx *args)
     }
     args->end->open = 0;
     args->end->handle = 0ULL;
+}
+
+int cli_ipc_dispatch(const CliIpcErrMsgRegionCtx *args)
+{
+    // the region's descriptor goes with the frame, and the transfer names its length alone
+    const CliIpcTransfer transfer = {args->region->length, 0ULL};
+    mmgr_line_put_n(args->out, (const char *)&transfer, sizeof(transfer));
+    return 1;
+}
+
+int cli_ipc_transferred_over(const CliIpcErrMsgCtx *args)
+{
+    const int fd = cli_ipc_err_msg_internal.descriptor(args);
+    if (fd < 0)
+    {
+        mmgr_line_put(args->err_msg, "a transfer came with no region");
+        return 0;
+    }
+    return EMBED_CALL(cli_transfer_region.region_receive, CliTransferRegionCfg, .region = args->region_out,
+                      .handle = (unsigned long long)fd, .length = args->length, .err_msg = args->err_msg);
 }
 #endif

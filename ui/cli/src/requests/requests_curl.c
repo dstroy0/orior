@@ -414,23 +414,19 @@ EMBED_INLINE void curl_file_name(const RequestsCurlCtx *args)
 {
     unsigned long long *start = args->start;
     unsigned long long *length = args->length;
-#if defined(_WIN32)
-    static const char s_separators[] = "/\\";
-#else
-    static const char s_separators[] = "/";
-#endif
+    const char *const separators = g_cli_system_facts.path_separators;
     unsigned long long end = args->size;
     for (;;)
     {
         while ((end > 0u) && (cellul.chr(&(CatenaFinitaCfg){
-                                  .src = s_separators, .cap = CLI_POOL_BYTES, .byte = args->path[end - 1u]}) != NULL))
+                                  .src = separators, .cap = CLI_POOL_BYTES, .byte = args->path[end - 1u]}) != NULL))
         {
             end -= 1u;
         }
         const int dot =
             (end > 0u) && (args->path[end - 1u] == '.') &&
             ((end == 1u) || (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = s_separators, .cap = CLI_POOL_BYTES, .byte = args->path[end - 2u]}) != NULL));
+                                 .src = separators, .cap = CLI_POOL_BYTES, .byte = args->path[end - 2u]}) != NULL));
         if (!dot || (end == 1u))
         {
             break;
@@ -439,7 +435,7 @@ EMBED_INLINE void curl_file_name(const RequestsCurlCtx *args)
     }
     unsigned long long begin = end;
     while ((begin > 0u) && (cellul.chr(&(CatenaFinitaCfg){
-                                .src = s_separators, .cap = CLI_POOL_BYTES, .byte = args->path[begin - 1u]}) == NULL))
+                                .src = separators, .cap = CLI_POOL_BYTES, .byte = args->path[begin - 1u]}) == NULL))
     {
         begin -= 1u;
     }

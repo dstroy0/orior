@@ -57,8 +57,9 @@ static void cli_version(const ReportPageCtx *args)
             (run_result->code == 0LL))
         {
             // a byte that is no blank in the status says the tree has changes
-            changed = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = run_result->out,
-                                 .at = 0ULL, .size = run_result->out_size, .set = CLI_TEXT_WHITE) < run_result->out_size;
+            changed =
+                EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = run_result->out,
+                           .at = 0ULL, .size = run_result->out_size, .set = CLI_TEXT_WHITE) < run_result->out_size;
         }
         mmgr_line_put(args->out, " at ");
         mmgr_line_put(args->out, short_commit);
@@ -70,22 +71,9 @@ static void cli_version(const ReportPageCtx *args)
 // this system and its processor, as Rust names them, into `out`
 EMBED_INLINE void cli_system(const ReportPageCtx *args)
 {
-#if defined(_WIN32)
-    mmgr_line_put(args->out, "windows ");
-#elif defined(__APPLE__)
-    mmgr_line_put(args->out, "macos ");
-#else
-    mmgr_line_put(args->out, "linux ");
-#endif
-#if defined(__x86_64__) || defined(_M_X64)
-    mmgr_line_put(args->out, "x86_64");
-#elif defined(__aarch64__) || defined(_M_ARM64)
-    mmgr_line_put(args->out, "aarch64");
-#elif defined(__i386__) || defined(_M_IX86)
-    mmgr_line_put(args->out, "x86");
-#else
-    mmgr_line_put(args->out, "arm");
-#endif
+    mmgr_line_put(args->out, g_cli_system_facts.system_name);
+    mmgr_line_ch(args->out, ' ');
+    mmgr_line_put(args->out, g_cli_system_facts.rust_processor);
 }
 
 // a field of the issue's body: its text trimmed, or the template's word for none

@@ -171,13 +171,8 @@ EMBED_INLINE int cli_commit(const SettingsSyncExportCtx *args)
         return 1;
     }
     char name[CLI_NAME_MAX_LEN];
-#if defined(_WIN32)
-    const int named = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "COMPUTERNAME",
-                                 .value_out = name, .capacity = sizeof(name));
-#else
-    const int named = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOSTNAME",
-                                 .value_out = name, .capacity = sizeof(name));
-#endif
+    const int named = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx,
+                                 .name = g_cli_system_facts.host_variable, .value_out = name, .capacity = sizeof(name));
     char message[CLI_NAME_MAX_LEN * 2u];
     VerbaLinea line = {message, sizeof(message), 0ULL};
     mmgr_line_put(&line, "orior's settings from ");

@@ -69,12 +69,8 @@ typedef struct
 {
     unsigned long long handle;
     int open;
-#if defined(_WIN32)
     unsigned long long shut;
-#endif
-#if !defined(_WIN32)
     CliDescriptors pending;
-#endif
 } CliIpcEnd;
 
 // A listener of its own: on Windows the pipe instance waiting for the next process to join and the pipe's name,
@@ -83,9 +79,7 @@ typedef struct
 typedef struct
 {
     unsigned long long waiting;
-#if defined(_WIN32)
     wchar_t name[CLI_PATH_MAX_LEN];
-#endif
 } CliIpcListener;
 
 // a listener made into `listener`, its address into `address`, sized for CLI_PATH_MAX_LEN; the next process to
@@ -94,7 +88,7 @@ typedef struct
 // `address` joined, waiting up to five seconds while every instance of a pipe is taken; `size` bytes read whole; `size`
 // bytes written whole, the region's descriptor going with the first byte on a socket; the next descriptor that came
 // with what was read, -1 where none did or on Windows; a reader of the end woken to its end; and the end let go
-// (platform/windows_ipc.c, platform/posix_ipc.c)
+// (platform/windows_interface.c, platform/posix_interface.c)
 int cli_ipc_listening(const CliIpcListenerAddressCtx *args);
 int cli_ipc_accept(const CliIpcListenerCtx *args);
 int cli_ipc_connect(const CliIpcCtx *args);
@@ -110,13 +104,25 @@ void cli_ipc_close(const CliIpcCtx *args);
 #define CLI_IPC_FRAME_BROKEN 0
 #define CLI_IPC_FRAME_PASSED (-1)
 
+// A transfer as it is in a frame: the region's length, and on Windows the handle made for it
+typedef struct
+{
+    unsigned long long length;
+    unsigned long long handle;
+} CliIpcTransfer;
+
+// What a transfer of `region` names, written into `out`: the region's length, and on Windows the handle made in the
+// process `to` where the call names one. The result is 1, or 0 with why. Then the region that the transfer of `length`
+// and `handle` passes over. On Windows it comes from the process `from` where the call names one. Elsewhere it comes
+// from the descriptors that came with the frame. The result is 1, or 0 with why (platform/windows_interface.c,
+// platform/posix_interface.c)
+int cli_ipc_dispatch(const CliIpcErrMsgRegionCtx *args);
+int cli_ipc_transferred_over(const CliIpcErrMsgCtx *args);
+
 // a frame read into `frame`, sized for `capacity`, its size into `size`: what it came to, why given where it broke; a
 // frame of `size` bytes at `bytes` written, the region passed over with it where one is given: 1, or 0 where it could
 // not be; a text field of `size` bytes of `frame` from `at`: where it ends, past its 0, or 0 where it is not ended;
-// what a transfer handing over `region` describes, its length and the handle made in the process `to` where it is given
-// on Windows, written into `out`: 1, or 0 with why given; the region the transfer of `length` and `handle` passes over,
-// taken from the process `from` where it is given on Windows, else from the descriptors that came with the frame: 1,
-// or 0 with why given; and the transfer at `transfer`, `size` bytes, read: 1, or 0 with why given (interface.c)
+// and the transfer at `transfer`, `size` bytes, read: 1, or 0 with why given (interface.c)
 int cli_ipc_frame_read(const CliIpcErrMsgEndCtx *args);
 int cli_ipc_frame_write(const CliIpcEndCtx *args);
 // a frame of `size` bytes, read from `at`
@@ -127,8 +133,6 @@ typedef struct
     unsigned long long at;
 } CliIpcFrameCfg;
 unsigned long long cli_ipc_field_end(const CliIpcFrameCfg *args);
-int cli_ipc_dispatch(const CliIpcErrMsgRegionCtx *args);
-int cli_ipc_transferred_over(const CliIpcErrMsgCtx *args);
 int cli_ipc_transfer(const CliIpcErrMsgSizeCtx *args);
 
 struct CliIpcErrMsgCtx

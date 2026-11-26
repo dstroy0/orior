@@ -45,39 +45,8 @@ EMBED_INLINE unsigned int cli_dotnet_positions(const ExecutablesDotnetCtx *args)
     {
         count += 1u;
     }
-#if defined(_WIN32)
-    char files[CLI_PATH_MAX_LEN];
-    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ProgramFiles",
-                   .value_out = files, .capacity = sizeof(files)) &&
-        EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx, .folder = files,
-                   .name = "dotnet", .out = args->positions[count]))
-    {
-        count += 1u;
-    }
-#else
-    char text[CLI_PATH_MAX_LEN];
-    if (EMBED_CALL(cli_executables_capacity_internal.text_read, CliExecutablesCapacityCtx,
-                   .path = "/etc/dotnet/install_location", .bytes = text, .capacity = sizeof(text)))
-    {
-        const char *from = text;
-        unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES});
-        EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &from,
-                   .length_pointer = &length);
-        EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = from,
-                   .length = length, .out = args->positions[count], .capacity = CLI_PATH_MAX_LEN);
-        count += 1u;
-    }
-    static const char *const s_usual[3] = {"/usr/share/dotnet", "/usr/lib/dotnet", "/usr/local/share/dotnet"};
-    for (unsigned int at = 0u; at < 3u; at += 1u)
-    {
-        memor.cpy(
-            &(MemoriaCfg){.dst = args->positions[count],
-                          .src = s_usual[at],
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_usual[at], .cap = CLI_POOL_BYTES}) + 1u});
-        count += 1u;
-    }
-#endif
-    return count;
+    return count + EMBED_CALL(cli_executables_host.dotnet_installed, CliExecutablesSystemPositionsCtx,
+                              .positions = args->positions + count);
 }
 
 // a version's numbers, its parts between dots and dashes that are numbers, into `numbers`: their count

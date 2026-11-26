@@ -19,6 +19,7 @@ typedef struct CliSeaErrMsgCfg CliSeaErrMsgCfg;
 typedef struct CliSeaErrMsgProgramCfg CliSeaErrMsgProgramCfg;
 typedef struct CliSeaErrMsgProgramSizeCfg CliSeaErrMsgProgramSizeCfg;
 typedef struct CliSeaCfg CliSeaCfg;
+typedef struct CliSeaSystemCfg CliSeaSystemCfg;
 
 // the max program headers a Linux node's are read with, the two this adds among them
 #define CLI_SEA_HEADERS 4096u
@@ -50,6 +51,15 @@ typedef struct
 int cli_sea_fuse_at(const CliSeaErrMsgProgramSizeCfg *args);
 int cli_sea_signature(const CliSeaErrMsgProgramCfg *args);
 int cli_sea_note(const CliSeaErrMsgCfg *args);
+
+// What each system adds (windows_sea.c, posix_sea.c). First the extension a program's file takes here, or NULL where
+// it takes none. Then whether node `major`.`minor`, older than 25.5, gives a single executable here: 1, or 0 with why.
+//
+// Then the copy of `program`, `size` bytes, with the blob `data` added and the fuse turned, written to `output`. Each
+// step goes through `sink` as the copy makes it. The result is 1, or 0 with why
+const char *cli_sea_program_extension(void);
+int cli_sea_older_node(const CliSeaSystemCfg *args);
+int cli_sea_copy(const CliSeaSystemCfg *args);
 
 struct CliSeaNodeCfg
 {
@@ -93,6 +103,32 @@ struct CliSeaCfg
     const char *text;
     char (*found)[CLI_NAME_MAX_LEN];
     unsigned int capacity;
+};
+
+struct CliSeaSystemCfg
+{
+    QuerySink sink;
+    VerbaLinea *err_msg;
+    unsigned long long major;
+    unsigned long long minor;
+    const unsigned char *program;
+    unsigned long long size;
+    const unsigned char *data;
+    unsigned long long data_size;
+    const char *output;
+};
+
+typedef struct
+{
+    const char *(*program_extension)(void);
+    int (*older_node)(const CliSeaSystemCfg *args);
+    int (*copy)(const CliSeaSystemCfg *args);
+} CliSeaSystemNs;
+EMBED_TABLE_LAYOUT(CliSeaSystemNs, program_extension, older_node, copy);
+EMBED_TABLE_STORAGE CliSeaSystemNs cli_sea_system EMBED_UNUSED = {
+    .program_extension = cli_sea_program_extension,
+    .older_node = cli_sea_older_node,
+    .copy = cli_sea_copy,
 };
 
 typedef struct

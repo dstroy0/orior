@@ -188,9 +188,7 @@ EMBED_INLINE int cli_on_fill(const RunFileCtx *args)
         mmgr_line_put(&file, made);
         mmgr_line_ch(&file, '/');
         mmgr_line_put_n(&file, args->filling->name, args->filling->stem);
-#if defined(_WIN32)
-        mmgr_line_put(&file, ".exe");
-#endif
+        mmgr_line_put(&file, g_cli_system_facts.program_end);
         mmgr_line_finish(&file);
         EMBED_CALL(cli_run_file.quote, CliRunFileCfg, .out = args->line, .path = out);
     }

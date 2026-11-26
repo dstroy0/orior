@@ -526,20 +526,21 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
         return 0;
     }
     char out[CLI_PATH_MAX_LEN];
-#if defined(_WIN32)
-    // the stem's own extension, where it has one, gives way to .exe, as a program's name is set on Windows
-    char *const dot =
-        EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = stem,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_POOL_BYTES}), .byte = '.');
-    if ((dot != NULL) && (dot != stem))
+    // the stem's own extension, where it has one, gives way to the ending a program's name takes on this system
+    if (g_cli_system_facts.program_end[0] != '\0')
     {
-        *dot = '\0';
+        char *const dot =
+            EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = stem,
+                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_POOL_BYTES}), .byte = '.');
+        if ((dot != NULL) && (dot != stem))
+        {
+            *dot = '\0';
+        }
+        VerbaLinea exe = {stem + cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_POOL_BYTES}),
+                          CLI_PATH_MAX_LEN - cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_POOL_BYTES}), 0ULL};
+        mmgr_line_put(&exe, g_cli_system_facts.program_end);
+        mmgr_line_finish(&exe);
     }
-    VerbaLinea exe = {stem + cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_POOL_BYTES}),
-                      CLI_PATH_MAX_LEN - cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_POOL_BYTES}), 0ULL};
-    mmgr_line_put(&exe, ".exe");
-    mmgr_line_finish(&exe);
-#endif
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = out_folder, .relative = stem, .joined = out);
     static CliWords s_words;
     s_words.count = 0u;

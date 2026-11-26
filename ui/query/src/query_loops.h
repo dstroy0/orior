@@ -75,6 +75,27 @@ typedef struct
 void query_words_add(const QueryLoopsWordsWordsCfg *args);
 void query_words_text(const QueryLoopsWordsWordsTextCfg *args);
 
+// What each system adds to a build of nvcc's (platform/windows.c, platform/posix.c). First the host compiler that
+// nvcc takes, as `-ccbin` and the folder cl is in, where `programs` finds cl on Windows. `msvc` adds the flags that
+// cl compiles C11 with.
+//
+// Then the engine's objects that a link of the engine takes, from the list in the folder `engine`. They go into
+// `objects`, at max QUERY_WORDS_MAX, and their text into a cell that `text` holds. The result is their count. Then the
+// link of the engine in `engine` added to `words`, its `count` objects first where it has them
+typedef struct
+{
+    QueryWords *words;
+    const QueryPrograms *programs;
+    int msvc;
+    const char *engine;
+    const char **objects;
+    char **text;
+    unsigned int count;
+} QueryNvccCtx;
+void query_nvcc_host(const QueryNvccCtx *args);
+unsigned int query_engine_objects(const QueryNvccCtx *args);
+void query_engine_link(const QueryNvccCtx *args);
+
 // The part's files in the tree and the vendor's tables
 typedef struct
 {

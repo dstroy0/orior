@@ -98,11 +98,7 @@ void cli_plugin_catalog_adjacent(const CliPluginCatalogCfg *args)
         mmgr_line_put(args->out, parent);
         if ((length > 0u) && (parent[length - 1u] != '/') && (parent[length - 1u] != '\\'))
         {
-#if defined(_WIN32)
-            mmgr_line_ch(args->out, '\\');
-#else
-            mmgr_line_ch(args->out, '/');
-#endif
+            mmgr_line_ch(args->out, g_cli_system_facts.path_separator);
         }
     }
     mmgr_line_put(args->out, args->address);

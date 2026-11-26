@@ -13,12 +13,12 @@
     "name, "                                                                                                           \
     "\\\"label\\\": text, \\\"icon\\\": name }, or \\\"-\\\" for a line; { \\\"label\\\": text, \\\"items\\\": [...] " \
     "} "                                                                                                               \
-    "contains more. A menu named as one of orior's is in its place, the others are before Help, and hide takes " \
+    "contains more. A menu named as one of orior's is in its place, the others are before Help, and hide takes "       \
     "orior's away by name.\",\n  \"menus\": [],\n  \"hide\": [],\n  \"toolbar\": []\n}\n"
 
 // what user.css contains when impero makes it: a note on what it is for
 #define CLI_USER_CSS                                                                                                   \
-    "/* impero positions this stylesheet over its own, last, and reads it again each time the window\n"                     \
+    "/* impero positions this stylesheet over its own, last, and reads it again each time the window\n"                \
     "   comes back to the front. Every color and font the app uses is a variable, named as\n"                          \
     "   Preferences lists them. This rule sets two of them for both schemes:\n\n"                                      \
     "   :root[data-scheme] { --fuse-fire: #ff7a1a; --code: \"Fira Code\", monospace; }\n\n"                            \
@@ -31,36 +31,22 @@ int cli_home_folder(const CliFolderCtx *args)
     {
         return 1;
     }
+    // the first of the system's settings folders whose variable the system sets
     char base[CLI_PATH_MAX_LEN];
-#if defined(_WIN32)
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "APPDATA", .value_out = base,
-                    .capacity = sizeof(base)))
+    for (unsigned int at = 0u; at < g_cli_system_facts.config_folder_count; at += 1u)
     {
-        return 0;
-    }
-#else
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "XDG_CONFIG_HOME",
-                    .value_out = base, .capacity = sizeof(base)))
-    {
-        char home[CLI_PATH_MAX_LEN];
-        if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME",
-                        .value_out = home, .capacity = sizeof(home)))
+        const CliSystemFolder *const folder = &g_cli_system_facts.config_folders[at];
+        if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = folder->variable,
+                       .value_out = base, .capacity = sizeof(base)))
         {
-            return 0;
-        }
-        VerbaLinea line = {base, sizeof(base), 0ULL};
-        mmgr_line_put(&line, home);
-        mmgr_line_put(&line, "/.config");
-        if (mmgr_line_finish(&line) == 0ULL)
-        {
-            return 0;
+            VerbaLinea line = {args->folder_out, CLI_PATH_MAX_LEN, 0ULL};
+            mmgr_line_put(&line, base);
+            mmgr_line_put(&line, folder->path);
+            mmgr_line_put(&line, "/orior");
+            return mmgr_line_finish(&line) != 0ULL;
         }
     }
-#endif
-    VerbaLinea line = {args->folder_out, CLI_PATH_MAX_LEN, 0ULL};
-    mmgr_line_put(&line, base);
-    mmgr_line_put(&line, "/orior");
-    return mmgr_line_finish(&line) != 0ULL;
+    return 0;
 }
 
 typedef struct
@@ -173,13 +159,7 @@ int cli_home_ensure_user_css(const CliPathErrMsgTypeCtx *args)
 
 int cli_home_reveal(const CliPathErrMsgNameCtx *args)
 {
-#if defined(_WIN32)
-    const char *const words[3] = {"explorer", args->path, NULL};
-#elif defined(__APPLE__)
-    const char *const words[3] = {"open", args->path, NULL};
-#else
-    const char *const words[3] = {"xdg-open", args->path, NULL};
-#endif
+    const char *const words[3] = {g_cli_system_facts.file_opener, args->path, NULL};
     // the file manager or the program it opens in is the reader's, and stays as impero ends
     unsigned int id = 0u;
     if (!EMBED_CALL(cli_words_id_internal.started_outside, CliWordsIdCtx, .words = words, .id = &id))

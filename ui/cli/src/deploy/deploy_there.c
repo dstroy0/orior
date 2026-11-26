@@ -117,12 +117,9 @@ int cli_deploy_record_path(const CliDeployIndexPathCtx *args)
     char key[(3u * CLI_PATH_MAX_LEN) + 8u];
     VerbaLinea key_line = {key, sizeof(key), 0ULL};
     mmgr_line_put(&key_line, run->root);
-#if defined(_WIN32)
-    for (unsigned long long at = 0ULL; at < key_line.at; at += 1u)
-    {
-        key[at] = (key[at] == '/') ? '\\' : key[at];
-    }
-#endif
+    // the root's separators as the system writes them
+    EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = key, .size = key_line.at, .from = '/',
+               .to = g_cli_system_facts.path_separator);
     mmgr_line_ch(&key_line, '\n');
     mmgr_line_put(&key_line, run->deployment.name);
     mmgr_line_ch(&key_line, '\n');

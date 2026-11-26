@@ -41,13 +41,8 @@ EMBED_INLINE void latex_stem(const LatexCtx *args)
     unsigned long long *size = args->size;
     unsigned long long from = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     const unsigned long long end = from;
-#if defined(_WIN32)
     from = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path, .at = from,
-                      .set = "/\\");
-#else
-    from = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path, .at = from,
-                      .set = "/");
-#endif
+                      .set = g_cli_system_facts.path_separators);
     unsigned long long dot = end;
     dot = (from + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path + from,
                              .at = dot - from, .set = "."));

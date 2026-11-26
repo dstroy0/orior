@@ -49,11 +49,13 @@ EMBED_INLINE const char *cli_for_bash(const RunnerCommandCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = args->out,
                             .src = args->value,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_POOL_BYTES}) + 1u});
-#if defined(_WIN32)
-    EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->out,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->out, .cap = CLI_POOL_BYTES}), .from = '\\',
-               .to = '/');
-#endif
+    // a system that writes another separator between a path's parts has it turned to a forward slash
+    if (g_cli_system_facts.path_separator != '/')
+    {
+        EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->out,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->out, .cap = CLI_POOL_BYTES}),
+                   .from = g_cli_system_facts.path_separator, .to = '/');
+    }
     return args->out;
 }
 
@@ -305,11 +307,6 @@ EMBED_INLINE void cli_source_date(const RunnerCommandCtx *args)
 // it leads displayed in `set`
 EMBED_INLINE void cli_unpath(const RunnerCommandCtx *args)
 {
-#if defined(_WIN32)
-    static const char s_separator[2] = ";";
-#else
-    static const char s_separator[2] = ":";
-#endif
     // the PATH's folders read off the cell the process holds them in, each without the program joined into a PATH
     // text in a cell of the temporary tier for the call
     const CliToolchainsFolders folders = cli_toolchains_run_folders();
@@ -326,13 +323,16 @@ EMBED_INLINE void cli_unpath(const RunnerCommandCtx *args)
         char folder[CLI_PATH_MAX_LEN];
         char found[CLI_PATH_MAX_LEN];
         (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell,
-                                                               .offset = (embed_word)at * CLI_PATH_MAX_LEN,
-                                                               .dst = folder,
-                                                               .bytes = CLI_PATH_MAX_LEN});
+                                                                .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                                .dst = folder,
+                                                                .bytes = CLI_PATH_MAX_LEN});
         if (!EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = folder, .names = names, .count = 1u,
                         .path = found))
         {
-            mmgr_line_put(&joined, (kept != 0u) ? s_separator : "");
+            if (kept != 0u)
+            {
+                mmgr_line_ch(&joined, g_cli_system_facts.list_separator);
+            }
             mmgr_line_put(&joined, folder);
             kept += 1u;
         }
@@ -659,8 +659,7 @@ int cli_runner_show(const CliRunnerErrMsgRootCfg *args)
     const CliValues *values = args->values;
     VerbaLinea *err_msg = args->err_msg;
     // the command built and the line it displays, in one cell of the temporary tier for the call
-    CliCommand *const command =
-        g_cli_guard->temporary_buf_alloc(sizeof(*command) + CLI_COMMAND_TEXT, g_cli_runs_owner);
+    CliCommand *const command = g_cli_guard->temporary_buf_alloc(sizeof(*command) + CLI_COMMAND_TEXT, g_cli_runs_owner);
     if (command == NULL)
     {
         mmgr_line_put(err_msg, "the cells cannot meet the command the step shows");
@@ -678,9 +677,9 @@ int cli_runner_show(const CliRunnerErrMsgRootCfg *args)
             continue;
         }
         VerbaLinea displayed = {displayed_text, CLI_COMMAND_TEXT, 0ULL};
-        shown = EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = root, .catalog = catalog,
-                           .step = step, .values = values, .command = command, .displayed = &displayed,
-                           .err_msg = err_msg);
+        shown =
+            EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = root, .catalog = catalog,
+                       .step = step, .values = values, .command = command, .displayed = &displayed, .err_msg = err_msg);
         if (shown)
         {
             mmgr_line_finish(&displayed);

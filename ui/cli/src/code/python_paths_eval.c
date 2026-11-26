@@ -10,12 +10,6 @@
 #define CLI_PY_FOLDERS 4096u
 #define CLI_PY_FOLDER_TEXT (1u << 20u)
 
-#if defined(_WIN32)
-#define CLI_PY_SEPARATOR '\\'
-#else
-#define CLI_PY_SEPARATOR '/'
-#endif
-
 void cli_py_value_append(const CliPythonPathsTextTypeCtx *args)
 {
     if ((args->text_u32 != CLI_PY_NONE) && (g_cli_py.values < CLI_PY_VALUES))
@@ -118,7 +112,7 @@ EMBED_INLINE void cli_join(const PythonPathsEvalCtx *args)
     mmgr_line_put(args->out, args->base);
     if (!EMBED_CALL(cli_parts, PythonPathsEvalCtx, .character = args->base[length - 1ULL]))
     {
-        mmgr_line_ch(args->out, CLI_PY_SEPARATOR);
+        mmgr_line_ch(args->out, g_cli_system_facts.path_separator);
     }
     mmgr_line_put(args->out, args->part);
 }

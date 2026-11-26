@@ -3,46 +3,7 @@
 // executables_steps.c: the job that builds a program the tree's scripts make: what it declares of itself and its steps,
 // each run with the build's own tool
 #include "../text/text.h"
-#include "../toolchains/toolchains.h"
 #include "executables_internal.h"
-
-// whether Meson is to set up Visual Studio's environment itself: on Windows, where MSVC's cl is on the PATH and the
-// environment it compiles in is not set, Meson takes cl and it cannot compile. Meson sets the environment up only where
-// no cl is on the PATH, and its setup and compile run without cl's folders there
-static int cli_needs_vsenv(void)
-{
-#if defined(_WIN32)
-    char include[CLI_PATH_MAX_LEN];
-    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "INCLUDE",
-                   .value_out = include, .capacity = sizeof(include)))
-    {
-        return 0;
-    }
-    static const char *const s_cl[1] = {"cl"};
-    char path[CLI_PATH_MAX_LEN];
-    return EMBED_CALL(cli_toolchains_names.on_path, CliToolchainsNamesCfg, .names = s_cl, .count = 1u, .program = path);
-#else
-    return 0;
-#endif
-}
-
-// .NET's name for this system and processor, as `-r` takes it
-static const char *cli_dotnet_runtime(void)
-{
-#if defined(_WIN32) && (defined(__aarch64__) || defined(_M_ARM64))
-    return "win-arm64";
-#elif defined(_WIN32)
-    return "win-x64";
-#elif defined(__APPLE__) && (defined(__aarch64__) || defined(_M_ARM64))
-    return "osx-arm64";
-#elif defined(__APPLE__)
-    return "osx-x64";
-#elif defined(__aarch64__)
-    return "linux-arm64";
-#else
-    return "linux-x64";
-#endif
-}
 
 typedef struct
 {
@@ -483,7 +444,7 @@ void cli_executables_steps(const CliExecutablesRootCtx *args)
     }
     case CLI_TYPE_MESON: {
         EMBED_CALL(cli_meson_steps, ExecutablesStepsCtx, .root = args->root, .exe = args->exe, .folder = folder,
-                   .vsenv = cli_needs_vsenv(), .catalog = args->catalog);
+                   .vsenv = cli_executables_host.vsenv(), .catalog = args->catalog);
         break;
     }
     case CLI_TYPE_GO: {
@@ -493,7 +454,7 @@ void cli_executables_steps(const CliExecutablesRootCtx *args)
     }
     case CLI_TYPE_DOTNET: {
         EMBED_CALL(cli_dotnet_steps, ExecutablesStepsCtx, .script = script, .catalog = args->catalog,
-                   .runtime = cli_dotnet_runtime());
+                   .runtime = g_cli_system_facts.dotnet_runtime);
         break;
     }
     case CLI_TYPE_ZIG: {

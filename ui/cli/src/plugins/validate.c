@@ -400,29 +400,10 @@ EMBED_INLINE int validate_text(const ValidateCtx *args)
     char folder[CLI_PATH_MAX_LEN];
     char copy_name[CLI_PATH_MAX_LEN];
     char copy[CLI_PATH_MAX_LEN];
-    const char *const named =
-        EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = path,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}), .byte = '/');
-#if defined(_WIN32)
-    const char *const named_back =
-        EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = path,
-                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}), .byte = '\\');
-    const char *base;
-    if ((named_back != NULL) && ((named == NULL) || (named_back > named)))
-    {
-        base = named_back + 1;
-    }
-    else if (named != NULL)
-    {
-        base = named + 1;
-    }
-    else
-    {
-        base = path;
-    }
-#else
-    const char *const base = (named != NULL) ? named + 1 : path;
-#endif
+    // the file's name, past the last byte that the system reads between a path's parts
+    const char *const base = path + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path,
+                                               .at = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES}),
+                                               .set = g_cli_system_facts.path_separators);
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = base,
                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_POOL_BYTES}), .byte = '.');

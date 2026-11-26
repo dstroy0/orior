@@ -35,17 +35,17 @@ typedef struct
 // the Python and the bin folder of a virtual environment's folder into `environment`: 1, or 0 with why given
 EMBED_INLINE int cli_venv_at(const EnvsResolveCtx *args)
 {
-#if defined(_WIN32)
-    static const char *const s_bin = "Scripts";
-    static const char *const s_python = "python.exe";
-#else
-    static const char *const s_bin = "bin";
-    static const char *const s_python = "python";
-#endif
+    // the environment's programs' folder and its python, as this system lays them out
+    char named[CLI_NAME_MAX_LEN];
+    VerbaLinea named_line = {named, sizeof(named), 0ULL};
+    mmgr_line_put(&named_line, "python");
+    mmgr_line_put(&named_line, g_cli_system_facts.program_end);
+    (void)mmgr_line_finish(&named_line);
     char bin[CLI_PATH_MAX_LEN];
     char python[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->folder, .relative = s_bin, .joined = bin);
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = bin, .relative = s_python, .joined = python);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->folder, .relative = g_cli_system_facts.env_bin,
+               .joined = bin);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = bin, .relative = named, .joined = python);
     if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = python))
     {
         mmgr_line_put(args->err_msg, args->folder);
@@ -207,20 +207,14 @@ EMBED_INLINE int cli_nix_read(const EnvsResolveCtx *args)
                    .length_pointer = &length);
     length = (folders != NULL) ? length : 0ULL;
     folders = (folders != NULL) ? folders : "";
-#if defined(_WIN32)
-    const char parting = ';';
-#else
-    const char parting = ':';
-#endif
+    const char parting[2] = {g_cli_system_facts.list_separator, '\0'};
     args->environment->bins = 0u;
     args->environment->has_python = 0;
-    unsigned long long from = 0ULL;
-    for (unsigned long long at = 0ULL; at <= length; at += 1ULL)
+    for (unsigned long long from = 0ULL; from <= length;)
     {
-        if ((at < length) && (folders[at] != parting))
-        {
-            continue;
-        }
+        // each folder of the PATH, to the next separator or to the PATH's end
+        const unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                 .text = folders, .at = from, .size = length, .set = parting);
         char folder[CLI_PATH_MAX_LEN];
         const unsigned long long size = at - from;
         const char *const start = folders + from;

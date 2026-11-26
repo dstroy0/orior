@@ -1057,6 +1057,17 @@ static void stepped_for(unsigned long long milliseconds)
     }
 }
 
+// The window stepped until its scroll comes to rest, for 5 s at most. A step eases the scroll by at most
+// GUI_SCROLL_STEP_MAX_MS of the clock. A loaded machine steps less often, and takes more of the clock to the same rest
+static void scroll_rested(void)
+{
+    const unsigned long long until = cli_clock_milliseconds() + 5000ULL;
+    do
+    {
+        stepped_for(GUI_SCROLL_STEP_MAX_MS);
+    } while (s_window.scroll_moving && (cli_clock_milliseconds() < until));
+}
+
 // The explorer stays while the pointer works in it. With the claim on, a rest in the left band brings the side_menu
 // and the side. A pointer that moves from the side_menu onto the side's rows arms no hide.
 static void explorer_stays_checked(void)
@@ -1257,7 +1268,7 @@ static void autoscroll_checked(void)
         return;
     }
     // the view placed deep in the file comes to rest there first
-    stepped_for(GUI_SCROLL_STEP_MAX_MS * 10ULL);
+    scroll_rested();
     const unsigned long long start = cli_view_top(&(CliViewAtCfg){.key = key});
     const GuiRect editor = s_window.frame.editor;
     const int x = editor.x + (editor.width / 2);
@@ -1298,7 +1309,7 @@ static void autoscroll_checked(void)
     pressed_with(x, y + 100, GUI_BUTTON_LEFT);
     cli_check(!s_window.autoscroll, "the next press ends the autoscroll");
     // the scroll eases to where the autoscroll last put it, then is
-    stepped_for(GUI_SCROLL_STEP_MAX_MS * 10ULL);
+    scroll_rested();
     const unsigned long long ended = cli_view_top(&(CliViewAtCfg){.key = key});
     stepped_for(200ULL);
     cli_check(cli_view_top(&(CliViewAtCfg){.key = key}) == ended, "the view is once it ends");
@@ -1320,7 +1331,7 @@ static void autoscroll_checked(void)
     released_with(x, below, GUI_BUTTON_MIDDLE);
     cli_check(!s_window.autoscroll,
               "the middle button let go after a drag ends the autoscroll, outside the window too");
-    stepped_for(GUI_SCROLL_STEP_MAX_MS * 10ULL);
+    scroll_rested();
     const unsigned long long dragged = cli_view_top(&(CliViewAtCfg){.key = key});
     stepped_for(200ULL);
     cli_check(cli_view_top(&(CliViewAtCfg){.key = key}) == dragged, "the view is once the drag ends");

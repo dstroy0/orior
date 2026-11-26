@@ -38,15 +38,12 @@ typedef struct
     const CliPattern *other_list;
     unsigned int count;
 } PatternsCtx;
-// A character as a pattern compares it: whatever its case on Windows, as it is elsewhere
+// A character as a pattern compares it: whatever its case where the system folds a path's case, as it is elsewhere
 EMBED_INLINE unsigned int cli_fold(const PatternsCtx *args)
 {
     unsigned int character = args->character;
-#if defined(_WIN32)
-    return EMBED_CALL(regexp_character.lower, RegexpLetterCfg, .character = character);
-#else
-    return character;
-#endif
+    return g_cli_system_facts.case_folded ? EMBED_CALL(regexp_character.lower, RegexpLetterCfg, .character = character)
+                                          : character;
 }
 
 // whether a byte is one of ASCII's spaces
@@ -372,11 +369,7 @@ int cli_patterns_include_folder(const CliPatternsPathCfg *args)
 EMBED_INLINE void cli_pattern_specs(const PatternsCtx *args)
 {
     CliWords *words = args->words;
-#if defined(_WIN32)
-    const char *const character_case = ",icase";
-#else
-    const char *const character_case = "";
-#endif
+    const char *const character_case = g_cli_system_facts.case_folded ? ",icase" : "";
     char spec[CLI_PATH_MAX_LEN];
     for (int inside = args->pattern->folders ? 1 : 0; inside < 2; inside += 1)
     {

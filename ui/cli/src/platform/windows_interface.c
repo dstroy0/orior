@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// windows_ipc.c: the interface on Windows: a named pipe of the container's own, which takes no one from another machine,
-// opened for overlapped work so that a read and a write go on at once on one end, each waited for alone. An instance
-// waits from the start, and the next is made as each is joined: a process that joins finds one ready
+// windows_ipc.c: the interface on Windows: a named pipe of the container's own, which takes no one from another
+// machine, opened for overlapped work so that a read and a write go on at once on one end, each waited for alone. An
+// instance waits from the start, and the next is made as each is joined: a process that joins finds one ready
 #include "../comms/interface_internal.h"
 
 #if defined(_WIN32)
@@ -277,5 +277,27 @@ void cli_ipc_close(const CliIpcCtx *args)
     args->end->open = 0;
     args->end->handle = 0ULL;
     args->end->shut = 0ULL;
+}
+
+int cli_ipc_dispatch(const CliIpcErrMsgRegionCtx *args)
+{
+    // the region's section, as a handle made in the process `to` where the call names one
+    CliIpcTransfer transfer = {args->region->length, args->region->section};
+    if (args->has_to && !EMBED_CALL(cli_region_free, CliTransferCfg, .region_read = args->region, .process = args->to,
+                                    .theirs = &transfer.handle, .err_msg = args->err_msg))
+    {
+        return 0;
+    }
+    mmgr_line_put_n(args->out, (const char *)&transfer, sizeof(transfer));
+    return 1;
+}
+
+int cli_ipc_transferred_over(const CliIpcErrMsgCtx *args)
+{
+    return args->has_from
+               ? EMBED_CALL(cli_region_alloc, CliTransferRegionCfg, .region = args->region_out, .process = args->from,
+                            .handle = args->handle, .length = args->length, .err_msg = args->err_msg)
+               : EMBED_CALL(cli_transfer_region.region_receive, CliTransferRegionCfg, .region = args->region_out,
+                            .handle = args->handle, .length = args->length, .err_msg = args->err_msg);
 }
 #endif

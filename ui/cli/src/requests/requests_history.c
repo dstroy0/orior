@@ -83,10 +83,9 @@ EMBED_INLINE int history_folder(const RequestsHistoryCtx *args)
                       EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home);
     if (known)
     {
-#if defined(_WIN32)
         EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = file,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}), .from = '/', .to = '\\');
-#endif
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_POOL_BYTES}), .from = '/',
+                   .to = g_cli_system_facts.path_separator);
         mmgr_line_put(&line, home);
         mmgr_line_put(&line, "/requests/");
         EMBED_CALL(history_by_name, RequestsHistoryCtx, .bytes = file,
