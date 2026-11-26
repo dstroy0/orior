@@ -5,6 +5,10 @@
 #include "memoria_operor/memoria_operor.h"
 #include "noise_terms_internal.h"
 
+// The pool of the program. The scene's lanes are 96 MiB, and the drawn and bias scenes and the detector's cells take
+// as much again each, past the 64 MiB that a program gets where it defines none
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 30u;
+
 static const unsigned long long TERMS_FLAT_LIGHT[TERMS_FLAT_LIGHTS] = {100ULL, 200ULL, 400ULL};
 
 // the halves' covariance's tolerances at each light for each camera, in lane units squared
