@@ -4,8 +4,8 @@
 #include "../../../../../platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "noise_terms_internal.h"
-
-// The pool of the program. The scene's lanes are 96 MiB, and the drawn and bias scenes and the detector's cells take
+// The pool of the program. The scene's lanes are 96 MiB. The drawn scene, the bias scene and the detector's cells
+// each take as much again, past the 64 MiB of a program that defines no pool
 // as much again each, past the 64 MiB that a program gets where it defines none
 extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 30u;
 
@@ -18,8 +18,8 @@ static const unsigned long long TERMS_FLAT_RANGE[TERMS_HALVES_CAMERAS][TERMS_FLA
     {{1ULL, 5ULL}, {1ULL, 5ULL}, {1ULL, 5ULL}},
     {{1ULL, 5ULL}, {1ULL, 4ULL}, {1ULL, 2ULL}}};
 
-// each plane but the first takes 1/8 of the plane before it, rounded to the nearest, from the top plane down so each
-// mixes with an unmixed plane
+// Each plane but the first takes 1/8 of the plane before it, rounded to the nearest. The walk goes from the top plane
+// down, so that each mixes with an unmixed plane
 static void terms_mix(unsigned short *lanes)
 {
     const unsigned long long plane = TERMS_HEIGHT * TERMS_WIDTH;
@@ -133,8 +133,8 @@ int program_main(int argc, char **argv)
         }
         sim_flush(&results);
     }
-    // each shot law read at 16 electrons by the moment pass, then its null's tails at the scene's 100, and the render's
-    // time there, where the laws' draws differ max
+    // Each shot law that the moment pass reads at 16 electrons. Then its null's tails at the scene's 100, and the
+    // render's time there, where the laws' draws differ max
     const unsigned long long laws[2] = {SIM_SHOT_SYMMETRIC, SIM_SHOT_POISSON};
     const char *const law_names[2] = {
         "  the symmetric shot, Binomial(4S, 1/2) - S\n",
