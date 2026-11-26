@@ -249,7 +249,7 @@ EMBED_INLINE void cli_entry_init(const CompileDbCmakeCtx *args)
 {
     CliJson *const json = &g_cli_gather.json;
     char file[CLI_PATH_MAX_LEN];
-    if ((args->path[0] == '/') || (args->path[0] == '\\') || ((args->path[0] != '\0') && (args->path[1] == ':')))
+    if (EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = args->path) != 0ULL)
     {
         memor.cpy(
             &(MemoriaCfg){.dst = file,

@@ -14,10 +14,9 @@ typedef struct
 // whether a path is whole, from a root or a drive, and not by its place in the tree
 EMBED_INLINE int link_path_is_absolute(const DbLinkCtx *args)
 {
-    const int drive =
-        (((args->path[0] >= 'A') && (args->path[0] <= 'Z')) || ((args->path[0] >= 'a') && (args->path[0] <= 'z'))) &&
-        (args->path[1] == ':') && ((args->path[2] == '\\') || (args->path[2] == '/'));
-    return (args->path[0] == '/') || (args->path[0] == '\\') || drive;
+    // a drive with no separator after it is no root
+    const unsigned long long top = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = args->path);
+    return (top != 0ULL) && (top != 2ULL);
 }
 
 // a row passed over, as a setting's answer is

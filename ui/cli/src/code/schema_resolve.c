@@ -202,8 +202,10 @@ static void resolve_join(const SchemaResolveCtx *args)
         rest += 7;
         remainder_size -= 7u;
     }
-    const int absolute = !url && (remainder_size > 0u) &&
-                         ((rest[0] == '/') || (rest[0] == '\\') || ((remainder_size > 1u) && (rest[1] == ':')));
+    // The call reads the top from the first three bytes of the rest, with a terminator. The read stays inside the rest
+    char head[4] = {0};
+    memor.cpy(&(MemoriaCfg){.dst = head, .src = rest, .bytes = (remainder_size < 3u) ? remainder_size : 3u});
+    const int absolute = !url && (EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = head) != 0ULL);
     if (absolute)
     {
         mmgr_line_put_n(&line, rest, remainder_size);

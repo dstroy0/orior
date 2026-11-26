@@ -322,8 +322,7 @@ void cli_plan_expand(const CliDevcontainerOutCtx *args)
 // `path` alone where it is whole, else after `base` and the separator `base` writes
 void cli_plan_join(const CliDevcontainerOutBaseCtx *args)
 {
-    const int whole =
-        (args->path[0] == '/') || (args->path[0] == '\\') || ((args->path[0] != '\0') && (args->path[1] == ':'));
+    const int whole = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = args->path) != 0ULL;
     VerbaLinea line = {args->out, CLI_PATH_MAX_LEN, 0ULL};
     if (!whole)
     {

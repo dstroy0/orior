@@ -27,6 +27,21 @@ unsigned long long cli_path_top(const CliPathCtx *args)
     return (args->path[0] == '/') ? 1ULL : 0ULL;
 }
 
+int cli_path_absolute(const CliPathCtx *args)
+{
+    return args->path[0] == '/';
+}
+
+void cli_path_onto(const CliPathJoinCtx *args)
+{
+    if (args->path[0] != '/')
+    {
+        mmgr_line_put(args->out, args->root);
+        mmgr_line_ch(args->out, '/');
+    }
+    mmgr_line_put(args->out, args->path);
+}
+
 // An errno value and its standard name, as <errno.h> defines it
 typedef struct
 {

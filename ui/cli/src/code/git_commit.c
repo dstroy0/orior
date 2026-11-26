@@ -222,7 +222,7 @@ EMBED_INLINE int cli_commit_parts_in(const GitCommitCtx *args)
         return 0;
     }
     char index[CLI_PATH_MAX_LEN];
-    const int absolute = (named[0] == '/') || (named[0] == '\\') || ((named[0] != '\0') && (named[1] == ':'));
+    const int absolute = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = named) != 0ULL;
     VerbaLinea joined = {index, sizeof(index), 0ULL};
     mmgr_line_put(&joined, absolute ? "" : args->folder);
     mmgr_line_put(&joined, absolute ? "" : "/");

@@ -34,7 +34,10 @@ while ((Get-Date) -lt $until)
     if ($used -ge $Spike -and $hot.Count -gt 0 -and (Test-Path $cdb))
     {
         $tid = "0x{0:x}" -f $hot[0].id
-        $stack = & $cdb -pv -p $p.Id -y "$Symbols;srv*" -c "~~[$tid]k 40; q" 2>&1 | Select-String -Pattern "tab!|KERNELBASE!|ntdll!|win32u!" | ForEach-Object { $_.Line.Trim() } | Select-Object -First 40
+        # cdb suspends every thread of the window until its q resumes them. A pipeline that stops early ends cdb before
+        # its q and leaves the window suspended. The script reads the whole output first and cuts it after
+        $read = & $cdb -pv -p $p.Id -y "$Symbols;srv*" -c "~~[$tid]k 40; q" 2>&1
+        $stack = $read | Select-String -Pattern "tab!|KERNELBASE!|ntdll!|win32u!" | ForEach-Object { $_.Line.Trim() } | Select-Object -First 40
         "  stack of $tid :" | Add-Content $Log
         $stack | ForEach-Object { "    $_" } | Add-Content $Log
     }

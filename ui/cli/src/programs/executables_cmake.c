@@ -250,8 +250,7 @@ int cli_cmake_artifact(const CliExecutablesNameOutCtx *args)
         mmgr_line_put(args->err_msg, args->name);
         return 0;
     }
-    const int absolute =
-        (artifact[0] == '/') || (artifact[0] == '\\') || ((artifact[0] != '\0') && (artifact[1] == ':'));
+    const int absolute = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = artifact) != 0ULL;
     if (absolute)
     {
         memor.cpy(&(MemoriaCfg){.dst = args->out,

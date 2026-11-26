@@ -40,6 +40,7 @@ typedef struct CliOutCtx CliOutCtx;
 typedef struct CliErrMsgNameCtx CliErrMsgNameCtx;
 typedef struct CliOutCapacityCtx CliOutCapacityCtx;
 typedef struct CliPathRootCtx CliPathRootCtx;
+typedef struct CliPathJoinCtx CliPathJoinCtx;
 typedef struct CliErrMsgPortCtx CliErrMsgPortCtx;
 typedef struct CliSizeBytesCtx CliSizeBytesCtx;
 typedef struct CliCapacityCtx CliCapacityCtx;
@@ -196,6 +197,14 @@ unsigned long long cli_tree_bytes(const CliPathRootCtx *args);
 // after it, or one separator. Elsewhere it is one `/`. 0 where `path` is no whole path (platform/windows_files.c,
 // platform/posix_files.c)
 unsigned long long cli_path_top(const CliPathCtx *args);
+// Whether `path` is whole on its own, as Rust's Path::is_absolute has it on this system. On Windows that is a drive and
+// a separator after it, or two separators that start a share. Elsewhere it is one `/` (platform/windows_files.c,
+// platform/posix_files.c)
+int cli_path_absolute(const CliPathCtx *args);
+// `path` joined onto the folder `root` as Rust's Path::join joins them on this system, written on `out`. On Windows a
+// path with a drive or a share stands alone, and a path from a separator takes the drive of `root`. Elsewhere a path
+// from `/` stands alone (platform/windows_files.c, platform/posix_files.c)
+void cli_path_onto(const CliPathJoinCtx *args);
 // the system's number for why the call just made failed, read before any other call; and its reason written after
 // `err_msg`, as ": Access is denied. (os error 5)" (platform/windows_files.c, platform/posix_files.c)
 unsigned int cli_system_error(void);
@@ -963,6 +972,13 @@ struct CliOutCapacityCtx
     const char *name;
 };
 
+struct CliPathJoinCtx
+{
+    const char *root;
+    const char *path;
+    VerbaLinea *out;
+};
+
 struct CliPathRootCtx
 {
     const char *path;
@@ -1333,13 +1349,15 @@ typedef struct
     unsigned char *(*file_alloc_utf8)(const CliPathCtx *args);
     unsigned char *(*file_piece_alloc)(const CliPathCtx *args);
     unsigned long long (*top)(const CliPathCtx *args);
+    int (*absolute)(const CliPathCtx *args);
 } CliPathNs;
-EMBED_TABLE_LAYOUT(CliPathNs, file_alloc, file_alloc_utf8, file_piece_alloc, top);
+EMBED_TABLE_LAYOUT(CliPathNs, file_alloc, file_alloc_utf8, file_piece_alloc, top, absolute);
 EMBED_TABLE_STORAGE CliPathNs cli_path_internal EMBED_UNUSED = {
     .file_alloc = cli_file_alloc,
     .file_alloc_utf8 = cli_file_alloc_utf8,
     .file_piece_alloc = cli_file_piece_alloc,
     .top = cli_path_top,
+    .absolute = cli_path_absolute,
 };
 
 typedef struct
@@ -1351,6 +1369,15 @@ EMBED_TABLE_LAYOUT(CliPathRootNs, tree_bytes, relative);
 EMBED_TABLE_STORAGE CliPathRootNs cli_path_root_internal EMBED_UNUSED = {
     .tree_bytes = cli_tree_bytes,
     .relative = cli_relative,
+};
+
+typedef struct
+{
+    void (*onto)(const CliPathJoinCtx *args);
+} CliPathJoinNs;
+EMBED_TABLE_LAYOUT(CliPathJoinNs, onto);
+EMBED_TABLE_STORAGE CliPathJoinNs cli_path_join_internal EMBED_UNUSED = {
+    .onto = cli_path_onto,
 };
 
 typedef struct

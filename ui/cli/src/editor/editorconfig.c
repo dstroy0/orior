@@ -250,17 +250,14 @@ EMBED_INLINE unsigned int cli_folders_found(const EditorconfigCtx *args)
     int going = 1;
     while (going && (folders < CLI_EDITORCONFIG_FOLDERS))
     {
-        unsigned long long cut = end;
-        while ((cut > 0ULL) && !EMBED_CALL(cli_is_separator, EditorconfigCtx, .character = args->path[cut - 1u]))
-        {
-            cut -= 1ULL;
-        }
+        const unsigned long long cut = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                                  .text = args->path, .at = end, .set = "/\\");
         if (cut == 0ULL)
         {
             going = 0;
             continue;
         }
-        const int top = (cut == 1ULL) || ((cut == 3ULL) && (args->path[1] == ':'));
+        const int top = (cut == EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = args->path));
         const unsigned long long folder = top ? cut : (cut - 1ULL);
         if (folder == end)
         {
@@ -368,11 +365,11 @@ EMBED_INLINE void cli_indent_resolve(const EditorconfigCtx *args)
     CliValue style = {{0}, 0};
     CliValue size_value = {{0}, 0};
     CliValue width = {{0}, 0};
-    const char *name = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
-    while ((name > args->path) && !EMBED_CALL(cli_is_separator, EditorconfigCtx, .character = name[-1]))
-    {
-        name -= 1;
-    }
+    // the file's name: what follows the path's last separator
+    const char *const name =
+        args->path + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
+                                .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}),
+                                .set = "/\\");
     EMBED_CALL(cli_folders_read, EditorconfigCtx, .path = args->path, .ends = ends, .folders = folders, .name = name,
                .style = &style, .size_value = &size_value, .width = &width);
     EMBED_CALL(cli_indent_set, EditorconfigCtx, .style = &style, .size_value = &size_value, .width = &width,

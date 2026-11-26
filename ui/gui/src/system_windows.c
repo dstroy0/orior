@@ -660,6 +660,15 @@ EMBED_INLINE void system_leave_watch(const SystemWindowsCtx *args)
 {
     if (args->system->leave_watched != args->flags)
     {
+        // A move comes while the cursor is off the window where the capture holds a drag, or where another program
+        // posts the move. A watch begun there posts its leave at once, a leave for each move. The watch begins only
+        // while the cursor is over the window, and the cursor leaves it once from there
+        POINT at;
+        RECT frame;
+        if (!GetCursorPos(&at) || !GetWindowRect(args->window, &frame) || !PtInRect(&frame, at))
+        {
+            return;
+        }
         TRACKMOUSEEVENT track = {sizeof(track), args->flags, args->window, 0u};
         args->system->leave_watched = TrackMouseEvent(&track) ? args->flags : 0u;
     }
@@ -1323,6 +1332,44 @@ void gui_system_wake(const GuiSystemCfg *args)
     {
         PostMessageW(args->system->window, GUI_WAKE_MESSAGE, 0u, 0);
     }
+}
+
+// The timer each thread waits for the refresh on. A timer of high resolution ends at its time, and not at the next step
+// of the system timer. The thread keeps its timer until the process ends
+static _Thread_local HANDLE t_refresh_timer;
+
+int gui_system_refresh_wait(void)
+{
+    // The compositor gives the time of the last blank and the refresh's period, also while it composes nothing. The
+    // next blank after now is a whole count of periods after the last. DwmFlush returns at once where the compositor
+    // has nothing to compose. It is the wait only where the compositor's times or the timer are not available
+    DWM_TIMING_INFO timing;
+    memor.set(&(MemoriaCfg){.dst = &timing, .val = 0, .bytes = sizeof(timing)});
+    timing.cbSize = sizeof(timing);
+    LARGE_INTEGER now;
+    LARGE_INTEGER frequency;
+    if (t_refresh_timer == NULL)
+    {
+        t_refresh_timer =
+            CreateWaitableTimerExW(NULL, NULL, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_MODIFY_STATE | SYNCHRONIZE);
+    }
+    if ((t_refresh_timer == NULL) || FAILED(DwmGetCompositionTimingInfo(NULL, &timing)) ||
+        (timing.qpcRefreshPeriod == 0ULL) || !QueryPerformanceCounter(&now) || !QueryPerformanceFrequency(&frequency))
+    {
+        return DwmFlush() == S_OK;
+    }
+    // the counter's values are not negative
+    const ULONGLONG at = (ULONGLONG)now.QuadPart;
+    const ULONGLONG period = timing.qpcRefreshPeriod;
+    const ULONGLONG next = (at < timing.qpcVBlank)
+                               ? timing.qpcVBlank
+                               : timing.qpcVBlank + ((((at - timing.qpcVBlank) / period) + 1ULL) * period);
+    // The wait is in units of 100 ns, and negative for a time from now. It is less than one period, far inside a
+    // LONGLONG
+    LARGE_INTEGER due;
+    due.QuadPart = -(LONGLONG)(((next - at) * 10000000ULL) / (ULONGLONG)frequency.QuadPart);
+    return SetWaitableTimerEx(t_refresh_timer, &due, 0, NULL, NULL, NULL, 0u) &&
+           (WaitForSingleObject(t_refresh_timer, INFINITE) == WAIT_OBJECT_0);
 }
 
 // an icon made from `raster`'s pixels with their alpha: a 32-bit section the pixels are copied into and an empty mask

@@ -65,7 +65,7 @@ EMBED_INLINE void cli_same(const CompileDbProgramCtx *args)
 // whether a path is alone, not under a folder
 EMBED_INLINE int cli_absolute(const CompileDbProgramCtx *args)
 {
-    return (args->path[0] == '/') || (args->path[0] == '\\') || ((args->path[0] != '\0') && (args->path[1] == ':'));
+    return EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = args->path) != 0ULL;
 }
 
 // whether a text is one of two, ASCII's case aside

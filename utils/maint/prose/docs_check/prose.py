@@ -94,7 +94,7 @@ def tex_prose(lines):
     retained = []
     # A code block typesets each of its lines as written. Its lines are code and no prose, and its
     # opening and closing lines go with it
-    listing = None
+    listing = False
     for line in lines:
         # A line of a listing, the opener and the closer with it, is blank
         if listing or LISTING_OPEN.search(line):
@@ -102,18 +102,6 @@ def tex_prose(lines):
             retained.append("")
             continue
         held = line
-        if listing is not None:
-            if re.search(r"\\end\{%s\}" % re.escape(listing), held):
-                listing = None
-            retained.append("")
-            continue
-        opened = re.search(r"\\begin\{(Verbatim|verbatim|lstlisting|minted)\}", held)
-        if opened:
-            listing = opened.group(1)
-            if re.search(r"\\end\{%s\}" % re.escape(listing), held[opened.end():]):
-                listing = None
-            retained.append("")
-            continue
 
         # Comment to end of line, on an unescaped percent. A note to a co-author is prose and would
         # be worth checking, but it is also where a stray brace or a half sentence lives. It goes

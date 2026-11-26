@@ -93,8 +93,8 @@ EMBED_INLINE unsigned int cli_sequence(const RunnerLinesCtx *args)
     return shortest ? bytes : 0u;
 }
 
-// one line of a stream printed: its `\r` and `\n` at the end left off, each byte that starts no character read as U+FFFD,
-// written into a cell of its size, a character read as U+FFFD three bytes for one
+// One line of a stream printed, without the `\r` and `\n` at its end. Each byte that starts no character becomes
+// U+FFFD. The line goes into a cell of its size, with three bytes for each byte that becomes U+FFFD
 EMBED_INLINE void cli_line_emit(const RunnerLinesCtx *args)
 {
     unsigned long long length = args->length;
@@ -360,8 +360,7 @@ unsigned int cli_run_pages(const CliRunnerRootCtx *args)
             {
                 continue;
             }
-            const int whole =
-                (word_text[0] == '/') || (word_text[0] == '\\') || ((word_text[0] != '\0') && (word_text[1] == ':'));
+            const int whole = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = word_text) != 0ULL;
             if (whole)
             {
                 memor.cpy(&(MemoriaCfg){

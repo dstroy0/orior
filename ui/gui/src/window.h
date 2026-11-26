@@ -446,7 +446,7 @@ void gui_window_tick(const GuiWindowCfg *args);
 unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args);
 // The deadlines the window waits on, each one's name for the telemetry, and the place of the one that set the last
 // wait. It is GUI_WINDOW_WAKES where none did
-#define GUI_WINDOW_WAKES 23u
+#define GUI_WINDOW_WAKES 24u
 extern const char *const g_gui_window_wake_names[GUI_WINDOW_WAKES];
 unsigned int gui_window_timeout_source(void);
 // The frame laid out for the claim's movement at `time_ms`. While a slide runs, it takes the stage of that moment, and

@@ -33,8 +33,8 @@ static unsigned int *s_order;
 EMBED_INLINE void run_cell_take(void)
 {
     const unsigned long long found = s_tests.count;
-    s_run_cell = g_cli_guard->temporary_buf_alloc(
-        found * (sizeof(CliCargoGroup) + (2ULL * sizeof(unsigned int))), g_cli_cargo_owner);
+    s_run_cell = g_cli_guard->temporary_buf_alloc(found * (sizeof(CliCargoGroup) + (2ULL * sizeof(unsigned int))),
+                                                  g_cli_cargo_owner);
     s_groups = (CliCargoGroup *)s_run_cell;
     s_order = (unsigned int *)(s_run_cell + (found * sizeof(CliCargoGroup)));
 }
@@ -169,8 +169,9 @@ EMBED_INLINE void run_tree_path(const CargoRunCtx *args)
 {
     const char *path = args->path;
     char full[CLI_PATH_MAX_LEN];
-    const int whole = (path[0] == '/') || (path[0] == '\\') ||
-                      ((path[0] != '\0') && (path[1] == ':') && ((path[2] == '/') || (path[2] == '\\')));
+    // a drive with no separator after it is no root
+    const unsigned long long top = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = path);
+    const int whole = (top != 0ULL) && (top != 2ULL);
     if (whole)
     {
         memor.cpy(&(MemoriaCfg){.dst = full,

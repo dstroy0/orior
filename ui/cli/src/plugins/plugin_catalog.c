@@ -65,16 +65,7 @@ typedef struct
 // whether `path` is whole on its own, as Rust's Path::is_absolute has it on this system
 EMBED_INLINE int catalog_absolute(const PluginCatalogCtx *args)
 {
-#if defined(_WIN32)
-    const int drive =
-        (((args->path[0] >= 'a') && (args->path[0] <= 'z')) || ((args->path[0] >= 'A') && (args->path[0] <= 'Z'))) &&
-        (args->path[1] == ':') && ((args->path[2] == '\\') || (args->path[2] == '/'));
-    const int shared =
-        ((args->path[0] == '\\') || (args->path[0] == '/')) && ((args->path[1] == '\\') || (args->path[1] == '/'));
-    return drive || shared;
-#else
-    return args->path[0] == '/';
-#endif
+    return EMBED_CALL(cli_path_internal.absolute, CliPathCtx, .path = args->path);
 }
 
 void cli_plugin_catalog_adjacent(const CliPluginCatalogCfg *args)

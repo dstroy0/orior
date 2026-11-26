@@ -65,7 +65,7 @@ EMBED_INLINE unsigned long long view_files_place(const ViewFilesCtx *args)
 EMBED_INLINE unsigned long long view_files_relative(const ViewFilesCtx *args)
 {
     const char *const path = args->path;
-    const int whole = (path[0] == '/') || (path[0] == '\\') || ((path[0] != '\0') && (path[1] == ':'));
+    const int whole = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = path) != 0ULL;
     char full[CLI_PATH_MAX_LEN];
     if (whole && (args->root != NULL) &&
         EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = path, .full = full,

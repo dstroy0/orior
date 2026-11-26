@@ -9,8 +9,9 @@
 #include "../text/text.h"
 #include "settings_internal.h"
 
-// A file of a chain as the chain is walked: the path it is displayed by, its text with its comments taken out, in a cell
-// no larger than the file, that text's bytes, and the nodes it is read into, its tokens and one over
+// A file of a chain, as the walk takes it. It keeps the path that the window shows it by, and its text without its
+// comments, in a cell no larger than the file. It keeps that text's bytes, and the count of nodes the read makes of it,
+// its tokens and one more
 typedef struct
 {
     char named[CLI_PATH_MAX_LEN];
@@ -155,16 +156,8 @@ static void cli_tidy(const SettingsCtx *args)
 {
     char parts[64][CLI_NAME_MAX_LEN];
     unsigned int count = 0u;
-    // the root the path starts at: a drive and its slash, or a slash
-    unsigned long long root = 0ULL;
-    if ((args->path[0] != '\0') && (args->path[1] == ':'))
-    {
-        root = ((args->path[2] == '/') || (args->path[2] == '\\')) ? 3ULL : 2ULL;
-    }
-    else if ((args->path[0] == '/') || (args->path[0] == '\\'))
-    {
-        root = 1ULL;
-    }
+    // the root the path starts at: its top
+    const unsigned long long root = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = args->path);
     for (const char *at = args->path + root; at[0] != '\0';)
     {
         const char *stop = at;
@@ -331,8 +324,7 @@ EMBED_INLINE void cli_takes_followed(const SettingsCtx *args)
     EMBED_CALL(cli_settings_text_internal.expand, CliSettingsTextCtx, .text = args->text, .length = args->length,
                .look = cli_alloc_look, .context = NULL, .out_verba_linea_pointer = &line);
     mmgr_line_finish(&line);
-    const int absolute =
-        (expanded[0] == '/') || (expanded[0] == '\\') || ((expanded[0] != '\0') && (expanded[1] == ':'));
+    const int absolute = EMBED_CALL(cli_path_internal.top, CliPathCtx, .path = expanded) != 0ULL;
     char folder[CLI_PATH_MAX_LEN];
     char joined[CLI_PATH_MAX_LEN];
     VerbaLinea join = {joined, sizeof(joined), 0ULL};
