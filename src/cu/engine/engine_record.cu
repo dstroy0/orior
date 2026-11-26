@@ -4,6 +4,7 @@
 #include "../../platform/platform.h"
 #include "engine_internal.h"
 #include "memoria_operor/memoria_operor.h"
+#include "runtime/daemon/tessera_job.h"
 
 extern "C" void engine_percent_of(unsigned long long numerator, unsigned long long denominator,
                                   unsigned long long *percent, unsigned long long *tenth)
@@ -101,10 +102,10 @@ extern "C" void engine_key_release(CycleKey *key)
     cycle_key_release(key);
 }
 
-// The program arranged on the device (layout_device_agrees, codegen_device.h), keymath's encoding and key_schedule's
-// layout each in one thread, the path every program takes, and checked against the host's layout word for word: 1 and
-// the device's layout in `layout` where the two agree, else 0 with the reason on stderr, the host's layout left in
-// `layout`
+// The program put in order on the device (layout_device_agrees, codegen_device.h). The encode of keymath and the layout
+// of key_schedule each run in one thread, the path that every program takes. The call checks the result against the
+// layout of the host word for word. It gives 1 and the layout of the device in `layout` where the two agree. Else it
+// gives 0 with the reason on stderr, and the layout of the host stays in `layout`
 static int engine_record_layout_device(const EngineRecordRequest *request, EngineRecordLayout *layout)
 {
     const LayoutRequest layout_request = {request->steps,        request->count,       request->field_bits,
@@ -238,14 +239,17 @@ extern "C" long engine_record_sweep(const EngineRecordSweep *request)
     CycleRecordRunRequest run;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &run, .bytes = sizeof(run), .val = 0);
     run.error = error;
-    unsigned int *device_in[ENGINE_RECORD_MEMBERS_MAX];
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = device_in, .bytes = sizeof(device_in), .val = 0);
-    unsigned int *device_index = NULL;
-    unsigned int *device_out = NULL;
-    int ok =
-        ENGINE_CHECK((members != 0u) && (out_words != 0u) && (request->sweep_microseconds != NULL), request, error,
-                     ENGINE_ERROR_REQUEST) &&
-        ENGINE_STATUS_CHECK(cudaMalloc((void **)&device_out, out_words * sizeof(unsigned int)), &device_out, error);
+    // The members and the index cross in, and the records are a room. Each is a cell of the job, given back after the
+    // records cross out
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, platform_place_g_engine_owner);
+    void *cell = NULL;
+    int ok = ENGINE_CHECK((members != 0u) && (out_words != 0u) && (request->sweep_microseconds != NULL), request, error,
+                          ENGINE_ERROR_REQUEST) &&
+             ENGINE_CHECK(tessera_job_cells_room(&cells, out_words * sizeof(unsigned int), &cell), request, error,
+                          ENGINE_ERROR_RESOURCE);
+    // Explicit casts read each cell as the words that it holds
+    unsigned int *const device_out = (unsigned int *)cell;
     for (unsigned int member = 0u; ok && (member < members); member += 1u)
     {
         const unsigned int in_limbs = cycle_record_in_limbs(request->record, member);
@@ -260,38 +264,26 @@ extern "C" long engine_record_sweep(const EngineRecordSweep *request)
         const size_t in_words = (size_t)request->bodies[member] * in_limbs;
         ok = (shared != member) ||
              (ENGINE_CHECK(in_words != 0u, &request->bodies[member], error, ENGINE_ERROR_REQUEST) &&
-              ENGINE_STATUS_CHECK(cudaMalloc((void **)&device_in[member], in_words * sizeof(unsigned int)),
-                                  &device_in[member], error) &&
-              ENGINE_STATUS_CHECK(cudaMemcpy(device_in[member], request->magnitudes[member],
-                                             in_words * sizeof(unsigned int), cudaMemcpyHostToDevice),
-                                  device_in[member], error));
-        run.device_in[member] = (shared != member) ? run.device_in[shared] : device_in[member];
+              ENGINE_CHECK(
+                  tessera_job_cells_in(&cells, request->magnitudes[member], in_words * sizeof(unsigned int), &cell),
+                  &request->magnitudes[member], error, ENGINE_ERROR_RESOURCE));
+        run.device_in[member] = (shared != member) ? run.device_in[shared] : (const unsigned int *)cell;
         run.bodies[member] = request->bodies[member];
     }
     if (ok && (index_words != 0u))
     {
-        ok = ENGINE_STATUS_CHECK(cudaMalloc((void **)&device_index, index_words * sizeof(unsigned int)), &device_index,
-                                 error) &&
-             ENGINE_STATUS_CHECK(
-                 cudaMemcpy(device_index, request->index, index_words * sizeof(unsigned int), cudaMemcpyHostToDevice),
-                 device_index, error);
+        ok = ENGINE_CHECK(tessera_job_cells_in(&cells, request->index, index_words * sizeof(unsigned int), &cell),
+                          request->index, error, ENGINE_ERROR_RESOURCE);
+        run.device_index = (ok != 0) ? (const unsigned int *)cell : NULL;
     }
-    ok = ok && ENGINE_STATUS_CHECK(cudaDeviceSynchronize(), device_out, error);
     const unsigned long long started = engine_clock_microseconds();
     run.record = request->record;
-    run.device_index = device_index;
     run.count = request->count;
     run.device_out = device_out;
     ok = ok && (cycle_record_run(&run) == (long)request->count);
     *request->sweep_microseconds = engine_clock_microseconds() - started;
-    ok = ok && ENGINE_STATUS_CHECK(
-                   cudaMemcpy(request->records, device_out, out_words * sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                   request->records, error);
-    for (unsigned int member = 0u; member < ENGINE_RECORD_MEMBERS_MAX; member += 1u)
-    {
-        cudaFree(device_in[member]);
-    }
-    cudaFree(device_index);
-    cudaFree(device_out);
+    ok = ok && ENGINE_CHECK(tessera_job_crossed_out(request->records, device_out, out_words * sizeof(unsigned int)),
+                            request->records, error, ENGINE_ERROR_RESOURCE);
+    tessera_job_cells_given(&cells);
     return (ok != 0) ? (long)request->count : ENGINE_ERROR;
 }

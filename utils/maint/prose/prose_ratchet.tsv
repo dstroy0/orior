@@ -473,16 +473,13 @@ includes/window/top_menu.h	4
 includes/window/work.h	4
 src/build_engine.sh	9
 src/cu/engine/analysis/cycle/cycle.h	17
-src/cu/engine/analysis/cycle/cycle_compile.cu	22
 src/cu/engine/analysis/cycle/cycle_compile_cache.cu	8
 src/cu/engine/analysis/cycle/cycle_compile_internal.h	23
 src/cu/engine/analysis/cycle/cycle_compile_route.cu	24
 src/cu/engine/analysis/cycle/cycle_compile_toolchain.cu	6
 src/cu/engine/analysis/cycle/cycle_prelude.cu	1
 src/cu/engine/analysis/cycle/cycle_record_arithmetic.h	5
-src/cu/engine/analysis/cycle/cycle_record_internal.h	2
 src/cu/engine/analysis/cycle/cycle_record_operate.h	8
-src/cu/engine/analysis/cycle/cycle_record_sort.cu	12
 src/cu/engine/analysis/cycle/cycle_shared.h	8
 src/cu/engine/analysis/key_schedule/key_schedule.h	2
 src/cu/engine/analysis/key_schedule/key_schedule_core.h	16
@@ -519,7 +516,6 @@ src/cu/engine/engine.h	7
 src/cu/engine/engine_config_key.h	5
 src/cu/engine/engine_config_requests.h	26
 src/cu/engine/engine_files.cu	18
-src/cu/engine/engine_record.cu	1
 src/cu/engine/engine_residual.cu	6
 src/cu/engine/engine_source.cu	3
 src/cu/engine/nbody/body_overlap/body_overlap.cu	1
@@ -1170,7 +1166,6 @@ utils/test/src/cu/engine/analysis/cycle/record_boundary_test_codes.cu	5
 utils/test/src/cu/engine/analysis/cycle/record_boundary_test_floors.cu	4
 utils/test/src/cu/engine/analysis/cycle/record_boundary_test_identity.cu	11
 utils/test/src/cu/engine/analysis/cycle/record_boundary_test_internal.h	16
-utils/test/src/cu/engine/analysis/cycle/record_boundary_test_main.cu	2
 utils/test/src/cu/engine/analysis/cycle/record_boundary_test_run.cu	1
 utils/test/src/cu/engine/analysis/cycle/record_boundary_test_transform.cu	4
 utils/test/src/cu/engine/analysis/cycle/record_c_test.cpp	7
@@ -1272,7 +1267,6 @@ utils/test/src/cu/types/file_defs/ksc/ksc_check.c	8
 utils/test/src/cu/types/file_defs/qry/qry_rows_check.c	2
 utils/test/src/cu/types/file_defs/who/who_check.c	2
 utils/test/src/cu/types/integerfloats/double_fields/double_fields_test.cu	6
-utils/test/src/cu/types/integerfloats/edouble/edouble_record_test.cu	7
 utils/test/src/cu/types/integers/exact_divide_test.cu	1
 utils/test/src/cu/types/integers/exact_record_test.cu	1
 utils/test/src/cu/types/integers/exact_transform_test.cu	1

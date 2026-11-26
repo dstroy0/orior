@@ -25,6 +25,15 @@ extern "C"
     // answer into. 1, or 0 where the pool cannot meet the bytes
     int tessera_job_cell_taken(unsigned long long count, unsigned int place, void **cell);
 
+    // An empty persistent cell of `count` bytes in the pool of the device, every byte 0. It is for state that a caller
+    // holds across many jobs, such as a loaded program, and goes back through tessera_job_given. 1, or 0 where the pool
+    // cannot meet the bytes
+    int tessera_job_persistent_taken(unsigned long long count, unsigned int place, void **cell);
+
+    // every byte of the first `count` bytes of a cell that the job holds set to 0 on the device: 1, or 0 where the
+    // kernel errors
+    int tessera_job_cleared(void *cell, unsigned long long count);
+
     // `count` bytes of `bytes` copied into the start of a cell that the job holds, such as a room of
     // tessera_job_cell_taken with more bytes than the copy. 1, or 0 where the copy errors
     int tessera_job_crossed_into(void *cell, const void *bytes, unsigned long long count);

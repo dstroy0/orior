@@ -1,17 +1,22 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_boundary_test_main.cu: redundancy and main
-#include "record_boundary_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "record_boundary_test_internal.h"
+
+// The pool of the test. The counted tower runs 2^20 lanes, and their atoms and their two copies of the records take
+// persistent cells of up to 16 MiB each
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 30u;
 
 // The redundant residue code on the boundary ("Redundancy" in two_crystals' Open). T is n to n and every crystal is
-// legal. A corrupted crystal is another crystal and T^-1 returns other samples with no sign of it. The code carries
-// each crystal coefficient c, shifted to y = c + 2^21 in [0, 2^22), as its residues modulo four odd primes, where two
-// cover the range (2053 . 2063 >= 2^22) and two are redundant. The decoder, a record program, reconstructs y from all
-// four by Garner's mixed radix: a value past the range is a corrupted residue caught (the syndrome). It then drops each
-// modulus in turn: with one residue corrupted, only the reconstruction that drops it lands in the range. The code
-// corrects one and detects two. Encoder (T then the residues), decoder and T^-1 run on the device and the host, word
-// for word.
+// legal. A corrupted crystal is another crystal, and T^-1 returns other samples with no sign of it. The code carries
+// each crystal coefficient c, shifted to y = c + 2^21 in [0, 2^22), as its residues modulo four odd primes. Two of them
+// cover the range (2053 . 2063 >= 2^22), and two are redundant.
+//
+// The decoder, a record program, builds y again from all four by the mixed radix of Garner. A value past the range is a
+// corrupted residue that it catches (the syndrome). It then drops each modulus in turn. With one residue corrupted,
+// only the result that drops it lands in the range. The code corrects one and detects two. The encoder (T then the
+// residues), the decoder and T^-1 run on the device and the host, word for word.
 static void boundary_redundant(BoundaryResults *results)
 {
     const unsigned int n = BOUNDARY_TEST_SAMPLES;

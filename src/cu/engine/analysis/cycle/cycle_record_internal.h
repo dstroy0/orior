@@ -6,14 +6,15 @@
 
 #include "cycle_record_arithmetic.h"
 
+#include "../../runtime/daemon/tessera_job.h"
 #include "cycle_record_operate.h"
 
-// DIVIDES is 1 for a program containing a division operation, which alone carries the division scratch
+// DIVIDES is 1 for a program that holds a division operation. Only such a program carries the division scratch
 template <unsigned int WIDE, unsigned int DIVIDES> __global__ static void cycle_record_kernel(CycleRecordLaunch launch)
 {
     unsigned int file[WIDE];
     unsigned int scratch[(DIVIDES != 0u) ? CODEGEN_RECORD_SCRATCH(WIDE) : 1u];
-    // a register's sign lies beside it, at its place in the file. The steps are bounded by nothing stored per step
+    // The sign of a register lies beside it, at its place in the file. Nothing that a step stores bounds the steps
     signed char sign[WIDE];
     const DeviceRecordStep *const steps = launch.steps;
     const unsigned long long stride = (unsigned long long)gridDim.x * blockDim.x;

@@ -58,21 +58,23 @@ rm -f "$BINARY"
 # links them too
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
-        SHARED_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}") ;;
+        SHARED_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}") ;;
     *)
         SHARED_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}") ;;
 esac
 exact_types_device_line || exit 1
 LINEA_OBJECTS=("${EXACT_TYPES_DEVICE_LINE[@]}")
+# The ruleset reader reads the blob of a ruleset through the member reader of a query file, as the engine does
 shared_objects_built SHARED_WORDS "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" \
-    "$CYCLE/cycle.c" "$EXACT_RECORD/exact_record.c" || exit 1
+    "$CYCLE/cycle.c" "$EXACT_RECORD/exact_record.c" "$TOP/includes/file_defs/qry/writer/qry_member.c" \
+    "$TOP/includes/file_defs/qry/writer/platform/"*.c "$TOP/includes/file_defs/qry/qry_read.c" || exit 1
 OBJECTS=("${LINEA_OBJECTS[@]}" "${SHARED_OBJECTS[@]}")
 # the test is a job on the device's tessera daemon, built beside it
 tessera_build "${LINEA_OBJECTS[@]}" || exit 1
 
 nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -rdc=true "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
     "$TEST"/period_record_test.cu "$TOP/src/sims/cu/sim_job.cu" "$MODULE"/period_{measure,select,record}.cu \
-    "$DEVICE_POOL/device_pool.cu" "$CYCLE"/cycle*.cu "$CODEGEN"/*.cu "$LSTAR_PARSER"/*.cu "$KEYMATH/keymath.cu" \
+    "$DEVICE_POOL/device_pool.cu" "$CYCLE"/cycle*.cu "$CODEGEN"/*.cu "$LSTAR_PARSER"/*.cu "$TOP/includes/file_defs/krs/ruleset_flat"/*.cu "$KEYMATH/keymath.cu" \
     "$KEY_SCHEDULE/key_schedule.cu" "${OBJECTS[@]}" "${TESSERA_OBJECTS[@]}" "${TESSERA_SEAL[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 if [ "${BUILD_ONLY:-0}" = "1" ]; then

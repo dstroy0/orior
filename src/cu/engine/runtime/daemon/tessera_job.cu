@@ -16,16 +16,27 @@
 // the cell that the last take on the device gave, which the host reads back after the kernel of the take ends
 static __device__ void *s_job_cell;
 
-// One thread: the pool placed, and a temporary cell of `count` bytes taken, cleared where `cleared` is not 0
-__global__ void tessera_job_taken_kernel(unsigned long long count, unsigned int place, int cleared)
+// One thread: the pool placed, and a cell of `count` bytes taken, cleared where `cleared` is not 0. The cell is on the
+// temporary tier where `ephemeral` is not 0, and else on the persistent tier
+__global__ void tessera_job_taken_kernel(unsigned long long count, unsigned int place, int cleared, int ephemeral)
 {
     if (platform_device_open() == 0)
     {
         s_job_cell = NULL;
         return;
     }
-    s_job_cell =
-        (cleared != 0) ? platform_device_cell_cleared(count, place, 1) : platform_device_cell_taken(count, place, 1);
+    s_job_cell = (cleared != 0) ? platform_device_cell_cleared(count, place, ephemeral)
+                                : platform_device_cell_taken(count, place, ephemeral);
+}
+
+// The grid: every byte of the `count` bytes of the cell set to 0
+__global__ void tessera_job_cleared_kernel(unsigned char *cell, unsigned long long count)
+{
+    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
+    for (unsigned long long at = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; at < count; at += jump)
+    {
+        cell[at] = 0u;
+    }
 }
 
 // One thread: the cell given back
@@ -34,12 +45,12 @@ __global__ void tessera_job_given_kernel(void *cell, unsigned int place)
     platform_device_cell_released(cell, place);
 }
 
-// A temporary cell of `count` bytes taken on the device, its address read back into `*cell`. 1, or 0 where the pool
-// refuses the bytes or the kernel errors
-static int tessera_job_taken(unsigned long long count, unsigned int place, int cleared, void **cell)
+// A cell of `count` bytes taken on the device, its address read back into `*cell`. 1, or 0 where the pool refuses the
+// bytes or the kernel errors
+static int tessera_job_taken(unsigned long long count, unsigned int place, int cleared, int ephemeral, void **cell)
 {
     *cell = NULL;
-    tessera_job_taken_kernel<<<1, 1>>>(count, place, cleared);
+    tessera_job_taken_kernel<<<1, 1>>>(count, place, cleared, ephemeral);
     if ((cudaGetLastError() != cudaSuccess) || (cudaDeviceSynchronize() != cudaSuccess) ||
         (cudaMemcpyFromSymbol(cell, s_job_cell, sizeof(*cell)) != cudaSuccess))
     {
@@ -51,7 +62,7 @@ static int tessera_job_taken(unsigned long long count, unsigned int place, int c
 
 extern "C" int tessera_job_crossed_in(const void *bytes, unsigned long long count, unsigned int place, void **cell)
 {
-    if (!tessera_job_taken(count, place, 0, cell))
+    if (!tessera_job_taken(count, place, 0, 1, cell))
     {
         return 0;
     }
@@ -61,7 +72,29 @@ extern "C" int tessera_job_crossed_in(const void *bytes, unsigned long long coun
 
 extern "C" int tessera_job_cell_taken(unsigned long long count, unsigned int place, void **cell)
 {
-    return tessera_job_taken(count, place, 1, cell);
+    return tessera_job_taken(count, place, 1, 1, cell);
+}
+
+extern "C" int tessera_job_persistent_taken(unsigned long long count, unsigned int place, void **cell)
+{
+    return tessera_job_taken(count, place, 1, 0, cell);
+}
+
+extern "C" int tessera_job_cleared(void *cell, unsigned long long count)
+{
+    if (count == 0ULL)
+    {
+        return 1;
+    }
+    if (cell == NULL)
+    {
+        return 0;
+    }
+    const unsigned long long needed = (count + 255ULL) / 256ULL;
+    // Explicit casts take a count of blocks below 4096, and the bytes of the cell
+    tessera_job_cleared_kernel<<<(unsigned int)((needed < 4096ULL) ? needed : 4096ULL), 256u>>>((unsigned char *)cell,
+                                                                                                count);
+    return (cudaGetLastError() == cudaSuccess) && (cudaDeviceSynchronize() == cudaSuccess);
 }
 
 extern "C" int tessera_job_crossed_into(void *cell, const void *bytes, unsigned long long count)

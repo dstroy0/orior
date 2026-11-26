@@ -62,14 +62,14 @@ static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch 
     program.checkin_every = wdt / CYCLE_PROGRAM_CHECKINS_PER_WDT;
     program.places = record->places;
     EngineProgramBlock *const device_block = record->device_block;
-    int ok = CYCLE_STATUS_CHECK(cudaMemcpy(device_block, block, sizeof(EngineProgramBlock), cudaMemcpyHostToDevice),
-                                device_block, error) &&
-             CYCLE_STATUS_CHECK(cudaMemset(record->hot, 0, sizeof(CycleHot)), record->hot, error);
+    int ok = CYCLE_CHECK(tessera_job_crossed_into(device_block, block, sizeof(EngineProgramBlock)) &&
+                             tessera_job_cleared(record->hot, sizeof(CycleHot)),
+                         device_block, error, ENGINE_ERROR_RESOURCE);
     int running = ok;
     while (running != 0)
     {
-        ok = CYCLE_STATUS_CHECK(cudaMemcpy(block, device_block, sizeof(EngineProgramBlock), cudaMemcpyDeviceToHost),
-                                device_block, error) &&
+        ok = CYCLE_CHECK(tessera_job_crossed_out(block, device_block, sizeof(EngineProgramBlock)), device_block, error,
+                         ENGINE_ERROR_RESOURCE) &&
              CYCLE_CHECK(block->checksum == cycle_block_seal(block), block, error, ENGINE_ERROR_LOGIC);
         if (ok == 0)
         {
@@ -79,11 +79,10 @@ static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch 
         block->owner = block->launches;
         block->state = ENGINE_PROGRAM_RUNNING;
         program.launch_number = block->launches;
-        ok = CYCLE_STATUS_CHECK(cudaMemcpy(device_block, block, sizeof(EngineProgramBlock), cudaMemcpyHostToDevice),
-                                device_block, error);
         // a launch's start and its thread blocks gone begin at 0, and the next lane runs on from the last launch's
-        ok = ok && CYCLE_STATUS_CHECK(cudaMemset(&record->hot->launch_start, 0, 2u * sizeof(unsigned long long)),
-                                      record->hot, error);
+        ok = CYCLE_CHECK(tessera_job_crossed_into(device_block, block, sizeof(EngineProgramBlock)) &&
+                             tessera_job_cleared(&record->hot->launch_start, 2u * sizeof(unsigned long long)),
+                         device_block, error, ENGINE_ERROR_RESOURCE);
         void *arguments[1] = {&program};
         // a library's kernel handle is what the runtime launches in place of a kernel's address
         ok = ok && CYCLE_STATUS_CHECK(cudaLaunchKernel((const void *)record->kernel, dim3(blocks), dim3(threads),
@@ -91,12 +90,9 @@ static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch 
                                       program.out, error);
         ok = ok && CYCLE_STATUS_CHECK(cudaDeviceSynchronize(), program.out, error);
         unsigned int error_count = 0u;
-        ok = ok &&
-             CYCLE_STATUS_CHECK(
-                 cudaMemcpy(&error_count, record->device_error, sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                 record->device_error, error) &&
-             CYCLE_STATUS_CHECK(cudaMemcpy(block, device_block, sizeof(EngineProgramBlock), cudaMemcpyDeviceToHost),
-                                device_block, error);
+        ok = ok && CYCLE_CHECK(tessera_job_crossed_out(&error_count, record->device_error, sizeof(unsigned int)) &&
+                                   tessera_job_crossed_out(block, device_block, sizeof(EngineProgramBlock)),
+                               device_block, error, ENGINE_ERROR_RESOURCE);
         const unsigned long long state = block->state;
         ok = ok && CYCLE_CHECK((state == ENGINE_PROGRAM_YIELDED) || (state == ENGINE_PROGRAM_DONE), block, error,
                                ENGINE_ERROR_LOGIC);
@@ -112,8 +108,8 @@ static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch 
         block->checksum = cycle_block_seal(block);
         // the sealed block goes back to the device, where the next launch finds it. A fault stays sealed on the copy of
         // the host, whether the device can still take it or not
-        const cudaError_t sent = cudaMemcpy(device_block, block, sizeof(EngineProgramBlock), cudaMemcpyHostToDevice);
-        ok = ok && CYCLE_STATUS_CHECK(sent, device_block, error);
+        const int sent = tessera_job_crossed_into(device_block, block, sizeof(EngineProgramBlock));
+        ok = ok && CYCLE_CHECK(sent != 0, device_block, error, ENGINE_ERROR_RESOURCE);
         running = (ok != 0) && (state == ENGINE_PROGRAM_YIELDED);
     }
     return ok;
@@ -186,31 +182,26 @@ static int cycle_record_check(const CycleRecord *record, CycleRecordLaunch launc
         (unsigned int *)platform_cell_taken((unsigned long long)words * sizeof(unsigned int), CYCLE_LAUNCH_PLACE, 1);
     unsigned int compiled_error = 0u;
     unsigned int interpreted_error = 0u;
-    unsigned int *interpreted = NULL;
+    void *interpreted = NULL;
     unsigned long long interpreted_nanoseconds = 0ULL;
+    const unsigned long long bytes = (unsigned long long)words * sizeof(unsigned int);
+    // the records of the interpreter, a temporary cell of the pool of the device that goes back before the check
+    // returns
     int ok = CYCLE_CHECK((compiled_records != NULL) && (interpreted_records != NULL), record, error,
                          ENGINE_ERROR_RESOURCE) &&
-             CYCLE_STATUS_CHECK(
-                 cudaMemcpy(&compiled_error, record->device_error, sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                 record->device_error, error) &&
-             CYCLE_STATUS_CHECK(
-                 cudaMemcpy(compiled_records, launch.out, words * sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                 launch.out, error) &&
-             CYCLE_STATUS_CHECK(cudaMalloc((void **)&interpreted, words * sizeof(unsigned int)), &interpreted, error) &&
-             CYCLE_STATUS_CHECK(cudaMemset(record->device_error, 0, sizeof(unsigned int)), record->device_error, error);
-    launch.out = interpreted;
+             CYCLE_CHECK(tessera_job_crossed_out(&compiled_error, record->device_error, sizeof(unsigned int)) &&
+                             tessera_job_crossed_out(compiled_records, launch.out, bytes) &&
+                             tessera_job_cell_taken(bytes, CYCLE_LAUNCH_PLACE, &interpreted) &&
+                             tessera_job_cleared(record->device_error, sizeof(unsigned int)),
+                         record->device_error, error, ENGINE_ERROR_RESOURCE);
+    // Explicit cast reads the cell as the words of the records
+    launch.out = (unsigned int *)interpreted;
     ok = ok && cycle_record_launch(record, launch, blocks, 0, (report != 0) ? &interpreted_nanoseconds : NULL, error);
-    ok = ok &&
-         CYCLE_STATUS_CHECK(
-             cudaMemcpy(&interpreted_error, record->device_error, sizeof(unsigned int), cudaMemcpyDeviceToHost),
-             record->device_error, error) &&
-         CYCLE_STATUS_CHECK(
-             cudaMemcpy(interpreted_records, interpreted, words * sizeof(unsigned int), cudaMemcpyDeviceToHost),
-             interpreted, error) &&
-         CYCLE_STATUS_CHECK(
-             cudaMemcpy(record->device_error, &compiled_error, sizeof(unsigned int), cudaMemcpyHostToDevice),
-             record->device_error, error);
-    cudaFree(interpreted);
+    ok = ok && CYCLE_CHECK(tessera_job_crossed_out(&interpreted_error, record->device_error, sizeof(unsigned int)) &&
+                               tessera_job_crossed_out(interpreted_records, interpreted, bytes) &&
+                               tessera_job_crossed_into(record->device_error, &compiled_error, sizeof(unsigned int)),
+                           record->device_error, error, ENGINE_ERROR_RESOURCE);
+    tessera_job_given(interpreted, CYCLE_LAUNCH_PLACE);
     size_t differs = words;
     for (size_t at = 0u; (ok != 0) && (differs == words) && (at < words); at += 1u)
     {
@@ -301,7 +292,8 @@ extern "C" long cycle_record_run(const CycleRecordRunRequest *request)
     size_t stack = 0u;
     unsigned long long nanoseconds = 0ULL;
     int ok = CYCLE_STATUS_CHECK(cudaDeviceGetLimit(&stack, cudaLimitStackSize), &stack, error) &&
-             CYCLE_STATUS_CHECK(cudaMemset(record->device_error, 0, sizeof(unsigned int)), record->device_error, error);
+             CYCLE_CHECK(tessera_job_cleared(record->device_error, sizeof(unsigned int)), record->device_error, error,
+                         ENGINE_ERROR_RESOURCE);
     ok = ok && cycle_record_launch(record, launch, blocks, compiled, (report != 0) ? &nanoseconds : NULL, error);
     ok = ok && ((check == 0) || cycle_record_check(record, launch, blocks, nanoseconds, report, error));
     if ((ok != 0) && (report != 0) && (check == 0))
@@ -332,11 +324,10 @@ extern "C" long cycle_record_run(const CycleRecordRunRequest *request)
     }
     // the reservation of the frame goes back whether the sweep succeeded or not
     const int returned = cycle_stack_return(stack, request->device_out, error);
-    ok =
-        ok && returned &&
-        CYCLE_STATUS_CHECK(cudaMemcpy(&error_count, record->device_error, sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                           record->device_error, error) &&
-        CYCLE_CHECK(error_count == 0u, record->device_error, error, ENGINE_ERROR_REQUEST);
+    ok = ok && returned &&
+         CYCLE_CHECK(tessera_job_crossed_out(&error_count, record->device_error, sizeof(unsigned int)),
+                     record->device_error, error, ENGINE_ERROR_RESOURCE) &&
+         CYCLE_CHECK(error_count == 0u, record->device_error, error, ENGINE_ERROR_REQUEST);
     return (ok != 0) ? (long)request->count : CYCLE_ERROR;
 }
 
@@ -395,13 +386,15 @@ extern "C" long cycle_record_latch(const CycleRecordLatchRequest *request)
     {
         return CYCLE_ERROR;
     }
-    unsigned long long *device_first = NULL;
+    void *cell = NULL;
     unsigned long long first = CYCLE_LATCH_NONE;
     const unsigned long long needed = (request->count + CYCLE_BLOCK - 1ULL) / CYCLE_BLOCK;
     const unsigned int blocks = (unsigned int)((needed < CYCLE_RECORD_BLOCKS_MAX) ? needed : CYCLE_RECORD_BLOCKS_MAX);
-    int ok = CYCLE_STATUS_CHECK(cudaMalloc((void **)&device_first, sizeof(unsigned long long)), &device_first, error) &&
-             CYCLE_STATUS_CHECK(cudaMemcpy(device_first, &first, sizeof(unsigned long long), cudaMemcpyHostToDevice),
-                                device_first, error);
+    // the first lane, a temporary cell of the pool of the device that goes back before the latch returns
+    int ok = CYCLE_CHECK(tessera_job_crossed_in(&first, sizeof(first), CYCLE_LAUNCH_PLACE, &cell), request, error,
+                         ENGINE_ERROR_RESOURCE);
+    // Explicit cast reads the cell as the lane that it holds
+    unsigned long long *const device_first = (unsigned long long *)cell;
     if (ok != 0)
     {
         cycle_latch_kernel<<<blocks, CYCLE_BLOCK>>>(request->records, request->count, request->out_limbs,
@@ -409,9 +402,9 @@ extern "C" long cycle_record_latch(const CycleRecordLatchRequest *request)
     }
     ok = ok && CYCLE_STATUS_CHECK(cudaGetLastError(), device_first, error) &&
          CYCLE_STATUS_CHECK(cudaDeviceSynchronize(), device_first, error) &&
-         CYCLE_STATUS_CHECK(cudaMemcpy(&first, device_first, sizeof(unsigned long long), cudaMemcpyDeviceToHost),
-                            device_first, error);
-    cudaFree(device_first);
+         CYCLE_CHECK(tessera_job_crossed_out(&first, device_first, sizeof(first)), device_first, error,
+                     ENGINE_ERROR_RESOURCE);
+    tessera_job_given(cell, CYCLE_LAUNCH_PLACE);
     if (ok == 0)
     {
         return CYCLE_ERROR;
@@ -501,46 +494,10 @@ static void cycle_sum_subtract(unsigned int *sum, unsigned int limbs, unsigned i
     }
 }
 
-// the totals of the sum on the device and its negative counts. They stay between calls, and they grow to the max bytes
-// of the requests so far. A sum that a sweep requests once then takes nothing after the first
-typedef struct
-{
-    unsigned long long *totals;
-    unsigned long long *negatives;
-    size_t total_bytes;
-    size_t negative_bytes;
-} CycleSumScratch;
-
-static CycleSumScratch g_cycle_sum_scratch;
-
-static int cycle_sum_scratch(size_t total_bytes, size_t negative_bytes, EngineError *error)
-{
-    CycleSumScratch *const scratch = &g_cycle_sum_scratch;
-    int ok = 1;
-    if (total_bytes > scratch->total_bytes)
-    {
-        cudaFree(scratch->totals);
-        scratch->totals = NULL;
-        scratch->total_bytes = 0u;
-        ok = CYCLE_STATUS_CHECK(cudaMalloc((void **)&scratch->totals, total_bytes), &scratch->totals, error);
-        scratch->total_bytes = (ok != 0) ? total_bytes : 0u;
-    }
-    if ((ok != 0) && (negative_bytes > scratch->negative_bytes))
-    {
-        cudaFree(scratch->negatives);
-        scratch->negatives = NULL;
-        scratch->negative_bytes = 0u;
-        ok = CYCLE_STATUS_CHECK(cudaMalloc((void **)&scratch->negatives, negative_bytes), &scratch->negatives, error);
-        scratch->negative_bytes = (ok != 0) ? negative_bytes : 0u;
-    }
-    return ok;
-}
-
+// The sum takes its totals and its negative counts on the device as temporary cells for each call, and gives them back
+// before it returns. The sum keeps nothing between calls, and the release has nothing to give back
 extern "C" void cycle_record_sum_release(void)
 {
-    cudaFree(g_cycle_sum_scratch.totals);
-    cudaFree(g_cycle_sum_scratch.negatives);
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = &g_cycle_sum_scratch, .bytes = sizeof(g_cycle_sum_scratch), .val = 0u);
 }
 
 extern "C" long cycle_record_sum(const CycleRecordSumRequest *request)
@@ -566,12 +523,16 @@ extern "C" long cycle_record_sum(const CycleRecordSumRequest *request)
     unsigned long long *const totals = (unsigned long long *)platform_cell_taken(total_bytes, CYCLE_LAUNCH_PLACE, 1);
     unsigned long long *const negatives =
         (unsigned long long *)platform_cell_taken(negative_bytes, CYCLE_LAUNCH_PLACE, 1);
+    void *totals_cell = NULL;
+    void *negatives_cell = NULL;
+    // the cells of the device, every byte 0, newest last: the negatives go back first
     int ok = CYCLE_CHECK((totals != NULL) && (negatives != NULL), request, error, ENGINE_ERROR_RESOURCE) &&
-             cycle_sum_scratch(total_bytes, negative_bytes, error);
-    unsigned long long *const device_totals = g_cycle_sum_scratch.totals;
-    unsigned long long *const device_negatives = g_cycle_sum_scratch.negatives;
-    ok = ok && CYCLE_STATUS_CHECK(cudaMemset(device_totals, 0, total_bytes), device_totals, error) &&
-         CYCLE_STATUS_CHECK(cudaMemset(device_negatives, 0, negative_bytes), device_negatives, error);
+             CYCLE_CHECK(tessera_job_cell_taken(total_bytes, CYCLE_LAUNCH_PLACE, &totals_cell) &&
+                             tessera_job_cell_taken(negative_bytes, CYCLE_LAUNCH_PLACE, &negatives_cell),
+                         request, error, ENGINE_ERROR_RESOURCE);
+    // Explicit casts read the cells as the totals and the counts that they hold
+    unsigned long long *const device_totals = (unsigned long long *)totals_cell;
+    unsigned long long *const device_negatives = (unsigned long long *)negatives_cell;
     if (ok != 0)
     {
         cycle_sum_kernel<<<blocks, CYCLE_BLOCK>>>(request->records, request->count, request->group, request->out_limbs,
@@ -580,10 +541,11 @@ extern "C" long cycle_record_sum(const CycleRecordSumRequest *request)
     }
     ok = ok && CYCLE_STATUS_CHECK(cudaGetLastError(), device_totals, error) &&
          CYCLE_STATUS_CHECK(cudaDeviceSynchronize(), device_totals, error) &&
-         CYCLE_STATUS_CHECK(cudaMemcpy(totals, device_totals, total_bytes, cudaMemcpyDeviceToHost), device_totals,
-                            error) &&
-         CYCLE_STATUS_CHECK(cudaMemcpy(negatives, device_negatives, negative_bytes, cudaMemcpyDeviceToHost),
-                            device_negatives, error);
+         CYCLE_CHECK(tessera_job_crossed_out(totals, device_totals, total_bytes) &&
+                         tessera_job_crossed_out(negatives, device_negatives, negative_bytes),
+                     device_totals, error, ENGINE_ERROR_RESOURCE);
+    tessera_job_given(negatives_cell, CYCLE_LAUNCH_PLACE);
+    tessera_job_given(totals_cell, CYCLE_LAUNCH_PLACE);
     for (unsigned long long run = 0ULL; (ok != 0) && (run < runs); run += 1ULL)
     {
         unsigned int *const sum = &request->sums[run * request->sum_limbs];

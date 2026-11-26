@@ -96,10 +96,11 @@ static int encode_term_copied(EncodeTerm *into, const EncodeTerm *from)
     return ok;
 }
 
-// the rows of each term of the terms given back, and then the cell of the terms
-static void encode_terms_ended(PlatformArray *terms)
+// The rows of the first `owned` terms of the terms given back, and then the cell of the terms. The terms past `owned`
+// share their rows with other terms, which give them back
+static void encode_terms_owned_ended(PlatformArray *terms, unsigned long long owned)
 {
-    for (unsigned long long at = 0ULL; at < terms->count; at += 1ULL)
+    for (unsigned long long at = 0ULL; (at < owned) && (at < terms->count); at += 1ULL)
     {
         // Explicit cast reads the element as the term that it holds
         EncodeTerm *const term = (EncodeTerm *)platform_array_at(terms, at);
@@ -109,6 +110,12 @@ static void encode_terms_ended(PlatformArray *terms)
         }
     }
     platform_array_ended(terms);
+}
+
+// the rows of each term of the terms given back, and then the cell of the terms
+static void encode_terms_ended(PlatformArray *terms)
+{
+    encode_terms_owned_ended(terms, terms->count);
 }
 
 // the terms of `from` copied into `into`, with a cell of its own. 1, or 0 where the pool cannot meet them
@@ -396,10 +403,13 @@ extern "C" long keymath_encode(const KeymathEncodeRequest *request)
         {
             // terms subtracted half a voxel apart are no residual of one voxel
             PlatformArray next;
+            platform_array_begun(&next, sizeof(EncodeTerm), KEYMATH_PLACE, 1);
             ok = KEYMATH_CHECK(EMBED_CALL(memor.cmp, MemoriaCfg, .src = saved_half, .other = running_half,
                                           .bytes = sizeof(saved_half)) == 0,
                                doing, error, ENGINE_ERROR_REQUEST) &&
                  KEYMATH_CHECK(encode_terms_copied(&next, &saved), doing, error, ENGINE_ERROR_RESOURCE);
+            // the terms of next that the copy made, each with rows of its own
+            const unsigned long long copied = next.count;
             for (unsigned long long at = 0ULL; ok && (at < next.count); at += 1ULL)
             {
                 // Explicit cast reads the element as the term that it holds
@@ -413,8 +423,17 @@ extern "C" long keymath_encode(const KeymathEncodeRequest *request)
                 moved.negative ^= 1u;
                 ok = KEYMATH_CHECK(platform_array_appended(&next, &moved), doing, error, ENGINE_ERROR_RESOURCE);
             }
-            platform_array_ended(&running);
-            running = next;
+            // Where the subtraction holds, next takes the place of the running terms and their rows. Else the running
+            // terms keep their rows, and next gives back the rows of its copied terms and its cell
+            if (ok != 0)
+            {
+                platform_array_ended(&running);
+                running = next;
+            }
+            else
+            {
+                encode_terms_owned_ended(&next, copied);
+            }
         }
         else
         {

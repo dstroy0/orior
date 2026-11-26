@@ -553,10 +553,9 @@ static unsigned int *cycle_host_words_read(const unsigned int *device, size_t co
 {
     unsigned int *const words = (unsigned int *)platform_cell_cleared(
         (count != 0u) ? count : 1u, sizeof(unsigned int), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
-    *taken = (words != NULL) &&
-             ((device == NULL) || (count == 0u) ||
-              CYCLE_STATUS_CHECK(cudaMemcpy(words, device, count * sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                                 device, error));
+    *taken = (words != NULL) && ((device == NULL) || (count == 0u) ||
+                                 CYCLE_CHECK(tessera_job_crossed_out(words, device, count * sizeof(unsigned int)),
+                                             device, error, ENGINE_ERROR_RESOURCE));
     return words;
 }
 
@@ -737,12 +736,9 @@ int cycle_host_resident(const CycleRecord *record, CycleCompiledLaunch program, 
         block->checksum = cycle_block_seal(block);
         running = (ok != 0) && (state == ENGINE_PROGRAM_YIELDED);
     }
-    ok = ok &&
-         CYCLE_STATUS_CHECK(cudaMemcpy(device_error, run.error_count, sizeof(unsigned int), cudaMemcpyHostToDevice),
-                            device_error, error) &&
-         ((out_words == 0u) ||
-          CYCLE_STATUS_CHECK(cudaMemcpy(device_out, run.out, out_words * sizeof(unsigned int), cudaMemcpyHostToDevice),
-                             device_out, error));
+    ok = ok && CYCLE_CHECK(tessera_job_crossed_into(device_error, run.error_count, sizeof(unsigned int)) &&
+                               tessera_job_crossed_into(device_out, run.out, out_words * sizeof(unsigned int)),
+                           device_error, error, ENGINE_ERROR_RESOURCE);
     cycle_host_run_ended(&run);
     return ok;
 }

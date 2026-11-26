@@ -112,31 +112,36 @@ extern "C" long cycle_record_load(const EngineRecordLayout *layout, CycleRecord 
     *record_out = NULL;
     CycleRecord *const record = (CycleRecord *)cycle_record_cell(sizeof(CycleRecord));
     int ok = CYCLE_CHECK(record != NULL, record_out, error, ENGINE_ERROR_RESOURCE);
-    ok = ok && CYCLE_STATUS_CHECK(
-                   cudaMalloc((void **)&record->device_steps, (size_t)layout->steps * sizeof(DeviceRecordStep)),
-                   &record->device_steps, error);
-    ok = ok && CYCLE_STATUS_CHECK(cudaMalloc((void **)&record->device_error, sizeof(unsigned int)),
-                                  &record->device_error, error);
-    ok = ok && CYCLE_STATUS_CHECK(cudaMemcpy(record->device_steps, layout->step_table,
-                                             (size_t)layout->steps * sizeof(DeviceRecordStep), cudaMemcpyHostToDevice),
-                                  record->device_steps, error);
-    if ((ok != 0) && (layout->table_word_count != 0ULL))
+    // The steps, the tables, the error count, the block and the hot words of the record are persistent cells of the
+    // pool of the device. The record holds them from its load to its release, across every run
+    void *cell = NULL;
+    const unsigned long long step_bytes = (unsigned long long)layout->steps * sizeof(DeviceRecordStep);
+    ok = ok && CYCLE_CHECK(tessera_job_persistent_taken(step_bytes, CYCLE_RECORD_PLACE, &cell) &&
+                               tessera_job_crossed_into(cell, layout->step_table, step_bytes),
+                           layout, error, ENGINE_ERROR_RESOURCE);
+    // Explicit casts read each cell as the words that it holds
+    record->device_steps = (ok != 0) ? (DeviceRecordStep *)cell : NULL;
+    ok = ok && CYCLE_CHECK(tessera_job_persistent_taken(sizeof(unsigned int), CYCLE_RECORD_PLACE, &cell), layout, error,
+                           ENGINE_ERROR_RESOURCE);
+    record->device_error = (ok != 0) ? (unsigned int *)cell : NULL;
+    const unsigned long long table_bytes = layout->table_word_count * sizeof(unsigned int);
+    if ((ok != 0) && (table_bytes != 0ULL))
     {
-        ok = CYCLE_STATUS_CHECK(
-                 cudaMalloc((void **)&record->device_tables, (size_t)layout->table_word_count * sizeof(unsigned int)),
-                 &record->device_tables, error) &&
-             CYCLE_STATUS_CHECK(cudaMemcpy(record->device_tables, layout->table_values,
-                                           (size_t)layout->table_word_count * sizeof(unsigned int),
-                                           cudaMemcpyHostToDevice),
-                                record->device_tables, error);
+        ok = CYCLE_CHECK(tessera_job_persistent_taken(table_bytes, CYCLE_RECORD_PLACE, &cell) &&
+                             tessera_job_crossed_into(cell, layout->table_values, table_bytes),
+                         layout, error, ENGINE_ERROR_RESOURCE);
+        record->device_tables = (ok != 0) ? (unsigned int *)cell : NULL;
     }
     // the block lies in device memory, where the thread blocks of the program check in and stay on the device. The host
     // retains its own copy, which it reads back once each launch ends
     record->block = (EngineProgramBlock *)cycle_record_cell(sizeof(EngineProgramBlock));
     ok = ok && CYCLE_CHECK(record->block != NULL, &record->block, error, ENGINE_ERROR_RESOURCE) &&
-         CYCLE_STATUS_CHECK(cudaMalloc((void **)&record->device_block, sizeof(EngineProgramBlock)),
-                            &record->device_block, error) &&
-         CYCLE_STATUS_CHECK(cudaMalloc((void **)&record->hot, sizeof(CycleHot)), &record->hot, error);
+         CYCLE_CHECK(tessera_job_persistent_taken(sizeof(EngineProgramBlock), CYCLE_RECORD_PLACE, &cell), layout, error,
+                     ENGINE_ERROR_RESOURCE);
+    record->device_block = (ok != 0) ? (EngineProgramBlock *)cell : NULL;
+    ok = ok && CYCLE_CHECK(tessera_job_persistent_taken(sizeof(CycleHot), CYCLE_RECORD_PLACE, &cell), layout, error,
+                           ENGINE_ERROR_RESOURCE);
+    record->hot = (ok != 0) ? (CycleHot *)cell : NULL;
     if (ok == 0)
     {
         cycle_record_release(record);
@@ -146,8 +151,6 @@ extern "C" long cycle_record_load(const EngineRecordLayout *layout, CycleRecord 
     const unsigned int extent[6] = {layout->members,     layout->in_limbs[0], layout->in_limbs[1],
                                     layout->in_limbs[2], layout->out_bits,    layout->file_limbs};
     // the bytes that the signum reads, ephemeral work that goes back after it
-    const unsigned long long step_bytes = (unsigned long long)layout->steps * sizeof(DeviceRecordStep);
-    const unsigned long long table_bytes = layout->table_word_count * sizeof(unsigned int);
     const unsigned long long program_bytes = step_bytes + sizeof(extent) + table_bytes;
     // Explicit cast reads the cell as the bytes that it holds
     unsigned char *const program = (unsigned char *)platform_cell_taken(program_bytes, CYCLE_RECORD_PLACE, 1);
@@ -176,9 +179,8 @@ extern "C" long cycle_record_load(const EngineRecordLayout *layout, CycleRecord 
     record->block->span = layout->file_limbs;
     record->block->state = ENGINE_PROGRAM_PLACED;
     record->block->checksum = cycle_block_seal(record->block);
-    if (!CYCLE_STATUS_CHECK(
-            cudaMemcpy(record->device_block, record->block, sizeof(EngineProgramBlock), cudaMemcpyHostToDevice),
-            record->device_block, error))
+    if (!CYCLE_CHECK(tessera_job_crossed_into(record->device_block, record->block, sizeof(EngineProgramBlock)),
+                     record->device_block, error, ENGINE_ERROR_RESOURCE))
     {
         cycle_record_release(record);
         return CYCLE_ERROR;
@@ -277,11 +279,12 @@ extern "C" void cycle_record_release(CycleRecord *record)
     {
         return;
     }
-    cudaFree(record->device_steps);
-    cudaFree(record->device_error);
-    cudaFree(record->device_tables);
-    cudaFree(record->hot);
-    cudaFree(record->device_block);
+    // the persistent cells go back newest first, and tessera_job_given passes over a NULL cell
+    tessera_job_given(record->hot, CYCLE_RECORD_PLACE);
+    tessera_job_given(record->device_block, CYCLE_RECORD_PLACE);
+    tessera_job_given(record->device_tables, CYCLE_RECORD_PLACE);
+    tessera_job_given(record->device_error, CYCLE_RECORD_PLACE);
+    tessera_job_given(record->device_steps, CYCLE_RECORD_PLACE);
     // the record gives back its reference to the program it loaded, compiled or left on the interpreter after
     cycle_program_release(record->kernel);
     cycle_host_program_release(record->host_program);

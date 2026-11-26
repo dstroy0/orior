@@ -18,16 +18,16 @@
 // the sum and product exact, the read containing the product's ball within a unit of each exponent, every corner
 // quotient inside the quotient's ball and the flag 0 where the divisor's ball contains 0, and the order. The test is
 // one job on the device's tessera daemon.
+#include "../../../../../../../includes/exact_types/integerfloats/edouble/edouble_record.h"
+#include "../../../../../../../includes/exact_types/integers/exact_integer.h"
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../../../../../../src/platform/platform.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
 #include <string.h>
-#include "../../../../../../../includes/exact_types/integerfloats/edouble/edouble_record.h"
-#include "../../../../../../../includes/exact_types/integers/exact_integer.h"
-#include "sim.h"
 
 #include <cuda_runtime.h>
 
@@ -301,8 +301,8 @@ static int edouble_order_product(const OriorExactInteger *m, long long e, const 
     return ok;
 }
 
-// interval values: a = [m_a, m_a + d_a] 2^e_a and b likewise, m signed 10 bits, d 3 bits and e signed 3 bits, b
-// containing no 0; their interval sum, product, cut, quotient and order
+// Interval values: a = [m_a, m_a + d_a] 2^e_a and b likewise, with m signed 10 bits, d 3 bits and e signed 3 bits. The
+// interval b holds no 0. The case checks their interval sum, product, cut, quotient and order
 static void edouble_interval_case(EdoubleResults *results)
 {
     ExactRecordProgram program;
@@ -340,7 +340,7 @@ static void edouble_interval_case(EdoubleResults *results)
         unsigned int atom = edouble_random();
         const long long mb = edouble_field(atom, 16u, 10u);
         const long long db = (long long)((atom >> 26u) & 7u);
-        // b containing 0 is moved to [1, 1 + d]
+        // Where b holds 0, the case moves it to [1, 1 + d]
         if ((mb <= 0) && ((mb + db) >= 0))
         {
             atom = (atom & ~(0x3FFu << 16u)) | (1u << 16u);
@@ -478,9 +478,10 @@ static long long edouble_ceiling_by(long long n, unsigned int k)
     return -edouble_floor_by(-n, k);
 }
 
-// exponents the program knows: a = [m_a, m_a + d_a] 2^3 and b = [m_b, m_b + d_b] 2^-5, m signed 10 bits and d 3 bits;
-// the interval sum lifts a's side by the known 2^8 in six steps, and the interval product's and the sum's reads at the
-// known exponents 2 and -7; and the read at -2 of [m_a, m_a + d_a] 2^e with the lane's own e, signed 3 bits
+// Exponents that the program knows: a = [m_a, m_a + d_a] 2^3 and b = [m_b, m_b + d_b] 2^-5, with m signed 10 bits and
+// d 3 bits. The interval sum lifts the side of a by the known 2^8 in six steps. The case also checks the reads of the
+// interval product and of the sum at the known exponents 2 and -7. Last, it checks the read at -2 of
+// [m_a, m_a + d_a] 2^e, with the own e of the lane, signed 3 bits
 static void edouble_known_case(EdoubleResults *results)
 {
     ExactRecordProgram program;
@@ -622,9 +623,10 @@ static OriorExactInteger edouble_size(OriorExactInteger a)
     return a;
 }
 
-// balls at exponents the program knows, their fields positioned end to end: a = C_a 2^2 within R_a 2^-1 and b = C_b
-// 2^-3 within R_b 2^-4, C signed 10 bits and R 4 and 3 bits; their sum and product exact, the product read at 2^1
-// within 2^-2, the quotient at 2^-6 within 2^-8, and the order, each checked against the exact integers of value 2^64
+// Balls at exponents that the program knows, with their fields end to end: a = C_a 2^2 within R_a 2^-1 and
+// b = C_b 2^-3 within R_b 2^-4. C has a sign and 10 bits, and R has 4 and 3 bits. The case checks their sum and product
+// exactly, the product read at 2^1 within 2^-2, the quotient at 2^-6 within 2^-8, and the order. Each check is against
+// the exact integers of value 2^64
 static void edouble_ball_case(EdoubleResults *results)
 {
     ExactRecordProgram program;
@@ -687,8 +689,9 @@ static void edouble_ball_case(EdoubleResults *results)
         {
             const OriorExactInteger center = edouble_value(edouble_word(&read[0]), edouble_word(&read[1]));
             const OriorExactInteger radius = edouble_value(edouble_word(&read[2]), edouble_word(&read[3]));
-            sums += (unsigned int)(orior_exact_equal(&center, &edouble_plus(center_a, center_b)) &&
-                                   orior_exact_equal(&radius, &edouble_plus(radius_a, radius_b)));
+            const OriorExactInteger center_sum = edouble_plus(center_a, center_b);
+            const OriorExactInteger radius_sum = edouble_plus(radius_a, radius_b);
+            sums += (unsigned int)(orior_exact_equal(&center, &center_sum) && orior_exact_equal(&radius, &radius_sum));
         }
         // the product, exact: c_a c_b within |c_a| r_b + |c_b| r_a + r_a r_b
         const OriorExactInteger product_center = edouble_value(edouble_word(&read[4]), edouble_word(&read[5]));
@@ -714,8 +717,8 @@ static void edouble_ball_case(EdoubleResults *results)
             reads += (unsigned int)((orior_exact_compare(&reach, &radius) <= 0) &&
                                     (orior_exact_compare(&radius, &max) <= 0) && (edouble_word(&read[10]) == 1));
         }
-        // the quotient: where b's ball contains no 0, every corner x / y lies within r' of q, |x - q y| <= r' |y| at
-        // 2^128; where it contains 0, the flag is 0
+        // The quotient. Where the ball of b holds no 0, every corner x / y lies within r' of q, |x - q y| <= r' |y| at
+        // 2^128. Where it holds 0, the flag is 0
         {
             const int clear = (2 * ((cb < 0) ? -cb : cb)) > rb;
             const OriorExactInteger q = edouble_value(edouble_word(&read[11]), -6);
@@ -737,8 +740,9 @@ static void edouble_ball_case(EdoubleResults *results)
         }
         // above: a's lower end over b's upper
         {
-            const int above =
-                orior_exact_compare(&edouble_minus(center_a, radius_a), &edouble_plus(center_b, radius_b)) > 0;
+            const OriorExactInteger lower_a = edouble_minus(center_a, radius_a);
+            const OriorExactInteger upper_b = edouble_plus(center_b, radius_b);
+            const int above = orior_exact_compare(&lower_a, &upper_b) > 0;
             ordered += (unsigned int)(edouble_word(&read[14]) == (above ? 1ll : 0ll));
         }
     }
