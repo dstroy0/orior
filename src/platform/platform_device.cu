@@ -8,8 +8,11 @@
 // The device pass defines each hook as the contract of its declaration says. The wait spins on the word for its time,
 // as a device has no address wait. The wake has nothing to do, as a spin sees the word move. The clock is the global
 // timer of the device, in nanoseconds. The place of a thread is its index in the grid
+#include "platform_device.h"
+
 #include "embed_turnstile.h"
 #include "locus_carcerum/locus_carcerum.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_linea.h"
 
 #include "platform_places.h"
@@ -28,7 +31,133 @@ EMBED_STATIC_ASSERT((size_t)platform_device_owners_positioned <= (size_t)MMGR_CA
 __device__ CellOwner mmgr_owner_table_device[] = {PLATFORM_OWNERS(MMGR_OWNER_RECORD)};
 __device__ const size_t mmgr_owner_table_count_device = (size_t)platform_device_owners_positioned;
 
+// The cells of the movable option of the pool of the device, and the rows of its touches. Then the lanes that its
+// turnstiles may have open while it reads quiet. Nothing moves a cell on its own on the device, as it has no thread for
+// a mover
+#define PLATFORM_DEVICE_MOVABLE 4096u
+#define PLATFORM_DEVICE_WIDTH 32u
+#define PLATFORM_DEVICE_TOUCH_ROWS 64u
+
+// The bytes of the pool of the device, in the memory of the device alone. The regions of the temporary tier come off
+// its top beside the bytes that platform_device.h asks for, as they do on the host
+EMBED_ALIGN(MMGR_ALIGN_BYTES)
+static __device__ uint8_t s_device_storage[PLATFORM_DEVICE_POOL_BYTES + (unsigned long long)MMGR_CARCER_REGION_AREA];
+
+// The cellblock of the device over that pool, and the storage of its movable option. Each pass of nvcc has its own copy
+// of the two records, and a kernel reads the copy of the device. Minimum security: a release leaves the bytes of a cell
+// as they are
+ParsMemoriaeHospes(platform_device_pool);
+LocusCarcerum(platform_device_site, MMGR_MINIMUM_SECURITY_HOSPES(platform_device_pool));
+ParsMemoriaeInternae(platform_device_movable, MMGR_MOVABLE_STORAGE_BYTES(PLATFORM_DEVICE_MOVABLE, PLATFORM_DEVICE_WIDTH,
+                                                                         PLATFORM_DEVICE_TOUCH_ROWS));
+
+// 1 once the pool lies on the memory of the device. Both passes see it, as the host pass registers each device object
+static __device__ int s_device_placed;
+
 #if defined(__CUDA_ARCH__)
+
+// the id of the thread that calls, in the width that MMgr badges a pass with: its index in the grid
+static __device__ size_t platform_device_thread_id(void)
+{
+    return (size_t)embed_thread_place();
+}
+
+extern "C" __device__ int platform_device_open(void)
+{
+    if (s_device_placed != 0)
+    {
+        return 1;
+    }
+    if (!mmgr_series_cellularum_placed(&platform_device_site_platform_device_pool_ctx, s_device_storage,
+                                       sizeof(s_device_storage)))
+    {
+        return 0;
+    }
+    // a refusal leaves the pool with no movable option, and its movable takes then answer NULL
+    (void)EMBED_CALL(platform_device_site.platform_device_pool.movable_init, CarcerMovableInitCfg,
+                     .storage = mmgr_pars_storage_platform_device_movable,
+                     .storage_bytes = platform_device_movable_bytes, .cells = PLATFORM_DEVICE_MOVABLE,
+                     .width = PLATFORM_DEVICE_WIDTH, .rows = PLATFORM_DEVICE_TOUCH_ROWS, .thread_started = NULL,
+                     .thread_id = platform_device_thread_id, .thread_wait = NULL, .thread_yield = NULL,
+                     .thread_moving = NULL);
+    s_device_placed = 1;
+    return 1;
+}
+
+extern "C" __device__ void *platform_device_cell_taken(unsigned long long bytes, unsigned int place, int ephemeral)
+{
+    if ((s_device_placed == 0) || (place >= (unsigned int)platform_device_owners_positioned))
+    {
+        return NULL;
+    }
+    const CellOwner *const owner = &mmgr_owner_table_device[place];
+    // Explicit casts take the count of bytes in memory, which a size_t counts
+    return (ephemeral != 0) ? platform_device_site.platform_device_pool.temporary_buf_alloc((size_t)bytes, owner)
+                            : platform_device_site.platform_device_pool.persistent_buf_alloc((size_t)bytes, owner);
+}
+
+extern "C" __device__ void *platform_device_cell_cleared(unsigned long long bytes, unsigned int place, int ephemeral)
+{
+    void *const cell = platform_device_cell_taken(bytes, place, ephemeral);
+    if (cell != NULL)
+    {
+        // Explicit cast takes the count of bytes in memory, which a size_t counts
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = cell, .bytes = (size_t)bytes, .val = 0u);
+    }
+    return cell;
+}
+
+extern "C" __device__ void platform_device_cell_released(void *cell, unsigned int place)
+{
+    if ((cell != NULL) && (s_device_placed != 0) && (place < (unsigned int)platform_device_owners_positioned))
+    {
+        (void)platform_device_site.platform_device_pool.persistent_buf_release(cell, &mmgr_owner_table_device[place]);
+    }
+}
+
+extern "C" __device__ const void *platform_device_movable_taken(unsigned long long bytes, unsigned int place)
+{
+    if ((s_device_placed == 0) || (place >= (unsigned int)platform_device_owners_positioned))
+    {
+        return NULL;
+    }
+    // Explicit cast takes the count of bytes in memory, which a size_t counts
+    return platform_device_site.platform_device_pool.movable_buf_alloc((size_t)bytes, &mmgr_owner_table_device[place]);
+}
+
+extern "C" __device__ int platform_device_movable_written(const void *cell, unsigned long long offset, const void *from,
+                                                          unsigned long long count)
+{
+    // Explicit casts read the handle as the entry of the pool that it is, and the counts as sizes in memory
+    return (cell != NULL) && EMBED_CALL(platform_device_site.platform_device_pool.movable_buf_write, CarcerMovableCfg,
+                                        .cell = (const CarcerMovableEntry *)cell, .offset = (size_t)offset, .src = from,
+                                        .bytes = (size_t)count);
+}
+
+extern "C" __device__ int platform_device_movable_read(const void *cell, unsigned long long offset, void *into,
+                                                       unsigned long long count)
+{
+    // Explicit casts read the handle as the entry of the pool that it is, and the counts as sizes in memory
+    return (cell != NULL) && EMBED_CALL(platform_device_site.platform_device_pool.movable_buf_read, CarcerMovableCfg,
+                                        .cell = (const CarcerMovableEntry *)cell, .offset = (size_t)offset, .dst = into,
+                                        .bytes = (size_t)count);
+}
+
+extern "C" __device__ void platform_device_movable_released(const void *cell, unsigned int place)
+{
+    if ((cell != NULL) && (s_device_placed != 0) && (place < (unsigned int)platform_device_owners_positioned))
+    {
+        // Explicit cast reads the handle as the entry of the pool that it is
+        (void)platform_device_site.platform_device_pool.movable_buf_release((const CarcerMovableEntry *)cell,
+                                                                            &mmgr_owner_table_device[place]);
+    }
+}
+
+extern "C" __device__ unsigned long long platform_device_available(void)
+{
+    return (s_device_placed != 0) ? (unsigned long long)platform_device_site.platform_device_pool.buf_available()
+                                  : 0ULL;
+}
 
 EMBED_HOST_DEVICE embed_word embed_clock_ns(void)
 {

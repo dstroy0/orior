@@ -187,6 +187,16 @@
         "includes/embedded_types"
       ]
     },
+    "platform_device": {
+      "desc": "The pool of the device on the GPU: one thread places it and takes a temporary cell, a grid writes each byte of the cell through its address and one thread reads each byte back and gives it back, a movable cell is written and read through its handle, a persistent take and give leave the pool as it was, and a take past the pool is refused.",
+      "script": "utils/test/src/platform/platform_device_test.sh",
+      "src": [
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/platform"
+      ]
+    },
     "double_fields": {
       "desc": "double_fields' ribosome, its four functions as one record program swept on the device and run on the host, held 1:1 against double_fields.c on the edges of a double and 4096 drawn words.",
       "script": "utils/test/src/cu/types/integerfloats/double_fields/double_fields_test.sh",
