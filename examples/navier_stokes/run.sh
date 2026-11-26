@@ -32,7 +32,6 @@ OBSIGNATIO_CU="$SRC/cu/engine/runtime/obsignatio"
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         BINARY="$OUT/$PROGRAM.exe"
-        EXTENSION=obj
         MSVC_BIN="$(ls -d "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC"/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
         if [ -z "$MSVC_BIN" ]; then
             MSVC_BIN="$(ls -d "/c/Program Files/Microsoft Visual Studio"/*/*/VC/Tools/MSVC/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
@@ -47,7 +46,6 @@ case "$(uname -s)" in
         ;;
     *)
         BINARY="$OUT/$PROGRAM"
-        EXTENSION=o
         HOST_FLAGS=(-Xcompiler -fPIC)
         LINK_FLAGS=()
         ;;
@@ -64,86 +62,34 @@ for module in "${MODULES[@]}"; do
     INCLUDES+=(-I "$ROOT/src/$module")
 done
 
-# The build keeps the objects of each width and set of flags in one place. The flags are the C++ standard of the .cu
-# sources and the LTO flags of file_defs.sh. The build compiles an object again only where its source, or a header in
-# a directory that the build reads, is newer than it
+# Each source compiles one time for its words (shared_objects.sh), and again only where it or a header that its last
+# compile read is newer. The .cu sources reach the tables of MMgr in each pass of nvcc, and they compile with
+# -rdc=true. The line of MMgr, the cellblock and the device hooks compile as CUDA (exact_types_device_line). The program
+# links them with the device link
 CU_STANDARD=-std=c++20
-OBJECT_KEY="$(printf '%s\n' "$CU_STANDARD" "${FILE_DEFS_LTO_NVCC[*]}" "${FILE_DEFS_LTO_CC[*]}" | cksum | cut -d' ' -f1)"
-OBJECT_DIRECTORY="$BUILD_ROOT/build/navier_stokes_objects_${SIM_EXACT_LIMBS:-default}_$OBJECT_KEY"
-mkdir -p "$OBJECT_DIRECTORY"
-HEADER_DIRECTORIES=("$SIMS_CU" "$FILE_DEFS_MMGR_TOP/src/verba_scribo" "$NO_ROUNDING" "$CFG_JSON" "$DAEMON_DIRECTORY" "$OBSIGNATIO" "$OBSIGNATIO_CU")
-for module in "${MODULES[@]}"; do
-    HEADER_DIRECTORIES+=("$ROOT/src/$module")
-done
-
-current()
-{
-    local source="$1"
-    local object="$2"
-    [ -f "$object" ] && [ ! "$source" -nt "$object" ] &&
-        [ -z "$(find "${HEADER_DIRECTORIES[@]}" -maxdepth 1 -name '*.h' -newer "$object" -print -quit)" ]
-}
-
-build_object()
-{
-    local source="$1"
-    local object="$2"
-    current "$source" "$object" && return 0
-    rm -f "$object"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${WIDTH[@]}" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
-        *)
-            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${WIDTH[@]}" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
-    esac
-    [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
-}
-
-# a C++ source compiled to its object, current or not as above
-build_unit()
-{
-    local source="$1"
-    local object="$2"
-    current "$source" "$object" && return 0
-    rm -f "$object"
-    nvcc "${HOST_FLAGS[@]}" "$CU_STANDARD" -O2 "${WIDTH[@]}" "${INCLUDES[@]}" -c "$source" -o "$object"
-    [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
-}
-
-OBJECTS=()
-for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
-              "$CFG_JSON/cfg_json.c"; do
-    object="$OBJECT_DIRECTORY/$(basename "$source" .c).$EXTENSION"
-    build_object "$source" "$object"
-    OBJECTS+=("$object")
-done
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        C_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${WIDTH[@]}" "${INCLUDES[@]}") ;;
+    *)
+        C_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${WIDTH[@]}" "${INCLUDES[@]}") ;;
+esac
+CU_WORDS=(nvcc "${HOST_FLAGS[@]}" "$CU_STANDARD" -O2 -rdc=true "${WIDTH[@]}" "${INCLUDES[@]}")
+exact_types_device_line || exit 1
+OBJECTS=("${EXACT_TYPES_DEVICE_LINE[@]}")
 # sim_close releases a tessera job, and the drivers submit none. The build links the client, and nothing calls it
-for name in tessera_client_{socket,jobs} tessera_paths tessera_frame tessera_self; do
-    object="$OBJECT_DIRECTORY/$name.$EXTENSION"
-    build_object "$DAEMON_DIRECTORY/$name.c" "$object"
-    OBJECTS+=("$object")
-done
-for name in obsignatio_{hash,seal}; do
-    object="$OBJECT_DIRECTORY/$name.$EXTENSION"
-    if ! current "$OBSIGNATIO_CU/$name.cu" "$object"; then
-        rm -f "$object"
-        nvcc "${HOST_FLAGS[@]}" "$CU_STANDARD" -O2 "${WIDTH[@]}" "${INCLUDES[@]}" -c "$OBSIGNATIO_CU/$name.cu" -o "$object"
-    fi
-    [ -f "$object" ] || { echo "  build failed: $name.cu did not compile"; exit 1; }
-    OBJECTS+=("$object")
-done
+shared_objects_built C_WORDS "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "$CFG_JSON/cfg_json.c" \
+    "$DAEMON_DIRECTORY"/tessera_client_{socket,jobs}.c "$DAEMON_DIRECTORY"/tessera_{paths,frame,self}.c || exit 1
+OBJECTS+=("${SHARED_OBJECTS[@]}")
+UNITS=("$OBSIGNATIO_CU"/obsignatio_{hash,seal}.cu)
 for module in "${MODULES[@]}"; do
-    object="$OBJECT_DIRECTORY/$module.$EXTENSION"
-    build_unit "$ROOT/src/$module/$module.cu" "$object"
-    OBJECTS+=("$object")
+    UNITS+=("$ROOT/src/$module/$module.cu")
 done
-build_unit "$SIMS_CU/sim_job.cu" "$OBJECT_DIRECTORY/sim_job.$EXTENSION"
-OBJECTS+=("$OBJECT_DIRECTORY/sim_job.$EXTENSION")
-build_unit "$ROOT/src/$PROGRAM/$PROGRAM.cu" "$OBJECT_DIRECTORY/$PROGRAM.$EXTENSION"
-OBJECTS+=("$OBJECT_DIRECTORY/$PROGRAM.$EXTENSION")
+UNITS+=("$SIMS_CU/sim_job.cu" "$ROOT/src/$PROGRAM/$PROGRAM.cu")
+shared_objects_built CU_WORDS "${UNITS[@]}" || exit 1
+OBJECTS+=("${SHARED_OBJECTS[@]}")
 
 rm -f "$BINARY"
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${LINK_FLAGS[@]}" -O2 -o "$BINARY" "${OBJECTS[@]}"
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true "${LINK_FLAGS[@]}" -O2 -o "$BINARY" "${OBJECTS[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build $PROGRAM"; exit 1; }
 
 "$BINARY" "$CFG"

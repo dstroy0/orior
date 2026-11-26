@@ -64,7 +64,7 @@ OBJECTS=()
 # (qry_member.h). The probe is a program of the platform, and links MMgr's line with the platform
 # (exact_types_platform_link)
 source "$TOP/includes/exact_types/exact_types.sh"
-exact_types_platform_link probe || exit 1
+exact_types_device_platform_link || exit 1
 declare -A FORMAT_SOURCE=()
 for source in "${FILE_DEFS_FORMATS[@]}"; do
     FORMAT_SOURCE["$source"]=1
@@ -88,7 +88,7 @@ for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/int
     [ -n "${FORMAT_SOURCE[$source]:-}" ] && FORMAT_OBJECTS+=("$object")
 done
 # the SASS probe is a program of the platform too, and takes MMgr's line with the platform from PLATFORM_LINK
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true "${GENCODE[@]}" -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: the interface's SASS probe did not link"; exit 1; }
 # The probe reads rulesets and writes forms. The record machine runs the code generator's assembly printer
 # (asm_printer_*.cu) and the code generator on the device (codegen*.cu). The probe does not link the record machine
@@ -99,7 +99,7 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_de
         *) CODEGEN_SOURCES+=("$source") ;;
     esac
 done
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true -std=c++20 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" \
     -o "$PROBE" "$TEST_CU"/interface_ptx_probe_{questions,runs,main}.cu "$TEST_CU/ptx_target.cu" \
     "${CODEGEN_SOURCES[@]}" "${FORMAT_OBJECTS[@]}" -lnvrtc -lnvJitLink "${PLATFORM_LINK[@]}"
 [ -f "$PROBE" ] || { echo "  build failed: the PTX probe did not build"; exit 1; }

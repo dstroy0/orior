@@ -58,51 +58,70 @@ esac
 EXACT_TYPES_PLATFORM_PROGRAM=("${FILE_DEFS_MMGR_FLAGS[@]}" -I "$EXACT_TYPES_REPO/src/platform" "${FILE_DEFS_LINEA[@]}"
     "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" "${EXACT_TYPES_LIBRARIES[@]}")
 
-# exact_types_compile SUFFIX SOURCE...: each source compiled as C11 into $OUT, its object named for the source and
-# SUFFIX. The compile takes the caller's HOST_FLAGS, the caller's EXACT_TYPES_EXTRA where set, and EXACT_TYPES_FLAGS.
-# EXACT_TYPES_OBJECTS holds the objects in the order of the sources. 0, or 1 where a source did not compile
+source "$EXACT_TYPES_REPO/utils/maint/engine/shared_objects.sh"
+
+# exact_types_compile SOURCE...: each source compiled as C11 by shared_objects_built. A program that compiles a source
+# with the same words links the same object. The compile takes the caller's HOST_FLAGS, the caller's
+# EXACT_TYPES_EXTRA where set, and EXACT_TYPES_FLAGS. EXACT_TYPES_OBJECTS holds the objects in the order of the
+# sources. 0, or 1 where a source did not compile
 exact_types_compile()
 {
-    local suffix="$1"
-    shift
-    local extension=o
     local extra=("${EXACT_TYPES_EXTRA[@]+"${EXACT_TYPES_EXTRA[@]}"}")
     local host=("${HOST_FLAGS[@]+"${HOST_FLAGS[@]}"}")
-    local source
-    local object
+    local words
     case "$(uname -s)" in
-    MINGW* | MSYS* | CYGWIN*) extension=obj ;;
-    *) ;;
+    MINGW* | MSYS* | CYGWIN*)
+        words=(nvcc "${host[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics"
+            "${extra[@]}" "${EXACT_TYPES_FLAGS[@]}")
+        ;;
+    *) words=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${extra[@]}" "${EXACT_TYPES_FLAGS[@]}") ;;
     esac
-    EXACT_TYPES_OBJECTS=()
-    for source in "$@"; do
-        object="$OUT/$(basename "$source" .c)_${suffix}.${extension}"
-        rm -f "$object"
-        case "$(uname -s)" in
-        MINGW* | MSYS* | CYGWIN*)
-            nvcc "${host[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${extra[@]}" \
-                "${EXACT_TYPES_FLAGS[@]}" -c "$source" -o "$object"
-            ;;
-        *) cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${extra[@]}" "${EXACT_TYPES_FLAGS[@]}" -c "$source" -o "$object" ;;
-        esac
-        [ -f "$object" ] || {
-            echo "  build failed: $(basename "$source") did not compile"
-            return 1
-        }
-        EXACT_TYPES_OBJECTS+=("$object")
-    done
+    shared_objects_built words "$@" || return 1
+    EXACT_TYPES_OBJECTS=("${SHARED_OBJECTS[@]}")
     return 0
 }
 
-# exact_types_platform_link SUFFIX: what a program of the platform links, compiled into $OUT. PLATFORM_LINK holds the
-# objects of the MMgr sources and of the process stage, the pool and the system calls of the platform. It also holds
-# the carcer of the pool, then the libraries of the system. The caller's EXACT_TYPES_OBJECTS stay as they were. 0, or
-# 1 where a source did not compile
+# exact_types_device_line: the line of MMgr, the cellblock and the device hooks of the platform (platform_device.cu).
+# Each compiles as CUDA for both passes of nvcc, as the CUDA guide of MMgr says. A program of the device link of nvcc
+# (-rdc=true) links these in place of the C objects of the line and of the cellblock. Its .cu sources then reach the
+# tables of MMgr in each pass.
+#
+# The compile takes the caller's HOST_FLAGS and GENCODE. EXACT_TYPES_DEVICE_LINE holds the objects. 0, or 1 where a
+# source did not compile
+exact_types_device_line()
+{
+    local host=("${HOST_FLAGS[@]+"${HOST_FLAGS[@]}"}")
+    local gencode=("${GENCODE[@]+"${GENCODE[@]}"}")
+    local words=(nvcc "${host[@]}" -std=c++20 -O2 "${gencode[@]}" -rdc=true -x cu "${EXACT_TYPES_FLAGS[@]}")
+    shared_objects_built words "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_CARCER[@]}" \
+        "$EXACT_TYPES_REPO/src/platform/platform_device.cu" || return 1
+    EXACT_TYPES_DEVICE_LINE=("${SHARED_OBJECTS[@]}")
+    return 0
+}
+
+# exact_types_platform_link: what a program of the platform links, compiled by exact_types_compile. PLATFORM_LINK holds
+# the objects of the MMgr sources and of the process stage, the pool and the system calls of the platform. It also
+# holds the carcer of the pool, then the libraries of the system. The caller's EXACT_TYPES_OBJECTS stay as they were.
+# 0, or 1 where a source did not compile
 exact_types_platform_link()
 {
     local caller=("${EXACT_TYPES_OBJECTS[@]+"${EXACT_TYPES_OBJECTS[@]}"}")
-    exact_types_compile "$1" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" || return 1
+    exact_types_compile "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" || return 1
     PLATFORM_LINK=("${EXACT_TYPES_OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}")
+    EXACT_TYPES_OBJECTS=("${caller[@]+"${caller[@]}"}")
+    return 0
+}
+
+# exact_types_device_platform_link: what a program of the platform links where nvcc links it with its device link
+# (-rdc=true). PLATFORM_LINK holds the objects of exact_types_device_line first. Then it holds the objects of the
+# process stage, the pool and the system calls of the platform, and last the libraries of the system. The caller's
+# EXACT_TYPES_OBJECTS stay as they were. 0, or 1 where a source did not compile
+exact_types_device_platform_link()
+{
+    exact_types_device_line || return 1
+    local caller=("${EXACT_TYPES_OBJECTS[@]+"${EXACT_TYPES_OBJECTS[@]}"}")
+    exact_types_compile "${EXACT_TYPES_PLATFORM[@]}" || return 1
+    PLATFORM_LINK=("${EXACT_TYPES_DEVICE_LINE[@]}" "${EXACT_TYPES_OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}")
     EXACT_TYPES_OBJECTS=("${caller[@]+"${caller[@]}"}")
     return 0
 }

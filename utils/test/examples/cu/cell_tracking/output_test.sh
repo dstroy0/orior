@@ -38,8 +38,8 @@ rm -f "$BINARY"
 # the test is host work: the output reads and writes files and asks nothing of the device. It is no job
 # the test is a program of the platform, and links MMgr's line with the platform (exact_types_platform_link)
 source "$TOP/../includes/exact_types/exact_types.sh"
-exact_types_platform_link output || exit 1
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -DOUTPUT_TEST_FAULTS "${INCLUDES[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$BINARY" \
+exact_types_device_platform_link || exit 1
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true -std=c++20 -O2 -DOUTPUT_TEST_FAULTS "${INCLUDES[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$BINARY" \
     "$TEST/output_test.cu" "$OUTPUT/output_graph.cu" "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 if [ "${BUILD_ONLY:-0}" = "1" ]; then

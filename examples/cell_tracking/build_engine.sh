@@ -43,7 +43,7 @@ echo "  architectures: $ARCHES"
 
 rm -f "$LIBRARY"
 
-EXACT_ROOT="${ORIOR_EXACT_ROOT:-$ENGINE/../types/integers}"
+EXACT_ROOT="${ORIOR_EXACT_ROOT:-$ENGINE/../../../includes/exact_types/integers}"
 RESIDUAL_LIMBS="$(sed -n 's/^#define ENGINE_RESIDUAL_LIMBS \([0-9]*\)u.*/\1/p' "$ENGINE"/engine_config_*.h)"
 [ -n "$RESIDUAL_LIMBS" ] || { echo "  build failed: no ENGINE_RESIDUAL_LIMBS in engine_config_*.h"; exit 1; }
 QUESTION_LIMBS=$((RESIDUAL_LIMBS + 1))
@@ -69,7 +69,8 @@ MODULES=(../includes/formats/stack ../includes/file_defs/krep
          cu/engine/runtime/device_pool
          cu/engine/analysis/entropy_history cu/engine/analysis/keymath
          cu/engine/analysis/key_schedule
-         cu/engine/analysis/cycle cu/engine/runtime/radix_keys cu/engine/analysis/unit_sweep
+         cu/engine/analysis/cycle cu/engine/rmc ../includes/parsers ../includes/file_defs/krs/ruleset_flat
+         ../includes/file_defs/klq cu/engine/runtime/radix_keys cu/engine/analysis/unit_sweep
          cu/engine/runtime/obsignatio
          cu/engine/analysis/residual cu/engine/nbody/max_tree
          cu/engine/nbody/flatten cu/engine/nbody/grow
@@ -82,7 +83,7 @@ INGEST=(../includes/formats/cfg_json ../includes/formats/zarr ../includes/codecs
         ../includes/codecs/zip ../includes/formats/dicom ../includes/formats/npy ../includes/formats/nrrd ../includes/formats/nifti
         ../includes/formats/parquet)
 MODULES+=("${INGEST[@]}")
-MODULE_INCLUDES=(-I "$ENGINE" -I "$ENGINE/../../cu/engine" -I "$ENGINE/../includes/codecs/crc" -I "$ENGINE/../../../includes/codecs/crc")
+MODULE_INCLUDES=(-I "$ENGINE" -I "$ENGINE/../../cu/engine" -I "$ENGINE/../../../includes/codecs/crc")
 MODULE_SOURCES=("$ENGINE/../../cu/engine"/engine_{record,residual,files,zarr,source,listing,seal,report,history}.cu)
 for module in "${MODULES[@]}"; do
     folder="$(build_path "$module")"
@@ -92,8 +93,8 @@ for module in "${MODULES[@]}"; do
     done
 done
 # MMgr's line, which the engine writes its text through: its flags for every source, its sources among the portable ones
-source "$ENGINE/../includes/file_defs/file_defs.sh"
-source "$ENGINE/../includes/exact_types/exact_types.sh"
+source "$ENGINE/../../../includes/file_defs/file_defs.sh"
+source "$ENGINE/../../../includes/exact_types/exact_types.sh"
 # the exact sources reach MMgr and embedded_types through their own headers
 EXACT_FLAGS+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 MODULE_INCLUDES+=("${FILE_DEFS_MMGR_FLAGS[@]}")
@@ -104,52 +105,37 @@ for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching c
                 "${INGEST[@]}"; do
     PORTABLE_SOURCES+=("$(build_path "$portable")"/*.c)
 done
-PORTABLE_SOURCES+=("${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM_LIBRARY[@]}" "${EXACT_TYPES_CARCER[@]}")
-PORTABLE_OBJECTS=()
-for source in "${PORTABLE_SOURCES[@]}"; do
-    name="$(basename "$source" .c)"
-    OBJECT="$OUT/${name}_portable.o"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            OBJECT="$OUT/${name}_portable.obj"
-            rm -f "$OBJECT"
-            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${DEFINES[@]}" \
-                "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT"
-            ;;
-        *)
-            rm -f "$OBJECT"
-            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT"
-            ;;
-    esac
-    if [ ! -f "$OBJECT" ]; then
-        echo "  build failed: $source did not compile"
-        exit 1
-    fi
-    PORTABLE_OBJECTS+=("$OBJECT")
-done
-for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*) EXACT_OBJECT="$OUT/${name}_portable.obj" ;;
-        *) EXACT_OBJECT="$OUT/${name}_portable.o" ;;
-    esac
-    rm -f "$EXACT_OBJECT"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" \
-                -o "$EXACT_OBJECT" ;;
-        *)
-            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" -o "$EXACT_OBJECT" ;;
-    esac
-    [ -f "$EXACT_OBJECT" ] || { echo "  build failed: $name.c did not compile"; exit 1; }
-    PORTABLE_OBJECTS+=("$EXACT_OBJECT")
-done
+# the member reader of a query file, which the ruleset reader reads the blob of a ruleset through
+PORTABLE_SOURCES+=("$ENGINE/../../../includes/file_defs/qry/writer/qry_member.c"
+    "$ENGINE/../../../includes/file_defs/qry/writer/platform/"*.c "$ENGINE/../../../includes/file_defs/qry/qry_read.c"
+    "${EXACT_TYPES_PLATFORM_LIBRARY[@]}")
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        PORTABLE_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${DEFINES[@]}"
+                        "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
+        EXACT_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}")
+        ;;
+    *)
+        PORTABLE_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
+        EXACT_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${EXACT_FLAGS[@]}")
+        ;;
+esac
+CU_WORDS=(nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 -fmad=false -rdc=true "${GENCODE[@]}" "${DEFINES[@]}"
+          "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
+# Each source compiles one time for its words (shared_objects.sh). The .cu sources reach the tables of MMgr in each pass
+# of nvcc, and they compile with -rdc=true. The line of MMgr, the cellblock and the device hooks compile as CUDA
+# (exact_types_device_line). The library links them all with the device link
+exact_types_device_line || exit 1
+OBJECTS=("${EXACT_TYPES_DEVICE_LINE[@]}")
+shared_objects_built PORTABLE_WORDS "${PORTABLE_SOURCES[@]}" || exit 1
+OBJECTS+=("${SHARED_OBJECTS[@]}")
+shared_objects_built EXACT_WORDS "$EXACT_ROOT"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c || exit 1
+OBJECTS+=("${SHARED_OBJECTS[@]}")
+shared_objects_built CU_WORDS "${MODULE_SOURCES[@]}" || exit 1
+OBJECTS+=("${SHARED_OBJECTS[@]}")
 
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -fmad=false "${GENCODE[@]}" -shared \
-    "${LINK_FLAGS[@]}" "${DEFINES[@]}" \
-    "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}" \
-    -o "$LIBRARY" \
-    "${MODULE_SOURCES[@]}" \
-    "${PORTABLE_OBJECTS[@]}"
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -shared -rdc=true "${GENCODE[@]}" "${LINK_FLAGS[@]}" \
+    -o "$LIBRARY" "${OBJECTS[@]}"
 NVCC_STATUS=$?
 
 if [ "$NVCC_STATUS" -ne 0 ] || [ ! -f "$LIBRARY" ]; then

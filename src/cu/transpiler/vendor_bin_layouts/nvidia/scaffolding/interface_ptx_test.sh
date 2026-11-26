@@ -56,7 +56,7 @@ rm -f "$BINARY" "$PROBE"
 # the test and the probe are programs of the platform, and link MMgr's line with the platform
 # (exact_types_platform_link)
 source "$TOP/includes/exact_types/exact_types.sh"
-exact_types_platform_link probe || exit 1
+exact_types_device_platform_link || exit 1
 OBJECTS=()
 # the interface compares and copies through MMgr, whose line comes in PLATFORM_LINK
 for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TEST/interface_ptx_test.c"; do
@@ -71,7 +71,7 @@ for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/int
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true "${GENCODE[@]}" -o "$BINARY" "${OBJECTS[@]}" "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: the interface's PTX test did not link"; exit 1; }
 # The probe reads rulesets and writes forms. The record machine runs the code generator's assembly printer
 # (asm_printer_*.cu) and the code generator on the device (codegen*.cu). The probe does not link the record machine
@@ -97,7 +97,7 @@ for source in "${FILE_DEFS_FORMATS[@]}"; do
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     FORMAT_OBJECTS+=("$object")
 done
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true -std=c++20 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" \
     -o "$PROBE" "$TEST_CU"/interface_ptx_probe_{questions,runs,main}.cu "$TEST_CU/ptx_target.cu" \
     "${CODEGEN_SOURCES[@]}" "${FORMAT_OBJECTS[@]}" -lnvrtc -lnvJitLink "${PLATFORM_LINK[@]}"
 [ -f "$PROBE" ] || { echo "  build failed: the PTX probe did not build"; exit 1; }

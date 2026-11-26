@@ -18,7 +18,6 @@ HOST_FLAGS=()
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         BINARY="$OUT/knee_period.exe"
-        EXTENSION=obj
         MSVC_BIN="$(ls -d "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC"/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
         if [ -z "$MSVC_BIN" ]; then
             MSVC_BIN="$(ls -d "/c/Program Files/Microsoft Visual Studio"/*/*/VC/Tools/MSVC/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
@@ -32,7 +31,6 @@ case "$(uname -s)" in
         ;;
     *)
         BINARY="$OUT/knee_period"
-        EXTENSION=o
         HOST_FLAGS=(-Xcompiler -fPIC)
         LINK_FLAGS=()
         ;;
@@ -49,7 +47,7 @@ for one in $ARCHES; do
 done
 
 # the exact integer's width, fitted to the engine's widest question as the driver builds fit it
-EXACT_ROOT="$ENGINE/../types/integers"
+EXACT_ROOT="$ENGINE/../../../includes/exact_types/integers"
 RESIDUAL_LIMBS="$(sed -n 's/^#define ENGINE_RESIDUAL_LIMBS \([0-9]*\)u.*/\1/p' "$ENGINE"/engine_config_*.h)"
 RECORD_LIMBS="$(sed -n 's/^#define ENGINE_RECORD_LIMBS_MAX \([0-9]*\)u.*/\1/p' "$ENGINE"/engine_config_*.h)"
 [ -n "$RESIDUAL_LIMBS" ] && [ -n "$RECORD_LIMBS" ] || { echo "  build failed: engine_config_*.h widths"; exit 1; }
@@ -66,7 +64,8 @@ EXACT_FLAGS=(-I "$EXACT_ROOT" "-DORIOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DORIOR_EXA
 MODULES=(../includes/formats/stack ../includes/file_defs/krep cu/engine/analysis/compression cu/engine/analysis/tower
          cu/engine/runtime/device_pool cu/engine/analysis/entropy_history cu/engine/analysis/noise_detector
          cu/engine/runtime/schedule cu/engine/analysis/keymath cu/engine/analysis/key_schedule
-         cu/engine/analysis/cycle cu/engine/rmc ../includes/parsers ../includes/file_defs/klq cu/engine/runtime/radix_keys
+         cu/engine/analysis/cycle cu/engine/rmc ../includes/parsers ../includes/file_defs/krs/ruleset_flat ../includes/file_defs/klq
+         cu/engine/runtime/radix_keys
          cu/engine/analysis/unit_sweep cu/engine/runtime/obsignatio cu/engine/analysis/residual
          cu/engine/nbody/max_tree cu/engine/nbody/flatten cu/engine/analysis/golden_bands
          cu/engine/analysis/residual_survey cu/engine/nbody/grow cu/engine/analysis/shift_agreement
@@ -81,7 +80,7 @@ INGEST=(../includes/formats/cfg_json ../includes/formats/zarr ../includes/codecs
         ../includes/formats/npy ../includes/formats/nrrd ../includes/formats/nifti
         ../includes/formats/parquet)
 MODULES+=("${INGEST[@]}")
-INCLUDES=(-I "$ENGINE" -I "$ENGINE/../includes/codecs/crc" -I "$ENGINE/runtime/daemon")
+INCLUDES=(-I "$ENGINE" -I "$ENGINE/../../../includes/codecs/crc" -I "$ENGINE/runtime/daemon")
 SOURCES=("$HERE/knee_period.cu" "$ENGINE"/engine_{record,residual,files,zarr,source,listing,seal,report,history}.cu)
 for module in "${MODULES[@]}"; do
     folder="$(build_path "$module")"
@@ -93,14 +92,12 @@ for module in "${MODULES[@]}"; do
 done
 INCLUDES+=("${TESSERA_INCLUDES[@]}")
 # MMgr's line, which the engine writes its text through: its flags for every source, its sources among the portable ones
-source "$ENGINE/../includes/file_defs/file_defs.sh"
-source "$ENGINE/../includes/exact_types/exact_types.sh"
+source "$ENGINE/../../../includes/file_defs/file_defs.sh"
+source "$ENGINE/../../../includes/exact_types/exact_types.sh"
 # the exact sources reach MMgr and embedded_types through their own headers
 EXACT_FLAGS+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 INCLUDES+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 
-OBJECTS=()
-LINEA_OBJECTS=()
 PORTABLE_SOURCES=()
 for portable in cu/engine/nbody/body_overlap cu/engine/analysis/shift_agreement cu/engine/nbody/max_tree \
                 cu/engine/analysis/cycle cu/engine/nbody/heaviest_matching cu/engine/nbody/marginal \
@@ -108,41 +105,32 @@ for portable in cu/engine/nbody/body_overlap cu/engine/analysis/shift_agreement 
                 ../includes/exact_types/integers/exact_record "${INGEST[@]}"; do
     PORTABLE_SOURCES+=("$(build_path "$portable")"/*.c)
 done
-PORTABLE_SOURCES+=("${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}")
-for source in "${PORTABLE_SOURCES[@]}"; do
-    object="$OUT/$(basename "$source" .c)_knee.$EXTENSION"
-    rm -f "$object"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" \
-                -o "$object" ;;
-        *)
-            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$object" ;;
-    esac
-    [ -f "$object" ] || { echo "  build failed: $source did not compile"; exit 1; }
-    OBJECTS+=("$object")
-    case "$source" in
-        */mmgr/src/locus_carcerum/*) ;;
-        */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
-    esac
-done
-for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
-    object="$OUT/${name}_knee.$EXTENSION"
-    rm -f "$object"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" -o "$object" ;;
-        *)
-            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" -o "$object" ;;
-    esac
-    [ -f "$object" ] || { echo "  build failed: $name.c did not compile"; exit 1; }
-    OBJECTS+=("$object")
-done
+# the member reader of a query file, which the ruleset reader reads the blob of a ruleset through
+PORTABLE_SOURCES+=("$TOP/includes/file_defs/qry/writer/qry_member.c" "$TOP/includes/file_defs/qry/writer/platform/"*.c
+    "$TOP/includes/file_defs/qry/qry_read.c" "${EXACT_TYPES_PLATFORM[@]}")
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        PORTABLE_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}")
+        EXACT_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}")
+        ;;
+    *)
+        PORTABLE_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}" "${EXACT_FLAGS[@]}")
+        EXACT_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${EXACT_FLAGS[@]}")
+        ;;
+esac
+# Each source compiles one time for its words (shared_objects.sh). The line of MMgr, the cellblock and the device hooks
+# compile as CUDA (exact_types_device_line). The program and the tessera daemon link them with nvcc's device link
+exact_types_device_line || exit 1
+LINEA_OBJECTS=("${EXACT_TYPES_DEVICE_LINE[@]}")
+shared_objects_built PORTABLE_WORDS "${PORTABLE_SOURCES[@]}" || exit 1
+OBJECTS=("${LINEA_OBJECTS[@]}" "${SHARED_OBJECTS[@]}")
+shared_objects_built EXACT_WORDS "$EXACT_ROOT"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c || exit 1
+OBJECTS+=("${SHARED_OBJECTS[@]}")
 # every load, draw and read is a job on the device's tessera daemon, built beside the binary
-tessera_build knee "${LINEA_OBJECTS[@]}" || exit 1
+tessera_build "${LINEA_OBJECTS[@]}" || exit 1
 
 rm -f "$BINARY"
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -fmad=false "${GENCODE[@]}" "${LINK_FLAGS[@]}" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -fmad=false -rdc=true "${GENCODE[@]}" "${LINK_FLAGS[@]}" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" \
     -o "$BINARY" "${SOURCES[@]}" "${OBJECTS[@]}" "${TESSERA_OBJECTS[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build knee_period"; exit 1; }
 case "$(uname -s)" in

@@ -44,7 +44,7 @@ for one in $ARCHES; do
 done
 echo "  architectures: $ARCHES"
 
-EXACT_ROOT="${ORIOR_EXACT_ROOT:-$ENGINE/../types/integers}"
+EXACT_ROOT="${ORIOR_EXACT_ROOT:-$ENGINE/../../../includes/exact_types/integers}"
 RESIDUAL_LIMBS="$(sed -n 's/^#define ENGINE_RESIDUAL_LIMBS \([0-9]*\)u.*/\1/p' "$ENGINE"/engine_config_*.h)"
 [ -n "$RESIDUAL_LIMBS" ] || { echo "  build failed: no ENGINE_RESIDUAL_LIMBS in engine_config_*.h"; exit 1; }
 QUESTION_LIMBS=$((RESIDUAL_LIMBS + 1))
@@ -72,7 +72,7 @@ FUNCTIONALS=(cell_tracking/src/run_cfg ../includes/formats/cfg_json cell_trackin
              cu/engine/analysis/noise_detector cu/engine/runtime/schedule
              cu/engine/analysis/keymath
              cu/engine/analysis/key_schedule cu/engine/analysis/cycle
-             cu/engine/rmc ../includes/parsers
+             cu/engine/rmc ../includes/parsers ../includes/file_defs/krs/ruleset_flat ../includes/file_defs/klq
              cu/engine/runtime/radix_keys cu/engine/analysis/unit_sweep
              cu/engine/runtime/obsignatio cu/engine/analysis/residual
              cu/engine/nbody/max_tree cu/engine/nbody/flatten
@@ -97,10 +97,10 @@ INGEST=(../includes/formats/zarr ../includes/codecs/zstd ../includes/codecs/infl
         ../includes/formats/dicom ../includes/formats/npy ../includes/formats/nrrd ../includes/formats/nifti
         ../includes/formats/parquet)
 FUNCTIONALS+=("${INGEST[@]}")
-FUNCTIONAL_INCLUDES=(-I "$ENGINE" -I "$ENGINE/../../cu/engine" -I "$ENGINE/../includes/codecs/crc" -I "$ENGINE/../../../includes/codecs/crc" -I "$ENGINE/runtime/daemon")
+FUNCTIONAL_INCLUDES=(-I "$ENGINE" -I "$ENGINE/../../cu/engine" -I "$ENGINE/../../../includes/codecs/crc" -I "$ENGINE/runtime/daemon")
 # MMgr's line, which the engine writes its text through: its flags for every source, its sources among the portable ones
-source "$ENGINE/../includes/file_defs/file_defs.sh"
-source "$ENGINE/../includes/exact_types/exact_types.sh"
+source "$ENGINE/../../../includes/file_defs/file_defs.sh"
+source "$ENGINE/../../../includes/exact_types/exact_types.sh"
 # the exact sources reach MMgr and embedded_types through their own headers
 EXACT_FLAGS+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 FUNCTIONAL_INCLUDES+=("${FILE_DEFS_MMGR_FLAGS[@]}")
@@ -121,96 +121,64 @@ for portable in cu/engine/nbody/body_overlap cu/engine/analysis/shift_agreement 
                 "${INGEST[@]}"; do
     PORTABLE_SOURCES+=("$(build_path "$portable")"/*.c)
 done
-PORTABLE_SOURCES+=("${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}")
-PORTABLE_OBJECTS=()
-# the line's objects, which the daemon links too
-LINEA_OBJECTS=()
-# the process stage, the pool, the system calls and the carcer of the platform, which the daemon links too
-PLATFORM_OBJECTS=()
-for source in "${PORTABLE_SOURCES[@]}"; do
-    name="$(basename "$source" .c)"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*) OBJECT="$OUT/${name}_portable.obj" ;;
-        *) OBJECT="$OUT/${name}_portable.o" ;;
-    esac
-    rm -f "$OBJECT"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT" ;;
-        *)
-            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT" ;;
-    esac
-    [ -f "$OBJECT" ] || { echo "  build failed: $source did not compile"; exit 1; }
-    PORTABLE_OBJECTS+=("$OBJECT")
-    case "$source" in
-        */mmgr/src/locus_carcerum/*|*/src/platform/*) PLATFORM_OBJECTS+=("$OBJECT") ;;
-        */mmgr/src/*) LINEA_OBJECTS+=("$OBJECT") ;;
-    esac
-done
-for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*) EXACT_OBJECT="$OUT/${name}_portable.obj" ;;
-        *) EXACT_OBJECT="$OUT/${name}_portable.o" ;;
-    esac
-    rm -f "$EXACT_OBJECT"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" \
-                -o "$EXACT_OBJECT" ;;
-        *)
-            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${EXACT_FLAGS[@]}" -c "$EXACT_ROOT/$name.c" -o "$EXACT_OBJECT" ;;
-    esac
-    [ -f "$EXACT_OBJECT" ] || { echo "  build failed: $name.c did not compile"; exit 1; }
-    PORTABLE_OBJECTS+=("$EXACT_OBJECT")
-done
+# the member reader of a query file, which the ruleset reader reads the blob of a ruleset through
+PORTABLE_SOURCES+=("$ENGINE/../../../includes/file_defs/qry/writer/qry_member.c"
+    "$ENGINE/../../../includes/file_defs/qry/writer/platform/"*.c "$ENGINE/../../../includes/file_defs/qry/qry_read.c")
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        PORTABLE_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
+        EXACT_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${EXACT_FLAGS[@]}")
+        DAEMON_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${FUNCTIONAL_INCLUDES[@]}")
+        SUFFIX=.exe
+        DAEMON_LIBRARIES=(-lpdh)
+        ;;
+    *)
+        PORTABLE_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
+        EXACT_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${EXACT_FLAGS[@]}")
+        DAEMON_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${FUNCTIONAL_INCLUDES[@]}")
+        SUFFIX=
+        DAEMON_LIBRARIES=(-ldl -lpthread)
+        ;;
+esac
+# Each source compiles one time for its words (shared_objects.sh). The line of MMgr, the cellblock and the device hooks
+# compile as CUDA (exact_types_device_line). The driver and the daemon link them with nvcc's device link. The process
+# stage, the pool and the system calls of the platform go in the daemon too
+exact_types_device_line || exit 1
+LINEA_OBJECTS=("${EXACT_TYPES_DEVICE_LINE[@]}")
+shared_objects_built PORTABLE_WORDS "${EXACT_TYPES_PLATFORM[@]}" || exit 1
+PLATFORM_OBJECTS=("${SHARED_OBJECTS[@]}")
+shared_objects_built PORTABLE_WORDS "${PORTABLE_SOURCES[@]}" || exit 1
+PORTABLE_OBJECTS=("${LINEA_OBJECTS[@]}" "${PLATFORM_OBJECTS[@]}" "${SHARED_OBJECTS[@]}")
+shared_objects_built EXACT_WORDS "$EXACT_ROOT"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c || exit 1
+PORTABLE_OBJECTS+=("${SHARED_OBJECTS[@]}")
 
 # Every run of the driver is a job on the device's tessera daemon. The client goes into the driver. The script builds
-# the daemon and publishes it beside the driver, which starts it when none answers
-case "$(uname -s)" in
-    MINGW*|MSYS*|CYGWIN*) SUFFIX=.exe; OBJECT_SUFFIX=obj; DAEMON_LIBRARIES=(-lpdh) ;;
-    *) SUFFIX=; OBJECT_SUFFIX=o; DAEMON_LIBRARIES=(-ldl -lpthread) ;;
-esac
-TESSERA_CLIENT_OBJECTS=()
-TESSERA_DAEMON_OBJECTS=()
-for name in tessera_client_{socket,jobs} tessera_paths tessera_frame tessera_self tessera_ledger tessera_measure \
-            tessera_daemon_{state,admission,peers,main}; do
-    OBJECT="$OUT/${name}_portable.$OBJECT_SUFFIX"
-    rm -f "$OBJECT"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${FUNCTIONAL_INCLUDES[@]}" \
-                -c "$ENGINE/runtime/daemon/$name.c" -o "$OBJECT" ;;
-        *)
-            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -g -fPIC "${FUNCTIONAL_INCLUDES[@]}" -c "$ENGINE/runtime/daemon/$name.c" -o "$OBJECT" ;;
-    esac
-    [ -f "$OBJECT" ] || { echo "  build failed: cu/engine/runtime/daemon$name.c did not compile"; exit 1; }
-    case "$name" in
-        tessera_client_*) TESSERA_CLIENT_OBJECTS+=("$OBJECT") ;;
-        tessera_paths|tessera_frame|tessera_self) TESSERA_CLIENT_OBJECTS+=("$OBJECT"); TESSERA_DAEMON_OBJECTS+=("$OBJECT") ;;
-        *) TESSERA_DAEMON_OBJECTS+=("$OBJECT") ;;
-    esac
-done
-PORTABLE_OBJECTS+=("${TESSERA_CLIENT_OBJECTS[@]}")
+# the daemon and publishes it beside the driver, which starts it when none answers. The sources come as the two
+# clients, then the three that the clients and the daemon both link, then the daemon's own
+shared_objects_built DAEMON_WORDS "$ENGINE/runtime/daemon"/tessera_client_{socket,jobs}.c \
+    "$ENGINE/runtime/daemon"/tessera_{paths,frame,self,ledger,measure}.c \
+    "$ENGINE/runtime/daemon"/tessera_daemon_{state,admission,peers,main}.c || exit 1
+PORTABLE_OBJECTS+=("${SHARED_OBJECTS[@]:0:5}")
+TESSERA_DAEMON_OBJECTS=("${SHARED_OBJECTS[@]:2}")
 DAEMON="$OUT/tessera_daemon$SUFFIX"
 rm -f "$DAEMON"
-SEAL_OBJECTS=()
-for name in obsignatio_{hash,seal}; do
-    SEAL_OBJECT="$OUT/${name}_daemon.$OBJECT_SUFFIX"
-    rm -f "$SEAL_OBJECT"
-    nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${FUNCTIONAL_INCLUDES[@]}" -c "$ENGINE/../../cu/engine/runtime/obsignatio/$name.cu" \
-        -o "$SEAL_OBJECT"
-    SEAL_OBJECTS+=("$SEAL_OBJECT")
-done
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${GENCODE[@]}" "${LINK_FLAGS[@]}" -o "$DAEMON" "${TESSERA_DAEMON_OBJECTS[@]}" \
+SEAL_WORDS=(nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 -rdc=true "${GENCODE[@]}" "${FUNCTIONAL_INCLUDES[@]}")
+shared_objects_built SEAL_WORDS "$ENGINE/../../cu/engine/runtime/obsignatio"/obsignatio_{hash,seal}.cu || exit 1
+SEAL_OBJECTS=("${SHARED_OBJECTS[@]}")
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true "${GENCODE[@]}" "${LINK_FLAGS[@]}" -o "$DAEMON" "${TESSERA_DAEMON_OBJECTS[@]}" \
     "${LINEA_OBJECTS[@]}" "${PLATFORM_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}" "${EXACT_TYPES_LIBRARIES[@]}"
 [ -f "$DAEMON" ] || { echo "  build failed: the tessera daemon did not link"; exit 1; }
 echo "  built $DAEMON"
 
+# the engine's .cu sources, each compiled one time for these words, with -rdc=true for the device link
+FUNCTIONAL_WORDS=(nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 -fmad=false -rdc=true "${GENCODE[@]}" "${EXTRA_DEFINES[@]}"
+                  "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
+shared_objects_built FUNCTIONAL_WORDS "${FUNCTIONAL_SOURCES[@]}" || exit 1
+FUNCTIONAL_OBJECTS=("${SHARED_OBJECTS[@]}")
 rm -f "$BINARY"
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -fmad=false "${GENCODE[@]}" "${EXTRA_DEFINES[@]}" \
-    "${LINK_FLAGS[@]}" "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true "${GENCODE[@]}" "${LINK_FLAGS[@]}" \
     -o "$BINARY" \
-    "${FUNCTIONAL_SOURCES[@]}" \
+    "${FUNCTIONAL_OBJECTS[@]}" \
     "${PORTABLE_OBJECTS[@]}"
 STATUS=$?
 if [ "$STATUS" -ne 0 ] || [ ! -f "$BINARY" ]; then

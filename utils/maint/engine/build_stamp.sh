@@ -11,24 +11,25 @@ if [ ! -f "$ENGINE/engine_config.h" ]; then
     exit 1
 fi
 
-# the top of the repository TOP is in, the project's own where it takes orior as a submodule, where every build
-# goes under build/; TOP itself where git gives none
+# The top of the repository that TOP is in, where every build goes under build/. A project that takes orior as a
+# submodule has its own top. Where git gives none, TOP itself
 BUILD_ROOT="$(git -C "$TOP" rev-parse --show-toplevel 2> /dev/null)"
 [ -n "$BUILD_ROOT" ] || BUILD_ROOT="$TOP"
 
-# a build's path: cu/..., cu/... and sims/... are the engine's, and anything else the project's
+# The folder of a path that a build names. Paths under engine/, c/, cu/, sims/ and ../includes/ are orior's. They
+# start at its src folder, as the build of the engine reads them. Each other path is the project's
 build_path()
 {
     case "$1" in
         engine/*) printf '%s\n' "$ENGINE/${1#engine/}" ;;
-        c/* | cu/* | sims/*) printf '%s\n' "$ENGINE/../../$1" ;;
+        c/* | cu/* | sims/* | ../includes/*) printf '%s\n' "$ENGINE/../../$1" ;;
         *) printf '%s\n' "$TOP/$1" ;;
     esac
 }
 
-# the compile cache (utils/maint/engine/compile_cache.py): nvcc below compiles each source once a tree, into COMPILE_CACHE_DIR, and
-# links what an earlier build of the same tree and flags compiled. The key is this project's tree and the engine's,
-# taken once here; COMPILE_CACHE=0 turns it off
+# The compile cache (utils/maint/engine/compile_cache.py). The nvcc below compiles each source into COMPILE_CACHE_DIR
+# once for its flags. A later build links that object until the source or a file that its compile read is newer. The
+# key names the roots of this project and of the engine, and this file takes it once. COMPILE_CACHE=0 turns it off
 COMPILE_CACHE_NVCC="$(type -P nvcc 2> /dev/null)"
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) COMPILE_CACHE_PYTHON="$(type -P python 2> /dev/null)" ;;
@@ -45,8 +46,8 @@ if [ "${COMPILE_CACHE:-1}" != 0 ] && [ -n "$COMPILE_CACHE_NVCC" ] && [ -n "$COMP
     }
 fi
 
-# the host compiler a program built on the host (CYCLE_RECORD_HOST_C=1) is compiled by: on Windows nvcc, passed
-# MSVC's folder as CYCLE_HOST_CCBIN, found as the suites find it
+# The host compiler of a program for the host (CYCLE_RECORD_HOST_C=1). On Windows that is nvcc, which takes the folder
+# of MSVC as CYCLE_HOST_CCBIN. This file finds the folder as the suites find it
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         if [ -z "${CYCLE_HOST_CCBIN:-}" ]; then

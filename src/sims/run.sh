@@ -95,7 +95,6 @@ HOST_FLAGS=()
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         BINARY="$OUT/$SIM.exe"
-        EXTENSION=obj
         MSVC_BIN="$(ls -d "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC"/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
         if [ -z "$MSVC_BIN" ]; then
             MSVC_BIN="$(ls -d "/c/Program Files/Microsoft Visual Studio"/*/*/VC/Tools/MSVC/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
@@ -109,7 +108,6 @@ case "$(uname -s)" in
         ;;
     *)
         BINARY="$OUT/$SIM"
-        EXTENSION=o
         HOST_FLAGS=(-Xcompiler -fPIC)
         LONG_PATHS=()
         ;;
@@ -142,65 +140,43 @@ if [ -n "${SIM_EXACT_LIMBS:-}" ]; then
     WIDTH=(-DORIOR_EXACT_LIMBS="${SIM_EXACT_LIMBS}u")
 fi
 rm -f "$BINARY"
-build_object()
-{
-    local source="$1"
-    local object="$2"
-    rm -f "$object"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${WIDTH[@]}" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
-        *)
-            cc -std=c11 -O2 -fPIC "${FILE_DEFS_LTO_CC[@]}" "${WIDTH[@]}" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
-    esac
-    [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
-}
-OBJECTS=()
-LINEA_OBJECTS=()
-# the process stage, the pool, the system calls and the carcer of the platform, which the daemon links too
-PLATFORM_OBJECTS=()
-for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
-              "${HOST_SOURCES[@]}"; do
-    object="$OUT/$(basename "$source" .c)_sim.$EXTENSION"
-    build_object "$source" "$object"
-    OBJECTS+=("$object")
-    case "$source" in
-        */mmgr/src/locus_carcerum/*|*/src/platform/*) PLATFORM_OBJECTS+=("$object") ;;
-        */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
-    esac
-done
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        SIM_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${WIDTH[@]}" "${INCLUDES[@]}") ;;
+    *)
+        SIM_WORDS=(cc -std=c11 -O2 -fPIC "${FILE_DEFS_LTO_CC[@]}" "${WIDTH[@]}" "${INCLUDES[@]}") ;;
+esac
+# Each source compiles one time for its words (shared_objects.sh). The line of MMgr, the cellblock and the device hooks
+# compile as CUDA (exact_types_device_line). The sim and the daemon link them with nvcc's device link. The process
+# stage, the pool and the system calls of the platform go in the daemon too
+exact_types_device_line || exit 1
+LINEA_OBJECTS=("${EXACT_TYPES_DEVICE_LINE[@]}")
+shared_objects_built SIM_WORDS "${EXACT_TYPES_PLATFORM[@]}" || exit 1
+PLATFORM_OBJECTS=("${SHARED_OBJECTS[@]}")
+shared_objects_built SIM_WORDS "${FILE_DEFS_FORMATS[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${HOST_SOURCES[@]}" || exit 1
+OBJECTS=("${LINEA_OBJECTS[@]}" "${PLATFORM_OBJECTS[@]}" "${SHARED_OBJECTS[@]}")
 
 # A sim that uses the device is a job on the device's tessera daemon. The client goes into the sim, and the script
-# builds the daemon beside it, where the sim starts it when none answers
-DAEMON_OBJECTS=()
-for name in tessera_client_{socket,jobs} tessera_paths tessera_frame tessera_self tessera_ledger tessera_measure \
-            tessera_daemon_{state,admission,peers,main}; do
-    object="$OUT/${name}_sim.$EXTENSION"
-    build_object "$DAEMON_DIRECTORY/$name.c" "$object"
-    case "$name" in
-        tessera_client_*) OBJECTS+=("$object") ;;
-        tessera_paths|tessera_frame|tessera_self) OBJECTS+=("$object"); DAEMON_OBJECTS+=("$object") ;;
-        *) DAEMON_OBJECTS+=("$object") ;;
-    esac
-done
-SEAL_OBJECTS=()
-for name in obsignatio_{hash,seal}; do
-    object="$OUT/${name}_sim.$EXTENSION"
-    rm -f "$object"
-    nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${WIDTH[@]}" "${INCLUDES[@]}" -c "$OBSIGNATIO_CU/$name.cu" -o "$object"
-    [ -f "$object" ] || { echo "  build failed: $name.cu did not compile"; exit 1; }
-    SEAL_OBJECTS+=("$object")
-done
+# builds the daemon beside it, where the sim starts it when none answers. The sources come as the two clients, then the
+# three that the clients and the daemon both link, then the daemon's own
+shared_objects_built SIM_WORDS "$DAEMON_DIRECTORY"/tessera_client_{socket,jobs}.c \
+    "$DAEMON_DIRECTORY"/tessera_{paths,frame,self,ledger,measure}.c \
+    "$DAEMON_DIRECTORY"/tessera_daemon_{state,admission,peers,main}.c || exit 1
+OBJECTS+=("${SHARED_OBJECTS[@]:0:5}")
+DAEMON_OBJECTS=("${SHARED_OBJECTS[@]:2}")
+SEAL_WORDS=(nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 -rdc=true "${GENCODE[@]}" "${WIDTH[@]}" "${INCLUDES[@]}")
+shared_objects_built SEAL_WORDS "$OBSIGNATIO_CU"/obsignatio_{hash,seal}.cu || exit 1
+SEAL_OBJECTS=("${SHARED_OBJECTS[@]}")
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) DAEMON="$OUT/tessera_daemon.exe"; DAEMON_LIBRARIES=(-lpdh) ;;
     *) DAEMON="$OUT/tessera_daemon"; DAEMON_LIBRARIES=(-ldl -lpthread) ;;
 esac
 rm -f "$DAEMON"
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${GENCODE[@]}" "${LONG_PATHS[@]}" -o "$DAEMON" "${DAEMON_OBJECTS[@]}" "${LINEA_OBJECTS[@]}" "${PLATFORM_OBJECTS[@]}" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true "${GENCODE[@]}" "${LONG_PATHS[@]}" -o "$DAEMON" "${DAEMON_OBJECTS[@]}" "${LINEA_OBJECTS[@]}" "${PLATFORM_OBJECTS[@]}" \
     "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}" "${EXACT_TYPES_LIBRARIES[@]}"
 [ -f "$DAEMON" ] || { echo "  build failed: the tessera daemon did not link"; exit 1; }
 
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${WIDTH[@]}" "${INCLUDES[@]}" "${LONG_PATHS[@]}" -o "$BINARY" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -rdc=true "${GENCODE[@]}" "${WIDTH[@]}" "${INCLUDES[@]}" "${LONG_PATHS[@]}" -o "$BINARY" \
     "${SOURCES[@]}" "$SIMS/cu/sim_job.cu" "${MODULE_SOURCES[@]}" "${OBJECTS[@]}" "${SEAL_OBJECTS[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build $SIM"; exit 1; }
 

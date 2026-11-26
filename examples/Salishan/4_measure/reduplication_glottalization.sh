@@ -32,7 +32,6 @@ HOST_FLAGS=()
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         BINARY="$OUT/reduplication_glottalization.exe"
-        EXTENSION=obj
         MSVC_BIN="$(ls -d "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC"/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
         if [ -z "$MSVC_BIN" ]; then
             MSVC_BIN="$(ls -d "/c/Program Files/Microsoft Visual Studio"/*/*/VC/Tools/MSVC/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
@@ -45,7 +44,6 @@ case "$(uname -s)" in
         ;;
     *)
         BINARY="$OUT/reduplication_glottalization"
-        EXTENSION=o
         HOST_FLAGS=(-Xcompiler -fPIC)
         ;;
 esac
@@ -64,27 +62,22 @@ INCLUDES=(-I "$TOP/src/cu/engine" -I "$CYCLE" -I "$CYCLE_CU" -I "$CODEGEN" -I "$
           -I "$KEYMATH_CU" -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$NO_ROUNDING" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$SIMS_CU"
           "${TESSERA_INCLUDES[@]}")
 rm -f "$BINARY"
-OBJECTS=()
-LINEA_OBJECTS=()
-for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" "$CYCLE/cycle.c"; do
-    object="$OUT/$(basename "$source" .c)_reduplication_glottalization.$EXTENSION"
-    rm -f "$object"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
-        *)
-            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}" -c "$source" -o "$object" ;;
-    esac
-    [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
-    OBJECTS+=("$object")
-    case "$source" in
-        */mmgr/src/locus_carcerum/*) ;;
-        */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
-    esac
-done
-tessera_build reduplication_glottalization "${LINEA_OBJECTS[@]}" || exit 1
+# The sources that the program links, each compiled one time for these words (shared_objects.sh). The line of
+# MMgr, the cellblock and the device hooks compile as CUDA (exact_types_device_line), and the tessera daemon
+# links them too
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        SHARED_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}") ;;
+    *)
+        SHARED_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}") ;;
+esac
+exact_types_device_line || exit 1
+LINEA_OBJECTS=("${EXACT_TYPES_DEVICE_LINE[@]}")
+shared_objects_built SHARED_WORDS "${FILE_DEFS_FORMATS[@]}" "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "$CYCLE/cycle.c" || exit 1
+OBJECTS=("${LINEA_OBJECTS[@]}" "${SHARED_OBJECTS[@]}")
+tessera_build "${LINEA_OBJECTS[@]}" || exit 1
 
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -rdc=true "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
     "$HERE/reduplication_glottalization.cu" "$SIMS_CU/sim_job.cu" "$CYCLE_CU"/cycle*.cu "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu \
     "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "${OBJECTS[@]}" "${TESSERA_OBJECTS[@]}" "${TESSERA_SEAL[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build reduplication_glottalization"; exit 1; }

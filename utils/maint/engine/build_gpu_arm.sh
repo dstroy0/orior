@@ -69,10 +69,9 @@ if [ -z "$ARCHES" ]; then
 fi
 echo "  architectures: $ARCHES"
 
-GENCODE=""
+GENCODE=()
 for one in $ARCHES; do
-    NUM="${one#sm_}"
-    GENCODE="$GENCODE -gencode arch=compute_${NUM},code=${one}"
+    GENCODE+=(-gencode "arch=compute_${one#sm_},code=${one}")
 done
 
 # The script deletes the binary before the build. A binary of an earlier build must not outlast a
@@ -83,24 +82,25 @@ rm -f "$OUT/bench_exact_gpu.exe"
 # PIPESTATUS and not $?, as the pipe into grep would otherwise give grep's status. Grep succeeds
 # whatever nvcc did. A filter on the output must never decide whether the build passed.
 #
-# WIDTH_DEFINES has no quotes. An empty WIDTH_DEFINES must expand to no argument at all. With
-# quotes it would pass an empty one to nvcc.
-# the defines of the width as words, split where WIDTH_DEFINES has spaces
+# WIDTH_WORDS holds the defines of the width as words, split where WIDTH_DEFINES has spaces. WIDTH_DEFINES has no
+# quotes there. An empty WIDTH_DEFINES then gives no word at all, where quotes would give nvcc an empty one.
 # shellcheck disable=SC2206
 WIDTH_WORDS=($WIDTH_DEFINES)
 source "$ROOT/includes/exact_types/exact_types.sh"
 HOST_FLAGS=(-ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor)
 EXACT_TYPES_EXTRA=(-DORIOR_EXACT_HAVE_CUDA=1 "${WIDTH_WORDS[@]}")
-exact_types_compile gpu_arm "${EXACT_TYPES_ARITHMETIC[@]}" || exit 1
-# shellcheck disable=SC2086
-nvcc -ccbin "$MSVC_BIN" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -O2 $GENCODE \
+# The .cu reaches the tables of MMgr in each pass of nvcc. The line, the cellblock and the device hooks compile as
+# CUDA (exact_types_device_platform_link), and nvcc links the bench with its device link. The exact integers and
+# the C of the arms compile as C11, each one time for its words
+exact_types_device_platform_link || exit 1
+exact_types_compile "${EXACT_TYPES_INTEGERS[@]}" "$ROOT/includes/exact_types/integers/arm.c" \
+    "$ROOT/utils/bench/bench_exact_arms.c" || exit 1
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 -rdc=true "${GENCODE[@]}" \
     "${EXACT_TYPES_FLAGS[@]}" \
-    -DORIOR_EXACT_HAVE_CUDA=1 $WIDTH_DEFINES \
+    -DORIOR_EXACT_HAVE_CUDA=1 "${WIDTH_WORDS[@]}" \
     -o "$OUT/bench_exact_gpu.exe" \
     "$ROOT/includes/exact_types/integers/arm.cu" \
-    "${EXACT_TYPES_OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" \
-    "$ROOT/includes/exact_types/integers/arm.c" \
-    "$ROOT/utils/bench/bench_exact_arms.c" \
+    "${EXACT_TYPES_OBJECTS[@]}" "${PLATFORM_LINK[@]}" \
     2>&1 | grep -viE "^\s*$|Copyright|Microsoft \(R\)|exact_integer\.c$|arm\.c$|bench_exact_arms\.c$|arm_cuda\.cu$" | head -20
 NVCC_STATUS=${PIPESTATUS[0]}
 

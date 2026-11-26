@@ -198,7 +198,7 @@ static unsigned int nrrd_extent(const NrrdFields *fields, EngineArrayExtent *ext
     unsigned int timed = 0u;
     for (unsigned int axis = 0u; axis < fields->dimension; axis += 1u)
     {
-        const NrrdType type = (fields->types_count != 0u) ? fields->types[axis] : NRRD_TYPE_OTHER;
+        const NrrdAxisType type = (fields->types_count != 0u) ? fields->types[axis] : NRRD_TYPE_OTHER;
         const int directed = fields->spaced && !fields->space_timed && (fields->directions_count != 0u) &&
                              (fields->directions[axis] != 0u);
         const int time_axis = (type == NRRD_TYPE_TIME) && (timed == 0u);

@@ -29,7 +29,6 @@ INCLUDES=(-I "$TOP/src/cu/engine" -I "$MODULE" -I "$MODULE_CU" -I "$EXACT_ROOT"
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         BINARY="$OUT/max_tree_levels_test.exe"
-        EXTENSION=obj
         MSVC_BIN="$(ls -d "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC"/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
         if [ -z "$MSVC_BIN" ]; then
             MSVC_BIN="$(ls -d "/c/Program Files/Microsoft Visual Studio"/*/*/VC/Tools/MSVC/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
@@ -42,27 +41,22 @@ case "$(uname -s)" in
         ;;
     *)
         BINARY="$OUT/max_tree_levels_test"
-        EXTENSION=o
         HOST_FLAGS=()
         ;;
 esac
 
 rm -f "$BINARY"
-OBJECTS=()
-for source in "$MODULE"/max_tree_{build,nodes,pairs}.c \
-              "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" "${FILE_DEFS_LINEA[@]}" \
-              "$TEST"/max_tree_levels_test_{draw,agree}.c; do
-    object="$OUT/$(basename "$source" .c)_test.$EXTENSION"
-    rm -f "$object"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
-        *)
-            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 "${INCLUDES[@]}" -c "$source" -o "$object" ;;
-    esac
-    [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
-    OBJECTS+=("$object")
-done
+# each source compiled one time for its words (shared_objects.sh)
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        C_WORDS=(nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}") ;;
+    *)
+        C_WORDS=(cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 "${INCLUDES[@]}") ;;
+esac
+shared_objects_built C_WORDS "$MODULE"/max_tree_{build,nodes,pairs}.c \
+    "${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" "${FILE_DEFS_LINEA[@]}" \
+    "$TEST"/max_tree_levels_test_{draw,agree}.c || exit 1
+OBJECTS=("${SHARED_OBJECTS[@]}")
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -o "$BINARY" "${OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" ;;

@@ -19,7 +19,7 @@ typedef enum
     NRRD_TYPE_OTHER = 0,
     NRRD_TYPE_SPACE = 1,
     NRRD_TYPE_TIME = 2
-} NrrdType;
+} NrrdAxisType;
 
 typedef enum
 {
@@ -65,7 +65,7 @@ typedef struct
     unsigned int sizes_count;
     unsigned long long sizes[ENGINE_ARRAY_RANK];
     unsigned int types_count;
-    NrrdType types[ENGINE_ARRAY_RANK];
+    NrrdAxisType types[ENGINE_ARRAY_RANK];
     unsigned int directions_count;
     unsigned int directions[ENGINE_ARRAY_RANK];
     unsigned int spaced;

@@ -32,7 +32,7 @@ case "$(uname -s)" in
         }
         build_device()
         {
-            nvcc -ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor -Xcompiler -W4 -std=c++20 -O2 "${INCLUDES[@]}" "$@" -lpdh
+            nvcc -ccbin "$MSVC_BIN" -Xcompiler /Zc:preprocessor -Xcompiler -W4 -std=c++20 -O2 -rdc=true "${INCLUDES[@]}" "$@" -lpdh
         }
         build_seal()
         {
@@ -51,7 +51,7 @@ case "$(uname -s)" in
         if command -v nvcc > /dev/null 2>&1; then
             build_device()
             {
-                nvcc -std=c++20 -O2 -Xcompiler -Wall "${INCLUDES[@]}" "$@" -ldl
+                nvcc -std=c++20 -O2 -rdc=true -Xcompiler -Wall "${INCLUDES[@]}" "$@" -ldl
             }
             build_seal()
             {
@@ -77,8 +77,18 @@ esac
 
 # each program of the suite that links daemon code is a program of the platform. It links the MMgr sources, the process
 # stage, the pool and the system calls of the platform, and the carcer of the pool
-exact_types_compile platform "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" || exit 1
+exact_types_compile "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" || exit 1
 PLATFORM_LINK=("${EXACT_TYPES_OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}")
+# A program that build_device links takes DEVICE_LINK. Where the toolchain has nvcc, the seal and the .cu tests reach the
+# tables of MMgr in each pass. The device link of nvcc then joins them (exact_types_device_platform_link). A part with
+# no CUDA toolchain links the C objects
+DEVICE_LINK=("${PLATFORM_LINK[@]}")
+if [ "$DEVICE_TOOLCHAIN" = "1" ]; then
+    HOST_LINK=("${PLATFORM_LINK[@]}")
+    exact_types_device_platform_link || exit 1
+    DEVICE_LINK=("${PLATFORM_LINK[@]}")
+    PLATFORM_LINK=("${HOST_LINK[@]}")
+fi
 
 FAILED=0
 run_one()
@@ -105,7 +115,7 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
         rm -f "$MEASURE_OBJECT" "$SELF_OBJECT"
         build_host -c "$MODULE/tessera_measure.c" -o "$MEASURE_OBJECT"
         build_host -c "$MODULE/tessera_self.c" -o "$SELF_OBJECT"
-        build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "$TEST/tessera_measure_test.cu" "$MEASURE_OBJECT" "$SELF_OBJECT" "${PLATFORM_LINK[@]}" \
+        build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "$TEST/tessera_measure_test.cu" "$MEASURE_OBJECT" "$SELF_OBJECT" "${DEVICE_LINK[@]}" \
             "${LONG_PATHS[@]}" \
             -o "$OUT/tessera_measure_test$SUFFIX"
         run_one tessera_measure_test
@@ -148,10 +158,10 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
             *) DAEMON_OBJECTS+=("$object"); CLIENT_OBJECTS+=("$object") ;;
         esac
     done
-    build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${DAEMON_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${PLATFORM_LINK[@]}" "${LONG_PATHS[@]}" -o "$OUT/tessera_daemon$SUFFIX"
+    build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${DAEMON_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DEVICE_LINK[@]}" "${LONG_PATHS[@]}" -o "$OUT/tessera_daemon$SUFFIX"
     [ -f "$OUT/tessera_daemon$SUFFIX" ] || { echo "  build failed: the daemon did not link"; FAILED=1; }
     if [ "$DEVICE_TOOLCHAIN" = "1" ]; then
-        build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "$TEST/tessera_job_test.cu" "${CLIENT_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${PLATFORM_LINK[@]}" \
+        build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "$TEST/tessera_job_test.cu" "${CLIENT_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DEVICE_LINK[@]}" \
             "${LONG_PATHS[@]}" \
             -o "$OUT/tessera_job_test$SUFFIX"
     fi
@@ -181,7 +191,7 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
         build_host -c "$MODULE/$name.c" -o "$object"
         RUN_OBJECTS+=("$object")
     done
-    build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${RUN_OBJECTS[@]}" "${CLIENT_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${PLATFORM_LINK[@]}" \
+    build_device "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${RUN_OBJECTS[@]}" "${CLIENT_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DEVICE_LINK[@]}" \
         "${LONG_PATHS[@]}" \
         -o "$OUT/tessera_run$SUFFIX"
     build_host "$TEST/tessera_burn.c" "${PLATFORM_LINK[@]}" -o "$OUT/tessera_burn$SUFFIX"

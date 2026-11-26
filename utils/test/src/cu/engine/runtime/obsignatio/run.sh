@@ -69,23 +69,12 @@ for one in $ARCHES; do
 done
 
 rm -f "$BINARY"
-OBJECTS=()
-# the test is a program of the platform: it links MMgr's line, the platform and the carcer
-for source in "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}"; do
-    object="$OUT/$(basename "$source" .c)_test.$EXTENSION"
-    rm -f "$object"
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
-        *)
-            cc -std=c11 "${FILE_DEFS_LTO_CC[@]}" -O2 -fPIC "${INCLUDES[@]}" -c "$source" -o "$object" ;;
-    esac
-    [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
-    OBJECTS+=("$object")
-done
-nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
-    "$TEST"/obsignatio_test_{vectors,properties,streams,main}.cu "$MODULE_CU"/obsignatio_{hash,seal}.cu "${OBJECTS[@]}" \
-    "${EXACT_TYPES_LIBRARIES[@]}"
+# The test is a program of the platform: it links MMgr's line, the platform and the carcer. Its .cu sources reach the
+# tables of MMgr in each pass. The line, the carcer and the device hooks thus compile as CUDA
+# (exact_types_device_platform_link). nvcc links the test with its device link
+exact_types_device_platform_link || exit 1
+nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true -std=c++20 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
+    "$TEST"/obsignatio_test_{vectors,properties,streams,main}.cu "$MODULE_CU"/obsignatio_{hash,seal}.cu "${PLATFORM_LINK[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: nvcc could not build the test"; exit 1; }
 
 "$BINARY" "$TEST/test_vectors.json"

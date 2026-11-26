@@ -41,7 +41,7 @@ rm -f "$BINARY" "$PROBE"
 # the test and its probe are programs of the platform, and link MMgr's line with the platform
 # (exact_types_platform_link)
 source "$TOP/includes/exact_types/exact_types.sh"
-exact_types_platform_link interface || exit 1
+exact_types_platform_link || exit 1
 OBJECTS=()
 for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TEST/interface_test.c"; do
     object="$OUT/$(basename "$source" .c).$EXTENSION"
