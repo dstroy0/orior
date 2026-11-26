@@ -25,7 +25,7 @@ int entry_side_pack(EngineSideSection *section, EngineError *error)
     pack.out = section->packed;
     pack.out_capacity = capacity;
     const long long packed = deflate_raw_encode(&pack);
-    // a packed count that is not errored is at least zero, and fits an unsigned long long exactly
+    // a packed count that is no error is at least zero, and fits an unsigned long long exactly
     section->packed_bytes = (packed >= 0LL) ? (unsigned long long)packed : 0ULL;
     return ENGINE_CHECK(packed >= 0LL, section->packed, error, ENGINE_ERROR_RESOURCE);
 }
@@ -48,7 +48,7 @@ static int entry_side_unpack(EngineSideSection *section, EngineError *error)
     unpack.out = section->side.bytes;
     unpack.out_capacity = bytes;
     const long long unpacked = inflate_raw_decode(&unpack);
-    // the count is compared against a size in memory, which fits a long long
+    // the check compares the count against a size in memory, which fits a long long
     return ENGINE_CHECK(unpacked == (long long)bytes, section->side.bytes, error, ENGINE_ERROR_LOGIC);
 }
 
@@ -177,7 +177,7 @@ static int entry_seal_stream(const EngineStream *stream, const EngineSignum *lea
     const unsigned long long offset_bytes = 8ULL * stream->chunks;
     const unsigned long long bytes = offset_bytes + 8ULL + (ENGINE_SIGNUM_BYTES * stream->chunks);
     unsigned char *const buffer =
-        (unsigned char *)platform_cell_taken((size_t)bytes, platform_place_g_program_owner, 0);
+        (unsigned char *)platform_cell_taken((size_t)bytes, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     if (ENGINE_CHECK(buffer != NULL, &buffer, error, ENGINE_ERROR_RESOURCE) == 0)
     {
         return 0;

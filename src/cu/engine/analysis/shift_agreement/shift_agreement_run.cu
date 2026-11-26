@@ -45,9 +45,10 @@ static int agreement_axis(unsigned int *values, AgreementLayout layout, unsigned
     return ok;
 }
 
-// The layout for `axes` extents, `weights` NULL for none: each axis padded to the power of two at or above 2e - 1, the
-// length a cyclic transform needs to contain every lag without wrap. 0 for extents the run errors: an extent of 0 or
-// past half the longest axis, a voxel count at the prime or past it, or a padded total past 2^31 - 1.
+// The layout for `axes` extents, `weights` NULL for none. The layout pads each axis to the power of two at or above
+// 2e - 1. That is the length that a cyclic transform needs to hold every lag without wrap. The answer is 0 for extents
+// that the run errors. Those are an extent of 0 or past half the longest axis, a voxel count at the prime or past it,
+// or a padded total past 2^31 - 1.
 static int agreement_layout(unsigned int axes, const unsigned int *extents, const unsigned int *weights,
                             AgreementLayout *layout)
 {
@@ -98,8 +99,9 @@ static VolumesResident s_volumes_resident;
 
 #define SHIFT_AGREEMENT_SLICES (2u + SHIFT_AGREEMENT_VOLUMES)
 
-// the pool's slices for `total` padded elements and `words` bit words, in the order they are arranged and taken: the
-// before and after words, then the four volumes; the plan is arranged from them, and a pool reserved from it takes them
+// The pool's slices for `total` padded elements and `words` bit words, in the order that the plan sets and the pool
+// takes them. First the before and after words, then the four volumes. The plan comes from them, and a pool that the
+// plan reserves takes them
 static DevicePoolPlan plan_volumes(size_t total, size_t words, EngineError *error,
                                    DevicePoolTakeRequest takes[SHIFT_AGREEMENT_SLICES])
 {
@@ -131,14 +133,14 @@ static int reserve_volumes(size_t total, size_t words)
     platform_cell_released(resident->cached_words, platform_place_g_program_owner);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
     resident->cached = SHIFT_AGREEMENT_NONE_CACHED;
-    // the run errors without detail, and the pool's error is recorded here and dropped
+    // the run errors without detail. The code records the pool's error here and drops it
     EngineError error;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     DevicePoolTakeRequest takes[SHIFT_AGREEMENT_SLICES];
     const DevicePoolPlan plan = plan_volumes(total, words, &error, takes);
     const DevicePoolReserveRequest reserve = {&plan, &resident->pool, &error};
     int ok = device_pool_reserve(&reserve) == 0L;
-    // the slices are taken in the plan's order, and each lands where the plan positioned it out with none errored
+    // the code takes the slices in the plan's order. Each lands where the plan placed it, where none errored
     for (unsigned int at = 0u; (ok != 0) && (at < SHIFT_AGREEMENT_SLICES); at += 1u)
     {
         ok = device_pool_take(&takes[at]) == 0L;
@@ -178,8 +180,8 @@ static int reserve_negation(const AgreementLayout *layout)
     {
         entries += (size_t)layout->padded[axis];
     }
-    unsigned int *const host =
-        (unsigned int *)platform_cell_taken((entries + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const host = (unsigned int *)platform_cell_taken(
+        (entries + 1u) * sizeof(unsigned int), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     int ok = (host != NULL) ? 1 : 0;
     for (unsigned int axis = 0u; (ok != 0) && (axis < layout->axes); axis += 1u)
     {
@@ -234,7 +236,7 @@ extern "C" unsigned long long shift_agreement_reserve_bytes(unsigned int axes, c
         }
         tables += ((earlier == axis) && (layout.padded[axis] >= 2u)) ? (2ULL * layout.padded[axis]) : 0ULL;
     }
-    // the tables are small allocations beside the pool, which the device maps into shared pages: they are counted
+    // The tables are small allocations beside the pool, which the device maps into shared pages. The count takes them
     // together, rounded up to the page
     DevicePoolPlan tables_plan = {0ULL, 0ULL, 0};
     device_pool_plan_slice(&tables_plan, tables * sizeof(unsigned int));
@@ -271,7 +273,7 @@ extern "C" long shift_agreement_run(ShiftAgreementRequest *args)
     VolumesResident *const resident = &s_volumes_resident;
     unsigned long long *const device_before = resident->before;
     unsigned long long *const device_after = resident->after;
-    // the retained transform was scattered by its own extents, and one padding and one word count cover several extents
+    // the kept transform has its own extents. One padding and one word count cover several extents
     const int reuse = (ok != 0) && (resident->cached != SHIFT_AGREEMENT_NONE_CACHED) &&
                       (resident->cached_axes == layout.axes) &&
                       (EMBED_CALL(memor.cmp, MemoriaCfg, .src = resident->cached_extents, .other = layout.extents,

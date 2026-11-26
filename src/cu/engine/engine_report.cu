@@ -150,7 +150,7 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
     report->samples = records;
     const unsigned long long began = engine_clock_microseconds();
     EngineSignum *const sample_roots = (EngineSignum *)platform_cell_cleared(
-        (size_t)request->count + 1u, sizeof(EngineSignum), platform_place_g_program_owner, 0);
+        (size_t)request->count + 1u, sizeof(EngineSignum), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     int ok = ENGINE_CHECK(sample_roots != NULL, &sample_roots, error, ENGINE_ERROR_RESOURCE);
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
     {
@@ -244,8 +244,8 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
         krep_side_release(&back);
         krep_seal_release(&back_seal);
         cudaFree(device_lanes);
-        // the crystal read back from disk and rebuilt, against the lanes the source gave: the pixels are counted only
-        // where the two are not one block of bytes
+        // The crystal read back from disk and rebuilt, against the lanes the source gave. The code counts the pixels
+        // only where the two are not one block of bytes
         if (ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_lanes, .other = rebuilt,
                               .bytes = (size_t)lanes * sizeof(unsigned short)) != 0))
         {
@@ -311,7 +311,7 @@ extern "C" long engine_iapx_prove_set(const EngineSetRequest *request)
     report->samples = records;
     const unsigned long long began = engine_clock_microseconds();
     EngineSignum *const sample_roots = (EngineSignum *)platform_cell_cleared(
-        (size_t)request->count + 1u, sizeof(EngineSignum), platform_place_g_program_owner, 0);
+        (size_t)request->count + 1u, sizeof(EngineSignum), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     const int rooted = ENGINE_CHECK(sample_roots != NULL, &sample_roots, error, ENGINE_ERROR_RESOURCE);
     for (unsigned int sample = 0u; rooted && (sample < request->count); sample += 1u)
     {
@@ -414,7 +414,8 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
         VerbaLinea line;
         line.capacity =
             ENTRY_ROW_TEXT + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = sample, .cap = ENTRY_PATH_CAPACITY);
-        line.out = (char *)platform_cell_taken((size_t)line.capacity, platform_place_g_program_owner, 0);
+        line.out =
+            (char *)platform_cell_taken((size_t)line.capacity, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
         line.at = 0ULL;
         if (line.out != NULL)
         {

@@ -58,7 +58,8 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    NoiseClips *const clips = (NoiseClips *)platform_cell_taken(sizeof(NoiseClips), platform_place_g_program_owner, 0);
+    NoiseClips *const clips =
+        (NoiseClips *)platform_cell_taken(sizeof(NoiseClips), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     ok = ok && NOISE_DETECTOR_CHECK(clips != NULL, &clips, error, ENGINE_ERROR_RESOURCE);
     const unsigned long long began = engine_clock_microseconds();
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
@@ -118,10 +119,10 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
 
 #define NOISE_PIXEL_CELLS(plane_voxels_) ((plane_voxels_) * NOISE_PIXEL_HALVES * NOISE_PIXEL_SUMS)
 
-// Every camera pixel's static voxels in each half of the z planes: counted, their values summed over the frames, and
-// their frame differences squared and summed. A voxel's pixel is its (y, x); every z plane of a light sheet stack is
-// one exposure of the same pixels. A fixed pattern, a hot pixel or a dust shadow repeats in both halves, and the
-// cells, which differ between the halves, do not.
+// Every camera pixel's static voxels in each half of the z planes. The code counts them, sums their values over the
+// frames, and squares and sums their frame differences. A voxel's pixel is its (y, x). Every z plane of a light sheet
+// stack is one exposure of the same pixels. A fixed pattern, a hot pixel or a dust shadow repeats in both halves, and
+// the cells, which differ between the halves, do not.
 static long noise_pixels_sample(const unsigned short *volume, const unsigned long long extent[4],
                                 unsigned long long *maps, unsigned long long *ceiling, EngineError *error)
 {
@@ -136,7 +137,8 @@ static long noise_pixels_sample(const unsigned short *volume, const unsigned lon
     {
         return NOISE_DETECTOR_ERROR;
     }
-    unsigned char *const mask = (unsigned char *)platform_cell_taken((size_t)voxels, platform_place_g_program_owner, 0);
+    unsigned char *const mask =
+        (unsigned char *)platform_cell_taken((size_t)voxels, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     int ok = NOISE_DETECTOR_CHECK(mask != NULL, &mask, error, ENGINE_ERROR_RESOURCE) &&
              NOISE_DETECTOR_CHECK(noise_static_mask(volume, frames, voxels, 0u, mask, ceiling) != 0, mask, error,
                                   ENGINE_ERROR_RESOURCE);
@@ -145,7 +147,8 @@ static long noise_pixels_sample(const unsigned short *volume, const unsigned lon
         EMBED_CALL(memor.set, MemoriaCfg, .dst = maps,
                    .bytes = (size_t)NOISE_PIXEL_CELLS(plane_voxels) * sizeof(unsigned long long), .val = 0);
         const unsigned long long middle = depth / 2ULL;
-        // frame by frame and plane by plane. The volume is read in order; the first frame also counts the voxels
+        // frame by frame and plane by plane. The code reads the volume in order, and the first frame also counts the
+        // voxels
         for (unsigned long long frame = 0ULL; frame < frames; frame += 1ULL)
         {
             for (unsigned long long z = 0ULL; z < depth; z += 1ULL)
@@ -256,7 +259,7 @@ extern "C" long noise_pixels_set(const NoiseSetRequest *request)
         {
             platform_cell_released(maps, platform_place_g_program_owner);
             maps = (unsigned long long *)platform_cell_taken((size_t)cells * sizeof(unsigned long long),
-                                                             platform_place_g_program_owner, 0);
+                                                             platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
             max_cells = (maps != NULL) ? cells : 0ULL;
             ok = NOISE_DETECTOR_CHECK(maps != NULL, &maps, error, ENGINE_ERROR_RESOURCE);
         }

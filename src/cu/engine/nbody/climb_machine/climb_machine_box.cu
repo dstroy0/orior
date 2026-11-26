@@ -41,8 +41,8 @@ static int machine_box_merge(ClimbMachine *machine, const unsigned int *cell_raw
         const size_t size = (size_t)(machine->box_entry_first[cell + 1u] - machine->box_entry_first[cell]);
         widest = (size > widest) ? size : widest;
     }
-    MachineBoxPiece *const pieces = (MachineBoxPiece *)platform_cell_taken((widest + 1u) * sizeof(MachineBoxPiece),
-                                                                           platform_place_g_program_owner, 0);
+    MachineBoxPiece *const pieces = (MachineBoxPiece *)platform_cell_taken(
+        (widest + 1u) * sizeof(MachineBoxPiece), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     if (pieces == NULL)
     {
         return 0;

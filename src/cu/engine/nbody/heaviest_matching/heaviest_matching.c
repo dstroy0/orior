@@ -147,26 +147,33 @@ static long matching_component(const HeaviestMatchingRequest *args, const unsign
     const int edge_capacity = 2 * (befores + afters + (int)member_count);
 
     MatchingGraph graph;
-    graph.head = (int *)platform_cell_taken((size_t)nodes * sizeof(int), platform_place_g_program_owner, 0);
-    graph.next = (int *)platform_cell_taken((size_t)edge_capacity * sizeof(int), platform_place_g_program_owner, 0);
-    graph.target = (int *)platform_cell_taken((size_t)edge_capacity * sizeof(int), platform_place_g_program_owner, 0);
-    graph.capacity = (int *)platform_cell_taken((size_t)edge_capacity * sizeof(int), platform_place_g_program_owner, 0);
-    graph.cost =
-        (long long *)platform_cell_taken((size_t)edge_capacity * sizeof(long long), platform_place_g_program_owner, 0);
+    graph.head = (int *)platform_cell_taken((size_t)nodes * sizeof(int), platform_place_g_program_owner,
+                                            PLATFORM_TIER_TEMPORARY);
+    graph.next = (int *)platform_cell_taken((size_t)edge_capacity * sizeof(int), platform_place_g_program_owner,
+                                            PLATFORM_TIER_TEMPORARY);
+    graph.target = (int *)platform_cell_taken((size_t)edge_capacity * sizeof(int), platform_place_g_program_owner,
+                                              PLATFORM_TIER_TEMPORARY);
+    graph.capacity = (int *)platform_cell_taken((size_t)edge_capacity * sizeof(int), platform_place_g_program_owner,
+                                                PLATFORM_TIER_TEMPORARY);
+    graph.cost = (long long *)platform_cell_taken((size_t)edge_capacity * sizeof(long long),
+                                                  platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     graph.edges = 0;
-    long long *const potential = (long long *)platform_cell_taken(
-        (unsigned long long)((size_t)nodes * sizeof(long long)), (unsigned int)platform_place_g_engine_owner, 0);
-    long long *const distance = (long long *)platform_cell_taken(
-        (unsigned long long)((size_t)nodes * sizeof(long long)), (unsigned int)platform_place_g_engine_owner, 0);
-    int *const arrived = (int *)platform_cell_taken((unsigned long long)((size_t)nodes * sizeof(int)),
-                                                    (unsigned int)platform_place_g_engine_owner, 0);
-    unsigned char *const settled = (unsigned char *)platform_cell_taken((unsigned long long)((size_t)nodes),
-                                                                        (unsigned int)platform_place_g_engine_owner, 0);
+    long long *const potential =
+        (long long *)platform_cell_taken((unsigned long long)((size_t)nodes * sizeof(long long)),
+                                         (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
+    long long *const distance =
+        (long long *)platform_cell_taken((unsigned long long)((size_t)nodes * sizeof(long long)),
+                                         (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
+    int *const arrived =
+        (int *)platform_cell_taken((unsigned long long)((size_t)nodes * sizeof(int)),
+                                   (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned char *const settled = (unsigned char *)platform_cell_taken(
+        (unsigned long long)((size_t)nodes), (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     MatchingHeap heap;
     heap.distance = (long long *)platform_cell_taken(((size_t)edge_capacity + 1u) * sizeof(long long),
-                                                     platform_place_g_program_owner, 0);
-    heap.node =
-        (int *)platform_cell_taken(((size_t)edge_capacity + 1u) * sizeof(int), platform_place_g_program_owner, 0);
+                                                     platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
+    heap.node = (int *)platform_cell_taken(((size_t)edge_capacity + 1u) * sizeof(int), platform_place_g_program_owner,
+                                           PLATFORM_TIER_TEMPORARY);
     heap.size = 0;
 
     long answer = -1;
@@ -309,22 +316,23 @@ long heaviest_matching_run(const HeaviestMatchingRequest *args)
         }
     }
     const size_t objects = (size_t)args->before_count + (size_t)args->after_count;
-    unsigned int *const parent = (unsigned int *)platform_cell_taken(
-        (unsigned long long)((objects + 1u) * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const parent =
+        (unsigned int *)platform_cell_taken((unsigned long long)((objects + 1u) * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     unsigned int *const component_of =
         (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)args->pairs + 1u) * sizeof(unsigned int)),
-                                            (unsigned int)platform_place_g_engine_owner, 0);
-    unsigned int *const starts = (unsigned int *)platform_cell_cleared((unsigned long long)(objects + 2u),
-                                                                       (unsigned long long)(sizeof(unsigned int)),
-                                                                       (unsigned int)platform_place_g_engine_owner, 0);
+                                            (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
+    unsigned int *const starts = (unsigned int *)platform_cell_cleared(
+        (unsigned long long)(objects + 2u), (unsigned long long)(sizeof(unsigned int)),
+        (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     unsigned int *const members =
         (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)args->pairs + 1u) * sizeof(unsigned int)),
-                                            (unsigned int)platform_place_g_engine_owner, 0);
+                                            (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     int *const local = (int *)platform_cell_taken((unsigned long long)((objects + 1u) * sizeof(int)),
-                                                  (unsigned int)platform_place_g_engine_owner, 0);
+                                                  (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     unsigned char *const staged =
         (unsigned char *)platform_cell_cleared((unsigned long long)((size_t)args->pairs + 1u), (unsigned long long)(1u),
-                                               (unsigned int)platform_place_g_engine_owner, 0);
+                                               (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     long answer = HEAVIEST_MATCHING_ERROR;
     if ((parent != NULL) && (component_of != NULL) && (starts != NULL) && (members != NULL) && (local != NULL) &&
         (staged != NULL))
@@ -354,7 +362,7 @@ long heaviest_matching_run(const HeaviestMatchingRequest *args)
         }
         unsigned int *const filled =
             (unsigned int *)platform_cell_taken((unsigned long long)((objects + 1u) * sizeof(unsigned int)),
-                                                (unsigned int)platform_place_g_engine_owner, 0);
+                                                (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
         if (filled != NULL)
         {
             EMBED_CALL(memor.cpy, MemoriaCfg, .dst = filled, .src = starts,

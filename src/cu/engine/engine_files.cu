@@ -20,7 +20,8 @@ int entry_directories_make(const char *path, int include_last, unsigned int *mad
 {
     *made = 0u;
     const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR);
-    char *const walk = (char *)platform_cell_taken(length + 1u, platform_place_g_program_owner, 0);
+    char *const walk =
+        (char *)platform_cell_taken(length + 1u, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     if (walk == NULL)
     {
         return 0;
@@ -51,7 +52,8 @@ void entry_directories_remove(const char *path, int include_last, unsigned int m
         return;
     }
     const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR);
-    char *const walk = (char *)platform_cell_taken(length + 1u, platform_place_g_program_owner, 0);
+    char *const walk =
+        (char *)platform_cell_taken(length + 1u, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     if (walk == NULL)
     {
         return;
@@ -89,7 +91,7 @@ extern "C" int engine_program_directory(char *out, size_t capacity)
     const size_t length = (size_t)written;
 #else
     const ssize_t written = readlink("/proc/self/exe", out, capacity - 1u);
-    // a failed read is -1, recorded as no length at all
+    // a failed read is -1, which the record takes as no length at all
     const size_t length = (written > 0) ? (size_t)written : 0u;
 #endif
     size_t directory_length = (length < capacity) ? length : 0u;
@@ -185,8 +187,8 @@ static void entry_each_run(void *supplied)
     }
 }
 
-// every item on the workers, each taking the next item from one counter until none is left or one failed. A worker
-// the system refuses leaves its share to the ones that run
+// Every item on the workers. Each worker takes the next item from one counter until none remains or one failed. A
+// worker that the system refuses leaves its share to the ones that run
 static int entry_each(unsigned long long items, EngineEachWork work, void *context)
 {
     EntryEach each = {EMBED_ATOMIC_INIT(0ULL), EMBED_ATOMIC_INIT(0u), items, work, context};
@@ -214,11 +216,12 @@ static long long entry_blosc_decode(const EngineBytesRequest *request)
     return blosc_decode(&blosc);
 }
 
-// Spans of one archive read ahead, each on a thread of its own: two are buffered, the one being read from and the one
-// after it. Only one reader runs at a time, since two readers on one disk seek against each other: a span requested
-// while the other's reader runs waits, and starts the moment the thread that requested for both joins that reader.
-// Every read the tools make comes from that thread: the spans need no lock. The process's last act on them joins a
-// reader still running
+// Spans of one archive read ahead, each on a thread of its own. The buffer holds two: the one that the tools read from
+// now, and the one after it. Only one reader runs at a time, since two readers on one disk seek against each other.
+//
+// A span that a request names while the other's reader runs waits. It starts the moment the thread that asked for
+// both joins that reader. Every read the tools make comes from that thread, and so the spans need no lock. The
+// process's last act on them joins a reader that still runs
 #define ENTRY_SPAN_COUNT 2u
 
 struct EntrySpan
@@ -275,8 +278,8 @@ static void entry_span_start(EntrySpan *span)
     }
 }
 
-// a range inside a buffered span is copied from it once its reader is done, and a span waiting behind that reader
-// starts; any other range is read from the file
+// The code copies a range inside a buffered span from it once its reader ends, and a span that waits behind that
+// reader starts. The code reads any other range from the file
 static long long entry_span_read(const EngineFileRange *range)
 {
     EntrySpan *span = NULL;
@@ -310,7 +313,7 @@ static long long entry_span_read(const EngineFileRange *range)
             entry_span_start(&s_spans[at]);
         }
     }
-    // a span the reader did not read whole is let go, and the range is read from the file
+    // the code lets go a span that the reader did not read whole, and reads the range from the file
     if (span->read != (long long)span->length)
     {
         entry_span_release(span);
@@ -318,7 +321,7 @@ static long long entry_span_read(const EngineFileRange *range)
     }
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = range->out, .src = span->bytes + (range->offset - span->first),
                .bytes = (size_t)range->bytes);
-    // a range's bytes are bounded to the span's length above, which a long long represents
+    // the check above bounds a range's bytes to the span's length, which a long long holds
     return (long long)range->bytes;
 }
 
@@ -328,7 +331,7 @@ extern "C" long engine_source_prefetch(const char *source, const char *sample, E
     {
         return ENGINE_ERROR;
     }
-    // the span requested longest ago is let go for this one
+    // the code lets go the span that a request named longest ago, for this one
     EntrySpan *at = &s_spans[0];
     for (unsigned int other = 1u; other < ENTRY_SPAN_COUNT; other += 1u)
     {
@@ -347,7 +350,7 @@ extern "C" long engine_source_prefetch(const char *source, const char *sample, E
     {
         return ENGINE_ERROR;
     }
-    // the members' span, from the first local header to past the last member's data: its local header is 30 bytes,
+    // The members' span, from the first local header to past the last member's data. Its local header is 30 bytes,
     // and its name and extra field at max 65,535 bytes each
     unsigned long long begin = ~0ULL;
     unsigned long long end = 0ULL;

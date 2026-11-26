@@ -33,8 +33,8 @@ static int flatten_write_iapx(const char *path, const MaxTreeLayout *layout, cha
                               unsigned long long bodies, EngineError *error)
 {
     const size_t words = (size_t)bodies * layout->limbs;
-    unsigned int *const again =
-        (unsigned int *)platform_cell_taken((words + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
+    unsigned int *const again = (unsigned int *)platform_cell_taken(
+        (words + 1u) * sizeof(unsigned int), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     int ok = FLATTEN_CHECK(again != NULL, &again, error, ENGINE_ERROR_RESOURCE);
     const unsigned int head[FLATTEN_HEAD_LIMBS] = {FLATTEN_FORMAT, MAX_TREE_FIELDS, layout->total_bits, layout->limbs,
                                                    count};
@@ -233,7 +233,7 @@ static int flatten_header(const char *set, const char *name, unsigned int header
 }
 
 // each sample's orders, its own where the request gives them and the shared ones where it does not. An odd background
-// order errors here, before any sample is read
+// order errors here, before the code reads any sample
 static int flatten_orders(const FlattenSetRequest *request, FlattenOrders *orders, EngineError *error)
 {
     int ok = 1;
@@ -271,8 +271,8 @@ int flatten_set(const FlattenSetRequest *request)
     const char *const set = request->set;
     char *const *const names = request->names;
     const unsigned int count = request->count;
-    FlattenOrders *const orders = (FlattenOrders *)platform_cell_taken(((size_t)count + 1u) * sizeof(FlattenOrders),
-                                                                       platform_place_g_program_owner, 0);
+    FlattenOrders *const orders = (FlattenOrders *)platform_cell_taken(
+        ((size_t)count + 1u) * sizeof(FlattenOrders), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     int ok =
         FLATTEN_CHECK(orders != NULL, &orders, error, ENGINE_ERROR_RESOURCE) && flatten_orders(request, orders, error);
     unsigned int largest[3] = {0u, 0u, 0u};
@@ -323,8 +323,8 @@ int flatten_set(const FlattenSetRequest *request)
     }
 
     const size_t max_voxels = (size_t)largest[0] * largest[1] * largest[2];
-    // one frame's packed bodies on the device, its capacity grown to the max any frame finds, and the set's gathered
-    // on the host as each frame is packed
+    // One frame's packed bodies on the device, its capacity grown to the max that any frame finds. The host gathers
+    // the set's as the code packs each frame
     unsigned int *magnitudes = NULL;
     size_t device_capacity = 0u;
     unsigned int *gathered = NULL;

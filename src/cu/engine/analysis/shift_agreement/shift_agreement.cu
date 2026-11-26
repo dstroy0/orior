@@ -271,8 +271,8 @@ int agreement_launched(void)
     return (cudaGetLastError() == cudaSuccess) ? 1 : 0;
 }
 
-// one entry for every power of two from 1 to the longest axis, indexed at its logarithm: every padded length a run can
-// request has its entry, and no length is turned away
+// One entry for every power of two from 1 to the longest axis, at the index of its logarithm. Every padded length that
+// a run can request has its entry, and the table refuses no length
 #define SHIFT_AGREEMENT_TABLES 24u
 static_assert((1u << (SHIFT_AGREEMENT_TABLES - 1u)) == SHIFT_AGREEMENT_LONGEST_AXIS,
               "shift_agreement: one table entry for every power of two to the longest axis");
@@ -306,8 +306,9 @@ const AxisTables *axis_tables(unsigned int length)
     {
         return tables;
     }
-    unsigned int *const host = (unsigned int *)platform_cell_taken(
-        (unsigned long long)((size_t)length * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
+    unsigned int *const host =
+        (unsigned int *)platform_cell_taken((unsigned long long)((size_t)length * sizeof(unsigned int)),
+                                            (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     tables->negation =
         (unsigned int *)platform_cell_taken((size_t)length * sizeof(unsigned int), platform_place_g_program_owner, 0);
     int ok = (host != NULL) && (tables->negation != NULL);
