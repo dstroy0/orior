@@ -4,6 +4,7 @@
 #include "cycle_internal.h"
 
 #include "../../../../platform/platform.h"
+#include "../../runtime/daemon/tessera_job.h"
 #include "memoria_operor/memoria_operor.h"
 
 // the owner that the cells of a loaded key and of a launch count to
@@ -29,18 +30,21 @@ extern "C" long cycle_key_load(const EngineKeyLayout *layout, CycleKey **key_out
     {
         EMBED_CALL(memor.set, MemoriaCfg, .dst = key, .bytes = sizeof(CycleKey), .val = 0u);
     }
-    ok = ok && CYCLE_STATUS_CHECK(cudaMalloc((void **)&key->device_terms, (size_t)layout->terms * sizeof(DeviceTerm)),
-                                  &key->device_terms, error);
-    ok = ok && CYCLE_STATUS_CHECK(cudaMalloc((void **)&key->device_weights,
-                                             (size_t)(layout->weight_count + 1ULL) * sizeof(unsigned int)),
-                                  &key->device_weights, error);
-    ok = ok && CYCLE_STATUS_CHECK(cudaMemcpy(key->device_terms, layout->term_table,
-                                             (size_t)layout->terms * sizeof(DeviceTerm), cudaMemcpyHostToDevice),
-                                  key->device_terms, error);
+    // The terms and the weights of the key are persistent cells of the pool of the device. The key holds them from its
+    // load to its release, across every run. The weights hold one word past their count, every byte 0 at the take
+    void *cell = NULL;
+    const unsigned long long term_bytes = (unsigned long long)layout->terms * sizeof(DeviceTerm);
+    ok = ok && CYCLE_CHECK(tessera_job_persistent_taken(term_bytes, CYCLE_KEY_PLACE, &cell) &&
+                               tessera_job_crossed_into(cell, layout->term_table, term_bytes),
+                           layout, error, ENGINE_ERROR_RESOURCE);
+    // Explicit casts read each cell as the words that it holds
+    key->device_terms = (ok != 0) ? (DeviceTerm *)cell : NULL;
     ok = ok &&
-         CYCLE_STATUS_CHECK(cudaMemcpy(key->device_weights, layout->weights,
-                                       (size_t)layout->weight_count * sizeof(unsigned int), cudaMemcpyHostToDevice),
-                            key->device_weights, error);
+         CYCLE_CHECK(tessera_job_persistent_taken((layout->weight_count + 1ULL) * sizeof(unsigned int), CYCLE_KEY_PLACE,
+                                                  &cell) &&
+                         tessera_job_crossed_into(cell, layout->weights, layout->weight_count * sizeof(unsigned int)),
+                     layout, error, ENGINE_ERROR_RESOURCE);
+    key->device_weights = (ok != 0) ? (unsigned int *)cell : NULL;
     if (ok == 0)
     {
         cycle_key_release(key);
@@ -64,8 +68,9 @@ extern "C" void cycle_key_release(CycleKey *key)
     {
         return;
     }
-    cudaFree(key->device_terms);
-    cudaFree(key->device_weights);
+    // the persistent cells go back newest first, and tessera_job_given passes over a NULL cell
+    tessera_job_given(key->device_weights, CYCLE_KEY_PLACE);
+    tessera_job_given(key->device_terms, CYCLE_KEY_PLACE);
     platform_cell_released(key, CYCLE_KEY_PLACE);
 }
 
@@ -74,15 +79,10 @@ extern "C" unsigned int cycle_key_scratch_limbs(const CycleKey *key)
     return (key != NULL) ? key->planes : 0u;
 }
 
-static CycleResident s_cycle_resident;
-
+// A run takes its scratch, its table of lanes and its folds on the device as temporary cells, and gives them back
+// before it returns. The run keeps nothing between calls, and the release has nothing to give back
 extern "C" void cycle_resident_release(void)
 {
-    CycleResident *const resident = &s_cycle_resident;
-    cudaFree(resident->scratch);
-    cudaFree(resident->table);
-    cudaFree(resident->folds);
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0u);
 }
 
 // The stack that a launch grew past `before`, given back once its work ends. The runtime raises the stack limit to the
@@ -206,29 +206,17 @@ extern "C" long cycle_run(const CycleRunRequest *request)
     }
     const unsigned long long total = request->count * voxels;
 
-    CycleResident *const resident = &s_cycle_resident;
-    const size_t scratch_words = (size_t)(total * request->key->planes);
-    int ok = 1;
-    if (scratch_words > resident->scratch_words)
-    {
-        cudaFree(resident->scratch);
-        resident->scratch = NULL;
-        resident->scratch_words = 0u;
-        ok = CYCLE_STATUS_CHECK(cudaMalloc((void **)&resident->scratch, scratch_words * sizeof(unsigned int)),
-                                &resident->scratch, error);
-        resident->scratch_words = (ok != 0) ? scratch_words : 0u;
-    }
-    if ((ok != 0) && (request->count > resident->table_capacity))
-    {
-        cudaFree(resident->table);
-        resident->table = NULL;
-        resident->table_capacity = 0u;
-        ok = CYCLE_STATUS_CHECK(
-            cudaMalloc((void **)&resident->table, (size_t)request->count * sizeof(const unsigned short *)),
-            &resident->table, error);
-        resident->table_capacity = (ok != 0) ? (size_t)request->count : 0u;
-    }
-    // the table of lanes and the folds, ephemeral work that the launch sends to the device and gives back
+    // The scratch, the table of lanes and the folds are temporary cells of the pool of the device. The run gives them
+    // back last first before it returns, after the sweep that reads them ends
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, CYCLE_KEY_PLACE);
+    void *cell = NULL;
+    const unsigned long long scratch_words = total * request->key->planes;
+    int ok = CYCLE_CHECK(tessera_job_cells_room(&cells, scratch_words * sizeof(unsigned int), &cell), request, error,
+                         ENGINE_ERROR_RESOURCE);
+    // Explicit cast reads the cell as the words of the scratch
+    unsigned int *const device_scratch = (unsigned int *)cell;
+    // the table of lanes on the host, ephemeral work that the run crosses in and gives back
     const unsigned short **const table = (const unsigned short **)platform_cell_taken(
         (unsigned long long)request->count * sizeof(const unsigned short *), CYCLE_KEY_PLACE, 1);
     ok = ok && CYCLE_CHECK(table != NULL, request, error, ENGINE_ERROR_RESOURCE);
@@ -236,10 +224,10 @@ extern "C" long cycle_run(const CycleRunRequest *request)
     {
         table[atom] = request->atoms[atom].lanes;
     }
-    ok = ok &&
-         CYCLE_STATUS_CHECK(cudaMemcpy(resident->table, table, (size_t)request->count * sizeof(const unsigned short *),
-                                       cudaMemcpyHostToDevice),
-                            resident->table, error);
+    ok = ok && CYCLE_CHECK(tessera_job_cells_in(&cells, table, request->count * sizeof(const unsigned short *), &cell),
+                           request, error, ENGINE_ERROR_RESOURCE);
+    // Explicit cast reads the cell as the table of the addresses of the lanes
+    const unsigned short *const *const device_table = (const unsigned short *const *)cell;
     platform_cell_released(table, CYCLE_KEY_PLACE);
 
     CycleLaunch launch;
@@ -265,29 +253,22 @@ extern "C" long cycle_run(const CycleRunRequest *request)
             ok = CYCLE_CHECK(platform_array_appended(&folds, &fold), request, error, ENGINE_ERROR_RESOURCE);
         }
     }
-    if ((ok != 0) && (folds.count > resident->fold_capacity))
-    {
-        cudaFree(resident->folds);
-        resident->folds = NULL;
-        resident->fold_capacity = 0u;
-        ok = CYCLE_STATUS_CHECK(cudaMalloc((void **)&resident->folds, (size_t)folds.count * sizeof(unsigned long long)),
-                                &resident->folds, error);
-        resident->fold_capacity = (ok != 0) ? (size_t)folds.count : 0u;
-    }
-    ok = ok && CYCLE_STATUS_CHECK(cudaMemcpy(resident->folds, folds.cell,
-                                             (size_t)folds.count * sizeof(unsigned long long), cudaMemcpyHostToDevice),
-                                  resident->folds, error);
+    ok = ok && CYCLE_CHECK(tessera_job_cells_in(&cells, folds.cell, folds.count * sizeof(unsigned long long), &cell),
+                           request, error, ENGINE_ERROR_RESOURCE);
+    // Explicit cast reads the cell as the folds that crossed into it
+    const unsigned long long *const device_folds = (const unsigned long long *)cell;
     platform_array_ended(&folds);
     if (ok == 0)
     {
+        tessera_job_cells_given(&cells);
         return CYCLE_ERROR;
     }
 
     launch.terms = request->key->device_terms;
     launch.weights = request->key->device_weights;
-    launch.lanes = resident->table;
-    launch.folds = resident->folds;
-    launch.scratch = resident->scratch;
+    launch.lanes = device_table;
+    launch.folds = device_folds;
+    launch.scratch = device_scratch;
     launch.out = request->device_out;
     launch.voxels = voxels;
     launch.total = total;
@@ -296,6 +277,7 @@ extern "C" long cycle_run(const CycleRunRequest *request)
     size_t stack = 0u;
     if (!CYCLE_STATUS_CHECK(cudaDeviceGetLimit(&stack, cudaLimitStackSize), &stack, error))
     {
+        tessera_job_cells_given(&cells);
         return CYCLE_ERROR;
     }
     const unsigned int need = (request->key->columns > request->limbs) ? request->key->columns : request->limbs;
@@ -315,7 +297,9 @@ extern "C" long cycle_run(const CycleRunRequest *request)
     {
         ok = CYCLE_CHECK(need <= 256u, &request->key->columns, error, ENGINE_ERROR_REQUEST);
     }
-    // the sweep runs on after its launch. A grown stack goes back once it ends
+    // The sweep runs on after its launch. A grown stack goes back once it ends. Each cell of the run goes back through
+    // a kernel on the stream of the sweep, after the sweep ends
     const int returned = cycle_stack_return(stack, request->device_out, error);
+    tessera_job_cells_given(&cells);
     return ((ok != 0) && (returned != 0)) ? (long)request->count : CYCLE_ERROR;
 }

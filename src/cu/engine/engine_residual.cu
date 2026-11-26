@@ -3,6 +3,7 @@
 // engine_residual.cu: the residual: keys, planes and their growth
 #include "engine_internal.h"
 #include "memoria_operor/memoria_operor.h"
+#include "runtime/daemon/tessera_job.h"
 #include "runtime/device_pool/device_pool.h"
 
 static EngineResidualResident s_residual_resident;
@@ -39,7 +40,7 @@ static int engine_residual_key(const EngineResidualRequest *request, unsigned in
     }
     CycleKey *key = NULL;
     const long bits = engine_key_encode(program, RESIDUAL_STEPS, &key, error);
-    // bits is checked non-negative before it re-signs to unsigned long
+    // The call checks that bits is not negative before it re-signs to unsigned long
     const int imprinted =
         ENGINE_CHECK(bits >= 0L, program, error, ENGINE_ERROR_REQUEST) &&
         ENGINE_CHECK((unsigned long)bits <= (32UL * limbs), request->background_orders, error, ENGINE_ERROR_REQUEST);
@@ -64,9 +65,10 @@ static int engine_residual_key(const EngineResidualRequest *request, unsigned in
 static void engine_residual_free(void)
 {
     EngineResidualResident *const resident = &s_residual_resident;
-    cudaFree(resident->volume);
-    cudaFree(resident->residual);
-    cudaFree(resident->check);
+    // the cells go back newest first, and tessera_job_given passes over a NULL cell
+    tessera_job_given(resident->check, platform_place_g_engine_owner);
+    tessera_job_given(resident->residual, platform_place_g_engine_owner);
+    tessera_job_given(resident->volume, platform_place_g_engine_owner);
     resident->volume = NULL;
     resident->residual = NULL;
     resident->check = NULL;
@@ -75,22 +77,26 @@ static void engine_residual_free(void)
     resident->check_words = 0u;
 }
 
-// a buffer retained while it is large enough, and made again where a request needs more
+// A buffer of `wanted` units on the device, kept while it is large enough. Where a request needs more, the old cell
+// goes back and a persistent cell of the pool of the device takes its place. The cell is persistent because the caller
+// reads the residual after the call returns, until the next call or the release
 static int engine_residual_grow(void **buffer, size_t *buffer_size, size_t wanted, size_t unit, EngineError *error)
 {
     if (wanted <= *buffer_size)
     {
         return 1;
     }
-    cudaFree(*buffer);
+    tessera_job_given(*buffer, platform_place_g_engine_owner);
     *buffer = NULL;
     *buffer_size = 0u;
-    const int ok = ENGINE_STATUS_CHECK(cudaMalloc(buffer, wanted * unit), buffer, error);
+    const int ok = ENGINE_CHECK(
+        tessera_job_persistent_taken((unsigned long long)wanted * unit, platform_place_g_engine_owner, buffer), buffer,
+        error, ENGINE_ERROR_RESOURCE);
     *buffer_size = (ok != 0) ? wanted : 0u;
     return ok;
 }
 
-// the lanes, the residual in `limbs` limbs a lane, and the check where the residual is proved
+// the lanes, the residual in `limbs` limbs a lane, and the check where the call proves the residual
 static int engine_residual_reserve(size_t voxels, unsigned int limbs, int proving, EngineError *error)
 {
     EngineResidualResident *const resident = &s_residual_resident;
@@ -137,7 +143,7 @@ extern "C" unsigned long long engine_residual_bytes(const EngineResidualRequest 
 {
     const unsigned long long voxels = (unsigned long long)request->depth * request->height * request->width;
     const unsigned long long limbs = (request->limbs != 0u) ? request->limbs : ENGINE_RESIDUAL_LIMBS;
-    // each allocation is mapped in whole pages
+    // The pool maps each cell in whole pages
     const unsigned long long page = DEVICE_POOL_PAGE_BYTES - 1ULL;
     const unsigned long long lanes = ((voxels * sizeof(unsigned short)) + page) & ~page;
     const unsigned long long residual = ((voxels * limbs * sizeof(unsigned int)) + page) & ~page;
@@ -156,8 +162,8 @@ extern "C" void engine_resident_release(void)
     cycle_key_release(resident->key);
     resident->key = NULL;
     EngineResidualPlanesResident *const planes = &s_residual_planes_resident;
-    cudaFree(planes->planes);
-    cudaFree(planes->residual);
+    tessera_job_given(planes->residual, platform_place_g_engine_owner);
+    tessera_job_given(planes->planes, platform_place_g_engine_owner);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = planes, .bytes = sizeof(*planes), .val = 0);
     unit_sweep_release();
     max_tree_resident_release();
@@ -186,8 +192,8 @@ static unsigned long long engine_residual_comb_bits(unsigned int length)
     return bits;
 }
 
-// an odd sum of the smooth order and the comb's n - 1 puts the residual half a voxel before its lane's voxel. It is
-// allowed only where the request gives the place to report so.
+// An odd sum of the smooth order and the n - 1 of the comb puts the residual half a voxel before the voxel of its lane.
+// The call lets that through only where the request gives the place to report it.
 static int engine_residual_placed(const unsigned int smooth_orders[ENGINE_AXES], const unsigned int comb[ENGINE_AXES],
                                   int *const *offset_halves, EngineError *error)
 {
@@ -199,7 +205,7 @@ static int engine_residual_placed(const unsigned int smooth_orders[ENGINE_AXES],
     return ENGINE_CHECK((odd == 0u) || (*offset_halves != NULL), offset_halves, error, ENGINE_ERROR_REQUEST);
 }
 
-// the residual's place per axis in half voxels, written once the residual is made
+// the place of the residual on each axis in half voxels, which the call writes after it makes the residual
 static void engine_residual_offset(const unsigned int smooth_orders[ENGINE_AXES], const unsigned int comb[ENGINE_AXES],
                                    int *offset_halves)
 {
@@ -245,9 +251,8 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
     EngineResidualResident *const resident = &s_residual_resident;
     int steps_succeeded =
         engine_residual_reserve((size_t)voxels, limbs, proving, error) &&
-        ENGINE_STATUS_CHECK(cudaMemcpy(resident->volume, request->volume, (size_t)voxels * sizeof(unsigned short),
-                                       cudaMemcpyHostToDevice),
-                            resident->volume, error);
+        ENGINE_CHECK(tessera_job_crossed_into(resident->volume, request->volume, voxels * sizeof(unsigned short)),
+                     resident->volume, error, ENGINE_ERROR_RESOURCE);
     Atom atom;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &atom, .bytes = sizeof(atom), .val = 0);
     atom.lanes = resident->volume;
@@ -309,17 +314,13 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
     return 0L;
 }
 
+// the words of the planes, or of their residual, grown as engine_residual_grow grows a buffer
 static int engine_residual_planes_grow(unsigned int **words, size_t *capacity, size_t wanted, EngineError *error)
 {
-    if (wanted <= *capacity)
-    {
-        return 1;
-    }
-    cudaFree(*words);
-    *words = NULL;
-    *capacity = 0u;
-    const int ok = ENGINE_STATUS_CHECK(cudaMalloc((void **)words, wanted * sizeof(unsigned int)), words, error);
-    *capacity = (ok != 0) ? wanted : 0u;
+    void *cell = *words;
+    const int ok = engine_residual_grow(&cell, capacity, wanted, sizeof(unsigned int), error);
+    // Explicit cast reads the cell as the words that it holds
+    *words = (unsigned int *)cell;
     return ok;
 }
 
@@ -365,9 +366,9 @@ extern "C" long engine_residual_planes(const EngineResidualPlanesRequest *reques
         engine_residual_planes_grow(&resident->planes, &resident->plane_words, (size_t)(voxels * input_limbs), error) &&
         engine_residual_planes_grow(&resident->residual, &resident->residual_words, (size_t)(voxels * residual_limbs),
                                     error) &&
-        ENGINE_STATUS_CHECK(cudaMemcpy(resident->planes, request->planes,
-                                       (size_t)(voxels * input_limbs) * sizeof(unsigned int), cudaMemcpyHostToDevice),
-                            resident->planes, error);
+        ENGINE_CHECK(tessera_job_crossed_into(resident->planes, request->planes,
+                                              (unsigned long long)voxels * input_limbs * sizeof(unsigned int)),
+                     resident->planes, error, ENGINE_ERROR_RESOURCE);
     UnitSweepRequest sweep_request;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &sweep_request, .bytes = sizeof(sweep_request), .val = 0);
     sweep_request.device_planes = resident->planes;
@@ -385,7 +386,7 @@ extern "C" long engine_residual_planes(const EngineResidualPlanesRequest *reques
                .bytes = sizeof(sweep_request.smooth_spaced));
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = sweep_request.background_spaced, .src = request->background_spaced,
                .bytes = sizeof(sweep_request.background_spaced));
-    // the limbs are bounded at or below 2^32 / 32 above. They narrow to unsigned int exactly
+    // The check above holds the limbs at or below 2^32 / 32. They narrow to unsigned int exactly
     sweep_request.limbs = (unsigned int)residual_limbs;
     sweep_request.device_out = resident->residual;
     sweep_request.error = error;

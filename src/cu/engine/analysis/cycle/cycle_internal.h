@@ -282,14 +282,4 @@ template <unsigned int WIDE> __global__ static void cycle_kernel(CycleLaunch lau
     }
 }
 
-struct CycleResident
-{
-    unsigned int *scratch;
-    size_t scratch_words;
-    const unsigned short **table;
-    size_t table_capacity;
-    unsigned long long *folds;
-    size_t fold_capacity;
-};
-
 #endif

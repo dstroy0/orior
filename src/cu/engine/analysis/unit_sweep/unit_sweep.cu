@@ -1,5 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#include "../../../../platform/platform.h"
+#include "../../runtime/daemon/tessera_job.h"
 #include "../../runtime/device_pool/device_pool.h"
 #include "memoria_operor/memoria_operor.h"
 #include "unit_sweep.h"
@@ -31,18 +33,6 @@ struct UnitSweepExtent
     unsigned int extent[ENGINE_AXES];
     unsigned long long voxels;
 };
-
-struct UnitSweepResident
-{
-    unsigned int *narrow_planes;
-    unsigned int *wide_planes;
-    unsigned long long *disagreements;
-    unsigned int *over_width;
-    size_t narrow_words;
-    size_t wide_words;
-};
-
-static UnitSweepResident s_unit_sweep_resident;
 
 __global__ static void unit_sweep_load_kernel(const unsigned short *volume, unsigned long long voxels,
                                               unsigned int limbs, unsigned int *planes)
@@ -95,11 +85,13 @@ __global__ static void unit_sweep_widen_kernel(const unsigned int *narrow_planes
     }
 }
 
-// `steps` unit pairs [1, 2, 1] along the axis, each reading the voxel's neighbors with the edge voxel located in past
-// either end, then with `half` set the one unit step [1, 1] an odd order leaves, reading the voxel and the one before
-// it with the first voxel located in before the start. That is the key's window reflected at the edges: a pair
-// preserves the line's reflection about the half voxel before its start, and the step after all pairs starts where the
-// key's window of the whole order starts, floor((order + 1) / 2) before the voxel.
+// `steps` unit pairs [1, 2, 1] along the axis. Each reads the neighbors of the voxel, with the edge voxel in place past
+// either end. Then, with `half` set, the one unit step [1, 1] that an odd order leaves. It reads the voxel and the one
+// before it, with the first voxel in place before the start.
+//
+// That is the window of the key reflected at the edges. A pair keeps the reflection of the line about the half voxel
+// before its start. The step after all pairs starts where the window of the key of the whole order starts,
+// floor((order + 1) / 2) before the voxel.
 __global__ static void unit_sweep_axis_kernel(unsigned int *planes, UnitSweepExtent extent, unsigned int axis,
                                               unsigned int limbs, unsigned int steps, unsigned int half,
                                               unsigned int bits)
@@ -230,7 +222,8 @@ __global__ static void unit_sweep_comb_kernel(unsigned int *planes, UnitSweepExt
     __syncthreads();
     const unsigned int grown_limbs = (bits + growth + 31u) / 32u;
     const unsigned int live_limbs = (grown_limbs < limbs) ? grown_limbs : limbs;
-    // the first tap sits (taps - 1) * spacing / 2 before the voxel, which is whole: an even comb's taps are spaced 2
+    // the first tap sits (taps - 1) * spacing / 2 before the voxel, which is whole: the taps of an even comb lie 2
+    // apart
     const long long first = -(long long)(((taps - 1u) * spacing) / 2u);
     for (unsigned int place = threadIdx.x; place < length; place += blockDim.x)
     {
@@ -263,9 +256,10 @@ __global__ static void unit_sweep_comb_kernel(unsigned int *planes, UnitSweepExt
     }
 }
 
-// `pairs` pairs [1, 2, 1] along the axis whose taps are `spacing` voxels apart, each reading the line reflected at its
-// edges. A pair is symmetric about the voxel and preserves the line's reflection about the half voxel past each end,
-// and the pairs, the unit pairs and the comb's centered part may run in any order and still give the key's window.
+// `pairs` pairs [1, 2, 1] along the axis whose taps are `spacing` voxels apart. Each reads the line reflected at its
+// edges. A pair is symmetric about the voxel, and keeps the reflection of the line about the half voxel past each end.
+// The pairs, the unit pairs and the centered part of the comb thus run in any order and still give the window of the
+// key.
 __global__ static void unit_sweep_spaced_kernel(unsigned int *planes, UnitSweepExtent extent, unsigned int axis,
                                                 unsigned int limbs, unsigned int pairs, unsigned int spacing,
                                                 unsigned int bits)
@@ -387,17 +381,15 @@ __global__ static void unit_sweep_compare_kernel(const unsigned int *left, const
     }
 }
 
-static int unit_sweep_grow(unsigned int **planes, size_t *capacity, size_t words, EngineError *error)
+// A temporary cell of `words` words of the pool of the device, every word 0, kept in `cells` for its give back at the
+// end of the call. 1, or 0 with the error set where the pool cannot meet it
+static int unit_sweep_room(TesseraJobCells *cells, unsigned long long words, unsigned int **room, EngineError *error)
 {
-    if (words <= *capacity)
-    {
-        return 1;
-    }
-    cudaFree(*planes);
-    *planes = NULL;
-    *capacity = 0u;
-    const int ok = UNIT_SWEEP_STATUS_CHECK(cudaMalloc((void **)planes, words * sizeof(unsigned int)), planes, error);
-    *capacity = (ok != 0) ? words : 0u;
+    void *cell = NULL;
+    const int ok = UNIT_SWEEP_CHECK(tessera_job_cells_room(cells, words * sizeof(unsigned int), &cell), room, error,
+                                    ENGINE_ERROR_RESOURCE);
+    // Explicit cast reads the cell as the words that it holds
+    *room = (unsigned int *)cell;
     return ok;
 }
 
@@ -420,8 +412,9 @@ static unsigned int unit_sweep_comb_growth(unsigned int length)
     return (length < 2u) ? 0u : unit_sweep_bit_length(length - 1u);
 }
 
-// each axis's comb, its centered part: n ones a voxel apart for an odd n, n / 2 ones two voxels apart for an even n,
-// whose one unit step [1, 1] runs with the halves. `bits` bounds the planes' width going in.
+// The comb of each axis, its centered part. That is n ones a voxel apart for an odd n. For an even n, it is n / 2 ones
+// two voxels apart, and its one unit step [1, 1] runs with the halves. `bits` bounds the width of the planes that come
+// in.
 static int unit_sweep_combs(unsigned int *planes, const UnitSweepExtent *extent, unsigned int limbs,
                             const unsigned int comb[ENGINE_AXES], unsigned int bits, EngineError *error)
 {
@@ -446,7 +439,7 @@ static int unit_sweep_combs(unsigned int *planes, const UnitSweepExtent *extent,
                               ENGINE_ERROR_REQUEST);
         if (ok != 0)
         {
-            // lines was bounded at or below 2^31 - 1 above: it narrows to the unsigned int grid size exactly
+            // The check above holds lines at or below 2^31 - 1. It narrows to the unsigned int grid size exactly
             unit_sweep_comb_kernel<<<(unsigned int)lines, UNIT_SWEEP_THREADS, shared_bytes>>>(
                 planes, *extent, axis, limbs, taps, spacing, input_bits, growth);
             ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), planes, error);
@@ -455,10 +448,10 @@ static int unit_sweep_combs(unsigned int *planes, const UnitSweepExtent *extent,
     return ok;
 }
 
-// each axis's unit pairs [1, 2, 1], steps[axis] of them; or with `halves` set, only the one unit step [1, 1] where
-// halves[axis] is 1, which runs after every pair either term takes so that the pairs see the line's reflection.
-// `bits` bounds the planes' width going in: the limbs a step reads and writes follow from it, and a bound above the
-// width only carries limbs of zeros.
+// The unit pairs [1, 2, 1] of each axis, steps[axis] of them. Or, with `halves` set, only the one unit step [1, 1]
+// where halves[axis] is 1. That step runs after every pair that either term takes. The pairs thus see the reflection
+// of the line. `bits` bounds the width of the planes that come in. The limbs that a step reads and writes follow from
+// it, and a bound above the width only carries limbs of zeros.
 static int unit_sweep_axes(unsigned int *planes, const UnitSweepExtent *extent, unsigned int limbs,
                            const unsigned int pairs[ENGINE_AXES], unsigned int bits, int halves, EngineError *error)
 {
@@ -480,7 +473,7 @@ static int unit_sweep_axes(unsigned int *planes, const UnitSweepExtent *extent, 
                               ENGINE_ERROR_REQUEST);
         if (ok != 0)
         {
-            // lines was bounded at or below 2^31 - 1 above: it narrows to the unsigned int grid size exactly
+            // The check above holds lines at or below 2^31 - 1. It narrows to the unsigned int grid size exactly
             unit_sweep_axis_kernel<<<(unsigned int)lines, UNIT_SWEEP_THREADS, shared_bytes>>>(
                 planes, *extent, axis, limbs, steps, half, input_bits);
             ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), planes, error);
@@ -489,8 +482,8 @@ static int unit_sweep_axes(unsigned int *planes, const UnitSweepExtent *extent, 
     return ok;
 }
 
-// each axis's spaced pairs, spaced[axis][j] of them with taps 2^j apart, the spacings in ascending order. `bits`
-// bounds the planes' width going in.
+// The spaced pairs of each axis, spaced[axis][j] of them with taps 2^j apart, the spacings in ascending order. `bits`
+// bounds the width of the planes that come in.
 static int unit_sweep_spaced(unsigned int *planes, const UnitSweepExtent *extent, unsigned int limbs,
                              const unsigned int spaced[ENGINE_AXES][ENGINE_SPACINGS], unsigned int bits,
                              EngineError *error)
@@ -514,7 +507,7 @@ static int unit_sweep_spaced(unsigned int *planes, const UnitSweepExtent *extent
                                   ENGINE_ERROR_REQUEST);
             if (ok != 0)
             {
-                // lines was bounded at or below 2^31 - 1 above: it narrows to the unsigned int grid size exactly
+                // The check above holds lines at or below 2^31 - 1. It narrows to the unsigned int grid size exactly
                 unit_sweep_spaced_kernel<<<(unsigned int)lines, UNIT_SWEEP_THREADS, shared_bytes>>>(
                     planes, *extent, axis, limbs, pairs, 1u << spacing, input_bits);
                 ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), planes, error);
@@ -525,28 +518,24 @@ static int unit_sweep_spaced(unsigned int *planes, const UnitSweepExtent *extent
 }
 
 static int unit_sweep_planes_load(const UnitSweepRequest *request, const UnitSweepExtent *extent,
-                                  unsigned int narrow_limbs, unsigned int blocks, UnitSweepResident *buffers,
-                                  EngineError *error)
+                                  unsigned int narrow_limbs, unsigned int blocks, unsigned int *narrow_planes,
+                                  TesseraJobCells *cells, EngineError *error)
 {
     const unsigned int input_limbs = (request->input_bits + 31u) / 32u;
     const unsigned int top_bits = request->input_bits % 32u;
     const unsigned int top_mask = (top_bits == 0u) ? 0u : ~((1u << top_bits) - 1u);
     unsigned int over_width = 0u;
-    int ok = (buffers->over_width != NULL) ||
-             UNIT_SWEEP_STATUS_CHECK(cudaMalloc((void **)&buffers->over_width, sizeof(unsigned int)),
-                                     &buffers->over_width, error);
-    ok = ok &&
-         UNIT_SWEEP_STATUS_CHECK(cudaMemset(buffers->over_width, 0, sizeof(unsigned int)), buffers->over_width, error);
+    unsigned int *device_over_width = NULL;
+    int ok = unit_sweep_room(cells, 1ULL, &device_over_width, error);
     if (ok != 0)
     {
         unit_sweep_planes_load_kernel<<<blocks, UNIT_SWEEP_THREADS>>>(request->device_planes, input_limbs, top_mask,
-                                                                      extent->voxels, narrow_limbs,
-                                                                      buffers->narrow_planes, buffers->over_width);
-        ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), buffers->narrow_planes, error);
+                                                                      extent->voxels, narrow_limbs, narrow_planes,
+                                                                      device_over_width);
+        ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), narrow_planes, error);
     }
-    ok = ok && UNIT_SWEEP_STATUS_CHECK(
-                   cudaMemcpy(&over_width, buffers->over_width, sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                   buffers->over_width, error);
+    ok = ok && UNIT_SWEEP_CHECK(tessera_job_crossed_out(&over_width, device_over_width, sizeof(unsigned int)),
+                                device_over_width, error, ENGINE_ERROR_RESOURCE);
     return ok && UNIT_SWEEP_CHECK(over_width == 0u, &request->input_bits, error, ENGINE_ERROR_REQUEST);
 }
 
@@ -581,7 +570,7 @@ extern "C" unsigned long long unit_sweep_bytes(const UnitSweepRequest *request)
     const unsigned long long wide_bits = unit_sweep_bits(request) - 1ULL;
     const unsigned long long narrow = voxels * ((narrow_bits + 31ULL) / 32ULL) * sizeof(unsigned int);
     const unsigned long long wide = voxels * ((wide_bits + 31ULL) / 32ULL) * sizeof(unsigned int);
-    // each allocation is mapped in whole pages: the two planes, and a page for each counter
+    // The pool maps each cell in whole pages: the two planes, and a page for each counter
     const unsigned long long page = DEVICE_POOL_PAGE_BYTES - 1ULL;
     return ((narrow + page) & ~page) + ((wide + page) & ~page) + (2ULL * DEVICE_POOL_PAGE_BYTES);
 }
@@ -623,12 +612,12 @@ extern "C" long unit_sweep_residual(const UnitSweepRequest *request)
     {
         return UNIT_SWEEP_ERROR;
     }
-    // both are bounded at or below 32 limbs' bits above, and narrow to unsigned int exactly
+    // The check above holds both at or below the bits of 32 limbs. They narrow to unsigned int exactly
     unsigned int narrow_bits = input_bits + (unsigned int)smooth_spaced_bits;
     unsigned int gain = (unsigned int)background_spaced_bits;
-    // the narrow term's pairs: the smooth order's, and one more where an odd smooth order and an even comb each leave
-    // a unit step [1, 1], which together are one pair [1, 2, 1]; the background's pairs; and the one unit step left
-    // where the smooth order and the comb's n - 1 sum to an odd number
+    // The pairs of the narrow term are those of the smooth order. An odd smooth order and an even comb each leave a
+    // unit step [1, 1], and those two steps together are one more pair [1, 2, 1]. Then come the pairs of the
+    // background. Last comes one unit step where the smooth order and the n - 1 of the comb sum to an odd number
     unsigned int narrow_pairs[ENGINE_AXES];
     unsigned int background_pairs[ENGINE_AXES];
     unsigned int halves[ENGINE_AXES];
@@ -657,54 +646,59 @@ extern "C" long unit_sweep_residual(const UnitSweepRequest *request)
     }
     const UnitSweepExtent extent = {{request->depth, request->height, request->width},
                                     (unsigned long long)request->depth * request->height * request->width};
-    UnitSweepResident *const buffers = &s_unit_sweep_resident;
     // the caller bounds the voxel count below 2^32: the block count fits unsigned int
     const unsigned int blocks = (unsigned int)((extent.voxels + UNIT_SWEEP_THREADS - 1u) / UNIT_SWEEP_THREADS);
-    int ok =
-        unit_sweep_grow(&buffers->narrow_planes, &buffers->narrow_words, (size_t)extent.voxels * narrow_limbs, error) &&
-        unit_sweep_grow(&buffers->wide_planes, &buffers->wide_words, (size_t)extent.voxels * wide_limbs, error);
+    // The two planes and the flag of the load are temporary cells of the pool of the device. The call gives them back
+    // last first before it returns, through kernels on the stream after the sweep
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, platform_place_g_engine_owner);
+    unsigned int *narrow_planes = NULL;
+    unsigned int *wide_planes = NULL;
+    int ok = unit_sweep_room(&cells, extent.voxels * narrow_limbs, &narrow_planes, error) &&
+             unit_sweep_room(&cells, extent.voxels * wide_limbs, &wide_planes, error);
     if ((ok != 0) && (planes_given == 0))
     {
         unit_sweep_load_kernel<<<blocks, UNIT_SWEEP_THREADS>>>(request->device_volume, extent.voxels, narrow_limbs,
-                                                               buffers->narrow_planes);
-        ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), buffers->narrow_planes, error);
+                                                               narrow_planes);
+        ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), narrow_planes, error);
     }
-    ok = ok && ((planes_given == 0) || unit_sweep_planes_load(request, &extent, narrow_limbs, blocks, buffers, error));
-    ok = ok && unit_sweep_axes(buffers->narrow_planes, &extent, narrow_limbs, narrow_pairs, input_bits, 0, error);
+    ok = ok && ((planes_given == 0) ||
+                unit_sweep_planes_load(request, &extent, narrow_limbs, blocks, narrow_planes, &cells, error));
+    ok = ok && unit_sweep_axes(narrow_planes, &extent, narrow_limbs, narrow_pairs, input_bits, 0, error);
     unsigned int paired_bits = input_bits;
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
         paired_bits += 2u * narrow_pairs[axis];
     }
-    ok = ok &&
-         unit_sweep_spaced(buffers->narrow_planes, &extent, narrow_limbs, request->smooth_spaced, paired_bits, error);
-    // the smooth's spaced bits are bounded at or below 32 limbs' bits above, and narrow to unsigned int exactly
+    ok = ok && unit_sweep_spaced(narrow_planes, &extent, narrow_limbs, request->smooth_spaced, paired_bits, error);
+    // The check above holds the spaced bits of the smooth at or below the bits of 32 limbs. They narrow to unsigned int
     paired_bits += (unsigned int)smooth_spaced_bits;
-    ok = ok && unit_sweep_combs(buffers->narrow_planes, &extent, narrow_limbs, request->comb, paired_bits, error);
+    ok = ok && unit_sweep_combs(narrow_planes, &extent, narrow_limbs, request->comb, paired_bits, error);
     if (ok != 0)
     {
-        unit_sweep_widen_kernel<<<blocks, UNIT_SWEEP_THREADS>>>(buffers->narrow_planes, narrow_limbs, extent.voxels,
-                                                                wide_limbs, buffers->wide_planes);
-        ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), buffers->wide_planes, error);
+        unit_sweep_widen_kernel<<<blocks, UNIT_SWEEP_THREADS>>>(narrow_planes, narrow_limbs, extent.voxels, wide_limbs,
+                                                                wide_planes);
+        ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), wide_planes, error);
     }
-    ok = ok && unit_sweep_axes(buffers->wide_planes, &extent, wide_limbs, background_pairs, narrow_bits, 0, error);
+    ok = ok && unit_sweep_axes(wide_planes, &extent, wide_limbs, background_pairs, narrow_bits, 0, error);
     unsigned int background_paired_bits = narrow_bits;
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
         background_paired_bits += 2u * background_pairs[axis];
     }
-    ok = ok && unit_sweep_spaced(buffers->wide_planes, &extent, wide_limbs, request->background_spaced,
-                                 background_paired_bits, error);
-    // the odd unit steps last, on both terms alike, once every pair and comb has run
-    ok = ok && unit_sweep_axes(buffers->narrow_planes, &extent, narrow_limbs, halves, narrow_bits, 1, error) &&
-         unit_sweep_axes(buffers->wide_planes, &extent, wide_limbs, halves, narrow_bits + gain, 1, error);
+    ok = ok &&
+         unit_sweep_spaced(wide_planes, &extent, wide_limbs, request->background_spaced, background_paired_bits, error);
+    // the odd unit steps last, on both terms alike, after every pair and comb
+    ok = ok && unit_sweep_axes(narrow_planes, &extent, narrow_limbs, halves, narrow_bits, 1, error) &&
+         unit_sweep_axes(wide_planes, &extent, wide_limbs, halves, narrow_bits + gain, 1, error);
     if (ok != 0)
     {
-        unit_sweep_residual_kernel<<<blocks, UNIT_SWEEP_THREADS>>>(buffers->narrow_planes, narrow_limbs,
-                                                                   buffers->wide_planes, wide_limbs, extent.voxels,
-                                                                   gain, request->limbs, request->device_out);
+        unit_sweep_residual_kernel<<<blocks, UNIT_SWEEP_THREADS>>>(narrow_planes, narrow_limbs, wide_planes, wide_limbs,
+                                                                   extent.voxels, gain, request->limbs,
+                                                                   request->device_out);
         ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), request->device_out, error);
     }
+    tessera_job_cells_given(&cells);
     return (ok != 0) ? 0L : UNIT_SWEEP_ERROR;
 }
 
@@ -721,32 +715,29 @@ extern "C" long unit_sweep_lanes_compare(const UnitSweepComparison *comparison)
     {
         return UNIT_SWEEP_ERROR;
     }
-    UnitSweepResident *const buffers = &s_unit_sweep_resident;
-    int ok = (buffers->disagreements != NULL) ||
-             UNIT_SWEEP_STATUS_CHECK(cudaMalloc((void **)&buffers->disagreements, sizeof(unsigned long long)),
-                                     &buffers->disagreements, error);
-    ok = ok && UNIT_SWEEP_STATUS_CHECK(cudaMemset(buffers->disagreements, 0, sizeof(unsigned long long)),
-                                       buffers->disagreements, error);
+    // the count of the lanes that differ, a temporary cell of the pool of the device, every byte 0 at the take
+    void *cell = NULL;
+    int ok = UNIT_SWEEP_CHECK(tessera_job_cell_taken(sizeof(unsigned long long), platform_place_g_engine_owner, &cell),
+                              comparison, error, ENGINE_ERROR_RESOURCE);
+    // Explicit cast reads the cell as the count that it holds
+    unsigned long long *const device_disagreements = (unsigned long long *)cell;
     if ((ok != 0) && (comparison->lanes != 0ULL))
     {
         // the lanes are voxels, bounded below 2^32 by the caller: the block count fits unsigned int
         unit_sweep_compare_kernel<<<(unsigned int)((comparison->lanes + UNIT_SWEEP_THREADS - 1u) / UNIT_SWEEP_THREADS),
                                     UNIT_SWEEP_THREADS>>>(comparison->device_left, comparison->device_right,
-                                                          comparison->lanes, comparison->limbs, buffers->disagreements);
-        ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), buffers->disagreements, error);
+                                                          comparison->lanes, comparison->limbs, device_disagreements);
+        ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), device_disagreements, error);
     }
-    ok = ok && UNIT_SWEEP_STATUS_CHECK(cudaMemcpy(comparison->disagreements, buffers->disagreements,
-                                                  sizeof(unsigned long long), cudaMemcpyDeviceToHost),
-                                       comparison->disagreements, error);
+    ok = ok && UNIT_SWEEP_CHECK(
+                   tessera_job_crossed_out(comparison->disagreements, device_disagreements, sizeof(unsigned long long)),
+                   comparison->disagreements, error, ENGINE_ERROR_RESOURCE);
+    tessera_job_given(cell, platform_place_g_engine_owner);
     return (ok != 0) ? 0L : UNIT_SWEEP_ERROR;
 }
 
+// The sweep takes its planes and its counts on the device as temporary cells for each call, and gives them back before
+// it returns. The sweep keeps nothing between calls, and the release has nothing to give back
 extern "C" void unit_sweep_release(void)
 {
-    UnitSweepResident *const buffers = &s_unit_sweep_resident;
-    cudaFree(buffers->narrow_planes);
-    cudaFree(buffers->wide_planes);
-    cudaFree(buffers->disagreements);
-    cudaFree(buffers->over_width);
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = buffers, .bytes = sizeof(*buffers), .val = 0);
 }
