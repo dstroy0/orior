@@ -6,6 +6,9 @@
 
 #include "record.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+
 #include "core_radius_weights.h"
 #include "../../../../includes/platform/platform.h"
 
@@ -372,10 +375,11 @@ static int core_radius_fixed_proof(const CoreRadiusScale *scale, const CoreRadiu
 
 // the Lean file at the cfg's member `member`, a path from the directory the cfg is in, written whole: 1 where every
 // byte was written
-static int core_radius_lean_write(const char *cfg_path, const RunCfg *cfg, const char *member, const std::string &text)
+static int core_radius_lean_write(const char *cfg_path, const RunCfg *cfg, const char *member, PlatformText *text)
 {
     char path[PLATFORM_PATH_BYTES];
-    if (run_cfg_beside(cfg_path, cfg, member, path, sizeof(path)) == 0)
+    const char *const bytes = mmgr_line_ok(&text->line) ? platform_text_bytes(text) : NULL;
+    if ((bytes == NULL) || (run_cfg_beside(cfg_path, cfg, member, path, sizeof(path)) == 0))
     {
         return 0;
     }
@@ -384,51 +388,111 @@ static int core_radius_lean_write(const char *cfg_path, const RunCfg *cfg, const
     {
         return 0;
     }
-    fwrite(text.data(), 1u, text.size(), file);
+    // the Lean file is far below what a size_t counts
+    fwrite(bytes, 1u, (size_t)platform_text_size(text), file);
     const int written = ferror(file) == 0;
     return (fclose(file) == 0) && written;
 }
 
-// the exact rationals of a sequence as a Lean list
-static std::string core_radius_lean_list(const CoreRadiusSequence &n)
+// the bytes the Lean file grows to at max
+#define CORE_RADIUS_LEAN_MAX (1ULL << 30u)
+
+// the text of the Lean file, of the movable tier, begun empty
+static void core_radius_lean_begun(PlatformText *text)
 {
-    std::string list = "[";
-    for (size_t k = 0u; k < n.size(); k += 1u)
-    {
-        list += ((k == 0u) ? "" : ", ") + term_book_rational(n[k]);
-    }
-    return list + "]";
+    platform_text_begun(text, CORE_RADIUS_LEAN_MAX, platform_place_g_program_owner, PLATFORM_TIER_MOVABLE);
 }
 
-// the proof on one ellipse as a Lean witness `name` and the theorem that its numbers pass the checks
-static std::string core_radius_lean(const std::string &name, const std::string &title, unsigned int split, unsigned int order, const CoreRadiusProof *proof)
+// the exact rationals of a sequence as a Lean list, after the bytes of `line`
+static void core_radius_lean_list(VerbaLinea *line, const CoreRadiusSequence &n)
 {
-    std::string text = "/-- " + title + " -/\n";
-    text += "def " + name + " : Witness where\n";
-    text += "  rule :=\n";
-    text += "    { rate := " + term_book_rational(proof->rate) + "\n";
-    text += "      lambda := " + term_book_rational(proof->lambda) + "\n";
-    text += "      angular_a0 := " + term_book_rational(proof->angular_a0) + "\n";
-    text += "      along_a0 := " + term_book_rational(proof->along_a0) + "\n";
-    text += "      a1 := " + term_book_rational(proof->a1) + "\n";
-    text += "      alpha_angular := " + term_book_rational(proof->alpha_angular) + "\n";
-    text += "      alpha_along := " + term_book_rational(proof->alpha_along) + "\n";
-    text += "      alpha_pressure := " + term_book_rational(proof->alpha_pressure) + "\n";
-    text += "      beta := " + term_book_rational(proof->beta) + " }\n";
-    text += "  split := " + std::to_string(split) + "\n";
-    text += "  order := " + std::to_string(order) + "\n";
-    text += "  f := " + core_radius_lean_list(proof->f) + "\n";
-    text += "  u := " + core_radius_lean_list(proof->u) + "\n";
-    text += "  w := " + core_radius_lean_list(proof->w) + "\n";
-    text += "  bf := " + term_book_rational(proof->b_f) + "\n";
-    text += "  bu := " + term_book_rational(proof->b_u) + "\n";
-    text += "  bp := " + term_book_rational(proof->b_p) + "\n";
-    text += "  bw := " + term_book_rational(proof->b_w) + "\n\n";
+    mmgr_line_ch(line, '[');
+    for (size_t k = 0u; k < n.size(); k += 1u)
+    {
+        mmgr_line_put(line, (k == 0u) ? "" : ", ");
+        record_rational(line, n[k]);
+    }
+    mmgr_line_ch(line, ']');
+}
+
+// the line "<before><value><after>" after the bytes of `line`
+static void core_radius_lean_field(VerbaLinea *line, const char *before, SimRational value, const char *after)
+{
+    mmgr_line_put(line, before);
+    record_rational(line, value);
+    mmgr_line_put(line, after);
+}
+
+// the proof on one ellipse as a Lean witness `name` and the theorem that its numbers pass the checks, after the bytes
+// of `lean`
+static void core_radius_lean(PlatformText *lean, const char *name, const char *title, unsigned int split,
+                             unsigned int order, const CoreRadiusProof *proof)
+{
+    VerbaLinea *const line = &lean->line;
+    mmgr_line_put(line, "/-- ");
+    mmgr_line_put(line, title);
+    mmgr_line_put(line, " -/\ndef ");
+    mmgr_line_put(line, name);
+    mmgr_line_put(line, " : Witness where\n  rule :=\n");
+    core_radius_lean_field(line, "    { rate := ", proof->rate, "\n");
+    core_radius_lean_field(line, "      lambda := ", proof->lambda, "\n");
+    core_radius_lean_field(line, "      angular_a0 := ", proof->angular_a0, "\n");
+    core_radius_lean_field(line, "      along_a0 := ", proof->along_a0, "\n");
+    core_radius_lean_field(line, "      a1 := ", proof->a1, "\n");
+    core_radius_lean_field(line, "      alpha_angular := ", proof->alpha_angular, "\n");
+    core_radius_lean_field(line, "      alpha_along := ", proof->alpha_along, "\n");
+    core_radius_lean_field(line, "      alpha_pressure := ", proof->alpha_pressure, "\n");
+    core_radius_lean_field(line, "      beta := ", proof->beta, " }\n");
+    mmgr_line_put(line, "  split := ");
+    mmgr_line_decimal(line, split, 1u);
+    mmgr_line_put(line, "\n  order := ");
+    mmgr_line_decimal(line, order, 1u);
+    mmgr_line_put(line, "\n  f := ");
+    core_radius_lean_list(line, proof->f);
+    mmgr_line_put(line, "\n  u := ");
+    core_radius_lean_list(line, proof->u);
+    mmgr_line_put(line, "\n  w := ");
+    core_radius_lean_list(line, proof->w);
+    mmgr_line_ch(line, '\n');
+    core_radius_lean_field(line, "  bf := ", proof->b_f, "\n");
+    core_radius_lean_field(line, "  bu := ", proof->b_u, "\n");
+    core_radius_lean_field(line, "  bp := ", proof->b_p, "\n");
+    core_radius_lean_field(line, "  bw := ", proof->b_w, "\n\n");
     // the kernel evaluates every inequality over Q, a split's sums of rationals thousands of bits wide among them
-    text += "theorem " + name + "_checks : " + name + ".Checks := by\n";
-    text += "  unfold Witness.Checks\n";
-    text += "  decide +kernel\n\n";
-    return text;
+    mmgr_line_put(line, "theorem ");
+    mmgr_line_put(line, name);
+    mmgr_line_put(line, "_checks : ");
+    mmgr_line_put(line, name);
+    mmgr_line_put(line, ".Checks := by\n  unfold Witness.Checks\n  decide +kernel\n\n");
+}
+
+// the line "    <first> <second> <third> <fourth>" of the record
+static void core_radius_four_recorded(FILE *record, SimRational first, SimRational second, SimRational third,
+                                      SimRational fourth)
+{
+    PlatformText line;
+    record_line_begun(&line);
+    mmgr_line_put(&line.line, "    ");
+    record_rational(&line.line, first);
+    mmgr_line_ch(&line.line, ' ');
+    record_rational(&line.line, second);
+    mmgr_line_ch(&line.line, ' ');
+    record_rational(&line.line, third);
+    mmgr_line_ch(&line.line, ' ');
+    record_rational(&line.line, fourth);
+    record_line_ended(record, &line);
+}
+
+// the line "  proved r <proved>, radius <radius>" of the record
+static void core_radius_proved_recorded(FILE *record, SimRational proved, SimRational radius)
+{
+    PlatformText line;
+    record_line_begun(&line);
+    mmgr_line_put(&line.line, "  proved r ");
+    record_rational(&line.line, proved);
+    mmgr_line_put(&line.line, ", radius ");
+    record_rational(&line.line, radius);
+    record_line_ended(record, &line);
 }
 
 // sum m |c_m| rho^m / (length sum |c_m| rho^m), 0 for weights all 0
@@ -450,9 +514,8 @@ static SimRational core_radius_place(const CoreRadiusWeights &weights, SimRation
 // `rate_proof` and `norms`, the rate in `rate_proof` 0 where no r is proved
 static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const CoreRadiusOrders *orders, unsigned int g0,
                                           unsigned int order, unsigned int split, SimRational step,
-                                          unsigned long long steps, FILE *record, const std::string &name,
-                                          const std::string &title, std::string *lean, CoreRadiusProof *rate_proof,
-                                          CoreRadiusSequence *norms)
+                                          unsigned long long steps, FILE *record, const char *name, const char *title,
+                                          PlatformText *lean, CoreRadiusProof *rate_proof, CoreRadiusSequence *norms)
 {
     const SimRational one = core_radius_number(1ll, 1ll);
     const SimRational two = core_radius_number(2ll, 1ll);
@@ -514,26 +577,37 @@ static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const Co
     *norms = nf;
     if ((low > 0ull) && core_radius_fixed_proof(scale, &fixed, g0, nf, nu, np, nw, order, split, proved, &proof))
     {
-        *lean += core_radius_lean(name, title, split, order, &proof);
+        core_radius_lean(lean, name, title, split, order, &proof);
         *rate_proof = proof;
     }
     if (record != NULL)
     {
-        record_text(record, ("  one ellipse, split " + std::to_string(split) + ": ||f_k||, ||u_k||, ||p_k||, ||w_k|| on E_rho0 to order " + std::to_string(order)).c_str());
+        PlatformText line;
+        record_line_begun(&line);
+        mmgr_line_put(&line.line, "  one ellipse, split ");
+        mmgr_line_decimal(&line.line, split, 1u);
+        mmgr_line_put(&line.line, ": ||f_k||, ||u_k||, ||p_k||, ||w_k|| on E_rho0 to order ");
+        mmgr_line_decimal(&line.line, order, 1u);
+        record_line_ended(record, &line);
         for (unsigned int k = 0u; k <= order; k += 1u)
         {
-            record_text(record, ("    " + term_book_rational(nf[k]) + " " + term_book_rational(nu[k]) + " " + term_book_rational(np[k]) + " " + term_book_rational(nw[k])).c_str());
+            core_radius_four_recorded(record, nf[k], nu[k], np[k], nw[k]);
         }
-        record_text(record, ("  proved r " + term_book_rational(proved) + ", radius " + term_book_rational(radius)).c_str());
+        core_radius_proved_recorded(record, proved, radius);
         // each order's weights read as amplitudes in [0, 1] over a place t = m / G_k in [0, 1]: where the order
         // contains its weight, and so the share of its length a derivative of it costs
         record_text(record, "  place of f_k and u_k on the 0-1 scale, sum m |c_m| rho^m / (G_k sum |c_m| rho^m)");
         for (unsigned int k = 1u; k <= order; k += 1u)
         {
             const unsigned int length = g0 + (g0 + 4u) * k;
-            record_text(record, ("    " + std::to_string(k) + " " + term_book_rational(core_radius_place(orders->f[k], rho, length)) + " " +
-                                 term_book_rational(core_radius_place(orders->g[k], rho, length)))
-                                    .c_str());
+            record_line_begun(&line);
+            mmgr_line_put(&line.line, "    ");
+            mmgr_line_decimal(&line.line, k, 1u);
+            mmgr_line_ch(&line.line, ' ');
+            record_rational(&line.line, core_radius_place(orders->f[k], rho, length));
+            mmgr_line_ch(&line.line, ' ');
+            record_rational(&line.line, core_radius_place(orders->g[k], rho, length));
+            record_line_ended(record, &line);
         }
     }
     return radius;
@@ -780,36 +854,61 @@ static int core_radius_principal(const CoreRadiusScale *scale, const CoreRadiusO
     return (sim_rational_sign(*s_least) > 0) && (sim_rational_sign(*grown_least) > 0);
 }
 
+// the bytes of a wall's name, its terminator among them: a literal and at most one rational
+#define CORE_RADIUS_WALL_NAME (RECORD_RATIONAL_ROOM + 64u)
+
 // one wall: its name and the time left the core passes it by
 typedef struct
 {
-    std::string name;
+    char name[CORE_RADIUS_WALL_NAME];
     SimRational tau;
 } CoreRadiusWall;
 
+// the wall "<before><share><after>" of the time left `tau`, the share left out where `share` is NULL
+static CoreRadiusWall core_radius_wall(const char *before, const SimRational *share, const char *after, SimRational tau)
+{
+    CoreRadiusWall wall;
+    VerbaLinea name = {wall.name, sizeof(wall.name), 0ull};
+    mmgr_line_put(&name, before);
+    if (share != NULL)
+    {
+        record_rational(&name, *share);
+    }
+    mmgr_line_put(&name, after);
+    (void)mmgr_line_finish(&name);
+    wall.tau = tau;
+    return wall;
+}
+
 // the walls of one medium, the first, the one with the max time left, first
-static std::vector<CoreRadiusWall> core_radius_walls(SimRational nu, SimRational x, SimRational least, SimRational sound, SimRational spacing, SimRational relaxation,
-                                                     SimRational mass, SimRational ionization, SimRational light, const std::vector<SimRational> &mach,
-                                                     const std::vector<std::string> &mach_names)
+static std::vector<CoreRadiusWall> core_radius_walls(SimRational nu, SimRational x, SimRational least,
+                                                     SimRational sound, SimRational spacing, SimRational relaxation,
+                                                     SimRational mass, SimRational ionization, SimRational light,
+                                                     const std::vector<SimRational> &mach)
 {
     std::vector<CoreRadiusWall> walls;
     for (size_t index = 0u; index < mach.size(); index += 1u)
     {
         const SimRational speed = core_radius_times(mach[index], sound);
-        walls.push_back({"speed " + mach_names[index] + " of sound", core_radius_wall_speed(nu, x, least, core_radius_times(speed, speed))});
+        walls.push_back(core_radius_wall("speed ", &mach[index], " of sound",
+                                         core_radius_wall_speed(nu, x, least, core_radius_times(speed, speed))));
     }
     if (sim_rational_sign(mass) > 0)
     {
         // V^2 = 2 E / m
-        walls.push_back({"collisions that free an electron", core_radius_wall_speed(nu, x, least, core_radius_over(core_radius_times(core_radius_number(2ll, 1ll), ionization), mass))});
+        walls.push_back(core_radius_wall(
+            "collisions that free an electron", NULL, "",
+            core_radius_wall_speed(
+                nu, x, least, core_radius_over(core_radius_times(core_radius_number(2ll, 1ll), ionization), mass))));
     }
-    walls.push_back({"speed of light", core_radius_wall_speed(nu, x, least, core_radius_times(light, light))});
+    walls.push_back(core_radius_wall("speed of light", NULL, "",
+                                     core_radius_wall_speed(nu, x, least, core_radius_times(light, light))));
     const SimRational radius_tau = core_radius_over(core_radius_times(spacing, spacing), core_radius_times(core_radius_times(core_radius_number(2ll, 1ll), nu), x));
     const SimRational one = core_radius_number(1ll, 1ll);
-    walls.push_back({"radius at the spacing", core_radius_least(radius_tau, one)});
+    walls.push_back(core_radius_wall("radius at the spacing", NULL, "", core_radius_least(radius_tau, one)));
     if (sim_rational_sign(relaxation) > 0)
     {
-        walls.push_back({"elastic answer", core_radius_least(relaxation, one)});
+        walls.push_back(core_radius_wall("elastic answer", NULL, "", core_radius_least(relaxation, one)));
     }
     std::stable_sort(walls.begin(), walls.end(), [](const CoreRadiusWall &left, const CoreRadiusWall &right) { return sim_rational_sign(sim_rational_difference(left.tau, right.tau)) > 0; });
     return walls;
@@ -817,9 +916,10 @@ static std::vector<CoreRadiusWall> core_radius_walls(SimRational nu, SimRational
 
 // the largest r = j step, j = 1..steps, the proof is valid at over the witness a, u, p, w, 0 where it is valid at none,
 // with the witness and r written to the record under `name`
-static SimRational core_radius_rate(const CoreRadiusScale *scale, const CoreRadiusSequence &a, const CoreRadiusSequence &u, const CoreRadiusSequence &p,
-                                    const CoreRadiusSequence &w, unsigned int order, SimRational step, unsigned long long steps, FILE *record,
-                                    const std::string &name)
+static SimRational core_radius_rate(const CoreRadiusScale *scale, const CoreRadiusSequence &a,
+                                    const CoreRadiusSequence &u, const CoreRadiusSequence &p,
+                                    const CoreRadiusSequence &w, unsigned int order, SimRational step,
+                                    unsigned long long steps, FILE *record, const char *name)
 {
     // every B_x grows with r and 1 / r falls: where the proof is valid at r it is valid below r, and j is bisected
     unsigned long long low = 0ull;
@@ -839,14 +939,59 @@ static SimRational core_radius_rate(const CoreRadiusScale *scale, const CoreRadi
     const SimRational proved = core_radius_times(core_radius_number((long long)low, 1ll), step);
     if (record != NULL)
     {
-        record_text(record, ("  " + name + ", tail E " + term_book_rational(scale->feet) + ": a, u, p, w to order " + std::to_string(order)).c_str());
+        PlatformText line;
+        record_line_begun(&line);
+        mmgr_line_put(&line.line, "  ");
+        mmgr_line_put(&line.line, name);
+        mmgr_line_put(&line.line, ", tail E ");
+        record_rational(&line.line, scale->feet);
+        mmgr_line_put(&line.line, ": a, u, p, w to order ");
+        mmgr_line_decimal(&line.line, order, 1u);
+        record_line_ended(record, &line);
         for (unsigned int k = 0u; k <= order; k += 1u)
         {
-            record_text(record, ("    " + term_book_rational(a[k]) + " " + term_book_rational(u[k]) + " " + term_book_rational(p[k]) + " " + term_book_rational(w[k])).c_str());
+            core_radius_four_recorded(record, a[k], u[k], p[k], w[k]);
         }
-        record_text(record, ("  proved r " + term_book_rational(proved) + ", radius " + term_book_rational(core_radius_times(proved, scale->delta))).c_str());
+        core_radius_proved_recorded(record, proved, core_radius_times(proved, scale->delta));
     }
     return proved;
+}
+
+// the media a cfg names at max, and the bytes of a medium's name, its terminator among them
+#define CORE_RADIUS_MEDIA 64u
+#define CORE_RADIUS_MEDIUM_NAME 256u
+
+// the name of the witness `<ellipse><kind>` into `name`, which has room for CORE_RADIUS_WITNESS_NAME
+#define CORE_RADIUS_WITNESS_NAME 64u
+static void core_radius_witness_name(char *name, const char *ellipse, const char *kind)
+{
+    VerbaLinea line = {name, CORE_RADIUS_WITNESS_NAME, 0ull};
+    mmgr_line_put(&line, ellipse);
+    mmgr_line_put(&line, kind);
+    (void)mmgr_line_finish(&line);
+}
+
+// the bytes of a witness's title, its terminator among them: literals and at most two rationals
+#define CORE_RADIUS_TITLE ((2u * RECORD_RATIONAL_ROOM) + 256u)
+
+// the title "On E_rho0, rho0 = <rho0>[ in xi = eta / <cut>], <kind><order>." into `title`, which has room for
+// CORE_RADIUS_TITLE, the cut written where the ellipse is not whole
+static void core_radius_title(char *title, SimRational rho0, int whole, SimRational cut, const char *kind,
+                              unsigned long long order)
+{
+    VerbaLinea line = {title, CORE_RADIUS_TITLE, 0ull};
+    mmgr_line_put(&line, "On E_rho0, rho0 = ");
+    record_rational(&line, rho0);
+    if (!whole)
+    {
+        mmgr_line_put(&line, " in xi = eta / ");
+        record_rational(&line, cut);
+    }
+    mmgr_line_put(&line, ", ");
+    mmgr_line_put(&line, kind);
+    mmgr_line_decimal(&line, order, 1u);
+    mmgr_line_ch(&line, '.');
+    (void)mmgr_line_finish(&line);
 }
 
 int program_main(int count, char **arguments)
@@ -874,7 +1019,8 @@ int program_main(int count, char **arguments)
     SimRational light;
     SimRational planck;
     std::vector<SimRational> mach;
-    char names_text[RUN_CFG_TEXT_ROOM] = {0};
+    // the names' text and the 7 bytes past its room that a run of cellul reads at max
+    char names_text[RUN_CFG_TEXT_ROOM + 8u] = {0};
     std::vector<SimRational> viscosity;
     std::vector<SimRational> sound;
     std::vector<SimRational> spacing;
@@ -897,7 +1043,7 @@ int program_main(int count, char **arguments)
         (sim_rational_sign(wall_step) > 0) && run_cfg_rational(&cfg, "walls.light", &light) &&
         run_cfg_rational(&cfg, "walls.planck", &planck) && (sim_rational_sign(planck) > 0) &&
         run_cfg_rationals(&cfg, "walls.mach", &mach) &&
-        run_cfg_text(&cfg, "walls.names", names_text, sizeof(names_text)) &&
+        run_cfg_text(&cfg, "walls.names", names_text, RUN_CFG_TEXT_ROOM) &&
         run_cfg_rationals(&cfg, "walls.viscosity", &viscosity) && run_cfg_rationals(&cfg, "walls.sound", &sound) &&
         run_cfg_rationals(&cfg, "walls.spacing", &spacing) &&
         run_cfg_rationals(&cfg, "walls.relaxation", &relaxation) && run_cfg_rationals(&cfg, "walls.mass", &mass) &&
@@ -907,21 +1053,37 @@ int program_main(int count, char **arguments)
     unsigned long long principal_pieces = 0ull;
     const int principal = read && run_cfg_rational(&cfg, "principal.reach", &principal_reach) &&
                           (sim_rational_sign(principal_reach) > 0) && run_cfg_count(&cfg, "principal.pieces", &principal_pieces) && (principal_pieces >= 1ull);
-    const std::string names = names_text;
-    // the media's names, one to each comma
-    std::vector<std::string> media;
+    // the media's names, one to each comma, its spaces before it skipped, each a record of a fixed bound
+    static char s_media[CORE_RADIUS_MEDIA][CORE_RADIUS_MEDIUM_NAME];
+    size_t count_media = 0u;
+    int media_fit = 1;
+    const size_t names_size = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = names_text, .cap = RUN_CFG_TEXT_ROOM);
     size_t from = 0u;
-    while (read && (from <= names.size()))
+    while (read && media_fit && (from <= names_size))
     {
-        const size_t comma = names.find(',', from);
-        const size_t end = (comma == std::string::npos) ? names.size() : comma;
-        const size_t first = names.find_first_not_of(' ', from);
-        media.push_back(((first == std::string::npos) || (first >= end)) ? std::string() : names.substr(first, end - first));
+        const size_t end = from + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = names_text + from,
+                                             .cap = names_size - from, .other = ",");
+        const size_t first = from + EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = names_text + from,
+                                               .cap = names_size - from, .other = " ");
+        const size_t length = (first >= end) ? 0u : (end - first);
+        media_fit = (count_media < CORE_RADIUS_MEDIA) && (length < CORE_RADIUS_MEDIUM_NAME);
+        if (media_fit)
+        {
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_media[count_media], .src = names_text + first, .bytes = length);
+            s_media[count_media][length] = '\0';
+            count_media += 1u;
+        }
         from = end + 1u;
     }
-    const size_t count_media = media.size();
-    const int media_read = read && (viscosity.size() == count_media) && (sound.size() == count_media) && (spacing.size() == count_media) &&
-                           (relaxation.size() == count_media) && (mass.size() == count_media) && (ionization.size() == count_media);
+    if (!media_fit)
+    {
+        mmgr_line_put(
+            &results.line,
+            "  walls.names: more than CORE_RADIUS_MEDIA media, or a name of CORE_RADIUS_MEDIUM_NAME bytes or more\n");
+    }
+    const int media_read = read && media_fit && (viscosity.size() == count_media) && (sound.size() == count_media) &&
+                           (spacing.size() == count_media) && (relaxation.size() == count_media) &&
+                           (mass.size() == count_media) && (ionization.size() == count_media);
     if (!media_read || (count_media == 0u))
     {
         run_cfg_missing(&results.line, "core anisotropy, axis angular, axial and pressure, ellipse outer and inner of one length and a cut, order, rate "
@@ -983,17 +1145,29 @@ int program_main(int count, char **arguments)
                        (continued.inflow[k].size() <= length + 3u);
     }
     sim_check(&results, fixed_length, "every order's weights within the length the rule fixes");
-    const std::string cfg_path = arguments[1];
-    const std::string cfg_name = cfg_path.substr(cfg_path.find_last_of("/\\") + 1u);
-    std::string lean = "-- SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational\n"
-                       "import CoreRadius.Witness\n\n"
-                       "/-!\n"
-                       "# The numbers each ellipse proves\n\n"
-                       "`core_radius.cu` writes this file from `cfg/" + cfg_name + "`: for each ellipse, the numbers the proof on it reads at\n"
-                       "the largest r it proves, with each weight exact and with the magnitudes carried, and the theorem that they pass\n"
-                       "`Witness.Checks`. `Witness.tail` carries them to every order past the split.\n"
-                       "-/\n\n"
-                       "namespace CoreRadius\n\n";
+    // the cfg's name, past the last slash or backslash of its path
+    const char *cfg_name = arguments[1];
+    const char *const slash = EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = arguments[1],
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+    const char *const backslash = EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = arguments[1],
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
+    cfg_name = ((slash != NULL) && ((slash + 1) > cfg_name)) ? (slash + 1) : cfg_name;
+    cfg_name = ((backslash != NULL) && ((backslash + 1) > cfg_name)) ? (backslash + 1) : cfg_name;
+    PlatformText lean;
+    core_radius_lean_begun(&lean);
+    mmgr_line_put(&lean.line,
+                  "-- SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational\n"
+                  "import CoreRadius.Witness\n\n"
+                  "/-!\n"
+                  "# The numbers each ellipse proves\n\n"
+                  "`core_radius.cu` writes this file from `cfg/");
+    mmgr_line_put(&lean.line, cfg_name);
+    mmgr_line_put(&lean.line, "`: for each ellipse, the numbers the proof on it reads at\n"
+                              "the largest r it proves, with each weight exact and with the magnitudes carried, and "
+                              "the theorem that they pass\n"
+                              "`Witness.Checks`. `Witness.tail` carries them to every order past the split.\n"
+                              "-/\n\n"
+                              "namespace CoreRadius\n\n");
     int principal_all = 1;
     int found = 0;
     SimRational best_x = core_radius_number(0ll, 1ll);
@@ -1025,7 +1199,13 @@ int program_main(int count, char **arguments)
         scale.a = core_radius_plus(half, h);
         if (record != NULL)
         {
-            record_text(record, ("ellipse rho0 " + term_book_rational(outer[index]) + ", rho_min " + term_book_rational(inner[index])).c_str());
+            PlatformText line;
+            record_line_begun(&line);
+            mmgr_line_put(&line.line, "ellipse rho0 ");
+            record_rational(&line.line, outer[index]);
+            mmgr_line_put(&line.line, ", rho_min ");
+            record_rational(&line.line, inner[index]);
+            record_line_ended(record, &line);
         }
         // E as (1 + rho0^2) / 2 times 3 K, then as the feet's 3 (1 + rho0^2) / 4
         const unsigned int last = (unsigned int)order;
@@ -1052,21 +1232,34 @@ int program_main(int count, char **arguments)
             retained = core_radius_rate(&scale, a, u, p, w, last, step, steps, record, "exact weights");
         }
         // a cut's witnesses carry names of their own, beside the whole segment's in one Lean library
-        const std::string ellipse = (whole ? "ellipse_" : "cut_ellipse_") + std::to_string(index);
-        const std::string on = "On E_rho0, rho0 = " + term_book_rational(outer[index]) + (whole ? "" : " in xi = eta / " + term_book_rational(cut)) + ", ";
+        char ellipse[CORE_RADIUS_WITNESS_NAME];
+        VerbaLinea ellipse_line = {ellipse, sizeof(ellipse), 0ull};
+        mmgr_line_put(&ellipse_line, whole ? "ellipse_" : "cut_ellipse_");
+        mmgr_line_decimal(&ellipse_line, index, 1u);
+        (void)mmgr_line_finish(&ellipse_line);
+        static char s_title[CORE_RADIUS_TITLE];
+        char witness[CORE_RADIUS_WITNESS_NAME];
         CoreRadiusProof exact_proof;
         CoreRadiusSequence exact_norms;
-        const SimRational one_ellipse = core_radius_fixed_rate(&scale, &exact, g0, last, (unsigned int)split, step, steps, record, ellipse + "_exact",
-                                                               on + "each weight exact to order " + std::to_string(last) + ".", &lean, &exact_proof, &exact_norms);
+        core_radius_witness_name(witness, ellipse, "_exact");
+        core_radius_title(s_title, outer[index], whole, cut, "each weight exact to order ", last);
+        const SimRational one_ellipse =
+            core_radius_fixed_rate(&scale, &exact, g0, last, (unsigned int)split, step, steps, record, witness, s_title,
+                                   &lean, &exact_proof, &exact_norms);
         CoreRadiusProof carried_proof;
         CoreRadiusSequence carried_norms;
-        const SimRational carried = core_radius_fixed_rate(&scale, &continued, g0, (unsigned int)carry, (unsigned int)split, step, steps, record, ellipse + "_carried",
-                                                           on + "the magnitudes carried to order " + std::to_string(carry) + ".", &lean, &carried_proof, &carried_norms);
+        core_radius_witness_name(witness, ellipse, "_carried");
+        core_radius_title(s_title, outer[index], whole, cut, "the magnitudes carried to order ", carry);
+        const SimRational carried =
+            core_radius_fixed_rate(&scale, &continued, g0, (unsigned int)carry, (unsigned int)split, step, steps,
+                                   record, witness, s_title, &lean, &carried_proof, &carried_norms);
         CoreRadiusProof reached_proof;
         CoreRadiusSequence reached_norms;
-        const SimRational far = core_radius_fixed_rate(&scale, &reached, g0, (unsigned int)reach, (unsigned int)reach_split, step, steps, record, ellipse + "_reached",
-                                                       on + "the magnitudes carried on the device to order " + std::to_string(reach) + ".", &lean, &reached_proof,
-                                                       &reached_norms);
+        core_radius_witness_name(witness, ellipse, "_reached");
+        core_radius_title(s_title, outer[index], whole, cut, "the magnitudes carried on the device to order ", reach);
+        const SimRational far =
+            core_radius_fixed_rate(&scale, &reached, g0, (unsigned int)reach, (unsigned int)reach_split, step, steps,
+                                   record, witness, s_title, &lean, &reached_proof, &reached_norms);
         if (principal)
         {
             SimRational vertex;
@@ -1077,11 +1270,19 @@ int program_main(int count, char **arguments)
                                                         (unsigned int)reach, &reached_proof, principal_reach,
                                                         principal_pieces, &vertex, &s_least, &grown_least);
             principal_all = principal_all && vertex_ok;
-            const std::string reading = "principal system at the vertex eta " + term_book_rational(vertex) + " on Y in [0, " + term_book_rational(principal_reach) +
-                                        "], Y = X / L^2: s_eff >= " + term_book_rational(s_least) + ", (Y F)' >= " + term_book_rational(grown_least);
             if (record != NULL)
             {
-                record_text(record, reading.c_str());
+                PlatformText line;
+                record_line_begun(&line);
+                mmgr_line_put(&line.line, "principal system at the vertex eta ");
+                record_rational(&line.line, vertex);
+                mmgr_line_put(&line.line, " on Y in [0, ");
+                record_rational(&line.line, principal_reach);
+                mmgr_line_put(&line.line, "], Y = X / L^2: s_eff >= ");
+                record_rational(&line.line, s_least);
+                mmgr_line_put(&line.line, ", (Y F)' >= ");
+                record_rational(&line.line, grown_least);
+                record_line_ended(record, &line);
             }
             mmgr_line_put(&results.line, "  principal system at the vertex eta ");
             sim_rational_print(&results.line, core_radius_down(vertex, &unit));
@@ -1154,43 +1355,76 @@ int program_main(int count, char **arguments)
     sim_check(&results, found, "an X inside a proved radius where F_low is past 0");
     if (found)
     {
-        const std::string at = "walls at X = " + term_book_rational(best_x) + " on E_rho0, rho0 = " + term_book_rational(best_ellipse) + ", F_low = " + term_book_rational(best_least);
-        mmgr_line_put(&results.line, ("  " + at + "\n").c_str());
+        PlatformText line;
+        record_line_begun(&line);
+        mmgr_line_put(&line.line, "walls at X = ");
+        record_rational(&line.line, best_x);
+        mmgr_line_put(&line.line, " on E_rho0, rho0 = ");
+        record_rational(&line.line, best_ellipse);
+        mmgr_line_put(&line.line, ", F_low = ");
+        record_rational(&line.line, best_least);
+        const char *const at = mmgr_line_ok(&line.line) ? platform_text_bytes(&line) : NULL;
+        mmgr_line_put(&results.line, "  ");
+        mmgr_line_put(&results.line, (at != NULL) ? at : "walls at X: the line passed RECORD_LINE_MAX");
+        mmgr_line_ch(&results.line, '\n');
         if (record != NULL)
         {
-            record_text(record, at.c_str());
+            record_line_ended(record, &line);
         }
-        std::vector<std::string> mach_names;
-        for (const SimRational &share : mach)
+        else
         {
-            mach_names.push_back(term_book_rational(share));
+            platform_text_ended(&line);
         }
         for (size_t index = 0u; index < count_media; index += 1u)
         {
-            const std::vector<CoreRadiusWall> walls = core_radius_walls(viscosity[index], best_x, best_least, sound[index], spacing[index], relaxation[index], mass[index],
-                                                                        ionization[index], light, mach, mach_names);
-            mmgr_line_put(&results.line, ("  " + media[index] + ", the time left before T each wall is passed by:\n").c_str());
+            const std::vector<CoreRadiusWall> walls =
+                core_radius_walls(viscosity[index], best_x, best_least, sound[index], spacing[index], relaxation[index],
+                                  mass[index], ionization[index], light, mach);
+            mmgr_line_put(&results.line, "  ");
+            mmgr_line_put(&results.line, s_media[index]);
+            mmgr_line_put(&results.line, ", the time left before T each wall is passed by:\n");
             if (record != NULL)
             {
-                record_text(record, ("  " + media[index] + ": wall, time left in seconds, n with 10^-(n+1) < tau <= 10^-n, halves of the radius to the Planck time").c_str());
+                record_line_begun(&line);
+                mmgr_line_put(&line.line, "  ");
+                mmgr_line_put(&line.line, s_media[index]);
+                mmgr_line_put(&line.line, ": wall, time left in seconds, n with 10^-(n+1) < tau <= 10^-n, halves of "
+                                          "the radius to the Planck time");
+                record_line_ended(record, &line);
             }
             for (const CoreRadiusWall &wall : walls)
             {
                 const unsigned int decade = core_radius_decade(wall.tau);
                 const unsigned int halves = core_radius_halves(wall.tau, planck);
-                mmgr_line_put(&results.line, ("    " + wall.name + ": 10^-" + std::to_string(decade + 1u) + " < tau <= 10^-" + std::to_string(decade) + " s, then " +
-                                               std::to_string(halves) + " halves of the radius to the Planck time\n")
-                                                  .c_str());
+                mmgr_line_put(&results.line, "    ");
+                mmgr_line_put(&results.line, wall.name);
+                mmgr_line_put(&results.line, ": 10^-");
+                mmgr_line_decimal(&results.line, decade + 1u, 1u);
+                mmgr_line_put(&results.line, " < tau <= 10^-");
+                mmgr_line_decimal(&results.line, decade, 1u);
+                mmgr_line_put(&results.line, " s, then ");
+                mmgr_line_decimal(&results.line, halves, 1u);
+                mmgr_line_put(&results.line, " halves of the radius to the Planck time\n");
                 if (record != NULL)
                 {
-                    record_text(record, ("    " + wall.name + ", " + term_book_rational(wall.tau) + ", " + std::to_string(decade) + ", " + std::to_string(halves)).c_str());
+                    record_line_begun(&line);
+                    mmgr_line_put(&line.line, "    ");
+                    mmgr_line_put(&line.line, wall.name);
+                    mmgr_line_put(&line.line, ", ");
+                    record_rational(&line.line, wall.tau);
+                    mmgr_line_put(&line.line, ", ");
+                    mmgr_line_decimal(&line.line, decade, 1u);
+                    mmgr_line_put(&line.line, ", ");
+                    mmgr_line_decimal(&line.line, halves, 1u);
+                    record_line_ended(record, &line);
                 }
             }
             sim_flush(&results);
         }
     }
-    lean += "end CoreRadius\n";
-    sim_check(&results, core_radius_lean_write(arguments[1], &cfg, "report.lean", lean), "Lean witness written");
+    mmgr_line_put(&lean.line, "end CoreRadius\n");
+    sim_check(&results, core_radius_lean_write(arguments[1], &cfg, "report.lean", &lean), "Lean witness written");
+    platform_text_ended(&lean);
     const int conditions_met = !run_cfg_short() && !record_short() && (g_sim_rational_wide == 0);
     mmgr_line_put(&results.line, conditions_met
                                       ? "  every bound is exact and stored in the build's width\n"

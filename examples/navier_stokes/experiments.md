@@ -19,9 +19,7 @@ relations, with no number in the comparison.
 
 ## 0. What the tree holds
 
-`term_form` holds exact forms in symbolic terms, e at a rational power. `eta_function` holds exact functions of eta over
-powers of L = 1 - 2 h eta^2. `decay_integral` writes int_0^b s^k e^(-n/s) ds as two terms. `witness_cube`, `record`
-and `run_cfg` measure, write and read.
+`record` and `run_cfg` write and read.
 
 ## 1. Series represented by their rule
 

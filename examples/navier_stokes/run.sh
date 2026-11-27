@@ -16,7 +16,7 @@ case "$PROGRAM" in
 esac
 [ -n "$CFG" ] && [ -f "$CFG" ] || { echo "  usage: run.sh $PROGRAMS <cfg>"; exit 2; }
 # the driver's modules, each src/<module>/<module>.cu with its header beside it
-MODULES=(run_cfg term_form record witness_cube eta_function decay_integral series_rule jet_rule core_radius_weights)
+MODULES=(run_cfg record series_rule jet_rule core_radius_weights)
 source "$TOP/../utils/maint/engine/build_stamp.sh"
 build_stamp navier_stokes
 
