@@ -1036,6 +1036,18 @@
         "src/cu/engine/runtime/daemon"
       ]
     },
+    "entropy_history_paths": {
+      "desc": "The path of the entropy history on the device, with the engine linked into the program. A seeded volume of flipping bits projects through entropy_history_project. The parity of each voxel holds, the history and the cloud equal the counts of the host flip by flip, and both equal the signum of the device path.",
+      "script": "utils/test/src/cu/engine/analysis/entropy_history/entropy_history_paths_test.sh",
+      "src": [
+        "+<cu/engine/analysis/entropy_history/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/analysis/entropy_history"
+      ]
+    },
     "box_history_paths": {
       "desc": "The path of the box history on the device, with the engine linked into the program. A seeded history of windows and seeded boxes of bodies, one of them empty, run through box_history_gather. The counts equal a walk of each box on the host, the device finds no disagreement, the empty box counts 0, and the counts equal the signum of the device path.",
       "script": "utils/test/src/cu/engine/nbody/box_history/box_history_paths_test.sh",
