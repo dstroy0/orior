@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_boundary_test_main.cu: redundancy and main
 #include "../../../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "record_boundary_test_internal.h"
 
 // The pool of the test. The counted tower runs 2^20 lanes, and their atoms and their two copies of the records take
@@ -483,11 +484,14 @@ int program_main(int count, char **arguments)
     unsigned int chosen = 0u;
     for (unsigned int part = 0u; (every == 0) && (part < BOUNDARY_TEST_PARTS); part += 1u)
     {
-        const size_t length = strlen(s_boundary_parts[part].name);
-        for (const char *at = named; at != NULL; at = strchr(at, ','))
+        const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_boundary_parts[part].name,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR);
+        for (const char *at = named; at != NULL;
+             at = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ','))
         {
             at += (at[0] == ',') ? 1 : 0;
-            if ((strncmp(at, s_boundary_parts[part].name, length) == 0) &&
+            if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = s_boundary_parts[part].name, .ci = EMBED_FALSE) &&
                 ((at[length] == ',') || (at[length] == '\0')))
             {
                 chosen |= 1u << part;

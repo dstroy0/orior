@@ -23,9 +23,10 @@
  *       cube root. A record program writes each word on the device from both ends of the interval. The run checks
  *       that the ends agree at every term.
  */
-#include "../period_detector.h"
 #include "../../../src/platform/platform.h"
+#include "../period_detector.h"
 #include "../twister_record.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../../0_experimental/exact_zeta/zeta_shuffle.h"
 
@@ -306,7 +307,7 @@ static int sturmian_has(const SturmianSet *set, long long value)
  */
 static int sturmian_denominators(const GameInterval *slope, SturmianSet *set)
 {
-    memset(set, 0, sizeof(*set));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = set, .bytes = sizeof(*set), .val = 0);
     set->complete = 1;
     OriorExactInteger low_top = slope->low;
     OriorExactInteger high_top = slope->high;
@@ -447,7 +448,7 @@ int program_main(int argc, char **argv)
     sim_open(&results, line_buffer);
     VerbaLinea *const line = &results.line;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     GameInterval slopes[STURMIAN_SLOPES];
     SturmianSet known[STURMIAN_SLOPES];
     int ok = sturmian_slopes(slopes);

@@ -15,6 +15,8 @@
 //     naming_check <mnemonics>
 #include "../../../../../../../includes/file_defs/khw/khw_machine_write/khw_machine_write_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -48,7 +50,7 @@ typedef struct
 static void hand_form(KhwForm *form, const char *relation, unsigned long long low, unsigned long long high,
                       const HandRun *runs, unsigned int count)
 {
-    memset(form, 0, sizeof(*form));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = form, .bytes = sizeof(*form), .val = 0);
     snprintf(form->relation, sizeof(form->relation), "%s", relation);
     form->low = low;
     form->high = high;
@@ -67,8 +69,11 @@ static void check_text(const KhwForm *form, const char *expected, const char *wh
 {
     char text[SASS_MACHINE_TEXT];
     khw_text_composed(form, text, sizeof(text));
-    check_that(strcmp(text, expected) == 0, what);
-    if (strcmp(text, expected) != 0)
+    check_that(EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = expected, .ci = EMBED_FALSE),
+               what);
+    if (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = expected,
+                    .ci = EMBED_FALSE))
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "    read ");
@@ -168,7 +173,7 @@ int program_main(int count, char **words)
     check_text(&guarded, "@P0 EXIT", "a predicate run prints before the operation");
 
     // The forms a machine stores: the flag past the operand count, the mark on its operand.
-    memset(&s_test_machine, 0, sizeof(s_test_machine));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_test_machine, .bytes = sizeof(s_test_machine), .val = 0);
     char text[SASS_MACHINE_TEXT];
     khw_text_composed(&add, text, sizeof(text));
     check_that(khw_form_store(&s_test_machine, &add, text), "the add form is stored");
@@ -187,18 +192,26 @@ int program_main(int count, char **words)
     check_that(khw_form_store(&s_test_machine, &dim, text), "the dim form is stored");
     khw_text_composed(&parameter, text, sizeof(text));
     check_that(khw_form_store(&s_test_machine, &parameter, text), "the parameter form is stored");
-    check_that((s_test_machine.forms == 4u) && (strcmp(s_test_machine.form[2].relation, "frame.dim") == 0) &&
-                   (strcmp(s_test_machine.form[3].relation, "frame.parameter") == 0) &&
-                   (strcmp(s_test_machine.form[3].text, "MOV R1, c[0x0][0x170]") == 0),
-               "a form of the dim form's shape answering another relation is a form of its own, with its own text");
+    check_that(
+        (s_test_machine.forms == 4u) &&
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_test_machine.form[2].relation,
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "frame.dim", .ci = EMBED_FALSE)) &&
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_test_machine.form[3].relation,
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "frame.parameter", .ci = EMBED_FALSE)) &&
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_test_machine.form[3].text,
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "MOV R1, c[0x0][0x170]", .ci = EMBED_FALSE)),
+        "a form of the dim form's shape answering another relation is a form of its own, with its own text");
     char placed[SASS_MACHINE_TEXT];
     check_that(sass_text_placed(&s_test_machine.form[3], placed, sizeof(placed)) &&
-                   (strcmp(placed, "MOV {1}, c[0x0][{0}]") == 0),
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = placed, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "MOV {1}, c[0x0][{0}]", .ci = EMBED_FALSE)),
                "and its placed text keeps the constant's bank and names the offset by its place");
     // The disassembler writes a parameter's constant with its base, and the place takes the immediate alone.
     SassForm based = s_test_machine.form[3];
     snprintf(based.text, sizeof(based.text), "%s", "MOV R1, c[0x0][0x160+0x10]");
-    check_that(sass_text_placed(&based, placed, sizeof(placed)) && (strcmp(placed, "MOV {1}, c[0x0][0x160+{0}]") == 0),
+    check_that(sass_text_placed(&based, placed, sizeof(placed)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = placed, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "MOV {1}, c[0x0][0x160+{0}]", .ci = EMBED_FALSE)),
                "a constant with a base keeps the base and places the immediate after its +");
     {
         VerbaLinea *const output_line = platform_line_out();

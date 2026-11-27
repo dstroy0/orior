@@ -6,9 +6,9 @@
 #include "../src/qasm.h"
 #include "../../../src/platform/platform.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 typedef struct
 {
@@ -220,7 +220,7 @@ static int qasm_test_run(const QasmTestCircuit *circuit, const QasmNumber *input
                          QasmSelfMeasurement *measurement)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const QasmSelfRequest request = {
         circuit->qubits, circuit->gates, circuit->gate_count, inputs, lanes, on_host, outputs, records,
         capacity,        &error};
@@ -258,14 +258,14 @@ static unsigned long long qasm_test_host(QasmResults *results)
         const QasmTestCircuit *const circuit = &qasm_test_circuits[which];
         const unsigned int amplitudes = 1u << circuit->qubits;
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         // widening: at max 2^10 numbers
         QasmNumber *const outputs = (QasmNumber *)platform_cell_cleared(
             (size_t)amplitudes * amplitudes, sizeof(QasmNumber), platform_place_g_program_owner, 0);
         QasmNumber *const general = (QasmNumber *)platform_cell_cleared(
             (size_t)QASM_TEST_GENERAL_LANES * amplitudes, sizeof(QasmNumber), platform_place_g_program_owner, 0);
         QasmSelfMeasurement measurement;
-        memset(&measurement, 0, sizeof(measurement));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &measurement, .bytes = sizeof(measurement), .val = 0);
         const int basis = (outputs != NULL) && (general != NULL) &&
                           qasm_test_run(circuit, NULL, amplitudes, 1, outputs, NULL, 0ull, &measurement) &&
                           qasm_test_matches_dense(circuit, NULL, amplitudes, outputs, &error);
@@ -323,8 +323,8 @@ static void qasm_test_agree(QasmResults *results, const QasmTestCircuit *circuit
         (QasmNumber *)platform_cell_cleared(numbers, sizeof(QasmNumber), platform_place_g_program_owner, 0);
     QasmSelfMeasurement host;
     QasmSelfMeasurement device;
-    memset(&host, 0, sizeof(host));
-    memset(&device, 0, sizeof(device));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &host, .bytes = sizeof(host), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &device, .bytes = sizeof(device), .val = 0);
     int agree = (host_outputs != NULL) && (device_outputs != NULL) &&
                 qasm_test_run(circuit, inputs, lanes, 1, host_outputs, NULL, 0ull, &host);
     // widening: the out limbs are an unsigned int
@@ -341,7 +341,8 @@ static void qasm_test_agree(QasmResults *results, const QasmTestCircuit *circuit
     agree = agree && (host_records != NULL) && (device_records != NULL) &&
             qasm_test_run(circuit, inputs, lanes, 1, host_outputs, host_records, capacity, &host) &&
             qasm_test_run(circuit, inputs, lanes, 0, device_outputs, device_records, capacity, &device) &&
-            (memcmp(host_records, device_records, (size_t)capacity * sizeof(unsigned int)) == 0);
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_records, .other = device_records,
+                        .bytes = (size_t)capacity * sizeof(unsigned int)) == 0);
     for (size_t number = 0u; agree && (number < numbers); number += 1u)
     {
         agree = qasm_number_equal(&host_outputs[number], &device_outputs[number]);
@@ -375,7 +376,7 @@ static void qasm_test_device(QasmResults *results)
         const QasmTestCircuit *const circuit = &qasm_test_circuits[which];
         const unsigned int amplitudes = 1u << circuit->qubits;
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         qasm_test_agree(results, circuit, NULL, amplitudes, "basis");
         // widening: at max 2^5 amplitudes a lane
         QasmNumber *const general = (QasmNumber *)platform_cell_cleared(
@@ -414,7 +415,7 @@ static void qasm_test_errors(QasmResults *results)
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         QasmSelfRequest request = cases[at];
         request.error = &error;
         qasm_test_check(results, qasm_test_error_here(qasm_self_run(&request, &measurement), &error), claims[at]);
@@ -438,7 +439,7 @@ static void qasm_test_errors(QasmResults *results)
         wide[0].real.rational.numerator.limb[6] = 1u << 8u;
         wide[0].real.rational.numerator.sign = 1;
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         const QasmSelfRequest request = {QASM_SELF_QUBITS_MAX,
                                          qasm_test_ghz5,
                                          QASM_TEST_GATES(qasm_test_ghz5),
@@ -465,7 +466,7 @@ int program_main(int argc, char **argv)
     (void)argv;
     QasmResults results = {0u, 0u};
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     qasm_test_check(&results, qasm_test_gates(&error), "self: the matrix gates build");
     const unsigned long long widest = qasm_test_host(&results);
     qasm_test_errors(&results);
@@ -491,7 +492,7 @@ int program_main(int argc, char **argv)
     {
         qasm_test_device(&results);
         EngineError released;
-        memset(&released, 0, sizeof(released));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &released, .bytes = sizeof(released), .val = 0);
         qasm_job_release(job, &released);
     }
     {

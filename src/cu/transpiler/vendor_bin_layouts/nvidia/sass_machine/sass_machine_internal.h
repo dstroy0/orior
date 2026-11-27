@@ -11,7 +11,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // the end of a line of a machine file as the system writes a text file's: the file is passed to the run's writer as
 // bytes, which it writes as they are

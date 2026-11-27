@@ -10,7 +10,7 @@
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
 #include "../../../../../../../src/platform/platform.h"
 
-#include <cstring>
+#include "memoria_operor/memoria_operor.h"
 
 // the cases of the test, the most voxels of a case and the most padded entries of its counts
 #define AGREEMENT_TEST_CASES 4u
@@ -75,7 +75,7 @@ static unsigned int agreement_test_bit(const unsigned long long *volume, unsigne
 // A volume of `axes` axes at `extents`. About 1 voxel of 3 holds a 1
 static void agreement_test_drawn_volume(AgreementTestCase *one, unsigned int axes, const unsigned int *extents)
 {
-    memset(one, 0, sizeof(*one));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = one, .bytes = sizeof(*one), .val = 0);
     one->axes = axes;
     one->voxels = 1u;
     for (unsigned int axis = 0u; axis < axes; axis++)
@@ -93,7 +93,7 @@ static void agreement_test_drawn_volume(AgreementTestCase *one, unsigned int axe
 // outside the volume holds a 1 in about 1 of 3
 static void agreement_test_shifted(AgreementTestCase *one, const int *shift)
 {
-    memset(one->after, 0, sizeof(one->after));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = one->after, .bytes = sizeof(one->after), .val = 0);
     for (unsigned int voxel = 0u; voxel < one->voxels; voxel++)
     {
         unsigned int rest = voxel;
@@ -120,8 +120,8 @@ static void agreement_test_shifted(AgreementTestCase *one, const int *shift)
 // the request of a case, its answers written to `answer`
 static void agreement_test_request(AgreementTestCase *one, AgreementTestAnswer *answer, ShiftAgreementRequest *request)
 {
-    memset(answer, 0, sizeof(*answer));
-    memset(request, 0, sizeof(*request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = answer, .bytes = sizeof(*answer), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request, .bytes = sizeof(*request), .val = 0);
     request->axes = one->axes;
     for (unsigned int axis = 0u; axis < one->axes; axis++)
     {
@@ -137,8 +137,8 @@ static void agreement_test_request(AgreementTestCase *one, AgreementTestAnswer *
 static void agreement_test_kept(const ShiftAgreementRequest *request, long returned, AgreementTestAnswer *answer)
 {
     answer->returned = returned;
-    memcpy(answer->lag, request->lag, sizeof(answer->lag));
-    memcpy(answer->padded, request->padded, sizeof(answer->padded));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = answer->lag, .src = request->lag, .bytes = sizeof(answer->lag));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = answer->padded, .src = request->padded, .bytes = sizeof(answer->padded));
     answer->agreement = request->agreement;
 }
 
@@ -158,7 +158,7 @@ static unsigned long long agreement_test_signum(const unsigned char *bytes, unsi
 {
     unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioSignumRequest request = {bytes, count, NULL, OBSIGNATIO_MODE_HASH, signum, OBSIGNATIO_SIGNUM_BYTES,
                                              &error};
     if ((count == 0ULL) || (obsignatio_signum(&request) != 0L))
@@ -201,7 +201,7 @@ int program_main(int argc, char **argv)
     {
         if (at == 1u)
         {
-            memcpy(one->before, one->after, sizeof(one->before));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = one->before, .src = one->after, .bytes = sizeof(one->before));
         }
         else
         {
@@ -230,10 +230,13 @@ int program_main(int argc, char **argv)
         failed += agreement_test_check(sized, "the host answers the case");
         failed += agreement_test_check(
             sized && (answers[1].returned == 0L) &&
-                (memcmp(answers[1].lag, answers[0].lag, sizeof(answers[0].lag)) == 0) &&
-                (memcmp(answers[1].padded, answers[0].padded, sizeof(answers[0].padded)) == 0) &&
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = answers[1].lag, .other = answers[0].lag,
+                            .bytes = sizeof(answers[0].lag)) == 0) &&
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = answers[1].padded, .other = answers[0].padded,
+                            .bytes = sizeof(answers[0].padded)) == 0) &&
                 (answers[1].agreement == answers[0].agreement) &&
-                (memcmp(answers[1].counts, answers[0].counts, (size_t)entries * sizeof(unsigned int)) == 0),
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = answers[1].counts, .other = answers[0].counts,
+                            .bytes = (size_t)entries * sizeof(unsigned int)) == 0),
             "the device gives the lag, the padding, the agreement and the counts of the host");
         int found = 1;
         for (unsigned int axis = 0u; axis < one->axes; axis++)
@@ -241,7 +244,8 @@ int program_main(int argc, char **argv)
             found = found && (answers[0].lag[axis] == SHIFTS[at][axis]);
         }
         failed += agreement_test_check(found, "the lag is the shift of the case");
-        memcpy(&signed_bytes[signed_count], &answers[1], sizeof(AgreementTestAnswer));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &signed_bytes[signed_count], .src = &answers[1],
+                   .bytes = sizeof(AgreementTestAnswer));
         signed_count += sizeof(AgreementTestAnswer);
     }
     const unsigned long long word = agreement_test_signum(signed_bytes, signed_count);

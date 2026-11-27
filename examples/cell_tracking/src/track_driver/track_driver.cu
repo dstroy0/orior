@@ -31,9 +31,10 @@
 
 #include <cuda_runtime.h>
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 static unsigned int s_ingest = 0u;
 
@@ -88,7 +89,8 @@ static int run_part_named(const char *name, RunPart *part)
 {
     for (unsigned int each = 0u; each < RUN_PARTS; each += 1u)
     {
-        if (strcmp(name, RUN_PART_NAMES[each]) == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = RUN_PART_NAMES[each], .ci = EMBED_FALSE))
         {
             *part = (RunPart)each;
             return 1;
@@ -138,7 +140,7 @@ static unsigned long long run_job_declared(const RunInputs *inputs, const char *
     for (unsigned int at = 0u; at < inputs->count; at += 1u)
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         unsigned long long lanes = 0ull;
         unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
         if (s_ingest != 0u)
@@ -211,9 +213,9 @@ static int run_job_submit(const char *name, const CfgText *effective, const RunI
                           int drift, int gate, RunJob *job)
 {
     // every part is one job on the device's tessera daemon, keyed by the part and the whole effective request
-    memset(job, 0, sizeof(*job));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = job, .bytes = sizeof(*job), .val = 0);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     int device = 0;
     cudaDeviceProp properties;
     if ((cudaGetDevice(&device) != cudaSuccess) || (cudaGetDeviceProperties(&properties, device) != cudaSuccess))
@@ -222,12 +224,13 @@ static int run_job_submit(const char *name, const CfgText *effective, const RunI
         return 0;
     }
     TesseraJobSubmit submit;
-    memset(&submit, 0, sizeof(submit));
-    memcpy(submit.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &submit, .bytes = sizeof(submit), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = submit.device, .src = properties.uuid.bytes,
+               .bytes = TESSERA_DEVICE_BYTES);
 #if defined(_WIN32)
-    memcpy(&submit.luid, properties.luid, sizeof(submit.luid));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &submit.luid, .src = properties.luid, .bytes = sizeof(submit.luid));
 #endif
-    const size_t named = strlen(name) + 1u;
+    const size_t named = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u;
     const size_t request_bytes = named + effective->length;
     unsigned char *const request =
         (unsigned char *)platform_cell_taken(request_bytes, platform_place_g_program_owner, 0);
@@ -235,8 +238,8 @@ static int run_job_submit(const char *name, const CfgText *effective, const RunI
     {
         return 0;
     }
-    memcpy(request, name, named);
-    memcpy(request + named, effective->bytes, effective->length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request, .src = name, .bytes = named);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request + named, .src = effective->bytes, .bytes = effective->length);
     const ObsignatioSignumRequest signum = {
         request, request_bytes, NULL, OBSIGNATIO_MODE_HASH, submit.signum.bytes, ENGINE_SIGNUM_BYTES, &error};
     const long hashed = obsignatio_signum(&signum);
@@ -244,16 +247,22 @@ static int run_job_submit(const char *name, const CfgText *effective, const RunI
     job->declared = run_job_declared(inputs, name, lattice, tower, drift, gate);
     char daemon[ENGINE_PATH_CAPACITY];
     const int placed = engine_program_directory(daemon, sizeof(daemon)) &&
-                       (strlen(daemon) + sizeof("/tessera_daemon.exe") <= sizeof(daemon));
+                       (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = daemon, .cap = PLATFORM_TEXT_TO_TERMINATOR) +
+                            sizeof("/tessera_daemon.exe") <=
+                        sizeof(daemon));
     if ((hashed != 0L) || (job->declared == 0ull) || !placed)
     {
         fprintf(stderr, "  tessera: %s: no job could be requested (signum, declaration or the daemon's place)\n", name);
         return 0;
     }
+    // the name of the daemon appended where the directory ends, within the room checked above
+    const size_t held = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = daemon, .cap = PLATFORM_TEXT_TO_TERMINATOR);
 #if defined(_WIN32)
-    strcat(daemon, "\\tessera_daemon.exe");
+    (void)EMBED_CALL(cellul.copy, CatenaFinitaCfg, .src = "\\tessera_daemon.exe", .cap = sizeof(daemon) - held,
+                     .dst = &daemon[held]);
 #else
-    strcat(daemon, "/tessera_daemon");
+    (void)EMBED_CALL(cellul.copy, CatenaFinitaCfg, .src = "/tessera_daemon", .cap = sizeof(daemon) - held,
+                     .dst = &daemon[held]);
 #endif
     submit.declared = job->declared;
     submit.grace_microseconds = RUN_JOB_GRACE_MICROSECONDS;
@@ -316,7 +325,7 @@ static int run_job_submit(const char *name, const CfgText *effective, const RunI
 static void run_job_release(const char *name, RunJob *job)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     if ((job->client == NULL) || (tessera_job_release(job->client, &job->ticket, &error) != 0L))
     {
         fprintf(stderr, "  tessera: %s did not release\n", name);
@@ -380,7 +389,7 @@ typedef struct
 
 static void run_print_request(const RunInputs *inputs, FingerprintRequest *print)
 {
-    memset(print, 0, sizeof(*print));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = print, .bytes = sizeof(*print), .val = 0);
     print->mass_field = MAX_TREE_FIELD_MASS;
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {
@@ -396,7 +405,7 @@ static void run_print_request(const RunInputs *inputs, FingerprintRequest *print
 static int run_pair_request(const RunPrintFields *fields, EngineRecordStep program[PRINT_PAIR_STEPS],
                             unsigned int outputs[PRINT_PAIR_OUTPUTS], EngineRecordRequest *encode_request)
 {
-    memset(encode_request, 0, sizeof(*encode_request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = encode_request, .bytes = sizeof(*encode_request), .val = 0);
     encode_request->steps = program;
     encode_request->count = PRINT_PAIR_STEPS;
     encode_request->field_bits = fields->bits;
@@ -431,7 +440,7 @@ static int run_pair_proof(const FlattenResident *flattened, const unsigned int *
     unsigned int *const weight = (unsigned int *)platform_cell_taken((2u * lanes + 1u) * sizeof(unsigned int),
                                                                      platform_place_g_program_owner, 0);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     int ok = (run_pair_encode(fields, &record, &error) != ENGINE_ERROR) && (index != NULL) && (weight != NULL) &&
              (flattened->bodies <= 0xFFFFFFFFull);
     for (size_t lane = 0u; ok && (lane < lanes); lane += 1u)
@@ -517,10 +526,14 @@ static int run_steer_proof(const FlattenResident *flattened, const unsigned int 
 {
     unsigned int bits[MAX_TREE_FIELDS + FINGERPRINT_OUTPUTS];
     unsigned int offset[MAX_TREE_FIELDS + FINGERPRINT_OUTPUTS];
-    memcpy(bits, flattened->layout.bits, MAX_TREE_FIELDS * sizeof(unsigned int));
-    memcpy(offset, flattened->layout.offset, MAX_TREE_FIELDS * sizeof(unsigned int));
-    memcpy(&bits[MAX_TREE_FIELDS], fields->bits, FINGERPRINT_OUTPUTS * sizeof(unsigned int));
-    memcpy(&offset[MAX_TREE_FIELDS], fields->offset, FINGERPRINT_OUTPUTS * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = bits, .src = flattened->layout.bits,
+               .bytes = MAX_TREE_FIELDS * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = offset, .src = flattened->layout.offset,
+               .bytes = MAX_TREE_FIELDS * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &bits[MAX_TREE_FIELDS], .src = fields->bits,
+               .bytes = FINGERPRINT_OUTPUTS * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &offset[MAX_TREE_FIELDS], .src = fields->offset,
+               .bytes = FINGERPRINT_OUTPUTS * sizeof(unsigned int));
     const EngineRecordStep program[RUN_STEER_STEPS] = {{ENGINE_RECORD_FIELD, MAX_TREE_FIELD_MASS, 0u, 0u},
                                                        {ENGINE_RECORD_CONSTANT, 1u, 0u, 0u},
                                                        {ENGINE_RECORD_LADDER, 0u, 1u, 0u},
@@ -541,7 +554,7 @@ static int run_steer_proof(const FlattenResident *flattened, const unsigned int 
     CycleRecord *record = NULL;
     const size_t lanes = (size_t)flattened->bodies;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     int ok = (engine_record_encode(&encode_request, &record, &error) != ENGINE_ERROR) &&
              (cycle_record_out_limbs(record) == 1u);
     unsigned int *const verdict =
@@ -619,7 +632,7 @@ static int run_vocabulary_proof(const FlattenResident *flattened, const unsigned
                                                 RUN_VOCABULARY_OUTPUT,
                                                 RUN_VOCABULARY_OUTPUTS};
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     if (engine_record_encode(&encode_request, &record, &error) == ENGINE_ERROR)
     {
         fprintf(stderr, "  run fingerprint: absolute and compare did not encode\n");
@@ -655,7 +668,10 @@ static int run_vocabulary_proof(const FlattenResident *flattened, const unsigned
         order[sign + 1] += 1ull;
         broken += ((above != ((sign < 0) ? 1 : 0)) || (below != -above)) ? 1ull : 0ull;
         against_print += ((band != 0) && (((band < 0) ? -1 : 1) != sign)) ? 1ull : 0ull;
-        differ += (memcmp(lane, &host[body * out_limbs], out_limbs * sizeof(unsigned int)) != 0) ? 1ull : 0ull;
+        differ += (EMBED_CALL(memor.cmp, MemoriaCfg, .src = lane, .other = &host[body * out_limbs],
+                              .bytes = out_limbs * sizeof(unsigned int)) != 0)
+                      ? 1ull
+                      : 0ull;
     }
     if (ok)
     {
@@ -695,7 +711,7 @@ static int run_fingerprint(const RunInputs *inputs)
 {
     FlattenResident flattened;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     if (flatten_read(inputs->set, &flattened, &error) == 0)
     {
         track_error_report("run fingerprint: flattened.iapx", &error);
@@ -707,7 +723,7 @@ static int run_fingerprint(const RunInputs *inputs)
     unsigned int outputs[FINGERPRINT_OUTPUTS];
     CycleRecord *record = NULL;
     RunPrintFields fields;
-    memset(&fields, 0, sizeof(fields));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &fields, .bytes = sizeof(fields), .val = 0);
     const EngineRecordRequest encode_request = {program,
                                                 FINGERPRINT_STEPS,
                                                 flattened.layout.bits,
@@ -814,8 +830,9 @@ static int run_fingerprint(const RunInputs *inputs)
     unsigned long long misplaced = 0ull;
     for (unsigned long long lane = 0ull; gather && (lane < flattened.bodies); lane += 1ull)
     {
-        misplaced += (memcmp(&gathered[lane * out_limbs], &records[(flattened.bodies - 1ull - lane) * out_limbs],
-                             out_limbs * sizeof(unsigned int)) != 0)
+        misplaced += (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &gathered[lane * out_limbs],
+                                 .other = &records[(flattened.bodies - 1ull - lane) * out_limbs],
+                                 .bytes = out_limbs * sizeof(unsigned int)) != 0)
                          ? 1ull
                          : 0ull;
     }
@@ -852,7 +869,8 @@ static int run_fingerprint(const RunInputs *inputs)
     unsigned long long differ = 0ull;
     for (unsigned long long body = 0ull; ported && (body < flattened.bodies); body += 1ull)
     {
-        differ += (memcmp(&host[body * out_limbs], &records[body * out_limbs], out_limbs * sizeof(unsigned int)) != 0)
+        differ += (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &host[body * out_limbs],
+                              .other = &records[body * out_limbs], .bytes = out_limbs * sizeof(unsigned int)) != 0)
                       ? 1ull
                       : 0ull;
     }
@@ -891,7 +909,7 @@ static int run_flattened_prepare(const RunInputs *inputs, FlattenResident *flatt
                                  TreeRules *rules)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     if (flatten_read(inputs->set, flattened_set, &error) == 0)
     {
         track_error_report("flattened.iapx", &error);
@@ -943,10 +961,12 @@ static int run_velocity_prepare(const FlattenResident *flattened, RunVelocity *v
                                 TreeRules *rules)
 {
     VelocityRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.mass_field = MAX_TREE_FIELD_MASS;
-    memcpy(velocity->bits, flattened->layout.bits, MAX_TREE_FIELDS * sizeof(unsigned int));
-    memcpy(velocity->offset, flattened->layout.offset, MAX_TREE_FIELDS * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = velocity->bits, .src = flattened->layout.bits,
+               .bytes = MAX_TREE_FIELDS * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = velocity->offset, .src = flattened->layout.offset,
+               .bytes = MAX_TREE_FIELDS * sizeof(unsigned int));
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
         request.sum_field[axis] = MAX_TREE_FIELD_SUM_Z + axis;
@@ -955,7 +975,7 @@ static int run_velocity_prepare(const FlattenResident *flattened, RunVelocity *v
         velocity->offset[MAX_TREE_FIELDS + axis] = 32u * axis;
     }
     EngineRecordRequest *const encode_request = &velocity->encode_request;
-    memset(encode_request, 0, sizeof(*encode_request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = encode_request, .bytes = sizeof(*encode_request), .val = 0);
     encode_request->steps = velocity->program;
     encode_request->count = VELOCITY_STEPS;
     encode_request->field_bits = velocity->bits;
@@ -971,7 +991,7 @@ static int run_velocity_prepare(const FlattenResident *flattened, RunVelocity *v
     encode_request->output_bits = velocity->output_bits;
     *record = NULL;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const long out_bits = (velocity_program(&request, velocity->program, velocity->outputs) == VELOCITY_ERROR)
                               ? ENGINE_ERROR
                               : engine_record_encode(encode_request, record, &error);
@@ -1011,7 +1031,7 @@ static int run_division_prepare(const RunInputs *inputs, const FlattenResident *
                                 CycleRecord **record, TreeRules *rules)
 {
     DivisionRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.mass_field = MAX_TREE_FIELD_MASS;
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
@@ -1023,7 +1043,7 @@ static int run_division_prepare(const RunInputs *inputs, const FlattenResident *
         request.moment_field[moment] = MAX_TREE_FIELD_MOMENT_ZZ + moment;
     }
     EngineRecordRequest *const encode_request = &division->encode_request;
-    memset(encode_request, 0, sizeof(*encode_request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = encode_request, .bytes = sizeof(*encode_request), .val = 0);
     encode_request->steps = division->program;
     encode_request->count = DIVISION_STEPS;
     encode_request->field_bits = flattened->layout.bits;
@@ -1040,7 +1060,7 @@ static int run_division_prepare(const RunInputs *inputs, const FlattenResident *
     encode_request->output_bits = division->output_bits;
     *record = NULL;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const long out_bits = (division_program(&request, division->program, division->outputs) == DIVISION_ERROR)
                               ? ENGINE_ERROR
                               : engine_record_encode(encode_request, record, &error);
@@ -1085,7 +1105,7 @@ static int run_contact_side_prepare(const RunInputs *inputs, const FlattenReside
                                     CycleRecord **difference_record, CycleRecord **retained_record, TreeRules *rules)
 {
     ContactSideDifferenceRequest difference;
-    memset(&difference, 0, sizeof(difference));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &difference, .bytes = sizeof(difference), .val = 0);
     difference.mass_field = MAX_TREE_FIELD_MASS;
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
@@ -1093,7 +1113,7 @@ static int run_contact_side_prepare(const RunInputs *inputs, const FlattenReside
         difference.voxel_pm[axis] = inputs->voxel_pm[axis];
     }
     EngineRecordRequest *const apart = &side->difference_encode_request;
-    memset(apart, 0, sizeof(*apart));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = apart, .bytes = sizeof(*apart), .val = 0);
     apart->steps = side->difference_program;
     apart->count = CONTACT_SIDE_DIFFERENCE_STEPS;
     apart->field_bits = flattened->layout.bits;
@@ -1109,7 +1129,7 @@ static int run_contact_side_prepare(const RunInputs *inputs, const FlattenReside
     *difference_record = NULL;
     *retained_record = NULL;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const long apart_bits = (contact_side_difference_program(&difference, side->difference_program,
                                                              side->difference_outputs) == CONTACT_SIDE_ERROR)
                                 ? ENGINE_ERROR
@@ -1121,14 +1141,14 @@ static int run_contact_side_prepare(const RunInputs *inputs, const FlattenReside
         return 0;
     }
     ContactSideSignRequest retained;
-    memset(&retained, 0, sizeof(retained));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &retained, .bytes = sizeof(retained), .val = 0);
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
         retained.difference_field[axis] = axis;
     }
     const unsigned int apart_limbs = cycle_record_out_limbs(*difference_record);
     EngineRecordRequest *const verdict = &side->retained_encode_request;
-    memset(verdict, 0, sizeof(*verdict));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = verdict, .bytes = sizeof(*verdict), .val = 0);
     verdict->steps = side->retained_program;
     verdict->count = CONTACT_SIDE_SIGN_STEPS;
     verdict->field_bits = side->difference_bits;
@@ -1185,7 +1205,7 @@ static int run_print_match_prepare(const RunInputs *inputs, const FlattenResiden
     unsigned int outputs[FINGERPRINT_OUTPUTS];
     CycleRecord *record = NULL;
     RunPrintFields fields;
-    memset(&fields, 0, sizeof(fields));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &fields, .bytes = sizeof(fields), .val = 0);
     const EngineRecordRequest encode_request = {program,
                                                 FINGERPRINT_STEPS,
                                                 flattened->layout.bits,
@@ -1198,7 +1218,7 @@ static int run_print_match_prepare(const RunInputs *inputs, const FlattenResiden
                                                 fields.offset,
                                                 fields.bits};
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     int ok = (fingerprint_program(&print, program, outputs) != FINGERPRINT_ERROR) &&
              (engine_record_encode(&encode_request, &record, &error) != ENGINE_ERROR);
     const unsigned int limbs = ok ? cycle_record_out_limbs(record) : 0u;
@@ -1240,7 +1260,7 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
 {
     TreeRules matched = *rules;
     FlattenResident flattened;
-    memset(&flattened, 0, sizeof(flattened));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &flattened, .bytes = sizeof(flattened), .val = 0);
     unsigned int *prints = NULL;
     unsigned long long *starts = NULL;
     CycleRecord *pair = NULL;
@@ -1302,7 +1322,7 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
         platform_line_out_ended();
     }
     EdgeResults pooled;
-    memset(&pooled, 0, sizeof(pooled));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &pooled, .bytes = sizeof(pooled), .val = 0);
     const unsigned long long started = engine_clock_microseconds() / 1000ull;
     int failures = 0;
     for (unsigned int sample = 0u; sample < inputs->count; sample += 1u)
@@ -1466,10 +1486,10 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
 int program_main(int argc, char **argv)
 {
     TreeRules rules;
-    memset(&rules, 0, sizeof(rules));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &rules, .bytes = sizeof(rules), .val = 0);
     rules.resolve = 1;
     RunInputs inputs;
-    memset(&inputs, 0, sizeof(inputs));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &inputs, .bytes = sizeof(inputs), .val = 0);
     const char *cfg_out = NULL;
     // --gate-still: the sort's gate also takes each source's still place; the sort alone reads it
     unsigned int gate_still = 0u;
@@ -1477,71 +1497,90 @@ int program_main(int argc, char **argv)
     // --cost-distance retains the first pass's weighted squared distances; the sort alone reads it
     unsigned int cost_first = 1u;
     int argument = 1;
-    while ((argument < argc) && (strncmp(argv[argument], "--", 2u) == 0))
+    while ((argument < argc) && (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = argv[argument],
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "--", .ci = EMBED_FALSE)))
     {
         const char *const flag = argv[argument];
-        if (strcmp(flag, "--pick") == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "--pick",
+                       .ci = EMBED_FALSE))
         {
             rules.pick = 1;
         }
-        else if (strcmp(flag, "--share") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--share", .ci = EMBED_FALSE))
         {
             rules.share = 1;
         }
-        else if (strcmp(flag, "--agree") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--agree", .ci = EMBED_FALSE))
         {
             rules.agree = 1;
         }
-        else if (strcmp(flag, "--unbound") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--unbound", .ci = EMBED_FALSE))
         {
             rules.unbound = 1;
         }
-        else if (strcmp(flag, "--cast") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--cast", .ci = EMBED_FALSE))
         {
             rules.cast = 1;
         }
-        else if (strcmp(flag, "--parallax") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--parallax", .ci = EMBED_FALSE))
         {
             rules.parallax = 1;
         }
-        else if (strcmp(flag, "--arc") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--arc", .ci = EMBED_FALSE))
         {
             rules.arc = 1;
         }
-        else if (strcmp(flag, "--settle") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--settle", .ci = EMBED_FALSE))
         {
             rules.settle = 1;
         }
-        else if (strcmp(flag, "--web") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--web", .ci = EMBED_FALSE))
         {
             rules.web = 1;
         }
-        else if (strcmp(flag, "--damp") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--damp", .ci = EMBED_FALSE))
         {
             rules.damp = 1;
         }
-        else if (strcmp(flag, "--dish") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--dish", .ci = EMBED_FALSE))
         {
             rules.dish = 1;
         }
-        else if (strcmp(flag, "--vote") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--vote", .ci = EMBED_FALSE))
         {
             rules.vote = 1;
         }
-        else if (strcmp(flag, "--mutual") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--mutual", .ci = EMBED_FALSE))
         {
             rules.mutual = 1;
         }
-        else if (strcmp(flag, "--tower") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--tower", .ci = EMBED_FALSE))
         {
             rules.tower = 1;
         }
-        else if ((strcmp(flag, "--plan") == 0) && (argument + 1 < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--plan", .ci = EMBED_FALSE)) &&
+                 (argument + 1 < argc))
         {
             argument += 1;
             g_schedule_path = argv[argument];
         }
-        else if ((strcmp(flag, "--run") == 0) && (argument + 1 < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--run", .ci = EMBED_FALSE)) &&
+                 (argument + 1 < argc))
         {
             argument += 1;
             RunPart part = RUN_TRACK;
@@ -1562,19 +1601,27 @@ int program_main(int argc, char **argv)
             s_parts[s_part_count] = part;
             s_part_count += 1u;
         }
-        else if (strcmp(flag, "--survey") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--survey", .ci = EMBED_FALSE))
         {
             g_survey = 1u;
         }
-        else if (strcmp(flag, "--ingest") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--ingest", .ci = EMBED_FALSE))
         {
             s_ingest = 1u;
         }
-        else if (strcmp(flag, "--override") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--override", .ci = EMBED_FALSE))
         {
             s_override = 1u;
         }
-        else if (((strcmp(flag, "--source") == 0) || (strcmp(flag, "--set") == 0) || (strcmp(flag, "--axes") == 0)) &&
+        else if (((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = "--source", .ci = EMBED_FALSE)) ||
+                  (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = "--set", .ci = EMBED_FALSE)) ||
+                  (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = "--axes", .ci = EMBED_FALSE))) &&
                  (argument + 1 < argc))
         {
             char **const path_field =
@@ -1583,7 +1630,9 @@ int program_main(int argc, char **argv)
             platform_cell_released(*path_field, platform_place_g_program_owner);
             *path_field = cfg_copy(argv[argument]);
         }
-        else if ((strcmp(flag, "--channel") == 0) && (argument + 1 < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--channel", .ci = EMBED_FALSE)) &&
+                 (argument + 1 < argc))
         {
             argument += 1;
             unsigned int channel = 0u;
@@ -1594,28 +1643,36 @@ int program_main(int argc, char **argv)
             }
             inputs.channel = channel;
         }
-        else if (strcmp(flag, "--mass") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--mass", .ci = EMBED_FALSE))
         {
             rules.mass = 1;
         }
-        else if (strcmp(flag, "--forest") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--forest", .ci = EMBED_FALSE))
         {
             rules.forest = 1;
         }
-        else if (strcmp(flag, "--cohere") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--cohere", .ci = EMBED_FALSE))
         {
             rules.cohere = 1;
         }
-        else if (strcmp(flag, "--accrue") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--accrue", .ci = EMBED_FALSE))
         {
             rules.accrue = 1;
         }
-        else if ((strcmp(flag, "--spiral") == 0) && (argument + 1 < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--spiral", .ci = EMBED_FALSE)) &&
+                 (argument + 1 < argc))
         {
             argument += 1;
             rules.spiral = (unsigned int)strtoul(argv[argument], NULL, 10);
         }
-        else if ((strcmp(flag, "--nodes") == 0) && (argument + 1 < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--nodes", .ci = EMBED_FALSE)) &&
+                 (argument + 1 < argc))
         {
             argument += 1;
             if (!name_output(&rules, &inputs, 6u, argv[argument]))
@@ -1623,93 +1680,115 @@ int program_main(int argc, char **argv)
                 return 2;
             }
         }
-        else if ((strcmp(flag, "--log") == 0) && (argument + 1 < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--log", .ci = EMBED_FALSE)) &&
+                 (argument + 1 < argc))
         {
             argument += 1;
             g_log_path = argv[argument];
         }
-        else if (strcmp(flag, "--focus") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--focus", .ci = EMBED_FALSE))
         {
             rules.focus = 1;
             rules.arms = (rules.arms == 0u) ? 1u : rules.arms;
             rules.climb = (rules.climb == 0) ? 1 : rules.climb;
         }
-        else if (strcmp(flag, "--merge-split") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--merge-split", .ci = EMBED_FALSE))
         {
             rules.merge_split = 1;
         }
-        else if (strcmp(flag, "--merge-target") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--merge-target", .ci = EMBED_FALSE))
         {
             rules.merge_target = 1;
         }
-        else if (strcmp(flag, "--forward-only") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--forward-only", .ci = EMBED_FALSE))
         {
             rules.forward_only = 1;
         }
-        else if (strcmp(flag, "--retain-view") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--retain-view", .ci = EMBED_FALSE))
         {
             rules.retain_view = 1;
         }
-        else if (strcmp(flag, "--no-resolve") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--no-resolve", .ci = EMBED_FALSE))
         {
             rules.resolve = 0;
         }
-        else if (strcmp(flag, "--climb") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--climb", .ci = EMBED_FALSE))
         {
             rules.climb = 1;
         }
-        else if (strcmp(flag, "--print-match") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--print-match", .ci = EMBED_FALSE))
         {
             rules.print_match = 1;
         }
-        else if (strcmp(flag, "--velocity") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--velocity", .ci = EMBED_FALSE))
         {
             rules.velocity = 1;
             rules.climb = (rules.climb == 0) ? 1 : rules.climb;
         }
-        else if (strcmp(flag, "--mass-band") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--mass-band", .ci = EMBED_FALSE))
         {
             rules.mass_band = 1;
         }
-        else if (strcmp(flag, "--division") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--division", .ci = EMBED_FALSE))
         {
             rules.division = 1;
             rules.climb = (rules.climb == 0) ? 1 : rules.climb;
         }
-        else if (strcmp(flag, "--contact-side") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--contact-side", .ci = EMBED_FALSE))
         {
             rules.contact_side = 1;
             rules.climb = (rules.climb == 0) ? 1 : rules.climb;
         }
-        else if (strcmp(flag, "--box") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--box", .ci = EMBED_FALSE))
         {
             rules.box = 1;
             rules.climb = (rules.climb == 0) ? 1 : rules.climb;
         }
-        else if (strcmp(flag, "--core") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--core", .ci = EMBED_FALSE))
         {
             rules.core = 1;
             rules.climb = (rules.climb == 0) ? 1 : rules.climb;
         }
-        else if (strcmp(flag, "--residual-key") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--residual-key", .ci = EMBED_FALSE))
         {
             rules.unit_sweep = ENGINE_RESIDUAL_BY_KEY;
         }
-        else if (strcmp(flag, "--unit-sweep-prove") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--unit-sweep-prove", .ci = EMBED_FALSE))
         {
             rules.unit_sweep = ENGINE_RESIDUAL_BOTH_PROVED;
         }
-        else if (strcmp(flag, "--box-history") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--box-history", .ci = EMBED_FALSE))
         {
             rules.box_history = 1;
             rules.climb = (rules.climb == 0) ? 1 : rules.climb;
         }
-        else if (strcmp(flag, "--marginal") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--marginal", .ci = EMBED_FALSE))
         {
             rules.marginal = 1;
             rules.climb = (rules.climb == 0) ? 1 : rules.climb;
         }
-        else if ((strcmp(flag, "--cfg") == 0) && (argument + 1 < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--cfg", .ci = EMBED_FALSE)) &&
+                 (argument + 1 < argc))
         {
             argument += 1;
             if (!apply_cfg(argv[argument], &rules, &inputs))
@@ -1717,12 +1796,16 @@ int program_main(int argc, char **argv)
                 return 2;
             }
         }
-        else if ((strcmp(flag, "--cfg-out") == 0) && (argument + 1 < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--cfg-out", .ci = EMBED_FALSE)) &&
+                 (argument + 1 < argc))
         {
             argument += 1;
             cfg_out = argv[argument];
         }
-        else if ((strcmp(flag, "--edges") == 0) && (argument + 1 < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--edges", .ci = EMBED_FALSE)) &&
+                 (argument + 1 < argc))
         {
             argument += 1;
             if (!name_output(&rules, &inputs, 0u, argv[argument]))
@@ -1730,7 +1813,9 @@ int program_main(int argc, char **argv)
                 return 2;
             }
         }
-        else if ((strcmp(flag, "--pool") == 0) && (argument + 1 < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--pool", .ci = EMBED_FALSE)) &&
+                 (argument + 1 < argc))
         {
             argument += 1;
             if (!name_output(&rules, &inputs, 5u, argv[argument]))
@@ -1738,7 +1823,9 @@ int program_main(int argc, char **argv)
                 return 2;
             }
         }
-        else if ((strcmp(flag, "--export") == 0) && (argument + 1 < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--export", .ci = EMBED_FALSE)) &&
+                 (argument + 1 < argc))
         {
             argument += 1;
             if (!name_output(&rules, &inputs, 2u, argv[argument]))
@@ -1746,7 +1833,9 @@ int program_main(int argc, char **argv)
                 return 2;
             }
         }
-        else if ((strcmp(flag, "--object") == 0) && (argument + 1 < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--object", .ci = EMBED_FALSE)) &&
+                 (argument + 1 < argc))
         {
             argument += 1;
             if (!name_output(&rules, &inputs, 3u, argv[argument]))
@@ -1754,7 +1843,9 @@ int program_main(int argc, char **argv)
                 return 2;
             }
         }
-        else if ((strcmp(flag, "--vis") == 0) && (argument + 1 < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--vis", .ci = EMBED_FALSE)) &&
+                 (argument + 1 < argc))
         {
             argument += 1;
             if (!name_output(&rules, &inputs, 4u, argv[argument]))
@@ -1762,24 +1853,30 @@ int program_main(int argc, char **argv)
                 return 2;
             }
         }
-        else if (strcmp(flag, "--sticky") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--sticky", .ci = EMBED_FALSE))
         {
             rules.sticky = 1;
             rules.climb = (rules.climb == 0) ? 1 : rules.climb;
         }
-        else if (strcmp(flag, "--motion-check") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--motion-check", .ci = EMBED_FALSE))
         {
             rules.motion_check = 1;
         }
-        else if (strcmp(flag, "--gate-still") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--gate-still", .ci = EMBED_FALSE))
         {
             gate_still = 1u;
         }
-        else if (strcmp(flag, "--cost-distance") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--cost-distance", .ci = EMBED_FALSE))
         {
             cost_first = 0u;
         }
-        else if ((strcmp(flag, "--null") == 0) && ((argument + 1) < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--null", .ci = EMBED_FALSE)) &&
+                 ((argument + 1) < argc))
         {
             argument += 1;
             unsigned int draws = 0u;
@@ -1790,7 +1887,9 @@ int program_main(int argc, char **argv)
             rules.null_draws = draws;
             rules.climb = (rules.climb == 0) ? 1 : rules.climb;
         }
-        else if ((strcmp(flag, "--arms") == 0) && ((argument + 1) < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--arms", .ci = EMBED_FALSE)) &&
+                 ((argument + 1) < argc))
         {
             argument += 1;
             unsigned int arms = 0u;
@@ -1801,15 +1900,19 @@ int program_main(int argc, char **argv)
             rules.arms = arms;
             rules.climb = (rules.climb == 0) ? 1 : rules.climb;
         }
-        else if (strcmp(flag, "--climb-host") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--climb-host", .ci = EMBED_FALSE))
         {
             rules.climb = 2;
         }
-        else if (strcmp(flag, "--climb-check") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--climb-check", .ci = EMBED_FALSE))
         {
             rules.climb = 3;
         }
-        else if ((strcmp(flag, "--coherence") == 0) && (argument + 1 < argc))
+        else if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--coherence", .ci = EMBED_FALSE)) &&
+                 (argument + 1 < argc))
         {
             argument += 1;
             if (!name_output(&rules, &inputs, 1u, argv[argument]))
@@ -1886,7 +1989,8 @@ int program_main(int argc, char **argv)
     // the floor is not among the parts named here, and they are distinct. With it they are at max RUN_PARTS
     if ((s_ingest == 0u) && inputs.floor_entropy && (run_part_named_already(RUN_FLOOR) == 0))
     {
-        memmove(&s_parts[1], &s_parts[0], (size_t)s_part_count * sizeof(s_parts[0]));
+        EMBED_CALL(memor.move_up, MemoriaCfg, .dst = &s_parts[1], .src = &s_parts[0],
+                   .bytes = (size_t)s_part_count * sizeof(s_parts[0]));
         s_parts[0] = RUN_FLOOR;
         s_part_count += 1u;
     }
@@ -1952,9 +2056,9 @@ int program_main(int argc, char **argv)
             return 2;
         }
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         EngineSetReport report;
-        memset(&report, 0, sizeof(report));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &report, .bytes = sizeof(report), .val = 0);
         report.samples = (EngineSampleRecord *)platform_cell_cleared(
             (size_t)inputs.count + 1u, sizeof(EngineSampleRecord), platform_place_g_program_owner, 0);
         const EngineIngestRequest ingest = {inputs.source, inputs.set,     inputs.samples, inputs.count,
@@ -1984,7 +2088,7 @@ int program_main(int argc, char **argv)
             platform_line_out_ended();
         }
         RunJob job;
-        memset(&job, 0, sizeof(job));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &job, .bytes = sizeof(job), .val = 0);
         // iapx-prove lowers every lattice to prove it and allocates none of its own on the device. Schedule reads only
         // the heads, and fingerprint only flattened.iapx. Neither lowers one; the sort reads only .points and .drift,
         // and allocates no lattice and lowers none
@@ -2011,9 +2115,9 @@ int program_main(int argc, char **argv)
         else if (part == RUN_IAPX_PROVE)
         {
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             EngineSetReport report;
-            memset(&report, 0, sizeof(report));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &report, .bytes = sizeof(report), .val = 0);
             report.samples = (EngineSampleRecord *)platform_cell_cleared(
                 (size_t)inputs.count + 1u, sizeof(EngineSampleRecord), platform_place_g_program_owner, 0);
             EngineSetRequest prove = iapx;
@@ -2031,7 +2135,7 @@ int program_main(int argc, char **argv)
         else if ((part == RUN_ENTROPY) || (part == RUN_FLOOR))
         {
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             EngineEntropySetRequest entropy = {iapx, (part == RUN_FLOOR) ? 1u : 0u};
             entropy.set.error = &error;
             failures = (engine_entropy_set(&entropy) == 0L) ? 0 : 1;
@@ -2043,14 +2147,16 @@ int program_main(int argc, char **argv)
         else if (part == RUN_FLATTEN)
         {
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             FlattenSetRequest flatten;
-            memset(&flatten, 0, sizeof(flatten));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &flatten, .bytes = sizeof(flatten), .val = 0);
             flatten.set = directory;
             flatten.names = inputs.samples;
             flatten.count = inputs.count;
-            memcpy(flatten.smooth_orders, SMOOTH_ORDERS, sizeof(flatten.smooth_orders));
-            memcpy(flatten.background_orders, BACKGROUND_ORDERS, sizeof(flatten.background_orders));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = flatten.smooth_orders, .src = SMOOTH_ORDERS,
+                       .bytes = sizeof(flatten.smooth_orders));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = flatten.background_orders, .src = BACKGROUND_ORDERS,
+                       .bytes = sizeof(flatten.background_orders));
             flatten.error = &error;
             failures = (flatten_set(&flatten) != 0) ? 0 : 1;
             if (failures != 0)
@@ -2065,15 +2171,18 @@ int program_main(int argc, char **argv)
         else if (part == RUN_SCAN)
         {
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             ScanRequest scan;
-            memset(&scan, 0, sizeof(scan));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &scan, .bytes = sizeof(scan), .val = 0);
             scan.set = directory;
             scan.samples = inputs.samples;
             scan.count = inputs.count;
-            memcpy(scan.smooth_orders, SMOOTH_ORDERS, sizeof(scan.smooth_orders));
-            memcpy(scan.background_orders, BACKGROUND_ORDERS, sizeof(scan.background_orders));
-            memcpy(scan.voxel_pm, inputs.voxel_pm, sizeof(scan.voxel_pm));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = scan.smooth_orders, .src = SMOOTH_ORDERS,
+                       .bytes = sizeof(scan.smooth_orders));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = scan.background_orders, .src = BACKGROUND_ORDERS,
+                       .bytes = sizeof(scan.background_orders));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = scan.voxel_pm, .src = inputs.voxel_pm,
+                       .bytes = sizeof(scan.voxel_pm));
             scan.error = &error;
             failures = (scan_set(&scan) == 0L) ? 0 : 1;
             if (error.type != ENGINE_ERROR_NONE)
@@ -2084,7 +2193,7 @@ int program_main(int argc, char **argv)
         else if (part == RUN_FLICKER)
         {
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             const NoiseSetRequest noise = {directory, inputs.samples, inputs.count, &error, track_noise_load};
             failures = (noise_flicker_set(&noise) == 0L) ? 0 : 1;
             if (failures != 0)
@@ -2095,7 +2204,7 @@ int program_main(int argc, char **argv)
         else if (part == RUN_LINES)
         {
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             const NoiseSetRequest noise = {directory, inputs.samples, inputs.count, &error, track_noise_load};
             failures = (noise_lines_set(&noise) == 0L) ? 0 : 1;
             if (failures != 0)
@@ -2106,7 +2215,7 @@ int program_main(int argc, char **argv)
         else if (part == RUN_NEIGHBORS)
         {
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             const NoiseSetRequest noise = {directory, inputs.samples, inputs.count, &error, track_noise_load};
             failures = (noise_neighbors_set(&noise) == 0L) ? 0 : 1;
             if (failures != 0)
@@ -2117,7 +2226,7 @@ int program_main(int argc, char **argv)
         else if (part == RUN_CLIPS)
         {
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             const NoiseSetRequest noise = {directory, inputs.samples, inputs.count, &error, track_noise_load};
             failures = (noise_clips_set(&noise) == 0L) ? 0 : 1;
             if (failures != 0)
@@ -2128,7 +2237,7 @@ int program_main(int argc, char **argv)
         else if (part == RUN_PIXELS)
         {
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             const NoiseSetRequest noise = {directory, inputs.samples, inputs.count, &error, track_noise_load};
             failures = (noise_pixels_set(&noise) == 0L) ? 0 : 1;
             if (failures != 0)
@@ -2139,7 +2248,7 @@ int program_main(int argc, char **argv)
         else if (part == RUN_MOMENTS)
         {
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             const NoiseSetRequest noise = {directory, inputs.samples, inputs.count, &error, track_noise_load};
             failures = (noise_moments_set(&noise) == 0L) ? 0 : 1;
             if (failures != 0)
@@ -2150,13 +2259,14 @@ int program_main(int argc, char **argv)
         else if (part == RUN_SORT)
         {
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             SortRequest links;
-            memset(&links, 0, sizeof(links));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &links, .bytes = sizeof(links), .val = 0);
             links.set = directory;
             links.samples = inputs.samples;
             links.count = inputs.count;
-            memcpy(links.voxel_pm, inputs.voxel_pm, sizeof(links.voxel_pm));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = links.voxel_pm, .src = inputs.voxel_pm,
+                       .bytes = sizeof(links.voxel_pm));
             links.error = &error;
             links.still = gate_still;
             links.first = cost_first;

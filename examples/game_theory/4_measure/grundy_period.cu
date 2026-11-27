@@ -22,10 +22,11 @@
  * @note Each shuffle keeps every value of a row and moves the place that carries it, by the twister of CPython at the
  *       seeds 0 to 11. The tallest margin of the twelve is the floor of the row.
  */
-#include "../period_detector.h"
 #include "../../../src/platform/platform.h"
+#include "../period_detector.h"
 #include "../subtraction_record.h"
 #include "../twister_record.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "../../0_experimental/exact_zeta/zeta_shuffle.h"
 
@@ -121,7 +122,7 @@ int program_main(int argc, char **argv)
         } while (grundy_next(chosen, size, largest));
     }
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     GameProgram lag;
     unsigned int lag_steps[DETECTOR_SUMS];
     int ok = detector_make_lag(width, &lag, lag_steps, &error);
@@ -135,7 +136,7 @@ int program_main(int argc, char **argv)
                                         twister_bytes(GRUNDY_DRAWS);
     ok = ok && sim_job_submit(&results, "grundy_period", argc, argv, declared);
     GrundyDevice device;
-    memset(&device, 0, sizeof(device));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &device, .bytes = sizeof(device), .val = 0);
     ok = ok && sim_status_check(&results, cudaMalloc((void **)&device.index, lag_lanes * 2ULL * 4ULL), "index") &&
          sim_status_check(&results, cudaMalloc((void **)&device.out, lag_lanes * out_limbs_max * 4ULL), "out") &&
          sim_status_check(&results, cudaMalloc((void **)&device.values, ((series_max * whole) + 1ULL) * 4ULL),
@@ -150,7 +151,7 @@ int program_main(int argc, char **argv)
         (size_t)((series_max + 1ULL) * (GRUNDY_LAGS + 1ULL) * 2ULL * 4ULL), platform_place_g_program_owner, 0);
     // the Grundy sequence of every game and its exact period, on the record machine
     SubtractionGames heaps;
-    memset(&heaps, 0, sizeof(heaps));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &heaps, .bytes = sizeof(heaps), .val = 0);
     ok = ok && (host_index != NULL) && (period != NULL) && (sums != NULL) &&
          subtraction_open(&results, &heaps, masks, games, largest, most, GRUNDY_POSITIONS, lag_lanes) &&
          subtraction_periods(&results, &heaps, period);
@@ -160,7 +161,7 @@ int program_main(int argc, char **argv)
         settled += (period[game] != 0u) ? 1u : 0u;
     }
     unsigned char present[(GRUNDY_POSITIONS / 4u) + 1u];
-    memset(present, 0, sizeof(present));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = present, .bytes = sizeof(present), .val = 0);
     for (unsigned int game = 0u; ok && (game < games); game += 1u)
     {
         present[period[game]] = 1u;

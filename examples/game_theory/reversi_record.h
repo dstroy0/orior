@@ -18,8 +18,9 @@
 #ifndef REVERSI_RECORD_H
 #define REVERSI_RECORD_H
 
-#include "twister_record.h"
 #include "../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "twister_record.h"
 
 /** @brief The side of the board, the squares, and the bits of a square in a record. */
 #define REVERSI_SIDE 8u
@@ -331,13 +332,13 @@ static inline int reversi_play(SimResults *results, const unsigned int *players,
                                unsigned int games, unsigned char *finals)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     GameProgram count;
     GameProgram choose;
     GameProgram flip;
-    memset(&count, 0, sizeof(count));
-    memset(&choose, 0, sizeof(choose));
-    memset(&flip, 0, sizeof(flip));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &count, .bytes = sizeof(count), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &choose, .bytes = sizeof(choose), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &flip, .bytes = sizeof(flip), .val = 0);
     unsigned int count_steps[3];
     unsigned int choose_step = 0u;
     int ok = reversi_make_count(&count, count_steps, &error) && reversi_make_choose(&choose, &choose_step, &error) &&
@@ -352,7 +353,7 @@ static inline int reversi_play(SimResults *results, const unsigned int *players,
         mmgr_line_ch(&results->line, '\n');
     }
     TwisterSet twister;
-    memset(&twister, 0, sizeof(twister));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &twister, .bytes = sizeof(twister), .val = 0);
     ok = ok && twister_open(results, &twister, seeds, games);
     unsigned int *boards[2] = {NULL, NULL};
     unsigned int *choices = NULL;

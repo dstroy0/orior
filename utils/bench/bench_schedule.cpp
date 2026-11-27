@@ -19,13 +19,13 @@
  *       of sixteen input words are literal constants. How much of the expansion is then free?
  */
 
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <random>
 #include <string>
 #include <vector>
@@ -401,7 +401,7 @@ void measure_weight_profile()
         for (unsigned bit = 0u; bit < 32u; bit += 1u)
         {
             uint32_t block[16];
-            std::memset(block, 0, sizeof(block));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = block, .bytes = sizeof(block), .val = 0);
             block[word] = (1u << bit);
 
             uint32_t schedule[64];
@@ -501,7 +501,7 @@ void measure_mining_schedule()
             block_one[slot] = 0u;
         }
         block_one[15] = 0x00000280u;
-        std::memcpy(block_two, block_one, sizeof(block_one));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = block_two, .src = block_one, .bytes = sizeof(block_one));
         block_two[3] = generator();
 
         uint32_t schedule_one[64];
@@ -563,13 +563,13 @@ void measure_engine_value()
     block[3] = 0u;
     expand_real(block, schedule);
     uint32_t cached[64];
-    std::memcpy(cached, schedule, sizeof(cached));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = cached, .src = schedule, .bytes = sizeof(cached));
 
     started = std::chrono::steady_clock::now();
     for (unsigned trial = 0u; trial < trials; trial += 1u)
     {
         uint32_t working[64];
-        std::memcpy(working, cached, 18u * sizeof(uint32_t));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = working, .src = cached, .bytes = 18u * sizeof(uint32_t));
         working[3] = trial;
         // Words 16 and 17 are already correct; recompute from 18 onward.
         for (unsigned slot = 18u; slot < 64u; slot += 1u)

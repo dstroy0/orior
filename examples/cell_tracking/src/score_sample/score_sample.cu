@@ -23,9 +23,10 @@
 #include "track.h"
 #include "../../../../src/cu/engine/nbody/velocity/velocity.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define TOWER_ROUNDS 64u
 
@@ -35,7 +36,9 @@ static int score_flattened_slice(const char *sample, const TreeFrame *frames, un
     unsigned int named_at = rules->flattened_samples;
     for (unsigned int named = 0u; named < rules->flattened_samples; named += 1u)
     {
-        named_at = ((named_at == rules->flattened_samples) && (strcmp(rules->flattened_names[named], sample) == 0))
+        named_at = ((named_at == rules->flattened_samples) &&
+                    (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = rules->flattened_names[named],
+                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = sample, .ci = EMBED_FALSE)))
                        ? named
                        : named_at;
     }
@@ -136,7 +139,7 @@ static int score_print_match(const char *sample, TreeFrame *frames, unsigned int
     unsigned long long sweep = 0ull;
     const unsigned int *const sample_prints = &rules->prints[first * rules->print_limbs];
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const EngineRecordSweep run = {
         rules->print_pair, {sample_prints, sample_prints}, {bodies, bodies}, index, made, weight, &sweep, &error};
     ok = ok && ((made == 0u) || (engine_record_sweep(&run) == (long)made));
@@ -231,7 +234,7 @@ static int score_velocity_sweep(const char *sample, const char *pass, const Tree
         (unsigned int *)platform_cell_taken((words + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     unsigned long long sweep = 0ull;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const EngineRecordSweep run = {rules->velocity_record,
                                    {magnitudes, magnitudes, lags},
                                    {bodies, bodies, bodies},
@@ -263,7 +266,10 @@ static int score_velocity_sweep(const char *sample, const char *pass, const Tree
         }
         agree[ENGINE_AXES] +=
             (unsigned int)score_field_truthy(record, offset[VELOCITY_ALL_AGREE], bits[VELOCITY_ALL_AGREE]);
-        differ += (memcmp(record, &host[(size_t)lane * out_limbs], out_limbs * sizeof(unsigned int)) != 0) ? 1u : 0u;
+        differ += (EMBED_CALL(memor.cmp, MemoriaCfg, .src = record, .other = &host[(size_t)lane * out_limbs],
+                              .bytes = out_limbs * sizeof(unsigned int)) != 0)
+                      ? 1u
+                      : 0u;
     }
     if (ok)
     {
@@ -499,7 +505,7 @@ static int score_division(const char *sample, const TreeFrame *frames, unsigned 
            : NULL;
     unsigned long long sweep = 0ull;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const EngineRecordSweep run = {rules->division_record,
                                    {magnitudes, magnitudes, magnitudes},
                                    {bodies, bodies, bodies},
@@ -528,7 +534,10 @@ static int score_division(const char *sample, const TreeFrame *frames, unsigned 
         {
             output_true[output] += (unsigned int)score_field_truthy(record, offset[output], bits[output]);
         }
-        differ += (memcmp(record, &host[(size_t)lane * out_limbs], out_limbs * sizeof(unsigned int)) != 0) ? 1u : 0u;
+        differ += (EMBED_CALL(memor.cmp, MemoriaCfg, .src = record, .other = &host[(size_t)lane * out_limbs],
+                              .bytes = out_limbs * sizeof(unsigned int)) != 0)
+                      ? 1u
+                      : 0u;
     }
     unsigned int *const successors = ok ? score_key_successors(key) : NULL;
     ok = ok && (successors != NULL);
@@ -851,7 +860,7 @@ static void score_stars_release(ScoreStars *stars)
     platform_cell_released(stars->start, platform_place_g_program_owner);
     platform_cell_released(stars->target, platform_place_g_program_owner);
     platform_cell_released(stars->weight, platform_place_g_program_owner);
-    memset(stars, 0, sizeof(*stars));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = stars, .bytes = sizeof(*stars), .val = 0);
 }
 
 static unsigned int score_box_cell(const ClimbMachineBox *box, unsigned int boxed, const int *lag)
@@ -871,7 +880,7 @@ static int score_box(const char *sample, const TreeFrame *frames, unsigned int f
                      ClimbMachineBox *box_out)
 {
     ClimbMachineBox box;
-    memset(box_out, 0, sizeof(*box_out));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = box_out, .bytes = sizeof(*box_out), .val = 0);
     if (climb_machine_box(machine, &box) == 0)
     {
         fprintf(stderr,
@@ -885,7 +894,7 @@ static int score_box(const char *sample, const TreeFrame *frames, unsigned int f
     {
         starts += (size_t)frames[frame].leaf_count + 1u;
     }
-    memset(stars, 0, sizeof(*stars));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = stars, .bytes = sizeof(*stars), .val = 0);
     stars->choices = (ScoreChoices *)platform_cell_cleared((size_t)frame_count + 1u, sizeof(ScoreChoices),
                                                            platform_place_g_program_owner, 0);
     stars->start =
@@ -1085,9 +1094,9 @@ static int score_box_history(const char *set, const char *sample, const TreeFram
 {
     char path[ENGINE_PATH_CAPACITY];
     EngineHistory history;
-    memset(&history, 0, sizeof(history));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &history, .bytes = sizeof(history), .val = 0);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     if ((engine_sample_path(path, sizeof(path), set, sample, ".oapx") == 0) ||
         (engine_entropy_history_read(path, &history, &error) != 0L))
     {
@@ -1122,8 +1131,9 @@ static int score_box_history(const char *set, const char *sample, const TreeFram
     steps_succeeded = steps_succeeded && (extents != NULL) && (counts != NULL);
     for (unsigned int frame = 0u; steps_succeeded && (frame < frame_count); frame += 1u)
     {
-        memcpy(&extents[(size_t)frame_first[frame] * BOX_HISTORY_EXTENT_FIELDS], frames[frame].extents,
-               (size_t)frames[frame].leaf_count * BOX_HISTORY_EXTENT_FIELDS * sizeof(unsigned int));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &extents[(size_t)frame_first[frame] * BOX_HISTORY_EXTENT_FIELDS],
+                   .src = frames[frame].extents,
+                   .bytes = (size_t)frames[frame].leaf_count * BOX_HISTORY_EXTENT_FIELDS * sizeof(unsigned int));
     }
     if (steps_succeeded)
     {
@@ -1449,7 +1459,7 @@ static int score_marginal(const char *sample, const TreeFrame *frames, unsigned 
                           const ScoreChoices *stars)
 {
     ScoreMarginalSet set;
-    memset(&set, 0, sizeof(set));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &set, .bytes = sizeof(set), .val = 0);
     unsigned int leaves = 0u;
     for (unsigned int frame = 0u; frame < frame_count; frame += 1u)
     {
@@ -1570,8 +1580,11 @@ static int score_marginal(const char *sample, const TreeFrame *frames, unsigned 
     ok = ok && (marginal_run(&device) == (long)set.question_count);
     const unsigned long long swept = engine_clock_microseconds() - started;
     ok = ok && (marginal_run_host(&host) == (long)set.question_count);
-    const int same = ok && (memcmp(device_questions, host_questions, question_words * sizeof(unsigned int)) == 0) &&
-                     (memcmp(device_options, host_options, option_words * sizeof(unsigned int)) == 0);
+    const int same = ok &&
+                     (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device_questions, .other = host_questions,
+                                 .bytes = question_words * sizeof(unsigned int)) == 0) &&
+                     (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device_options, .other = host_options,
+                                 .bytes = option_words * sizeof(unsigned int)) == 0);
     unsigned int edges = 0u;
     unsigned int by_context = 0u;
     unsigned int by_absent = 0u;
@@ -1767,7 +1780,7 @@ static int score_contact_side(const char *sample, const TreeFrame *frames, unsig
     unsigned long long apart_sweep = 0ull;
     unsigned long long retained_sweep = 0ull;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const EngineRecordSweep apart_run = {rules->contact_difference_record,
                                          {magnitudes, magnitudes},
                                          {bodies, bodies},
@@ -1797,8 +1810,11 @@ static int score_contact_side(const char *sample, const TreeFrame *frames, unsig
     {
         track_error_report("contact side sweep", &error);
     }
-    const unsigned int differ =
-        ok ? ((memcmp(apart_device, apart_host, apart_words * sizeof(unsigned int)) != 0) ? 1u : 0u) : 0u;
+    const unsigned int differ = ok ? ((EMBED_CALL(memor.cmp, MemoriaCfg, .src = apart_device, .other = apart_host,
+                                                  .bytes = apart_words * sizeof(unsigned int)) != 0)
+                                          ? 1u
+                                          : 0u)
+                                   : 0u;
     const unsigned int *const offset = ok ? rules->contact_retained_encode_request->output_offset : NULL;
     const unsigned int *const bits = ok ? rules->contact_retained_encode_request->output_bits : NULL;
     unsigned int retained = 0u;
@@ -1809,10 +1825,11 @@ static int score_contact_side(const char *sample, const TreeFrame *frames, unsig
         const unsigned int *const record = &retained_device[(size_t)contact * retained_limbs];
         retained += (unsigned int)score_field_truthy(record, offset[CONTACT_SIDE_SAME], bits[CONTACT_SIDE_SAME]);
         crossed += (unsigned int)score_field_truthy(record, offset[CONTACT_SIDE_CROSSED], bits[CONTACT_SIDE_CROSSED]);
-        retained_differ += (memcmp(record, &retained_host[(size_t)contact * retained_limbs],
-                                   retained_limbs * sizeof(unsigned int)) != 0)
-                               ? 1u
-                               : 0u;
+        retained_differ +=
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = record, .other = &retained_host[(size_t)contact * retained_limbs],
+                        .bytes = retained_limbs * sizeof(unsigned int)) != 0)
+                ? 1u
+                : 0u;
     }
     if (ok)
     {
@@ -1861,7 +1878,7 @@ static unsigned long long s_web_logged[5] = {0ull, 0ull, 0ull, 0ull, 0ull};
 
 static int score_truth_load(const char *source, const char *sample, AnswerKey *key)
 {
-    memset(key, 0, sizeof(*key));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = key, .bytes = sizeof(*key), .val = 0);
     if (source == NULL)
     {
         return 1;
@@ -1874,7 +1891,7 @@ static int score_truth_load(const char *source, const char *sample, AnswerKey *k
         return 0;
     }
     EngineGeff geff;
-    memset(&geff, 0, sizeof(geff));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &geff, .bytes = sizeof(geff), .val = 0);
     if (engine_geff_read(path, &geff) != 0L)
     {
         {
@@ -1907,7 +1924,7 @@ static int score_truth_load(const char *source, const char *sample, AnswerKey *k
 
 int score_sample(const char *set, const char *source, const char *sample, const TreeRules *rules, EdgeResults *results)
 {
-    memset(results, 0, sizeof(*results));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = results, .bytes = sizeof(*results), .val = 0);
     AnswerKey key;
     if (score_truth_load(source, sample, &key) == 0)
     {
@@ -1917,7 +1934,7 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     unsigned short *volume = NULL;
     EngineSignum volume_root;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     if ((engine_iapx_load(set, sample, extent, &volume, &volume_root, NULL, &error) != 0L) ||
         (extent[0] > 0xFFFFFFFFull) || (extent[1] > 0xFFFFFFFFull) || (extent[2] > 0xFFFFFFFFull) ||
         (extent[3] > 0xFFFFFFFFull))
@@ -1973,7 +1990,7 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     }
 
     EngineBuffers buffers;
-    memset(&buffers, 0, sizeof(buffers));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &buffers, .bytes = sizeof(buffers), .val = 0);
     buffers.unit_sweep = rules->unit_sweep;
     buffers.depth = header[1];
     buffers.height = header[2];
@@ -2047,7 +2064,7 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     const int machine_wanted = (rules->pick != 0) || (rules->climb == 1) || (rules->climb == 3);
     const unsigned long long started = engine_clock_microseconds() / 1000ull;
     StageClock clocks;
-    memset(&clocks, 0, sizeof(clocks));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &clocks, .bytes = sizeof(clocks), .val = 0);
     const bool object = rules->object;
     size_t frame_runs_capacity = 0u;
     unsigned int *frame_runs = NULL;
@@ -2065,7 +2082,8 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     for (unsigned int frame = 0u; (ok != 0) && (frame < frame_count); frame += 1u)
     {
         unsigned long long mark = engine_clock_microseconds();
-        memcpy(buffers.volume, &volume[(size_t)frames[frame].time * voxels], voxels * sizeof(unsigned short));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = buffers.volume, .src = &volume[(size_t)frames[frame].time * voxels],
+                   .bytes = voxels * sizeof(unsigned short));
         clocks.read += engine_clock_microseconds() - mark;
         mark = engine_clock_microseconds();
         ok = (ok != 0) && (track_frame_bodies(&buffers, 1u, &frames[frame]) != 0);
@@ -2085,7 +2103,7 @@ int score_sample(const char *set, const char *source, const char *sample, const 
                 padded *= power;
             }
             ClimbMachineExtent machine_extent;
-            memset(&machine_extent, 0, sizeof(machine_extent));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &machine_extent, .bytes = sizeof(machine_extent), .val = 0);
             machine_extent.depth = buffers.depth;
             machine_extent.height = buffers.height;
             machine_extent.width = buffers.width;
@@ -2105,7 +2123,7 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         if ((ok != 0) && (buffers.machine != NULL))
         {
             ClimbMachineFrame stored;
-            memset(&stored, 0, sizeof(stored));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &stored, .bytes = sizeof(stored), .val = 0);
             stored.frame = frames[frame].time;
             stored.leaf_count = frames[frame].leaf_count;
             stored.labels = buffers.labels[1];
@@ -2413,7 +2431,7 @@ int score_sample(const char *set, const char *source, const char *sample, const 
             }
             const TreeFrame *const null_frame = &frames[other];
             ClimbMachinePair pair;
-            memset(&pair, 0, sizeof(pair));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &pair, .bytes = sizeof(pair), .val = 0);
             pair.earlier = tree->time;
             pair.later = null_frame->time;
             for (unsigned int axis = 0u; axis < 3u; axis += 1u)
@@ -2471,7 +2489,7 @@ int score_sample(const char *set, const char *source, const char *sample, const 
             }
             const TreeFrame *const far = &frames[frame + gap];
             ClimbMachinePair pair;
-            memset(&pair, 0, sizeof(pair));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &pair, .bytes = sizeof(pair), .val = 0);
             pair.earlier = tree->time;
             pair.later = far->time;
             for (unsigned int axis = 0u; axis < 3u; axis += 1u)
@@ -2516,14 +2534,16 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         const TreeFrame *const tree = &frames[frame];
         for (unsigned int leaf = 0u; (tree->check_forward_lag != NULL) && (leaf < tree->leaf_count); leaf += 1u)
         {
-            if (memcmp(&tree->check_forward_lag[3u * leaf], &tree->forward_lag[3u * leaf], 3u * sizeof(int)) != 0)
+            if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &tree->check_forward_lag[3u * leaf],
+                           .other = &tree->forward_lag[3u * leaf], .bytes = 3u * sizeof(int)) != 0)
             {
                 fprintf(stderr, "    climb disagrees: earlier frame %u leaf %u\n", tree->time, leaf);
             }
         }
         for (unsigned int leaf = 0u; (tree->check_backward_lag != NULL) && (leaf < tree->leaf_count); leaf += 1u)
         {
-            if (memcmp(&tree->check_backward_lag[3u * leaf], &tree->backward_lag[3u * leaf], 3u * sizeof(int)) != 0)
+            if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &tree->check_backward_lag[3u * leaf],
+                           .other = &tree->backward_lag[3u * leaf], .bytes = 3u * sizeof(int)) != 0)
             {
                 fprintf(stderr, "    climb disagrees: later frame %u leaf %u\n", tree->time, leaf);
             }
@@ -2534,9 +2554,9 @@ int score_sample(const char *set, const char *source, const char *sample, const 
                                                                  tree_index_of_time, volume_frames) != 0));
     ok = (ok != 0) && ((rules->contact_side == 0) || (score_contact_side(sample, frames, frame_count, rules) != 0));
     ScoreStars stars;
-    memset(&stars, 0, sizeof(stars));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &stars, .bytes = sizeof(stars), .val = 0);
     ClimbMachineBox box;
-    memset(&box, 0, sizeof(box));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &box, .bytes = sizeof(box), .val = 0);
     ok = (ok != 0) && ((rules->box == 0) || (buffers.machine == NULL) ||
                        (score_box(sample, frames, frame_count, buffers.machine, tree_index_of_time, volume_frames,
                                   &stars, &box) != 0));
@@ -2658,8 +2678,9 @@ int score_sample(const char *set, const char *source, const char *sample, const 
                 (frames[frame].link_start != NULL) ? frames[frame].link_start[frames[frame].object_count] : 0u;
             const unsigned int same =
                 (unsigned int)((links == was_count[frame]) && (was_target[frame] != NULL) &&
-                               ((links == 0u) || (memcmp(was_target[frame], frames[frame].link_target,
-                                                         (size_t)links * sizeof(unsigned int)) == 0)));
+                               ((links == 0u) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = was_target[frame],
+                                                             .other = frames[frame].link_target,
+                                                             .bytes = (size_t)links * sizeof(unsigned int)) == 0)));
             moving += (unsigned int)(same == 0u);
             unsigned int *const retained =
                 (links != 0u) ? (unsigned int *)platform_cell_taken((size_t)links * sizeof(unsigned int),
@@ -2667,7 +2688,8 @@ int score_sample(const char *set, const char *source, const char *sample, const 
                               : NULL;
             if (retained != NULL)
             {
-                memcpy(retained, frames[frame].link_target, (size_t)links * sizeof(unsigned int));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = retained, .src = frames[frame].link_target,
+                           .bytes = (size_t)links * sizeof(unsigned int));
             }
             platform_cell_released(was_target[frame], platform_place_g_program_owner);
             was_target[frame] = retained;
@@ -2703,7 +2725,7 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     }
 
     NodeIndex index;
-    memset(&index, 0, sizeof(index));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &index, .bytes = sizeof(index), .val = 0);
     index.frame_count = frame_count;
     index.frames = frames;
     index.node_offset = (unsigned int *)platform_cell_cleared((size_t)frame_count + 1u, sizeof(unsigned int),
@@ -3223,7 +3245,7 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     if (ok && (object || (rules->coherence != NULL) || (rules->vis_index != NULL) || (rules->export_directory != NULL)))
     {
         CoherenceInputs inputs;
-        memset(&inputs, 0, sizeof(inputs));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &inputs, .bytes = sizeof(inputs), .val = 0);
         inputs.sample = sample;
         inputs.volume = volume;
         inputs.key = &key;

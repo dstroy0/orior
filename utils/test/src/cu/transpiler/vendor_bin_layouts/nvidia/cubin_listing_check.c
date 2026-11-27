@@ -16,8 +16,9 @@
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing.h"
 #include "../../../../../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
-#include <string.h>
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -87,8 +88,11 @@ static const char s_two[] = "        /*0000*/                   BRA 0x20;\n"
 // 1 where kernel `at` of `cut` reads exactly `expected`
 static int cut_reads(const CubinListingCut *cut, unsigned int at, const char *expected)
 {
-    return cut->found[at] && (cut->size[at] == strlen(expected)) &&
-           (memcmp(cut->text + cut->start[at], expected, cut->size[at]) == 0);
+    return cut->found[at] &&
+           (cut->size[at] ==
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = expected, .cap = PLATFORM_TEXT_TO_TERMINATOR)) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = cut->text + cut->start[at], .other = expected,
+                       .bytes = cut->size[at]) == 0);
 }
 
 int program_main(int argc, char **argv)
@@ -103,7 +107,9 @@ int program_main(int argc, char **argv)
                "forward and back, and the label it does not set retained as printed");
     check_that(cut_reads(&cut, 0u, s_two), "labels: k_two's forward label is put as the offset after the NOP");
     check_that(!cut.found[1] && (cut.size[1] == 0u), "apart: a kernel no section contains is not found");
-    check_that(cut.text_size == (strlen(s_one) + strlen(s_two)),
+    check_that(cut.text_size ==
+                   (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_one, .cap = PLATFORM_TEXT_TO_TERMINATOR) +
+                    EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_two, .cap = PLATFORM_TEXT_TO_TERMINATOR)),
                "apart: no line of the section no kernel is named for is retained");
     cubin_listing_cut_freed(&cut);
     // a label after the last instruction, the listing ending with no newline

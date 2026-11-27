@@ -7,7 +7,6 @@
 #include "zip.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 #define ZIP_CHECK(condition_, evacaddr_, error_, type_)                                                                \
     engine_error_check((condition_), (type_), ENGINE_MODULE_ZIP, (unsigned int)__LINE__, (const void *)(evacaddr_),    \

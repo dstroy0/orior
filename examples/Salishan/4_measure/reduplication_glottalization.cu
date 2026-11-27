@@ -32,13 +32,13 @@
 //   5. the records are written out.
 
 #include "../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
 
 #include "record_stages.h"
 
@@ -46,7 +46,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <algorithm>
 #include <set>
@@ -135,7 +134,7 @@ static int doubled_read(const char *path, unsigned long long shares[2][2], std::
 // each of three one-bit fields passed through, for their sums over a language's run
 static void doubled_tally_program(StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int bit = 1u;
     const unsigned int identical = stage_field(program, bit);
     const unsigned int split = stage_field(program, bit);
@@ -149,7 +148,7 @@ static void doubled_tally_program(StageProgram *program)
 // COMPARE(I h_den, h_num T) and COMPARE(I s_den, s_num T), with T = I + S, and T
 static void doubled_reading_program(unsigned int bits, unsigned int share_bits, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int identical = stage_field(program, bits);
     const unsigned int split = stage_field(program, bits);
     const unsigned int high_num = stage_field(program, share_bits);
@@ -196,9 +195,9 @@ int program_main(int count, char **arguments)
         run = std::max(run, verdicts);
     }
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     Stage tally_stage;
-    memset(&tally_stage, 0, sizeof(tally_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &tally_stage, .bytes = sizeof(tally_stage), .val = 0);
     tally_stage.name = "tally";
     doubled_tally_program(&tally_stage.program);
     int ok = stage_position(&job, &tally_stage, &error);
@@ -238,7 +237,7 @@ int program_main(int count, char **arguments)
 
     // the reading program: each language's share against both bounds
     Stage reading_stage;
-    memset(&reading_stage, 0, sizeof(reading_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &reading_stage, .bytes = sizeof(reading_stage), .val = 0);
     reading_stage.name = "reading";
     unsigned int share_bits = 1u;
     for (size_t at = 0u; at < 2u; at += 1u)
@@ -258,7 +257,7 @@ int program_main(int count, char **arguments)
 
     // the digits program: each share
     Stage digits_stage;
-    memset(&digits_stage, 0, sizeof(digits_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &digits_stage, .bytes = sizeof(digits_stage), .val = 0);
     digits_stage.name = "digits";
     stage_digits_program(stage_bits(stage_whole(run)) + 1u, &digits_stage.program);
     StageRows digit_rows;

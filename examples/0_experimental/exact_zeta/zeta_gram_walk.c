@@ -8,8 +8,9 @@
 #include "../../../src/platform/platform.h"
 #include "zeta_theta.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
-#include <string.h>
 
 const char *const ZETA_GRAM_PUBLISHED[16] = {"17.8455995405", "23.1702827012", "27.6701822178", "31.7179799547",
                                              "35.4671842971", "38.9992099640", "42.3635503920", "45.5930289815",
@@ -84,7 +85,8 @@ size_t gram_intern(GramSearch *search, const DecimalPair *t)
     while (search->buckets[place] != 0u)
     {
         const size_t index = search->buckets[place] - 1u;
-        if (strcmp(search->points[index].key, key) == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = search->points[index].key, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = key, .ci = EMBED_FALSE))
         {
             return index;
         }
@@ -98,10 +100,13 @@ size_t gram_intern(GramSearch *search, const DecimalPair *t)
                                                                       platform_place_g_program_owner, 0));
     }
     GramPoint *const point = &search->points[search->count];
-    memset(point, 0, sizeof(*point));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = point, .bytes = sizeof(*point), .val = 0);
     point->t = *t;
-    point->key = (char *)walk_memory(platform_cell_taken(strlen(key) + 1u, platform_place_g_program_owner, 0));
-    memcpy(point->key, key, strlen(key) + 1u);
+    point->key = (char *)walk_memory(platform_cell_taken(
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u,
+        platform_place_g_program_owner, 0));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = point->key, .src = key,
+               .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
     search->buckets[place] = search->count + 1u;
     search->count += 1u;
     return search->count - 1u;
@@ -217,7 +222,7 @@ size_t gram_walk(GramSearch *search, const DecimalPair *height, GramBracket **fo
         const size_t asked_count = cell_count + (top ? 1u : 0u);
         DecimalPair *const asked = (DecimalPair *)walk_memory(
             platform_cell_taken((2u * asked_count + 2u) * sizeof(DecimalPair), platform_place_g_program_owner, 0));
-        memcpy(asked, cells, 2u * cell_count * sizeof(DecimalPair));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = asked, .src = cells, .bytes = 2u * cell_count * sizeof(DecimalPair));
         if (top)
         {
             asked[2u * cell_count] = low;

@@ -19,8 +19,9 @@
 #ifndef TWISTER_RECORD_H
 #define TWISTER_RECORD_H
 
-#include "game_record.h"
 #include "../../src/platform/platform.h"
+#include "game_record.h"
+#include "memoria_operor/memoria_operor.h"
 
 /** @brief The words of the state of MT19937, and the reach of its twist. */
 #define TWISTER_WORDS 624u
@@ -206,7 +207,7 @@ static inline void twister_close(TwisterSet *set)
     platform_cell_released(set->host_index, platform_place_g_program_owner);
     platform_cell_released(set->host_out, platform_place_g_program_owner);
     platform_cell_released(set->host_requests, platform_place_g_program_owner);
-    memset(set, 0, sizeof(*set));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = set, .bytes = sizeof(*set), .val = 0);
 }
 
 /** @brief The device bytes that a set of `count` generators asks for, at its first stream. */
@@ -235,7 +236,7 @@ static inline int twister_run(SimResults *results, TwisterSet *set, unsigned int
                               unsigned long long lanes)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     unsigned int members = 0u;
     while ((members < ENGINE_RECORD_MEMBERS_MAX) && (inputs[members] != NULL))
     {
@@ -420,9 +421,9 @@ static inline int twister_refill(SimResults *results, TwisterSet *set)
 static inline int twister_open(SimResults *results, TwisterSet *set, const unsigned int *seeds,
                                unsigned long long count)
 {
-    memset(set, 0, sizeof(*set));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = set, .bytes = sizeof(*set), .val = 0);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     set->count = count;
     const unsigned long long words = count * TWISTER_WORDS;
     set->room = words;

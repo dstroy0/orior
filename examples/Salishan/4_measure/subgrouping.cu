@@ -50,13 +50,13 @@
 //   5. the records are written out.
 
 #include "../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
 
 #include "record_stages.h"
 
@@ -64,7 +64,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <algorithm>
 #include <map>
@@ -201,7 +200,7 @@ static int group_match(const std::vector<GroupForm> &first, const std::vector<Gr
 // excess + 1 as (m P - S + n P) / (n P), and p as (a + 1) / (P + 1)
 static void group_value_program(unsigned int bits, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int matched = stage_field(program, bits);
     const unsigned int sum = stage_field(program, bits);
     const unsigned int shared = stage_field(program, bits);
@@ -220,7 +219,7 @@ static void group_value_program(unsigned int bits, StageProgram *program)
 // a / b + c / d as (a d + c b) / (b d)
 static void group_add_program(unsigned int bits, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int a = stage_field(program, bits);
     const unsigned int b = stage_field(program, bits);
     const unsigned int c = stage_field(program, bits);
@@ -234,7 +233,7 @@ static void group_add_program(unsigned int bits, StageProgram *program)
 // a / b over k as a / (b k)
 static void group_scale_program(unsigned int bits, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int a = stage_field(program, bits);
     const unsigned int b = stage_field(program, bits);
     const unsigned int k = stage_field(program, bits);
@@ -245,7 +244,7 @@ static void group_scale_program(unsigned int bits, StageProgram *program)
 // a / b less one, as its sign, whole part and first six digits after the point
 static void group_signed_program(unsigned int bits, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int a = stage_field(program, bits);
     const unsigned int b = stage_field(program, bits);
     const unsigned int less = stage_step(program, ENGINE_RECORD_DIFFERENCE, a, b);
@@ -284,7 +283,7 @@ static int group_means(SimResults *job, const std::vector<std::vector<StageRatio
         }
         stages->push_back(Stage());
         Stage *stage = &stages->back();
-        memset(stage, 0, sizeof(*stage));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = stage, .bytes = sizeof(*stage), .val = 0);
         stage->name = "add";
         group_add_program(stage_widest(widths), &stage->program);
         std::vector<std::vector<StageWhole>> out;
@@ -318,7 +317,7 @@ static int group_means(SimResults *job, const std::vector<std::vector<StageRatio
     }
     stages->push_back(Stage());
     Stage *stage = &stages->back();
-    memset(stage, 0, sizeof(*stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = stage, .bytes = sizeof(*stage), .val = 0);
     stage->name = "scale";
     group_scale_program(stage_widest(widths), &stage->program);
     std::vector<std::vector<StageWhole>> out;
@@ -342,7 +341,7 @@ int program_main(int count, char **arguments)
         return 2;
     }
     GroupSettings settings;
-    memset(&settings, 0, sizeof(settings));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &settings, .bytes = sizeof(settings), .val = 0);
     std::vector<GroupLanguage> read;
     if (!group_read(arguments[1], &settings, &read))
     {
@@ -410,9 +409,9 @@ int program_main(int count, char **arguments)
     const unsigned long long runs = shuffles + 1ull;
     const unsigned int words = (unsigned int)((widest + 31u) / 32u);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     Stage count_stage;
-    memset(&count_stage, 0, sizeof(count_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &count_stage, .bytes = sizeof(count_stage), .val = 0);
     count_stage.name = "count";
     stage_count_program(0, &count_stage.program);
     const unsigned long long count_lanes = (unsigned long long)pairs.size() * runs * words;
@@ -457,7 +456,7 @@ int program_main(int count, char **arguments)
 
     // the above program: each shuffle's count against the pair's own, summed over each pair's shuffles
     Stage above_stage;
-    memset(&above_stage, 0, sizeof(above_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &above_stage, .bytes = sizeof(above_stage), .val = 0);
     above_stage.name = "above";
     const unsigned int count_bits = stage_bits(stage_whole(widest));
     stage_above_program(count_bits, &above_stage.program);
@@ -489,7 +488,7 @@ int program_main(int count, char **arguments)
 
     // the value program: each pair's excess + 1 and p
     Stage value_stage;
-    memset(&value_stage, 0, sizeof(value_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &value_stage, .bytes = sizeof(value_stage), .val = 0);
     value_stage.name = "value";
     StageRows value_rows;
     unsigned int value_bits = 1u;
@@ -554,7 +553,7 @@ int program_main(int count, char **arguments)
     }
     const unsigned long long unit_margin[2] = {1ull, 1ull};
     Stage first_stage;
-    memset(&first_stage, 0, sizeof(first_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &first_stage, .bytes = sizeof(first_stage), .val = 0);
     std::vector<int> first_signs;
     ok = ok && stage_compare(&job, &first_stage, "first compare", xs, ys, std::vector<int>(xs.size(), 0), unit_margin,
                              &first_signs, &error);
@@ -609,7 +608,7 @@ int program_main(int count, char **arguments)
         mean_ys = {means[2], means[2]};
     }
     Stage second_stage;
-    memset(&second_stage, 0, sizeof(second_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &second_stage, .bytes = sizeof(second_stage), .val = 0);
     std::vector<int> second_signs;
     ok = ok && stage_compare(&job, &second_stage, "second compare", mean_xs, mean_ys,
                              std::vector<int>(mean_xs.size(), 0), unit_margin, &second_signs, &error);
@@ -623,7 +622,7 @@ int program_main(int count, char **arguments)
     const size_t means_at = printed.size();
     printed.insert(printed.end(), means.begin(), means.end());
     Stage signed_stage;
-    memset(&signed_stage, 0, sizeof(signed_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &signed_stage, .bytes = sizeof(signed_stage), .val = 0);
     signed_stage.name = "signed";
     group_signed_program(stage_widest(printed) + 1u, &signed_stage.program);
     StageRows signed_rows;

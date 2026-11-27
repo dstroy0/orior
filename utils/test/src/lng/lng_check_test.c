@@ -10,9 +10,9 @@
 #include "../../../../src/lng/lng.h"
 #include "../../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 static unsigned int s_failures;
 
@@ -25,7 +25,8 @@ static void expect(const char *label, const LngList *got, const char *const *wan
     int same = (got->count == count);
     for (unsigned int at = 0u; same && (at < count); at += 1u)
     {
-        same = (strcmp(got->text[at], wanted[at]) == 0);
+        same = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = got->text[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = wanted[at], .ci = EMBED_FALSE));
     }
     if (same)
     {
@@ -97,7 +98,10 @@ static void blank(LngList *lines, const char *word, const char *type, const char
     {
         for (unsigned int one = 0u; one < count; one += 1u)
         {
-            cells[at][0] = (strcmp(s_operators[at], operators[one]) == 0) ? '1' : cells[at][0];
+            cells[at][0] = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_operators[at],
+                                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = operators[one], .ci = EMBED_FALSE))
+                               ? '1'
+                               : cells[at][0];
         }
     }
     {
@@ -177,7 +181,10 @@ static void target_row(LngList *lines, const char *word, const char *type, const
     {
         for (unsigned int one = 0u; one < count; one += 1u)
         {
-            cells[at][0] = (strcmp(s_operators[at], operators[one]) == 0) ? '1' : cells[at][0];
+            cells[at][0] = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_operators[at],
+                                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = operators[one], .ci = EMBED_FALSE))
+                               ? '1'
+                               : cells[at][0];
         }
     }
     {
@@ -227,10 +234,14 @@ static void language_row(LngList *lines, const char *word, const char *type, con
     {
         for (unsigned int one = 0u; one < count; one += 1u)
         {
-            cells[at][0] = (strcmp(s_operators[at], operators[one]) == 0) ? '1' : cells[at][0];
+            cells[at][0] = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_operators[at],
+                                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = operators[one], .ci = EMBED_FALSE))
+                               ? '1'
+                               : cells[at][0];
         }
     }
-    const int typed = (strcmp(type, "type") == 0);
+    const int typed = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "type", .ci = EMBED_FALSE));
     const char *const probe = typed ? ((expected[0] != '\0') ? "probe" : "") : "answer = left + right;";
     {
         LngNote lng_note;

@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_coherence_test_inverse.cu: broken, inverse, odd divisors and orthogonality
-#include "record_coherence_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "record_coherence_test_internal.h"
 
 // a quotient and a comparison read the whole integer: wrapping before and after them disagree on some lane
 void coherence_broken(CoherenceResults *results)
@@ -79,7 +80,8 @@ void coherence_broken(CoherenceResults *results)
     mmgr_line_put(&results->line, " lanes, wrapped to 8 bits before against after\n");
     coherence_check(results,
                     host_ran && device_ran &&
-                        (memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0),
+                        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                                    .bytes = (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0),
                     "the quotient and comparison program's device records equal the host's word for word");
     coherence_check(results, quotient_breaks != 0u, "a quotient does not commute with the wrap");
     coherence_check(results, compare_breaks != 0u, "a comparison does not commute with the wrap");
@@ -128,7 +130,7 @@ void coherence_odd_divisors(CoherenceResults *results)
     {
         const unsigned int divisor = divisors[pick];
         const unsigned int inverse = coherence_inverse(divisor);
-        memset(program, 0, sizeof(*program));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
         const unsigned int factor = coherence_append(program, ENGINE_RECORD_FIELD_SIGNED, 0u, 0u);
         const unsigned int constant = coherence_append(program, ENGINE_RECORD_CONSTANT, divisor, 0u);
         const unsigned int product = coherence_append(program, ENGINE_RECORD_PRODUCT, factor, constant);
@@ -166,7 +168,8 @@ void coherence_odd_divisors(CoherenceResults *results)
             coherence_run(&loaded, atoms, lanes, host_out, device_out, &host_ran, &device_ran);
         }
         words_all = words_all && host_ran && device_ran &&
-                    (memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0);
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                                .bytes = (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0);
         for (unsigned int lane = 0u; host_ran && (lane < lanes); lane += 1u)
         {
             const unsigned int *const record = &device_out[(size_t)lane * out_limbs];
@@ -245,7 +248,7 @@ void coherence_orthogonal(CoherenceResults *results)
     {
         CoherenceOperation operations[COHERENCE_TEST_OPERATIONS];
         coherence_draw(operations, 1);
-        memset(program, 0, sizeof(*program));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
         unsigned int value[COHERENCE_TEST_INPUTS + COHERENCE_TEST_OPERATIONS];
         for (unsigned int input = 0u; input < COHERENCE_TEST_INPUTS; input += 1u)
         {
@@ -317,7 +320,8 @@ void coherence_orthogonal(CoherenceResults *results)
             coherence_run(&loaded, atoms, lanes, host_out, device_out, &host_ran, &device_ran);
         }
         words_all = words_all && host_ran && device_ran &&
-                    (memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0);
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                                .bytes = (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0);
         for (unsigned int lane = 0u; host_ran && (lane < lanes); lane += 1u)
         {
             const unsigned int *const record = &device_out[(size_t)lane * out_limbs];
@@ -362,7 +366,7 @@ void coherence_orthogonal(CoherenceResults *results)
         coherence_free(&loaded);
     }
     // the xor modulo 3: the xor of the residues against the residue of the xor
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int left = coherence_append(program, ENGINE_RECORD_FIELD_SIGNED, 0u, 0u);
     const unsigned int right = coherence_append(program, ENGINE_RECORD_FIELD_SIGNED, 1u, 0u);
     const unsigned int three = coherence_append(program, ENGINE_RECORD_CONSTANT, 3u, 0u);
@@ -394,7 +398,8 @@ void coherence_orthogonal(CoherenceResults *results)
             coherence_run(&loaded, atoms, lanes, host_out, device_out, &host_ran, &device_ran);
         }
         words_all = words_all && host_ran && device_ran &&
-                    (memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0);
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                                .bytes = (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0);
         for (unsigned int lane = 0u; host_ran && (lane < lanes); lane += 1u)
         {
             const unsigned int *const record = &device_out[(size_t)lane * out_limbs];

@@ -1,13 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_boundary_test_run.cu: loading, running and reading, precision and bands
-#include "record_boundary_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "record_boundary_test_internal.h"
 
 // each field its own 32-bit word, `fields` words a lane, arranged with register reuse
 int boundary_load(const BoundaryProgram *program, unsigned int fields, BoundaryLoaded *loaded)
 {
-    memset(loaded, 0, sizeof(*loaded));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = loaded, .bytes = sizeof(*loaded), .val = 0);
     if ((program->overflow != 0) ||
         (boundary_encode(program, program->count, fields, &loaded->key, &loaded->error) == 0))
     {
@@ -70,7 +71,8 @@ int boundary_run(BoundaryLoaded *loaded, const unsigned int *atoms, unsigned int
     cudaFree(device_atoms);
     cudaFree(device_record);
     return (host_ran != 0) && (ok != 0) &&
-           (memcmp(host_out, device_out, (size_t)count * out_limbs * sizeof(unsigned int)) == 0);
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                       .bytes = (size_t)count * out_limbs * sizeof(unsigned int)) == 0);
 }
 
 // a field's word: the value's low 24 bits of two's complement

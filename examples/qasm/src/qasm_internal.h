@@ -12,7 +12,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // OpenQASM 2.0 read into gates the record machine runs. Every parameter is represented exactly as a + b pi with a and b
 // exact rationals. A rounded gate's entries are computed at QASM_GUARD_BITS in exact integers, with every

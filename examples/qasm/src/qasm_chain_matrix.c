@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_chain_matrix.c: matrices and one-qubit application
-#include "qasm_chain_internal.h"
 #include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "qasm_chain_internal.h"
 
 unsigned char *qasm_matrix_at(const QasmMatrix *matrix, unsigned int row, unsigned int column)
 {
@@ -74,7 +75,7 @@ long qasm_matrix_multiply(const QasmMatrix *left, const QasmMatrix *right, QasmM
     const QasmField *const field = left->field;
     long status = qasm_matrix_alloc(field, left->rows, right->columns, product, error);
     QasmElement term;
-    memset(&term, 0, sizeof(term));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &term, .bytes = sizeof(term), .val = 0);
     for (unsigned int row = 0u; (status == 0L) && (row < left->rows); row += 1u)
     {
         for (unsigned int inner = 0u; (status == 0L) && (inner < left->columns); inner += 1u)
@@ -103,7 +104,7 @@ static long qasm_matrix_scaled_add(QasmMatrix *accumulated, const void *scalar, 
         return 0L;
     }
     QasmElement term;
-    memset(&term, 0, sizeof(term));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &term, .bytes = sizeof(term), .val = 0);
     long status = 0L;
     for (unsigned int row = 0u; (status == 0L) && (row < matrix->rows); row += 1u)
     {
@@ -137,9 +138,10 @@ static void qasm_matrix_swap_rows(QasmMatrix *matrix, unsigned int first, unsign
     // the columns widen to size_t exactly
     const size_t row_bytes = (size_t)matrix->columns * matrix->field->element_bytes;
     // moving an element's bytes moves the element whole, whatever it owns
-    memcpy(swap_row, qasm_matrix_at(matrix, first, 0u), row_bytes);
-    memcpy(qasm_matrix_at(matrix, first, 0u), qasm_matrix_at(matrix, second, 0u), row_bytes);
-    memcpy(qasm_matrix_at(matrix, second, 0u), swap_row, row_bytes);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = swap_row, .src = qasm_matrix_at(matrix, first, 0u), .bytes = row_bytes);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = qasm_matrix_at(matrix, first, 0u),
+               .src = qasm_matrix_at(matrix, second, 0u), .bytes = row_bytes);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = qasm_matrix_at(matrix, second, 0u), .src = swap_row, .bytes = row_bytes);
 }
 
 // Row `pivot` scaled to a leading one at `column`, and that column cleared from every other row.
@@ -149,9 +151,9 @@ static long qasm_matrix_eliminate(QasmMatrix *rows, unsigned int pivot, unsigned
     QasmElement inverse;
     QasmElement factor;
     QasmElement term;
-    memset(&inverse, 0, sizeof(inverse));
-    memset(&factor, 0, sizeof(factor));
-    memset(&term, 0, sizeof(term));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &inverse, .bytes = sizeof(inverse), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &factor, .bytes = sizeof(factor), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &term, .bytes = sizeof(term), .val = 0);
     long status = field->invert(qasm_matrix_at(rows, pivot, column), &inverse, error);
     for (unsigned int entry = 0u; (status == 0L) && (entry < rows->columns); entry += 1u)
     {

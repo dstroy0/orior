@@ -20,10 +20,10 @@
 #include "../../../../../../../src/platform/platform.h"
 
 #include "../../../../../../../includes/parsers/who.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "verba_scribo/verba_scribo.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -80,9 +80,13 @@ static const char *without_who(const char *text, char *bytes, size_t room)
     size_t written = 0u;
     for (const char *line = text; (line != NULL) && (*line != '\0');)
     {
-        const char *const end = strchr(line, '\n');
-        const size_t length = (end != NULL) ? (size_t)(end - line) : strlen(line);
-        if (strncmp(line, "who ", 4u) != 0)
+        const char *const end =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\n');
+        const size_t length =
+            (end != NULL) ? (size_t)(end - line)
+                          : EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+        if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "who ", .ci = EMBED_FALSE))
         {
             written = verba_textus.put_n(
                 &(VerbaTextusCfg){.out = bytes, .cap = room, .at = written, .text = line, .text_len = length});
@@ -101,13 +105,17 @@ static int cost_rows_under(const KscFile *file, const char *code)
     whose[0] = '\0';
     for (unsigned int at = 0u; at < file->lines; at += 1u)
     {
-        if (strncmp(file->line[at], "who ", 4u) == 0)
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = file->line[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "who ", .ci = EMBED_FALSE))
         {
             snprintf(whose, sizeof(whose), "%s", file->line[at] + 4u);
             continue;
         }
-        if (ksc_row_read(file->line[at], "run", &s_read) && (strncmp(s_read.question, "cost ", 5u) == 0) &&
-            (strcmp(whose, code) != 0))
+        if (ksc_row_read(file->line[at], "run", &s_read) &&
+            (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = s_read.question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "cost ", .ci = EMBED_FALSE)) &&
+            (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = whose, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = code,
+                         .ci = EMBED_FALSE)))
         {
             return 0;
         }
@@ -139,7 +147,9 @@ int program_main(int count, char **words)
     }
     char path[1024];
     snprintf(path, sizeof(path), "%s/ksc_check.ksc", words[1]);
-    if (qry_member_filed(path, s_written, strlen(s_written)) == 0ull)
+    if (qry_member_filed(
+            path, s_written,
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_written, .cap = PLATFORM_TEXT_TO_TERMINATOR)) == 0ull)
     {
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -153,8 +163,12 @@ int program_main(int count, char **words)
     }
     check_that(ksc_read(&s_file, path) && (s_file.lines == 7u), "a .ksc is read, a line each");
     static KscRow s_row;
-    check_that(ksc_row_read(s_file.line[4], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
-                   (s_row.value == 5ull) && (strcmp(s_row.question, "stall IADD3 IMAD") == 0),
+    check_that(ksc_row_read(s_file.line[4], "run", &s_row) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.answer, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "answers", .ci = EMBED_FALSE)) &&
+                   (s_row.value == 5ull) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "stall IADD3 IMAD", .ci = EMBED_FALSE)),
                "a row is read with its answer, its word as a number and its question");
     check_that(!ksc_row_read(s_file.line[1], "run", &s_row) && !ksc_row_read(s_file.line[6], "run", &s_row),
                "a count and a field are no rows");
@@ -178,7 +192,8 @@ int program_main(int count, char **words)
              code);
     const char *text = joined(&s_file, s_text_bytes, sizeof(s_text_bytes));
     check_that(
-        (text != NULL) && (strcmp(text, expected) == 0),
+        (text != NULL) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                      .other = expected, .ci = EMBED_FALSE)),
         "the rows put after the channel's last row retained, under a who line of the code that put them, the who "
         "before them, none, written again after them, and the channel's counts taken again");
     check_that(ksc_row_read(s_file.line[4], "run", &s_row) == 0, "a who line is no row");
@@ -203,7 +218,8 @@ int program_main(int count, char **words)
              "who -\n"
              "field stall 105 4\n",
              later_code);
-    check_that((text != NULL) && (strcmp(text, expected) == 0),
+    check_that((text != NULL) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = expected, .ci = EMBED_FALSE)),
                "and the who line left over no line by the rows let go is let go");
     check_that(ksc_write(&s_file, path) == 1, "the .ksc is written through the run's writer");
     check_that(ksc_read(&s_file, path) && (s_file.lines == 8u), "and read back, line for line");
@@ -218,7 +234,9 @@ int program_main(int count, char **words)
     KfileLines removed = {0};
     check_that(ksc_rows_replaced_traced_by(&s_traced, "run", "stall", traced_rows, 2u, WHO_HERE, &removed),
                "a question's rows are replaced with the rows let go traced");
-    check_that((removed.lines == 1u) && (strcmp(removed.line[0], "run answers 00000007 stall LDG STG") == 0),
+    check_that((removed.lines == 1u) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = removed.line[0], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "run answers 00000007 stall LDG STG", .ci = EMBED_FALSE)),
                "the row let go that no row put gives again is passed back, as the file stored it");
     kfile_lines_free(&removed);
     check_that(ksc_rows_replaced_traced_by(&s_traced, "run", "stall", traced_rows, 2u, WHO_HERE, &removed) &&
@@ -238,7 +256,9 @@ int program_main(int count, char **words)
         unsigned int rows = 0u;
         for (unsigned int at = 0u; (at < lines) && (rows < 4096u); at += 1u)
         {
-            if (ksc_row_read(s_file.line[at], "run", &s_row) && (strncmp(s_row.question, "cost ", 5u) == 0))
+            if (ksc_row_read(s_file.line[at], "run", &s_row) &&
+                (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = s_row.question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "cost ", .ci = EMBED_FALSE)))
             {
                 snprintf(s_rows[rows], sizeof(s_rows[rows]), "%s", s_file.line[at]);
                 rows += 1u;
@@ -259,7 +279,9 @@ int program_main(int count, char **words)
         // the rows as they were, the who lines aside, and every cost row under the who that put it again
         const char *const before_rows = without_who(before, s_before_rows_bytes, sizeof(s_before_rows_bytes));
         const char *const after_rows = without_who(after, s_text_rows_bytes, sizeof(s_text_rows_bytes));
-        const int same = (before_rows != NULL) && (after_rows != NULL) && (strcmp(before_rows, after_rows) == 0);
+        const int same = (before_rows != NULL) && (after_rows != NULL) &&
+                         (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = before_rows, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = after_rows, .ci = EMBED_FALSE));
         const int under = (after != NULL) && cost_rows_under(&s_file, code);
         {
             VerbaLinea *const output_line = platform_line_out();

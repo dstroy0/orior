@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../../../src/cu/engine/nbody/max_tree/max_tree.h"
 #include "../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 typedef struct
 {
@@ -89,7 +91,7 @@ static int score_slide_frame(const AnswerKey *key, unsigned int time, const Engi
     unsigned int threshold = 0u;
     unsigned int labelings = 0u;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const MaxTreeSlideRequest request = {.probe_voxels = key_voxels,
                                          .probe_count = keys,
                                          .steps = steps,
@@ -240,7 +242,7 @@ static int score_peak_levels(const EngineBuffers *buffers, const TreeFrame *fram
     unsigned int step_count = 0u;
     unsigned int threshold = 0u;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const MaxTreeSlideRequest request = {
         .steps = &no_step, .step_capacity = 1u, .step_count = &step_count, .threshold = &threshold, .error = &error};
     if ((levels->levels == NULL) || (max_tree_slide(&request) != 0L))
@@ -433,9 +435,9 @@ static int score_overlap_pair(const TreeFrame *earlier, const TreeFrame *later, 
     }
     unsigned int step_count = 0u;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     MaxTreeOverlapRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {
         request.lag[axis] = earlier->lag_to_next[axis];
@@ -641,11 +643,11 @@ static int score_overlap_pair(const TreeFrame *earlier, const TreeFrame *later, 
 }
 
 ScoreSlideResults slide;
-memset(&slide, 0, sizeof(slide));
+EMBED_CALL(memor.set, MemoriaCfg, .dst = &slide, .bytes = sizeof(slide), .val = 0);
 ScoreSlideLevels slide_levels[2];
-memset(slide_levels, 0, sizeof(slide_levels));
+EMBED_CALL(memor.set, MemoriaCfg, .dst = slide_levels, .bytes = sizeof(slide_levels), .val = 0);
 ScoreOverlapResults overlap;
-memset(&overlap, 0, sizeof(overlap));
+EMBED_CALL(memor.set, MemoriaCfg, .dst = &overlap, .bytes = sizeof(overlap), .val = 0);
 ok = ok && ((rules->overlap == 0) || (max_tree_retain_frames() != 0));
 unsigned int *const key_successors = (rules->overlap != 0) ? score_key_successors(&key) : NULL;
 ok = ok && ((rules->overlap == 0) || (key_successors != NULL));
@@ -786,16 +788,19 @@ platform_cell_released(key_successors, platform_place_g_program_owner);
 int slide;
 int overlap;
 
-else if (strcmp(flag, "--slide") == 0)
+else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "--slide",
+                    .ci = EMBED_FALSE))
 {
     rules.slide = 1;
 }
-else if (strcmp(flag, "--overlap") == 0)
+else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "--overlap",
+                    .ci = EMBED_FALSE))
 {
     rules.slide = 1;
     rules.overlap = 1;
 }
-else if (strcmp(flag, "--overlap-peaks") == 0)
+else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                    .other = "--overlap-peaks", .ci = EMBED_FALSE))
 {
     rules.overlap = 2;
 }

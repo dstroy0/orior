@@ -8,26 +8,25 @@
 // reference and against x worked out apart from the record machine. Each column is positioned two ways, as one line of
 // lanes and as rows of a double's four lanes, and the coded bits of each are printed against the raw bits.
 // The run is one job on the device's tessera daemon.
+#include "../../../../../includes/exact_types/integerfloats/edouble/edouble_record.h"
+#include "../../../../../includes/exact_types/integers/exact_integer.h"
+#include "../../../../../includes/exact_types/integers/exact_record/exact_record.h"
 #include "../../../../../src/cu/engine/analysis/compression/compression.h"
-#include "../../../../../src/platform/platform.h"
 #include "../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../src/cu/engine/analysis/tower/tower.h"
 #include "../../../../../src/cu/engine/runtime/radix_keys/radix_keys.h"
+#include "../../../../../src/platform/platform.h"
+#include "../parquet/parquet.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "../../../../../includes/exact_types/integers/exact_integer.h"
-#include "../../../../../includes/exact_types/integerfloats/edouble/edouble_record.h"
-#include "../../../../../includes/exact_types/integers/exact_record/exact_record.h"
-#include "../parquet/parquet.h"
-#include "sim.h"
 
 #include <cuda_runtime.h>
 
 #include <stdlib.h>
-#include <string.h>
 
 #define LANE_CHECK_COLUMNS 3u
 
@@ -128,7 +127,7 @@ static void lane_error_line(SimResults *results, const char *what, const EngineE
 // every value of one double column over every row group, as the stored bytes, eight to a value
 static int lane_column_read(const char *path, const char *leaf_path, LaneColumn *out)
 {
-    memset(out, 0, sizeof(*out));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = out, .bytes = sizeof(*out), .val = 0);
     const CasmiParquetLeafFind find = {&s_footer, leaf_path};
     const long long leaf = casmi_parquet_leaf_find(&find);
     if ((leaf < 0ll) || (s_footer.leaf[leaf].physical != CASMI_PARQUET_DOUBLE))
@@ -147,7 +146,7 @@ static int lane_column_read(const char *path, const char *leaf_path, LaneColumn 
     for (unsigned int group = 0u; ok && (group < s_footer.row_group_count); group += 1u)
     {
         CasmiParquetColumn column;
-        memset(&column, 0, sizeof(column));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &column, .bytes = sizeof(column), .val = 0);
         // the leaf is below CASMI_PARQUET_LEAVES_MAX
         const CasmiParquetColumnRead read = {path, &s_footer, group, (unsigned int)leaf, &column};
         ok = casmi_parquet_column_bound(&read) >= 0ll;
@@ -173,7 +172,8 @@ static int lane_column_read(const char *path, const char *leaf_path, LaneColumn 
              ((out->values + column.values) <= room) && ((out->rows + column.rows) <= room);
         if (ok)
         {
-            memcpy(out->bytes + (out->values * 8ull), column.value_bytes, (size_t)(column.values * 8ull));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out->bytes + (out->values * 8ull), .src = column.value_bytes,
+                       .bytes = (size_t)(column.values * 8ull));
             for (unsigned long long row = 0ull; row < column.rows; row += 1ull)
             {
                 out->row_start[out->rows + row] = out->values + column.row_start[row];
@@ -202,15 +202,15 @@ static int lane_round_trip(SimResults *results, const unsigned short *device_lan
                            int quiet)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long lanes = extent[0] * extent[1] * extent[2] * extent[3];
     const int *coefficients = NULL;
     unsigned int *scratch = NULL;
     unsigned int floors = 0u;
     TowerLiftRequest lift;
-    memset(&lift, 0, sizeof(lift));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lift, .bytes = sizeof(lift), .val = 0);
     lift.device_lanes = device_lanes;
-    memcpy(lift.extent, extent, sizeof(lift.extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lift.extent, .src = extent, .bytes = sizeof(lift.extent));
     lift.coefficients = &coefficients;
     lift.scratch = &scratch;
     lift.floors = &floors;
@@ -218,10 +218,10 @@ static int lane_round_trip(SimResults *results, const unsigned short *device_lan
     lift.edge_count = edge_count;
     lift.error = &error;
     EngineStream stream;
-    memset(&stream, 0, sizeof(stream));
-    memcpy(stream.extent, extent, sizeof(stream.extent));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &stream, .bytes = sizeof(stream), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = stream.extent, .src = extent, .bytes = sizeof(stream.extent));
     CompressionEncodeRequest code;
-    memset(&code, 0, sizeof(code));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &code, .bytes = sizeof(code), .val = 0);
     code.count = lanes;
     code.chunks = &stream.chunks;
     code.bits = &stream.bits;
@@ -242,7 +242,7 @@ static int lane_round_trip(SimResults *results, const unsigned short *device_lan
     int *decoded = NULL;
     ok = tower_capacity(extent, &decoded, &error) == 0L;
     CompressionDecodeRequest decode;
-    memset(&decode, 0, sizeof(decode));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &decode, .bytes = sizeof(decode), .val = 0);
     decode.offsets = stream.offsets;
     decode.chunks = stream.chunks;
     decode.stream = stream.stream;
@@ -255,9 +255,9 @@ static int lane_round_trip(SimResults *results, const unsigned short *device_lan
         (unsigned short *)platform_cell_taken((size_t)(lanes * 2ull) + 2u, platform_place_g_program_owner, 0);
     unsigned long long mismatches = ~0ull;
     TowerLowerRequest lower;
-    memset(&lower, 0, sizeof(lower));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lower, .bytes = sizeof(lower), .val = 0);
     lower.device_lanes = device_lanes;
-    memcpy(lower.extent, extent, sizeof(lower.extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lower.extent, .src = extent, .bytes = sizeof(lower.extent));
     lower.mismatches = &mismatches;
     lower.device_rebuilt = device_rebuilt;
     lower.rebuilt = rebuilt;
@@ -272,7 +272,8 @@ static int lane_round_trip(SimResults *results, const unsigned short *device_lan
         platform_cell_released(rebuilt, platform_place_g_program_owner);
         return 0;
     }
-    const int same = memcmp(rebuilt, host_lanes, (size_t)(lanes * 2ull)) == 0;
+    const int same =
+        EMBED_CALL(memor.cmp, MemoriaCfg, .src = rebuilt, .other = host_lanes, .bytes = (size_t)(lanes * 2ull)) == 0;
     platform_cell_released(rebuilt, platform_place_g_program_owner);
     *bits = stream.bits;
     sim_check(results, (mismatches == 0ull) && same, "the lowered lanes are the stored lanes");
@@ -297,8 +298,8 @@ static int lane_round_trip(SimResults *results, const unsigned short *device_lan
 static int lane_load(ExactRecordProgram *program, const unsigned int *outputs, unsigned int output_count,
                      unsigned int in_limbs, unsigned int members, LaneLoaded *loaded, EngineError *error)
 {
-    memset(error, 0, sizeof(*error));
-    memset(loaded, 0, sizeof(*loaded));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = error, .bytes = sizeof(*error), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = loaded, .bytes = sizeof(*loaded), .val = 0);
     const KeymathRecordRequest encode = {
         program->steps, program->count,  program->field_bits,  program->fields, members, outputs,
         output_count,   program->tables, program->table_count, &loaded->key,    error};
@@ -344,7 +345,7 @@ static void lane_exponents(const LaneColumn *column, unsigned long long *least, 
     for (unsigned long long value = 0ull; value < column->values; value += 1ull)
     {
         unsigned long long word = 0ull;
-        memcpy(&word, column->bytes + (value * 8ull), 8u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &word, .src = column->bytes + (value * 8ull), .bytes = 8u);
         const unsigned long long biased = (word >> LANE_CHECK_MANTISSA_BITS) & LANE_CHECK_EXPONENT_ALL;
         const unsigned long long fraction = word & ((1ull << LANE_CHECK_MANTISSA_BITS) - 1ull);
         if (biased == LANE_CHECK_EXPONENT_ALL)
@@ -379,7 +380,7 @@ static int lane_reading(SimResults *results, const LaneColumn *column)
         platform_cell_released(tally, platform_place_g_program_owner);
         return 0;
     }
-    memcpy(words, column->bytes, (size_t)(values * 8ull));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = words, .src = column->bytes, .bytes = (size_t)(values * 8ull));
     const int sorted = radix_sort_keys(words, (size_t)values);
     unsigned long long distinct = (sorted != 0) ? 1ull : 0ull;
     unsigned long long run = 1ull;
@@ -398,7 +399,7 @@ static int lane_reading(SimResults *results, const LaneColumn *column)
     const unsigned short *const lanes = (const unsigned short *)column->bytes;
     for (unsigned long long plane = 0ull; plane < LANE_CHECK_LANES_PER_VALUE; plane += 1ull)
     {
-        memset(tally, 0, 65536u * sizeof(unsigned long long));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = tally, .bytes = 65536u * sizeof(unsigned long long), .val = 0);
         for (unsigned long long value = 0ull; value < values; value += 1ull)
         {
             tally[lanes[(value * LANE_CHECK_LANES_PER_VALUE) + plane]] += 1ull;
@@ -770,7 +771,7 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
         (size_t)(checked * out_limbs) * sizeof(unsigned int) + 4u, platform_place_g_program_owner, 0);
     int ok = (device != NULL) && (host != NULL) &&
              (cudaMalloc((void **)&device_out, words * sizeof(unsigned int)) == cudaSuccess);
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long run_start = engine_clock_microseconds();
     if (ok)
     {
@@ -801,7 +802,8 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
     {
         lane_error_line(results, "the places program's run errored", &error);
     }
-    const int same = ok && (memcmp(device, host, (size_t)(checked * out_limbs) * sizeof(unsigned int)) == 0);
+    const int same = ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device, .other = host,
+                                       .bytes = (size_t)(checked * out_limbs) * sizeof(unsigned int)) == 0);
     // the readings: the least places the column needs over every value, the values no p below LANE_CHECK_PLACES
     // represents, the bits of k summed, and the bits of k at the column's max places, the place every value can be
     // read at
@@ -810,7 +812,7 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
     unsigned long long k_bits = 0ull;
     unsigned long long apart = 0ull;
     unsigned long long at_places[LANE_CHECK_PLACES + 1u];
-    memset(at_places, 0, sizeof(at_places));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = at_places, .bytes = sizeof(at_places), .val = 0);
     unsigned long long wide = 0ull;
     for (unsigned long long value = 0ull; ok && (value < values); value += 1ull)
     {
@@ -834,7 +836,10 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
             snprintf(text, sizeof(text), "%llue-%llu", k, places);
             double read_back = strtod(text, NULL);
             read_back = (base == 0ull) ? read_back : (read_back / (double)base);
-            apart += (memcmp(&read_back, column->bytes + (value * 8ull), 8u) == 0) ? 0ull : 1ull;
+            apart += (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &read_back, .other = column->bytes + (value * 8ull),
+                                 .bytes = 8u) == 0)
+                         ? 0ull
+                         : 1ull;
         }
     }
     lane_line_decimal(results, "    places over ", (base == 0ull) ? 1ull : base);
@@ -971,7 +976,7 @@ static int lane_records(SimResults *results, const LaneColumn *column, const uns
         (unsigned int *)platform_cell_taken(words * sizeof(unsigned int) + 4u, platform_place_g_program_owner, 0);
     int ok = (device != NULL) && (host != NULL) &&
              (cudaMalloc((void **)&device_out, words * sizeof(unsigned int)) == cudaSuccess);
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     // the lowered lanes are the program's records where they lie: four lanes, two limbs, one double
     const unsigned long long run_start = engine_clock_microseconds();
     if (ok)
@@ -1027,13 +1032,15 @@ static int lane_records(SimResults *results, const LaneColumn *column, const uns
     {
         lane_error_line(results, "the program's run or sum errored", &error);
     }
-    const int same = ok && (memcmp(device, host, (size_t)(checked * out_limbs) * sizeof(unsigned int)) == 0);
-    const int sums_same = ok && (memcmp(checked_sum, host_sum, sum_limbs * sizeof(unsigned int)) == 0);
+    const int same = ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device, .other = host,
+                                       .bytes = (size_t)(checked * out_limbs) * sizeof(unsigned int)) == 0);
+    const int sums_same = ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = checked_sum, .other = host_sum,
+                                            .bytes = sum_limbs * sizeof(unsigned int)) == 0);
     unsigned long long apart = 0ull;
     for (unsigned long long value = 0ull; ok && (value < values); value += 1ull)
     {
         unsigned long long word = 0ull;
-        memcpy(&word, column->bytes + (value * 8ull), 8u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &word, .src = column->bytes + (value * 8ull), .bytes = 8u);
         OriorExactInteger read;
         OriorExactInteger wanted;
         lane_field(&device[value * out_limbs], out_offset, out_bits, &read);
@@ -1114,7 +1121,8 @@ static int lane_unit_code(SimResults *results, const LaneColumn *column, const u
         formed |= forms[value];
         if (forms[value] == LANE_CHECK_FORM_RETAINED)
         {
-            memcpy(codes + (coded_values * LANE_CHECK_LANES_PER_VALUE), column->bytes + (value * 8ull), 8u);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = codes + (coded_values * LANE_CHECK_LANES_PER_VALUE),
+                       .src = column->bytes + (value * 8ull), .bytes = 8u);
             coded_values += 1ull;
         }
     }
@@ -1223,7 +1231,7 @@ static int lane_decimal_trips(SimResults *results, const LaneColumn *column, con
             else
             {
                 double x = 0.0;
-                memcpy(&x, column->bytes + (value * 8ull), 8u);
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &x, .src = column->bytes + (value * 8ull), .bytes = 8u);
                 const double on_unit = x * (double)ten[unit_places];
                 fits = (on_unit >= 0.0) && (on_unit < 1.8e19);
                 unit[value] = fits ? (unsigned long long)on_unit : 0ull;
@@ -1363,7 +1371,8 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
     int ok = (base_bytes != NULL) && (index != NULL) && (device != NULL) && (host != NULL);
     if (ok)
     {
-        memcpy(base_bytes, bases->bytes, (size_t)(bases->values * 8ull));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = base_bytes, .src = bases->bytes,
+                   .bytes = (size_t)(bases->values * 8ull));
         for (unsigned long long row = 0ull; row < column->rows; row += 1ull)
         {
             const int present = bases->row_start[row + 1ull] > bases->row_start[row];
@@ -1382,7 +1391,7 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
          (cudaMemcpy(device_bases, base_bytes, (size_t)(base_records * 8ull), cudaMemcpyHostToDevice) == cudaSuccess) &&
          (cudaMemcpy(device_index, index, (size_t)(values * 2ull) * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
           cudaSuccess);
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long run_start = engine_clock_microseconds();
     if (ok)
     {
@@ -1414,7 +1423,8 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
     {
         lane_error_line(results, "the counts program's run errored", &error);
     }
-    const int same = ok && (memcmp(device, host, (size_t)(checked * out_limbs) * sizeof(unsigned int)) == 0);
+    const int same = ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device, .other = host,
+                                       .bytes = (size_t)(checked * out_limbs) * sizeof(unsigned int)) == 0);
     unsigned long long *const unit =
         (unsigned long long *)platform_cell_taken((size_t)(values * 8ull) + 8u, platform_place_g_program_owner, 0);
     unsigned char *const forms =
@@ -1440,10 +1450,12 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
             widest = (c > widest) ? c : widest;
             double x = 0.0;
             double base = 0.0;
-            memcpy(&x, column->bytes + (value * 8ull), 8u);
-            memcpy(&base, base_bytes + ((unsigned long long)index[(value * 2ull) + 1ull] * 8ull), 8u);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &x, .src = column->bytes + (value * 8ull), .bytes = 8u);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &base,
+                       .src = base_bytes + ((unsigned long long)index[(value * 2ull) + 1ull] * 8ull), .bytes = 8u);
             const double read_back = (double)c / base;
-            apart += (memcmp(&read_back, &x, 8u) == 0) ? 0ull : 1ull;
+            apart +=
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &read_back, .other = &x, .bytes = 8u) == 0) ? 0ull : 1ull;
         }
     }
     lane_line_decimal(results, "    counts: ", program.count);
@@ -1498,7 +1510,7 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
     {
         // the value itself as a decimal first, then the decimal it is over each divisor in turn
         unsigned long long taken[1u + LANE_CHECK_DIVISORS];
-        memset(taken, 0, sizeof(taken));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = taken, .bytes = sizeof(taken), .val = 0);
         for (unsigned long long value = 0ull; value < values; value += 1ull)
         {
             second[value] = unit[value];

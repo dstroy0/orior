@@ -1,8 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_exact_test_gates.cu: numbers, functions, gates, GHZ, scramblers, bonds, amplitudes
-#include "qasm_exact_test_internal.h"
 #include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "qasm_exact_test_internal.h"
 
 void qasm_test_check(QasmResults *results, int passed, const char *claim)
 {
@@ -26,19 +28,22 @@ static char qasm_test_text[QASM_NUMBER_TEXT_CAPACITY];
 static int qasm_test_number_is(const QasmNumber *value, const char *expected, EngineError *error)
 {
     return (qasm_number_text(value, qasm_test_text, sizeof(qasm_test_text), error) == 0L) &&
-           (strcmp(qasm_test_text, expected) == 0);
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = qasm_test_text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = expected, .ci = EMBED_FALSE));
 }
 
 int qasm_test_short_is(const QasmNumber *value, const char *expected, EngineError *error)
 {
     return (qasm_number_short_text(value, qasm_test_text, sizeof(qasm_test_text), error) == 0L) &&
-           (strcmp(qasm_test_text, expected) == 0);
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = qasm_test_text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = expected, .ci = EMBED_FALSE));
 }
 
 int qasm_test_function_is(const QasmRationalFunction *value, const char *expected, EngineError *error)
 {
     return (qasm_rational_function_text(value, qasm_test_text, sizeof(qasm_test_text), error) == 0L) &&
-           (strcmp(qasm_test_text, expected) == 0);
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = qasm_test_text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = expected, .ci = EMBED_FALSE));
 }
 
 int qasm_test_clean(const EngineError *error)
@@ -191,7 +196,7 @@ int qasm_test_norm_is_one(const QasmChain *chain, EngineError *error)
 void qasm_test_exact_qubits(QasmResults *results)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     QasmNumber norm = qasm_number_zero;
     const unsigned long long start = engine_clock_microseconds();
 
@@ -277,16 +282,18 @@ void qasm_test_exact_qubits(QasmResults *results)
          0L) &&
         (qasm_dense_seal(&bell, tampered, &error) == 0L);
     qasm_test_check(
-        results, sealed && (memcmp(clean, again, sizeof(clean)) == 0) && (memcmp(clean, tampered, sizeof(clean)) != 0),
+        results,
+        sealed && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = clean, .other = again, .bytes = sizeof(clean)) == 0) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = clean, .other = tampered, .bytes = sizeof(clean)) != 0),
         "exact: the seal repeats, and one rational moved by 1/10^9 changes it");
 
     // errors: a qubit past the state, and a division by zero
     EngineError engine_error;
-    memset(&engine_error, 0, sizeof(engine_error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &engine_error, .bytes = sizeof(engine_error), .val = 0);
     const QasmExactGate over_limit = {QASM_EXACT_GATE_H, 2u, 0u, NULL};
     qasm_test_check(results, qasm_test_error_here(qasm_dense_apply(&phased, &over_limit, &engine_error), &engine_error),
                     "exact: a gate on a qubit past the state errors, a request error from qasm");
-    memset(&engine_error, 0, sizeof(engine_error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &engine_error, .bytes = sizeof(engine_error), .val = 0);
     QasmRational quotient;
     const QasmRational zero_rational = QASM_RATIONAL_ZERO_INITIALIZER;
     qasm_test_check(

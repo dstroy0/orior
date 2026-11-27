@@ -13,6 +13,7 @@
 //     standing_check
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/khw_learn/khw_learn_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -37,7 +38,7 @@ static void check_that(int passed, const char *what)
 static KhwAnswered add_form(unsigned long long low, unsigned long long high)
 {
     KhwAnswered form;
-    memset(&form, 0, sizeof(form));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &form, .bytes = sizeof(form), .val = 0);
     form.low = low;
     form.high = high;
     form.anchor = (unsigned int)LADDER_ADD;
@@ -63,7 +64,7 @@ static KhwAnswered add_form(unsigned long long low, unsigned long long high)
 static KhwAnswered add_found(unsigned long long low, unsigned long long high)
 {
     KhwAnswered form;
-    memset(&form, 0, sizeof(form));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &form, .bytes = sizeof(form), .val = 0);
     form.low = low;
     form.high = high;
     form.anchor = (unsigned int)LADDER_ADD;

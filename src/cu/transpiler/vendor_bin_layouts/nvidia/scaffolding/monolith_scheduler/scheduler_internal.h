@@ -11,7 +11,6 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // the max bytes a cubin takes, the max instructions a section contains, the max operations tracked apart, the max
 // registers an instruction reads, and the farthest a reader is looked for past the instruction it reads from

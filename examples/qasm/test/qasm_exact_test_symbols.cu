@@ -1,13 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_exact_test_symbols.cu: MPS qubits, symbols, the lens and main
-#include "qasm_exact_test_internal.h"
 #include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "qasm_exact_test_internal.h"
 
 static void qasm_test_mps_qubits(QasmResults *results)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long start = engine_clock_microseconds();
 
     // Bell
@@ -153,13 +154,15 @@ static void qasm_test_mps_qubits(QasmResults *results)
     const int sealed = ghz_six_built && ghz_t_built && (qasm_chain_seal(&ghz_six, six_root, &error) == 0L) &&
                        (qasm_chain_seal(&ghz_six, six_again, &error) == 0L) &&
                        (qasm_chain_seal(&ghz_t, t_root, &error) == 0L);
-    qasm_test_check(results,
-                    sealed && (memcmp(six_root, six_again, sizeof(six_root)) == 0) &&
-                        (memcmp(six_root, t_root, sizeof(six_root)) != 0),
-                    "mps: the chain's seal repeats, and two different states seal differently");
+    qasm_test_check(
+        results,
+        sealed &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = six_root, .other = six_again, .bytes = sizeof(six_root)) == 0) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = six_root, .other = t_root, .bytes = sizeof(six_root)) != 0),
+        "mps: the chain's seal repeats, and two different states seal differently");
 
     EngineError engine_error;
-    memset(&engine_error, 0, sizeof(engine_error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &engine_error, .bytes = sizeof(engine_error), .val = 0);
     qasm_test_check(results,
                     qasm_test_error_here(qasm_chain_apply_two(&bell, qasm_test_cnot, 1u, &engine_error), &engine_error),
                     "mps: a two-site gate on the last site errors, a request error from qasm");
@@ -253,7 +256,7 @@ static long qasm_test_lens(const QasmChain *chain, const QasmRationalFunction *c
                            EngineError *error)
 {
     QasmRationalFunction operators[12];
-    memset(operators, 0, sizeof(operators));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = operators, .bytes = sizeof(operators), .val = 0);
     long status = 0L;
     for (unsigned int site = 0u; (status == 0L) && (site < chain->sites); site += 1u)
     {
@@ -273,10 +276,10 @@ static long qasm_test_lens(const QasmChain *chain, const QasmRationalFunction *c
 static void qasm_test_symbolic_qubits(QasmResults *results)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long start = engine_clock_microseconds();
     QasmTestSymbols symbols;
-    memset(&symbols, 0, sizeof(symbols));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &symbols, .bytes = sizeof(symbols), .val = 0);
     const int symbols_built = (qasm_test_symbols(&symbols, &error) == 0L);
     qasm_test_check(results, symbols_built, "symbolic: the gates and observables build over Q(sqrt2)[i](w)");
 
@@ -289,7 +292,7 @@ static void qasm_test_symbolic_qubits(QasmResults *results)
                            (qasm_chain_apply_two(&bell, symbols.cnot, 0u, &error) == 0L) &&
                            (qasm_chain_apply_two(&bell, symbols.cphase, 0u, &error) == 0L);
     QasmRationalFunction value;
-    memset(&value, 0, sizeof(value));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &value, .bytes = sizeof(value), .val = 0);
     const unsigned char zeros[2] = {0u, 0u};
     const unsigned char ones[2] = {1u, 1u};
     qasm_test_check(results,
@@ -304,10 +307,10 @@ static void qasm_test_symbolic_qubits(QasmResults *results)
     QasmRationalFunction xx;
     QasmRationalFunction zz;
     QasmRationalFunction x0;
-    memset(&norm, 0, sizeof(norm));
-    memset(&xx, 0, sizeof(xx));
-    memset(&zz, 0, sizeof(zz));
-    memset(&x0, 0, sizeof(x0));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &norm, .bytes = sizeof(norm), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &xx, .bytes = sizeof(xx), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &zz, .bytes = sizeof(zz), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &x0, .bytes = sizeof(x0), .val = 0);
     const QasmRationalFunction *const identities[2] = {symbols.identity, symbols.identity};
     const QasmRationalFunction *const both_x[3] = {symbols.pauli_x, symbols.pauli_x, symbols.pauli_x};
     const QasmRationalFunction *const both_z[2] = {symbols.pauli_z, symbols.pauli_z};
@@ -331,7 +334,7 @@ static void qasm_test_symbolic_qubits(QasmResults *results)
     QasmChain ghz = {NULL, 0u, NULL};
     const unsigned int ghz_bonds[2] = {2u, 2u};
     QasmRationalFunction xxx;
-    memset(&xxx, 0, sizeof(xxx));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &xxx, .bytes = sizeof(xxx), .val = 0);
     const int ghz_read = symbols_built && (qasm_chain_alloc(&ghz, &qasm_rational_function_field, 3u, &error) == 0L) &&
                          (qasm_chain_apply_one(&ghz, symbols.hadamard, 0u, &error) == 0L) &&
                          (qasm_chain_apply_two(&ghz, symbols.cnot, 0u, &error) == 0L) &&
@@ -389,7 +392,7 @@ static void qasm_test_symbolic_qubits(QasmResults *results)
     // The evaluation forms one power past the highest. w^(bits - 1) at w = 2 is
     // 2^(bits - 1), which the width represents; the power past it, 2^bits, does not.
     QasmRationalFunction widest;
-    memset(&widest, 0, sizeof(widest));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &widest, .bytes = sizeof(widest), .val = 0);
     QasmNumber two = qasm_number_zero;
     QasmNumber evaluated = qasm_number_zero;
     OriorExactInteger top_bit;
@@ -415,11 +418,11 @@ static void qasm_test_symbolic_qubits(QasmResults *results)
     qasm_rational_function_release(&widest);
 
     EngineError engine_error;
-    memset(&engine_error, 0, sizeof(engine_error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &engine_error, .bytes = sizeof(engine_error), .val = 0);
     QasmRationalFunction zero_function;
     QasmRationalFunction inverse;
-    memset(&zero_function, 0, sizeof(zero_function));
-    memset(&inverse, 0, sizeof(inverse));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &zero_function, .bytes = sizeof(zero_function), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &inverse, .bytes = sizeof(inverse), .val = 0);
     const int zero_set = (qasm_rational_function_set(&zero_function, &qasm_number_zero, 0, &error) == 0L);
     qasm_test_check(
         results,
@@ -453,7 +456,7 @@ static void qasm_test_symbolic_qubits(QasmResults *results)
 static void qasm_test_boundary_lens(QasmResults *results)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long start = engine_clock_microseconds();
     // lens_counts: every round from 16 to 30 read 126, 130, 0, 30, 14, 64, 64, True, True
     int every = 1;
@@ -461,7 +464,7 @@ static void qasm_test_boundary_lens(QasmResults *results)
     {
         const QasmLensRequest request = {13u, 13u, 8u, 6u, 2024ull, 0ull, rounds};
         QasmLensMeasurement measurement;
-        memset(&measurement, 0, sizeof(measurement));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &measurement, .bytes = sizeof(measurement), .val = 0);
         const int read = (qasm_lens_read(&request, &measurement, &error) == 0L);
         const int ok = read && (measurement.raw_rank == 126u) && (measurement.complement == 130u) &&
                        (measurement.lift_extra_rank == 0u) && (measurement.forward_vanish == 30u) &&
@@ -502,12 +505,13 @@ static void qasm_test_boundary_lens(QasmResults *results)
     unsigned char clean[ENGINE_SIGNUM_BYTES];
     unsigned char flipped[ENGINE_SIGNUM_BYTES];
     const QasmLensRequest seal_request = {13u, 13u, 8u, 6u, 2024ull, 0ull, 30u};
-    qasm_test_check(results,
-                    (qasm_lens_seal_check(&seal_request, clean, flipped, &error) == 0L) &&
-                        (memcmp(clean, flipped, sizeof(clean)) != 0),
-                    "lens: one flipped generator bit changes the seal");
+    qasm_test_check(
+        results,
+        (qasm_lens_seal_check(&seal_request, clean, flipped, &error) == 0L) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = clean, .other = flipped, .bytes = sizeof(clean)) != 0),
+        "lens: one flipped generator bit changes the seal");
     EngineError engine_error;
-    memset(&engine_error, 0, sizeof(engine_error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &engine_error, .bytes = sizeof(engine_error), .val = 0);
     QasmLensMeasurement measurement;
     const QasmLensRequest too_wide = {13u, 13u, 8u, QASM_LENS_BITS_MAX + 1u, 2024ull, 0ull, 30u};
     qasm_test_check(results,

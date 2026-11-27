@@ -1,7 +1,9 @@
 
 // test_adversarial_cases.c: the adversarial cases: nets, overlaps, boundaries, symbols
-#include "test_adversarial_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "test_adversarial_internal.h"
 
 /**
  * @brief Next value of the generator, letting a failing case reduce from its printed seed alone.
@@ -138,7 +140,7 @@ int adversarial_case_differential_net(void)
         if ((seed % 4u) != 0u)
         {
             const size_t origin = (size_t)(adversarial_next(&state) % (ADVERSARIAL_CORPUS - needle_len));
-            memcpy(needle, corpus + origin, needle_len);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = needle, .src = corpus + origin, .bytes = needle_len);
         }
         else
         {
@@ -191,8 +193,10 @@ int adversarial_case_overlapping(void)
     {
         const uint8_t *const corpus = (const uint8_t *)rows[row].corpus;
         const uint8_t *const needle = (const uint8_t *)rows[row].needle;
-        const size_t corpus_len = strlen(rows[row].corpus);
-        const size_t needle_len = strlen(rows[row].needle);
+        const size_t corpus_len =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = rows[row].corpus, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+        const size_t needle_len =
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = rows[row].needle, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         const size_t reference = orior_naive(corpus, corpus_len, needle, needle_len);
         const size_t steered = orior_steer_count(corpus, corpus_len, needle, needle_len, 1);
 
@@ -452,8 +456,8 @@ int adversarial_case_all_survivors_false(void)
         return 1;
     }
 
-    memset(corpus, 'k', ADVERSARIAL_CORPUS);
-    memset(needle, 'k', sizeof(needle));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = corpus, .bytes = ADVERSARIAL_CORPUS, .val = 'k');
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = needle, .bytes = sizeof(needle), .val = 'k');
     needle[5] = 'z';
 
     const size_t alignments = ADVERSARIAL_CORPUS - sizeof(needle) + 1u;

@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_order_test_omega.cu: permutations, the omega program and main
-#include "record_order_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "record_order_test_internal.h"
 
 // a permutation of the 2^16 states cut into cycles: the first half of a shuffled order on cycles no longer than the
 // run, the second half on cycles longer than it
@@ -289,8 +290,11 @@ static void order_omega(OrderResults *results)
     mmgr_line_ch(&results->line, '\n');
     order_check(results, ran, "the window runs on the host and the device, both ways");
     order_check(results,
-                (ran != 0) && (memcmp(up_host, up_device, (size_t)lanes * up_limbs * sizeof(unsigned int)) == 0) &&
-                    (memcmp(down_host, down_device, (size_t)lanes * down_limbs * sizeof(unsigned int)) == 0),
+                (ran != 0) &&
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = up_host, .other = up_device,
+                                .bytes = (size_t)lanes * up_limbs * sizeof(unsigned int)) == 0) &&
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = down_host, .other = down_device,
+                                .bytes = (size_t)lanes * down_limbs * sizeof(unsigned int)) == 0),
                 "the window's device records equal the host's word for word, both ways");
     order_check(results, windows_ok == lanes, "every window's or, flag and last state equal the CPU's walk, both ways");
     order_check(results, cycles_closed == lanes, "every orbit returns to its own start: a bijection has no transient");

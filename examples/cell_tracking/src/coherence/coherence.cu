@@ -9,9 +9,9 @@
 #include "track.h"
 #include "vis_png.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 void links_of_node(const NodeIndex *index, unsigned int node, const unsigned int **first, unsigned int *count)
 {
@@ -456,14 +456,15 @@ int read_coherence(EngineBuffers *buffers, const CoherenceInputs *inputs, FILE *
             continue;
         }
         TreeFrame tree_frames[2];
-        memset(tree_frames, 0, sizeof(tree_frames));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = tree_frames, .bytes = sizeof(tree_frames), .val = 0);
         for (unsigned int at = 0u; (ok != 0) && (at < 2u); at += 1u)
         {
             ok = ((earlier->time + at) < inputs->volume_frames);
             if (ok != 0)
             {
-                memcpy(buffers->volume, &inputs->volume[(size_t)(earlier->time + at) * voxels],
-                       voxels * sizeof(unsigned short));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = buffers->volume,
+                           .src = &inputs->volume[(size_t)(earlier->time + at) * voxels],
+                           .bytes = voxels * sizeof(unsigned short));
             }
             ok = (ok != 0) && (track_frame_bodies(buffers, at, &tree_frames[at]) != 0);
             for (unsigned int leaf = 0u; (ok != 0) && (leaf < tree_frames[at].leaf_count); leaf += 1u)
@@ -512,7 +513,7 @@ int read_coherence(EngineBuffers *buffers, const CoherenceInputs *inputs, FILE *
             const unsigned int true_target =
                 inputs->unified_of[offset_after + later->object_of[(unsigned int)inputs->node_leaf[target]]];
 
-            memset(leaf_in_cell, 0, voxels / 8u + 1u);
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = leaf_in_cell, .bytes = voxels / 8u + 1u, .val = 0);
             unsigned int leaves = 0u;
             for (unsigned int leaf = 0u; leaf < earlier->leaf_count; leaf += 1u)
             {
@@ -522,7 +523,7 @@ int read_coherence(EngineBuffers *buffers, const CoherenceInputs *inputs, FILE *
                     leaves += 1u;
                 }
             }
-            memset(mask, 0, words * sizeof(unsigned long long));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = mask, .bytes = words * sizeof(unsigned long long), .val = 0);
             size_t cell_size = 0u;
             for (size_t voxel = 0u; (ok != 0) && (voxel < voxels); voxel += 1u)
             {
@@ -554,7 +555,7 @@ int read_coherence(EngineBuffers *buffers, const CoherenceInputs *inputs, FILE *
             }
 
             ShiftAgreementRequest motion;
-            memset(&motion, 0, sizeof(motion));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &motion, .bytes = sizeof(motion), .val = 0);
             motion.axes = 3u;
             motion.extents[0] = buffers->depth;
             motion.extents[1] = buffers->height;
@@ -640,7 +641,7 @@ int read_coherence(EngineBuffers *buffers, const CoherenceInputs *inputs, FILE *
             if ((inputs->vis_index != NULL) && (status >= 1) && (status <= 3))
             {
                 VisCase view;
-                memset(&view, 0, sizeof(view));
+                EMBED_CALL(memor.set, MemoriaCfg, .dst = &view, .bytes = sizeof(view), .val = 0);
                 view.edge = edge;
                 view.status = status;
                 view.earlier = earlier;

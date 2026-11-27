@@ -12,7 +12,6 @@
 #include <cuda_runtime.h>
 
 #include <stdlib.h>
-#include <string.h>
 
 #define SHIFT_AGREEMENT_BLOCK 256u
 

@@ -32,9 +32,10 @@
 #include "zeta_riemann_siegel.h"
 #include "../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <dirent.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/stat.h>
 
 #ifdef _WIN32
@@ -135,7 +136,7 @@ static void curve_coefficients(ZetaRow gammas[CURVES + 1])
     {
         ZetaRow raw;
         rs_curve_gamma(&curve, n, TERMS_MAX, &raw);
-        memset(&gammas[n], 0, sizeof(gammas[n]));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &gammas[n], .bytes = sizeof(gammas[n]), .val = 0);
         size_t last = 0u;
         OriorExactInteger *const binary = (OriorExactInteger *)lobes_memory(
             platform_cell_taken(raw.count * sizeof(*binary), platform_place_g_program_owner, 0));
@@ -229,8 +230,14 @@ static void lobes_build(char binary[512])
         struct dirent *entry;
         while ((entry = readdir(folder)) != NULL)
         {
-            const size_t length = strlen(entry->d_name);
-            if ((length < strlen(tail)) || (strcmp(entry->d_name + length - strlen(tail), tail) != 0))
+            const size_t length =
+                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = entry->d_name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+            if ((length < EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = tail, .cap = PLATFORM_TEXT_TO_TERMINATOR)) ||
+                (!EMBED_CALL(
+                    cellul.eq, CatenaFinitaCfg,
+                    .src = entry->d_name + length -
+                           EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = tail, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                    .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = tail, .ci = EMBED_FALSE)))
             {
                 continue;
             }
@@ -261,7 +268,8 @@ static void lobes_build(char binary[512])
     char line[512];
     while (fgets(line, sizeof(line), made) != NULL)
     {
-        line[strcspn(line, "\r\n")] = '\0';
+        line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\r\n")] = '\0';
         if (line[0] != '\0')
         {
             snprintf(binary, 512u, "%s", line);
@@ -310,8 +318,8 @@ static void parse(const char *path, Stage *curves, Stage *logs)
     {
         zeta_stop("the device wrote no output");
     }
-    memset(curves, 0, sizeof(*curves));
-    memset(logs, 0, sizeof(*logs));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = curves, .bytes = sizeof(*curves), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = logs, .bytes = sizeof(*logs), .val = 0);
     static char line[1 << 20];
     while (fgets(line, sizeof(line), handle) != NULL)
     {
@@ -321,7 +329,10 @@ static void parse(const char *path, Stage *curves, Stage *logs)
         {
             continue;
         }
-        Stage *const stage = (strcmp(name, "curves") == 0) ? curves : logs;
+        Stage *const stage = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = "curves", .ci = EMBED_FALSE))
+                                 ? curves
+                                 : logs;
         stage->rows = (OriorExactInteger *)lobes_memory(
             platform_cell_cleared(LANES, sizeof(OriorExactInteger), platform_place_g_program_owner, 0));
         while (fgets(line, sizeof(line), handle) != NULL)
@@ -388,7 +399,8 @@ static void lane_field(const Stage *stage, int lane, const char *name, OriorExac
     for (size_t at = 0u; at < stage->output_count; at += 1u)
     {
         const StageOutput *const output = &stage->outputs[at];
-        if (strcmp(output->name, name) != 0)
+        if (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = output->name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = name, .ci = EMBED_FALSE))
         {
             continue;
         }

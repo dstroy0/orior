@@ -15,7 +15,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // the max forms the vendor's writer passes back, the longest line read, the max parameters a ruleset names a form
 // with, and the longest parameter name

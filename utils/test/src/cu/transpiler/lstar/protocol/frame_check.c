@@ -19,7 +19,6 @@
 //
 // It runs in a query run (qry_run.sh), under the top of the tree QRY_TOP names, the folder within it.
 #include "../../../../../../../includes/file_defs/khw/khw_machine_write/opening.h"
-#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../includes/file_defs/krf/krf.h"
 #include "../../../../../../../includes/file_defs/krs/krs_write/fixed.h"
 #include "../../../../../../../includes/file_defs/krs/krs_write/frame_forms.h"
@@ -27,13 +26,13 @@
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table/identity/fixed_read.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table/identity/frame_walk.h"
+#include "../../../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -94,33 +93,50 @@ int program_main(int count, char **words)
     char path[1024];
     snprintf(path, sizeof(path), "%s/frame_check_both.ksc", words[1]);
     const char *const both = "ksc part\nrun answers 00000001 container returned\nrun answers 00000001 opening least\n";
-    check_that(qry_member_filed(path, both, strlen(both)) != 0ull, "a .ksc with both rows is written");
+    check_that(qry_member_filed(
+                   path, both,
+                   EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = both, .cap = PLATFORM_TEXT_TO_TERMINATOR)) != 0ull,
+               "a .ksc with both rows is written");
     static char s_head_bytes[QRY_WRITER_RING_BYTES / 2ull];
     VerbaLinea head = {s_head_bytes, sizeof(s_head_bytes), 0ull};
     char missing[128];
     check_that(krs_head_written(head.out, head.capacity, &head.at, path, missing, sizeof(missing)) == 2u,
                "both head lines come from both rows");
-    check_that((mmgr_line_finish(&head) != 0u) && (strcmp(head.out, "toolchain cubin_write\nheader container\n") == 0),
+    check_that((mmgr_line_finish(&head) != 0u) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = head.out, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "toolchain cubin_write\nheader container\n", .ci = EMBED_FALSE)),
                "as toolchain cubin_write then header container");
     check_that(missing[0] == '\0', "and nothing is missing");
     snprintf(path, sizeof(path), "%s/frame_check_one.ksc", words[1]);
     const char *const one = "ksc part\nrun answers 00000001 container returned\n";
-    check_that(qry_member_filed(path, one, strlen(one)) != 0ull, "a .ksc with the container's row alone is written");
+    check_that(
+        qry_member_filed(
+            path, one, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = one, .cap = PLATFORM_TEXT_TO_TERMINATOR)) != 0ull,
+        "a .ksc with the container's row alone is written");
     static char s_one_head_bytes[QRY_WRITER_RING_BYTES / 2ull];
     VerbaLinea one_head = {s_one_head_bytes, sizeof(s_one_head_bytes), 0ull};
     check_that(krs_head_written(one_head.out, one_head.capacity, &one_head.at, path, missing, sizeof(missing)) == 1u,
                "one line comes from one row");
-    check_that((mmgr_line_finish(&one_head) != 0u) && (strcmp(one_head.out, "toolchain cubin_write\n") == 0),
+    check_that((mmgr_line_finish(&one_head) != 0u) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = one_head.out, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "toolchain cubin_write\n", .ci = EMBED_FALSE)),
                "the toolchain's");
-    check_that(strcmp(missing, "header") == 0, "and the header is named missing");
+    check_that(EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = missing, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "header", .ci = EMBED_FALSE),
+               "and the header is named missing");
     snprintf(path, sizeof(path), "%s/frame_check_none.ksc", words[1]);
     const char *const none_text = "ksc part\n";
-    check_that(qry_member_filed(path, none_text, strlen(none_text)) != 0ull, "a .ksc with no row is written");
+    check_that(qry_member_filed(path, none_text,
+                                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = none_text,
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR)) != 0ull,
+               "a .ksc with no row is written");
     static char s_none_head_bytes[QRY_WRITER_RING_BYTES / 2ull];
     VerbaLinea none_head = {s_none_head_bytes, sizeof(s_none_head_bytes), 0ull};
     check_that(krs_head_written(none_head.out, none_head.capacity, &none_head.at, path, missing, sizeof(missing)) == 0u,
                "no line comes from no row");
-    check_that(strcmp(missing, "toolchain, header") == 0, "and both are named missing");
+    check_that(EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = missing, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "toolchain, header", .ci = EMBED_FALSE),
+               "and both are named missing");
 
     // the place the least opening begins at, read from the same three files
     snprintf(path, sizeof(path), "%s/frame_check_both.ksc", words[1]);
@@ -133,7 +149,9 @@ int program_main(int count, char **words)
     // the probe place, read from the .ksc's row where one is
     snprintf(path, sizeof(path), "%s/frame_check_probe.ksc", words[1]);
     const char *const place_row = "ksc part\nrun answers 00000001 opening least\nrun answers 00000010 probe place\n";
-    check_that(qry_member_filed(path, place_row, strlen(place_row)) != 0ull,
+    check_that(qry_member_filed(path, place_row,
+                                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = place_row,
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR)) != 0ull,
                "a .ksc with the probe place's row is written");
     check_that(khw_probe_place_read(path) == 16u, "the probe place is the row's word");
     snprintf(path, sizeof(path), "%s/frame_check_both.ksc", words[1]);
@@ -191,8 +209,10 @@ int program_main(int count, char **words)
     }
     check_that(fixed_type(values, first, second, 8u) == FIXED_NOTHING, "and so is 0");
     check_that(fixed_type(values, first, second, 1u) == FIXED_NOTHING, "and so is one case alone");
-    check_that((strcmp(fixed_type_question(FIXED_RECORD), "fixed record") == 0) &&
-                   (strcmp(fixed_type_question(FIXED_CASE_WORD_1), "case word 1") == 0) &&
+    check_that((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = fixed_type_question(FIXED_RECORD),
+                           .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "fixed record", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = fixed_type_question(FIXED_CASE_WORD_1),
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "case word 1", .ci = EMBED_FALSE)) &&
                    (fixed_type_question(FIXED_NOTHING)[0] == '\0'),
                "a type's row question names it, and nothing's is empty");
 
@@ -201,36 +221,49 @@ int program_main(int count, char **words)
     snprintf(path, sizeof(path), "%s/frame_check_fixed.ksc", words[1]);
     const char *const four = "ksc part\nfield rd 16 8\nrun answers 000000ff fixed zero\nrun answers 00000000 fixed "
                              "lane_number\nrun answers 00000004 fixed record\nrun answers 00000002 fixed index\n";
-    check_that(qry_member_filed(path, four, strlen(four)) != 0ull, "a .ksc with the four fixed rows is written");
+    check_that(qry_member_filed(
+                   path, four,
+                   EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = four, .cap = PLATFORM_TEXT_TO_TERMINATOR)) != 0ull,
+               "a .ksc with the four fixed rows is written");
     static char s_fixed_head_bytes[QRY_WRITER_RING_BYTES / 2ull];
     VerbaLinea fixed_head = {s_fixed_head_bytes, sizeof(s_fixed_head_bytes), 0ull};
     check_that(krs_fixed_written(fixed_head.out, fixed_head.capacity, &fixed_head.at, path, NULL, missing,
                                  sizeof(missing)) == 4u,
                "four fixed lines come from four rows");
-    check_that((mmgr_line_finish(&fixed_head) != 0u) &&
-                   (strcmp(fixed_head.out,
-                           "fixed zero = RZ\nfixed lane_number = R0\nfixed record = R4\nfixed index = R2\n") == 0),
-               "zero as RZ, the field's top, then lane_number, record and index as R<n>");
+    check_that(
+        (mmgr_line_finish(&fixed_head) != 0u) &&
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = fixed_head.out, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "fixed zero = RZ\nfixed lane_number = R0\nfixed record = R4\nfixed index = R2\n",
+                        .ci = EMBED_FALSE)),
+        "zero as RZ, the field's top, then lane_number, record and index as R<n>");
     check_that(missing[0] == '\0', "and nothing is missing");
     snprintf(path, sizeof(path), "%s/frame_check_fixed_one.ksc", words[1]);
     const char *const one_fixed = "ksc part\nrun answers 00000009 fixed zero\n";
-    check_that(qry_member_filed(path, one_fixed, strlen(one_fixed)) != 0ull,
+    check_that(qry_member_filed(path, one_fixed,
+                                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = one_fixed,
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR)) != 0ull,
                "a .ksc with the zero row alone and no field row is written");
     static char s_one_fixed_head_bytes[QRY_WRITER_RING_BYTES / 2ull];
     VerbaLinea one_fixed_head = {s_one_fixed_head_bytes, sizeof(s_one_fixed_head_bytes), 0ull};
     check_that(krs_fixed_written(one_fixed_head.out, one_fixed_head.capacity, &one_fixed_head.at, path, NULL, missing,
                                  sizeof(missing)) == 1u,
                "one fixed line comes from one row");
-    check_that((mmgr_line_finish(&one_fixed_head) != 0u) && (strcmp(one_fixed_head.out, "fixed zero = R9\n") == 0),
+    check_that((mmgr_line_finish(&one_fixed_head) != 0u) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = one_fixed_head.out,
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "fixed zero = R9\n", .ci = EMBED_FALSE)),
                "as R9 where no field row gives the top");
-    check_that(strcmp(missing, "lane_number, record, index") == 0, "and the other three are named missing");
+    check_that(EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = missing, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "lane_number, record, index", .ci = EMBED_FALSE),
+               "and the other three are named missing");
     snprintf(path, sizeof(path), "%s/frame_check_none.ksc", words[1]);
     static char s_none_fixed_head_bytes[QRY_WRITER_RING_BYTES / 2ull];
     VerbaLinea none_fixed_head = {s_none_fixed_head_bytes, sizeof(s_none_fixed_head_bytes), 0ull};
     check_that(krs_fixed_written(none_fixed_head.out, none_fixed_head.capacity, &none_fixed_head.at, path, NULL,
                                  missing, sizeof(missing)) == 0u,
                "no fixed line comes from no row");
-    check_that(strcmp(missing, "zero, lane_number, record, index") == 0, "and all four are named missing");
+    check_that(EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = missing, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "zero, lane_number, record, index", .ci = EMBED_FALSE),
+               "and all four are named missing");
 
     // the lines the ruleset gave before are retained where no row replaces them, the queried four in their order and
     // the rest as given
@@ -238,32 +271,48 @@ int program_main(int count, char **words)
     snprintf(ruleset_path, sizeof(ruleset_path), "%s/frame_check_fixed.krs", words[1]);
     const char *const given = "krs 1\nruleset sass\nfixed zero = RZ\nfixed lane_number = R0\nfixed record = R1\nfixed "
                               "body = R3\nfixed carry = R12\n";
-    check_that(qry_member_filed(ruleset_path, given, strlen(given)) != 0ull,
+    check_that(qry_member_filed(
+                   ruleset_path, given,
+                   EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = given, .cap = PLATFORM_TEXT_TO_TERMINATOR)) != 0ull,
                "a ruleset with five fixed lines given before is written");
     snprintf(path, sizeof(path), "%s/frame_check_fixed_record.ksc", words[1]);
     const char *const record_row = "ksc part\nfield rd 16 8\nrun answers 00000004 fixed record\n";
-    check_that(qry_member_filed(path, record_row, strlen(record_row)) != 0ull,
+    check_that(qry_member_filed(path, record_row,
+                                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = record_row,
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR)) != 0ull,
                "and a .ksc with the record's row alone");
     char removals[1024];
     snprintf(removals, sizeof(removals), "%s/frame_check_fixed_record.krf", words[1]);
     const char *const fresh = "krf frame_check_fixed_record\n";
-    check_that(qry_member_filed(removals, fresh, strlen(fresh)) != 0ull, "and the .krf beside it, its head alone");
+    check_that(qry_member_filed(
+                   removals, fresh,
+                   EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = fresh, .cap = PLATFORM_TEXT_TO_TERMINATOR)) != 0ull,
+               "and the .krf beside it, its head alone");
     static char s_head_line_bytes[QRY_WRITER_RING_BYTES / 2ull];
     VerbaLinea head_line = {s_head_line_bytes, sizeof(s_head_line_bytes), 0ull};
     check_that(krs_fixed_written(head_line.out, head_line.capacity, &head_line.at, path, ruleset_path, missing,
                                  sizeof(missing)) == 5u,
                "five fixed lines come from one row and four given lines");
     check_that((mmgr_line_finish(&head_line) != 0u) &&
-                   (strcmp(head_line.out, "fixed zero = RZ\nfixed lane_number = R0\nfixed record = R4\nfixed body = "
-                                          "R3\nfixed carry = R12\n") == 0),
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = head_line.out, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "fixed zero = RZ\nfixed lane_number = R0\nfixed record = R4\nfixed body = "
+                                        "R3\nfixed carry = R12\n",
+                               .ci = EMBED_FALSE)),
                "the queried four in their order, the row's line where a row is and the given where none, then the "
                "rest as given");
-    check_that(strcmp(missing, "index") == 0, "and the one with neither is named missing");
+    check_that(EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = missing, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "index", .ci = EMBED_FALSE),
+               "and the one with neither is named missing");
     static KrfFile s_removed;
     static KrfRow s_removal;
     check_that(krf_read(&s_removed, removals) && (s_removed.lines == 3u) &&
-                   krf_row_read(s_removed.line[2], &s_removal) && (strcmp(s_removal.type, "krs") == 0) &&
-                   (strcmp(s_removal.reason, "replaced") == 0) && (strcmp(s_removal.row, "fixed record = R1") == 0),
+                   krf_row_read(s_removed.line[2], &s_removal) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_removal.type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "krs", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_removal.reason, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "replaced", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_removal.row, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "fixed record = R1", .ci = EMBED_FALSE)),
                "the given line the row replaced is stored in the .krf beside the .ksc, under a who line");
     krf_free(&s_removed);
 
@@ -283,36 +332,48 @@ int program_main(int count, char **words)
         "blockIdx.x;\\n\nform exit_if where =     if ({where})\\n    {\\n        return;\\n    }\\n\nform block_dim_x "
         "to =     "
         "{to} = blockDim.x;\\n\nerr parameter_load_word to offset\n";
-    check_that(qry_member_filed(named, naming, strlen(naming)) != 0ull,
+    check_that(qry_member_filed(
+                   named, naming,
+                   EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = naming, .cap = PLATFORM_TEXT_TO_TERMINATOR)) != 0ull,
                "a ruleset naming the schema's nine forms is written");
     const KrsFrameForm lane = {"frame.lane", "S2R {0}"};
     char line[1024];
     check_that(krs_frame_named(&lane, named, line, sizeof(line)) &&
-                   (strcmp(line, "form thread_idx_x to = S2R {to}\\n\n") == 0),
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "form thread_idx_x to = S2R {to}\\n\n", .ci = EMBED_FALSE)),
                "a lane form is named thread_idx_x, its destination as to");
     const KrsFrameForm load = {"frame.load", "LD {2}, [{0}.64], {1}"};
     check_that(krs_frame_named(&load, named, line, sizeof(line)) &&
-                   (strcmp(line, "form global_load_constant_word to address offset = LD {to}, [{address}.64], "
-                                 "{offset}\\n\n") == 0),
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "form global_load_constant_word to address offset = LD {to}, [{address}.64], "
+                                        "{offset}\\n\n",
+                               .ci = EMBED_FALSE)),
                "a load form is named global_load_constant_word, its places as to, address and offset");
     const KrsFrameForm number = {"frame.number", "MOV {1}, {0}"};
     check_that(krs_frame_named(&number, named, line, sizeof(line)) &&
-                   (strcmp(line, "form word_set to value = MOV {to}, {value}\\n\n") == 0),
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "form word_set to value = MOV {to}, {value}\\n\n", .ci = EMBED_FALSE)),
                "a number form is named word_set, its destination as to and its number as value");
     const KrsFrameForm dim = {"frame.dim", "MOV {0}, c[0x0][0x0]"};
     check_that(krs_frame_named(&dim, named, line, sizeof(line)) &&
-                   (strcmp(line, "form block_dim_x to = MOV {to}, c[0x0][0x0]\\n\n") == 0),
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "form block_dim_x to = MOV {to}, c[0x0][0x0]\\n\n", .ci = EMBED_FALSE)),
                "a dim form is named block_dim_x, its destination as to and the constant bank's operand as it is");
     const KrsFrameForm guarded = {"frame.exit", "@{0} EXIT"};
     check_that(krs_frame_named(&guarded, named, line, sizeof(line)) &&
-                   (strcmp(line, "form exit_if where = @{where} EXIT\\n\n") == 0),
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "form exit_if where = @{where} EXIT\\n\n", .ci = EMBED_FALSE)),
                "a guarded exit is named exit_if, its guard as where");
     const KrsFrameForm plain = {"frame.exit", "EXIT"};
-    check_that(krs_frame_named(&plain, named, line, sizeof(line)) && (strcmp(line, "form return = EXIT\\n\n") == 0),
+    check_that(krs_frame_named(&plain, named, line, sizeof(line)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "form return = EXIT\\n\n", .ci = EMBED_FALSE)),
                "and an exit with no guard is named return");
     const KrsFrameForm parameter = {"frame.parameter", "MOV {1}, c[0x0][0x160+{0}]"};
     check_that(krs_frame_named(&parameter, named, line, sizeof(line)) &&
-                   (strcmp(line, "form parameter_load_word to offset = MOV {to}, c[0x0][0x160+{offset}]\\n\n") == 0),
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "form parameter_load_word to offset = MOV {to}, c[0x0][0x160+{offset}]\\n\n",
+                               .ci = EMBED_FALSE)),
                "a parameter form is named parameter_load_word, its destination as to and its place among the "
                "parameters as offset");
     const KrsFrameForm stray = {"frame.load", "LD {2}, [{0}.64], {3}"};
@@ -326,12 +387,16 @@ int program_main(int count, char **words)
     snprintf(ruleset_path, sizeof(ruleset_path), "%s/frame_check_frame.krs", words[1]);
     const char *const frame_given =
         "krs 1\nform thread_idx_x to = S2R {to}, SR_TID.X\\n\nform block_idx_x to = S2R {to}, SR_CTAID.X\\n\n";
-    check_that(qry_member_filed(ruleset_path, frame_given, strlen(frame_given)) != 0ull,
+    check_that(qry_member_filed(ruleset_path, frame_given,
+                                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = frame_given,
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR)) != 0ull,
                "a part's ruleset with two frame lines given before is written");
     snprintf(path, sizeof(path), "%s/frame_check_frame.ksc", words[1]);
     snprintf(removals, sizeof(removals), "%s/frame_check_frame.krf", words[1]);
     const char *const frame_fresh = "krf frame_check_frame\n";
-    check_that(qry_member_filed(removals, frame_fresh, strlen(frame_fresh)) != 0ull,
+    check_that(qry_member_filed(removals, frame_fresh,
+                                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = frame_fresh,
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR)) != 0ull,
                "and the .krf beside its .ksc, its head alone");
     const KrsFrameForm passed[4] = {load, {"frame.load", "LD {2}, [{0}.64], {1}"}, lane, guarded};
     static char s_frame_forms_bytes[QRY_WRITER_RING_BYTES / 2ull];
@@ -340,17 +405,23 @@ int program_main(int count, char **words)
                                  ruleset_path, path) == 5u,
                "five lines come from two loads of one text, a lane, a guarded exit and the block's given line");
     check_that((mmgr_line_finish(&frame_forms) != 0u) &&
-                   (strcmp(frame_forms.out, "form thread_idx_x to = S2R {to}\\n\nform block_idx_x to = S2R {to}, "
-                                            "SR_CTAID.X\\n\nform global_load_constant_word to address offset = LD "
-                                            "{to}, [{address}.64], {offset}\\n\nform return = EXIT\\n\nform exit_if "
-                                            "where = @{where} EXIT\\n\n") == 0),
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = frame_forms.out, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "form thread_idx_x to = S2R {to}\\n\nform block_idx_x to = S2R {to}, "
+                                        "SR_CTAID.X\\n\nform global_load_constant_word to address offset = LD "
+                                        "{to}, [{address}.64], {offset}\\n\nform return = EXIT\\n\nform exit_if "
+                                        "where = @{where} EXIT\\n\n",
+                               .ci = EMBED_FALSE)),
                "in the table's order: the lane's line, the block's given line, one load line, and return then exit_if "
                "from the one guarded exit");
     static KrfFile s_frame_removed;
     check_that(krf_read(&s_frame_removed, removals) && (s_frame_removed.lines == 3u) &&
-                   krf_row_read(s_frame_removed.line[2], &s_removal) && (strcmp(s_removal.type, "krs") == 0) &&
-                   (strcmp(s_removal.reason, "replaced") == 0) &&
-                   (strcmp(s_removal.row, "form thread_idx_x to = S2R {to}, SR_TID.X\\n") == 0),
+                   krf_row_read(s_frame_removed.line[2], &s_removal) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_removal.type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "krs", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_removal.reason, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "replaced", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_removal.row, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "form thread_idx_x to = S2R {to}, SR_TID.X\\n", .ci = EMBED_FALSE)),
                "the given lane line the written one replaced is stored in the .krf, under a who line");
     krf_free(&s_frame_removed);
 
@@ -359,7 +430,9 @@ int program_main(int count, char **words)
     snprintf(named, sizeof(named), "%s/frame_check_tests.krs", words[1]);
     const char *const tests = "krs 1\nruleset cu\nform test_word_le where left right = {where} = ({left} <= "
                               "{right});\\n\nform test_word_ge where left right = {where} = ({left} >= {right});\\n\n";
-    check_that(qry_member_filed(named, tests, strlen(tests)) != 0ull,
+    check_that(qry_member_filed(
+                   named, tests,
+                   EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = tests, .cap = PLATFORM_TEXT_TO_TERMINATOR)) != 0ull,
                "a ruleset naming the two tests of at max and at least is written");
     const KrsFrameForm at_max = {"ladder.at_max", "ISETP.LE.U32.AND {2}, PT, {0}, {1}, PT"};
     static char s_mirrored_bytes[QRY_WRITER_RING_BYTES / 2ull];
@@ -367,20 +440,25 @@ int program_main(int count, char **words)
     check_that(krs_frame_written(mirrored.out, mirrored.capacity, &mirrored.at, &at_max, 1u, named, NULL, path) == 2u,
                "two lines come from one at-max form");
     check_that((mmgr_line_finish(&mirrored) != 0u) &&
-                   (strcmp(mirrored.out, "form test_word_le where left right = ISETP.LE.U32.AND {where}, PT, {left}, "
-                                         "{right}, PT\\n\nform test_word_ge where left right = ISETP.LE.U32.AND "
-                                         "{where}, PT, {right}, {left}, PT\\n\n") == 0),
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = mirrored.out, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "form test_word_le where left right = ISETP.LE.U32.AND {where}, PT, {left}, "
+                                        "{right}, PT\\n\nform test_word_ge where left right = ISETP.LE.U32.AND "
+                                        "{where}, PT, {right}, {left}, PT\\n\n",
+                               .ci = EMBED_FALSE)),
                "its own test, and the greater-or-equal test with left and right changed over");
     const KrsFrameForm both_tests[2] = {at_max, {"ladder.at_least", "ISETP.GE.U32.AND {2}, PT, {0}, {1}, PT"}};
     static char s_own_bytes[QRY_WRITER_RING_BYTES / 2ull];
     VerbaLinea own = {s_own_bytes, sizeof(s_own_bytes), 0ull};
     check_that(krs_frame_written(own.out, own.capacity, &own.at, both_tests, 2u, named, NULL, path) == 2u,
                "an at-max and an at-least form write two lines, each test once");
-    check_that((mmgr_line_finish(&own) != 0u) &&
-                   (strcmp(own.out, "form test_word_le where left right = ISETP.LE.U32.AND {where}, PT, {left}, "
-                                    "{right}, PT\\n\nform test_word_ge where left right = ISETP.GE.U32.AND {where}, "
-                                    "PT, {left}, {right}, PT\\n\n") == 0),
-               "each from its own relation's form");
+    check_that(
+        (mmgr_line_finish(&own) != 0u) &&
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = own.out, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "form test_word_le where left right = ISETP.LE.U32.AND {where}, PT, {left}, "
+                                 "{right}, PT\\n\nform test_word_ge where left right = ISETP.GE.U32.AND {where}, "
+                                 "PT, {left}, {right}, PT\\n\n",
+                        .ci = EMBED_FALSE)),
+        "each from its own relation's form");
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "frame_check: ");

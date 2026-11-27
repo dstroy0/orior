@@ -45,9 +45,10 @@
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel.h"
 
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table_text.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -93,7 +94,10 @@ static unsigned long long check_gathered(const char *name)
 static int check_joined_contains(QryShared *run, const char *name, const char *text)
 {
     (void)run;
-    return (check_gathered(name) != 0ull) && (strstr((const char *)s_gathered, text) != NULL);
+    return (check_gathered(name) != 0ull) &&
+           (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = (const char *)s_gathered,
+                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = text, .other_cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .ci = EMBED_FALSE) != NULL);
 }
 
 // 1 where the conference of `identity` contains `text`
@@ -113,10 +117,10 @@ static int check_latest_contains(QryShared *run, const char *name, const char *t
     {
         return 0;
     }
-    const size_t length = strlen(text);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     for (unsigned long long at = 0ull; (at + length) <= size; at += 1ull)
     {
-        if (memcmp(bytes + at, text, length) == 0)
+        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes + at, .other = text, .bytes = length) == 0)
         {
             return 1;
         }
@@ -139,10 +143,10 @@ static unsigned int check_rows_of(QryShared *run, const char *table, unsigned in
     const size_t row_size = (size_t)words * sizeof(unsigned long long);
     for (unsigned long long at = 0ull; (words <= 16u) && ((at + row_size) <= size); at += row_size)
     {
-        memcpy(row, bytes + at, row_size);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = row, .src = bytes + at, .bytes = row_size);
         if (row[2] == conference)
         {
-            memcpy(last, row, row_size);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = last, .src = row, .bytes = row_size);
             count += 1u;
             *cause_reads += ((words > 5u) && (row[5] == cause)) ? 1u : 0u;
         }
@@ -161,7 +165,7 @@ static int check_text_stored(QryShared *run, unsigned long long number)
     unsigned long long opening[4];
     for (unsigned long long at = 0ull; !found && ((at + sizeof(opening)) <= size);)
     {
-        memcpy(opening, bytes + at, sizeof(opening));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = opening, .src = bytes + at, .bytes = sizeof(opening));
         found = (opening[2] == number);
         at += sizeof(opening) + (((opening[3] + 7ull) / 8ull) * 8ull);
     }
@@ -189,7 +193,7 @@ static unsigned int check_verdicts(QryShared *run, unsigned long long *rule, uns
     unsigned long long row[8];
     for (unsigned long long at = 0ull; ((at + sizeof(row)) <= size) && (count < room); at += sizeof(row))
     {
-        memcpy(row, bytes + at, sizeof(row));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = row, .src = bytes + at, .bytes = sizeof(row));
         if (row[2] == query)
         {
             rule[count] = row[3];
@@ -280,14 +284,18 @@ int program_main(int count, char **words)
     check_that(ruling.side == OVERSEER_SIDE_STAND_IN, "consensus: the stand-in that addresses memory brought it on");
     check_that(ruling.guidance == OVERSEER_OTHER_WAY, "consensus: the pair is put the other way round");
     check_that(ruling.taught == 1, "consensus: a lesson is taught");
-    check_that(strstr(ruling.text, "equality_coherence") != NULL,
+    check_that(EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = ruling.text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "equality_coherence", .other_cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .ci = EMBED_FALSE) != NULL,
                "consensus: the ruling states what the learner was after");
     check_that(check_conference_contains(run, "check-consensus", "overseer: 7 accounts received"),
                "consensus: the ruling is passed to the conference as the overseer's account");
 
     // tables: the conference a row of the run's conferences, each account it received a row of its accounts and its
     // lesson a row of its lessons, each naming the conference by the number of the question's identity
-    const unsigned long long consensus = table_text("check-consensus", strlen("check-consensus"));
+    const unsigned long long consensus =
+        table_text("check-consensus", EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = "check-consensus",
+                                                 .cap = PLATFORM_TEXT_TO_TERMINATOR));
     unsigned long long last[10];
     unsigned int reads = 0u;
     check_that((check_rows_of(run, "conferences", 10u, consensus, last, 0ull, &reads) == 1u) && (last[3] == 1ull) &&
@@ -311,9 +319,11 @@ int program_main(int count, char **words)
     check_that(overseer_convened(run, "check-dissent", 0, &ruling) == 1, "dissent: the conference is convened");
     check_that(!ruling.agreed && (ruling.guidance == OVERSEER_HANDS_OFF) && !ruling.taught,
                "dissent: two causes rule nothing, the learner left to go on as it would");
-    check_that(strstr(ruling.text,
-                      "every cause read the question's own: proctor reads instruction, listener reads address") != NULL,
-               "dissent: the ruling records the dissent, every cause the question's own");
+    check_that(
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = ruling.text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "every cause read the question's own: proctor reads instruction, listener reads address",
+                   .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL,
+        "dissent: the ruling records the dissent, every cause the question's own");
 
     // exception: an exception agrees with an instruction, and an encoding is blocked at every carrier
     static const char *const s_exception[] = {
@@ -340,7 +350,9 @@ int program_main(int count, char **words)
                                            NULL};
     check_accounts(run, "check-roster", s_roster);
     check_that(overseer_convened(run, "check-roster", 1, &ruling) == 1, "roster: the conference is convened");
-    check_that(strstr(ruling.text, "survivors") != NULL, "roster: an expert named nowhere is included");
+    check_that(EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = ruling.text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "survivors", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL,
+               "roster: an expert named nowhere is included");
     check_that(ruling.agreed && (ruling.cause == OVERSEER_CAUSE_TIME) && (ruling.side == OVERSEER_SIDE_STAND_IN),
                "roster: its cause is counted, and the stand-in that controls brought it on");
     check_that(ruling.guidance == OVERSEER_WAITS, "waits: put the other way round already, the relation waits");
@@ -351,7 +363,9 @@ int program_main(int count, char **words)
     check_accounts(run, "check-silent", s_silent);
     check_that(overseer_convened(run, "check-silent", 0, &ruling) == 1, "silent: the conference is convened");
     check_that(!ruling.agreed && (ruling.guidance == OVERSEER_HANDS_OFF) &&
-                   (strstr(ruling.text, "no expert reads a cause") != NULL),
+                   (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = ruling.text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "no expert reads a cause", .other_cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .ci = EMBED_FALSE) != NULL),
                "silent: no cause read, nothing ruled");
     check_that(overseer_convened(run, "check-never", 0, &ruling) == 0,
                "silent: a question with no conference is received by no one");
@@ -424,7 +438,10 @@ int program_main(int count, char **words)
         s_code[1] = (unsigned char)(0xa0u + crossing);
         run_channel_put(&s_question);
         check_identity(&s_question, identity);
-        check_that((s_question.outcome == RUN_NO_CHANNEL) && (strstr(s_question.refused, "the airlock") != NULL) &&
+        check_that((s_question.outcome == RUN_NO_CHANNEL) &&
+                       (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = s_question.refused,
+                                   .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "the airlock",
+                                   .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL) &&
                        !check_conference_contains(run, identity, "proctor:"),
                    (crossing == 0u) ? "airlock: a round the cross did not read never reaches the carrier"
                                     : "airlock: a round with no gated list passed after it never reaches the carrier");
@@ -437,8 +454,11 @@ int program_main(int count, char **words)
     check_that(run_channel_open(open_air, 10000000ull) == 1, "airlock: a channel with none opens");
     s_code[1] = 0xb0u;
     run_channel_put(&s_question);
-    check_that((s_question.outcome == RUN_NO_CHANNEL) && (strstr(s_question.refused, "has none") != NULL),
-               "airlock: and carries nothing");
+    check_that(
+        (s_question.outcome == RUN_NO_CHANNEL) &&
+            (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = s_question.refused, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "has none", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL),
+        "airlock: and carries nothing");
     run_channel_close();
     const char *const ungated_words[] = {words[1],  "refuse", "--pop", words[1],    "pop",
                                          "--cross", words[1], "cross", "gated.txt", NULL};
@@ -512,7 +532,7 @@ int program_main(int count, char **words)
                                                   0x00u, 0x00u, 0x80u, 0x03u, 0x00u, 0xeau, 0x0fu, 0x00u,
                                                   0x18u, 0x79u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
                                                   0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0xc0u, 0x0fu, 0x00u};
-        memcpy(s_code, s_clean, sizeof(s_clean));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_code, .src = s_clean, .bytes = sizeof(s_clean));
         run_channel_put(&s_question);
         check_that(s_question.outcome == RUN_ILLEGAL, "airlock: a clean code passes the real airlock to the carrier");
         check_that(check_latest_contains(run, "airlock_cross.txt", "questions read: 1") &&
@@ -533,7 +553,7 @@ int program_main(int count, char **words)
                                                  0x00u, 0x0fu, 0x00u, 0x00u, 0x00u, 0xe4u, 0x0fu, 0x00u,
                                                  0x4du, 0x79u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
                                                  0x00u, 0x00u, 0x80u, 0x03u, 0x00u, 0xeau, 0x0fu, 0x00u};
-        memcpy(s_code, s_past, sizeof(s_past));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_code, .src = s_past, .bytes = sizeof(s_past));
         s_question.registers = 16u;
         check_identity(&s_question, identity);
         run_channel_put(&s_question);
@@ -546,7 +566,7 @@ int program_main(int count, char **words)
                    "verdicts: the query read again with the count that clears it is a second row of one query");
         s_question.registers = 16u;
         // all ones after the EXIT: an instruction the vendor calls illegal
-        memset(s_code + 16, 0xff, 16u);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = s_code + 16, .bytes = 16u, .val = 0xff);
         run_channel_put(&s_question);
         check_that(check_latest_contains(run, "gated.txt", "ffffffffffffffff ffffffffffffffff"),
                    "airlock: the instruction the vendor calls illegal is gated by its encoding");
@@ -558,7 +578,7 @@ int program_main(int count, char **words)
     const char *const hanging[] = {words[1], "hang",    "--gated", "gated.txt", "--pop",     words[1],
                                    "pop",    "--cross", words[1],  "cross",     "gated.txt", NULL};
     check_that(run_channel_open(hanging, 1000000ull) == 1, "teacher: the channel opens on the hanging carrier");
-    memset(s_code, 0, sizeof(s_code));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = s_code, .bytes = sizeof(s_code), .val = 0);
     s_code[0] = 0xffu;
     run_channel_put(&s_question);
     check_that(s_question.outcome == RUN_NOTHING, "teacher: the carrier ended out of its time answers nothing");

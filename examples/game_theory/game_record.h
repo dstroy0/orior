@@ -14,6 +14,7 @@
 #ifndef GAME_RECORD_H
 #define GAME_RECORD_H
 
+#include "memoria_operor/memoria_operor.h"
 #include "sim.h"
 
 #include "../../includes/exact_types/integers/exact_record/exact_record.h"
@@ -45,7 +46,7 @@ static inline int game_load(const ExactRecordProgram *built, unsigned int member
                             unsigned int count, const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX],
                             GameProgram *program, EngineError *error)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const KeymathRecordRequest encode = {
         built->steps, built->count,  built->field_bits,  built->fields, members, outputs,
         count,        built->tables, built->table_count, &program->key, error};
@@ -65,7 +66,7 @@ static inline void game_release(GameProgram *program)
     }
     key_schedule_record_release(&program->layout);
     keymath_record_release(&program->key);
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
 }
 
 /**

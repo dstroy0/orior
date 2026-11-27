@@ -31,16 +31,15 @@
 #include "../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../src/cu/engine/analysis/keymath/keymath.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
 
 #include <cuda_runtime.h>
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <vector>
 
@@ -142,7 +141,7 @@ static int arrival_position(ArrivalProgram *program, std::vector<unsigned int> *
                        const unsigned int state_offset[4], unsigned int state_limbs, ArrivalLaid *positioned,
                        EngineError *error)
 {
-    memset(positioned, 0, sizeof(*positioned));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = positioned, .bytes = sizeof(*positioned), .val = 0);
     unsigned int field_bits[9];
     unsigned int field_offset[9];
     for (unsigned int at = 0u; at < 4u; at += 1u)
@@ -218,12 +217,12 @@ int program_main(int count, char **arguments)
     std::vector<unsigned int> outputs;
     arrival_build(&program, floors, &outputs);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned int guess_bits[4] = {65u, 65u, 65u, 65u};
     const unsigned int guess_offset[4] = {0u, 65u, 130u, 195u};
     ArrivalLaid probe;
     ArrivalLaid positioned;
-    memset(&positioned, 0, sizeof(positioned));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &positioned, .bytes = sizeof(positioned), .val = 0);
     int ok = arrival_position(&program, &outputs, guess_bits, guess_offset, 9u, &probe, &error);
     sim_check(&job, ok, "keymath imprints the arrival program and the scheduler positions it out");
     unsigned int state_bits[4] = {0u, 0u, 0u, 0u};
@@ -316,7 +315,8 @@ int program_main(int count, char **arguments)
             same = (cycle_record_run_host(&host) == (long)checked) &&
                    (cudaMemcpy(device_out.data(), to, device_out.size() * sizeof(unsigned int),
                                cudaMemcpyDeviceToHost) == cudaSuccess) &&
-                   (memcmp(host_out.data(), device_out.data(), device_out.size() * sizeof(unsigned int)) == 0);
+                   (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out.data(), .other = device_out.data(),
+                               .bytes = device_out.size() * sizeof(unsigned int)) == 0);
         }
         for (unsigned int j = 0u; ok && (j < floors); j += 1u)
         {
@@ -328,7 +328,8 @@ int program_main(int count, char **arguments)
                 const CycleRecordSumRequest sum = {to,         lanes,     group, out_limbs, step->out_offset,
                                                    step->out_bits, ARRIVAL_SUM_LIMBS, sums.data(), &error};
                 ok = cycle_record_sum(&sum) != CYCLE_ERROR;
-                memcpy(&parts[part * sums.size()], sums.data(), sums.size() * sizeof(unsigned int));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &parts[part * sums.size()], .src = sums.data(),
+                           .bytes = sums.size() * sizeof(unsigned int));
             }
             for (unsigned long long run = 0ull; ok && (run < lanes / group); run += 1ull)
             {

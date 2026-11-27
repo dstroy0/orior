@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_ledger_test_scenarios.c: located, idle, head, shadow, scenarios, backfill and main
-#include "tessera_ledger_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera_ledger_test_internal.h"
 
 // a process occupying bytes as it requests is reserved them beside its declaration, and admitted on what it has yet to
 // find, since the device's measured use already counts what it occupies; the over-budget rule weighs the declaration
@@ -152,7 +153,7 @@ static void test_scenario(TestResults *head_results, TestResults *finished, cons
     unsigned long long identities[TEST_SCENARIO_JOBS];
     unsigned long long ends[TEST_SCENARIO_JOBS];
     int running[TEST_SCENARIO_JOBS];
-    memset(running, 0, sizeof(running));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = running, .bytes = sizeof(running), .val = 0);
     unsigned int submitted = 0u;
     unsigned int done = 0u;
     unsigned long long now = 0ull;

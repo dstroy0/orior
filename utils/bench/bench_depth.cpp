@@ -38,11 +38,10 @@
 #include "bench_seed.h"
 #include "sha256_core.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
-#include <algorithm>
 #include <random>
 #include <vector>
 

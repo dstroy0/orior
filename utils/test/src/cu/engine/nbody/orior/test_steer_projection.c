@@ -1,7 +1,8 @@
 
 // test_steer_projection.c: projection and type agreement, and main
-#include "test_steer_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "test_steer_internal.h"
 
 /**
  * @brief Grades the projection under a predicate that is not transitive.
@@ -331,7 +332,7 @@ static int check_any_type_agrees(void)
     build_skewed_field(corpus, length);
 
     uint8_t needle[24];
-    memcpy(needle, corpus + 2048u, sizeof(needle));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = needle, .src = corpus + 2048u, .bytes = sizeof(needle));
 
     const size_t alignments = (length - sizeof(needle)) + 1u;
     uint8_t *const survivors = (uint8_t *)platform_cell_taken(alignments, platform_place_g_program_owner, 0);
@@ -453,7 +454,7 @@ static int check_any_type_agrees(void)
     }
 
     uint32_t sample_needle[8];
-    memcpy(sample_needle, samples + 1024u, sizeof(sample_needle));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = sample_needle, .src = samples + 1024u, .bytes = sizeof(sample_needle));
 
     const size_t sample_needle_len = sizeof(sample_needle) / sizeof(sample_needle[0]);
     const size_t sample_alignments = (sample_len - sample_needle_len) + 1u;
@@ -595,7 +596,7 @@ int program_main(int argc, char **argv)
      * zero. A needle that never occurs grades the rejection path only and never the verification
      * path, and the two are where the arms could disagree. */
     uint8_t needle[64];
-    memcpy(needle, corpus + 4096u, sizeof(needle));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = needle, .src = corpus + 4096u, .bytes = sizeof(needle));
 
     OriorFieldCensus census;
     orior_field_census(corpus, STEER_CORPUS, &census);

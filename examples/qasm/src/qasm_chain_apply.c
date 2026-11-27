@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_chain_apply.c: two-qubit application, amplitudes, expectation and the seal
-#include "qasm_chain_internal.h"
 #include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "qasm_chain_internal.h"
 
 long qasm_chain_apply_two(QasmChain *chain, const void *gate, unsigned int site, EngineError *error)
 {
@@ -28,7 +29,7 @@ long qasm_chain_apply_two(QasmChain *chain, const void *gate, unsigned int site,
     QasmMatrix reduced_rows = QASM_MATRIX_EMPTY;
     QasmMatrix fresh[4] = {QASM_MATRIX_EMPTY, QASM_MATRIX_EMPTY, QASM_MATRIX_EMPTY, QASM_MATRIX_EMPTY};
     QasmElement term;
-    memset(&term, 0, sizeof(term));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &term, .bytes = sizeof(term), .val = 0);
     long status = 0L;
     for (unsigned int pair = 0u; (status == 0L) && (pair < 4u); pair += 1u)
     {

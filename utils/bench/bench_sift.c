@@ -1,13 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "../../src/cu/engine/nbody/orior/orior.h"
 #include "../../includes/codecs/sha256/sha256.h"
+#include "../../src/cu/engine/nbody/orior/orior.h"
+#include "../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <limits.h>
 #include <math.h>
-#include <stdio.h>
 #include <stdint.h>
-#include <string.h>
+#include <stdio.h>
 
 #define CORPUS_BYTES 2048u
 
@@ -109,7 +111,7 @@ static const char s_structured[] =
 
 static size_t fill_from_text(uint8_t *into, const char *text, size_t length)
 {
-    const size_t text_bytes = strlen(text);
+    const size_t text_bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const size_t usable = (text_bytes < length) ? text_bytes : length;
 
     for (size_t index = 0u; index < usable; index++)
@@ -455,7 +457,7 @@ static uint32_t error_occurrences(const uint8_t *corpus, size_t length, const ui
 
     for (size_t start = 0u; (start + needle_len) <= length; start++)
     {
-        if (memcmp(&corpus[start], needle, needle_len) != 0)
+        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &corpus[start], .other = needle, .bytes = needle_len) != 0)
         {
             continue;
         }

@@ -4,9 +4,9 @@
 #include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera_measure.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <cuda_runtime.h>
 #include <stdio.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -33,9 +33,9 @@ static int measure_test_child_ends(unsigned long long *failed)
 #if defined(_WIN32)
     STARTUPINFOA startup;
     PROCESS_INFORMATION child;
-    memset(&startup, 0, sizeof(startup));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &startup, .bytes = sizeof(startup), .val = 0);
     startup.cb = sizeof(startup);
-    memset(&child, 0, sizeof(child));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &child, .bytes = sizeof(child), .val = 0);
     char command[] = "cmd.exe /c exit 0";
     if (!CreateProcessA(NULL, command, NULL, NULL, FALSE, CREATE_SUSPENDED | CREATE_NO_WINDOW, NULL, NULL, &startup,
                         &child))
@@ -108,11 +108,11 @@ int program_main(int count, char **arguments)
         return 1;
     }
     unsigned char device[TESSERA_DEVICE_BYTES];
-    memcpy(device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = device, .src = properties.uuid.bytes, .bytes = TESSERA_DEVICE_BYTES);
     unsigned long long luid = 0ull;
 #if defined(_WIN32)
     LUID adapter;
-    memcpy(&adapter, properties.luid, sizeof(adapter));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &adapter, .src = properties.luid, .bytes = sizeof(adapter));
     // the high part is a signed long whose bits form the upper word of the luid
     luid = ((unsigned long long)(unsigned long)adapter.HighPart << 32u) | adapter.LowPart;
 #endif

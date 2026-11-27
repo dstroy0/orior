@@ -22,6 +22,7 @@
  *       fixes. An agreement between two of your candidates is not a fact about that target.
  */
 
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <algorithm>
@@ -29,7 +30,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -125,7 +125,7 @@ int main()
     std::printf("================================================================\n");
 
     const std::vector<uint8_t> header = bytes_from_hex(HEADER_HEX);
-    std::memset(&g_base, 0, sizeof(g_base));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &g_base, .bytes = sizeof(g_base), .val = 0);
     sha256_header_midstate(&g_base.midstate, header.data());
     g_base.merkle_root_tail = schedule_word_from_header(header.data() + 64u);
     g_base.ntime = schedule_word_from_header(header.data() + 68u);

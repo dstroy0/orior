@@ -19,9 +19,9 @@
 
 #include <cuda_runtime.h>
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define RECORD_TEST_SHAPES 6u
 
@@ -181,7 +181,7 @@ static void record_fill(const RecordShape *shape, unsigned short *lanes)
 static void record_request(PeriodRequest *request, const unsigned short *device_lanes, const RecordShape *shape,
                            const EngineSignum *content, EngineError *error)
 {
-    memset(request, 0, sizeof(*request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request, .bytes = sizeof(*request), .val = 0);
     request->device_lanes = device_lanes;
     request->rank = 3u;
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
@@ -229,8 +229,8 @@ static void record_shape(SimResults *results, const RecordShape *shape)
     {
         EngineError kernel_error;
         EngineError record_error;
-        memset(&kernel_error, 0, sizeof(kernel_error));
-        memset(&record_error, 0, sizeof(record_error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &kernel_error, .bytes = sizeof(kernel_error), .val = 0);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &record_error, .bytes = sizeof(record_error), .val = 0);
         PeriodMeasurement kernel_measurement;
         PeriodMeasurement record_measurement;
         PeriodRequest request;
@@ -253,13 +253,15 @@ static void record_shape(SimResults *results, const RecordShape *shape)
                  shape->extent[0], shape->extent[1], shape->extent[2]);
         sim_check(results,
                   kernel_read && record_read &&
-                      (memcmp(kernel_agreement, record_agreement, (size_t)entries * sizeof(unsigned long long)) == 0),
+                      (EMBED_CALL(memor.cmp, MemoriaCfg, .src = kernel_agreement, .other = record_agreement,
+                                  .bytes = (size_t)entries * sizeof(unsigned long long)) == 0),
                   what);
         snprintf(what, sizeof(what), "%llu x %llu x %llu: the record machine's measurement is the kernels'",
                  shape->extent[0], shape->extent[1], shape->extent[2]);
         sim_check(results,
                   kernel_read && record_read &&
-                      (memcmp(&kernel_measurement, &record_measurement, sizeof(PeriodMeasurement)) == 0),
+                      (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &kernel_measurement, .other = &record_measurement,
+                                  .bytes = sizeof(PeriodMeasurement)) == 0),
                   what);
         if ((kernel_read != 0) && (record_read != 0) && (shape->planted_period != 0ull))
         {
@@ -272,7 +274,7 @@ static void record_shape(SimResults *results, const RecordShape *shape)
     if (ok != 0)
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         PeriodMeasurement measurement;
         PeriodRequest request;
         record_request(&request, device_lanes, shape, &content, &error);
@@ -315,9 +317,10 @@ static void record_shape(SimResults *results, const RecordShape *shape)
         {
             PeriodMargin *const drawn_axis = &drawn_band[axis * RECORD_TEST_DRAWS];
             qsort(drawn_axis, (size_t)drawn_counts[axis], sizeof(PeriodMargin), period_margin_compare);
-            band_same = (measurement.axis[axis].band_count == drawn_counts[axis]) &&
-                        (memcmp(drawn_axis, &record_band[axis * RECORD_TEST_DRAWS],
-                                (size_t)drawn_counts[axis] * sizeof(PeriodMargin)) == 0);
+            band_same =
+                (measurement.axis[axis].band_count == drawn_counts[axis]) &&
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = drawn_axis, .other = &record_band[axis * RECORD_TEST_DRAWS],
+                            .bytes = (size_t)drawn_counts[axis] * sizeof(PeriodMargin)) == 0);
         }
         snprintf(what, sizeof(what), "%llu x %llu x %llu: every draw's heights are the host's line by line null",
                  shape->extent[0], shape->extent[1], shape->extent[2]);
@@ -357,7 +360,7 @@ static void record_timed(SimResults *results)
     for (unsigned int route = 0u; (ok != 0) && (route < 4u); route += 1u)
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         PeriodMeasurement measurement;
         PeriodMargin heights[3];
         PeriodRequest request;
@@ -414,10 +417,10 @@ int program_main(int count, char **arguments)
     if (ok != 0)
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         PeriodMeasurement measurement;
         PeriodRequest request;
-        memset(&request, 0, sizeof(request));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
         request.device_lanes = (const unsigned short *)&error;
         request.rank = 2u;
         request.extent[0] = 2ull;

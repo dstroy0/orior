@@ -29,8 +29,8 @@
 #include "zeta_exact.h"
 #include "../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
 #include <stdlib.h>
-#include <string.h>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -499,13 +499,15 @@ static void run_device(const char *binary, int r_bits, int u_bits, SphericalRun 
     static char line[65536];
     while (fgets(line, sizeof(line), output) != NULL)
     {
-        line[strcspn(line, "\r\n")] = '\0';
+        line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\r\n")] = '\0';
         char first[32] = {0};
         if (sscanf(line, "%31s", first) != 1)
         {
             continue;
         }
-        if (strcmp(first, "output") == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = first, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "output",
+                       .ci = EMBED_FALSE))
         {
             long long offset = 0;
             long long width = 0;
@@ -517,18 +519,23 @@ static void run_device(const char *binary, int r_bits, int u_bits, SphericalRun 
             }
             continue;
         }
-        if (strcmp(first, "host") == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = first, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "host",
+                       .ci = EMBED_FALSE))
         {
             char flag[16] = {0};
-            run->host = (sscanf(line, "%*s %15s", flag) == 1) && (strcmp(flag, "1") == 0);
+            run->host = (sscanf(line, "%*s %15s", flag) == 1) &&
+                        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = flag, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "1", .ci = EMBED_FALSE));
             continue;
         }
-        if (strcmp(first, "steps") == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = first, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "steps",
+                       .ci = EMBED_FALSE))
         {
             (void)sscanf(line, "%*s %63s", run->steps);
             continue;
         }
-        if (strcmp(first, "out_limbs") == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = first, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "out_limbs", .ci = EMBED_FALSE))
         {
             continue;
         }

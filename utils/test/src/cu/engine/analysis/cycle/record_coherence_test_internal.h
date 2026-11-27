@@ -18,19 +18,17 @@
 // under the wrap; indexed by the two's complement residue x mod 2^b, the and with 2^b - 1 before it, it factors
 // through the wrap to every w >= b and breaks narrower. The test is one job on the device's tessera daemon, submitted
 // before its first device work.
+#include "../../../../../../../includes/exact_types/integers/exact_integer.h"
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "../../../../../../../includes/exact_types/integers/exact_integer.h"
-#include "sim.h"
 
 #include <cuda_runtime.h>
 
 #include <stdlib.h>
-#include <string.h>
 
 #define COHERENCE_TEST_LINE 8192ull
 

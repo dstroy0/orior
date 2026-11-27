@@ -28,8 +28,8 @@
 
 #include <cuda_runtime.h>
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
-#include <string.h>
 
 #include <algorithm>
 #include <string>
@@ -172,7 +172,7 @@ static void stage_output(StageProgram *program, unsigned int step)
 // x / y as (x_num y_den) / (x_den y_num)
 static void stage_ratio_program(unsigned int bits, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int x_num = stage_field(program, bits);
     const unsigned int x_den = stage_field(program, bits);
     const unsigned int y_num = stage_field(program, bits);
@@ -184,7 +184,7 @@ static void stage_ratio_program(unsigned int bits, StageProgram *program)
 // the sign of x_num y_den m_den - y_num x_den m_num, +1 where x clears m times y
 static void stage_compare_program(unsigned int bits, unsigned int margin_bits, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int x_num = stage_field(program, bits);
     const unsigned int x_den = stage_field(program, bits);
     const unsigned int y_num = stage_field(program, bits);
@@ -201,7 +201,7 @@ static void stage_compare_program(unsigned int bits, unsigned int margin_bits, S
 // the runner-up's distance less the nearest's, (n2 d1 - n1 d2) / (d1 d2)
 static void stage_gap_program(unsigned int bits, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int n1 = stage_field(program, bits);
     const unsigned int d1 = stage_field(program, bits);
     const unsigned int n2 = stage_field(program, bits);
@@ -215,7 +215,7 @@ static void stage_gap_program(unsigned int bits, StageProgram *program)
 // the mean of a / b and c / d, (a d + c b) / (2 b d)
 static void stage_mean_program(unsigned int bits, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int a = stage_field(program, bits);
     const unsigned int b = stage_field(program, bits);
     const unsigned int c = stage_field(program, bits);
@@ -230,7 +230,7 @@ static void stage_mean_program(unsigned int bits, StageProgram *program)
 // the whole part of num / den and the first STAGE_DIGITS digits after the point
 static void stage_digits_program(unsigned int bits, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int num = stage_field(program, bits);
     const unsigned int den = stage_field(program, bits);
     stage_output(program, stage_step(program, ENGINE_RECORD_QUOTIENT, num, den));
@@ -325,7 +325,8 @@ static int stage_sweep(SimResults *job, Stage *stage, const std::vector<unsigned
     const CycleRecordHostRequest host = {&stage->layout, {records.data(), NULL, NULL}, {lanes, 0ull, 0ull}, NULL,
                                          lanes, host_out.data(), error};
     const int same = ok && (cycle_record_run_host(&host) == (long)lanes) &&
-                     (memcmp(host_out.data(), out->data(), host_out.size() * sizeof(unsigned int)) == 0);
+                     (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out.data(), .other = out->data(),
+                                 .bytes = host_out.size() * sizeof(unsigned int)) == 0);
     sim_check(job, same, ("the host's " + name + " records equal the device's word for word").c_str());
     cudaFree(device_in);
     return ok && same;
@@ -456,7 +457,7 @@ static int stage_compare(SimResults *job, Stage *stage, const char *name, const 
     {
         return 1;
     }
-    memset(stage, 0, sizeof(*stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = stage, .bytes = sizeof(*stage), .val = 0);
     stage->name = name;
     const StageWhole m_num = stage_whole(margin[0]);
     const StageWhole m_den = stage_whole(margin[1]);
@@ -561,7 +562,7 @@ static std::string stage_displayed(const std::string &text, size_t width, int pa
 // ANDed with a second 32-bit field first
 static void stage_count_program(int masked, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int given = stage_field(program, 32u);
     const unsigned int word = masked ? stage_step(program, ENGINE_RECORD_AND, given, stage_field(program, 32u)) : given;
     const unsigned int halved = stage_step(program, ENGINE_RECORD_QUOTIENT, word, stage_constant(program, 2ull));
@@ -583,7 +584,7 @@ static void stage_count_program(int masked, StageProgram *program)
 // [m_k >= m] as the quotient of COMPARE(m_k, m) + 2 by 2, and m_k beside it
 static void stage_above_program(unsigned int bits, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int shuffled = stage_field(program, bits);
     const unsigned int observed = stage_field(program, bits);
     const unsigned int sign = stage_step(program, ENGINE_RECORD_COMPARE, shuffled, observed);
@@ -607,7 +608,8 @@ static int stage_sums(SimResults *job, const char *what, const unsigned int *dev
     const CycleRecordSumRequest on_host = {host_out.data(), lanes, group, out_limbs, step->out_offset, step->out_bits,
                                            sum_limbs, host_sums.data(), error};
     int ok = (cycle_record_sum(&on_device) != CYCLE_ERROR) && (cycle_record_sum_host(&on_host) != CYCLE_ERROR);
-    ok = ok && (memcmp(device_sums.data(), host_sums.data(), device_sums.size() * sizeof(unsigned int)) == 0);
+    ok = ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device_sums.data(), .other = host_sums.data(),
+                           .bytes = device_sums.size() * sizeof(unsigned int)) == 0);
     sim_check(job, ok, (std::string("the device's sums of ") + what + " equal the host's").c_str());
     sums->clear();
     for (unsigned long long run = 0ull; ok && (run < runs); run += 1ull)

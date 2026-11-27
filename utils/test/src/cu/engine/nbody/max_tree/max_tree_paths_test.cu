@@ -13,7 +13,7 @@
 
 #include <cuda_runtime.h>
 
-#include <cstring>
+#include "memoria_operor/memoria_operor.h"
 
 // the extent of each residual, its voxels, and the most bodies, probes and steps of a case
 #define PATHS_TEST_DEPTH 16u
@@ -107,7 +107,7 @@ static unsigned long long paths_test_signum(const void *bytes, unsigned long lon
 {
     unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     // Explicit cast reads the answers as the bytes that the signum reads
     const ObsignatioSignumRequest request = {(const unsigned char *)bytes, count, NULL, OBSIGNATIO_MODE_HASH, signum,
                                              OBSIGNATIO_SIGNUM_BYTES,      &error};
@@ -133,9 +133,9 @@ static long paths_test_objects(const unsigned int *residual, EngineBody *bodies)
         (cudaMemcpy(device, residual, bytes, cudaMemcpyHostToDevice) == cudaSuccess))
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         MaxTreeObjectsRequest request;
-        memset(&request, 0, sizeof(request));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
         // Explicit cast reads the memory of the device as the residual that crossed into it
         request.device_residual = (const unsigned int *)device;
         request.depth = PATHS_TEST_DEPTH;
@@ -171,9 +171,9 @@ struct PathsTestAnswers
 static long paths_test_slide(const unsigned int *probes, PathsTestAnswers *answers)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     MaxTreeSlideRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.probe_voxels = probes;
     request.probe_count = PATHS_TEST_PROBES;
     request.steps = answers->slide_steps;
@@ -191,7 +191,7 @@ static long paths_test_slide(const unsigned int *probes, PathsTestAnswers *answe
 static long paths_test_pack(long bodies, PathsTestAnswers *answers)
 {
     MaxTreeLayout layout;
-    memset(&layout, 0, sizeof(layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &layout, .bytes = sizeof(layout), .val = 0);
     max_tree_layout(PATHS_TEST_DEPTH, PATHS_TEST_HEIGHT, PATHS_TEST_WIDTH, 2u, 1u, &layout);
     const size_t bytes = (size_t)bodies * layout.limbs * sizeof(unsigned int);
     if ((layout.limbs > PATHS_TEST_LIMBS_MAX) || (bytes == 0u))
@@ -203,9 +203,9 @@ static long paths_test_pack(long bodies, PathsTestAnswers *answers)
     if ((cudaMalloc(&device, bytes) == cudaSuccess) && (cudaMemset(device, 0, bytes) == cudaSuccess))
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         MaxTreePackRequest request;
-        memset(&request, 0, sizeof(request));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
         request.layout = &layout;
         // Explicit cast reads the memory of the device as the words of the pack
         request.device_magnitudes = (unsigned int *)device;
@@ -226,9 +226,9 @@ static long paths_test_pack(long bodies, PathsTestAnswers *answers)
 static long paths_test_overlap(const unsigned int *earlier, const unsigned int *later, PathsTestAnswers *answers)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     MaxTreeOverlapRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.probe_voxels[0] = earlier;
     request.probe_voxels[1] = later;
     request.probe_counts[0] = PATHS_TEST_PROBES;
@@ -250,11 +250,11 @@ static long paths_test_overlap(const unsigned int *earlier, const unsigned int *
 static long paths_test_bind(const unsigned int *residual, const unsigned int *levels, PathsTestAnswers *answers)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     unsigned long long bound_microseconds = 0ULL;
     unsigned long long proved_microseconds = 0ULL;
     MaxTreeBindRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.residual = residual;
     request.depth = PATHS_TEST_DEPTH;
     request.height = PATHS_TEST_HEIGHT;
@@ -294,7 +294,8 @@ static int paths_test_frame(const unsigned int *residual)
                             cudaMemcpyDeviceToHost) == cudaSuccess) &&
                 (cudaMemcpy(values, resident->frame_values[place], (size_t)value_words * sizeof(unsigned int),
                             cudaMemcpyDeviceToHost) == cudaSuccess) &&
-                (memcmp(codes, frame_codes, PATHS_TEST_VOXELS * sizeof(unsigned int)) == 0);
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = codes, .other = frame_codes,
+                            .bytes = PATHS_TEST_VOXELS * sizeof(unsigned int)) == 0);
     for (unsigned int voxel = 0u; (agree != 0) && (voxel < PATHS_TEST_VOXELS); voxel++)
     {
         const unsigned int *const lane = &residual[voxel * ENGINE_RESIDUAL_LIMBS];
@@ -302,8 +303,9 @@ static int paths_test_frame(const unsigned int *residual)
         {
             continue;
         }
-        agree = (codes[voxel] <= top) && (memcmp(&values[(size_t)codes[voxel] * ENGINE_RESIDUAL_LIMBS], lane,
-                                                 ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int)) == 0);
+        agree = (codes[voxel] <= top) &&
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &values[(size_t)codes[voxel] * ENGINE_RESIDUAL_LIMBS],
+                            .other = lane, .bytes = ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int)) == 0);
     }
     platform_cell_released(values, platform_place_g_program_owner);
     platform_cell_released(frame_codes, platform_place_g_program_owner);
@@ -342,7 +344,7 @@ int program_main(int argc, char **argv)
     {
         return 1;
     }
-    memset(answers, 0, sizeof(*answers));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = answers, .bytes = sizeof(*answers), .val = 0);
     paths_test_residual(14u, first);
     paths_test_residual(14u, second);
     unsigned int earlier[PATHS_TEST_PROBES];
@@ -390,7 +392,7 @@ int program_main(int argc, char **argv)
         proved ? paths_test_signum(answers->proof_bound, sizeof(answers->proof_bound) + sizeof(answers->proof_rounds))
                : 0ULL;
     EngineError order_error;
-    memset(&order_error, 0, sizeof(order_error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &order_error, .bytes = sizeof(order_error), .val = 0);
     failed += paths_test_check(
         max_tree_order_agrees(first, PATHS_TEST_DEPTH, PATHS_TEST_HEIGHT, PATHS_TEST_WIDTH, &order_error) != 0,
         "the order of the device agrees with the order of the host");

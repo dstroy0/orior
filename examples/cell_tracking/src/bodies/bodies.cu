@@ -8,7 +8,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 int assign_bodies(TreeFrame *frames, unsigned int frame_count, unsigned int by_band)
 {

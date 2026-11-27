@@ -35,16 +35,15 @@
 #include "../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../src/cu/engine/analysis/keymath/keymath.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
 
 #include <cuda_runtime.h>
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <string>
 #include <vector>
@@ -365,7 +364,8 @@ static int spherical_sweep(SimResults *job, SphericalStage *stage, unsigned long
     const CycleRecordHostRequest host = {&stage->layout, {stage->shared.data(), NULL, NULL}, {1ull, 0ull, 0ull}, NULL,
                                          checked,        host_out.data(),                     error};
     stage->same = ok && (cycle_record_run_host(&host) == (long)checked) &&
-                  (memcmp(host_out.data(), stage->records.data(), host_out.size() * sizeof(unsigned int)) == 0);
+                  (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out.data(), .other = stage->records.data(),
+                              .bytes = host_out.size() * sizeof(unsigned int)) == 0);
     sim_check(job, stage->same, "the host's records equal the device's word for word");
     cudaFree(device_shared);
     cudaFree(device_out);
@@ -413,11 +413,11 @@ int program_main(int count, char **arguments)
     }
 
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     SphericalStage stage;
     stage.program.shared_bits = 0u;
-    memset(&stage.key, 0, sizeof(stage.key));
-    memset(&stage.layout, 0, sizeof(stage.layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage.key, .bytes = sizeof(stage.key), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage.layout, .bytes = sizeof(stage.layout), .val = 0);
     stage.record = NULL;
     stage.same = 0;
     std::vector<unsigned int> bits;

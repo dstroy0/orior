@@ -8,7 +8,7 @@
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
 #include "../../../../../../../src/platform/platform.h"
 
-#include <cstring>
+#include "memoria_operor/memoria_operor.h"
 
 // the questions of the test, the most sources of a question, the most options of a source, and the targets
 #define MARGINAL_TEST_QUESTIONS 48u
@@ -62,7 +62,7 @@ typedef struct
 // on a target of MARGINAL_TEST_TARGETS, a weight of 1 to 1000 each, and an absent weight of 1 to 100
 static void marginal_test_drawn_case(MarginalTestCase *one)
 {
-    memset(one, 0, sizeof(*one));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = one, .bytes = sizeof(*one), .val = 0);
     for (unsigned int question = 0u; question < MARGINAL_TEST_QUESTIONS; question++)
     {
         one->questions[question].source_first = one->source_count;
@@ -87,7 +87,7 @@ static void marginal_test_drawn_case(MarginalTestCase *one)
 // the request of the case, its sums written to the sums of `path`
 static void marginal_test_request(MarginalTestCase *one, unsigned int path, MarginalRequest *request)
 {
-    memset(request, 0, sizeof(*request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request, .bytes = sizeof(*request), .val = 0);
     request->questions = one->questions;
     request->question_count = MARGINAL_TEST_QUESTIONS;
     request->sources = one->sources;
@@ -103,7 +103,7 @@ static unsigned long long marginal_test_signum(const void *bytes, unsigned long 
 {
     unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     // Explicit cast reads the sums as the bytes that the signum reads
     const ObsignatioSignumRequest request = {(const unsigned char *)bytes, count, NULL, OBSIGNATIO_MODE_HASH, signum,
                                              OBSIGNATIO_SIGNUM_BYTES,      &error};
@@ -142,8 +142,10 @@ int program_main(int argc, char **argv)
     const size_t option_bytes = (size_t)one->option_count * MARGINAL_LIMBS * sizeof(unsigned int);
     unsigned int failed = marginal_test_check((device == (long)MARGINAL_TEST_QUESTIONS) && (host == device),
                                               "marginal_run and marginal_run_host answer each question");
-    failed += marginal_test_check((memcmp(one->question_sums[0], one->question_sums[1], question_bytes) == 0) &&
-                                      (memcmp(one->option_sums[0], one->option_sums[1], option_bytes) == 0),
+    failed += marginal_test_check((EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->question_sums[0],
+                                              .other = one->question_sums[1], .bytes = question_bytes) == 0) &&
+                                      (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->option_sums[0],
+                                                  .other = one->option_sums[1], .bytes = option_bytes) == 0),
                                   "the sums of the device are the sums of the host");
     unsigned int marked = 0u;
     for (size_t word = 0u; word < (question_bytes / sizeof(unsigned int)); word++)

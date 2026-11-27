@@ -11,8 +11,8 @@
 #include "torus_fields.h"
 #include "../../../src/platform/platform.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
-#include <string.h>
 
 /* ---------------------------------------------------------------- exact integers */
 
@@ -314,7 +314,8 @@ static void poly_copy(const PiPoly *source, PiPoly *copy)
     poly_reserve(copy, source->count);
     if (source->count > 0u)
     {
-        memcpy(copy->terms, source->terms, source->count * sizeof(PiTerm));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy->terms, .src = source->terms,
+                   .bytes = source->count * sizeof(PiTerm));
     }
     copy->count = source->count;
 }
@@ -791,7 +792,8 @@ static void scalar_push(TorusScalar *scalar, const int32_t mode[TORUS_AXES], PiP
         return;
     }
     scalar_reserve(scalar, scalar->count + 1u);
-    memcpy(scalar->entries[scalar->count].mode, mode, sizeof(int32_t) * TORUS_AXES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = scalar->entries[scalar->count].mode, .src = mode,
+               .bytes = sizeof(int32_t) * TORUS_AXES);
     scalar->entries[scalar->count].poly = *poly;
     poly_empty(poly);
     scalar->count += 1u;
@@ -1417,7 +1419,8 @@ void modes_of(const TorusVector *vector, ModeList *list)
     {
         for (size_t at = 0u; at < vector->axis[axis].count; at += 1u)
         {
-            memcpy(list->modes[made], vector->axis[axis].entries[at].mode, sizeof(int32_t) * TORUS_AXES);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = list->modes[made], .src = vector->axis[axis].entries[at].mode,
+                       .bytes = sizeof(int32_t) * TORUS_AXES);
             made += 1u;
         }
     }
@@ -1430,7 +1433,8 @@ void modes_of(const TorusVector *vector, ModeList *list)
     {
         if ((kept == 0u) || (mode_compare(list->modes[kept - 1u], list->modes[at]) != 0))
         {
-            memmove(list->modes[kept], list->modes[at], sizeof(int32_t) * TORUS_AXES);
+            EMBED_CALL(memor.move_down, MemoriaCfg, .dst = list->modes[kept], .src = list->modes[at],
+                       .bytes = sizeof(int32_t) * TORUS_AXES);
             kept += 1u;
         }
     }

@@ -8,8 +8,10 @@
  * RLE_DICTIONARY values; RLE and bit-packed hybrid levels. Data pages V1 and V2; uncompressed,
  * Snappy and Zstd bodies. A refusal is a return of ENGINE_BYTES_ERROR, never a partial column.
  */
-#include "casmi_config.h"
 #include "../../../../../src/platform/platform.h"
+#include "casmi_config.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "parquet.h"
 #include "snappy.h"
@@ -548,7 +550,7 @@ CASMI_ALWAYS_INLINE int parquet_schema_element_read(ParquetCursor *cursor, Casmi
     {
         path[parent->path_bytes] = '.';
     }
-    memcpy(path + parent->path_bytes + separator, name, name_bytes);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = path + parent->path_bytes + separator, .src = name, .bytes = name_bytes);
     path[path_bytes] = '\0';
     if (children == 0ull)
     {
@@ -557,7 +559,7 @@ CASMI_ALWAYS_INLINE int parquet_schema_element_read(ParquetCursor *cursor, Casmi
             return 0;
         }
         CasmiParquetLeaf *const leaf = &footer->leaf[footer->leaf_count];
-        memcpy(leaf->path, path, path_bytes + 1ull);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = leaf->path, .src = path, .bytes = path_bytes + 1ull);
         // A physical type is 0 through 7 and a fixed width is a few bytes. The writer stored both as
         // i32; neither narrowing loses a value the format allows. An unknown type is refused when
         // its column is bounded.
@@ -628,7 +630,8 @@ CASMI_ALWAYS_INLINE int parquet_path_match(ParquetCursor *cursor, const char *le
             matches = matches && (leaf_path[at] == '.');
             at += 1ull;
         }
-        matches = matches && ((at + length) < CASMI_PARQUET_PATH_BYTES) && (memcmp(leaf_path + at, name, length) == 0);
+        matches = matches && ((at + length) < CASMI_PARQUET_PATH_BYTES) &&
+                  (EMBED_CALL(memor.cmp, MemoriaCfg, .src = leaf_path + at, .other = name, .bytes = length) == 0);
         at += length;
     }
     return matches && !cursor->broken && (at < CASMI_PARQUET_PATH_BYTES) && (leaf_path[at] == '\0');
@@ -830,7 +833,8 @@ CASMI_ALWAYS_INLINE long long parquet_footer_decode(const CasmiParquetFooterRead
     const ParquetFileRange trailer_range = {args->path, file_size - CASMI_PARQUET_TRAILER_BYTES,
                                             CASMI_PARQUET_TRAILER_BYTES, trailer};
     if (!parquet_range_read(&trailer_range) ||
-        (memcmp(trailer + CASMI_PARQUET_MAGIC_BYTES, CASMI_PARQUET_MAGIC, CASMI_PARQUET_MAGIC_BYTES) != 0))
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = trailer + CASMI_PARQUET_MAGIC_BYTES, .other = CASMI_PARQUET_MAGIC,
+                    .bytes = CASMI_PARQUET_MAGIC_BYTES) != 0))
     {
         return ENGINE_BYTES_ERROR;
     }
@@ -853,12 +857,12 @@ CASMI_ALWAYS_INLINE long long parquet_footer_decode(const CasmiParquetFooterRead
     int good = (decoded != NULL) && parquet_range_read(&footer_range);
     if (good)
     {
-        memset(decoded, 0, sizeof(*decoded));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = decoded, .bytes = sizeof(*decoded), .val = 0);
         good = parquet_file_metadata_read(&cursor, decoded) && !cursor.broken;
     }
     if (good)
     {
-        memcpy(args->footer, decoded, sizeof(*decoded));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = args->footer, .src = decoded, .bytes = sizeof(*decoded));
     }
     platform_cell_released(decoded, platform_place_g_program_owner);
     platform_cell_released(footer_text, platform_place_g_program_owner);
@@ -871,7 +875,8 @@ CASMI_ALWAYS_INLINE long long parquet_leaf_search(const CasmiParquetLeafFind *ar
 {
     for (unsigned int leaf = 0u; leaf < args->footer->leaf_count; leaf += 1u)
     {
-        if (strcmp(args->footer->leaf[leaf].path, args->path_in_schema) == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = args->footer->leaf[leaf].path,
+                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = args->path_in_schema, .ci = EMBED_FALSE))
         {
             // leaf is below CASMI_PARQUET_LEAVES_MAX; it fits long long.
             return (long long)leaf;
@@ -1010,7 +1015,7 @@ CASMI_ALWAYS_INLINE unsigned int parquet_level_width_measure(unsigned int max)
 CASMI_ALWAYS_INLINE int parquet_page_header_read(ParquetCursor *cursor, ParquetPageHeader *header)
 {
     long long field_id = 0ll;
-    memset(header, 0, sizeof(*header));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = header, .bytes = sizeof(*header), .val = 0);
     header->values_compressed = 1u;
     for (unsigned int type = parquet_field_read(cursor, &field_id); type != CASMI_THRIFT_STOP;
          type = parquet_field_read(cursor, &field_id))
@@ -1102,7 +1107,7 @@ CASMI_ALWAYS_INLINE int parquet_body_inflate(const EngineBytesRequest *request, 
         {
             return 0;
         }
-        memcpy(request->out, request->in, request->in_bytes);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->out, .src = request->in, .bytes = request->in_bytes);
         return 1;
     }
     long long written = ENGINE_BYTES_ERROR;
@@ -1175,7 +1180,7 @@ CASMI_ALWAYS_INLINE int parquet_levels_v1_decode(ParquetCursor *page, unsigned i
 {
     if (level_max == 0u)
     {
-        memset(out, 0, level_count * sizeof(*out));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = out, .bytes = level_count * sizeof(*out), .val = 0);
         return 1;
     }
     if ((page->byte_count - page->position) < 4ull)
@@ -1236,8 +1241,8 @@ CASMI_ALWAYS_INLINE int parquet_values_decode(ParquetColumnWalk *walk, unsigned 
             }
             else
             {
-                memcpy(column->value_bytes + (at * column->fixed_bytes),
-                       walk->dictionary_bytes + (entry * column->fixed_bytes), column->fixed_bytes);
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = column->value_bytes + (at * column->fixed_bytes),
+                           .src = walk->dictionary_bytes + (entry * column->fixed_bytes), .bytes = column->fixed_bytes);
             }
         }
         walk->values_done += present;
@@ -1254,7 +1259,8 @@ CASMI_ALWAYS_INLINE int parquet_values_decode(ParquetColumnWalk *walk, unsigned 
         {
             return 0;
         }
-        memcpy(column->value_bytes + (walk->values_done * column->fixed_bytes), values->bytes, needed);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = column->value_bytes + (walk->values_done * column->fixed_bytes),
+                   .src = values->bytes, .bytes = needed);
         walk->values_done += present;
         return 1;
     }
@@ -1272,7 +1278,8 @@ CASMI_ALWAYS_INLINE int parquet_values_decode(ParquetColumnWalk *walk, unsigned 
         {
             return 0;
         }
-        memcpy(column->value_bytes + walk->value_bytes_used, plain.bytes + plain.position, length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = column->value_bytes + walk->value_bytes_used,
+                   .src = plain.bytes + plain.position, .bytes = length);
         const unsigned long long at = walk->values_done + value;
         column->value_offset[at] = walk->value_bytes_used;
         column->value_length[at] = length;
@@ -1366,7 +1373,8 @@ CASMI_ALWAYS_INLINE int parquet_data_page_decode(ParquetColumnWalk *walk, const 
                                               header->level_count, walk->definition_level};
         if (walk->leaf->repetition_max == 0u)
         {
-            memset(walk->repetition_level, 0, header->level_count * sizeof(*walk->repetition_level));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = walk->repetition_level,
+                       .bytes = header->level_count * sizeof(*walk->repetition_level), .val = 0);
         }
         else if (!parquet_hybrid_decode(&repetition))
         {
@@ -1374,7 +1382,8 @@ CASMI_ALWAYS_INLINE int parquet_data_page_decode(ParquetColumnWalk *walk, const 
         }
         if (walk->leaf->definition_max == 0u)
         {
-            memset(walk->definition_level, 0, header->level_count * sizeof(*walk->definition_level));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = walk->definition_level,
+                       .bytes = header->level_count * sizeof(*walk->definition_level), .val = 0);
         }
         else if (!parquet_hybrid_decode(&definition))
         {

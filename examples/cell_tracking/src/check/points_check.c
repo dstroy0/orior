@@ -18,11 +18,12 @@
 //   .points    six 32-bit words (frames, depth, height, width, limbs, bits), the readings (64 bits), C (65536 64-bit
 //              words), then a frame after another: its count, each point's voxel, each point's levels (limbs words,
 //              the lowest first)
-#include <stdint.h>
 #include "../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define POINTS_CHECK_READINGS 65536u
 
@@ -130,7 +131,7 @@ static int points_check_line(FILE *file, char *line, size_t capacity)
     {
         return 0;
     }
-    const size_t length = strlen(line);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     if ((length == 0u) || (line[length - 1u] != '\n'))
     {
         return 0;
@@ -149,7 +150,7 @@ static void points_check_set_free(PointsCheckSet *set)
     platform_cell_released(set->totals, platform_place_g_program_owner);
     platform_cell_released(set->counts, platform_place_g_program_owner);
     platform_cell_released(set->contrast, platform_place_g_program_owner);
-    memset(set, 0, sizeof(*set));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = set, .bytes = sizeof(*set), .val = 0);
 }
 
 // scan.set's readings, bits and names
@@ -174,11 +175,17 @@ static int points_check_set_read(const char *root, PointsCheckSet *set)
     for (unsigned int at = 0u; ok && (at < set->count); at += 1u)
     {
         ok = points_check_line(file, line, sizeof(line)) && (line[0] != '\0');
-        set->names[at] = ok ? (char *)platform_cell_taken(strlen(line) + 1u, platform_place_g_program_owner, 0) : NULL;
+        set->names[at] =
+            ok ? (char *)platform_cell_taken(
+                     EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u,
+                     platform_place_g_program_owner, 0)
+               : NULL;
         ok = ok && (set->names[at] != NULL);
         if (ok)
         {
-            memcpy(set->names[at], line, strlen(line) + 1u);
+            EMBED_CALL(
+                memor.cpy, MemoriaCfg, .dst = set->names[at], .src = line,
+                .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
         }
     }
     ok = ok && points_check_ended(file);
@@ -363,11 +370,15 @@ static int points_check_sample(const char *root, const char *sample, const Point
                                unsigned long long *points_seen)
 {
     unsigned long long mine[POINTS_CHECK_FAULTS];
-    memset(mine, 0, sizeof(mine));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = mine, .bytes = sizeof(mine), .val = 0);
     unsigned int listed = set->count;
     for (unsigned int at = 0u; at < set->count; at += 1u)
     {
-        listed = ((listed == set->count) && (strcmp(set->names[at], sample) == 0)) ? at : listed;
+        listed = ((listed == set->count) &&
+                  (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = set->names[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = sample, .ci = EMBED_FALSE)))
+                     ? at
+                     : listed;
     }
     mine[POINTS_CHECK_NOT_LISTED] += (listed == set->count) ? 1ull : 0ull;
     char path[POINTS_CHECK_PATH];
@@ -411,12 +422,14 @@ static int points_check_sample(const char *root, const char *sample, const Point
     if (first->recorded == 0)
     {
         first->recorded = 1;
-        memcpy(first->head, head, sizeof(head));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = first->head, .src = head, .bytes = sizeof(head));
         first->readings = readings;
-        memcpy(first->contrast, contrast, POINTS_CHECK_READINGS * sizeof(unsigned long long));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = first->contrast, .src = contrast,
+                   .bytes = POINTS_CHECK_READINGS * sizeof(unsigned long long));
     }
     const int agrees = (head[4] == first->head[4]) && (head[5] == first->head[5]) && (readings == first->readings) &&
-                       (memcmp(contrast, first->contrast, POINTS_CHECK_READINGS * sizeof(unsigned long long)) == 0);
+                       (EMBED_CALL(memor.cmp, MemoriaCfg, .src = contrast, .other = first->contrast,
+                                   .bytes = POINTS_CHECK_READINGS * sizeof(unsigned long long)) == 0);
     mine[POINTS_CHECK_HEAD_DIFFERS] += agrees ? 0ull : 1ull;
     platform_cell_released(contrast, platform_place_g_program_owner);
     const unsigned long long plane = (unsigned long long)head[2] * head[3];
@@ -562,9 +575,9 @@ int program_main(int count, char **arguments)
     }
     const char *const root = arguments[1];
     unsigned long long faults[POINTS_CHECK_FAULTS];
-    memset(faults, 0, sizeof(faults));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = faults, .bytes = sizeof(faults), .val = 0);
     PointsCheckSet set;
-    memset(&set, 0, sizeof(set));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &set, .bytes = sizeof(set), .val = 0);
     if (points_check_set_read(root, &set) == 0)
     {
         faults[POINTS_CHECK_SET_UNREAD] += 1ull;
@@ -581,11 +594,11 @@ int program_main(int count, char **arguments)
     }
     (void)points_check_rebuild(root, &set, faults);
     PointsCheckFirst first;
-    memset(&first, 0, sizeof(first));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &first, .bytes = sizeof(first), .val = 0);
     first.contrast = (unsigned long long *)platform_cell_taken(POINTS_CHECK_READINGS * sizeof(unsigned long long),
                                                                platform_place_g_program_owner, 0);
     PointsCheckWorkspace workspace;
-    memset(&workspace, 0, sizeof(workspace));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &workspace, .bytes = sizeof(workspace), .val = 0);
     if (first.contrast == NULL)
     {
         {

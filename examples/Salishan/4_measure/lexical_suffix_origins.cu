@@ -45,13 +45,13 @@
 //   5. the records are written out.
 
 #include "../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
 
 #include "record_stages.h"
 
@@ -59,7 +59,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <algorithm>
 #include <set>
@@ -192,7 +191,7 @@ static int suffix_ends(const std::vector<std::string> &noun, const std::vector<s
 // a count passed through, for its sum over a run of languages
 static void suffix_pass_program(unsigned int bits, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int count = stage_field(program, bits);
     stage_output(program, stage_step(program, ENGINE_RECORD_SUM, count, stage_constant(program, 0ull)));
 }
@@ -200,7 +199,7 @@ static void suffix_pass_program(unsigned int bits, StageProgram *program)
 // the larger of two counts, (x + y + |x - y|) / 2
 static void suffix_larger_program(unsigned int bits, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int x = stage_field(program, bits);
     const unsigned int y = stage_field(program, bits);
     const unsigned int both = stage_step(program, ENGINE_RECORD_SUM, x, y);
@@ -213,7 +212,7 @@ static void suffix_larger_program(unsigned int bits, StageProgram *program)
 // p as (a + 1) / (P + 1)
 static void suffix_value_program(unsigned int bits, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int above = stage_field(program, bits);
     const unsigned int shuffles = stage_field(program, bits);
     const unsigned int one = stage_constant(program, 1ull);
@@ -225,7 +224,7 @@ static void suffix_value_program(unsigned int bits, StageProgram *program)
 static int suffix_digits(SimResults *job, Stage *stage, const std::vector<StageRational> &values,
                          std::vector<std::string> *displayed, EngineError *error)
 {
-    memset(stage, 0, sizeof(*stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = stage, .bytes = sizeof(*stage), .val = 0);
     stage->name = "digits";
     stage_digits_program(stage_widest(values) + 1u, &stage->program);
     StageRows rows;
@@ -256,7 +255,7 @@ int program_main(int count, char **arguments)
         return 2;
     }
     SuffixSettings settings;
-    memset(&settings, 0, sizeof(settings));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &settings, .bytes = sizeof(settings), .val = 0);
     std::vector<SuffixLanguage> read;
     if (!suffix_read(arguments[1], &settings, &read))
     {
@@ -310,9 +309,9 @@ int program_main(int count, char **arguments)
     const unsigned long long runs = shuffles + 1ull;
     const unsigned long long language_count = languages.size();
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     Stage count_stage;
-    memset(&count_stage, 0, sizeof(count_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &count_stage, .bytes = sizeof(count_stage), .val = 0);
     count_stage.name = "count";
     stage_count_program(1, &count_stage.program);
     const unsigned long long count_lanes = SUFFIX_RELATIONS * runs * language_count * words;
@@ -382,7 +381,7 @@ int program_main(int count, char **arguments)
     const unsigned int count_bits = stage_bits(stage_whole(all_pairs));
     const unsigned int tested[3] = {SUFFIX_KINKADE, SUFFIX_TAIL, SUFFIX_PAIRS};
     Stage pass_stage;
-    memset(&pass_stage, 0, sizeof(pass_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &pass_stage, .bytes = sizeof(pass_stage), .val = 0);
     pass_stage.name = "pass";
     suffix_pass_program(count_bits, &pass_stage.program);
     ok = ok && stage_position(&job, &pass_stage, &error);
@@ -407,7 +406,7 @@ int program_main(int count, char **arguments)
 
     // the above program: each language's shuffles and the pooled shuffles, against their observed counts
     Stage above_stage;
-    memset(&above_stage, 0, sizeof(above_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &above_stage, .bytes = sizeof(above_stage), .val = 0);
     above_stage.name = "above";
     stage_above_program(count_bits + 1u, &above_stage.program);
     ok = ok && stage_position(&job, &above_stage, &error);
@@ -467,7 +466,7 @@ int program_main(int count, char **arguments)
         }
         larger_stages.push_back(Stage());
         Stage *stage = &larger_stages.back();
-        memset(stage, 0, sizeof(*stage));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = stage, .bytes = sizeof(*stage), .val = 0);
         stage->name = "larger";
         suffix_larger_program(count_bits + 1u, &stage->program);
         std::vector<std::vector<StageWhole>> out;
@@ -494,7 +493,7 @@ int program_main(int count, char **arguments)
 
     // the value program: every p, per language for the tail relation and pooled for both
     Stage value_stage;
-    memset(&value_stage, 0, sizeof(value_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &value_stage, .bytes = sizeof(value_stage), .val = 0);
     value_stage.name = "value";
     suffix_value_program(stage_bits(stage_whole(shuffles)) + 1u, &value_stage.program);
     StageRows value_rows;
@@ -523,7 +522,7 @@ int program_main(int count, char **arguments)
         printed.push_back(stage_pair_of(values[language_count + which]));
     }
     Stage digits_stage;
-    memset(&digits_stage, 0, sizeof(digits_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &digits_stage, .bytes = sizeof(digits_stage), .val = 0);
     std::vector<std::string> displayed;
     ok = ok && suffix_digits(&job, &digits_stage, printed, &displayed, &error);
 

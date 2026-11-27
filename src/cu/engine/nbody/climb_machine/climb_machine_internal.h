@@ -12,7 +12,6 @@
 #include <cuda_runtime.h>
 
 #include <stdlib.h>
-#include <string.h>
 
 #define CLIMB_MACHINE_BLOCK 256u
 

@@ -9,7 +9,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define HDF5_REASON_CAPACITY 256u
 #define HDF5_PATH_CAPACITY ENGINE_PATH_CAPACITY

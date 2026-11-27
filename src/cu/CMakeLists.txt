@@ -318,6 +318,8 @@ target_compile_options(bench_exact PRIVATE ${SIFT_WARNINGS})
 add_library(bench_corpora STATIC ${ORIOR_ROOT}/utils/bench/bench_corpora.c)
 target_include_directories(bench_corpora PUBLIC ${ORIOR_ROOT}/utils/bench)
 target_compile_options(bench_corpora PRIVATE ${SIFT_WARNINGS})
+# the corpora fill their texts through MMgr's memor.set
+target_link_libraries(bench_corpora PUBLIC mmgr_memoria_operor_host)
 
 # Reads, which travel between machines, and which an asymptotic claim consists of.
 add_executable(bench_scaling_reads ${ORIOR_ROOT}/utils/bench/bench_scaling.c)

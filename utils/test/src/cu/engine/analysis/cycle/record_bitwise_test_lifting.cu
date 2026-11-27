@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_bitwise_test_lifting.cu: the stack, lifting and main
-#include "record_bitwise_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "record_bitwise_test_internal.h"
 
 // a stack of BITWISE_TEST_FLOORS floors over four 32-bit words (w0, w1, w2, w3). Each floor's round is
 // n = wrap32(((w2 and (w0 xor w1)) + w3) xor constant), and the words move down one: (w1, w2, w3, n). One program,
@@ -56,7 +57,7 @@ static void bitwise_stack(BitwiseResults *results)
         at += BITWISE_TEST_FLOOR_STEPS;
     }
     BitwiseLoaded loaded;
-    memset(&loaded, 0, sizeof(loaded));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &loaded, .bytes = sizeof(loaded), .val = 0);
     unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {BITWISE_TEST_STACK_WORDS, 0u, 0u};
     const KeymathRecordRequest encode_request = {steps, count,       field_bits,   BITWISE_TEST_STACK_WORDS,
                                                  1u,    outputs,     output_count, NULL,
@@ -156,7 +157,8 @@ static void bitwise_stack(BitwiseResults *results)
     bitwise_check(results, (host_ran != 0) && (device_ran != 0), "the stack runs on the host and the device");
     bitwise_check(results,
                   (host_ran != 0) && (device_ran != 0) &&
-                      (memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0),
+                      (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                                  .bytes = (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0),
                   "the stack's device records equal the host's word for word");
     bitwise_check(results, lanes_equal == lanes, "every lane's tapped floors equal the CPU's rounds");
     platform_cell_released(atoms, platform_place_g_program_owner);
@@ -284,7 +286,7 @@ static void bitwise_lifting(BitwiseResults *results)
         output_count += 1u;
     }
     BitwiseLoaded loaded;
-    memset(&loaded, 0, sizeof(loaded));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &loaded, .bytes = sizeof(loaded), .val = 0);
     unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {(16u * count) / 32u, 0u, 0u};
     const KeymathRecordRequest encode_request = {
         steps->steps, steps->count, field_bits, count, 1u, outputs, output_count, NULL, 0u, &loaded.key, &loaded.error};
@@ -387,7 +389,8 @@ static void bitwise_lifting(BitwiseResults *results)
     mmgr_line_put(&results->line, " rebuilt exactly\n");
     bitwise_check(results,
                   (host_ran != 0) && (device_ran != 0) &&
-                      (memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0),
+                      (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                                  .bytes = (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0),
                   "the lifting's device records equal the host's word for word");
     bitwise_check(results, coefficients_ok == lanes, "the record floor's coefficients equal tower_*.cu's 5/3 lifting");
     bitwise_check(results, rebuilt_ok == lanes, "the inverse floor returns every sample exactly");

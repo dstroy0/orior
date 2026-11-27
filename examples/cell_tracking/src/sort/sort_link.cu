@@ -9,9 +9,9 @@
 
 #include <cuda_runtime.h>
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #define SORT_SEEK _fseeki64
@@ -192,10 +192,10 @@ static int sort_reserve(unsigned int capacity)
         return 1;
     }
     device_pool_release(&resident->pool);
-    memset(resident, 0, sizeof(*resident));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
     // the pair errors as a refusal, and the pool's error is recorded here and dropped
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     DevicePoolTakeRequest takes[SORT_SLICES];
     const DevicePoolPlan plan = sort_plan(capacity, &error, takes);
     const DevicePoolReserveRequest reserve = {&plan, &resident->pool, &error};
@@ -208,7 +208,7 @@ static int sort_reserve(unsigned int capacity)
     if (ok == 0)
     {
         device_pool_release(&resident->pool);
-        memset(resident, 0, sizeof(*resident));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
         return 0;
     }
     resident->capacity = capacity;
@@ -226,7 +226,7 @@ extern "C" unsigned long long sort_reserve_bytes(unsigned int max)
 extern "C" void sort_release(void)
 {
     device_pool_release(&s_sort_resident.pool);
-    memset(&s_sort_resident, 0, sizeof(s_sort_resident));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_sort_resident, .bytes = sizeof(s_sort_resident), .val = 0);
 }
 
 extern "C" void sort_links_release(SortLinks *links)
@@ -237,7 +237,7 @@ extern "C" void sort_links_release(SortLinks *links)
     platform_cell_released(links->weight, platform_place_g_program_owner);
     platform_cell_released(links->component, platform_place_g_program_owner);
     platform_cell_released(links->flags, platform_place_g_program_owner);
-    memset(links, 0, sizeof(*links));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = links, .bytes = sizeof(*links), .val = 0);
 }
 
 static int sort_links_reserve(SortLinks *links, unsigned int pairs)
@@ -319,7 +319,7 @@ static void sort_scratch_free(SortScratch *scratch)
     platform_cell_released(scratch->chosen, platform_place_g_program_owner);
     platform_cell_released(scratch->group_start, platform_place_g_program_owner);
     platform_cell_released(scratch->group, platform_place_g_program_owner);
-    memset(scratch, 0, sizeof(*scratch));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = scratch, .bytes = sizeof(*scratch), .val = 0);
 }
 
 // the places' span on each axis over the sources, the predictions, the still places when there are any, and the
@@ -830,7 +830,7 @@ extern "C" long sort_link_pair(const SortPairRequest *request, SortLinks *links)
         return SORT_ERROR;
     }
     SortScratch scratch;
-    memset(&scratch, 0, sizeof(scratch));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &scratch, .bytes = sizeof(scratch), .val = 0);
     unsigned long long mark = engine_clock_microseconds();
     int ok = sort_gate(request, links, &scratch);
     links->gate_microseconds = engine_clock_microseconds() - mark;
@@ -854,7 +854,7 @@ static long sort_link_again(const SortPairRequest *request, SortLinks *links)
         return 0L;
     }
     SortScratch scratch;
-    memset(&scratch, 0, sizeof(scratch));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &scratch, .bytes = sizeof(scratch), .val = 0);
     const unsigned long long mark = engine_clock_microseconds();
     const int ok = sort_weigh(request, links, &scratch) && sort_match(request, links, &scratch) &&
                    sort_cross(request, links, &scratch);
@@ -1129,7 +1129,7 @@ static void sort_frame_free(SortFrame *frame)
     platform_cell_released(frame->predictions, platform_place_g_program_owner);
     platform_cell_released(frame->flags, platform_place_g_program_owner);
     platform_cell_released(frame->stills, platform_place_g_program_owner);
-    memset(frame, 0, sizeof(*frame));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = frame, .bytes = sizeof(*frame), .val = 0);
 }
 
 static int sort_words_reserve(SortWalk *walk, size_t words)
@@ -1206,7 +1206,7 @@ static int sort_frame_read(FILE *points, FILE *drift, const unsigned int head[SO
         }
     }
     read->count = ok ? count : 0u;
-    memcpy(read->lag, lag, sizeof(lag));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = read->lag, .src = lag, .bytes = sizeof(lag));
     return ok;
 }
 
@@ -1645,7 +1645,7 @@ static int sort_first(const char *sample, const unsigned int weights[ENGINE_AXES
 static int sort_sample(const SortRequest *request, const char *sample, const unsigned int weights[ENGINE_AXES],
                        SortWalk *walk, SortResults *results)
 {
-    memset(results, 0, sizeof(*results));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = results, .bytes = sizeof(*results), .val = 0);
     char points_path[ENGINE_PATH_CAPACITY];
     char drift_path[ENGINE_PATH_CAPACITY];
     char links_path[ENGINE_PATH_CAPACITY];
@@ -1761,9 +1761,9 @@ extern "C" long sort_link_set(const SortRequest *request)
         platform_line_out_ended();
     }
     SortWalk walk;
-    memset(&walk, 0, sizeof(walk));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &walk, .bytes = sizeof(walk), .val = 0);
     SortResults totals;
-    memset(&totals, 0, sizeof(totals));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &totals, .bytes = sizeof(totals), .val = 0);
     unsigned int failed = 0u;
     for (unsigned int at = 0u; at < request->count; at += 1u)
     {

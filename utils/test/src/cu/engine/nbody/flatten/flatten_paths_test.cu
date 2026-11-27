@@ -9,7 +9,8 @@
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
 #include "../../../../../../../src/platform/platform.h"
 
-#include <cstring>
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the samples, and the frames, depth, height and width of each
 #define FLATTEN_TEST_SAMPLES 2u
@@ -51,14 +52,14 @@ static unsigned int flatten_test_check(int held, const char *what)
 // `top`, then `name`, into `out`: 1, or 0 where the path passes the room
 static int flatten_test_path(char *out, const char *top, const char *name)
 {
-    const size_t top_length = strlen(top);
-    const size_t name_length = strlen(name);
+    const size_t top_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = top, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t name_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     if ((top_length + name_length + 1u) > FLATTEN_TEST_PATH)
     {
         return 0;
     }
-    memcpy(out, top, top_length);
-    memcpy(out + top_length, name, name_length + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = top, .bytes = top_length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out + top_length, .src = name, .bytes = name_length + 1u);
     return 1;
 }
 
@@ -108,7 +109,7 @@ static void flatten_test_sample(const unsigned long long *extent, unsigned short
 static int flatten_test_npy_written(const char *path, const unsigned long long *extent, const unsigned short *lanes)
 {
     char header[118];
-    memset(header, ' ', sizeof(header));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = header, .bytes = sizeof(header), .val = ' ');
     char dictionary[118];
     VerbaLinea line = mmgr_line_over(dictionary, sizeof(dictionary));
     mmgr_line_put(&line, "{'descr': '<u2', 'fortran_order': False, 'shape': (");
@@ -118,7 +119,8 @@ static int flatten_test_npy_written(const char *path, const unsigned long long *
         mmgr_line_put(&line, (axis < 3u) ? ", " : "), }");
     }
     (void)mmgr_line_finish(&line);
-    memcpy(header, dictionary, strlen(dictionary));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = header, .src = dictionary,
+               .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = dictionary, .cap = PLATFORM_TEXT_TO_TERMINATOR));
     header[sizeof(header) - 1u] = '\n';
     const unsigned char magic[10] = {0x93u, 'N', 'U', 'M', 'P', 'Y', 1u, 0u, (unsigned char)sizeof(header), 0u};
     const size_t values = (size_t)(extent[0] * extent[1] * extent[2] * extent[3]);
@@ -138,7 +140,7 @@ static unsigned long long flatten_test_signum(const void *bytes, unsigned long l
 {
     unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     // Explicit cast reads the magnitudes as the bytes that the signum reads
     const ObsignatioSignumRequest request = {(const unsigned char *)bytes, count, NULL, OBSIGNATIO_MODE_HASH, signum,
                                              OBSIGNATIO_SIGNUM_BYTES,      &error};
@@ -194,31 +196,33 @@ int program_main(int argc, char **argv)
     char name_b[] = "sample_b";
     char *const samples[FLATTEN_TEST_SAMPLES] = {name_a, name_b};
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     EngineSampleRecord records[FLATTEN_TEST_SAMPLES];
-    memset(records, 0, sizeof(records));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = records, .bytes = sizeof(records), .val = 0);
     EngineSetReport report;
-    memset(&report, 0, sizeof(report));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &report, .bytes = sizeof(report), .val = 0);
     report.samples = records;
     const EngineIngestRequest ingest = {source, set, samples, FLATTEN_TEST_SAMPLES, "tzyx", 0u, &error, &report};
     failed += flatten_test_check(engine_ingest_set(&ingest) == 0L, "the ingest seals the samples as a set");
 
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     FlattenSetRequest flatten;
-    memset(&flatten, 0, sizeof(flatten));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &flatten, .bytes = sizeof(flatten), .val = 0);
     flatten.set = set;
     flatten.names = samples;
     flatten.count = FLATTEN_TEST_SAMPLES;
     static const unsigned int SMOOTH[ENGINE_AXES] = {1u, 3u, 3u};
     static const unsigned int BACKGROUND[ENGINE_AXES] = {2u, 8u, 8u};
-    memcpy(flatten.smooth_orders, SMOOTH, sizeof(flatten.smooth_orders));
-    memcpy(flatten.background_orders, BACKGROUND, sizeof(flatten.background_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = flatten.smooth_orders, .src = SMOOTH,
+               .bytes = sizeof(flatten.smooth_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = flatten.background_orders, .src = BACKGROUND,
+               .bytes = sizeof(flatten.background_orders));
     flatten.error = &error;
     failed += flatten_test_check(flatten_set(&flatten) != 0, "the flatten packs the bodies of each frame");
 
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     FlattenResident resident;
-    memset(&resident, 0, sizeof(resident));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &resident, .bytes = sizeof(resident), .val = 0);
     const int read = flatten_read(set, &resident, &error) != 0;
     failed += flatten_test_check(read && (resident.bodies != 0ULL), "the read gives the bodies back");
     const unsigned long long word =

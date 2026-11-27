@@ -9,9 +9,9 @@
 #include "../../../../../../includes/exact_types/integers/exact_integer.h"
 #include "../../../../../../src/platform/platform.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 
 #define LADDER_KEY 0x4C4144ull
 #define LADDER_TRIALS 3u
@@ -192,7 +192,7 @@ static OriorExactStatus ladder_long(const OriorExactInteger *left, const OriorEx
     (void)s_long_scratch;
     const size_t left_used = ladder_used(left);
     const size_t right_used = ladder_used(right);
-    memset(result->limb, 0, sizeof(result->limb));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = result->limb, .bytes = sizeof(result->limb), .val = 0);
     for (size_t low = 0u; low < left_used; low++)
     {
         unsigned long long carry = 0ull;

@@ -7,10 +7,10 @@
 #include "scan.h"
 #include "sort.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #define FACES_SEEK _fseeki64
@@ -157,7 +157,7 @@ static void faces_frame_free(FacesFrame *frame)
     platform_cell_released(frame->in, platform_place_g_program_owner);
     platform_cell_released(frame->out, platform_place_g_program_owner);
     platform_cell_released(frame->ahead, platform_place_g_program_owner);
-    memset(frame, 0, sizeof(*frame));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = frame, .bytes = sizeof(*frame), .val = 0);
 }
 
 static int faces_words_reserve(FacesWalk *walk, size_t words)
@@ -243,7 +243,7 @@ static int faces_frame_read(const char *sample, FILE *points, FILE *drift, FILE 
                 sample, frame);
     }
     read->count = ok ? count : 0u;
-    memcpy(read->lag, lag, sizeof(lag));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = read->lag, .src = lag, .bytes = sizeof(lag));
     return ok;
 }
 
@@ -434,9 +434,12 @@ static int faces_frames(const char *sample, FILE *points, FILE *drift, FILE *hes
         fprintf(stderr, "  faces: %s: its .points, .drift, .shape or .links head did not read\n", sample);
         return 0;
     }
-    const int agree = (memcmp(head, drift_head, 4u * sizeof(unsigned int)) == 0) &&
-                      (memcmp(head, hessian_head, 4u * sizeof(unsigned int)) == 0) &&
-                      (memcmp(head, links_head, 4u * sizeof(unsigned int)) == 0);
+    const int agree =
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = drift_head, .bytes = 4u * sizeof(unsigned int)) ==
+         0) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = hessian_head, .bytes = 4u * sizeof(unsigned int)) ==
+         0) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = links_head, .bytes = 4u * sizeof(unsigned int)) == 0);
     // the residual's limbs are below 2^30 for any orders of 32 bits. One more does not wrap
     const int limbed = (hessian_head[4] == head[4]) && (hessian_head[5] == (head[4] + 1u));
     const unsigned long long plane = (unsigned long long)head[2] * head[3];
@@ -494,7 +497,7 @@ static int faces_frames(const char *sample, FILE *points, FILE *drift, FILE *hes
 
 static int faces_sample(const FacesRequest *request, const char *sample, FacesWalk *walk, FacesResults *results)
 {
-    memset(results, 0, sizeof(*results));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = results, .bytes = sizeof(*results), .val = 0);
     char points_path[ENGINE_PATH_CAPACITY];
     char drift_path[ENGINE_PATH_CAPACITY];
     char hessian_path[ENGINE_PATH_CAPACITY];
@@ -556,7 +559,7 @@ extern "C" long faces_find_set(const FacesRequest *request)
     }
     FILE *const report = request->report;
     FacesWalk walk;
-    memset(&walk, 0, sizeof(walk));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &walk, .bytes = sizeof(walk), .val = 0);
     walk.chunk = (unsigned int *)platform_cell_taken((size_t)FACES_CHUNK * sizeof(unsigned int),
                                                      platform_place_g_program_owner, 0);
     if (walk.chunk == NULL)
@@ -567,7 +570,7 @@ extern "C" long faces_find_set(const FacesRequest *request)
     fprintf(report, "  %-24s %6s %10s %s\n", "sample", "frames", "points",
             "starts (entering the view), ends (leaving it); first frame, last frame; carried back");
     FacesResults totals;
-    memset(&totals, 0, sizeof(totals));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &totals, .bytes = sizeof(totals), .val = 0);
     unsigned int failed = 0u;
     for (unsigned int at = 0u; at < request->count; at += 1u)
     {

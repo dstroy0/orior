@@ -16,12 +16,12 @@
  *          round. Thus its useful hash rate is exactly zero, however fast it iterates.
  */
 
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <immintrin.h>
 #include <string>
 #include <thread>
@@ -320,7 +320,7 @@ void print_measurement(const ArmMeasurement &measurement)
 double measure_threaded_rate(const uint8_t *header, unsigned thread_count)
 {
     Sha256ScanRequest shared;
-    std::memset(&shared, 0, sizeof(shared));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &shared, .bytes = sizeof(shared), .val = 0);
     sha256_header_midstate(&shared.midstate, header);
     shared.merkle_root_tail = schedule_word_from_header(header + 64u);
     shared.ntime = schedule_word_from_header(header + 68u);
@@ -430,7 +430,7 @@ int main()
     // --- SHA-256 arm ----------------------------------------------------------------------
     {
         Sha256ScanRequest request;
-        std::memset(&request, 0, sizeof(request));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
         request.midstate = midstate;
         request.merkle_root_tail = merkle_tail;
         request.ntime = ntime_word;

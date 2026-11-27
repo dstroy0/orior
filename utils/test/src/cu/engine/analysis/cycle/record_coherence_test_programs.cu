@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_coherence_test_programs.cu: draws, builds and programs
-#include "record_coherence_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "record_coherence_test_internal.h"
 
 static unsigned long long s_coherence_state = 0x2AD1C0DE5EED0001ull;
 
@@ -42,7 +43,7 @@ void coherence_output(CoherenceProgram *program, unsigned int step)
 
 int coherence_load(const CoherenceProgram *program, unsigned int fields, CoherenceLoaded *loaded)
 {
-    memset(loaded, 0, sizeof(*loaded));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = loaded, .bytes = sizeof(*loaded), .val = 0);
     unsigned int field_bits[COHERENCE_TEST_INPUTS];
     unsigned int field_offset[COHERENCE_TEST_INPUTS];
     for (unsigned int field = 0u; field < fields; field += 1u)
@@ -188,7 +189,7 @@ void coherence_draw(CoherenceOperation *operations, int ring_only)
 // step. Outputs, in order: for each width, the wrapped exact result, then the result wrapped at every step.
 static void coherence_build(const CoherenceOperation *operations, CoherenceProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     unsigned int value[COHERENCE_TEST_INPUTS + COHERENCE_TEST_OPERATIONS];
     for (unsigned int input = 0u; input < COHERENCE_TEST_INPUTS; input += 1u)
     {
@@ -303,7 +304,8 @@ void coherence_programs(CoherenceResults *results)
             coherence_run(&loaded, atoms, lanes, host_out, device_out, &host_ran, &device_ran);
         }
         words_all = words_all && host_ran && device_ran &&
-                    (memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0);
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                                .bytes = (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0);
         for (unsigned int lane = 0u; host_ran && (lane < lanes); lane += 1u)
         {
             // the third reckoning: native 64-bit two's complement, itself a projection of the same 2-adic run

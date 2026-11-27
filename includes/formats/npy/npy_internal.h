@@ -10,7 +10,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define NPY_CHECK(condition_, evacaddr_, error_, type_)                                                                \
     engine_error_check((condition_), (type_), ENGINE_MODULE_NPY, (unsigned int)__LINE__, (const void *)(evacaddr_),    \

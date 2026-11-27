@@ -6,8 +6,8 @@
 
 #include <cuda_runtime.h>
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
-#include <string.h>
 
 int rank_machine_load(SimResults *results, const char *name, ExactRecordProgram *program, const unsigned int *outputs,
                       unsigned int output_count, unsigned int members, const unsigned int *limbs, RankMachine *machine)
@@ -21,7 +21,7 @@ int rank_machine_load(SimResults *results, const char *name, ExactRecordProgram 
         machine->limbs[member] = (member < members) ? limbs[member] : 0u;
     }
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const KeymathRecordRequest encode = {program->steps,  program->count, program->field_bits,   program->fields,
                                          members,         outputs,        output_count,          program->tables,
                                          program->table_count, &machine->key, &error};
@@ -148,7 +148,7 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
     size_t out_room = 0u;
     std::vector<unsigned int> piece_index;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long started = engine_clock_microseconds();
     int ok = 1;
     unsigned long long start = 0ull;
@@ -190,8 +190,8 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
             {
                 break;
             }
-            memcpy(least, low, sizeof(least));
-            memcpy(max, high, sizeof(max));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = least, .src = low, .bytes = sizeof(least));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = max, .src = high, .bytes = sizeof(max));
             piece += 1ull;
         }
         const unsigned int *run_in[ENGINE_RECORD_MEMBERS_MAX] = {NULL, NULL, NULL};

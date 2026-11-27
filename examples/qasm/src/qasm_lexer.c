@@ -1,8 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_lexer.c: the lexer and tokens
-#include "qasm_internal.h"
 #include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "qasm_internal.h"
 
 // ---------------------------------------------------------------------------------------------------------------
 // the lexer
@@ -174,7 +176,9 @@ int qasm_lex(QasmParser *parser)
             end = at + 2u;
             token->type = QASM_TOKEN_SYMBOL;
         }
-        else if (strchr(";,()[]{}+-*/^", c) != NULL)
+        // Explicit cast takes the character as the byte that the search compares against
+        else if (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = ";,()[]{}+-*/^", .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .byte = (uint8_t)c) != NULL)
         {
             token->type = QASM_TOKEN_SYMBOL;
         }
@@ -203,14 +207,16 @@ const QasmToken *qasm_peek(const QasmParser *parser)
 
 int qasm_token_is(const QasmParser *parser, const QasmToken *token, const char *text)
 {
-    const size_t length = strlen(text);
-    return (token->length == length) && (strncmp(parser->text + token->start, text, length) == 0);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    return (token->length == length) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = parser->text + token->start, .other = text, .bytes = length) == 0);
 }
 
 int qasm_tokens_equal(const QasmParser *parser, const QasmToken *left, const QasmToken *right)
 {
     return (left->length == right->length) &&
-           (strncmp(parser->text + left->start, parser->text + right->start, left->length) == 0);
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = parser->text + left->start, .other = parser->text + right->start,
+                       .bytes = left->length) == 0);
 }
 
 int qasm_accept(QasmParser *parser, const char *text)
@@ -237,7 +243,7 @@ int qasm_expect(QasmParser *parser, const char *text)
 void qasm_token_name(const QasmParser *parser, const QasmToken *token, char *name)
 {
     const unsigned int length = (token->length < (QASM_NAME_CAPACITY - 1u)) ? token->length : (QASM_NAME_CAPACITY - 1u);
-    memcpy(name, parser->text + token->start, length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = name, .src = parser->text + token->start, .bytes = length);
     name[length] = '\0';
 }
 

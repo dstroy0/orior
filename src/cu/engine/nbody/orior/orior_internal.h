@@ -22,8 +22,6 @@
 #include "orior.h"
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
 
-#include <string.h>
-
 /* The dispatch rule in orior_steer_prefers_free compares 100 * total^2 against
  * 85 * distinct * sum(count^2) for a census whose total is a 64 bit count. The right side is below
  * 2^7 * 2^8 * 2^128 = 2^143: 85 is below 2^7, at max 256 symbols are distinct, and a sum of squared

@@ -19,15 +19,13 @@
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
 
 #include <cuda_runtime.h>
 
 #include <stdlib.h>
-#include <string.h>
 
 #define ORDER_TEST_LINE 8192ull
 

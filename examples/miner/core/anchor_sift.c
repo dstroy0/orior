@@ -12,7 +12,7 @@
 
 #include "anchor_sift.h"
 
-#include <string.h>
+#include "memoria_operor/memoria_operor.h"
 
 /**
  * @brief Chooses anchor offsets, one drawn inside each evenly sized cell of the needle.
@@ -44,7 +44,7 @@ size_t anchor_sift_naive(const uint8_t *corpus, size_t corpus_len, const uint8_t
 
     for (size_t at = 0u; (at + needle_len) <= corpus_len; at += 1u)
     {
-        if (memcmp(corpus + at, needle, needle_len) == 0)
+        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = corpus + at, .other = needle, .bytes = needle_len) == 0)
         {
             found += 1u;
         }
@@ -72,7 +72,7 @@ size_t anchor_sift_inorder(const uint8_t *corpus, size_t corpus_len, const uint8
         }
         if (slot == ANCHOR_SIFT_ANCHORS)
         {
-            if (memcmp(corpus + at, needle, needle_len) == 0)
+            if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = corpus + at, .other = needle, .bytes = needle_len) == 0)
             {
                 found += 1u;
             }
@@ -102,7 +102,7 @@ size_t anchor_sift_free(const uint8_t *corpus, size_t corpus_len, const uint8_t 
             (unsigned)(corpus[at + offsets[2]] == wanted[2]) & (unsigned)(corpus[at + offsets[3]] == wanted[3]);
         if (agree != 0u)
         {
-            if (memcmp(corpus + at, needle, needle_len) == 0)
+            if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = corpus + at, .other = needle, .bytes = needle_len) == 0)
             {
                 found += 1u;
             }

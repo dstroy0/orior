@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_bitwise_test_prove.cu: proofs, narrow and wide, known and errored
-#include "record_bitwise_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "record_bitwise_test_internal.h"
 
 // fill `lanes` atoms with edge-shaped fields, run the program on both sides, and check both records against the oracle
 static void bitwise_prove(BitwiseResults *results, const BitwiseProgram *program, unsigned int lanes, const char *name)
@@ -68,7 +69,9 @@ static void bitwise_prove(BitwiseResults *results, const BitwiseProgram *program
     mmgr_line_decimal(&results->line, lanes_equal, 1u);
     mmgr_line_put(&results->line, " lanes equal the oracle\n");
     bitwise_check(results, (host_ran != 0) && (device_ran != 0), "the program runs on the host and the device");
-    bitwise_check(results, memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0,
+    bitwise_check(results,
+                  EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                             .bytes = (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0,
                   "the device records equal the host's word for word");
     bitwise_check(results, lanes_equal == lanes,
                   "every lane's record equals the oracle, and its sign extends past the width");
@@ -84,7 +87,7 @@ static void bitwise_prove(BitwiseResults *results, const BitwiseProgram *program
 void bitwise_narrow(BitwiseResults *results)
 {
     BitwiseProgram program;
-    memset(&program, 0, sizeof(program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &program, .bytes = sizeof(program), .val = 0);
     bitwise_field(&program, 100u);
     bitwise_field(&program, 37u);
     bitwise_field(&program, 64u);
@@ -119,7 +122,7 @@ void bitwise_narrow(BitwiseResults *results)
 void bitwise_wide(BitwiseResults *results)
 {
     BitwiseProgram program;
-    memset(&program, 0, sizeof(program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &program, .bytes = sizeof(program), .val = 0);
     bitwise_field(&program, 1024u);
     bitwise_field(&program, 700u);
     bitwise_step(&program, ENGINE_RECORD_FIELD_SIGNED, 0u, 0u);
@@ -146,7 +149,7 @@ void bitwise_wide(BitwiseResults *results)
 void bitwise_narrowed(BitwiseResults *results)
 {
     BitwiseProgram program;
-    memset(&program, 0, sizeof(program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &program, .bytes = sizeof(program), .val = 0);
     bitwise_field(&program, 32u);
     bitwise_field(&program, 20u);
     bitwise_field(&program, 40u);
@@ -189,7 +192,7 @@ void bitwise_narrowed(BitwiseResults *results)
 void bitwise_known(BitwiseResults *results)
 {
     BitwiseProgram program;
-    memset(&program, 0, sizeof(program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &program, .bytes = sizeof(program), .val = 0);
     bitwise_field(&program, 16u);
     bitwise_field(&program, 16u);
     bitwise_step(&program, ENGINE_RECORD_FIELD_SIGNED, 0u, 0u);
@@ -230,7 +233,8 @@ void bitwise_known(BitwiseResults *results)
     {
         bitwise_run(&loaded, atoms, 4u, host_out, device_out, &host_ran, &device_ran);
         passed = (host_ran != 0) && (device_ran != 0) &&
-                 (memcmp(host_out, device_out, (size_t)4u * out_limbs * sizeof(unsigned int)) == 0);
+                 (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                             .bytes = (size_t)4u * out_limbs * sizeof(unsigned int)) == 0);
     }
     for (unsigned int lane = 0u; (passed != 0) && (lane < 4u); lane += 1u)
     {
@@ -263,7 +267,7 @@ void bitwise_error(BitwiseResults *results)
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
         BitwiseProgram program;
-        memset(&program, 0, sizeof(program));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &program, .bytes = sizeof(program), .val = 0);
         bitwise_field(&program, 16u);
         bitwise_step(&program, ENGINE_RECORD_FIELD_SIGNED, 0u, 0u);
         bitwise_step(&program, operations[at], lefts[at], rights[at]);
@@ -279,7 +283,7 @@ void bitwise_error(BitwiseResults *results)
         }
     }
     BitwiseProgram nibble;
-    memset(&nibble, 0, sizeof(nibble));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &nibble, .bytes = sizeof(nibble), .val = 0);
     bitwise_field(&nibble, 16u);
     bitwise_step(&nibble, ENGINE_RECORD_FIELD_SIGNED, 0u, 0u);
     bitwise_step(&nibble, ENGINE_RECORD_WRAP, 0u, ENGINE_RECORD_WRAP_BITS_LEAST);

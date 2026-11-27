@@ -1,12 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#include "../../../../src/platform/platform.h"
 #include "run_log.h"
 
 #include "track.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 const char *g_log_path = NULL;
 
@@ -65,8 +66,12 @@ void rules_line(const TreeRules *rules, char *line, size_t capacity)
     line[0] = '\0';
     for (unsigned int index = 0u; index < (unsigned int)(sizeof(every) / sizeof(every[0])); index += 1u)
     {
-        const size_t at = strlen(line);
-        const int fits = (every[index].on != 0) && ((at + strlen(every[index].name) + 2u) < capacity);
+        const size_t at = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+        const int fits =
+            (every[index].on != 0) &&
+            ((at +
+              EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = every[index].name, .cap = PLATFORM_TEXT_TO_TERMINATOR) +
+              2u) < capacity);
         if (fits != 0)
         {
             snprintf(&line[at], capacity - at, " %s", every[index].name);

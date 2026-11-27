@@ -12,8 +12,8 @@
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/gate/chain_build.h"
 #include "../../../../../../../src/platform/platform.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
-#include <string.h>
 
 #define LADDER_TEXT(name_, text_, words_, measured_) text_,
 static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
@@ -74,7 +74,10 @@ int program_main(int argc, char **argv)
             unsigned int is_relation = 0u;
             for (unsigned int which = 0u; which < built; which += 1u)
             {
-                is_relation += (memcmp(&fitted.chain[at], &swept.chain[which], sizeof(Chain)) == 0) ? 1u : 0u;
+                is_relation += (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &fitted.chain[at],
+                                           .other = &swept.chain[which], .bytes = sizeof(Chain)) == 0)
+                                   ? 1u
+                                   : 0u;
             }
             if (is_relation != 0u)
             {

@@ -8,7 +8,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define TEST_EVENTS 64u
 #define TEST_SCENARIO_JOBS 12u

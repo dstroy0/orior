@@ -46,7 +46,6 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 
 /* The placement, ceiling and rotations that `examples/proofing/precision_floor.py` runs. Thus the
  * numbers printed here sit on the same axis as the arbitrary-precision ladder of that tool. */

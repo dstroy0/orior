@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "track.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 
 void track_error_report(const char *what, const EngineError *error)
 {
@@ -31,20 +31,22 @@ void track_error_report(const char *what, const EngineError *error)
 int track_frame_bodies(EngineBuffers *buffers, unsigned int buffer_at, TreeFrame *frame)
 {
     EngineBodiesRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.residual.volume = buffers->volume;
     request.residual.depth = buffers->depth;
     request.residual.height = buffers->height;
     request.residual.width = buffers->width;
-    memcpy(request.residual.smooth_orders, SMOOTH_ORDERS, sizeof(request.residual.smooth_orders));
-    memcpy(request.residual.background_orders, BACKGROUND_ORDERS, sizeof(request.residual.background_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.residual.smooth_orders, .src = SMOOTH_ORDERS,
+               .bytes = sizeof(request.residual.smooth_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.residual.background_orders, .src = BACKGROUND_ORDERS,
+               .bytes = sizeof(request.residual.background_orders));
     request.residual.unit_sweep = buffers->unit_sweep;
     request.capacity = buffers->peak_capacity;
     request.bodies = buffers->bodies;
     request.labels = buffers->labels[buffer_at];
     request.positive_words = buffers->positive[buffer_at];
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     request.error = &error;
     EngineLeaves leaves;
     if (engine_frame_bodies(&request, &leaves) == ENGINE_ERROR)
@@ -67,7 +69,7 @@ void track_group_voxels(EngineBuffers *buffers, unsigned int buffer_at, const un
                         const TreeFrame *frame)
 {
     EngineGroupRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.voxels = buffers->depth * buffers->height * buffers->width;
     request.labels = labels;
     request.peaks = frame->peaks;

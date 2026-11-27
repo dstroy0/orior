@@ -31,6 +31,11 @@ case "$(uname -s)" in
         ;;
 esac
 
+CAP="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' .')"
+GENCODE=(-gencode "arch=compute_${CAP:-86},code=sm_${CAP:-86}")
+
+# The test reaches the tables of MMgr from its .cu. The line of MMgr, the cellblock and the hooks of the device then
+# compile as CUDA (exact_types_device_platform_link). nvcc links the test with its device link
 STATUS=0
 for WIDTH in ${EXACT_TEST_WIDTHS:-"-DORIOR_EXACT_LIMBS=128u" "-DORIOR_EXACT_LIMBS=4096u" \
              "-DORIOR_EXACT_BITS=4194304ull"}; do
@@ -38,10 +43,12 @@ for WIDTH in ${EXACT_TEST_WIDTHS:-"-DORIOR_EXACT_LIMBS=128u" "-DORIOR_EXACT_LIMB
     BINARY="$OUT/exact_transform_test_$NAME$SUFFIX"
     rm -f "$BINARY"
     EXACT_TYPES_EXTRA=("$WIDTH" "$@")
-    exact_types_compile "${EXACT_TYPES_ARITHMETIC[@]}" > "$OUT/build_$NAME.log" 2>&1 &&
-        nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -std=c++20 -O2 "$WIDTH" "$@" "${EXACT_TYPES_FLAGS[@]}" -o "$BINARY" \
-            "$TEST/exact_transform_test.cu" "${EXACT_TYPES_OBJECTS[@]}" "${EXACT_TYPES_LIBRARIES[@]}" \
-            >> "$OUT/build_$NAME.log" 2>&1
+    exact_types_compile "${EXACT_TYPES_INTEGERS[@]}" > "$OUT/build_$NAME.log" 2>&1 &&
+        INTEGER_OBJECTS=("${EXACT_TYPES_OBJECTS[@]}") &&
+        exact_types_device_platform_link >> "$OUT/build_$NAME.log" 2>&1 &&
+        nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true -std=c++20 -O2 "${GENCODE[@]}" "$WIDTH" "$@" \
+            "${EXACT_TYPES_FLAGS[@]}" -o "$BINARY" "$TEST/exact_transform_test.cu" "${INTEGER_OBJECTS[@]}" \
+            "${PLATFORM_LINK[@]}" >> "$OUT/build_$NAME.log" 2>&1
     [ -f "$BINARY" ] || { echo "  build failed at $WIDTH:"; cat "$OUT/build_$NAME.log"; exit 1; }
     "$BINARY"
     RESULT=$?

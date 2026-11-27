@@ -31,12 +31,12 @@
  */
 
 #include "bench_load_limit.h"
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <string>
 #include <thread>
 #include <vector>
@@ -107,7 +107,7 @@ double baseline_of(const uint64_t *marginal, uint64_t total, int additive)
     const double pairs = count * (count - 1.0);
 
     double spread[256];
-    std::memset(spread, 0, sizeof(spread));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = spread, .bytes = sizeof(spread), .val = 0);
     for (unsigned left = 0u; left < 256u; left += 1u)
     {
         const double left_count = (double)marginal[left];
@@ -265,7 +265,7 @@ struct Reading
 Reading sweep(const unsigned char *seats, size_t length, unsigned workers)
 {
     uint64_t marginal[256];
-    std::memset(marginal, 0, sizeof(marginal));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = marginal, .bytes = sizeof(marginal), .val = 0);
     for (size_t at = 0u; at < length; at += 1u)
     {
         marginal[seats[at]] += 1u;
@@ -289,8 +289,8 @@ Reading sweep(const unsigned char *seats, size_t length, unsigned workers)
                 }
                 uint64_t xor_counts[256];
                 uint64_t add_counts[256];
-                std::memset(xor_counts, 0, sizeof(xor_counts));
-                std::memset(add_counts, 0, sizeof(add_counts));
+                EMBED_CALL(memor.set, MemoriaCfg, .dst = xor_counts, .bytes = sizeof(xor_counts), .val = 0);
+                EMBED_CALL(memor.set, MemoriaCfg, .dst = add_counts, .bytes = sizeof(add_counts), .val = 0);
 
                 const size_t pairs = length - lag;
                 for (size_t at = 0u; at < pairs; at += 1u)
@@ -410,7 +410,7 @@ int main(int argc, char **argv)
             }
 
             uint64_t marginal[256];
-            std::memset(marginal, 0, sizeof(marginal));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = marginal, .bytes = sizeof(marginal), .val = 0);
             for (size_t at = 0u; at < body.size(); at += 1u)
             {
                 marginal[body[at]] += 1u;
@@ -438,8 +438,8 @@ int main(int argc, char **argv)
 
                 uint64_t xor_counts[256];
                 uint64_t add_counts[256];
-                std::memset(xor_counts, 0, sizeof(xor_counts));
-                std::memset(add_counts, 0, sizeof(add_counts));
+                EMBED_CALL(memor.set, MemoriaCfg, .dst = xor_counts, .bytes = sizeof(xor_counts), .val = 0);
+                EMBED_CALL(memor.set, MemoriaCfg, .dst = add_counts, .bytes = sizeof(add_counts), .val = 0);
                 const size_t pairs = mixed.size() - 1u;
                 for (size_t at = 0u; at < pairs; at += 1u)
                 {
@@ -499,7 +499,7 @@ int main(int argc, char **argv)
         const std::vector<unsigned char> made = built_control(additive, SAMPLE_CAP, designed);
 
         uint64_t marginal[256];
-        std::memset(marginal, 0, sizeof(marginal));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = marginal, .bytes = sizeof(marginal), .val = 0);
         for (size_t at = 0u; at < made.size(); at += 1u)
         {
             marginal[made[at]] += 1u;
@@ -507,8 +507,8 @@ int main(int argc, char **argv)
 
         uint64_t xor_counts[256];
         uint64_t add_counts[256];
-        std::memset(xor_counts, 0, sizeof(xor_counts));
-        std::memset(add_counts, 0, sizeof(add_counts));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = xor_counts, .bytes = sizeof(xor_counts), .val = 0);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = add_counts, .bytes = sizeof(add_counts), .val = 0);
         const size_t pairs = made.size() - designed;
         for (size_t at = 0u; at < pairs; at += 1u)
         {

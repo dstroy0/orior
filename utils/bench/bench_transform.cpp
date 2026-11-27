@@ -19,6 +19,7 @@
  *       argument about it. Where the signal dies, the bench reports the round.
  */
 
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <algorithm>
@@ -27,7 +28,6 @@
 #include <complex>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <random>
 #include <string>
 #include <vector>
@@ -488,7 +488,7 @@ void check_instrument()
         sha256_block_compress(&full, block);
         sha256_block_compress_partial(&partial, block, 64u);
 
-        if (std::memcmp(full.word, partial.word, sizeof(full.word)) != 0)
+        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = full.word, .other = partial.word, .bytes = sizeof(full.word)) != 0)
         {
             all_matched = false;
         }

@@ -9,7 +9,7 @@
 
 #include <cuda_runtime.h>
 
-#include <cstring>
+#include "memoria_operor/memoria_operor.h"
 
 // the most values of a case, the words of its stream at max, and the values of a chunk
 #define JOB_TEST_VALUES_MAX (5u * 4096u + 77u)
@@ -55,8 +55,10 @@ static int job_test_kept(const unsigned long long *offsets, const unsigned int *
     {
         return 0;
     }
-    memcpy(code->offsets, offsets, (size_t)code->chunks * sizeof(unsigned long long));
-    memcpy(code->stream, stream, (size_t)limbs * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = code->offsets, .src = offsets,
+               .bytes = (size_t)code->chunks * sizeof(unsigned long long));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = code->stream, .src = stream,
+               .bytes = (size_t)limbs * sizeof(unsigned int));
     return 1;
 }
 
@@ -71,11 +73,11 @@ static long job_test_encoded(const int *values, unsigned long long count, JobTes
         (cudaMemcpy(device, values, (size_t)count * sizeof(int), cudaMemcpyHostToDevice) == cudaSuccess))
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         const unsigned long long *offsets = NULL;
         const unsigned int *stream = NULL;
         CompressionEncodeRequest encode;
-        memset(&encode, 0, sizeof(encode));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &encode, .bytes = sizeof(encode), .val = 0);
         // Explicit casts read the memory of the device as the values and the scratch words
         encode.device_coefficients = (const int *)device;
         encode.count = count;
@@ -100,11 +102,11 @@ static long job_test_encoded(const int *values, unsigned long long count, JobTes
 static long job_test_encoded_job(const int *values, unsigned long long count, JobTestCode *code)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long *offsets = NULL;
     const unsigned int *stream = NULL;
     CompressionEncodeJobRequest encode;
-    memset(&encode, 0, sizeof(encode));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &encode, .bytes = sizeof(encode), .val = 0);
     encode.coefficients = values;
     encode.count = count;
     encode.chunks = &code->chunks;
@@ -124,9 +126,9 @@ static long job_test_encoded_job(const int *values, unsigned long long count, Jo
 static long job_test_decoded_job(const JobTestCode *code, unsigned long long count, int *values)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     CompressionDecodeJobRequest decode;
-    memset(&decode, 0, sizeof(decode));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &decode, .bytes = sizeof(decode), .val = 0);
     decode.offsets = code->offsets;
     decode.chunks = code->chunks;
     decode.stream = code->stream;

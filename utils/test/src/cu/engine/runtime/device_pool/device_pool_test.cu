@@ -10,9 +10,10 @@
 // between slices, a take past the pool errors and leaves the pool as it was, and a return gives every slice back.
 // The pool's cost is read through the counter tessera's daemon reads, for the tower's four buffers as one pool and as
 // four allocations. The test is one job on the device's tessera daemon, submitted before its first device work.
-#include "../../../../../../../src/cu/engine/runtime/device_pool/device_pool.h"
-#include "sim.h"
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera_measure.h"
+#include "../../../../../../../src/cu/engine/runtime/device_pool/device_pool.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 
 #include <cuda_runtime.h>
 
@@ -145,13 +146,13 @@ static void device_pool_test_reserve(SimResults *results)
     unsigned char marker = 0u;
     DevicePool pool = {&marker, 7ull, 3ull};
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const DevicePoolReserveRequest from_spoiled = {&spoiled, &pool, &error};
     sim_check(results,
               device_pool_test_error(device_pool_reserve(&from_spoiled), &error) && (pool.base == &marker) &&
                   (pool.bytes == 7ull) && (pool.used == 3ull),
               "a spoiled plan's reserve errors, and the pool is left as it was");
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const DevicePoolReserveRequest planless = {NULL, &pool, &error};
     sim_check(results, device_pool_test_error(device_pool_reserve(&planless), &error) && (pool.base == &marker),
               "a reserve with no plan errors");
@@ -159,7 +160,7 @@ static void device_pool_test_reserve(SimResults *results)
     sim_check(results, (device_pool_reserve(&unanswered) == DEVICE_POOL_ERROR) && (pool.base == &marker),
               "a reserve with no error to raise errors");
     DevicePoolPlan empty = {0ull, 0ull, 0};
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const DevicePoolReserveRequest from_empty = {&empty, &pool, &error};
     sim_check(results,
               (device_pool_reserve(&from_empty) == 0L) && (pool.base == NULL) && (pool.bytes == 0ull) &&
@@ -207,9 +208,9 @@ static void device_pool_test_slices(SimResults *results)
         device_pool_plan_slice(&plan, s_device_pool_test_bytes[at]);
     }
     DevicePool pool;
-    memset(&pool, 0, sizeof(pool));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &pool, .bytes = sizeof(pool), .val = 0);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const DevicePoolReserveRequest reserve = {&plan, &pool, &error};
     const int ok = device_pool_reserve(&reserve) == 0L;
     // a device address read as an integer, for its alignment only
@@ -256,7 +257,7 @@ static void device_pool_test_slices(SimResults *results)
     sim_check(results, apart, "every byte before the counter is its slice's mark, and every byte between slices is 0");
     const unsigned long long remaining = pool.bytes - DEVICE_POOL_TEST_NEXT;
     void *untouched = &error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const DevicePoolTakeRequest over = {&pool, remaining + 1ull, &untouched, &error};
     sim_check(results,
               device_pool_test_error(device_pool_take(&over), &error) && (pool.used == DEVICE_POOL_TEST_SUM) &&
@@ -268,7 +269,7 @@ static void device_pool_test_slices(SimResults *results)
               (device_pool_take(&rest) == 0L) && (last == (void *)(pool.base + DEVICE_POOL_TEST_NEXT)) &&
                   (pool.used == pool.bytes),
               "a take of the rest of the pool is granted, at the next 256-byte offset, and fills the pool");
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const DevicePoolTakeRequest full = {&pool, 1ull, &untouched, &error};
     sim_check(results,
               device_pool_test_error(device_pool_take(&full), &error) && (pool.used == pool.bytes) &&
@@ -281,7 +282,7 @@ static void device_pool_test_slices(SimResults *results)
     sim_check(results,
               returned && (device_pool_take(&again) == 0L) && (first == (void *)pool.base) && (pool.used == 1ull),
               "a return gives every slice back, and the next take starts the pool again");
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const DevicePoolTakeRequest nowhere = {&pool, 1ull, NULL, &error};
     sim_check(results, device_pool_test_error(device_pool_take(&nowhere), &error) && (pool.used == 1ull),
               "a take with nowhere to write its slice errors");
@@ -320,13 +321,13 @@ static void device_pool_test_cost(SimResults *results)
 {
     int device = 0;
     cudaDeviceProp properties;
-    memset(&properties, 0, sizeof(properties));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &properties, .bytes = sizeof(properties), .val = 0);
     const int known =
         sim_status_check(results, cudaGetDevice(&device), "the device is named") &&
         sim_status_check(results, cudaGetDeviceProperties(&properties, device), "the device's properties are read");
     unsigned long long luid = 0ull;
 #if defined(_WIN32)
-    memcpy(&luid, properties.luid, sizeof(luid));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &luid, .src = properties.luid, .bytes = sizeof(luid));
     const unsigned long long pid = (unsigned long long)GetCurrentProcessId();
 #else
     // a process id is positive
@@ -354,9 +355,9 @@ static void device_pool_test_cost(SimResults *results)
     unsigned long long freed = 0ull;
     unsigned long long apart = 0ull;
     DevicePool pool;
-    memset(&pool, 0, sizeof(pool));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &pool, .bytes = sizeof(pool), .val = 0);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const DevicePoolReserveRequest reserve = {&plan, &pool, &error};
     int read = device_pool_test_read(&counter, &before) && (device_pool_reserve(&reserve) == 0L) &&
                device_pool_test_read(&counter, &pooled);

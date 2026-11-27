@@ -13,9 +13,10 @@
 #include "../../../../../includes/codecs/sha256/sha256.h"
 #include "../../../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // the longest line a vector file contains, a long message's hex with its name
 #define CHECK_LINE_BYTES 1048576u
@@ -47,8 +48,11 @@ static size_t check_hex(const char *text, unsigned char *bytes, size_t room)
 // the text after `name = ` where `line` begins with it, or NULL
 static const char *check_value(const char *line, const char *name)
 {
-    const size_t length = strlen(name);
-    if ((strncmp(line, name, length) != 0) || (strncmp(&line[length], " = ", 3u) != 0))
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    if ((!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = name,
+                     .ci = EMBED_FALSE)) ||
+        (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = &line[length], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                     .other = " = ", .ci = EMBED_FALSE)))
     {
         return NULL;
     }
@@ -71,7 +75,8 @@ static int check_messages(const char *path, unsigned int *passed, unsigned int *
     int have_message = 0;
     while (fgets(s_line, sizeof(s_line), file) != NULL)
     {
-        s_line[strcspn(s_line, "\r\n")] = '\0';
+        s_line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = s_line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "\r\n")] = '\0';
         const char *value = check_value(s_line, "Len");
         if (value != NULL)
         {
@@ -98,7 +103,8 @@ static int check_messages(const char *path, unsigned int *passed, unsigned int *
             {
                 sha256_bits(s_message, bits, digest);
             }
-            if (read && fits && (memcmp(digest, expected, SHA256_BYTES) == 0))
+            if (read && fits &&
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = digest, .other = expected, .bytes = SHA256_BYTES) == 0))
             {
                 *passed += 1u;
             }
@@ -138,7 +144,8 @@ static int check_monte(const char *path, unsigned int *passed, unsigned int *fai
     unsigned int point = 0u;
     while (fgets(s_line, sizeof(s_line), file) != NULL)
     {
-        s_line[strcspn(s_line, "\r\n")] = '\0';
+        s_line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = s_line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "\r\n")] = '\0';
         const char *value = check_value(s_line, "Seed");
         if (value != NULL)
         {
@@ -152,19 +159,20 @@ static int check_monte(const char *path, unsigned int *passed, unsigned int *fai
         }
         // the three links before the next, positioned end to end, the oldest first
         unsigned char links[3u * SHA256_BYTES];
-        memcpy(&links[0], seed, SHA256_BYTES);
-        memcpy(&links[SHA256_BYTES], seed, SHA256_BYTES);
-        memcpy(&links[2u * SHA256_BYTES], seed, SHA256_BYTES);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &links[0], .src = seed, .bytes = SHA256_BYTES);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &links[SHA256_BYTES], .src = seed, .bytes = SHA256_BYTES);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &links[2u * SHA256_BYTES], .src = seed, .bytes = SHA256_BYTES);
         unsigned char next[SHA256_BYTES];
         for (unsigned int link = 0u; link < CHECK_MONTE_LINKS; link += 1u)
         {
             sha256(links, sizeof(links), next);
-            memmove(&links[0], &links[SHA256_BYTES], 2u * SHA256_BYTES);
-            memcpy(&links[2u * SHA256_BYTES], next, SHA256_BYTES);
+            EMBED_CALL(memor.move_down, MemoriaCfg, .dst = &links[0], .src = &links[SHA256_BYTES],
+                       .bytes = 2u * SHA256_BYTES);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &links[2u * SHA256_BYTES], .src = next, .bytes = SHA256_BYTES);
         }
         unsigned char expected[SHA256_BYTES];
         if ((check_hex(value, expected, sizeof(expected)) == SHA256_BYTES) &&
-            (memcmp(next, expected, SHA256_BYTES) == 0))
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = next, .other = expected, .bytes = SHA256_BYTES) == 0))
         {
             *passed += 1u;
         }
@@ -182,7 +190,7 @@ static int check_monte(const char *path, unsigned int *passed, unsigned int *fai
                 platform_line_out_ended();
             }
         }
-        memcpy(seed, next, SHA256_BYTES);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = seed, .src = next, .bytes = SHA256_BYTES);
         point += 1u;
     }
     fclose(file);
@@ -196,7 +204,8 @@ int program_main(int count, char **words)
     int monte = 0;
     for (int at = 1; at < count; at += 1)
     {
-        if (strcmp(words[at], "--monte") == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--monte", .ci = EMBED_FALSE))
         {
             monte = 1;
             continue;

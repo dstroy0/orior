@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // period_test_reference.cu: the reference counts, peaks and margins
+#include "memoria_operor/memoria_operor.h"
 #include "period_test_internal.h"
 
 static unsigned long long s_test_state = 0x9E3779B97F4A7C15ull;
@@ -166,10 +167,10 @@ int test_read(const unsigned short *volume, unsigned int rank, const unsigned lo
     int ok = cudaMemcpy(device_lanes, volume, (size_t)voxels * sizeof(unsigned short), cudaMemcpyHostToDevice) ==
              cudaSuccess;
     PeriodRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.device_lanes = device_lanes;
     request.rank = rank;
-    memcpy(request.extent, extent, rank * sizeof(unsigned long long));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.extent, .src = extent, .bytes = rank * sizeof(unsigned long long));
     request.draws = TEST_DRAWS;
     request.content = test_content(volume, voxels);
     request.agreement = counts;
@@ -198,8 +199,10 @@ int test_band_valid(const PeriodAxis *axis, const PeriodMargin *band)
     }
     if (ok && (axis->band_count != 0ull))
     {
-        ok = (memcmp(&axis->band_bottom, &band[0], sizeof(PeriodMargin)) == 0) &&
-             (memcmp(&axis->band_top, &band[axis->band_count - 1ull], sizeof(PeriodMargin)) == 0);
+        ok = (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &axis->band_bottom, .other = &band[0],
+                         .bytes = sizeof(PeriodMargin)) == 0) &&
+             (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &axis->band_top, .other = &band[axis->band_count - 1ull],
+                         .bytes = sizeof(PeriodMargin)) == 0);
     }
     return ok;
 }
@@ -227,12 +230,12 @@ int test_draws_and_given_top(const unsigned short *volume, unsigned int rank, co
     int ok = cudaMemcpy(device_lanes, volume, (size_t)voxels * sizeof(unsigned short), cudaMemcpyHostToDevice) ==
              cudaSuccess;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     PeriodRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.device_lanes = device_lanes;
     request.rank = rank;
-    memcpy(request.extent, extent, rank * sizeof(unsigned long long));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.extent, .src = extent, .bytes = rank * sizeof(unsigned long long));
     request.content = test_content(volume, voxels);
     request.error = &error;
     PeriodMargin drawn[TEST_DRAWS * ENGINE_ARRAY_RANK];
@@ -255,8 +258,9 @@ int test_draws_and_given_top(const unsigned short *volume, unsigned int rank, co
     {
         qsort(&drawn[axis * TEST_DRAWS], (size_t)drawn_counts[axis], sizeof(PeriodMargin), test_margin_before);
         ok = (drawn_counts[axis] == measurement->axis[axis].band_count) &&
-             ((drawn_counts[axis] == 0ull) || (memcmp(&drawn[axis * TEST_DRAWS], &band[axis * TEST_DRAWS],
-                                                      (size_t)drawn_counts[axis] * sizeof(PeriodMargin)) == 0));
+             ((drawn_counts[axis] == 0ull) ||
+              (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &drawn[axis * TEST_DRAWS], .other = &band[axis * TEST_DRAWS],
+                          .bytes = (size_t)drawn_counts[axis] * sizeof(PeriodMargin)) == 0));
         tops[axis] = (drawn_counts[axis] != 0ull) ? measurement->axis[axis].band_top : drawn[axis * TEST_DRAWS];
         tops[axis].numerator = (drawn_counts[axis] != 0ull) ? tops[axis].numerator : 0ull;
         tops[axis].denominator = measurement->axis[axis].pairs_per_lag;

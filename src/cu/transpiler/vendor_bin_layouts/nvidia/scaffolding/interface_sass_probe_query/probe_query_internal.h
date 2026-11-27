@@ -12,7 +12,6 @@
 
 #include <ctype.h>
 #include <stdlib.h>
-#include <string.h>
 
 // the max bytes a cubin read for cubin_safe takes
 #define SASS_SAFE_CUBIN 1048576u

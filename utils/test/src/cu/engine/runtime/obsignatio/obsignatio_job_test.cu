@@ -9,7 +9,7 @@
 
 #include <cuda_runtime.h>
 
-#include <cstring>
+#include "memoria_operor/memoria_operor.h"
 
 // the most lanes of a case, the most nodes of its seal, and the words and messages of the stream
 #define JOB_TEST_LANES_MAX (2u * 4u * 9u * 1500u)
@@ -53,7 +53,7 @@ static long job_test_lanes(const unsigned short *lanes, const unsigned long long
          cudaSuccess))
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         // Explicit casts read the memory of the device as the lanes and the room of the nodes
         const ObsignatioLanesRequest request = {(const unsigned short *)device_lanes, extent,
                                                 (unsigned char *)device_nodes, &error};
@@ -72,7 +72,7 @@ static long job_test_lanes(const unsigned short *lanes, const unsigned long long
 static long job_test_lanes_job(const unsigned short *lanes, const unsigned long long extent[4], unsigned char *nodes)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioLanesJobRequest request = {lanes, extent, nodes, &error};
     return obsignatio_lanes_job(&request);
 }
@@ -83,9 +83,9 @@ static unsigned int job_test_lanes_case(const char *what, const unsigned short *
                                         unsigned char *nodes_job)
 {
     const unsigned long long bytes = obsignatio_lanes_nodes(extent) * OBSIGNATIO_SIGNUM_BYTES;
-    const int agree = (job_test_lanes(lanes, extent, nodes) == 0L) &&
-                      (job_test_lanes_job(lanes, extent, nodes_job) == 0L) &&
-                      (memcmp(nodes, nodes_job, (size_t)bytes) == 0);
+    const int agree =
+        (job_test_lanes(lanes, extent, nodes) == 0L) && (job_test_lanes_job(lanes, extent, nodes_job) == 0L) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = nodes, .other = nodes_job, .bytes = (size_t)bytes) == 0);
     return job_test_check(agree, what);
 }
 
@@ -107,7 +107,7 @@ static long job_test_bits(const unsigned int *limbs, const unsigned long long *o
          cudaSuccess))
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         // Explicit casts read the memory of the device as the stream, the offsets and the room of the signa
         const ObsignatioBitsRequest request = {(const unsigned int *)device_limbs,
                                                (const unsigned long long *)device_offsets,
@@ -135,7 +135,7 @@ static long job_test_bits_job(const unsigned int *limbs, const unsigned long lon
                               const unsigned char *key, unsigned char *signa)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioBitsJobRequest request = {limbs, offsets, JOB_TEST_MESSAGES, bits, key, OBSIGNATIO_MODE_KEYED,
                                               signa, &error};
     return obsignatio_bits_job(&request);
@@ -182,7 +182,7 @@ int program_main(int argc, char **argv)
     const unsigned long long bits = at_bit;
     unsigned char key[OBSIGNATIO_KEY_BYTES];
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     if (obsignatio_level_key(OBSIGNATIO_LEVEL_CHUNK, key, &error) != 0L)
     {
         return 1;
@@ -197,7 +197,8 @@ int program_main(int argc, char **argv)
                                   nodes_job);
     failed += job_test_check((job_test_bits(limbs, offsets, bits, key, signa) == 0L) &&
                                  (job_test_bits_job(limbs, offsets, bits, key, signa_job) == 0L) &&
-                                 (memcmp(signa, signa_job, JOB_TEST_MESSAGES * OBSIGNATIO_SIGNUM_BYTES) == 0),
+                                 (EMBED_CALL(memor.cmp, MemoriaCfg, .src = signa, .other = signa_job,
+                                             .bytes = JOB_TEST_MESSAGES * OBSIGNATIO_SIGNUM_BYTES) == 0),
                              "the messages of a stream seal as obsignatio_bits seals them");
     offsets[20] = bits + 1ULL;
     failed += job_test_check((job_test_bits(limbs, offsets, bits, key, signa) != 0L) &&

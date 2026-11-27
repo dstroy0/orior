@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#include "memoria_operor/memoria_operor.h"
 #include <complex.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 
 typedef bool embed_bool;
 #define EMBED_TRUE true
@@ -92,7 +92,7 @@ static void draw_bytes(uint8_t *into, size_t length, uint64_t salt)
         {
             taking = sizeof held;
         }
-        memcpy(into + written, &held, taking);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = into + written, .src = &held, .bytes = taking);
         written += taking;
     }
 }
@@ -337,7 +337,10 @@ static embed_bool same_field(const void *domain, size_t left, size_t right)
 {
     const double _Complex *const values = (const double _Complex *)domain;
 
-    return (memcmp(&values[left], &values[right], sizeof values[0]) == 0) ? EMBED_TRUE : EMBED_FALSE;
+    return (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &values[left], .other = &values[right],
+                       .bytes = sizeof values[0]) == 0)
+               ? EMBED_TRUE
+               : EMBED_FALSE;
 }
 
 static void fill_levels(uint8_t *into, size_t length, uint64_t salt, unsigned levels)

@@ -1,7 +1,8 @@
 
 // test_steer_checks.c: skewed fields and the ordering checks
-#include "test_steer_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "test_steer_internal.h"
 
 /**
  * @brief Fills a field whose symbols vary widely in rarity.
@@ -305,7 +306,7 @@ int check_dispatch_exact(void)
         platform_line_out_ended();
     }
 
-    memset(&census, 0, sizeof(census));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &census, .bytes = sizeof(census), .val = 0);
     for (unsigned int symbol = 0u; symbol < 256u; symbol += 1u)
     {
         census.occurrences[symbol] = 256u;
@@ -342,7 +343,7 @@ int check_dispatch_exact(void)
     }
     failed += (got == 0) ? 0 : 1;
 
-    memset(&census, 0, sizeof(census));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &census, .bytes = sizeof(census), .val = 0);
     census.occurrences[0x41] = 65536u;
     census.total = 65536u;
     census.distinct = 1u;
@@ -376,7 +377,7 @@ int check_dispatch_exact(void)
     }
     failed += (got == 0) ? 0 : 1;
 
-    memset(&census, 0, sizeof(census));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &census, .bytes = sizeof(census), .val = 0);
     census.occurrences[0x41] = 99u;
     census.occurrences[0x42] = 1u;
     census.total = 100u;
@@ -413,7 +414,7 @@ int check_dispatch_exact(void)
 
     /* An empty field has no structure and takes the short circuiting arm. Stated and not
      * discovered, because a caller with no corpus passes over a census of nothing. */
-    memset(&census, 0, sizeof(census));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &census, .bytes = sizeof(census), .val = 0);
     got = orior_steer_prefers_free(&census);
     {
         VerbaLinea *const output_line = platform_line_out();
@@ -502,7 +503,7 @@ int check_exact_matches_double(void)
     for (unsigned int skew = 0u; skew <= 10u; skew += 1u)
     {
         OriorFieldCensus census;
-        memset(&census, 0, sizeof(census));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &census, .bytes = sizeof(census), .val = 0);
 
         /* Field shape sweeps from flat, every symbol equal, to concentrated, where one symbol takes
          * almost everything. The threshold is crossed somewhere inside this range. */

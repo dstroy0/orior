@@ -39,10 +39,10 @@
 #include "zeta_exact.h"
 #include "../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
 #include <dirent.h>
 #include <math.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <time.h>
 
@@ -122,7 +122,7 @@ static int32_t digits_for(int64_t n0)
     char text[32];
     snprintf(text, sizeof(text), "%lld", (long long)((n0 > 1) ? n0 : 1));
     // The text of a machine integer has at most 20 characters.
-    return 30 + (2 * (int32_t)strlen(text));
+    return 30 + (2 * (int32_t)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR));
 }
 
 /**
@@ -386,13 +386,16 @@ static void run_device(const char *binary, int64_t n0, int64_t top, int64_t swee
     }
     while (fgets(line, sizeof(line), output) != NULL)
     {
-        line[strcspn(line, "\r\n")] = '\0';
-        if (strncmp(line, "host", 4u) == 0)
+        line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\r\n")] = '\0';
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "host",
+                       .ci = EMBED_FALSE))
         {
             *same = atoi(line + 5);
             continue;
         }
-        if (strncmp(line, "steps", 5u) == 0)
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "steps", .ci = EMBED_FALSE))
         {
             snprintf(steps, 256u, "%.255s", line);
             continue;
@@ -731,8 +734,14 @@ static void find_binary(char binary[512])
         struct dirent *entry;
         while ((entry = readdir(folder)) != NULL)
         {
-            const size_t length = strlen(entry->d_name);
-            if ((length < strlen(tail)) || (strcmp(entry->d_name + length - strlen(tail), tail) != 0))
+            const size_t length =
+                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = entry->d_name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+            if ((length < EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = tail, .cap = PLATFORM_TEXT_TO_TERMINATOR)) ||
+                (!EMBED_CALL(
+                    cellul.eq, CatenaFinitaCfg,
+                    .src = entry->d_name + length -
+                           EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = tail, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                    .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = tail, .ci = EMBED_FALSE)))
             {
                 continue;
             }
@@ -763,7 +772,8 @@ static void find_binary(char binary[512])
     char line[512];
     while (fgets(line, sizeof(line), made) != NULL)
     {
-        line[strcspn(line, "\r\n")] = '\0';
+        line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\r\n")] = '\0';
         if (line[0] != '\0')
         {
             snprintf(binary, 512u, "%s", line);
@@ -1006,7 +1016,8 @@ int program_main(int argument_count, char **arguments)
     (void)_setmode(_fileno(stdout), _O_BINARY);
 #endif
     FILE *const out = stdout;
-    if ((argument_count > 3) && (strcmp(arguments[1], "stretch") == 0))
+    if ((argument_count > 3) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[1],
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "stretch", .ci = EMBED_FALSE)))
     {
         return main_stretch(out, atoll(arguments[2]), atoll(arguments[3]));
     }

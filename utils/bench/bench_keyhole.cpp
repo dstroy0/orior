@@ -17,6 +17,7 @@
  */
 
 #include "cuda_miner.h"
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <algorithm>
@@ -24,7 +25,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <string>
 #include <vector>
 
@@ -129,9 +129,10 @@ int main(int argument_count, char **arguments)
     CudaScanParameters parameters;
     Sha256State midstate;
 
-    std::memset(&parameters, 0, sizeof(parameters));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &parameters, .bytes = sizeof(parameters), .val = 0);
     sha256_header_midstate(&midstate, header.data());
-    std::memcpy(parameters.midstate, midstate.word, sizeof(parameters.midstate));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = parameters.midstate, .src = midstate.word,
+               .bytes = sizeof(parameters.midstate));
     parameters.merkle_root_tail = schedule_word_from_header(header.data() + 64u);
     parameters.ntime = schedule_word_from_header(header.data() + 68u);
     parameters.nbits = schedule_word_from_header(header.data() + 72u);
@@ -151,7 +152,7 @@ int main(int argument_count, char **arguments)
     std::printf("\n  target sample: %llu digests\n", wanted);
 
     CudaSurvey survey;
-    std::memset(&survey, 0, sizeof(survey));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &survey, .bytes = sizeof(survey), .val = 0);
 
     const uint32_t chunk = 1u << 28;
     auto started = std::chrono::steady_clock::now();

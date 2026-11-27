@@ -8,8 +8,9 @@
 #include "../../../src/platform/platform.h"
 #include "zeta_theta.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
-#include <string.h>
 
 /** @brief The degree of the series of Psi. */
 #define DEGREE 15
@@ -337,7 +338,7 @@ static void psi_carried(const DecimalPair *p, int32_t digits, OriorExactInteger 
     for (int m = 1; m < LENGTH; m += 1)
     {
         series_times(power, delta, LENGTH, &scale, next);
-        memcpy(power, next, sizeof(power));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = power, .src = next, .bytes = sizeof(power));
         z_mul_small(&factorial, m, &factorial);
         for (int at = 0; at < LENGTH; at += 1)
         {
@@ -490,7 +491,7 @@ static int64_t text_length(const OriorExactInteger *value)
 {
     static char text[16384];
     z_text(value, text, sizeof(text));
-    return (int64_t)strlen(text);
+    return (int64_t)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
 }
 
 void rs_at(int64_t nu, const DecimalPair *p, int32_t digits, OriorExactInteger *main_sum, OriorExactInteger *remainder)
@@ -662,7 +663,7 @@ const ZetaRow *rs_d_row(int64_t n)
                                                           (d_row_count + 1u) * sizeof(ZetaRow),
                                                           platform_place_g_program_owner, 0));
         ZetaRow *const row = &d_rows[d_row_count];
-        memset(row, 0, sizeof(*row));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = row, .bytes = sizeof(*row), .val = 0);
         const ZetaRow *const before = &d_rows[d_row_count - 1u];
         for (int64_t k = 0; k <= ((3 * (m + 1)) / 4); k += 1)
         {
@@ -695,7 +696,7 @@ const ZetaRow *rs_d_row(int64_t n)
 
 void rs_curve_begin(ZetaCurve *curve, int32_t digits)
 {
-    memset(curve, 0, sizeof(*curve));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = curve, .bytes = sizeof(*curve), .val = 0);
     curve->digits = digits;
     z_ten_to(digits, &curve->scale);
     zeta_pi(digits, &curve->big_pi);
@@ -822,7 +823,7 @@ static const OriorExactInteger *phi_at(ZetaCurve *curve, int64_t j)
 
 void rs_curve_gamma(ZetaCurve *curve, int64_t n, int64_t count, ZetaRow *out)
 {
-    memset(out, 0, sizeof(*out));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = out, .bytes = sizeof(*out), .val = 0);
     const ZetaRow *const row = rs_d_row(n);
     for (int64_t i = 0; i < count; i += 1)
     {

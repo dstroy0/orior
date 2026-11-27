@@ -32,11 +32,12 @@
 
 #include <cuda_runtime.h>
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <chrono>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -177,9 +178,9 @@ static char *knee_line(FILE *file)
 static int knee_job_submit(const char *type, const unsigned long long *shape, unsigned long long declared, KneeJob *job)
 {
     // the signum is the job's type and the lattice's shape: jobs alike in what they allocate share a tracked peak
-    memset(job, 0, sizeof(*job));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = job, .bytes = sizeof(*job), .val = 0);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     int device = 0;
     cudaDeviceProp properties;
     if ((cudaGetDevice(&device) != cudaSuccess) || (cudaGetDeviceProperties(&properties, device) != cudaSuccess))
@@ -188,12 +189,13 @@ static int knee_job_submit(const char *type, const unsigned long long *shape, un
         return 0;
     }
     TesseraJobSubmit submit;
-    memset(&submit, 0, sizeof(submit));
-    memcpy(submit.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &submit, .bytes = sizeof(submit), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = submit.device, .src = properties.uuid.bytes,
+               .bytes = TESSERA_DEVICE_BYTES);
 #if defined(_WIN32)
-    memcpy(&submit.luid, properties.luid, sizeof(submit.luid));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &submit.luid, .src = properties.luid, .bytes = sizeof(submit.luid));
 #endif
-    const size_t named = strlen(type) + 1u;
+    const size_t named = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u;
     const size_t request_bytes = named + (KNEE_RANK * sizeof(unsigned long long));
     unsigned char *const request =
         (unsigned char *)platform_cell_taken(request_bytes, platform_place_g_program_owner, 0);
@@ -201,8 +203,9 @@ static int knee_job_submit(const char *type, const unsigned long long *shape, un
     {
         return 0;
     }
-    memcpy(request, type, named);
-    memcpy(request + named, shape, KNEE_RANK * sizeof(unsigned long long));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request, .src = type, .bytes = named);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request + named, .src = shape,
+               .bytes = KNEE_RANK * sizeof(unsigned long long));
     const ObsignatioSignumRequest signum = {
         request, request_bytes, NULL, OBSIGNATIO_MODE_HASH, submit.signum.bytes, ENGINE_SIGNUM_BYTES, &error};
     const long hashed = obsignatio_signum(&signum);
@@ -259,7 +262,7 @@ static int knee_job_submit(const char *type, const unsigned long long *shape, un
 static int knee_job_release(const char *type, KneeJob *job)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     if ((job->client == NULL) || (tessera_job_release(job->client, &job->ticket, &error) != 0L))
     {
         fprintf(stderr, "  tessera: %s did not release\n", type);
@@ -337,14 +340,15 @@ static unsigned short *knee_load(const KneeSeries *series, EngineSignum *root, E
         return NULL;
     }
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
     unsigned short *volume = NULL;
     const long loaded = engine_iapx_load(series->set, series->name, extent, &volume, root, side, &error);
     // the tower's and the coder's pools go with the job: the process allocates nothing on the device between jobs
     engine_resident_release();
     const int released = knee_job_release("knee crystal load", &job);
-    if ((loaded != 0L) || !released || (memcmp(extent, series->extent, sizeof(extent)) != 0))
+    if ((loaded != 0L) || !released ||
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = extent, .other = series->extent, .bytes = sizeof(extent)) != 0))
     {
         fprintf(stderr, "  %s: the crystal did not load (type %u, module %u, site %u)\n", series->name, error.type,
                 error.module, error.site);
@@ -394,16 +398,16 @@ static int knee_period_call(const KneeSeries *series, const unsigned short *volu
         return 0;
     }
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     unsigned short *device_lanes = NULL;
     int good = (cudaMalloc((void **)&device_lanes, (size_t)voxels * sizeof(unsigned short)) == cudaSuccess) &&
                (cudaMemcpy(device_lanes, volume, (size_t)voxels * sizeof(unsigned short), cudaMemcpyHostToDevice) ==
                 cudaSuccess);
     PeriodRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.device_lanes = device_lanes;
     request.rank = KNEE_RANK;
-    memcpy(request.extent, shape, sizeof(shape));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.extent, .src = shape, .bytes = sizeof(shape));
     request.content = *root;
     request.null_top = null_top;
     request.measurement = &call->reading;
@@ -457,7 +461,8 @@ static int knee_resume(const char *path, const KneeText *header, KneeLineTake ta
         platform_cell_released(line, platform_place_g_program_owner);
     }
     fclose(old);
-    if (good && ((seen.used != header->used) || (memcmp(seen.bytes, header->bytes, header->used) != 0)))
+    if (good && ((seen.used != header->used) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = seen.bytes,
+                                                            .other = header->bytes, .bytes = header->used) != 0)))
     {
         fprintf(stderr, "  %s was written under other groups or tops; move it aside to start again\n", path);
         good = 0;
@@ -466,11 +471,23 @@ static int knee_resume(const char *path, const KneeText *header, KneeLineTake ta
     return good;
 }
 
+// Two names ordered by the first byte where they differ, as unsigned bytes. The compare reads the shorter name and
+// its terminator. A name that is a prefix of the other then comes first. Less than 0, 0 or more than 0
+static int knee_names_ordered(const char *left, const char *right)
+{
+    const size_t left_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = left, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t right_length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = right, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t shorter = (left_length < right_length) ? left_length : right_length;
+    // Explicit cast takes the sign of the first difference, a byte apart at most, as an int
+    return (int)EMBED_CALL(memor.cmp, MemoriaCfg, .src = left, .other = right, .bytes = shorter + 1u);
+}
+
 static int knee_name_order(const void *one, const void *other)
 {
     const KneeSeries *const *const left = (const KneeSeries *const *)one;
     const KneeSeries *const *const right = (const KneeSeries *const *)other;
-    return strcmp((*left)->name, (*right)->name);
+    return knee_names_ordered((*left)->name, (*right)->name);
 }
 
 typedef struct
@@ -530,7 +547,8 @@ static int knee_fold(KneeGroup *group, const PeriodMargin heights[KNEE_RANK])
 static int knee_take_draw(const char *line, void *context)
 {
     KneeRun *const run = (KneeRun *)context;
-    const char *const tab = strchr(line, '\t');
+    const char *const tab =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
     if (tab == NULL)
     {
         return 0;
@@ -540,7 +558,7 @@ static int knee_take_draw(const char *line, void *context)
     {
         return 0;
     }
-    memcpy(name, line, (size_t)(tab - line));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = name, .src = line, .bytes = (size_t)(tab - line));
     name[tab - line] = '\0';
     KneeSeries *const series = knee_find(run, name);
     platform_cell_released(name, platform_place_g_program_owner);
@@ -571,7 +589,8 @@ static int knee_take_draw(const char *line, void *context)
 static int knee_take_reading(const char *line, void *context)
 {
     KneeRun *const run = (KneeRun *)context;
-    const char *const tab = strchr(line, '\t');
+    const char *const tab =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
     if (tab == NULL)
     {
         return 0;
@@ -581,7 +600,7 @@ static int knee_take_reading(const char *line, void *context)
     {
         return 0;
     }
-    memcpy(name, line, (size_t)(tab - line));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = name, .src = line, .bytes = (size_t)(tab - line));
     name[tab - line] = '\0';
     KneeSeries *const series = knee_find(run, name);
     platform_cell_released(name, platform_place_g_program_owner);
@@ -626,10 +645,22 @@ static int knee_ingest(int argc, char **argv)
     for (int at = 1; (at + 1) < argc; at += 2)
     {
         const char *const value = argv[at + 1];
-        s_daemon = (strcmp(argv[at], "--daemon") == 0) ? value : s_daemon;
-        source = (strcmp(argv[at], "--source") == 0) ? value : source;
-        set = (strcmp(argv[at], "--set") == 0) ? value : set;
-        list = (strcmp(argv[at], "--list") == 0) ? value : list;
+        s_daemon = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "--daemon", .ci = EMBED_FALSE))
+                       ? value
+                       : s_daemon;
+        source = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--source", .ci = EMBED_FALSE))
+                     ? value
+                     : source;
+        set = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "--set", .ci = EMBED_FALSE))
+                  ? value
+                  : set;
+        list = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = "--list", .ci = EMBED_FALSE))
+                   ? value
+                   : list;
     }
     FILE *const named = (list != NULL) ? fopen(list, "rb") : NULL;
     if ((s_daemon == NULL) || (source == NULL) || (set == NULL) || (named == NULL))
@@ -685,30 +716,30 @@ static int knee_ingest(int argc, char **argv)
         char *const sample = listed.names[at];
         count += 1ull;
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
         if (engine_iapx_head(set, sample, extent, &error) == 0L)
         {
             retained += 1ull;
             continue;
         }
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         // the ingest requests the span of this series where the last series did not request it. It also requests the
         // next series that is not yet sealed, behind it. The source then reads from one span into the next while the
         // ingest unpacks and seals each series
         EngineError ahead;
-        memset(&ahead, 0, sizeof(ahead));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &ahead, .bytes = sizeof(ahead), .val = 0);
         if (queued_ahead != at)
         {
             engine_source_prefetch(source, sample, &ahead);
         }
         for (unsigned long long next = at + 1ull; next < listed.count; next += 1ull)
         {
-            memset(&ahead, 0, sizeof(ahead));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &ahead, .bytes = sizeof(ahead), .val = 0);
             unsigned long long next_extent[4] = {0ull, 0ull, 0ull, 0ull};
             if (engine_iapx_head(set, listed.names[next], next_extent, &ahead) != 0L)
             {
-                memset(&ahead, 0, sizeof(ahead));
+                EMBED_CALL(memor.set, MemoriaCfg, .dst = &ahead, .bytes = sizeof(ahead), .val = 0);
                 engine_source_prefetch(source, listed.names[next], &ahead);
                 queued_ahead = next;
                 break;
@@ -746,11 +777,11 @@ static int knee_ingest(int argc, char **argv)
         const unsigned long long started = knee_now_microseconds();
         if (good)
         {
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             EngineSampleRecord record;
-            memset(&record, 0, sizeof(record));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &record, .bytes = sizeof(record), .val = 0);
             EngineSetReport report;
-            memset(&report, 0, sizeof(report));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &report, .bytes = sizeof(report), .val = 0);
             report.samples = &record;
             char *const samples[1] = {sample};
             const EngineIngestRequest ingest = {source, set, samples, 1u, NULL, 0u, &error, &report};
@@ -827,7 +858,7 @@ typedef struct
 
 static int knee_period_order(const void *left, const void *right)
 {
-    return strcmp(((const KneePeriod *)left)->name, ((const KneePeriod *)right)->name);
+    return knee_names_ordered(((const KneePeriod *)left)->name, ((const KneePeriod *)right)->name);
 }
 
 // each series' P per axis from a pass's periods.tsv: the name, the group, then eight fields an axis with P first
@@ -860,7 +891,10 @@ static KneePeriod *knee_periods_read(const char *path, unsigned long long *count
         unsigned int at = 0u;
         while (ok && (field != NULL))
         {
-            char *const tab = strchr(field, '\t');
+            // the tab of the field, reached through the field itself, which the loop writes
+            const char *const found =
+                EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = field, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
+            char *const tab = (found != NULL) ? &field[found - field] : NULL;
             if (tab != NULL)
             {
                 *tab = '\0';
@@ -913,14 +947,16 @@ static int knee_orders_valid(const FlattenOrders *orders, EngineError *error)
     unsigned short voxel = 0u;
     int offset_halves[ENGINE_AXES] = {0, 0, 0};
     EngineResidualRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.volume = &voxel;
     request.depth = 1u;
     request.height = 1u;
     request.width = 1u;
-    memcpy(request.smooth_orders, orders->smooth, sizeof(request.smooth_orders));
-    memcpy(request.background_orders, orders->background, sizeof(request.background_orders));
-    memcpy(request.comb, orders->comb, sizeof(request.comb));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.smooth_orders, .src = orders->smooth,
+               .bytes = sizeof(request.smooth_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.background_orders, .src = orders->background,
+               .bytes = sizeof(request.background_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.comb, .src = orders->comb, .bytes = sizeof(request.comb));
     request.unit_sweep = ENGINE_RESIDUAL_BY_UNIT_SWEEP;
     request.offset_halves = offset_halves;
     request.error = error;
@@ -942,10 +978,22 @@ static int knee_flatten(int argc, char **argv)
     for (int at = 1; (at + 1) < argc; at += 2)
     {
         const char *const value = argv[at + 1];
-        s_daemon = (strcmp(argv[at], "--daemon") == 0) ? value : s_daemon;
-        readings = (strcmp(argv[at], "--readings") == 0) ? value : readings;
-        set = (strcmp(argv[at], "--set") == 0) ? value : set;
-        list = (strcmp(argv[at], "--list") == 0) ? value : list;
+        s_daemon = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "--daemon", .ci = EMBED_FALSE))
+                       ? value
+                       : s_daemon;
+        readings = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "--readings", .ci = EMBED_FALSE))
+                       ? value
+                       : readings;
+        set = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "--set", .ci = EMBED_FALSE))
+                  ? value
+                  : set;
+        list = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = "--list", .ci = EMBED_FALSE))
+                   ? value
+                   : list;
     }
     if ((s_daemon == NULL) || (readings == NULL) || (set == NULL))
     {
@@ -1010,7 +1058,7 @@ static int knee_flatten(int argc, char **argv)
             (const KneePeriod *)bsearch(&key, periods, (size_t)period_count, sizeof(KneePeriod), knee_period_order);
         unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         if ((found == NULL) || (engine_iapx_head(set, names[at], extent, &error) != 0L))
         {
             fprintf(stderr, "  %s: %s\n", names[at], (found == NULL) ? "no reading names it" : "the head did not read");
@@ -1046,7 +1094,8 @@ static int knee_flatten(int argc, char **argv)
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         unsigned int earlier = 0u;
-        while ((earlier < at) && (memcmp(&orders[earlier], &orders[at], sizeof(FlattenOrders)) != 0))
+        while ((earlier < at) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &orders[earlier], .other = &orders[at],
+                                             .bytes = sizeof(FlattenOrders)) != 0))
         {
             earlier += 1u;
         }
@@ -1098,9 +1147,9 @@ static int knee_flatten(int argc, char **argv)
     platform_cell_released(fits, platform_place_g_program_owner);
     platform_cell_released(refusals, platform_place_g_program_owner);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     FlattenSetRequest flatten;
-    memset(&flatten, 0, sizeof(flatten));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &flatten, .bytes = sizeof(flatten), .val = 0);
     flatten.set = set;
     flatten.names = flat_names;
     flatten.count = flattened_count;
@@ -1256,7 +1305,7 @@ static int knee_decimal_add(KneeText *text, const DicomDecimal *value)
 
 static int knee_text_order(const void *left, const void *right)
 {
-    return strcmp(*(const char *const *)left, *(const char *const *)right);
+    return knee_names_ordered(*(const char *const *)left, *(const char *const *)right);
 }
 
 // a spacing line starts with its series. `context` keeps the names already written, and the run does not read them
@@ -1264,7 +1313,8 @@ static int knee_text_order(const void *left, const void *right)
 static int knee_take_spacing(const char *line, void *context)
 {
     KneeNames *const written = (KneeNames *)context;
-    const char *const tab = strchr(line, '\t');
+    const char *const tab =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
     if (tab == NULL)
     {
         return 0;
@@ -1286,7 +1336,7 @@ static int knee_take_spacing(const char *line, void *context)
     {
         return 0;
     }
-    memcpy(name, line, (size_t)(tab - line));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = name, .src = line, .bytes = (size_t)(tab - line));
     name[tab - line] = '\0';
     written->names[written->count] = name;
     written->count += 1ull;
@@ -1311,9 +1361,18 @@ static int knee_spacing(int argc, char **argv)
     for (int at = 1; (at + 1) < argc; at += 2)
     {
         const char *const value = argv[at + 1];
-        s_daemon = (strcmp(argv[at], "--daemon") == 0) ? value : s_daemon;
-        set = (strcmp(argv[at], "--set") == 0) ? value : set;
-        out = (strcmp(argv[at], "--out") == 0) ? value : out;
+        s_daemon = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "--daemon", .ci = EMBED_FALSE))
+                       ? value
+                       : s_daemon;
+        set = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "--set", .ci = EMBED_FALSE))
+                  ? value
+                  : set;
+        out = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "--out", .ci = EMBED_FALSE))
+                  ? value
+                  : out;
     }
     if ((s_daemon == NULL) || (set == NULL) || (out == NULL))
     {
@@ -1349,14 +1408,14 @@ static int knee_spacing(int argc, char **argv)
         }
         KneeText line = {NULL, 0u, 0u};
         KneeSeries series;
-        memset(&series, 0, sizeof(series));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &series, .bytes = sizeof(series), .val = 0);
         series.set = set;
         series.name = names[at];
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         EngineSignum root;
         EngineSideBytes side;
-        memset(&side, 0, sizeof(side));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &side, .bytes = sizeof(side), .val = 0);
         unsigned short *volume = NULL;
         int good = (engine_iapx_head(set, names[at], series.extent, &error) == 0L) && (series.extent[0] == 1ull) &&
                    ((volume = knee_load(&series, &root, &side)) != NULL) && (side.leaves != 0ull);
@@ -1368,7 +1427,7 @@ static int knee_spacing(int argc, char **argv)
             (unsigned int *)platform_cell_cleared(leaves + 1u, sizeof(unsigned int), platform_place_g_program_owner, 0);
         good = good && (read_values != NULL) && (read_found != NULL);
         DicomDecimal largest[KNEE_RANK];
-        memset(largest, 0, sizeof(largest));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = largest, .bytes = sizeof(largest), .val = 0);
         unsigned int present[KNEE_RANK] = {0u, 0u, 0u};
         unsigned long long apart[KNEE_SPACING_ELEMENTS] = {0ull, 0ull};
         for (unsigned int element = 0u; good && (element < KNEE_SPACING_ELEMENTS); element += 1u)
@@ -1404,7 +1463,7 @@ static int knee_spacing(int argc, char **argv)
         // the squared distance between the position (0020,0032) of each slice and that of the next, in the sorted order
         // of the slices. Also the largest of them, and the gaps that differ from it
         DicomDecimal widest;
-        memset(&widest, 0, sizeof(widest));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &widest, .bytes = sizeof(widest), .val = 0);
         unsigned int positioned = (leaves >= 2u) ? 1u : 0u;
         for (size_t leaf = 0u; good && positioned && (leaf < leaves); leaf += 1u)
         {
@@ -1501,18 +1560,20 @@ typedef struct
 
 static int knee_spacing_order(const void *left, const void *right)
 {
-    return strcmp(((const KneeSpacing *)left)->name, ((const KneeSpacing *)right)->name);
+    return knee_names_ordered(((const KneeSpacing *)left)->name, ((const KneeSpacing *)right)->name);
 }
 
 // a field as knee_spacing writes it, the mantissa's digits, e, then the exponent, into `value`; `present` 0 for "-"
 static int knee_spacing_field(const char *field, DicomDecimal *value, unsigned int *present)
 {
     *present = 0u;
-    if (strcmp(field, "-") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = field, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "-",
+                   .ci = EMBED_FALSE))
     {
         return 1;
     }
-    const char *const mark = strchr(field, 'e');
+    const char *const mark =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = field, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = 'e');
     if ((mark == NULL) || (mark == field))
     {
         return 0;
@@ -1557,7 +1618,7 @@ static KneeSpacing *knee_spacings_read(const char *path, unsigned long long *cou
         KneeSpacing *const spacing = ok ? &spacings[*count] : NULL;
         if (ok)
         {
-            memset(spacing, 0, sizeof(*spacing));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = spacing, .bytes = sizeof(*spacing), .val = 0);
         }
         // the fields read: the name, z, y and x at 1 to 3, and z² from the positions at 7
         DicomDecimal value[KNEE_RANK];
@@ -1568,7 +1629,10 @@ static KneeSpacing *knee_spacings_read(const char *path, unsigned long long *cou
         unsigned int at = 0u;
         while (ok && (field != NULL))
         {
-            char *const tab = strchr(field, '\t');
+            // the tab of the field, reached through the field itself, which the loop writes
+            const char *const found =
+                EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = field, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
+            char *const tab = (found != NULL) ? &field[found - field] : NULL;
             if (tab != NULL)
             {
                 *tab = '\0';
@@ -1657,11 +1721,14 @@ static void knee_spaced_pairs(unsigned long long from, unsigned long long to, un
 // the residual request a rung's orders make: no unit orders, the spaced pairs and the comb
 static void knee_residual_orders(const KneeOrders *orders, EngineResidualRequest *request)
 {
-    memset(request->smooth_orders, 0, sizeof(request->smooth_orders));
-    memset(request->background_orders, 0, sizeof(request->background_orders));
-    memcpy(request->comb, orders->comb, sizeof(request->comb));
-    memcpy(request->smooth_spaced, orders->smooth_spaced, sizeof(request->smooth_spaced));
-    memcpy(request->background_spaced, orders->background_spaced, sizeof(request->background_spaced));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request->smooth_orders, .bytes = sizeof(request->smooth_orders), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request->background_orders, .bytes = sizeof(request->background_orders),
+               .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->comb, .src = orders->comb, .bytes = sizeof(request->comb));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->smooth_spaced, .src = orders->smooth_spaced,
+               .bytes = sizeof(request->smooth_spaced));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->background_spaced, .src = orders->background_spaced,
+               .bytes = sizeof(request->background_spaced));
 }
 
 // a rung's residual request over `extent`, in the fewest limbs that represent it; 0 where it needs more than the engine
@@ -1669,7 +1736,7 @@ static void knee_residual_orders(const KneeOrders *orders, EngineResidualRequest
 static unsigned int knee_rung_request(const KneeOrders *orders, const unsigned int extent[KNEE_RANK],
                                       EngineResidualRequest *request)
 {
-    memset(request, 0, sizeof(*request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request, .bytes = sizeof(*request), .val = 0);
     request->depth = extent[0];
     request->height = extent[1];
     request->width = extent[2];
@@ -1705,7 +1772,7 @@ static int knee_rung_valid(const KneeOrders *orders, EngineError *error)
 static int knee_rung_orders(const KneeSpacing *spacing, unsigned int n, const unsigned int comb[KNEE_RANK],
                             KneeOrders *orders)
 {
-    memset(orders, 0, sizeof(*orders));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = orders, .bytes = sizeof(*orders), .val = 0);
     for (unsigned int axis = 0u; axis < KNEE_RANK; axis += 1u)
     {
         if ((spacing->present[axis] == 0u) || (spacing->square[axis].mantissa.sign <= 0))
@@ -1872,7 +1939,7 @@ static void knee_rung_release(KneeRung *rung)
     platform_cell_released(rung->after, platform_place_g_program_owner);
     platform_cell_released(rung->labels, platform_place_g_program_owner);
     platform_cell_released(rung->positive, platform_place_g_program_owner);
-    memset(rung, 0, sizeof(*rung));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = rung, .bytes = sizeof(*rung), .val = 0);
 }
 
 static int knee_peak_order(const void *left, const void *right)
@@ -1924,7 +1991,7 @@ static int knee_rung_cut(const unsigned short *volume, const unsigned int extent
     unsigned int proof_count = 0u;
     unsigned int differ = 0u;
     MaxTreeObjectsRequest objects;
-    memset(&objects, 0, sizeof(objects));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &objects, .bytes = sizeof(objects), .val = 0);
     objects.device_residual = device_residual;
     objects.limbs = residual.limbs;
     objects.depth = extent[0];
@@ -1962,7 +2029,7 @@ static int knee_rung_cut(const unsigned short *volume, const unsigned int extent
           cudaSuccess);
     unsigned long long lost = 0ull;
     MaxTreePackRequest pack;
-    memset(&pack, 0, sizeof(pack));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &pack, .bytes = sizeof(pack), .val = 0);
     pack.layout = layout;
     pack.frame = frame;
     pack.device_magnitudes = device_magnitudes;
@@ -2035,7 +2102,7 @@ static int knee_rung_link(KneeRung *earlier, KneeRung *later, const unsigned int
             break;
         }
         BodyOverlapRequest overlap;
-        memset(&overlap, 0, sizeof(overlap));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &overlap, .bytes = sizeof(overlap), .val = 0);
         overlap.labels_before = earlier->labels;
         overlap.positive_before = earlier->positive;
         overlap.labels_after = later->labels;
@@ -2085,7 +2152,7 @@ static int knee_rung_link(KneeRung *earlier, KneeRung *later, const unsigned int
         linked += 1u;
     }
     HeaviestMatchingRequest matching;
-    memset(&matching, 0, sizeof(matching));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &matching, .bytes = sizeof(matching), .val = 0);
     matching.before = before;
     matching.after = after;
     matching.counts = weights;
@@ -2144,7 +2211,7 @@ static int knee_rung_verdicts(const KneeRung *own, const KneeRung *before, const
     unsigned int output_offset[KNEE_LADDER_OUTPUTS] = {0u, 0u};
     unsigned int output_bits[KNEE_LADDER_OUTPUTS] = {0u, 0u};
     EngineRecordRequest encode;
-    memset(&encode, 0, sizeof(encode));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &encode, .bytes = sizeof(encode), .val = 0);
     encode.steps = program;
     encode.count = steps;
     encode.field_bits = layout->bits;
@@ -2196,7 +2263,8 @@ static int knee_rung_verdicts(const KneeRung *own, const KneeRung *before, const
     sweep.records = host;
     sweep.sweep_microseconds = &host_us;
     const long proved = (swept == (long)lanes) ? engine_record_host(&encode, &sweep) : -1L;
-    const int same = (proved == (long)lanes) && (memcmp(device, host, lanes * out_limbs * sizeof(unsigned int)) == 0);
+    const int same = (proved == (long)lanes) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device, .other = host,
+                                                            .bytes = lanes * out_limbs * sizeof(unsigned int)) == 0);
     if (ok && !same)
     {
         fprintf(stderr, "  the verdicts over %zu lanes: device %ld, host %ld, %s (type %u, module %u, site %u)\n",
@@ -2280,8 +2348,8 @@ static int knee_magnitudes_add(KneeMagnitudes *magnitudes, const unsigned int *m
         magnitudes->words = grown;
         magnitudes->room = room;
     }
-    memcpy(&magnitudes->words[magnitudes->count * magnitudes->limbs], magnitude,
-           magnitudes->limbs * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &magnitudes->words[magnitudes->count * magnitudes->limbs],
+               .src = magnitude, .bytes = magnitudes->limbs * sizeof(unsigned int));
     magnitudes->count += 1u;
     return 1;
 }
@@ -2409,7 +2477,7 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
     // before it. The engine allocates its buffers at the max requested. The bytes of the widest rung are the max of
     // the series
     EngineResidualRequest widest;
-    memset(&widest, 0, sizeof(widest));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &widest, .bytes = sizeof(widest), .val = 0);
     for (unsigned int step = 0u; step < KNEE_LADDER_RUNGS; step += 1u)
     {
         KneeOrders orders;
@@ -2447,16 +2515,16 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
     unsigned long long shape[KNEE_RANK];
     knee_shape(series, shape);
     KneeJob job;
-    memset(&job, 0, sizeof(job));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &job, .bytes = sizeof(job), .val = 0);
     if ((declared != 0ull) && !knee_job_submit("knee ladder", shape, declared, &job))
     {
         platform_cell_released(volume, platform_place_g_program_owner);
         return 0;
     }
     KneeRung rungs[3];
-    memset(rungs, 0, sizeof(rungs));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = rungs, .bytes = sizeof(rungs), .val = 0);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     int ok = 1;
     int left_whole = 0;
     int series_ok = 1;
@@ -2486,7 +2554,7 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
             longer |= (unsigned int)(knee_rung_window(&here->orders, axis) > (unsigned long long)extent[axis]);
         }
         EngineError refusal;
-        memset(&refusal, 0, sizeof(refusal));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &refusal, .bytes = sizeof(refusal), .val = 0);
         if (longer != 0u)
         {
             ended = "a window is longer than its axis";
@@ -2503,7 +2571,7 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
         if (cut < 0)
         {
             ended = "the residual refuses the orders on this extent";
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             engine_error_clear();
             break;
         }
@@ -2627,12 +2695,15 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
 // a ladder line starts with its series; a series is complete where it has an end line
 static int knee_take_ladder(const char *line, void *context)
 {
-    const char *const tab = strchr(line, '\t');
+    const char *const tab =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
     if (tab == NULL)
     {
         return 0;
     }
-    return (strncmp(tab + 1, "end\t", 4u) != 0) || knee_take_spacing(line, context);
+    return (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = tab + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "end\t", .ci = EMBED_FALSE)) ||
+           knee_take_spacing(line, context);
 }
 
 // the ladder over a set: each series' P from the readings, and its voxel from the spacing. The run writes the lines of
@@ -2661,15 +2732,42 @@ static int knee_ladder(int argc, char **argv)
     for (int at = 1; (at + 1) < argc; at += 2)
     {
         const char *const value = argv[at + 1];
-        s_daemon = (strcmp(argv[at], "--daemon") == 0) ? value : s_daemon;
-        readings = (strcmp(argv[at], "--readings") == 0) ? value : readings;
-        spacing_path = (strcmp(argv[at], "--spacing") == 0) ? value : spacing_path;
-        set = (strcmp(argv[at], "--set") == 0) ? value : set;
-        out = (strcmp(argv[at], "--out") == 0) ? value : out;
-        list = (strcmp(argv[at], "--list") == 0) ? value : list;
-        bodies = (strcmp(argv[at], "--bodies") == 0) ? value : bodies;
-        waiting = (strcmp(argv[at], "--waiting") == 0) ? value : waiting;
-        device_bytes = (strcmp(argv[at], "--device-bytes") == 0) ? value : device_bytes;
+        s_daemon = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "--daemon", .ci = EMBED_FALSE))
+                       ? value
+                       : s_daemon;
+        readings = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "--readings", .ci = EMBED_FALSE))
+                       ? value
+                       : readings;
+        spacing_path = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                   .other = "--spacing", .ci = EMBED_FALSE))
+                           ? value
+                           : spacing_path;
+        set = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "--set", .ci = EMBED_FALSE))
+                  ? value
+                  : set;
+        out = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "--out", .ci = EMBED_FALSE))
+                  ? value
+                  : out;
+        list = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = "--list", .ci = EMBED_FALSE))
+                   ? value
+                   : list;
+        bodies = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "--bodies", .ci = EMBED_FALSE))
+                     ? value
+                     : bodies;
+        waiting = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = "--waiting", .ci = EMBED_FALSE))
+                      ? value
+                      : waiting;
+        device_bytes = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                   .other = "--device-bytes", .ci = EMBED_FALSE))
+                           ? value
+                           : device_bytes;
     }
     if ((s_daemon == NULL) || (readings == NULL) || (spacing_path == NULL) || (set == NULL) || (out == NULL))
     {
@@ -2776,11 +2874,11 @@ static int knee_ladder(int argc, char **argv)
         const KneeSpacing *const spacing = (const KneeSpacing *)bsearch(&spacing_key, spacings, (size_t)spacing_count,
                                                                         sizeof(KneeSpacing), knee_spacing_order);
         KneeSeries series;
-        memset(&series, 0, sizeof(series));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &series, .bytes = sizeof(series), .val = 0);
         series.set = set;
         series.name = names[at];
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         const int whole = (spacing != NULL) && (spacing->present[0] != 0u) && (spacing->present[1] != 0u) &&
                           (spacing->present[2] != 0u);
         if ((period == NULL) || !whole || (engine_iapx_head(set, names[at], series.extent, &error) != 0L) ||
@@ -2853,7 +2951,8 @@ static int knee_ladder(int argc, char **argv)
 
 int program_main(int argc, char **argv)
 {
-    if ((argc > 1) && (strcmp(argv[1], "ingest") == 0))
+    if ((argc > 1) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "ingest", .ci = EMBED_FALSE)))
     {
 #if defined(_WIN32)
         // other work shares the card: the ingest runs below every normal process
@@ -2869,7 +2968,8 @@ int program_main(int argc, char **argv)
         }
         return knee_ingest(argc - 1, argv + 1);
     }
-    if ((argc > 1) && (strcmp(argv[1], "flatten") == 0))
+    if ((argc > 1) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "flatten", .ci = EMBED_FALSE)))
     {
 #if defined(_WIN32)
         SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
@@ -2884,7 +2984,8 @@ int program_main(int argc, char **argv)
         }
         return knee_flatten(argc - 1, argv + 1);
     }
-    if ((argc > 1) && (strcmp(argv[1], "spacing") == 0))
+    if ((argc > 1) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "spacing", .ci = EMBED_FALSE)))
     {
 #if defined(_WIN32)
         SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
@@ -2899,7 +3000,8 @@ int program_main(int argc, char **argv)
         }
         return knee_spacing(argc - 1, argv + 1);
     }
-    if ((argc > 1) && (strcmp(argv[1], "ladder") == 0))
+    if ((argc > 1) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "ladder", .ci = EMBED_FALSE)))
     {
 #if defined(_WIN32)
         SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
@@ -2918,11 +3020,13 @@ int program_main(int argc, char **argv)
     int first_set = 1;
     while ((first_set + 1) < argc)
     {
-        if (strcmp(argv[first_set], "--daemon") == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[first_set], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--daemon", .ci = EMBED_FALSE))
         {
             s_daemon = argv[first_set + 1];
         }
-        else if (strcmp(argv[first_set], "--out") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[first_set], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--out", .ci = EMBED_FALSE))
         {
             out = argv[first_set + 1];
         }
@@ -2955,7 +3059,7 @@ int program_main(int argc, char **argv)
 
     // every series of every set, in the sets' order and each set's own sorted order
     KneeRun run;
-    memset(&run, 0, sizeof(run));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &run, .bytes = sizeof(run), .val = 0);
     for (int set = first_set; set < argc; set += 1)
     {
         char **names = NULL;
@@ -2971,11 +3075,11 @@ int program_main(int argc, char **argv)
         for (unsigned int at = 0u; at < count; at += 1u)
         {
             KneeSeries *const series = &run.series[run.count];
-            memset(series, 0, sizeof(*series));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = series, .bytes = sizeof(*series), .val = 0);
             series->set = argv[set];
             series->name = names[at];
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             if (engine_iapx_head(argv[set], names[at], series->extent, &error) != 0L)
             {
                 fprintf(stderr, "  %s/%s: the head did not read\n", argv[set], names[at]);
@@ -3018,7 +3122,8 @@ int program_main(int argc, char **argv)
     qsort(run.by_name, (size_t)run.count, sizeof(KneeSeries *), knee_name_order);
     for (unsigned long long at = 1ull; at < run.count; at += 1ull)
     {
-        if (strcmp(run.by_name[at - 1ull]->name, run.by_name[at]->name) == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = run.by_name[at - 1ull]->name,
+                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = run.by_name[at]->name, .ci = EMBED_FALSE))
         {
             fprintf(stderr, "  %s is named in two sets\n", run.by_name[at]->name);
             return 1;
@@ -3031,13 +3136,15 @@ int program_main(int argc, char **argv)
     {
         KneeSeries *const series = &run.series[at];
         unsigned int group = 0u;
-        while ((group < group_count) && (memcmp(run.groups[group].extent, series->extent, sizeof(series->extent)) != 0))
+        while ((group < group_count) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = run.groups[group].extent,
+                                                    .other = series->extent, .bytes = sizeof(series->extent)) != 0))
         {
             group += 1u;
         }
         if (group == group_count)
         {
-            memcpy(run.groups[group].extent, series->extent, sizeof(series->extent));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = run.groups[group].extent, .src = series->extent,
+                       .bytes = sizeof(series->extent));
             group_count += 1u;
         }
         series->group = group;
@@ -3119,7 +3226,7 @@ int program_main(int argc, char **argv)
             }
             const unsigned long long draw = series->place + (turn * group->count);
             KneeCall call;
-            memset(&call, 0, sizeof(call));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &call, .bytes = sizeof(call), .val = 0);
             if (!knee_period_call(series, volume, &root, "knee period draw", draw, NULL, &call) ||
                 !knee_fold(group, call.heights))
             {
@@ -3190,7 +3297,7 @@ int program_main(int argc, char **argv)
     }
 
     // the readings: every series against its group's tops, with no draws of its own
-    memset(run.done, 0, (size_t)run.count * KNEE_RANK);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = run.done, .bytes = (size_t)run.count * KNEE_RANK, .val = 0);
     KneeText readings_header = {NULL, 0u, 0u};
     char *readings_path = NULL;
     int readings_existed = 0;
@@ -3225,7 +3332,7 @@ int program_main(int argc, char **argv)
         EngineSignum root;
         unsigned short *const volume = knee_load(series, &root, NULL);
         KneeCall call;
-        memset(&call, 0, sizeof(call));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &call, .bytes = sizeof(call), .val = 0);
         if ((volume == NULL) ||
             !knee_period_call(series, volume, &root, "knee period read", 0ull, run.groups[series->group].top, &call))
         {

@@ -15,8 +15,9 @@
 
 #include "../../../../../../../includes/parsers/who.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table_text.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
-#include <string.h>
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -67,11 +68,15 @@ int program_main(int count, char **words)
     char named[2400];
     char expected[128];
     snprintf(expected, sizeof(expected), "utils/test/src/cu/types/file_defs/who/who_check.c:%u ", line);
-    check_that(who_named(here, named, sizeof(named)) && (strncmp(named, expected, strlen(expected)) == 0),
+    check_that(who_named(here, named, sizeof(named)) &&
+                   (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = named, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = expected, .ci = EMBED_FALSE)),
                "a who named gives this file's path and line");
     char program[160];
     snprintf(program, sizeof(program), " utils/test/src/cu/types/file_defs/who/who_check.c %llu", here.time);
-    check_that(strstr(named, program) != NULL, "and the program's source, and the time");
+    check_that(EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = named, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = program, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL,
+               "and the program's source, and the time");
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  ");
@@ -88,7 +93,8 @@ int program_main(int count, char **words)
     qry_member_settled();
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
-    check_that(qry_member_file_blob(path, &bytes, &size) && (size == 4u) && (memcmp(bytes, "who\n", 4u) == 0),
+    check_that(qry_member_file_blob(path, &bytes, &size) && (size == 4u) &&
+                   (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes, .other = "who\n", .bytes = 4u) == 0),
                "and is the run's, read back as the run stores it");
 
     {

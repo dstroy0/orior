@@ -24,15 +24,14 @@
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
 #include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
 
 #include <cuda_runtime.h>
 
 #include <stdlib.h>
-#include <string.h>
 
 #define EDOUBLE_TEST_LINE 8192ull
 
@@ -160,7 +159,7 @@ typedef struct
 static int edouble_load(ExactRecordProgram *program, const unsigned int *outputs, unsigned int output_count,
                         EdoubleLoaded *loaded, EngineError *error)
 {
-    memset(error, 0, sizeof(*error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = error, .bytes = sizeof(*error), .val = 0);
     loaded->record = NULL;
     const KeymathRecordRequest encode = {
         program->steps, program->count,  program->field_bits,  program->fields, 1u,   outputs,
@@ -253,7 +252,8 @@ static int edouble_run(EdoubleResults *results, ExactRecordProgram *program, con
         ok = (cycle_record_run(&run) != CYCLE_ERROR) &&
              (cudaMemcpy(device, device_out, words * sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess);
     }
-    const int same = (ok != 0) && (memcmp(host, device, words * sizeof(unsigned int)) == 0);
+    const int same = (ok != 0) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host, .other = device,
+                                              .bytes = words * sizeof(unsigned int)) == 0);
     for (unsigned int lane = 0u; (same != 0) && (lane < EDOUBLE_TEST_LANES); lane += 1u)
     {
         for (unsigned int out = 0u; out < output_count; out += 1u)

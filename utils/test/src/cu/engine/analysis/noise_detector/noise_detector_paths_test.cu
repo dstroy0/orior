@@ -11,7 +11,7 @@
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
 #include "../../../../../../../src/platform/platform.h"
 
-#include <cstring>
+#include "memoria_operor/memoria_operor.h"
 
 // the extent of each volume: its frames, depth, height and width, and its values
 #define NOISE_TEST_FRAMES 24ULL
@@ -112,8 +112,10 @@ static void noise_test_put(NoiseTestAnswer *answer, long returned, const void *b
     answer->fits = answer->fits && ((answer->count + sizeof(returned) + count) <= NOISE_TEST_ANSWER_BYTES);
     if (answer->fits != 0)
     {
-        memcpy(&answer->bytes[answer->count], &returned, sizeof(returned));
-        memcpy(&answer->bytes[answer->count + sizeof(returned)], bytes, (size_t)count);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &answer->bytes[answer->count], .src = &returned,
+                   .bytes = sizeof(returned));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &answer->bytes[answer->count + sizeof(returned)], .src = bytes,
+                   .bytes = (size_t)count);
         answer->count += sizeof(returned) + count;
     }
 }
@@ -123,7 +125,7 @@ static unsigned long long noise_test_signum(const NoiseTestAnswer *answer)
 {
     unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioSignumRequest request = {answer->bytes, answer->count,           NULL,  OBSIGNATIO_MODE_HASH,
                                              signum,        OBSIGNATIO_SIGNUM_BYTES, &error};
     if ((answer->fits == 0) || (answer->count == 0ULL) || (obsignatio_signum(&request) != 0L))
@@ -161,8 +163,8 @@ static void noise_test_paths(const unsigned short *volume, const unsigned short 
     static const unsigned long long EXTENT[4] = {NOISE_TEST_FRAMES, NOISE_TEST_DEPTH, NOISE_TEST_HEIGHT,
                                                  NOISE_TEST_WIDTH};
     EngineError error;
-    memset(readings, 0, sizeof(*readings));
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = readings, .bytes = sizeof(*readings), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     long returned =
         noise_flicker_volume(volume, EXTENT, readings->flicker, &readings->flicker[NOISE_FLICKER_LAGS], &error);
     noise_test_put(&answers[0], returned, readings->flicker, sizeof(readings->flicker));

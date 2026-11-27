@@ -1,8 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // obsignatio_test_streams.cu: lanes and bit streams
-#include "obsignatio_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "obsignatio_test_internal.h"
 
 #if (defined(__CUDACC__))
 static int test_lanes_host(const unsigned char *lane_bytes, const unsigned long long *extent, unsigned char *nodes)
@@ -14,8 +16,9 @@ static int test_lanes_host(const unsigned char *lane_bytes, const unsigned long 
     {
         const char *const context = obsignatio_level_context(levels[level]);
         // the context's chars are hashed as the unsigned bytes they are stored as
-        if (test_signum((const unsigned char *)context, strlen(context), NULL, OBSIGNATIO_MODE_CONTEXT, keys[level],
-                        OBSIGNATIO_KEY_BYTES) != 0L)
+        if (test_signum((const unsigned char *)context,
+                        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = context, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                        NULL, OBSIGNATIO_MODE_CONTEXT, keys[level], OBSIGNATIO_KEY_BYTES) != 0L)
         {
             return 0;
         }
@@ -47,7 +50,7 @@ static long test_lanes_device(const unsigned short *device_lanes, const unsigned
                               unsigned char *device_nodes)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioLanesRequest request = {device_lanes, extent, device_nodes, &error};
     return obsignatio_lanes(&request);
 }
@@ -86,7 +89,8 @@ void test_lanes_reference(TestResults *results)
                 (test_lanes_device(device_lanes, extent, device_nodes) == 0L) &&
                 (cudaMemcpy(device, device_nodes, (size_t)node_bytes, cudaMemcpyDeviceToHost) == cudaSuccess) &&
                 test_lanes_host(lane_bytes, extent, host);
-        test_count(results, ready && (memcmp(host, device, (size_t)node_bytes) == 0));
+        test_count(results, ready && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host, .other = device,
+                                                 .bytes = (size_t)node_bytes) == 0));
         cudaFree(device_nodes);
         cudaFree(device_lanes);
         platform_cell_released(device, platform_place_g_program_owner);
@@ -141,8 +145,9 @@ void test_lanes_locality(TestResults *results)
         for (unsigned long long node = 0ull; ran && (node < nodes); node += 1ull)
         {
             const int on_path = (node == path[0]) || (node == path[1]) || (node == path[2]) || (node == path[3]);
-            const int differs = memcmp(&base[node * OBSIGNATIO_SIGNUM_BYTES], &flipped[node * OBSIGNATIO_SIGNUM_BYTES],
-                                       OBSIGNATIO_SIGNUM_BYTES) != 0;
+            const int differs =
+                EMBED_CALL(memor.cmp, MemoriaCfg, .src = &base[node * OBSIGNATIO_SIGNUM_BYTES],
+                           .other = &flipped[node * OBSIGNATIO_SIGNUM_BYTES], .bytes = OBSIGNATIO_SIGNUM_BYTES) != 0;
             local = local && (on_path == differs);
         }
         test_count(results, local);
@@ -162,7 +167,7 @@ void test_lanes_closed(TestResults *results)
     unsigned short *device_lanes = NULL;
     unsigned char *device_nodes = NULL;
     unsigned char before[OBSIGNATIO_SIGNUM_BYTES];
-    memset(before, 0xA5, sizeof(before));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = before, .bytes = sizeof(before), .val = 0xA5);
     const int ready = (cudaMalloc((void **)&device_lanes, 2u * sizeof(unsigned short)) == cudaSuccess) &&
                       (cudaMalloc((void **)&device_nodes, OBSIGNATIO_SIGNUM_BYTES) == cudaSuccess) &&
                       (cudaMemset(device_lanes, 0, 2u * sizeof(unsigned short)) == cudaSuccess) &&
@@ -177,13 +182,14 @@ void test_lanes_closed(TestResults *results)
                                             {device_lanes, extent, NULL, &error}};
     for (unsigned int index = 0u; index < (unsigned int)(sizeof(cases) / sizeof(cases[0])); index += 1u)
     {
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         const long status = obsignatio_lanes(&cases[index]);
         unsigned char after[OBSIGNATIO_SIGNUM_BYTES];
         const int read = cudaMemcpy(after, device_nodes, sizeof(after), cudaMemcpyDeviceToHost) == cudaSuccess;
         test_count(results, ready && (status == OBSIGNATIO_ERROR) && read &&
-                                (memcmp(after, before, sizeof(after)) == 0) && (error.type == ENGINE_ERROR_REQUEST) &&
-                                (error.module == ENGINE_MODULE_OBSIGNATIO));
+                                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = after, .other = before,
+                                            .bytes = sizeof(after)) == 0) &&
+                                (error.type == ENGINE_ERROR_REQUEST) && (error.module == ENGINE_MODULE_OBSIGNATIO));
     }
     const ObsignatioLanesRequest unfinished = {device_lanes, extent, device_nodes, NULL};
     test_count(results, obsignatio_lanes(&unfinished) == OBSIGNATIO_ERROR);
@@ -202,7 +208,7 @@ static void test_bit_stream_release(TestBitStream *stream)
 {
     platform_cell_released(stream->limbs, platform_place_g_program_owner);
     platform_cell_released(stream->offsets, platform_place_g_program_owner);
-    memset(stream, 0, sizeof(*stream));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = stream, .bytes = sizeof(*stream), .val = 0);
 }
 
 static int test_bit_stream_make(TestBitStream *stream)
@@ -223,7 +229,7 @@ static int test_bit_stream_make(TestBitStream *stream)
                                           TEST_CHUNK_BITS + 1ull,
                                           2ull * TEST_CHUNK_BITS,
                                           (2ull * TEST_CHUNK_BITS) + 1ull};
-    memset(stream, 0, sizeof(*stream));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = stream, .bytes = sizeof(*stream), .val = 0);
     stream->messages = (unsigned long long)(sizeof(lengths) / sizeof(lengths[0]));
     const unsigned long long first = 5ull;
     unsigned long long end = first;
@@ -299,7 +305,7 @@ static long test_bits_device(const unsigned int *device_limbs, const unsigned lo
                              unsigned char *device_signa)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioBitsRequest request = {device_limbs, device_offsets, stream->messages, stream->bits,
                                            key,          mode,           device_signa,     &error};
     return obsignatio_bits(&request);
@@ -307,7 +313,7 @@ static long test_bits_device(const unsigned int *device_limbs, const unsigned lo
 
 static int test_bit_device_place(const TestBitStream *stream, TestBitDevice *device)
 {
-    memset(device, 0, sizeof(*device));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = device, .bytes = sizeof(*device), .val = 0);
     return (cudaMalloc((void **)&device->limbs, (size_t)stream->limb_count * sizeof(unsigned int)) == cudaSuccess) &&
            (cudaMalloc((void **)&device->offsets, (size_t)stream->messages * sizeof(unsigned long long)) ==
             cudaSuccess) &&
@@ -323,7 +329,7 @@ static void test_bit_device_release(TestBitDevice *device)
     cudaFree(device->signa);
     cudaFree(device->offsets);
     cudaFree(device->limbs);
-    memset(device, 0, sizeof(*device));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = device, .bytes = sizeof(*device), .val = 0);
 }
 
 void test_bits_reference(const TestVectors *vectors, TestResults *results)
@@ -348,8 +354,9 @@ void test_bits_reference(const TestVectors *vectors, TestResults *results)
         for (unsigned long long message = 0ull; message < stream.messages; message += 1ull)
         {
             test_count(results,
-                       ran && (memcmp(&host[message * OBSIGNATIO_SIGNUM_BYTES],
-                                      &read[message * OBSIGNATIO_SIGNUM_BYTES], OBSIGNATIO_SIGNUM_BYTES) == 0));
+                       ran && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &host[message * OBSIGNATIO_SIGNUM_BYTES],
+                                          .other = &read[message * OBSIGNATIO_SIGNUM_BYTES],
+                                          .bytes = OBSIGNATIO_SIGNUM_BYTES) == 0));
         }
     }
     platform_cell_released(read, platform_place_g_program_owner);
@@ -388,8 +395,9 @@ void test_bits_locality(TestResults *results)
             const unsigned long long end =
                 ((message + 1ull) < stream.messages) ? stream.offsets[message + 1ull] : stream.bits;
             const int inside = (bit >= stream.offsets[message]) && (bit < end);
-            const int differs = memcmp(&base[message * OBSIGNATIO_SIGNUM_BYTES],
-                                       &flipped[message * OBSIGNATIO_SIGNUM_BYTES], OBSIGNATIO_SIGNUM_BYTES) != 0;
+            const int differs =
+                EMBED_CALL(memor.cmp, MemoriaCfg, .src = &base[message * OBSIGNATIO_SIGNUM_BYTES],
+                           .other = &flipped[message * OBSIGNATIO_SIGNUM_BYTES], .bytes = OBSIGNATIO_SIGNUM_BYTES) != 0;
             local = local && (inside == differs);
         }
         test_count(results, local);
@@ -404,7 +412,7 @@ void test_bits_closed(const TestVectors *vectors, TestResults *results)
 {
     TestBitStream stream;
     TestBitDevice device;
-    memset(&device, 0, sizeof(device));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &device, .bytes = sizeof(device), .val = 0);
     const int placed = test_bit_stream_make(&stream) && test_bit_device_place(&stream, &device);
     if (placed == 0)
     {
@@ -426,8 +434,9 @@ void test_bits_closed(const TestVectors *vectors, TestResults *results)
     int ready = placed && (before != NULL) && (after != NULL) && (backward != NULL);
     if (ready)
     {
-        memset(before, 0xA5, signa_bytes);
-        memcpy(backward, stream.offsets, (size_t)stream.messages * sizeof(unsigned long long));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = before, .bytes = signa_bytes, .val = 0xA5);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = backward, .src = stream.offsets,
+                   .bytes = (size_t)stream.messages * sizeof(unsigned long long));
         backward[2] = backward[3] + 1ull;
         ready = (cudaMemcpy(device.signa, before, signa_bytes, cudaMemcpyHostToDevice) == cudaSuccess) &&
                 (cudaMalloc((void **)&device_backward, (size_t)stream.messages * sizeof(unsigned long long)) ==
@@ -449,17 +458,19 @@ void test_bits_closed(const TestVectors *vectors, TestResults *results)
         {device.limbs, device.offsets, stream.messages, stream.bits, NULL, 1u, device.signa, &error}};
     for (unsigned int index = 0u; index < (unsigned int)(sizeof(cases) / sizeof(cases[0])); index += 1u)
     {
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         const long status = obsignatio_bits(&cases[index]);
         const int read = ready && (cudaMemcpy(after, device.signa, signa_bytes, cudaMemcpyDeviceToHost) == cudaSuccess);
-        test_count(results, read && (status == OBSIGNATIO_ERROR) && (memcmp(after, before, signa_bytes) == 0) &&
-                                (error.type == ENGINE_ERROR_REQUEST) && (error.module == ENGINE_MODULE_OBSIGNATIO));
+        test_count(results,
+                   read && (status == OBSIGNATIO_ERROR) &&
+                       (EMBED_CALL(memor.cmp, MemoriaCfg, .src = after, .other = before, .bytes = signa_bytes) == 0) &&
+                       (error.type == ENGINE_ERROR_REQUEST) && (error.module == ENGINE_MODULE_OBSIGNATIO));
     }
     const ObsignatioBitsRequest unfinished = {device.limbs, device.offsets,       stream.messages, stream.bits,
                                               NULL,         OBSIGNATIO_MODE_HASH, device.signa,    NULL};
     test_count(results, obsignatio_bits(&unfinished) == OBSIGNATIO_ERROR);
     test_count(results, obsignatio_bits(NULL) == OBSIGNATIO_ERROR);
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioBitsRequest nothing = {NULL, NULL, 0ull, 0ull, NULL, OBSIGNATIO_MODE_HASH, NULL, &error};
     test_count(results, (obsignatio_bits(&nothing) == 0L) && (error.type == ENGINE_ERROR_NONE));
     cudaFree(device_backward);

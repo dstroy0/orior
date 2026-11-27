@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm.cu: the kernels, probabilities and outcomes
-#include "qasm_device_internal.h"
 #include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "qasm_device_internal.h"
 
 unsigned int qasm_blocks(unsigned long long count)
 {
@@ -53,7 +54,7 @@ void qasm_gate_records(const QasmGate *gate, unsigned int *records)
     }
     // i^q as (c, s) in two bits of two's complement: 1 = 01, -1 = 11
     const unsigned int phases[QASM_PHASES][QASM_PHASE_LIMBS] = {{1u, 0u}, {0u, 1u}, {3u, 0u}, {0u, 3u}};
-    memcpy(records, phases, sizeof(phases));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = records, .src = phases, .bytes = sizeof(phases));
 }
 
 unsigned long long qasm_gate_bodies(const QasmGate *gate)
@@ -76,7 +77,7 @@ static int qasm_wide_greater(const QasmWide *left, const QasmWide *right)
 
 static void qasm_wide_units(const QasmWide *value, unsigned int units[QASM_WIDE_LIMBS])
 {
-    memset(units, 0, QASM_WIDE_LIMBS * sizeof(unsigned int));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = units, .bytes = QASM_WIDE_LIMBS * sizeof(unsigned int), .val = 0);
     units[0] = (unsigned int)(value->low & 0xFFFFFFFFull);
     units[1] = (unsigned int)(value->low >> 32u);
     units[2] = (unsigned int)(value->high & 0xFFFFFFFFull);
@@ -261,12 +262,12 @@ void qasm_space_release(QasmSpace *space)
         cudaFree(space->phases);
         cudaFree(space->overflow);
     }
-    memset(space, 0, sizeof(*space));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = space, .bytes = sizeof(*space), .val = 0);
 }
 
 int qasm_space_reserve(QasmSpace *space, const QasmCircuit *circuit, int on_host, EngineError *error)
 {
-    memset(space, 0, sizeof(*space));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = space, .bytes = sizeof(*space), .val = 0);
     space->on_host = on_host;
     space->lanes = 1ull << circuit->qubits;
     const size_t sizes[7] = {(size_t)(space->lanes * QASM_STATE_LIMBS * sizeof(unsigned int)),
@@ -312,13 +313,13 @@ int qasm_space_reserve(QasmSpace *space, const QasmCircuit *circuit, int on_host
     const long long one[2] = {1ll << QASM_FRACTION_BITS, 0};
     unsigned int phases[QASM_PHASES * QASM_PHASE_LIMBS];
     QasmGate permute;
-    memset(&permute, 0, sizeof(permute));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &permute, .bytes = sizeof(permute), .val = 0);
     permute.type = QASM_GATE_PERMUTE;
     qasm_gate_records(&permute, phases);
     if (on_host != 0)
     {
-        memcpy(space->state, one, sizeof(one));
-        memcpy(space->phases, phases, sizeof(phases));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = space->state, .src = one, .bytes = sizeof(one));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = space->phases, .src = phases, .bytes = sizeof(phases));
         return 1;
     }
     if (!QASM_STATUS_CHECK(cudaMemcpy(space->state, one, sizeof(one), cudaMemcpyHostToDevice), space->state, error) ||

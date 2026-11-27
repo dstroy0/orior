@@ -5,9 +5,9 @@
 
 #include "track.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 typedef struct
 {
@@ -43,7 +43,7 @@ static int answer_key_order(const void *left, const void *right)
 
 int answer_key_build(const AnswerKeyTruth *truth, AnswerKey *key)
 {
-    memset(key, 0, sizeof(*key));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = key, .bytes = sizeof(*key), .val = 0);
     const unsigned long long identity_limit = 0x7FFFFFFFFFFFFFFFull;
     int ok = (truth->nodes < 0xFFFFFFFFull) && (truth->edges < 0xFFFFFFFFull);
     AnswerKeyNode *const nodes =
@@ -85,7 +85,8 @@ int answer_key_build(const AnswerKeyTruth *truth, AnswerKey *key)
     for (unsigned int node = 0u; ok && (node < key->node_count); node += 1u)
     {
         key->node_identity[node] = nodes[node].identity;
-        memcpy(&key->node_coordinates[(size_t)node * 4u], nodes[node].place, sizeof(nodes[node].place));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &key->node_coordinates[(size_t)node * 4u], .src = nodes[node].place,
+                   .bytes = sizeof(nodes[node].place));
     }
     for (size_t end = 0u; ok && (end < (size_t)key->edge_count * 2u); end += 1u)
     {
@@ -105,5 +106,5 @@ void release_answer_key(AnswerKey *key)
     platform_cell_released(key->node_identity, platform_place_g_program_owner);
     platform_cell_released(key->node_coordinates, platform_place_g_program_owner);
     platform_cell_released(key->edge_ends, platform_place_g_program_owner);
-    memset(key, 0, sizeof(*key));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = key, .bytes = sizeof(*key), .val = 0);
 }

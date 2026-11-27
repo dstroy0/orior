@@ -18,8 +18,9 @@
 #ifndef SUBTRACTION_RECORD_H
 #define SUBTRACTION_RECORD_H
 
-#include "game_record.h"
 #include "../../src/platform/platform.h"
+#include "game_record.h"
+#include "memoria_operor/memoria_operor.h"
 
 /** @brief The games of a sweep on the device, and the state of each after each position. */
 typedef struct
@@ -187,7 +188,7 @@ static inline void subtraction_close(SubtractionGames *set)
     cudaFree(set->out);
     platform_cell_released(set->host_index, platform_place_g_program_owner);
     platform_cell_released(set->sums, platform_place_g_program_owner);
-    memset(set, 0, sizeof(*set));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = set, .bytes = sizeof(*set), .val = 0);
 }
 
 /**
@@ -208,9 +209,9 @@ static inline int subtraction_open(SimResults *results, SubtractionGames *set, c
                                    unsigned int games, unsigned int largest, unsigned int most, unsigned int positions,
                                    unsigned long long room)
 {
-    memset(set, 0, sizeof(*set));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = set, .bytes = sizeof(*set), .val = 0);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     set->games = games;
     set->positions = positions;
     set->largest = largest;
@@ -293,14 +294,14 @@ static inline int subtraction_open(SimResults *results, SubtractionGames *set, c
 static inline int subtraction_periods(SimResults *results, SubtractionGames *set, unsigned int *periods)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned int games = set->games;
     const unsigned int length = set->positions;
     const unsigned long long records = (unsigned long long)length * games;
     unsigned int *const open =
         (unsigned int *)platform_cell_taken((games + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     int ok = open != NULL;
-    memset(periods, 0, games * sizeof(unsigned int));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = periods, .bytes = games * sizeof(unsigned int), .val = 0);
     unsigned int settled = 0u;
     for (unsigned int shift = 1u; ok && (settled < games) && (shift <= (length / 4u)); shift += 1u)
     {
@@ -377,10 +378,10 @@ static inline int subtraction_write(SimResults *results, SubtractionGames *set, 
                                     unsigned long long count, int pairs, unsigned int *to)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long records = (unsigned long long)set->positions * set->games;
     const unsigned long long entries = count * (pairs ? 2ULL : 1ULL);
-    memcpy(set->host_index, from, (size_t)(entries * 4ULL));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = set->host_index, .src = from, .bytes = (size_t)(entries * 4ULL));
     const CycleRecordRunRequest run = {pairs ? set->exclusive.record : set->gather.record,
                                        {set->history, pairs ? set->history : NULL, NULL},
                                        {records, pairs ? records : 0ULL, 0ULL},

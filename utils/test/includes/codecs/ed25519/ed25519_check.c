@@ -3,14 +3,13 @@
 // ed25519_check.c: SHA-512 checked against FIPS 180-4's examples, and Ed25519 against RFC 8032's test vectors
 // (section 7.1): each seed's public key, each signature made byte for byte, and each verified; a message changed, a
 // signature changed, and a signature with the group's order added to its S each refused. Exit 0 where every one passed
-#include "verba_scribo/verba_linea.h"
-#include "../../../../../src/platform/platform.h"
-#include <stdio.h>
-#include <string.h>
 #include "../../../../../includes/codecs/ed25519/ed25519.h"
 #include "../../../../../includes/codecs/sha512/sha512.h"
-
-#include <string.h>
+#include "../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
 
 // One of RFC 8032's vectors, each as hex: the seed, the public key, the message and the signature
 typedef struct
@@ -64,7 +63,7 @@ static unsigned int ed25519_digit(char digit)
 // the hex `text` as bytes into `bytes`: how many
 static size_t ed25519_bytes_of(const char *text, unsigned char *bytes)
 {
-    const size_t count = strlen(text) / 2u;
+    const size_t count = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR) / 2u;
     for (size_t at = 0u; at < count; at += 1u)
     {
         // two hex digits make one byte
@@ -78,9 +77,9 @@ static int ed25519_sha_matches(const char *text, const char *wanted)
 {
     unsigned char digest[SHA512_BYTES];
     unsigned char expected[SHA512_BYTES];
-    sha512(text, strlen(text), digest);
+    sha512(text, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR), digest);
     (void)ed25519_bytes_of(wanted, expected);
-    return memcmp(digest, expected, SHA512_BYTES) == 0;
+    return EMBED_CALL(memor.cmp, MemoriaCfg, .src = digest, .other = expected, .bytes = SHA512_BYTES) == 0;
 }
 
 int program_main(int argc, char **argv)
@@ -114,10 +113,12 @@ int program_main(int argc, char **argv)
         const size_t length = ed25519_bytes_of(s_vectors[at].message, message);
         (void)ed25519_bytes_of(s_vectors[at].signature, signature);
         ed25519_public_of(seed, made);
-        ed25519_check(memcmp(made, public_key, sizeof(made)) == 0, "the seed's public key is RFC 8032's");
+        ed25519_check(EMBED_CALL(memor.cmp, MemoriaCfg, .src = made, .other = public_key, .bytes = sizeof(made)) == 0,
+                      "the seed's public key is RFC 8032's");
         ed25519_signed(seed, public_key, message, length, signed_now);
-        ed25519_check(memcmp(signed_now, signature, sizeof(signature)) == 0,
-                      "the signature is RFC 8032's byte for byte");
+        ed25519_check(
+            EMBED_CALL(memor.cmp, MemoriaCfg, .src = signed_now, .other = signature, .bytes = sizeof(signature)) == 0,
+            "the signature is RFC 8032's byte for byte");
         ed25519_check(ed25519_verify(public_key, message, length, signature), "and it verifies");
         message[0] ^= 1u;
         ed25519_check(!ed25519_verify(public_key, message, (length > 0u) ? length : 1u, signature),

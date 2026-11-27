@@ -21,7 +21,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // the max places a kernel's code contains, and the bytes of one instruction
 #define KHW_PLACES 256u

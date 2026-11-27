@@ -13,8 +13,9 @@
 #include "zeta_search.h"
 #include "../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
-#include <string.h>
 
 /**
  * @brief Stops the program where an allocation fails, else returns the block.
@@ -54,7 +55,8 @@ static char *point_key(const ZetaPoint *point)
     static char t[8192];
     z_text(&point->sigma.numerator, sigma, sizeof(sigma));
     z_text(&point->t.numerator, t, sizeof(t));
-    const size_t length = strlen(sigma) + strlen(t) + 64u;
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = sigma, .cap = PLATFORM_TEXT_TO_TERMINATOR) +
+                          EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = t, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 64u;
     char *const key = (char *)steering_memory(platform_cell_taken(length, platform_place_g_program_owner, 0));
     snprintf(key, length, "%s/%d,%s/%d", sigma, (int)point->sigma.places, t, (int)point->t.places);
     return key;
@@ -79,7 +81,7 @@ static uint64_t key_hash(const char *text)
 
 void steering_begin(Steering *steering)
 {
-    memset(steering, 0, sizeof(*steering));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = steering, .bytes = sizeof(*steering), .val = 0);
 }
 
 void steering_free(Steering *steering)
@@ -95,7 +97,7 @@ void steering_free(Steering *steering)
         point_list_free(&steering->last_paths[at]);
     }
     platform_cell_released(steering->last_paths, platform_place_g_program_owner);
-    memset(steering, 0, sizeof(*steering));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = steering, .bytes = sizeof(*steering), .val = 0);
 }
 
 size_t steering_intern(Steering *steering, const ZetaPoint *point)
@@ -123,7 +125,8 @@ size_t steering_intern(Steering *steering, const ZetaPoint *point)
     while (steering->buckets[place] != 0u)
     {
         const size_t index = steering->buckets[place] - 1u;
-        if (strcmp(steering->records[index].key, key) == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = steering->records[index].key,
+                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = key, .ci = EMBED_FALSE))
         {
             platform_cell_released(key, platform_place_g_program_owner);
             return index;
@@ -138,7 +141,7 @@ size_t steering_intern(Steering *steering, const ZetaPoint *point)
                                 steering->capacity * sizeof(PointRecord), platform_place_g_program_owner, 0));
     }
     PointRecord *const record = &steering->records[steering->count];
-    memset(record, 0, sizeof(*record));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = record, .bytes = sizeof(*record), .val = 0);
     record->point = *point;
     record->key = key;
     record->n_sum = 1;
@@ -255,7 +258,7 @@ void steering_sweep(Steering *steering, const PointList *points)
                 const int64_t quadrant = (1 - sign_im) + ((1 - (sign_re * sign_im)) / 2);
                 record->decided = (int)((2 * quadrant) + ((((1 - sign_size) / 2) + quadrant) % 2));
                 record->has_decided = 1;
-                memcpy(record->value, values, sizeof(record->value));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = record->value, .src = values, .bytes = sizeof(record->value));
                 record->places = asked.places;
                 record->n_sum = asked.n_sum;
                 record->has_values = 1;

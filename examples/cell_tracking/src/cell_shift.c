@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "../../../includes/exact_types/integers/arm.h"
 #include "../../../src/platform/platform.h"
@@ -124,15 +125,19 @@ int program_main(int argc, char **argv)
         (void)fprintf(stderr, "  out of memory at %zu positions\n", total);
         return 1;
     }
-    memcpy(positions, first.positions, first.count * sizeof(*positions));
-    memcpy(values, first.values, first.count * sizeof(*values));
-    memcpy(positions + first.count, second.positions, second.count * sizeof(*positions));
-    memcpy(values + first.count, second.values, second.count * sizeof(*values));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = positions, .src = first.positions,
+               .bytes = first.count * sizeof(*positions));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = values, .src = first.values, .bytes = first.count * sizeof(*values));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = positions + first.count, .src = second.positions,
+               .bytes = second.count * sizeof(*positions));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = values + first.count, .src = second.values,
+               .bytes = second.count * sizeof(*values));
     qsort(positions, total, sizeof(*positions), shift_order);
 
     const OriorExactArm *engine = orior_exact_portable_arm();
 #if defined(ORIOR_EXACT_HAVE_CUDA) && ORIOR_EXACT_HAVE_CUDA
-    if ((argc < 7) || (strcmp(argv[6], "portable") != 0))
+    if ((argc < 7) || (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[6], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                   .other = "portable", .ci = EMBED_FALSE)))
     {
         const OriorExactArm *device = orior_exact_cuda_arm();
         if (device != NULL)

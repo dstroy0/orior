@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "../../src/cu/engine/nbody/orior/orior.h"
 #include "../../src/platform/platform.h"

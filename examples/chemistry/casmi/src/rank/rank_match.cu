@@ -7,7 +7,7 @@
 
 #include <cuda_runtime.h>
 
-#include <string.h>
+#include "memoria_operor/memoria_operor.h"
 
 #define RANK_MATCH_THREADS 256u
 
@@ -63,7 +63,7 @@ static unsigned int rank_match_blocks(unsigned long long threads)
 
 int rank_match_open(RankMatchDevice *device, const unsigned int *envelope, size_t envelope_limbs)
 {
-    memset(device, 0, sizeof(*device));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = device, .bytes = sizeof(*device), .val = 0);
     const size_t bytes = envelope_limbs * sizeof(unsigned int);
     return rank_device_room((void **)&device->envelope, &device->envelope_room, bytes) &&
            (cudaMemcpy(device->envelope, envelope, bytes, cudaMemcpyHostToDevice) == cudaSuccess);
@@ -81,7 +81,7 @@ void rank_match_close(RankMatchDevice *device)
     cudaFree(device->out);
     cudaFree(device->order);
     cudaFree(device->matched);
-    memset(device, 0, sizeof(*device));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = device, .bytes = sizeof(*device), .val = 0);
 }
 
 int rank_match_query(RankMatchDevice *device, const unsigned int *atoms, size_t limbs)
@@ -117,7 +117,7 @@ int rank_match_chunk(SimResults *results, RankMatchDevice *device, const RankMat
              (cudaMemcpy(device->peaks, chunk->peaks, spectra * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
               cudaSuccess);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long started = engine_clock_microseconds();
     if (ok)
     {

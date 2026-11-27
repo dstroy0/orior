@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_boundary_test_identity.cu: written, read off, through and the identity
-#include "record_boundary_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "record_boundary_test_internal.h"
 
 // write onto the boundary and read back: the fields are a crystal, T^-1 rebuilds the samples and T the crystal again.
 // Flips of the crystal's bits are T^-1's precision.
@@ -28,7 +29,7 @@ void boundary_written(BoundaryResults *results)
         crystal[at] = boundary_append(program, ENGINE_RECORD_FIELD_SIGNED, at, 0u);
     }
     boundary_inverse(program, crystal, NULL, NULL, back, BOUNDARY_TEST_SAMPLES, BOUNDARY_TEST_LEVELS);
-    memcpy(again->low[0], back->low[0], sizeof(again->low[0]));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = again->low[0], .src = back->low[0], .bytes = sizeof(again->low[0]));
     boundary_forward(program, again, BOUNDARY_TEST_SAMPLES, BOUNDARY_TEST_LEVELS);
     for (unsigned int at = 0u; at < BOUNDARY_TEST_SAMPLES; at += 1u)
     {
@@ -270,7 +271,7 @@ static void boundary_identity(BoundaryResults *results, BoundaryLoaded *loaded, 
         for (unsigned int draw = 1u; draw < group; draw += 1u)
         {
             unsigned int *const shuffled = &atoms[(size_t)(first + draw) * n];
-            memcpy(shuffled, own, (size_t)n * sizeof(unsigned int));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = shuffled, .src = own, .bytes = (size_t)n * sizeof(unsigned int));
             // Fisher-Yates from the top: each place swaps with one at or below it
             for (unsigned int at = n - 1u; at >= 1u; at -= 1u)
             {
@@ -313,8 +314,9 @@ static void boundary_identity(BoundaryResults *results, BoundaryLoaded *loaded, 
         {
             below = below && (crystal[0] < crystal[draw]);
             null_heap[type] += crystal[draw];
-            const int same_samples = memcmp(&atoms[(size_t)first * n], &atoms[(size_t)(first + draw) * n],
-                                            (size_t)n * sizeof(unsigned int)) == 0;
+            const int same_samples =
+                EMBED_CALL(memor.cmp, MemoriaCfg, .src = &atoms[(size_t)first * n],
+                           .other = &atoms[(size_t)(first + draw) * n], .bytes = (size_t)n * sizeof(unsigned int)) == 0;
             int same_crystal = 1;
             for (unsigned int at = 0u; at < n; at += 1u)
             {

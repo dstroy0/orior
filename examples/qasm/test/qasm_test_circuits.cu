@@ -1,8 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_test_circuits.cu: RXX, the inverse Fourier transform, measurement, fixtures and main
-#include "qasm_test_internal.h"
 #include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "qasm_test_internal.h"
 
 // exact gates alone: E = 0 and the peak's probability is 1 exactly
 static void exact_only(void)
@@ -16,9 +18,11 @@ static void exact_only(void)
     char bitstring[QASM_CLBITS_MAX + 1u];
     qasm_bitstring(&circuit, ran ? outcome.peak : 0ull, bitstring, sizeof(bitstring));
     const unsigned int zero[QASM_WIDE_LIMBS] = {0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
-    check(ran && (circuit.rounded_gates == 0u) && (memcmp(circuit.bound, zero, sizeof(zero)) == 0) &&
+    check(ran && (circuit.rounded_gates == 0u) &&
+              (EMBED_CALL(memor.cmp, MemoriaCfg, .src = circuit.bound, .other = zero, .bytes = sizeof(zero)) == 0) &&
               units_are_power(outcome.peak_units, 2u * QASM_FRACTION_BITS) && (outcome.proved != 0u) &&
-              (strcmp(bitstring, "1100") == 0),
+              (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = bitstring, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "1100", .ci = EMBED_FALSE)),
           "exact gates only: E = 0, p(%s) = 1 exactly, proved", bitstring);
     if (ran)
     {
@@ -39,7 +43,12 @@ static void rxx_split(void)
     char second[QASM_CLBITS_MAX + 1u];
     qasm_bitstring(&circuit, ran ? outcome.peak : 0ull, peak, sizeof(peak));
     qasm_bitstring(&circuit, ran ? outcome.runner_up : 0ull, second, sizeof(second));
-    check(ran && (strcmp(peak, "11") == 0) && (strcmp(second, "00") == 0) && (outcome.proved != 0u) &&
+    check(ran &&
+              (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = peak, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "11",
+                          .ci = EMBED_FALSE)) &&
+              (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = second, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "00",
+                          .ci = EMBED_FALSE)) &&
+              (outcome.proved != 0u) &&
               within(outcome.peak_units, 3u, (2u * QASM_FRACTION_BITS) - 2u, outcome.slack_units) &&
               within(outcome.runner_up_units, 1u, (2u * QASM_FRACTION_BITS) - 2u, outcome.slack_units),
           "rxx(2 pi/3): p(%s) = 3/4 and p(%s) = 1/4 within the slack, proved", peak, second);
@@ -86,8 +95,10 @@ static void inverse_fourier(void)
     char wanted[QASM_CLBITS_MAX + 1u];
     qasm_bitstring(&circuit, ran ? outcome.peak : 0ull, bitstring, sizeof(bitstring));
     qasm_bitstring(&circuit, k, wanted, sizeof(wanted));
-    check(ran && (strcmp(bitstring, wanted) == 0) && (outcome.proved != 0u) &&
-              within(outcome.peak_units, 1u, 2u * QASM_FRACTION_BITS, outcome.slack_units),
+    check(ran &&
+              (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = bitstring, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = wanted, .ci = EMBED_FALSE)) &&
+              (outcome.proved != 0u) && within(outcome.peak_units, 1u, 2u * QASM_FRACTION_BITS, outcome.slack_units),
           "inverse QFT over %u qubits returns k = %u as %s (%u gates, %u rounded), p = 1 within the slack, proved", n,
           k, bitstring, read ? circuit.gate_count : 0u, read ? circuit.rounded_gates : 0u);
     if (!read)
@@ -137,7 +148,10 @@ static void measurement(void)
         const int ran = read && run(&circuit, 0, &outcome, NULL);
         char bitstring[QASM_CLBITS_MAX + 1u];
         qasm_bitstring(&circuit, ran ? outcome.peak : 0ull, bitstring, sizeof(bitstring));
-        check(ran && (strcmp(bitstring, CASES[at].expected) == 0) && (outcome.proved != 0u) &&
+        check(ran &&
+                  (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = bitstring, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = CASES[at].expected, .ci = EMBED_FALSE)) &&
+                  (outcome.proved != 0u) &&
                   within(outcome.peak_units, 1u, 2u * QASM_FRACTION_BITS, outcome.slack_units),
               "%s: %s (wanted %s), p = 1 within the slack, proved", CASES[at].what, bitstring, CASES[at].expected);
         if (!read)
@@ -174,7 +188,7 @@ static void fixtures(const char *directory)
         char reason[QASM_REASON_CAPACITY];
         reason[0] = '\0';
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         QasmCircuit circuit;
         const QasmReadRequest request = {path, NULL, 0u, reason, sizeof(reason), &error};
         const int read = qasm_read(&request, &circuit) != QASM_ERROR;
@@ -183,7 +197,9 @@ static void fixtures(const char *directory)
         char bitstring[QASM_CLBITS_MAX + 1u];
         qasm_bitstring(&circuit, ran ? outcome.peak : 0ull, bitstring, sizeof(bitstring));
         check(ran && (outcome.proved == FIXTURES[at].proved) &&
-                  ((FIXTURES[at].expected == NULL) || (strcmp(bitstring, FIXTURES[at].expected) == 0)),
+                  ((FIXTURES[at].expected == NULL) ||
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = bitstring, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = FIXTURES[at].expected, .ci = EMBED_FALSE))),
               "fixture %s: %s, %s", FIXTURES[at].file, bitstring, (ran && outcome.proved) ? "proved" : "not proved");
         if (!read)
         {
@@ -298,10 +314,14 @@ static void device_against_host(void)
     QasmOutcome device;
     QasmOutcome host;
     const int ran = read && run(&circuit, 0, &device, device_state) && run(&circuit, 1, &host, host_state);
-    check(ran && (memcmp(device_state, host_state, (size_t)(lanes * QASM_STATE_LIMBS * sizeof(unsigned int))) == 0) &&
+    check(ran &&
+              (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device_state, .other = host_state,
+                          .bytes = (size_t)(lanes * QASM_STATE_LIMBS * sizeof(unsigned int))) == 0) &&
               (device.peak == host.peak) && (device.runner_up == host.runner_up) &&
-              (memcmp(device.peak_units, host.peak_units, sizeof(device.peak_units)) == 0) &&
-              (memcmp(device.slack_units, host.slack_units, sizeof(device.slack_units)) == 0) &&
+              (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device.peak_units, .other = host.peak_units,
+                          .bytes = sizeof(device.peak_units)) == 0) &&
+              (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device.slack_units, .other = host.slack_units,
+                          .bytes = sizeof(device.slack_units)) == 0) &&
               (device.proved == host.proved),
           "random circuit, %u qubits, %u gates (%u rounded): device and host agree word for word", n,
           read ? circuit.gate_count : 0u, read ? circuit.rounded_gates : 0u);
@@ -327,10 +347,10 @@ int program_main(int count, char **arguments)
     const char *const directory = (count > 1) ? arguments[1] : ".";
     // the job reserves the widest run here: 13 qubits
     QasmCircuit widest;
-    memset(&widest, 0, sizeof(widest));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &widest, .bytes = sizeof(widest), .val = 0);
     widest.qubits = 13u;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     QasmJob *job = NULL;
     static const unsigned char named[] = "qasm_test";
     if (qasm_job_submit(named, sizeof(named) - 1u, qasm_device_bytes(&widest), &job, &error) == QASM_ERROR)
@@ -360,7 +380,7 @@ int program_main(int count, char **arguments)
     fixtures(directory);
     device_against_host();
     EngineError released;
-    memset(&released, 0, sizeof(released));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &released, .bytes = sizeof(released), .val = 0);
     qasm_job_release(job, &released);
     {
         VerbaLinea *const output_line = platform_line_out();

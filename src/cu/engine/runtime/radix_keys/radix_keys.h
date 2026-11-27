@@ -6,7 +6,6 @@
 #include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
-#include <string.h>
 
 #ifdef __cplusplus
 extern "C"

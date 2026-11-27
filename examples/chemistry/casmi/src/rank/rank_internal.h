@@ -5,15 +5,14 @@
 #ifndef CASMI_RANK_INTERNAL_H
 #define CASMI_RANK_INTERNAL_H
 
+#include "../../../../../includes/exact_types/integers/exact_integer.h"
+#include "../../../../../includes/exact_types/integers/exact_record/exact_record.h"
 #include "../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "../../../../../includes/exact_types/integers/exact_integer.h"
-#include "../../../../../includes/exact_types/integers/exact_record/exact_record.h"
-#include "sim.h"
 
 #include <string>
 #include <unordered_map>

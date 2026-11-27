@@ -7,9 +7,10 @@
 #include "zeta_exact.h"
 #include "../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <math.h>
 #include <stdlib.h>
-#include <string.h>
 
 /** @brief The table of zeta zeros of Odlyzko, zeros1: the first forty ordinates as printed there. */
 const char *const ZETA_PUBLISHED_ZEROS[40] = {
@@ -454,7 +455,7 @@ void pair_text(const DecimalPair *value, int32_t places, char *text, size_t capa
     static char part_text[4096];
     z_text(&whole, whole_text, sizeof(whole_text));
     z_text(&part, part_text, sizeof(part_text));
-    const size_t length = strlen(part_text);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = part_text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     // The places are at least zero here, and the pad count fits an int.
     const int pad = (length < (size_t)places) ? (int)((size_t)places - length) : 0;
     if (pad == 0)
@@ -799,7 +800,8 @@ static int constant_matches(const ConstantEntry *entry, int64_t number, const ch
     {
         return (text == NULL) && (entry->key_text == NULL);
     }
-    return strcmp(text, entry->key_text) == 0;
+    return EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                      .other = entry->key_text, .ci = EMBED_FALSE);
 }
 
 /**
@@ -858,9 +860,12 @@ static void constant_fill(ConstantTable *table, ConstantEntry *entry, int64_t nu
     entry->key_text = NULL;
     if (text != NULL)
     {
-        entry->key_text =
-            (char *)zeta_memory(platform_cell_taken(strlen(text) + 1u, platform_place_g_program_owner, 0));
-        memcpy(entry->key_text, text, strlen(text) + 1u);
+        entry->key_text = (char *)zeta_memory(platform_cell_taken(
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u,
+            platform_place_g_program_owner, 0));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = entry->key_text, .src = text,
+                   .bytes =
+                       EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
     }
     entry->key_places = places;
     entry->used = 1;
@@ -1233,11 +1238,11 @@ static void tail_coefficient(const ZetaPoint *point, int64_t n_sum, int integral
         term[2] = den;
         OriorExactInteger sum[3];
         complex_add(total, term, sum);
-        memcpy(total, sum, sizeof(sum));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = total, .src = sum, .bytes = sizeof(sum));
         z_mul(&bernoulli.top, &turning_re, &term[0]);
         z_mul(&bernoulli.top, &turning_im, &term[1]);
         complex_add(slope, term, sum);
-        memcpy(slope, sum, sizeof(sum));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = slope, .src = sum, .bytes = sizeof(sum));
         for (int64_t j = (2 * k) - 1; j <= (2 * k); j += 1)
         {
             OriorExactInteger re;

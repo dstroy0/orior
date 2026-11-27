@@ -14,6 +14,7 @@
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
 #include "sim.h"
 
 #define SPEED_TEST_LANES (1u << 22u)
@@ -149,11 +150,11 @@ int program_main(int count, char **arguments)
     speed_powers(&programs[1]);
     speed_mix(&programs[2]);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     EngineRecordKey keys[SPEED_TEST_PROGRAMS];
     EngineRecordLayout layouts[SPEED_TEST_PROGRAMS];
-    memset(keys, 0, sizeof(keys));
-    memset(layouts, 0, sizeof(layouts));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = keys, .bytes = sizeof(keys), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = layouts, .bytes = sizeof(layouts), .val = 0);
     int ok = 1;
     unsigned int in_limbs_max = 0u;
     unsigned int out_limbs_max = 0u;
@@ -247,7 +248,8 @@ int program_main(int count, char **arguments)
                                                      cudaMemcpyDeviceToHost),
                                           "the records copied back") &&
                          (cycle_record_run_host(&host) == (long)SPEED_TEST_CHECKED) &&
-                         (memcmp(host_out, device_out, checked_words * sizeof(unsigned int)) == 0);
+                         (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                                     .bytes = checked_words * sizeof(unsigned int)) == 0);
         sim_check(&results, same, "the device's first 65,536 records equal the host's word for word");
         if ((ran != 0) && (best != 0ull))
         {

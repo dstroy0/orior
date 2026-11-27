@@ -7,8 +7,9 @@
 #include "zeta_theta.h"
 #include "../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
-#include <string.h>
 
 /**
  * @brief Stops the program where an allocation fails, else returns the block.
@@ -270,7 +271,9 @@ static KeptValue *kept_find(KeptTable *table, const char *key)
         table->capacity = grown;
     }
     size_t place = (size_t)(text_hash(key) & (table->capacity - 1u));
-    while ((table->entries[place].key != NULL) && (strcmp(table->entries[place].key, key) != 0))
+    while ((table->entries[place].key != NULL) &&
+           (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = table->entries[place].key,
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = key, .ci = EMBED_FALSE)))
     {
         place = (place + 1u) & (table->capacity - 1u);
     }
@@ -287,8 +290,11 @@ static KeptValue *kept_find(KeptTable *table, const char *key)
  */
 static void kept_store(KeptTable *table, KeptValue *entry, const char *key, const OriorExactInteger *value)
 {
-    entry->key = (char *)theta_memory(platform_cell_taken(strlen(key) + 1u, platform_place_g_program_owner, 0));
-    memcpy(entry->key, key, strlen(key) + 1u);
+    entry->key = (char *)theta_memory(platform_cell_taken(
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u,
+        platform_place_g_program_owner, 0));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = entry->key, .src = key,
+               .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
     entry->value = *value;
     table->count += 1u;
 }

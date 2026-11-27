@@ -14,19 +14,18 @@
 // A request whose count is not a whole number of runs, whose count passes 2^32 records, or whose field passes its
 // record errors on both routes before a record is read. The test is one job on the device's tessera daemon.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
 
 #include <cuda_runtime.h>
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define SORT_TEST_LINE 8192ull
 
@@ -106,7 +105,7 @@ static int sort_ordered(const unsigned int *records, const unsigned int *order, 
                         unsigned long long group, unsigned int out_limbs, unsigned int offset, unsigned int bits,
                         unsigned char *seen)
 {
-    memset(seen, 0, (size_t)count);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = seen, .bytes = (size_t)count, .val = 0);
     int ok = 1;
     for (unsigned long long at = 0ull; (ok != 0) && (at < count); at += 1ull)
     {
@@ -154,7 +153,7 @@ static void sort_records(SortResults *results, unsigned int *records, unsigned i
         for (unsigned int g = 0u; (ok != 0) && (g < SORT_TEST_GROUPS); g += 1u)
         {
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             const int both =
                 (sort_run(1, device_records, SORT_TEST_RECORDS, groups[g], SORT_TEST_RECORD_LIMBS, offsets[field],
                           bits[field], order_on_device, &error) != CYCLE_ERROR) &&
@@ -162,8 +161,8 @@ static void sort_records(SortResults *results, unsigned int *records, unsigned i
                             cudaMemcpyDeviceToHost) == cudaSuccess) &&
                 (sort_run(0, records, SORT_TEST_RECORDS, groups[g], SORT_TEST_RECORD_LIMBS, offsets[field], bits[field],
                           host_order, &error) != CYCLE_ERROR);
-            const int same =
-                both && (memcmp(device_order, host_order, (size_t)SORT_TEST_RECORDS * sizeof(unsigned int)) == 0);
+            const int same = both && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device_order, .other = host_order,
+                                                 .bytes = (size_t)SORT_TEST_RECORDS * sizeof(unsigned int)) == 0);
             char what[200];
             snprintf(what, sizeof(what),
                      "fields of %u bits at bit %u, runs of %llu: the device equals the host word "
@@ -183,7 +182,7 @@ static void sort_records(SortResults *results, unsigned int *records, unsigned i
     for (int device = 0; (ok != 0) && (device < 2); device += 1)
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         const unsigned int *const source = (device != 0) ? device_records : records;
         unsigned int *const target = (device != 0) ? order_on_device : host_order;
         sort_check(results,
@@ -222,9 +221,9 @@ static void sort_index(SortResults *results, unsigned int *records, unsigned int
     EngineRecordLayout layout;
     CycleRecord *record = NULL;
     EngineError error;
-    memset(&key, 0, sizeof(key));
-    memset(&layout, 0, sizeof(layout));
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &key, .bytes = sizeof(key), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &layout, .bytes = sizeof(layout), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     EngineRecordStep steps[1] = {EngineRecordStep{ENGINE_RECORD_FIELD, 0u, 0u, 0u}};
     const unsigned int outputs[1] = {0u};
     const unsigned int field_bits[1] = {32u};
@@ -251,7 +250,7 @@ static void sort_index(SortResults *results, unsigned int *records, unsigned int
          (sort_run(1, device_records, SORT_TEST_RECORDS, group, SORT_TEST_RECORD_LIMBS, 32u, 32u, device_order,
                    &error) != CYCLE_ERROR);
     CycleRecordRunRequest sweep;
-    memset(&sweep, 0, sizeof(sweep));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &sweep, .bytes = sizeof(sweep), .val = 0);
     sweep.record = record;
     sweep.device_in[0] = device_records;
     sweep.bodies[0] = SORT_TEST_RECORDS;

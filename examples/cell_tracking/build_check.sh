@@ -32,16 +32,22 @@ case "$(uname -s)" in
         ;;
 esac
 
+# Each checker is a program of the platform. It takes MMgr's headers and links the platform: the process stage, the
+# pool and the system calls
+source "$TOP/../includes/exact_types/exact_types.sh"
+exact_types_platform_link || exit 1
 for tool in "${TOOLS[@]}"; do
     BINARY="$OUT/$tool$SUFFIX"
     rm -f "$BINARY"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
             # fopen and the like are the standard's, which the checkers retain over the _s forms
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /W4 /D_CRT_SECURE_NO_WARNINGS" -o "$BINARY" \
-                "$CHECK/$tool.c" ;;
+            nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" "${FILE_DEFS_LTO_NVCC[@]}" \
+                -Xcompiler "/std:c11 /O2 /W4 /D_CRT_SECURE_NO_WARNINGS" "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$BINARY" \
+                "$CHECK/$tool.c" "${PLATFORM_LINK[@]}" ;;
         *)
-            cc -std=c11 -O2 -Wall -Wextra -o "$BINARY" "$CHECK/$tool.c" ;;
+            cc "${FILE_DEFS_LTO_CC[@]}" -std=c11 -O2 -Wall -Wextra "${FILE_DEFS_MMGR_FLAGS[@]}" -o "$BINARY" \
+                "$CHECK/$tool.c" "${PLATFORM_LINK[@]}" ;;
     esac
     STATUS=$?
     if [ "$STATUS" -ne 0 ] || [ ! -f "$BINARY" ]; then

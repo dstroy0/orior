@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_boundary_test_transform.cu: the forward and inverse transforms
+#include "memoria_operor/memoria_operor.h"
 #include "record_boundary_test_internal.h"
 
 #define BOUNDARY_TEST_SEED 0xB0DA7C0FFEE5EEDull
@@ -185,7 +186,7 @@ static long long boundary_tower_shift(long long value, unsigned int shift)
 void boundary_host_forward(const long long *samples, long long *crystal)
 {
     long long band[BOUNDARY_TEST_SAMPLES];
-    memcpy(band, samples, sizeof(band));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = band, .src = samples, .bytes = sizeof(band));
     unsigned int count = BOUNDARY_TEST_SAMPLES;
     for (unsigned int level = 1u; level <= BOUNDARY_TEST_LEVELS; level += 1u)
     {
@@ -206,7 +207,7 @@ void boundary_host_forward(const long long *samples, long long *crystal)
         }
         count = lows;
     }
-    memcpy(crystal, band, (size_t)count * sizeof(long long));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = crystal, .src = band, .bytes = (size_t)count * sizeof(long long));
 }
 
 // the host's T^-1 on long long
@@ -214,7 +215,7 @@ void boundary_host_inverse(const long long *crystal, long long *samples)
 {
     long long band[BOUNDARY_TEST_SAMPLES];
     unsigned int count = BOUNDARY_TEST_SAMPLES >> BOUNDARY_TEST_LEVELS;
-    memcpy(band, crystal, (size_t)count * sizeof(long long));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = band, .src = crystal, .bytes = (size_t)count * sizeof(long long));
     for (unsigned int level = BOUNDARY_TEST_LEVELS; level >= 1u; level -= 1u)
     {
         const long long *const high = &crystal[count];
@@ -232,7 +233,7 @@ void boundary_host_inverse(const long long *crystal, long long *samples)
         }
         count *= 2u;
     }
-    memcpy(samples, band, sizeof(band));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = samples, .src = band, .bytes = sizeof(band));
 }
 
 // the matrices: the image of 2^RANGE e_i under each map. Every floor divides a multiple of its power there. The
@@ -244,7 +245,7 @@ void boundary_matrices(void)
         long long unit[BOUNDARY_TEST_SAMPLES];
         long long forward[BOUNDARY_TEST_SAMPLES];
         long long inverse[BOUNDARY_TEST_SAMPLES];
-        memset(unit, 0, sizeof(unit));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = unit, .bytes = sizeof(unit), .val = 0);
         unit[input] = 1ll << BOUNDARY_TEST_RANGE;
         boundary_host_forward(unit, forward);
         boundary_host_inverse(unit, inverse);

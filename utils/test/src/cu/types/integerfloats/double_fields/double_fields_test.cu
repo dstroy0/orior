@@ -7,19 +7,18 @@
 // double_fields_merge on the same words. The lanes are the edges of a double, every field at its least and max,
 // and drawn words; a merge's request carries words past every mask: the masking is tested as well. The test is
 // one job on the device's tessera daemon.
-#include "codegen_device.h"
-#include "../../../../../../../src/platform/platform.h"
-#include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../includes/exact_types/integerfloats/double_fields/double_fields.h"
+#include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
-#include "verba_scribo/verba_linea.h"
-#include <stdio.h>
-#include <string.h>
+#include "../../../../../../../src/platform/platform.h"
+#include "codegen_device.h"
+#include "memoria_operor/memoria_operor.h"
 #include "sim.h"
+#include "verba_scribo/verba_linea.h"
 #include <cuda_runtime.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define DOUBLE_FIELDS_TEST_LINE 4096ull
 #define DOUBLE_FIELDS_TEST_DRAWN 4096u
@@ -111,11 +110,11 @@ int program_main(int count, char **arguments)
     sim_open(&job, job_capacity);
 
     EngineRecordRequest program;
-    memset(&program, 0, sizeof(program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &program, .bytes = sizeof(program), .val = 0);
     double_fields_test_check(&results, double_fields_record(&program) == 0L, "double_fields_record fills its program");
     double_fields_test_check(&results, double_fields_record(NULL) != 0L, "double_fields_record refuses no request");
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     EngineRecordKey math;
     const KeymathRecordRequest encode_request = {
         program.steps,        program.count,  program.field_bits,  program.fields, program.members, program.outputs,
@@ -123,7 +122,7 @@ int program_main(int count, char **arguments)
     int ok = (keymath_record_encode(&encode_request) != KEYMATH_ERROR);
     double_fields_test_check(&results, ok, "the program encodes");
     EngineRecordLayout layout;
-    memset(&layout, 0, sizeof(layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &layout, .bytes = sizeof(layout), .val = 0);
     const KeyScheduleRecordRequest layout_request = {
         &math, program.field_offset, program.fields, program.in_limbs, program.reuse, &layout, &error};
     ok = ok && (key_schedule_record_layout(&layout_request) != KEY_SCHEDULE_ERROR);
@@ -232,7 +231,9 @@ int program_main(int count, char **arguments)
         &error};
     const int host_ran = ok && (cycle_record_run_host(&host) == (long)DOUBLE_FIELDS_TEST_LANES);
     double_fields_test_check(&results, host_ran, "the ribosome runs on the host");
-    double_fields_test_check(&results, host_ran && (memcmp(host_out, device_answer, out_bytes) == 0),
+    double_fields_test_check(&results,
+                             host_ran && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_answer,
+                                                     .bytes = out_bytes) == 0),
                              "the device's answers equal the host's word for word");
 
     static const char *const s_names[DOUBLE_FIELDS_RECORD_OUTPUTS] = {"double_fields_sign", "double_fields_exp",

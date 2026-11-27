@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_lane_test_run.cu: interpretation, loading, the sweep and the latch
+#include "memoria_operor/memoria_operor.h"
 #include "record_lane_test_internal.h"
 
 static unsigned long long s_lane_state = 0x1A7E1A7C4E5EED01ull;
@@ -66,7 +67,7 @@ static unsigned int lane_output(LaneProgram *program, unsigned int step)
 // `write_all` the lane, x, the hash and the hit are written; otherwise the hit alone
 void lane_search_build(LaneProgram *program, int write_all, LaneSearch *search)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int lane = lane_append(program, ENGINE_RECORD_LANE, 0u, 0u);
     const unsigned int base = lane_append(program, ENGINE_RECORD_FIELD, 0u, 0u);
     const unsigned int threshold = lane_append(program, ENGINE_RECORD_FIELD, 1u, 0u);
@@ -86,7 +87,7 @@ void lane_search_build(LaneProgram *program, int write_all, LaneSearch *search)
     const unsigned int doubled = lane_append(program, ENGINE_RECORD_SUM, order, size);
     const unsigned int two = lane_append(program, ENGINE_RECORD_CONSTANT, 2u, 0u);
     const unsigned int hit = lane_append(program, ENGINE_RECORD_QUOTIENT, doubled, two);
-    memset(search, 0, sizeof(*search));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = search, .bytes = sizeof(*search), .val = 0);
     if (write_all != 0)
     {
         search->lane = lane_output(program, lane);
@@ -100,7 +101,7 @@ void lane_search_build(LaneProgram *program, int write_all, LaneSearch *search)
 // where `interpret`, else compiled where NVRTC and nvJitLink are found
 int lane_load(const LaneProgram *program, int interpret, LaneLoaded *loaded)
 {
-    memset(loaded, 0, sizeof(*loaded));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = loaded, .bytes = sizeof(*loaded), .val = 0);
     const unsigned int field_bits[2] = {LANE_TEST_BASE_BITS, LANE_TEST_THRESHOLD_BITS};
     const unsigned int field_offset[2] = {0u, LANE_TEST_THRESHOLD_OFFSET};
     unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {LANE_TEST_SHARED_LIMBS, 0u, 0u};
@@ -151,7 +152,7 @@ void lane_put(unsigned int *record, unsigned int offset, unsigned int bits, unsi
 // the shared record: base, then T
 void lane_shared(unsigned int *record, unsigned long long base, unsigned long long threshold)
 {
-    memset(record, 0, LANE_TEST_SHARED_LIMBS * sizeof(unsigned int));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = record, .bytes = LANE_TEST_SHARED_LIMBS * sizeof(unsigned int), .val = 0);
     lane_put(record, 0u, LANE_TEST_BASE_BITS, base);
     lane_put(record, LANE_TEST_THRESHOLD_OFFSET, LANE_TEST_THRESHOLD_BITS, threshold);
 }

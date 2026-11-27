@@ -1,7 +1,8 @@
 
 // test_adversarial_plans.c: family guard, sampling cost, permutations and plans
-#include "test_adversarial_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "test_adversarial_internal.h"
 
 /**
  * @brief Case 6. Shapes outside the necessary-condition family, errored in the guard.
@@ -133,7 +134,7 @@ int adversarial_case_sampling_cost(void)
     {
         corpus[at] = (uint8_t)(at % 16u);
     }
-    memcpy(needle, corpus + 64u, sizeof(needle));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = needle, .src = corpus + 64u, .bytes = sizeof(needle));
 
     const size_t expected = orior_naive(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle));
 
@@ -205,7 +206,7 @@ int adversarial_case_permutation_null(void)
 
     uint64_t state = 0x2545F4914F6CDD1DULL;
     adversarial_fill_field(corpus, ADVERSARIAL_CORPUS, 6u, &state);
-    memcpy(needle, corpus + 700u, sizeof(needle));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = needle, .src = corpus + 700u, .bytes = sizeof(needle));
 
     const OriorProbe orders[4][3] = {
         {{0u, 1u, 1u}, {7u, 1u, 1u}, {15u, 1u, 1u}},
@@ -278,7 +279,7 @@ int adversarial_case_empty_plan(void)
 
     uint64_t state = 0x14057B7EF767814FULL;
     adversarial_fill_field(corpus, ADVERSARIAL_CORPUS, 4u, &state);
-    memcpy(needle, corpus + 321u, sizeof(needle));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = needle, .src = corpus + 321u, .bytes = sizeof(needle));
 
     const size_t reference = orior_naive(corpus, ADVERSARIAL_CORPUS, needle, sizeof(needle));
 
@@ -357,7 +358,7 @@ int adversarial_case_growing_plan(void)
 
     uint64_t state = 0x76E15D3EFEFDCBBFULL;
     adversarial_fill_field(corpus, ADVERSARIAL_CORPUS, 5u, &state);
-    memcpy(needle, corpus + 1024u, sizeof(needle));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = needle, .src = corpus + 1024u, .bytes = sizeof(needle));
 
     const OriorProbe probes[4] = {
         {0u, 1u, 1u},
@@ -481,8 +482,8 @@ int adversarial_case_stop_equals_continue(void)
     }
 
     // A field of one repeated symbol, where the first probe prunes nothing and the stop fires early.
-    memset(corpus, 'm', ADVERSARIAL_CORPUS);
-    memset(needle, 'm', sizeof(needle));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = corpus, .bytes = ADVERSARIAL_CORPUS, .val = 'm');
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = needle, .bytes = sizeof(needle), .val = 'm');
 
     const size_t alignments = ADVERSARIAL_CORPUS - sizeof(needle) + 1u;
     uint8_t *const survivors = (uint8_t *)platform_cell_taken(alignments, platform_place_g_program_owner, 0);

@@ -8,7 +8,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define ZARR_PATH_CAPACITY ENGINE_PATH_CAPACITY
 

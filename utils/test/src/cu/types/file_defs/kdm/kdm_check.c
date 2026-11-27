@@ -27,10 +27,11 @@
 #include "../../../../../../../includes/file_defs/klang/klang.h"
 
 #include "../../../../../../../includes/parsers/who.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_scribo.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -77,9 +78,13 @@ static const char *joined(const KdmFile *file, unsigned int from, char *bytes, s
 static int block_contains(const char *text, const char *lang, const char *inside)
 {
     KlangBlock block;
-    return klang_block_find(text, strlen(text), 0u, lang, &block) &&
-           ((block.text_end - block.text) == strlen(inside)) &&
-           (strncmp(&text[block.text], inside, strlen(inside)) == 0);
+    return klang_block_find(text,
+                            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                            0u, lang, &block) &&
+           ((block.text_end - block.text) ==
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = inside, .cap = PLATFORM_TEXT_TO_TERMINATOR)) &&
+           (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = &text[block.text], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = inside, .ci = EMBED_FALSE));
 }
 
 // the tail every check below writes after the rows: a block of the ruleset's language with a block of it inside, a
@@ -118,7 +123,9 @@ int program_main(int count, char **words)
     }
     char path[1024];
     snprintf(path, sizeof(path), "%s/kdm_check.kdm", words[1]);
-    if (qry_member_filed(path, s_written, strlen(s_written)) == 0ull)
+    if (qry_member_filed(
+            path, s_written,
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_written, .cap = PLATFORM_TEXT_TO_TERMINATOR)) == 0ull)
     {
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -132,12 +139,20 @@ int program_main(int count, char **words)
     }
     check_that(kdm_read(&s_file, path) && (s_file.lines == 15u), "a .kdm is read, a line each");
     static KdmRow s_row;
-    check_that(kdm_row_read(s_file.line[3], &s_row) && (strcmp(s_row.operation, "add") == 0) && (s_row.nodes == 1u) &&
-                   (strcmp(s_row.chain, "add(w0, w1)") == 0) && (strcmp(s_row.cost, "-") == 0) && (s_row.runs == 0u) &&
-                   (s_row.verdict == -1),
+    check_that(kdm_row_read(s_file.line[3], &s_row) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.operation, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "add", .ci = EMBED_FALSE)) &&
+                   (s_row.nodes == 1u) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.chain, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "add(w0, w1)", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.cost, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "-", .ci = EMBED_FALSE)) &&
+                   (s_row.runs == 0u) && (s_row.verdict == -1),
                "a row is read with its five fields and no verdict");
-    check_that(kdm_row_read(s_file.line[4], &s_row) && (strcmp(s_row.cost, "3/1") == 0) && (s_row.runs == 4u) &&
-                   (s_row.verdict == 1),
+    check_that(kdm_row_read(s_file.line[4], &s_row) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_row.cost, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "3/1", .ci = EMBED_FALSE)) &&
+                   (s_row.runs == 4u) && (s_row.verdict == 1),
                "a descent's row is read with its verdict");
     check_that(!kdm_row_read(s_file.line[0], &s_row) && !kdm_row_read(s_file.line[1], &s_row) &&
                    !kdm_row_read(s_file.line[2], &s_row) && !kdm_row_read(s_file.line[6], &s_row) &&
@@ -176,7 +191,8 @@ int program_main(int count, char **words)
              "who -\n" KDM_CHECK_TAIL,
              code);
     const char *text = joined(&s_file, 0u, s_text_bytes, sizeof(s_text_bytes));
-    check_that((text != NULL) && (strcmp(text, expected) == 0),
+    check_that((text != NULL) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = expected, .ci = EMBED_FALSE)),
                "the section goes after a who line of the code that wrote it, and the tail is as it was, the who in "
                "force over it, none, written again before it");
     Who there;
@@ -197,7 +213,8 @@ int program_main(int count, char **words)
              "who -\n" KDM_CHECK_TAIL,
              code);
     text = joined(&s_file, 0u, s_text_bytes, sizeof(s_text_bytes));
-    check_that((text != NULL) && (strcmp(text, expected) == 0),
+    check_that((text != NULL) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = expected, .ci = EMBED_FALSE)),
                "and the who line before the tail is retained as the tail's own, not written twice");
 
     const char *const comment[1] = {"# the pipes"};
@@ -213,13 +230,19 @@ int program_main(int count, char **words)
              "pipe IADD3 IADD3 8 1\n",
              code);
     text = joined(&s_file, s_file.lines - 5u, s_text_bytes, sizeof(s_text_bytes));
-    check_that((text != NULL) && (strcmp(text, expected) == 0) && (s_file.lines == 18u),
+    check_that((text != NULL) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = expected, .ci = EMBED_FALSE)) &&
+                   (s_file.lines == 18u),
                "the pipes and their comment let go and put again at the end, after a who line of the code that put "
                "them");
     unsigned int pipe_lines = 0u;
     for (unsigned int at = 0u; at < s_file.lines; at += 1u)
     {
-        pipe_lines += (strncmp(s_file.line[at], "pipe ", 5u) == 0) ? 1u : 0u;
+        pipe_lines += (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = s_file.line[at],
+                                  .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "pipe ", .ci = EMBED_FALSE))
+                          ? 1u
+                          : 0u;
     }
     check_that(pipe_lines == 1u, "and the pipe before them is let go");
     check_that(kdm_write(&s_file, path) == 1, "the .kdm is written through the run's writer");
@@ -249,12 +272,14 @@ int program_main(int count, char **words)
              "sub\t1\tsub(w0, w1)\t-\t0\n",
              code);
     text = joined(&s_file, 0u, s_text_bytes, sizeof(s_text_bytes));
-    check_that((text != NULL) && (strcmp(text, expected) == 0),
+    check_that((text != NULL) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = expected, .ci = EMBED_FALSE)),
                "the changed line goes under a who line of the writer's, and the line after it retains none, as before");
     const Who later_whole = WHO_HERE;
     check_that(kfile_lines_written_by(&s_file, 1u, changed, 4u, later_whole), "and is written again by another");
     text = joined(&s_file, 0u, s_text_bytes, sizeof(s_text_bytes));
-    check_that((text != NULL) && (strcmp(text, expected) == 0),
+    check_that((text != NULL) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = expected, .ci = EMBED_FALSE)),
                "the line it contained retains the who that wrote it, not the later writer's");
     kdm_free(&s_file);
 
@@ -265,16 +290,24 @@ int program_main(int count, char **words)
     snprintf(put_path, sizeof(put_path), "%s/kdm_check_put.kdm", words[1]);
     char put_text[1200];
     snprintf(put_text, sizeof(put_text), "kdm put\n# %s\n", qry_member_path());
-    check_that(qry_member_filed(put_path, put_text, strlen(put_text)) != 0ull, "a file is passed to the run");
+    check_that(qry_member_filed(put_path, put_text,
+                                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = put_text,
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR)) != 0ull,
+               "a file is passed to the run");
     const unsigned char *put_bytes = NULL;
     unsigned long long put_size = 0ull;
-    check_that(qry_member_file_blob(put_path, &put_bytes, &put_size) && (put_size == strlen(put_text)) &&
-                   (memcmp(put_bytes, put_text, (size_t)put_size) == 0),
-               "and read back as the run stores it");
+    check_that(
+        qry_member_file_blob(put_path, &put_bytes, &put_size) &&
+            (put_size ==
+             EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = put_text, .cap = PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = put_bytes, .other = put_text, .bytes = (size_t)put_size) == 0),
+        "and read back as the run stores it");
     unsigned long long disk_size = 0ull;
     const unsigned char *const disk_bytes = qry_member_file_mapped(put_path, &disk_size);
-    const int on_disk = (disk_bytes != NULL) && (disk_size == strlen(put_text)) &&
-                        (memcmp(disk_bytes, put_text, (size_t)disk_size) == 0);
+    const int on_disk =
+        (disk_bytes != NULL) &&
+        (disk_size == EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = put_text, .cap = PLATFORM_TEXT_TO_TERMINATOR)) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = disk_bytes, .other = put_text, .bytes = (size_t)disk_size) == 0);
     if (disk_bytes != NULL)
     {
         qry_member_file_unmapped(disk_bytes, disk_size);
@@ -322,10 +355,19 @@ int program_main(int count, char **words)
         const char *const after = joined(&s_file, 0u, s_text_bytes, sizeof(s_text_bytes));
         char head[64];
         snprintf(head, sizeof(head), "who %s\n", code);
-        const size_t first_line = (before != NULL) ? (strcspn(before, "\n") + 1u) : 0u;
-        const int same = written && (after != NULL) && (before != NULL) && (strncmp(after, before, first_line) == 0) &&
-                         (strncmp(after + first_line, head, strlen(head)) == 0) &&
-                         (strcmp(after + first_line + strlen(head), before + first_line) == 0);
+        const size_t first_line = (before != NULL) ? (EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = before,
+                                                                 .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\n") +
+                                                      1u)
+                                                   : 0u;
+        const int same =
+            written && (after != NULL) && (before != NULL) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = after, .other = before, .bytes = first_line) == 0) &&
+            (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = after + first_line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = head, .ci = EMBED_FALSE)) &&
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg,
+                        .src = after + first_line +
+                               EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = head, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = before + first_line, .ci = EMBED_FALSE));
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  ");

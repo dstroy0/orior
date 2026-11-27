@@ -8,7 +8,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // the guard predicate: three bits its number and the fourth the negation
 #define SASS_GUARD_FIRST 12u

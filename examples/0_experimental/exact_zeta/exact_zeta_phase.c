@@ -41,7 +41,6 @@
 #include "zeta_theta.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 #ifdef _WIN32
 #include <fcntl.h>

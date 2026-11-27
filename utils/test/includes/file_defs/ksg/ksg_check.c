@@ -11,8 +11,9 @@
 #include "../../../../../includes/file_defs/ksg/ksg.h"
 #include "verba_scribo/verba_scribo.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
-#include <string.h>
 
 // the max leaves a check makes, and the max bytes of a text it seals
 #define KSG_CHECK_LEAVES 4096u
@@ -54,7 +55,7 @@ static int ksg_leaf_stored(void *context, const unsigned char *leaf, unsigned lo
     {
         return 0;
     }
-    memcpy(leaves->leaf[leaves->count], leaf, KSG_SIGNUM_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = leaves->leaf[leaves->count], .src = leaf, .bytes = KSG_SIGNUM_BYTES);
     leaves->count += 1u;
     return 1;
 }
@@ -82,7 +83,7 @@ static void ksg_tree(const unsigned char *node_key, const KsgCheckLeaves *leaves
 {
     if ((to - from) == 1u)
     {
-        memcpy(out, leaves->leaf[from], KSG_SIGNUM_BYTES);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = leaves->leaf[from], .bytes = KSG_SIGNUM_BYTES);
         return;
     }
     unsigned int split = 1u;
@@ -151,7 +152,8 @@ int program_main(int argc, char **argv)
         const unsigned long long part = ksg_text(leaves, 0u);
         int sealed = ksg_sealed(s_text, part, part, &s_one, root, trailer);
         ksg_root_again(&s_one, part, again);
-        sealed = sealed && (memcmp(root, again, KSG_SIGNUM_BYTES) == 0);
+        sealed =
+            sealed && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = root, .other = again, .bytes = KSG_SIGNUM_BYTES) == 0);
         ksg_check(sealed, (leaves == 1u) ? "the root folded as the lines come is RFC 6962's root of the leaves"
                                          : "and for another count of lines");
     }
@@ -159,12 +161,15 @@ int program_main(int argc, char **argv)
     for (unsigned long long piece = 1ull; alike && (piece <= 4096ull); piece *= 3ull)
     {
         alike = ksg_sealed(s_text, size, piece, &s_other, other, trailer) && (s_other.count == s_one.count) &&
-                (memcmp(s_other.leaf, s_one.leaf, (size_t)s_one.count * KSG_SIGNUM_BYTES) == 0) &&
-                (memcmp(root, other, KSG_SIGNUM_BYTES) == 0);
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = s_other.leaf, .other = s_one.leaf,
+                            .bytes = (size_t)s_one.count * KSG_SIGNUM_BYTES) == 0) &&
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = root, .other = other, .bytes = KSG_SIGNUM_BYTES) == 0);
     }
     ksg_check(alike, "the same bytes passed in pieces of every size seal alike");
     ksg_text(1000u, 0u);
-    char *const relation = strstr(s_text, "rel 412 ge");
+    char *const relation =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = s_text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "rel 412 ge", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     relation[8] = 'l';
     relation[9] = 't';
     unsigned int differ = 0u;
@@ -172,13 +177,15 @@ int program_main(int argc, char **argv)
     const int changed = ksg_sealed(s_text, size, size, &s_other, other, trailer);
     for (unsigned int at = 0u; changed && (at < s_one.count); at += 1u)
     {
-        if (memcmp(s_one.leaf[at], s_other.leaf[at], KSG_SIGNUM_BYTES) != 0)
+        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = s_one.leaf[at], .other = s_other.leaf[at],
+                       .bytes = KSG_SIGNUM_BYTES) != 0)
         {
             differ += 1u;
             where = at;
         }
     }
-    ksg_check(changed && (differ == 1u) && (where == 412u) && (memcmp(root, other, KSG_SIGNUM_BYTES) != 0),
+    ksg_check(changed && (differ == 1u) && (where == 412u) &&
+                  (EMBED_CALL(memor.cmp, MemoriaCfg, .src = root, .other = other, .bytes = KSG_SIGNUM_BYTES) != 0),
               "one relation changed on line 412 changes that leaf and the root and no other leaf");
     ksg_check(ksg_sealed(s_text, 0ull, 1ull, &s_one, root, trailer) && (s_one.count == 1u),
               "a file of no bytes is one leaf");
@@ -193,9 +200,10 @@ int program_main(int argc, char **argv)
             words[word] |= (unsigned long long)trailer[(word * 8u) + at] << (8u * at);
         }
     }
-    ksg_check((words[0] == long_size) && (words[1] == KSG_LINE_MAX) && (words[2] == 12u) &&
-                  (memcmp(trailer + 24u, root, KSG_SIGNUM_BYTES) == 0),
-              "the trailer contains the size, KSG_LINE_MAX, the count of leaves and the root");
+    ksg_check(
+        (words[0] == long_size) && (words[1] == KSG_LINE_MAX) && (words[2] == 12u) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = trailer + 24u, .other = root, .bytes = KSG_SIGNUM_BYTES) == 0),
+        "the trailer contains the size, KSG_LINE_MAX, the count of leaves and the root");
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "ksg check: ");

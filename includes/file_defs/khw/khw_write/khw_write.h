@@ -14,7 +14,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // the max runs a form's operands sit in, and the max forms the part answers for
 #define KHW_RUNS 32u

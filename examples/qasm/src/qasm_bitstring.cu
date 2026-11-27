@@ -3,9 +3,10 @@
 #include "qasm.h"
 #include "../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // qasm_bitstring [--host] circuit.qasm
 // Reads an OpenQASM 2.0 circuit, runs it exactly in fixed point on the device (or the host), and prints the max
@@ -31,7 +32,8 @@ int program_main(int count, char **arguments)
     const char *path = NULL;
     for (int at = 1; at < count; at += 1)
     {
-        if (strcmp(arguments[at], "--host") == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--host", .ci = EMBED_FALSE))
         {
             on_host = 1;
         }
@@ -51,7 +53,7 @@ int program_main(int count, char **arguments)
         return QASM_EXIT_USAGE;
     }
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     char reason[QASM_REASON_CAPACITY];
     reason[0] = '\0';
     QasmCircuit circuit;
@@ -90,7 +92,7 @@ int program_main(int count, char **arguments)
     if (job != NULL)
     {
         EngineError released;
-        memset(&released, 0, sizeof(released));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &released, .bytes = sizeof(released), .val = 0);
         qasm_job_release(job, &released);
     }
     if (ran == QASM_ERROR)

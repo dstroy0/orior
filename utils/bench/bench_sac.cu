@@ -21,6 +21,8 @@
  *       chaining value at the end, and it cancels in the exclusive-or exactly.
  */
 
+#include "../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include <cuda_runtime.h>
 
 #include <cmath>
@@ -1275,18 +1277,42 @@ int main(int argc, char **argv)
     // The arm "waves" runs the spatial arm alone. Every other arm here has a settled result. A run of all of them to
     // reach the last one costs ten minutes a look. An instrument with that cost gets guessed at, and one without it
     // gets iterated on.
-    const bool waves_only = (argc > 4) && (std::strcmp(argv[4], "waves") == 0);
-    const bool dispersion_only = (argc > 4) && (std::strcmp(argv[4], "dispersion") == 0);
-    const bool shadow_only = (argc > 4) && (std::strcmp(argv[4], "shadow") == 0);
-    const bool assay_only = (argc > 4) && (std::strcmp(argv[4], "assay") == 0);
-    const bool coherent_only = (argc > 4) && (std::strcmp(argv[4], "coherent") == 0);
-    const bool construct_only = (argc > 4) && (std::strcmp(argv[4], "construct") == 0);
-    const bool conditional_only = (argc > 4) && (std::strcmp(argv[4], "conditional") == 0);
-    const bool sources_only = (argc > 4) && (std::strcmp(argv[4], "sources") == 0);
-    const bool signed_only = (argc > 4) && (std::strcmp(argv[4], "signed") == 0);
-    const bool cells_only = (argc > 4) && (std::strcmp(argv[4], "cells") == 0);
-    const bool miner_only = (argc > 4) && (std::strcmp(argv[4], "miner") == 0);
-    const bool rotations_only = (argc > 4) && (std::strcmp(argv[4], "rotations") == 0);
+    const bool waves_only =
+        (argc > 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[4], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "waves", .ci = EMBED_FALSE));
+    const bool dispersion_only =
+        (argc > 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[4], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "dispersion", .ci = EMBED_FALSE));
+    const bool shadow_only =
+        (argc > 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[4], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "shadow", .ci = EMBED_FALSE));
+    const bool assay_only =
+        (argc > 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[4], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "assay", .ci = EMBED_FALSE));
+    const bool coherent_only =
+        (argc > 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[4], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "coherent", .ci = EMBED_FALSE));
+    const bool construct_only =
+        (argc > 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[4], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "construct", .ci = EMBED_FALSE));
+    const bool conditional_only =
+        (argc > 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[4], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "conditional", .ci = EMBED_FALSE));
+    const bool sources_only =
+        (argc > 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[4], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "sources", .ci = EMBED_FALSE));
+    const bool signed_only =
+        (argc > 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[4], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "signed", .ci = EMBED_FALSE));
+    const bool cells_only =
+        (argc > 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[4], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "cells", .ci = EMBED_FALSE));
+    const bool miner_only =
+        (argc > 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[4], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "miner", .ci = EMBED_FALSE));
+    const bool rotations_only =
+        (argc > 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[4], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .other = "rotations", .ci = EMBED_FALSE));
 
     std::printf("================================================================\n");
     std::printf("  The strict avalanche criterion, sampled hard\n");

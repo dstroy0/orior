@@ -78,7 +78,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 /** @brief Corpus bytes every generated field carries. */
 #define ADVERSARIAL_CORPUS 4096u

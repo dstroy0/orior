@@ -20,9 +20,10 @@
 #include "../../../../../includes/codecs/pbkdf2/pbkdf2.h"
 #include "../../../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 /** @brief Bytes of the largest value that one line of a source carries, after hex decode. */
 #define LONGEST_VALUE_BYTES 8192u
@@ -174,22 +175,26 @@ static int json_string_field(const char *line, const char *name, const char **st
 {
     char key[64];
     snprintf(key, sizeof(key), "\"%s\"", name);
-    const char *at = strstr(line, key);
+    const char *at = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = key, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if (at == NULL)
     {
         return 0;
     }
-    at = strchr(at + strlen(key), ':');
+    at = EMBED_CALL(cellul.chr, CatenaFinitaCfg,
+                    .src = at + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                    .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ':');
     if (at == NULL)
     {
         return 0;
     }
-    at = strchr(at, '"');
+    at = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '"');
     if (at == NULL)
     {
         return 0;
     }
-    const char *const end = strchr(at + 1, '"');
+    const char *const end =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = at + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '"');
     if (end == NULL)
     {
         return 0;
@@ -212,12 +217,15 @@ static int json_number_field(const char *line, const char *name, unsigned long *
 {
     char key[64];
     snprintf(key, sizeof(key), "\"%s\"", name);
-    const char *at = strstr(line, key);
+    const char *at = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = key, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if (at == NULL)
     {
         return 0;
     }
-    at = strchr(at + strlen(key), ':');
+    at = EMBED_CALL(cellul.chr, CatenaFinitaCfg,
+                    .src = at + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                    .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ':');
     if (at == NULL)
     {
         return 0;
@@ -239,10 +247,10 @@ static char *next_line(char **cursor)
     {
         return NULL;
     }
-    char *end = strchr(line, '\n');
+    char *end = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\n');
     if (end == NULL)
     {
-        *cursor = line + strlen(line);
+        *cursor = line + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         return line;
     }
     *end = '\0';
@@ -288,8 +296,9 @@ static void rfc4231_case_check(Tally *tally, const RfcCase *test, unsigned numbe
     hmac_sha512(test->key, test->key_bytes, test->data, test->data_bytes, tag);
     char label[32];
     snprintf(label, sizeof(label), "test case %u", number);
-    const int passed = (test->tag_bytes > 0u) && (test->tag_bytes <= HMAC_SHA512_BYTES) &&
-                       (memcmp(tag, test->tag, test->tag_bytes) == 0);
+    const int passed =
+        (test->tag_bytes > 0u) && (test->tag_bytes <= HMAC_SHA512_BYTES) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = tag, .other = test->tag, .bytes = test->tag_bytes) == 0);
     record(tally, "RFC 4231", label, passed);
 }
 
@@ -321,7 +330,7 @@ static unsigned rfc4231_check(Tally *tally, char *text)
                 rfc4231_case_check(tally, &test, number);
                 found += 1u;
             }
-            memset(&test, 0, sizeof(test));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &test, .bytes = sizeof(test), .val = 0);
             number = case_number;
             field = RFC_FIELD_NONE;
             continue;
@@ -330,32 +339,39 @@ static unsigned rfc4231_check(Tally *tally, char *text)
         {
             continue;
         }
-        if (strncmp(line, "5.  Security Considerations", 27u) == 0)
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "5.  Security Considerations", .ci = EMBED_FALSE))
         {
             break;
         }
 
         const char *hex = NULL;
-        if (strncmp(line, "   Key", 6u) == 0)
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "   Key", .ci = EMBED_FALSE))
         {
             field = RFC_FIELD_KEY;
             hex = line + 6;
         }
-        else if (strncmp(line, "   Data", 7u) == 0)
+        else if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "   Data", .ci = EMBED_FALSE))
         {
             field = RFC_FIELD_DATA;
             hex = line + 7;
         }
-        else if (strncmp(line, "   HMAC-SHA-512", 15u) == 0)
+        else if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "   HMAC-SHA-512", .ci = EMBED_FALSE))
         {
             field = RFC_FIELD_TAG;
             hex = line + 15;
         }
-        else if (strncmp(line, "   HMAC-SHA-", 12u) == 0)
+        else if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "   HMAC-SHA-", .ci = EMBED_FALSE))
         {
             field = RFC_FIELD_NONE;
         }
-        else if ((strncmp(line, "                  ", 18u) == 0) && (hex_digit(line[18]) >= 0))
+        else if ((EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = "                  ", .ci = EMBED_FALSE)) &&
+                 (hex_digit(line[18]) >= 0))
         {
             hex = line + 18;
         }
@@ -454,9 +470,12 @@ static unsigned wycheproof_hmac_check(Tally *tally, char *text)
             unsigned char tag[HMAC_SHA512_BYTES];
             hmac_sha512(key, key_bytes, message, message_bytes, tag);
             const size_t tag_bytes = tag_bits / 8u;
-            const int same = (tag_bytes <= HMAC_SHA512_BYTES) && (expected_bytes == tag_bytes) &&
-                             (memcmp(tag, expected, tag_bytes) == 0);
-            const int valid = (length == 5u) && (strncmp(value, "valid", 5u) == 0);
+            const int same =
+                (tag_bytes <= HMAC_SHA512_BYTES) && (expected_bytes == tag_bytes) &&
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = tag, .other = expected, .bytes = tag_bytes) == 0);
+            const int valid =
+                (length == 5u) && (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = value,
+                                              .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "valid", .ci = EMBED_FALSE));
             char label[48];
             snprintf(label, sizeof(label), "tcId %lu (%s)", case_id, valid ? "valid" : "invalid");
             record(tally, "Wycheproof HMAC-SHA512", label, decoded && (valid ? same : !same));
@@ -525,12 +544,15 @@ static unsigned wycheproof_pbkdf2_check(Tally *tally, char *text)
         }
         else if (json_string_field(line, "result", &value, &length))
         {
-            const int valid = (length == 5u) && (strncmp(value, "valid", 5u) == 0);
+            const int valid =
+                (length == 5u) && (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = value,
+                                              .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "valid", .ci = EMBED_FALSE));
             const int fits = derived_bytes <= LONGEST_VALUE_BYTES;
             const int made = fits && pbkdf2_hmac_sha512(password, password_bytes, salt, salt_bytes, iterations, derived,
                                                         derived_bytes);
             const int same =
-                made && (expected_bytes == derived_bytes) && (memcmp(derived, expected, expected_bytes) == 0);
+                made && (expected_bytes == derived_bytes) &&
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = derived, .other = expected, .bytes = expected_bytes) == 0);
             char label[48];
             snprintf(label, sizeof(label), "tcId %lu (%s)", case_id, valid ? "valid" : "invalid");
             record(tally, "Wycheproof PBKDF2-HMAC-SHA512", label, decoded && (valid ? same : !same));
@@ -562,7 +584,8 @@ static unsigned trezor_bip39_check(Tally *tally, char *text)
     char *line;
     while ((line = next_line(&cursor)) != NULL)
     {
-        if (strstr(line, "\"english\"") != NULL)
+        if (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "\"english\"", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL)
         {
             inside = 1;
             position = 0u;
@@ -573,16 +596,21 @@ static unsigned trezor_bip39_check(Tally *tally, char *text)
             continue;
         }
         // The next language key ends the english vectors.
-        if ((strchr(line, ':') != NULL) && (strstr(line, "\"english\"") == NULL))
+        if ((EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ':') !=
+             NULL) &&
+            (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\"english\"", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) == NULL))
         {
             break;
         }
-        const char *const open = strchr(line, '"');
+        const char *const open =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '"');
         if (open == NULL)
         {
             continue;
         }
-        const char *const close = strchr(open + 1, '"');
+        const char *const close =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = open + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '"');
         if (close == NULL)
         {
             continue;
@@ -593,7 +621,7 @@ static unsigned trezor_bip39_check(Tally *tally, char *text)
         if (position == 1u)
         {
             const size_t kept = (length < (sizeof(mnemonic) - 1u)) ? length : (sizeof(mnemonic) - 1u);
-            memcpy(mnemonic, open + 1, kept);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = mnemonic, .src = open + 1, .bytes = kept);
             mnemonic[kept] = '\0';
         }
         else if (position == 2u)
@@ -601,10 +629,13 @@ static unsigned trezor_bip39_check(Tally *tally, char *text)
             size_t expected_bytes = 0u;
             const int decoded = hex_append(open + 1, length, expected, &expected_bytes);
             unsigned char seed[BIP39_SEED_BYTES];
-            const int made = pbkdf2_hmac_sha512(mnemonic, strlen(mnemonic), salt, strlen(salt), BIP39_ITERATIONS, seed,
-                                                sizeof(seed));
+            const int made = pbkdf2_hmac_sha512(
+                mnemonic, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = mnemonic, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                salt, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = salt, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                BIP39_ITERATIONS, seed, sizeof(seed));
             const int same =
-                decoded && made && (expected_bytes == sizeof(seed)) && (memcmp(seed, expected, sizeof(seed)) == 0);
+                decoded && made && (expected_bytes == sizeof(seed)) &&
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = seed, .other = expected, .bytes = sizeof(seed)) == 0);
             char label[48];
             snprintf(label, sizeof(label), "english vector %u", found + 1u);
             record(tally, "Trezor BIP-39", label, same);

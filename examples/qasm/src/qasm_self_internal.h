@@ -14,7 +14,6 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 
 // The self run. A circuit becomes one program for the record machine: every gate is a floor of exact integer steps
 // reading the floor below it, and with register reuse each lane runs the whole stack in one launch from its own input

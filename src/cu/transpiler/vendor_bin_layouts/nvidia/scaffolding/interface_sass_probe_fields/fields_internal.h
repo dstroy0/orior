@@ -14,7 +14,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // the max bytes a cubin, its code and a text take, and the max exits a code contains
 #define FIELDS_CUBIN_BYTES 262144u

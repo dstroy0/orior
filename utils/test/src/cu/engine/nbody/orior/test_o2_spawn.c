@@ -50,9 +50,9 @@
 #include "../../../../../../../src/cu/engine/nbody/orior/orior.h"
 #include "../../../../../../../src/platform/platform.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 /** @brief Corpus bytes every field carries. */
 #define O2_CORPUS 2048u
@@ -246,7 +246,8 @@ static int o2_case_found_past_cap(void)
             break;
         }
     }
-    if ((survivor == alignments) || (memcmp(corpus + survivor, needle, O2_NEEDLE) != 0))
+    if ((survivor == alignments) ||
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = corpus + survivor, .other = needle, .bytes = O2_NEEDLE) != 0))
     {
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -301,8 +302,8 @@ static int o2_case_flat_errors(void)
     // One repeated symbol. The needle matches at every alignment. Every probe agrees everywhere
     // and prunes nothing.
     uint8_t needle[O2_NEEDLE];
-    memset(corpus, 'q', O2_CORPUS);
-    memset(needle, 'q', sizeof(needle));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = corpus, .bytes = O2_CORPUS, .val = 'q');
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = needle, .bytes = sizeof(needle), .val = 'q');
 
     size_t depth = 0u;
     uint64_t survivor_sum = 0u;
@@ -503,7 +504,7 @@ static int o2_case_cost_boundary(void)
         corpus[at] = (uint8_t)(((o2_next(&skew_state) % 10u) == 0u) ? 1u : 0u);
     }
     uint8_t common_needle[O2_NEEDLE];
-    memset(common_needle, 0, sizeof(common_needle));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = common_needle, .bytes = sizeof(common_needle), .val = 0);
 
     size_t skew_depth = 0u;
     uint64_t skew_sum = 0u;

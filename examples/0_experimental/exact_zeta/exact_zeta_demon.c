@@ -42,8 +42,9 @@
 #include "../../../src/platform/platform.h"
 #include "zeta_shuffle.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
-#include <string.h>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -184,18 +185,32 @@ static size_t bracketed_points(const char *binary, const TuringConstants *consta
         int64_t lane = 0;
         while (fgets(line, sizeof(line), handle) != NULL)
         {
-            if (strncmp(line, "point", 5u) != 0)
+            if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "point", .ci = EMBED_FALSE))
             {
                 continue;
             }
             char *words[16];
             size_t found = 0u;
-            char *cursor = strtok(line + 5, " \r\n");
-            while ((cursor != NULL) && (found < 16u))
+            // each word of the line after its tag, a terminator written past each as the walk reaches it
+            char *cursor = line + 5;
+            while (found < 16u)
             {
+                cursor += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = cursor, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = " \r\n");
+                if (*cursor == '\0')
+                {
+                    break;
+                }
                 words[found] = cursor;
                 found += 1u;
-                cursor = strtok(NULL, " \r\n");
+                cursor += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = cursor,
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \r\n");
+                if (*cursor != '\0')
+                {
+                    *cursor = '\0';
+                    cursor += 1;
+                }
             }
             if (found < 7u)
             {
@@ -588,7 +603,7 @@ static size_t bisect_left(const OriorExactInteger *values, size_t count, const O
  */
 static void curves_of(const OriorExactInteger *positions, size_t count, int64_t n_start, Curves *curves)
 {
-    memset(curves, 0, sizeof(*curves));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = curves, .bytes = sizeof(*curves), .val = 0);
     const size_t n = count - 1u;
     // The count of zeros fits a machine integer.
     curves->n = (int64_t)n;
@@ -854,9 +869,9 @@ static size_t pair_ranges(const ZeroRecord *intervals, size_t count, int64_t dec
                           int64_t across[REACH * BINS], unsigned char *open)
 {
     const int64_t last = (REACH * BINS) - 1;
-    memset(decided, 0, (size_t)(REACH * BINS) * sizeof(int64_t));
-    memset(across, 0, (size_t)(REACH * BINS) * sizeof(int64_t));
-    memset(open, 0, count);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = decided, .bytes = (size_t)(REACH * BINS) * sizeof(int64_t), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = across, .bytes = (size_t)(REACH * BINS) * sizeof(int64_t), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = open, .bytes = count, .val = 0);
     OriorExactInteger one;
     z_two_to(TURING_SCALE_BITS, &one);
     OriorExactInteger reach;
@@ -1072,7 +1087,11 @@ static void report(const Curves *real, const Arm arms[2], const OriorExactIntege
             {
                 char mark[16];
                 snprintf(mark, sizeof(mark), "%s%c%d", (outside[arm][0] != '\0') ? " " : "", side, lag);
-                strncat(outside[arm], mark, sizeof(outside[arm]) - strlen(outside[arm]) - 1u);
+                // the mark appended where the text ends, cut at the room that the text has
+                const size_t held =
+                    EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = outside[arm], .cap = PLATFORM_TEXT_TO_TERMINATOR);
+                (void)EMBED_CALL(cellul.copy, CatenaFinitaCfg, .src = mark, .cap = sizeof(outside[arm]) - held,
+                                 .dst = &outside[arm][held]);
             }
             char mean_text[64];
             show(&num, &den, 4, mean_text, sizeof(mean_text));

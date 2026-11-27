@@ -7,9 +7,9 @@
 #include "../../../../src/cu/engine/runtime/radix_keys/radix_keys.h"
 #include "track.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 static unsigned long long s_cohere_joined = 0ull;
 
@@ -96,7 +96,7 @@ int group_objects(TreeFrame *frame, const TreeFrame *previous, const TreeFrame *
             substance += (unsigned long long)frame->sizes[leaf];
         }
         unsigned long long per_band[DAMP_BANDS];
-        memset(per_band, 0, sizeof(per_band));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = per_band, .bytes = sizeof(per_band), .val = 0);
         for (unsigned int leaf = 0u; leaf < count; leaf += 1u)
         {
             per_band[band_of(frame->sizes[leaf])] += (unsigned long long)frame->sizes[leaf];
@@ -325,7 +325,8 @@ int group_objects(TreeFrame *frame, const TreeFrame *previous, const TreeFrame *
         platform_cell_released(number_of_root, platform_place_g_program_owner);
         return 0;
     }
-    memcpy(fill, frame->member_start, (size_t)objects * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = fill, .src = frame->member_start,
+               .bytes = (size_t)objects * sizeof(unsigned int));
     for (unsigned int leaf = 0u; leaf < count; leaf += 1u)
     {
         frame->members[fill[frame->object_of[leaf]]] = leaf;

@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_statements.c: definitions, registers, application and measurement
-#include "qasm_internal.h"
 #include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "qasm_internal.h"
 
 // ---------------------------------------------------------------------------------------------------------------
 // statements
@@ -11,7 +12,8 @@ const QasmDefinition *qasm_definition(const QasmParser *parser, const char *name
 {
     for (unsigned int at = 0u; at < parser->definition_count; at += 1u)
     {
-        if (strcmp(parser->definitions[at].name, name) == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = parser->definitions[at].name,
+                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = name, .ci = EMBED_FALSE))
         {
             return &parser->definitions[at];
         }
@@ -23,7 +25,8 @@ const QasmRegister *qasm_register(const QasmRegister *registers, unsigned int co
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (strcmp(registers[at].name, name) == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = registers[at].name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = name, .ci = EMBED_FALSE))
         {
             return &registers[at];
         }

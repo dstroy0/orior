@@ -102,9 +102,10 @@
 #include "scan.h"
 #include "sort.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #include <direct.h>
@@ -310,7 +311,7 @@ static int output_test_chain_as(const char *set, const char *sample, OutputFlaw 
     const unsigned int counts[4] = {3u, 2u, 0u, 2u};
     const unsigned int voxels[7] = {7u, 50u, 100u, 8u, 119u, 0u, (flaw == OUTPUT_FLAW_POINTS_OUTSIDE) ? 120u : 31u};
     OutputTestWords words;
-    memset(&words, 0, sizeof(words));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &words, .bytes = sizeof(words), .val = 0);
     output_test_head(&words, (flaw == OUTPUT_FLAW_FRAMES) ? 3u : 4u, 4u, 5u, (flaw == OUTPUT_FLAW_VIEW) ? 7u : 6u);
     const unsigned int doubled = ((flaw == OUTPUT_FLAW_IN) || (flaw == OUTPUT_FLAW_OUT)) ? 1u : 0u;
     output_test_pair(&words, (flaw == OUTPUT_FLAW_COUNT) ? 4u : 3u, 2u, 2u + doubled,
@@ -361,7 +362,7 @@ static int output_test_empty(const char *set)
 {
     const unsigned int head[6] = {0u, 4u, 5u, 6u, 2u, 34u};
     OutputTestWords words;
-    memset(&words, 0, sizeof(words));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &words, .bytes = sizeof(words), .val = 0);
     output_test_head(&words, 0u, 4u, 5u, 6u);
     return output_test_directory(set, "empty") && output_test_points(set, "empty", head, NULL, NULL, 0) &&
            output_test_links(set, "empty", &words);
@@ -390,7 +391,7 @@ static int output_test_second_as(const char *set, const char *sample, OutputSeco
                                                          {0u, SORT_GATE_CHOSEN, 0u, 0u},
                                                          {SORT_GATE_CHOSEN, 0u, 0u, SORT_GATE_CHOSEN}};
     OutputTestWords words;
-    memset(&words, 0, sizeof(words));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &words, .bytes = sizeof(words), .val = 0);
     output_test_head(&words, 2u, 1u, 2u, 3u);
     output_test_pair(&words, 2u, 2u, (form == OUTPUT_SECOND_CROSSED) ? 4u : 3u,
                      (form == OUTPUT_SECOND_FEWER) ? 1u : 2u);
@@ -420,7 +421,7 @@ static int output_test_fork(const char *set, const char *sample)
     const unsigned int counts[2] = {2u, 3u};
     const unsigned int voxels[5] = {0u, 5u, 5u, 0u, 3u};
     OutputTestWords words;
-    memset(&words, 0, sizeof(words));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &words, .bytes = sizeof(words), .val = 0);
     output_test_head(&words, 2u, 1u, 2u, 3u);
     output_test_pair(&words, 2u, 3u, 3u, 2u);
     output_test_source(&words, 0u);
@@ -512,7 +513,7 @@ static int output_test_beside(const char *set, const char *sample, const char *s
                                        ? (output_test_file_crc(path, &read) + skew)
                                        : 0ull;
     OutputTestWords words;
-    memset(&words, 0, sizeof(words));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &words, .bytes = sizeof(words), .val = 0);
     const unsigned int head[DIVIDE_HEADER_WORDS] = {
         view[0], view[1], view[2], view[3], (unsigned int)(crc & 0xFFFFFFFFull), (unsigned int)(crc >> 32u)};
     for (unsigned int at = 0u; at < head_words; at += 1u)
@@ -614,7 +615,7 @@ static int output_test_second_divide(const char *set, const char *sample, Output
     case OUTPUT_DIVIDE_ORDER: {
         // Q divides first, and takes S from P; then P, which comes before Q
         const unsigned int two[2u * DIVIDE_WORDS] = {1u, 0u, 1u, 0u, 0u, 1u, 0u, 1u};
-        memcpy(divisions, two, sizeof(two));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = divisions, .src = two, .bytes = sizeof(two));
         counts[0] = 2u;
     }
     break;
@@ -816,7 +817,7 @@ typedef struct
 // headers written
 static int output_test_open(const char *set, const char *stem, OutputTestFiles *files)
 {
-    memset(files->files, 0, sizeof(files->files));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = files->files, .bytes = sizeof(files->files), .val = 0);
     char name[256];
     int ok = 1;
     char *const paths[3] = {files->nodes, files->submission, files->report};
@@ -849,7 +850,9 @@ static int output_test_close(OutputTestFiles *files)
 static int output_test_same(const char *path, const char *expected)
 {
     char *const text = output_test_text(path);
-    const int same = (text != NULL) && (strcmp(text, expected) == 0);
+    const int same =
+        (text != NULL) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                      .other = expected, .ci = EMBED_FALSE));
     if ((text != NULL) && (same == 0))
     {
         VerbaLinea *const output_line = platform_line_out();
@@ -1142,11 +1145,17 @@ static void output_test_complete(OutputTestResults *results, const char *set)
     char *const text = output_test_text(quiet.report);
     const char *const tail = "  the nodes: no output named, none written\n"
                              "  the submission: no output named, none written\n";
-    const size_t tail_length = strlen(tail);
-    output_test_check(results,
-                      (counted == 0L) && (text != NULL) && (strlen(text) >= tail_length) &&
-                          (strcmp(&text[strlen(text) - tail_length], tail) == 0),
-                      "with no nodes and no submission named, the set is counted and reports nothing was written");
+    const size_t tail_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = tail, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    output_test_check(
+        results,
+        (counted == 0L) && (text != NULL) &&
+            (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR) >= tail_length) &&
+            (EMBED_CALL(
+                cellul.eq, CatenaFinitaCfg,
+                .src = &text[EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR) -
+                             tail_length],
+                .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = tail, .ci = EMBED_FALSE)),
+        "with no nodes and no submission named, the set is counted and reports nothing was written");
     platform_cell_released(text, platform_place_g_program_owner);
 }
 
@@ -1410,13 +1419,14 @@ static void output_test_faces_errors(OutputTestResults *results, const char *set
 // the start of `text` up to the first place `stop` begins, or 0 when `stop` is not in it or the capacity is too small
 static int output_test_before(char *out, size_t capacity, const char *text, const char *stop)
 {
-    const char *const at = strstr(text, stop);
+    const char *const at = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                      .other = stop, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     const size_t length = (at != NULL) ? (size_t)(at - text) : 0u;
     if ((at == NULL) || (length >= capacity))
     {
         return 0;
     }
-    memcpy(out, text, length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = text, .bytes = length);
     out[length] = '\0';
     return 1;
 }
@@ -1571,11 +1581,18 @@ static void output_test_crossed_counts(OutputTestResults *results, const char *s
     const char *const tail = "  the nodes: no output named, none written\n"
                              "  the submission: no output named, none written\n";
     const int expected = (worked != NULL) && (counts != NULL) && output_test_report(worked, OUTPUT_TEST_TEXT) &&
-                         output_test_before(counts, OUTPUT_TEST_TEXT - strlen(tail), worked, "  the nodes:");
+                         output_test_before(counts,
+                                            OUTPUT_TEST_TEXT - EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = tail,
+                                                                          .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                                            worked, "  the nodes:");
     // the capacity left for the counts before the tail contains the tail and its end
     if (expected)
     {
-        memcpy(&counts[strlen(counts)], tail, strlen(tail) + 1u);
+        EMBED_CALL(
+            memor.cpy, MemoriaCfg,
+            .dst = &counts[EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = counts, .cap = PLATFORM_TEXT_TO_TERMINATOR)],
+            .src = tail,
+            .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = tail, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
     }
     output_test_check(results,
                       written && closed && (result == 0L) && expected && output_test_same(files.report, counts),
@@ -1704,7 +1721,9 @@ static void output_test_line_ends(OutputTestResults *results, const char *set)
                 ((named > 0) && ((size_t)named < sizeof(name)) && output_test_path(path, sizeof(path), set, name))
                     ? output_test_text(path)
                     : NULL;
-            clean = clean && (text != NULL) && (strchr(text, '\r') == NULL);
+            clean = clean && (text != NULL) &&
+                    (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .byte = '\r') == NULL);
             platform_cell_released(text, platform_place_g_program_owner);
         }
     }

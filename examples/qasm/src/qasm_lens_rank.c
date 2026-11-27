@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_lens_rank.c: rows, rank, the clock, the seal and the read
-#include "qasm_lens_internal.h"
 #include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "qasm_lens_internal.h"
 
 static unsigned int qasm_lens_row_bit(const QasmLensRow *row, unsigned int column)
 {
@@ -12,7 +13,7 @@ static unsigned int qasm_lens_row_bit(const QasmLensRow *row, unsigned int colum
 static QasmLensRow qasm_lens_generator_row(const QasmLensState *table, unsigned int image, int lifted)
 {
     QasmLensRow row;
-    memset(&row, 0, sizeof(row));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &row, .bytes = sizeof(row), .val = 0);
     for (unsigned int word = 0u; word < QASM_LENS_STATE_WORDS; word += 1u)
     {
         row.word[word] = table[image].word[word] ^ table[0].word[word];
@@ -61,7 +62,7 @@ static void qasm_lens_basis_insert(QasmLensBasis *basis, QasmLensRow row, unsign
 static unsigned int qasm_lens_rank(const QasmLensState *forward_table, const QasmLensState *backward_table,
                                    unsigned int size, int lifted, QasmLensBasis *basis)
 {
-    memset(basis, 0, sizeof(*basis));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = basis, .bytes = sizeof(*basis), .val = 0);
     const unsigned int columns = (lifted != 0) ? QASM_LENS_LIFT_BITS : QASM_LENS_RAW_BITS;
     const QasmLensState *const tables[2u] = {forward_table, backward_table};
     for (unsigned int strand = 0u; strand < 2u; strand += 1u)
@@ -80,7 +81,7 @@ static int qasm_lens_clock_closes(const QasmLensRequest *request, const QasmLens
     qasm_lens_schedule_expand(base, request->rounds, schedule);
     const QasmLensState chaining_input = qasm_lens_invert_from_state(anchor, schedule, request->middle, 0u);
     const QasmLensState returned = qasm_lens_forward_from_state(&chaining_input, schedule, 0u, request->middle);
-    return memcmp(&returned, anchor, sizeof(QasmLensState)) == 0;
+    return EMBED_CALL(memor.cmp, MemoriaCfg, .src = &returned, .other = anchor, .bytes = sizeof(QasmLensState)) == 0;
 }
 
 static unsigned int qasm_lens_curvature_vanish(const QasmLensState *table, unsigned int bits, QasmLensSplitMix *draws)
@@ -113,7 +114,7 @@ static unsigned int qasm_lens_curvature_vanish(const QasmLensState *table, unsig
 
 static int qasm_lens_state_order(const void *left, const void *right)
 {
-    return memcmp(left, right, sizeof(QasmLensState));
+    return EMBED_CALL(memor.cmp, MemoriaCfg, .src = left, .other = right, .bytes = sizeof(QasmLensState));
 }
 
 static unsigned long long qasm_lens_fiber_count(QasmLensState *table, unsigned int size)
@@ -123,7 +124,8 @@ static unsigned long long qasm_lens_fiber_count(QasmLensState *table, unsigned i
     unsigned long long distinct = 1ull;
     for (unsigned int image = 1u; image < size; image += 1u)
     {
-        if (memcmp(&table[image], &table[image - 1u], sizeof(QasmLensState)) != 0)
+        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &table[image], .other = &table[image - 1u],
+                       .bytes = sizeof(QasmLensState)) != 0)
         {
             distinct += 1ull;
         }
@@ -239,8 +241,9 @@ long qasm_lens_read(const QasmLensRequest *request, QasmLensMeasurement *measure
     measurement->forward_fiber = forward_fiber;
     measurement->backward_fiber = backward_fiber;
     measurement->reversible = reversible;
-    measurement->root_stable = memcmp(root, root_again, ENGINE_SIGNUM_BYTES) == 0;
-    memcpy(measurement->root, root, ENGINE_SIGNUM_BYTES);
+    measurement->root_stable =
+        EMBED_CALL(memor.cmp, MemoriaCfg, .src = root, .other = root_again, .bytes = ENGINE_SIGNUM_BYTES) == 0;
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = measurement->root, .src = root, .bytes = ENGINE_SIGNUM_BYTES);
     return 0L;
 }
 
@@ -286,7 +289,7 @@ long qasm_lens_seal_check(const QasmLensRequest *request, unsigned char *clean, 
     {
         return QASM_ERROR;
     }
-    memcpy(clean, clean_root, ENGINE_SIGNUM_BYTES);
-    memcpy(flipped, flipped_root, ENGINE_SIGNUM_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = clean, .src = clean_root, .bytes = ENGINE_SIGNUM_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = flipped, .src = flipped_root, .bytes = ENGINE_SIGNUM_BYTES);
     return 0L;
 }

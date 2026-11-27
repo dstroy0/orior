@@ -41,9 +41,9 @@
  * bench refuses, and does not report a null that it did not earn.
  */
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "sha256_core.h"
 #include "../../src/platform/platform.h"
@@ -312,7 +312,7 @@ int program_main(int argc, char **argv)
         platform_cell_released(winners, platform_place_g_program_owner);
         return 1;
     }
-    (void)memcpy(planted, winners, sizeof(uint32_t) * sample_count);
+    (void)EMBED_CALL(memor.cpy, MemoriaCfg, .dst = planted, .src = winners, .bytes = sizeof(uint32_t) * sample_count);
     difference_plant(planted, sample_count, PLANTED_BIT);
 
     (void)printf("  %s\n\n", "====================================================");

@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_boundary_test_floors.cu: floor registers, floors and the top
-#include "record_boundary_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "record_boundary_test_internal.h"
 
 // the registers located at floor k of T then T^-1: at a forward floor l the level-l lows and the highs of levels 1
 // to l, at the mirror floor 2L - l the rebuilt lows and the same highs
@@ -57,7 +58,7 @@ void boundary_floors(BoundaryResults *results)
     // the forward's widths, encoded alone, set the mirror wraps
     EngineRecordKey twin_key;
     EngineError twin_error;
-    memset(&twin_key, 0, sizeof(twin_key));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &twin_key, .bytes = sizeof(twin_key), .val = 0);
     const int twin = boundary_encode(program, program->count, n, &twin_key, &twin_error);
     boundary_check(results, twin, "the forward tower encodes alone for its widths");
     if (twin == 0)
@@ -112,7 +113,7 @@ void boundary_floors(BoundaryResults *results)
     const int narrow = boundary_narrow_enough(&loaded, program);
     unsigned long long ring[BOUNDARY_TEST_FLOORS];
     unsigned long long heap[BOUNDARY_TEST_CLASSES][BOUNDARY_TEST_FLOORS];
-    memset(heap, 0, sizeof(heap));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = heap, .bytes = sizeof(heap), .val = 0);
     unsigned int registers[BOUNDARY_TEST_FLOORS][BOUNDARY_TEST_SAMPLES];
     unsigned int counts[BOUNDARY_TEST_FLOORS];
     for (unsigned int floor = 0u; floor < BOUNDARY_TEST_FLOORS; floor += 1u)

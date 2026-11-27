@@ -5,7 +5,6 @@
 
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
 
 #include <algorithm>
 

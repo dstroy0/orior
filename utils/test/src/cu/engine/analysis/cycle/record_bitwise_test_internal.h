@@ -17,19 +17,17 @@
 // two's complement at every tapped floor. And one level of the tower's 5/3 lifting with its inverse, the floor
 // divisions made from an and and an exact quotient, must equal tower_*.cu's formulas and return every sample exactly.
 // The test is one job on the device's tessera daemon, submitted before its first device work.
+#include "../../../../../../../includes/exact_types/integers/exact_integer.h"
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "../../../../../../../includes/exact_types/integers/exact_integer.h"
-#include "sim.h"
 
 #include <cuda_runtime.h>
 
 #include <stdlib.h>
-#include <string.h>
 
 #define BITWISE_TEST_LINE 8192ull
 

@@ -14,9 +14,11 @@
  *       trial. It uses no wordlist and no address, and makes no network access.
  */
 #include "../../includes/codecs/pbkdf2/pbkdf2.h"
+#include "../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
 #include <stdio.h>
-#include <string.h>
 #include <time.h>
 
 /** @brief Iterations of PBKDF2 in BIP-39. */
@@ -44,9 +46,12 @@ int main(void)
     {
         // A different first letter each trial. Thus nothing can move out of the loop, and the work is identical to a
         // real candidate.
-        memcpy(password, base, sizeof(base));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = password, .src = base, .bytes = sizeof(base));
         password[0] = (char)('a' + (trial % 26u));
-        if (!pbkdf2_hmac_sha512(password, strlen(password), salt, strlen(salt), BIP39_ITERATIONS, seed, sizeof(seed)))
+        if (!pbkdf2_hmac_sha512(
+                password, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = password, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                salt, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = salt, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                BIP39_ITERATIONS, seed, sizeof(seed)))
         {
             printf("  the derivation refused its arguments\n");
             return 1;

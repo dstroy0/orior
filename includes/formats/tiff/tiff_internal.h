@@ -8,7 +8,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define TIFF_LEADING_AXES 3u
 #define TIFF_ENTRIES_MAX 65535ULL

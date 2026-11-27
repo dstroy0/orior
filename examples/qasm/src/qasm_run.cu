@@ -1,8 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_run.cu: the sweep, the run and the job
-#include "qasm_device_internal.h"
 #include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "qasm_device_internal.h"
 
 // one gate: its index, its program's sweep, and the outputs narrowed back into the state
 static int qasm_sweep(QasmSpace *space, const QasmProgram *programs, const QasmGate *gate, EngineError *error)
@@ -23,14 +25,14 @@ static int qasm_sweep(QasmSpace *space, const QasmProgram *programs, const QasmG
         if (gate->type != QASM_GATE_PERMUTE)
         {
             qasm_gate_records(gate, records);
-            memcpy(gate_records, records, record_bytes);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = gate_records, .src = records, .bytes = record_bytes);
         }
         for (unsigned long long lane = 0ull; lane < lanes; lane += 1ull)
         {
             qasm_lane_index(gate, lane, &space->index[lane * members]);
         }
         CycleRecordHostRequest run;
-        memset(&run, 0, sizeof(run));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &run, .bytes = sizeof(run), .val = 0);
         run.layout = &program->layout;
         run.in[0] = space->state;
         run.bodies[0] = lanes;
@@ -72,7 +74,7 @@ static int qasm_sweep(QasmSpace *space, const QasmProgram *programs, const QasmG
         return 0;
     }
     CycleRecordRunRequest run;
-    memset(&run, 0, sizeof(run));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &run, .bytes = sizeof(run), .val = 0);
     run.record = program->record;
     run.device_in[0] = space->state;
     run.bodies[0] = lanes;
@@ -112,7 +114,7 @@ static int qasm_probabilities(QasmSpace *space, const QasmProgram *program, Qasm
     if (space->on_host != 0)
     {
         CycleRecordHostRequest run;
-        memset(&run, 0, sizeof(run));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &run, .bytes = sizeof(run), .val = 0);
         run.layout = &program->layout;
         run.in[0] = space->state;
         run.bodies[0] = lanes;
@@ -127,7 +129,7 @@ static int qasm_probabilities(QasmSpace *space, const QasmProgram *program, Qasm
         return 1;
     }
     CycleRecordRunRequest run;
-    memset(&run, 0, sizeof(run));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &run, .bytes = sizeof(run), .val = 0);
     run.record = program->record;
     run.device_in[0] = space->state;
     run.bodies[0] = lanes;
@@ -177,18 +179,18 @@ long qasm_run(const QasmRunRequest *request, QasmOutcome *outcome)
     {
         return QASM_ERROR;
     }
-    memset(outcome, 0, sizeof(*outcome));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = outcome, .bytes = sizeof(*outcome), .val = 0);
     const auto started = std::chrono::steady_clock::now();
     const int on_host = (request->on_host != 0) ? 1 : 0;
     QasmProgram programs[QASM_PROGRAMS];
-    memset(programs, 0, sizeof(programs));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = programs, .bytes = sizeof(programs), .val = 0);
     int ok = 1;
     for (unsigned int which = 0u; ok && (which < QASM_PROGRAMS); which += 1u)
     {
         ok = qasm_program_load(&programs[which], which, on_host, error);
     }
     QasmSpace space;
-    memset(&space, 0, sizeof(space));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &space, .bytes = sizeof(space), .val = 0);
     ok = ok && qasm_space_reserve(&space, circuit, on_host, error);
     for (unsigned int gate = 0u; ok && (gate < circuit->gate_count); gate += 1u)
     {
@@ -207,7 +209,7 @@ long qasm_run(const QasmRunRequest *request, QasmOutcome *outcome)
         const size_t bytes = (size_t)(space.lanes * QASM_STATE_LIMBS * sizeof(unsigned int));
         if (on_host != 0)
         {
-            memcpy(request->state_out, space.state, bytes);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->state_out, .src = space.state, .bytes = bytes);
         }
         else
         {
@@ -216,7 +218,7 @@ long qasm_run(const QasmRunRequest *request, QasmOutcome *outcome)
         }
     }
     QasmResults results;
-    memset(&results, 0, sizeof(results));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &results, .bytes = sizeof(results), .val = 0);
     results.circuit = circuit;
     for (unsigned int qubit = 0u; qubit < circuit->qubits; qubit += 1u)
     {
@@ -289,11 +291,15 @@ static int qasm_job_daemon(char *path, size_t capacity)
     {
         directory_length -= 1u;
     }
-    if ((directory_length == 0u) || ((directory_length + strlen(daemon) + 1u) > capacity))
+    if ((directory_length == 0u) ||
+        ((directory_length +
+          EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = daemon, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u) > capacity))
     {
         return 0;
     }
-    memcpy(path + directory_length, daemon, strlen(daemon) + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = path + directory_length, .src = daemon,
+               .bytes =
+                   EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = daemon, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
     return 1;
 }
 
@@ -314,7 +320,7 @@ long qasm_job_submit(const unsigned char *request, unsigned long long bytes, uns
     int device = 0;
     cudaDeviceProp properties;
     TesseraJobSubmit submit;
-    memset(&submit, 0, sizeof(submit));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &submit, .bytes = sizeof(submit), .val = 0);
     if (!QASM_CHECK(qasm_job_daemon(daemon, sizeof(daemon)), daemon, error, ENGINE_ERROR_RESOURCE) ||
         !QASM_STATUS_CHECK(cudaGetDevice(&device), &device, error) ||
         !QASM_STATUS_CHECK(cudaGetDeviceProperties(&properties, device), &properties, error))
@@ -328,9 +334,10 @@ long qasm_job_submit(const unsigned char *request, unsigned long long bytes, uns
         engine_error_frame(error);
         return QASM_ERROR;
     }
-    memcpy(submit.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = submit.device, .src = properties.uuid.bytes,
+               .bytes = TESSERA_DEVICE_BYTES);
 #if defined(_WIN32)
-    memcpy(&submit.luid, properties.luid, sizeof(submit.luid));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &submit.luid, .src = properties.luid, .bytes = sizeof(submit.luid));
 #endif
     submit.declared = declared;
     submit.grace_microseconds = QASM_JOB_RUNNING_MICROSECONDS;
@@ -340,7 +347,7 @@ long qasm_job_submit(const unsigned char *request, unsigned long long bytes, uns
     submit.daemon_path = daemon;
     submit.error = error;
     TesseraTicket ticket;
-    memset(&ticket, 0, sizeof(ticket));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &ticket, .bytes = sizeof(ticket), .val = 0);
     TesseraClient *client = NULL;
     if (tessera_job_submit(&submit, &client, &ticket) != 0L)
     {
@@ -386,7 +393,7 @@ long qasm_job_release(QasmJob *job, EngineError *error)
         return 0L;
     }
     TesseraTicket ticket;
-    memset(&ticket, 0, sizeof(ticket));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &ticket, .bytes = sizeof(ticket), .val = 0);
     const long released = tessera_job_release(job->client, &ticket, error);
     if (released == 0L)
     {

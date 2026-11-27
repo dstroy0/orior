@@ -54,10 +54,12 @@
  *       of integers, or on sets.
  */
 #include "../../../../examples/0_experimental/exact_navier_stokes/torus_fields.h"
+#include "../../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdarg.h>
 #include <stdlib.h>
-#include <string.h>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -336,9 +338,12 @@ static Verdict boundary_type(ReachFunction reach, const void *context, int64_t f
     reach(context, format_level + 1, horizon_level, &by_format);
     reach(context, format_level, horizon_level + 1, &by_horizon);
     Verdict verdict;
-    verdict.gap = strcmp(here.bytes, target->bytes) != 0;
-    verdict.moved_by_format = strcmp(by_format.bytes, here.bytes) != 0;
-    verdict.moved_by_horizon = strcmp(by_horizon.bytes, here.bytes) != 0;
+    verdict.gap = !EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = here.bytes, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = target->bytes, .ci = EMBED_FALSE);
+    verdict.moved_by_format = !EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = by_format.bytes,
+                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = here.bytes, .ci = EMBED_FALSE);
+    verdict.moved_by_horizon = !EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = by_horizon.bytes,
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = here.bytes, .ci = EMBED_FALSE);
     if (!verdict.gap)
     {
         verdict.type = "none";
@@ -644,9 +649,16 @@ static int report_controls(FILE *out)
     // The null for the classifier: a probe that cannot move the object reports measurement.
     describe(out, "null: the tree count with the horizon probe cut", blind);
     fputs("    the null shows the limit: measurement means unmoved by OUR probes, and only that\n\n", out);
-    return (strcmp(ntt.type, "format") == 0) && (strcmp(tree.type, "completeness") == 0) &&
-           (strcmp(deposit.type, "measurement") == 0) && (strcmp(exact_value.type, "none") == 0) &&
-           (strcmp(blind.type, "measurement") == 0);
+    return (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = ntt.type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "format", .ci = EMBED_FALSE)) &&
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = tree.type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "completeness", .ci = EMBED_FALSE)) &&
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = deposit.type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "measurement", .ci = EMBED_FALSE)) &&
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = exact_value.type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "none", .ci = EMBED_FALSE)) &&
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = blind.type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "measurement", .ci = EMBED_FALSE));
 }
 
 /* ---------------------------------------------------------------- pi as a scaled integer, Machin 1706 */
@@ -1055,7 +1067,9 @@ static int report_their_sets(FILE *out)
     text_begin(&target);
     ratio_rows(true_velocities, &target);
     const Verdict ratio = boundary_type(ratio_reach, NULL, 6, 1, &target);
-    const int ratio_all_true = strstr(target.bytes, "False") == NULL;
+    const int ratio_all_true =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = target.bytes, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "False", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) == NULL;
     text_free(&target);
     describe(out, "u_1/u_0 = -4 nu pi^2, deposit against true A", ratio);
     fprintf(out, "    the ratio identity holds at every mode for the true amplitude: %s\n\n", truth(ratio_all_true));
@@ -1064,10 +1078,19 @@ static int report_their_sets(FILE *out)
     vec_free(&true_datum);
     vectors_free(velocities, 4u);
     vec_free(&generic);
-    return (strcmp(decimal_narrow.type, "format and completeness") == 0) &&
-           (strcmp(decimal_full.type, "format") == 0) && (strcmp(ring_narrow.type, "completeness") == 0) &&
-           (strcmp(ring_full.type, "none") == 0) && (strcmp(measured.type, "measurement") == 0) &&
-           (strcmp(ratio.type, "none") == 0) && ratio_all_true;
+    return (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = decimal_narrow.type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "format and completeness", .ci = EMBED_FALSE)) &&
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = decimal_full.type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "format", .ci = EMBED_FALSE)) &&
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = ring_narrow.type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "completeness", .ci = EMBED_FALSE)) &&
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = ring_full.type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "none", .ci = EMBED_FALSE)) &&
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = measured.type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "measurement", .ci = EMBED_FALSE)) &&
+           (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = ratio.type, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "none", .ci = EMBED_FALSE)) &&
+           ratio_all_true;
 }
 
 /* ---------------------------------------------------------------- inheritance through the chain of constructors */
@@ -1296,7 +1319,8 @@ static void line_from(const int64_t *values, size_t count, LinePoly *poly)
 static void line_copy(const LinePoly *source, LinePoly *copy)
 {
     line_zero(source->count, copy);
-    memcpy(copy->values, source->values, source->count * sizeof(OriorExactInteger));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy->values, .src = source->values,
+               .bytes = source->count * sizeof(OriorExactInteger));
 }
 
 /**

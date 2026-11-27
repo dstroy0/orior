@@ -1,14 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-#include "../../src/cu/engine/nbody/orior/orior.h"
 #include "../../includes/codecs/sha256/sha256.h"
+#include "../../src/cu/engine/nbody/orior/orior.h"
+#include "../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define AB_CORPUS_BYTES 4096u
 
@@ -117,7 +118,7 @@ static const char s_ab_source[] =
 
 static size_t ab_fill_text(uint8_t *into, const char *text, size_t length)
 {
-    const size_t available = strlen(text);
+    const size_t available = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const size_t usable = (available < length) ? available : length;
 
     for (size_t index = 0u; index < usable; index++)

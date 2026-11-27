@@ -23,9 +23,10 @@
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/scheduler.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel/run_channel_internal.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -128,13 +129,13 @@ int program_main(int count, char **words)
     unsigned long long at_line = 0ull;
     while (listed && (at_line < list_size) && (written_count < CHECK_QUESTIONS))
     {
-        const unsigned char *const line_end =
-            (const unsigned char *)memchr(list + at_line, '\n', (size_t)(list_size - at_line));
+        const unsigned char *const line_end = (const unsigned char *)EMBED_CALL(
+            memor.chr, MemoriaCfg, .src = list + at_line, .bytes = (size_t)(list_size - at_line), .val = '\n');
         const size_t line_length =
             (line_end != NULL) ? (size_t)(line_end - (list + at_line)) : (size_t)(list_size - at_line);
         char line[256];
         const size_t copied = (line_length < (sizeof(line) - 1u)) ? line_length : (sizeof(line) - 1u);
-        memcpy(line, list + at_line, copied);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = line, .src = list + at_line, .bytes = copied);
         line[copied] = '\0';
         at_line += (unsigned long long)line_length + 1ull;
         char code_name[256];
@@ -184,8 +185,16 @@ int program_main(int count, char **words)
         for (unsigned int at = 2u; at < CHECK_QUESTIONS; at += 1u)
         {
             const int no_channel = pool[at].outcome == RUN_NO_CHANNEL;
-            ended += (no_channel && (strstr(pool[at].refused, "the carrier exited") != NULL)) ? 1u : 0u;
-            halted += (no_channel && (strstr(pool[at].refused, "a panic is on the line") != NULL)) ? 1u : 0u;
+            ended += (no_channel && (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = pool[at].refused,
+                                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "the carrier exited",
+                                                .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL))
+                         ? 1u
+                         : 0u;
+            halted += (no_channel && (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = pool[at].refused,
+                                                 .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "a panic is on the line",
+                                                 .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL))
+                          ? 1u
+                          : 0u;
         }
         check_that(ended == 1u, "the carrier's ending is the answer of the one question it was carrying");
         check_that(halted == CHECK_QUESTIONS - 3u,
@@ -209,12 +218,17 @@ int program_main(int count, char **words)
     run_channel_identity(question[0], &numbered);
     kqr_identity_text(&numbered, identity, sizeof(identity));
     snprintf(conference, sizeof(conference), "%s_%s", QRY_CONFERENCE_CALL, identity);
-    for (char *space = strchr(conference, ' '); space != NULL; space = strchr(space, ' '))
+    for (char *space = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = conference, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .byte = ' ');
+         space != NULL;
+         space = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = space, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ' '))
     {
         *space = '_';
     }
     const char *const account = "carrier: the part refused the launch as an illegal instruction; cause instruction\n";
-    qry_member_append(conference, (const unsigned char *)account, strlen(account), QRY_PANIC);
+    qry_member_append(conference, (const unsigned char *)account,
+                      EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = account, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                      QRY_PANIC);
     s_channel.carrier_clean = 1;
     run_channel_line_ruled(question[0]);
     check_that(!run_channel_panic_ruled() && (qry_member_panicked() == 0ull),
@@ -230,7 +244,12 @@ int program_main(int count, char **words)
     unsigned int stopped = 0u;
     for (unsigned int at = 0u; at < CHECK_QUESTIONS; at += 1u)
     {
-        stopped += ((pool[at].outcome == RUN_NO_CHANNEL) && (strstr(pool[at].refused, "stopped") != NULL)) ? 1u : 0u;
+        stopped +=
+            ((pool[at].outcome == RUN_NO_CHANNEL) &&
+             (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = pool[at].refused, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = "stopped", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL))
+                ? 1u
+                : 0u;
     }
     check_that((after == 0u) && (stopped == CHECK_QUESTIONS),
                "every question after the stop is refused with the stop's reason");

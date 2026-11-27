@@ -9,8 +9,9 @@
 #include "../../../../../../src/cu/engine/rmc/tree_number.h"
 #include "../../../../../../src/cu/engine/rmc/word_web.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
-#include <string.h>
 
 static const char *const s_precept_names[] = {
 #define PRECEPT_TEXT(name_, text_, arity_) text_,
@@ -347,14 +348,17 @@ int program_main(int argc, char **argv)
     const Word *multiply = NULL;
     for (unsigned int at = 0u; at < WORD_WEB_COUNT; at += 1u)
     {
-        multiply = (strcmp(s_word_web[at].name, "word_mul") == 0) ? &s_word_web[at] : multiply;
+        multiply = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_word_web[at].name,
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "word_mul", .ci = EMBED_FALSE))
+                       ? &s_word_web[at]
+                       : multiply;
     }
     static const unsigned int s_products[3][3] = {{3u, 3u, 9u}, {6u, 7u, 42u}, {11u, 13u, 143u}};
     unsigned int answered = 0u;
     for (unsigned int at = 0u; (multiply != NULL) && (at < 3u); at += 1u)
     {
         PreceptCase given;
-        memset(&given, 0, sizeof(given));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &given, .bytes = sizeof(given), .val = 0);
         given.operands = 2u;
         given.operand[0] = s_products[at][0];
         given.operand[1] = s_products[at][1];

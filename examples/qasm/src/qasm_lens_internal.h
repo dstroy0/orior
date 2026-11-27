@@ -10,7 +10,6 @@
 #include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define QASM_LENS_STATE_WORDS 8u
 #define QASM_LENS_MESSAGE_WORDS 16u

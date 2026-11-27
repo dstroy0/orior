@@ -20,8 +20,8 @@
 
 #include <cuda_runtime.h>
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
-#include <string.h>
 
 #define HESSIAN_TEST_EXTENTS 5u
 
@@ -86,7 +86,7 @@ static void hessian_test_value(unsigned long long key, unsigned long long voxel,
     // a remainder below 3, plus one, fits unsigned int
     const unsigned int small = 1u + (unsigned int)((draw >> 8u) % 3ull);
     const unsigned int middle = limbs / 2u;
-    memset(residual, 0, limbs * sizeof(unsigned int));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = residual, .bytes = limbs * sizeof(unsigned int), .val = 0);
     if (type == 1u)
     {
         residual[0] = small;
@@ -202,7 +202,7 @@ static int hessian_test_expected(const HessianTestField *field, unsigned int vox
 static int hessian_test_reserve(HessianTestField *field, unsigned int depth, unsigned int height, unsigned int width,
                                 unsigned int limbs)
 {
-    memset(field, 0, sizeof(*field));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = field, .bytes = sizeof(*field), .val = 0);
     field->depth = depth;
     field->height = height;
     field->width = width;
@@ -219,7 +219,7 @@ static void hessian_test_release(HessianTestField *field)
 {
     platform_cell_released(field->residual, platform_place_g_program_owner);
     platform_cell_released(field->values, platform_place_g_program_owner);
-    memset(field, 0, sizeof(*field));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = field, .bytes = sizeof(*field), .val = 0);
 }
 
 static void hessian_test_prove(SimResults *results, HessianTestField *field)
@@ -296,7 +296,8 @@ static void hessian_test_prove(SimResults *results, HessianTestField *field)
     const long positives = ok ? drift_positive(&pack) : DRIFT_ERROR;
     // a count that is not an error is not negative. It re-signs to unsigned long long exactly
     const int packed_alike = (positives >= 0L) && ((unsigned long long)positives == positive_count) &&
-                             (memcmp(packed, expected, words * sizeof(unsigned long long)) == 0);
+                             (EMBED_CALL(memor.cmp, MemoriaCfg, .src = packed, .other = expected,
+                                         .bytes = words * sizeof(unsigned long long)) == 0);
     sim_check(results, packed_alike, "the positive set packed on the device is the host's, with its count");
     mmgr_line_put(&results->line, "  ");
     mmgr_line_decimal(&results->line, limbs, 1u);
@@ -351,7 +352,8 @@ static void hessian_test_fields(SimResults *results, unsigned int width_at)
 static void hessian_test_draw_set(unsigned long long key, unsigned int voxels, unsigned long long density,
                                   unsigned long long *set)
 {
-    memset(set, 0, (size_t)DRIFT_WORDS(voxels) * sizeof(unsigned long long));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = set, .bytes = (size_t)DRIFT_WORDS(voxels) * sizeof(unsigned long long),
+               .val = 0);
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
         set[voxel / 64u] |=
@@ -384,7 +386,7 @@ static int hessian_test_agree(const unsigned int extents[3], const unsigned int 
     unsigned int *const host_counts =
         (unsigned int *)platform_cell_taken((total + 1u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     ShiftAgreementRequest device;
-    memset(&device, 0, sizeof(device));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &device, .bytes = sizeof(device), .val = 0);
     device.axes = 3u;
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
     {
@@ -398,11 +400,15 @@ static int hessian_test_agree(const unsigned int extents[3], const unsigned int 
     host.counts = host_counts;
     const int ran = (device_counts != NULL) && (host_counts != NULL) && (shift_agreement_run(&device) == 0L) &&
                     (shift_agreement_host(&host) == 0L);
-    const int agree = ran && (memcmp(device.lag, host.lag, sizeof(device.lag)) == 0) &&
-                      (device.agreement == host.agreement) &&
-                      (memcmp(device.padded, host.padded, sizeof(device.padded)) == 0) &&
-                      (memcmp(device_counts, host_counts, total * sizeof(unsigned int)) == 0);
-    memcpy(lag, device.lag, 3u * sizeof(int));
+    const int agree =
+        ran &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device.lag, .other = host.lag, .bytes = sizeof(device.lag)) == 0) &&
+        (device.agreement == host.agreement) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device.padded, .other = host.padded,
+                    .bytes = sizeof(device.padded)) == 0) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device_counts, .other = host_counts,
+                    .bytes = total * sizeof(unsigned int)) == 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lag, .src = device.lag, .bytes = 3u * sizeof(int));
     platform_cell_released(device_counts, platform_place_g_program_owner);
     platform_cell_released(host_counts, platform_place_g_program_owner);
     return agree;

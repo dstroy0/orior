@@ -8,8 +8,8 @@
 
 #include "../parquet/parquet.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
-#include <string.h>
 
 // the double columns' paths, and the text columns' in RANK_TEXTS order
 static const char *const RANK_PRECURSOR_PATH = "precursor_mz";
@@ -46,7 +46,7 @@ void rank_error_line(SimResults *results, const char *what, const EngineError *e
 // value v is value_length[v] bytes at value_bytes + value_offset[v]
 static int rank_leaf_read(const char *path, unsigned int group, long long leaf, CasmiParquetColumn *column)
 {
-    memset(column, 0, sizeof(*column));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = column, .bytes = sizeof(*column), .val = 0);
     // the leaf is below CASMI_PARQUET_LEAVES_MAX
     const CasmiParquetColumnRead read = {path, &s_footer, group, (unsigned int)leaf, column};
     int ok = casmi_parquet_column_bound(&read) >= 0ll;
@@ -81,7 +81,7 @@ static void rank_leaf_release(CasmiParquetColumn *column)
     platform_cell_released(column->value_offset, platform_place_g_program_owner);
     platform_cell_released(column->value_length, platform_place_g_program_owner);
     platform_cell_released(column->scratch, platform_place_g_program_owner);
-    memset(column, 0, sizeof(*column));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = column, .bytes = sizeof(*column), .val = 0);
 }
 
 // a double column's row group appended: each value's stored bits and each row's start; 0 where the leaf is not a
@@ -100,7 +100,8 @@ static int rank_double_load(const char *path, unsigned int group, const char *le
     }
     const unsigned long long base = out->bits.size();
     out->bits.resize((size_t)(base + column.values));
-    memcpy(&out->bits[base], column.value_bytes, (size_t)(column.values * 8ull));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &out->bits[base], .src = column.value_bytes,
+               .bytes = (size_t)(column.values * 8ull));
     if (out->row_start.empty())
     {
         out->row_start.push_back(0ull);

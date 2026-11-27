@@ -1,6 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_symbolic_function.c: rational functions
+#include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "qasm_symbolic_internal.h"
 
 // the coefficient the field's zero and one point at; nothing writes it, and nothing releases it
@@ -283,7 +285,8 @@ static long qasm_polynomial_text(const QasmPolynomial *polynomial, QasmText *bui
             ok = (qasm_number_short_text(&polynomial->coefficients[index], piece, sizeof(piece), error) == 0L) &&
                  ((first != 0) || qasm_symbolic_text_put(builder, " + "));
             first = 0;
-            const int unit = (strcmp(piece, "1") == 0);
+            const int unit = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = piece, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = "1", .ci = EMBED_FALSE));
             if ((ok != 0) && (exponent == 0))
             {
                 ok = qasm_symbolic_text_put(builder, piece);

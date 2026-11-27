@@ -1,9 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../includes/exact_types/integers/exact_integer.h"
+#include "../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
-#include <string.h>
 
 static const char *const SUBJECTS[] = {
     "4.76050", "0.35216", "10.1000", "8.6633", "14.0574", "0", "1", "-1", "0.000001",
@@ -40,7 +42,7 @@ typedef char bench_exact_places_fit_a_quarter[(PLACES_EXACT >= 2ull) ? 1 : -1];
 
 static void emit_text(const char *text)
 {
-    const size_t length = strlen(text);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     for (size_t at = 0u; at < length; at++)
     {
         printf("%02x", (unsigned int)(unsigned char)text[at]);
@@ -85,7 +87,7 @@ static void set_sentinel(OriorExactInteger *value)
 
 static void read_subject(size_t index, const char *text, OriorExactInteger *subject)
 {
-    const size_t length = strlen(text);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
 
     static OriorExactInteger sentinel;
     set_sentinel(&sentinel);
@@ -97,7 +99,9 @@ static void read_subject(size_t index, const char *text, OriorExactInteger *subj
     if (status != ORIOR_EXACT_OK)
     {
         printf(" errored %d\n", (int)status);
-        printf("same read %u %d\n", (unsigned)index, (memcmp(&value, &sentinel, sizeof(value)) == 0) ? 1 : 0);
+        printf("same read %u %d\n", (unsigned)index,
+               (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &value, .other = &sentinel, .bytes = sizeof(value)) == 0) ? 1
+                                                                                                                   : 0);
         orior_exact_zero(subject);
     }
     else
@@ -119,9 +123,11 @@ static void read_subject(size_t index, const char *text, OriorExactInteger *subj
     if (measured_status != ORIOR_EXACT_OK)
     {
         printf(" errored %d\n", (int)measured_status);
-        const int unchanged = (memcmp(&measured, &sentinel, sizeof(measured)) == 0)
-                              && (memcmp(&uncertainty, &sentinel, sizeof(uncertainty)) == 0)
-                              && (carried == 7);
+        const int unchanged =
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &measured, .other = &sentinel, .bytes = sizeof(measured)) == 0) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &uncertainty, .other = &sentinel, .bytes = sizeof(uncertainty)) ==
+             0) &&
+            (carried == 7);
         printf("same meas %u %d\n", (unsigned)index, unchanged ? 1 : 0);
     }
     else
@@ -136,7 +142,7 @@ static void read_subject(size_t index, const char *text, OriorExactInteger *subj
 static void run_arithmetic(void)
 {
     static char wide[WIDE_DIGITS + 1ull];
-    memset(wide, '9', (size_t)WIDE_DIGITS);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = wide, .bytes = (size_t)WIDE_DIGITS, .val = '9');
     wide[WIDE_DIGITS] = '\0';
 
     const size_t total = SUBJECT_COUNT + 1u;
@@ -185,10 +191,13 @@ static void run_errors(void)
     scaled = seven;
     const OriorExactStatus scale_status = orior_exact_scale_by_ten(&scaled, SCALE_PAST_WIDTH);
     printf("same scale %d %d\n", (int)scale_status,
-           ((scale_status != ORIOR_EXACT_OK) && (memcmp(&scaled, &seven, sizeof(scaled)) == 0)) ? 1 : 0);
+           ((scale_status != ORIOR_EXACT_OK) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &scaled, .other = &seven, .bytes = sizeof(scaled)) == 0))
+               ? 1
+               : 0);
 
     static OriorExactInteger largest;
-    memset(largest.limb, 0xFF, sizeof(largest.limb));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = largest.limb, .bytes = sizeof(largest.limb), .val = 0xFF);
     largest.sign = 1;
 
     static OriorExactInteger sentinel;
@@ -197,12 +206,18 @@ static void run_errors(void)
     set_sentinel(&result);
     const OriorExactStatus add_status = orior_exact_add(&largest, &largest, &result);
     printf("same add %d %d\n", (int)add_status,
-           ((add_status != ORIOR_EXACT_OK) && (memcmp(&result, &sentinel, sizeof(result)) == 0)) ? 1 : 0);
+           ((add_status != ORIOR_EXACT_OK) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &result, .other = &sentinel, .bytes = sizeof(result)) == 0))
+               ? 1
+               : 0);
 
     set_sentinel(&result);
     const OriorExactStatus multiply_status = orior_exact_multiply(&largest, &largest, &result);
     printf("same mul %d %d\n", (int)multiply_status,
-           ((multiply_status != ORIOR_EXACT_OK) && (memcmp(&result, &sentinel, sizeof(result)) == 0)) ? 1 : 0);
+           ((multiply_status != ORIOR_EXACT_OK) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &result, .other = &sentinel, .bytes = sizeof(result)) == 0))
+               ? 1
+               : 0);
 }
 
 static void run_agreement(void)
@@ -217,8 +232,9 @@ static void run_agreement(void)
         char text[64];
         (void)snprintf(text, sizeof(text), "%u.%02u", (unsigned)(at / 4u),
                        (unsigned)((at % 4u) * 25u));
-        const OriorExactStatus status =
-            orior_exact_from_decimal(text, strlen(text), PLACES, &positions[at]);
+        const OriorExactStatus status = orior_exact_from_decimal(
+            text, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR), PLACES,
+            &positions[at]);
         if (status != ORIOR_EXACT_OK)
         {
             printf("run errored at %u\n", (unsigned)at);
@@ -232,7 +248,9 @@ static void run_agreement(void)
         char text[64];
         static OriorExactInteger lag;
         (void)snprintf(text, sizeof(text), "%u.%02u", step / 4u, (step % 4u) * 25u);
-        if (orior_exact_from_decimal(text, strlen(text), PLACES, &lag) != ORIOR_EXACT_OK)
+        if (orior_exact_from_decimal(
+                text, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR), PLACES,
+                &lag) != ORIOR_EXACT_OK)
         {
             continue;
         }
@@ -255,8 +273,10 @@ static void run_repeated_agreement(void)
     static OriorExactInteger positions[ENTRIES];
     for (size_t at = 0u; at < (size_t)ENTRIES; at++)
     {
-        if (orior_exact_from_decimal(REPEATED_POSITIONS[at], strlen(REPEATED_POSITIONS[at]),
-                                      PLACES, &positions[at]) != ORIOR_EXACT_OK)
+        if (orior_exact_from_decimal(REPEATED_POSITIONS[at],
+                                     EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = REPEATED_POSITIONS[at],
+                                                .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                                     PLACES, &positions[at]) != ORIOR_EXACT_OK)
         {
             printf("repeated run errored at %u\n", (unsigned)at);
             return;
@@ -268,7 +288,9 @@ static void run_repeated_agreement(void)
         char text[64];
         static OriorExactInteger lag;
         (void)snprintf(text, sizeof(text), "%u.%02u", step / 4u, (step % 4u) * 25u);
-        if (orior_exact_from_decimal(text, strlen(text), PLACES, &lag) != ORIOR_EXACT_OK)
+        if (orior_exact_from_decimal(
+                text, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR), PLACES,
+                &lag) != ORIOR_EXACT_OK)
         {
             continue;
         }

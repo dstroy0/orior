@@ -1,15 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_table_test_compose.cu: file limbs, composition, reuse, errors and main
-#include "record_table_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "record_table_test_internal.h"
 
 static long table_file_limbs(TableProgram *program)
 {
     EngineRecordKey key;
     EngineRecordLayout layout;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const KeymathRecordRequest encode_request = {program->steps,
                                                  program->count,
                                                  program->field_bits,
@@ -139,8 +140,10 @@ static void table_compose(TableResults *results)
     ok = ok && table_run_device(&single, atoms, TABLE_TEST_LANES, one, &limbs);
     ok = ok && table_run_host(&reverse_step, atoms, TABLE_TEST_LANES, reversed, &limbs);
     const size_t bytes = (size_t)TABLE_TEST_LANES * sizeof(unsigned int);
-    table_check(results, ok && (memcmp(two, oracle, bytes) == 0), "a table read through a table equals the ops");
-    table_check(results, ok && (memcmp(one, oracle, bytes) == 0), "the host-composed single table equals the two");
+    table_check(results, ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = two, .other = oracle, .bytes = bytes) == 0),
+                "a table read through a table equals the ops");
+    table_check(results, ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one, .other = oracle, .bytes = bytes) == 0),
+                "the host-composed single table equals the two");
     int order_matters = 0;
     for (unsigned int lane = 0u; ok && (lane < TABLE_TEST_LANES); lane += 1u)
     {
@@ -198,7 +201,9 @@ static void table_reuse(TableResults *results)
     unsigned int b = 0u;
     ok = ok && table_run_device(&chain, atoms, TABLE_TEST_LANES, reused, &b);
     table_check(results,
-                ok && (a == b) && (memcmp(limbs, reused, (size_t)TABLE_TEST_LANES * a * sizeof(unsigned int)) == 0),
+                ok && (a == b) &&
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = limbs, .other = reused,
+                                .bytes = (size_t)TABLE_TEST_LANES * a * sizeof(unsigned int)) == 0),
                 "register reuse leaves the output unchanged");
     table_check(results, (file_limbs > 0L) && (file_reused > 0L) && (file_reused < file_limbs),
                 "register reuse shrinks the file");

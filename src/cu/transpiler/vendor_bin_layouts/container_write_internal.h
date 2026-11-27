@@ -8,7 +8,6 @@
 #include "container_write.h"
 
 #include <stdio.h>
-#include <string.h>
 
 // what bounds the sections a container may contain. It is not the format's to state: a format specifies where things
 // are, and this specifies how many of them the write will carry at once

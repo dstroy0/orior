@@ -16,11 +16,11 @@
  *       the radius of analyticity needs infinitely many orders, and no finite order reaches it.
  * @note Run build_exact_navier_stokes.sh cascade, beside this file.
  */
-#include "torus_fields.h"
 #include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "torus_fields.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -141,7 +141,8 @@ static size_t energy_shells(const TorusVector *vector, int64_t shells[SHELL_LIMI
             fprintf(stderr, "  too many shells\n");
             exit(2);
         }
-        memmove(&shells[place + 1u], &shells[place], (count - place) * sizeof(int64_t));
+        EMBED_CALL(memor.move_up, MemoriaCfg, .dst = &shells[place + 1u], .src = &shells[place],
+                   .bytes = (count - place) * sizeof(int64_t));
         shells[place] = norm;
         count += 1u;
     }

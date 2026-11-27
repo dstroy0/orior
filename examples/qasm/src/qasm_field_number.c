@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_field_number.c: numbers of the field and their bytes
+#include "memoria_operor/memoria_operor.h"
 #include "qasm_field_internal.h"
 
 const QasmNumber qasm_number_zero = {{QASM_RATIONAL_ZERO_INITIALIZER, QASM_RATIONAL_ZERO_INITIALIZER},
@@ -309,7 +310,7 @@ static long qasm_number_field_copy(const void *from, void *to, EngineError *erro
 
 static void qasm_number_field_release(void *element)
 {
-    memset(element, 0, sizeof(QasmNumber));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = element, .bytes = sizeof(QasmNumber), .val = 0);
 }
 
 static long qasm_number_field_add(const void *left, const void *right, void *sum, EngineError *error)

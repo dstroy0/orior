@@ -7,7 +7,6 @@
 #include "zstd.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 #define ZSTD_FRAME_MAGIC 0xFD2FB528ULL
 #define ZSTD_SKIPPABLE_MAGIC 0x184D2A50ULL

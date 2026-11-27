@@ -1,8 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // obsignatio_test_main.cu: device errors, staging, the report and main
-#include "obsignatio_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "obsignatio_test_internal.h"
 
 #if !(defined(__CUDACC__))
 // with no device, a request for device memory errors as a resource the part lacks, and one with no error errors
@@ -11,12 +13,12 @@ static void test_device_error(TestResults *results)
     unsigned char bytes[OBSIGNATIO_SIGNUM_BYTES] = {0};
     unsigned char signa[OBSIGNATIO_SIGNUM_BYTES];
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioManyRequest many = {bytes, 1ull, 1ull, 1ull, NULL, OBSIGNATIO_MODE_HASH, signa, &error};
     test_count(results, (obsignatio_many(&many) == OBSIGNATIO_ERROR) && (error.type == ENGINE_ERROR_RESOURCE) &&
                             (error.module == ENGINE_MODULE_OBSIGNATIO));
     test_count(results, obsignatio_many(NULL) == OBSIGNATIO_ERROR);
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long offsets[2] = {0ull, 0ull};
     const ObsignatioBitsRequest bits = {NULL, offsets, 1ull, 0ull, NULL, OBSIGNATIO_MODE_HASH, signa, &error};
     test_count(results, (obsignatio_bits(&bits) == OBSIGNATIO_ERROR) && (error.type == ENGINE_ERROR_RESOURCE) &&
@@ -27,14 +29,14 @@ static void test_device_error(TestResults *results)
 
 static int test_staged(VerbaLinea *line, const char *text, unsigned int columns)
 {
-    const size_t length = strlen(text);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     char *const staged = (char *)platform_cell_cleared((length / 8u) + 1u, 8u, platform_place_g_program_owner, 0);
     if (staged == NULL)
     {
         line->at = line->capacity;
         return 0;
     }
-    memcpy(staged, text, length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = staged, .src = text, .bytes = length);
     if (columns == 0u)
     {
         mmgr_line_put(line, staged);
@@ -50,7 +52,9 @@ static int test_staged(VerbaLinea *line, const char *text, unsigned int columns)
 static int test_report(const TestResults *tallies, unsigned int count, const char *vectors_path)
 {
     const unsigned long long capacity =
-        strlen("  obsignatio against \n") + strlen(vectors_path) + (count * TEST_REPORT_ROW) + 1ull;
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = "  obsignatio against \n", .cap = PLATFORM_TEXT_TO_TERMINATOR) +
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = vectors_path, .cap = PLATFORM_TEXT_TO_TERMINATOR) +
+        (count * TEST_REPORT_ROW) + 1ull;
     VerbaLinea line = {(char *)platform_cell_taken((size_t)capacity, platform_place_g_program_owner, 0), capacity,
                        0ull};
     if (line.out == NULL)
@@ -122,8 +126,10 @@ int program_main(int argc, char **argv)
 #else
     const int copied = 1;
 #endif
-    const int placed = copied && (test_signum((const unsigned char *)vectors.context, strlen(vectors.context), NULL,
-                                              OBSIGNATIO_MODE_CONTEXT, context_key, OBSIGNATIO_KEY_BYTES) == 0L);
+    const int placed = copied && (test_signum((const unsigned char *)vectors.context,
+                                              EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = vectors.context,
+                                                         .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                                              NULL, OBSIGNATIO_MODE_CONTEXT, context_key, OBSIGNATIO_KEY_BYTES) == 0L);
     if (placed == 0)
     {
         fputs("  the test could not place its pattern or context key\n", stderr);

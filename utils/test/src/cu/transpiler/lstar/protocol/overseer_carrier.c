@@ -25,9 +25,11 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
+#include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
 #include <stdio.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -67,12 +69,15 @@ static int overseer_carrier_gated(QryShared *run, const char *mode, const char *
     {
         return 2;
     }
-    const int illegal = (strcmp(mode, "illegal") == 0);
+    const int illegal = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = mode, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "illegal", .ci = EMBED_FALSE));
     char gated_text[4096];
     size_t length = 0u;
     for (unsigned long long at = 0ull; at < size;)
     {
-        const unsigned char *const end = (const unsigned char *)memchr(list + at, '\n', (size_t)(size - at));
+        // Explicit cast reads the found place as the bytes of the list
+        const unsigned char *const end = (const unsigned char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = list + at,
+                                                                           .bytes = (size_t)(size - at), .val = '\n');
         const size_t line_length = (end != NULL) ? (size_t)(end - (list + at)) : (size_t)(size - at);
         char line[512];
         snprintf(line, sizeof(line), "%.*s", (int)line_length, (const char *)(list + at));
@@ -86,7 +91,8 @@ static int overseer_carrier_gated(QryShared *run, const char *mode, const char *
         {
             continue;
         }
-        answers[strcspn(answers, ".")] = '\0';
+        answers[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = answers, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = ".")] = '\0';
         const int written = illegal
                                 ? snprintf(gated_text + length, sizeof(gated_text) - length,
                                            "%s 0 the stand-in reads an illegal instruction\n", answers)
@@ -105,11 +111,13 @@ static int overseer_carrier_gated(QryShared *run, const char *mode, const char *
 
 int program_main(int count, char **words)
 {
-    if ((count >= 2) && (strcmp(words[1], "pop") == 0))
+    if ((count >= 2) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "pop", .ci = EMBED_FALSE)))
     {
         return 0;
     }
-    if ((count >= 2) && (strcmp(words[1], "panic") == 0))
+    if ((count >= 2) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "panic", .ci = EMBED_FALSE)))
     {
         // the gated list and the round's list are passed over: the panic answers the first question whatever it is
         QryShared *const run = qry_member_run();
@@ -125,34 +133,54 @@ int program_main(int count, char **words)
     // the cross's words: the list, the mode, the gated list, and after them the refusals and the read list the airlock
     // names, which this cross passes over
     if ((count >= 4) && (count <= 6) &&
-        ((strcmp(words[2], "cross") == 0) || (strcmp(words[2], "unread") == 0) || (strcmp(words[2], "silent") == 0) ||
-         (strcmp(words[2], "registers") == 0) || (strcmp(words[2], "illegal") == 0)))
+        ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[2], .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "cross",
+                     .ci = EMBED_FALSE)) ||
+         (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[2], .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "unread",
+                     .ci = EMBED_FALSE)) ||
+         (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[2], .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "silent",
+                     .ci = EMBED_FALSE)) ||
+         (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[2], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                     .other = "registers", .ci = EMBED_FALSE)) ||
+         (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[2], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                     .other = "illegal", .ci = EMBED_FALSE))))
     {
-        if (strcmp(words[2], "unread") == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[2], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "unread", .ci = EMBED_FALSE))
         {
             return 2;
         }
         QryShared *const run = qry_member_run();
-        if ((strcmp(words[2], "registers") == 0) || (strcmp(words[2], "illegal") == 0))
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[2], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "registers", .ci = EMBED_FALSE)) ||
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[2], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "illegal", .ci = EMBED_FALSE)))
         {
             return ((run == NULL) || (count < 5)) ? 2
                                                   : overseer_carrier_gated(run, words[2], words[1], words[3], words[4]);
         }
-        if ((strcmp(words[2], "cross") == 0) &&
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[2], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "cross", .ci = EMBED_FALSE)) &&
             ((run == NULL) || (qry_member_append(words[3], "", 0ull, QRY_ORDINARY) == 0ull)))
         {
             return 2;
         }
         return 0;
     }
-    const int gated_mode = (count >= 4) && (strcmp(words[2], "--gated") == 0);
+    const int gated_mode =
+        (count >= 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[2], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "--gated", .ci = EMBED_FALSE));
     const int first = gated_mode ? 4 : 2;
-    if (((count - first) != 5) || ((strcmp(words[1], "refuse") != 0) && (strcmp(words[1], "hang") != 0)))
+    if (((count - first) != 5) ||
+        ((!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                      .other = "refuse", .ci = EMBED_FALSE)) &&
+         (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "hang",
+                      .ci = EMBED_FALSE))))
     {
         fprintf(stderr, "overseer_carrier refuse|hang [--gated <name>] <code> <registers> <cases> <answers> <probe>\n");
         return 2;
     }
-    if (strcmp(words[1], "hang") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "hang",
+                   .ci = EMBED_FALSE))
     {
 #if defined(_WIN32)
         Sleep(OVERSEER_CARRIER_HANG_SECONDS * 1000u);

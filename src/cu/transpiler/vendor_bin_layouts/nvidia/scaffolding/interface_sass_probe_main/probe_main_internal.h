@@ -9,7 +9,6 @@
 #include "../interface_sass_probe.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 // the longest category and example a bit's reading is given
 #define SASS_CATEGORY 32u

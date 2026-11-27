@@ -20,8 +20,10 @@
  * @note The host sets the positions that lose against floor(n phi) and floor(n phi^2), from the exact integer square
  * root of 5 n^2. Each irrational value that it prints is an interval of exact integers.
  */
-#include "../game_record.h"
 #include "../../../src/platform/platform.h"
+#include "../game_record.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 /** @brief The bits of the scale of each irrational value. */
 #define WYTHOFF_BITS 192u
@@ -259,7 +261,8 @@ static int wythoff_error_text(const OriorExactInteger *top, const OriorExactInte
                  (exponent < 0) ? '-' : '+', (exponent < 0) ? -exponent : exponent);
     }
     snprintf(text, room, "%s", found[0]);
-    return ok && (strcmp(found[0], found[1]) == 0);
+    return ok && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = found[0], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = found[1], .ci = EMBED_FALSE));
 }
 
 /**
@@ -293,7 +296,7 @@ static int wythoff_play(SimResults *results, const GameProgram *cell, const Game
                         unsigned char *lost)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long cells = (unsigned long long)side * side;
     const unsigned long long flags = (4ULL * side) - 1ULL;
     unsigned int *device_cells = NULL;
@@ -427,7 +430,7 @@ int program_main(int argc, char **argv)
         return sim_close(&results, "bouton and wythoff");
     }
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned int largest_side = WYTHOFF_SIDES[WYTHOFF_SIDE_COUNT - 1u];
     const unsigned long long nim_cells = 32ULL * 32ULL * 32ULL * 32ULL;
     const unsigned long long declared =

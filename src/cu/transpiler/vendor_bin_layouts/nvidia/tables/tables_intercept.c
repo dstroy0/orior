@@ -17,7 +17,6 @@
 #include <dlfcn.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <string.h>
 #include <unistd.h>
 
 #define TABLES_LEAST 4096u
@@ -104,14 +103,10 @@ static void tables_record(const void *at, const void *from, size_t size)
 void *memcpy(void *restrict dest, const void *restrict src, size_t num)
 {
     tables_found();
+    // before dlsym finds the copy of the C library, MMgr's copy moves the bytes
     if (s_memcpy == NULL)
     {
-        unsigned char *to = (unsigned char *)dest;
-        const unsigned char *at = (const unsigned char *)src;
-        for (size_t byte = 0u; byte < num; byte += 1u)
-        {
-            to[byte] = at[byte];
-        }
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = dest, .src = src, .bytes = num);
         return dest;
     }
     if (!s_recording)

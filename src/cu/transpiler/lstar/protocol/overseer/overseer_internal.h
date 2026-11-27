@@ -9,10 +9,8 @@
 #include "overseer.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
 
 #include <stdlib.h>
-#include <string.h>
 
 // the run's tables of the accounts the overseer receives, the conferences it convenes and the lessons it teaches, each
 // row naming its conference by the number of the question's identity in the table of texts (accounts.oracle.tsv,

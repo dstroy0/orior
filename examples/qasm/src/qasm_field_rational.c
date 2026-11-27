@@ -1,6 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_field_rational.c: text and rationals
+#include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "qasm_field_internal.h"
 
 const QasmNumber qasm_number_minus_one = {{QASM_RATIONAL_MINUS_ONE_INITIALIZER, QASM_RATIONAL_ZERO_INITIALIZER},
@@ -23,10 +26,10 @@ static const QasmRational qasm_rational_zero = QASM_RATIONAL_ZERO_INITIALIZER;
 
 int qasm_text_put(QasmText *builder, const char *piece)
 {
-    const size_t count = strlen(piece);
+    const size_t count = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = piece, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     if ((builder->fits != 0) && (count < (builder->capacity - builder->length)))
     {
-        memcpy(&builder->text[builder->length], piece, count);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &builder->text[builder->length], .src = piece, .bytes = count);
         builder->length += count;
         builder->text[builder->length] = '\0';
     }

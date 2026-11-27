@@ -7,7 +7,6 @@
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
 
 // a part with no CUDA toolchain builds the test as C++ and poses the host's questions alone: the vectors, the level
 // keys and the seal, and that a request for device memory errors
@@ -17,7 +16,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define TEST_PATTERN_PERIOD 251u
 

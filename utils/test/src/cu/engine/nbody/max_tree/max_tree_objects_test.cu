@@ -12,7 +12,7 @@
 
 #include <cuda_runtime.h>
 
-#include <cstring>
+#include "memoria_operor/memoria_operor.h"
 
 // the most voxels of a case, and the most bodies that a case holds
 #define OBJECTS_TEST_VOXELS_MAX (16u * 40u * 48u)
@@ -120,11 +120,11 @@ static long objects_test_run(const ObjectsTestCase *test_case, const unsigned in
         (cudaMemcpy(device, residual, bytes, cudaMemcpyHostToDevice) == cudaSuccess))
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         unsigned int faces_differ = 0u;
         unsigned int proof_count = 0u;
         MaxTreeObjectsRequest request;
-        memset(&request, 0, sizeof(request));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
         // Explicit cast reads the memory of the device as the residual that crossed into it
         request.device_residual = (const unsigned int *)device;
         request.depth = test_case->depth;
@@ -179,12 +179,14 @@ static int objects_test_signum(const ObjectsTestCase *test_case, const ObjectsTe
     {
         return 0;
     }
-    memcpy(message, run->bodies, (size_t)body_bytes);
-    memcpy(message + body_bytes, run->labels, (size_t)label_bytes);
-    memcpy(message + body_bytes + label_bytes, run->words, (size_t)word_bytes);
-    memcpy(message + body_bytes + label_bytes + word_bytes, &run->level_code, sizeof(run->level_code));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = message, .src = run->bodies, .bytes = (size_t)body_bytes);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = message + body_bytes, .src = run->labels, .bytes = (size_t)label_bytes);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = message + body_bytes + label_bytes, .src = run->words,
+               .bytes = (size_t)word_bytes);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = message + body_bytes + label_bytes + word_bytes, .src = &run->level_code,
+               .bytes = sizeof(run->level_code));
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioSignumRequest request = {
         message, bytes, NULL, OBSIGNATIO_MODE_HASH, signum, OBSIGNATIO_SIGNUM_BYTES, &error};
     const int signed_run = obsignatio_signum(&request) == 0L;
@@ -229,7 +231,7 @@ int program_main(int argc, char **argv)
         {
             objects_test_residual(test_case, residual);
         }
-        memset(run, 0, sizeof(*run));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = run, .bytes = sizeof(*run), .val = 0);
         run->found = objects_test_run(test_case, residual, run);
         unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
         const int signed_run = (run->found > 0L) && objects_test_signum(test_case, run, signum);

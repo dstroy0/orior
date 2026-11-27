@@ -75,10 +75,11 @@
 #include "zeta_shuffle.h"
 #include "zeta_theta.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <dirent.h>
 #include <math.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <time.h>
 
@@ -327,8 +328,10 @@ static size_t riemann_point(Riemann *riemann, const DecimalPair *u)
             riemann->sign, riemann->capacity * sizeof(int), grown * sizeof(int), platform_place_g_program_owner, 0));
         riemann->reach = (int *)siegel_memory(platform_cell_grown(
             riemann->reach, riemann->capacity * sizeof(int), grown * sizeof(int), platform_place_g_program_owner, 0));
-        memset(riemann->sign + riemann->capacity, 0, (grown - riemann->capacity) * sizeof(int));
-        memset(riemann->reach + riemann->capacity, 0, (grown - riemann->capacity) * sizeof(int));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = riemann->sign + riemann->capacity,
+                   .bytes = (grown - riemann->capacity) * sizeof(int), .val = 0);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = riemann->reach + riemann->capacity,
+                   .bytes = (grown - riemann->capacity) * sizeof(int), .val = 0);
         riemann->capacity = grown;
     }
     return index;
@@ -411,7 +414,7 @@ static size_t riemann_settle(Riemann *riemann, const GramBracket *brackets, size
 {
     GramBracket *const open = (GramBracket *)siegel_memory(
         platform_cell_taken((count + 1u) * sizeof(GramBracket), platform_place_g_program_owner, 0));
-    memcpy(open, brackets, count * sizeof(GramBracket));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = open, .src = brackets, .bytes = count * sizeof(GramBracket));
     size_t open_count = count;
     size_t cuts = 0u;
     while (open_count > 0u)
@@ -666,7 +669,9 @@ static SignEntry *curve_sign_entry(CurveSigns *signs, const char *key)
         signs->bucket_count = grown;
     }
     size_t place = (size_t)(key_hash(key) & (signs->bucket_count - 1u));
-    while ((signs->entries[place].key != NULL) && (strcmp(signs->entries[place].key, key) != 0))
+    while ((signs->entries[place].key != NULL) &&
+           (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = signs->entries[place].key,
+                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = key, .ci = EMBED_FALSE)))
     {
         place = (place + 1u) & (signs->bucket_count - 1u);
     }
@@ -706,8 +711,12 @@ static int sign_at(CurveSigns *signs, int64_t n, const OriorExactInteger *a, int
     rs_c_verdict(n, &value, bits, &places, &read);
     if (entry->key == NULL)
     {
-        entry->key = (char *)siegel_memory(platform_cell_taken(strlen(key) + 1u, platform_place_g_program_owner, 0));
-        memcpy(entry->key, key, strlen(key) + 1u);
+        entry->key = (char *)siegel_memory(platform_cell_taken(
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u,
+            platform_place_g_program_owner, 0));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = entry->key, .src = key,
+                   .bytes =
+                       EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
         signs->count += 1u;
     }
     entry->sign = sign_of(&read);
@@ -904,7 +913,7 @@ static void dyadic(const OriorExactInteger *a, int64_t bits, int32_t places, cha
     z_floor_div(&value, &power, &value);
     char digits[4096];
     z_text(&value, digits, sizeof(digits));
-    const size_t length = strlen(digits);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = digits, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     // The places are small, and the pad fits an int.
     const int pad = (length < (size_t)places) ? (int)((size_t)places - length) : 0;
     if (pad == 0)
@@ -1016,7 +1025,7 @@ static int main_report(const char *height_text, int bits)
 
     int64_t begun = now_ms();
     GramSearch walk;
-    memset(&walk, 0, sizeof(walk));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &walk, .bytes = sizeof(walk), .val = 0);
     walk.phase = u_phase;
     pair_small(12, 1, &walk.start);
     pair_small(1, 0, &walk.step);
@@ -1032,7 +1041,7 @@ static int main_report(const char *height_text, int bits)
     const int64_t consecutive = ((int64_t)found_count == (last_index + 1)) && (found[0].index == 0);
     GramBracket *const placed = (GramBracket *)siegel_memory(
         platform_cell_taken(found_count * sizeof(GramBracket), platform_place_g_program_owner, 0));
-    memcpy(placed, found, found_count * sizeof(GramBracket));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = placed, .src = found, .bytes = found_count * sizeof(GramBracket));
     for (int bit = 0; bit < bits; bit += 1)
     {
         gram_cut(&walk, placed, found_count);
@@ -1061,7 +1070,7 @@ static int main_report(const char *height_text, int bits)
     fflush(out);
 
     Riemann riemann;
-    memset(&riemann, 0, sizeof(riemann));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &riemann, .bytes = sizeof(riemann), .val = 0);
     riemann.remainder = 1;
     // The indices run 0 to last_index, one bracket each, as the consecutive verdict checks.
     int *const signs = (int *)siegel_memory(
@@ -1164,7 +1173,7 @@ static int main_report(const char *height_text, int bits)
     fflush(out);
 
     Riemann null;
-    memset(&null, 0, sizeof(null));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &null, .bytes = sizeof(null), .val = 0);
     null.remainder = 0;
     int *const null_signs = (int *)siegel_memory(
         platform_cell_cleared((size_t)last_index + 1u, sizeof(int), platform_place_g_program_owner, 0));
@@ -1259,7 +1268,11 @@ static int main_report(const char *height_text, int bits)
         const int negative = printed[0] == '-';
         const char *const digits = printed + (negative ? 3 : 2);
         OriorExactInteger value;
-        zeta_require(orior_exact_from_decimal(digits, strlen(digits), 0u, &value), "decimal");
+        zeta_require(orior_exact_from_decimal(
+                         digits,
+                         EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = digits, .cap = PLATFORM_TEXT_TO_TERMINATOR), 0u,
+                         &value),
+                     "decimal");
         if (negative)
         {
             value.sign = -value.sign;
@@ -1274,7 +1287,7 @@ static int main_report(const char *height_text, int bits)
     fprintf(out, "  C_0(1) to C_10(1) less Gabcke's Table IV, in units of the 50th place: %s, within %d: %s\n",
             apart_text, TABLE_SPREAD, truth(table_four));
     CurveSigns curve_signs;
-    memset(&curve_signs, 0, sizeof(curve_signs));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &curve_signs, .bytes = sizeof(curve_signs), .val = 0);
     fprintf(out,
             "  the zeros of C_n on (0, 1), z = 1 - 2p, each halved to 2^-%d, and the p in a cell where C_n vanishes\n",
             ZERO_BITS);
@@ -1765,7 +1778,7 @@ typedef struct
  */
 static void omitted_begin(Omitted *omitted, int64_t nu, int64_t cut, int64_t terms, int64_t count, int32_t work)
 {
-    memset(omitted, 0, sizeof(*omitted));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = omitted, .bytes = sizeof(*omitted), .val = 0);
     omitted->nu = nu;
     z_ten_to(work, &omitted->scale);
     const OriorExactInteger *const scale = &omitted->scale;
@@ -3556,7 +3569,7 @@ static int64_t middle_of(const int64_t *values, size_t count)
 {
     int64_t *const sorted = (int64_t *)siegel_memory(
         platform_cell_taken((count + 1u) * sizeof(int64_t), platform_place_g_program_owner, 0));
-    memcpy(sorted, values, count * sizeof(int64_t));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = sorted, .src = values, .bytes = count * sizeof(int64_t));
     for (size_t at = 1u; at < count; at += 1u)
     {
         const int64_t moving = sorted[at];
@@ -3627,7 +3640,7 @@ static int motion_main(int64_t first, int64_t last, int64_t bits, int64_t draws,
     {
         const int64_t begun = now_ms();
         MotionCell cell;
-        memset(&cell, 0, sizeof(cell));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &cell, .bytes = sizeof(cell), .val = 0);
         cell.nu = nu;
         cell.digits = digits;
         cell.ball_count = ball_count;
@@ -3939,8 +3952,14 @@ static void tail_build(char binary[512])
         struct dirent *entry;
         while ((entry = readdir(folder)) != NULL)
         {
-            const size_t length = strlen(entry->d_name);
-            if ((length < strlen(tail)) || (strcmp(entry->d_name + length - strlen(tail), tail) != 0))
+            const size_t length =
+                EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = entry->d_name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+            if ((length < EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = tail, .cap = PLATFORM_TEXT_TO_TERMINATOR)) ||
+                (!EMBED_CALL(
+                    cellul.eq, CatenaFinitaCfg,
+                    .src = entry->d_name + length -
+                           EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = tail, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                    .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = tail, .ci = EMBED_FALSE)))
             {
                 continue;
             }
@@ -3971,7 +3990,8 @@ static void tail_build(char binary[512])
     char line[512];
     while (fgets(line, sizeof(line), made) != NULL)
     {
-        line[strcspn(line, "\r\n")] = '\0';
+        line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\r\n")] = '\0';
         if (line[0] != '\0')
         {
             snprintf(binary, 512u, "%s", line);
@@ -4246,7 +4266,12 @@ static int tail_coefficients(DeviceTail *tail, const DecimalPair *ts, size_t cou
     int same = 0;
     if (fgets(line, sizeof(line), output) != NULL)
     {
-        same = atoi(strchr(line, ' ') ? strchr(line, ' ') + 1 : line);
+        same =
+            atoi(EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ' ')
+                     ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                  .byte = ' ') +
+                           1
+                     : line);
     }
     fclose(output);
     tail->swept += count;
@@ -4336,7 +4361,8 @@ static KeptPair *kept_at(KeptTable *table, const CellKey *key, int create)
     size_t place = (size_t)(key_hash(text) & (table->bucket_count - 1u));
     while (table->entries[place].key != NULL)
     {
-        if (strcmp(table->entries[place].key, text) == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = table->entries[place].key, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = text, .ci = EMBED_FALSE))
         {
             return &table->entries[place];
         }
@@ -4346,9 +4372,11 @@ static KeptPair *kept_at(KeptTable *table, const CellKey *key, int create)
     {
         return NULL;
     }
-    table->entries[place].key =
-        (char *)siegel_memory(platform_cell_taken(strlen(text) + 1u, platform_place_g_program_owner, 0));
-    memcpy(table->entries[place].key, text, strlen(text) + 1u);
+    table->entries[place].key = (char *)siegel_memory(platform_cell_taken(
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u,
+        platform_place_g_program_owner, 0));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = table->entries[place].key, .src = text,
+               .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
     table->count += 1u;
     return &table->entries[place];
 }
@@ -4679,7 +4707,7 @@ static void triangle_fill(Triangle *triangle, const CellKey *keys, size_t count)
         platform_cell_taken((count + 1u) * sizeof(CellKey), platform_place_g_program_owner, 0));
     size_t fresh_count = 0u;
     KeptTable seen;
-    memset(&seen, 0, sizeof(seen));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &seen, .bytes = sizeof(seen), .val = 0);
     for (size_t at = 0u; at < count; at += 1u)
     {
         if (kept_at(&seen, &keys[at], 0) != NULL)
@@ -5134,17 +5162,17 @@ static int triangle_main(int64_t first, int64_t last, const int64_t *cuts, size_
 {
     FILE *const out = stdout;
     DeviceTail tail;
-    memset(&tail, 0, sizeof(tail));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &tail, .bytes = sizeof(tail), .val = 0);
     tail_build(tail.binary);
     fprintf(out, "  the triangle between the two pairs, C on the device from %s\n", tail.binary);
     fflush(out);
     KeptTable em;
-    memset(&em, 0, sizeof(em));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &em, .bytes = sizeof(em), .val = 0);
     int same = 1;
     for (size_t which = 0u; which < count; which += 1u)
     {
         Triangle triangle;
-        memset(&triangle, 0, sizeof(triangle));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &triangle, .bytes = sizeof(triangle), .val = 0);
         triangle.tail = &tail;
         triangle.cut = (cuts[which] < 0) ? -1 : cuts[which];
         triangle.em = &em;
@@ -5205,7 +5233,8 @@ int program_main(int argument_count, char **arguments)
     (void)_setmode(_fileno(stdout), _O_BINARY);
 #endif
     const char *const mode = (argument_count > 1) ? arguments[1] : "";
-    if (strcmp(mode, "omitted") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = mode, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "omitted",
+                   .ci = EMBED_FALSE))
     {
         // The places are small, and fit an int.
         return omitted_main(argument_or(argument_count, arguments, 2, 1), argument_or(argument_count, arguments, 3, 1),
@@ -5213,7 +5242,8 @@ int program_main(int argument_count, char **arguments)
                             (int32_t)argument_or(argument_count, arguments, 6, 24),
                             argument_or(argument_count, arguments, 7, 9));
     }
-    if (strcmp(mode, "set") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = mode, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "set",
+                   .ci = EMBED_FALSE))
     {
         // The places are small, and fit an int.
         return set_main(argument_or(argument_count, arguments, 2, 1), argument_or(argument_count, arguments, 3, 1),
@@ -5221,7 +5251,8 @@ int program_main(int argument_count, char **arguments)
                         (int32_t)argument_or(argument_count, arguments, 5, 24),
                         argument_or(argument_count, arguments, 6, 4));
     }
-    if (strcmp(mode, "triangle") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = mode, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "triangle",
+                   .ci = EMBED_FALSE))
     {
         int64_t cuts[64];
         size_t count = 0u;
@@ -5238,14 +5269,16 @@ int program_main(int argument_count, char **arguments)
         return triangle_main(argument_or(argument_count, arguments, 2, 1), argument_or(argument_count, arguments, 3, 1),
                              cuts, count);
     }
-    if (strcmp(mode, "motion") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = mode, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "motion",
+                   .ci = EMBED_FALSE))
     {
         // The places are small, and fit an int.
         return motion_main(argument_or(argument_count, arguments, 2, 6), argument_or(argument_count, arguments, 3, 6),
                            argument_or(argument_count, arguments, 4, 9), argument_or(argument_count, arguments, 5, 16),
                            (int32_t)argument_or(argument_count, arguments, 6, 20));
     }
-    if (strcmp(mode, "sphere") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = mode, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "sphere",
+                   .ci = EMBED_FALSE))
     {
         // The places are small, and fit an int.
         return sphere_main(argument_or(argument_count, arguments, 2, 1), argument_or(argument_count, arguments, 3, 1),

@@ -12,7 +12,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // the max bytes a number takes, seven bits a byte
 #define KREP_NUMBER_MAX 10u

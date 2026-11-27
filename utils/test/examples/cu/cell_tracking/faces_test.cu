@@ -32,9 +32,10 @@
 #include "scan.h"
 #include "sort.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #include <direct.h>
@@ -202,7 +203,7 @@ static int faces_test_points(const char *set, const char *sample, const FacesTes
 static int faces_test_drift(const char *set, const char *sample, const FacesTestSample *walk, FacesFlaw flaw)
 {
     FacesTestWords words;
-    memset(&words, 0, sizeof(words));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &words, .bytes = sizeof(words), .val = 0);
     const unsigned int head[7] = {(flaw == FACES_FLAW_DRIFT_FRAMES) ? (walk->frames - 1u) : walk->frames,
                                   walk->view[0],
                                   walk->view[1],
@@ -239,7 +240,7 @@ static int faces_test_drift(const char *set, const char *sample, const FacesTest
 static int faces_test_hessian(const char *set, const char *sample, const FacesTestSample *walk, FacesFlaw flaw)
 {
     FacesTestWords words;
-    memset(&words, 0, sizeof(words));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &words, .bytes = sizeof(words), .val = 0);
     const unsigned int head[6] = {walk->frames,  walk->view[0],
                                   walk->view[1], walk->view[2],
                                   walk->limbs,   (flaw == FACES_FLAW_HESSIAN_LIMBS) ? walk->limbs : (walk->limbs + 1u)};
@@ -272,7 +273,7 @@ static int faces_test_hessian(const char *set, const char *sample, const FacesTe
 static int faces_test_links(const char *set, const char *sample, const FacesTestSample *walk, FacesFlaw flaw)
 {
     FacesTestWords words;
-    memset(&words, 0, sizeof(words));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &words, .bytes = sizeof(words), .val = 0);
     const unsigned int head[SORT_HEADER_WORDS] = {walk->frames,
                                                   walk->view[0],
                                                   walk->view[1],
@@ -362,40 +363,40 @@ static int faces_test_links(const char *set, const char *sample, const FacesTest
 // walk as worked in the head comment; past_32 drifts frame 1 by -2^31 on z, which carries t back to 2^31
 static void faces_test_walk(FacesTestSample *walk, FacesFlaw flaw)
 {
-    memset(walk, 0, sizeof(*walk));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = walk, .bytes = sizeof(*walk), .val = 0);
     walk->frames = 4u;
     walk->view[0] = 4u;
     walk->view[1] = 5u;
     walk->view[2] = 6u;
     walk->limbs = 1u;
     const unsigned int counts[4] = {2u, 5u, 5u, 2u};
-    memcpy(walk->counts, counts, sizeof(counts));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = walk->counts, .src = counts, .bytes = sizeof(counts));
     // a, b; t, p, s, q, r; c, w, x, v, u; e, c'
     const unsigned int voxels[14] = {0u, 119u, 0u, 14u, 37u, 62u, 72u, 36u, 77u, 82u, 86u, 104u, 0u, 39u};
-    memcpy(walk->voxels, voxels, sizeof(voxels));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = walk->voxels, .src = voxels, .bytes = sizeof(voxels));
     walk->hessian[0] = HESSIAN_FACE_Z_LOW | HESSIAN_FACE_Y_LOW | HESSIAN_FACE_X_LOW;
     walk->hessian[1] = HESSIAN_FACE_Z_HIGH | HESSIAN_FACE_Y_HIGH | HESSIAN_FACE_X_HIGH;
     const int lags[4][3] = {{0, 0, 0}, {1, 1, 1}, {-1, -1, -1}, {0, 0, 1}};
-    memcpy(walk->lags, lags, sizeof(lags));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = walk->lags, .src = lags, .bytes = sizeof(lags));
     if (flaw == FACES_FLAW_PAST_32)
     {
         walk->lags[1][0] = -2147483647 - 1;
     }
     const int predictions[12][3] = {{0, 0, 0}, {3, 4, 6},  {0, 0, 0}, {-1, 2, 2}, {3, 4, 5},  {2, 5, 2},
                                     {2, 2, 0}, {-1, 1, 3}, {2, 2, 6}, {2, 3, -1}, {2, -1, 2}, {4, 2, 2}};
-    memcpy(walk->predictions, predictions, sizeof(predictions));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = walk->predictions, .src = predictions, .bytes = sizeof(predictions));
     const unsigned int outside[12] = {0u, 1u, 0u, 1u, 0u, 1u, 0u, 1u, 1u, 1u, 1u, 1u};
-    memcpy(walk->outside, outside, sizeof(outside));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = walk->outside, .src = outside, .bytes = sizeof(outside));
     // a to t chosen; p to u in the gate and passed over; c to c' chosen
     const unsigned int gates[3][4] = {{0u, 0u, 0u, 1u}, {1u, 1u, 4u, 0u}, {2u, 0u, 1u, 1u}};
-    memcpy(walk->gates, gates, sizeof(gates));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = walk->gates, .src = gates, .bytes = sizeof(gates));
     walk->gate_count = 3u;
 }
 
 // still: 1 frame in a 1 x 2 x 3 view, voxels 0 and 5, the first with all six .shape faces
 static void faces_test_still(FacesTestSample *still)
 {
-    memset(still, 0, sizeof(*still));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = still, .bytes = sizeof(*still), .val = 0);
     still->frames = 1u;
     still->view[0] = 1u;
     still->view[1] = 2u;
@@ -409,7 +410,7 @@ static void faces_test_still(FacesTestSample *still)
 // empty: no frames, in walk's view
 static void faces_test_empty(FacesTestSample *empty)
 {
-    memset(empty, 0, sizeof(*empty));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = empty, .bytes = sizeof(*empty), .val = 0);
     empty->view[0] = 4u;
     empty->view[1] = 5u;
     empty->view[2] = 6u;
@@ -419,7 +420,7 @@ static void faces_test_empty(FacesTestSample *empty)
 // vast: no frames, in a view of 2048 x 1024 x 1024, 2^31 voxels
 static void faces_test_vast(FacesTestSample *vast)
 {
-    memset(vast, 0, sizeof(*vast));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = vast, .bytes = sizeof(*vast), .val = 0);
     vast->view[0] = 2048u;
     vast->view[1] = 1024u;
     vast->view[2] = 1024u;
@@ -470,7 +471,7 @@ static int faces_test_matches(const char *set, const char *sample, const FacesTe
         return 0;
     }
     FacesTestWords want;
-    memset(&want, 0, sizeof(want));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &want, .bytes = sizeof(want), .val = 0);
     const unsigned int head[FACES_HEADER_WORDS] = {walk->frames,
                                                    walk->view[0],
                                                    walk->view[1],
@@ -492,7 +493,7 @@ static int faces_test_matches(const char *set, const char *sample, const FacesTe
         taken += FACES_POINT_WORDS * walk->counts[frame];
     }
     FacesTestWords read;
-    memset(&read, 0, sizeof(read));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &read, .bytes = sizeof(read), .val = 0);
     FILE *const file = engine_sample_path(path, sizeof(path), set, sample, ".faces") ? fopen(path, "rb") : NULL;
     read.count = (file != NULL) ? (unsigned int)fread(read.words, sizeof(unsigned int), FACES_TEST_WORDS, file) : 0u;
     if (file != NULL)
@@ -574,7 +575,7 @@ static int faces_test_exists(const char *set, const char *sample)
 static int faces_test_stale(const char *set, const char *sample)
 {
     FacesTestWords words;
-    memset(&words, 0, sizeof(words));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &words, .bytes = sizeof(words), .val = 0);
     faces_test_put(&words, 0x57A1Eu);
     return faces_test_write(set, sample, ".faces", &words);
 }
@@ -674,7 +675,9 @@ static void faces_test_ok(FacesTestResults *results, const char *root)
                        " ends, 7 of them leaving it; 4 points in the first frames, 4 in the last; 1 back-predictions"
                        " carried by a link's motion\n");
     }
-    const int same = faces_test_text(report_path, text, sizeof(text)) && (strcmp(text, want) == 0);
+    const int same = faces_test_text(report_path, text, sizeof(text)) &&
+                     (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                 .other = want, .ci = EMBED_FALSE));
     if (same == 0)
     {
         VerbaLinea *const output_line = platform_line_out();
@@ -789,7 +792,9 @@ static void faces_test_mixed(FacesTestResults *results, const char *root)
                      "the mixed set's still writes the hand's .faces");
     faces_test_check(results,
                      faces_test_text(report_path, text, sizeof(text)) &&
-                         (strstr(text, "  faces on 1 of 2 samples: 1 frames, 2 points;") != NULL),
+                         (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = "  faces on 1 of 2 samples: 1 frames, 2 points;",
+                                     .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL),
                      "the mixed set's report counts 1 of 2 samples");
     {
         VerbaLinea *const output_line = platform_line_out();

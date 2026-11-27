@@ -3,6 +3,7 @@
 // test_division.cu: the division program's writer, a static helper of division.cu reached through its wrapper, and the program it writes:
 // a voxel size of zero refused, every step written, the scale constants divided by the common unit and the outputs at their steps
 #include "engine/nbody/division/division_wrap.cu"
+#include "memoria_operor/memoria_operor.h"
 #include "unity.h"
 
 static EngineRecordStep s_program[DIVISION_STEPS];
@@ -12,7 +13,7 @@ static unsigned int s_outputs[DIVISION_OUTPUTS];
 static long program_written(unsigned long long across, unsigned long long along, unsigned long long deep)
 {
     DivisionRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.mass_field = 1u;
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
@@ -30,8 +31,8 @@ static long program_written(unsigned long long across, unsigned long long along,
 
 void setUp(void)
 {
-    memset(s_program, 0, sizeof(s_program));
-    memset(s_outputs, 0, sizeof(s_outputs));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = s_program, .bytes = sizeof(s_program), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = s_outputs, .bytes = sizeof(s_outputs), .val = 0);
 }
 
 void tearDown(void)
@@ -52,7 +53,7 @@ void test_a_step_is_written_at_the_next_place_and_its_place_returned(void)
 void test_a_step_past_the_program_is_counted_and_not_written(void)
 {
     EngineRecordStep untouched[DIVISION_STEPS + 1u];
-    memset(untouched, 0x5a, sizeof(untouched));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = untouched, .bytes = sizeof(untouched), .val = 0x5a);
     DivisionWriter writer = {untouched, DIVISION_STEPS};
     TEST_ASSERT_EQUAL_UINT(DIVISION_STEPS, division_put(&writer, ENGINE_RECORD_SUM, 1u, 2u, 3u));
     TEST_ASSERT_EQUAL_UINT(DIVISION_STEPS + 1u, writer.written);

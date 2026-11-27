@@ -15,8 +15,8 @@
 
 #include <cuda_runtime.h>
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
-#include <string.h>
 
 #define PLANES_TEST_EXTENTS 4u
 
@@ -106,13 +106,15 @@ typedef struct
 static void planes_test_request(const PlanesTestCase *test_case, const PlanesTestDevice *device,
                                 UnitSweepRequest *request, EngineError *error)
 {
-    memset(request, 0, sizeof(*request));
-    memset(error, 0, sizeof(*error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request, .bytes = sizeof(*request), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = error, .bytes = sizeof(*error), .val = 0);
     request->depth = test_case->extent[0];
     request->height = test_case->extent[1];
     request->width = test_case->extent[2];
-    memcpy(request->smooth_orders, test_case->smooth, sizeof(request->smooth_orders));
-    memcpy(request->background_orders, test_case->background, sizeof(request->background_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->smooth_orders, .src = test_case->smooth,
+               .bytes = sizeof(request->smooth_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->background_orders, .src = test_case->background,
+               .bytes = sizeof(request->background_orders));
     request->limbs = test_case->limbs;
     request->device_out = device->out;
     request->error = error;
@@ -167,7 +169,8 @@ static void planes_test_parts(const PlanesTestCase *test_case, const PlanesTestW
                               PlanesTestHost *host)
 {
     const unsigned int voxels = test_case->voxels;
-    memset(host->planes, 0, (size_t)voxels * test_case->input_limbs * sizeof(unsigned int));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = host->planes,
+               .bytes = (size_t)voxels * test_case->input_limbs * sizeof(unsigned int), .val = 0);
     for (unsigned int part = 0u; part < width->parts; part += 1u)
     {
         const unsigned int shift = width->shift[part];
@@ -200,10 +203,10 @@ static unsigned long long planes_test_differ(const unsigned int *one, const unsi
     unsigned long long differ = 0ull;
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
-        differ +=
-            (memcmp(&one[(size_t)voxel * limbs], &other[(size_t)voxel * limbs], limbs * sizeof(unsigned int)) != 0)
-                ? 1ull
-                : 0ull;
+        differ += (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &one[(size_t)voxel * limbs],
+                              .other = &other[(size_t)voxel * limbs], .bytes = limbs * sizeof(unsigned int)) != 0)
+                      ? 1ull
+                      : 0ull;
     }
     return differ;
 }
@@ -218,7 +221,7 @@ static void planes_test_case(SimResults *results, const PlanesTestCase *test_cas
     const size_t plane_words = (size_t)voxels * test_case->input_limbs;
     planes_test_parts(test_case, width, key, host);
     EngineError error;
-    memset(host->expected, 0, lane_words * sizeof(unsigned int));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = host->expected, .bytes = lane_words * sizeof(unsigned int), .val = 0);
     int ok = 1;
     for (unsigned int part = 0u; ok && (part < width->parts); part += 1u)
     {
@@ -248,7 +251,8 @@ static void planes_test_case(SimResults *results, const PlanesTestCase *test_cas
     counts->lanes += voxels;
     counts->against_parts += against_parts;
     const unsigned int top = test_case->input_bits - 1u;
-    memcpy(host->altered_planes, host->planes, plane_words * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = host->altered_planes, .src = host->planes,
+               .bytes = plane_words * sizeof(unsigned int));
     for (unsigned int voxel = 0u; voxel < voxels; voxel += 1u)
     {
         host->altered_planes[((size_t)(top / 32u) * voxels) + voxel] &= ~(1u << (top % 32u));
@@ -269,7 +273,8 @@ static void planes_test_case(SimResults *results, const PlanesTestCase *test_cas
     {
         return;
     }
-    memcpy(host->altered_planes, host->planes, plane_words * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = host->altered_planes, .src = host->planes,
+               .bytes = plane_words * sizeof(unsigned int));
     host->altered_planes[((size_t)(test_case->input_bits / 32u) * voxels) + (voxels / 2u)] |=
         1u << (test_case->input_bits % 32u);
     const long over_limit =
@@ -288,8 +293,8 @@ static void planes_test_case(SimResults *results, const PlanesTestCase *test_cas
 
 static int planes_test_reserve(PlanesTestDevice *device, PlanesTestHost *host)
 {
-    memset(device, 0, sizeof(*device));
-    memset(host, 0, sizeof(*host));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = device, .bytes = sizeof(*device), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = host, .bytes = sizeof(*host), .val = 0);
     const size_t lane_words = (size_t)PLANES_TEST_VOXELS_MAX * PLANES_TEST_LIMBS_MAX;
     const size_t plane_words = (size_t)PLANES_TEST_VOXELS_MAX * PLANES_TEST_INPUT_LIMBS_MAX;
     host->parts = (unsigned short *)platform_cell_taken((size_t)PLANES_TEST_VOXELS_MAX * PLANES_TEST_PARTS_MAX *
@@ -334,8 +339,8 @@ static void planes_test_release(PlanesTestDevice *device, PlanesTestHost *host)
     platform_cell_released(host->cleared_residual, platform_place_g_program_owner);
     platform_cell_released(host->raised_residual, platform_place_g_program_owner);
     platform_cell_released(host->repeat_residual, platform_place_g_program_owner);
-    memset(device, 0, sizeof(*device));
-    memset(host, 0, sizeof(*host));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = device, .bytes = sizeof(*device), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = host, .bytes = sizeof(*host), .val = 0);
 }
 
 static unsigned int planes_test_limbs(const PlanesTestCase *test_case)
@@ -391,15 +396,18 @@ static void planes_test_widths(SimResults *results, const PlanesTestDevice *devi
         for (unsigned int width = 0u; width < PLANES_TEST_WIDTHS; width += 1u)
         {
             PlanesTestResults counts;
-            memset(&counts, 0, sizeof(counts));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &counts, .bytes = sizeof(counts), .val = 0);
             PlanesTestCase test_case;
-            memset(&test_case, 0, sizeof(test_case));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &test_case, .bytes = sizeof(test_case), .val = 0);
             for (unsigned int extent = 0u; extent < PLANES_TEST_EXTENTS; extent += 1u)
             {
-                memcpy(test_case.extent, PLANES_TEST_EXTENT[extent], sizeof(test_case.extent));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = test_case.extent, .src = PLANES_TEST_EXTENT[extent],
+                           .bytes = sizeof(test_case.extent));
                 test_case.voxels = test_case.extent[0] * test_case.extent[1] * test_case.extent[2];
-                memcpy(test_case.smooth, PLANES_TEST_SMOOTH[orders], sizeof(test_case.smooth));
-                memcpy(test_case.background, PLANES_TEST_BACKGROUND[orders], sizeof(test_case.background));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = test_case.smooth, .src = PLANES_TEST_SMOOTH[orders],
+                           .bytes = sizeof(test_case.smooth));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = test_case.background, .src = PLANES_TEST_BACKGROUND[orders],
+                           .bytes = sizeof(test_case.background));
                 test_case.input_bits = PLANES_TEST_WIDTH[width].input_bits;
                 test_case.input_limbs = (test_case.input_bits + 31u) / 32u;
                 test_case.limbs = planes_test_limbs(&test_case);
@@ -430,11 +438,14 @@ static int planes_test_error(const UnitSweepRequest *request, const EngineError 
 static void planes_test_errors(SimResults *results, const PlanesTestDevice *device)
 {
     PlanesTestCase test_case;
-    memset(&test_case, 0, sizeof(test_case));
-    memcpy(test_case.extent, PLANES_TEST_EXTENT[0], sizeof(test_case.extent));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &test_case, .bytes = sizeof(test_case), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = test_case.extent, .src = PLANES_TEST_EXTENT[0],
+               .bytes = sizeof(test_case.extent));
     test_case.voxels = test_case.extent[0] * test_case.extent[1] * test_case.extent[2];
-    memcpy(test_case.smooth, PLANES_TEST_SMOOTH[0], sizeof(test_case.smooth));
-    memcpy(test_case.background, PLANES_TEST_BACKGROUND[0], sizeof(test_case.background));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = test_case.smooth, .src = PLANES_TEST_SMOOTH[0],
+               .bytes = sizeof(test_case.smooth));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = test_case.background, .src = PLANES_TEST_BACKGROUND[0],
+               .bytes = sizeof(test_case.background));
     test_case.input_bits = 34u;
     test_case.input_limbs = 2u;
     test_case.limbs = planes_test_limbs(&test_case);

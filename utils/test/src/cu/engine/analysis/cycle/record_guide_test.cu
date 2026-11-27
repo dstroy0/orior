@@ -7,21 +7,20 @@
 // device with an index that pairs every body with the one time-step record, run again on the host, and each record
 // decoded and checked against the arithmetic done directly. The test is one job on the device's tessera daemon,
 // submitted before the program is loaded onto the device.
-#include "codegen_device.h"
-#include "../../../../../../../src/platform/platform.h"
-#include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../includes/exact_types/integers/exact_integer.h"
+#include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../../../../../../src/platform/platform.h"
+#include "codegen_device.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
 
 #include <cuda_runtime.h>
 
 #include <stdlib.h>
-#include <string.h>
 
 #define GUIDE_TEST_LINE 4096ull
 
@@ -98,13 +97,13 @@ int program_main(int count, char **arguments)
         {ENGINE_RECORD_COMPARE, 4u, 5u, 0u},      // 5 errored: reads itself
     };
     EngineRecordStep program[6];
-    memcpy(program, steps, sizeof(steps));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program, .src = steps, .bytes = sizeof(steps));
     const unsigned int field_bits[3] = {32u, 16u, 16u};
     const unsigned int field_offset[3] = {0u, 32u, 0u};
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {2u, 1u, 0u};
     const unsigned int outputs[2] = {4u, 5u};
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
 
     // a step that reads itself or a later step errors at encode
     EngineRecordKey key;
@@ -117,7 +116,7 @@ int program_main(int count, char **arguments)
     program[5].left = 0u;
     program[5].right = 0u;
     EngineRecordStep full[7];
-    memcpy(full, program, sizeof(program));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = full, .src = program, .bytes = sizeof(program));
     full[6].operation = ENGINE_RECORD_COMPARE;
     full[6].left = 4u;
     full[6].right = 5u;
@@ -132,7 +131,7 @@ int program_main(int count, char **arguments)
     guide_check(&results, ok && (key.term[3].bits == 32u) && (key.term[4].bits == 33u) && (key.term[6].bits == 1u),
                 "the encoding derives 32 bits for v . dt, 33 for x + v . dt and 1 for the comparison");
     EngineRecordLayout layout;
-    memset(&layout, 0, sizeof(layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &layout, .bytes = sizeof(layout), .val = 0);
     const KeyScheduleRecordRequest layout_request = {&key, field_offset, 3u, in_limbs, 1, &layout, &error};
     ok = ok && (key_schedule_record_layout(&layout_request) != KEY_SCHEDULE_ERROR);
     guide_check(&results, ok, "the example program arranges");
@@ -210,7 +209,8 @@ int program_main(int count, char **arguments)
     const int host_ran = (ok != 0) && (cycle_record_run_host(&host) == (long)GUIDE_TEST_BODIES);
     guide_check(&results, host_ran, "the example runs on the host");
     guide_check(&results,
-                host_ran && (memcmp(host_out, device_out, (size_t)GUIDE_TEST_BODIES * 2u * sizeof(unsigned int)) == 0),
+                host_ran && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                                        .bytes = (size_t)GUIDE_TEST_BODIES * 2u * sizeof(unsigned int)) == 0),
                 "the device's records equal the host's word for word");
     int right = host_ran;
     for (unsigned int body = 0u; (right != 0) && (body < GUIDE_TEST_BODIES); body += 1u)
@@ -228,7 +228,7 @@ int program_main(int count, char **arguments)
     // error in an error of its own, since `error` already contains the encoding's error above
     index[0] = GUIDE_TEST_BODIES;
     EngineError over_limit_error;
-    memset(&over_limit_error, 0, sizeof(over_limit_error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &over_limit_error, .bytes = sizeof(over_limit_error), .val = 0);
     const CycleRecordHostRequest over_limit = {&layout,
                                                {bodies, step_record, NULL},
                                                {GUIDE_TEST_BODIES, 1ull, 0ull},

@@ -17,10 +17,11 @@
  * any other form leaves both -1. A value written past those places is refused and the table is not
  * written: nothing is rounded.
  */
-#include <stdio.h>
 #include "../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 /** Decimal places a mass is stored at: femtodaltons. */
 #define TABLE_MASS_PLACES 15u
@@ -160,8 +161,10 @@ static int table_interval_read(const char *text, long long *low, long long *high
     {
         return 1;
     }
-    const char *const comma = strchr(text, ',');
-    const char *const close = strchr(text, ']');
+    const char *const comma =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ',');
+    const char *const close =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ']');
     if (comma == NULL || close == NULL || close < comma)
     {
         return 1;
@@ -173,21 +176,22 @@ static int table_interval_read(const char *text, long long *low, long long *high
     {
         return 0;
     }
-    memcpy(end, text + 1, low_length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = end, .src = text + 1, .bytes = low_length);
     end[low_length] = '\0';
     if (!table_decimal_read(end, TABLE_MASS_PLACES, low, NULL, NULL))
     {
         return 0;
     }
-    memcpy(end, comma + 1, high_length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = end, .src = comma + 1, .bytes = high_length);
     end[high_length] = '\0';
     return table_decimal_read(end, TABLE_MASS_PLACES, high, NULL, NULL);
 }
 
 static const char *table_field(const char *line, const char *name)
 {
-    const size_t length = strlen(name);
-    if (strncmp(line, name, length) != 0)
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = name,
+                    .ci = EMBED_FALSE))
     {
         return NULL;
     }
@@ -211,7 +215,7 @@ int program_main(int argument_count, char **arguments)
     unsigned int count = 0u;
     unsigned int line_number = 0u;
     TableIsotope current;
-    memset(&current, 0, sizeof(current));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &current, .bytes = sizeof(current), .val = 0);
     int refused = 0;
     while (fgets(line, (int)sizeof(line), input) != NULL)
     {
@@ -219,7 +223,7 @@ int program_main(int argument_count, char **arguments)
         const char *value = NULL;
         if ((value = table_field(line, "Atomic Number = ")) != NULL)
         {
-            memset(&current, 0, sizeof(current));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &current, .bytes = sizeof(current), .val = 0);
             current.atomic_number = (unsigned int)strtoul(value, NULL, 10);
             current.composition = -1ll;
             current.composition_uncertainty = -1ll;
@@ -228,14 +232,15 @@ int program_main(int argument_count, char **arguments)
         }
         else if ((value = table_field(line, "Atomic Symbol = ")) != NULL)
         {
-            size_t length = strcspn(value, " \r\n");
+            size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = value,
+                                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \r\n");
             if (length == 0u || length >= sizeof(current.symbol))
             {
                 fprintf(stderr, "line %u: symbol refused\n", line_number);
                 refused = 1;
                 break;
             }
-            memcpy(current.symbol, value, length);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = current.symbol, .src = value, .bytes = length);
             current.symbol[length] = '\0';
         }
         else if ((value = table_field(line, "Mass Number = ")) != NULL)

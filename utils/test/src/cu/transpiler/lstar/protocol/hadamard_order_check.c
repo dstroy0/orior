@@ -18,8 +18,8 @@
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/hadamard_order.h"
 #include "../../../../../../../src/platform/platform.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
-#include <string.h>
 
 static const unsigned int s_sizes[] = {3u, 7u, 15u, 31u, 63u};
 #define SIZE_COUNT (sizeof(s_sizes) / sizeof(s_sizes[0]))
@@ -193,7 +193,7 @@ static void check_refusals(void)
 {
     unsigned long long row_cost[128];
     long long scaled[128];
-    memset(row_cost, 0, sizeof(row_cost));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = row_cost, .bytes = sizeof(row_cost), .val = 0);
     for (unsigned int links = 0u; links < 128u; links += 1u)
     {
         const int covered = ((links == 3u) || (links == 7u) || (links == 15u) || (links == 31u) || (links == 63u));

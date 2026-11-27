@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_gaussian_test_main.cu: main
-#include "record_gaussian_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "record_gaussian_test_internal.h"
 
 // (1 + i)^k for k = 0 to 8, read off its polar form 2^(k/2) e^(i k pi / 4)
 static const long long s_gaussian_power_real[GAUSSIAN_TEST_FLOORS + 1u] = {1ll,  1ll, 0ll, -2ll, -4ll,
@@ -36,11 +37,11 @@ int program_main(int count, char **arguments)
     const unsigned int field_offset[2] = {0u, 32u};
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {2u, 0u, 0u};
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     EngineRecordKey key;
-    memset(&key, 0, sizeof(key));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &key, .bytes = sizeof(key), .val = 0);
     EngineRecordLayout layout;
-    memset(&layout, 0, sizeof(layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &layout, .bytes = sizeof(layout), .val = 0);
     CycleRecord *record = NULL;
     const KeymathRecordRequest encode_request = {
         steps, GAUSSIAN_TEST_STEPS, field_bits, 2u, 1u, outputs, GAUSSIAN_TEST_OUTPUTS, NULL, 0u, &key, &error};
@@ -49,7 +50,7 @@ int program_main(int count, char **arguments)
     ok = ok && (key_schedule_record_layout(&layout_request) != KEY_SCHEDULE_ERROR);
     // one inverse program for each count of floors, 1 to 8; inverse[0] is unused
     GaussianLoaded inverse[GAUSSIAN_TEST_FLOORS + 1u];
-    memset(inverse, 0, sizeof(inverse));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = inverse, .bytes = sizeof(inverse), .val = 0);
     for (unsigned int floors = 1u; floors <= GAUSSIAN_TEST_FLOORS; floors += 1u)
     {
         ok = ok && gaussian_inverse_build(floors, &inverse[floors], &error);
@@ -123,8 +124,8 @@ int program_main(int count, char **arguments)
         &layout, {atoms, NULL, NULL}, {GAUSSIAN_TEST_LANES, 0ull, 0ull}, NULL, GAUSSIAN_TEST_LANES, host_out, &error};
     const int host_ran = (ok != 0) && (cycle_record_run_host(&host) == (long)GAUSSIAN_TEST_LANES);
     sim_check(&results,
-              host_ran &&
-                  (memcmp(host_out, device_out, (size_t)GAUSSIAN_TEST_LANES * out_limbs * sizeof(unsigned int)) == 0),
+              host_ran && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                                      .bytes = (size_t)GAUSSIAN_TEST_LANES * out_limbs * sizeof(unsigned int)) == 0),
               "the device's records equal the host's word for word");
 
     int product = host_ran;
@@ -276,7 +277,7 @@ int program_main(int count, char **arguments)
             // each value lies below 2^25 in magnitude. Its low 32 bits of two's complement represent it whole
             const unsigned int atoms_pair[2] = {(unsigned int)(unsigned long long)pair_real[pair],
                                                 (unsigned int)(unsigned long long)pair_imaginary[pair]};
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             const int ran =
                 gaussian_inverse_run(&inverse[floors], atoms_pair, 1u, inverse_host, inverse_device, &error);
             agreed = ran >= 0;

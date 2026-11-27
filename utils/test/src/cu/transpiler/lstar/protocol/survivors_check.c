@@ -12,8 +12,8 @@
 #include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/gate/survivors.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
-#include <string.h>
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -99,7 +99,9 @@ int program_main(int argc, char **argv)
         }
         unsigned char reversed_survives[GATE_CANDIDATES];
         gate_survivors(reversed_fails, candidates, cases, reversed_survives);
-        check_that(memcmp(survives, reversed_survives, candidates) == 0, "every order of the cases leaves one S");
+        check_that(
+            EMBED_CALL(memor.cmp, MemoriaCfg, .src = survives, .other = reversed_survives, .bytes = candidates) == 0,
+            "every order of the cases leaves one S");
 
         unsigned int order[GATE_CASES];
         const unsigned long long price = gate_descent(s_fails, candidates, cases, order);

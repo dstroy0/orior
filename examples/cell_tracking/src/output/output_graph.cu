@@ -8,10 +8,10 @@
 #include "scan.h"
 #include "sort.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #define OUTPUT_SEEK _fseeki64
@@ -201,7 +201,7 @@ static void output_graph_free(OutputGraph *graph)
     platform_cell_released(graph->departure, platform_place_g_program_owner);
     platform_cell_released(graph->outside, platform_place_g_program_owner);
     platform_cell_released(graph->faces, platform_place_g_program_owner);
-    memset(graph, 0, sizeof(*graph));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = graph, .bytes = sizeof(*graph), .val = 0);
 }
 
 // frame `frame` of the .points, its points after the frames before it; the levels are passed over, and every voxel must
@@ -350,7 +350,7 @@ static int output_graph_read(const char *sample, FILE *points, FILE *links, Outp
         return 0;
     }
     graph->frames = head[0];
-    memcpy(graph->view, &head[1], sizeof(graph->view));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = graph->view, .src = &head[1], .bytes = sizeof(graph->view));
     graph->points = 0ull;
     graph->first[0] = 0ull;
     ok = (head[0] == 0u) || output_frame_read(points, head, 0u, graph);
@@ -816,7 +816,7 @@ static unsigned long long output_graph_fingerprint(const OutputGraph *graph)
 static int output_sample_read(const OutputRequest *request, const char *sample, OutputGraph *graph, unsigned int *words,
                               OutputResults *results)
 {
-    memset(results, 0, sizeof(*results));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = results, .bytes = sizeof(*results), .val = 0);
     // a sample's name is a field of both files, which neither separator nor line break may cut
     if (strpbrk(sample, ",\"\t\r\n") != NULL)
     {
@@ -846,7 +846,7 @@ static int output_sample_read(const OutputRequest *request, const char *sample, 
     }
     // the .faces is checked against the sort's links before the .divide moves any
     OutputLinksCrc crc;
-    memset(&crc, 0, sizeof(crc));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &crc, .bytes = sizeof(crc), .val = 0);
     const int ok = read && output_faces_read(sample, request->set, links_path, graph, words, &crc, results) &&
                    output_divide_read(sample, request->set, links_path, graph, words, &crc, results) &&
                    output_graph_results(sample, graph, results);
@@ -954,11 +954,11 @@ extern "C" long output_graph_set(const OutputRequest *request)
         return OUTPUT_ERROR;
     }
     OutputGraph graph;
-    memset(&graph, 0, sizeof(graph));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &graph, .bytes = sizeof(graph), .val = 0);
     fprintf(report, "  %-24s %6s %10s %10s %s\n", "sample", "frames", "nodes", "edges",
             "ends (outside the view; max a frame), starts (max a frame); H4");
     OutputResults totals;
-    memset(&totals, 0, sizeof(totals));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &totals, .bytes = sizeof(totals), .val = 0);
     unsigned long long faced_ends = 0ull;
     unsigned long long faced_starts = 0ull;
     unsigned int failed = 0u;
@@ -1066,7 +1066,7 @@ extern "C" long output_graph_set(const OutputRequest *request)
         const char *const sample = request->samples[at];
         OutputResults again;
         ok = output_sample_read(request, sample, &graph, words, &again) &&
-             (memcmp(&again, &tallies[at], sizeof(again)) == 0);
+             (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &again, .other = &tallies[at], .bytes = sizeof(again)) == 0);
         if (ok == 0)
         {
             fprintf(stderr, "  output: %s did not read again as it read before: the outputs are incomplete\n", sample);

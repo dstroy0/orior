@@ -7,7 +7,7 @@
 #include "../../../../../../src/cu/engine/render/orior_raster.h"
 #include "../../../../../../src/platform/platform.h"
 
-#include <cstring>
+#include "memoria_operor/memoria_operor.h"
 
 // the bytes of the corpus and of the needle, the cells of the largest sheet or volume, and the bytes that the test
 // signs
@@ -100,12 +100,12 @@ int program_main(int argc, char **argv)
                         size_t cells = 0u;
                         int drawn = 0;
                         int hosted = 0;
-                        memset(device_cells, 0xA5, RASTER_TEST_CELLS);
-                        memset(host_cells, 0x5A, RASTER_TEST_CELLS);
+                        EMBED_CALL(memor.set, MemoriaCfg, .dst = device_cells, .bytes = RASTER_TEST_CELLS, .val = 0xA5);
+                        EMBED_CALL(memor.set, MemoriaCfg, .dst = host_cells, .bytes = RASTER_TEST_CELLS, .val = 0x5A);
                         if (volume == 0u)
                         {
                             OriorRasterConfig config;
-                            memset(&config, 0, sizeof(config));
+                            EMBED_CALL(memor.set, MemoriaCfg, .dst = &config, .bytes = sizeof(config), .val = 0);
                             config.width = SHEETS[shape][0];
                             config.height = SHEETS[shape][1];
                             config.layout = (OriorRasterLayout)layout;
@@ -121,7 +121,7 @@ int program_main(int argc, char **argv)
                         else
                         {
                             OriorVolumeConfig config;
-                            memset(&config, 0, sizeof(config));
+                            EMBED_CALL(memor.set, MemoriaCfg, .dst = &config, .bytes = sizeof(config), .val = 0);
                             config.width = VOLUMES[shape][0];
                             config.height = VOLUMES[shape][1];
                             config.depth = VOLUMES[shape][2];
@@ -137,9 +137,11 @@ int program_main(int argc, char **argv)
                         }
                         cases += 1u;
                         raster_test_check(drawn == hosted, "the device answers each case as the host answers it");
-                        raster_test_check((hosted == 0) || (memcmp(device_cells, host_cells, cells) == 0),
+                        raster_test_check((hosted == 0) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device_cells,
+                                                                       .other = host_cells, .bytes = cells) == 0),
                                           "the bytes of the device are the bytes of the host");
-                        memcpy(&signed_bytes[signed_count], device_cells, cells);
+                        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &signed_bytes[signed_count], .src = device_cells,
+                                   .bytes = cells);
                         signed_count += (hosted != 0) ? cells : 0u;
                     }
                 }

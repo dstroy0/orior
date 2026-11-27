@@ -32,10 +32,11 @@
 // .links beside it. The states are then chain's B 32, D 33 and E 1, and with the .divide files too D is daughter two
 // and no start, 40.
 //   check_test <directory>
-#include <stdio.h>
 #include "../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #include <direct.h>
@@ -387,17 +388,18 @@ static int check_test_points_write(const char *set, const char *sample, const Ch
         return 0;
     }
     size_t used = 0u;
-    memcpy(&bytes[used], points->head, sizeof(points->head));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &bytes[used], .src = points->head, .bytes = sizeof(points->head));
     used += sizeof(points->head);
-    memcpy(&bytes[used], &readings, sizeof(readings));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &bytes[used], .src = &readings, .bytes = sizeof(readings));
     used += sizeof(readings);
-    memcpy(&bytes[used], contrast, CHECK_TEST_READINGS * sizeof(unsigned long long));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &bytes[used], .src = contrast,
+               .bytes = CHECK_TEST_READINGS * sizeof(unsigned long long));
     used += CHECK_TEST_READINGS * sizeof(unsigned long long);
     unsigned int taken = 0u;
     for (unsigned int frame = 0u; frame < points->head[0]; frame += 1u)
     {
         const unsigned int count = points->frame_counts[frame];
-        memcpy(&bytes[used], &count, sizeof(count));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &bytes[used], .src = &count, .bytes = sizeof(count));
         used += sizeof(count);
         // a count past the voxels and levels the sample contains (count_past_view's 25) is written alone, and the file
         // ends at it: points_check stops at the count
@@ -406,16 +408,18 @@ static int check_test_points_write(const char *set, const char *sample, const Ch
         {
             break;
         }
-        memcpy(&bytes[used], &points->voxels[taken], count * sizeof(unsigned int));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &bytes[used], .src = &points->voxels[taken],
+                   .bytes = count * sizeof(unsigned int));
         used += count * sizeof(unsigned int);
-        memcpy(&bytes[used], &points->levels[taken * points->head[4]], count * points->head[4] * sizeof(unsigned int));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &bytes[used], .src = &points->levels[taken * points->head[4]],
+                   .bytes = count * points->head[4] * sizeof(unsigned int));
         used += count * points->head[4] * sizeof(unsigned int);
         taken += count;
     }
     if (points->trailing != 0)
     {
         const unsigned int word = 0u;
-        memcpy(&bytes[used], &word, sizeof(word));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &bytes[used], .src = &word, .bytes = sizeof(word));
         used += sizeof(word);
     }
     ok = check_test_sample_path(path, sizeof(path), set, sample, ".points") &&
@@ -427,11 +431,11 @@ static int check_test_points_write(const char *set, const char *sample, const Ch
 // the good samples a and b
 static void check_test_points_ok(CheckTestPoints *a, CheckTestPoints *b)
 {
-    memset(a, 0, sizeof(*a));
-    memset(b, 0, sizeof(*b));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = a, .bytes = sizeof(*a), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = b, .bytes = sizeof(*b), .val = 0);
     const unsigned int head[6] = {2u, 2u, 3u, 4u, 2u, 7u};
-    memcpy(a->head, head, sizeof(head));
-    memcpy(b->head, head, sizeof(head));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = a->head, .src = head, .bytes = sizeof(head));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = b->head, .src = head, .bytes = sizeof(head));
     a->counts[0] = 20ull;
     a->counts[1] = 28ull;
     b->counts[0] = 8ull;
@@ -440,14 +444,14 @@ static void check_test_points_ok(CheckTestPoints *a, CheckTestPoints *b)
     a->frame_counts[1] = 1u;
     const unsigned int a_voxels[3] = {3u, 17u, 23u};
     const unsigned int a_levels[6] = {5u, 0u, 0u, 1u, 1u, 0x7FFFFFFFu};
-    memcpy(a->voxels, a_voxels, sizeof(a_voxels));
-    memcpy(a->levels, a_levels, sizeof(a_levels));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = a->voxels, .src = a_voxels, .bytes = sizeof(a_voxels));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = a->levels, .src = a_levels, .bytes = sizeof(a_levels));
     b->frame_counts[0] = 0u;
     b->frame_counts[1] = 3u;
     const unsigned int b_voxels[3] = {0u, 1u, 2u};
     const unsigned int b_levels[6] = {1u, 0u, 2u, 0u, 0u, 3u};
-    memcpy(b->voxels, b_voxels, sizeof(b_voxels));
-    memcpy(b->levels, b_levels, sizeof(b_levels));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = b->voxels, .src = b_voxels, .bytes = sizeof(b_voxels));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = b->levels, .src = b_levels, .bytes = sizeof(b_levels));
 }
 
 static int check_test_points_case(const char *root, PointsCase which)
@@ -478,7 +482,7 @@ static int check_test_points_case(const char *root, PointsCase which)
         // b's levels at three limbs, each still positive
         const unsigned int levels[9] = {1u, 0u, 0u, 2u, 0u, 0u, 0u, 3u, 0u};
         b.head[4] = 3u;
-        memcpy(b.levels, levels, sizeof(levels));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = b.levels, .src = levels, .bytes = sizeof(levels));
     }
     break;
     case POINTS_CASE_EMPTY_VIEW:
@@ -609,7 +613,7 @@ static int check_test_graph_points(const char *set, const char *sample, const un
                                    const unsigned int *counts, const unsigned int *voxels, int trailing, int short_by)
 {
     CheckTestWords frames;
-    memset(&frames, 0, sizeof(frames));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &frames, .bytes = sizeof(frames), .val = 0);
     unsigned int taken = 0u;
     for (unsigned int frame = 0u; frame < head[0]; frame += 1u)
     {
@@ -635,8 +639,9 @@ static int check_test_graph_points(const char *set, const char *sample, const un
         platform_cell_released(bytes, platform_place_g_program_owner);
         return 0;
     }
-    memcpy(bytes, head, 24u);
-    memcpy(&bytes[24u + 8u + (CHECK_TEST_READINGS * 8u)], frames.words, (size_t)frames.count * 4u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = bytes, .src = head, .bytes = 24u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &bytes[24u + 8u + (CHECK_TEST_READINGS * 8u)], .src = frames.words,
+               .bytes = (size_t)frames.count * 4u);
     char path[CHECK_TEST_PATH];
     const int ok = check_test_directory(set, sample) &&
                    check_test_sample_path(path, sizeof(path), set, sample, ".points") &&
@@ -656,7 +661,7 @@ static int check_test_graph_links(const char *set, const char *sample, const Che
 static int check_test_text(const char *path, const char *text, OutputCase which, OutputCase changes, size_t at,
                            char becomes)
 {
-    const size_t length = strlen(text);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     char *const copy = (char *)platform_cell_taken((2u * length) + 64u, platform_place_g_program_owner, 0);
     if (copy == NULL)
     {
@@ -685,8 +690,10 @@ static int check_test_text(const char *path, const char *text, OutputCase which,
     if ((which == changes) && (which == OUTPUT_CASE_SUBMISSION_PAST))
     {
         const char *const over_limit = "14,second,edge,-1,-1,-1,-1,-1,3,4\n";
-        memcpy(&copy[used], over_limit, strlen(over_limit));
-        used += strlen(over_limit);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &copy[used], .src = over_limit,
+                   .bytes =
+                       EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = over_limit, .cap = PLATFORM_TEXT_TO_TERMINATOR));
+        used += EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = over_limit, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     }
     const int ok = check_test_file(path, copy, used, 0u);
     platform_cell_released(copy, platform_place_g_program_owner);
@@ -701,7 +708,7 @@ static int check_test_graph(const char *set, OutputCase which, int astray)
     const unsigned int counts[4] = {3u, 2u, 0u, 2u};
     const unsigned int voxels[7] = {7u, 50u, 100u, 8u, 119u, 0u, (which == OUTPUT_CASE_POINTS_OUTSIDE) ? 120u : 31u};
     CheckTestWords words;
-    memset(&words, 0, sizeof(words));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &words, .bytes = sizeof(words), .val = 0);
     check_test_links_head(&words, (which == OUTPUT_CASE_LINKS_FRAMES) ? 3u : 4u, 4u, 5u,
                           (which == OUTPUT_CASE_LINKS_VIEW) ? 7u : 6u);
     const unsigned int doubled = ((which == OUTPUT_CASE_TWO_OUT) || (which == OUTPUT_CASE_TWO_IN)) ? 1u : 0u;
@@ -739,7 +746,7 @@ static int check_test_graph(const char *set, OutputCase which, int astray)
     const unsigned int second_counts[2] = {2u, 2u};
     const unsigned int second_voxels[4] = {0u, 5u, 5u, 0u};
     CheckTestWords second;
-    memset(&second, 0, sizeof(second));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &second, .bytes = sizeof(second), .val = 0);
     check_test_links_head(&second, 2u, 1u, 2u, 3u);
     check_test_pair(&second, 2u, 2u, 3u, 2u);
     check_test_source(&second, 0u, 0u, 0u, 0u);
@@ -764,12 +771,21 @@ static int check_test_output_case(const char *root, OutputCase which)
     // the files: a byte of a row changed in chain's first row (its x, 1 to 9), in the submission's row 9's x, or in the
     // nodes header's first character
     char path[CHECK_TEST_PATH];
-    const size_t header = strlen(CHECK_TEST_NODES_HEADER);
-    const size_t nodes_at = (which == OUTPUT_CASE_NODES_HEADER) ? 0u : (header + strlen("chain\t0\t0\t0\t1\t"));
+    const size_t header =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = CHECK_TEST_NODES_HEADER, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t nodes_at = (which == OUTPUT_CASE_NODES_HEADER)
+                                ? 0u
+                                : (header + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = "chain\t0\t0\t0\t1\t",
+                                                       .cap = PLATFORM_TEXT_TO_TERMINATOR));
     const char nodes_becomes = (which == OUTPUT_CASE_NODES_HEADER) ? 'S' : '9';
-    const char *const ninth = strstr(CHECK_TEST_SUBMISSION, "9,second,node,2,0,0,1,");
-    const size_t submission_at =
-        (ninth != NULL) ? (size_t)(ninth - CHECK_TEST_SUBMISSION) + strlen("9,second,node,2,0,0,1,") : 0u;
+    const char *const ninth =
+        EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = CHECK_TEST_SUBMISSION, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "9,second,node,2,0,0,1,", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+    const size_t submission_at = (ninth != NULL)
+                                     ? (size_t)(ninth - CHECK_TEST_SUBMISSION) +
+                                           EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = "9,second,node,2,0,0,1,",
+                                                      .cap = PLATFORM_TEXT_TO_TERMINATOR)
+                                     : 0u;
     const OutputCase nodes_change = ((which == OUTPUT_CASE_NODES_DIFFER) || (which == OUTPUT_CASE_NODES_HEADER) ||
                                      (which == OUTPUT_CASE_NODES_MISSING) || (which == OUTPUT_CASE_CARRIAGE))
                                         ? which
@@ -827,7 +843,7 @@ static int check_test_beside(const char *set, const char *sample, const char *su
     }
     crc += skew;
     CheckTestWords words;
-    memset(&words, 0, sizeof(words));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &words, .bytes = sizeof(words), .val = 0);
     const unsigned int head[6] = {
         view[0], view[1], view[2], view[3], (unsigned int)(crc & 0xFFFFFFFFull), (unsigned int)(crc >> 32u)};
     for (unsigned int at = 0u; at < head_words; at += 1u)
@@ -868,7 +884,7 @@ static int check_test_drift(const char *set, const char *sample, const unsigned 
                             const unsigned int *lags, unsigned int extra)
 {
     CheckTestWords words;
-    memset(&words, 0, sizeof(words));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &words, .bytes = sizeof(words), .val = 0);
     const unsigned int head[7] = {view[0], view[1], view[2], view[3], 16u, 1u, 1u};
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
@@ -903,7 +919,7 @@ static int check_test_hessian(const char *set, const char *sample, const unsigne
                               unsigned int short_by)
 {
     CheckTestWords words;
-    memset(&words, 0, sizeof(words));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &words, .bytes = sizeof(words), .val = 0);
     const unsigned int head[6] = {view[0], view[1], view[2], view[3], limbs, hessian_limbs};
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
@@ -1008,9 +1024,13 @@ static int check_test_faces_case(const char *root, FacesCase which)
         (which == FACES_CASE_DIVIDED) ? CHECK_TEST_DIVIDED_SUBMISSION : CHECK_TEST_SUBMISSION;
     char path[CHECK_TEST_PATH];
     return ok && check_test_join(path, sizeof(path), set, "nodes.tsv") &&
-           check_test_file(path, nodes, strlen(nodes), 0u) &&
+           check_test_file(path, nodes,
+                           EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = nodes, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                           0u) &&
            check_test_join(path, sizeof(path), set, "submission.csv") &&
-           check_test_file(path, submission, strlen(submission), 0u);
+           check_test_file(
+               path, submission,
+               EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = submission, .cap = PLATFORM_TEXT_TO_TERMINATOR), 0u);
 }
 
 // fork: 2 frames in second's view, P (0) and Q (5), then R (5), S (0) and T (3); P links to S at cost 0 and Q to R at
@@ -1021,7 +1041,7 @@ static int check_test_fork(const char *set)
     const unsigned int counts[2] = {2u, 3u};
     const unsigned int voxels[5] = {0u, 5u, 5u, 0u, 3u};
     CheckTestWords words;
-    memset(&words, 0, sizeof(words));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &words, .bytes = sizeof(words), .val = 0);
     check_test_links_head(&words, 2u, 1u, 2u, 3u);
     check_test_pair(&words, 2u, 3u, 3u, 2u);
     check_test_source(&words, 0u, 0u, 0u, 0u);
@@ -1081,7 +1101,7 @@ static int check_test_divide_case(const char *root, DivideCase which)
     case DIVIDE_CASE_ORDER: {
         // Q divides first, taking S from P; then P, which comes before Q
         const unsigned int two[8] = {1u, 0u, 1u, 0u, 0u, 1u, 0u, 1u};
-        memcpy(divisions, two, sizeof(two));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = divisions, .src = two, .bytes = sizeof(two));
         counts[0] = 2u;
     }
     break;

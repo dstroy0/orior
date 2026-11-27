@@ -9,7 +9,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #if defined(__cplusplus)
 static_assert(ORIOR_EXACT_LIMBS >= ENGINE_RESIDUAL_LIMBS,

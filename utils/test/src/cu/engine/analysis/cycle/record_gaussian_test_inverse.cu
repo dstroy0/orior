@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_gaussian_test_inverse.cu: values, words and the inverse
+#include "memoria_operor/memoria_operor.h"
 #include "record_gaussian_test_internal.h"
 
 static unsigned long long s_gaussian_state = 0x6A09E667F3BCC908ull;
@@ -64,7 +65,7 @@ int gaussian_inverse_build(unsigned int floors, GaussianLoaded *loaded, EngineEr
     const unsigned int field_bits[2] = {GAUSSIAN_TEST_INVERSE_FIELD_BITS, GAUSSIAN_TEST_INVERSE_FIELD_BITS};
     const unsigned int field_offset[2] = {0u, 32u};
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {2u, 0u, 0u};
-    memset(loaded, 0, sizeof(*loaded));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = loaded, .bytes = sizeof(*loaded), .val = 0);
     const KeymathRecordRequest encode_request = {steps,       3u + (GAUSSIAN_TEST_INVERSE_STEPS_PER_FLOOR * floors),
                                                  field_bits,  2u,
                                                  1u,          outputs,
@@ -120,7 +121,7 @@ int gaussian_inverse_run(const GaussianLoaded *loaded, const unsigned int *atoms
     {
         return 0;
     }
-    return (memcmp(host_out, device_out, out_bytes) == 0) ? 1 : -1;
+    return (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out, .bytes = out_bytes) == 0) ? 1 : -1;
 }
 
 // the (1 + i)-adic valuation of c + d i, counted up to `max`: 0 counts as `max`, since every power divides it

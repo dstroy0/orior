@@ -9,9 +9,9 @@
 
 #include <cuda_runtime.h>
 
+#include "memoria_operor/memoria_operor.h"
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 
 #define EDGE_BITS 8u
 #define EDGE_SIZE 256u
@@ -125,14 +125,14 @@ static long tower_test_trip(const TowerRig *rig, const TowerEdge *edges, unsigne
                             unsigned long long *mismatches, int *rebuilt_ok, int *crystal)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const int *coefficients = NULL;
     unsigned int *scratch = NULL;
     unsigned int floors = 0u;
     TowerLiftRequest lift;
-    memset(&lift, 0, sizeof(lift));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lift, .bytes = sizeof(lift), .val = 0);
     lift.device_lanes = rig->device_lanes;
-    memcpy(lift.extent, rig->extent, sizeof(lift.extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lift.extent, .src = rig->extent, .bytes = sizeof(lift.extent));
     lift.coefficients = &coefficients;
     lift.scratch = &scratch;
     lift.floors = &floors;
@@ -153,9 +153,9 @@ static long tower_test_trip(const TowerRig *rig, const TowerEdge *edges, unsigne
     const unsigned short *device_rebuilt = NULL;
     unsigned long long miss = 1ull;
     TowerLowerRequest lower;
-    memset(&lower, 0, sizeof(lower));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lower, .bytes = sizeof(lower), .val = 0);
     lower.device_lanes = rig->device_lanes;
-    memcpy(lower.extent, rig->extent, sizeof(lower.extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lower.extent, .src = rig->extent, .bytes = sizeof(lower.extent));
     lower.mismatches = &miss;
     lower.device_rebuilt = &device_rebuilt;
     lower.rebuilt = rebuilt;
@@ -187,7 +187,7 @@ int program_main(int count, char **arguments)
     (void)count;
     (void)arguments;
     TowerRig rig;
-    memset(&rig, 0, sizeof(rig));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &rig, .bytes = sizeof(rig), .val = 0);
     rig.extent[0] = 1ull;
     rig.extent[1] = 8ull;
     rig.extent[2] = 8ull;
@@ -351,8 +351,10 @@ int program_main(int count, char **arguments)
             ((plain_trip == 0L) && (edged_trip == 0L) && (mismatches == 0ull) && (rebuilt_ok != 0)) ? 1u : 0u;
         readouts += tower_test_readout(plain_crystal[0], edged_crystal[0], function) ? 1u : 0u;
         // the collapsed floor is one coefficient: every other coefficient is the plain crystal's
-        untouched +=
-            (memcmp(&plain_crystal[1], &edged_crystal[1], (size_t)(rig.lanes - 1ull) * sizeof(int)) == 0) ? 1u : 0u;
+        untouched += (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &plain_crystal[1], .other = &edged_crystal[1],
+                                 .bytes = (size_t)(rig.lanes - 1ull) * sizeof(int)) == 0)
+                         ? 1u
+                         : 0u;
     }
     check("bennett |x| and compare edges round-trip on every lattice", exact_trips == BENNETT_TRIALS);
     check("f(x) reads out of the carrier field on the collapsed floor", readouts == BENNETT_TRIALS);

@@ -6,10 +6,11 @@
  */
 #include "zeta_tension.h"
 #include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <math.h>
 #include <stdlib.h>
-#include <string.h>
 
 /** @brief The bits by which a dip lists finer. */
 #define FINER 6
@@ -41,7 +42,7 @@ size_t tension_prime_powers(int64_t limit, int64_t (**powers)[2])
 {
     unsigned char *const sieve =
         (unsigned char *)tension_memory(platform_cell_taken((size_t)limit + 1u, platform_place_g_program_owner, 0));
-    memset(sieve, 1, (size_t)limit + 1u);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = sieve, .bytes = (size_t)limit + 1u, .val = 1);
     size_t capacity = 256u;
     size_t count = 0u;
     *powers = (int64_t (*)[2])tension_memory(
@@ -160,18 +161,32 @@ static size_t listed_points(const char *binary, const TuringConstants *constants
         int64_t lane = 0;
         while (fgets(line, sizeof(line), handle) != NULL)
         {
-            if (strncmp(line, "point", 5u) != 0)
+            if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "point", .ci = EMBED_FALSE))
             {
                 continue;
             }
             char *words[16];
             size_t found = 0u;
-            char *cursor = strtok(line + 5, " \r\n");
-            while ((cursor != NULL) && (found < 16u))
+            // each word of the line after its tag, a terminator written past each as the walk reaches it
+            char *cursor = line + 5;
+            while (found < 16u)
             {
+                cursor += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = cursor, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = " \r\n");
+                if (*cursor == '\0')
+                {
+                    break;
+                }
                 words[found] = cursor;
                 found += 1u;
-                cursor = strtok(NULL, " \r\n");
+                cursor += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = cursor,
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \r\n");
+                if (*cursor != '\0')
+                {
+                    *cursor = '\0';
+                    cursor += 1;
+                }
             }
             if (found < 3u)
             {

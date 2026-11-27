@@ -3,10 +3,9 @@
 #ifndef TESSERA_TEXT_H
 #define TESSERA_TEXT_H
 
+#include "tessera.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "tessera.h"
 
 #ifdef __cplusplus
 extern "C"

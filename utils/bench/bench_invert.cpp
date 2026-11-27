@@ -17,13 +17,13 @@
  *       does not assert it.
  */
 
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <random>
 #include <string>
 #include <vector>
@@ -235,7 +235,7 @@ void demonstrate_bijection()
         {
             round_backward(&walk, (unsigned)round, schedule[round]);
         }
-        if (std::memcmp(walk.word, start.word, sizeof(start.word)) != 0)
+        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = walk.word, .other = start.word, .bytes = sizeof(start.word)) != 0)
         {
             round_trip_holds = false;
         }
@@ -310,7 +310,7 @@ void map_ceiling_construction()
             sha256_state_init(&flipped);
 
             uint32_t flipped_block[16];
-            std::memcpy(flipped_block, block, sizeof(block));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = flipped_block, .src = block, .bytes = sizeof(block));
             flipped_block[3] ^= (1u << (generator() % 32u));
 
             sha256_block_compress_partial(&plain, block, rounds);
@@ -416,7 +416,7 @@ void measure_propagation_speed()
                 block[slot] = generator();
             }
             uint32_t flipped_block[16];
-            std::memcpy(flipped_block, block, sizeof(block));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = flipped_block, .src = block, .bytes = sizeof(block));
             flipped_block[3] ^= (1u << (generator() % 32u));
 
             Sha256State plain;

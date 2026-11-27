@@ -12,7 +12,7 @@
 
 #include <cuda_runtime.h>
 
-#include <cstring>
+#include "memoria_operor/memoria_operor.h"
 
 // the extent of each frame, its voxels and the words of its positive bits
 #define CLIMB_TEST_DEPTH 16u
@@ -133,7 +133,7 @@ static unsigned int climb_test_voxel(const int *place)
 // whose peak meets the peak of an earlier blob steps along the width until its peak is free
 static void climb_test_frame_drawn(const ClimbTestBlobs *blobs, unsigned int at, ClimbTestFrame *frame)
 {
-    memset(frame, 0, sizeof(*frame));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = frame, .bytes = sizeof(*frame), .val = 0);
     frame->leaves = CLIMB_TEST_BLOBS[at];
     const unsigned int extents[3] = {CLIMB_TEST_DEPTH, CLIMB_TEST_HEIGHT, CLIMB_TEST_WIDTH};
     for (unsigned int blob = 0u; blob < frame->leaves; blob++)
@@ -153,7 +153,8 @@ static void climb_test_frame_drawn(const ClimbTestBlobs *blobs, unsigned int at,
             taken = 0;
             for (unsigned int earlier = 0u; earlier < blob; earlier++)
             {
-                taken |= (memcmp(frame->center[earlier], frame->center[blob], sizeof(frame->center[blob])) == 0);
+                taken |= (EMBED_CALL(memor.cmp, MemoriaCfg, .src = frame->center[earlier], .other = frame->center[blob],
+                                     .bytes = sizeof(frame->center[blob])) == 0);
             }
             const int last = (frame->center[blob][2] >= ((int)CLIMB_TEST_WIDTH - 2));
             frame->center[blob][2] =
@@ -219,7 +220,7 @@ static void climb_test_put(ClimbTestAnswer *answer, const void *bytes, unsigned 
     answer->fits = answer->fits && ((answer->count + count) <= CLIMB_TEST_ANSWER_BYTES);
     if ((answer->fits != 0) && (count != 0ULL))
     {
-        memcpy(&answer->bytes[answer->count], bytes, (size_t)count);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &answer->bytes[answer->count], .src = bytes, .bytes = (size_t)count);
         answer->count += count;
     }
 }
@@ -229,7 +230,7 @@ static unsigned long long climb_test_signum(const ClimbTestAnswer *answer)
 {
     unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioSignumRequest request = {answer->bytes, answer->count,           NULL,  OBSIGNATIO_MODE_HASH,
                                              signum,        OBSIGNATIO_SIGNUM_BYTES, &error};
     if ((answer->fits == 0) || (answer->count == 0ULL) || (obsignatio_signum(&request) != 0L))
@@ -289,7 +290,8 @@ static int climb_test_extents_agree(const ClimbTestFrame *frame, const unsigned 
             *most = (place[axis] > *most) ? place[axis] : *most;
         }
     }
-    return memcmp(bounds, extents, (size_t)frame->leaves * CLIMB_MACHINE_EXTENT_FIELDS * sizeof(unsigned int)) == 0;
+    return EMBED_CALL(memor.cmp, MemoriaCfg, .src = bounds, .other = extents,
+                      .bytes = (size_t)frame->leaves * CLIMB_MACHINE_EXTENT_FIELDS * sizeof(unsigned int)) == 0;
 }
 
 // The labels and the positive bits that the machine holds for a frame, read back from the device. 1 where they equal
@@ -302,12 +304,14 @@ static int climb_test_held_agree(const ClimbMachine *machine, unsigned int at, c
     int agree =
         (device_positive != NULL) &&
         (cudaMemcpy(positive, device_positive, sizeof(frame->positive), cudaMemcpyDeviceToHost) == cudaSuccess) &&
-        (memcmp(positive, frame->positive, sizeof(frame->positive)) == 0);
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = positive, .other = frame->positive,
+                    .bytes = sizeof(frame->positive)) == 0);
     if (labels_held != 0)
     {
         agree = agree && (device_labels != NULL) &&
                 (cudaMemcpy(labels, device_labels, sizeof(frame->labels), cudaMemcpyDeviceToHost) == cudaSuccess) &&
-                (memcmp(labels, frame->labels, sizeof(frame->labels)) == 0);
+                (EMBED_CALL(memor.cmp, MemoriaCfg, .src = labels, .other = frame->labels,
+                            .bytes = sizeof(frame->labels)) == 0);
     }
     return agree;
 }
@@ -325,8 +329,8 @@ static int climb_test_round(ClimbMachine *machine, const ClimbTestFrame *frames,
         // Explicit cast takes the frames apart, 1 or 2, as an int
         const int apart = (int)(later[pair] - earlier[pair]);
         ClimbMachinePair request;
-        memset(&request, 0, sizeof(request));
-        memset(&climbs[pair], 0, sizeof(climbs[pair]));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &climbs[pair], .bytes = sizeof(climbs[pair]), .val = 0);
         request.earlier = earlier[pair];
         request.later = later[pair];
         request.lag[0] = (CLIMB_TEST_DRIFT[0] * apart) - 1;

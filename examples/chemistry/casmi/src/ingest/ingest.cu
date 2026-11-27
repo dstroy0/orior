@@ -4,17 +4,16 @@
 // samples: the footer, then every leaf of every row group, as engine_source_samples lists them. engine_ingest_set seals
 // each member whole as a crystal of the set and rebuilds it against the lanes the file gave, lane for lane
 #include "../../../../../src/cu/engine/analysis/compression/compression.h"
-#include "../../../../../src/platform/platform.h"
 #include "../../../../../src/cu/engine/analysis/tower/tower.h"
 #include "../../../../../src/cu/engine/engine.h"
+#include "../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 static void ingest_line_decimal(SimResults *results, const char *before, unsigned long long value)
 {
@@ -68,7 +67,7 @@ int ingest_run(SimResults *results, int count, char **arguments)
     for (unsigned int member = 0u; ok && (member < members); member += 1u)
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         unsigned long long lanes = 0ull;
         ok = engine_source_lanes(path, names[member], &lanes, &error) == 0L;
         if (!ok)
@@ -89,9 +88,9 @@ int ingest_run(SimResults *results, int count, char **arguments)
     ingest_line_end(results);
     ok = ok && (sim_job_submit(results, "casmi_driver", count, arguments, declared) != 0);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     EngineSetReport report;
-    memset(&report, 0, sizeof(report));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &report, .bytes = sizeof(report), .val = 0);
     report.samples = ok ? (EngineSampleRecord *)platform_cell_cleared((size_t)members + 1u, sizeof(EngineSampleRecord),
                                                                       platform_place_g_program_owner, 0)
                         : NULL;

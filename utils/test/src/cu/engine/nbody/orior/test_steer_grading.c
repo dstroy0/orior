@@ -1,7 +1,9 @@
 
 // test_steer_grading.c: counting with probes and grading a field
-#include "test_steer_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "test_steer_internal.h"
 
 /**
  * @brief Counts occurrences by evaluating a probe list in order, verifying every survivor.
@@ -44,7 +46,7 @@ static size_t count_with_probes(const uint8_t *corpus, size_t corpus_len, const 
         if (index == probe_count)
         {
             verified += 1u;
-            if (memcmp(corpus + at, needle, needle_len) == 0)
+            if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = corpus + at, .other = needle, .bytes = needle_len) == 0)
             {
                 found += 1u;
             }
@@ -126,7 +128,7 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     }
 
     uint8_t needle[24];
-    memcpy(needle, corpus + (corpus_len / 3u), sizeof(needle));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = needle, .src = corpus + (corpus_len / 3u), .bytes = sizeof(needle));
 
     const size_t alignments = (corpus_len - needle_len) + 1u;
     uint8_t *survivors = (uint8_t *)platform_cell_taken(alignments, platform_place_g_program_owner, 0);
@@ -403,7 +405,10 @@ int check_arm_is_wired(const uint8_t *corpus, size_t corpus_len, const uint8_t *
     }
 
     const OriorSteerEngine *best = orior_steer_best_engine();
-    const int wide_present = (strcmp(best->name, "portable") != 0) ? 1 : 0;
+    const int wide_present = (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = best->name,
+                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "portable", .ci = EMBED_FALSE))
+                                 ? 1
+                                 : 0;
 
     {
         VerbaLinea *const output_line = platform_line_out();

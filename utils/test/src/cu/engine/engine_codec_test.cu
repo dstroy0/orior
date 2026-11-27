@@ -11,7 +11,8 @@
 
 #include <cuda_runtime.h>
 
-#include <cstring>
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the extent of the sample, t, z, y and x. Each row of 700 samples is more than one chunk of a seal
 #define CODEC_TEST_T 2ULL
@@ -48,14 +49,14 @@ static unsigned int codec_test_check(int held, const char *what)
 // `top`, then `name`, into `out`: 1, or 0 where the path passes the room
 static int codec_test_path(char *out, const char *top, const char *name)
 {
-    const size_t top_length = strlen(top);
-    const size_t name_length = strlen(name);
+    const size_t top_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = top, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    const size_t name_length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     if ((top_length + name_length + 1u) > CODEC_TEST_PATH)
     {
         return 0;
     }
-    memcpy(out, top, top_length);
-    memcpy(out + top_length, name, name_length + 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = top, .bytes = top_length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out + top_length, .src = name, .bytes = name_length + 1u);
     return 1;
 }
 
@@ -64,9 +65,10 @@ static int codec_test_path(char *out, const char *top, const char *name)
 static int codec_test_npy_written(const char *path, const unsigned short *lanes)
 {
     char header[118];
-    memset(header, ' ', sizeof(header));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = header, .bytes = sizeof(header), .val = ' ');
     const char *const dictionary = "{'descr': '<u2', 'fortran_order': False, 'shape': (2, 6, 20, 700), }";
-    memcpy(header, dictionary, strlen(dictionary));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = header, .src = dictionary,
+               .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = dictionary, .cap = PLATFORM_TEXT_TO_TERMINATOR));
     header[sizeof(header) - 1u] = '\n';
     const unsigned char magic[10] = {0x93u, 'N', 'U', 'M', 'P', 'Y', 1u, 0u, (unsigned char)sizeof(header), 0u};
     PlatformFile *const file = platform_file_open(path, "wb");
@@ -90,15 +92,15 @@ static long codec_test_bits_kernels(const int *values, const unsigned long long 
         (cudaMemcpy(device, values, (size_t)CODEC_TEST_LANES * sizeof(int), cudaMemcpyHostToDevice) == cudaSuccess))
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         const int *coefficients = NULL;
         unsigned int *scratch = NULL;
         unsigned int floors = 0u;
         TowerLiftRequest lift;
-        memset(&lift, 0, sizeof(lift));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &lift, .bytes = sizeof(lift), .val = 0);
         // Explicit cast reads the memory of the device as the lattice that crossed into it
         lift.device_values = (const int *)device;
-        memcpy(lift.extent, extent, sizeof(lift.extent));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lift.extent, .src = extent, .bytes = sizeof(lift.extent));
         lift.coefficients = &coefficients;
         lift.scratch = &scratch;
         lift.floors = &floors;
@@ -107,7 +109,7 @@ static long codec_test_bits_kernels(const int *values, const unsigned long long 
         const unsigned long long *offsets = NULL;
         const unsigned int *stream = NULL;
         CompressionEncodeRequest code;
-        memset(&code, 0, sizeof(code));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &code, .bytes = sizeof(code), .val = 0);
         code.count = CODEC_TEST_LANES;
         code.chunks = &chunks;
         code.bits = bits;
@@ -162,11 +164,11 @@ int program_main(int argc, char **argv)
     char sample_name[] = "sample_a";
     char *const samples[1] = {sample_name};
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     EngineSampleRecord record;
-    memset(&record, 0, sizeof(record));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &record, .bytes = sizeof(record), .val = 0);
     EngineSetReport report;
-    memset(&report, 0, sizeof(report));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &report, .bytes = sizeof(report), .val = 0);
     report.samples = &record;
     const EngineIngestRequest ingest = {source, set, samples, 1u, "tzyx", 0u, &error, &report};
     failed += codec_test_check((engine_ingest_set(&ingest) == 0L) && (record.crystal_written == 1ULL) &&
@@ -175,27 +177,30 @@ int program_main(int argc, char **argv)
                                    (record.chunks_differ == 0ULL) && (record.roots_differ == 0ULL),
                                "the ingest encodes, seals, writes, reads back and verifies the crystal");
 
-    memset(&error, 0, sizeof(error));
-    memset(&record, 0, sizeof(record));
-    memset(&report, 0, sizeof(report));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &record, .bytes = sizeof(record), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &report, .bytes = sizeof(report), .val = 0);
     report.samples = &record;
     const EngineSetRequest prove = {set, samples, 1u, &error, &report};
     failed += codec_test_check((engine_iapx_prove_set(&prove) == 0L) && (record.voxels_differ == 0ULL) &&
                                    (record.rows_differ == 0ULL) && (record.roots_differ == 0ULL),
                                "the proof of the set verifies the crystal from the disk");
 
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     unsigned long long extent[4] = {0ULL, 0ULL, 0ULL, 0ULL};
     unsigned short *volume = NULL;
     EngineSignum root;
     const int loaded = engine_iapx_load(set, sample_name, extent, &volume, &root, NULL, &error) == 0L;
     const unsigned long long wanted[4] = {CODEC_TEST_T, CODEC_TEST_Z, CODEC_TEST_Y, CODEC_TEST_X};
-    failed += codec_test_check(loaded && (memcmp(extent, wanted, sizeof(extent)) == 0) && (volume != NULL) &&
-                                   (memcmp(volume, lanes, (size_t)CODEC_TEST_LANES * sizeof(unsigned short)) == 0),
-                               "the load gives back the samples that went in");
+    failed += codec_test_check(
+        loaded && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = extent, .other = wanted, .bytes = sizeof(extent)) == 0) &&
+            (volume != NULL) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = volume, .other = lanes,
+                        .bytes = (size_t)CODEC_TEST_LANES * sizeof(unsigned short)) == 0),
+        "the load gives back the samples that went in");
     platform_cell_released(volume, place);
 
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     unsigned long long bits = 0ULL;
     unsigned long long bits_kernels = 1ULL;
     failed += codec_test_check((engine_lattice_bits(values, wanted, &bits, &error) == 0L) &&

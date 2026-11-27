@@ -1,8 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // obsignatio_test_vectors.cu: files, hex and the test vectors
-#include "obsignatio_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "obsignatio_test_internal.h"
 
 void test_count(TestResults *results, int passed)
 {
@@ -42,13 +44,16 @@ static char *test_file_read(const char *path)
 
 static const char *test_string_after(const char *from, const char *key, unsigned long long *length)
 {
-    const char *const found = strstr(from, key);
+    const char *const found = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = from, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = key, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
     if (found == NULL)
     {
         return NULL;
     }
-    const char *const start = found + strlen(key);
-    const char *const end = strchr(start, '"');
+    const char *const start =
+        found + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    const char *const end =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = start, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '"');
     if (end == NULL)
     {
         return NULL;
@@ -112,12 +117,12 @@ void test_vectors_release(TestVectors *vectors)
     }
     platform_cell_released(vectors->cases, platform_place_g_program_owner);
     platform_cell_released(vectors->context, platform_place_g_program_owner);
-    memset(vectors, 0, sizeof(*vectors));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = vectors, .bytes = sizeof(*vectors), .val = 0);
 }
 
 int test_vectors_load(const char *path, TestVectors *vectors)
 {
-    memset(vectors, 0, sizeof(*vectors));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = vectors, .bytes = sizeof(*vectors), .val = 0);
     char *const text = test_file_read(path);
     if (text == NULL)
     {
@@ -128,7 +133,12 @@ int test_vectors_load(const char *path, TestVectors *vectors)
     const char *const key = test_string_after(text, "\"key\": \"", &key_length);
     const char *const context = test_string_after(text, "\"context_string\": \"", &context_length);
     unsigned int count = 0u;
-    for (const char *at = strstr(text, "\"input_len\": "); at != NULL; at = strstr(at + 1, "\"input_len\": "))
+    for (const char *at =
+             EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\"input_len\": ", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+         at != NULL;
+         at = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = at + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = "\"input_len\": ", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE))
     {
         count += 1u;
     }
@@ -140,18 +150,21 @@ int test_vectors_load(const char *path, TestVectors *vectors)
     ok = ok && (vectors->cases != NULL) && (vectors->context != NULL);
     if (ok)
     {
-        memcpy(vectors->key, key, OBSIGNATIO_KEY_BYTES);
-        memcpy(vectors->context, context, (size_t)context_length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = vectors->key, .src = key, .bytes = OBSIGNATIO_KEY_BYTES);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = vectors->context, .src = context, .bytes = (size_t)context_length);
         vectors->context[context_length] = '\0';
         vectors->count = count;
     }
     const char *at = text;
     for (unsigned int index = 0u; ok && (index < count); index += 1u)
     {
-        at = strstr(at, "\"input_len\": ");
+        at = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "\"input_len\": ", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
         TestCase *const one = &vectors->cases[index];
         char *after = NULL;
-        one->length = strtoull(at + strlen("\"input_len\": "), &after, 10);
+        one->length = strtoull(
+            at + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = "\"input_len\": ", .cap = PLATFORM_TEXT_TO_TERMINATOR),
+            &after, 10);
         unsigned long long hash_digits = 0ull;
         unsigned long long keyed_digits = 0ull;
         unsigned long long derived_digits = 0ull;
@@ -180,7 +193,7 @@ long test_signum(const unsigned char *bytes, unsigned long long count, const uns
                  unsigned char *out, unsigned long long out_bytes)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioSignumRequest request = {bytes, count, key, mode, out, out_bytes, &error};
     return obsignatio_signum(&request);
 }
@@ -189,7 +202,7 @@ long test_many(const unsigned char *device_bytes, unsigned long long messages, u
                unsigned long long stride, const unsigned char *key, unsigned int mode, unsigned char *device_signa)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioManyRequest request = {device_bytes, messages, length, stride, key, mode, device_signa, &error};
     return obsignatio_many(&request);
 }
@@ -228,11 +241,13 @@ void test_host_vectors(const TestVectors *vectors, const unsigned char *pattern,
             const long extended = (out != NULL)
                                       ? test_signum(pattern, one->length, key, test_modes[mode], out, one->out_bytes)
                                       : OBSIGNATIO_ERROR;
-            test_count(results, (extended == 0L) && (memcmp(out, expected, (size_t)one->out_bytes) == 0));
+            test_count(results, (extended == 0L) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = out, .other = expected,
+                                                                .bytes = (size_t)one->out_bytes) == 0));
             unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
             const long plain =
                 test_signum(pattern, one->length, key, test_modes[mode], signum, OBSIGNATIO_SIGNUM_BYTES);
-            test_count(results, (plain == 0L) && (memcmp(signum, expected, OBSIGNATIO_SIGNUM_BYTES) == 0));
+            test_count(results, (plain == 0L) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = signum, .other = expected,
+                                                             .bytes = OBSIGNATIO_SIGNUM_BYTES) == 0));
         }
         platform_cell_released(out, platform_place_g_program_owner);
     }
@@ -260,10 +275,11 @@ void test_device_vectors(const TestVectors *vectors, const unsigned char *patter
                             (cudaMalloc((void **)&device_signa, sizeof(signa)) == cudaSuccess);
                 if (ready)
                 {
-                    memset(host_messages, 0xFF, (size_t)capacity);
+                    EMBED_CALL(memor.set, MemoriaCfg, .dst = host_messages, .bytes = (size_t)capacity, .val = 0xFF);
                     for (unsigned long long message = 0ull; message < TEST_LAYOUT_MESSAGES; message += 1ull)
                     {
-                        memcpy(&host_messages[offset + (message * stride)], pattern, (size_t)one->length);
+                        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &host_messages[offset + (message * stride)],
+                                   .src = pattern, .bytes = (size_t)one->length);
                     }
                     ready = cudaMemcpy(device_messages, host_messages, (size_t)capacity, cudaMemcpyHostToDevice) ==
                             cudaSuccess;
@@ -272,7 +288,7 @@ void test_device_vectors(const TestVectors *vectors, const unsigned char *patter
                 {
                     const unsigned char *const key = test_mode_key(test_modes[mode], vectors, context_key);
                     const unsigned char *const expected = test_mode_expected(test_modes[mode], one);
-                    memset(signa, 0, sizeof(signa));
+                    EMBED_CALL(memor.set, MemoriaCfg, .dst = signa, .bytes = sizeof(signa), .val = 0);
                     const int ran =
                         ready &&
                         (test_many(&device_messages[offset], TEST_LAYOUT_MESSAGES, one->length, stride, key,
@@ -280,8 +296,10 @@ void test_device_vectors(const TestVectors *vectors, const unsigned char *patter
                         (cudaMemcpy(signa, device_signa, sizeof(signa), cudaMemcpyDeviceToHost) == cudaSuccess);
                     for (unsigned long long message = 0ull; message < TEST_LAYOUT_MESSAGES; message += 1ull)
                     {
-                        test_count(results, ran && (memcmp(&signa[message * OBSIGNATIO_SIGNUM_BYTES], expected,
-                                                           OBSIGNATIO_SIGNUM_BYTES) == 0));
+                        test_count(
+                            results,
+                            ran && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &signa[message * OBSIGNATIO_SIGNUM_BYTES],
+                                               .other = expected, .bytes = OBSIGNATIO_SIGNUM_BYTES) == 0));
                     }
                 }
                 cudaFree(device_signa);
@@ -294,7 +312,8 @@ void test_device_vectors(const TestVectors *vectors, const unsigned char *patter
 
 void test_device_context(const TestVectors *vectors, const unsigned char *context_key, TestResults *results)
 {
-    const unsigned long long length = strlen(vectors->context);
+    const unsigned long long length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = vectors->context, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     unsigned char *device_context = NULL;
     unsigned char *device_signum = NULL;
     unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
@@ -304,7 +323,8 @@ void test_device_context(const TestVectors *vectors, const unsigned char *contex
         (cudaMemcpy(device_context, vectors->context, (size_t)length, cudaMemcpyHostToDevice) == cudaSuccess) &&
         (test_many(device_context, 1ull, length, length, NULL, OBSIGNATIO_MODE_CONTEXT, device_signum) == 0L) &&
         (cudaMemcpy(signum, device_signum, OBSIGNATIO_SIGNUM_BYTES, cudaMemcpyDeviceToHost) == cudaSuccess);
-    test_count(results, ran && (memcmp(signum, context_key, OBSIGNATIO_SIGNUM_BYTES) == 0));
+    test_count(results, ran && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = signum, .other = context_key,
+                                           .bytes = OBSIGNATIO_SIGNUM_BYTES) == 0));
     cudaFree(device_signum);
     cudaFree(device_context);
 }

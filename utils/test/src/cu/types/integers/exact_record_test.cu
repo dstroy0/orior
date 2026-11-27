@@ -9,20 +9,19 @@
 // - the two's complement wrap and narrow, a bit of a signed value, [v > w], [v == w], [v == v] and the larger of the
 //   two by select.
 // The test is one job on the device's tessera daemon.
+#include "../../../../../../includes/exact_types/integers/exact_record/exact_record.h"
 #include "../../../../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../../../../src/platform/platform.h"
 #include "../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "../../../../../../includes/exact_types/integers/exact_record/exact_record.h"
-#include "sim.h"
 
 #include <cuda_runtime.h>
 
 #include <stdlib.h>
-#include <string.h>
 
 #define RECORD_TEST_LINE 8192ull
 
@@ -79,7 +78,7 @@ static void record_check(RecordResults *results, int passed, const char *what)
 
 static void record_small(RecordValue *value, long long small)
 {
-    memset(value, 0, sizeof(*value));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = value, .bytes = sizeof(*value), .val = 0);
     const unsigned long long magnitude = (small < 0) ? (0ull - (unsigned long long)small) : (unsigned long long)small;
     value->limb[0] = (unsigned int)magnitude;
     value->limb[1] = (unsigned int)(magnitude >> 32u);
@@ -101,7 +100,8 @@ static void record_times(RecordValue *value, unsigned int factor)
 
 static int record_same(const RecordValue *left, const RecordValue *right)
 {
-    return (left->sign == right->sign) && (memcmp(left->limb, right->limb, sizeof(left->limb)) == 0);
+    return (left->sign == right->sign) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->limb, .other = right->limb,
+                                                      .bytes = sizeof(left->limb)) == 0);
 }
 
 // `bits` of two's complement at bit `offset` of `words`, as a magnitude and a sign. An output wider than the value
@@ -110,12 +110,12 @@ static void record_at(const unsigned int *words, unsigned int offset, unsigned i
 {
     if (bits > 32u * RECORD_TEST_VALUE_LIMBS)
     {
-        memset(value, 0, sizeof(*value));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = value, .bytes = sizeof(*value), .val = 0);
         value->sign = 2;
         return;
     }
     unsigned int raw[RECORD_TEST_VALUE_LIMBS + 1u];
-    memset(raw, 0, sizeof(raw));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = raw, .bytes = sizeof(raw), .val = 0);
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
         const unsigned int from = offset + bit;
@@ -140,7 +140,7 @@ static void record_at(const unsigned int *words, unsigned int offset, unsigned i
             carry >>= 32u;
         }
     }
-    memcpy(value->limb, raw, sizeof(value->limb));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = value->limb, .src = raw, .bytes = sizeof(value->limb));
     int any = 0;
     for (unsigned int at = 0u; at < RECORD_TEST_VALUE_LIMBS; at += 1u)
     {
@@ -160,7 +160,7 @@ typedef struct
 static int record_load(ExactRecordProgram *program, const unsigned int *outputs, unsigned int output_count,
                        RecordLoaded *loaded, EngineError *error)
 {
-    memset(error, 0, sizeof(*error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = error, .bytes = sizeof(*error), .val = 0);
     loaded->record = NULL;
     const KeymathRecordRequest encode = {
         program->steps, program->count,  program->field_bits,  program->fields, 1u,   outputs,
@@ -238,7 +238,8 @@ static int record_run(RecordResults *results, ExactRecordProgram *program, const
         ok = (cycle_record_run(&run) != CYCLE_ERROR) &&
              (cudaMemcpy(device, device_out, words * sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess);
     }
-    const int same = (ok != 0) && (memcmp(host, device, words * sizeof(unsigned int)) == 0);
+    const int same = (ok != 0) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host, .other = device,
+                                              .bytes = words * sizeof(unsigned int)) == 0);
     if (same == 0)
     {
         size_t first = words;

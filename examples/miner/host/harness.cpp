@@ -14,14 +14,15 @@
  *       the end. The file holds one counter per line: nonces evaluated, anchor survivors, slices with a
  *       winner, and seconds. Put FILE under build/miner.
  */
-#include "sha256_core.h"
 #include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sha256_core.h"
 
 #include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <string>
 #include <thread>
 #include <vector>
@@ -55,7 +56,7 @@ const PublishedHeader PUBLISHED_HEADERS[] = {
  */
 void bytes_from_hex(const char *hex, std::vector<uint8_t> &bytes)
 {
-    const size_t length = std::strlen(hex);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = hex, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     bytes.clear();
     for (size_t at = 0u; (at + 1u) < length; at += 2u)
     {
@@ -198,7 +199,7 @@ int program_main(int argument_count, char **arguments)
     bytes_from_hex(published.header_hex, header);
 
     Sha256ScanRequest request;
-    std::memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     sha256_header_midstate(&request.midstate, header.data());
     request.merkle_root_tail = schedule_word(header.data() + 64u);
     request.ntime = schedule_word(header.data() + 68u);

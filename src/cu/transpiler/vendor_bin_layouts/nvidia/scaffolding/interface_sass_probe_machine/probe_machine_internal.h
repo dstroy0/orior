@@ -11,7 +11,6 @@
 #include "../../sass_machine.h"
 
 #include <stdio.h>
-#include <string.h>
 
 // the carriers the sweep runs from, at max. Each is a form the part ran whose operands are shaped unlike the ones
 // before it, since an operation that reads an address decodes as nothing from a carrier whose operand bits contained

@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_lane_test_enumerate.cu: enumeration, scale, edges, indexing and main
-#include "record_lane_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "record_lane_test_internal.h"
 
 // every lane hits, one in 2^4, 2^8, 2^12 and 2^16, and none
 static const unsigned long long s_lane_thresholds[LANE_TEST_THRESHOLDS] = {1ull << 32u, 1ull << 28u, 1ull << 24u,
@@ -77,8 +78,10 @@ static void lane_enumerate(LaneResults *results)
                                      cudaMemcpyDeviceToHost) == cudaSuccess);
         ran_all = ran_all && host_ran && device_ran;
         words_all = words_all && host_ran && device_ran &&
-                    (memcmp(host_out, interpreted_out, words * sizeof(unsigned int)) == 0) &&
-                    (memcmp(host_out, compiled_out, words * sizeof(unsigned int)) == 0);
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = interpreted_out,
+                                .bytes = words * sizeof(unsigned int)) == 0) &&
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = compiled_out,
+                                .bytes = words * sizeof(unsigned int)) == 0);
         for (unsigned long long lane = 0ull; host_ran && (lane < lanes); lane += 1ull)
         {
             const unsigned int *const record = &host_out[lane * out_limbs];
@@ -218,7 +221,7 @@ static void lane_edges(LaneResults *results)
                                   "a field of a whole limb"};
     unsigned int matched = 0u;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     mmgr_line_put(&results->line, "  latch edges over ");
     mmgr_line_decimal(&results->line, lanes, 1u);
     mmgr_line_put(&results->line, " records of two limbs:\n");
@@ -381,7 +384,8 @@ static void lane_indexed(LaneResults *results)
         const unsigned long long body = (unsigned long long)(lanes - 1u - lane);
         right += (lane_fits && value_fits && (read_lane == lane) && (value == ((body << 20u) + lane))) ? 1u : 0u;
     }
-    const int words = ran && (memcmp(host_out, device_copy, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0);
+    const int words = ran && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_copy,
+                                         .bytes = (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0);
     // a member of two records and no index: three lanes error on the host and on the device
     const CycleRecordHostRequest short_host = {&loaded.layout, {records, NULL, NULL}, {2ull, 0ull, 0ull}, NULL, 3ull,
                                                host_out,       &loaded.error};

@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_read.c: declarations, statements, the header and the reader
-#include "qasm_internal.h"
 #include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "qasm_internal.h"
 
 static int qasm_declare(QasmParser *parser, int quantum)
 {
@@ -57,7 +58,7 @@ static int qasm_define(QasmParser *parser)
         parser->definition_capacity = capacity;
     }
     QasmDefinition *const definition = &parser->definitions[parser->definition_count];
-    memset(definition, 0, sizeof(*definition));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = definition, .bytes = sizeof(*definition), .val = 0);
     const QasmToken *const token = qasm_peek(parser);
     if (!qasm_expect_ident(parser, definition->name, NULL))
     {
@@ -236,7 +237,7 @@ long qasm_read(const QasmReadRequest *request, QasmCircuit *circuit)
     {
         return QASM_ERROR;
     }
-    memset(circuit, 0, sizeof(*circuit));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = circuit, .bytes = sizeof(*circuit), .val = 0);
     char *owned = NULL;
     const char *text = request->text;
     size_t length = request->length;

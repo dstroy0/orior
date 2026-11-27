@@ -14,8 +14,8 @@
 
 #include <cuda_runtime.h>
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
-#include <string.h>
 
 // the max the test puts on the device at once: a round's calls and answers, and the ledger's arrays
 #define DEVICE_TEST_DECLARED (64ull << 20u)
@@ -70,7 +70,7 @@ static void device_test_check(DeviceTestResults *results, int passed, const char
 static EngineSignum device_test_signum(unsigned long long seed)
 {
     EngineSignum signum;
-    memset(&signum, 0, sizeof(signum));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &signum, .bytes = sizeof(signum), .val = 0);
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         // each byte is one eighth of the seed, which fits in an unsigned char
@@ -84,7 +84,7 @@ static EngineSignum device_test_signum(unsigned long long seed)
 static TesseraCall device_test_call(unsigned long long now, unsigned long long submitted)
 {
     TesseraCall call;
-    memset(&call, 0, sizeof(call));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &call, .bytes = sizeof(call), .val = 0);
     // the types are ten, and the draw is below ten
     call.type = (TesseraCallType)device_test_below(10ull);
     call.now = now;
@@ -128,7 +128,8 @@ static int device_test_answer_same(const TesseraAnswer *left, const TesseraAnswe
 
 static int device_test_signum_same(const EngineSignum *left, const EngineSignum *right)
 {
-    return memcmp(left->bytes, right->bytes, sizeof(left->bytes)) == 0;
+    return EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->bytes, .other = right->bytes, .bytes = sizeof(left->bytes)) ==
+           0;
 }
 
 static int device_test_job_same(const TesseraJob *left, const TesseraJob *right)

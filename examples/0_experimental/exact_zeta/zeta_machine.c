@@ -13,9 +13,10 @@
 #include "../../../src/platform/platform.h"
 #include "zeta_riemann_siegel.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <math.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/stat.h>
 
 #ifdef _WIN32
@@ -760,7 +761,7 @@ void turing_bounds(int64_t nu, const TuringConstants *constants, int64_t p, int 
 
 void turing_constants(TuringConstants *constants)
 {
-    memset(constants, 0, sizeof(*constants));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = constants, .bytes = sizeof(*constants), .val = 0);
     OriorExactInteger work;
     z_two_to(TURING_SCALE_BITS + TURING_GUARD_BITS, &work);
     zeta_pi_machin(&work, &constants->pi);
@@ -1171,7 +1172,8 @@ static int served_start(const char *binary)
         (void)atexit(served_stop);
         registered = 1;
     }
-    if (served.running && (strcmp(served.binary, binary) == 0))
+    if (served.running && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = served.binary,
+                                      .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = binary, .ci = EMBED_FALSE)))
     {
         return 1;
     }
@@ -1190,7 +1192,7 @@ static int served_start(const char *binary)
     (void)SetHandleInformation(served.input, HANDLE_FLAG_INHERIT, 0);
     (void)SetHandleInformation(served.output, HANDLE_FLAG_INHERIT, 0);
     STARTUPINFOA startup;
-    memset(&startup, 0, sizeof(startup));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &startup, .bytes = sizeof(startup), .val = 0);
     startup.cb = sizeof(startup);
     startup.dwFlags = STARTF_USESTDHANDLES;
     startup.hStdInput = child_input;
@@ -1263,7 +1265,7 @@ static int served_start(const char *binary)
  */
 static int served_write(const char *text)
 {
-    const size_t length = strlen(text);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR);
 #ifdef _WIN32
     DWORD written = 0;
     // The request is two paths, far below 4 GiB.
@@ -1292,13 +1294,14 @@ static int served_line(char *line, size_t capacity)
                 continue;
             }
             const size_t length = (at < (capacity - 1u)) ? at : (capacity - 1u);
-            memcpy(line, served.pending, length);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = line, .src = served.pending, .bytes = length);
             line[length] = '\0';
             if ((length > 0u) && (line[length - 1u] == '\r'))
             {
                 line[length - 1u] = '\0';
             }
-            memmove(served.pending, served.pending + at + 1u, served.pending_count - at - 1u);
+            EMBED_CALL(memor.move_down, MemoriaCfg, .dst = served.pending, .src = served.pending + at + 1u,
+                       .bytes = served.pending_count - at - 1u);
             served.pending_count -= at + 1u;
             return 1;
         }
@@ -1356,15 +1359,17 @@ static void device(const char *binary, const char *given, const char *taken, con
                 char line[4096];
                 while (served_line(line, sizeof(line)))
                 {
-                    if (strncmp(line, "done ", 5u) == 0)
+                    if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                   .other = "done ", .ci = EMBED_FALSE))
                     {
                         code = atoi(line + 5);
                         break;
                     }
-                    const size_t length = strlen(line);
+                    const size_t length =
+                        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR);
                     if ((printed_count + length + 2u) < sizeof(printed))
                     {
-                        memcpy(printed + printed_count, line, length);
+                        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = printed + printed_count, .src = line, .bytes = length);
                         printed[printed_count + length] = '\n';
                         printed_count += length + 1u;
                     }
@@ -1491,7 +1496,7 @@ static size_t split_words(char *line, char **words, size_t most)
  */
 static void read_cell(int64_t nu, int64_t p, const char *path, TuringCell *cell)
 {
-    memset(cell, 0, sizeof(*cell));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = cell, .bytes = sizeof(*cell), .val = 0);
     cell->nu = nu;
     cell->p = p;
     cell->lift = (int64_t)1 << ((2 * TURING_FINEST) - p);
@@ -1506,11 +1511,13 @@ static void read_cell(int64_t nu, int64_t p, const char *path, TuringCell *cell)
     {
         char *words[64];
         const size_t count = split_words(line, words, 64u);
-        if ((count == 0u) || (strcmp(words[0], "point") == 0))
+        if ((count == 0u) || (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[0],
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "point", .ci = EMBED_FALSE)))
         {
             continue;
         }
-        if (strcmp(words[0], "cell") == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[0], .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "cell",
+                       .ci = EMBED_FALSE))
         {
             cell->points = (count > 3u) ? atoll(words[3]) : 0;
             cell->first = (count > 4u) ? atoll(words[4]) : 0;
@@ -1521,7 +1528,8 @@ static void read_cell(int64_t nu, int64_t p, const char *path, TuringCell *cell)
         int matched = 0;
         for (int which = 0; which < 3; which += 1)
         {
-            if (strcmp(words[0], records[which]) == 0)
+            if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[0], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = records[which], .ci = EMBED_FALSE))
             {
                 cell->at_count[which] = 0u;
                 for (size_t at = 1u; (at < count) && (at <= 8u); at += 1u)
@@ -1536,7 +1544,8 @@ static void read_cell(int64_t nu, int64_t p, const char *path, TuringCell *cell)
         {
             continue;
         }
-        if (strcmp(words[0], "control") == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[0], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "control", .ci = EMBED_FALSE))
         {
             for (size_t at = 1u; (at < count) && (at <= 2u); at += 1u)
             {
@@ -1546,20 +1555,25 @@ static void read_cell(int64_t nu, int64_t p, const char *path, TuringCell *cell)
         }
         for (int which = 0; which < SUM_COUNT; which += 1)
         {
-            if ((strcmp(words[0], TURING_SUM_NAMES[which]) == 0) && (count > 1u))
+            if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[0], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = TURING_SUM_NAMES[which], .ci = EMBED_FALSE)) &&
+                (count > 1u))
             {
                 turing_parse_hex(words[1], &cell->sums[which]);
             }
         }
-        if (strcmp(words[0], "host") == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[0], .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "host",
+                       .ci = EMBED_FALSE))
         {
             cell->failed = 0;
             for (size_t at = 1u; at < count; at += 1u)
             {
-                cell->failed += strcmp(words[at], "1") != 0;
+                cell->failed += !EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[at],
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "1", .ci = EMBED_FALSE);
             }
         }
-        if (strcmp(words[0], "steps") == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[0], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "steps", .ci = EMBED_FALSE))
         {
             cell->step_count = 0u;
             for (size_t at = 1u; (at < count) && (at <= 16u); at += 1u)
@@ -1568,7 +1582,9 @@ static void read_cell(int64_t nu, int64_t p, const char *path, TuringCell *cell)
                 cell->step_count = at;
             }
         }
-        if ((strcmp(words[0], "apart") == 0) && (count > 2u))
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[0], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "apart", .ci = EMBED_FALSE)) &&
+            (count > 2u))
         {
             cell->has_apart = 1;
             turing_parse_hex(words[1], &cell->apart);
@@ -1577,7 +1593,9 @@ static void read_cell(int64_t nu, int64_t p, const char *path, TuringCell *cell)
         static const char *const margins[3] = {"clean", "flagged", "single"};
         for (int which = 0; which < 3; which += 1)
         {
-            if ((strcmp(words[0], margins[which]) == 0) && (count > 1u))
+            if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[0], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = margins[which], .ci = EMBED_FALSE)) &&
+                (count > 1u))
             {
                 cell->has_margins[which] = 1;
                 turing_parse_hex(words[1], &cell->margins[which]);
@@ -1780,7 +1798,9 @@ int64_t turing_run_points(const char *binary, const TuringConstants *constants, 
         {
             continue;
         }
-        if ((strcmp(words[0], "point") == 0) && (words_count >= 3u))
+        if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[0], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "point", .ci = EMBED_FALSE)) &&
+            (words_count >= 3u))
         {
             if (found < count)
             {
@@ -1799,12 +1819,14 @@ int64_t turing_run_points(const char *binary, const TuringConstants *constants, 
             }
             found += 1u;
         }
-        else if (strcmp(words[0], "host") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[0], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "host", .ci = EMBED_FALSE))
         {
             failed = 0;
             for (size_t at = 1u; at < words_count; at += 1u)
             {
-                failed += strcmp(words[at], "1") != 0;
+                failed += !EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                      .other = "1", .ci = EMBED_FALSE);
             }
         }
     }

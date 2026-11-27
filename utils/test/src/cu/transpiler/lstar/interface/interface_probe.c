@@ -9,11 +9,11 @@
 // folds a division it can see is undefined, and the part itself answers
 #include "../../../../../../../src/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -63,11 +63,15 @@ static void probe_pause_second(void)
 int program_main(int count, char **arguments)
 {
     const char *const question = (count > 1) ? arguments[1] : "";
-    if ((strcmp(question, "exit") == 0) && (count > 2))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "exit",
+                    .ci = EMBED_FALSE)) &&
+        (count > 2))
     {
         return atoi(arguments[2]);
     }
-    if ((strcmp(question, "write") == 0) && (count > 2))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "write",
+                    .ci = EMBED_FALSE)) &&
+        (count > 2))
     {
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -85,12 +89,14 @@ int program_main(int count, char **arguments)
         platform_terminal_write(1, "\n", 1ULL);
         return 0;
     }
-    if ((strcmp(question, "flood") == 0) && (count > 2))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "flood",
+                    .ci = EMBED_FALSE)) &&
+        (count > 2))
     {
         // more than any pipe buffers, written a piece at a time: an interface that does not read a pipe as it is
         // written blocks the probe here
         char piece[4096];
-        memset(piece, 'x', sizeof(piece));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = piece, .bytes = sizeof(piece), .val = 'x');
         unsigned long left = strtoul(arguments[2], NULL, 10);
         while (left != 0ul)
         {
@@ -105,7 +111,8 @@ int program_main(int count, char **arguments)
         platform_line_flushed();
         return 0;
     }
-    if (strcmp(question, "divide_by_zero") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "divide_by_zero", .ci = EMBED_FALSE))
     {
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -115,7 +122,8 @@ int program_main(int count, char **arguments)
         }
         return 0;
     }
-    if (strcmp(question, "divide_overflow") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "divide_overflow", .ci = EMBED_FALSE))
     {
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -125,7 +133,8 @@ int program_main(int count, char **arguments)
         }
         return 0;
     }
-    if (strcmp(question, "read_address") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "read_address", .ci = EMBED_FALSE))
     {
         // the sixteenth byte of the address space, in the first page, which no process maps
         volatile const int *const address = (volatile const int *)(uintptr_t)16u;
@@ -137,7 +146,8 @@ int program_main(int count, char **arguments)
         }
         return 0;
     }
-    if (strcmp(question, "illegal_instruction") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "illegal_instruction", .ci = EMBED_FALSE))
     {
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
         __ud2();
@@ -150,7 +160,8 @@ int program_main(int count, char **arguments)
 #endif
         return 0;
     }
-    if (strcmp(question, "breakpoint") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                   .other = "breakpoint", .ci = EMBED_FALSE))
     {
 #if defined(_MSC_VER)
         __debugbreak();
@@ -163,15 +174,18 @@ int program_main(int count, char **arguments)
 #endif
         return 0;
     }
-    if (strcmp(question, "stack") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "stack",
+                   .ci = EMBED_FALSE))
     {
         return probe_descend(0);
     }
-    if (strcmp(question, "abort") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "abort",
+                   .ci = EMBED_FALSE))
     {
         abort();
     }
-    if (strcmp(question, "hang") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = question, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "hang",
+                   .ci = EMBED_FALSE))
     {
         for (;;)
         {

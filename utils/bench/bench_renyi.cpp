@@ -50,6 +50,7 @@
  */
 
 #include "bench_load_limit.h"
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 // Defined by the build that compiles the device arm alongside this one. Without it the file builds
@@ -64,7 +65,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <random>
 #include <thread>
 #include <vector>
@@ -155,7 +155,7 @@ void fill_digest(const Job &job, Source source, uint32_t nonce, uint8_t *digest)
 {
     if (source == SOURCE_CONSTANT)
     {
-        std::memset(digest, 0, DIGEST_BYTES);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = digest, .bytes = DIGEST_BYTES, .val = 0);
         return;
     }
 
@@ -232,7 +232,7 @@ struct Counts
 
     Counts() : byte_window((size_t)BYTE_WINDOWS * BYTE_BINS, 0u), word_window((size_t)WORD_WINDOWS * WORD_BINS, 0u)
     {
-        std::memset(leading_zero, 0, sizeof(leading_zero));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = leading_zero, .bytes = sizeof(leading_zero), .val = 0);
     }
 };
 
@@ -1017,7 +1017,7 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
 
     if (wide_window != nullptr)
     {
-        std::memset((void *)wide_window, 0, (size_t)1u << 32);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = (void *)wide_window, .bytes = (size_t)1u << 32, .val = 0);
     }
 
     Counts merged;
@@ -1300,7 +1300,7 @@ void run_source(const char *name, const Job &job, Source source, uint64_t domain
             {
                 const double rate = (double)hole_total / (double)bins;
                 uint64_t gap_histogram[24];
-                std::memset(gap_histogram, 0, sizeof(gap_histogram));
+                EMBED_CALL(memor.set, MemoriaCfg, .dst = gap_histogram, .bytes = sizeof(gap_histogram), .val = 0);
 
                 uint64_t previous = 0u;
                 int seen_one = 0;

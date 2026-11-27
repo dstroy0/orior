@@ -15,10 +15,11 @@
  * @note The games of Reversi run on the record machine, a game a lane, and the twister on the device draws each move.
  *       The Grundy sequences run on the record machine too, and each cell of a grid is the exclusive or of two values.
  */
-#include "../period_detector.h"
 #include "../../../src/platform/platform.h"
+#include "../period_detector.h"
 #include "../reversi_record.h"
 #include "../subtraction_record.h"
+#include "memoria_operor/memoria_operor.h"
 
 /** @brief The widths that the two-heap grids are laid out at. */
 #define WIDTH_COUNT 5u
@@ -128,7 +129,7 @@ int program_main(int argc, char **argv)
         return sim_close(&results, "board width");
     }
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long board_values = (unsigned long long)games * REVERSI_SQUARES;
     const unsigned long long declared = (twister_bytes(2ULL * games) * 2ULL) + (2ULL * games * 64ULL) +
                                         subtraction_bytes(64ULL, WIDTH_SEQUENCE, DETECTOR_SWEEP_LANES) +
@@ -136,7 +137,7 @@ int program_main(int argc, char **argv)
                                         (128ULL * 1024ULL * 4ULL);
     int ok = sim_job_submit(&results, "board_width", argc, argv, declared);
     WidthDetector detector;
-    memset(&detector, 0, sizeof(detector));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &detector, .bytes = sizeof(detector), .val = 0);
     const unsigned long long value_room =
         ((board_values > (128ULL * 1024ULL)) ? board_values : (128ULL * 1024ULL)) + 1ULL;
     ok =
@@ -185,7 +186,7 @@ int program_main(int argc, char **argv)
         }
     }
     TwisterSet scatter;
-    memset(&scatter, 0, sizeof(scatter));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &scatter, .bytes = sizeof(scatter), .val = 0);
     ok = ok && twister_open(&results, &scatter, seeds, total) &&
          twister_shuffle_each(&results, &scatter, lengths, REVERSI_SQUARES, orders);
     twister_close(&scatter);
@@ -277,7 +278,7 @@ int program_main(int argc, char **argv)
         } while (width_next(chosen, size, 7u));
     }
     SubtractionGames heaps;
-    memset(&heaps, 0, sizeof(heaps));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &heaps, .bytes = sizeof(heaps), .val = 0);
     unsigned int own[64];
     ok = ok && subtraction_open(&results, &heaps, masks, swept, 7u, 3u, WIDTH_SEQUENCE, DETECTOR_SWEEP_LANES) &&
          subtraction_periods(&results, &heaps, own);
@@ -293,7 +294,7 @@ int program_main(int argc, char **argv)
     unsigned int *const grid_orders = (unsigned int *)platform_cell_taken(
         (size_t)WIDTH_COUNT * widest_cells * sizeof(unsigned int), platform_place_g_program_owner, 0);
     TwisterSet grids;
-    memset(&grids, 0, sizeof(grids));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &grids, .bytes = sizeof(grids), .val = 0);
     ok = ok && (grid_orders != NULL) && twister_open(&results, &grids, width_seeds, WIDTH_COUNT) &&
          twister_shuffle_each(&results, &grids, width_lengths, widest_cells, grid_orders);
     twister_close(&grids);

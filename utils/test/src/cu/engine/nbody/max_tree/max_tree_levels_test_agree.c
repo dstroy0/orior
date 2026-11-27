@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_levels_test_agree.c: probes, overlaps, cases, errors and main
-#include "max_tree_levels_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "max_tree_levels_test_internal.h"
+#include "memoria_operor/memoria_operor.h"
 
 // the probe partition at `level` against the flood: absent exactly where the probe's voxel is below the level, and two
 // present probes in one part exactly where they are in one flood component
@@ -51,7 +52,8 @@ static void levels_overlap_agree(LevelsResults *results, unsigned int case_numbe
         {
             const unsigned int later_marks = levels_flood(later, later_level, later_label);
             levels_components_agree(later, later_nodes, later_level, later_label, later_marks, later_node);
-            memset(direct, 0, (size_t)earlier_marks * later_marks * sizeof(unsigned long long));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = direct,
+                       .bytes = (size_t)earlier_marks * later_marks * sizeof(unsigned long long), .val = 0);
             for (unsigned int voxel = 0u; voxel < earlier->voxels; voxel += 1u)
             {
                 if (earlier_label[voxel] == MAX_TREE_ABSENT)
@@ -88,7 +90,7 @@ static void levels_overlap_agree(LevelsResults *results, unsigned int case_numbe
                 }
             }
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             const MaxTreeOverlapSumsRequest request = {earlier_nodes, later_nodes, pairs, queried_earlier,
                                                        queried_later, queried,     sums,  &error};
             int passed = (max_tree_overlap_sums(&request) == (long)queried);
@@ -112,11 +114,11 @@ static void levels_case(LevelsResults *results, unsigned int case_number, const 
     MaxTreeNodes earlier_nodes;
     MaxTreeNodes later_nodes;
     MaxTreePairs pairs;
-    memset(&earlier_nodes, 0, sizeof(earlier_nodes));
-    memset(&later_nodes, 0, sizeof(later_nodes));
-    memset(&pairs, 0, sizeof(pairs));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &earlier_nodes, .bytes = sizeof(earlier_nodes), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &later_nodes, .bytes = sizeof(later_nodes), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &pairs, .bytes = sizeof(pairs), .val = 0);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const long built =
         max_tree_build(earlier->residual, earlier->depth, earlier->height, earlier->width, &earlier_tree);
     const long later_built = max_tree_build(later->residual, later->depth, later->height, later->width, &later_tree);
@@ -190,16 +192,16 @@ static void levels_errors(LevelsResults *results, const LevelsVolume *volume)
     MaxTreeNodes nodes;
     MaxTreeNodes other_nodes;
     MaxTreePairs pairs;
-    memset(&nodes, 0, sizeof(nodes));
-    memset(&other_nodes, 0, sizeof(other_nodes));
-    memset(&pairs, 0, sizeof(pairs));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &nodes, .bytes = sizeof(nodes), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &other_nodes, .bytes = sizeof(other_nodes), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &pairs, .bytes = sizeof(pairs), .val = 0);
     if (max_tree_build(volume->residual, volume->depth, volume->height, volume->width, &tree) < 0L)
     {
         levels_check(results, 0, "the errors' tree builds", 0u, 0u);
         return;
     }
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const MaxTreeNodesRequest unerrored = {volume->residual, &tree, &nodes, NULL};
     levels_check(results, max_tree_nodes(&unerrored) == MAX_TREE_ERROR, "a request with no error errors", 0u, 0u);
     const MaxTreeNodesRequest request = {volume->residual, &tree, &nodes, &error};
@@ -213,7 +215,7 @@ static void levels_errors(LevelsResults *results, const LevelsVolume *volume)
                  (max_tree_probe_levels(&outside) == MAX_TREE_ERROR) && (error.type == ENGINE_ERROR_REQUEST) &&
                      (error.module == ENGINE_MODULE_MAX_TREE),
                  "a probe past the volume errors, a request error from max_tree", 0u, 0u);
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     other_nodes = nodes;
     other_nodes.width = nodes.width + 1u;
     const MaxTreePairsRequest mismatched = {&nodes, &other_nodes, {0, 0, 0}, &pairs, &error};
@@ -221,7 +223,7 @@ static void levels_errors(LevelsResults *results, const LevelsVolume *volume)
                  (max_tree_pairs(&mismatched) == MAX_TREE_ERROR) && (error.type == ENGINE_ERROR_REQUEST) &&
                      (pairs.count == 0u) && (pairs.earlier == NULL),
                  "two frames of different extents error on the pair table", 0u, 0u);
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const MaxTreePairsRequest same = {&nodes, &nodes, {0, 0, 0}, &pairs, &error};
     const long entries = max_tree_pairs(&same);
     const unsigned int end = nodes.count;

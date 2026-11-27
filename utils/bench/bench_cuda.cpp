@@ -10,13 +10,13 @@
  */
 
 #include "cuda_miner.h"
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <string>
 #include <vector>
 
@@ -153,9 +153,10 @@ void parameters_from_header(CudaScanParameters *parameters, const uint8_t *heade
 {
     Sha256State midstate;
 
-    std::memset(parameters, 0, sizeof(*parameters));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = parameters, .bytes = sizeof(*parameters), .val = 0);
     sha256_header_midstate(&midstate, header);
-    std::memcpy(parameters->midstate, midstate.word, sizeof(parameters->midstate));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = parameters->midstate, .src = midstate.word,
+               .bytes = sizeof(parameters->midstate));
 
     parameters->merkle_root_tail = schedule_word_from_header(header + 64u);
     parameters->ntime = schedule_word_from_header(header + 68u);
@@ -222,7 +223,8 @@ void test_device_agrees_with_cpu(CudaMinerContext *context, const BenchArm &arm)
     // A target loose enough that both arms find many winners, agreement is a real claim. Sixteen
     // leading zero bits puts the top word above zero, which also exercises the unsound-anchor path
     // on both sides.
-    std::memset(parameters.share_target, 0xFF, sizeof(parameters.share_target));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = parameters.share_target, .bytes = sizeof(parameters.share_target),
+               .val = 0xFF);
     parameters.share_target[0] = 0x0000FFFFu;
     parameters.anchor_is_sound = 0u;
 
@@ -237,14 +239,15 @@ void test_device_agrees_with_cpu(CudaMinerContext *context, const BenchArm &arm)
     }
 
     Sha256ScanRequest request;
-    std::memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     Sha256State midstate;
     sha256_header_midstate(&midstate, header.data());
     request.midstate = midstate;
     request.merkle_root_tail = parameters.merkle_root_tail;
     request.ntime = parameters.ntime;
     request.nbits = parameters.nbits;
-    std::memcpy(request.share_target, parameters.share_target, sizeof(request.share_target));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.share_target, .src = parameters.share_target,
+               .bytes = sizeof(request.share_target));
 
     // Walk the CPU arm across the same window. Collect every winner, and not only the first.
     std::vector<uint32_t> cpu_winners;

@@ -1,7 +1,8 @@
 
 // test_adversarial_joint.c: trichotomy and joint symbols
-#include "test_adversarial_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "test_adversarial_internal.h"
 
 /**
  * @brief Runs every case and returns how many failed.
@@ -56,7 +57,7 @@ int adversarial_case_trichotomy(void)
 
     uint64_t state = 0xC0FFEEu;
     adversarial_fill_field(corpus, ADVERSARIAL_CORPUS, 6u, &state);
-    memcpy(needle, corpus + 128u, sizeof(needle));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = needle, .src = corpus + 128u, .bytes = sizeof(needle));
 
     const size_t alignments = (ADVERSARIAL_CORPUS - sizeof(needle)) + 1u;
     uint8_t *const survivors = (uint8_t *)platform_cell_taken(alignments, platform_place_g_program_owner, 0);

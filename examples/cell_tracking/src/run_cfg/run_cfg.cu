@@ -8,9 +8,10 @@
 #include "output.h"
 #include "track.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 static const char CFG_SCHEME[] = "cell_tracking.cfg";
 
@@ -69,7 +70,7 @@ static void cfg_append(CfgText *text, const char *piece, size_t size)
     text->capacity = grown ? capacity : text->capacity;
     if (text->ok)
     {
-        memcpy(&text->bytes[text->length], piece, size);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &text->bytes[text->length], .src = piece, .bytes = size);
         text->length += size;
         text->bytes[text->length] = '\0';
     }
@@ -77,7 +78,7 @@ static void cfg_append(CfgText *text, const char *piece, size_t size)
 
 static void cfg_append_text(CfgText *text, const char *piece)
 {
-    cfg_append(text, piece, strlen(piece));
+    cfg_append(text, piece, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = piece, .cap = PLATFORM_TEXT_TO_TERMINATOR));
 }
 
 static void cfg_append_quoted(CfgText *text, const char *piece)
@@ -99,9 +100,13 @@ static void cfg_append_quoted(CfgText *text, const char *piece)
 
 char *cfg_copy(const char *piece)
 {
-    const size_t size = strlen(piece) + 1u;
+    const size_t size = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = piece, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u;
     char *const copy = (char *)platform_cell_taken(size, platform_place_g_program_owner, 0);
-    return copy ? (char *)memcpy(copy, piece, size) : NULL;
+    if (copy != NULL)
+    {
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy, .src = piece, .bytes = size);
+    }
+    return copy;
 }
 
 // names an output at parse: its path is stored, and the rules take the export, object and vis directories. Nothing is
@@ -298,7 +303,7 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
     bool ok = text && tokens && (fread(text, 1u, length, file) == length);
     fclose(file);
     CfgJsonParse parse;
-    memset(&parse, 0, sizeof(parse));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &parse, .bytes = sizeof(parse), .val = 0);
     ok = ok && cfg_json_parse(text, length, tokens, capacity, &parse);
     if (text && tokens && parse.reason)
     {
@@ -314,7 +319,9 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
         const CfgJsonToken *const token = &tokens[value];
         if (cfg_json_names(text, &tokens[key], "scheme"))
         {
-            ok = (cfg_json_string(text, token, word, sizeof(word)) && (strcmp(word, CFG_SCHEME) == 0)) ||
+            ok = (cfg_json_string(text, token, word, sizeof(word)) &&
+                  (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = CFG_SCHEME, .ci = EMBED_FALSE))) ||
                  cfg_error(path, text, token->start, "scheme is not cell_tracking.cfg");
         }
         else if (cfg_json_names(text, &tokens[key], "version"))
@@ -361,7 +368,10 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
                     int mode = -1;
                     for (int at = 0; read && (at < 4); at += 1)
                     {
-                        mode = (strcmp(word, CLIMB_NAMES[at]) == 0) ? at : mode;
+                        mode = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = word, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                           .other = CLIMB_NAMES[at], .ci = EMBED_FALSE))
+                                   ? at
+                                   : mode;
                     }
                     ok = (mode >= 0) || cfg_error(path, text, setting->start, "climb is off, machine, host or check");
                     rules->climb = (mode >= 0) ? mode : rules->climb;
@@ -505,7 +515,8 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
             ok = inputs->view;
             if (ok)
             {
-                memcpy(inputs->view, &text[token->start], token->end - token->start);
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = inputs->view, .src = &text[token->start],
+                           .bytes = token->end - token->start);
                 inputs->view[token->end - token->start] = '\0';
             }
         }
@@ -547,7 +558,7 @@ bool first_samples(RunInputs *inputs, bool from_source)
 
 bool write_cfg(const TreeRules *rules, const RunInputs *inputs, CfgText *out)
 {
-    memset(out, 0, sizeof(*out));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = out, .bytes = sizeof(*out), .val = 0);
     out->ok = true;
     cfg_append_text(out,
                     "{\n  \"scheme\": \"cell_tracking.cfg\",\n  \"version\": 1,\n  \"floor\": {\n    \"entropy\": ");

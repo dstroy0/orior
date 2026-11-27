@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // run_cfg.cu: reading a cfg (run_cfg.h)
+#include "memoria_operor/memoria_operor.h"
 #include "run_cfg.h"
 
 int run_cfg_open(const char *path, RunCfg *cfg, VerbaLinea *line)
@@ -71,7 +72,7 @@ static int run_cfg_decimal(const RunCfg *cfg, unsigned int at, SimRational *valu
     }
     const char *const text = &cfg->text[token->start];
     const size_t length = token->end - token->start;
-    const void *const point = memchr(text, '.', length);
+    const void *const point = EMBED_CALL(memor.chr, MemoriaCfg, .src = text, .bytes = length, .val = '.');
     // the point lies inside the text. The places after it number fewer than the text's bytes
     const unsigned int places = (point != NULL) ? (unsigned int)(length - 1u - (size_t)((const char *)point - text)) : 0u;
     if ((orior_exact_from_decimal(text, length, places, &value->numerator) != ORIOR_EXACT_OK) ||

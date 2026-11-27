@@ -10,7 +10,6 @@
 #include "crc.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 #define KREP_CHECK(condition_, evacaddr_, error_, type_)                                                               \
     engine_error_check((condition_), (type_), ENGINE_MODULE_KREP, (unsigned int)__LINE__, (const void *)(evacaddr_),   \

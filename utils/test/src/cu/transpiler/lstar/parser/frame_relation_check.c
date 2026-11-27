@@ -13,8 +13,8 @@
 #include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/cubin_run_internal.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
 #include <stdio.h>
-#include <string.h>
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -39,13 +39,24 @@ int program_main(int argc, char **argv)
 {
     (void)argc;
     (void)argv;
-    check_that(
-        (FRAME_RELATION_COUNT == 8u) && (strcmp(s_frame_text[FRAME_LANE], "lane") == 0) &&
-            (strcmp(s_frame_text[FRAME_BLOCK], "block") == 0) && (strcmp(s_frame_text[FRAME_LOAD], "load") == 0) &&
-            (strcmp(s_frame_text[FRAME_STORE], "store") == 0) && (strcmp(s_frame_text[FRAME_EXIT], "exit") == 0) &&
-            (strcmp(s_frame_text[FRAME_NUMBER], "number") == 0) && (strcmp(s_frame_text[FRAME_DIM], "dim") == 0) &&
-            (strcmp(s_frame_text[FRAME_PARAMETER], "parameter") == 0),
-        "the eight relations are named in their order");
+    check_that((FRAME_RELATION_COUNT == 8u) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_frame_text[FRAME_LANE],
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "lane", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_frame_text[FRAME_BLOCK],
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "block", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_frame_text[FRAME_LOAD],
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "load", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_frame_text[FRAME_STORE],
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "store", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_frame_text[FRAME_EXIT],
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "exit", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_frame_text[FRAME_NUMBER],
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "number", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_frame_text[FRAME_DIM],
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "dim", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_frame_text[FRAME_PARAMETER],
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "parameter", .ci = EMBED_FALSE)),
+               "the eight relations are named in their order");
     const unsigned int word[2] = {3u, 5u};
     unsigned long long answered = 0ull;
     check_that(frame_answer(FRAME_LANE, 258u, word, 0ull, &answered) && (answered == 2ull),

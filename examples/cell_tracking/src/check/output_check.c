@@ -64,11 +64,11 @@
 //               daughter two; the ids count every row of the file from 0
 // A voxel v of a view depth x height x width lies at z = v / (height width), y = (v mod height width) / width,
 // x = v mod width.
-#include <stdint.h>
 #include "../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define OUTPUT_CHECK_READINGS 65536u
 
@@ -244,7 +244,9 @@ static int output_check_next(OutputCheckText *text)
             }
         }
         const unsigned char *const start = &text->chunk[text->at];
-        const unsigned char *const feed = (const unsigned char *)memchr(start, '\n', text->size - text->at);
+        // Explicit cast reads the found place as the bytes of the chunk
+        const unsigned char *const feed = (const unsigned char *)EMBED_CALL(
+            memor.chr, MemoriaCfg, .src = start, .bytes = text->size - text->at, .val = '\n');
         const size_t taken = (feed != NULL) ? (size_t)(feed - start) : (text->size - text->at);
         if ((text->length + taken + 1u) > text->capacity)
         {
@@ -266,7 +268,7 @@ static int output_check_next(OutputCheckText *text)
             text->line = grown;
             text->capacity = capacity;
         }
-        memcpy(&text->line[text->length], start, taken);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &text->line[text->length], .src = start, .bytes = taken);
         text->length += taken;
         text->line[text->length] = '\0';
         any = 1;
@@ -281,7 +283,7 @@ static int output_check_next(OutputCheckText *text)
 
 static int output_check_open(OutputCheckText *text, const char *name)
 {
-    memset(text, 0, sizeof(*text));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = text, .bytes = sizeof(*text), .val = 0);
     text->name = name;
     text->file = fopen(name, "rb");
     text->chunk = (unsigned char *)platform_cell_taken(OUTPUT_CHECK_CHUNK, platform_place_g_program_owner, 0);
@@ -312,7 +314,8 @@ static void output_check_row(OutputCheckText *text, const char *expected, size_t
         return;
     }
     text->compared += 1ull;
-    const int same = (text->length == length) && (memcmp(text->line, expected, length) == 0);
+    const int same = (text->length == length) &&
+                     (EMBED_CALL(memor.cmp, MemoriaCfg, .src = text->line, .other = expected, .bytes = length) == 0);
     if (same == 0)
     {
         text->differing += 1ull;
@@ -422,7 +425,7 @@ static int output_check_points(const char *set, const char *sample, OutputCheckG
     // the readings and C, passed over
     unsigned long long *const skipped = (unsigned long long *)platform_cell_taken(
         (1u + OUTPUT_CHECK_READINGS) * sizeof(unsigned long long), platform_place_g_program_owner, 0);
-    memset(graph->head, 0, sizeof(graph->head));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = graph->head, .bytes = sizeof(graph->head), .val = 0);
     int ok = (file != NULL) && (skipped != NULL) && output_check_read(file, graph->head, sizeof(graph->head)) &&
              output_check_read(file, skipped, (1u + OUTPUT_CHECK_READINGS) * sizeof(unsigned long long));
     platform_cell_released(skipped, platform_place_g_program_owner);
@@ -497,7 +500,8 @@ static int output_check_links(const char *set, const char *sample, OutputCheckGr
     FILE *const file = output_check_path(path, sizeof(path), set, sample, ".links") ? fopen(path, "rb") : NULL;
     unsigned int head[OUTPUT_CHECK_LINKS_HEAD];
     int ok = (file != NULL) && output_check_read(file, head, sizeof(head));
-    if (ok && (memcmp(head, graph->head, 4u * sizeof(unsigned int)) != 0))
+    if (ok &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = graph->head, .bytes = 4u * sizeof(unsigned int)) != 0))
     {
         output_check_fault(graph, sample, "the .links' frames or view are not the .points'", 0u);
         ok = 0;
@@ -653,7 +657,8 @@ static int output_check_drift(const char *set, const char *sample, OutputCheckGr
     FILE *const file = output_check_path(path, sizeof(path), set, sample, ".drift") ? fopen(path, "rb") : NULL;
     unsigned int head[OUTPUT_CHECK_DRIFT_HEAD];
     int ok = (file != NULL) && output_check_read(file, head, sizeof(head));
-    if (ok && (memcmp(head, graph->head, 4u * sizeof(unsigned int)) != 0))
+    if (ok &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = graph->head, .bytes = 4u * sizeof(unsigned int)) != 0))
     {
         output_check_fault(graph, sample, "the .drift's frames or view are not the .points'", 0u);
         ok = 0;
@@ -663,7 +668,7 @@ static int output_check_drift(const char *set, const char *sample, OutputCheckGr
         unsigned int positives = 0u;
         unsigned int agreement = 0u;
         int *const lag = &lags[OUTPUT_CHECK_AXES * (size_t)frame];
-        memset(lag, 0, OUTPUT_CHECK_AXES * sizeof(int));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = lag, .bytes = OUTPUT_CHECK_AXES * sizeof(int), .val = 0);
         ok = output_check_read(file, &positives, sizeof(positives)) &&
              ((frame == 0u) || (output_check_read(file, lag, OUTPUT_CHECK_AXES * sizeof(int)) &&
                                 output_check_read(file, &agreement, sizeof(agreement))));
@@ -696,8 +701,10 @@ static int output_check_hessian(const char *set, const char *sample, OutputCheck
     FILE *const file = output_check_path(path, sizeof(path), set, sample, ".shape") ? fopen(path, "rb") : NULL;
     unsigned int head[OUTPUT_CHECK_HESSIAN_HEAD];
     int ok = (file != NULL) && output_check_read(file, head, sizeof(head));
-    if (ok && ((memcmp(head, graph->head, 4u * sizeof(unsigned int)) != 0) || (head[4] != graph->head[4]) ||
-               ((unsigned long long)head[5] != ((unsigned long long)graph->head[4] + 1ull))))
+    if (ok &&
+        ((EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = graph->head, .bytes = 4u * sizeof(unsigned int)) !=
+          0) ||
+         (head[4] != graph->head[4]) || ((unsigned long long)head[5] != ((unsigned long long)graph->head[4] + 1ull))))
     {
         output_check_fault(graph, sample, "the .shape's frames, view or limbs are not the .points'", 0u);
         ok = 0;
@@ -833,7 +840,8 @@ static int output_check_faces(const char *set, const char *sample, OutputCheckGr
     graph->faced = 1;
     unsigned int head[OUTPUT_CHECK_FACES_HEAD];
     int ok = output_check_read(file, head, sizeof(head));
-    if (ok && (memcmp(head, graph->head, 4u * sizeof(unsigned int)) != 0))
+    if (ok &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = graph->head, .bytes = 4u * sizeof(unsigned int)) != 0))
     {
         output_check_fault(graph, sample, "the .faces' frames or view are not the .points'", 0u);
         ok = 0;
@@ -869,7 +877,7 @@ static int output_check_faces(const char *set, const char *sample, OutputCheckGr
             unsigned int words[OUTPUT_CHECK_FACES_WORDS];
             ok = output_check_read(file, words, sizeof(words));
             const unsigned int *const expected = &rebuilt[OUTPUT_CHECK_FACES_WORDS * point];
-            if (ok && (memcmp(words, expected, sizeof(words)) != 0))
+            if (ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = words, .other = expected, .bytes = sizeof(words)) != 0))
             {
                 {
                     VerbaLinea *const output_line = platform_line_out();
@@ -925,7 +933,8 @@ static int output_check_faces(const char *set, const char *sample, OutputCheckGr
                     platform_line_out_ended();
                 }
                 output_check_fault(graph, sample,
-                                   (memcmp(words, expected, 3u * sizeof(unsigned int)) != 0)
+                                   (EMBED_CALL(memor.cmp, MemoriaCfg, .src = words, .other = expected,
+                                               .bytes = 3u * sizeof(unsigned int)) != 0)
                                        ? "a point's back-prediction is not the one rebuilt"
                                        : "a point's flags are not the ones rebuilt",
                                    frame);
@@ -967,7 +976,8 @@ static int output_check_divide(const char *set, const char *sample, OutputCheckG
     }
     unsigned int head[OUTPUT_CHECK_DIVIDE_HEAD];
     int ok = output_check_read(file, head, sizeof(head));
-    if (ok && (memcmp(head, graph->head, 4u * sizeof(unsigned int)) != 0))
+    if (ok &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = head, .other = graph->head, .bytes = 4u * sizeof(unsigned int)) != 0))
     {
         output_check_fault(graph, sample, "the .divide's frames or view are not the .points'", 0u);
         ok = 0;
@@ -1205,7 +1215,7 @@ int program_main(int count, char **arguments)
     output_check_row(&nodes, OUTPUT_CHECK_NODES_HEADER, sizeof(OUTPUT_CHECK_NODES_HEADER) - 1u);
     output_check_row(&submission, OUTPUT_CHECK_SUBMISSION_HEADER, sizeof(OUTPUT_CHECK_SUBMISSION_HEADER) - 1u);
     OutputCheckGraph graph;
-    memset(&graph, 0, sizeof(graph));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &graph, .bytes = sizeof(graph), .val = 0);
     unsigned long long row = 0ull;
     unsigned long long frames = 0ull;
     unsigned long long points = 0ull;

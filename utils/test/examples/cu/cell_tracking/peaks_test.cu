@@ -15,8 +15,8 @@
 
 #include <cuda_runtime.h>
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
-#include <string.h>
 
 #define PEAKS_TEST_EXTENTS 4u
 
@@ -61,7 +61,7 @@ static void peaks_test_value(unsigned long long key, unsigned long long voxel, u
     // a remainder below 3, plus one, fits unsigned int
     const unsigned int small = 1u + (unsigned int)((draw >> 8u) % 3ull);
     const unsigned int middle = limbs / 2u;
-    memset(residual, 0, limbs * sizeof(unsigned int));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = residual, .bytes = limbs * sizeof(unsigned int), .val = 0);
     if (type == 1u)
     {
         residual[0] = small;
@@ -156,7 +156,7 @@ static int peaks_test_counted(long found, unsigned int expected)
 static int peaks_test_reserve(PeaksTestField *field, unsigned int depth, unsigned int height, unsigned int width,
                               unsigned int limbs)
 {
-    memset(field, 0, sizeof(*field));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = field, .bytes = sizeof(*field), .val = 0);
     field->depth = depth;
     field->height = height;
     field->width = width;
@@ -176,7 +176,7 @@ static void peaks_test_release(PeaksTestField *field)
     platform_cell_released(field->residual, platform_place_g_program_owner);
     platform_cell_released(field->values, platform_place_g_program_owner);
     platform_cell_released(field->expected, platform_place_g_program_owner);
-    memset(field, 0, sizeof(*field));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = field, .bytes = sizeof(*field), .val = 0);
 }
 
 static void peaks_test_prove(SimResults *results, PeaksTestField *field, const char *name)
@@ -214,9 +214,9 @@ static void peaks_test_prove(SimResults *results, PeaksTestField *field, const c
     for (unsigned int point = 0u; agree && (point < field->expected_count); point += 1u)
     {
         const unsigned int voxel = field->expected[point];
-        agree =
-            (voxels[point] == voxel) && (memcmp(&levels[(size_t)point * limbs], &field->residual[(size_t)voxel * limbs],
-                                                limbs * sizeof(unsigned int)) == 0);
+        agree = (voxels[point] == voxel) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &levels[(size_t)point * limbs],
+                                                        .other = &field->residual[(size_t)voxel * limbs],
+                                                        .bytes = limbs * sizeof(unsigned int)) == 0);
     }
     sim_check(results, agree, name);
     mmgr_line_put(&results->line, "  ");

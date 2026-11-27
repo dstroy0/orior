@@ -7,12 +7,13 @@
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera.h"
 #include "../../../../../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
-#include <string.h>
 
 static int probe_hex(const char *text, unsigned char *bytes, unsigned int count)
 {
-    if (strlen(text) != (2u * count))
+    if (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR) != (2u * count))
     {
         return 0;
     }
@@ -32,9 +33,9 @@ static int probe_hex(const char *text, unsigned char *bytes, unsigned int count)
 int program_main(int count, char **arguments)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     TesseraJobSubmit submit;
-    memset(&submit, 0, sizeof(submit));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &submit, .bytes = sizeof(submit), .val = 0);
     if ((count < 2) || !probe_hex(arguments[1], submit.device, TESSERA_DEVICE_BYTES))
     {
         {

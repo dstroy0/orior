@@ -13,13 +13,14 @@
  *       forbids it. Thus the test reports a miss as a failure, and not as a slow result.
  */
 
-#include "sha256_core.h"
 #include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sha256_core.h"
 
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <string>
 #include <vector>
 
@@ -155,7 +156,9 @@ void test_published_digests()
     for (const DigestVector &vector : DIGEST_VECTORS)
     {
         uint8_t digest[32];
-        sha256_hash((const uint8_t *)vector.message, std::strlen(vector.message), digest);
+        sha256_hash((const uint8_t *)vector.message,
+                    EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = vector.message, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                    digest);
 
         const std::string produced = hex_from_bytes(digest, sizeof(digest));
         report(std::string("sha256 ") + vector.source, produced == vector.expected_digest,
@@ -263,7 +266,7 @@ uint32_t header_field_value(const uint8_t *header, size_t offset)
  */
 void scan_request_from_header(Sha256ScanRequest *request, const uint8_t *header)
 {
-    std::memset(request, 0, sizeof(*request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request, .bytes = sizeof(*request), .val = 0);
     sha256_header_midstate(&request->midstate, header);
 
     request->merkle_root_tail = ((uint32_t)header[64] << 24) | ((uint32_t)header[65] << 16) |
@@ -387,7 +390,7 @@ void test_arms_agree_on_easy_target()
     // A nonzero top word also makes the anchor unsound. Thus this test exercises the fallback
     // path, where every nonce pays the full compare. Test three covers the anchor path, where
     // the real block hashes carry sixty-four leading zero bits.
-    std::memset(request.share_target, 0xFF, sizeof(request.share_target));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request.share_target, .bytes = sizeof(request.share_target), .val = 0xFF);
     request.share_target[0] = 0x0000FFFFu;
     request.nonce_start = 0u;
     request.nonce_count = 1000000u;
@@ -452,7 +455,8 @@ void test_difficulty_conversion()
     uint32_t from_nbits[SHA256_STATE_WORDS];
     sha256_target_from_nbits(from_nbits, 0x1d00ffffu);
     sha256_share_target_from_difficulty(target, 1.0);
-    report("nbits 0x1d00ffff agrees with difficulty one", std::memcmp(from_nbits, target, sizeof(target)) == 0,
+    report("nbits 0x1d00ffff agrees with difficulty one",
+           EMBED_CALL(memor.cmp, MemoriaCfg, .src = from_nbits, .other = target, .bytes = sizeof(target)) == 0,
            "nbits path word one is " + std::to_string(from_nbits[1]));
 
     // Every target the pool can set must leave the anchor sound. Section 2.2 is only satisfied where

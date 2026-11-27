@@ -83,19 +83,18 @@
 // for word. The same holds for each sum that the device takes, against that of the host over the same records.
 
 #include "../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../src/platform/platform.h"
 #include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
 
 #include <cuda_runtime.h>
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <string>
 #include <vector>
@@ -948,15 +947,16 @@ static void scaled_pole_records(ScaledStage *stage, const ScaledWide &first, con
         }
         scaled_put(record.data(), program->field_offset[SCALED_POLE_BOUND], program->field_bits[SCALED_POLE_BOUND],
                    bound.limbs, bound.sign);
-        memcpy(&stage->shared[n * limbs], record.data(), limbs * sizeof(unsigned int));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &stage->shared[n * limbs], .src = record.data(),
+                   .bytes = limbs * sizeof(unsigned int));
     }
 }
 
 static void scaled_open_stage(ScaledStage *stage, const char *name)
 {
     stage->name = name;
-    memset(&stage->key, 0, sizeof(stage->key));
-    memset(&stage->layout, 0, sizeof(stage->layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage->key, .bytes = sizeof(stage->key), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage->layout, .bytes = sizeof(stage->layout), .val = 0);
     stage->record = NULL;
     stage->same = 0;
     stage->shared_limbs = 0u;
@@ -1150,7 +1150,8 @@ static int scaled_sweep(SimResults *job, ScaledStage *stage, unsigned long long 
         error,
         0ull};
     stage->same = ok && (cycle_record_run_host(&host) == (long)checked) &&
-                  (memcmp(host_out.data(), stage->records.data(), host_out.size() * sizeof(unsigned int)) == 0);
+                  (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out.data(), .other = stage->records.data(),
+                              .bytes = host_out.size() * sizeof(unsigned int)) == 0);
     sim_check(job, stage->same, ("the host's " + name + " records equal the device's word for word").c_str());
     // each summed output over each run of `group` lanes, on the device, and the same sums over the host's copy
     stage->sums.assign(stage->summed.size(), std::vector<unsigned int>());
@@ -1332,7 +1333,8 @@ static ScaledTable scaled_table(const std::vector<std::vector<ScaledWide>> &rows
             scaled_put(record.data(), table.offset[column], table.bits[column], rows[row][column].limbs,
                        rows[row][column].sign);
         }
-        memcpy(&table.words[row * table.limbs], record.data(), table.limbs * sizeof(unsigned int));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &table.words[row * table.limbs], .src = record.data(),
+                   .bytes = table.limbs * sizeof(unsigned int));
     }
     return table;
 }
@@ -4528,7 +4530,7 @@ int program_main(int count, char **arguments)
     constants.precision = ((constants.w > constants.big_e) ? constants.w : constants.big_e) + 64u;
     constants.em = from_one;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     int ok = sim_job_submit(&job, "exact_zeta_scaled", count, arguments, SCALED_DECLARED);
     ok = ok && scaled_constants(&job, &constants, &error);
     // a cell whose count does not close runs again at four times the rate, to round 3 at max

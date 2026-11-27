@@ -17,6 +17,7 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
+#include "memoria_operor/memoria_operor.h"
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
@@ -29,7 +30,6 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -298,8 +298,8 @@ void merkle_root_from_coinbase(const std::vector<uint8_t> &coinbase, const std::
         {
             continue;
         }
-        std::memcpy(joined, merkle_root, 32u);
-        std::memcpy(joined + 32u, entry.data(), 32u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = joined, .src = merkle_root, .bytes = 32u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = joined + 32u, .src = entry.data(), .bytes = 32u);
         sha256_double_hash(joined, sizeof(joined), merkle_root);
     }
 }
@@ -356,7 +356,7 @@ bool build_header(const MiningJob &job, const std::string &extranonce1_hex, cons
             header[4u + (word * 4u) + byte] = prevhash[(word * 4u) + (3u - byte)];
         }
     }
-    std::memcpy(header + 36u, merkle_root, 32u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = header + 36u, .src = merkle_root, .bytes = 32u);
     write_header_field(header + 68u, ntime);
     write_header_field(header + 72u, nbits);
     write_header_field(header + 76u, 0u);
@@ -534,13 +534,14 @@ void mining_worker(int worker_index)
                 continue;
             }
 
-            std::memset(&request, 0, sizeof(request));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
             sha256_header_midstate(&request.midstate, header);
             request.merkle_root_tail = schedule_word_from_header(header + 64u);
             request.ntime = schedule_word_from_header(header + 68u);
             request.nbits = schedule_word_from_header(header + 72u);
             request.abandon = &g_state.abandon;
-            std::memcpy(request.share_target, share_target, sizeof(share_target));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.share_target, .src = share_target,
+                       .bytes = sizeof(share_target));
             sha256_target_from_nbits(block_target, (uint32_t)std::stoul(job.nbits_hex, nullptr, 16));
             header_ready = true;
         }
@@ -581,11 +582,13 @@ void mining_worker(int worker_index)
         if (device != nullptr)
         {
             CudaScanParameters parameters;
-            std::memcpy(parameters.midstate, request.midstate.word, sizeof(parameters.midstate));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = parameters.midstate, .src = request.midstate.word,
+                       .bytes = sizeof(parameters.midstate));
             parameters.merkle_root_tail = request.merkle_root_tail;
             parameters.ntime = request.ntime;
             parameters.nbits = request.nbits;
-            std::memcpy(parameters.share_target, request.share_target, sizeof(parameters.share_target));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = parameters.share_target, .src = request.share_target,
+                       .bytes = sizeof(parameters.share_target));
             parameters.anchor_is_sound = (request.share_target[0] == 0u) ? 1u : 0u;
 
             uint32_t found_nonces[DEVICE_FOUND_LIMIT];
@@ -916,7 +919,7 @@ bool dry_run_check_job(const MiningJob &job, const std::string &extranonce1_hex,
     }
 
     Sha256ScanRequest request;
-    std::memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     sha256_header_midstate(&request.midstate, header);
     request.merkle_root_tail = schedule_word_from_header(header + 64u);
     request.ntime = schedule_word_from_header(header + 68u);
@@ -925,7 +928,7 @@ bool dry_run_check_job(const MiningJob &job, const std::string &extranonce1_hex,
     request.nonce_count = 1u;
     // A threshold of all ones accepts anything. Thus the scan must run its compare path, and report
     // the nonce, and not reject it. That makes the two paths comparable on one input.
-    std::memset(request.share_target, 0xFF, sizeof(request.share_target));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request.share_target, .bytes = sizeof(request.share_target), .val = 0xFF);
 
     Sha256ScanResult result;
     sha256_scan_scalar(&request, &result);
@@ -1156,7 +1159,7 @@ int program_main(int argument_count, char **arguments)
 
     addrinfo hints;
     addrinfo *resolved = nullptr;
-    std::memset(&hints, 0, sizeof(hints));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &hints, .bytes = sizeof(hints), .val = 0);
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;

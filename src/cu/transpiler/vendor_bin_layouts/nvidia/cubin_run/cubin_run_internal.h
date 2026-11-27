@@ -17,12 +17,10 @@
 #include "../sass_machine.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
 
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #include <windows.h>

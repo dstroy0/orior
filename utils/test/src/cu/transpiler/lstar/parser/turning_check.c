@@ -17,6 +17,7 @@
 //     turning_check
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/khw_learn/khw_learn_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -123,7 +124,7 @@ int program_main(int argc, char **argv)
     // the turned bits 12 to 16 and 24 to 27 under a guard field at 12 of 3 bits and a destination field at 16 of 8:
     // the guard's bits, the bit no field contains, the destination's one bit and the second field's run
     int turned[KHW_TURN_LAST + 1u];
-    memset(turned, 0, sizeof(turned));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = turned, .bytes = sizeof(turned), .val = 0);
     for (unsigned int bit = 12u; bit <= 16u; bit += 1u)
     {
         turned[bit] = 1;
@@ -135,7 +136,7 @@ int program_main(int argc, char **argv)
     const unsigned int field_first[2] = {12u, 16u};
     const unsigned int field_bits[2] = {3u, 8u};
     KhwAnswered cut;
-    memset(&cut, 0, sizeof(cut));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &cut, .bytes = sizeof(cut), .val = 0);
     check_that((khw_runs_gathered(turned, 2u, field_first, field_bits, &cut) == 4u) && (cut.runs == 4u) &&
                    (cut.first[0] == 12u) && (cut.last[0] == 14u) && (cut.first[1] == 15u) && (cut.last[1] == 15u) &&
                    (cut.first[2] == 16u) && (cut.last[2] == 16u) && (cut.first[3] == 24u) && (cut.last[3] == 27u),
@@ -144,13 +145,13 @@ int program_main(int argc, char **argv)
                    (cut.place[2] == KHW_PLACE_NONE) && (cut.type[2] == KHW_TYPE_REGISTER),
                "cut: each run gathered has no place yet and a register's type");
     KhwAnswered uncut;
-    memset(&uncut, 0, sizeof(uncut));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &uncut, .bytes = sizeof(uncut), .val = 0);
     check_that((khw_runs_gathered(turned, 0u, field_first, field_bits, &uncut) == 2u) && (uncut.first[0] == 12u) &&
                    (uncut.last[0] == 16u) && (uncut.first[1] == 24u) && (uncut.last[1] == 27u),
                "cut: with no fields named, adjacent turned bits are one run");
     // the second word's field at 32 of 8 bits inside the immediate's at 32 of 32: the narrowest contains the bit, and
     // turned bits 36 to 42 are the second word's 36 to 39 and the immediate's 40 to 42
-    memset(turned, 0, sizeof(turned));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = turned, .bytes = sizeof(turned), .val = 0);
     for (unsigned int bit = 36u; bit <= 42u; bit += 1u)
     {
         turned[bit] = 1;
@@ -158,7 +159,7 @@ int program_main(int argc, char **argv)
     const unsigned int nested_first[2] = {32u, 32u};
     const unsigned int nested_bits[2] = {32u, 8u};
     KhwAnswered nested;
-    memset(&nested, 0, sizeof(nested));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &nested, .bytes = sizeof(nested), .val = 0);
     check_that((khw_runs_gathered(turned, 2u, nested_first, nested_bits, &nested) == 2u) && (nested.first[0] == 36u) &&
                    (nested.last[0] == 39u) && (nested.first[1] == 40u) && (nested.last[1] == 42u),
                "cut: where fields nest, the narrowest containing a bit is the bit's field");

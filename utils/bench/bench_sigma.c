@@ -3,9 +3,9 @@
 #include "../../src/cu/engine/nbody/orior/orior.h"
 #include "../../src/platform/platform.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 
 #define BENCH_NEEDLE_LEN 16u
@@ -59,7 +59,7 @@ static int bench_table_once(const uint32_t *corpus, size_t corpus_len, const uin
 
     int taken[BENCH_CANDIDATES];
 
-    memset(taken, 0, sizeof taken);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = taken, .bytes = sizeof taken, .val = 0);
     for (size_t place = 0u; place < BENCH_CANDIDATES; place += 1u)
     {
         size_t rarest = BENCH_CANDIDATES;

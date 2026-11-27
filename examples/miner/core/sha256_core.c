@@ -20,8 +20,8 @@
 
 #include "sha256_core.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <math.h>
-#include <string.h>
 
 #if defined(__AVX2__)
 #include <immintrin.h>
@@ -134,7 +134,8 @@ static inline uint32_t reverse_word_bytes(uint32_t value)
 
 void sha256_state_init(Sha256State *state)
 {
-    memcpy(state->word, s_sha256_initial_state, sizeof(s_sha256_initial_state));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = state->word, .src = s_sha256_initial_state,
+               .bytes = sizeof(s_sha256_initial_state));
 }
 
 void sha256_block_compress(Sha256State *state, const uint32_t *message_block)
@@ -283,8 +284,8 @@ void sha256_hash(const uint8_t *message, size_t message_len, uint8_t *digest)
 
     uint8_t tail[SHA256_BLOCK_BYTES * 2u];
     const size_t remaining = message_len - consumed;
-    memset(tail, 0, sizeof(tail));
-    memcpy(tail, message + consumed, remaining);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = tail, .bytes = sizeof(tail), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = tail, .src = message + consumed, .bytes = remaining);
     tail[remaining] = 0x80u;
 
     // A message with more than fifty-five bytes left over pushes the length field into a second

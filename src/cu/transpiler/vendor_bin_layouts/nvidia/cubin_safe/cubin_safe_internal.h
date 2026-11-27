@@ -13,7 +13,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // the four bits of the stall and the six of the wait, counted from the high word's first bit
 #define CUBIN_STALL_SHIFT (SASS_STALL_FIRST - 64u)

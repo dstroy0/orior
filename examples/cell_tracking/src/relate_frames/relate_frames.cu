@@ -9,9 +9,9 @@
 #include "../../../../src/cu/engine/analysis/shift_agreement/shift_agreement.h"
 #include "track.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 static int land_peak(const EngineBuffers *buffers, unsigned int peak, const int *lag, const unsigned int *labels,
                      const TreeFrame *other)
@@ -173,7 +173,7 @@ int relate_frames(EngineBuffers *buffers, TreeFrame *earlier, TreeFrame *later, 
     if (rules->retain_view == 0)
     {
         ShiftAgreementRequest motion;
-        memset(&motion, 0, sizeof(motion));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &motion, .bytes = sizeof(motion), .val = 0);
         motion.axes = 3u;
         motion.extents[0] = buffers->depth;
         motion.extents[1] = buffers->height;
@@ -208,9 +208,11 @@ int relate_frames(EngineBuffers *buffers, TreeFrame *earlier, TreeFrame *later, 
         if ((moved_ok != 0) && (rules->motion_check != 0))
         {
             moved_ok = (shift_agreement_run(&again) == 0L);
-            if ((moved_ok != 0) &&
-                ((memcmp(motion.counts, again.counts, padded_total * sizeof(unsigned int)) != 0) ||
-                 (memcmp(motion.lag, again.lag, sizeof(motion.lag)) != 0) || (motion.agreement != again.agreement)))
+            if ((moved_ok != 0) && ((EMBED_CALL(memor.cmp, MemoriaCfg, .src = motion.counts, .other = again.counts,
+                                                .bytes = padded_total * sizeof(unsigned int)) != 0) ||
+                                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = motion.lag, .other = again.lag,
+                                                .bytes = sizeof(motion.lag)) != 0) ||
+                                    (motion.agreement != again.agreement)))
             {
                 fprintf(stderr, "    motion disagrees: frame %u\n", earlier->time);
             }
@@ -265,7 +267,7 @@ int relate_frames(EngineBuffers *buffers, TreeFrame *earlier, TreeFrame *later, 
         if ((climbed != 0) && (rules->climb != 2))
         {
             ClimbMachinePair pair;
-            memset(&pair, 0, sizeof(pair));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &pair, .bytes = sizeof(pair), .val = 0);
             pair.earlier = earlier->time;
             pair.later = later->time;
             for (unsigned int axis = 0u; axis < 3u; axis += 1u)
@@ -346,7 +348,7 @@ int relate_frames(EngineBuffers *buffers, TreeFrame *earlier, TreeFrame *later, 
     for (;;)
     {
         BodyOverlapRequest overlap;
-        memset(&overlap, 0, sizeof(overlap));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &overlap, .bytes = sizeof(overlap), .val = 0);
         overlap.labels_before = climb_machine_labels(buffers->machine, earlier->time);
         overlap.positive_before = climb_machine_positive(buffers->machine, earlier->time);
         overlap.labels_after = climb_machine_labels(buffers->machine, later->time);

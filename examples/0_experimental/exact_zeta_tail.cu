@@ -27,20 +27,19 @@
 // of L hex limbs follow, the records of the device. The last line is "host 1" where the same program on the host
 // gives the records of the device word for word, else "host 0". The host runs it on the exact integer library.
 
-#include "../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../includes/exact_types/integers/exact_integer.h"
+#include "../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../src/cu/engine/analysis/keymath/keymath.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
 
 #include <cuda_runtime.h>
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <vector>
 
@@ -179,15 +178,15 @@ int program_main(int count, char **arguments)
     unsigned int outputs[2];
     tail_build(&program, terms, width, outputs);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     EngineRecordKey key;
-    memset(&key, 0, sizeof(key));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &key, .bytes = sizeof(key), .val = 0);
     const KeymathRecordRequest encode = {program.steps.data(), (unsigned int)program.steps.size(), field_bits.data(),
                                          fields, 2u, outputs, 2u, NULL, 0u, &key, &error};
     int ok = keymath_record_encode(&encode) != KEYMATH_ERROR;
     sim_check(&job, ok, "keymath imprints the tail program");
     EngineRecordLayout layout;
-    memset(&layout, 0, sizeof(layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &layout, .bytes = sizeof(layout), .val = 0);
     const KeyScheduleRecordRequest position = {&key, field_offset.data(), fields, in_limbs, 1, &layout, &error};
     ok = ok && (key_schedule_record_layout(&position) != KEY_SCHEDULE_ERROR);
     sim_check(&job, ok, "the scheduler positions the tail program out");
@@ -234,7 +233,8 @@ int program_main(int count, char **arguments)
     const CycleRecordHostRequest host = {&layout, {point_records.data(), shared.data(), NULL}, {points, 1ull, 0ull},
                                          index.data(), points, host_out.data(), &error};
     const int host_ran = ok && (cycle_record_run_host(&host) == (long)points);
-    const int same = host_ran && (memcmp(host_out.data(), device_out.data(), device_out.size() * sizeof(unsigned int)) == 0);
+    const int same = host_ran && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out.data(), .other = device_out.data(),
+                                             .bytes = device_out.size() * sizeof(unsigned int)) == 0);
     sim_check(&job, same, "the device's records equal the host's word for word");
 
     FILE *out = ok ? fopen(arguments[2], "w") : NULL;

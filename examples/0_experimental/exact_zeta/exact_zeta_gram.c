@@ -47,8 +47,8 @@
 #include "zeta_theta.h"
 #include "zeta_shuffle.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
-#include <string.h>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -103,7 +103,7 @@ static size_t gram_settle(GramSearch *search, const GramBracket *brackets, size_
 {
     GramBracket *open = (GramBracket *)gram_memory(
         platform_cell_taken((count + 1u) * sizeof(GramBracket), platform_place_g_program_owner, 0));
-    memcpy(open, brackets, count * sizeof(GramBracket));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = open, .src = brackets, .bytes = count * sizeof(GramBracket));
     size_t open_count = count;
     size_t cuts = 0u;
     DecimalPair line;
@@ -228,7 +228,7 @@ int program_main(int argument_count, char **arguments)
         out);
 
     GramSearch search;
-    memset(&search, 0, sizeof(search));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &search, .bytes = sizeof(search), .val = 0);
     search.phase = theta_phase;
     pair_small(10, 0, &search.start);
     pair_small(1, 0, &search.step);
@@ -247,7 +247,7 @@ int program_main(int argument_count, char **arguments)
 
     GramBracket *const placed = (GramBracket *)gram_memory(
         platform_cell_taken(found_count * sizeof(GramBracket), platform_place_g_program_owner, 0));
-    memcpy(placed, found, found_count * sizeof(GramBracket));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = placed, .src = found, .bytes = found_count * sizeof(GramBracket));
     for (int bit = 0; bit < bits; bit += 1)
     {
         gram_cut(&search, placed, found_count);
@@ -344,7 +344,7 @@ int program_main(int argument_count, char **arguments)
     size_t most = 0u;
     for (unsigned draw = 0u; draw < DRAWS; draw += 1u)
     {
-        memcpy(drawn, seats, found_count);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = drawn, .src = seats, .bytes = found_count);
         zeta_permuted(drawn, found_count, SHUFFLE_SEED + draw);
         const size_t agreement = zeta_agreement(drawn, found_count, 2u);
         reach += (agreement >= live_two) ? 1u : 0u;

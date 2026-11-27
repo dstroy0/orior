@@ -26,8 +26,8 @@
 
 #include <cuda_runtime.h>
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
-#include <string.h>
 
 #define ODD_TEST_EXTENTS 5u
 
@@ -189,7 +189,8 @@ static unsigned int odd_test_row(unsigned int order, unsigned int comb, const un
                     (((tap >= apart) && ((tap - apart) < taps)) ? (2ull * row[tap - apart]) : 0ull) +
                     (((tap >= (2u * apart)) && ((tap - (2u * apart)) < taps)) ? row[tap - (2u * apart)] : 0ull);
             }
-            memcpy(row, paired, (size_t)wider * sizeof(unsigned long long));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = row, .src = paired,
+                       .bytes = (size_t)wider * sizeof(unsigned long long));
             taps = wider;
         }
     }
@@ -234,7 +235,8 @@ static void odd_test_term(const unsigned int *extent, const unsigned int *orders
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
         odd_test_axis(extent, axis, orders[axis], comb[axis], spaced[axis], host->along, host->across);
-        memcpy(host->along, host->across, (size_t)voxels * sizeof(unsigned long long));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = host->along, .src = host->across,
+                   .bytes = (size_t)voxels * sizeof(unsigned long long));
     }
 }
 
@@ -303,10 +305,12 @@ static int odd_test_read(const unsigned int *device_lanes, unsigned int voxels, 
 static void odd_test_spaced(const unsigned int (*from)[ODD_TEST_SPACINGS],
                             unsigned int to[ENGINE_AXES][ENGINE_SPACINGS])
 {
-    memset(to, 0, ENGINE_AXES * ENGINE_SPACINGS * sizeof(unsigned int));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = to, .bytes = ENGINE_AXES * ENGINE_SPACINGS * sizeof(unsigned int),
+               .val = 0);
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
-        memcpy(to[axis], from[axis], ODD_TEST_SPACINGS * sizeof(unsigned int));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = to[axis], .src = from[axis],
+                   .bytes = ODD_TEST_SPACINGS * sizeof(unsigned int));
     }
 }
 
@@ -315,30 +319,32 @@ static int odd_test_key(const unsigned int *extent, const OddTestOrders *orders,
                         OddTestHost *host)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     EngineResidualRequest residual;
-    memset(&residual, 0, sizeof(residual));
-    memcpy(residual.smooth_orders, orders->smooth, sizeof(residual.smooth_orders));
-    memcpy(residual.background_orders, orders->background, sizeof(residual.background_orders));
-    memcpy(residual.comb, orders->comb, sizeof(residual.comb));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &residual, .bytes = sizeof(residual), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = residual.smooth_orders, .src = orders->smooth,
+               .bytes = sizeof(residual.smooth_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = residual.background_orders, .src = orders->background,
+               .bytes = sizeof(residual.background_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = residual.comb, .src = orders->comb, .bytes = sizeof(residual.comb));
     odd_test_spaced(orders->smooth_spaced, residual.smooth_spaced);
     odd_test_spaced(orders->background_spaced, residual.background_spaced);
     residual.error = &error;
     EngineStep program[RESIDUAL_STEPS];
     EngineKey math;
-    memset(&math, 0, sizeof(math));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &math, .bytes = sizeof(math), .val = 0);
     const KeymathEncodeRequest encode_request = {program, RESIDUAL_STEPS, &math, &error};
     int ok = (residual_program(&residual, program) == (long)RESIDUAL_STEPS) &&
              (keymath_encode(&encode_request) != KEYMATH_ERROR);
     EngineKeyLayout layout;
-    memset(&layout, 0, sizeof(layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &layout, .bytes = sizeof(layout), .val = 0);
     ok = ok && (key_schedule_layout(&math, &layout, &error) != KEY_SCHEDULE_ERROR);
     keymath_key_release(&math);
     CycleKey *key = NULL;
     ok = ok && (cycle_key_load(&layout, &key, &error) != CYCLE_ERROR);
     key_schedule_release(&layout);
     Atom atom;
-    memset(&atom, 0, sizeof(atom));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &atom, .bytes = sizeof(atom), .val = 0);
     atom.lanes = device->volume;
     atom.depth = extent[0];
     atom.height = extent[1];
@@ -353,16 +359,18 @@ static int odd_test_sweep(const unsigned int *extent, const OddTestOrders *order
                           OddTestHost *host)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     UnitSweepRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.device_volume = device->volume;
     request.depth = extent[0];
     request.height = extent[1];
     request.width = extent[2];
-    memcpy(request.smooth_orders, orders->smooth, sizeof(request.smooth_orders));
-    memcpy(request.background_orders, orders->background, sizeof(request.background_orders));
-    memcpy(request.comb, orders->comb, sizeof(request.comb));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.smooth_orders, .src = orders->smooth,
+               .bytes = sizeof(request.smooth_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.background_orders, .src = orders->background,
+               .bytes = sizeof(request.background_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.comb, .src = orders->comb, .bytes = sizeof(request.comb));
     odd_test_spaced(orders->smooth_spaced, request.smooth_spaced);
     odd_test_spaced(orders->background_spaced, request.background_spaced);
     request.limbs = ENGINE_RESIDUAL_LIMBS;
@@ -531,47 +539,51 @@ static void odd_test_errors(SimResults *results, const OddTestDevice *device)
     const unsigned int background[ENGINE_AXES] = {2u, 3u, 2u};
     const unsigned int comb[ENGINE_AXES] = {0u, 4u, 0u};
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     EngineResidualRequest residual;
-    memset(&residual, 0, sizeof(residual));
-    memcpy(residual.smooth_orders, smooth, sizeof(residual.smooth_orders));
-    memcpy(residual.background_orders, background, sizeof(residual.background_orders));
-    memcpy(residual.comb, comb, sizeof(residual.comb));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &residual, .bytes = sizeof(residual), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = residual.smooth_orders, .src = smooth,
+               .bytes = sizeof(residual.smooth_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = residual.background_orders, .src = background,
+               .bytes = sizeof(residual.background_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = residual.comb, .src = comb, .bytes = sizeof(residual.comb));
     residual.error = &error;
     EngineStep program[RESIDUAL_STEPS];
     sim_check(results,
               (residual_program(&residual, program) == RESIDUAL_ERROR) && (error.type == ENGINE_ERROR_REQUEST) &&
                   (error.module == ENGINE_MODULE_RESIDUAL),
               "an odd background order errors on the residual's program, a request error from residual");
-    memset(program, 0, sizeof(program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(program), .val = 0);
     program[0].operation = ENGINE_COMB;
-    memcpy(program[0].orders, comb, sizeof(program[0].orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program[0].orders, .src = comb, .bytes = sizeof(program[0].orders));
     program[1].operation = ENGINE_SMOOTH;
-    memcpy(program[1].orders, smooth, sizeof(program[1].orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program[1].orders, .src = smooth, .bytes = sizeof(program[1].orders));
     program[2].operation = ENGINE_SAVE;
     program[3].operation = ENGINE_SMOOTH;
-    memcpy(program[3].orders, background, sizeof(program[3].orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program[3].orders, .src = background, .bytes = sizeof(program[3].orders));
     program[4].operation = ENGINE_SCALE_SUBTRACT;
     program[4].shift = background[0] + background[1] + background[2];
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     EngineKey math;
-    memset(&math, 0, sizeof(math));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &math, .bytes = sizeof(math), .val = 0);
     // the five steps written here: the comb, the smooth, the retention, the background's smooth and the subtraction
     const KeymathEncodeRequest encode_request = {program, 5u, &math, &error};
     sim_check(results,
               (keymath_encode(&encode_request) == KEYMATH_ERROR) && (error.type == ENGINE_ERROR_REQUEST) &&
                   (error.module == ENGINE_MODULE_KEYMATH),
               "a subtraction of terms half a voxel apart errors on the encoding, a request error from keymath");
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     UnitSweepRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.device_volume = device->volume;
     request.depth = ODD_TEST_EXTENT[3][0];
     request.height = ODD_TEST_EXTENT[3][1];
     request.width = ODD_TEST_EXTENT[3][2];
-    memcpy(request.smooth_orders, smooth, sizeof(request.smooth_orders));
-    memcpy(request.background_orders, background, sizeof(request.background_orders));
-    memcpy(request.comb, comb, sizeof(request.comb));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.smooth_orders, .src = smooth,
+               .bytes = sizeof(request.smooth_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.background_orders, .src = background,
+               .bytes = sizeof(request.background_orders));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.comb, .src = comb, .bytes = sizeof(request.comb));
     request.limbs = ENGINE_RESIDUAL_LIMBS;
     request.device_out = device->sweep_out;
     request.error = &error;
@@ -590,7 +602,7 @@ int program_main(int count, char **arguments)
     OddTestHost *const host =
         (OddTestHost *)platform_cell_taken(sizeof(OddTestHost), platform_place_g_program_owner, 0);
     OddTestDevice device;
-    memset(&device, 0, sizeof(device));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &device, .bytes = sizeof(device), .val = 0);
     const size_t lane_words = (size_t)ODD_TEST_VOXELS_MAX * ENGINE_RESIDUAL_LIMBS;
     const int passed =
         (admitted != 0) && (host != NULL) &&
@@ -604,7 +616,7 @@ int program_main(int count, char **arguments)
     for (unsigned int orders = 0u; passed && (orders < ODD_TEST_ORDER_SETS); orders += 1u)
     {
         OddTestResults counts;
-        memset(&counts, 0, sizeof(counts));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &counts, .bytes = sizeof(counts), .val = 0);
         for (unsigned int extent = 0u; extent < ODD_TEST_EXTENTS; extent += 1u)
         {
             const unsigned long long key = 0x0DD5ull + ((unsigned long long)orders * ODD_TEST_EXTENTS) + extent;

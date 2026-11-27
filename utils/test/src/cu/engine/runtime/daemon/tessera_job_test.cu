@@ -15,10 +15,10 @@
 #include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -167,7 +167,8 @@ static int job_ticket_sealed(const char *lost_path)
     // a non-negative length is compared whole against the capacity
     unsigned char *const text = ((named > 0) && ((size_t)named < sizeof(path))) ? job_file_read(path, &length) : NULL;
     const unsigned long long line = 5ull + (2ull * OBSIGNATIO_SIGNUM_BYTES) + 1ull;
-    int passed = (text != NULL) && (length > line) && (memcmp(text + (length - line), "seal ", 5u) == 0);
+    int passed = (text != NULL) && (length > line) &&
+                 (EMBED_CALL(memor.cmp, MemoriaCfg, .src = text + (length - line), .other = "seal ", .bytes = 5u) == 0);
     const unsigned long long body = passed ? (length - line) : 0ull;
     unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
     for (unsigned int byte = 0u; passed && (byte < OBSIGNATIO_SIGNUM_BYTES); byte += 1u)
@@ -179,9 +180,10 @@ static int job_ticket_sealed(const char *lost_path)
     }
     const char note[] = "precalc saved\n";
     passed = passed && (body >= (sizeof(note) - 1u)) &&
-             (memcmp(text + body - (sizeof(note) - 1u), note, sizeof(note) - 1u) == 0);
+             (EMBED_CALL(memor.cmp, MemoriaCfg, .src = text + body - (sizeof(note) - 1u), .other = note,
+                         .bytes = sizeof(note) - 1u) == 0);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioSealRequest seal = {text, body, signum, &error};
     passed = passed && (obsignatio_seal_verify(&seal) == 1L);
     platform_cell_released(text, platform_place_g_program_owner);
@@ -212,13 +214,14 @@ int program_main(int count, char **arguments)
         return 1;
     }
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     TesseraJobSubmit submit;
-    memset(&submit, 0, sizeof(submit));
-    memcpy(submit.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &submit, .bytes = sizeof(submit), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = submit.device, .src = properties.uuid.bytes,
+               .bytes = TESSERA_DEVICE_BYTES);
     unsigned long long luid = 0ull;
 #if defined(_WIN32)
-    memcpy(&luid, properties.luid, sizeof(luid));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &luid, .src = properties.luid, .bytes = sizeof(luid));
 #endif
     submit.luid = luid;
     // a signum of this run alone: the history contains nothing for it before its first job
@@ -346,7 +349,7 @@ int program_main(int count, char **arguments)
     {
         unsigned char *const damaged =
             (unsigned char *)platform_cell_taken((size_t)length, platform_place_g_program_owner, 0);
-        memcpy(damaged, sealed, (size_t)length);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = damaged, .src = sealed, .bytes = (size_t)length);
         // one byte of the first record's peak
         damaged[ENGINE_SIGNUM_BYTES] ^= 0x01u;
         job_check(job_file_write(history, damaged, length) && (tessera_job_submit(&submit, &client, &ticket) != 0L),

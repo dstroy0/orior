@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_order_test_floors.cu: wraps, forward and inverse, floors and edges
-#include "record_order_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "record_order_test_internal.h"
 
 static unsigned long long s_order_state = 0x0DE7C0DE5EEDF00Dull;
 
@@ -43,7 +44,7 @@ int order_load(const OrderStack *stack, const unsigned int *field_bits, const un
                unsigned int fields, unsigned int in_limbs, const unsigned int *outputs, unsigned int output_count,
                const EngineRecordTable *tables, unsigned int table_count, OrderLoaded *loaded)
 {
-    memset(loaded, 0, sizeof(*loaded));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = loaded, .bytes = sizeof(*loaded), .val = 0);
     unsigned int member_limbs[ENGINE_RECORD_MEMBERS_MAX] = {in_limbs, 0u, 0u};
     const KeymathRecordRequest encode_request = {stack->steps, stack->count, field_bits,    fields,
                                                  1u,           outputs,      output_count,  tables,
@@ -316,7 +317,8 @@ void order_both_ways(OrderResults *results)
         {
             OrderState next = states[at];
             order_forward_cpu(&next);
-            step = step && (memcmp(&next, &states[at + 1u], sizeof(OrderState)) == 0);
+            step = step && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &next, .other = &states[at + 1u],
+                                       .bytes = sizeof(OrderState)) == 0);
         }
         steps_ok += (step != 0) ? 1u : 0u;
         const unsigned int *const record = &device_out[(size_t)lane * out_limbs];
@@ -370,7 +372,8 @@ void order_both_ways(OrderResults *results)
     order_check(results, (host_ran != 0) && (device_ran != 0), "the orders run on the host and the device");
     order_check(results,
                 (host_ran != 0) && (device_ran != 0) &&
-                    (memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0),
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                                .bytes = (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0),
                 "the orders' device records equal the host's word for word");
     order_check(results, steps_ok == lanes, "G carries every order to the next from -K to K, so G^-1 inverts it");
     order_check(results, visits_ok == lanes, "every visit to order k contains the CPU's G^k(x), whichever way it came");

@@ -1,8 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // obsignatio_test_properties.cu: every length, bit flips, determinism, errors and the seal
-#include "obsignatio_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "obsignatio_test_internal.h"
 
 #if (defined(__CUDACC__))
 
@@ -16,12 +18,13 @@ void test_every_length(const TestVectors *vectors, const unsigned char *pattern,
             const unsigned char *const key = test_mode_key(test_modes[mode], vectors, context_key);
             unsigned char host[OBSIGNATIO_SIGNUM_BYTES];
             unsigned char device[OBSIGNATIO_SIGNUM_BYTES];
-            memset(device, 0, sizeof(device));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = device, .bytes = sizeof(device), .val = 0);
             const int ran =
                 (test_signum(pattern, length, key, test_modes[mode], host, OBSIGNATIO_SIGNUM_BYTES) == 0L) &&
                 (test_many(device_pattern, 1ull, length, length, key, test_modes[mode], device_signum) == 0L) &&
                 (cudaMemcpy(device, device_signum, OBSIGNATIO_SIGNUM_BYTES, cudaMemcpyDeviceToHost) == cudaSuccess);
-            test_count(results, ran && (memcmp(host, device, OBSIGNATIO_SIGNUM_BYTES) == 0));
+            test_count(results, ran && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host, .other = device,
+                                                   .bytes = OBSIGNATIO_SIGNUM_BYTES) == 0));
         }
     }
 }
@@ -44,7 +47,7 @@ __global__ static void test_flip_kernel(const unsigned char *pattern, unsigned l
 
 static int test_signum_order(const void *left, const void *right)
 {
-    return memcmp(left, right, OBSIGNATIO_SIGNUM_BYTES);
+    return EMBED_CALL(memor.cmp, MemoriaCfg, .src = left, .other = right, .bytes = OBSIGNATIO_SIGNUM_BYTES);
 }
 
 void test_bit_flips(const TestVectors *vectors, const unsigned char *device_pattern, TestResults *results)
@@ -78,18 +81,22 @@ void test_bit_flips(const TestVectors *vectors, const unsigned char *device_patt
         }
         for (unsigned long long flip = 0ull; flip < flips; flip += 1ull)
         {
-            test_count(results, ready && (memcmp(&signa[flip * OBSIGNATIO_SIGNUM_BYTES], one->hash,
-                                                 OBSIGNATIO_SIGNUM_BYTES) != 0));
+            test_count(results,
+                       ready && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &signa[flip * OBSIGNATIO_SIGNUM_BYTES],
+                                            .other = one->hash, .bytes = OBSIGNATIO_SIGNUM_BYTES) != 0));
         }
         int distinct = ready;
         if (ready)
         {
-            memcpy(&signa[flips * OBSIGNATIO_SIGNUM_BYTES], one->hash, OBSIGNATIO_SIGNUM_BYTES);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &signa[flips * OBSIGNATIO_SIGNUM_BYTES], .src = one->hash,
+                       .bytes = OBSIGNATIO_SIGNUM_BYTES);
             qsort(signa, (size_t)(flips + 1ull), OBSIGNATIO_SIGNUM_BYTES, test_signum_order);
             for (unsigned long long at = 1ull; at <= flips; at += 1ull)
             {
-                distinct = distinct && (memcmp(&signa[(at - 1ull) * OBSIGNATIO_SIGNUM_BYTES],
-                                               &signa[at * OBSIGNATIO_SIGNUM_BYTES], OBSIGNATIO_SIGNUM_BYTES) != 0);
+                distinct =
+                    distinct &&
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &signa[(at - 1ull) * OBSIGNATIO_SIGNUM_BYTES],
+                                .other = &signa[at * OBSIGNATIO_SIGNUM_BYTES], .bytes = OBSIGNATIO_SIGNUM_BYTES) != 0);
             }
         }
         test_count(results, distinct);
@@ -115,13 +122,14 @@ void test_determinism(const TestVectors *vectors, const unsigned char *device_pa
                     (test_many(device_pattern, TEST_PATTERN_PERIOD, length, 1ull, NULL, OBSIGNATIO_MODE_HASH,
                                device_signa) == 0L) &&
                     (cudaMemcpy(second, device_signa, bytes, cudaMemcpyDeviceToHost) == cudaSuccess);
-    test_count(results, ran && (memcmp(first, second, bytes) == 0));
+    test_count(results, ran && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = first, .other = second, .bytes = bytes) == 0));
     int windows_differ = ran;
     for (unsigned long long window = 1ull; ran && (window < TEST_PATTERN_PERIOD); window += 1ull)
     {
         windows_differ =
-            windows_differ && (memcmp(&first[(window - 1ull) * OBSIGNATIO_SIGNUM_BYTES],
-                                      &first[window * OBSIGNATIO_SIGNUM_BYTES], OBSIGNATIO_SIGNUM_BYTES) != 0);
+            windows_differ &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &first[(window - 1ull) * OBSIGNATIO_SIGNUM_BYTES],
+                        .other = &first[window * OBSIGNATIO_SIGNUM_BYTES], .bytes = OBSIGNATIO_SIGNUM_BYTES) != 0);
     }
     test_count(results, windows_differ);
     cudaFree(device_signa);
@@ -133,7 +141,8 @@ static int test_error_signum(const ObsignatioSignumRequest *request, const unsig
                              const unsigned char *out)
 {
     const long status = obsignatio_signum(request);
-    const int untouched = (out == NULL) || (memcmp(out, out_before, OBSIGNATIO_SIGNUM_BYTES) == 0);
+    const int untouched = (out == NULL) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = out, .other = out_before,
+                                                       .bytes = OBSIGNATIO_SIGNUM_BYTES) == 0);
     const int raised =
         (request == NULL) || (request->error == NULL) ||
         ((request->error->type == ENGINE_ERROR_REQUEST) && (request->error->module == ENGINE_MODULE_OBSIGNATIO));
@@ -149,7 +158,9 @@ static int test_error_many(const ObsignatioManyRequest *request, const unsigned 
     const int raised =
         (request == NULL) || (request->error == NULL) ||
         ((request->error->type == ENGINE_ERROR_REQUEST) && (request->error->module == ENGINE_MODULE_OBSIGNATIO));
-    return (status == OBSIGNATIO_ERROR) && read && (memcmp(after, signa_before, OBSIGNATIO_SIGNUM_BYTES) == 0) &&
+    return (status == OBSIGNATIO_ERROR) && read &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = after, .other = signa_before, .bytes = OBSIGNATIO_SIGNUM_BYTES) ==
+            0) &&
            raised;
 }
 
@@ -158,7 +169,7 @@ void test_fail_closed(const TestVectors *vectors, const unsigned char *pattern, 
 {
     unsigned char before[OBSIGNATIO_SIGNUM_BYTES];
     unsigned char out[OBSIGNATIO_SIGNUM_BYTES];
-    memset(before, 0xA5, sizeof(before));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = before, .bytes = sizeof(before), .val = 0xA5);
     const unsigned char *const key = vectors->key;
     EngineError error;
     const ObsignatioSignumRequest signum_cases[] = {
@@ -173,20 +184,22 @@ void test_fail_closed(const TestVectors *vectors, const unsigned char *pattern, 
     };
     for (unsigned int index = 0u; index < (unsigned int)(sizeof(signum_cases) / sizeof(signum_cases[0])); index += 1u)
     {
-        memset(&error, 0, sizeof(error));
-        memcpy(out, before, sizeof(out));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = before, .bytes = sizeof(out));
         test_count(results, test_error_signum(&signum_cases[index], before, out));
     }
-    memset(&error, 0, sizeof(error));
-    memcpy(out, before, sizeof(out));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = before, .bytes = sizeof(out));
     const ObsignatioSignumRequest unfinished = {pattern, 1ull, NULL, OBSIGNATIO_MODE_HASH, out, OBSIGNATIO_SIGNUM_BYTES,
                                                 NULL};
     test_count(results, test_error_signum(&unfinished, before, out));
     test_count(results, obsignatio_signum(NULL) == OBSIGNATIO_ERROR);
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioSignumRequest empty = {NULL,  0ull, NULL, OBSIGNATIO_MODE_HASH, out, OBSIGNATIO_SIGNUM_BYTES,
                                            &error};
-    test_count(results, (obsignatio_signum(&empty) == 0L) && (memcmp(out, vectors->cases[0].hash, sizeof(out)) == 0) &&
+    test_count(results, (obsignatio_signum(&empty) == 0L) &&
+                            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = out, .other = vectors->cases[0].hash,
+                                        .bytes = sizeof(out)) == 0) &&
                             (vectors->cases[0].length == 0ull) && (error.type == ENGINE_ERROR_NONE));
     const int placed = cudaMemcpy(device_signum, before, sizeof(before), cudaMemcpyHostToDevice) == cudaSuccess;
     const ObsignatioManyRequest many_cases[] = {
@@ -199,15 +212,15 @@ void test_fail_closed(const TestVectors *vectors, const unsigned char *pattern, 
     };
     for (unsigned int index = 0u; index < (unsigned int)(sizeof(many_cases) / sizeof(many_cases[0])); index += 1u)
     {
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         test_count(results, placed && test_error_many(&many_cases[index], device_signum, before));
     }
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioManyRequest unsigned_out = {device_pattern,       1ull, 1ull,  1ull, NULL,
                                                 OBSIGNATIO_MODE_HASH, NULL, &error};
     test_count(results, (obsignatio_many(&unsigned_out) == OBSIGNATIO_ERROR) && (error.type == ENGINE_ERROR_REQUEST));
     test_count(results, obsignatio_many(NULL) == OBSIGNATIO_ERROR);
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioManyRequest nothing = {NULL, 0ull, 1ull, 1ull, NULL, OBSIGNATIO_MODE_HASH, NULL, &error};
     test_count(results, (obsignatio_many(&nothing) == 0L) && (error.type == ENGINE_ERROR_NONE));
 }
@@ -222,18 +235,23 @@ void test_level_keys(TestResults *results)
     for (unsigned int level = 0u; level < OBSIGNATIO_LEVELS; level += 1u)
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         // a level below OBSIGNATIO_LEVELS is one of the enumerated levels
         const ObsignatioLevel named = (ObsignatioLevel)level;
         const char *const context = obsignatio_level_context(named);
         contexts[level] = context;
         unsigned char expected[OBSIGNATIO_KEY_BYTES];
         // the context's chars are hashed as the unsigned bytes they are stored as
-        const int passed = (context != NULL) && (strncmp(context, prefix, strlen(prefix)) == 0) &&
-                           (obsignatio_level_key(named, keys[level], &error) == 0L) &&
-                           (test_signum((const unsigned char *)context, strlen(context), NULL, OBSIGNATIO_MODE_CONTEXT,
-                                        expected, OBSIGNATIO_KEY_BYTES) == 0L) &&
-                           (memcmp(expected, keys[level], OBSIGNATIO_KEY_BYTES) == 0);
+        const int passed =
+            (context != NULL) &&
+            (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = context, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = prefix, .ci = EMBED_FALSE)) &&
+            (obsignatio_level_key(named, keys[level], &error) == 0L) &&
+            (test_signum((const unsigned char *)context,
+                         EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = context, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+                         NULL, OBSIGNATIO_MODE_CONTEXT, expected, OBSIGNATIO_KEY_BYTES) == 0L) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = expected, .other = keys[level], .bytes = OBSIGNATIO_KEY_BYTES) ==
+             0);
         test_count(results, passed);
         derived = derived && passed;
     }
@@ -242,18 +260,21 @@ void test_level_keys(TestResults *results)
     {
         for (unsigned int right = left + 1u; right < OBSIGNATIO_LEVELS; right += 1u)
         {
-            distinct = distinct && (memcmp(keys[left], keys[right], OBSIGNATIO_KEY_BYTES) != 0) &&
-                       (strcmp(contexts[left], contexts[right]) != 0);
+            distinct = distinct &&
+                       (EMBED_CALL(memor.cmp, MemoriaCfg, .src = keys[left], .other = keys[right],
+                                   .bytes = OBSIGNATIO_KEY_BYTES) != 0) &&
+                       (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = contexts[left],
+                                    .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = contexts[right], .ci = EMBED_FALSE));
         }
     }
     test_count(results, distinct);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     unsigned char key[OBSIGNATIO_KEY_BYTES];
     test_count(results, (obsignatio_level_context(OBSIGNATIO_LEVELS) == NULL) &&
                             (obsignatio_level_key(OBSIGNATIO_LEVELS, key, &error) == OBSIGNATIO_ERROR) &&
                             (error.type == ENGINE_ERROR_REQUEST) && (error.module == ENGINE_MODULE_OBSIGNATIO));
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     test_count(results, (obsignatio_level_key(OBSIGNATIO_LEVEL_ROW, NULL, &error) == OBSIGNATIO_ERROR) &&
                             (error.type == ENGINE_ERROR_REQUEST));
     test_count(results, obsignatio_level_key(OBSIGNATIO_LEVEL_ROW, key, NULL) == OBSIGNATIO_ERROR);
@@ -262,7 +283,7 @@ void test_level_keys(TestResults *results)
 void test_seal(const unsigned char *pattern, TestResults *results)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     unsigned char file_key[OBSIGNATIO_KEY_BYTES];
     const int keyed = obsignatio_level_key(OBSIGNATIO_LEVEL_FILE, file_key, &error) == 0L;
     test_count(results, keyed);
@@ -275,12 +296,13 @@ void test_seal(const unsigned char *pattern, TestResults *results)
         const int passed = keyed && (obsignatio_seal(&seal) == 0L) &&
                            (test_signum(pattern, lengths[which], file_key, OBSIGNATIO_MODE_KEYED, expected,
                                         OBSIGNATIO_SIGNUM_BYTES) == 0L) &&
-                           (memcmp(sealed, expected, OBSIGNATIO_SIGNUM_BYTES) == 0) &&
+                           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = sealed, .other = expected,
+                                       .bytes = OBSIGNATIO_SIGNUM_BYTES) == 0) &&
                            (obsignatio_seal_verify(&seal) == 1L);
         test_count(results, passed);
     }
     unsigned char message[64];
-    memcpy(message, pattern, sizeof(message));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = message, .src = pattern, .bytes = sizeof(message));
     unsigned char sealed[OBSIGNATIO_SIGNUM_BYTES];
     const ObsignatioSealRequest clean = {message, sizeof(message), sealed, &error};
     const int sealed_clean = obsignatio_seal(&clean) == 0L;
@@ -301,11 +323,11 @@ void test_seal(const unsigned char *pattern, TestResults *results)
         sealed[bit / 8u] = (unsigned char)(sealed[bit / 8u] ^ (1u << (bit % 8u)));
     }
     test_count(results, sealed_clean && (obsignatio_seal_verify(&clean) == 1L));
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioSealRequest no_signum = {message, sizeof(message), NULL, &error};
     test_count(results, (obsignatio_seal(&no_signum) == OBSIGNATIO_ERROR) && (error.type == ENGINE_ERROR_REQUEST) &&
                             (error.module == ENGINE_MODULE_OBSIGNATIO));
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     test_count(results,
                (obsignatio_seal_verify(&no_signum) == OBSIGNATIO_ERROR) && (error.type == ENGINE_ERROR_REQUEST));
     const ObsignatioSealRequest no_error = {message, sizeof(message), sealed, NULL};

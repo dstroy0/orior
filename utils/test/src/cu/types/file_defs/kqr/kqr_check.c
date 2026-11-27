@@ -31,10 +31,11 @@
 
 #include "../../../../../../../includes/parsers/who.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table_text.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_scribo.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -89,7 +90,7 @@ static char *file_read(const char *path, size_t *size, unsigned int room)
     {
         return NULL;
     }
-    memcpy(s_room[room], blob, (size_t)length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_room[room], .src = blob, .bytes = (size_t)length);
     s_room[room][length] = '\0';
     *size = (size_t)length;
     return s_room[room];
@@ -131,21 +132,22 @@ static KqrRecord s_record;
 // written as
 static int files_same(const KrepFile *one, const KrepFile *other)
 {
-    int same =
-        (memcmp(one->type, other->type, 4u) == 0) && (one->texts == other->texts) && (one->records == other->records);
+    int same = (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->type, .other = other->type, .bytes = 4u) == 0) &&
+               (one->texts == other->texts) && (one->records == other->records);
     for (unsigned int number = 0u; same && (number < one->texts); number += 1u)
     {
         // a text is at max the bytes of a file read whole, which a size_t counts
         same = (one->text_length[number] == other->text_length[number]) &&
-               (memcmp(one->text[number], other->text[number], (size_t)one->text_length[number]) == 0);
+               (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->text[number], .other = other->text[number],
+                           .bytes = (size_t)one->text_length[number]) == 0);
     }
     for (unsigned int at = 0u; same && (at < one->records); at += 1u)
     {
         const KrepRecord *const left = &one->record[at];
         const KrepRecord *const right = &other->record[at];
         same = (left->code == right->code) && (left->count == right->count) &&
-               ((left->count == 0u) ||
-                (memcmp(left->word, right->word, (size_t)left->count * sizeof(unsigned long long)) == 0));
+               ((left->count == 0u) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->word, .other = right->word,
+                                                   .bytes = (size_t)left->count * sizeof(unsigned long long)) == 0));
     }
     return same;
 }
@@ -171,7 +173,7 @@ static int written_from(const char *path, unsigned long long key)
     int found = 0;
     for (unsigned long long at = 0ull; !found && ((at + sizeof(row)) <= size); at += sizeof(row))
     {
-        memcpy(row, bytes + at, sizeof(row));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = row, .src = bytes + at, .bytes = sizeof(row));
         found = (row[2] == sequence) && (row[3] == key) && (row[4] == TABLE_LINK_WRITTEN_FROM);
     }
     return found;
@@ -181,7 +183,7 @@ static int written_from(const char *path, unsigned long long key)
 static int view_same(const KqrRecord *record)
 {
     KrepFile view;
-    memset(&view, 0, sizeof(view));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &view, .bytes = sizeof(view), .val = 0);
     const int same = krep_viewed(&record->file, &view) && files_same(&view, &record->file);
     krep_free(&view);
     return same;
@@ -191,7 +193,7 @@ static int view_same(const KqrRecord *record)
 static KqrIdentity identity_of(const char *text)
 {
     KqrIdentity identity;
-    memset(&identity, 0, sizeof(identity));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &identity, .bytes = sizeof(identity), .val = 0);
     kqr_identity_read(text, &identity);
     return identity;
 }
@@ -218,26 +220,30 @@ static void part_checked(const char *part, const char *folder, unsigned int numb
     static KqrQuery s_found;
     for (const char *line = text; (line != NULL) && (*line != '\0');)
     {
-        const char *const end = strchr(line, '\n');
-        if (strncmp(line, "query ", 6u) == 0)
+        const char *const end =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\n');
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "query ", .ci = EMBED_FALSE))
         {
             char identity[160];
             const char *at = line + 6;
             const char *cut = at;
             for (unsigned int word = 0u; (word < 7u) && (cut != NULL); word += 1u)
             {
-                cut = strchr(cut, ' ');
+                cut = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = cut, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                 .byte = ' ');
                 cut += ((cut != NULL) && (word < 6u)) ? 1 : 0;
             }
             if ((cut != NULL) && ((size_t)(cut - at) < sizeof(identity)))
             {
-                memcpy(identity, at, (size_t)(cut - at));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = identity, .src = at, .bytes = (size_t)(cut - at));
                 identity[cut - at] = '\0';
                 const KqrIdentity numbers = identity_of(identity);
                 queries += 1u;
                 found +=
                     (kqr_find(&s_record, &numbers, &s_found) &&
-                     (strncmp(cut + 1, kqr_answer_name(s_found.answer), strlen(kqr_answer_name(s_found.answer))) == 0))
+                     (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = cut + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                 .other = kqr_answer_name(s_found.answer), .ci = EMBED_FALSE)))
                         ? 1u
                         : 0u;
             }
@@ -250,8 +256,8 @@ static void part_checked(const char *part, const char *folder, unsigned int numb
     check_that(kqr_read(&s_record, again, "part", error, sizeof(error)) == 1, "and read back");
     size_t again_size = 0u;
     char *const again_text = rendered(&s_record, &again_size, 3u);
-    const int same =
-        (again_text != NULL) && (text != NULL) && (again_size == size) && (memcmp(again_text, text, size) == 0);
+    const int same = (again_text != NULL) && (text != NULL) && (again_size == size) &&
+                     (EMBED_CALL(memor.cmp, MemoriaCfg, .src = again_text, .other = text, .bytes = size) == 0);
     check_that(same, "a part's record read back from its records is its text form byte for byte");
     {
         VerbaLinea *const output_line = platform_line_out();
@@ -293,7 +299,9 @@ int program_main(int count, char **words)
     char path[1024];
     char error[1280];
     snprintf(path, sizeof(path), "%s/kqr_check.kqr", words[1]);
-    if (qry_member_filed(path, s_written, strlen(s_written)) == 0ull)
+    if (qry_member_filed(
+            path, s_written,
+            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_written, .cap = PLATFORM_TEXT_TO_TERMINATOR)) == 0ull)
     {
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -312,14 +320,21 @@ int program_main(int count, char **words)
                "its cycles, its queries and its samples counted");
     size_t size = 0u;
     char *text = rendered(&s_record, &size, 1u);
-    check_that((text != NULL) && (strcmp(text, s_written) == 0), "it is written as its text form byte for byte");
+    check_that((text != NULL) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = s_written, .ci = EMBED_FALSE)),
+               "it is written as its text form byte for byte");
     check_that(kqr_write(&s_record, path) == 1, "it is written as records");
     char *bytes = file_read(path, &size, 0u);
-    check_that((bytes != NULL) && (size > 16u) && (memcmp(bytes, "KREP\0\0\0\0KQR\0", 12u) == 0),
+    check_that((bytes != NULL) && (size > 16u) &&
+                   (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes, .other = "KREP\0\0\0\0KQR\0", .bytes = 12u) == 0),
                "which open with the k-file head and the .kqr's type");
     check_that(kqr_read(&s_record, path, "part", error, sizeof(error)) == 1, "the records are read back");
     text = rendered(&s_record, &size, 1u);
-    check_that((text != NULL) && (strcmp(text, s_written) == 0), "as the text form byte for byte");
+    check_that((text != NULL) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = s_written, .ci = EMBED_FALSE)),
+               "as the text form byte for byte");
     check_that(kqr_tabled(&s_record, NULL, path) == 0, "with no run, a record is no table's");
     check_that(kqr_tabled(&s_record, qry_member_run(), path) == 1,
                "a record is made a view of the run's table of queries");
@@ -331,7 +346,8 @@ int program_main(int count, char **words)
                "with the word of every case");
     identity = identity_of("00000000000000ac 12 0 0 0 2 00000000000000bb");
     check_that(kqr_find(&s_record, &identity, &s_found) && (s_found.answer == KQR_ILLEGAL) &&
-                   (strcmp(s_found.refusal, "ILLEGAL_INSTRUCTION") == 0),
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_found.refusal, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "ILLEGAL_INSTRUCTION", .ci = EMBED_FALSE)),
                "an illegal query is found with its refusal");
     identity = identity_of("00000000000000ad 12 0 0 0 2 00000000000000bb");
     check_that(kqr_find(&s_record, &identity, &s_found) && (s_found.answer == KQR_TIMED_OUT),
@@ -342,22 +358,29 @@ int program_main(int count, char **words)
     check_that(kqr_sample_read(&s_record, 0u, &s_sample) && (s_sample.nanoseconds == 1800000ull) && !s_sample.launched,
                "a sample is read back with the time its launches took");
     static KqrPath s_path;
-    check_that(kqr_path_read(&s_record, 0u, &s_path) && (strcmp(s_path.first, "word_add") == 0) &&
-                   (strcmp(s_path.second, "word_sub") == 0) && s_path.read && (s_path.reads == 0x0123456789abcdefull) &&
-                   (strcmp(s_path.verdict, "closed 1006:0040 1,1,0->2") == 0),
+    check_that(kqr_path_read(&s_record, 0u, &s_path) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_path.first, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "word_add", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_path.second, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "word_sub", .ci = EMBED_FALSE)) &&
+                   s_path.read && (s_path.reads == 0x0123456789abcdefull) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_path.verdict, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "closed 1006:0040 1,1,0->2", .ci = EMBED_FALSE)),
                "a pair is read back with its forms, the hash of its reads and its verdict");
     check_that(!kqr_path_read(&s_record, 1u, &s_path), "and nothing past the last pair");
     kqr_mark(&s_record, KQR_CYCLE_RECORD, "check");
     check_that(!s_record.changed, "a record nothing was put to is unchanged");
     text = rendered(&s_record, &size, 1u);
-    check_that((text != NULL) && (strcmp(text, s_written) == 0),
+    check_that((text != NULL) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = s_written, .ci = EMBED_FALSE)),
                "and a cycle marked with nothing put after it adds nothing");
 
     kqr_mark(&s_record, KQR_SEED_RECORD, "7");
     kqr_mark(&s_record, KQR_ROUND_RECORD, "1");
     kqr_mark(&s_record, KQR_ROUND_RECORD, "2");
     static KqrQuery s_resolved;
-    memset(&s_resolved, 0, sizeof(s_resolved));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_resolved, .bytes = sizeof(s_resolved), .val = 0);
     s_resolved.answer = KQR_ANSWERS;
     s_resolved.word[0] = 7ull;
     s_resolved.word[1] = 9ull;
@@ -369,7 +392,7 @@ int program_main(int count, char **words)
     s_resolved.identity = identity_of("00000000000000f0 12 0 0 0 2 00000000000000bb");
     const Who put = WHO_HERE;
     kqr_store_by(&s_record, &s_resolved, put);
-    memset(&s_sample, 0, sizeof(s_sample));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_sample, .bytes = sizeof(s_sample), .val = 0);
     s_sample.identity = identity_of("00000000000000f1 12 256 4096 100 648 00000000000000bb");
     s_sample.answer = KQR_ANSWERS;
     s_sample.nanoseconds = 42ull;
@@ -380,7 +403,7 @@ int program_main(int count, char **words)
     s_sample.least = 2ull;
     s_sample.max = 5ull;
     kqr_sample_by(&s_record, &s_sample, put);
-    memset(&s_sample, 0, sizeof(s_sample));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_sample, .bytes = sizeof(s_sample), .val = 0);
     s_sample.identity = identity_of("00000000000000f3 12 256 4096 100 648 00000000000000bb");
     s_sample.answer = KQR_CENSORED;
     snprintf(s_sample.refusal, sizeof(s_sample.refusal), "the gate blocked it");
@@ -396,10 +419,12 @@ int program_main(int count, char **words)
     check_that(kqr_sample_read(&s_record, 2u, &s_sample) && s_sample.launched && (s_sample.least == 2ull) &&
                    (s_sample.max == 5ull),
                "a sample is read back with its launches' least and max");
-    check_that(kqr_sample_read(&s_record, 3u, &s_sample) && (strcmp(s_sample.refusal, "the gate blocked it") == 0),
+    check_that(kqr_sample_read(&s_record, 3u, &s_sample) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_sample.refusal, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "the gate blocked it", .ci = EMBED_FALSE)),
                "and a sample refused with its refusal");
     kqr_paths_clear(&s_record);
-    memset(&s_path, 0, sizeof(s_path));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_path, .bytes = sizeof(s_path), .val = 0);
     snprintf(s_path.first, sizeof(s_path.first), "word_add");
     snprintf(s_path.second, sizeof(s_path.second), "word_xor");
     snprintf(s_path.verdict, sizeof(s_path.verdict), "open 3");
@@ -419,35 +444,59 @@ int program_main(int count, char **words)
     const size_t who_line = 4u + WHO_CODE_CHARACTERS + 1u;
     const char *const resolved_at =
         (text != NULL)
-            ? strstr(text, "query 00000000000000ad 12 0 0 0 2 00000000000000bb answers 7 9\nwho -\ncycle 2 pair\n")
+            ? EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other =
+                             "query 00000000000000ad 12 0 0 0 2 00000000000000bb answers 7 9\nwho -\ncycle 2 pair\n",
+                         .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE)
             : NULL;
     check_that((resolved_at != NULL) && ((size_t)(resolved_at - text) > who_line) &&
-                   (strncmp(resolved_at - who_line, "who ", 4u) == 0),
+                   (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = resolved_at - who_line,
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "who ", .ci = EMBED_FALSE)),
                "the resolved query is where the timed out one was, between its who and the who before, none");
-    const char *const cycle_at = (text != NULL) ? strstr(text, "answers 1800000\n") : NULL;
-    check_that(
-        (cycle_at != NULL) && (strncmp(cycle_at + 16, "who ", 4u) == 0) &&
-            (strncmp(cycle_at + 16 + who_line, "cycle 3 check\nseed 7\nround 2\nquery 00000000000000f0", 51u) == 0),
-        "what this run put comes after a who of the code that put it, one cycle numbered after the record's "
-        "own, its seed and its last round");
+    const char *const cycle_at =
+        (text != NULL)
+            ? EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                         .other = "answers 1800000\n", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE)
+            : NULL;
+    check_that((cycle_at != NULL) &&
+                   (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = cycle_at + 16, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "who ", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = cycle_at + 16 + who_line,
+                               .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "cycle 3 check\nseed 7\nround 2\nquery 00000000000000f0", .ci = EMBED_FALSE)),
+               "what this run put comes after a who of the code that put it, one cycle numbered after the record's "
+               "own, its seed and its last round");
     char put_line[64];
     snprintf(put_line, sizeof(put_line), "\nwho %s\ncycle 3 check\n", put_code);
-    check_that((text != NULL) && (strstr(text, put_line) != NULL) &&
-                   (strstr(text, "answers 7 9\nsample 00000000000000f1") != NULL),
-               "that who's code the who the run's records were put by, one who over them all");
     check_that(
         (text != NULL) &&
-            (strstr(text, "sample 00000000000000f2 12 256 4096 100 648 00000000000000bb answers 300 2 5\n"
-                          "sample 00000000000000f3 12 256 4096 100 648 00000000000000bb censored the gate blocked "
-                          "it\npair word_add word_xor open 3\n") != NULL),
+            (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = put_line, .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL) &&
+            (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "answers 7 9\nsample 00000000000000f1", .other_cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .ci = EMBED_FALSE) != NULL),
+        "that who's code the who the run's records were put by, one who over them all");
+    check_that(
+        (text != NULL) &&
+            (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other =
+                            "sample 00000000000000f2 12 256 4096 100 648 00000000000000bb answers 300 2 5\n"
+                            "sample 00000000000000f3 12 256 4096 100 648 00000000000000bb censored the gate blocked "
+                            "it\npair word_add word_xor open 3\n",
+                        .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL),
         "the samples stored as put, and the pairs read off the queries after them, a pair with no hash of its reads");
-    check_that((text != NULL) && (strstr(text, "word_sub") == NULL), "the pairs before them gone");
+    check_that((text != NULL) && (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "word_sub",
+                                             .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) == NULL),
+               "the pairs before them gone");
     static char s_named_bytes[QRY_WRITER_RING_BYTES / 2ull];
     const size_t named = kqr_text_rendered(&s_record, s_named_bytes, sizeof(s_named_bytes), 0u, 1);
     check_that(verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_named_bytes), .at = named}) &&
                    (verba_finis.finish(
                         &(VerbaFinisCfg){.out = s_named_bytes, .cap = sizeof(s_named_bytes), .at = named}) != 0u) &&
-                   (strstr(s_named_bytes, "utils/test/src/cu/types/file_defs/kqr/kqr_check.c:") != NULL),
+                   (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = s_named_bytes, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "utils/test/src/cu/types/file_defs/kqr/kqr_check.c:",
+                               .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL),
                "a who record named through the who table gives this file and the line of the put");
     {
         VerbaLinea *const output_line = platform_line_out();
@@ -457,9 +506,15 @@ int program_main(int count, char **words)
     kqr_free(&s_record);
 
     const char *const unknown = "kqr part\nquery 00000000000000aa 12 0 0 0 3 00000000000000bb answers\nwhat\n";
-    check_that(qry_member_filed(path, unknown, strlen(unknown)) != 0ull, "a record with a line of no type is written");
+    check_that(qry_member_filed(
+                   path, unknown,
+                   EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = unknown, .cap = PLATFORM_TEXT_TO_TERMINATOR)) != 0ull,
+               "a record with a line of no type is written");
     check_that(kqr_read(&s_record, path, "part", error, sizeof(error)) == 0, "a line of no type is refused");
-    check_that(strstr(error, ":3: what is no line of a query record") != NULL, "with its line");
+    check_that(EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = error, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = ":3: what is no line of a query record", .other_cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .ci = EMBED_FALSE) != NULL,
+               "with its line");
     check_that(s_record.open && (s_record.query_count == 0u), "and the record is open and empty");
     kqr_free(&s_record);
 

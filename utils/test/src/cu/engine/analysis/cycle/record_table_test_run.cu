@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_table_test_run.cu: programs, loading and running on host and device
-#include "record_table_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "record_table_test_internal.h"
 
 static unsigned long long s_table_state = 0xD1CE5EEDF00DCAFEull;
 
@@ -28,7 +29,7 @@ void table_check(TableResults *results, int passed, const char *what)
 
 void table_program_init(TableProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     program->fields = 1u;
     program->field_bits[0] = 16u;
     program->field_offset[0] = 0u;
@@ -50,7 +51,7 @@ void table_step(TableProgram *program, EngineRecordOperation operation, unsigned
 static long table_load(TableProgram *program, EngineRecordKey *key, EngineRecordLayout *layout, CycleRecord **record,
                        EngineError *error)
 {
-    memset(error, 0, sizeof(*error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = error, .bytes = sizeof(*error), .val = 0);
     const KeymathRecordRequest encode_request = {program->steps,
                                                  program->count,
                                                  program->field_bits,
@@ -221,9 +222,15 @@ void table_case(TableResults *results, const char *name, TableProgram *oracle, u
     if (ok != 0)
     {
         const size_t bytes = (size_t)TABLE_TEST_LANES * a * sizeof(unsigned int);
-        table_check(results, memcmp(oracle_device, oracle_host, bytes) == 0, name);
-        table_check(results, memcmp(table_device, oracle_device, bytes) == 0, name);
-        table_check(results, memcmp(table_host, oracle_device, bytes) == 0, name);
+        table_check(results,
+                    EMBED_CALL(memor.cmp, MemoriaCfg, .src = oracle_device, .other = oracle_host, .bytes = bytes) == 0,
+                    name);
+        table_check(results,
+                    EMBED_CALL(memor.cmp, MemoriaCfg, .src = table_device, .other = oracle_device, .bytes = bytes) == 0,
+                    name);
+        table_check(results,
+                    EMBED_CALL(memor.cmp, MemoriaCfg, .src = table_host, .other = oracle_device, .bytes = bytes) == 0,
+                    name);
         mmgr_line_put(&results->line, "  ");
         mmgr_line_put(&results->line, name);
         mmgr_line_put(&results->line, ": the table reproduces the ops over ");

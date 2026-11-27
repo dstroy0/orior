@@ -15,8 +15,8 @@
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.h"
 #include "../../../../../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
 #include <stdio.h>
-#include <string.h>
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -107,14 +107,21 @@ int program_main(int argc, char **argv)
     check_that(set.count == 2u, "classes: two classes read");
     const TablesClass *const mov = &set.class_[0];
     const TablesClass *const ldc = &set.class_[1];
-    check_that((strcmp(mov->name, "mov__RI") == 0) && (mov->opcode == 0x802ull), "classes: the move's name and opcode");
-    check_that((strcmp(ldc->name, "ldc__RaRZ") == 0) && (ldc->opcode == 0xb82ull),
+    check_that((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = mov->name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = "mov__RI", .ci = EMBED_FALSE)) &&
+                   (mov->opcode == 0x802ull),
+               "classes: the move's name and opcode");
+    check_that((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = ldc->name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = "ldc__RaRZ", .ci = EMBED_FALSE)) &&
+                   (ldc->opcode == 0xb82ull),
                "classes: the load's name and opcode");
 
     check_that(mov->fields == 6u, "fields: the move's six encoding lines are its fields");
     const TablesField *const rd = tables_field_named(mov, "Rd");
     check_that((rd != NULL) && (rd->runs == 1u) && (rd->run[0].first == 16u) && (rd->run[0].last == 23u) &&
-                   (rd->width == 8u) && !rd->fixed && (strcmp(rd->operand, "Rd") == 0),
+                   (rd->width == 8u) && !rd->fixed &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = rd->operand, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "Rd", .ci = EMBED_FALSE)),
                "fields: Rd is bits 16 to 23, written from the operand Rd");
     const TablesField *const fixed = tables_field_named(mov, "src_rel_sb");
     check_that((fixed != NULL) && fixed->fixed && (fixed->value == 7ull), "fields: a field written *7 is fixed at 7");
@@ -131,16 +138,23 @@ int program_main(int argc, char **argv)
     check_that(tables_field_named(mov, "Sa_bank") == NULL, "fields: a name the class has no field of is NULL");
 
     check_that((mov->bank[0] == '\0') && (mov->offset[0] == '\0'), "constant: the move has no constant operand");
-    check_that((strcmp(ldc->bank, "Sa_bank") == 0) && (strcmp(ldc->offset, "Ra_offset") == 0),
+    check_that((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = ldc->bank, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = "Sa_bank", .ci = EMBED_FALSE)) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = ldc->offset, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "Ra_offset", .ci = EMBED_FALSE)),
                "constant: the load's bank and offset fields are named off its FORMAT");
     // the two fields joined on one encoding line each take the operand's argument in their place
     const TablesField *const bank = tables_field_by_operand(ldc, ldc->bank);
     const TablesField *const offset = tables_field_by_operand(ldc, ldc->offset);
-    check_that((bank != NULL) && (strcmp(bank->name, "Sc_bank") == 0) && (bank->run[0].first == 54u) &&
-                   (bank->run[0].last == 58u),
+    check_that((bank != NULL) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = bank->name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "Sc_bank", .ci = EMBED_FALSE)) &&
+                   (bank->run[0].first == 54u) && (bank->run[0].last == 58u),
                "constant: the bank's field is the first of the joined line, bits 54 to 58");
-    check_that((offset != NULL) && (strcmp(offset->name, "Sc_addr") == 0) && (offset->run[0].first == 40u) &&
-                   (offset->run[0].last == 53u) && (offset->width == 14u),
+    check_that((offset != NULL) &&
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = offset->name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "Sc_addr", .ci = EMBED_FALSE)) &&
+                   (offset->run[0].first == 40u) && (offset->run[0].last == 53u) && (offset->width == 14u),
                "constant: the offset's field is the second, bits 40 to 53");
     check_that(tables_field_by_operand(mov, "Sa_bank") == NULL, "constant: an operand no field takes is NULL");
     check_that((ldc->offset_bits == 17u) && (mov->offset_bits == 0u),
@@ -168,28 +182,36 @@ int program_main(int argc, char **argv)
                "described: a fourteen-bit offset field of 0x46 under a seventeen-bit operand is byte 0x118");
     char line[256];
     check_that(tables_class_described(&set, read_low, read_high, line, sizeof(line)) &&
-                   (strstr(line, "ldc__RaRZ bank 0 offset 0x118 reads 8") != NULL),
+                   (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "ldc__RaRZ bank 0 offset 0x118 reads 8",
+                               .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL),
                "described: the load's line names its class, bank 0, offset 0x118 and eight bytes read");
-    check_that(!tables_class_described(&set, 0ull, 0ull, line, sizeof(line)) && (strstr(line, " -") != NULL),
+    check_that(!tables_class_described(&set, 0ull, 0ull, line, sizeof(line)) &&
+                   (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = " -", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL),
                "described: an encoding no class reads is named -");
 
     // the conditions: the move's one on its register's range, and the load's two on its registers, the one under
     // ILLEGAL_INSTR_ENCODING_ERROR passed over as no condition on the registers
     check_that((mov->conditions == 1u) && (ldc->conditions == 2u) &&
-                   (strcmp(ldc->size_list, "SZ_U8_S8_U16_S16_32_64") == 0),
+                   (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = ldc->size_list, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "SZ_U8_S8_U16_S16_32_64", .ci = EMBED_FALSE)),
                "conditions: the register conditions of each class are stored, under their list's name");
     const char *failed = NULL;
     unsigned long long odd_low = read_low;
     unsigned long long odd_high = read_high;
     tables_field_write(tables_field_named(ldc, "Rd"), &odd_low, &odd_high, 7ull);
     check_that(!tables_class_legal(ldc, odd_low, odd_high, &failed) && (failed != NULL) &&
-                   (strstr(failed, "% 2") != NULL),
+                   (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = failed, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "% 2", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL),
                "conditions: a 64-bit load into R7 fails the misaligned condition");
     tables_field_write(tables_field_named(ldc, "Rd"), &odd_low, &odd_high, 6ull);
     check_that(tables_class_legal(ldc, odd_low, odd_high, NULL),
                "conditions: the same load into R6 satisfies every condition");
     tables_field_write(tables_field_named(ldc, "Rd"), &odd_low, &odd_high, 254ull);
-    check_that(!tables_class_legal(ldc, odd_low, odd_high, &failed) && (strstr(failed, "R254") != NULL),
+    check_that(!tables_class_legal(ldc, odd_low, odd_high, &failed) &&
+                   (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = failed, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                               .other = "R254", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL),
                "conditions: a 64-bit load into R254 fails the range condition");
     tables_field_write(tables_field_named(ldc, "Rd"), &odd_low, &odd_high, 255ull);
     check_that(tables_class_legal(ldc, odd_low, odd_high, NULL), "conditions: a 64-bit load into RZ is legal");

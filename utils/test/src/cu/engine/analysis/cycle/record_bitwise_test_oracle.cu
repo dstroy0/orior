@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_bitwise_test_oracle.cu: fields, the oracle and stored records
+#include "memoria_operor/memoria_operor.h"
 #include "record_bitwise_test_internal.h"
 
 static unsigned long long s_bitwise_state = 0xB17B15E0A4D5EEDull;
@@ -47,7 +48,7 @@ void bitwise_field(BitwiseProgram *program, unsigned int bits)
 
 int bitwise_load(const BitwiseProgram *program, BitwiseLoaded *loaded)
 {
-    memset(loaded, 0, sizeof(*loaded));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = loaded, .bytes = sizeof(*loaded), .val = 0);
     const KeymathRecordRequest encode_request = {program->steps,
                                                  program->count,
                                                  program->field_bits,

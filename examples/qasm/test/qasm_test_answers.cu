@@ -1,8 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_test_answers.cu: text, runs, known answers, errors, ties and bounds
-#include "qasm_test_internal.h"
 #include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "qasm_test_internal.h"
 
 unsigned int g_passed = 0u;
 unsigned int g_failed = 0u;
@@ -53,16 +55,18 @@ void text_add(Text *text, const char *format, ...)
 int read_text(const char *name, const char *text, QasmCircuit *circuit, char *reason, size_t capacity)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     reason[0] = '\0';
-    const QasmReadRequest request = {name, text, strlen(text), reason, capacity, &error};
+    const QasmReadRequest request = {
+        name,   text,     EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR),
+        reason, capacity, &error};
     return qasm_read(&request, circuit) != QASM_ERROR;
 }
 
 int run(const QasmCircuit *circuit, int on_host, QasmOutcome *outcome, unsigned int *state)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const QasmRunRequest request = {circuit, on_host, state, &error};
     if (qasm_run(&request, outcome) == QASM_ERROR)
     {
@@ -215,8 +219,11 @@ void known_answers(void)
         const int ran = run(&circuit, 0, &device, device_state) && run(&circuit, 1, &host, host_state);
         char bitstring[QASM_CLBITS_MAX + 1u];
         qasm_bitstring(&circuit, ran ? device.peak : 0ull, bitstring, sizeof(bitstring));
-        check(ran && (device.proved != 0u) && (strcmp(bitstring, known->expected) == 0) &&
-                  (memcmp(device_state, host_state, (size_t)(lanes * QASM_STATE_LIMBS * sizeof(unsigned int))) == 0) &&
+        check(ran && (device.proved != 0u) &&
+                  (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = bitstring, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = known->expected, .ci = EMBED_FALSE)) &&
+                  (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device_state, .other = host_state,
+                              .bytes = (size_t)(lanes * QASM_STATE_LIMBS * sizeof(unsigned int))) == 0) &&
                   (host.peak == device.peak) && (host.proved == device.proved),
               "known answer %-78s -> %s (wanted %s, %s, device = host)", known->body, bitstring, known->expected,
               (ran && device.proved) ? "proved" : "not proved");
@@ -265,8 +272,12 @@ void errors(void)
         {
             qasm_release(&circuit);
         }
-        check(!read && (strncmp(reason, ERRORS[at].prefix, strlen(ERRORS[at].prefix)) == 0) &&
-                  (strstr(reason, ERRORS[at].fragment) != NULL),
+        check(!read &&
+                  (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = reason, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = ERRORS[at].prefix, .ci = EMBED_FALSE)) &&
+                  (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = reason, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = ERRORS[at].fragment, .other_cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .ci = EMBED_FALSE) != NULL),
               "errored: %s", read ? "(it was read)" : reason);
     }
 }
@@ -301,8 +312,14 @@ void ties(void)
         char second[QASM_CLBITS_MAX + 1u];
         qasm_bitstring(&circuit, ran ? outcome.peak : 0ull, peak, sizeof(peak));
         qasm_bitstring(&circuit, ran ? outcome.runner_up : 0ull, second, sizeof(second));
-        const int pair = ((strcmp(peak, TIES[at].one) == 0) && (strcmp(second, TIES[at].other) == 0)) ||
-                         ((strcmp(peak, TIES[at].other) == 0) && (strcmp(second, TIES[at].one) == 0));
+        const int pair = ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = peak, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                      .other = TIES[at].one, .ci = EMBED_FALSE)) &&
+                          (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = second, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                      .other = TIES[at].other, .ci = EMBED_FALSE))) ||
+                         ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = peak, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                      .other = TIES[at].other, .ci = EMBED_FALSE)) &&
+                          (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = second, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                      .other = TIES[at].one, .ci = EMBED_FALSE)));
         check(ran && pair && (outcome.proved == 0u) &&
                   within(outcome.peak_units, 1u, (2u * QASM_FRACTION_BITS) - 1u, outcome.slack_units) &&
                   within(outcome.runner_up_units, 1u, (2u * QASM_FRACTION_BITS) - 1u, outcome.slack_units),
@@ -325,7 +342,7 @@ void bound_formula(void)
     const int read = read_text("bell.qasm", text, &circuit, reason, sizeof(reason));
     unsigned int wanted[QASM_WIDE_LIMBS] = {0u, 7u << 28u, 0u, 0u, 0u, 0u, 0u, 0u};
     check(read && (circuit.rounded_gates == 1u) && (circuit.exact_gates == 1u) &&
-              (memcmp(circuit.bound, wanted, sizeof(wanted)) == 0),
+              (EMBED_CALL(memor.cmp, MemoriaCfg, .src = circuit.bound, .other = wanted, .bytes = sizeof(wanted)) == 0),
           "bound after one rounded gate on 2 qubits is exactly 7 * 2^60 units");
     if (read)
     {
@@ -336,7 +353,8 @@ void bound_formula(void)
                               "measure q -> c;\n";
     const int again = read_text("twice.qasm", twice, &circuit, reason, sizeof(reason));
     unsigned int grown[QASM_WIDE_LIMBS] = {21u, 14u << 28u, 0u, 0u, 0u, 0u, 0u, 0u};
-    check(again && (memcmp(circuit.bound, grown, sizeof(grown)) == 0),
+    check(again &&
+              (EMBED_CALL(memor.cmp, MemoriaCfg, .src = circuit.bound, .other = grown, .bytes = sizeof(grown)) == 0),
           "bound after two rounded gates is (1 + 3 / 2^F) 7 2^60 + 7 2^60, rounded up");
     if (again)
     {

@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_divide_test_run.cu: steps, loading, running and narrow division
-#include "record_divide_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "record_divide_test_internal.h"
 
 static unsigned long long s_divide_state = 0x5EED0F0D1D1DEull;
 
@@ -38,7 +39,7 @@ void divide_step(DivideProgram *program, EngineRecordOperation operation, unsign
 
 int divide_load(DivideProgram *program, DivideLoaded *loaded)
 {
-    memset(loaded, 0, sizeof(*loaded));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = loaded, .bytes = sizeof(*loaded), .val = 0);
     const KeymathRecordRequest encode_request = {program->steps,
                                                  program->count,
                                                  program->field_bits,
@@ -223,7 +224,7 @@ int divide_valid(const OriorExactInteger *numerator, const OriorExactInteger *di
 void divide_narrow(DivideResults *results)
 {
     DivideProgram program;
-    memset(&program, 0, sizeof(program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &program, .bytes = sizeof(program), .val = 0);
     program.fields = 3u;
     program.field_bits[0] = 160u;
     program.field_bits[1] = 128u;
@@ -343,7 +344,9 @@ void divide_narrow(DivideResults *results)
     int device_ran = 0;
     divide_run(&loaded, atoms, lanes, host_out, device_out, &host_ran, &device_ran);
     divide_check(results, (host_ran != 0) && (device_ran != 0), "the narrow program runs on the host and the device");
-    divide_check(results, memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0,
+    divide_check(results,
+                 EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                            .bytes = (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0,
                  "the narrow device records equal the host's word for word");
     int identities = (host_ran != 0);
     int factors = (host_ran != 0);
@@ -370,7 +373,7 @@ void divide_narrow(DivideResults *results)
     // a zero divisor and an inexact division error on both sides
     OriorExactInteger zero;
     orior_exact_zero(&zero);
-    memset(atoms, 0, (size_t)in_limbs * sizeof(unsigned int));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = atoms, .bytes = (size_t)in_limbs * sizeof(unsigned int), .val = 0);
     divide_put(atoms, 0u, 160u, &operand[0]);
     divide_put(atoms, 160u, 128u, &zero);
     divide_run(&loaded, atoms, 1u, host_out, device_out, &host_ran, &device_ran);
@@ -378,7 +381,7 @@ void divide_narrow(DivideResults *results)
     divide_free(&loaded);
 
     DivideProgram inexact;
-    memset(&inexact, 0, sizeof(inexact));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &inexact, .bytes = sizeof(inexact), .val = 0);
     inexact.fields = 2u;
     inexact.field_bits[0] = 64u;
     inexact.field_bits[1] = 64u;
@@ -421,7 +424,7 @@ void divide_narrow(DivideResults *results)
     }
 
     DivideProgram forward;
-    memset(&forward, 0, sizeof(forward));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &forward, .bytes = sizeof(forward), .val = 0);
     forward.fields = 1u;
     forward.field_bits[0] = 32u;
     forward.in_limbs[0] = 1u;

@@ -15,9 +15,10 @@
 #include "../../../../../../../src/platform/platform.h"
 
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table_text.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -66,9 +67,12 @@ int program_main(int argc, char **argv)
 
     // texts
     const char *const text = "a text the check numbers twice";
-    const unsigned long long number = table_text(text, strlen(text));
+    const unsigned long long number =
+        table_text(text, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR));
     check_that(number == check_hash(text), "texts: a text's number is the FNV-1a hash of its bytes");
-    check_that(table_text(text, strlen(text)) == number, "texts: numbered again, it has the same number");
+    check_that(table_text(text, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text,
+                                           .cap = PLATFORM_TEXT_TO_TERMINATOR)) == number,
+               "texts: numbered again, it has the same number");
     check_that(table_text(text, 0ull) == 0ull, "texts: an empty text has no number");
     // the table's rows walked, each its opening and its bytes filled out to a whole word, and this text's counted
     unsigned int rows = 0u;
@@ -87,14 +91,18 @@ int program_main(int argc, char **argv)
         {
             break;
         }
-        memcpy(opening, bytes + at, sizeof(opening));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = opening, .src = bytes + at, .bytes = sizeof(opening));
         const unsigned long long padded = ((opening[3] + 7ull) / 8ull) * 8ull;
         whole = ((size - at - sizeof(opening)) >= padded);
         if (whole && (opening[2] == number))
         {
             rows += 1u;
-            whole = (opening[0] == 0ull) && (opening[1] == 0ull) && (opening[3] == strlen(text)) &&
-                    (memcmp(bytes + at + sizeof(opening), text, strlen(text)) == 0);
+            whole = (opening[0] == 0ull) && (opening[1] == 0ull) &&
+                    (opening[3] ==
+                     EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR)) &&
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes + at + sizeof(opening), .other = text,
+                                .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text,
+                                                    .cap = PLATFORM_TEXT_TO_TERMINATOR)) == 0);
             for (unsigned long long place = opening[3]; whole && (place < padded); place += 1ull)
             {
                 filled = filled && (bytes[at + sizeof(opening) + place] == 0u);

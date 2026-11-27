@@ -1,15 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_divide_test_main.cu: wide division, constants and main
-#include "record_divide_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "record_divide_test_internal.h"
 
 // the 256-limb file: 2048-bit numerators over 1024-bit divisors, and a 1024-bit factor multiplied on and divided
 // back out
 static void divide_wide(DivideResults *results)
 {
     DivideProgram program;
-    memset(&program, 0, sizeof(program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &program, .bytes = sizeof(program), .val = 0);
     program.fields = 2u;
     program.field_bits[0] = 2048u;
     program.field_bits[1] = 1024u;
@@ -26,7 +27,7 @@ static void divide_wide(DivideResults *results)
     program.output_count = 3u;
 
     DivideProgram exact;
-    memset(&exact, 0, sizeof(exact));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &exact, .bytes = sizeof(exact), .val = 0);
     exact.fields = 2u;
     exact.field_bits[0] = 1024u;
     exact.field_bits[1] = 1024u;
@@ -92,7 +93,9 @@ static void divide_wide(DivideResults *results)
     divide_run(&loaded, atoms, lanes, host_out, device_out, &host_ran, &device_ran);
     const unsigned int out_limbs = loaded.layout.out_limbs;
     divide_check(results, (host_ran != 0) && (device_ran != 0), "the wide program runs on the host and the device");
-    divide_check(results, memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0,
+    divide_check(results,
+                 EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                            .bytes = (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0,
                  "the wide device records equal the host's word for word");
     int identities = (host_ran != 0);
     const DeviceRecordStep *const table = loaded.layout.step_table;
@@ -116,7 +119,7 @@ static void divide_wide(DivideResults *results)
     }
     else
     {
-        memset(atoms, 0, (size_t)lanes * 96u * sizeof(unsigned int));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = atoms, .bytes = (size_t)lanes * 96u * sizeof(unsigned int), .val = 0);
         for (unsigned int lane = 0u; lane < lanes; lane += 1u)
         {
             const unsigned int pattern = divide_random();
@@ -134,7 +137,8 @@ static void divide_wide(DivideResults *results)
         const unsigned int exact_limbs = loaded.layout.out_limbs;
         divide_check(results,
                      (host_ran != 0) && (device_ran != 0) &&
-                         (memcmp(host_out, device_out, (size_t)lanes * exact_limbs * sizeof(unsigned int)) == 0),
+                         (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                                     .bytes = (size_t)lanes * exact_limbs * sizeof(unsigned int)) == 0),
                      "the wide exact quotient runs and the device equals the host");
         int factors = (host_ran != 0);
         for (unsigned int lane = 0u; (factors != 0) && (lane < lanes); lane += 1u)
@@ -160,7 +164,7 @@ static void divide_wide(DivideResults *results)
 static void divide_constant(DivideResults *results)
 {
     DivideProgram program;
-    memset(&program, 0, sizeof(program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &program, .bytes = sizeof(program), .val = 0);
     program.fields = 2u;
     program.field_bits[0] = 40u;
     program.field_bits[1] = 64u;
@@ -234,7 +238,8 @@ static void divide_constant(DivideResults *results)
     divide_run(&loaded, atoms, lanes, host_out, device_out, &host_ran, &device_ran);
     divide_check(results,
                  (host_ran != 0) && (device_ran != 0) &&
-                     (memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0),
+                     (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                                 .bytes = (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0),
                  "the constant program runs and the device equals the host word for word");
     OriorExactInteger wide;
     orior_exact_zero(&wide);

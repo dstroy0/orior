@@ -11,7 +11,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // qasm_test <fixture directory>: errors by line and column, known answers on the device and the host, the
 // bound's formula, the probabilities within the proved slack of their true values, and the device against the

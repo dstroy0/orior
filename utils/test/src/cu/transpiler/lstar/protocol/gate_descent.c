@@ -30,9 +30,9 @@
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/teacher/run_channel.h"
 #include "verba_scribo/verba_scribo.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define GATE_NEEDLE_MAX (LADDER_CASE_COUNT + CHAIN_SWEEP)
 // a descent places at max ORIOR_STEER_ANCHORS cases, and resume chains descents until one places none
@@ -103,7 +103,7 @@ static unsigned int gate_located(const uint8_t *survivors, unsigned int length)
 // the ladder's cases for `anchor` into the field, then the words chain_build's sweep puts, from its own seed
 static void gate_cases(unsigned int anchor)
 {
-    memset(&s_gate, 0, sizeof(s_gate));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_gate, .bytes = sizeof(s_gate), .val = 0);
     s_gate.arrangements = &s_fitted;
     for (unsigned int at = 0u; at < LADDER_CASE_COUNT; at += 1u)
     {
@@ -111,7 +111,8 @@ static void gate_cases(unsigned int anchor)
         {
             PreceptCase *const given = &s_gate.given[s_gate.ladder_cases];
             given->operands = s_ladder_cases[at].words;
-            memcpy(given->operand, s_ladder_cases[at].word, sizeof(unsigned int) * s_ladder_cases[at].words);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = given->operand, .src = s_ladder_cases[at].word,
+                       .bytes = sizeof(unsigned int) * s_ladder_cases[at].words);
             s_gate.expected[s_gate.ladder_cases] = s_ladder_cases[at].expected;
             s_gate.ladder_cases += 1u;
         }

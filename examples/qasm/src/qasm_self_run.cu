@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_self_run.cu: inputs, the device and the run
-#include "qasm_self_internal.h"
 #include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "qasm_self_internal.h"
 
 // an output of `bits` bits of two's complement at bit `offset`, as a signed magnitude; 0 where the width cannot
 // represent it
@@ -192,7 +193,7 @@ static int qasm_self_device(const EngineRecordLayout *layout, const unsigned int
     if (ok)
     {
         CycleRecordRunRequest run;
-        memset(&run, 0, sizeof(run));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &run, .bytes = sizeof(run), .val = 0);
         run.record = record;
         run.device_in[0] = device_in;
         run.bodies[0] = lanes;
@@ -256,7 +257,7 @@ long qasm_self_run(const QasmSelfRequest *request, QasmSelfMeasurement *measurem
     {
         return QASM_ERROR;
     }
-    memset(measurement, 0, sizeof(*measurement));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = measurement, .bytes = sizeof(*measurement), .val = 0);
     const unsigned int amplitudes = 1u << qubits;
     OriorExactInteger input_denominator;
     unsigned int bits = 0u;
@@ -284,7 +285,7 @@ long qasm_self_run(const QasmSelfRequest *request, QasmSelfMeasurement *measurem
                               (build->columns != NULL) && (build->numerators != NULL),
                           request, error, ENGINE_ERROR_RESOURCE);
     QasmSelfProgram program;
-    memset(&program, 0, sizeof(program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &program, .bytes = sizeof(program), .val = 0);
     ok = ok && qasm_self_program(request, build, bits, &program);
     const unsigned int in_limbs = ok ? program.layout.in_limbs[0] : 0u;
     const unsigned int out_limbs = ok ? program.layout.out_limbs : 0u;
@@ -307,7 +308,7 @@ long qasm_self_run(const QasmSelfRequest *request, QasmSelfMeasurement *measurem
     if (ok && (request->on_host != 0))
     {
         CycleRecordHostRequest run;
-        memset(&run, 0, sizeof(run));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &run, .bytes = sizeof(run), .val = 0);
         run.layout = &program.layout;
         run.in[0] = in;
         run.bodies[0] = request->lanes;
@@ -324,7 +325,8 @@ long qasm_self_run(const QasmSelfRequest *request, QasmSelfMeasurement *measurem
     if (ok && (request->records != NULL))
     {
         // the output limbs were bounded by SIZE_MAX over a limb's bytes with the input limbs
-        memcpy(request->records, out, (size_t)(request->lanes * out_limbs) * sizeof(unsigned int));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->records, .src = out,
+                   .bytes = (size_t)(request->lanes * out_limbs) * sizeof(unsigned int));
     }
     if (ok)
     {

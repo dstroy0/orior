@@ -11,7 +11,7 @@
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
 #include "../../../../../../../src/platform/platform.h"
 
-#include <cstring>
+#include "memoria_operor/memoria_operor.h"
 
 // the most voxels of a case, the most pairs that a case writes, and the blobs of a frame of three axes
 #define OVERLAP_TEST_VOXELS_MAX 40960u
@@ -114,7 +114,7 @@ static void overlap_test_frame(const OverlapTestCase *one, const int (*centers)[
 static void overlap_test_blobs(unsigned int depth, unsigned int height, unsigned int width, const int *drift,
                                unsigned int capacity, OverlapTestCase *one)
 {
-    memset(one, 0, sizeof(*one));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = one, .bytes = sizeof(*one), .val = 0);
     one->axes = 3u;
     one->extents[0] = depth;
     one->extents[1] = height;
@@ -175,7 +175,7 @@ static void overlap_test_blobs(unsigned int depth, unsigned int height, unsigned
 // their own. Their 16 steps pass the 12 steps of the four lags of a case of three axes before it
 static void overlap_test_four(OverlapTestCase *one)
 {
-    memset(one, 0, sizeof(*one));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = one, .bytes = sizeof(*one), .val = 0);
     static const unsigned int EXTENTS[4] = {3u, 6u, 8u, 10u};
     static const int LAG[4] = {0, 1, -1, 2};
     one->axes = 4u;
@@ -212,15 +212,15 @@ static void overlap_test_request(const OverlapTestCase *one, const unsigned int 
                                  const unsigned long long *positive_after, OverlapTestAnswer *answer,
                                  BodyOverlapRequest *request)
 {
-    memset(answer, 0, sizeof(*answer));
-    memset(request, 0, sizeof(*request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = answer, .bytes = sizeof(*answer), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request, .bytes = sizeof(*request), .val = 0);
     request->labels_before = labels_before;
     request->positive_before = positive_before;
     request->labels_after = labels_after;
     request->positive_after = positive_after;
     request->axes = one->axes;
-    memcpy(request->extents, one->extents, sizeof(request->extents));
-    memcpy(request->lag, one->lag, sizeof(request->lag));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->extents, .src = one->extents, .bytes = sizeof(request->extents));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request->lag, .src = one->lag, .bytes = sizeof(request->lag));
     request->voxels = one->voxels;
     request->capacity = one->capacity;
     request->peaks_before = answer->peaks_before;
@@ -239,9 +239,12 @@ static int overlap_test_agree(const OverlapTestAnswer *device, const OverlapTest
                                ? (size_t)host->returned
                                : 0u;
     return (device->returned == host->returned) &&
-           (memcmp(device->peaks_before, host->peaks_before, written * sizeof(unsigned int)) == 0) &&
-           (memcmp(device->peaks_after, host->peaks_after, written * sizeof(unsigned int)) == 0) &&
-           (memcmp(device->counts, host->counts, written * sizeof(unsigned int)) == 0);
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device->peaks_before, .other = host->peaks_before,
+                       .bytes = written * sizeof(unsigned int)) == 0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device->peaks_after, .other = host->peaks_after,
+                       .bytes = written * sizeof(unsigned int)) == 0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device->counts, .other = host->counts,
+                       .bytes = written * sizeof(unsigned int)) == 0);
 }
 
 // the first 8 bytes of the signum of `count` bytes as a word, little end first, or 0 where the signum errors
@@ -249,7 +252,7 @@ static unsigned long long overlap_test_signum(const unsigned char *bytes, unsign
 {
     unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const ObsignatioSignumRequest request = {bytes, count, NULL, OBSIGNATIO_MODE_HASH, signum, OBSIGNATIO_SIGNUM_BYTES,
                                              &error};
     if ((count == 0ULL) || (obsignatio_signum(&request) != 0L))
@@ -348,7 +351,8 @@ int program_main(int argc, char **argv)
         {
             if ((signed_count + sizeof(OverlapTestAnswer)) <= OVERLAP_TEST_ANSWER_BYTES)
             {
-                memcpy(&signed_bytes[signed_count], &answers[path], sizeof(OverlapTestAnswer));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &signed_bytes[signed_count], .src = &answers[path],
+                           .bytes = sizeof(OverlapTestAnswer));
                 signed_count += sizeof(OverlapTestAnswer);
             }
         }

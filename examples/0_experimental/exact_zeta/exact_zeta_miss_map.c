@@ -61,12 +61,13 @@
 #include "../../../src/platform/platform.h"
 #include "zeta_shuffle.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <math.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #ifdef _WIN32
 #include <direct.h>
@@ -324,7 +325,8 @@ static void py_repr(double value, int dot_zero, char *text, size_t capacity)
             break;
         }
     }
-    const char *const mark = strchr(digits, 'e');
+    const char *const mark =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = digits, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = 'e');
     const int exponent = (mark != NULL) ? atoi(mark + 1) : 0;
     if ((exponent < -4) || (exponent >= 16))
     {
@@ -333,7 +335,9 @@ static void py_repr(double value, int dot_zero, char *text, size_t capacity)
     }
     const int decimals = ((precision - 1 - exponent) > 0) ? (precision - 1 - exponent) : 0;
     snprintf(digits, sizeof(digits), "%.*f", decimals, value);
-    if ((strchr(digits, '.') == NULL) && dot_zero)
+    if ((EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = digits, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.') ==
+         NULL) &&
+        dot_zero)
     {
         snprintf(text, capacity, "%.60s.0", digits);
     }
@@ -540,7 +544,7 @@ static double *sorted_copy(const double *values, size_t count)
         (double *)map_memory(platform_cell_taken((count + 1u) * sizeof(double), platform_place_g_program_owner, 0));
     if (count > 0u)
     {
-        memcpy(copy, values, count * sizeof(double));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy, .src = values, .bytes = count * sizeof(double));
         qsort(copy, count, sizeof(double), double_order);
     }
     return copy;
@@ -751,8 +755,10 @@ static void read_listing(const char *path, int listing, Listing *out)
     static char line[1 << 16];
     while (fgets(line, sizeof(line), handle) != NULL)
     {
-        const int twist = strncmp(line, "twist", 5u) == 0;
-        if (!twist && (strncmp(line, "point", 5u) != 0))
+        const int twist = EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = "twist", .ci = EMBED_FALSE);
+        if (!twist && (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                   .other = "point", .ci = EMBED_FALSE)))
         {
             continue;
         }
@@ -775,7 +781,7 @@ static void read_listing(const char *path, int listing, Listing *out)
                                                                      platform_place_g_program_owner, 0));
         }
         MapPoint *const point = &out->points[out->count];
-        memset(point, 0, sizeof(*point));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = point, .bytes = sizeof(*point), .val = 0);
         // The sign and S are small whole numbers, exact as doubles.
         point->sign = (int64_t)hex_double(words[1]);
         point->s = (int64_t)hex_double(words[2]);
@@ -1021,7 +1027,7 @@ static void hidden_pairs(const MapPoint *coarse, size_t coarse_count, const size
             gaps[gap].at = gap;
         }
         qsort(gaps, inside_count - 1u, sizeof(Gap), gap_order);
-        memset(taken, 0, inside_count + 1u);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = taken, .bytes = inside_count + 1u, .val = 0);
         int64_t taken_count = 0;
         for (size_t gap = 0u; gap < (inside_count - 1u); gap += 1u)
         {
@@ -1358,7 +1364,7 @@ static Complex track_of(const Frame *frame, double step_place)
 static void place(int64_t nu, const MapPoint *coarse, const MapPoint *fine, const Miss *miss, size_t lift,
                   Placed *placed)
 {
-    memset(placed, 0, sizeof(*placed));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = placed, .bytes = sizeof(*placed), .val = 0);
     const size_t start = miss->start;
     const size_t finish = miss->finish;
     Frame frame;
@@ -1430,7 +1436,7 @@ static void place(int64_t nu, const MapPoint *coarse, const MapPoint *fine, cons
  */
 static void place_on(int64_t nu, const Places *places, const MapPoint *fine, const Miss *miss, Placed *placed)
 {
-    memset(placed, 0, sizeof(*placed));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = placed, .bytes = sizeof(*placed), .val = 0);
     const size_t start = miss->start;
     MapPoint window[3];
     const size_t first = (start > 1u) ? (start - 2u) : 0u;
@@ -1470,7 +1476,7 @@ static void place_on(int64_t nu, const Places *places, const MapPoint *fine, con
  */
 static void join_path(char path[PATH_BYTES], const char *folder, const char *name)
 {
-    const size_t length = strlen(folder);
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = folder, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     const int ends = (length > 0u) && ((folder[length - 1u] == '/') || (folder[length - 1u] == '\\'));
     snprintf(path, PATH_BYTES, "%s%s%s", folder, ends ? "" : PATH_JOIN, name);
 }
@@ -1720,7 +1726,7 @@ static void point_of(Points *points, const char *format, ...)
         points->text[points->length] = ' ';
         points->length += 1u;
     }
-    memcpy(points->text + points->length, buffer, length);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = points->text + points->length, .src = buffer, .bytes = length);
     points->length += length;
     points->text[points->length] = '\0';
 }
@@ -2311,7 +2317,7 @@ typedef struct
 static void fold_cells(const char *binary, const TuringConstants *constants, int64_t nu, int64_t count, double rate,
                        Fold *fold)
 {
-    memset(fold, 0, sizeof(*fold));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = fold, .bytes = sizeof(*fold), .val = 0);
     Sum rates = {0.0, 0.0};
     for (int64_t at = nu; at < (nu + count); at += 1)
     {
@@ -3070,7 +3076,7 @@ static void carrier_lattices(const MapPoint *fine, size_t count, int64_t step, d
 {
     static const int64_t UNIFORM[1] = {1};
     static const int64_t KICK[3] = {1, 1, 2};
-    memset(schemes, 0, CARRIER_COUNT * sizeof(Places));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = schemes, .bytes = CARRIER_COUNT * sizeof(Places), .val = 0);
     comb_indices(count, step, UNIFORM, 1u, &schemes[0]);
     theta_indices(fine, count, rate, &schemes[1]);
     antinode_indices(fine, count, &schemes[2]);
@@ -3135,7 +3141,7 @@ static int main_carrier(const char *binary, int64_t base, int64_t count, double 
     TuringConstants constants;
     turing_constants(&constants);
     Placements tally[CARRIER_COUNT];
-    memset(tally, 0, sizeof(tally));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = tally, .bytes = sizeof(tally), .val = 0);
     int64_t points[CARRIER_COUNT] = {0};
     int64_t floor_count[CARRIER_COUNT] = {0};
     int64_t zeros_total = 0;
@@ -5351,7 +5357,9 @@ static void shape_rows(const char *label, const Shapes *rows)
         in_f += (shape->in_f > 0) ? 1u : 0u;
         in_portrait += (shape->in_portrait > 0) ? 1u : 0u;
         size_t key = 0u;
-        while ((key < key_count) && (strcmp(keys[key], shape->signs) != 0))
+        while ((key < key_count) &&
+               (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = keys[key], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = shape->signs, .ci = EMBED_FALSE)))
         {
             key += 1u;
         }
@@ -6078,7 +6086,7 @@ static int main_twist(const char *binary, int64_t base, int64_t count, double ra
     TuringConstants constants;
     turing_constants(&constants);
     static TwistTally tally;
-    memset(&tally, 0, sizeof(tally));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &tally, .bytes = sizeof(tally), .val = 0);
     int64_t failed = 0;
     ZetaTwister lot;
     twister_seed(&lot, 20261003u);
@@ -6260,7 +6268,8 @@ int program_main(int argc, char **argv)
     static const RatedMode RUNS[5] = {main_twist, main_primes, main_source, main_pulse, main_ripple};
     for (int at = 0; at < 5; at += 1)
     {
-        if (strcmp(mode, RATED[at]) == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = mode, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = RATED[at],
+                       .ci = EMBED_FALSE))
         {
             if (argc < 6)
             {
@@ -6270,7 +6279,8 @@ int program_main(int argc, char **argv)
             return RUNS[at](binary, whole_of(argv[3]), whole_of(argv[4]), strtod(argv[5], NULL));
         }
     }
-    if (strcmp(mode, "e") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = mode, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "e",
+                   .ci = EMBED_FALSE))
     {
         if (argc < 7)
         {
@@ -6280,7 +6290,8 @@ int program_main(int argc, char **argv)
         return main_folds(binary, whole_of(argv[3]), whole_of(argv[4]), whole_of(argv[5]), strtod(argv[6], NULL),
                           (argc > 7) ? argv[7] : NULL);
     }
-    if (strcmp(mode, "carrier") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = mode, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "carrier",
+                   .ci = EMBED_FALSE))
     {
         if (argc < 6)
         {

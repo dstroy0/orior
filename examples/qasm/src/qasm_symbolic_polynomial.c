@@ -1,15 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_symbolic_polynomial.c: polynomials
-#include "qasm_symbolic_internal.h"
 #include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "qasm_symbolic_internal.h"
 
 int qasm_symbolic_text_put(QasmText *builder, const char *piece)
 {
-    const size_t count = strlen(piece);
+    const size_t count = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = piece, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     if ((builder->fits != 0) && (count < (builder->capacity - builder->length)))
     {
-        memcpy(&builder->text[builder->length], piece, count);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &builder->text[builder->length], .src = piece, .bytes = count);
         builder->length += count;
         builder->text[builder->length] = '\0';
     }
@@ -110,7 +112,8 @@ void qasm_polynomial_trim(QasmPolynomial *polynomial)
     if (first > 0u)
     {
         // an unsigned int count widens to size_t exactly
-        memmove(&polynomial->coefficients[0], &polynomial->coefficients[first], (size_t)length * sizeof(QasmNumber));
+        EMBED_CALL(memor.move_down, MemoriaCfg, .dst = &polynomial->coefficients[0],
+                   .src = &polynomial->coefficients[first], .bytes = (size_t)length * sizeof(QasmNumber));
     }
     // first is below the count, and low + first stays within the exponent bound the allocation checked
     polynomial->low += (int)first;

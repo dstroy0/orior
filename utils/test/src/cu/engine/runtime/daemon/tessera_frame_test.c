@@ -3,8 +3,8 @@
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera.h"
 #include "../../../../../../../src/platform/platform.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
-#include <string.h>
 
 typedef struct
 {
@@ -24,7 +24,7 @@ static const unsigned int s_frame_types[11] = {1u, 2u, 3u, 4u, 5u, 16u, 17u, 18u
 
 static void frame_test_fill(FrameTestStream *stream, TesseraFrame *frame)
 {
-    memset(frame, 0, sizeof(*frame));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = frame, .bytes = sizeof(*frame), .val = 0);
     frame->magic = TESSERA_MAGIC;
     frame->version = TESSERA_VERSION;
     // the draw is reduced below ten before it indexes the table
@@ -55,8 +55,10 @@ static int frame_test_same(const TesseraFrame *left, const TesseraFrame *right)
 {
     return (left->magic == right->magic) && (left->version == right->version) && (left->type == right->type) &&
            (left->override_budget == right->override_budget) &&
-           (memcmp(left->device, right->device, TESSERA_DEVICE_BYTES) == 0) &&
-           (memcmp(left->signum.bytes, right->signum.bytes, ENGINE_SIGNUM_BYTES) == 0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->device, .other = right->device,
+                       .bytes = TESSERA_DEVICE_BYTES) == 0) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left->signum.bytes, .other = right->signum.bytes,
+                       .bytes = ENGINE_SIGNUM_BYTES) == 0) &&
            (left->declared == right->declared) && (left->grace_microseconds == right->grace_microseconds) &&
            (left->sweep_microseconds == right->sweep_microseconds) &&
            (left->idle_microseconds == right->idle_microseconds) && (left->bytes == right->bytes) &&
@@ -74,9 +76,10 @@ static unsigned long long frame_test_round_trip(unsigned long long *failed)
         unsigned char bytes[TESSERA_FRAME_BYTES];
         unsigned char again[TESSERA_FRAME_BYTES];
         TesseraFrame read;
-        const int passed = tessera_frame_pack(&frame, bytes) && tessera_frame_unpack(bytes, &read) &&
-                           frame_test_same(&frame, &read) && tessera_frame_pack(&read, again) &&
-                           (memcmp(bytes, again, TESSERA_FRAME_BYTES) == 0);
+        const int passed =
+            tessera_frame_pack(&frame, bytes) && tessera_frame_unpack(bytes, &read) && frame_test_same(&frame, &read) &&
+            tessera_frame_pack(&read, again) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes, .other = again, .bytes = TESSERA_FRAME_BYTES) == 0);
         *failed += passed ? 0ull : 1ull;
         cases += 1ull;
     }
@@ -86,7 +89,7 @@ static unsigned long long frame_test_round_trip(unsigned long long *failed)
 static unsigned long long frame_test_layout(unsigned long long *failed)
 {
     TesseraFrame frame;
-    memset(&frame, 0, sizeof(frame));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &frame, .bytes = sizeof(frame), .val = 0);
     frame.magic = TESSERA_MAGIC;
     frame.version = TESSERA_VERSION;
     frame.type = TESSERA_REQUEST_SUBMIT;
@@ -98,7 +101,8 @@ static unsigned long long frame_test_layout(unsigned long long *failed)
     const int packed = tessera_frame_pack(&frame, bytes);
     static const unsigned char s_magic[4] = {0x53u, 0x53u, 0x52u, 0x41u};
     unsigned long long cases = 0ull;
-    *failed += (packed && (memcmp(bytes, s_magic, 4u) == 0)) ? 0ull : 1ull;
+    *failed +=
+        (packed && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = bytes, .other = s_magic, .bytes = 4u) == 0)) ? 0ull : 1ull;
     cases += 1ull;
     *failed += (packed && (bytes[4] == 1u) && (bytes[8] == 1u) && (bytes[12] == 0u)) ? 0ull : 1ull;
     cases += 1ull;
@@ -128,7 +132,7 @@ static unsigned long long frame_test_error(unsigned long long *failed)
         for (unsigned int bit = 0u; bit < 8u; bit += 1u)
         {
             unsigned char broken[TESSERA_FRAME_BYTES];
-            memcpy(broken, bytes, TESSERA_FRAME_BYTES);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = broken, .src = bytes, .bytes = TESSERA_FRAME_BYTES);
             // one bit of the head flipped
             broken[byte] = (unsigned char)(broken[byte] ^ (1u << bit));
             TesseraFrame read;

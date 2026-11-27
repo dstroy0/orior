@@ -7,15 +7,13 @@
 #include "../../../../../../../src/cu/engine/analysis/period/period.h"
 
 #include "../../../../../../../src/cu/engine/runtime/device_pool/device_pool.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
 
 #include <cuda_runtime.h>
 
 #include <stdlib.h>
-#include <string.h>
 
 #define TEST_LOW_HALF 0xFFFFFFFFull
 

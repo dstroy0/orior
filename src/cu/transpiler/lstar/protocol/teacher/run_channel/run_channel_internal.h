@@ -18,10 +18,8 @@
 #include "../../overseer/overseer.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
 
 #include <stdlib.h>
-#include <string.h>
 
 // the max words that start a carrier, its pop or its cross, room for the carrier's own, its gated list, its lessons,
 // its dry flags, the machine file and the layout; and the longest of them

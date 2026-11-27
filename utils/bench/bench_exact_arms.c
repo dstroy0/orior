@@ -6,8 +6,8 @@
 #include "../../includes/exact_types/integers/arm_cuda.h"
 #endif
 
+#include "cellularum_laboro/cellularum_laboro.h"
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -39,7 +39,9 @@ static int plant(OriorExactInteger *positions, uint64_t *values, unsigned int pl
     {
         char text[64];
         (void)snprintf(text, sizeof(text), "%u.%02u", at / 4u, (at % 4u) * 25u);
-        if (orior_exact_from_decimal(text, strlen(text), PLACES, &positions[at]) != ORIOR_EXACT_OK)
+        if (orior_exact_from_decimal(
+                text, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR), PLACES,
+                &positions[at]) != ORIOR_EXACT_OK)
         {
             return 0;
         }
@@ -140,7 +142,9 @@ int program_main(int argc, char **argv)
     {
         char text[64];
         (void)snprintf(text, sizeof(text), "%u.%02u", (at + 1u) / 4u, ((at + 1u) % 4u) * 25u);
-        if (orior_exact_from_decimal(text, strlen(text), PLACES, &lags[at]) != ORIOR_EXACT_OK)
+        if (orior_exact_from_decimal(
+                text, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR), PLACES,
+                &lags[at]) != ORIOR_EXACT_OK)
         {
             printf("  lag %u would not fit the scale\n", at);
             platform_cell_released(positions, platform_place_g_program_owner);

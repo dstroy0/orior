@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // period_test_main.cu: volumes, errors and main
-#include "period_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "period_test_internal.h"
 
 static void test_volume(SimResults *results, const char *name, const unsigned short *volume, unsigned int rank,
                         const unsigned long long *extent, const unsigned long long *expected, int print)
@@ -20,14 +21,17 @@ static void test_volume(SimResults *results, const char *name, const unsigned sh
     PeriodMeasurement measurement;
     PeriodMeasurement measurement_again;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const int read = (counts != NULL) && (reference != NULL) && (band != NULL) && (band_again != NULL) &&
                      test_read(volume, rank, extent, &measurement, counts, entries, band, &error) &&
                      test_read(volume, rank, extent, &measurement_again, NULL, 0ull, band_again, &error);
     sim_check(results, read, name);
     sim_check(results,
-              read && (memcmp(&measurement, &measurement_again, sizeof(measurement)) == 0) &&
-                  (memcmp(band, band_again, (size_t)(TEST_DRAWS * rank) * sizeof(PeriodMargin)) == 0),
+              read &&
+                  (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &measurement, .other = &measurement_again,
+                              .bytes = sizeof(measurement)) == 0) &&
+                  (EMBED_CALL(memor.cmp, MemoriaCfg, .src = band, .other = band_again,
+                              .bytes = (size_t)(TEST_DRAWS * rank) * sizeof(PeriodMargin)) == 0),
               name);
     sim_check(results, read && test_draws_and_given_top(volume, rank, extent, &measurement, band), name);
     if (read != 0)
@@ -80,7 +84,8 @@ static void test_volume(SimResults *results, const char *name, const unsigned sh
                       (measurement.axis[axis].pairs_per_lag == pairs) && (measurement.axis[axis].lags == lags) &&
                           (measurement.axis[axis].candidate == candidate) &&
                           (measurement.axis[axis].period == period) &&
-                          (memcmp(&measurement.axis[axis].margin, &margin, sizeof(margin)) == 0) &&
+                          (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &measurement.axis[axis].margin, .other = &margin,
+                                      .bytes = sizeof(margin)) == 0) &&
                           test_band_valid(&measurement.axis[axis], &band[axis * TEST_DRAWS]),
                       name);
             if (expected != NULL)
@@ -111,9 +116,9 @@ static void test_error(SimResults *results, const char *name, const unsigned sho
 {
     PeriodMeasurement measurement;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     PeriodRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.device_lanes = device_lanes;
     request.rank = rank;
     for (unsigned int axis = 0u; (axis < rank) && (axis < ENGINE_ARRAY_RANK); axis += 1u)
@@ -196,7 +201,7 @@ int program_main(int count, char **arguments)
         const unsigned long long before = results.failures;
         PeriodMeasurement measurement;
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         test_volume(&results, "a smooth ramp and noise", smooth_volume, 3u, smooth_extent, NULL,
                     (volume == 0u) ? 1 : 0);
         if ((results.failures == before) &&
@@ -260,7 +265,7 @@ int program_main(int count, char **arguments)
         {
             PeriodMeasurement measurement;
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             if (test_read(random_volume, 3u, random_extent, &measurement, NULL, 0ull, NULL, &error))
             {
                 for (unsigned int axis = 0u; axis < 3u; axis += 1u)
@@ -301,9 +306,9 @@ int program_main(int count, char **arguments)
         PeriodMargin tops[2] = {{1ull, 32ull}, {1ull, 32ull}};
         PeriodMeasurement measurement;
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         PeriodRequest request;
-        memset(&request, 0, sizeof(request));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
         request.device_lanes = device_lanes;
         request.rank = 2u;
         request.extent[0] = 8ull;

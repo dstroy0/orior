@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#include "memoria_operor/memoria_operor.h"
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 
 #include "../../src/cu/engine/nbody/orior/orior.h"
 #include "../../includes/codecs/sha256/sha256.h"
@@ -60,7 +60,7 @@ static void fill_uniform(uint8_t *corpus, size_t length, uint32_t seed)
         {
             taking = SHA256_BYTES;
         }
-        memcpy(corpus + written, digest, taking);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = corpus + written, .src = digest, .bytes = taking);
         written += taking;
         step += 1u;
     }
@@ -83,7 +83,8 @@ static void fill_skewed(uint8_t *corpus, size_t length)
         {
             width = sizeof table - filled;
         }
-        memset(table + filled, (int)('a' + symbol), width);
+        // Explicit cast takes the symbol, a letter, as the byte that the fill writes
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = table + filled, .bytes = width, .val = (uint8_t)('a' + symbol));
         filled += width;
         symbol += 1u;
     }

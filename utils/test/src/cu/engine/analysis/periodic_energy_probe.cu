@@ -32,9 +32,10 @@
 #include "../../../../../../src/platform/platform.h"
 #include "periodic_energy.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define PROBE_MAGIC 0x314E4550u
 
@@ -56,7 +57,7 @@ static char s_results_text[SIM_LINE_CAPACITY + 1ull];
 // the record's fixed fields in the file's order; 0 at the end of the file, -1 when they are malformed
 static int probe_header(FILE *file, ProbeRecord *record)
 {
-    memset(record, 0, sizeof(*record));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = record, .bytes = sizeof(*record), .val = 0);
     if (fread(&record->magic, sizeof(record->magic), 1u, file) != 1u)
     {
         return 0;
@@ -217,7 +218,8 @@ static void probe_results(SimResults *results)
     char *at = results->line.out;
     while (*at != '\0')
     {
-        char *end = strchr(at, '\n');
+        char *end =
+            EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\n');
         if (end != NULL)
         {
             *end = '\0';
@@ -286,7 +288,7 @@ static void probe_run(SimResults *results, const ProbeRecord *record, const long
     const unsigned int places = (unsigned int)record->places;
 
     EnergyMeasurement live;
-    memset(&live, 0, sizeof(live));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &live, .bytes = sizeof(live), .val = 0);
     (void)cudaGetLastError();
     const int recovered = energy_recover(results, values, length, record->reach, sums, &live);
     probe_measurement("recover", recovered, &live, places);
@@ -391,7 +393,7 @@ static void probe_run(SimResults *results, const ProbeRecord *record, const long
         }
 
         EnergyMeasurement band;
-        memset(&band, 0, sizeof(band));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &band, .bytes = sizeof(band), .val = 0);
         unsigned long long reached = 0ull;
         (void)cudaGetLastError();
         const int banded = energy_band_top(results, values, length, record->reach, record->draws, record->key, shuffled,

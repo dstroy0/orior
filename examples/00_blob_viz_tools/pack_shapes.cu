@@ -23,14 +23,14 @@
  * length is not.
  */
 
-#include <cstdio>
 #include "../../src/platform/platform.h"
-#include <cstdlib>
-#include <cstring>
+#include "cellularum_laboro/cellularum_laboro.h"
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <vector>
-#include <algorithm>
 
 #define SPHERE 0
 #define CUBE 1
@@ -246,17 +246,21 @@ int program_main(int argc, char **argv)
 
     for (int at = 1; at + 1 < argc; at += 2)
     {
-        if (strcmp(argv[at], "--shape") == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--shape", .ci = EMBED_FALSE))
         {
-            if (strcmp(argv[at + 1], "sphere") == 0)
+            if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at + 1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = "sphere", .ci = EMBED_FALSE))
             {
                 shape = SPHERE;
             }
-            else if (strcmp(argv[at + 1], "cube") == 0)
+            else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at + 1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = "cube", .ci = EMBED_FALSE))
             {
                 shape = CUBE;
             }
-            else if (strcmp(argv[at + 1], "orthoplex") == 0)
+            else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at + 1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = "orthoplex", .ci = EMBED_FALSE))
             {
                 shape = ORTHOPLEX;
             }
@@ -266,23 +270,28 @@ int program_main(int argc, char **argv)
                 return 2;
             }
         }
-        else if (strcmp(argv[at], "--dims") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--dims", .ci = EMBED_FALSE))
         {
             dims = atoi(argv[at + 1]);
         }
-        else if (strcmp(argv[at], "--fraction") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--fraction", .ci = EMBED_FALSE))
         {
             fraction = (float)atof(argv[at + 1]);
         }
-        else if (strcmp(argv[at], "--candidates") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--candidates", .ci = EMBED_FALSE))
         {
             candidates = atoi(argv[at + 1]);
         }
-        else if (strcmp(argv[at], "--seed") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--seed", .ci = EMBED_FALSE))
         {
             seed = strtoull(argv[at + 1], NULL, 10);
         }
-        else if (strcmp(argv[at], "--wide") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--wide", .ci = EMBED_FALSE))
         {
             wide_math = atoi(argv[at + 1]);
         }

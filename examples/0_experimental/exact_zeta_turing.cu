@@ -136,19 +136,19 @@
 // that change.
 
 #include "../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../src/platform/platform.h"
 #include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
 
 #include <cuda_runtime.h>
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <algorithm>
 #include <chrono>
@@ -1902,9 +1902,9 @@ static void turing_open_stage(TuringStage *stage, const char *name, unsigned int
     stage->anchored = 0;
     stage->swept = 0u;
     stage->cached = 0;
-    memset(stage->in_limbs, 0, sizeof(stage->in_limbs));
-    memset(&stage->key, 0, sizeof(stage->key));
-    memset(&stage->layout, 0, sizeof(stage->layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = stage->in_limbs, .bytes = sizeof(stage->in_limbs), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage->key, .bytes = sizeof(stage->key), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage->layout, .bytes = sizeof(stage->layout), .val = 0);
     stage->record = NULL;
 }
 
@@ -2073,7 +2073,7 @@ static int turing_check_lanes(std::shared_ptr<const TuringCheck> check, unsigned
     const TuringCheck &check_ref = *check;
     const unsigned long long count = end - first;
     CycleRecordHostRequest host;
-    memset(&host, 0, sizeof(host));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &host, .bytes = sizeof(host), .val = 0);
     for (unsigned int member = 0u; member < check_ref.layout.members; member += 1u)
     {
         host.in[member] = check_ref.members[member].data();
@@ -2081,7 +2081,7 @@ static int turing_check_lanes(std::shared_ptr<const TuringCheck> check, unsigned
     }
     std::vector<unsigned int> host_out((size_t)(count * check_ref.layout.out_limbs));
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     host.layout = &check_ref.layout;
     host.index = check_ref.index.empty() ? NULL : check_ref.index.data();
     host.count = count;
@@ -2089,9 +2089,10 @@ static int turing_check_lanes(std::shared_ptr<const TuringCheck> check, unsigned
     host.error = &error;
     host.first = first;
     return (cycle_record_run_host(&host) == (long)count) &&
-           (memcmp(host_out.data(),
-                   check_ref.records.data() + (first - check_ref.records_first) * check_ref.layout.out_limbs,
-                   host_out.size() * sizeof(unsigned int)) == 0);
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out.data(),
+                       .other =
+                           check_ref.records.data() + (first - check_ref.records_first) * check_ref.layout.out_limbs,
+                       .bytes = host_out.size() * sizeof(unsigned int)) == 0);
 }
 
 // the host checks running beside the device, at max one a core, each with the flag it clears where it differs
@@ -2290,7 +2291,8 @@ static int turing_range(FILE *out, const char *key, const TuringStage *stage, co
                                             host_sum.data(),
                                             error};
         same = (cycle_record_sum(&device) != CYCLE_ERROR) && (cycle_record_sum_host(&host) != CYCLE_ERROR) &&
-               (memcmp(sum.data(), host_sum.data(), limbs * sizeof(unsigned int)) == 0);
+               (EMBED_CALL(memor.cmp, MemoriaCfg, .src = sum.data(), .other = host_sum.data(),
+                           .bytes = limbs * sizeof(unsigned int)) == 0);
     }
     fprintf(out, "%s", key);
     turing_hex(out, sum.data(), limbs);
@@ -3124,8 +3126,8 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
             ok = cycle_record_sum(&request) != CYCLE_ERROR;
             for (unsigned long long h = 0ull; ok && (h < sets * near_points); h += 1ull)
             {
-                memcpy(&near_records[(size_t)((h * 2ull + part) * near_limbs)], &sums[(size_t)(h * near_limbs)],
-                       near_limbs * sizeof(unsigned int));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &near_records[(size_t)((h * 2ull + part) * near_limbs)],
+                           .src = &sums[(size_t)(h * near_limbs)], .bytes = near_limbs * sizeof(unsigned int));
             }
         }
     }
@@ -3371,7 +3373,7 @@ static int turing_job(const char *input, const char *output)
     const unsigned long long heads = em_run ? poles - 1ull : nu;
 
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     std::vector<unsigned int *> owned;
     TuringStage pole, point, pair, em, verdict, counted, verdict_pairs, pole_twist, twist, slope, slope_pairs, margined;
     turing_open_stage(&pole, "pole", 1u);
@@ -3601,7 +3603,8 @@ static int turing_job(const char *input, const char *output)
                                                         host_piece.data(),
                                                         &error};
                 host_sums = (cycle_record_sum_host(&host_sum) != CYCLE_ERROR) &&
-                            (memcmp(host_piece.data(), sums.data(), host_piece.size() * sizeof(unsigned int)) == 0);
+                            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_piece.data(), .other = sums.data(),
+                                        .bytes = host_piece.size() * sizeof(unsigned int)) == 0);
                 for (unsigned int at = 0u; pairs_sloped && (at < 2u); at += 1u)
                 {
                     const DeviceRecordStep *const sine_place = turing_place(&pair, 1u + at);
@@ -3614,9 +3617,10 @@ static int turing_job(const char *input, const char *output)
                                                              sum_limbs,
                                                              host_piece.data(),
                                                              &error};
-                    host_sums = host_sums && (cycle_record_sum_host(&host_sine) != CYCLE_ERROR) &&
-                                (memcmp(host_piece.data(), sine_sums[at].data(),
-                                        host_piece.size() * sizeof(unsigned int)) == 0);
+                    host_sums =
+                        host_sums && (cycle_record_sum_host(&host_sine) != CYCLE_ERROR) &&
+                        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_piece.data(), .other = sine_sums[at].data(),
+                                    .bytes = host_piece.size() * sizeof(unsigned int)) == 0);
                 }
             }
         }
@@ -3832,8 +3836,9 @@ static int turing_job(const char *input, const char *output)
             {
                 for (unsigned int at = 0u; at < 2u; at += 1u)
                 {
-                    memcpy(&both[(size_t)((2ull * lane + at) * sum_limbs)], &sine_sums[at][(size_t)(lane * sum_limbs)],
-                           sum_limbs * sizeof(unsigned int));
+                    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &both[(size_t)((2ull * lane + at) * sum_limbs)],
+                               .src = &sine_sums[at][(size_t)(lane * sum_limbs)],
+                               .bytes = sum_limbs * sizeof(unsigned int));
                 }
             }
             device_sines = turing_upload(&owned, both);
@@ -4097,7 +4102,8 @@ int program_main(int count, char **arguments)
     {
         code = turing_job(arguments[1], arguments[2]);
     }
-    else if ((count == 2) && (strcmp(arguments[1], "serve") == 0))
+    else if ((count == 2) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[1],
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "serve", .ci = EMBED_FALSE)))
     {
         // a run for each two read lines, the path of its input and that of its output. The code answers each with the
         // line "done" and its code, once it writes its output

@@ -7,7 +7,6 @@
 #include "inflate.h"
 
 #include <limits.h>
-#include <string.h>
 
 #define INFLATE_MAXIMUM_BITS 15u
 #define INFLATE_FAST_BITS 10u

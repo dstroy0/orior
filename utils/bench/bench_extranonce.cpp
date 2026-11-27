@@ -16,6 +16,7 @@
  *       the coinbase layout and the branch length match what a pool actually sends.
  */
 
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <algorithm>
@@ -23,7 +24,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <random>
 #include <string>
 #include <vector>
@@ -151,8 +151,8 @@ void build_header(uint64_t extranonce2, uint32_t nonce, uint8_t *header)
     for (const std::vector<uint8_t> &entry : g_branch)
     {
         uint8_t joined[64];
-        std::memcpy(joined, merkle_root, 32u);
-        std::memcpy(joined + 32u, entry.data(), 32u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = joined, .src = merkle_root, .bytes = 32u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = joined + 32u, .src = entry.data(), .bytes = 32u);
         sha256_double_hash(joined, sizeof(joined), merkle_root);
         g_coinbase_hashes += 1u;
     }
@@ -168,7 +168,7 @@ void build_header(uint64_t extranonce2, uint32_t nonce, uint8_t *header)
             header[4u + (word * 4u) + byte] = g_prevhash[(word * 4u) + (3u - byte)];
         }
     }
-    std::memcpy(header + 36u, merkle_root, 32u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = header + 36u, .src = merkle_root, .bytes = 32u);
     header[68] = (uint8_t)g_ntime;
     header[69] = (uint8_t)(g_ntime >> 8);
     header[70] = (uint8_t)(g_ntime >> 16);
@@ -232,9 +232,11 @@ void check_path_is_live()
     build_header(0u, 0u, header_one);
     build_header(1u, 0u, header_two);
 
-    const bool root_moved = (std::memcmp(header_one + 36u, header_two + 36u, 32u) != 0);
+    const bool root_moved =
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = header_one + 36u, .other = header_two + 36u, .bytes = 32u) != 0);
     const bool rest_held =
-        (std::memcmp(header_one, header_two, 36u) == 0) && (std::memcmp(header_one + 68u, header_two + 68u, 12u) == 0);
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = header_one, .other = header_two, .bytes = 36u) == 0) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = header_one + 68u, .other = header_two + 68u, .bytes = 12u) == 0);
 
     check("extranonce2 moves the merkle root", root_moved);
     check("and moves nothing else in the header", rest_held);
@@ -246,7 +248,8 @@ void check_path_is_live()
     sha256_header_midstate(&midstate_one, header_one);
     sha256_header_midstate(&midstate_two, header_two);
     check("and therefore moves the midstate",
-          std::memcmp(midstate_one.word, midstate_two.word, sizeof(midstate_one.word)) != 0);
+          EMBED_CALL(memor.cmp, MemoriaCfg, .src = midstate_one.word, .other = midstate_two.word,
+                     .bytes = sizeof(midstate_one.word)) != 0);
 
     std::printf("\n  a step in this dimension is real and it is expensive: one coinbase double\n");
     std::printf("  hash plus %zu merkle folds, then the midstate is invalid and must be rebuilt.\n", JOB_BRANCH_COUNT);
@@ -354,7 +357,7 @@ void compare_dimension_cost()
     build_header(0u, 0u, header);
 
     Sha256ScanRequest request;
-    std::memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     sha256_header_midstate(&request.midstate, header);
     request.merkle_root_tail = ((uint32_t)header[64] << 24) | ((uint32_t)header[65] << 16) |
                                ((uint32_t)header[66] << 8) | (uint32_t)header[67];
@@ -362,7 +365,7 @@ void compare_dimension_cost()
                     (uint32_t)header[71];
     request.nbits = ((uint32_t)header[72] << 24) | ((uint32_t)header[73] << 16) | ((uint32_t)header[74] << 8) |
                     (uint32_t)header[75];
-    std::memset(request.share_target, 0, sizeof(request.share_target));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request.share_target, .bytes = sizeof(request.share_target), .val = 0);
 
     started = std::chrono::steady_clock::now();
     request.nonce_start = 0u;

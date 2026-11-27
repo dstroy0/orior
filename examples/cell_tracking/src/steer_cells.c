@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "../../../src/cu/engine/nbody/orior/orior.h"
 #include "../../../src/platform/platform.h"
@@ -135,7 +135,7 @@ int program_main(int argc, char **argv)
 
     uint64_t spent = 0u;
     unsigned char admitted[ORIOR_STEER_SYMBOLS];
-    memset(admitted, 0, sizeof(admitted));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = admitted, .bytes = sizeof(admitted), .val = 0);
     unsigned int taken = 0u;
     for (unsigned int at = 0u; at < ORIOR_STEER_SYMBOLS; at++)
     {

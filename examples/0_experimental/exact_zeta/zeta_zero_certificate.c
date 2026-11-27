@@ -43,8 +43,8 @@
 #include "zeta_search.h"
 #include "../../../src/platform/platform.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>
-#include <string.h>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -199,7 +199,7 @@ typedef struct
 static CheckRecord check(const Steering *store, const Certificate *certificate)
 {
     CheckRecord record;
-    memset(&record, 0, sizeof(record));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &record, .bytes = sizeof(record), .val = 0);
     record.agree = 1;
     const size_t edges = certificate->count;
     CheckReading *const reads = (CheckReading *)certificate_memory(
@@ -213,7 +213,7 @@ static CheckRecord check(const Steering *store, const Certificate *certificate)
             record.agree && orior_exact_equal(&values[0], &values[4]) && orior_exact_equal(&values[1], &values[5]);
         reads[at].point = entry->point;
         reads[at].places = entry->places;
-        memcpy(reads[at].value, values, sizeof(reads[at].value));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = reads[at].value, .src = values, .bytes = sizeof(reads[at].value));
     }
     record.edges = edges;
     for (size_t at = 0u; at < edges; at += 1u)

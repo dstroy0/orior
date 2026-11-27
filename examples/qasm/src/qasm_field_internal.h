@@ -6,8 +6,6 @@
 
 #include "qasm.h"
 
-#include <string.h>
-
 _Static_assert(ORIOR_EXACT_LIMBS >= 2u, "qasm: a rational set from a long long needs two limbs");
 _Static_assert(ORIOR_EXACT_LIMBS <= 0xFFFFFFFFull, "qasm: a number's bytes count its used limbs in 32 bits");
 

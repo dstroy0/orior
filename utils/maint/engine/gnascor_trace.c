@@ -37,9 +37,10 @@
 // A run that is satisfied and costs past the bound is written PAST_BOUND. The four baseline cycles gnascor_read.py
 // reads its edge from are written at the head of the trace, from the first eight runs.
 #include "../../../src/cu/transpiler/lstar/protocol/query/query_put.h"
+#include "../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
 #include <stdio.h>
-#include <string.h>
 
 // queries in one side's run: enough for a satisfied run to span several steps of the clock
 #define TRACE_RUN 1000000ull
@@ -68,7 +69,8 @@ static unsigned int trace_run(const char *spec, unsigned long long clock, unsign
 {
     Query query = {0};
     unsigned long long count = TRACE_RUN;
-    const int late = (strcmp(spec, "late") == 0);
+    const int late = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = spec, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                 .other = "late", .ci = EMBED_FALSE));
     if (late)
     {
         query.address = clock;
@@ -81,7 +83,10 @@ static unsigned int trace_run(const char *spec, unsigned long long clock, unsign
         // a pointer widened to the 64-bit integer an query carries, which host_entry.h narrows back to the same pointer
         query.address = (unsigned long long)&s_owned;
         query.qualifier = QUERY_EQUALS;
-        query.word = (strcmp(spec, "satisfied") == 0) ? 0x5a5au : 0xa5a5u;
+        query.word = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = spec, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                 .other = "satisfied", .ci = EMBED_FALSE))
+                         ? 0x5a5au
+                         : 0xa5a5u;
     }
     const unsigned int start = host_read(clock);
     for (unsigned long long turn = 0ull; turn < count; turn += 1ull)
@@ -144,7 +149,8 @@ static const char *trace_type(unsigned int type, unsigned long long cost, unsign
 
 static void trace_side(FILE *out, const char *spec, unsigned long long clock, unsigned long long bound)
 {
-    if (strcmp(spec, "unasked") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = spec, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "unasked",
+                   .ci = EMBED_FALSE))
     {
         fprintf(out, "- - ");
         return;
@@ -207,7 +213,10 @@ int program_main(int count_of_words, char **words)
     char spec[32];
     while (fscanf(scenario, "%31s", spec) == 1)
     {
-        ahead += (strcmp(spec, "unasked") != 0) ? 1ull : 0ull;
+        ahead += (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = spec, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                              .other = "unasked", .ci = EMBED_FALSE))
+                     ? 1ull
+                     : 0ull;
     }
     rewind(scenario);
 
@@ -234,7 +243,14 @@ int program_main(int count_of_words, char **words)
     {
         // the section's check: a satisfied run for every side the cycle queries, each read against the bound
         const unsigned long long reach =
-            ((strcmp(left, "unasked") != 0) ? 1ull : 0ull) + ((strcmp(right, "unasked") != 0) ? 1ull : 0ull);
+            ((!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = left, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "unasked", .ci = EMBED_FALSE))
+                 ? 1ull
+                 : 0ull) +
+            ((!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = right, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                          .other = "unasked", .ci = EMBED_FALSE))
+                 ? 1ull
+                 : 0ull);
         unsigned int all_satisfied = 1u;
         for (unsigned long long run = 0ull; run < reach; run += 1ull)
         {

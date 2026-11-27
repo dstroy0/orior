@@ -14,19 +14,18 @@
 // A request whose sums cannot represent the run's total, whose count is not a whole number of runs, or whose run passes
 // 2^32 records errors on both routes before a record is read. The test is one job on the device's tessera daemon.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../../../../../src/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
 
 #include <cuda_runtime.h>
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define SUM_TEST_LINE 8192ull
 
@@ -91,7 +90,7 @@ static void sum_check(SumResults *results, int passed, const char *what)
 
 static void limbs_set(unsigned int *value, unsigned int limbs, unsigned long long low)
 {
-    memset(value, 0, limbs * sizeof(unsigned int));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = value, .bytes = limbs * sizeof(unsigned int), .val = 0);
     value[0] = (unsigned int)low;
     value[1] = (unsigned int)(low >> 32u);
 }
@@ -158,7 +157,7 @@ static void sum_closed(unsigned long long first, unsigned long long count, unsig
         limbs_divide(target, limbs, 2u);
         if (side == 0u)
         {
-            memcpy(linear, target, limbs * sizeof(unsigned int));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = linear, .src = target, .bytes = limbs * sizeof(unsigned int));
         }
         else
         {
@@ -171,7 +170,7 @@ static void sum_closed(unsigned long long first, unsigned long long count, unsig
         limbs_divide(target, limbs, 6u);
         if (side == 0u)
         {
-            memcpy(square, target, limbs * sizeof(unsigned int));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = square, .src = target, .bytes = limbs * sizeof(unsigned int));
         }
         else
         {
@@ -203,7 +202,7 @@ typedef struct
 
 static int sum_load(SumLoaded *loaded)
 {
-    memset(loaded, 0, sizeof(*loaded));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = loaded, .bytes = sizeof(*loaded), .val = 0);
     EngineRecordStep steps[SUM_TEST_STEPS];
     unsigned int count = 0u;
     steps[count++] = EngineRecordStep{ENGINE_RECORD_LANE, 0u, 0u, 0u};
@@ -291,7 +290,7 @@ static void sum_program(SumResults *results)
             const unsigned long long group = (cut == 0u) ? SUM_TEST_LANES : SUM_TEST_RUN;
             const unsigned long long cut_runs = SUM_TEST_LANES / group;
             EngineError error;
-            memset(&error, 0, sizeof(error));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
             const int both = (sum_run(1, device_out, SUM_TEST_LANES, group, out_limbs, step->out_offset, step->out_bits,
                                       SUM_TEST_SUM_LIMBS, device_sums, &error) != CYCLE_ERROR) &&
                              (sum_run(0, out, SUM_TEST_LANES, group, out_limbs, step->out_offset, step->out_bits,
@@ -306,10 +305,12 @@ static void sum_program(SumResults *results)
                 {
                     limbs_negate(expected, SUM_TEST_SUM_LIMBS);
                 }
-                same = same && (memcmp(&device_sums[r * SUM_TEST_SUM_LIMBS], &host_sums[r * SUM_TEST_SUM_LIMBS],
-                                       SUM_TEST_SUM_LIMBS * sizeof(unsigned int)) == 0);
-                closed = closed && (memcmp(&device_sums[r * SUM_TEST_SUM_LIMBS], expected,
-                                           SUM_TEST_SUM_LIMBS * sizeof(unsigned int)) == 0);
+                same = same && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &device_sums[r * SUM_TEST_SUM_LIMBS],
+                                           .other = &host_sums[r * SUM_TEST_SUM_LIMBS],
+                                           .bytes = SUM_TEST_SUM_LIMBS * sizeof(unsigned int)) == 0);
+                closed =
+                    closed && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &device_sums[r * SUM_TEST_SUM_LIMBS],
+                                          .other = expected, .bytes = SUM_TEST_SUM_LIMBS * sizeof(unsigned int)) == 0);
             }
             char what[160];
             snprintf(what, sizeof(what), "sum of %s over %s: the device equals the host word for word", names[output],
@@ -370,15 +371,16 @@ static void sum_records(SumResults *results)
             for (unsigned int g = 0u; (ok != 0) && (g < SUM_TEST_GROUPS); g += 1u)
             {
                 EngineError error;
-                memset(&error, 0, sizeof(error));
+                EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
                 const unsigned long long runs = SUM_TEST_RECORDS / groups[g];
                 const int both =
                     (sum_run(1, device_records, SUM_TEST_RECORDS, groups[g], SUM_TEST_RECORD_LIMBS, offsets[field],
                              bits[field], SUM_TEST_SUM_LIMBS, device_sums, &error) != CYCLE_ERROR) &&
                     (sum_run(0, records, SUM_TEST_RECORDS, groups[g], SUM_TEST_RECORD_LIMBS, offsets[field],
                              bits[field], SUM_TEST_SUM_LIMBS, host_sums, &error) != CYCLE_ERROR);
-                const int same = both && (memcmp(device_sums, host_sums,
-                                                 (size_t)runs * SUM_TEST_SUM_LIMBS * sizeof(unsigned int)) == 0);
+                const int same =
+                    both && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device_sums, .other = host_sums,
+                                        .bytes = (size_t)runs * SUM_TEST_SUM_LIMBS * sizeof(unsigned int)) == 0);
                 char what[200];
                 snprintf(what, sizeof(what),
                          "%s fields of %u bits at bit %u, runs of %llu: the device equals the host word for word",
@@ -391,7 +393,7 @@ static void sum_records(SumResults *results)
     for (int device = 0; (ok != 0) && (device < 2); device += 1)
     {
         EngineError error;
-        memset(&error, 0, sizeof(error));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
         const void *const from = (device != 0) ? (const void *)device_records : (const void *)records;
         const unsigned int *const source = (const unsigned int *)from;
         sum_check(results,

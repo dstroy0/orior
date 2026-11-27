@@ -8,8 +8,9 @@
 #include "../../../../../../../src/cu/transpiler/lstar/interface/interface.h"
 #include "../../../../../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
-#include <string.h>
 
 // a POSIX signal's name, which a Windows build never reads (it has no SIGTRAP, and its SIGABRT is 22)
 #if defined(_WIN32)
@@ -80,11 +81,11 @@ static int interface_test_probe(InterfaceTest *test, const char *name, char *con
     char path[1024];
     snprintf(path, sizeof(path), "%s/%s.out", test->folder, name);
     const InterfaceProbe probe = {command, test->piped ? NULL : path, limit};
-    memset(answer, 0, sizeof(*answer));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = answer, .bytes = sizeof(*answer), .val = 0);
     answer->output = output;
     answer->output_capacity = capacity;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const long result = interface_probe_run(&probe, answer, &error);
     if (result != 0L)
     {
@@ -168,10 +169,12 @@ static void interface_test_answered(InterfaceTest *test, const char *question, c
     const int result =
         interface_test_probe(test, question, command, INTERFACE_TEST_LIMIT, &answer, output, sizeof(output));
     snprintf(what, sizeof(what), "%s is answered, not faulted: the quotient %.*s", question,
-             (int)(strlen(printed) - 1u), printed);
+             (int)(EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = printed, .cap = PLATFORM_TEXT_TO_TERMINATOR) - 1u),
+             printed);
     interface_test_check(test,
                          result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull) &&
-                             (strcmp(output, printed) == 0),
+                             (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = output, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = printed, .ci = EMBED_FALSE)),
                          what);
 }
 
@@ -214,13 +217,18 @@ int program_main(int count, char **arguments)
     char *const write_words[] = {(char *)test.probe, "write", "a word with spaces", NULL};
     const char written[] = "out: a word with spaces\nerr: a word with spaces\n";
     result = interface_test_probe(&test, "write", write_words, INTERFACE_TEST_LIMIT, &answer, output, sizeof(output));
-    const size_t written_length = strlen(written);
+    const size_t written_length =
+        EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = written, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     // on Windows the C runtime writes a line's end as two bytes
     const size_t written_windows = written_length + 2u;
     const int length_ok =
         (answer.output_bytes == written_length) || (INTERFACE_TEST_WINDOWS && (answer.output_bytes == written_windows));
-    const int text_ok =
-        (strstr(output, "out: a word with spaces") == output) && (strstr(output, "err: a word with spaces") != NULL);
+    const int text_ok = (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = output, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "out: a word with spaces", .other_cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .ci = EMBED_FALSE) == output) &&
+                        (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = output, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "err: a word with spaces", .other_cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .ci = EMBED_FALSE) != NULL);
     interface_test_check(
         &test, result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull) && length_ok && text_ok,
         "write gives its output then its errors, one word with spaces preserved whole");
@@ -229,7 +237,11 @@ int program_main(int count, char **arguments)
     char small[8];
     result =
         interface_test_probe(&test, "write_small", write_words, INTERFACE_TEST_LIMIT, &answer, small, sizeof(small));
-    interface_test_check(&test, result && (strcmp(small, "out: a ") == 0) && length_ok,
+    interface_test_check(&test,
+                         result &&
+                             (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = small, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = "out: a ", .ci = EMBED_FALSE)) &&
+                             length_ok,
                          "a capacity of 8 retains 7 bytes and a zero, and counts the whole output");
 
 #if INTERFACE_TEST_DIVISION_FAULTS
@@ -275,8 +287,12 @@ int program_main(int count, char **arguments)
         interface_test_probe(&test, "write_piped", write_words, INTERFACE_TEST_LIMIT, &answer, output, sizeof(output));
     const int piped_length_ok =
         (answer.output_bytes == written_length) || (INTERFACE_TEST_WINDOWS && (answer.output_bytes == written_windows));
-    const int piped_text_ok =
-        (strstr(output, "out: a word with spaces") == output) && (strstr(output, "err: a word with spaces") != NULL);
+    const int piped_text_ok = (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = output,
+                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "out: a word with spaces",
+                                          .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) == output) &&
+                              (EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = output,
+                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "err: a word with spaces",
+                                          .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) != NULL);
     interface_test_check(
         &test,
         result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull) && piped_length_ok &&
@@ -285,7 +301,11 @@ int program_main(int count, char **arguments)
 
     result = interface_test_probe(&test, "write_small_piped", write_words, INTERFACE_TEST_LIMIT, &answer, small,
                                   sizeof(small));
-    interface_test_check(&test, result && (strcmp(small, "out: a ") == 0) && piped_length_ok,
+    interface_test_check(&test,
+                         result &&
+                             (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = small, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                         .other = "out: a ", .ci = EMBED_FALSE)) &&
+                             piped_length_ok,
                          "through a pipe, a capacity of 8 retains 7 bytes and a zero, and counts the whole output");
 
     char flood_bytes[32];

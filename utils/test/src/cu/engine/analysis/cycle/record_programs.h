@@ -14,9 +14,9 @@
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../../../includes/exact_types/integers/exact_integer.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define HOST_TEST_LANES 4096u
 
@@ -103,7 +103,7 @@ static void host_field(HostProgram *program, unsigned int bits, unsigned int off
 
 static int host_load(const HostProgram *program, int reuse, HostLoaded *loaded)
 {
-    memset(loaded, 0, sizeof(*loaded));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = loaded, .bytes = sizeof(*loaded), .val = 0);
     const KeymathRecordRequest encode_request = {
         program->steps,        program->count,
         program->field_bits,   program->fields,
@@ -147,7 +147,7 @@ static unsigned int *host_atoms(unsigned int limbs, unsigned int bodies)
 // constant: a signed 160-bit field, a 64-bit and a 32-bit one
 static void host_arithmetic(HostProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     program->name = "arithmetic";
     program->members = 1u;
     program->in_limbs[0] = 8u;
@@ -168,14 +168,14 @@ static void host_arithmetic(HostProgram *program)
     host_step(program, ENGINE_RECORD_LADDER, 2u, 10u, 0u);
     const unsigned int outputs[] = {3u, 4u, 5u, 6u, 7u, 9u, 11u};
     program->output_count = (unsigned int)(sizeof(outputs) / sizeof(outputs[0]));
-    memcpy(program->outputs, outputs, sizeof(outputs));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program->outputs, .src = outputs, .bytes = sizeof(outputs));
 }
 
 // the division over a divisor of at least 1 (a 64-bit field plus one): the quotient, remainder and gcd of a signed
 // 192-bit numerator, and the exact quotient of the numerator times the divisor, less the numerator, which is zero
 static void host_division(HostProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     program->name = "division";
     program->members = 1u;
     program->in_limbs[0] = 8u;
@@ -193,13 +193,13 @@ static void host_division(HostProgram *program)
     host_step(program, ENGINE_RECORD_DIFFERENCE, 8u, 0u, 0u);
     const unsigned int outputs[] = {4u, 5u, 6u, 8u, 9u};
     program->output_count = (unsigned int)(sizeof(outputs) / sizeof(outputs[0]));
-    memcpy(program->outputs, outputs, sizeof(outputs));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program->outputs, .src = outputs, .bytes = sizeof(outputs));
 }
 
 // the xor and the and of two signed fields, 96 and 70 bits, and the wrap to 13, 64 and 4 bits
 static void host_bitwise(HostProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     program->name = "bitwise";
     program->members = 1u;
     program->in_limbs[0] = 6u;
@@ -214,14 +214,14 @@ static void host_bitwise(HostProgram *program)
     host_step(program, ENGINE_RECORD_WRAP, 0u, 4u, 0u);
     const unsigned int outputs[] = {2u, 3u, 4u, 5u, 6u};
     program->output_count = (unsigned int)(sizeof(outputs) / sizeof(outputs[0]));
-    memcpy(program->outputs, outputs, sizeof(outputs));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program->outputs, .src = outputs, .bytes = sizeof(outputs));
 }
 
 // the lane's number, a table read through its low 8 bits (40-bit entries), one through a 16-bit field's low 12 bits
 // (20-bit entries), their sum, and the first table read again through the sum
 static void host_tables(HostProgram *program, unsigned int *wide, unsigned int *narrow)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     program->name = "tables";
     program->members = 1u;
     program->in_limbs[0] = 1u;
@@ -250,14 +250,14 @@ static void host_tables(HostProgram *program, unsigned int *wide, unsigned int *
     host_step(program, ENGINE_RECORD_TABLE, 4u, 0u, 0u);
     const unsigned int outputs[] = {0u, 1u, 3u, 4u, 5u};
     program->output_count = (unsigned int)(sizeof(outputs) / sizeof(outputs[0]));
-    memcpy(program->outputs, outputs, sizeof(outputs));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program->outputs, .src = outputs, .bytes = sizeof(outputs));
 }
 
 // two members read through an index: a 64-bit field of the first, a signed 90-bit field of the second, their product
 // and the product less the second
 static void host_members(HostProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     program->name = "members";
     program->members = 2u;
     program->in_limbs[0] = 2u;
@@ -270,7 +270,7 @@ static void host_members(HostProgram *program)
     host_step(program, ENGINE_RECORD_DIFFERENCE, 2u, 1u, 0u);
     const unsigned int outputs[] = {2u, 3u};
     program->output_count = (unsigned int)(sizeof(outputs) / sizeof(outputs[0]));
-    memcpy(program->outputs, outputs, sizeof(outputs));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program->outputs, .src = outputs, .bytes = sizeof(outputs));
 }
 
 // the linear forms' limit (keymath, KEYMATH_COEFFICIENT_MAX, 2^62): 2^62 added to itself, the sum added to itself,
@@ -278,7 +278,7 @@ static void host_members(HostProgram *program)
 // product 66; a sum formed past a signed word would give 2^64 a width of 1 bit
 static void host_affine_limit(HostProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     program->name = "form limit";
     program->members = 1u;
     program->in_limbs[0] = 1u;
@@ -289,13 +289,13 @@ static void host_affine_limit(HostProgram *program)
     host_step(program, ENGINE_RECORD_PRODUCT, 1u, 3u, 0u);
     const unsigned int outputs[] = {2u, 4u};
     program->output_count = (unsigned int)(sizeof(outputs) / sizeof(outputs[0]));
-    memcpy(program->outputs, outputs, sizeof(outputs));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = program->outputs, .src = outputs, .bytes = sizeof(outputs));
 }
 
 // the divisor taken bare, which errors once a lane's is zero: the division program's fields, the quotient alone
 static void host_bare_divisor(HostProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     program->name = "bare divisor";
     program->members = 1u;
     program->in_limbs[0] = 8u;

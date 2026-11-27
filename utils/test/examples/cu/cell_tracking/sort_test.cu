@@ -32,9 +32,9 @@
 
 #include <cuda_runtime.h>
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #include <direct.h>
@@ -136,8 +136,8 @@ typedef struct
 static int sort_test_pair_reserve(SortTestPair *pair, unsigned int sources, unsigned int targets,
                                   const unsigned int weights[ENGINE_AXES])
 {
-    memset(pair, 0, sizeof(*pair));
-    memcpy(pair->weights, weights, sizeof(pair->weights));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = pair, .bytes = sizeof(*pair), .val = 0);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = pair->weights, .src = weights, .bytes = sizeof(pair->weights));
     pair->sources = sources;
     pair->targets = targets;
     pair->source_places = (int *)platform_cell_taken((ENGINE_AXES * (size_t)sources + 1u) * sizeof(int),
@@ -154,7 +154,7 @@ static void sort_test_pair_release(SortTestPair *pair)
     platform_cell_released(pair->source_places, platform_place_g_program_owner);
     platform_cell_released(pair->predictions, platform_place_g_program_owner);
     platform_cell_released(pair->target_places, platform_place_g_program_owner);
-    memset(pair, 0, sizeof(*pair));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = pair, .bytes = sizeof(*pair), .val = 0);
 }
 
 // the weighted squared length, as the gate defines it
@@ -465,8 +465,8 @@ static int sort_test_prove(const SortTestPair *pair, SortLinks *links, SortTestS
         group[group_start[label[links->source[pair_at]] + 1u]] = pair_at;
         group_start[label[links->source[pair_at]] + 1u] += 1u;
     }
-    memset(source_used, 0, (size_t)sources + 1u);
-    memset(target_used, 0, (size_t)targets + 1u);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = source_used, .bytes = (size_t)sources + 1u, .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = target_used, .bytes = (size_t)targets + 1u, .val = 0);
     unsigned long long retained = 0ull;
     unsigned long long level = 0ull;
     unsigned long long crossed = 0ull;
@@ -587,7 +587,7 @@ static void sort_test_small_frames(SimResults *results, SortLinks *links)
     const unsigned int weights[3] = {16u, 1u, 1u};
     const unsigned int hessians[3][2] = {{0u, 3u}, {3u, 0u}, {1u, 1u}};
     SortTestSums sums;
-    memset(&sums, 0, sizeof(sums));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &sums, .bytes = sizeof(sums), .val = 0);
     int ok = 1;
     for (unsigned int extent = 0u; extent < 3u; extent += 1u)
     {
@@ -623,7 +623,7 @@ static void sort_test_lattice(SimResults *results, SortLinks *links)
 {
     const unsigned int weight_sets[2][3] = {{1u, 1u, 1u}, {16u, 1u, 1u}};
     SortTestSums sums;
-    memset(&sums, 0, sizeof(sums));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &sums, .bytes = sizeof(sums), .val = 0);
     int ok = 1;
     for (unsigned int set = 0u; set < 2u; set += 1u)
     {
@@ -677,7 +677,7 @@ static void sort_test_outside(SimResults *results, SortLinks *links)
 {
     const unsigned int weights[3] = {16u, 1u, 1u};
     SortTestSums sums;
-    memset(&sums, 0, sizeof(sums));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &sums, .bytes = sizeof(sums), .val = 0);
     SortTestPair pair;
     int ok = sort_test_pair_reserve(&pair, 200u, 180u, weights);
     const long long view_low[3] = {0ll, 0ll, 0ll};
@@ -714,20 +714,23 @@ static void sort_test_pile(SimResults *results, SortLinks *links)
 {
     const unsigned int weights[3] = {16u, 1u, 1u};
     SortTestSums sums;
-    memset(&sums, 0, sizeof(sums));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &sums, .bytes = sizeof(sums), .val = 0);
     SortTestPair pair;
     int ok = sort_test_pair_reserve(&pair, SORT_TEST_PILE_SOURCES, SORT_TEST_PILE_TARGETS, weights);
     for (unsigned int source = 0u; ok && (source < pair.sources); source += 1u)
     {
         const int place[3] = {2, 7, 9};
         const int predicted[3] = {3, 5, 11};
-        memcpy(&pair.source_places[ENGINE_AXES * source], place, sizeof(place));
-        memcpy(&pair.predictions[ENGINE_AXES * source], predicted, sizeof(predicted));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &pair.source_places[ENGINE_AXES * source], .src = place,
+                   .bytes = sizeof(place));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &pair.predictions[ENGINE_AXES * source], .src = predicted,
+                   .bytes = sizeof(predicted));
     }
     for (unsigned int target = 0u; ok && (target < pair.targets); target += 1u)
     {
         const int place[3] = {4, 6, 10};
-        memcpy(&pair.target_places[ENGINE_AXES * target], place, sizeof(place));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &pair.target_places[ENGINE_AXES * target], .src = place,
+                   .bytes = sizeof(place));
     }
     // the pool is given back first. The pile reserves it for its own 50 points
     sort_release();
@@ -744,7 +747,7 @@ static void sort_test_small_draws(SimResults *results, SortLinks *links)
 {
     const unsigned int weight_sets[2][3] = {{16u, 1u, 1u}, {1u, 1u, 1u}};
     SortTestSums sums;
-    memset(&sums, 0, sizeof(sums));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &sums, .bytes = sizeof(sums), .val = 0);
     int ok = 1;
     for (unsigned int draw = 0u; draw < SORT_TEST_SMALL_DRAWS; draw += 1u)
     {
@@ -794,7 +797,7 @@ static void sort_test_large(SimResults *results, SortLinks *links)
     for (unsigned int set = 0u; set < 2u; set += 1u)
     {
         SortTestSums sums;
-        memset(&sums, 0, sizeof(sums));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &sums, .bytes = sizeof(sums), .val = 0);
         SortTestPair pair;
         int ok = sort_test_pair_reserve(&pair, SORT_TEST_POINTS_MAX, SORT_TEST_POINTS_MAX, weight_sets[set]);
         for (unsigned int source = 0u; ok && (source < pair.sources); source += 1u)
@@ -1108,7 +1111,8 @@ static int sort_test_chain_read(SimResults *results, const unsigned int *links, 
     const unsigned int weights[3] = {16u, 1u, 1u};
     const unsigned int header[SORT_HEADER_WORDS] = {
         SORT_TEST_FRAMES, SORT_TEST_DEPTH, SORT_TEST_SIDE, SORT_TEST_SIDE, 16u, 1u, 1u, SORT_TERMS};
-    int ok = (count >= SORT_HEADER_WORDS) && (memcmp(links, header, sizeof(header)) == 0);
+    int ok = (count >= SORT_HEADER_WORDS) &&
+             (EMBED_CALL(memor.cmp, MemoriaCfg, .src = links, .other = header, .bytes = sizeof(header)) == 0);
     sim_check(results, ok, "the chain's .links opens with its frames, view, weights 16, 1, 1 and terms 1");
     unsigned int at = SORT_HEADER_WORDS;
     unsigned int predicted = 0u;
@@ -1259,14 +1263,14 @@ static void sort_test_walk(SimResults *results, const char *set)
               "a sample with no .points gives no max points a frame");
     sim_flush(results);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long voxel_pm[3] = {1625000ull, 406250ull, 406250ull};
     SortRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.set = set;
     request.samples = every;
     request.count = 1u;
-    memcpy(request.voxel_pm, voxel_pm, sizeof(voxel_pm));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.voxel_pm, .src = voxel_pm, .bytes = sizeof(voxel_pm));
     request.error = &error;
     platform_line_flushed();
     const long alone = ok ? sort_link_set(&request) : SORT_ERROR;
@@ -1281,7 +1285,9 @@ static void sort_test_walk(SimResults *results, const char *set)
     fflush(stderr);
     const unsigned int count_again = sort_test_read(set, "chain", ".links", again, 4096u);
     sim_check(results, all == SORT_ERROR, "a set with an erroring sample errors");
-    sim_check(results, (count_again == count) && (memcmp(read, again, (size_t)count * sizeof(unsigned int)) == 0),
+    sim_check(results,
+              (count_again == count) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = read, .other = again,
+                                                    .bytes = (size_t)count * sizeof(unsigned int)) == 0),
               "the chain's .links, sorted again beside erroring samples, is the same to the word");
     sim_check(results, sort_test_exists(set, "weighed", ".links") == 0,
               "a .drift of weights 1, 1, 1 under voxel_pm's 16, 1, 1 errors and leaves no .links");
@@ -1454,7 +1460,7 @@ typedef struct
 // the first a lag drawn in -1 to 1 on each axis
 static void sort_test_first_draw(SortTestDrawn *drawn)
 {
-    memset(drawn, 0, sizeof(*drawn));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = drawn, .bytes = sizeof(*drawn), .val = 0);
     const unsigned long long key = 0xF1257ull;
     unsigned long long counter = 0ull;
     for (unsigned int frame = 0u; frame < SORT_TEST_FIRST_FRAMES; frame += 1u)
@@ -1465,7 +1471,7 @@ static void sort_test_first_draw(SortTestDrawn *drawn)
                                        : (1u + (unsigned int)sim_draw_below(key, counter, SORT_TEST_FIRST_POINTS));
         counter += 1ull;
         unsigned char taken[SORT_TEST_FIRST_VOXELS];
-        memset(taken, 0, sizeof(taken));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = taken, .bytes = sizeof(taken), .val = 0);
         for (unsigned int point = 0u; point < count; point += 1u)
         {
             unsigned int voxel = SORT_TEST_FIRST_VOXELS;
@@ -1614,13 +1620,14 @@ static int sort_test_first_pair(const SortTestDrawn *drawn, unsigned int frame, 
 {
     const unsigned int sources = drawn->counts[frame];
     const unsigned int targets = drawn->counts[frame + 1u];
-    int ok = (plain[0] == sources) && (plain[1] == targets) &&
-             (memcmp(plain, pooled, 4u * sizeof(unsigned int)) == 0) && (plain[2] <= SORT_TEST_FIRST_PAIRS_MAX) &&
-             (plain[3] <= plain[2]);
+    int ok =
+        (plain[0] == sources) && (plain[1] == targets) &&
+        (EMBED_CALL(memor.cmp, MemoriaCfg, .src = plain, .other = pooled, .bytes = 4u * sizeof(unsigned int)) == 0) &&
+        (plain[2] <= SORT_TEST_FIRST_PAIRS_MAX) && (plain[3] <= plain[2]);
     const unsigned int pairs = ok ? plain[2] : 0u;
     const unsigned int components = ok ? plain[3] : 0u;
-    ok = ok && (memcmp(&plain[SORT_PAIR_WORDS], &pooled[SORT_PAIR_WORDS],
-                       SORT_SOURCE_WORDS * (size_t)sources * sizeof(unsigned int)) == 0);
+    ok = ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &plain[SORT_PAIR_WORDS], .other = &pooled[SORT_PAIR_WORDS],
+                           .bytes = SORT_SOURCE_WORDS * (size_t)sources * sizeof(unsigned int)) == 0);
     const unsigned int *const plain_gate = &plain[SORT_PAIR_WORDS + (SORT_SOURCE_WORDS * sources)];
     const unsigned int *const gate = &pooled[SORT_PAIR_WORDS + (SORT_SOURCE_WORDS * sources)];
     unsigned int source[SORT_TEST_FIRST_PAIRS_MAX];
@@ -1659,8 +1666,8 @@ static int sort_test_first_pair(const SortTestDrawn *drawn, unsigned int frame, 
     }
     unsigned char source_used[SORT_TEST_FIRST_POINTS];
     unsigned char target_used[SORT_TEST_FIRST_POINTS];
-    memset(source_used, 0, sizeof(source_used));
-    memset(target_used, 0, sizeof(target_used));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = source_used, .bytes = sizeof(source_used), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = target_used, .bytes = sizeof(target_used), .val = 0);
     unsigned int chosen = 0u;
     for (unsigned int pair = 0u; ok && (pair < pairs); pair += 1u)
     {
@@ -1674,7 +1681,7 @@ static int sort_test_first_pair(const SortTestDrawn *drawn, unsigned int frame, 
         chosen += 1u;
     }
     SortLinks links;
-    memset(&links, 0, sizeof(links));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &links, .bytes = sizeof(links), .val = 0);
     links.pairs = pairs;
     links.source = source;
     links.target = target;
@@ -1699,8 +1706,8 @@ static int sort_test_first_pair(const SortTestDrawn *drawn, unsigned int frame, 
             chosen_links += ((flags[pair] & SORT_GATE_CHOSEN) != 0u) ? 1u : 0u;
             chosen_cost += ((flags[pair] & SORT_GATE_CHOSEN) != 0u) ? cost[pair] : 0ull;
         }
-        memset(source_used, 0, sizeof(source_used));
-        memset(target_used, 0, sizeof(target_used));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = source_used, .bytes = sizeof(source_used), .val = 0);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = target_used, .bytes = sizeof(target_used), .val = 0);
         SortTestEnumeration enumeration = {&links, members, count, source_used, target_used, 0u, 0ull};
         sort_test_enumerate(&enumeration, 0u, 0u, 0ull);
         ok = (count != 0u) && (enumeration.best_links == chosen_links) && (enumeration.best_cost == chosen_cost);
@@ -1767,17 +1774,17 @@ static void sort_test_first_walk(SimResults *results, const char *set)
          sort_test_first_write(set, "plain", drawn, &words) && sort_test_first_write(set, "pooled", drawn, &words);
     sim_check(results, ok, "O7's drawn sample is written twice, as plain and as pooled");
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long voxel_pm[3] = {1625000ull, 406250ull, 406250ull};
     char *const plain_name[1] = {(char *)"plain"};
     char *const pooled_name[1] = {(char *)"pooled"};
     char *const wide_name[1] = {(char *)"wide"};
     SortRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.set = set;
     request.samples = plain_name;
     request.count = 1u;
-    memcpy(request.voxel_pm, voxel_pm, sizeof(voxel_pm));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.voxel_pm, .src = voxel_pm, .bytes = sizeof(voxel_pm));
     request.error = &error;
     platform_line_flushed();
     const long first_pass = ok ? sort_link_set(&request) : SORT_ERROR;
@@ -1793,8 +1800,8 @@ static void sort_test_first_walk(SimResults *results, const char *set)
                                           ? sort_test_read(set, "pooled", ".links", pooled, SORT_TEST_LINKS_CAPACITY)
                                           : SORT_TEST_NONE;
     ok = (plain_count != SORT_TEST_NONE) && (pooled_count == plain_count) &&
-         (memcmp(plain, pooled, 7u * sizeof(unsigned int)) == 0) && (plain[7] == SORT_TERMS) &&
-         (pooled[7] == (SORT_TERMS | SORT_TERM_FIRST));
+         (EMBED_CALL(memor.cmp, MemoriaCfg, .src = plain, .other = pooled, .bytes = 7u * sizeof(unsigned int)) == 0) &&
+         (plain[7] == SORT_TERMS) && (pooled[7] == (SORT_TERMS | SORT_TERM_FIRST));
     sim_check(results, ok, "the pooled .links is the plain's length, its header the plain's with O7's term 8 added");
     const unsigned int distinct = ok ? sort_test_first_count(plain, plain_count, counts) : SORT_TEST_NONE;
     ok = ok && (distinct != SORT_TEST_NONE);
@@ -1803,7 +1810,7 @@ static void sort_test_first_walk(SimResults *results, const char *set)
         sort_test_levels(counts, distinct, levels);
     }
     SortTestFirstSums sums;
-    memset(&sums, 0, sizeof(sums));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &sums, .bytes = sizeof(sums), .val = 0);
     unsigned int at = SORT_HEADER_WORDS;
     for (unsigned int frame = 0u; ok && ((frame + 1u) < SORT_TEST_FIRST_FRAMES); frame += 1u)
     {
@@ -1863,7 +1870,7 @@ int program_main(int count, char **arguments)
     const int admitted =
         sim_job_submit(&results, "sort_test", count, arguments, sort_reserve_bytes(SORT_TEST_POINTS_MAX));
     SortLinks links;
-    memset(&links, 0, sizeof(links));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &links, .bytes = sizeof(links), .val = 0);
     if (admitted != 0)
     {
         sort_test_reserve_bytes(&results);

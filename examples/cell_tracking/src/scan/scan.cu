@@ -8,9 +8,9 @@
 #include "scan.h"
 #include "../../../../src/cu/engine/analysis/shift_agreement/shift_agreement.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define SCAN_MEASUREMENT_MAX 65535u
 
@@ -105,8 +105,8 @@ static void scan_exact_unsigned(OriorExactInteger *value, unsigned long long num
 static void scan_classes(const unsigned long long *counts, unsigned int first, unsigned int split, unsigned int last,
                          ScanClass *lower, ScanClass *upper)
 {
-    memset(lower, 0, sizeof(*lower));
-    memset(upper, 0, sizeof(*upper));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = lower, .bytes = sizeof(*lower), .val = 0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = upper, .bytes = sizeof(*upper), .val = 0);
     for (unsigned int value = first; value <= last; value += 1u)
     {
         ScanClass *const side = (value <= split) ? lower : upper;
@@ -170,7 +170,7 @@ static int scan_two_means(const unsigned long long *counts, unsigned int first, 
 
 static void scan_footing(const unsigned long long *counts, unsigned long long total, ScanFooting *footing)
 {
-    memset(footing, 0, sizeof(*footing));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = footing, .bytes = sizeof(*footing), .val = 0);
     unsigned int least = SCAN_READINGS;
     unsigned int max = 0u;
     unsigned int median = SCAN_READINGS;
@@ -212,7 +212,7 @@ static void scan_footing(const unsigned long long *counts, unsigned long long to
 
 static int scan_load(const ScanRequest *request, const char *sample, ScanVolume *volume)
 {
-    memset(volume, 0, sizeof(*volume));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = volume, .bytes = sizeof(*volume), .val = 0);
     EngineSignum root;
     const int loaded =
         (engine_iapx_load(request->set, sample, volume->extent, &volume->lanes, &root, NULL, request->error) == 0L) &&
@@ -364,7 +364,8 @@ static int scan_ingest(const ScanRequest *request, const char *sample, unsigned 
     {
         return 0;
     }
-    memset(sample_counts, 0, SCAN_READINGS * sizeof(unsigned long long));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = sample_counts, .bytes = SCAN_READINGS * sizeof(unsigned long long),
+               .val = 0);
     const unsigned long long total = volume.extent[0] * volume.voxels;
     for (unsigned long long measurement = 0ull; measurement < total; measurement += 1ull)
     {
@@ -472,14 +473,16 @@ static int scan_frames(const ScanRequest *request, const char *sample, const Sca
     {
         scan_contrast_map(contrast, &volume->lanes[(size_t)frame * voxels], voxels);
         EngineResidualPlanesRequest residual;
-        memset(&residual, 0, sizeof(residual));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &residual, .bytes = sizeof(residual), .val = 0);
         residual.planes = contrast->planes;
         residual.input_bits = contrast->bits;
         residual.depth = header[1];
         residual.height = header[2];
         residual.width = header[3];
-        memcpy(residual.smooth_orders, request->smooth_orders, sizeof(residual.smooth_orders));
-        memcpy(residual.background_orders, request->background_orders, sizeof(residual.background_orders));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = residual.smooth_orders, .src = request->smooth_orders,
+                   .bytes = sizeof(residual.smooth_orders));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = residual.background_orders, .src = request->background_orders,
+                   .bytes = sizeof(residual.background_orders));
         residual.error = request->error;
         const unsigned int *device_residual = NULL;
         unsigned int limbs = 0u;
@@ -544,12 +547,13 @@ static int scan_frames(const ScanRequest *request, const char *sample, const Sca
         if (ok && (frame != 0u))
         {
             ShiftAgreementRequest agreement;
-            memset(&agreement, 0, sizeof(agreement));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &agreement, .bytes = sizeof(agreement), .val = 0);
             agreement.axes = ENGINE_AXES;
             agreement.extents[0] = header[1];
             agreement.extents[1] = header[2];
             agreement.extents[2] = header[3];
-            memcpy(agreement.weights, contrast->weights, sizeof(contrast->weights));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = agreement.weights, .src = contrast->weights,
+                       .bytes = sizeof(contrast->weights));
             agreement.before = points->before;
             agreement.after = points->after;
             agreement.counts = NULL;
@@ -600,7 +604,7 @@ static int scan_frames(const ScanRequest *request, const char *sample, const Sca
 static int scan_sample(const ScanRequest *request, const char *sample, ScanContrast *contrast, ScanPoints *points,
                        ScanResults *results)
 {
-    memset(results, 0, sizeof(*results));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = results, .bytes = sizeof(*results), .val = 0);
     results->least = ~0ull;
     ScanVolume volume;
     const int ok = (scan_load(request, sample, &volume) != 0) &&
@@ -629,7 +633,7 @@ extern "C" long scan_set(const ScanRequest *request)
         return SCAN_ERROR;
     }
     ScanContrast contrast;
-    memset(&contrast, 0, sizeof(contrast));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &contrast, .bytes = sizeof(contrast), .val = 0);
     if (drift_weights(request->voxel_pm, contrast.weights) == 0)
     {
         fprintf(stderr,
@@ -715,9 +719,9 @@ extern "C" long scan_set(const ScanRequest *request)
         platform_line_out_ended();
     }
     ScanPoints points;
-    memset(&points, 0, sizeof(points));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &points, .bytes = sizeof(points), .val = 0);
     ScanResults totals;
-    memset(&totals, 0, sizeof(totals));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &totals, .bytes = sizeof(totals), .val = 0);
     totals.least = ~0ull;
     unsigned int failed = 0u;
     for (unsigned int at = 0u; at < request->count; at += 1u)

@@ -51,13 +51,13 @@
 //   6. the records are written out.
 
 #include "../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../src/platform/platform.h"
 #include "../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../src/cu/engine/analysis/keymath/keymath.h"
+#include "../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
 
 #include "record_stages.h"
 
@@ -65,7 +65,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <algorithm>
 #include <string>
@@ -116,7 +115,7 @@ typedef struct
 // |a B - b A| and 2 A B for one cell of one comparison
 static void gold_distance_program(unsigned int count_bits, unsigned int total_bits, StageProgram *program)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     const unsigned int a = stage_field(program, count_bits);
     const unsigned int b = stage_field(program, count_bits);
     const unsigned int big_a = stage_field(program, total_bits);
@@ -378,9 +377,9 @@ int program_main(int count, char **arguments)
 
     // the distance program: each comparison a run of `run` lanes, its occupied cells first and zeros after
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     Stage distance_stage;
-    memset(&distance_stage, 0, sizeof(distance_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &distance_stage, .bytes = sizeof(distance_stage), .val = 0);
     distance_stage.name = "distance";
     gold_distance_program(count_bits, total_bits, &distance_stage.program);
     const unsigned long long lanes = (unsigned long long)comparisons.size() * run;
@@ -431,7 +430,8 @@ int program_main(int count, char **arguments)
             distance_out.data(), lanes, run, out_limbs, apart->out_offset, apart->out_bits, sum_limbs,
             host_sums.data(),    &error};
         ok = (cycle_record_sum(&on_device) != CYCLE_ERROR) && (cycle_record_sum_host(&on_host) != CYCLE_ERROR);
-        ok = ok && (memcmp(device_sums.data(), host_sums.data(), device_sums.size() * sizeof(unsigned int)) == 0);
+        ok = ok && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = device_sums.data(), .other = host_sums.data(),
+                               .bytes = device_sums.size() * sizeof(unsigned int)) == 0);
     }
     sim_check(&job, ok, "the device's sum of each comparison equals the host's");
     if (device_out != NULL)
@@ -457,7 +457,7 @@ int program_main(int count, char **arguments)
 
     // the ratio of each corpus's midpoint split-half distance to its alternating one
     Stage ratio_stage;
-    memset(&ratio_stage, 0, sizeof(ratio_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &ratio_stage, .bytes = sizeof(ratio_stage), .val = 0);
     ratio_stage.name = "ratio";
     std::vector<StageRational> halves;
     for (size_t at = 0u; at < (2u * named); at += 1u)
@@ -533,7 +533,7 @@ int program_main(int count, char **arguments)
     }
     margined.resize(xs.size(), 0);
     Stage first_stage;
-    memset(&first_stage, 0, sizeof(first_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &first_stage, .bytes = sizeof(first_stage), .val = 0);
     std::vector<int> first_signs;
     ok = ok && stage_compare(&job, &first_stage, "first compare", xs, ys, margined, margin, &first_signs, &error);
     for (size_t at = 0u; ok && (at < 4u); at += 1u)
@@ -554,7 +554,7 @@ int program_main(int count, char **arguments)
 
     // each reserved paper's gap between its nearest corpus and the runner-up
     Stage gap_stage;
-    memset(&gap_stage, 0, sizeof(gap_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &gap_stage, .bytes = sizeof(gap_stage), .val = 0);
     gap_stage.name = "gap";
     std::vector<StageRational> near;
     StageRows gap_rows;
@@ -590,7 +590,7 @@ int program_main(int count, char **arguments)
         gap_ys.push_back(papers[gapped[at]].floor);
     }
     Stage second_stage;
-    memset(&second_stage, 0, sizeof(second_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &second_stage, .bytes = sizeof(second_stage), .val = 0);
     std::vector<int> second_signs;
     ok = ok && stage_compare(&job, &second_stage, "second compare", gap_xs, gap_ys, std::vector<int>(gap_xs.size(), 1),
                              margin, &second_signs, &error);
@@ -615,7 +615,7 @@ int program_main(int count, char **arguments)
     stage_order_lanes(&gap_order, &third_xs, &third_ys);
     stage_order_lanes(&floor_order, &third_xs, &third_ys);
     Stage third_stage;
-    memset(&third_stage, 0, sizeof(third_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &third_stage, .bytes = sizeof(third_stage), .val = 0);
     std::vector<int> third_signs;
     ok = ok && stage_compare(&job, &third_stage, "third compare", third_xs, third_ys,
                              std::vector<int>(third_xs.size(), 0), unit_margin, &third_signs, &error);
@@ -627,7 +627,7 @@ int program_main(int count, char **arguments)
 
     // the medians, a middle value or the mean of the middle two
     Stage mean_stage;
-    memset(&mean_stage, 0, sizeof(mean_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &mean_stage, .bytes = sizeof(mean_stage), .val = 0);
     mean_stage.name = "mean";
     StageOrder *medians_of[2] = {&gap_order, &floor_order};
     StageRational medians[2] = {stage_unit(), stage_unit()};
@@ -683,7 +683,7 @@ int program_main(int count, char **arguments)
 
     // how many times the median gap fits inside the median split-half distance
     Stage noise_stage;
-    memset(&noise_stage, 0, sizeof(noise_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &noise_stage, .bytes = sizeof(noise_stage), .val = 0);
     noise_stage.name = "noise ratio";
     std::vector<StageRational> noise_values = {medians[0], medians[1]};
     stage_ratio_program(stage_widest(noise_values), &noise_stage.program);
@@ -701,7 +701,7 @@ int program_main(int count, char **arguments)
         printed.push_back(stage_pair_of(noise_out[0]));
     }
     Stage digits_stage;
-    memset(&digits_stage, 0, sizeof(digits_stage));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &digits_stage, .bytes = sizeof(digits_stage), .val = 0);
     digits_stage.name = "digits";
     stage_digits_program(stage_widest(printed), &digits_stage.program);
     StageRows digit_rows;

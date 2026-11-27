@@ -15,7 +15,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // the max bytes a cubin, its code, a text and a run's output take
 #define UNPRINTED_CUBIN_BYTES 262144u

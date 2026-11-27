@@ -14,10 +14,8 @@
 #include "../../table_text.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
 
 #include <ctype.h>
-#include <string.h>
 
 // the longest line of an oracle, a word of one of its fields, and a who named
 #define KDECODE_LINE 8192u

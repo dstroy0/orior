@@ -7,7 +7,6 @@
 #include "deflate.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 #define DEFLATE_WINDOW 32768ULL
 #define DEFLATE_MATCH_FLOOR 3ULL

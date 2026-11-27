@@ -4,8 +4,6 @@
 
 #include <cuda_runtime.h>
 
-#include <string.h>
-
 #define HESSIAN_THREADS 256u
 
 #define HESSIAN_ALL_ONES 0xFFFFFFFFu

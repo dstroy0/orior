@@ -10,7 +10,7 @@
 
 #include <cuda_runtime.h>
 
-#include <cstring>
+#include "memoria_operor/memoria_operor.h"
 
 // the room of the largest lattice of the cases, and the bits of the edges
 #define JOB_TEST_LANES_MAX (4u * 32u * 48u)
@@ -71,15 +71,15 @@ static long job_test_lifted(const unsigned short *lanes, const int *values, cons
         return -1L;
     }
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const int *coefficients = NULL;
     unsigned int *scratch = NULL;
     TowerLiftRequest lift;
-    memset(&lift, 0, sizeof(lift));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lift, .bytes = sizeof(lift), .val = 0);
     // Explicit casts read the memory of the device as the lattice that crossed into it
     lift.device_lanes = (values != NULL) ? NULL : (const unsigned short *)device;
     lift.device_values = (values != NULL) ? (const int *)device : NULL;
-    memcpy(lift.extent, extent, sizeof(lift.extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lift.extent, .src = extent, .bytes = sizeof(lift.extent));
     lift.coefficients = &coefficients;
     lift.scratch = &scratch;
     lift.floors = floors;
@@ -100,12 +100,12 @@ static long job_test_job(const unsigned short *lanes, const int *values, const u
                          const TowerEdge *edges, unsigned int edge_count, int *out, unsigned int *floors)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     TowerLiftJobRequest job;
-    memset(&job, 0, sizeof(job));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &job, .bytes = sizeof(job), .val = 0);
     job.lanes = lanes;
     job.values = values;
-    memcpy(job.extent, extent, sizeof(job.extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = job.extent, .src = extent, .bytes = sizeof(job.extent));
     job.edges = edges;
     job.edge_count = edge_count;
     job.coefficients = out;
@@ -148,7 +148,7 @@ static long job_test_lowered(const unsigned short *lanes, const unsigned long lo
     int *coefficients = NULL;
     void *device = NULL;
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     long answer = -1L;
     if ((tower_capacity(extent, &coefficients, &error) == 0L) &&
         (cudaMemcpy(coefficients, crystal, (size_t)count * sizeof(int), cudaMemcpyHostToDevice) == cudaSuccess) &&
@@ -157,10 +157,10 @@ static long job_test_lowered(const unsigned short *lanes, const unsigned long lo
     {
         const unsigned short *device_rebuilt = NULL;
         TowerLowerRequest lower;
-        memset(&lower, 0, sizeof(lower));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &lower, .bytes = sizeof(lower), .val = 0);
         // Explicit cast reads the memory of the device as the lanes that crossed into it
         lower.device_lanes = (const unsigned short *)device;
-        memcpy(lower.extent, extent, sizeof(lower.extent));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lower.extent, .src = extent, .bytes = sizeof(lower.extent));
         lower.mismatches = mismatches;
         lower.device_rebuilt = &device_rebuilt;
         lower.rebuilt = rebuilt;
@@ -179,12 +179,12 @@ static long job_test_lowered_job(const unsigned short *lanes, const unsigned lon
                                  unsigned short *rebuilt, unsigned long long *mismatches)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     TowerLowerJobRequest lower;
-    memset(&lower, 0, sizeof(lower));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &lower, .bytes = sizeof(lower), .val = 0);
     lower.coefficients = crystal;
     lower.lanes = lanes;
-    memcpy(lower.extent, extent, sizeof(lower.extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = lower.extent, .src = extent, .bytes = sizeof(lower.extent));
     lower.edges = edges;
     lower.edge_count = edge_count;
     lower.mismatches = mismatches;

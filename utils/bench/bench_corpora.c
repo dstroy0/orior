@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "bench_corpora.h"
 
-#include <string.h>
+#include "memoria_operor/memoria_operor.h"
 
 #define SKEWED_SYMBOLS 27u
 
@@ -30,7 +30,7 @@ static void fill_uniform(uint8_t *bytes, size_t length, uint64_t seed)
         {
             taking = sizeof drawn;
         }
-        memcpy(bytes + written, &drawn, taking);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = bytes + written, .src = &drawn, .bytes = taking);
         written += taking;
     }
 }
@@ -53,7 +53,8 @@ static void map_skewed(uint8_t *bytes, size_t length)
         {
             width = sizeof table - filled;
         }
-        memset(table + filled, (int)('a' + symbol), width);
+        // Explicit cast takes the symbol, a letter, as the byte that the fill writes
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = table + filled, .bytes = width, .val = (uint8_t)('a' + symbol));
         filled += width;
         symbol += 1u;
     }

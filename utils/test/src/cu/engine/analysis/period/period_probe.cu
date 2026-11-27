@@ -26,9 +26,9 @@
 
 #include <cuda_runtime.h>
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define PROBE_MAGIC 0x31445250u
 #define PROBE_BAND_MAX (1ull << 24u)
@@ -54,7 +54,7 @@ static int probe_take(FILE *file, void *into, size_t bytes)
 // the record's fixed fields in the file's order; 0 at the end of the file
 static int probe_record(FILE *file, ProbeRecord *record)
 {
-    memset(record, 0, sizeof(*record));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = record, .bytes = sizeof(*record), .val = 0);
     if (!probe_take(file, &record->magic, sizeof(record->magic)))
     {
         return 0;
@@ -272,18 +272,19 @@ static int probe_run(const ProbeRecord *record, const unsigned short *lanes, uns
                                                     platform_place_g_program_owner, 0)
             : NULL;
     PeriodMargin heights[ENGINE_ARRAY_RANK];
-    memset(heights, 0, sizeof(heights));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = heights, .bytes = sizeof(heights), .val = 0);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     PeriodMeasurement measurement;
-    memset(&measurement, 0, sizeof(measurement));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &measurement, .bytes = sizeof(measurement), .val = 0);
     PeriodRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.device_lanes = device_lanes;
     request.rank = record->rank;
-    memcpy(request.extent, record->extent, sizeof(request.extent));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.extent, .src = record->extent, .bytes = sizeof(request.extent));
     request.draws = (record->mode == 0u) ? record->draws : 0ull;
-    memcpy(request.content.bytes, record->content, sizeof(request.content.bytes));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = request.content.bytes, .src = record->content,
+               .bytes = sizeof(request.content.bytes));
     request.null_top = (record->has_null_top != 0u) ? record->null_top : NULL;
     request.agreement = agreement;
     request.agreement_capacity = entries;

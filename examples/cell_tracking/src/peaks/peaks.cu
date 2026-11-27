@@ -5,7 +5,7 @@
 #include <cub/cub.cuh>
 #include <cuda_runtime.h>
 
-#include <string.h>
+#include "memoria_operor/memoria_operor.h"
 
 #define PEAKS_THREADS 256u
 
@@ -103,7 +103,7 @@ static void peaks_release_resident(void)
     cudaFree(resident->found);
     cudaFree(resident->levels);
     cudaFree(resident->scratch);
-    memset(resident, 0, sizeof(*resident));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
 }
 
 static int peaks_reserve(size_t voxels)

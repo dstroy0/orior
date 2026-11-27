@@ -34,13 +34,14 @@
  *       transform can still be its own inverse.
  */
 
+#include "../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include <cstdio>
 #include <cstdlib>
 #ifdef _WIN32
 #include <io.h>
 #include <fcntl.h>
 #endif
-#include <cstring>
 #include <cstdint>
 #include <vector>
 
@@ -941,35 +942,48 @@ int main(int argc, char **argv)
 
     for (int at = 1; at < argc; ++at)
     {
-        if (std::strcmp(argv[at], "--length") == 0 && at + 1 < argc)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = "--length", .ci = EMBED_FALSE) &&
+            at + 1 < argc)
         {
             length = (uint32_t)std::strtoul(argv[++at], nullptr, 10);
         }
-        else if (std::strcmp(argv[at], "--modulus") == 0 && at + 1 < argc)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--modulus", .ci = EMBED_FALSE) &&
+                 at + 1 < argc)
         {
             which = (uint32_t)std::strtoul(argv[++at], nullptr, 10);
         }
-        else if (std::strcmp(argv[at], "--check") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--check", .ci = EMBED_FALSE))
         {
             grading = true;
         }
-        else if (std::strcmp(argv[at], "--left") == 0 && at + 1 < argc)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--left", .ci = EMBED_FALSE) &&
+                 at + 1 < argc)
         {
             left_path = argv[++at];
         }
-        else if (std::strcmp(argv[at], "--right") == 0 && at + 1 < argc)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--right", .ci = EMBED_FALSE) &&
+                 at + 1 < argc)
         {
             right_path = argv[++at];
         }
-        else if (std::strcmp(argv[at], "--out") == 0 && at + 1 < argc)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--out", .ci = EMBED_FALSE) &&
+                 at + 1 < argc)
         {
             prefix = argv[++at];
         }
-        else if (std::strcmp(argv[at], "--pipe") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--pipe", .ci = EMBED_FALSE))
         {
             piped = true;
         }
-        else if (std::strcmp(argv[at], "--domain") == 0)
+        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = argv[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                            .other = "--domain", .ci = EMBED_FALSE))
         {
             resident = true;
         }

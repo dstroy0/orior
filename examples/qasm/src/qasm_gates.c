@@ -1,11 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_gates.c: gate entries and the lowering of named gates
+#include "../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "qasm_internal.h"
 
 static void qasm_gate_start(QasmGate *gate, unsigned int type, unsigned int pattern, const QasmToken *token)
 {
-    memset(gate, 0, sizeof(*gate));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = gate, .bytes = sizeof(*gate), .val = 0);
     gate->type = type;
     gate->pattern = pattern;
     gate->line = token->line;
@@ -137,7 +140,8 @@ const QasmBuiltin *qasm_builtin(const char *name)
 {
     for (unsigned int at = 0u; at < (sizeof(QASM_BUILTINS) / sizeof(QASM_BUILTINS[0])); at += 1u)
     {
-        if (strcmp(QASM_BUILTINS[at].name, name) == 0)
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = QASM_BUILTINS[at].name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = name, .ci = EMBED_FALSE))
         {
             return &QASM_BUILTINS[at];
         }
@@ -198,7 +202,7 @@ static int qasm_lower_sx(QasmParser *parser, int dagger, const unsigned int *con
     const long long half = 1ll << (QASM_FRACTION_BITS - 1u);
     const long long sign = (dagger != 0) ? -1 : 1;
     const long long entries[8] = {half, sign * half, half, -sign * half, half, -sign * half, half, sign * half};
-    memcpy(gate.entries, entries, sizeof(entries));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = gate.entries, .src = entries, .bytes = sizeof(entries));
     gate.exact_entries = 1u;
     return qasm_push_gate(parser, &gate);
 }
@@ -226,110 +230,170 @@ int qasm_lower_gate(QasmParser *parser, const char *name, const QasmAngle *angle
     qasm_angle_rational(&half_pi, 0, 1, 1, 2);
     qasm_angle_rational(&negative_half_pi, 0, 1, -1, 2);
     const unsigned int q0 = qubits[0];
-    if ((strcmp(name, "U") == 0) || (strcmp(name, "u3") == 0) || (strcmp(name, "u") == 0))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "U",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "u3",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "u",
+                    .ci = EMBED_FALSE)))
     {
         return qasm_lower_u3(parser, &angles[0], &angles[1], &angles[2], &zero, NULL, 0u, q0, token);
     }
-    if (strcmp(name, "u2") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "u2",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_u3(parser, &half_pi, &angles[0], &angles[1], &zero, NULL, 0u, q0, token);
     }
-    if ((strcmp(name, "u1") == 0) || (strcmp(name, "p") == 0))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "u1",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "p",
+                    .ci = EMBED_FALSE)))
     {
         return qasm_lower_phase(parser, &angles[0], NULL, 0u, q0, token);
     }
-    if ((strcmp(name, "id") == 0) || (strcmp(name, "u0") == 0) || (strcmp(name, "iden") == 0))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "id",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "u0",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "iden",
+                    .ci = EMBED_FALSE)))
     {
         return 1;
     }
-    if ((strcmp(name, "CX") == 0) || (strcmp(name, "cx") == 0))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "CX",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "cx",
+                    .ci = EMBED_FALSE)))
     {
         return qasm_lower_permute(parser, QASM_PERMUTE_FLIP, 0u, &qubits[0], 1u, qubits[1], 0u, token);
     }
-    if (strcmp(name, "ccx") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "ccx",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_permute(parser, QASM_PERMUTE_FLIP, 0u, &qubits[0], 2u, qubits[2], 0u, token);
     }
-    if (strcmp(name, "c3x") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "c3x",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_permute(parser, QASM_PERMUTE_FLIP, 0u, &qubits[0], 3u, qubits[3], 0u, token);
     }
-    if (strcmp(name, "c4x") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "c4x",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_permute(parser, QASM_PERMUTE_FLIP, 0u, &qubits[0], 4u, qubits[4], 0u, token);
     }
-    if (strcmp(name, "x") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "x",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_permute(parser, QASM_PERMUTE_FLIP, 0u, NULL, 0u, q0, 0u, token);
     }
-    if (strcmp(name, "y") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "y",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_permute(parser, QASM_PERMUTE_Y, 0u, NULL, 0u, q0, 0u, token);
     }
-    if (strcmp(name, "cy") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "cy",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_permute(parser, QASM_PERMUTE_Y, 0u, &qubits[0], 1u, qubits[1], 0u, token);
     }
-    if (strcmp(name, "z") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "z",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_permute(parser, QASM_PERMUTE_PHASE, 2u, NULL, 0u, q0, 0u, token);
     }
-    if (strcmp(name, "cz") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "cz",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_permute(parser, QASM_PERMUTE_PHASE, 2u, &qubits[0], 1u, qubits[1], 0u, token);
     }
-    if (strcmp(name, "s") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "s",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_permute(parser, QASM_PERMUTE_PHASE, 1u, NULL, 0u, q0, 0u, token);
     }
-    if (strcmp(name, "sdg") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "sdg",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_permute(parser, QASM_PERMUTE_PHASE, 3u, NULL, 0u, q0, 0u, token);
     }
-    if (strcmp(name, "swap") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "swap",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_permute(parser, QASM_PERMUTE_SWAP, 0u, NULL, 0u, qubits[0], qubits[1], token);
     }
-    if (strcmp(name, "cswap") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "cswap",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_permute(parser, QASM_PERMUTE_SWAP, 0u, &qubits[0], 1u, qubits[1], qubits[2], token);
     }
-    if ((strcmp(name, "t") == 0) || (strcmp(name, "tdg") == 0))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "t",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "tdg",
+                    .ci = EMBED_FALSE)))
     {
         QasmAngle eighth;
-        qasm_angle_rational(&eighth, 0, 1, (strcmp(name, "t") == 0) ? 1 : -1, 4);
+        qasm_angle_rational(&eighth, 0, 1,
+                            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                        .other = "t", .ci = EMBED_FALSE))
+                                ? 1
+                                : -1,
+                            4);
         return qasm_lower_phase(parser, &eighth, NULL, 0u, q0, token);
     }
-    if ((strcmp(name, "cu1") == 0) || (strcmp(name, "cp") == 0))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "cu1",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "cp",
+                    .ci = EMBED_FALSE)))
     {
         return qasm_lower_phase(parser, &angles[0], &qubits[0], 1u, qubits[1], token);
     }
-    if ((strcmp(name, "h") == 0) || (strcmp(name, "ch") == 0))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "h",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "ch",
+                    .ci = EMBED_FALSE)))
     {
         // H = U3(pi/2, 0, pi)
         QasmAngle pi;
         qasm_angle_rational(&pi, 0, 1, 1, 1);
-        const unsigned int controlled = (strcmp(name, "ch") == 0);
+        const unsigned int controlled =
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "ch",
+                        .ci = EMBED_FALSE));
         return qasm_lower_u3(parser, &half_pi, &zero, &pi, &zero, &qubits[0], controlled, qubits[controlled], token);
     }
-    if ((strcmp(name, "rx") == 0) || (strcmp(name, "crx") == 0))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "rx",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "crx",
+                    .ci = EMBED_FALSE)))
     {
         // RX(theta) = U3(theta, -pi/2, pi/2)
-        const unsigned int controlled = (strcmp(name, "crx") == 0);
+        const unsigned int controlled =
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "crx",
+                        .ci = EMBED_FALSE));
         return qasm_lower_u3(parser, &angles[0], &negative_half_pi, &half_pi, &zero, &qubits[0], controlled,
                              qubits[controlled], token);
     }
-    if ((strcmp(name, "ry") == 0) || (strcmp(name, "cry") == 0))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "ry",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "cry",
+                    .ci = EMBED_FALSE)))
     {
         // RY(theta) = U3(theta, 0, 0)
-        const unsigned int controlled = (strcmp(name, "cry") == 0);
+        const unsigned int controlled =
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "cry",
+                        .ci = EMBED_FALSE));
         return qasm_lower_u3(parser, &angles[0], &zero, &zero, &zero, &qubits[0], controlled, qubits[controlled],
                              token);
     }
-    if ((strcmp(name, "rz") == 0) || (strcmp(name, "crz") == 0))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "rz",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "crz",
+                    .ci = EMBED_FALSE)))
     {
         // RZ(theta) = diag(e^{-i theta/2}, e^{i theta/2})
-        const unsigned int controlled = (strcmp(name, "crz") == 0);
+        const unsigned int controlled =
+            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "crz",
+                        .ci = EMBED_FALSE));
         QasmAngle half;
         QasmAngle negative_half;
         if (!qasm_angle_scale(parser, &angles[0], 1, 2, &half) ||
@@ -343,7 +407,8 @@ int qasm_lower_gate(QasmParser *parser, const char *name, const QasmAngle *angle
         qasm_gate_controls(&gate, &qubits[0], controlled);
         return qasm_diagonal_entries(parser, &negative_half, &half, &gate) && qasm_push_gate(parser, &gate);
     }
-    if (strcmp(name, "rzz") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "rzz",
+                   .ci = EMBED_FALSE))
     {
         // exp(-i theta/2 Z Z): e^{-i theta/2} at even parity, e^{i theta/2} at odd
         QasmAngle half;
@@ -359,7 +424,8 @@ int qasm_lower_gate(QasmParser *parser, const char *name, const QasmAngle *angle
         gate.second = qubits[1];
         return qasm_diagonal_entries(parser, &negative_half, &half, &gate) && qasm_push_gate(parser, &gate);
     }
-    if (strcmp(name, "rxx") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "rxx",
+                   .ci = EMBED_FALSE))
     {
         // X = H Z H: RXX = (H x H) RZZ (H x H)
         const unsigned int a[1] = {qubits[0]};
@@ -368,7 +434,8 @@ int qasm_lower_gate(QasmParser *parser, const char *name, const QasmAngle *angle
                qasm_lower_gate(parser, "rzz", angles, qubits, token) && qasm_lower_gate(parser, "h", NULL, a, token) &&
                qasm_lower_gate(parser, "h", NULL, b, token);
     }
-    if (strcmp(name, "ryy") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "ryy",
+                   .ci = EMBED_FALSE))
     {
         // Y = S X Sdg: RYY = (S x S) RXX (Sdg x Sdg)
         const unsigned int a[1] = {qubits[0]};
@@ -377,19 +444,28 @@ int qasm_lower_gate(QasmParser *parser, const char *name, const QasmAngle *angle
                qasm_lower_gate(parser, "rxx", angles, qubits, token) && qasm_lower_gate(parser, "s", NULL, a, token) &&
                qasm_lower_gate(parser, "s", NULL, b, token);
     }
-    if ((strcmp(name, "sx") == 0) || (strcmp(name, "sxdg") == 0))
+    if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "sx",
+                    .ci = EMBED_FALSE)) ||
+        (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "sxdg",
+                    .ci = EMBED_FALSE)))
     {
-        return qasm_lower_sx(parser, strcmp(name, "sxdg") == 0, NULL, 0u, q0, token);
+        return qasm_lower_sx(parser,
+                             EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                        .other = "sxdg", .ci = EMBED_FALSE),
+                             NULL, 0u, q0, token);
     }
-    if (strcmp(name, "csx") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "csx",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_sx(parser, 0, &qubits[0], 1u, qubits[1], token);
     }
-    if (strcmp(name, "cu3") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "cu3",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_u3(parser, &angles[0], &angles[1], &angles[2], &zero, &qubits[0], 1u, qubits[1], token);
     }
-    if (strcmp(name, "cu") == 0)
+    if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "cu",
+                   .ci = EMBED_FALSE))
     {
         return qasm_lower_u3(parser, &angles[0], &angles[1], &angles[2], &angles[3], &qubits[0], 1u, qubits[1], token);
     }

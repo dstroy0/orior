@@ -87,9 +87,10 @@
 #include "../../../src/platform/platform.h"
 #include "zeta_machine.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <math.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 
 #ifdef _WIN32
@@ -429,7 +430,8 @@ static size_t flagged_spans(const TuringCell *cell, int check, Span **spans, int
     static char line[1 << 16];
     while (fgets(line, sizeof(line), handle) != NULL)
     {
-        if (strncmp(line, "point", 5u) != 0)
+        if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "point", .ci = EMBED_FALSE))
         {
             continue;
         }
@@ -578,7 +580,7 @@ static void refine(const char *binary, const TuringConstants *constants, TuringC
     int64_t failed = 0;
     Span *open =
         (Span *)machine_memory(platform_cell_taken((count + 1u) * sizeof(Span), platform_place_g_program_owner, 0));
-    memcpy(open, spans, count * sizeof(Span));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = open, .src = spans, .bytes = count * sizeof(Span));
     size_t open_count = count;
     int64_t p = cell->p;
     for (int depth = 0; (depth < REFINE_DEPTH) && (open_count > 0u); depth += 1)
@@ -1147,10 +1149,10 @@ static int main_machine(const char *binary, int64_t first, int64_t last, int64_t
     TuringConstants constants;
     turing_constants(&constants);
     Control control_state;
-    memset(&control_state, 0, sizeof(control_state));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &control_state, .bytes = sizeof(control_state), .val = 0);
     control_state.last_p = -1;
     Machine machine;
-    memset(&machine, 0, sizeof(machine));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &machine, .bytes = sizeof(machine), .val = 0);
     machine.binary = binary;
     machine.constants = &constants;
     machine.method = method;
@@ -1425,7 +1427,9 @@ int program_main(int argument_count, char **arguments)
         return 2;
     }
     const char *const binary = arguments[1];
-    const int em = (argument_count > 5) && (strcmp(arguments[5], "em") == 0);
+    const int em =
+        (argument_count > 5) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[5],
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "em", .ci = EMBED_FALSE));
     if (em)
     {
         const int64_t first = (argument_count > 2) ? atoll(arguments[2]) : 1;
@@ -1442,14 +1446,22 @@ int program_main(int argument_count, char **arguments)
     const int64_t last = (argument_count > 3) ? atoll(arguments[3]) : 20;
     const int64_t rate = (argument_count > 4) ? atoll(arguments[4]) : 4;
     const char *const name = (argument_count > 5) ? arguments[5] : "pairs";
-    const int check = (argument_count > 6) && (strcmp(arguments[6], "check") == 0);
+    const int check =
+        (argument_count > 6) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[6],
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "check", .ci = EMBED_FALSE));
     static const char *const names[5] = {"pairs", "transform", "both", "em", "points"};
     int method = -2;
     for (int at = 0; at < 5; at += 1)
     {
-        method = (strcmp(name, names[at]) == 0) ? at : method;
+        method = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = names[at], .ci = EMBED_FALSE))
+                     ? at
+                     : method;
     }
-    method = (strcmp(name, "refine") == 0) ? -1 : method;
+    method = (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "refine",
+                         .ci = EMBED_FALSE))
+                 ? -1
+                 : method;
     if (((2 * first * first) <= 168) || (last < (first + 2)) || (method == -2))
     {
         fprintf(stderr, "  the first cell must start past t = 168 pi, at nu = 10 or above, three cells are the least, "

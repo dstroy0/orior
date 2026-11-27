@@ -22,6 +22,7 @@
  * @note Pull three decides it. The bench measures it, and does not reason about it.
  */
 
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <algorithm>
@@ -29,7 +30,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <random>
 #include <string>
 #include <unordered_map>
@@ -167,7 +167,7 @@ void measure_conditional_survival()
         {
             uint32_t plain[8];
             uint32_t turned[8];
-            std::memcpy(plain, candidate.state, sizeof(plain));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = plain, .src = candidate.state, .bytes = sizeof(plain));
             for (unsigned slot = 0u; slot < 8u; slot += 1u)
             {
                 turned[slot] = rotate_right(candidate.state[slot], FRAME);
@@ -179,7 +179,7 @@ void measure_conditional_survival()
             if (still_related(plain, turned))
             {
                 Candidate survivor;
-                std::memcpy(survivor.state, plain, sizeof(plain));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = survivor.state, .src = plain, .bytes = sizeof(plain));
                 survivor.word = generator();
                 next.push_back(survivor);
             }

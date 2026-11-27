@@ -10,13 +10,11 @@
 #include "../../platform/platform.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
 
 #include <cuda_runtime.h>
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define SIM_LINE_CAPACITY 8192ULL
 

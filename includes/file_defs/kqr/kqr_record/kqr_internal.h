@@ -10,7 +10,6 @@
 #include "../../../parsers/who.h"
 #include "verba_scribo/verba_scribo.h"
 #include <stdlib.h>
-#include <string.h>
 
 // the buckets of the table a query is found by its identity in, a power of two past every query a record contains
 #define KQR_SLOTS 1048576u

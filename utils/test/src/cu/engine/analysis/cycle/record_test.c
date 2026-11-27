@@ -15,9 +15,9 @@
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../../../includes/exact_types/integers/exact_integer.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "record_programs.h"
 
@@ -69,7 +69,7 @@ static int host_run(HostResults *results, const HostProgram *program, int reuse,
     unsigned int *const out = (unsigned int *)platform_cell_cleared(
         (size_t)HOST_TEST_LANES * out_limbs, sizeof(unsigned int), platform_place_g_program_owner, 0);
     CycleRecordHostRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.layout = &loaded.layout;
     for (unsigned int member = 0u; member < program->members; member += 1u)
     {
@@ -126,7 +126,7 @@ static void host_error(HostResults *results, const HostProgram *program, const u
     if (ok)
     {
         CycleRecordHostRequest request;
-        memset(&request, 0, sizeof(request));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
         request.layout = &loaded.layout;
         request.in[0] = atoms;
         request.bodies[0] = HOST_TEST_LANES;
@@ -165,7 +165,10 @@ int program_main(int argc, char **argv)
     unsigned int *reused = NULL;
     const int reran = host_run(&results, &program, 1, atoms, one_body, NULL, &reused);
     // both layouts write the same record width, the outputs being the same steps
-    host_check(&results, ran && reran && (memcmp(records, reused, (size_t)HOST_TEST_LANES * sizeof(unsigned int)) == 0),
+    host_check(&results,
+               ran && reran &&
+                   (EMBED_CALL(memor.cmp, MemoriaCfg, .src = records, .other = reused,
+                               .bytes = (size_t)HOST_TEST_LANES * sizeof(unsigned int)) == 0),
                "the reused registers write the records the unreused ones do");
     platform_cell_released(records, platform_place_g_program_owner);
     platform_cell_released(reused, platform_place_g_program_owner);

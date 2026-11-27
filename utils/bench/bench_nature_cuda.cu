@@ -17,6 +17,7 @@
  */
 
 #include "bench_nature_score.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include <cuda_runtime.h>
 
@@ -95,7 +96,7 @@ struct Reading
 Reading sweep(const unsigned char *seats, size_t length)
 {
     uint64_t marginal[256];
-    std::memset(marginal, 0, sizeof(marginal));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = marginal, .bytes = sizeof(marginal), .val = 0);
     for (size_t at = 0u; at < length; at += 1u)
     {
         marginal[seats[at]] += 1u;
@@ -207,7 +208,7 @@ int main(int argc, char **argv)
         const std::vector<unsigned char> made = built_control(additive, SAMPLE_CAP, designed);
 
         uint64_t marginal[256];
-        std::memset(marginal, 0, sizeof(marginal));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = marginal, .bytes = sizeof(marginal), .val = 0);
         for (size_t at = 0u; at < made.size(); at += 1u)
         {
             marginal[made[at]] += 1u;
@@ -215,8 +216,8 @@ int main(int argc, char **argv)
 
         uint64_t by_xor[256];
         uint64_t by_add[256];
-        std::memset(by_xor, 0, sizeof(by_xor));
-        std::memset(by_add, 0, sizeof(by_add));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = by_xor, .bytes = sizeof(by_xor), .val = 0);
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = by_add, .bytes = sizeof(by_add), .val = 0);
         const size_t pairs = made.size() - designed;
         for (size_t at = 0u; at < pairs; at += 1u)
         {

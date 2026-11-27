@@ -15,11 +15,11 @@
  *       quantity. The two differ wherever the survivor rate of the anchor differs between arms.
  */
 
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <chrono>
 #include <cstdio>
-#include <cstring>
 #include <string>
 
 namespace
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
     bytes_of(GENESIS_HEADER, header);
 
     Sha256ScanRequest request;
-    std::memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     sha256_header_midstate(&request.midstate, header);
     request.merkle_root_tail = word_at(header, 64u);
     request.ntime = word_at(header, 68u);
@@ -105,7 +105,7 @@ int main(int argc, char **argv)
 
             // The conventional route, in full, with nothing skipped.
             uint8_t built[80];
-            std::memcpy(built, header, sizeof(built));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = built, .src = header, .bytes = sizeof(built));
             built[76] = (uint8_t)(nonce & 0xffu);
             built[77] = (uint8_t)((nonce >> 8) & 0xffu);
             built[78] = (uint8_t)((nonce >> 16) & 0xffu);

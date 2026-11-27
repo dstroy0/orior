@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_lens_hash.c: splitmix and the hash rounds
+#include "memoria_operor/memoria_operor.h"
 #include "qasm_lens_internal.h"
 
 static const unsigned int qasm_lens_round_constant[64u] = {
@@ -76,7 +77,8 @@ static unsigned int qasm_lens_majority(unsigned int first, unsigned int second, 
 
 void qasm_lens_schedule_expand(const unsigned int *message, unsigned int rounds, unsigned int *schedule)
 {
-    memcpy(schedule, message, QASM_LENS_MESSAGE_WORDS * sizeof(unsigned int));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = schedule, .src = message,
+               .bytes = QASM_LENS_MESSAGE_WORDS * sizeof(unsigned int));
     for (unsigned int index = QASM_LENS_MESSAGE_WORDS; index < rounds; index += 1u)
     {
         schedule[index] = qasm_lens_small_sigma1(schedule[index - 2u]) + schedule[index - 7u] +
@@ -164,7 +166,7 @@ static QasmLensState qasm_lens_biclique_plant(const QasmLensRequest *request, co
                                               unsigned int secret_backward)
 {
     unsigned int message[QASM_LENS_MESSAGE_WORDS];
-    memcpy(message, base, sizeof(message));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = message, .src = base, .bytes = sizeof(message));
     message[request->forward_word] = qasm_lens_set_low_bits(base[request->forward_word], secret_forward, request->bits);
     message[request->backward_word] =
         qasm_lens_set_low_bits(base[request->backward_word], secret_backward, request->bits);
@@ -196,7 +198,7 @@ void qasm_lens_forward_field_table(const QasmLensRequest *request, const QasmLen
                                    const unsigned int *base, const QasmLensState *target, QasmLensState *table)
 {
     unsigned int message[QASM_LENS_MESSAGE_WORDS];
-    memcpy(message, base, sizeof(message));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = message, .src = base, .bytes = sizeof(message));
     for (unsigned int image = 0u; image < (1u << request->bits); image += 1u)
     {
         message[request->forward_word] = qasm_lens_set_low_bits(base[request->forward_word], image, request->bits);
@@ -212,7 +214,7 @@ void qasm_lens_backward_field_table(const QasmLensRequest *request, const QasmLe
                                     const unsigned int *base, QasmLensState *table)
 {
     unsigned int message[QASM_LENS_MESSAGE_WORDS];
-    memcpy(message, base, sizeof(message));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = message, .src = base, .bytes = sizeof(message));
     for (unsigned int image = 0u; image < (1u << request->bits); image += 1u)
     {
         message[request->backward_word] = qasm_lens_set_low_bits(base[request->backward_word], image, request->bits);

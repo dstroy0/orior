@@ -5,9 +5,9 @@
 
 #include "track.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define VIS_CROP 64u
 
@@ -206,8 +206,9 @@ int render_case(const EngineBuffers *buffers, const CoherenceInputs *inputs, con
             (times[side] < inputs->volume_frames) && (slice[side] >= 0) && ((unsigned int)slice[side] < buffers->depth);
         if (ok != 0)
         {
-            memcpy(raw[side], &inputs->volume[((size_t)times[side] * voxels) + ((size_t)slice[side] * plane)],
-                   (size_t)plane * sizeof(unsigned short));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = raw[side],
+                       .src = &inputs->volume[((size_t)times[side] * voxels) + ((size_t)slice[side] * plane)],
+                       .bytes = (size_t)plane * sizeof(unsigned short));
         }
         for (unsigned int down = 0u; (ok != 0) && (down < VIS_CROP); down += 1u)
         {

@@ -4,9 +4,9 @@
 #include "../../src/platform/platform.h"
 #include "../../src/cu/engine/nbody/orior/orior.h"
 
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 
 #define RASTER_CORPUS 65536u
@@ -93,7 +93,7 @@ int program_main(int argc, char **argv)
     build_field(corpus, RASTER_CORPUS);
 
     uint8_t needle[RASTER_NEEDLE];
-    memcpy(needle, corpus + (RASTER_CORPUS / 3u), sizeof(needle));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = needle, .src = corpus + (RASTER_CORPUS / 3u), .bytes = sizeof(needle));
 
     const size_t alignments = (RASTER_CORPUS - RASTER_NEEDLE) + 1u;
     survivors = (uint8_t *)platform_cell_taken(alignments, platform_place_g_program_owner, 0);

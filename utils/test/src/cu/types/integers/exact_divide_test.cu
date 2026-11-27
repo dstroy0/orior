@@ -9,7 +9,6 @@
 #include "../../../../../../src/platform/platform.h"
 
 #include <cstdio>
-#include <cstring>
 
 #define DIVIDE_TRIALS 200000u
 #define DIVIDE_WIDE_TRIALS 4000u

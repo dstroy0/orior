@@ -62,7 +62,6 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 
 #define DEGREE_CEILING 10
 #define COEFFICIENT_COUNT ((DEGREE_CEILING + 1) * (DEGREE_CEILING + 1))

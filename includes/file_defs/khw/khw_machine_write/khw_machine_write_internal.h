@@ -16,7 +16,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // the max bytes a container takes, the max places its code contains, the bytes of one instruction, and the max
 // endings the container records

@@ -38,7 +38,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 /** @brief Corpus bytes the graded runs use. */
 #define STEER_CORPUS 65536u

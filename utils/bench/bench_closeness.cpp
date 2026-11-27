@@ -21,6 +21,7 @@
  */
 
 #include "bench_seed.h"
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <algorithm>
@@ -28,7 +29,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <random>
 #include <string>
 #include <vector>
@@ -134,14 +134,14 @@ int main()
         {
             uint8_t left_header[80];
             uint8_t right_header[80];
-            std::memcpy(left_header, base_header, sizeof(left_header));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = left_header, .src = base_header, .bytes = sizeof(left_header));
 
             // Vary the whole header, and not only one field. Any of the 640 bits may move.
             for (unsigned scatter = 0u; scatter < 8u; scatter += 1u)
             {
                 left_header[generator() % 80u] = (uint8_t)generator();
             }
-            std::memcpy(right_header, left_header, sizeof(right_header));
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = right_header, .src = left_header, .bytes = sizeof(right_header));
 
             // Distinct positions. A draw with replacement can hit the same bit twice and flip it
             // back. That produces an identical pair, and an output distance of zero that reads as

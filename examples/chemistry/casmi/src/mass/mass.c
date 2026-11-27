@@ -5,6 +5,9 @@
  * @brief Exact masses over NIST's isotope table, and a measured m/z set against them exactly.
  */
 #include "mass.h"
+#include "../../../../../src/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "isotope_table.h"
 
@@ -52,7 +55,9 @@ static long long mass_monoisotope_search(const char *symbol, unsigned long long 
     for (unsigned int isotope = 0u; isotope < CASMI_ISOTOPE_COUNT; isotope += 1u)
     {
         const CasmiIsotope *const entry = &casmi_isotope[isotope];
-        if ((strlen(entry->symbol) != length) || (memcmp(entry->symbol, symbol, (size_t)length) != 0))
+        if ((EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = entry->symbol, .cap = PLATFORM_TEXT_TO_TERMINATOR) !=
+             length) ||
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = entry->symbol, .other = symbol, .bytes = (size_t)length) != 0))
         {
             continue;
         }
@@ -166,10 +171,10 @@ static int mass_formula_add(const char *text, unsigned long long start, unsigned
 
 long long casmi_formula_read(const CasmiFormulaRead *args)
 {
-    memset(args->formula, 0, sizeof(*args->formula));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = args->formula, .bytes = sizeof(*args->formula), .val = 0);
     if (!mass_formula_add(args->text, 0ull, args->length, 1ll, args->formula))
     {
-        memset(args->formula, 0, sizeof(*args->formula));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = args->formula, .bytes = sizeof(*args->formula), .val = 0);
         return ENGINE_BYTES_ERROR;
     }
     return (long long)args->formula->element_count;
@@ -200,7 +205,7 @@ long long casmi_adduct_read(const CasmiAdductRead *args)
 {
     const char *const text = args->text;
     const unsigned long long length = args->length;
-    memset(args->adduct, 0, sizeof(*args->adduct));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = args->adduct, .bytes = sizeof(*args->adduct), .val = 0);
     unsigned long long at = 0ull;
     if ((length < 4ull) || (text[0] != '['))
     {
@@ -214,7 +219,7 @@ long long casmi_adduct_read(const CasmiAdductRead *args)
     }
     at += 1ull;
     CasmiFormula added;
-    memset(&added, 0, sizeof(added));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &added, .bytes = sizeof(added), .val = 0);
     while ((at < length) && (text[at] != ']'))
     {
         long long sign = 0ll;

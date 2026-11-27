@@ -34,9 +34,10 @@
 #include "../../../src/platform/platform.h"
 #include "zeta_shuffle.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <math.h>
 #include <stdlib.h>
-#include <string.h>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -119,11 +120,12 @@ static void python_repr(double value, char *text, size_t capacity)
         snprintf(text, capacity, "%s", digits);
         return;
     }
-    const char *const mark = strchr(digits, 'e');
+    const char *const mark =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = digits, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = 'e');
     const int exponent = (mark != NULL) ? atoi(mark + 1) : 0;
     const int decimals = ((precision - 1 - exponent) > 0) ? (precision - 1 - exponent) : 0;
     snprintf(digits, sizeof(digits), "%.*f", decimals, value);
-    if (strchr(digits, '.') == NULL)
+    if (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = digits, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.') == NULL)
     {
         snprintf(text, capacity, "%.60s.0", digits);
     }
@@ -205,18 +207,32 @@ static void listed(const char *binary, const TuringConstants *constants, int64_t
     static char line[1 << 16];
     while (fgets(line, sizeof(line), handle) != NULL)
     {
-        if (strncmp(line, "point", 5u) != 0)
+        if (!EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                        .other = "point", .ci = EMBED_FALSE))
         {
             continue;
         }
         char *words[16];
         size_t count = 0u;
-        char *cursor = strtok(line + 5, " \r\n");
-        while ((cursor != NULL) && (count < 16u))
+        // each word of the line after its tag, a terminator written past each as the walk reaches it
+        char *cursor = line + 5;
+        while (count < 16u)
         {
+            cursor += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = cursor, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                 .other = " \r\n");
+            if (*cursor == '\0')
+            {
+                break;
+            }
             words[count] = cursor;
             count += 1u;
-            cursor = strtok(NULL, " \r\n");
+            cursor += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = cursor, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                 .other = " \r\n");
+            if (*cursor != '\0')
+            {
+                *cursor = '\0';
+                cursor += 1;
+            }
         }
         if (count < 6u)
         {
@@ -648,13 +664,14 @@ int program_main(int argument_count, char **arguments)
             counts[which] += (int64_t)idx_count;
             for (int d = 0; d < DRAWS; d += 1)
             {
-                memcpy(characters, carrier.characters, carrier.count);
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = characters, .src = carrier.characters, .bytes = carrier.count);
                 twister_shuffle(&twister, characters, carrier.count);
                 const size_t drawn_count = carrier_points(&carrier, &listing, characters, &zero, drawn);
                 if (which == 0)
                 {
                     given_back = given_back && (drawn_count == idx_count) &&
-                                 (memcmp(drawn, idx, idx_count * sizeof(size_t)) == 0);
+                                 (EMBED_CALL(memor.cmp, MemoriaCfg, .src = drawn, .other = idx,
+                                             .bytes = idx_count * sizeof(size_t)) == 0);
                 }
                 add_moments(&listing, drawn, drawn_count, arms[0][which][d]);
                 arm_counts[0][which][d] += (int64_t)drawn_count;

@@ -19,6 +19,7 @@
  *       invisible. The bench prints the floor beside every verdict.
  */
 
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <algorithm>
@@ -26,7 +27,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <string>
 #include <thread>
 #include <vector>
@@ -76,7 +76,7 @@ uint32_t schedule_word_from_header(const uint8_t *bytes)
  */
 void request_from_header(Sha256ScanRequest *request, const uint8_t *header)
 {
-    std::memset(request, 0, sizeof(*request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = request, .bytes = sizeof(*request), .val = 0);
     sha256_header_midstate(&request->midstate, header);
     request->merkle_root_tail = schedule_word_from_header(header + 64u);
     request->ntime = schedule_word_from_header(header + 68u);
@@ -126,7 +126,7 @@ void survey_threaded(const Sha256ScanRequest &base, uint32_t count, Sha256Survey
 
     for (unsigned index = 0u; index < threads; index += 1u)
     {
-        std::memset(&partials[index], 0, sizeof(Sha256Survey));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &partials[index], .bytes = sizeof(Sha256Survey), .val = 0);
         workers.emplace_back([&base, &partials, index, per_thread]() {
             Sha256ScanRequest request = base;
             request.nonce_start = base.nonce_start + (index * per_thread);
@@ -164,7 +164,7 @@ void test_corpus_size(const Sha256ScanRequest &base)
     {
         const uint32_t count = 1u << magnitude;
         Sha256Survey survey;
-        std::memset(&survey, 0, sizeof(survey));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &survey, .bytes = sizeof(survey), .val = 0);
         survey_threaded(base, count, survey);
 
         for (unsigned width : {8u, 12u, 16u, 20u})
@@ -426,7 +426,8 @@ void test_hitting_time(const Sha256ScanRequest &base)
         request.ntime = base.ntime + trial;
         request.nonce_start = 0u;
         request.nonce_count = 1u << 22;
-        std::memset(request.share_target, 0xFF, sizeof(request.share_target));
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = request.share_target, .bytes = sizeof(request.share_target),
+                   .val = 0xFF);
         request.share_target[0] = 0x0000FFFFu;
 
         Sha256ScanResult result;
@@ -493,7 +494,7 @@ int main()
 
     std::printf("\n  Surveying the full digest for the eddy test...\n");
     Sha256Survey survey;
-    std::memset(&survey, 0, sizeof(survey));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &survey, .bytes = sizeof(survey), .val = 0);
     survey_threaded(base, 1u << 24, survey);
     test_entropy_eddies(survey);
 

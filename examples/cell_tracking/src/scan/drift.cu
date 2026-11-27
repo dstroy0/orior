@@ -4,7 +4,7 @@
 
 #include <cuda_runtime.h>
 
-#include <string.h>
+#include "memoria_operor/memoria_operor.h"
 
 #define DRIFT_THREADS 256u
 
@@ -123,7 +123,7 @@ extern "C" int drift_weights(const unsigned long long voxel_pm[ENGINE_AXES], uns
     }
     if (ok)
     {
-        memcpy(weights, squared, sizeof(squared));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = weights, .src = squared, .bytes = sizeof(squared));
     }
     return ok;
 }

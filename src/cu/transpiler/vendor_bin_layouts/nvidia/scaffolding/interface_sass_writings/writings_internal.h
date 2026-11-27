@@ -18,7 +18,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // the max bytes a cubin, its code and a text take, the max exits a code contains, and the registers every cubin
 // declares a thread

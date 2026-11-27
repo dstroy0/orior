@@ -16,6 +16,7 @@
 #define PERIOD_DETECTOR_H
 
 #include "game_record.h"
+#include "memoria_operor/memoria_operor.h"
 
 /** @brief The sums that the lag program writes for each pair: v v', v, v', v^2 and v'^2. */
 #define DETECTOR_SUMS 5u
@@ -92,7 +93,7 @@ typedef struct
 static inline int detector_sweep(SimResults *results, const DetectorSweep *sweep, DetectorLagSums *out)
 {
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long per_series = (sweep->lags + 1ULL) * sweep->positions;
     const unsigned long long batch_max =
         (DETECTOR_SWEEP_LANES / per_series > 0ULL) ? (DETECTOR_SWEEP_LANES / per_series) : 1ULL;
@@ -271,7 +272,7 @@ typedef struct
 static inline int detector_detect(const DetectorLagSums *sums, unsigned long long positions, unsigned int longest,
                                   DetectorReading *reading)
 {
-    memset(reading, 0, sizeof(*reading));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = reading, .bytes = sizeof(*reading), .val = 0);
     // the positions are a small count
     const long long whole = (long long)positions;
     if (((whole * sums[0].term[3]) == (sums[0].term[1] * sums[0].term[1])) || (positions < (4ULL * longest)))

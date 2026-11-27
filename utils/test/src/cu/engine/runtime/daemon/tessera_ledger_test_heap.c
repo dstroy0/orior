@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_ledger_test_heap.c: requests, headroom, heap order and budget
-#include "tessera_ledger_test_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
+#include "tessera_ledger_test_internal.h"
 
 static unsigned long long test_state = 0x9E3779B97F4A7C15ull;
 
@@ -42,7 +43,7 @@ void test_report(const TestResults *results)
 EngineSignum test_signum(unsigned long long seed)
 {
     EngineSignum signum;
-    memset(&signum, 0, sizeof(signum));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &signum, .bytes = sizeof(signum), .val = 0);
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         // each byte is one eighth of the seed, which fits in an unsigned char
@@ -54,7 +55,7 @@ EngineSignum test_signum(unsigned long long seed)
 TesseraJobRequest test_request(unsigned long long seed, unsigned long long declared)
 {
     TesseraJobRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.signum = test_signum(seed);
     request.declared = declared;
     request.grace_microseconds = 1000ull;

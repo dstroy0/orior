@@ -15,8 +15,9 @@
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.h"
 #include "../../../../../../../src/platform/platform.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
-#include <string.h>
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
@@ -66,8 +67,9 @@ static size_t archive_made(unsigned char *bytes)
     }
     bytes[at] = (unsigned char)left;
     at += 1u;
-    memcpy(bytes + at, s_head, sizeof(s_head) - 1u);
-    memset(bytes + at + sizeof(s_head) - 1u, '.', literals - (sizeof(s_head) - 1u));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = bytes + at, .src = s_head, .bytes = sizeof(s_head) - 1u);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = bytes + at + sizeof(s_head) - 1u,
+               .bytes = literals - (sizeof(s_head) - 1u), .val = '.');
     at += literals;
     word_put(bytes + 8u, TABLES_BLOCK);
     word_put(bytes + 12u, (unsigned long long)(at - 16u));
@@ -76,7 +78,7 @@ static size_t archive_made(unsigned char *bytes)
     at += 8u;
     bytes[at] = 0xafu;
     at += 1u;
-    memcpy(bytes + at, s_class, 10u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = bytes + at, .src = s_class, .bytes = 10u);
     at += 10u;
     bytes[at] = 10u;
     bytes[at + 1u] = 0u;
@@ -103,7 +105,7 @@ static size_t record_put(unsigned char *capture, size_t at, unsigned long long t
 {
     const int length = sprintf((char *)capture + at, "\n<0x%llx 0x%llx %zu>\n", to, from, size);
     at += (size_t)length;
-    memcpy(capture + at, bytes, size);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = capture + at, .src = bytes, .bytes = size);
     return at + size;
 }
 
@@ -117,24 +119,26 @@ int program_main(int argc, char **argv)
     const size_t archive = archive_made(s_archive);
     check_that(tables_archive(s_archive, archive), "archive: its own count, a zero and a first block of TABLES_BLOCK");
     unsigned char other[32];
-    memcpy(other, s_archive, 16u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = other, .src = s_archive, .bytes = 16u);
     word_put(other, 32ull);
     word_put(other + 8u, 100ull);
     check_that(!tables_archive(other, 32u), "archive: a first block of another size is no archive");
 
     TablesText text = {NULL, 0u, 0u};
     check_that(tables_unpacked(s_archive, archive, &text), "unpacked: the three blocks unpack");
-    memcpy(s_expected, s_head, sizeof(s_head) - 1u);
-    memset(s_expected + sizeof(s_head) - 1u, '.', TABLES_BLOCK - (sizeof(s_head) - 1u));
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_expected, .src = s_head, .bytes = sizeof(s_head) - 1u);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = s_expected + sizeof(s_head) - 1u,
+               .bytes = TABLES_BLOCK - (sizeof(s_head) - 1u), .val = '.');
     size_t expected = TABLES_BLOCK;
     for (unsigned int times = 0u; times < 3u; times += 1u)
     {
-        memcpy(s_expected + expected, s_class, 10u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_expected + expected, .src = s_class, .bytes = 10u);
         expected += 10u;
     }
-    memcpy(s_expected + expected, "ARCHITECTURE", 12u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_expected + expected, .src = "ARCHITECTURE", .bytes = 12u);
     expected += 12u;
-    check_that((text.length == expected) && (memcmp(text.bytes, s_expected, expected) == 0),
+    check_that((text.length == expected) &&
+                   (EMBED_CALL(memor.cmp, MemoriaCfg, .src = text.bytes, .other = s_expected, .bytes = expected) == 0),
                "unpacked: a match longer than its offset repeats, and one reaches into the block before");
     tables_text_freed(&text);
 
@@ -157,9 +161,10 @@ int program_main(int argc, char **argv)
         records += 1u;
         if (records == 1u)
         {
-            check_that((record.to == 0x2000ull) && (record.from == 0x1000ull) && (record.size == sizeof(first) - 1u) &&
-                           (memcmp(record.bytes, first, record.size) == 0),
-                       "records: the first record's addresses and bytes");
+            check_that(
+                (record.to == 0x2000ull) && (record.from == 0x1000ull) && (record.size == sizeof(first) - 1u) &&
+                    (EMBED_CALL(memor.cmp, MemoriaCfg, .src = record.bytes, .other = first, .bytes = record.size) == 0),
+                "records: the first record's addresses and bytes");
         }
     }
     check_that((records == 5u) && (read_at == at), "records: five records read to the capture's end");
@@ -167,12 +172,16 @@ int program_main(int argc, char **argv)
     TablesText instructions = {NULL, 0u, 0u};
     TablesText latencies = {NULL, 0u, 0u};
     check_that(tables_funnelled(s_capture, at, &instructions, &latencies) == 2u, "tables: both tables found");
-    check_that((instructions.length == expected) && (memcmp(instructions.bytes, s_expected, expected) == 0),
+    check_that((instructions.length == expected) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = instructions.bytes,
+                                                                .other = s_expected, .bytes = expected) == 0),
                "tables: the instruction set is the archive unpacked");
     const char *const want = "\nOPERATION SETS\n    int_pipe = {A,B};\n";
-    check_that((latencies.length == strlen(want)) && (memcmp(latencies.bytes, want, latencies.length) == 0),
-               "tables: the latencies are the copies out of their buffer, which begins with a line end, its block "
-               "passed over");
+    check_that(
+        (latencies.length ==
+         EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = want, .cap = PLATFORM_TEXT_TO_TERMINATOR)) &&
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = latencies.bytes, .other = want, .bytes = latencies.length) == 0),
+        "tables: the latencies are the copies out of their buffer, which begins with a line end, its block "
+        "passed over");
     tables_text_freed(&instructions);
     tables_text_freed(&latencies);
 

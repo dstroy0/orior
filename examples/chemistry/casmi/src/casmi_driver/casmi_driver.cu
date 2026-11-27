@@ -3,22 +3,25 @@
 // casmi_driver: the CASMI library and its ranking on the engine, each part one job on the device's tessera daemon.
 // --ingest seals every member of a parquet file as a crystal of a set through the engine's ingest (src/ingest);
 // --rank reads the parquet files and ranks each query molecule's structures (src/rank)
+#include "../../../../../src/platform/platform.h"
 #include "../ingest/ingest.h"
 #include "../rank/rank.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "sim.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
-#include <string.h>
-#include "sim.h"
-
-#include <string.h>
 
 int program_main(int count, char **arguments)
 {
     char capacity[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, capacity);
-    const int ingest = (count == 4) && (strcmp(arguments[1], "--ingest") == 0);
-    const int rank = ((count == 5) || (count == 6)) && (strcmp(arguments[1], "--rank") == 0);
+    const int ingest =
+        (count == 4) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "--ingest", .ci = EMBED_FALSE));
+    const int rank = ((count == 5) || (count == 6)) &&
+                     (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                 .other = "--rank", .ci = EMBED_FALSE));
     if (!ingest && !rank)
     {
         mmgr_line_put(&results.line, "usage: casmi_driver --ingest FILE.parquet SET\n"

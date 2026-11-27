@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_program.cu: the program loaded to the device
+#include "memoria_operor/memoria_operor.h"
 #include "qasm_device_internal.h"
 
 static void qasm_step(EngineRecordStep *steps, unsigned int *count, EngineRecordOperation operation, unsigned int left,
@@ -36,7 +37,7 @@ static void qasm_step_scale(EngineRecordStep *steps, unsigned int *count)
 
 int qasm_program_load(QasmProgram *program, unsigned int which, int on_host, EngineError *error)
 {
-    memset(program, 0, sizeof(*program));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
     EngineRecordStep steps[32];
     unsigned int count = 0u;
     unsigned int field_bits[6] = {QASM_FIELD_BITS, QASM_FIELD_BITS, QASM_FIELD_BITS,

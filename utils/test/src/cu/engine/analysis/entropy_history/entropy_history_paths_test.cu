@@ -8,7 +8,7 @@
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
 #include "../../../../../../../src/platform/platform.h"
 
-#include <cstring>
+#include "memoria_operor/memoria_operor.h"
 
 // the extent of the volume: its frames, depth, height and width, and its voxels and values
 #define ENTROPY_TEST_FRAMES 40ULL
@@ -133,7 +133,7 @@ static unsigned long long entropy_test_signum(const void *bytes, unsigned long l
 {
     unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     // Explicit cast reads the history as the bytes that the signum reads
     const ObsignatioSignumRequest request = {(const unsigned char *)bytes, count, NULL, OBSIGNATIO_MODE_HASH, signum,
                                              OBSIGNATIO_SIGNUM_BYTES,      &error};
@@ -161,17 +161,17 @@ int program_main(int argc, char **argv)
     {
         return 1;
     }
-    memset(one, 0, sizeof(*one));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = one, .bytes = sizeof(*one), .val = 0);
     entropy_test_drawn_volume(one);
     entropy_test_counted(one);
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     EngineHistory history;
-    memset(&history, 0, sizeof(history));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &history, .bytes = sizeof(history), .val = 0);
     history.history = one->history[0];
     history.cloud = one->cloud[0];
     EntropyHistoryProjectRequest request;
-    memset(&request, 0, sizeof(request));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &request, .bytes = sizeof(request), .val = 0);
     request.volume = one->volume;
     request.extent[0] = ENTROPY_TEST_FRAMES;
     request.extent[1] = ENTROPY_TEST_DEPTH;
@@ -184,9 +184,11 @@ int program_main(int argc, char **argv)
         entropy_test_check(entropy_history_project(&request, &broken) == 0L, "the entropy history projects the volume");
     failed += entropy_test_check((broken == 0ULL) && (history.windows == ENTROPY_TEST_WINDOWS),
                                  "the parity of each voxel holds over its windows");
-    failed += entropy_test_check(memcmp(one->history[0], one->history[1], sizeof(one->history[0])) == 0,
+    failed += entropy_test_check(EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->history[0], .other = one->history[1],
+                                            .bytes = sizeof(one->history[0])) == 0,
                                  "the history of the device is the history of the host");
-    failed += entropy_test_check(memcmp(one->cloud[0], one->cloud[1], sizeof(one->cloud[0])) == 0,
+    failed += entropy_test_check(EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->cloud[0], .other = one->cloud[1],
+                                            .bytes = sizeof(one->cloud[0])) == 0,
                                  "the cloud of the device is the cloud of the host");
     const unsigned long long word = entropy_test_signum(one->history[0], sizeof(one->history) + sizeof(one->cloud));
     {

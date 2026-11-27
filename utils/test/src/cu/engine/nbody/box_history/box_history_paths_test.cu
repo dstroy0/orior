@@ -9,7 +9,7 @@
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
 #include "../../../../../../../src/platform/platform.h"
 
-#include <cstring>
+#include "memoria_operor/memoria_operor.h"
 
 // the extent of the history, its voxels, its windows and the bodies whose boxes the test gathers
 #define BOX_TEST_DEPTH 10u
@@ -70,7 +70,7 @@ static void box_test_span(unsigned int extent, unsigned int *low, unsigned int *
 // each axis. The last box is empty: its least depth passes its most depth
 static void box_test_drawn_case(BoxTestCase *one)
 {
-    memset(one, 0, sizeof(*one));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = one, .bytes = sizeof(*one), .val = 0);
     for (unsigned int word = 0u; word < (BOX_TEST_WINDOWS * BOX_TEST_VOXELS); word++)
     {
         for (unsigned int bit = 0u; bit < ENGINE_HISTORY_BITS; bit++)
@@ -128,7 +128,7 @@ static unsigned long long box_test_signum(const void *bytes, unsigned long long 
 {
     unsigned char signum[OBSIGNATIO_SIGNUM_BYTES];
     EngineError error;
-    memset(&error, 0, sizeof(error));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     // Explicit cast reads the counts as the bytes that the signum reads
     const ObsignatioSignumRequest request = {(const unsigned char *)bytes, count, NULL, OBSIGNATIO_MODE_HASH, signum,
                                              OBSIGNATIO_SIGNUM_BYTES,      &error};
@@ -159,7 +159,7 @@ int program_main(int argc, char **argv)
     box_test_drawn_case(one);
     box_test_walked(one);
     EngineHistory history;
-    memset(&history, 0, sizeof(history));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &history, .bytes = sizeof(history), .val = 0);
     history.extent[0] = 1ULL;
     history.extent[1] = BOX_TEST_DEPTH;
     history.extent[2] = BOX_TEST_HEIGHT;
@@ -172,8 +172,9 @@ int program_main(int argc, char **argv)
                                        one->counts, &disagreements,  &microseconds};
     unsigned int failed = box_test_check(box_history_gather(&request) == 0L, "the box history gathers each box");
     failed += box_test_check(disagreements == 0ULL, "the device finds no disagreement with its own walk");
-    failed += box_test_check(memcmp(one->counts, one->walked, sizeof(one->counts)) == 0,
-                             "the counts of the device are the counts of the walk on the host");
+    failed += box_test_check(
+        EMBED_CALL(memor.cmp, MemoriaCfg, .src = one->counts, .other = one->walked, .bytes = sizeof(one->counts)) == 0,
+        "the counts of the device are the counts of the walk on the host");
     const unsigned int *const empty = &one->counts[(BOX_TEST_BODIES - 1u) * BOX_TEST_WINDOWS * ENGINE_HISTORY_BITS];
     unsigned int empty_total = 0u;
     for (unsigned int entry = 0u; entry < (BOX_TEST_WINDOWS * ENGINE_HISTORY_BITS); entry++)

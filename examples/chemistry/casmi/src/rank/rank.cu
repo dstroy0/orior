@@ -21,6 +21,7 @@
 // validate reserves the cfg's query library and places each molecule's answer in its list. Test reads the test file
 // after the train file, ranks its molecules against every spectrum of the train file and writes their lists' SMILES
 
+#include "../../../../../src/platform/platform.h"
 #include "rank.h"
 #include "rank_internal.h"
 
@@ -28,9 +29,10 @@
 #include "../../../../../includes/formats/cfg_json/cfg_json.h"
 #include "../mass/mass.h"
 
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <algorithm>
 
@@ -102,7 +104,7 @@ static int rank_hex_read(const char *text, OriorExactInteger *value)
         return 0;
     }
     at += 2;
-    const size_t digits = strlen(at);
+    const size_t digits = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR);
     if ((digits == 0u) || (digits > (RANK_ENVELOPE_LIMBS * 8u)))
     {
         return 0;
@@ -337,7 +339,8 @@ static int rank_group_sum(SimResults *results, const char *name, RankField value
     {
         first[group] = entry_total;
         count[group] = groups->count[group];
-        memcpy(&entry[entry_total], &groups->entry[groups->first[group]], (size_t)(count[group] * sizeof(unsigned int)));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &entry[entry_total], .src = &groups->entry[groups->first[group]],
+                   .bytes = (size_t)(count[group] * sizeof(unsigned int)));
         entry_total += count[group];
         widest = (count[group] > widest) ? count[group] : widest;
     }
@@ -370,8 +373,9 @@ static int rank_group_sum(SimResults *results, const char *name, RankField value
             const unsigned long long group_lanes = (counted == 0ull) ? 1ull : counted;
             for (unsigned long long at = 0ull; at < count[group]; at += 1ull)
             {
-                memcpy(&plane[at % 3ull][(lane + (at / 3ull)) * limbs],
-                       &source[(unsigned long long)entry[first[group] + at] * limbs], limbs * sizeof(unsigned int));
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &plane[at % 3ull][(lane + (at / 3ull)) * limbs],
+                           .src = &source[(unsigned long long)entry[first[group] + at] * limbs],
+                           .bytes = limbs * sizeof(unsigned int));
             }
             for (unsigned long long each = 0ull; (each < group_lanes) && (each < count[group]); each += 1ull)
             {
@@ -427,7 +431,8 @@ static int rank_group_best(SimResults *results, const char *name, const RankMach
     {
         first[group] = entry_total;
         count[group] = groups->count[group];
-        memcpy(&entry[entry_total], &groups->entry[groups->first[group]], (size_t)(count[group] * sizeof(unsigned int)));
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &entry[entry_total], .src = &groups->entry[groups->first[group]],
+                   .bytes = (size_t)(count[group] * sizeof(unsigned int)));
         entry_total += count[group];
     }
     for (;;)
@@ -536,8 +541,12 @@ int rank_run(SimResults *results, int count, char **arguments)
     s_rank_started = engine_clock_microseconds();
     const char *const train_path = arguments[2];
     const char *const cfg_path = arguments[3];
-    const int validate = (count == 5) && (strcmp(arguments[4], "validate") == 0);
-    const int test = (count == 6) && (strcmp(arguments[4], "test") == 0);
+    const int validate =
+        (count == 5) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[4], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "validate", .ci = EMBED_FALSE));
+    const int test =
+        (count == 6) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[4], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "test", .ci = EMBED_FALSE));
     if (!validate && !test)
     {
         mmgr_line_put(&results->line, "  --rank TRAIN.parquet CFG validate, or --rank TRAIN.parquet CFG test TEST.parquet");
@@ -572,7 +581,7 @@ int rank_run(SimResults *results, int count, char **arguments)
              rank_cfg_string(cfg_text, tokens, output_block, "submission", submission_path);
     RankEnvelope envelope[RANK_MODES];
     RankEnvelopeLayout envelope_layout;
-    memset(&envelope_layout, 0, sizeof(envelope_layout));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &envelope_layout, .bytes = sizeof(envelope_layout), .val = 0);
     for (unsigned int mode = 0u; ok && (mode < RANK_MODES); mode += 1u)
     {
         const unsigned int mode_block = cfg_json_member(cfg_text, tokens, envelope_block, mode_name[mode]);
@@ -808,7 +817,7 @@ int rank_run(SimResults *results, int count, char **arguments)
         if ((position == adduct_name.size()) && (name != RANK_ABSENT) && (position < RANK_ADDUCTS_MAX))
         {
             CasmiAdduct read;
-            memset(&read, 0, sizeof(read));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &read, .bytes = sizeof(read), .val = 0);
             const std::string &text = set.strings[RANK_ADDUCT][name];
             const CasmiAdductRead request = {text.data(), text.size(), &read};
             if (casmi_adduct_read(&request) == ENGINE_BYTES_ERROR)
@@ -855,7 +864,7 @@ int rank_run(SimResults *results, int count, char **arguments)
         if (window_of_text[text] == RANK_ABSENT)
         {
             CasmiFormula read;
-            memset(&read, 0, sizeof(read));
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = &read, .bytes = sizeof(read), .val = 0);
             const std::string &formula_entry = set.strings[RANK_FORMULA][text];
             const CasmiFormulaRead request = {formula_entry.data(), formula_entry.size(), &read};
             int good = !formula_entry.empty() && (casmi_formula_read(&request) >= 0ll) && (read.element_count > 0u);
@@ -1730,7 +1739,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     unsigned long long given_none = 0ull;
     std::vector<unsigned char> structure_mark((size_t)structures + 1u, 0u);
     unsigned long long rank_counts[RANK_LIST_MAX + 1u];
-    memset(rank_counts, 0, sizeof(rank_counts));
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = rank_counts, .bytes = sizeof(rank_counts), .val = 0);
     unsigned long long truth_no_reference = 0ull;
     unsigned long long truth_outside = 0ull;
     unsigned long long truth_unscored = 0ull;

@@ -45,10 +45,10 @@
  * the planted pair, and not merely move a number. The control runs as a ladder from two sigma up.
  * Thus the output is the sensitivity that this bench HAS, and not the one that it claims.
  */
+#include "memoria_operor/memoria_operor.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
 
 #include "sha256_core.h"
 #include "../../src/platform/platform.h"
@@ -331,7 +331,8 @@ int program_main(int argc, char **argv)
     double sensitivity = 0.0;
     for (uint32_t rung = 2u; rung <= 7u; ++rung)
     {
-        (void)memcpy(scratch, winner, sizeof(uint32_t) * sample_count);
+        (void)EMBED_CALL(memor.cpy, MemoriaCfg, .dst = scratch, .src = winner,
+                         .bytes = sizeof(uint32_t) * sample_count);
         metapattern_plant(seed, scratch, sample_count, (double)rung);
 
         const double got = metapattern_examine(seed, scratch, sample_count, &at_header, &at_winner);
