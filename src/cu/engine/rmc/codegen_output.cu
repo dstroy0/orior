@@ -61,7 +61,7 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
     unsigned long long *const record_lanes = codegen_device_take<unsigned long long>(&memory, record_count);
     unsigned long long *const lane_first = codegen_device_take<unsigned long long>(&memory, record_count);
     const size_t record_bytes = sizeof(unsigned int) * ASM_PRINTER_RECORD_LIMBS * (size_t)record_count;
-    memory.ok = (memory.ok != 0) && (cudaMemset(records, 0, record_bytes) == cudaSuccess);
+    memory.ok = (memory.ok != 0) && tessera_job_cleared(records, record_bytes);
     if (memory.ok != 0)
     {
         codegen_device_records<<<codegen_device_blocks(item_count), CODEGEN_THREADS>>>(
@@ -240,11 +240,9 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
         const unsigned long long table_words =
             (1ULL << placed.index_bits) * (unsigned long long)((placed.out_bits + 31u) / 32u);
         placed.values = &values[table_first];
-        memory->ok = (table_words == 0ULL) ||
-                     (cudaMemcpy(&values[table_first], request->tables[table].values,
-                                 (size_t)(table_words * sizeof(unsigned int)), cudaMemcpyHostToDevice) == cudaSuccess);
-        memory->ok = (memory->ok != 0) && (cudaMemcpy(&device_tables[table], &placed, sizeof(placed),
-                                                      cudaMemcpyHostToDevice) == cudaSuccess);
+        memory->ok = (memory->ok != 0) && tessera_job_crossed_into(&values[table_first], request->tables[table].values,
+                                                                   table_words * sizeof(unsigned int));
+        memory->ok = (memory->ok != 0) && tessera_job_crossed_into(&device_tables[table], &placed, sizeof(placed));
         table_first += table_words;
     }
     // the program keymath and key_schedule read, in device memory
@@ -261,7 +259,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
     // memory is freed, and the arenas taken are under twice the last
     EngineRecordTerm *const terms = codegen_device_take<EngineRecordTerm>(memory, count);
     unsigned char *const never_negative = codegen_device_take<unsigned char>(memory, count);
-    memory->ok = (memory->ok != 0) && (cudaMemset(never_negative, 0, count) == cudaSuccess);
+    memory->ok = (memory->ok != 0) && tessera_job_cleared(never_negative, count);
     KeymathCoreEncode encoding{};
     encoding.steps = steps;
     encoding.count = count;

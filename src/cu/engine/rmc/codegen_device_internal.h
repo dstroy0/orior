@@ -8,6 +8,7 @@
 #include "../../engine/analysis/key_schedule/key_schedule.h"
 #include "../../engine/analysis/key_schedule/key_schedule_core.h"
 #include "../../engine/analysis/keymath/keymath_core.h"
+#include "../../engine/runtime/daemon/tessera_job.h"
 #include "codegen_device.h"
 
 #include <stddef.h>
@@ -145,13 +146,17 @@ __global__ void codegen_device_encode(KeymathCoreEncode encoding, LayoutEnd *end
 
 __global__ void codegen_layout(KeyScheduleCoreLayout layout, LayoutEnd *ended);
 
-// The device memory a lane's writing takes, freed together, and 0 once a call the device errored left it unusable.
-// The list of what it took begins at its first take
+// The cells of the device that a lane's writing takes, given back together, and 0 once a call that the device errored
+// left it unusable. Each cell is a temporary cell of the pool of the device, every byte 0 at the take. The list of
+// what it took begins at its first take, and the release gives the cells back the newest first
 struct DeviceArena
 {
     PlatformArray allocations;
     int ok;
 };
+
+// the owner that the cells of the codegen in the pool of the device count to
+#define CODEGEN_DEVICE_PLACE ((unsigned int)platform_place_g_engine_owner)
 
 template <typename Element> static Element *codegen_device_take(DeviceArena *memory, unsigned long long count)
 {
@@ -162,13 +167,14 @@ template <typename Element> static Element *codegen_device_take(DeviceArena *mem
         platform_array_begun(&memory->allocations, sizeof(void *), platform_place_g_program_owner,
                              PLATFORM_TIER_TEMPORARY);
     }
-    if ((memory->ok != 0) && (cudaMalloc(&taken, (size_t)bytes) == cudaSuccess))
+    if ((memory->ok != 0) && tessera_job_cell_taken(bytes, CODEGEN_DEVICE_PLACE, &taken))
     {
         if (platform_array_appended(&memory->allocations, &taken) != 0)
         {
+            // Explicit cast reads the cell as the elements that it holds
             return (Element *)taken;
         }
-        cudaFree(taken);
+        tessera_job_given(taken, CODEGEN_DEVICE_PLACE);
     }
     memory->ok = 0;
     return NULL;
@@ -180,7 +186,7 @@ static Element *codegen_device_copy(DeviceArena *memory, const Element *from, un
     Element *const to = codegen_device_take<Element>(memory, count);
     if ((memory->ok != 0) && (count != 0ULL))
     {
-        memory->ok = cudaMemcpy(to, from, (size_t)(count * sizeof(Element)), cudaMemcpyHostToDevice) == cudaSuccess;
+        memory->ok = tessera_job_crossed_into(to, from, count * sizeof(Element));
     }
     return to;
 }
@@ -190,7 +196,7 @@ static void codegen_device_read(DeviceArena *memory, Element *to, const Element 
 {
     if ((memory->ok != 0) && (count != 0ULL))
     {
-        memory->ok = cudaMemcpy(to, from, (size_t)(count * sizeof(Element)), cudaMemcpyDeviceToHost) == cudaSuccess;
+        memory->ok = tessera_job_crossed_out(to, from, count * sizeof(Element));
     }
 }
 

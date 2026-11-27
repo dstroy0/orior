@@ -23,9 +23,10 @@ __global__ void codegen_layout(KeyScheduleCoreLayout layout, LayoutEnd *ended)
 
 void codegen_device_release(DeviceArena *memory)
 {
-    for (unsigned long long at = 0ULL; at < memory->allocations.count; at += 1ULL)
+    // the cells go back the newest first
+    for (unsigned long long at = memory->allocations.count; at > 0ULL; at -= 1ULL)
     {
-        cudaFree(*(void **)platform_array_at(&memory->allocations, at));
+        tessera_job_given(*(void **)platform_array_at(&memory->allocations, at - 1ULL), CODEGEN_DEVICE_PLACE);
     }
     platform_array_ended(&memory->allocations);
 }
@@ -99,8 +100,7 @@ static void codegen_device_move(DeviceArena *memory, MachineInstr *to, const Mac
 {
     if ((memory->ok != 0) && (count != 0ULL))
     {
-        memory->ok =
-            cudaMemcpy(to, from, (size_t)(count * sizeof(MachineInstr)), cudaMemcpyDeviceToDevice) == cudaSuccess;
+        memory->ok = tessera_job_copied(to, from, count * sizeof(MachineInstr));
     }
 }
 
@@ -157,9 +157,14 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
     CodegenParts parts{};
     CodegenParts *const device_parts = codegen_device_copy(&memory, &parts, 1ULL);
     MachineFunction *const lane_out = codegen_device_take<MachineFunction>(&memory, 1ULL);
-    const size_t out_bytes = sizeof(unsigned int) * layout->out_limbs;
-    memory.ok = (memory.ok != 0) && (cudaMemset(put_first, 0xFF, out_bytes) == cudaSuccess) &&
-                (cudaMemset(put_last, 0, out_bytes) == cudaSuccess);
+    // every word of the first puts starts at 0xFFFFFFFF, and every word of the last puts starts at 0, as the take left
+    // it
+    if ((memory.ok != 0) && (layout->out_limbs != 0u))
+    {
+        codegen_device_fill<<<codegen_device_blocks(layout->out_limbs), CODEGEN_THREADS>>>(put_first, layout->out_limbs,
+                                                                                           0xFFFFFFFFu);
+        codegen_device_launched(&memory);
+    }
     if ((memory.ok != 0) && (atoms != 0u))
     {
         codegen_device_fill<<<codegen_device_blocks(atoms), CODEGEN_THREADS>>>(atom_reader, atoms, steps);
@@ -226,8 +231,7 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
         mmgr_line_put(error, "the lane contains more forms than a scan counts");
         return 0;
     }
-    memory.ok =
-        (memory.ok != 0) && (cudaMemcpy(device_parts, &parts, sizeof(parts), cudaMemcpyHostToDevice) == cudaSuccess);
+    memory.ok = (memory.ok != 0) && tessera_job_crossed_into(device_parts, &parts, sizeof(parts));
     MachineInstr *const decided = codegen_device_take<MachineInstr>(&memory, first_count);
     if ((memory.ok != 0) && (steps != 0u))
     {
@@ -301,8 +305,7 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
     parts.at[CODEGEN_BODY_OPEN] = 0ULL;
     parts.at[CODEGEN_ENDING] = parts.count[CODEGEN_BODY_OPEN];
     const unsigned long long last_count = parts.count[CODEGEN_BODY_OPEN] + parts.count[CODEGEN_ENDING];
-    memory.ok =
-        (memory.ok != 0) && (cudaMemcpy(device_parts, &parts, sizeof(parts), cudaMemcpyHostToDevice) == cudaSuccess);
+    memory.ok = (memory.ok != 0) && tessera_job_crossed_into(device_parts, &parts, sizeof(parts));
     MachineInstr *const closing = codegen_device_take<MachineInstr>(&memory, last_count);
     if (memory.ok != 0)
     {
