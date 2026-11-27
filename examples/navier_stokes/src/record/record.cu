@@ -5,21 +5,18 @@
 
 FILE *record_open(const char *cfg_path, const RunCfg *cfg, const char *member)
 {
-    std::string name;
-    if (run_cfg_text(cfg, member, &name) == 0)
+    char path[PLATFORM_PATH_BYTES];
+    if (run_cfg_beside(cfg_path, cfg, member, path, sizeof(path)) == 0)
     {
         return NULL;
     }
-    const std::string from = cfg_path;
-    const size_t slash = from.find_last_of("/\\");
-    const std::string path = (slash == std::string::npos) ? name : (from.substr(0u, slash + 1u) + name);
-    FILE *const file = fopen(path.c_str(), "wb");
+    FILE *const file = fopen(path, "wb");
     if (file == NULL)
     {
         return NULL;
     }
-    fwrite(cfg->text.data(), 1u, cfg->text.size(), file);
-    if (cfg->text.empty() || (cfg->text.back() != '\n'))
+    fwrite(cfg->text, 1u, cfg->size, file);
+    if ((cfg->size == 0u) || (cfg->text[cfg->size - 1u] != '\n'))
     {
         fputc('\n', file);
     }

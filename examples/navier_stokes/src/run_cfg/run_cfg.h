@@ -11,12 +11,18 @@
 #include <string>
 #include <vector>
 
-// The text is stored whole at its own length and the tokens at one per byte at max; no size is written in. A
-// decimal value is a JSON string, "0.0010016", read exactly as a rational; a count is a JSON number.
+// the room of a text member as the cfg reads it, with its end
+#define RUN_CFG_TEXT_ROOM 4096u
+
+// A cfg read once: its text in one cell of the process, `size` bytes and a 0 after them, and its tokens in one cell at
+// the count the text can hold, `token_room` of them. The process keeps both for the life of the run. A decimal value is
+// a JSON string, "0.0010016", read exactly as a rational; a count is a JSON number.
 typedef struct
 {
-    std::vector<char> text;
-    std::vector<CfgJsonToken> tokens;
+    char *text;
+    size_t size;
+    CfgJsonToken *tokens;
+    unsigned int token_room;
 } RunCfg;
 
 // the cfg at `path` read and parsed: 1, or 0 with the reason written to `line`
@@ -38,7 +44,13 @@ int run_cfg_rationals(const RunCfg *cfg, const char *path, std::vector<SimRation
 int run_cfg_counts(const RunCfg *cfg, const char *path, std::vector<unsigned long long> *values);
 
 // the string at `path` as it is written, without escapes read: 1, or 0 where it is missing, empty or not a string
-int run_cfg_text(const RunCfg *cfg, const char *path, std::string *value);
+// the text member at `path` into `value`, which has room for `room` bytes with its end: 1, or 0 where it is absent,
+// empty or longer than the room
+int run_cfg_text(const RunCfg *cfg, const char *path, char *value, size_t room);
+
+// the path of the text member `member`, a path from the folder that the cfg at `cfg_path` is in, into `path`, which has
+// room for `room` bytes with its end: 1, or 0 where the member does not read or the path passes the room
+int run_cfg_beside(const char *cfg_path, const RunCfg *cfg, const char *member, char *path, size_t room);
 
 // one line naming the members a cfg lacks or could not read
 void run_cfg_missing(VerbaLinea *line, const char *members);

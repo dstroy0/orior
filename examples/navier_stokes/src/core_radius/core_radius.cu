@@ -374,15 +374,12 @@ static int core_radius_fixed_proof(const CoreRadiusScale *scale, const CoreRadiu
 // byte was written
 static int core_radius_lean_write(const char *cfg_path, const RunCfg *cfg, const char *member, const std::string &text)
 {
-    std::string name;
-    if (run_cfg_text(cfg, member, &name) == 0)
+    char path[PLATFORM_PATH_BYTES];
+    if (run_cfg_beside(cfg_path, cfg, member, path, sizeof(path)) == 0)
     {
         return 0;
     }
-    const std::string from = cfg_path;
-    const size_t slash = from.find_last_of("/\\");
-    const std::string path = (slash == std::string::npos) ? name : (from.substr(0u, slash + 1u) + name);
-    FILE *const file = fopen(path.c_str(), "wb");
+    FILE *const file = fopen(path, "wb");
     if (file == NULL)
     {
         return 0;
@@ -877,32 +874,40 @@ int program_main(int count, char **arguments)
     SimRational light;
     SimRational planck;
     std::vector<SimRational> mach;
-    std::string names;
+    char names_text[RUN_CFG_TEXT_ROOM] = {0};
     std::vector<SimRational> viscosity;
     std::vector<SimRational> sound;
     std::vector<SimRational> spacing;
     std::vector<SimRational> relaxation;
     std::vector<SimRational> mass;
     std::vector<SimRational> ionization;
-    const int read = (count == 2) && run_cfg_open(arguments[1], &cfg, &results.line) && run_cfg_rational(&cfg, "core.anisotropy", &h) &&
-                     run_cfg_rationals(&cfg, "core.axis.angular", &angular) && run_cfg_rationals(&cfg, "core.axis.axial", &axial) &&
-                     run_cfg_rationals(&cfg, "core.axis.pressure", &pressure) && run_cfg_rationals(&cfg, "ellipse.outer", &outer) &&
-                     run_cfg_rationals(&cfg, "ellipse.inner", &inner) && (outer.size() == inner.size()) && run_cfg_rational(&cfg, "ellipse.cut", &cut) && run_cfg_count(&cfg, "order", &order) &&
-                     (order >= 1ull) && run_cfg_rational(&cfg, "rate.step", &step) && (sim_rational_sign(step) > 0) &&
-                     run_cfg_count(&cfg, "rate.steps", &steps) && (steps >= 1ull) && run_cfg_count(&cfg, "split", &split) && (split >= 1ull) &&
-                     (order >= 2ull * split) && run_cfg_count(&cfg, "carry", &carry) && (carry >= order) && run_cfg_count(&cfg, "reach.order", &reach) && (reach >= carry) &&
-                     run_cfg_count(&cfg, "reach.split", &reach_split) && (reach_split >= 1ull) && (reach >= 2ull * reach_split) &&
-                     run_cfg_count(&cfg, "bits", &bits) && (bits >= 1ull) && run_cfg_rational(&cfg, "walls.step", &wall_step) &&
-                     (sim_rational_sign(wall_step) > 0) && run_cfg_rational(&cfg, "walls.light", &light) && run_cfg_rational(&cfg, "walls.planck", &planck) &&
-                     (sim_rational_sign(planck) > 0) && run_cfg_rationals(&cfg, "walls.mach", &mach) && run_cfg_text(&cfg, "walls.names", &names) &&
-                     run_cfg_rationals(&cfg, "walls.viscosity", &viscosity) && run_cfg_rationals(&cfg, "walls.sound", &sound) &&
-                     run_cfg_rationals(&cfg, "walls.spacing", &spacing) && run_cfg_rationals(&cfg, "walls.relaxation", &relaxation) &&
-                     run_cfg_rationals(&cfg, "walls.mass", &mass) && run_cfg_rationals(&cfg, "walls.ionization", &ionization);
+    const int read =
+        (count == 2) && run_cfg_open(arguments[1], &cfg, &results.line) &&
+        run_cfg_rational(&cfg, "core.anisotropy", &h) && run_cfg_rationals(&cfg, "core.axis.angular", &angular) &&
+        run_cfg_rationals(&cfg, "core.axis.axial", &axial) &&
+        run_cfg_rationals(&cfg, "core.axis.pressure", &pressure) && run_cfg_rationals(&cfg, "ellipse.outer", &outer) &&
+        run_cfg_rationals(&cfg, "ellipse.inner", &inner) && (outer.size() == inner.size()) &&
+        run_cfg_rational(&cfg, "ellipse.cut", &cut) && run_cfg_count(&cfg, "order", &order) && (order >= 1ull) &&
+        run_cfg_rational(&cfg, "rate.step", &step) && (sim_rational_sign(step) > 0) &&
+        run_cfg_count(&cfg, "rate.steps", &steps) && (steps >= 1ull) && run_cfg_count(&cfg, "split", &split) &&
+        (split >= 1ull) && (order >= 2ull * split) && run_cfg_count(&cfg, "carry", &carry) && (carry >= order) &&
+        run_cfg_count(&cfg, "reach.order", &reach) && (reach >= carry) &&
+        run_cfg_count(&cfg, "reach.split", &reach_split) && (reach_split >= 1ull) && (reach >= 2ull * reach_split) &&
+        run_cfg_count(&cfg, "bits", &bits) && (bits >= 1ull) && run_cfg_rational(&cfg, "walls.step", &wall_step) &&
+        (sim_rational_sign(wall_step) > 0) && run_cfg_rational(&cfg, "walls.light", &light) &&
+        run_cfg_rational(&cfg, "walls.planck", &planck) && (sim_rational_sign(planck) > 0) &&
+        run_cfg_rationals(&cfg, "walls.mach", &mach) &&
+        run_cfg_text(&cfg, "walls.names", names_text, sizeof(names_text)) &&
+        run_cfg_rationals(&cfg, "walls.viscosity", &viscosity) && run_cfg_rationals(&cfg, "walls.sound", &sound) &&
+        run_cfg_rationals(&cfg, "walls.spacing", &spacing) &&
+        run_cfg_rationals(&cfg, "walls.relaxation", &relaxation) && run_cfg_rationals(&cfg, "walls.mass", &mass) &&
+        run_cfg_rationals(&cfg, "walls.ionization", &ionization);
     // the principal system, read where the cfg contains it
     SimRational principal_reach;
     unsigned long long principal_pieces = 0ull;
     const int principal = read && run_cfg_rational(&cfg, "principal.reach", &principal_reach) &&
                           (sim_rational_sign(principal_reach) > 0) && run_cfg_count(&cfg, "principal.pieces", &principal_pieces) && (principal_pieces >= 1ull);
+    const std::string names = names_text;
     // the media's names, one to each comma
     std::vector<std::string> media;
     size_t from = 0u;
