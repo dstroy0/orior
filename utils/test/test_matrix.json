@@ -1036,6 +1036,18 @@
         "src/cu/engine/runtime/daemon"
       ]
     },
+    "climb_machine_paths": {
+      "desc": "The paths of the climb machine, with the engine linked into the program. Seeded frames of blobs drift between frames. The machine stores three frames, climbs three pairs, then boxes, cores and measures them, and does the same over two more frames. It runs once with the land at the peak and once with the land by mass. Most climbers land on the leaf of their own blob, the extents equal the bounds on the host, and the answers of each path equal the signum of its case.",
+      "script": "utils/test/src/cu/engine/nbody/climb_machine/climb_machine_paths_test.sh",
+      "src": [
+        "+<cu/engine/nbody/climb_machine/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/nbody/climb_machine"
+      ]
+    },
     "max_tree_paths": {
       "desc": "The paths of the max tree on the device past its objects, with the engine linked into the program. With frames retained, the objects of two seeded residuals run. The slide and the pack follow the first, and the overlap of the two frames the second. The bind, the proof of the contraction and the check of the order run on the first residual. The answers of each path equal the signum of its case.",
       "script": "utils/test/src/cu/engine/nbody/max_tree/max_tree_paths_test.sh",
