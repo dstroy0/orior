@@ -761,6 +761,9 @@ int cli_process_by_name(const CliCapacityPidCtx *args);
 // gets a page the system gives afresh. The window's thread calls it for the cellblock's idle spans
 // (platform/windows_processes.c, platform/posix_processes.c)
 void cli_pages_released(void *at, unsigned long long bytes);
+// the bytes in one page of the system's memory, as the system reports them. A page is 4096 bytes on most machines
+// and 16384 bytes on a Raspberry Pi 5 (platform/windows_processes.c, platform/posix_processes.c)
+unsigned long long cli_page_bytes(void);
 // `bytes` of memory the system gives, whole pages, readable and writable and zero, outside the program's image, for
 // the pool to be placed on: their first byte, or NULL where the system refuses; held for the process's life
 // (platform/windows_processes.c, platform/posix_processes.c)

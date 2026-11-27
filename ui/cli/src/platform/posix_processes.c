@@ -30,6 +30,16 @@ void *cli_pages_mapped(unsigned long long bytes)
     return (at == MAP_FAILED) ? NULL : at;
 }
 
+unsigned long long cli_page_bytes(void)
+{
+    // The kernel sets the page size, and it is not the same on all machines. If the system does not answer, the
+    // value is 65536, the largest page of aarch64. A page that is too large keeps a release inside its span. A page
+    // that is too small lets madvise clear the bytes after the span.
+    const long page = sysconf(_SC_PAGESIZE);
+    // Explicit cast takes the positive count that sysconf gives as the bytes it counts
+    return (page > 0L) ? (unsigned long long)page : 65536ULL;
+}
+
 void cli_pages_released(void *at, unsigned long long bytes)
 {
     // Linux drops the pages at once; macOS marks them free and reclaims them as it needs the memory

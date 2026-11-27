@@ -145,6 +145,14 @@ void *cli_pages_mapped(unsigned long long bytes)
     return VirtualAlloc(NULL, (SIZE_T)bytes, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 }
 
+unsigned long long cli_page_bytes(void)
+{
+    SYSTEM_INFO system;
+    GetSystemInfo(&system);
+    // Explicit cast widens the page size that the system gives
+    return (unsigned long long)system.dwPageSize;
+}
+
 typedef DWORD(WINAPI *CliPagesDiscard)(PVOID at, SIZE_T bytes);
 
 void cli_pages_released(void *at, unsigned long long bytes)

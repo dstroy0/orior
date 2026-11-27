@@ -424,8 +424,7 @@ void cli_grown_end(CliGrownLine *grown)
     grown->line = mmgr_line_over(NULL, 0u);
 }
 
-// the bytes of a page, and the least an idle span holds in whole pages before its pages go back
-#define POOL_PAGE_BYTES 4096ULL
+// the least an idle span holds in whole pages before its pages go back
 #define POOL_IDLE_RELEASED (64ULL << 10u)
 
 // The idle walk's record: whether the walk passed the gap between the tiers yet. The gap comes first
@@ -438,8 +437,11 @@ typedef struct
 // POOL_IDLE_RELEASED bytes or more
 static void pool_idle_pages_released(unsigned long long from, unsigned long long to)
 {
-    const unsigned long long first = (from + POOL_PAGE_BYTES - 1ULL) & ~(POOL_PAGE_BYTES - 1ULL);
-    const unsigned long long end = to & ~(POOL_PAGE_BYTES - 1ULL);
+    // The cut uses the system's page. madvise moves the length up to whole pages of the system. A cut to a smaller
+    // page lets madvise clear the bytes after the span, and the live cells of the next tier are there.
+    const unsigned long long page = cli_page_bytes();
+    const unsigned long long first = (from + page - 1ULL) & ~(page - 1ULL);
+    const unsigned long long end = to & ~(page - 1ULL);
     if ((end > first) && ((end - first) >= POOL_IDLE_RELEASED))
     {
         // Explicit cast takes the first page back as its address
