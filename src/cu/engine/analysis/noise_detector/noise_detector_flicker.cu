@@ -95,26 +95,39 @@ long noise_flicker_sample(const unsigned short *volume, const unsigned long long
     {
         return NOISE_DETECTOR_ERROR;
     }
-    const size_t lane_bytes = (size_t)(frames * voxels) * sizeof(unsigned short);
-    const size_t sum_bytes = (size_t)NOISE_FLICKER_CELLS * sizeof(unsigned long long);
+    const unsigned long long lane_bytes = frames * voxels * sizeof(unsigned short);
+    const unsigned long long sum_bytes = (unsigned long long)NOISE_FLICKER_CELLS * sizeof(unsigned long long);
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, NOISE_DETECTOR_PLACE);
     unsigned short *device_lanes = NULL;
     unsigned long long *device_sums = NULL;
-    int ok = NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_lanes, lane_bytes), &device_lanes, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_sums, sum_bytes), &device_sums, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemset(device_sums, 0, sum_bytes), device_sums, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(device_lanes, volume, lane_bytes, cudaMemcpyHostToDevice),
-                                         device_lanes, error);
+    int ok = noise_lanes_crossed(&cells, volume, lane_bytes, sum_bytes, &device_lanes, &device_sums, error);
     if (ok != 0)
     {
         const unsigned long long needed = (voxels + NOISE_DETECTOR_THREADS - 1ULL) / NOISE_DETECTOR_THREADS;
         const unsigned int blocks = (unsigned int)((needed < 65536ULL) ? needed : 65536ULL);
         noise_flicker_kernel<<<blocks, NOISE_DETECTOR_THREADS>>>(device_lanes, frames, voxels, width, device_sums);
         ok = NOISE_DETECTOR_STATUS_CHECK(cudaGetLastError(), device_sums, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(sums, device_sums, sum_bytes, cudaMemcpyDeviceToHost), sums, error);
+             NOISE_DETECTOR_CHECK(tessera_job_crossed_out(sums, device_sums, sum_bytes), sums, error,
+                                  ENGINE_ERROR_RESOURCE);
     }
-    cudaFree(device_lanes);
-    cudaFree(device_sums);
+    tessera_job_cells_given(&cells);
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
+}
+
+int noise_lanes_crossed(TesseraJobCells *cells, const unsigned short *volume, unsigned long long lane_bytes,
+                        unsigned long long sum_bytes, unsigned short **lanes, unsigned long long **sums,
+                        EngineError *error)
+{
+    void *lane_cell = NULL;
+    void *sum_cell = NULL;
+    const int ok = NOISE_DETECTOR_CHECK(tessera_job_cells_in(cells, volume, lane_bytes, &lane_cell) &&
+                                            tessera_job_cells_room(cells, sum_bytes, &sum_cell),
+                                        volume, error, ENGINE_ERROR_RESOURCE);
+    // Explicit casts read the cells as the lanes and the sums that they hold
+    *lanes = (unsigned short *)lane_cell;
+    *sums = (unsigned long long *)sum_cell;
+    return ok;
 }
 
 void noise_exact_word(OriorExactInteger *value, unsigned long long word)

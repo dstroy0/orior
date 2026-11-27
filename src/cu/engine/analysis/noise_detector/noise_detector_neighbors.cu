@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_neighbors.cu: neighbor correlation
-#include "noise_detector_internal.h"
 #include "../../../../platform/platform.h"
+#include "noise_detector_internal.h"
 
 static const char *const NOISE_RANGE_NAMES[NOISE_NEIGHBOR_RADII] = {"z", "y", "x", "z2", "z4", "z8", "z16", "z32"};
 
@@ -105,15 +105,13 @@ long noise_neighbors_sample(const unsigned short *volume, const unsigned long lo
     {
         return NOISE_DETECTOR_ERROR;
     }
-    const size_t lane_bytes = (size_t)(frames * voxels) * sizeof(unsigned short);
-    const size_t sum_bytes = (size_t)NOISE_NEIGHBORS_CELLS * sizeof(unsigned long long);
+    const unsigned long long lane_bytes = frames * voxels * sizeof(unsigned short);
+    const unsigned long long sum_bytes = (unsigned long long)NOISE_NEIGHBORS_CELLS * sizeof(unsigned long long);
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, NOISE_DETECTOR_PLACE);
     unsigned short *device_lanes = NULL;
     unsigned long long *device_sums = NULL;
-    int ok = NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_lanes, lane_bytes), &device_lanes, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_sums, sum_bytes), &device_sums, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemset(device_sums, 0, sum_bytes), device_sums, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(device_lanes, volume, lane_bytes, cudaMemcpyHostToDevice),
-                                         device_lanes, error);
+    int ok = noise_lanes_crossed(&cells, volume, lane_bytes, sum_bytes, &device_lanes, &device_sums, error);
     if (ok != 0)
     {
         const unsigned long long needed = (voxels + NOISE_DETECTOR_THREADS - 1ULL) / NOISE_DETECTOR_THREADS;
@@ -121,10 +119,10 @@ long noise_neighbors_sample(const unsigned short *volume, const unsigned long lo
         noise_neighbors_kernel<<<blocks, NOISE_DETECTOR_THREADS>>>(device_lanes, frames, extent[1], extent[2],
                                                                    extent[3], device_sums);
         ok = NOISE_DETECTOR_STATUS_CHECK(cudaGetLastError(), device_sums, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(sums, device_sums, sum_bytes, cudaMemcpyDeviceToHost), sums, error);
+             NOISE_DETECTOR_CHECK(tessera_job_crossed_out(sums, device_sums, sum_bytes), sums, error,
+                                  ENGINE_ERROR_RESOURCE);
     }
-    cudaFree(device_lanes);
-    cudaFree(device_sums);
+    tessera_job_cells_given(&cells);
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 

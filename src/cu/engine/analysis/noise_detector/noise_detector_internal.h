@@ -4,10 +4,11 @@
 #ifndef NOISE_DETECTOR_INTERNAL_H
 #define NOISE_DETECTOR_INTERNAL_H
 
-#include "noise_detector.h"
 #include "../../../../platform/platform.h"
+#include "noise_detector.h"
 
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
+#include "../../runtime/daemon/tessera_job.h"
 
 #include <cuda_runtime.h>
 
@@ -29,6 +30,9 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
 #define NOISE_DETECTOR_IO(condition_, evacaddr_, error_)                                                               \
     engine_io_check((condition_), ENGINE_MODULE_NOISE_DETECTOR, (unsigned int)__LINE__, (const void *)(evacaddr_),     \
                     (error_))
+
+// the owner that the cells of the noise detector in the pool of the device count to
+#define NOISE_DETECTOR_PLACE ((unsigned int)platform_place_g_engine_owner)
 
 #define NOISE_DETECTOR_THREADS 256u
 
@@ -56,6 +60,13 @@ static_assert(((NOISE_SUMMARY_FIRST_BIN << (NOISE_LEVEL_BIN_SHIFT - 1u)) == 40u)
 
 long noise_flicker_sample(const unsigned short *volume, const unsigned long long extent[4],
                           unsigned long long sums[NOISE_FLICKER_CELLS], EngineError *error);
+
+// The lanes of a sample crossed into a temporary cell of the pool of the device. An empty cell of `sum_bytes` bytes
+// holds its sums, every byte 0. Both cells go in the list `cells`, which the caller gives back before it returns.
+// 1, or 0 with the error set where the pool cannot meet the bytes or the crossing errors
+int noise_lanes_crossed(TesseraJobCells *cells, const unsigned short *volume, unsigned long long lane_bytes,
+                        unsigned long long sum_bytes, unsigned short **lanes, unsigned long long **sums,
+                        EngineError *error);
 
 void noise_exact_word(OriorExactInteger *value, unsigned long long word);
 

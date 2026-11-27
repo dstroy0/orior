@@ -167,59 +167,47 @@ long noise_clips_sample(const unsigned short *volume, const unsigned long long e
     {
         return NOISE_DETECTOR_ERROR;
     }
-    const size_t lane_bytes = (size_t)(frames * voxels) * sizeof(unsigned short);
-    const size_t count_bytes = (size_t)NOISE_CLIPS_COUNTS * sizeof(unsigned long long);
-    const size_t box_bytes = (size_t)NOISE_CLIPS_BOX * sizeof(unsigned int);
-    const size_t value_bytes = (size_t)NOISE_VALUES * sizeof(unsigned long long);
-    const size_t spike_bytes = (size_t)NOISE_SPIKE_CELLS * sizeof(unsigned long long);
+    const unsigned long long lane_bytes = frames * voxels * sizeof(unsigned short);
+    const unsigned long long count_bytes = (unsigned long long)NOISE_CLIPS_COUNTS * sizeof(unsigned long long);
+    const unsigned long long box_bytes = (unsigned long long)NOISE_CLIPS_BOX * sizeof(unsigned int);
+    const unsigned long long value_bytes = (unsigned long long)NOISE_VALUES * sizeof(unsigned long long);
+    const unsigned long long spike_bytes = (unsigned long long)NOISE_SPIKE_CELLS * sizeof(unsigned long long);
     // an empty box: every least at the widest coordinate and every max at 0
     const unsigned int empty_box[NOISE_CLIPS_BOX] = {0xFFFFFFFFu, 0u, 0xFFFFFFFFu, 0u, 0xFFFFFFFFu, 0u};
-    unsigned short *device_lanes = NULL;
-    unsigned long long *device_counts = NULL;
-    unsigned int *device_box = NULL;
-    unsigned long long *device_values = NULL;
-    unsigned long long *device_constant_values = NULL;
-    unsigned long long *device_spikes = NULL;
-    int ok = NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_lanes, lane_bytes), &device_lanes, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_counts, count_bytes), &device_counts, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_box, box_bytes), &device_box, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_values, value_bytes), &device_values, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_constant_values, value_bytes),
-                                         &device_constant_values, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_spikes, spike_bytes), &device_spikes, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemset(device_counts, 0, count_bytes), device_counts, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemset(device_values, 0, value_bytes), device_values, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemset(device_constant_values, 0, value_bytes), device_constant_values,
-                                         error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemset(device_spikes, 0, spike_bytes), device_spikes, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(device_box, empty_box, box_bytes, cudaMemcpyHostToDevice),
-                                         device_box, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(device_lanes, volume, lane_bytes, cudaMemcpyHostToDevice),
-                                         device_lanes, error);
+    // The lanes and the box cross in, and the counts are temporary cells of the pool of the device, every byte 0 at
+    // the take. The call gives them back last first before it returns
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, NOISE_DETECTOR_PLACE);
+    void *cell[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
+    int ok = NOISE_DETECTOR_CHECK(tessera_job_cells_in(&cells, volume, lane_bytes, &cell[0]) &&
+                                      tessera_job_cells_in(&cells, empty_box, box_bytes, &cell[1]) &&
+                                      tessera_job_cells_room(&cells, count_bytes, &cell[2]) &&
+                                      tessera_job_cells_room(&cells, value_bytes, &cell[3]) &&
+                                      tessera_job_cells_room(&cells, value_bytes, &cell[4]) &&
+                                      tessera_job_cells_room(&cells, spike_bytes, &cell[5]),
+                                  volume, error, ENGINE_ERROR_RESOURCE);
+    // Explicit casts read each cell as the words that it holds
+    const unsigned short *const device_lanes = (const unsigned short *)cell[0];
+    unsigned int *const device_box = (unsigned int *)cell[1];
+    unsigned long long *const device_counts = (unsigned long long *)cell[2];
+    unsigned long long *const device_values = (unsigned long long *)cell[3];
+    unsigned long long *const device_constant_values = (unsigned long long *)cell[4];
+    unsigned long long *const device_spikes = (unsigned long long *)cell[5];
     if (ok != 0)
     {
         noise_clips_kernel<<<blocks, NOISE_DETECTOR_THREADS>>>(device_lanes, frames, depth, height, width,
                                                                device_counts, device_box, device_values,
                                                                device_constant_values, device_spikes);
         ok = NOISE_DETECTOR_STATUS_CHECK(cudaGetLastError(), device_counts, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(clips->counts, device_counts, count_bytes, cudaMemcpyDeviceToHost),
-                                         clips->counts, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(clips->box, device_box, box_bytes, cudaMemcpyDeviceToHost),
-                                         clips->box, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(clips->values, device_values, value_bytes, cudaMemcpyDeviceToHost),
-                                         clips->values, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(
-                 cudaMemcpy(clips->constant_values, device_constant_values, value_bytes, cudaMemcpyDeviceToHost),
-                 clips->constant_values, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(clips->spikes, device_spikes, spike_bytes, cudaMemcpyDeviceToHost),
-                                         clips->spikes, error);
+             NOISE_DETECTOR_CHECK(
+                 tessera_job_crossed_out(clips->counts, device_counts, count_bytes) &&
+                     tessera_job_crossed_out(clips->box, device_box, box_bytes) &&
+                     tessera_job_crossed_out(clips->values, device_values, value_bytes) &&
+                     tessera_job_crossed_out(clips->constant_values, device_constant_values, value_bytes) &&
+                     tessera_job_crossed_out(clips->spikes, device_spikes, spike_bytes),
+                 clips->counts, error, ENGINE_ERROR_RESOURCE);
     }
-    cudaFree(device_lanes);
-    cudaFree(device_counts);
-    cudaFree(device_box);
-    cudaFree(device_values);
-    cudaFree(device_constant_values);
-    cudaFree(device_spikes);
+    tessera_job_cells_given(&cells);
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 

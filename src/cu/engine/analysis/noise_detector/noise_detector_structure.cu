@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_structure.cu: structure
-#include "noise_detector_internal.h"
 #include "../../../../platform/platform.h"
+#include "noise_detector_internal.h"
 
 // a 128 bit value times a factor, limited to 128 bits
 __device__ static void noise_wide_scaled(unsigned long long low, unsigned long long high, unsigned long long factor,
@@ -160,28 +160,26 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
     {
         return NOISE_DETECTOR_ERROR;
     }
-    const size_t lane_bytes = (size_t)(frames * voxels) * sizeof(unsigned short);
-    const size_t sum_bytes = (size_t)NOISE_STRUCTURE_CELLS * sizeof(unsigned long long);
-    unsigned long long *const sums = (unsigned long long *)platform_cell_taken(
-        (unsigned long long)(sum_bytes), (unsigned int)platform_place_g_engine_owner, 0);
+    const unsigned long long lane_bytes = frames * voxels * sizeof(unsigned short);
+    const unsigned long long sum_bytes = (unsigned long long)NOISE_STRUCTURE_CELLS * sizeof(unsigned long long);
+    unsigned long long *const sums =
+        (unsigned long long *)platform_cell_taken(sum_bytes, (unsigned int)platform_place_g_engine_owner, 0);
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, NOISE_DETECTOR_PLACE);
     unsigned short *device_lanes = NULL;
     unsigned long long *device_sums = NULL;
     int ok = NOISE_DETECTOR_CHECK(sums != NULL, &sums, error, ENGINE_ERROR_RESOURCE) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_lanes, lane_bytes), &device_lanes, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_sums, sum_bytes), &device_sums, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemset(device_sums, 0, sum_bytes), device_sums, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(device_lanes, volume, lane_bytes, cudaMemcpyHostToDevice),
-                                         device_lanes, error);
+             noise_lanes_crossed(&cells, volume, lane_bytes, sum_bytes, &device_lanes, &device_sums, error);
     if (ok != 0)
     {
         const unsigned long long needed = (voxels + NOISE_DETECTOR_THREADS - 1ULL) / NOISE_DETECTOR_THREADS;
         const unsigned int blocks = (unsigned int)((needed < 65536ULL) ? needed : 65536ULL);
         noise_structure_kernel<<<blocks, NOISE_DETECTOR_THREADS>>>(device_lanes, frames, voxels, width, device_sums);
         ok = NOISE_DETECTOR_STATUS_CHECK(cudaGetLastError(), device_sums, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(sums, device_sums, sum_bytes, cudaMemcpyDeviceToHost), sums, error);
+             NOISE_DETECTOR_CHECK(tessera_job_crossed_out(sums, device_sums, sum_bytes), sums, error,
+                                  ENGINE_ERROR_RESOURCE);
     }
-    cudaFree(device_lanes);
-    cudaFree(device_sums);
+    tessera_job_cells_given(&cells);
     if (ok == 0)
     {
         platform_cell_released(sums, (unsigned int)platform_place_g_engine_owner);

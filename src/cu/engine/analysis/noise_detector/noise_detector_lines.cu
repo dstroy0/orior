@@ -305,17 +305,8 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
     const unsigned long long row_lines = frame_pairs * depth * height;
     const unsigned long long column_lines = frame_pairs * depth * width;
     const unsigned long long max_lines = (row_lines > column_lines) ? row_lines : column_lines;
-    const size_t lane_bytes = (size_t)(frames * voxels) * sizeof(unsigned short);
+    const unsigned long long lane_bytes = frames * voxels * sizeof(unsigned short);
     const size_t line_bytes = (size_t)max_lines * sizeof(unsigned long long);
-    unsigned short *device_lanes = NULL;
-    unsigned char *device_mask = NULL;
-    long long *device_sums = NULL;
-    unsigned long long *device_squares = NULL;
-    unsigned long long *device_levels = NULL;
-    long long *device_static_sums = NULL;
-    unsigned long long *device_static_squares = NULL;
-    unsigned long long *device_static_members = NULL;
-    unsigned long long *device_static_levels = NULL;
     long long *const sums =
         (long long *)platform_cell_taken(line_bytes, platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     unsigned long long *const squares =
@@ -335,29 +326,35 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
     const unsigned long long plane_count = frame_pairs * depth;
     NoisePlane *const planes = (NoisePlane *)platform_cell_taken(
         (size_t)plane_count * sizeof(NoisePlane), platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
-    int ok =
-        NOISE_DETECTOR_CHECK((sums != NULL) && (squares != NULL) && (levels != NULL) && (static_sums != NULL) &&
-                                 (static_squares != NULL) && (static_members != NULL) && (static_levels != NULL) &&
-                                 (mask != NULL) && (planes != NULL),
-                             &sums, error, ENGINE_ERROR_RESOURCE) &&
-        NOISE_DETECTOR_CHECK(noise_static_mask(volume, frames, voxels, 1u, mask, &still->ceiling) != 0, mask, error,
-                             ENGINE_ERROR_RESOURCE) &&
-        NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_lanes, lane_bytes), &device_lanes, error) &&
-        NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_mask, (size_t)voxels), &device_mask, error) &&
-        NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_sums, line_bytes), &device_sums, error) &&
-        NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_squares, line_bytes), &device_squares, error) &&
-        NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_levels, line_bytes), &device_levels, error) &&
-        NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_static_sums, line_bytes), &device_static_sums, error) &&
-        NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_static_squares, line_bytes), &device_static_squares,
-                                    error) &&
-        NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_static_members, line_bytes), &device_static_members,
-                                    error) &&
-        NOISE_DETECTOR_STATUS_CHECK(cudaMalloc((void **)&device_static_levels, line_bytes), &device_static_levels,
-                                    error) &&
-        NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(device_lanes, volume, lane_bytes, cudaMemcpyHostToDevice), device_lanes,
-                                    error) &&
-        NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(device_mask, mask, (size_t)voxels, cudaMemcpyHostToDevice), device_mask,
-                                    error);
+    int ok = NOISE_DETECTOR_CHECK((sums != NULL) && (squares != NULL) && (levels != NULL) && (static_sums != NULL) &&
+                                      (static_squares != NULL) && (static_members != NULL) && (static_levels != NULL) &&
+                                      (mask != NULL) && (planes != NULL),
+                                  &sums, error, ENGINE_ERROR_RESOURCE) &&
+             NOISE_DETECTOR_CHECK(noise_static_mask(volume, frames, voxels, 1u, mask, &still->ceiling) != 0, mask,
+                                  error, ENGINE_ERROR_RESOURCE);
+    // The lanes and the mask cross in, and the sums of the lines are temporary cells of the pool of the device. The
+    // kernel writes each sum of each line. The call gives the cells back last first before it returns
+    TesseraJobCells job_cells;
+    tessera_job_cells_begun(&job_cells, NOISE_DETECTOR_PLACE);
+    void *cell[9] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+    ok = ok && NOISE_DETECTOR_CHECK(tessera_job_cells_in(&job_cells, volume, lane_bytes, &cell[0]) &&
+                                        tessera_job_cells_in(&job_cells, mask, voxels, &cell[1]),
+                                    volume, error, ENGINE_ERROR_RESOURCE);
+    for (unsigned int which = 2u; ok && (which < 9u); which += 1u)
+    {
+        ok = NOISE_DETECTOR_CHECK(tessera_job_cells_room(&job_cells, line_bytes, &cell[which]), &job_cells, error,
+                                  ENGINE_ERROR_RESOURCE);
+    }
+    // Explicit casts read each cell as the words that it holds
+    const unsigned short *const device_lanes = (const unsigned short *)cell[0];
+    const unsigned char *const device_mask = (const unsigned char *)cell[1];
+    long long *const device_sums = (long long *)cell[2];
+    unsigned long long *const device_squares = (unsigned long long *)cell[3];
+    unsigned long long *const device_levels = (unsigned long long *)cell[4];
+    long long *const device_static_sums = (long long *)cell[5];
+    unsigned long long *const device_static_squares = (unsigned long long *)cell[6];
+    unsigned long long *const device_static_members = (unsigned long long *)cell[7];
+    unsigned long long *const device_static_levels = (unsigned long long *)cell[8];
     for (unsigned int type = NOISE_LINE_ROWS; ok && (type <= NOISE_LINE_COLUMNS); type += 1u)
     {
         const unsigned int along_x = (type == NOISE_LINE_ROWS) ? 1u : 0u;
@@ -368,23 +365,16 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
         noise_lines_kernel<<<blocks, NOISE_DETECTOR_THREADS>>>(
             device_lanes, device_mask, frame_pairs, depth, height, width, along_x, device_sums, device_squares,
             device_levels, device_static_sums, device_static_squares, device_static_members, device_static_levels);
-        const size_t taken = (size_t)lines * sizeof(unsigned long long);
+        const unsigned long long taken = lines * sizeof(unsigned long long);
         ok = NOISE_DETECTOR_STATUS_CHECK(cudaGetLastError(), device_sums, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(sums, device_sums, taken, cudaMemcpyDeviceToHost), sums, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(squares, device_squares, taken, cudaMemcpyDeviceToHost), squares,
-                                         error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(levels, device_levels, taken, cudaMemcpyDeviceToHost), levels,
-                                         error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(static_sums, device_static_sums, taken, cudaMemcpyDeviceToHost),
-                                         static_sums, error) &&
-             NOISE_DETECTOR_STATUS_CHECK(
-                 cudaMemcpy(static_squares, device_static_squares, taken, cudaMemcpyDeviceToHost), static_squares,
-                 error) &&
-             NOISE_DETECTOR_STATUS_CHECK(
-                 cudaMemcpy(static_members, device_static_members, taken, cudaMemcpyDeviceToHost), static_members,
-                 error) &&
-             NOISE_DETECTOR_STATUS_CHECK(cudaMemcpy(static_levels, device_static_levels, taken, cudaMemcpyDeviceToHost),
-                                         static_levels, error);
+             NOISE_DETECTOR_CHECK(tessera_job_crossed_out(sums, device_sums, taken) &&
+                                      tessera_job_crossed_out(squares, device_squares, taken) &&
+                                      tessera_job_crossed_out(levels, device_levels, taken) &&
+                                      tessera_job_crossed_out(static_sums, device_static_sums, taken) &&
+                                      tessera_job_crossed_out(static_squares, device_static_squares, taken) &&
+                                      tessera_job_crossed_out(static_members, device_static_members, taken) &&
+                                      tessera_job_crossed_out(static_levels, device_static_levels, taken),
+                                  sums, error, ENGINE_ERROR_RESOURCE);
         NoiseWide *const static_lines = (along_x != 0u) ? &still->row_squares : &still->column_squares;
         unsigned long long *const static_pairs = (along_x != 0u) ? &still->row_pairs : &still->column_pairs;
         for (unsigned long long line = 0ULL; ok && (line < lines); line += 1ULL)
@@ -450,15 +440,7 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
          ((plane_table == NULL) ||
           NOISE_DETECTOR_IO(noise_planes_rows(plane_table, name, planes, plane_count, depth, plane_voxels) != 0,
                             plane_table, error));
-    cudaFree(device_lanes);
-    cudaFree(device_mask);
-    cudaFree(device_sums);
-    cudaFree(device_squares);
-    cudaFree(device_levels);
-    cudaFree(device_static_sums);
-    cudaFree(device_static_squares);
-    cudaFree(device_static_members);
-    cudaFree(device_static_levels);
+    tessera_job_cells_given(&job_cells);
     platform_cell_released(sums, platform_place_g_program_owner);
     platform_cell_released(squares, platform_place_g_program_owner);
     platform_cell_released(levels, platform_place_g_program_owner);

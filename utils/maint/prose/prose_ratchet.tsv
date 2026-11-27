@@ -491,7 +491,6 @@ src/cu/engine/analysis/noise_detector/noise_detector_flicker.cu	1
 src/cu/engine/analysis/noise_detector/noise_detector_halves.cu	1
 src/cu/engine/analysis/noise_detector/noise_detector_internal.h	24
 src/cu/engine/analysis/noise_detector/noise_detector_ladder.cu	1
-src/cu/engine/analysis/noise_detector/noise_detector_lines.cu	7
 src/cu/engine/analysis/noise_detector/noise_detector_lines_summary.cu	6
 src/cu/engine/analysis/noise_detector/noise_detector_moments.cu	6
 src/cu/engine/analysis/noise_detector/noise_detector_neighbors.cu	5
