@@ -81,16 +81,6 @@ static void grade(const char *what, size_t measured, size_t expected)
     {
         failures += 1u;
     }
-    // %zu, the definition the rest of this tree already uses for a size_t. gcc warns on it
-    // here because MinGW's headers assume msvcrt semantics. The runtime actually linked is the
-    // UCRT, which handled %zu since Visual Studio 2015, and the warning is noise.
-    //
-    // Measured and not assumed, because an earlier revision of this file got it wrong in the
-    // other direction: it widened every count to unsigned long long and recorded in a comment that
-    // the runtime rejects %zu and prints the character. That was inferred from the warning and never
-    // observed. A probe printing two %zu followed by a %s prints all three correctly. Argument
-    // consumption does not slip. The widening was a portability choice stated as a repair, and it
-    // put a second printf convention into a tree that already had one.
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  ");
