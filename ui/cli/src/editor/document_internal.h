@@ -70,8 +70,9 @@ typedef struct
 // grammar it is colored by, empty for none, and how many names that grammar's tokens take; the states its lines are
 // colored from and end in, each written once and ended by a NUL in a movable cell of its own sized to its text, the
 // cells' identities in a movable cell of CLI_DOC_STATES_MAX places, a line's state the number of states before it, each
-// state found again by its hash in an index of CLI_DOC_INDEX_POSITIONS places in a movable cell, each place its state's
-// number plus 1, 0 for none, with how many states there are and the number found last; the line the walk works out
+// state found again by its hash in an index in a movable cell, its places sorted by the hash, `state_ordered` of them,
+// and past them a run of the newest places, `state_run` of them, with how many states there are, whether the index is
+// taken, and the number found last; the line the walk works out
 // from, whether the cells refused its colors, the changes written to it since it was
 // stored, which its colors are passed on with, and whether the names its grammar's tokens take were passed on since it
 // was colored by the grammar; and the lines from `cached_from` to before `cached_to`, those the page holds about its
@@ -112,6 +113,8 @@ typedef struct CliStoredText
     const CarcerMovableEntry *state_cells;
     const CarcerMovableEntry *state_index;
     unsigned int state_indexed;
+    unsigned int state_ordered;
+    unsigned int state_run;
     unsigned int state_count;
     unsigned int state_last;
     unsigned int origin;

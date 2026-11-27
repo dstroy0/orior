@@ -37,6 +37,20 @@ typedef struct
     char *text;
 } CliDocumentWords;
 
+// a place of the states' index: the hash of a state's text, and its number
+typedef struct
+{
+    unsigned int hash;
+    unsigned int place;
+} BranchStatePlace;
+
+// a word of a completion: the hash of its bytes, and its place among the words
+typedef struct
+{
+    unsigned int hash;
+    unsigned int word;
+} BranchWordPlace;
+
 // A walker: a thread of its own walking one text at a time, what it runs, the line its steps' colors are written into,
 // taken once and emptied for each step, and whether it walks, under the lock
 typedef struct
@@ -117,9 +131,9 @@ typedef struct
 // again after it, and the max bytes of lines it colors, the last line it colors maybe past them, and its colors are
 // passed on in steps, and the bytes of a coloring that colors every line asked; the lines colored at once where a
 // coloring stops at the first entered as before, and where it does not, CLI_DOC_STEP where its bytes reach no further;
-// the capacity a step's colors are written in, a state's longest text, the places of the index a text's states are
-// found by and the max states it has, half those places, the bytes a coloring's capacity is written in, the share of
-// what a text's capacity for its states or its runs is taken for that it holds past it, and no line
+// the capacity a step's colors are written in, a state's longest text, the max states a text has and the places of
+// the run of the newest of them in its index, the bytes a coloring's capacity is written in, the share of what a
+// text's capacity for its states or its runs is taken for that it holds past it, and no line
 #define CLI_DOC_ROOT 0u
 #define CLI_DOC_STEP 256u
 #define CLI_DOC_STEP_BYTES 16384ULL
@@ -128,8 +142,8 @@ typedef struct
 #define CLI_DOC_RUN 4096u
 #define CLI_DOC_COLORS_CAPACITY (1ULL << 20u)
 #define CLI_DOC_STATE 8192u
-#define CLI_DOC_INDEX_POSITIONS 16384u
-#define CLI_DOC_STATES_MAX (CLI_DOC_INDEX_POSITIONS / 2u)
+#define CLI_DOC_STATES_MAX 8192u
+#define CLI_DOC_STATE_RUN 256u
 #define CLI_DOC_NONE 0xffffffffu
 
 // what the walk saves of a line: how many runs it found and the column the line ends at, then the runs' columns and
@@ -160,6 +174,7 @@ typedef struct
     unsigned long long length;
     const CliStoredText *one_read;
     unsigned int at;
+    unsigned int hash_u32;
     CliStoredText *one;
     const CliStoredLines *lines;
     unsigned int line;
@@ -225,7 +240,7 @@ typedef struct
     unsigned int *bars_pointer;
     unsigned int tab;
     CliDocumentWords *words;
-    unsigned int (*word_table)[2];
+    BranchWordPlace *word_order;
     unsigned long long word_at;
     const unsigned long long *number;
     unsigned long long cursor_line;
@@ -390,44 +405,152 @@ EMBED_INLINE int branch_state_is(const DocumentBranchCtx *args)
                 &(CarcerMovableCfg){.cell = cell, .src = args->text, .bytes = args->length + 1ULL}) == 0);
 }
 
-// the state at the place `at` put at the first place of the index free from its hash's
-EMBED_INLINE void branch_index_append(const DocumentBranchCtx *args)
+// the order of two places, by their hash: below 0, 0 or above 0
+static int branch_place_order(const void *left, const void *right)
 {
-    char text[CLI_DOC_STATE];
-    const unsigned long long length =
-        EMBED_CALL(branch_state_text, DocumentBranchCtx, .one_read = args->one, .at = args->at, .text_out = text);
-    unsigned int entry = EMBED_CALL(branch_state_hash, DocumentBranchCtx, .text = text, .length = length) &
-                         (args->one->state_indexed - 1u);
-    for (;;)
+    const BranchStatePlace *const one = (const BranchStatePlace *)left;
+    const BranchStatePlace *const other = (const BranchStatePlace *)right;
+    return (one->hash < other->hash) ? -1 : ((one->hash > other->hash) ? 1 : 0);
+}
+
+// the place `at` of the index's order read
+static BranchStatePlace branch_index_place(const CliStoredText *one, unsigned int at)
+{
+    BranchStatePlace place = {0u, 0u};
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = one->state_index,
+                                                            .offset = (unsigned long long)at * sizeof(BranchStatePlace),
+                                                            .dst = &place,
+                                                            .bytes = sizeof(place)});
+    return place;
+}
+
+// the number of the state of `length` bytes of `text`, of the hash `hash`, CLI_DOC_NONE where the text has none: the
+// run first, then the order from the first place of the hash, which a binary search finds
+static unsigned int branch_index_found(const DocumentBranchCtx *args, unsigned int hash, unsigned long long length)
+{
+    const CliStoredText *const one = args->one;
+    BranchStatePlace run[CLI_DOC_STATE_RUN];
+    if (one->state_run != 0u)
     {
-        unsigned int indexed_word = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->one->state_index,
-                                                                .offset = entry * sizeof(indexed_word),
-                                                                .dst = &indexed_word,
-                                                                .bytes = sizeof(indexed_word)});
-        if (indexed_word == 0u)
+        (void)g_cli_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = one->state_index,
+                                .offset = (unsigned long long)CLI_DOC_STATES_MAX * sizeof(BranchStatePlace),
+                                .dst = run,
+                                .bytes = (unsigned long long)one->state_run * sizeof(BranchStatePlace)});
+    }
+    for (unsigned int each = 0u; each < one->state_run; each += 1u)
+    {
+        if ((run[each].hash == hash) && EMBED_CALL(branch_state_is, DocumentBranchCtx, .one_read = one,
+                                                   .at = run[each].place, .text = args->text, .length = length))
+        {
+            return run[each].place;
+        }
+    }
+    unsigned int low = 0u;
+    unsigned int high = one->state_ordered;
+    while (low < high)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        if (branch_index_place(one, middle).hash < hash)
+        {
+            low = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    for (unsigned int each = low; each < one->state_ordered; each += 1u)
+    {
+        const BranchStatePlace place = branch_index_place(one, each);
+        if (place.hash != hash)
         {
             break;
         }
-        entry = (entry + 1u) & (args->one->state_indexed - 1u);
+        if (EMBED_CALL(branch_state_is, DocumentBranchCtx, .one_read = one, .at = place.place, .text = args->text,
+                       .length = length))
+        {
+            return place.place;
+        }
     }
+    return CLI_DOC_NONE;
+}
+
+// the index's run, where it is full, sorted once and merged into the order from its end, through a cell of the
+// temporary tier that holds the order and the run: 1, or 0 where the cells cannot meet it
+static int branch_index_merged(CliStoredText *one)
+{
+    if (one->state_run < CLI_DOC_STATE_RUN)
     {
-        const unsigned int stored_value = args->at + 1u;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->one->state_index,
-                                                                 .offset = entry * sizeof(stored_value),
-                                                                 .src = &stored_value,
-                                                                 .bytes = sizeof(stored_value)});
+        return 1;
     }
+    const unsigned int count = one->state_ordered + one->state_run;
+    BranchStatePlace *const order =
+        g_cli_guard->temporary_buf_alloc((unsigned long long)count * sizeof(BranchStatePlace), g_cli_editor_owner);
+    if (order == NULL)
+    {
+        return 0;
+    }
+    BranchStatePlace run[CLI_DOC_STATE_RUN];
+    BranchStatePlace room[CLI_DOC_STATE_RUN];
+    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        .cell = one->state_index, .dst = order, .bytes = (unsigned long long)count * sizeof(BranchStatePlace)});
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = one->state_index,
+                            .offset = (unsigned long long)CLI_DOC_STATES_MAX * sizeof(BranchStatePlace),
+                            .dst = run,
+                            .bytes = sizeof(run)});
+    (void)memor.sort(&(MemoriaCfg){.dst = run,
+                                   .scratch = room,
+                                   .count = CLI_DOC_STATE_RUN,
+                                   .bytes = sizeof(BranchStatePlace),
+                                   .order = branch_place_order});
+    unsigned int from_order = one->state_ordered;
+    unsigned int from_run = CLI_DOC_STATE_RUN;
+    unsigned int to = count;
+    while (from_run != 0u)
+    {
+        const int order_first = (from_order != 0u) && (order[from_order - 1u].hash > run[from_run - 1u].hash);
+        to -= 1u;
+        if (order_first)
+        {
+            from_order -= 1u;
+            order[to] = order[from_order];
+        }
+        else
+        {
+            from_run -= 1u;
+            order[to] = run[from_run];
+        }
+    }
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = one->state_index, .src = order, .bytes = (unsigned long long)count * sizeof(BranchStatePlace)});
+    g_cli_guard->persistent_buf_release(order, g_cli_editor_owner);
+    one->state_ordered = count;
+    one->state_run = 0u;
+    return 1;
+}
+
+// the state at the place `at`, of the hash `hash`, put at the end of the index's run, which has room for it
+EMBED_INLINE void branch_index_append(const DocumentBranchCtx *args)
+{
+    const BranchStatePlace place = {args->hash_u32, args->at};
+    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        .cell = args->one->state_index,
+        .offset = ((unsigned long long)CLI_DOC_STATES_MAX + args->one->state_run) * sizeof(BranchStatePlace),
+        .src = &place,
+        .bytes = sizeof(place)});
+    args->one->state_run += 1u;
 }
 
 // the index and the states' cells taken at their max where they are untaken: 1, or 0 where the cells cannot meet
-// them or half of the index holds states
+// them or the text holds CLI_DOC_STATES_MAX states
 EMBED_INLINE int branch_index_init(const DocumentBranchCtx *args)
 {
     if (args->one->state_indexed == 0u)
     {
-        const CarcerMovableEntry *const cell =
-            g_cli_guard->movable_buf_alloc(CLI_DOC_INDEX_POSITIONS * sizeof(unsigned int), g_cli_editor_owner);
+        const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(
+            (CLI_DOC_STATES_MAX + CLI_DOC_STATE_RUN) * sizeof(BranchStatePlace), g_cli_editor_owner);
         if (cell == NULL)
         {
             return 0;
@@ -439,13 +562,13 @@ EMBED_INLINE int branch_index_init(const DocumentBranchCtx *args)
             (void)g_cli_guard->movable_buf_release(cell, g_cli_editor_owner);
             return 0;
         }
-        EMBED_CALL(branch_cell_zeroed, DocumentBranchCtx, .entry = cell, .at_u64 = 0ULL,
-                   .bytes = CLI_DOC_INDEX_POSITIONS * sizeof(unsigned int));
         args->one->state_index = cell;
         args->one->state_cells = cells;
-        args->one->state_indexed = CLI_DOC_INDEX_POSITIONS;
+        args->one->state_indexed = 1u;
+        args->one->state_ordered = 0u;
+        args->one->state_run = 0u;
     }
-    return (2u * (args->one->state_count + 1u)) <= args->one->state_indexed;
+    return (args->one->state_count + 1u) <= CLI_DOC_STATES_MAX;
 }
 
 // the place of the state `text` among the text's states, found by its hash, the place found last tried first, and
@@ -463,29 +586,14 @@ static unsigned int branch_state(const DocumentBranchCtx *args)
         args->one->refused = 1;
         return CLI_DOC_ROOT;
     }
-    unsigned int entry = EMBED_CALL(branch_state_hash, DocumentBranchCtx, .text = args->text, .length = length) &
-                         (args->one->state_indexed - 1u);
-    for (;;)
+    const unsigned int hash = EMBED_CALL(branch_state_hash, DocumentBranchCtx, .text = args->text, .length = length);
+    const unsigned int found = branch_index_found(args, hash, length);
+    if (found != CLI_DOC_NONE)
     {
-        unsigned int indexed_word = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->one->state_index,
-                                                                .offset = entry * sizeof(indexed_word),
-                                                                .dst = &indexed_word,
-                                                                .bytes = sizeof(indexed_word)});
-        if (indexed_word == 0u)
-        {
-            break;
-        }
-        const unsigned int found = indexed_word - 1u;
-        if (EMBED_CALL(branch_state_is, DocumentBranchCtx, .one_read = args->one, .at = found, .text = args->text,
-                       .length = length))
-        {
-            args->one->state_last = found;
-            return found;
-        }
-        entry = (entry + 1u) & (args->one->state_indexed - 1u);
+        args->one->state_last = found;
+        return found;
     }
-    if (args->one->state_count >= CLI_DOC_STATES_MAX)
+    if ((args->one->state_count >= CLI_DOC_STATES_MAX) || !branch_index_merged(args->one))
     {
         args->one->refused = 1;
         return CLI_DOC_ROOT;
@@ -506,7 +614,7 @@ static unsigned int branch_state(const DocumentBranchCtx *args)
                             .src = &cell,
                             .bytes = sizeof(const CarcerMovableEntry *)});
     args->one->state_count += 1u;
-    EMBED_CALL(branch_index_append, DocumentBranchCtx, .one = args->one, .at = at);
+    EMBED_CALL(branch_index_append, DocumentBranchCtx, .one = args->one, .at = at, .hash_u32 = hash);
     args->one->state_last = at;
     return at;
 }
@@ -521,6 +629,8 @@ void cli_document_states_released(const CliDocumentCtx *args)
         (void)g_cli_guard->movable_buf_release(cell, g_cli_editor_owner);
     }
     one->state_count = 0u;
+    one->state_ordered = 0u;
+    one->state_run = 0u;
 }
 
 // the `count_u64` units at `units` written as UTF-8 into `out`, a surrogate pair read as the one character it makes
@@ -2423,14 +2533,9 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
         EMBED_CALL(cli_document_internal.serial_move, CliDocumentCtx, .one = one);
         one->names = names;
         (void)EMBED_ATOMIC_ADD_32(&one->colors_serial, 1u);
-        // the states' cells go back, their identities' cell staying for the states to come, and the index's entries
-        // are cleared
+        // the states' cells go back and the index is emptied, the cells of their identities and of the index
+        // staying for the states to come
         EMBED_CALL(cli_document_internal.states_released, CliDocumentCtx, .one = one);
-        if (one->state_indexed != 0u)
-        {
-            EMBED_CALL(branch_cell_zeroed, DocumentBranchCtx, .entry = one->state_index, .at_u64 = 0ULL,
-                       .bytes = (unsigned long long)one->state_indexed * sizeof(unsigned int));
-        }
         one->refused = 0;
         one->named = named;
         (void)EMBED_CALL(branch_state, DocumentBranchCtx, .one = one, .text = "root");
@@ -2897,35 +3002,72 @@ const CarcerMovableEntry *cli_document_map_alloc(const CliDocumentMapCfg *args)
     return answer;
 }
 
-// whether the `length` bytes at `word_at` among the words' text are in the table of `capacity` entries, a power of
-// two, put there where they do not: 1 where they are, each entry the word's start plus one and its length, 0 where
-// free
-EMBED_INLINE int branch_word_seen(const DocumentBranchCtx *args)
+// the order of two words, by their hash: below 0, 0 or above 0
+static int branch_word_order(const void *left, const void *right)
 {
-    const char *const text = args->words->text;
-    // the table's entries are a power of two an unsigned int counts
-    const unsigned int mask_bits = (unsigned int)args->capacity - 1u;
-    unsigned int entry =
-        EMBED_CALL(branch_state_hash, DocumentBranchCtx, .text = text + args->word_at, .length = args->length) &
-        mask_bits;
-    for (;;)
+    const BranchWordPlace *const one = (const BranchWordPlace *)left;
+    const BranchWordPlace *const other = (const BranchWordPlace *)right;
+    return (one->hash < other->hash) ? -1 : ((one->hash > other->hash) ? 1 : 0);
+}
+
+// 1 where the words `one` and `other` have the same bytes
+static int branch_word_same(const CliDocumentWords *words, unsigned int one, unsigned int other)
+{
+    return (words->length[one] == words->length[other]) &&
+           (memor.cmp(&(MemoriaCfg){.src = words->text + words->at[one],
+                                    .other = words->text + words->at[other],
+                                    .bytes = words->length[one]}) == 0);
+}
+
+// Each word put once: the words ordered by their hash, the sort stable so that the first of a hash comes first. A
+// word that an earlier word of its hash repeats takes the length 0, and the words then close up over those in the
+// order they came. `order` and `room` hold the words' count of places
+static void branch_words_once(CliDocumentWords *words, BranchWordPlace *order, BranchWordPlace *room)
+{
+    for (unsigned int at = 0u; at < words->count; at += 1u)
     {
-        unsigned int *const located = args->word_table[entry];
-        if (located[0] == 0u)
-        {
-            // a place among the words' text and a word's length are far inside what an unsigned int represents
-            located[0] = (unsigned int)args->word_at + 1u;
-            located[1] = (unsigned int)args->length;
-            return 0;
-        }
-        if ((located[1] == args->length) &&
-            (memor.cmp(&(MemoriaCfg){
-                 .src = text + located[0] - 1u, .other = text + args->word_at, .bytes = args->length}) == 0))
-        {
-            return 1;
-        }
-        entry = (entry + 1u) & mask_bits;
+        order[at] = (BranchWordPlace){EMBED_CALL(branch_state_hash, DocumentBranchCtx,
+                                                 .text = words->text + words->at[at], .length = words->length[at]),
+                                      at};
     }
+    (void)memor.sort(&(MemoriaCfg){.dst = order,
+                                   .scratch = room,
+                                   .count = words->count,
+                                   .bytes = sizeof(BranchWordPlace),
+                                   .order = branch_word_order});
+    unsigned int first = 0u;
+    while (first < words->count)
+    {
+        unsigned int end = first + 1u;
+        while ((end < words->count) && (order[end].hash == order[first].hash))
+        {
+            end += 1u;
+        }
+        for (unsigned int later = first + 1u; later < end; later += 1u)
+        {
+            for (unsigned int earlier = first; earlier < later; earlier += 1u)
+            {
+                if ((words->length[order[earlier].word] != 0u) &&
+                    branch_word_same(words, order[earlier].word, order[later].word))
+                {
+                    words->length[order[later].word] = 0u;
+                    break;
+                }
+            }
+        }
+        first = end;
+    }
+    unsigned int kept = 0u;
+    for (unsigned int at = 0u; at < words->count; at += 1u)
+    {
+        if (words->length[at] != 0u)
+        {
+            words->at[kept] = words->at[at];
+            words->length[kept] = words->length[at];
+            kept += 1u;
+        }
+    }
+    words->count = kept;
 }
 
 // the units of the run `run` of a record where it is a word to give, 0 where it is not: its name's roles name
@@ -2984,7 +3126,7 @@ EMBED_INLINE void branch_words_count(const DocumentBranchCtx *args)
 }
 
 // the words of the text's lines from `from` to before `to` put in `words`, each its units' bytes, three a unit at the
-// max, and each once, `word_table` of `capacity` entries telling those put; the word typed at the cursor left out
+// max, a word as often as the lines give it; the word typed at the cursor left out
 EMBED_INLINE void branch_words_fill(const DocumentBranchCtx *args)
 {
     const CliStoredText *const one = args->one_read;
@@ -3031,15 +3173,11 @@ EMBED_INLINE void branch_words_fill(const DocumentBranchCtx *args)
             VerbaLinea written = {words->text + used, 3ULL * taken, 0ULL};
             EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = &written,
                        .units = unit + record[CLI_DOC_RECORD_HEAD + run], .count = taken);
-            if (!EMBED_CALL(branch_word_seen, DocumentBranchCtx, .words = words, .word_table = args->word_table,
-                            .capacity = args->capacity, .word_at = used, .length = written.at))
-            {
-                words->at[words->count] = used;
-                // a word's bytes are far inside what an unsigned int represents
-                words->length[words->count] = (unsigned int)written.at;
-                used += written.at;
-                words->count += 1u;
-            }
+            words->at[words->count] = used;
+            // a word's bytes are far inside what an unsigned int represents
+            words->length[words->count] = (unsigned int)written.at;
+            used += written.at;
+            words->count += 1u;
         }
     }
     g_cli_guard->persistent_buf_release(unit_work.cell, g_cli_editor_owner);
@@ -3067,13 +3205,11 @@ static CliDocumentWords *words_alloc_locked(const CliDocumentWordsCfg *args)
     CliDocumentWords *const words = g_cli_guard->temporary_buf_alloc(
         sizeof(*words) + (max * (sizeof(unsigned long long) + sizeof(unsigned int))) + (3ULL * units) + 1ULL,
         g_cli_editor_owner);
-    unsigned long long capacity = 16ULL;
-    while (capacity < (2ULL * max))
-    {
-        capacity *= 2ULL;
-    }
-    unsigned int (*const table)[2] =
-        (words != NULL) ? g_cli_guard->temporary_buf_alloc(capacity * sizeof(*table), g_cli_editor_owner) : NULL;
+    // the order of the words and the room its sort writes, the words' count of places each, one at the fewest
+    const unsigned long long places = (max != 0ULL) ? max : 1ULL;
+    BranchWordPlace *const order =
+        (words != NULL) ? g_cli_guard->temporary_buf_alloc(2ULL * places * sizeof(BranchWordPlace), g_cli_editor_owner)
+                        : NULL;
     if (words != NULL)
     {
         words->count = 0u;
@@ -3081,15 +3217,14 @@ static CliDocumentWords *words_alloc_locked(const CliDocumentWordsCfg *args)
         words->length = (unsigned int *)(void *)(words->at + max);
         words->text = (char *)(void *)(words->length + max);
     }
-    if (table != NULL)
+    if (order != NULL)
     {
-        memor.set(&(MemoriaCfg){.dst = table, .val = 0, .bytes = capacity * sizeof(*table)});
         EMBED_CALL(branch_words_fill, DocumentBranchCtx, .one_read = one, .from = from, .to = to, .words = words,
-                   .word_table = table, .capacity = capacity, .cursor_line = args->cursor.line,
-                   .cursor_col = args->cursor.col);
+                   .cursor_line = args->cursor.line, .cursor_col = args->cursor.col);
+        branch_words_once(words, order, order + places);
     }
     EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
-    g_cli_guard->persistent_buf_release(table, g_cli_editor_owner);
+    g_cli_guard->persistent_buf_release(order, g_cli_editor_owner);
     return words;
 }
 

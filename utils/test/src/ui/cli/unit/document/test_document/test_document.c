@@ -9,6 +9,7 @@
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/code/symbols.h"
 #include "ui/cli/src/editor/document.h"
+#include "ui/cli/src/editor/document_internal.h"
 #include "ui/cli/src/editor/highlight.h"
 #include "ui/cli/src/editor/pages.h"
 #include "ui/cli/src/plugins/plugins.h"
@@ -805,6 +806,75 @@ static void word_noted(const CliEachTextLengthCfg *args)
     mmgr_line_put_n(&s_words_line, args->text, args->length);
     mmgr_line_ch(&s_words_line, ' ');
     s_words_count += 1u;
+}
+
+// a grammar whose blocks nest: `{` stacks a brace and `(` a paren, each closed by its own sign
+static const char s_nest_grammar[] =
+    "{\"tokenizer\": {\"root\": [[\"\\\\{\", \"\", \"@brace\"], [\"\\\\(\", \"\", \"@paren\"]], "
+    "\"brace\": [[\"\\\\{\", \"\", \"@brace\"], [\"\\\\}\", \"\", \"@pop\"]], "
+    "\"paren\": [[\"\\\\(\", \"\", \"@paren\"], [\"\\\\)\", \"\", \"@pop\"]]}}";
+
+// the state that the line `line` of the text `key` enters in, written into `state`, which has room for `room`
+static void nest_entered(unsigned long long line, char *state, unsigned long long room)
+{
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key.lines_each, CliDocumentKeyCfg, .key = "nest", .first = line,
+                                .last = line, .state = state, .capacity = room, .each = lines_given));
+}
+
+// More states than a run of the states' index holds, so that the index merges its runs: 150 braces opened a line each
+// and closed again, then 150 parens the same way. Each depth of each sign is one state, root's the one more. A line
+// that closes back to a depth enters in the state of the line that opened to it. The depth keeps the deepest state's
+// text inside the colorer's bound for it
+void test_the_states_of_deep_blocks_hold_through_the_merges_of_the_index(void)
+{
+    enum
+    {
+        DEPTH = 150u
+    };
+    static const char s_signs[4] = {'{', '}', '(', ')'};
+    static char s_text[(8u * DEPTH) + 1u];
+    static char s_opened[8192];
+    static char s_closed[8192];
+    unsigned int root = CLI_JSON_NONE;
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    const CliJson *const json = cli_unity_parsed(s_nest_grammar, sizeof(s_nest_grammar) - 1u, &root);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg, .key = "nest", .json = json,
+                                .def = root, .err_msg = &err_msg));
+    VerbaLinea text = {s_text, sizeof(s_text), 0ull};
+    for (unsigned int line = 0u; line < (4u * DEPTH); line += 1u)
+    {
+        mmgr_line_ch(&text, s_signs[line / DEPTH]);
+        mmgr_line_ch(&text, '\n');
+    }
+    const unsigned long long size = mmgr_line_finish(&text);
+    CliShape shape;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "nest", .text = s_text,
+                                .size = size, .shape = &shape));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_grammar.colored_by, CliDocumentKeyGrammarCfg, .key = "nest",
+                                .grammar = "nest", .named = 1));
+    cli_document_walk();
+    (void)EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = "nest", .from = 0ull,
+                     .to = 4ull * DEPTH);
+    for (unsigned int depth = 0u; depth < DEPTH; depth += 7u)
+    {
+        nest_entered(depth, s_opened, sizeof(s_opened));
+        nest_entered((2u * DEPTH) - depth, s_closed, sizeof(s_closed));
+        TEST_ASSERT_EQUAL_STRING(s_opened, s_closed);
+        nest_entered((2u * DEPTH) + depth, s_opened, sizeof(s_opened));
+        nest_entered((4u * DEPTH) - depth, s_closed, sizeof(s_closed));
+        TEST_ASSERT_EQUAL_STRING(s_opened, s_closed);
+    }
+    nest_entered(DEPTH, s_opened, sizeof(s_opened));
+    nest_entered(3u * DEPTH, s_closed, sizeof(s_closed));
+    // root and a `/brace` for each depth, at the deepest
+    TEST_ASSERT_EQUAL_UINT64(4ull + (6ull * DEPTH),
+                             EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_opened, .cap = sizeof(s_opened)));
+    TEST_ASSERT_TRUE(!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = s_opened, .cap = sizeof(s_opened),
+                                 .other = s_closed, .other_cap = sizeof(s_closed)));
+    const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = "nest");
+    TEST_ASSERT_NOT_NULL(one);
+    TEST_ASSERT_EQUAL_UINT((2u * DEPTH) + 1u, one->state_count);
+    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "nest");
 }
 
 void test_the_names_on_a_texts_lines_come_once_each_the_cursors_own_left_out(void)
