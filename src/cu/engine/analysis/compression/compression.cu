@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "compression_internal.h"
 
+#include "../../runtime/daemon/tessera_job.h"
 #include "../../runtime/device_pool/device_pool.h"
 
 #include <cub/cub.cuh>
@@ -222,11 +223,9 @@ static unsigned int compression_blocks(unsigned long long count)
 // measures them. The stream is a pool of its own
 struct CompressionResident
 {
-    DevicePool chunk_pool;
     unsigned long long *chunk_bits;
     unsigned long long *chunk_offsets;
     size_t chunk_capacity;
-    DevicePool stream_pool;
     unsigned int *stream;
     size_t stream_capacity;
     void *scan;
@@ -237,44 +236,56 @@ struct CompressionResident
 
 static CompressionResident s_compression_resident;
 
+// the owner that the cells of compression in the pool of the device count to
+#define COMPRESSION_PLACE ((unsigned int)platform_place_g_engine_owner)
+
+#define COMPRESSION_CHUNK_SLICES 3u
+
+// the addresses of the cells of the chunks: the bits of each chunk, the offset of each chunk, and the scratch of the
+// scan
+static void compression_chunk_cells(CompressionResident *resident, void **cells[COMPRESSION_CHUNK_SLICES])
+{
+    cells[0] = (void **)&resident->chunk_bits;
+    cells[1] = (void **)&resident->chunk_offsets;
+    cells[2] = &resident->scan;
+}
+
+// each cell of the chunks given back to the pool of the device, the newest first
+static void compression_chunks_given(CompressionResident *resident)
+{
+    void **cells[COMPRESSION_CHUNK_SLICES];
+    compression_chunk_cells(resident, cells);
+    for (unsigned int at = COMPRESSION_CHUNK_SLICES; at > 0u; at -= 1u)
+    {
+        tessera_job_given(*cells[at - 1u], COMPRESSION_PLACE);
+        *cells[at - 1u] = NULL;
+    }
+    resident->chunk_capacity = 0u;
+    resident->scan_bytes = 0u;
+}
+
 extern "C" void compression_resident_release(void)
 {
     CompressionResident *const resident = &s_compression_resident;
-    device_pool_release(&resident->chunk_pool);
-    device_pool_release(&resident->stream_pool);
-    resident->chunk_bits = NULL;
-    resident->chunk_offsets = NULL;
-    resident->chunk_capacity = 0u;
+    tessera_job_given(resident->stream, COMPRESSION_PLACE);
     resident->stream = NULL;
     resident->stream_capacity = 0u;
-    resident->scan = NULL;
-    resident->scan_bytes = 0u;
+    compression_chunks_given(resident);
     platform_array_ended(&resident->host_offsets);
     platform_array_ended(&resident->host_stream);
 }
 
-#define COMPRESSION_CHUNK_SLICES 3u
-
-// The slices of the chunk pool for `chunks`: the bits of each chunk, the offset of each chunk, and the scratch of the
-// scan of `scan_bytes`. The plan puts them in that order, and the pool takes them in it. The plan comes from them, and
-// a pool that the plan reserves takes them
-static DevicePoolPlan compression_chunk_plan(size_t chunks, size_t scan_bytes, EngineError *error,
-                                             DevicePoolTakeRequest takes[COMPRESSION_CHUNK_SLICES])
+// the bytes of the cells of the chunks for `chunks`, in the order of compression_chunk_cells
+static void compression_chunk_slices(size_t chunks, size_t scan_bytes,
+                                     unsigned long long bytes[COMPRESSION_CHUNK_SLICES])
 {
-    CompressionResident *const resident = &s_compression_resident;
-    const DevicePoolTakeRequest requests[COMPRESSION_CHUNK_SLICES] = {
-        {&resident->chunk_pool, chunks * sizeof(unsigned long long), (void **)&resident->chunk_bits, error},
-        {&resident->chunk_pool, chunks * sizeof(unsigned long long), (void **)&resident->chunk_offsets, error},
-        {&resident->chunk_pool, scan_bytes, &resident->scan, error}};
-    DevicePoolPlan plan = {0ULL, 0ULL, 0};
-    for (unsigned int at = 0u; at < COMPRESSION_CHUNK_SLICES; at += 1u)
-    {
-        takes[at] = requests[at];
-        device_pool_plan_slice(&plan, requests[at].bytes);
-    }
-    return plan;
+    bytes[0] = (unsigned long long)chunks * sizeof(unsigned long long);
+    bytes[1] = (unsigned long long)chunks * sizeof(unsigned long long);
+    bytes[2] = (unsigned long long)scan_bytes;
 }
 
+// The cells of the chunks grown to `chunks`, persistent cells of the pool of the device that the resident holds until
+// compression_resident_release
 static int compression_reserve_chunks(size_t chunks, EngineError *error)
 {
     CompressionResident *const resident = &s_compression_resident;
@@ -282,32 +293,28 @@ static int compression_reserve_chunks(size_t chunks, EngineError *error)
     {
         return 1;
     }
-    device_pool_release(&resident->chunk_pool);
-    resident->chunk_bits = NULL;
-    resident->chunk_offsets = NULL;
-    resident->scan = NULL;
-    resident->chunk_capacity = 0u;
-    resident->scan_bytes = 0u;
+    compression_chunks_given(resident);
     size_t scan_bytes = 0u;
     // cub sizes the scan's scratch when called with none, and allocates nothing; compression_chunks contains the count
     // below 2^31 - 1: it narrows to cub's int exactly
-    int ok = COMPRESSION_STATUS_CHECK(
-        cub::DeviceScan::ExclusiveSum(NULL, scan_bytes, resident->chunk_bits, resident->chunk_offsets, (int)chunks),
-        &scan_bytes, error);
-    DevicePoolTakeRequest takes[COMPRESSION_CHUNK_SLICES];
-    const DevicePoolPlan plan = compression_chunk_plan(chunks, scan_bytes, error, takes);
-    const DevicePoolReserveRequest reserve = {&plan, &resident->chunk_pool, error};
-    ok = ok && (device_pool_reserve(&reserve) == 0L);
-    // The pool takes the slices in the order of the plan. Each lands where the plan put it, and none errors
+    int ok = COMPRESSION_STATUS_CHECK(cub::DeviceScan::ExclusiveSum(NULL, scan_bytes, (const unsigned long long *)NULL,
+                                                                    (unsigned long long *)NULL, (int)chunks),
+                                      &scan_bytes, error);
+    unsigned long long bytes[COMPRESSION_CHUNK_SLICES];
+    compression_chunk_slices(chunks, scan_bytes, bytes);
+    void **cells[COMPRESSION_CHUNK_SLICES];
+    compression_chunk_cells(resident, cells);
     for (unsigned int at = 0u; (ok != 0) && (at < COMPRESSION_CHUNK_SLICES); at += 1u)
     {
-        ok = device_pool_take(&takes[at]) == 0L;
+        ok = COMPRESSION_CHECK(tessera_job_persistent_taken(bytes[at], COMPRESSION_PLACE, cells[at]), cells[at], error,
+                               ENGINE_ERROR_RESOURCE);
     }
     resident->chunk_capacity = (ok != 0) ? chunks : 0u;
     resident->scan_bytes = (ok != 0) ? scan_bytes : 0u;
     return ok;
 }
 
+// the stream grown to `limbs` limbs and one more, a persistent cell of the pool of the device
 static int compression_reserve_stream(size_t limbs, EngineError *error)
 {
     CompressionResident *const resident = &s_compression_resident;
@@ -315,15 +322,16 @@ static int compression_reserve_stream(size_t limbs, EngineError *error)
     {
         return 1;
     }
-    device_pool_release(&resident->stream_pool);
+    tessera_job_given(resident->stream, COMPRESSION_PLACE);
     resident->stream = NULL;
     resident->stream_capacity = 0u;
-    const DevicePoolTakeRequest take = {&resident->stream_pool, (limbs + 1u) * sizeof(unsigned int),
-                                        (void **)&resident->stream, error};
-    DevicePoolPlan plan = {0ULL, 0ULL, 0};
-    device_pool_plan_slice(&plan, take.bytes);
-    const DevicePoolReserveRequest reserve = {&plan, &resident->stream_pool, error};
-    const int ok = (device_pool_reserve(&reserve) == 0L) && (device_pool_take(&take) == 0L);
+    void *cell = NULL;
+    const int ok =
+        COMPRESSION_CHECK(tessera_job_persistent_taken(((unsigned long long)limbs + 1ULL) * sizeof(unsigned int),
+                                                       COMPRESSION_PLACE, &cell),
+                          &resident->stream, error, ENGINE_ERROR_RESOURCE);
+    // Explicit cast reads the cell as the limbs that it holds
+    resident->stream = (unsigned int *)cell;
     resident->stream_capacity = (ok != 0) ? (limbs + 1u) : 0u;
     return ok;
 }
@@ -345,9 +353,14 @@ extern "C" unsigned long long compression_reserve_bytes(unsigned long long count
     {
         return 0ULL;
     }
-    DevicePoolTakeRequest takes[COMPRESSION_CHUNK_SLICES];
+    unsigned long long bytes[COMPRESSION_CHUNK_SLICES];
     // a size_t represents 64 bits, which device_pool asserts: the chunk count converts exactly
-    const DevicePoolPlan plan = compression_chunk_plan((size_t)chunks, scan_bytes, NULL, takes);
+    compression_chunk_slices((size_t)chunks, scan_bytes, bytes);
+    DevicePoolPlan plan = {0ULL, 0ULL, 0};
+    for (unsigned int at = 0u; at < COMPRESSION_CHUNK_SLICES; at += 1u)
+    {
+        device_pool_plan_slice(&plan, bytes[at]);
+    }
     return device_pool_plan_bytes(&plan);
 }
 
@@ -385,18 +398,17 @@ extern "C" long compression_encode(const CompressionEncodeRequest *request)
                                       resident->chunk_offsets, error);
     unsigned long long last_offset = 0ULL;
     unsigned long long last_bits = 0ULL;
-    ok = ok &&
-         COMPRESSION_STATUS_CHECK(cudaMemcpy(&last_offset, &resident->chunk_offsets[chunks - 1ULL],
-                                             sizeof(unsigned long long), cudaMemcpyDeviceToHost),
-                                  &last_offset, error) &&
-         COMPRESSION_STATUS_CHECK(cudaMemcpy(&last_bits, &resident->chunk_bits[chunks - 1ULL],
-                                             sizeof(unsigned long long), cudaMemcpyDeviceToHost),
-                                  &last_bits, error);
+    ok = ok && COMPRESSION_CHECK(tessera_job_crossed_out(&last_offset, &resident->chunk_offsets[chunks - 1ULL],
+                                                         sizeof(unsigned long long)) &&
+                                     tessera_job_crossed_out(&last_bits, &resident->chunk_bits[chunks - 1ULL],
+                                                             sizeof(unsigned long long)),
+                                 &last_offset, error, ENGINE_ERROR_RESOURCE);
     const unsigned long long bits = last_offset + last_bits;
     const size_t limbs = (size_t)((bits + 31ULL) / 32ULL);
+    const unsigned long long stream_bytes = (unsigned long long)limbs * sizeof(unsigned int);
     ok = ok && compression_reserve_stream(limbs, error) &&
-         COMPRESSION_STATUS_CHECK(cudaMemset(resident->stream, 0, (limbs + 1u) * sizeof(unsigned int)),
-                                  resident->stream, error);
+         COMPRESSION_CHECK(tessera_job_cleared(resident->stream, stream_bytes + sizeof(unsigned int)), resident->stream,
+                           error, ENGINE_ERROR_RESOURCE);
     if (ok != 0)
     {
         compression_write_kernel<<<chunk_blocks, COMPRESSION_THREADS>>>(naturals, count, chunks,
@@ -406,12 +418,10 @@ extern "C" long compression_encode(const CompressionEncodeRequest *request)
     unsigned long long *host_offsets = NULL;
     unsigned int *host_stream = NULL;
     ok = ok && compression_host_room(chunks, limbs, &host_offsets, &host_stream, error) &&
-         COMPRESSION_STATUS_CHECK(cudaMemcpy(host_offsets, resident->chunk_offsets,
-                                             (size_t)chunks * sizeof(unsigned long long), cudaMemcpyDeviceToHost),
-                                  host_offsets, error) &&
-         COMPRESSION_STATUS_CHECK(
-             cudaMemcpy(host_stream, resident->stream, limbs * sizeof(unsigned int), cudaMemcpyDeviceToHost),
-             host_stream, error);
+         COMPRESSION_CHECK(
+             tessera_job_crossed_out(host_offsets, resident->chunk_offsets, chunks * sizeof(unsigned long long)) &&
+                 tessera_job_crossed_out(host_stream, resident->stream, stream_bytes),
+             host_offsets, error, ENGINE_ERROR_RESOURCE);
     if (ok == 0)
     {
         return COMPRESSION_ERROR;
@@ -478,14 +488,12 @@ extern "C" long compression_decode(const CompressionDecodeRequest *request)
             return COMPRESSION_ERROR;
         }
     }
-    int ok = COMPRESSION_STATUS_CHECK(cudaMemset(resident->stream, 0, (limbs + 1u) * sizeof(unsigned int)),
-                                      resident->stream, error) &&
-             COMPRESSION_STATUS_CHECK(
-                 cudaMemcpy(resident->stream, request->stream, limbs * sizeof(unsigned int), cudaMemcpyHostToDevice),
-                 resident->stream, error) &&
-             COMPRESSION_STATUS_CHECK(cudaMemcpy(resident->chunk_offsets, request->offsets,
-                                                 (size_t)chunks * sizeof(unsigned long long), cudaMemcpyHostToDevice),
-                                      resident->chunk_offsets, error);
+    const unsigned long long stream_bytes = (unsigned long long)limbs * sizeof(unsigned int);
+    int ok = COMPRESSION_CHECK(
+        tessera_job_cleared(resident->stream, stream_bytes + sizeof(unsigned int)) &&
+            tessera_job_crossed_into(resident->stream, request->stream, stream_bytes) &&
+            tessera_job_crossed_into(resident->chunk_offsets, request->offsets, chunks * sizeof(unsigned long long)),
+        resident->stream, error, ENGINE_ERROR_RESOURCE);
     if (ok != 0)
     {
         const unsigned int chunk_blocks = (unsigned int)((chunks + COMPRESSION_THREADS - 1ULL) / COMPRESSION_THREADS);
