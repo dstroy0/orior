@@ -6,6 +6,8 @@
 
 #include "period.h"
 
+#include "../../../../platform/platform.h"
+#include "../../runtime/daemon/tessera_job.h"
 #include "../../runtime/device_pool/device_pool.h"
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
@@ -25,6 +27,9 @@ static_assert(cudaSuccess == 0, "the engine reads a CUDA status of 0 as success"
 #define PERIOD_CHECK(condition_, evacaddr_, error_, type_)                                                             \
     engine_error_check((condition_), (type_), ENGINE_MODULE_PERIOD, (unsigned int)__LINE__, (const void *)(evacaddr_), \
                        (error_))
+
+// the owner that the cells of the period in the pool of the device count to
+#define PERIOD_PLACE ((unsigned int)platform_place_g_engine_owner)
 
 #define PERIOD_THREADS 256u
 
@@ -89,11 +94,10 @@ typedef struct
     size_t agreement_entries;
 } PeriodPass;
 
-// the histogram, the agreement and the shuffled lanes are slices of one pool, retained after the call and sized for the
-// max voxels and the max agreement entries requested so far
+// The histogram, the agreement and the shuffled lanes are persistent cells of the pool of the device. They stay after
+// the call and hold the max voxels and the max agreement entries that a call asks so far
 typedef struct
 {
-    DevicePool pool;
     unsigned int *histogram;
     unsigned long long *agreement;
     unsigned short *shuffled;

@@ -84,11 +84,11 @@ static unsigned int period_grid_columns(const PeriodLattice *lattice, EngineErro
 static int period_count(const PeriodPass *pass, const PeriodLattice *lattice, unsigned long long begin,
                         unsigned long long end, EngineError *error)
 {
-    int ok =
-        PERIOD_STATUS_CHECK(cudaMemset(pass->device_histogram, 0, PERIOD_VALUES * sizeof(unsigned int)),
-                            pass->device_histogram, error) &&
-        PERIOD_STATUS_CHECK(cudaMemset(pass->device_agreement, 0, pass->agreement_entries * sizeof(unsigned long long)),
-                            pass->device_agreement, error);
+    const unsigned long long histogram_bytes = PERIOD_VALUES * sizeof(unsigned int);
+    const unsigned long long agreement_bytes = (unsigned long long)pass->agreement_entries * sizeof(unsigned long long);
+    int ok = PERIOD_CHECK(tessera_job_cleared(pass->device_histogram, histogram_bytes) &&
+                              tessera_job_cleared(pass->device_agreement, agreement_bytes),
+                          pass->device_histogram, error, ENGINE_ERROR_RESOURCE);
     if (ok != 0)
     {
         const unsigned long long needed = (pass->voxels + PERIOD_THREADS - 1ULL) / PERIOD_THREADS;
@@ -107,13 +107,9 @@ static int period_count(const PeriodPass *pass, const PeriodLattice *lattice, un
         period_agreement_kernel<<<grid, PERIOD_THREADS>>>(pass->lanes, *lattice, begin, end, pass->device_agreement);
         ok = PERIOD_STATUS_CHECK(cudaGetLastError(), pass->device_agreement, error);
     }
-    return ok &&
-           PERIOD_STATUS_CHECK(cudaMemcpy(pass->histogram, pass->device_histogram, PERIOD_VALUES * sizeof(unsigned int),
-                                          cudaMemcpyDeviceToHost),
-                               pass->histogram, error) &&
-           PERIOD_STATUS_CHECK(cudaMemcpy(pass->agreement, pass->device_agreement,
-                                          pass->agreement_entries * sizeof(unsigned long long), cudaMemcpyDeviceToHost),
-                               pass->agreement, error);
+    return ok && PERIOD_CHECK(tessera_job_crossed_out(pass->histogram, pass->device_histogram, histogram_bytes) &&
+                                  tessera_job_crossed_out(pass->agreement, pass->device_agreement, agreement_bytes),
+                              pass->histogram, error, ENGINE_ERROR_RESOURCE);
 }
 
 int period_request_valid(const PeriodRequest *request, unsigned long long entries)
@@ -146,9 +142,9 @@ static int period_null_axis(const PeriodRequest *request, const PeriodLattice *l
 {
     PeriodShuffle shuffle;
     period_shuffle_fill(&shuffle, &request->content, counter);
-    if (!PERIOD_STATUS_CHECK(cudaMemcpy(device_shuffled, request->device_lanes,
-                                        (size_t)lattice->voxels * sizeof(unsigned short), cudaMemcpyDeviceToDevice),
-                             device_shuffled, error))
+    if (!PERIOD_CHECK(
+            tessera_job_copied(device_shuffled, request->device_lanes, lattice->voxels * sizeof(unsigned short)),
+            device_shuffled, error, ENGINE_ERROR_RESOURCE))
     {
         return 0;
     }

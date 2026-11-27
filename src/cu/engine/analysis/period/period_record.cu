@@ -42,9 +42,10 @@ typedef struct
     CycleRecord *record;
 } PeriodProgram;
 
-// the four programs and the pool, made once a process. The agreement reads a voxel, the voxel a lag on, and the shared
-// record; the key writes each voxel's place and key. The place reads a keyed record through the order and writes its
-// place; the gather reads a voxel through those places
+// The four programs and the cells of the device, made once a process. The agreement reads a voxel, the voxel a lag on,
+// and the shared record; the key writes each voxel's place and key. The place reads a keyed record through the order
+// and writes its place; the gather reads a voxel through those places. The cells are persistent cells of the pool of
+// the device, from the lanes to the histogram, until period_record_release
 typedef struct
 {
     int made;
@@ -55,7 +56,6 @@ typedef struct
     unsigned int agree_offset;
     unsigned int agree_bits;
     unsigned int key_offset;
-    DevicePool pool;
     unsigned int *lanes;
     unsigned int *shuffled;
     unsigned int *keyed;
@@ -226,30 +226,47 @@ static int period_record_make(EngineError *error)
     return 1;
 }
 
-// the pool's slices for `voxels`, in the order they are arranged and taken
-static DevicePoolPlan period_record_plan(unsigned long long voxels, EngineError *error,
-                                         DevicePoolTakeRequest takes[PERIOD_RECORD_SLICES])
+// The bytes of the cells for `voxels`, in the order that the reserve takes them. The order is the lanes, the shuffled
+// lanes, the keyed records, the order, the places, the shared record and the histogram
+static void period_record_slices(unsigned long long voxels, unsigned long long bytes[PERIOD_RECORD_SLICES])
 {
-    PeriodRecordResident *const resident = &g_period_record;
     const unsigned long long limb = sizeof(unsigned int);
-    const DevicePoolTakeRequest requests[PERIOD_RECORD_SLICES] = {
-        {&resident->pool, voxels * limb, (void **)&resident->lanes, error},
-        {&resident->pool, voxels * limb, (void **)&resident->shuffled, error},
-        {&resident->pool, voxels * PERIOD_RECORD_KEYED_LIMBS * limb, (void **)&resident->keyed, error},
-        {&resident->pool, voxels * limb, (void **)&resident->order, error},
-        {&resident->pool, voxels * limb, (void **)&resident->places, error},
-        {&resident->pool, PERIOD_RECORD_KEY_LIMBS * limb, (void **)&resident->shared, error},
-        {&resident->pool, PERIOD_VALUES * limb, (void **)&resident->histogram, error}};
-    DevicePoolPlan plan = {0ULL, 0ULL, 0};
+    const unsigned long long slices[PERIOD_RECORD_SLICES] = {
+        voxels * limb,       voxels * limb, voxels * PERIOD_RECORD_KEYED_LIMBS * limb,
+        voxels * limb,       voxels * limb, PERIOD_RECORD_KEY_LIMBS * limb,
+        PERIOD_VALUES * limb};
     for (unsigned int at = 0u; at < PERIOD_RECORD_SLICES; at += 1u)
     {
-        takes[at] = requests[at];
-        device_pool_plan_slice(&plan, requests[at].bytes);
+        bytes[at] = slices[at];
     }
-    return plan;
 }
 
-// the pool grown to contain `voxels`; a pool that already contains them is retained as it is
+// the addresses of the cells of the resident, in the order of period_record_slices
+static void period_record_cells(PeriodRecordResident *resident, unsigned int **cells[PERIOD_RECORD_SLICES])
+{
+    unsigned int **const each[PERIOD_RECORD_SLICES] = {&resident->lanes,    &resident->shuffled, &resident->keyed,
+                                                       &resident->order,    &resident->places,   &resident->shared,
+                                                       &resident->histogram};
+    for (unsigned int at = 0u; at < PERIOD_RECORD_SLICES; at += 1u)
+    {
+        cells[at] = each[at];
+    }
+}
+
+// every cell of the resident given back to the pool of the device, the newest first
+static void period_record_given(PeriodRecordResident *resident)
+{
+    unsigned int **cells[PERIOD_RECORD_SLICES];
+    period_record_cells(resident, cells);
+    for (unsigned int at = PERIOD_RECORD_SLICES; at > 0u; at -= 1u)
+    {
+        tessera_job_given(*cells[at - 1u], PERIOD_PLACE);
+        *cells[at - 1u] = NULL;
+    }
+    resident->voxels = 0ULL;
+}
+
+// the cells grown to contain `voxels`; cells that already contain them stay as they are
 static int period_record_reserve(unsigned long long voxels, EngineError *error)
 {
     PeriodRecordResident *const resident = &g_period_record;
@@ -257,15 +274,16 @@ static int period_record_reserve(unsigned long long voxels, EngineError *error)
     {
         return 1;
     }
-    device_pool_release(&resident->pool);
-    resident->voxels = 0ULL;
-    DevicePoolTakeRequest takes[PERIOD_RECORD_SLICES];
-    const DevicePoolPlan plan = period_record_plan(voxels, error, takes);
-    const DevicePoolReserveRequest reserve = {&plan, &resident->pool, error};
-    int ok = device_pool_reserve(&reserve) == 0L;
+    period_record_given(resident);
+    unsigned long long bytes[PERIOD_RECORD_SLICES];
+    period_record_slices(voxels, bytes);
+    unsigned int **cells[PERIOD_RECORD_SLICES];
+    period_record_cells(resident, cells);
+    int ok = 1;
     for (unsigned int at = 0u; (ok != 0) && (at < PERIOD_RECORD_SLICES); at += 1u)
     {
-        ok = device_pool_take(&takes[at]) == 0L;
+        ok = PERIOD_CHECK(tessera_job_persistent_taken(bytes[at], PERIOD_PLACE, (void **)cells[at]), cells[at], error,
+                          ENGINE_ERROR_RESOURCE);
     }
     resident->voxels = (ok != 0) ? voxels : 0ULL;
     return ok;
@@ -277,8 +295,13 @@ extern "C" unsigned long long period_record_reserve_bytes(unsigned long long vox
     {
         return 0ULL;
     }
-    DevicePoolTakeRequest takes[PERIOD_RECORD_SLICES];
-    const DevicePoolPlan plan = period_record_plan(voxels, NULL, takes);
+    unsigned long long bytes[PERIOD_RECORD_SLICES];
+    period_record_slices(voxels, bytes);
+    DevicePoolPlan plan = {0ULL, 0ULL, 0};
+    for (unsigned int at = 0u; at < PERIOD_RECORD_SLICES; at += 1u)
+    {
+        device_pool_plan_slice(&plan, bytes[at]);
+    }
     return device_pool_plan_bytes(&plan);
 }
 
@@ -289,7 +312,7 @@ extern "C" void period_record_release(void)
     period_program_release(&resident->key);
     period_program_release(&resident->place);
     period_program_release(&resident->gather);
-    device_pool_release(&resident->pool);
+    period_record_given(resident);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
 }
 
@@ -302,8 +325,8 @@ static int period_record_agreement(const unsigned int *data, unsigned long long 
     PeriodRecordResident *const resident = &g_period_record;
     const unsigned int lags = extent / 2u;
     const unsigned int shared[PERIOD_RECORD_AGREE_LIMBS] = {stride, extent, extent - lags};
-    int ok = PERIOD_STATUS_CHECK(cudaMemcpy(resident->shared, shared, sizeof(shared), cudaMemcpyHostToDevice),
-                                 resident->shared, error);
+    int ok = PERIOD_CHECK(tessera_job_crossed_into(resident->shared, shared, sizeof(shared)), resident->shared, error,
+                          ENGINE_ERROR_RESOURCE);
     for (unsigned int lag = 1u; (ok != 0) && (lag <= lags); lag += 1u)
     {
         const unsigned long long reach = (unsigned long long)lag * stride;
@@ -343,8 +366,8 @@ static int period_record_null(const PeriodRequest *request, const PeriodLattice 
     const unsigned int shared[PERIOD_RECORD_KEY_LIMBS] = {lattice->extent[axis], lattice->stride[axis],
                                                           shuffle.keys[0],       shuffle.keys[1],
                                                           shuffle.keys[2],       shuffle.keys[3]};
-    int ok = PERIOD_STATUS_CHECK(cudaMemcpy(resident->shared, shared, sizeof(shared), cudaMemcpyHostToDevice),
-                                 resident->shared, error);
+    int ok = PERIOD_CHECK(tessera_job_crossed_into(resident->shared, shared, sizeof(shared)), resident->shared, error,
+                          ENGINE_ERROR_RESOURCE);
     CycleRecordRunRequest sweep;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &sweep, .bytes = sizeof(sweep), .val = 0);
     sweep.record = resident->key.record;
@@ -385,8 +408,19 @@ static int period_record_null(const PeriodRequest *request, const PeriodLattice 
     return ok;
 }
 
-// the request's lattice, the programs and the pool, and the lanes widened into one limb each: the copy positions each
-// 16-bit lane at the low half of its limb, the high halves cleared before
+// each 16-bit lane written into the low half of its limb, the high half 0
+__global__ static void period_record_widen_kernel(const unsigned short *lanes, unsigned long long voxels,
+                                                  unsigned int *limbs)
+{
+    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
+    for (unsigned long long voxel = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; voxel < voxels;
+         voxel += jump)
+    {
+        limbs[voxel] = (unsigned int)lanes[voxel];
+    }
+}
+
+// the request's lattice, the programs and the cells, and the lanes widened into one limb each on the device
 static int period_record_open(const PeriodRequest *request, PeriodLattice *lattice, unsigned long long *voxels,
                               EngineError *error)
 {
@@ -396,13 +430,16 @@ static int period_record_open(const PeriodRequest *request, PeriodLattice *latti
         return 0;
     }
     PeriodRecordResident *const resident = &g_period_record;
-    return period_record_make(error) && period_record_reserve(*voxels, error) &&
-           PERIOD_STATUS_CHECK(cudaMemset(resident->lanes, 0, (size_t)*voxels * sizeof(unsigned int)), resident->lanes,
-                               error) &&
-           PERIOD_STATUS_CHECK(cudaMemcpy2D(resident->lanes, sizeof(unsigned int), request->device_lanes,
-                                            sizeof(unsigned short), sizeof(unsigned short), (size_t)*voxels,
-                                            cudaMemcpyDeviceToDevice),
-                               resident->lanes, error);
+    int ok = period_record_make(error) && period_record_reserve(*voxels, error);
+    if (ok != 0)
+    {
+        const unsigned long long needed = (*voxels + PERIOD_THREADS - 1ULL) / PERIOD_THREADS;
+        // Explicit cast takes a count of blocks below 4096
+        const unsigned int blocks = (unsigned int)((needed < 4096ULL) ? needed : 4096ULL);
+        period_record_widen_kernel<<<blocks, PERIOD_THREADS>>>(request->device_lanes, *voxels, resident->lanes);
+        ok = PERIOD_STATUS_CHECK(cudaGetLastError(), resident->lanes, error);
+    }
+    return ok;
 }
 
 extern "C" long period_record_read(const PeriodRequest *request)
@@ -443,8 +480,8 @@ extern "C" long period_record_read(const PeriodRequest *request)
     unsigned long long band_counts[ENGINE_ARRAY_RANK] = {0ULL};
     int ok = PERIOD_CHECK((histogram != NULL) && (agreement != NULL) && (shuffled_agreement != NULL) && (bands != NULL),
                           request, error, ENGINE_ERROR_RESOURCE) &&
-             PERIOD_STATUS_CHECK(cudaMemset(resident->histogram, 0, PERIOD_VALUES * sizeof(unsigned int)),
-                                 resident->histogram, error);
+             PERIOD_CHECK(tessera_job_cleared(resident->histogram, PERIOD_VALUES * sizeof(unsigned int)),
+                          resident->histogram, error, ENGINE_ERROR_RESOURCE);
     if (ok != 0)
     {
         const unsigned long long needed = (voxels + PERIOD_THREADS - 1ULL) / PERIOD_THREADS;
@@ -452,9 +489,8 @@ extern "C" long period_record_read(const PeriodRequest *request)
         const unsigned int blocks = (unsigned int)((needed < 4096ULL) ? needed : 4096ULL);
         period_histogram_kernel<<<blocks, PERIOD_THREADS>>>(request->device_lanes, voxels, resident->histogram);
         ok = PERIOD_STATUS_CHECK(cudaGetLastError(), resident->histogram, error) &&
-             PERIOD_STATUS_CHECK(cudaMemcpy(histogram, resident->histogram, PERIOD_VALUES * sizeof(unsigned int),
-                                            cudaMemcpyDeviceToHost),
-                                 histogram, error);
+             PERIOD_CHECK(tessera_job_crossed_out(histogram, resident->histogram, PERIOD_VALUES * sizeof(unsigned int)),
+                          histogram, error, ENGINE_ERROR_RESOURCE);
     }
     unsigned long long collisions = 0ULL;
     if (ok != 0)

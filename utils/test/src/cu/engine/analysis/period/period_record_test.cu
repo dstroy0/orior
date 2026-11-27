@@ -14,6 +14,7 @@
 #include "../../../../../../../src/cu/engine/analysis/period/period.h"
 #include "../../../../../../../src/cu/engine/analysis/period/period_internal.h"
 #include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../src/platform/platform_device.h"
 #include "sim.h"
 
 #include <cuda_runtime.h>
@@ -396,6 +397,9 @@ int program_main(int count, char **arguments)
     const unsigned long long timed = RECORD_TEST_TIMED_Z * RECORD_TEST_TIMED_YX * RECORD_TEST_TIMED_YX;
     const unsigned long long timed_extent[3] = {RECORD_TEST_TIMED_Z, RECORD_TEST_TIMED_YX, RECORD_TEST_TIMED_YX};
     const unsigned long long timed_entries = period_agreement_entries(3u, timed_extent);
+    // The pool of the device holds the cells of both routes over the timed lattice, about 370 MB. It also holds the
+    // scratch of the record machine. The test declares 1 GiB, under the 2 GiB that one cellblock holds at max
+    (void)platform_device_pool_declared(1ULL << 30u);
     int ok =
         sim_job_submit(&results, "period_record_test", count, arguments, RECORD_TEST_DECLARED(timed, timed_entries));
     const RecordShape shapes[RECORD_TEST_SHAPES] = {

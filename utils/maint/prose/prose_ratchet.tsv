@@ -498,10 +498,8 @@ src/cu/engine/analysis/noise_detector/noise_detector_pixels.cu	2
 src/cu/engine/analysis/noise_detector/noise_detector_root.cu	2
 src/cu/engine/analysis/noise_detector/noise_detector_structure.cu	3
 src/cu/engine/analysis/period/period.h	7
-src/cu/engine/analysis/period/period_internal.h	1
-src/cu/engine/analysis/period/period_measure.cu	8
-src/cu/engine/analysis/period/period_record.cu	11
-src/cu/engine/analysis/period/period_select.cu	7
+src/cu/engine/analysis/period/period_measure.cu	3
+src/cu/engine/analysis/period/period_record.cu	8
 src/cu/engine/analysis/residual/residual.cu	2
 src/cu/engine/analysis/shift_agreement/shift_agreement.h	2
 src/cu/engine/analysis/tower/tower_record.cu	8

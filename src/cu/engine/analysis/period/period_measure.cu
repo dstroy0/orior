@@ -260,27 +260,19 @@ extern "C" unsigned long long period_agreement_entries(unsigned int rank, const 
     return entries;
 }
 
-// the pool's slices for `voxels` and `entries`, in the order they are arranged and taken: the histogram, the agreement
-// and the shuffled lanes. The plan is arranged from them, and a pool reserved from it takes them
-static DevicePoolPlan period_plan(unsigned long long voxels, unsigned long long entries, EngineError *error,
-                                  DevicePoolTakeRequest takes[PERIOD_SLICES])
+// The bytes of the slices for `voxels` and `entries`, in the order that the reserve takes them: the histogram, the
+// agreement and the shuffled lanes
+static void period_slices(unsigned long long voxels, unsigned long long entries,
+                          unsigned long long bytes[PERIOD_SLICES])
 {
-    PeriodResident *const resident = &g_period_resident;
-    const DevicePoolTakeRequest requests[PERIOD_SLICES] = {
-        {&resident->pool, PERIOD_VALUES * sizeof(unsigned int), (void **)&resident->histogram, error},
-        {&resident->pool, entries * sizeof(unsigned long long), (void **)&resident->agreement, error},
-        {&resident->pool, voxels * sizeof(unsigned short), (void **)&resident->shuffled, error}};
-    DevicePoolPlan plan = {0ULL, 0ULL, 0};
-    for (unsigned int at = 0u; at < PERIOD_SLICES; at += 1u)
-    {
-        takes[at] = requests[at];
-        device_pool_plan_slice(&plan, requests[at].bytes);
-    }
-    return plan;
+    bytes[0] = PERIOD_VALUES * sizeof(unsigned int);
+    bytes[1] = entries * sizeof(unsigned long long);
+    bytes[2] = voxels * sizeof(unsigned short);
 }
 
-// the pool grown to contain `voxels` and `entries`. A pool that already contains both is retained as it is, and a grown
-// pool contains the max of each requested so far: extents that take turns grow it once.
+// The cells grown to contain `voxels` and `entries`. Cells that already contain both stay as they are. Grown cells
+// contain the max of each that a call asks so far. Extents that take turns thus grow them once. The cells are
+// persistent cells of the pool of the device, which the process holds to its end
 int period_reserve(unsigned long long voxels, unsigned long long entries, EngineError *error)
 {
     PeriodResident *const resident = &g_period_resident;
@@ -290,20 +282,22 @@ int period_reserve(unsigned long long voxels, unsigned long long entries, Engine
     }
     const unsigned long long max_voxels = (voxels > resident->voxels) ? voxels : resident->voxels;
     const unsigned long long max_entries = (entries > resident->entries) ? entries : resident->entries;
-    device_pool_release(&resident->pool);
-    resident->histogram = NULL;
-    resident->agreement = NULL;
-    resident->shuffled = NULL;
+    void **const cells[PERIOD_SLICES] = {(void **)&resident->histogram, (void **)&resident->agreement,
+                                         (void **)&resident->shuffled};
+    for (unsigned int at = PERIOD_SLICES; at > 0u; at -= 1u)
+    {
+        tessera_job_given(*cells[at - 1u], PERIOD_PLACE);
+        *cells[at - 1u] = NULL;
+    }
     resident->voxels = 0ULL;
     resident->entries = 0ULL;
-    DevicePoolTakeRequest takes[PERIOD_SLICES];
-    const DevicePoolPlan plan = period_plan(max_voxels, max_entries, error, takes);
-    const DevicePoolReserveRequest reserve = {&plan, &resident->pool, error};
-    int ok = device_pool_reserve(&reserve) == 0L;
-    // the slices are taken in the plan's order, and each lands where the plan positioned it out with none errored
+    unsigned long long bytes[PERIOD_SLICES];
+    period_slices(max_voxels, max_entries, bytes);
+    int ok = 1;
     for (unsigned int at = 0u; (ok != 0) && (at < PERIOD_SLICES); at += 1u)
     {
-        ok = device_pool_take(&takes[at]) == 0L;
+        ok = PERIOD_CHECK(tessera_job_persistent_taken(bytes[at], PERIOD_PLACE, cells[at]), cells[at], error,
+                          ENGINE_ERROR_RESOURCE);
     }
     resident->voxels = (ok != 0) ? max_voxels : 0ULL;
     resident->entries = (ok != 0) ? max_entries : 0ULL;
@@ -316,8 +310,13 @@ extern "C" unsigned long long period_reserve_bytes(unsigned long long voxels, un
     {
         return 0ULL;
     }
-    DevicePoolTakeRequest takes[PERIOD_SLICES];
     // the agreement's slice contains one entry at the least, as the calls size it
-    const DevicePoolPlan plan = period_plan(voxels, (entries != 0ULL) ? entries : 1ULL, NULL, takes);
+    unsigned long long bytes[PERIOD_SLICES];
+    period_slices(voxels, (entries != 0ULL) ? entries : 1ULL, bytes);
+    DevicePoolPlan plan = {0ULL, 0ULL, 0};
+    for (unsigned int at = 0u; at < PERIOD_SLICES; at += 1u)
+    {
+        device_pool_plan_slice(&plan, bytes[at]);
+    }
     return device_pool_plan_bytes(&plan);
 }
