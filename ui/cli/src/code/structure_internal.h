@@ -111,23 +111,39 @@ typedef struct
     unsigned int reshaped;
 } CliCompare;
 
-// A bucket of the names of the texts of tokens and of the lines of tokens: a side, a place in it, and a number, 0
-// where the bucket is empty
+// A name of a text of tokens or of a line of tokens: the hash it is ordered by, a side and a place in it, and its
+// number
 typedef struct
 {
+    unsigned long long hash;
     const CliSide *side;
     unsigned int at;
     unsigned int name;
-} CliNameBucket;
+} CliNameRecord;
+
+// the records of the run of the newest names
+#define CLI_STRUCTURE_NAME_RUN 256u
+
+// The names of one kind: an order of the names merged, sorted by their hash, `ordered` of them; the run of the names
+// made since the last merge, in the order they were made, `run_count` of them; and the room that the sort of a full
+// run writes as it merges
+typedef struct
+{
+    CliNameRecord order[CLI_STRUCTURE_NAMES / 2u];
+    unsigned int ordered;
+    CliNameRecord run[CLI_STRUCTURE_NAME_RUN];
+    unsigned int run_count;
+    CliNameRecord room[CLI_STRUCTURE_NAME_RUN];
+} CliNameOrder;
 
 // Everything one compare stores, guarded by the compare's lock while it runs (structure_compare.c): with the band of
-// Myers' frontier for each edit, and the names' buckets
+// Myers' frontier for each edit, and the names
 typedef struct
 {
     int frontier[(2u * CLI_MAX_EDITS) + 3u];
     int trace[(CLI_MAX_EDITS + 2u) * (CLI_MAX_EDITS + 2u)];
-    CliNameBucket token_names[CLI_STRUCTURE_NAMES];
-    CliNameBucket line_names[CLI_STRUCTURE_NAMES];
+    CliNameOrder token_names;
+    CliNameOrder line_names;
     CliSide old;
     CliSide new;
     CliStep line_steps[CLI_STRUCTURE_STEPS];

@@ -9,6 +9,7 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_tokens_are_names_numbers_strings_and_signs(void);
+extern void test_the_names_of_many_tokens_and_lines_hold_through_the_merges(void);
 extern void test_each_token_is_positioned_in_utf16_on_its_line(void);
 
 
@@ -72,7 +73,8 @@ int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/structure/test_structure/test_structure.c");
   run_test(test_tokens_are_names_numbers_strings_and_signs, "test_tokens_are_names_numbers_strings_and_signs", 32);
-  run_test(test_each_token_is_positioned_in_utf16_on_its_line, "test_each_token_is_positioned_in_utf16_on_its_line", 44);
+  run_test(test_the_names_of_many_tokens_and_lines_hold_through_the_merges, "test_the_names_of_many_tokens_and_lines_hold_through_the_merges", 47);
+  run_test(test_each_token_is_positioned_in_utf16_on_its_line, "test_each_token_is_positioned_in_utf16_on_its_line", 92);
 
   return UNITY_END();
 }

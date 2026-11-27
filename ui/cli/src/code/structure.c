@@ -400,6 +400,96 @@ EMBED_INLINE int cli_line_same(const StructureCtx *args)
     return 1;
 }
 
+// the order of two names, by their hash: below 0, 0 or above 0
+static int cli_name_order(const void *left, const void *right)
+{
+    const CliNameRecord *const one = (const CliNameRecord *)left;
+    const CliNameRecord *const other = (const CliNameRecord *)right;
+    return (one->hash < other->hash) ? -1 : ((one->hash > other->hash) ? 1 : 0);
+}
+
+// 1 where the name `record` names what the place `at` of `side` holds: a token's text, or a line's tokens where `lines`
+static int cli_name_is(const CliNameRecord *record, const CliSide *side, unsigned int at, int lines)
+{
+    return lines ? EMBED_CALL(cli_line_same, StructureCtx, .one = record->side, .line = record->at, .other = side,
+                              .other_line = at)
+                 : EMBED_CALL(cli_token_same, StructureCtx, .one = record->side, .at_u32 = record->at, .other = side,
+                              .other_at = at);
+}
+
+// the number of the name of `hash` that the place `at` of `side` holds, 0 where the names have none: the run first,
+// then the order from the first record of the hash, which a binary search finds
+static unsigned int cli_name_found(const CliNameOrder *names, unsigned long long hash, const CliSide *side,
+                                   unsigned int at, int lines)
+{
+    for (unsigned int each = 0u; each < names->run_count; each += 1u)
+    {
+        if ((names->run[each].hash == hash) && cli_name_is(&names->run[each], side, at, lines))
+        {
+            return names->run[each].name;
+        }
+    }
+    unsigned int low = 0u;
+    unsigned int high = names->ordered;
+    while (low < high)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        if (names->order[middle].hash < hash)
+        {
+            low = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    for (unsigned int each = low; (each < names->ordered) && (names->order[each].hash == hash); each += 1u)
+    {
+        if (cli_name_is(&names->order[each], side, at, lines))
+        {
+            return names->order[each].name;
+        }
+    }
+    return 0u;
+}
+
+// `record` made a name: into the run, the run sorted once and merged into the order from its end first where it is
+// full
+static void cli_name_made(CliNameOrder *names, CliNameRecord record)
+{
+    if (names->run_count == CLI_STRUCTURE_NAME_RUN)
+    {
+        (void)memor.sort(&(MemoriaCfg){.dst = names->run,
+                                       .scratch = names->room,
+                                       .count = names->run_count,
+                                       .bytes = sizeof(CliNameRecord),
+                                       .order = cli_name_order});
+        unsigned int from_order = names->ordered;
+        unsigned int from_run = names->run_count;
+        unsigned int to = names->ordered + names->run_count;
+        while (from_run != 0u)
+        {
+            const int order_first =
+                (from_order != 0u) && (names->order[from_order - 1u].hash > names->run[from_run - 1u].hash);
+            to -= 1u;
+            if (order_first)
+            {
+                from_order -= 1u;
+                names->order[to] = names->order[from_order];
+            }
+            else
+            {
+                from_run -= 1u;
+                names->order[to] = names->run[from_run];
+            }
+        }
+        names->ordered += names->run_count;
+        names->run_count = 0u;
+    }
+    names->run[names->run_count] = record;
+    names->run_count += 1u;
+}
+
 // a side's tokens, then its lines, each given the number of its text, a new one where the text is new
 static int cli_side_by_name(const StructureCtx *args)
 {
@@ -413,24 +503,18 @@ static int cli_side_by_name(const StructureCtx *args)
         {
             hash = (hash ^ (unsigned char)args->side->text[byte]) * 0x100000001b3ULL;
         }
-        unsigned long long bucket = hash & (CLI_STRUCTURE_NAMES - 1u);
-        while ((g_cli_structure->token_names[bucket].name != 0u) &&
-               !EMBED_CALL(cli_token_same, StructureCtx, .one = g_cli_structure->token_names[bucket].side,
-                           .at_u32 = g_cli_structure->token_names[bucket].at, .other = args->side, .other_at = at))
-        {
-            bucket = (bucket + 1u) & (CLI_STRUCTURE_NAMES - 1u);
-        }
-        if (g_cli_structure->token_names[bucket].name == 0u)
+        unsigned int name = cli_name_found(&g_cli_structure->token_names, hash, args->side, at, 0);
+        if (name == 0u)
         {
             if (*names >= (CLI_STRUCTURE_NAMES / 2u))
             {
                 return 0;
             }
             *names += 1u;
-            const CliNameBucket made = {args->side, at, *names};
-            g_cli_structure->token_names[bucket] = made;
+            name = *names;
+            cli_name_made(&g_cli_structure->token_names, (CliNameRecord){hash, args->side, at, name});
         }
-        args->side->token_name[at] = g_cli_structure->token_names[bucket].name;
+        args->side->token_name[at] = name;
     }
     for (unsigned int line = 0u; line < args->side->lines; line += 1u)
     {
@@ -439,34 +523,28 @@ static int cli_side_by_name(const StructureCtx *args)
         {
             hash = (hash ^ args->side->token_name[at]) * 0x100000001b3ULL;
         }
-        unsigned long long bucket = hash & (CLI_STRUCTURE_NAMES - 1u);
-        while ((g_cli_structure->line_names[bucket].name != 0u) &&
-               !EMBED_CALL(cli_line_same, StructureCtx, .one = g_cli_structure->line_names[bucket].side,
-                           .line = g_cli_structure->line_names[bucket].at, .other = args->side, .other_line = line))
-        {
-            bucket = (bucket + 1u) & (CLI_STRUCTURE_NAMES - 1u);
-        }
-        if (g_cli_structure->line_names[bucket].name == 0u)
+        unsigned int name = cli_name_found(&g_cli_structure->line_names, hash, args->side, line, 1);
+        if (name == 0u)
         {
             if (*line_names >= (CLI_STRUCTURE_NAMES / 2u))
             {
                 return 0;
             }
             *line_names += 1u;
-            const CliNameBucket made = {args->side, line, *line_names};
-            g_cli_structure->line_names[bucket] = made;
+            name = *line_names;
+            cli_name_made(&g_cli_structure->line_names, (CliNameRecord){hash, args->side, line, name});
         }
-        args->side->line_name[line] = g_cli_structure->line_names[bucket].name;
+        args->side->line_name[line] = name;
     }
     return 1;
 }
 
 int cli_structure_by_name(const CliStructureOldCtx *args)
 {
-    memor.set(
-        &(MemoriaCfg){.dst = g_cli_structure->token_names, .val = 0, .bytes = sizeof(g_cli_structure->token_names)});
-    memor.set(
-        &(MemoriaCfg){.dst = g_cli_structure->line_names, .val = 0, .bytes = sizeof(g_cli_structure->line_names)});
+    g_cli_structure->token_names.ordered = 0u;
+    g_cli_structure->token_names.run_count = 0u;
+    g_cli_structure->line_names.ordered = 0u;
+    g_cli_structure->line_names.run_count = 0u;
     unsigned int names = 0u;
     unsigned int line_names = 0u;
     return EMBED_CALL(cli_side_by_name, StructureCtx, .side = args->old, .names = &names, .line_names = &line_names) &&
