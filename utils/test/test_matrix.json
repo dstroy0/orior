@@ -1036,6 +1036,18 @@
         "src/cu/engine/runtime/daemon"
       ]
     },
+    "box_history_paths": {
+      "desc": "The path of the box history on the device, with the engine linked into the program. A seeded history of windows and seeded boxes of bodies, one of them empty, run through box_history_gather. The counts equal a walk of each box on the host, the device finds no disagreement, the empty box counts 0, and the counts equal the signum of the device path.",
+      "script": "utils/test/src/cu/engine/nbody/box_history/box_history_paths_test.sh",
+      "src": [
+        "+<cu/engine/nbody/box_history/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/nbody/box_history"
+      ]
+    },
     "marginal_paths": {
       "desc": "The path of the marginals on the device, with the engine linked into the program. Seeded questions of sources and options run through marginal_run and through marginal_run_host. The sums of the device equal the sums of the host, are not 0, and equal the signum of the device path.",
       "script": "utils/test/src/cu/engine/nbody/marginal/marginal_paths_test.sh",
