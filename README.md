@@ -70,7 +70,7 @@ What the work claims, what it does not claim, and the results are on the [home p
 
 ## Build
 
-You need CMake and Ninja, a C11 compiler for the engine, and Clang for the CLI and tabvla, with `llvm-rc` on Windows and the X11 headers on Linux. [Setup](docs/setup.md) has the details.
+You need CMake, Ninja and a C11 compiler for the engine. The CLI and tabvla need Clang, with `llvm-rc` on Windows and the X11 headers on Linux. [Setup](docs/setup.md) gives the details of the engine. The build of the CLI and tabvla checks what it needs before it starts, and [the app's own page](ui/README.md#running-it) lists each part.
 
 ```sh
 git clone --recurse-submodules https://github.com/dstroy0/orior.git && cd orior

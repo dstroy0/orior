@@ -74,6 +74,16 @@ The window and the command line are C, built by `ui/cli/build.sh` through the ha
 python utils/test/harness.py build gui
 ```
 
+Clone with `--recurse-submodules`, because MMgr comes from two submodules. Before the first compile, `ui/cli/build.sh` checks each program, header and submodule that the build needs. If the machine does not have one, the build stops. It shows each part that the machine does not have, and the command that installs it. It knows apt, dnf, pacman, apk, zypper, brew and winget. Install the parts, then run the build again.
+
+| system | the build needs |
+| --- | --- |
+| Linux | clang, CMake, Ninja and binutils. The window also needs the X11 headers of `libx11`, `libxext` and `libxi`. Install lld also: without lld, the link needs the LTO plugin of clang. |
+| Windows | Git for Windows, LLVM, CMake and Ninja |
+| macOS | the Xcode command line tools, CMake and Ninja. The window does not build on macOS. |
+
+`utils/test/window_packages.tsv` gives the package of each part for each manager, and `utils/test/window_managers.tsv` gives the install command of each manager. The build and `harness.py window check --on` read the same two files.
+
 The programs land under `build/cli/<target>/`: `imp`, the command line, and `tab`, the window, as
 `bin_names.tsv` at the top of the tree names them. `python utils/test/harness.py package` makes
 the install bundle of a target with the license texts, and `package --check` installs and removes it.

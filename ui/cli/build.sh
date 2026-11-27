@@ -124,6 +124,11 @@ fi
 TARGET="${1:-$HOST}"
 GUI_NAME="$(bin_named gui)"
 
+# The check stops the build before the first compile when the machine does not have a program, a header or a
+# submodule. It tells the developer what to install.
+source "$HERE/build_needs.sh"
+build_needs_met "$WINDOW" "$TARGET" || exit 1
+
 SOURCES=()
 while IFS= read -r source; do
     # the program's own source is compiled apart, for the program alone, not into the library

@@ -72,10 +72,17 @@ def cmd_build_gui(a):
     log = os.path.join(BUILD, "gui_build.log")
     with open(log, "wb") as out:
         built = subprocess.run([harness_cli.bash(), os.path.join(ROOT, "ui", "cli", "build.sh"), "window"], cwd=ROOT, stdout=out, stderr=subprocess.STDOUT)
+    # ui/cli/build_needs.sh starts each line of its list with "  needs:". The harness shows all of them.
+    needs = grep(log, r"^  needs:", 60)
     if built.returncode != 0:
+        if needs:
+            print("\n".join(needs))
+            return 1
         print("\n".join(grep(log, r"^error", 5)))
         print(tail(log, 3), end="")
         return 1
+    if needs:
+        print("\n".join(needs))
     print(tail(log, 1), end="")
     return 0
 
