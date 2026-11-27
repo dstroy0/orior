@@ -23,6 +23,11 @@
 #define PATHS_TEST_PROBES 8u
 #define PATHS_TEST_STEPS 512u
 
+// The levels of each frame that the overlap steps through, below the top of each frame. Each step writes the probes of
+// both frames
+#define PATHS_TEST_LEVELS 3u
+static const unsigned int PATHS_TEST_OVERLAP_LEVELS[PATHS_TEST_LEVELS] = {2u, 8u, 16u};
+
 // the most limbs of the record of one body that the pack writes
 #define PATHS_TEST_LIMBS_MAX 32u
 
@@ -153,7 +158,7 @@ struct PathsTestAnswers
     unsigned int pack_words[PATHS_TEST_BODIES_MAX * PATHS_TEST_LIMBS_MAX];
     unsigned long long pack_mismatches;
     MaxTreeOverlapStep overlap_steps[PATHS_TEST_STEPS];
-    MaxTreeOverlapProbe overlap_probes[2u * PATHS_TEST_PROBES];
+    MaxTreeOverlapProbe overlap_probes[2u * PATHS_TEST_LEVELS * 2u * PATHS_TEST_PROBES];
     unsigned int overlap_count;
     unsigned char bind_bound[PATHS_TEST_VOXELS * 3u];
     unsigned int bind_counts[2];
@@ -227,6 +232,10 @@ static long paths_test_overlap(const unsigned int *earlier, const unsigned int *
     request.probe_voxels[1] = later;
     request.probe_counts[0] = PATHS_TEST_PROBES;
     request.probe_counts[1] = PATHS_TEST_PROBES;
+    request.earlier_levels = PATHS_TEST_OVERLAP_LEVELS;
+    request.earlier_level_count = PATHS_TEST_LEVELS;
+    request.later_levels = PATHS_TEST_OVERLAP_LEVELS;
+    request.later_level_count = PATHS_TEST_LEVELS;
     request.probes = answers->overlap_probes;
     request.steps = answers->overlap_steps;
     request.step_capacity = PATHS_TEST_STEPS;
@@ -273,7 +282,7 @@ int program_main(int argc, char **argv)
     (void)argv;
     // the first word of the signum of each path, the answer of the device path
     static const unsigned long long SIGNA[PATHS_TEST_PATHS] = {0xa993fcb66217cbc7ULL, 0xc4198cd0b3156a48ULL,
-                                                               0xf3154d371c3d0a87ULL, 0x11e797c38e9863bbULL,
+                                                               0xecf4adf0941a03c5ULL, 0x11e797c38e9863bbULL,
                                                                0x8b958cc4b2bef60fULL};
     static const char *const NAMES[PATHS_TEST_PATHS] = {"the slide", "the pack", "the overlap", "the bind",
                                                         "the proof of the contraction"};
