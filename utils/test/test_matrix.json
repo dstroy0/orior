@@ -1036,6 +1036,18 @@
         "src/cu/engine/runtime/daemon"
       ]
     },
+    "body_overlap_paths": {
+      "desc": "The paths of the body overlap on the device, with the engine linked into the program. Seeded pairs of frames of three and four axes, with lags of their own on some labels and a capacity below the pairs on one, run through body_overlap_run, through body_overlap_run_on_device from cells on the device, and through body_overlap_host. The answers of each device path equal the answers of the host, and the answers of the device paths equal the signum of the device path.",
+      "script": "utils/test/src/cu/engine/nbody/body_overlap/body_overlap_paths_test.sh",
+      "src": [
+        "+<cu/engine/nbody/body_overlap/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/nbody/body_overlap"
+      ]
+    },
     "noise_detector_paths": {
       "desc": "The paths of the noise detector on the device, with the engine linked into the program at the width of its exact integer. Two seeded volumes hold a fixed pattern, row offsets, noise and a shared drift, stuck pixels, clips and spikes. The flicker, the lines, the neighbors, the clips, the crosstalk, the charge, the structure and the halves read both. Each path writes an answer that is not 0, and the answers of each path equal the signum of its case.",
       "script": "utils/test/src/cu/engine/analysis/noise_detector/noise_detector_paths_test.sh",
