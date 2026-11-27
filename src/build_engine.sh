@@ -169,4 +169,7 @@ echo "  linked $LIBRARY in $(( $(date +%s) - BEGAN )) s"
 # The objects linked, a line each, for a program that links the engine into itself. On Windows the library gives a
 # program only the calls that the engine marks for export
 printf '%s\n' "${OBJECTS[@]}" > "$OUT/cell_tracking_engine.objects"
+# The width of the exact integer of the engine, a flag a line. A program that links the engine compiles with these
+# flags, and its exact integers then have the size of the exact integers of the engine
+printf '%s\n' "-DORIOR_EXACT_LIMBS=${EXACT_LIMBS}u" "-DORIOR_EXACT_DIGITS=${EXACT_DIGITS}u" > "$OUT/cell_tracking_engine.exact"
 build_publish "$LIBRARY" || exit 1

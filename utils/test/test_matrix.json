@@ -1036,6 +1036,18 @@
         "src/cu/engine/runtime/daemon"
       ]
     },
+    "noise_detector_paths": {
+      "desc": "The paths of the noise detector on the device, with the engine linked into the program at the width of its exact integer. Two seeded volumes hold a fixed pattern, row offsets, noise and a shared drift, stuck pixels, clips and spikes. The flicker, the lines, the neighbors, the clips, the crosstalk, the charge, the structure and the halves read both. Each path writes an answer that is not 0, and the answers of each path equal the signum of its case.",
+      "script": "utils/test/src/cu/engine/analysis/noise_detector/noise_detector_paths_test.sh",
+      "src": [
+        "+<cu/engine/analysis/noise_detector/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/analysis/noise_detector"
+      ]
+    },
     "climb_machine_paths": {
       "desc": "The paths of the climb machine, with the engine linked into the program. Seeded frames of blobs drift between frames. The machine stores three frames, climbs three pairs, then boxes, cores and measures them, and does the same over two more frames. It runs once with the land at the peak and once with the land by mass. Most climbers land on the leaf of their own blob, the extents equal the bounds on the host, and the answers of each path equal the signum of its case.",
       "script": "utils/test/src/cu/engine/nbody/climb_machine/climb_machine_paths_test.sh",
