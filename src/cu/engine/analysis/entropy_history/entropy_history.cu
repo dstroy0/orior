@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../../../platform/platform.h"
+#include "../../runtime/daemon/tessera_job.h"
 #include "entropy_history.h"
 #include "memoria_operor/memoria_operor.h"
 
@@ -161,28 +162,25 @@ extern "C" long entropy_history_project(const EntropyHistoryProjectRequest *requ
     const size_t words = (size_t)(windows * voxels);
     const size_t entries = (size_t)(windows * windows);
 
-    unsigned short *device_lanes = NULL;
-    unsigned long long *device_history = NULL;
-    unsigned long long *device_broken = NULL;
-    unsigned long long *device_cloud = NULL;
+    const unsigned long long history_bytes = (unsigned long long)words * sizeof(unsigned long long);
+    const unsigned long long cloud_bytes = (unsigned long long)entries * sizeof(unsigned long long);
+    // The lanes cross in. The history, the count of the breaks and the cloud are temporary cells of the pool of the
+    // device. Every byte is 0 at the take. The call gives them back last first before it returns
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, (unsigned int)platform_place_g_engine_owner);
+    void *cell[4] = {NULL, NULL, NULL, NULL};
     *broken = 1ULL;
-    int ok =
-        ENTROPY_HISTORY_STATUS_CHECK(
-            cudaMalloc((void **)&device_lanes, (size_t)(frames * voxels) * sizeof(unsigned short)), &device_lanes,
-            error) &&
-        ENTROPY_HISTORY_STATUS_CHECK(cudaMalloc((void **)&device_history, words * sizeof(unsigned long long)),
-                                     &device_history, error) &&
-        ENTROPY_HISTORY_STATUS_CHECK(cudaMalloc((void **)&device_broken, sizeof(unsigned long long)), &device_broken,
-                                     error) &&
-        ENTROPY_HISTORY_STATUS_CHECK(cudaMalloc((void **)&device_cloud, entries * sizeof(unsigned long long)),
-                                     &device_cloud, error) &&
-        ENTROPY_HISTORY_STATUS_CHECK(cudaMemset(device_broken, 0, sizeof(unsigned long long)), device_broken, error) &&
-        ENTROPY_HISTORY_STATUS_CHECK(cudaMemset(device_cloud, 0, entries * sizeof(unsigned long long)), device_cloud,
-                                     error) &&
-        ENTROPY_HISTORY_STATUS_CHECK(cudaMemcpy(device_lanes, request->volume,
-                                                (size_t)(frames * voxels) * sizeof(unsigned short),
-                                                cudaMemcpyHostToDevice),
-                                     device_lanes, error);
+    int ok = ENTROPY_HISTORY_CHECK(
+        tessera_job_cells_in(&cells, request->volume, frames * voxels * sizeof(unsigned short), &cell[0]) &&
+            tessera_job_cells_room(&cells, history_bytes, &cell[1]) &&
+            tessera_job_cells_room(&cells, sizeof(unsigned long long), &cell[2]) &&
+            tessera_job_cells_room(&cells, cloud_bytes, &cell[3]),
+        request->volume, error, ENGINE_ERROR_RESOURCE);
+    // Explicit casts read each cell as the words that it holds
+    const unsigned short *const device_lanes = (const unsigned short *)cell[0];
+    unsigned long long *const device_history = (unsigned long long *)cell[1];
+    unsigned long long *const device_broken = (unsigned long long *)cell[2];
+    unsigned long long *const device_cloud = (unsigned long long *)cell[3];
     if (ok != 0)
     {
         const unsigned long long needed = (voxels + ENTROPY_HISTORY_THREADS - 1ULL) / ENTROPY_HISTORY_THREADS;
@@ -191,19 +189,11 @@ extern "C" long entropy_history_project(const EntropyHistoryProjectRequest *requ
                                                                     device_history, device_broken, device_cloud);
         ok = ENTROPY_HISTORY_STATUS_CHECK(cudaGetLastError(), device_history, error);
     }
-    ok = ok &&
-         ENTROPY_HISTORY_STATUS_CHECK(
-             cudaMemcpy(history->history, device_history, words * sizeof(unsigned long long), cudaMemcpyDeviceToHost),
-             history->history, error) &&
-         ENTROPY_HISTORY_STATUS_CHECK(
-             cudaMemcpy(history->cloud, device_cloud, entries * sizeof(unsigned long long), cudaMemcpyDeviceToHost),
-             history->cloud, error) &&
-         ENTROPY_HISTORY_STATUS_CHECK(
-             cudaMemcpy(broken, device_broken, sizeof(unsigned long long), cudaMemcpyDeviceToHost), broken, error);
-    cudaFree(device_lanes);
-    cudaFree(device_history);
-    cudaFree(device_broken);
-    cudaFree(device_cloud);
+    ok = ok && ENTROPY_HISTORY_CHECK(tessera_job_crossed_out(history->history, device_history, history_bytes) &&
+                                         tessera_job_crossed_out(history->cloud, device_cloud, cloud_bytes) &&
+                                         tessera_job_crossed_out(broken, device_broken, sizeof(unsigned long long)),
+                                     history->history, error, ENGINE_ERROR_RESOURCE);
+    tessera_job_cells_given(&cells);
     if ((ok == 0) || !ENTROPY_HISTORY_CHECK(*broken == 0ULL, broken, error, ENGINE_ERROR_LOGIC))
     {
         return ENTROPY_HISTORY_ERROR;
