@@ -154,12 +154,15 @@ struct RulesetCoreRelations
 CODEGEN_CORE unsigned int ruleset_core_relation_find(const unsigned char *text, RulesetCoreSpan within,
                                                      unsigned char character, unsigned int from)
 {
-    unsigned int found = within.length;
-    for (unsigned int at = from; (found == within.length) && (at < within.length); at += 1u)
+    if (from >= within.length)
     {
-        found = (text[within.first + at] == character) ? at : found;
+        return within.length;
     }
-    return found;
+    // Explicit casts read the found byte as a place in the span, which an unsigned int counts
+    const unsigned char *const start = &text[within.first + from];
+    const void *const found =
+        EMBED_CALL(memor.chr, MemoriaCfg, .src = start, .bytes = within.length - from, .val = character);
+    return (found != NULL) ? (from + (unsigned int)((const unsigned char *)found - start)) : within.length;
 }
 
 // part `index` of the span `within`, cut at `character`. Where `character` is a space, a run of it counts as one.
@@ -212,11 +215,9 @@ CODEGEN_CORE int ruleset_core_relation_same(const unsigned char *text, RulesetCo
 // 1 where the span `word` is the text `literal`
 CODEGEN_CORE int ruleset_core_relation_is(const unsigned char *text, RulesetCoreSpan word, const char *literal)
 {
-    unsigned int length = 0u;
-    while (literal[length] != '\0')
-    {
-        length += 1u;
-    }
+    // Explicit cast takes the length of a literal of the schema, which an unsigned int counts
+    const unsigned int length =
+        (unsigned int)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = literal, .cap = ~(size_t)0);
     return ruleset_core_equal(&text[word.first], word.length, (const unsigned char *)literal, length);
 }
 
@@ -380,13 +381,12 @@ CODEGEN_CORE RulesetCoreSpan ruleset_core_relation_braced(const RulesetCoreRelat
     const unsigned int close = ruleset_core_relation_find(relations->text, entry->text, (unsigned char)'}', at + 1u);
     const RulesetCoreSpan none = {entry->text.first + at, 0u};
     const RulesetCoreSpan named = {entry->text.first + at + 1u, close - at - 1u};
-    int name = (close != entry->text.length) && (named.length != 0u);
-    for (unsigned int character = 0u; (name != 0) && (character < named.length); character += 1u)
-    {
-        const unsigned char one = relations->text[named.first + character];
-        name = ((one >= 'a') && (one <= 'z')) || ((one >= 'A') && (one <= 'Z')) || ((one >= '0') && (one <= '9')) ||
-               (one == '_');
-    }
+    // a name: one byte or more, every one a letter, a digit or an underscore. Explicit cast reads the bytes as text
+    const int name =
+        (close != entry->text.length) && (named.length != 0u) &&
+        (EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = (const char *)&relations->text[named.first],
+                    .cap = named.length,
+                    .other = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_") == named.length);
     return (name != 0) ? named : none;
 }
 
@@ -398,19 +398,21 @@ CODEGEN_CORE unsigned int ruleset_core_relation_struck(const RulesetCoreRelation
     while ((past < entry->text.length) && (relations->text[entry->text.first + past] == '.'))
     {
         past += 1u;
-        unsigned char character = (past < entry->text.length) ? relations->text[entry->text.first + past] : 0u;
-        while ((past < entry->text.length) &&
-               (((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z')) ||
-                ((character >= '0') && (character <= '9'))))
-        {
-            past += 1u;
-            character = (past < entry->text.length) ? relations->text[entry->text.first + past] : 0u;
-        }
+        // the letters and digits after the dot. Explicit cast reads the bytes as text
+        past += (past < entry->text.length)
+                    ? EMBED_CALL(cellul.span, CatenaFinitaCfg,
+                                 .src = (const char *)&relations->text[entry->text.first + past],
+                                 .cap = entry->text.length - past,
+                                 .other = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+                    : 0u;
     }
     return past;
 }
 
 // 1 where the character is one an operand ends at
+// the bytes that ruleset_core_relation_ends takes as the end of an operand, for a span over them
+#define RULESET_CORE_RELATION_ENDS " ,;[]()+\\\t{"
+
 CODEGEN_CORE int ruleset_core_relation_ends(unsigned char character)
 {
     return (character == ' ') || (character == ',') || (character == ';') || (character == '[') || (character == ']') ||
@@ -454,10 +456,12 @@ CODEGEN_CORE int ruleset_core_relation_walk(const RulesetCoreRelations *relation
             !ruleset_core_relation_ends(other_character))
         {
             // a parameter `one` added, located for the operand `other` writes as it is
-            while ((other_at < other->text.length) && !ruleset_core_relation_ends(text[other->text.first + other_at]))
-            {
-                other_at += 1u;
-            }
+            // Explicit cast reads the bytes as text
+            other_at += (other_at < other->text.length)
+                            ? EMBED_CALL(cellul.span_not, CatenaFinitaCfg,
+                                         .src = (const char *)&text[other->text.first + other_at],
+                                         .cap = other->text.length - other_at, .other = RULESET_CORE_RELATION_ENDS)
+                            : 0u;
             at = named.first + named.length + 1u - one->text.first;
             *opened += 1u;
             continue;

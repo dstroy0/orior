@@ -17,6 +17,9 @@
 // the host had an error, the read ends with the reason, and the caller writes the reason of the host from it
 
 #include "../../../src/cu/engine/rmc/machine_ir_types.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 // what one argument of a construct's line is, as PseudoOperandType gives it
 #define RULESET_CORE_TEXT 0u
@@ -177,22 +180,16 @@ struct RulesetCoreRead
 CODEGEN_CORE int ruleset_core_equal(const unsigned char *left, unsigned int length, const unsigned char *right,
                                     unsigned int other)
 {
-    int equal = length == other;
-    for (unsigned int at = 0u; (equal != 0) && (at < length); at += 1u)
-    {
-        equal = left[at] == right[at];
-    }
-    return equal;
+    return (length == other) &&
+           ((length == 0u) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = left, .other = right, .bytes = length) == 0));
 }
 
 // 1 where the file's span `word` is the text `literal`
 CODEGEN_CORE int ruleset_core_is(const RulesetCoreRead *read, RulesetCoreSpan word, const char *literal)
 {
-    unsigned int length = 0u;
-    while (literal[length] != '\0')
-    {
-        length += 1u;
-    }
+    // Explicit cast takes the length of a literal of the schema, which an unsigned int counts
+    const unsigned int length =
+        (unsigned int)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = literal, .cap = ~(size_t)0);
     return ruleset_core_equal(&read->text[word.first], word.length, (const unsigned char *)literal, length);
 }
 
@@ -201,12 +198,15 @@ CODEGEN_CORE int ruleset_core_is(const RulesetCoreRead *read, RulesetCoreSpan wo
 CODEGEN_CORE unsigned int ruleset_core_find_character(const RulesetCoreRead *read, RulesetCoreSpan within,
                                                       unsigned char character, unsigned int from)
 {
-    unsigned int found = within.length;
-    for (unsigned int at = from; (found == within.length) && (at < within.length); at += 1u)
+    if (from >= within.length)
     {
-        found = (read->text[within.first + at] == character) ? at : found;
+        return within.length;
     }
-    return found;
+    // Explicit casts read the found byte as a place in the span, which an unsigned int counts
+    const unsigned char *const start = &read->text[within.first + from];
+    const void *const found =
+        EMBED_CALL(memor.chr, MemoriaCfg, .src = start, .bytes = within.length - from, .val = character);
+    return (found != NULL) ? (from + (unsigned int)((const unsigned char *)found - start)) : within.length;
 }
 
 // the file's span `word` from `at`, `length` characters long, cut at the end of `word`
@@ -273,11 +273,7 @@ CODEGEN_CORE void ruleset_core_character(RulesetCoreRead *read, unsigned char ch
 CODEGEN_CORE int ruleset_core_scratch_word(const RulesetCoreRead *read, RulesetCoreSpan inner, unsigned int *bank,
                                            unsigned int *number)
 {
-    unsigned int colon = inner.length;
-    for (unsigned int at = 0u; (colon == inner.length) && (at < inner.length); at += 1u)
-    {
-        colon = (read->text[inner.first + at] == ':') ? at : colon;
-    }
+    const unsigned int colon = ruleset_core_find_character(read, inner, (unsigned char)':', 0u);
     if ((colon == 0u) || (colon == inner.length) || ((inner.length - colon - 1u) == 0u) ||
         ((inner.length - colon - 1u) > 5u))
     {
@@ -292,13 +288,16 @@ CODEGEN_CORE int ruleset_core_scratch_word(const RulesetCoreRead *read, RulesetC
                     ? named
                     : *bank;
     }
+    // every byte past the colon a digit, and the number they write. Explicit cast reads the bytes of the file as text
+    const unsigned int digits = inner.length - colon - 1u;
+    const int counted =
+        (*bank != read->schema.bank_count) &&
+        (EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = (const char *)&read->text[inner.first + colon + 1u],
+                    .cap = digits, .other = "0123456789") == digits);
     unsigned int value = 0u;
-    int counted = (*bank != read->schema.bank_count);
-    for (unsigned int at = colon + 1u; at < inner.length; at += 1u)
+    for (unsigned int at = colon + 1u; counted && (at < inner.length); at += 1u)
     {
-        const unsigned char character = read->text[inner.first + at];
-        counted = counted && (character >= '0') && (character <= '9');
-        value = (value * 10u) + (unsigned int)(character - '0');
+        value = (value * 10u) + (unsigned int)(read->text[inner.first + at] - '0');
     }
     *number = value;
     return counted && (value < 0x10000u);

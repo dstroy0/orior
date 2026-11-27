@@ -72,12 +72,10 @@ CODEGEN_CORE int ruleset_core_relation_banked(const RulesetCoreRelations *relati
                       ruleset_core_equal(&text[fixed->text.first + fixed->text.length - after], after,
                                          &text[bank->text.first + open + 3u], after);
         const unsigned int digits = fixed->text.length - open - after;
-        numeric = numeric && (digits != 0u);
-        for (unsigned int digit = 0u; digit < digits; digit += 1u)
-        {
-            const unsigned char character = text[fixed->text.first + open + digit];
-            numeric = numeric && (character >= '0') && (character <= '9');
-        }
+        // every byte between the two a digit. Explicit cast reads the bytes as text
+        numeric = numeric && (digits != 0u) &&
+                  (EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = (const char *)&text[fixed->text.first + open],
+                              .cap = digits, .other = "0123456789") == digits);
         if (numeric != 0)
         {
             return 1;
@@ -100,10 +98,9 @@ CODEGEN_CORE int ruleset_core_relation_operand(const RulesetCoreRelations *relat
         const unsigned char before = ((at == 0u) || escaped) ? (unsigned char)' ' : text[entry->text.first + at - 1u];
         const unsigned char past =
             ((at + length) == entry->text.length) ? (unsigned char)' ' : text[entry->text.first + at + length];
-        const int word_before = ((before >= 'a') && (before <= 'z')) || ((before >= 'A') && (before <= 'Z')) ||
-                                ((before >= '0') && (before <= '9')) || (before == '_') || (before == '{');
-        const int word_past = ((past >= 'a') && (past <= 'z')) || ((past >= 'A') && (past <= 'Z')) ||
-                              ((past >= '0') && (past <= '9')) || (past == '_');
+        const int word_before = EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_ALNUM, .byte = before) ||
+                                (before == '_') || (before == '{');
+        const int word_past = EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_ALNUM, .byte = past) || (past == '_');
         if (!word_before && !word_past &&
             ruleset_core_equal(&text[entry->text.first + at], length, &text[fixed->text.first], length))
         {

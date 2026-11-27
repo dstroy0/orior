@@ -148,12 +148,8 @@ CODEGEN_CORE unsigned int asm_printer_core_word(AsmPrinterCoreBuild *build, cons
             continue;
         }
         const unsigned char *const stored_characters = &build->word_characters[build->word_start[number]];
-        unsigned int at = 0u;
-        while ((at < length) && (stored_characters[at] == characters[at]))
-        {
-            at += 1u;
-        }
-        if (at == length)
+        if ((length == 0u) ||
+            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = stored_characters, .other = characters, .bytes = length) == 0))
         {
             return number;
         }
@@ -166,10 +162,8 @@ CODEGEN_CORE unsigned int asm_printer_core_word(AsmPrinterCoreBuild *build, cons
     const unsigned int number = build->words;
     build->word_start[number] = build->characters;
     build->word_length[number] = length;
-    for (unsigned int at = 0u; at < length; at += 1u)
-    {
-        build->word_characters[build->characters + at] = characters[at];
-    }
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &build->word_characters[build->characters], .src = characters,
+               .bytes = length);
     build->characters += length;
     build->words += 1u;
     return number;
@@ -188,12 +182,8 @@ CODEGEN_CORE unsigned int asm_printer_core_part(AsmPrinterCoreBuild *build, cons
     for (unsigned int number = 0u; number < build->parts; number += 1u)
     {
         const unsigned int *const stored_pieces = &build->part_pieces[number * ASM_PRINTER_PIECES];
-        unsigned int piece = 0u;
-        while ((piece < ASM_PRINTER_PIECES) && (stored_pieces[piece] == part[piece]))
-        {
-            piece += 1u;
-        }
-        if (piece == ASM_PRINTER_PIECES)
+        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = stored_pieces, .other = part,
+                       .bytes = ASM_PRINTER_PIECES * sizeof(unsigned int)) == 0)
         {
             return number;
         }
