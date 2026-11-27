@@ -5,6 +5,10 @@
 #include "knf_identity_internal.h"
 #include "memoria_operor/memoria_operor.h"
 
+// The pool of the sim. The two lane sets of the 64^3 cube over 177 frames hold about 186 MB. The two histories and
+// their centered sums hold about 134 MB more
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 30u;
+
 static OriorExactInteger s_knf_body_departure[KNF_SCALES][KNF_BODIES];
 
 static void knf_print_share(VerbaLinea *line, const OriorExactInteger *part, const OriorExactInteger *whole)
