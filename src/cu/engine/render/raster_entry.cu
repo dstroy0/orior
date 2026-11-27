@@ -1,8 +1,83 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // raster_entry.cu: the device entry points
-#include "raster_cuda_internal.h"
 #include "../../../platform/platform.h"
+#include "../runtime/daemon/tessera_job.h"
+#include "raster_cuda_internal.h"
+
+// the owner that the cells of the renderer in the pool of the device count to
+#define RASTER_PLACE ((unsigned int)platform_place_g_engine_owner)
+
+// The cells of one render on the device. The staging holds a word a cell, and the error a mark of a layout that
+// errored. The corpus, the needle, the probes and the counts of the bytes cross in
+struct RasterCells
+{
+    unsigned int *staging;
+    int *error;
+    const unsigned char *corpus;
+    const unsigned char *needle;
+    const DeviceProbe *probes;
+    const unsigned long long *occurrences;
+};
+
+// each word of the staging set to the identity of the reduction
+__global__ static void raster_identity_kernel(unsigned int *staging, unsigned long long cells, unsigned int identity)
+{
+    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
+    for (unsigned long long cell = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; cell < cells;
+         cell += jump)
+    {
+        staging[cell] = identity;
+    }
+}
+
+// The cells of a render taken into `list` as temporary cells of the pool of the device, which the caller gives back
+// before it returns. The staging starts at `identity`, and the error at 0. 1, or 0 where a take, a crossing or the
+// kernel errors
+static int raster_cells_taken(TesseraJobCells *list, size_t cells, unsigned int identity, const uint8_t *corpus,
+                              size_t corpus_len, const uint8_t *needle, size_t needle_len, const DeviceProbe *staged,
+                              size_t probe_count, const unsigned long long *occurrences, RasterCells *taken)
+{
+    void *cell[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
+    int ok = tessera_job_cells_room(list, (unsigned long long)cells * sizeof(unsigned int), &cell[0]) &&
+             tessera_job_cells_room(list, sizeof(int), &cell[1]) &&
+             tessera_job_cells_in(list, corpus, corpus_len, &cell[2]) &&
+             tessera_job_cells_in(list, needle, needle_len, &cell[3]) &&
+             tessera_job_cells_in(list, staged, (unsigned long long)probe_count * sizeof(DeviceProbe), &cell[4]) &&
+             tessera_job_cells_in(list, occurrences, 256ULL * sizeof(unsigned long long), &cell[5]);
+    // Explicit casts read each cell as the words, the bytes and the records that it holds
+    taken->staging = (unsigned int *)cell[0];
+    taken->error = (int *)cell[1];
+    taken->corpus = (const unsigned char *)cell[2];
+    taken->needle = (const unsigned char *)cell[3];
+    taken->probes = (const DeviceProbe *)cell[4];
+    taken->occurrences = (const unsigned long long *)cell[5];
+    if (ok != 0)
+    {
+        const unsigned long long needed = ((unsigned long long)cells + 255ULL) / 256ULL;
+        // Explicit cast takes a count of blocks below 4096
+        raster_identity_kernel<<<(unsigned int)((needed < 4096ULL) ? needed : 4096ULL), 256u>>>(
+            taken->staging, (unsigned long long)cells, identity);
+        ok = cudaGetLastError() == cudaSuccess;
+    }
+    return ok;
+}
+
+// The staging crossed out and narrowed into `out`, a byte a cell. A cell still at `identity` reads as empty. 1, or 0
+// where the host cell or the crossing errors
+static int raster_cells_narrowed(const unsigned int *staging, size_t cells, unsigned int identity, uint8_t *out)
+{
+    unsigned int *const result =
+        (unsigned int *)platform_cell_taken((unsigned long long)(cells * sizeof(unsigned int)), RASTER_PLACE, 0);
+    const int ok =
+        (result != NULL) && tessera_job_crossed_out(result, staging, (unsigned long long)cells * sizeof(unsigned int));
+    for (size_t cell = 0u; (ok != 0) && (cell < cells); cell += 1u)
+    {
+        out[cell] = (result[cell] == identity) ? (uint8_t)ORIOR_RASTER_EMPTY : (uint8_t)result[cell];
+    }
+    platform_cell_released(result, RASTER_PLACE);
+    return ok;
+}
 
 extern "C" int orior_volume_device_available(void)
 {
@@ -70,111 +145,28 @@ extern "C" int orior_volume_device(uint8_t *voxels, const OriorVolumeConfig *con
         staged[index].length = probes[index].length;
     }
 
-    unsigned int *device_staging = NULL;
-    int *device_error = NULL;
-    unsigned char *device_corpus = NULL;
-    unsigned char *device_needle = NULL;
-    DeviceProbe *device_probes = NULL;
-    unsigned long long *device_occurrences = NULL;
-    int ok = 1;
-
-    ok = ok && (cudaMalloc((void **)&device_staging, cells * sizeof(unsigned int)) == cudaSuccess);
-    ok = ok && (cudaMalloc((void **)&device_error, sizeof(int)) == cudaSuccess);
-    ok = ok && (cudaMalloc((void **)&device_corpus, corpus_len) == cudaSuccess);
-    ok = ok && (cudaMalloc((void **)&device_needle, needle_len) == cudaSuccess);
-    ok = ok && (cudaMalloc((void **)&device_occurrences, sizeof(occurrences)) == cudaSuccess);
-    if (probe_count > 0u)
-    {
-        ok = ok && (cudaMalloc((void **)&device_probes, probe_count * sizeof(DeviceProbe)) == cudaSuccess);
-    }
-
-    if (ok != 0)
-    {
-        // The staging buffer starts at the reduction's identity and the narrowing pass turns any
-        // untouched cell back into empty, the same bytes the host's first-arrival fill writes.
-        const unsigned int identity = (config->reduce == ORIOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
-        unsigned int *seed = (unsigned int *)platform_cell_taken((unsigned long long)(cells * sizeof(unsigned int)),
-                                                                 (unsigned int)platform_place_g_engine_owner, 0);
-        if (seed == NULL)
-        {
-            ok = 0;
-        }
-        else
-        {
-            for (size_t cell = 0u; cell < cells; cell += 1u)
-            {
-                seed[cell] = identity;
-            }
-            ok = ok && (cudaMemcpy(device_staging, seed, cells * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
-                        cudaSuccess);
-            platform_cell_released(seed, (unsigned int)platform_place_g_engine_owner);
-        }
-    }
-
-    if (ok != 0)
-    {
-        const int zero = 0;
-        ok = ok && (cudaMemcpy(device_error, &zero, sizeof(int), cudaMemcpyHostToDevice) == cudaSuccess);
-    }
-    ok = ok && (cudaMemcpy(device_corpus, corpus, corpus_len, cudaMemcpyHostToDevice) == cudaSuccess);
-    ok = ok && (cudaMemcpy(device_needle, needle, needle_len, cudaMemcpyHostToDevice) == cudaSuccess);
-    ok =
-        ok && (cudaMemcpy(device_occurrences, occurrences, sizeof(occurrences), cudaMemcpyHostToDevice) == cudaSuccess);
-    if ((ok != 0) && (probe_count > 0u))
-    {
-        ok = ok && (cudaMemcpy(device_probes, staged, probe_count * sizeof(DeviceProbe), cudaMemcpyHostToDevice) ==
-                    cudaSuccess);
-    }
-
+    // The staging starts at the reduction's identity. The narrowing pass turns any untouched cell back into empty, the
+    // same bytes the host's first-arrival fill writes
+    const unsigned int identity = (config->reduce == ORIOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
+    TesseraJobCells list;
+    tessera_job_cells_begun(&list, RASTER_PLACE);
+    RasterCells taken;
+    int ok = raster_cells_taken(&list, cells, identity, corpus, corpus_len, needle, needle_len, staged, probe_count,
+                                occurrences, &taken);
     int error = 0;
     if (ok != 0)
     {
         const unsigned int threads = 256u;
         const unsigned int blocks = (unsigned int)((alignments + threads - 1u) / threads);
-        render_volume<<<blocks, threads>>>(
-            device_staging, device_error, plan, device_corpus, (unsigned long long)corpus_len, device_needle,
-            (unsigned long long)needle_len, device_probes, (unsigned long long)probe_count, device_occurrences,
-            (unsigned long long)corpus_len);
-        ok = ok && (cudaDeviceSynchronize() == cudaSuccess);
-        ok = ok && (cudaMemcpy(&error, device_error, sizeof(int), cudaMemcpyDeviceToHost) == cudaSuccess);
+        render_volume<<<blocks, threads>>>(taken.staging, taken.error, plan, taken.corpus,
+                                           (unsigned long long)corpus_len, taken.needle, (unsigned long long)needle_len,
+                                           taken.probes, (unsigned long long)probe_count, taken.occurrences,
+                                           (unsigned long long)corpus_len);
+        ok = (cudaDeviceSynchronize() == cudaSuccess) && tessera_job_crossed_out(&error, taken.error, sizeof(int));
     }
-
-    // The layout errored on this configuration, exactly as the host returns 0 without writing a volume.
-    if ((ok != 0) && (error != 0))
-    {
-        ok = 0;
-    }
-
-    if (ok != 0)
-    {
-        unsigned int *result = (unsigned int *)platform_cell_taken((unsigned long long)(cells * sizeof(unsigned int)),
-                                                                   (unsigned int)platform_place_g_engine_owner, 0);
-        if (result == NULL)
-        {
-            ok = 0;
-        }
-        else
-        {
-            ok = ok && (cudaMemcpy(result, device_staging, cells * sizeof(unsigned int), cudaMemcpyDeviceToHost) ==
-                        cudaSuccess);
-            if (ok != 0)
-            {
-                const unsigned int identity = (config->reduce == ORIOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
-                for (size_t cell = 0u; cell < cells; cell += 1u)
-                {
-                    voxels[cell] = (result[cell] == identity) ? (uint8_t)ORIOR_RASTER_EMPTY : (uint8_t)result[cell];
-                }
-            }
-            platform_cell_released(result, (unsigned int)platform_place_g_engine_owner);
-        }
-    }
-
-    cudaFree(device_staging);
-    cudaFree(device_error);
-    cudaFree(device_corpus);
-    cudaFree(device_needle);
-    cudaFree(device_occurrences);
-    cudaFree(device_probes);
+    // The layout errored on this configuration, exactly as the host returns 0 without writing a volume
+    ok = ok && (error == 0) && raster_cells_narrowed(taken.staging, cells, identity, voxels);
+    tessera_job_cells_given(&list);
     return ok;
 }
 
@@ -231,95 +223,25 @@ extern "C" int orior_raster_device(uint8_t *pixels, const OriorRasterConfig *con
         staged[index].length = probes[index].length;
     }
 
-    unsigned int *device_staging = NULL;
-    unsigned char *device_corpus = NULL;
-    unsigned char *device_needle = NULL;
-    DeviceProbe *device_probes = NULL;
-    unsigned long long *device_occurrences = NULL;
-    int ok = 1;
-
-    ok = ok && (cudaMalloc((void **)&device_staging, cells * sizeof(unsigned int)) == cudaSuccess);
-    ok = ok && (cudaMalloc((void **)&device_corpus, corpus_len) == cudaSuccess);
-    ok = ok && (cudaMalloc((void **)&device_needle, needle_len) == cudaSuccess);
-    ok = ok && (cudaMalloc((void **)&device_occurrences, sizeof(occurrences)) == cudaSuccess);
-    if (probe_count > 0u)
-    {
-        ok = ok && (cudaMalloc((void **)&device_probes, probe_count * sizeof(DeviceProbe)) == cudaSuccess);
-    }
-
-    if (ok != 0)
-    {
-        /* An empty cell is the identity for whichever reduction runs. The fill differs by rule.
-         * The host marks which cells an arrival reached. Here the staging buffer starts
-         * at the identity and the narrowing pass below turns any untouched cell back into zero. */
-        const unsigned int identity = (config->reduce == ORIOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
-        unsigned int *seed = (unsigned int *)platform_cell_taken((unsigned long long)(cells * sizeof(unsigned int)),
-                                                                 (unsigned int)platform_place_g_engine_owner, 0);
-        if (seed == NULL)
-        {
-            ok = 0;
-        }
-        else
-        {
-            for (size_t cell = 0u; cell < cells; cell += 1u)
-            {
-                seed[cell] = identity;
-            }
-            ok = ok && (cudaMemcpy(device_staging, seed, cells * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
-                        cudaSuccess);
-            platform_cell_released(seed, (unsigned int)platform_place_g_engine_owner);
-        }
-    }
-
-    ok = ok && (cudaMemcpy(device_corpus, corpus, corpus_len, cudaMemcpyHostToDevice) == cudaSuccess);
-    ok = ok && (cudaMemcpy(device_needle, needle, needle_len, cudaMemcpyHostToDevice) == cudaSuccess);
-    ok =
-        ok && (cudaMemcpy(device_occurrences, occurrences, sizeof(occurrences), cudaMemcpyHostToDevice) == cudaSuccess);
-    if ((ok != 0) && (probe_count > 0u))
-    {
-        ok = ok && (cudaMemcpy(device_probes, staged, probe_count * sizeof(DeviceProbe), cudaMemcpyHostToDevice) ==
-                    cudaSuccess);
-    }
-
+    // An empty cell is the identity for whichever reduction runs. The host marks which cells an arrival reached. Here
+    // the staging starts at the identity and the narrowing pass turns any untouched cell back into empty
+    const unsigned int identity = (config->reduce == ORIOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
+    TesseraJobCells list;
+    tessera_job_cells_begun(&list, RASTER_PLACE);
+    RasterCells taken;
+    int ok = raster_cells_taken(&list, cells, identity, corpus, corpus_len, needle, needle_len, staged, probe_count,
+                                occurrences, &taken);
     if (ok != 0)
     {
         const unsigned int threads = 256u;
         const unsigned int blocks = (unsigned int)((alignments + threads - 1u) / threads);
-        render_alignments<<<blocks, threads>>>(device_staging, plan, device_corpus, (unsigned long long)corpus_len,
-                                               device_needle, (unsigned long long)needle_len, device_probes,
-                                               (unsigned long long)probe_count, device_occurrences,
+        render_alignments<<<blocks, threads>>>(taken.staging, plan, taken.corpus, (unsigned long long)corpus_len,
+                                               taken.needle, (unsigned long long)needle_len, taken.probes,
+                                               (unsigned long long)probe_count, taken.occurrences,
                                                (unsigned long long)corpus_len);
-        ok = ok && (cudaDeviceSynchronize() == cudaSuccess);
+        ok = cudaDeviceSynchronize() == cudaSuccess;
     }
-
-    if (ok != 0)
-    {
-        unsigned int *result = (unsigned int *)platform_cell_taken((unsigned long long)(cells * sizeof(unsigned int)),
-                                                                   (unsigned int)platform_place_g_engine_owner, 0);
-        if (result == NULL)
-        {
-            ok = 0;
-        }
-        else
-        {
-            ok = ok && (cudaMemcpy(result, device_staging, cells * sizeof(unsigned int), cudaMemcpyDeviceToHost) ==
-                        cudaSuccess);
-            if (ok != 0)
-            {
-                const unsigned int identity = (config->reduce == ORIOR_REDUCE_MAX) ? 0u : 0xFFFFFFFFu;
-                for (size_t cell = 0u; cell < cells; cell += 1u)
-                {
-                    pixels[cell] = (result[cell] == identity) ? (uint8_t)ORIOR_RASTER_EMPTY : (uint8_t)result[cell];
-                }
-            }
-            platform_cell_released(result, (unsigned int)platform_place_g_engine_owner);
-        }
-    }
-
-    cudaFree(device_staging);
-    cudaFree(device_corpus);
-    cudaFree(device_needle);
-    cudaFree(device_occurrences);
-    cudaFree(device_probes);
+    ok = ok && raster_cells_narrowed(taken.staging, cells, identity, pixels);
+    tessera_job_cells_given(&list);
     return ok;
 }
