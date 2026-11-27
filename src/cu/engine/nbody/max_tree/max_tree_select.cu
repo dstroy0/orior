@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_select.cu: admission, gather, count and scatter
-#include "max_tree_device_internal.h"
 #include "../../../../platform/platform.h"
+#include "max_tree_device_internal.h"
 
 __global__ static void max_tree_select_kernel(const unsigned int *residual, unsigned int voxels, unsigned int *admits)
 {
@@ -101,37 +101,38 @@ extern "C" int max_tree_order_agrees(const unsigned int *residual, unsigned int 
     }
     const size_t voxels = (size_t)depth * height * width;
     const unsigned int selected_count = host.admitted;
-    unsigned int *device_residual = NULL;
-    unsigned int *device_admits = NULL;
-    unsigned int *device_offsets = NULL;
-    unsigned int *device_order = NULL;
-    unsigned int *device_sorted = NULL;
-    unsigned int *device_counts = NULL;
-    unsigned int *device_places = NULL;
     const unsigned int blocks = (unsigned int)((selected_count + MAX_TREE_BLOCK - 1u) / MAX_TREE_BLOCK);
     const unsigned int spread = (unsigned int)((voxels + MAX_TREE_BLOCK - 1u) / MAX_TREE_BLOCK);
-    int ok =
-        MAX_TREE_STATUS_CHECK(
-            cudaMalloc((void **)&device_residual, voxels * ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int)),
-            &device_residual, error) &&
-        MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&device_admits, voxels * sizeof(unsigned int)), &device_admits,
-                              error) &&
-        MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&device_offsets, voxels * sizeof(unsigned int)), &device_offsets,
-                              error) &&
-        MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&device_order, ((size_t)selected_count + 1u) * sizeof(unsigned int)),
-                              &device_order, error) &&
-        MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&device_sorted, ((size_t)selected_count + 1u) * sizeof(unsigned int)),
-                              &device_sorted, error) &&
-        MAX_TREE_STATUS_CHECK(
-            cudaMalloc((void **)&device_counts, (size_t)blocks * MAX_TREE_BUCKETS * sizeof(unsigned int)),
-            &device_counts, error) &&
-        MAX_TREE_STATUS_CHECK(
-            cudaMalloc((void **)&device_places, (size_t)blocks * MAX_TREE_BUCKETS * sizeof(unsigned int)),
-            &device_places, error);
-    ok = ok && MAX_TREE_STATUS_CHECK(cudaMemcpy(device_residual, residual,
-                                                voxels * ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int),
-                                                cudaMemcpyHostToDevice),
-                                     device_residual, error);
+    const unsigned long long lanes = (unsigned long long)voxels;
+    const unsigned long long bucket_bytes = (unsigned long long)blocks * MAX_TREE_BUCKETS * sizeof(unsigned int);
+    // The residual crosses in, and the scratch of the check is temporary cells of the pool of the device, every byte 0
+    // at the take. The call gives them back last first before it returns
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, MAX_TREE_PLACE);
+    void *cell = NULL;
+    int ok = MAX_TREE_CHECK(
+        tessera_job_cells_in(&cells, residual, lanes * ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int), &cell), residual,
+        error, ENGINE_ERROR_RESOURCE);
+    // Explicit casts read each cell as the words that it holds
+    const unsigned int *const device_residual = (const unsigned int *)cell;
+    void *room[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
+    const unsigned long long bytes[6] = {lanes * sizeof(unsigned int),
+                                         lanes * sizeof(unsigned int),
+                                         ((unsigned long long)selected_count + 1ULL) * sizeof(unsigned int),
+                                         ((unsigned long long)selected_count + 1ULL) * sizeof(unsigned int),
+                                         bucket_bytes,
+                                         bucket_bytes};
+    for (unsigned int at = 0u; (ok != 0) && (at < 6u); at += 1u)
+    {
+        ok = MAX_TREE_CHECK(tessera_job_cells_room(&cells, bytes[at], &room[at]), residual, error,
+                            ENGINE_ERROR_RESOURCE);
+    }
+    unsigned int *const device_admits = (unsigned int *)room[0];
+    unsigned int *const device_offsets = (unsigned int *)room[1];
+    unsigned int *device_order = (unsigned int *)room[2];
+    unsigned int *device_sorted = (unsigned int *)room[3];
+    unsigned int *const device_counts = (unsigned int *)room[4];
+    unsigned int *const device_places = (unsigned int *)room[5];
     if (ok != 0)
     {
         max_tree_select_kernel<<<spread, MAX_TREE_BLOCK>>>(device_residual, (unsigned int)voxels, device_admits);
@@ -143,9 +144,8 @@ extern "C" int max_tree_order_agrees(const unsigned int *residual, unsigned int 
         (unsigned long long)(voxels * sizeof(unsigned int)), (unsigned int)platform_place_g_engine_owner, 0);
     ok = ok && MAX_TREE_CHECK(admits != NULL, &admits, error, ENGINE_ERROR_RESOURCE) &&
          MAX_TREE_CHECK(offsets != NULL, &offsets, error, ENGINE_ERROR_RESOURCE);
-    ok = ok &&
-         MAX_TREE_STATUS_CHECK(cudaMemcpy(admits, device_admits, voxels * sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                               admits, error);
+    ok = ok && MAX_TREE_CHECK(tessera_job_crossed_out(admits, device_admits, lanes * sizeof(unsigned int)), admits,
+                              error, ENGINE_ERROR_RESOURCE);
     unsigned int running = 0u;
     for (size_t voxel = 0u; (ok != 0) && (voxel < voxels); voxel += 1u)
     {
@@ -153,9 +153,8 @@ extern "C" int max_tree_order_agrees(const unsigned int *residual, unsigned int 
         running += admits[voxel];
     }
     ok = ok && MAX_TREE_CHECK(running == selected_count, admits, error, ENGINE_ERROR_LOGIC);
-    ok = ok && MAX_TREE_STATUS_CHECK(
-                   cudaMemcpy(device_offsets, offsets, voxels * sizeof(unsigned int), cudaMemcpyHostToDevice),
-                   device_offsets, error);
+    ok = ok && MAX_TREE_CHECK(tessera_job_crossed_into(device_offsets, offsets, lanes * sizeof(unsigned int)),
+                              device_offsets, error, ENGINE_ERROR_RESOURCE);
     if (ok != 0)
     {
         max_tree_gather_kernel<<<spread, MAX_TREE_BLOCK>>>(device_admits, device_offsets, (unsigned int)voxels,
@@ -171,10 +170,8 @@ extern "C" int max_tree_order_agrees(const unsigned int *residual, unsigned int 
         max_tree_count_kernel<<<blocks, MAX_TREE_BLOCK>>>(device_residual, device_order, selected_count, at,
                                                           device_counts);
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), device_counts, error);
-        ok = ok && MAX_TREE_STATUS_CHECK(cudaMemcpy(counts, device_counts,
-                                                    (size_t)blocks * MAX_TREE_BUCKETS * sizeof(unsigned int),
-                                                    cudaMemcpyDeviceToHost),
-                                         counts, error);
+        ok = ok && MAX_TREE_CHECK(tessera_job_crossed_out(counts, device_counts, bucket_bytes), counts, error,
+                                  ENGINE_ERROR_RESOURCE);
         unsigned int place = 0u;
         for (unsigned int bucket = 0u; (ok != 0) && (bucket < MAX_TREE_BUCKETS); bucket += 1u)
         {
@@ -187,10 +184,8 @@ extern "C" int max_tree_order_agrees(const unsigned int *residual, unsigned int 
             }
         }
         ok = ok && MAX_TREE_CHECK(place == selected_count, counts, error, ENGINE_ERROR_LOGIC);
-        ok = ok && MAX_TREE_STATUS_CHECK(cudaMemcpy(device_places, counts,
-                                                    (size_t)blocks * MAX_TREE_BUCKETS * sizeof(unsigned int),
-                                                    cudaMemcpyHostToDevice),
-                                         device_places, error);
+        ok = ok && MAX_TREE_CHECK(tessera_job_crossed_into(device_places, counts, bucket_bytes), device_places, error,
+                                  ENGINE_ERROR_RESOURCE);
         if (ok != 0)
         {
             const unsigned int walkers = (unsigned int)((blocks + MAX_TREE_BLOCK - 1u) / MAX_TREE_BLOCK);
@@ -206,9 +201,9 @@ extern "C" int max_tree_order_agrees(const unsigned int *residual, unsigned int 
         (unsigned int *)platform_cell_taken((unsigned long long)(((size_t)selected_count + 1u) * sizeof(unsigned int)),
                                             (unsigned int)platform_place_g_engine_owner, 0);
     ok = ok && MAX_TREE_CHECK(theirs != NULL, &theirs, error, ENGINE_ERROR_RESOURCE);
-    ok = ok && MAX_TREE_STATUS_CHECK(cudaMemcpy(theirs, device_order, (size_t)selected_count * sizeof(unsigned int),
-                                                cudaMemcpyDeviceToHost),
-                                     theirs, error);
+    ok = ok && MAX_TREE_CHECK(tessera_job_crossed_out(theirs, device_order,
+                                                      (unsigned long long)selected_count * sizeof(unsigned int)),
+                              theirs, error, ENGINE_ERROR_RESOURCE);
     int agrees = ok;
     for (unsigned int at = 0u; (agrees != 0) && (at < selected_count); at += 1u)
     {
@@ -218,13 +213,7 @@ extern "C" int max_tree_order_agrees(const unsigned int *residual, unsigned int 
     platform_cell_released(offsets, (unsigned int)platform_place_g_engine_owner);
     platform_cell_released(counts, (unsigned int)platform_place_g_engine_owner);
     platform_cell_released(theirs, (unsigned int)platform_place_g_engine_owner);
-    cudaFree(device_residual);
-    cudaFree(device_admits);
-    cudaFree(device_offsets);
-    cudaFree(device_order);
-    cudaFree(device_sorted);
-    cudaFree(device_counts);
-    cudaFree(device_places);
+    tessera_job_cells_given(&cells);
     max_tree_release(&host);
     return agrees;
 }

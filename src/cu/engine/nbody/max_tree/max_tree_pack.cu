@@ -134,10 +134,12 @@ extern "C" long max_tree_pack(const MaxTreePackRequest *request)
         return MAX_TREE_ERROR;
     }
     const unsigned int bodies = (unsigned int)resident->last_bodies;
-    unsigned long long *device_lost = NULL;
-    int ok =
-        MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&device_lost, sizeof(unsigned long long)), &device_lost, error) &&
-        MAX_TREE_STATUS_CHECK(cudaMemset(device_lost, 0, sizeof(unsigned long long)), device_lost, error);
+    // the count of the fields that the pack loses, a temporary cell of the pool of the device, 0 at the take
+    void *cell = NULL;
+    int ok = MAX_TREE_CHECK(tessera_job_cell_taken(sizeof(unsigned long long), MAX_TREE_PLACE, &cell), request, error,
+                            ENGINE_ERROR_RESOURCE);
+    // Explicit cast reads the cell as the count that it holds
+    unsigned long long *const device_lost = (unsigned long long *)cell;
     if ((ok != 0) && (bodies != 0u))
     {
         max_tree_pack_bodies_kernel<<<(bodies + MAX_TREE_BLOCK - 1u) / MAX_TREE_BLOCK, MAX_TREE_BLOCK>>>(
@@ -146,9 +148,9 @@ extern "C" long max_tree_pack(const MaxTreePackRequest *request)
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), request->device_magnitudes, error);
     }
     unsigned long long lost = 0ULL;
-    ok = ok && MAX_TREE_STATUS_CHECK(cudaMemcpy(&lost, device_lost, sizeof(unsigned long long), cudaMemcpyDeviceToHost),
-                                     device_lost, error);
-    cudaFree(device_lost);
+    ok = ok && MAX_TREE_CHECK(tessera_job_crossed_out(&lost, device_lost, sizeof(unsigned long long)), device_lost,
+                              error, ENGINE_ERROR_RESOURCE);
+    tessera_job_given(cell, MAX_TREE_PLACE);
     *request->mismatches = lost;
     ok = ok && MAX_TREE_CHECK(lost == 0ULL, request->device_magnitudes, error, ENGINE_ERROR_LOGIC);
     return (ok != 0) ? (long)bodies : MAX_TREE_ERROR;
