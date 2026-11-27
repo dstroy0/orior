@@ -1036,6 +1036,18 @@
         "src/cu/engine/runtime/daemon"
       ]
     },
+    "shift_agreement_paths": {
+      "desc": "The path of the shift agreement on the device, with the engine linked into the program. Seeded pairs of bit volumes of one, two and three axes, each later volume the earlier shifted with some bits flipped, run through shift_agreement_run and shift_agreement_host. One pair starts from the later volume of the one before, so the device takes its kept transform. The lag, the padding, the agreement and the counts of the device equal those of the host, the lag is the shift of each case, and the answers equal the signum of the device path.",
+      "script": "utils/test/src/cu/engine/analysis/shift_agreement/shift_agreement_paths_test.sh",
+      "src": [
+        "+<cu/engine/analysis/shift_agreement/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/analysis/shift_agreement"
+      ]
+    },
     "entropy_history_paths": {
       "desc": "The path of the entropy history on the device, with the engine linked into the program. A seeded volume of flipping bits projects through entropy_history_project. The parity of each voxel holds, the history and the cloud equal the counts of the host flip by flip, and both equal the signum of the device path.",
       "script": "utils/test/src/cu/engine/analysis/entropy_history/entropy_history_paths_test.sh",
