@@ -111,8 +111,8 @@ static void report_attributes(const TestReportsCtx *args)
     const unsigned long long capacity = (length < CLI_REPORT_VALUES) ? (length + 1ULL) : CLI_REPORT_VALUES;
     if (args->tag->capacity < capacity)
     {
-        g_cli_guard->persistent_buf_release(args->tag->values, g_cli_test_report_owner);
-        args->tag->values = g_cli_guard->temporary_buf_alloc(capacity, g_cli_test_report_owner);
+        g_platform_guard->persistent_buf_release(args->tag->values, g_cli_test_report_owner);
+        args->tag->values = g_platform_guard->temporary_buf_alloc(capacity, g_cli_test_report_owner);
         args->tag->capacity = (args->tag->values != NULL) ? capacity : 0ULL;
     }
     if (args->tag->values == NULL)
@@ -392,7 +392,7 @@ EMBED_INLINE void report_outcome_emit(const TestReportsCtx *args)
     // the text read takes no more bytes than it is written in, an entity read to one character
     const unsigned long long text_capacity =
         ((text_end - text_start) < CLI_REPORT_TEXT) ? ((text_end - text_start) + 1ULL) : CLI_REPORT_TEXT;
-    char *const text_cell = g_cli_guard->temporary_buf_alloc(text_capacity, g_cli_test_report_owner);
+    char *const text_cell = g_platform_guard->temporary_buf_alloc(text_capacity, g_cli_test_report_owner);
     char refused[1] = {'\0'};
     VerbaLinea text = (text_cell != NULL) ? (VerbaLinea){text_cell, text_capacity, 0ULL}
                                           : (VerbaLinea){refused, sizeof(refused), 0ULL};
@@ -418,7 +418,7 @@ EMBED_INLINE void report_outcome_emit(const TestReportsCtx *args)
                .message_size =
                    supplied ? cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_POOL_BYTES}) : found_size,
                .file = args->required, .line_i64 = line, .seconds = args->seconds);
-    g_cli_guard->persistent_buf_release(text_cell, g_cli_test_report_owner);
+    g_platform_guard->persistent_buf_release(text_cell, g_cli_test_report_owner);
 }
 
 // one test case of the report reported: its outcome, the message and line of a failure, an error or a skip, and how
@@ -510,8 +510,8 @@ void cli_test_report_emit(const CliTestRunsWorkerCtx *args)
                    .body = at + body, .body_size = close - body);
         rest = start + ((close < length) ? close : length);
     }
-    g_cli_guard->persistent_buf_release(s_case.values, g_cli_test_report_owner);
-    g_cli_guard->persistent_buf_release(s_tag.values, g_cli_test_report_owner);
+    g_platform_guard->persistent_buf_release(s_case.values, g_cli_test_report_owner);
+    g_platform_guard->persistent_buf_release(s_tag.values, g_cli_test_report_owner);
     s_case = (CliReportTag){0};
     s_tag = (CliReportTag){0};
 }

@@ -4,8 +4,8 @@
 // each text typed first, and what this does not take goes to the view's own keys: in insert mode every key but Escape
 // and Ctrl+[, in the other modes every key pressed with Ctrl that Vim has no use for. Normal mode takes a count before
 // a command, and "x before it for the register x; the register " takes every yank and delete, and 0 the last yank.
-// The motions: h j k l and the arrows, w b e and W B E, 0 ^ $, gg and G, f F t T to a character on the line and ; , to go
-// to it again, % to the bracket that pairs with the next on the line, { } to the empty line before or after, n N to
+// The motions: h j k l and the arrows, w b e and W B E, 0 ^ $, gg and G, f F t T to a character on the line and ; , to
+// go to it again, % to the bracket that pairs with the next on the line, { } to the empty line before or after, n N to
 // the next or the last place searched for, and Ctrl+D Ctrl+U by half the view's rows. The operators d c y > < act on a
 // motion, on a text object (iw aw iW aW, and i or a before one of " ' ` ( ) b [ ] { } B < >) or, doubled, on whole
 // lines. Then x X D C Y s S J ~ r, p P, u and Ctrl+R, i a I A o O, v V, / ? * #, and ., which does the last change

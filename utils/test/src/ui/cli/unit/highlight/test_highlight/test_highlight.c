@@ -183,7 +183,7 @@ static void aside_run(void *context)
 // that work, five seconds at max, before it goes on. It records each line after that alone
 static void leaves_waiting(const CliLeavesEachCfg *args)
 {
-    static CliThread s_thread = {aside_run, NULL, CLI_PRIORITY_WORK};
+    static CliThread s_thread = {aside_run, NULL, PLATFORM_PRIORITY_WORK};
     leaves_recorded(args);
     const int first = s_aside_ended == 0;
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;

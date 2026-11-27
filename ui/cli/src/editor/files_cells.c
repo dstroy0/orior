@@ -17,7 +17,7 @@ void cli_files_cells_usage_write(const CliFilesRootOutDirCfg *args)
 
 void *cli_files_work_alloc(const CliFilesBytesCtx *args)
 {
-    return g_cli_guard->temporary_buf_alloc(args->bytes, g_cli_files_views_owner);
+    return g_platform_guard->temporary_buf_alloc(args->bytes, g_cli_files_views_owner);
 }
 
 const char *cli_files_at(const CliFilesCfg *args)
@@ -123,7 +123,7 @@ int cli_files_sort(const CliFilesBytesCtx *args)
         return 0;
     }
     EMBED_CALL(files_merge, FilesCellsCtx, .files = args->files, .reserve = reserve);
-    g_cli_guard->persistent_buf_release(reserve, g_cli_files_views_owner);
+    g_platform_guard->persistent_buf_release(reserve, g_cli_files_views_owner);
     // each path listed once
     unsigned int sorted_count = 0u;
     for (unsigned int at = 0u; at < args->files->count; at += 1u)
@@ -144,8 +144,8 @@ int cli_files_sort(const CliFilesBytesCtx *args)
 void cli_files_clear(const CliFilesBytesCtx *args)
 {
     CliFiles *files = args->files;
-    g_cli_guard->persistent_buf_release(files->start, g_cli_files_views_owner);
-    g_cli_guard->persistent_buf_release(files->text, g_cli_files_views_owner);
+    g_platform_guard->persistent_buf_release(files->start, g_cli_files_views_owner);
+    g_platform_guard->persistent_buf_release(files->text, g_cli_files_views_owner);
     *files = (CliFiles){NULL, 0u, 0u, NULL, 0ULL, 0ULL};
 }
 
@@ -203,7 +203,7 @@ int cli_files_pick(const CliFilesPickedCtx *args)
     const int sorted = EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = files);
     const int put = sorted && EMBED_CALL(cli_files_picked_internal.picked_put, CliFilesPickedCtx, .picked = picked,
                                          .files_read = files);
-    g_cli_guard->persistent_buf_release(files, g_cli_files_views_owner);
+    g_platform_guard->persistent_buf_release(files, g_cli_files_views_owner);
     return put;
 }
 
@@ -213,17 +213,17 @@ int cli_files_picked_put(const CliFilesPickedCtx *args)
     *args->picked = (CliPicked){NULL, 0u, 0ULL};
     const unsigned long long starts_bytes = (unsigned long long)files->count * sizeof(unsigned int);
     const CarcerMovableEntry *const cell =
-        g_cli_guard->movable_buf_alloc(starts_bytes + files->used + 1ULL, g_cli_files_views_owner);
+        g_platform_guard->movable_buf_alloc(starts_bytes + files->used + 1ULL, g_cli_files_views_owner);
     if (cell == NULL)
     {
         return 0;
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = files->start, .bytes = starts_bytes});
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = starts_bytes, .src = files->text, .bytes = files->used});
     const char zero = '\0';
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = starts_bytes + files->used, .src = &zero, .bytes = 1ULL});
     *args->picked = (CliPicked){cell, files->count, starts_bytes};
     return 1;
@@ -251,14 +251,15 @@ const char *cli_picked_at(const CliFilesPickedIndexCtx *args)
         return out;
     }
     unsigned int start = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = picked->cell,
-                                                            .offset = (unsigned long long)args->index * sizeof(start),
-                                                            .dst = &start,
-                                                            .bytes = sizeof(start)});
-    const unsigned long long length =
-        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = picked->cell, .offset = picked->text_at + start});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = picked->cell,
+                            .offset = (unsigned long long)args->index * sizeof(start),
+                            .dst = &start,
+                            .bytes = sizeof(start)});
+    const unsigned long long length = g_platform_guard->movable_buf_measure(
+        &(CarcerMovableCfg){.cell = picked->cell, .offset = picked->text_at + start});
     const unsigned long long bytes = (length < CLI_PATH_MAX_LEN - 1ULL) ? length : CLI_PATH_MAX_LEN - 1ULL;
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = picked->cell, .offset = picked->text_at + start, .dst = out, .bytes = bytes});
     out[bytes] = '\0';
     return out;
@@ -275,14 +276,15 @@ unsigned int cli_picked_index(const CliFilesPickedIndexCtx *args)
     {
         const unsigned int middle = low + ((high - low) / 2u);
         unsigned int start = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = picked->cell,
-                                                                .offset = (unsigned long long)middle * sizeof(start),
-                                                                .dst = &start,
-                                                                .bytes = sizeof(start)});
-        const unsigned long long stored = g_cli_guard->movable_buf_measure(
+        (void)g_platform_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = picked->cell,
+                                .offset = (unsigned long long)middle * sizeof(start),
+                                .dst = &start,
+                                .bytes = sizeof(start)});
+        const unsigned long long stored = g_platform_guard->movable_buf_measure(
             &(CarcerMovableCfg){.cell = picked->cell, .offset = picked->text_at + start});
         const unsigned long long shared = (stored < length) ? stored : length;
-        embed_iword order = g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+        embed_iword order = g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){
             .cell = picked->cell, .offset = picked->text_at + start, .src = args->path, .bytes = shared});
         order = (order != 0) ? order : ((stored < length) ? -1 : ((stored > length) ? 1 : 0));
         if (order == 0)
@@ -300,7 +302,7 @@ void cli_picked_let(const CliFilesPickedCtx *args)
     CliPicked *picked = args->picked;
     if (picked->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(picked->cell, g_cli_files_views_owner);
+        (void)g_platform_guard->movable_buf_release(picked->cell, g_cli_files_views_owner);
     }
     *picked = (CliPicked){NULL, 0u, 0ULL};
 }

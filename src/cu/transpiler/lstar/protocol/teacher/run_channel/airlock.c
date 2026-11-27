@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // airlock.c: the airlock: the cross run over the list and passed or gated, the questions named and relisted, the check
 // traced, and a register refusal put again with the count raised
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "run_channel_internal.h"

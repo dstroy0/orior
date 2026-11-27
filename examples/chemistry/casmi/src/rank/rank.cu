@@ -21,7 +21,7 @@
 // validate reserves the cfg's query library and places each molecule's answer in its list. Test reads the test file
 // after the train file, ranks its molecules against every spectrum of the train file and writes their lists' SMILES
 
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "rank.h"
 #include "rank_internal.h"
 

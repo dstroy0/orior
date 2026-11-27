@@ -88,7 +88,7 @@ EMBED_INLINE void scan_tokens_append(const CargoScanCtx *args)
 
 void cli_cargo_tokens(const CliCargoTestsCtx *args)
 {
-    g_cli_guard->persistent_buf_release(g_cli_cargo_scan.tokens, g_cli_cargo_owner);
+    g_platform_guard->persistent_buf_release(g_cli_cargo_scan.tokens, g_cli_cargo_owner);
     g_cli_cargo_scan.tokens = NULL;
     g_cli_cargo_scan.token_capacity = 0ULL;
     g_cli_cargo_scan.token_count = 0u;
@@ -100,13 +100,13 @@ void cli_cargo_tokens(const CliCargoTestsCtx *args)
         EMBED_CALL(scan_tokens_append, CargoScanCtx, .read = &read);
         const unsigned long long counted = g_cli_cargo_scan.token_count;
         g_cli_cargo_scan.tokens =
-            (counted != 0ULL) ? g_cli_guard->temporary_buf_alloc(counted * sizeof(CliRustToken), g_cli_cargo_owner)
+            (counted != 0ULL) ? g_platform_guard->temporary_buf_alloc(counted * sizeof(CliRustToken), g_cli_cargo_owner)
                               : NULL;
         g_cli_cargo_scan.token_capacity = (g_cli_cargo_scan.tokens != NULL) ? counted : 0ULL;
         EMBED_CALL(scan_tokens_append, CargoScanCtx, .read = &read);
         g_cli_cargo_scan.token_count = (unsigned int)g_cli_cargo_scan.token_capacity;
     }
-    g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
+    g_platform_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
 }
 
 // the type of the token at `at`, CLI_RUST_NONE past the tokens
@@ -178,7 +178,7 @@ unsigned int cli_cargo_scan(const CliCargoTestsCtx *args)
     if (g_cli_cargo_scan.items == NULL)
     {
         const unsigned long long item_bytes = (unsigned long long)CLI_CARGO_FOUND * sizeof(CliRustItem);
-        char *const cell = g_cli_guard->temporary_buf_alloc(item_bytes + CLI_CARGO_TEXT, g_cli_cargo_owner);
+        char *const cell = g_platform_guard->temporary_buf_alloc(item_bytes + CLI_CARGO_TEXT, g_cli_cargo_owner);
         if (cell != NULL)
         {
             g_cli_cargo_scan.items = (CliRustItem *)(void *)cell;

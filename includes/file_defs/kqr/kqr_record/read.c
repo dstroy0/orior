@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // read.c: the record read: each line's type, a line read as a query, the text form read whole, the queries read once
 // each, the record read from its file, and the record viewed at a run's queries table
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "../../../parsers/line_read.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "kqr_internal.h"

@@ -3,7 +3,7 @@
 // encoding.c: the encoding read: bits read, signed values, the open bits, a form relocated and landed, a name within, a
 // holder named, the places an encoding matches, an encoding's form, an operand read, the encoding read, and the loop
 // walked
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sass_assemble_internal.h"

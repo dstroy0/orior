@@ -107,7 +107,7 @@ int main(void)
         {
             put(file, 0u, 1u);
         }
-        g_cli_guard->persistent_buf_release(icon.pixels, g_gui_raster_owner);
+        g_platform_guard->persistent_buf_release(icon.pixels, g_gui_raster_owner);
         icon.pixels = NULL;
         icon.width = 0u;
         icon.height = 0u;

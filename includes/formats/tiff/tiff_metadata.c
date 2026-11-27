@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tiff_metadata.c: rows, chains, ImageJ and OME metadata
 #include "../../../src/cu/engine/engine_note.h"
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

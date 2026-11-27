@@ -7,15 +7,15 @@ void cli_ipp_begin(const CliIppMessageCodeCfg *args)
 {
     unsigned int code = args->code;
     unsigned int request_id = args->request_id;
-    g_cli_guard->persistent_buf_release(args->message->group, g_cli_ipp_owner);
+    g_platform_guard->persistent_buf_release(args->message->group, g_cli_ipp_owner);
     *args->message = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
     args->message->code = code;
     args->message->request_id = request_id;
     const unsigned long long group_bytes = (unsigned long long)CLI_IPP_GROUPS * sizeof(CliIppGroup);
     const unsigned long long attribute_bytes = (unsigned long long)CLI_IPP_ATTRIBUTES * sizeof(CliIppAttribute);
     const unsigned long long value_bytes = (unsigned long long)CLI_IPP_VALUES * sizeof(CliIppValue);
-    char *const cell =
-        g_cli_guard->temporary_buf_alloc(group_bytes + attribute_bytes + value_bytes + CLI_IPP_BYTES, g_cli_ipp_owner);
+    char *const cell = g_platform_guard->temporary_buf_alloc(
+        group_bytes + attribute_bytes + value_bytes + CLI_IPP_BYTES, g_cli_ipp_owner);
     if (cell == NULL)
     {
         args->message->full = 1;

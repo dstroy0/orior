@@ -91,8 +91,8 @@ typedef struct
 // UTF-16 units, of byte `at`; and the byte line `line` starts at, the text's end past its last (builds_help.c)
 void cli_build_lines_get(const CliBuildsTextSizeCfg *args);
 // the lines of `size` bytes of `text` indexed whole, their starts in a cell counted to g_cli_build_owner sized to
-// them: the cell, given back with g_cli_guard->persistent_buf_release once the lines are done with, or NULL with no
-// line indexed where it is refused
+// them: the cell, given back with g_platform_guard->persistent_buf_release once the lines are done with, or NULL with
+// no line indexed where it is refused
 unsigned int *cli_build_lines_alloc(const CliBuildsTextSizeCfg *args);
 CliTextPosition cli_build_position(const CliBuildsLinesAtCfg *args);
 unsigned long long cli_build_line_start(const CliBuildsLineCfg *args);
@@ -185,8 +185,8 @@ typedef struct
     unsigned int count;
 } CliBuildAdjacent;
 
-// the fewest edits of one character that turn `a` into `b`; the nearest names begun for `name`; and a known name offered
-// to them
+// the fewest edits of one character that turn `a` into `b`; the nearest names begun for `name`; and a known name
+// offered to them
 unsigned long long cli_build_distance(const CliBuildsACfg *args);
 void cli_build_adjacent_begin(const CliBuildsSizeCfg *args);
 void cli_build_adjacent_offer(const CliBuildsSizeAdjacentCfg *args);

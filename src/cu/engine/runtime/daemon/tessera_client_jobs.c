@@ -1,9 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_client_jobs.c: self reports, submitting, waiting and releasing jobs
-#include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_operor.h"
+// the internal header comes first, since it sets the macros of the system before any header
 #include "tessera_client_internal.h"
+
+#include "../../../../../includes/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
 
 #if !defined(_WIN32)
 static int tessera_self_report(TesseraClient *client)

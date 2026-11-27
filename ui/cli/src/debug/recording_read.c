@@ -79,7 +79,7 @@ EMBED_INLINE void part_read(const RecordingReadCtx *args)
     memor.set(&(MemoriaCfg){.dst = args->dst, .val = 0, .bytes = (embed_word)args->bytes});
     if (g_cli_replay->recording.cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = g_cli_replay->recording.cell, .offset = args->offset, .dst = args->dst, .bytes = args->bytes});
     }
 }
@@ -149,10 +149,10 @@ const char *cli_recording_name(const CliRecordingAtFramesCtx *args)
     {
         return out;
     }
-    const unsigned long long length = g_cli_guard->movable_buf_measure(
+    const unsigned long long length = g_platform_guard->movable_buf_measure(
         &(CarcerMovableCfg){.cell = recording->cell, .offset = recording->names_at + args->at});
     const unsigned long long bytes = (length < args->name_capacity - 1ULL) ? length : args->name_capacity - 1ULL;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = recording->cell, .offset = recording->names_at + args->at, .dst = out, .bytes = bytes});
     out[bytes] = '\0';
     return out;
@@ -235,7 +235,7 @@ EMBED_INLINE int read_work_alloc(const RecordingReadCtx *args)
         ((unsigned long long)counts.threads * (sizeof(unsigned long long) + sizeof(unsigned int))) +
         ((unsigned long long)counts.raises * sizeof(CliRecordedRaise)) + args->size + 1ULL + (8ULL * 8ULL);
     // the tables last the read alone, which writes them into the recording's cell as it ends
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_debug_owner);
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(bytes, g_cli_debug_owner);
     if (cell == NULL)
     {
         return 0;
@@ -313,19 +313,20 @@ void cli_recording_record(const CliRecordingCtx *args)
         return;
     }
     // the line is zero-ended in the recording's cell, copied into a cell of this call for the tree's read
-    const unsigned long long length = g_cli_guard->movable_buf_measure(
+    const unsigned long long length = g_platform_guard->movable_buf_measure(
         &(CarcerMovableCfg){.cell = recording->cell, .offset = recording->text_at + args->at_u64});
-    char *const line =
-        (length <= CLI_RECORDING_LINE_TEXT) ? g_cli_guard->temporary_buf_alloc(length + 1ULL, g_cli_debug_owner) : NULL;
+    char *const line = (length <= CLI_RECORDING_LINE_TEXT)
+                           ? g_platform_guard->temporary_buf_alloc(length + 1ULL, g_cli_debug_owner)
+                           : NULL;
     if (line == NULL)
     {
         return;
     }
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = recording->cell, .offset = recording->text_at + args->at_u64, .dst = line, .bytes = length});
     line[length] = '\0';
     *args->record = EMBED_CALL(record_read, RecordingReadCtx, .json = json, .text = line, .size = length);
-    g_cli_guard->persistent_buf_release(line, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(line, g_cli_debug_owner);
 }
 
 // the whole number at place `at` of a record, 0 where it contains none
@@ -424,7 +425,7 @@ EMBED_INLINE void read_call(const RecordingReadCtx *args)
     if (!s_has_stack[thread])
     {
         // the stack lasts the read alone, which gives it back as it ends
-        s_stacks[thread] = g_cli_guard->temporary_buf_alloc(
+        s_stacks[thread] = g_platform_guard->temporary_buf_alloc(
             (unsigned long long)CLI_RECORDING_DEPTH * sizeof(unsigned int), g_cli_debug_owner);
         s_capacities[thread] = (s_stacks[thread] != NULL) ? CLI_RECORDING_DEPTH : 0u;
         s_has_stack[thread] = 1;
@@ -552,7 +553,7 @@ static void read_stacks_released(void)
 {
     for (unsigned int thread = 0u; thread < CLI_RECORDING_THREADS; thread += 1u)
     {
-        g_cli_guard->persistent_buf_release(s_stacks[thread], g_cli_debug_owner);
+        g_platform_guard->persistent_buf_release(s_stacks[thread], g_cli_debug_owner);
         s_stacks[thread] = NULL;
         s_capacities[thread] = 0u;
         s_depths[thread] = 0u;
@@ -563,8 +564,8 @@ static void read_stacks_released(void)
 // the read's cells given back
 static void read_work_released(const RecordingReadCtx *args)
 {
-    g_cli_guard->persistent_buf_release(args->work->cell, g_cli_debug_owner);
-    g_cli_guard->persistent_buf_release(args->work->text, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(args->work->cell, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(args->work->text, g_cli_debug_owner);
     memor.set(&(MemoriaCfg){.dst = args->work, .val = 0, .bytes = sizeof(*args->work)});
 }
 
@@ -581,7 +582,7 @@ void cli_recording_let_go(void)
     }
     if (recording->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(recording->cell, g_cli_debug_owner);
+        (void)g_platform_guard->movable_buf_release(recording->cell, g_cli_debug_owner);
     }
     memor.set(&(MemoriaCfg){.dst = recording, .val = 0, .bytes = sizeof(*recording)});
     recording->used = 1u;
@@ -667,14 +668,14 @@ EMBED_INLINE int read_stored(const RecordingReadCtx *args)
 {
     CliRecording *const recording = args->recording;
     const CarcerMovableEntry *const cell =
-        g_cli_guard->movable_buf_alloc(args->work->bytes + args->work->size + 1ULL, g_cli_debug_owner);
+        g_platform_guard->movable_buf_alloc(args->work->bytes + args->work->size + 1ULL, g_cli_debug_owner);
     if (cell == NULL)
     {
         return 0;
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = args->work->cell, .bytes = args->work->bytes});
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = cell, .offset = args->work->bytes, .src = args->work->text, .bytes = args->work->size + 1ULL});
     recording->cell = cell;
     recording->text_at = args->work->bytes;
@@ -698,13 +699,13 @@ void cli_recording_read(const CliRecordingPathCtx *args)
     // each is as one text in the recording's cell
     unsigned long long size = 0ULL;
     char *text = EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = args->path, .size_pointer = &size)
-                     ? g_cli_guard->temporary_buf_alloc(size + CLI_FILE_SLACK, g_cli_debug_owner)
+                     ? g_platform_guard->temporary_buf_alloc(size + CLI_FILE_SLACK, g_cli_debug_owner)
                      : NULL;
     if ((text != NULL) &&
         !EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = args->path, .from = 0ULL,
                     .bytes_bytes = (unsigned char *)text, .count_u64 = size, .got = &size))
     {
-        g_cli_guard->persistent_buf_release(text, g_cli_debug_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_debug_owner);
         text = NULL;
     }
     if (text == NULL)
@@ -734,7 +735,7 @@ void cli_recording_read(const CliRecordingPathCtx *args)
         {
             EMBED_CALL(read_store, RecordingReadCtx, .work = &work, .json = &json, .record = record, .at = at);
         }
-        g_cli_guard->persistent_buf_release(json.node, g_cli_debug_owner);
+        g_platform_guard->persistent_buf_release(json.node, g_cli_debug_owner);
         memor.set(&(MemoriaCfg){.dst = text + line.stop, .val = 0, .bytes = (embed_word)(line.next - line.stop)});
         at = line.next;
     }

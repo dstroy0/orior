@@ -342,7 +342,7 @@ void cli_validate_report(const CliValidateProjectCtx *args)
     report_barriers();
     // the axiom answers in a cell of the call, one at most for each of the last check's messages
     const unsigned long long counted = (g_cli_validate->last.count != 0u) ? g_cli_validate->last.count : 1u;
-    CliAxioms *const axioms = g_cli_guard->temporary_buf_alloc(counted * sizeof(CliAxioms), g_cli_plugins_owner);
+    CliAxioms *const axioms = g_platform_guard->temporary_buf_alloc(counted * sizeof(CliAxioms), g_cli_plugins_owner);
     if (axioms == NULL)
     {
         return;
@@ -355,18 +355,18 @@ void cli_validate_report(const CliValidateProjectCtx *args)
         EMBED_CALL(cli_validate_answers_internal.axioms_report, CliValidateAnswersCtx, .answers = answers,
                    .untrusted = &untrusted, .axioms = axioms);
     }
-    g_cli_guard->persistent_buf_release(axioms, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(axioms, g_cli_plugins_owner);
     // the findings as the sort merges them, in a cell of this call sized to their count
-    CliFinding *const sorting = (g_cli_validate->finding_count != 0u)
-                                    ? g_cli_guard->temporary_buf_alloc((unsigned long long)g_cli_validate->finding_count *
-                                                                           sizeof(CliFinding),
-                                                                       g_cli_plugins_owner)
-                                    : NULL;
+    CliFinding *const sorting =
+        (g_cli_validate->finding_count != 0u)
+            ? g_platform_guard->temporary_buf_alloc(
+                  (unsigned long long)g_cli_validate->finding_count * sizeof(CliFinding), g_cli_plugins_owner)
+            : NULL;
     if (sorting != NULL)
     {
         EMBED_CALL(report_sort, ValidateReportCtx, .from = 0u, .to = g_cli_validate->finding_count, .sorting = sorting);
     }
-    g_cli_guard->persistent_buf_release(sorting, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(sorting, g_cli_plugins_owner);
     unsigned long long math = 0ULL;
     unsigned long long blocked = 0ULL;
     unsigned long long gaps = 0ULL;

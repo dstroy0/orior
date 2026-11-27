@@ -79,7 +79,7 @@ void test_the_code_a_tree_runs_is_found_and_released(void)
     TEST_ASSERT_EQUAL_UINT(2u, code.count);
     TEST_ASSERT_EQUAL_STRING("build.rs", code.paths);
     TEST_ASSERT_EQUAL_STRING("prettier.config.js", code.paths + CLI_UNITY_LENGTH(code.paths) + 1u);
-    g_cli_guard->persistent_buf_release(code.paths, g_cli_trust_owner);
+    g_platform_guard->persistent_buf_release(code.paths, g_cli_trust_owner);
     *(&code) = (CliTrustCode){NULL, 0ULL, 0u};
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_cli_trust_owner));
 }
@@ -132,7 +132,7 @@ void test_a_trees_own_code_is_read_from_the_cache_and_prettier_is_blocked_where_
     CliTrustCode code = {NULL, 0ull, 0u};
     TEST_ASSERT_TRUE(EMBED_CALL(cli_trust_tree_code.own_code, CliTrustTreeCodeCfg, .tree = s_tree, .code = &code));
     TEST_ASSERT_EQUAL_UINT(2u, code.count);
-    g_cli_guard->persistent_buf_release(code.paths, g_cli_trust_owner);
+    g_platform_guard->persistent_buf_release(code.paths, g_cli_trust_owner);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_trust_tree_words.prettier_block, CliTrustTreeWordsCfg, .tree = s_tree));
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_trees, .relative = "plain", .joined = plain);
     TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = plain));

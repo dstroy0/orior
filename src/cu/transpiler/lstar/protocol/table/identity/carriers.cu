@@ -3,7 +3,7 @@
 // carriers.cu: the carriers of the pairs: their links, scratch and marks, and each pair's categories, lines beneath it
 // and verdict row
 #include "../../../../../../../includes/parsers/who.h"
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../table_text.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "identity_internal.h"

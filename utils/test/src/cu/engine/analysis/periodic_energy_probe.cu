@@ -29,7 +29,7 @@
 // that fails is a "results" line the test grades, as before the probe was a job.
 
 #include "../../../../../../src/cu/engine/runtime/device_pool/device_pool.h"
-#include "../../../../../../src/platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "periodic_energy.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"

@@ -10,7 +10,8 @@
 // the line written to the terminal
 static char s_line[1u << 16u];
 
-// What git's progress has written on the terminal's line: the characters of the line displayed last, and whether git wrote
+// What git's progress has written on the terminal's line: the characters of the line displayed last, and whether git
+// wrote
 typedef struct
 {
     unsigned long long displayed;

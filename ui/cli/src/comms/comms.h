@@ -48,17 +48,17 @@ int cli_comms_within(const CliCommsInnerCfg *args);
 
 // a part named `name` registered, granted the channels `listen`, `listens` of them, and `send_grant`, `send_grants` of
 // them, by the container, its key into `key`, sized for CLI_COMMS_KEY: given to the process `process` where
-// `has_process`, else one of the container's own, whose key the interface never takes; the same, its key taken by the interface
-// from any process that owns it, as the key is stored where only the reader can read it; and a part the part of
-// `parent` starts, granted channels of the parent's own alone. Each 1, or 0 with why given
+// `has_process`, else one of the container's own, whose key the interface never takes; the same, its key taken by the
+// interface from any process that owns it, as the key is stored where only the reader can read it; and a part the part
+// of `parent` starts, granted channels of the parent's own alone. Each 1, or 0 with why given
 int cli_comms_register(const CliCommsNameCfg *args);
 int cli_comms_register_persistent(const CliCommsNameCfg *args);
 int cli_comms_register_under(const CliCommsNameCfg *args);
 
-// whether the interface takes the key of `key`'s part from any process that owns it; the part of `key` given the process
-// `process`, once it has started; the part of `key` taken away, with every channel it listened on; the process it was
-// registered for into `process`, and its name into `name`, sized for CLI_NAME_MAX_LEN: each 1, or 0 where the key is
-// no part's or it was given none
+// whether the interface takes the key of `key`'s part from any process that owns it; the part of `key` given the
+// process `process`, once it has started; the part of `key` taken away, with every channel it listened on; the process
+// it was registered for into `process`, and its name into `name`, sized for CLI_NAME_MAX_LEN: each 1, or 0 where the
+// key is no part's or it was given none
 int cli_comms_is_persistent(const CliCommsProcessCfg *args);
 void cli_comms_bind(const CliCommsProcessCfg *args);
 void cli_comms_leave(const CliCommsProcessCfg *args);
@@ -197,8 +197,8 @@ typedef struct
 } CliCommsRow;
 
 // the pane begun, `woken` waking the view's thread as the Requests view's answer comes in; and while the pane is
-// `displayed`, the Channels view listed again where the layer's stamp moved or where `force`, and the view displayed stepped
-// on at `now_ms`: 1 where either changed what the pane draws
+// `displayed`, the Channels view listed again where the layer's stamp moved or where `force`, and the view displayed
+// stepped on at `now_ms`: 1 where either changed what the pane draws
 void cli_comms_pane_begin(const CliCommsPaneCfg *args);
 int cli_comms_pane_step(const CliCommsPaneCfg *args);
 // the millisecond the Channels view next looks at the layer while `displayed`, 0 for none
@@ -230,9 +230,9 @@ struct CliCommsPaneCfg
 
 // The Comms commands of the catalog run (comms_command.c): send-request, copy-as-curl and private-environment on the
 // request the displayed view's cursor is in, network, network-off, report, remote-rejoin and remote-copy-address. A
-// command that shows a view of the pane chooses it and answers 1 in `displayed_out`; one whose text goes to the system's
-// clipboard writes it into `clipboard`; one that opens a file writes its path in the tree into `open_out`. The run
-// answers 1 where `name` is one of them, else 0 and nothing written
+// command that shows a view of the pane chooses it and answers 1 in `displayed_out`; one whose text goes to the
+// system's clipboard writes it into `clipboard`; one that opens a file writes its path in the tree into `open_out`. The
+// run answers 1 where `name` is one of them, else 0 and nothing written
 int cli_comms_command_run(const CliCommsCommandCfg *args);
 
 // the layer's cells let go at the end: every part's grants, every channel's stored messages, the stored rings and the

@@ -108,7 +108,7 @@ EMBED_INLINE int query_list_carried(const CrossCtx *args)
     // the names a list writes, two of each line's words with a line ended after each, take less than the line, so a
     // cell of the list's size and the first name's line fits them
     static const char s_first[] = "questions.txt\n";
-    char *const names_text = g_cli_guard->persistent_buf_alloc(size + sizeof(s_first), g_query_owner);
+    char *const names_text = g_platform_guard->persistent_buf_alloc(size + sizeof(s_first), g_query_owner);
     int whole = names_text != NULL;
     if (whole)
     {
@@ -130,7 +130,7 @@ EMBED_INLINE int query_list_carried(const CrossCtx *args)
             mmgr_line_put_max(args->err_msg, carried + 2, transferred_line.at - 2u);
         }
     }
-    g_cli_guard->persistent_buf_release(names_text, g_query_owner);
+    g_platform_guard->persistent_buf_release(names_text, g_query_owner);
     return whole;
 }
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_sass_probe_check.c: one kernel's text found in what a toolchain printed, and every form of the machine
 // assembled again and read back, which shows whether a form carries what the part read from it (sass_machine.h)
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "interface_sass_probe.h"
 #include "memoria_operor/memoria_operor.h"

@@ -103,15 +103,15 @@ static void plugins_keep(const CliEachPluginCfg *args)
     if (kept->user)
     {
         // the reader's text goes into a cell of its own with its end, and the module does not read its file again
-        kept->text = g_cli_guard->movable_buf_alloc(args->plugin->size + 1ULL, g_cli_plugins_owner);
+        kept->text = g_platform_guard->movable_buf_alloc(args->plugin->size + 1ULL, g_cli_plugins_owner);
         if (kept->text == NULL)
         {
             return;
         }
         const char end = '\0';
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = kept->text, .offset = 0ULL, .src = args->plugin->text, .bytes = args->plugin->size});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = kept->text, .offset = args->plugin->size, .src = &end, .bytes = 1ULL});
     }
     char why[CLI_ERR_MSG_MAX_LEN];
@@ -128,7 +128,7 @@ static void plugins_keep(const CliEachPluginCfg *args)
     {
         kept->root = root;
     }
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     built->count += 1u;
 }
 
@@ -138,7 +138,7 @@ EMBED_INLINE void plugins_kept_release(PluginsKept *kept)
     cli_json_stored_release(&(CliJsonStoredCfg){.stored = &kept->tree});
     if (kept->text != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(kept->text, g_cli_plugins_owner);
+        (void)g_platform_guard->movable_buf_release(kept->text, g_cli_plugins_owner);
         kept->text = NULL;
     }
 }
@@ -149,8 +149,8 @@ static const CarcerMovableEntry *plugins_kept_build(void)
     PluginsBuilt built = {NULL, 0u, 0u};
     cli_plugins_files_each(&(CliPluginsEachCfg){.each = plugins_count, .context = &built});
     built.kept = (built.capacity != 0u)
-                     ? g_cli_guard->temporary_buf_alloc((unsigned long long)built.capacity * sizeof(PluginsKept),
-                                                        g_cli_plugins_owner)
+                     ? g_platform_guard->temporary_buf_alloc((unsigned long long)built.capacity * sizeof(PluginsKept),
+                                                             g_cli_plugins_owner)
                      : NULL;
     if ((built.kept == NULL) && (built.capacity != 0u))
     {
@@ -158,28 +158,28 @@ static const CarcerMovableEntry *plugins_kept_build(void)
     }
     cli_plugins_files_each(&(CliPluginsEachCfg){.each = plugins_keep, .context = &built});
     const CarcerMovableEntry *const table =
-        g_cli_guard->movable_buf_alloc(PLUGINS_KEPT_AT(built.count), g_cli_plugins_owner);
+        g_platform_guard->movable_buf_alloc(PLUGINS_KEPT_AT(built.count), g_cli_plugins_owner);
     if (table == NULL)
     {
         for (unsigned int at = 0u; at < built.count; at += 1u)
         {
             plugins_kept_release(&built.kept[at]);
         }
-        g_cli_guard->persistent_buf_release(built.kept, g_cli_plugins_owner);
+        g_platform_guard->persistent_buf_release(built.kept, g_cli_plugins_owner);
         return NULL;
     }
     const PluginsKeptHead head = {built.count};
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = table, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
     if (built.count != 0u)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = table,
                                 .offset = PLUGINS_KEPT_AT(0u),
                                 .src = built.kept,
                                 .bytes = (unsigned long long)built.count * sizeof(PluginsKept)});
     }
-    g_cli_guard->persistent_buf_release(built.kept, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(built.kept, g_cli_plugins_owner);
     return table;
 }
 
@@ -189,7 +189,7 @@ EMBED_INLINE unsigned int plugins_kept_count(const CarcerMovableEntry *table)
     PluginsKeptHead head = {0u};
     if (table != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = table, .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
     }
     return head.count;
@@ -202,7 +202,7 @@ EMBED_INLINE void plugins_table_release(const CarcerMovableEntry *table)
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         PluginsKept kept;
-        if (g_cli_guard->movable_buf_read(
+        if (g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = table, .offset = PLUGINS_KEPT_AT(at), .dst = &kept, .bytes = sizeof(kept)}))
         {
             plugins_kept_release(&kept);
@@ -210,7 +210,7 @@ EMBED_INLINE void plugins_table_release(const CarcerMovableEntry *table)
     }
     if (table != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(table, g_cli_plugins_owner);
+        (void)g_platform_guard->movable_buf_release(table, g_cli_plugins_owner);
     }
 }
 
@@ -234,7 +234,7 @@ EMBED_INLINE int plugins_kept_copy(const PluginsSettingsCtx *args)
 {
     PluginsKept *const kept = args->kept;
     if ((args->at >= plugins_kept_count(args->table)) ||
-        !g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        !g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = args->table, .offset = PLUGINS_KEPT_AT(args->at), .dst = kept, .bytes = sizeof(*kept)}))
     {
         return 0;
@@ -249,13 +249,13 @@ EMBED_INLINE int plugins_kept_copy(const PluginsSettingsCtx *args)
     *args->text_out = NULL;
     if (kept->user)
     {
-        *args->text_out = g_cli_guard->temporary_buf_alloc(kept->size + 1ULL, g_cli_plugins_owner);
+        *args->text_out = g_platform_guard->temporary_buf_alloc(kept->size + 1ULL, g_cli_plugins_owner);
         if ((*args->text_out == NULL) ||
-            !g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            !g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = kept->text, .offset = 0ULL, .dst = *args->text_out, .bytes = kept->size + 1ULL}))
         {
-            g_cli_guard->persistent_buf_release(*args->text_out, g_cli_plugins_owner);
-            g_cli_guard->persistent_buf_release(args->json->node, kept->tree.owner);
+            g_platform_guard->persistent_buf_release(*args->text_out, g_cli_plugins_owner);
+            g_platform_guard->persistent_buf_release(args->json->node, kept->tree.owner);
             return 0;
         }
     }
@@ -289,9 +289,9 @@ EMBED_INLINE int plugins_kept_pass(const PluginsSettingsCtx *args)
     args->each(&(CliEachPluginCfg){.context = args->context, .plugin = &plugin});
     if (kept.tree.cell != NULL)
     {
-        g_cli_guard->persistent_buf_release(json.node, kept.tree.owner);
+        g_platform_guard->persistent_buf_release(json.node, kept.tree.owner);
     }
-    g_cli_guard->persistent_buf_release(text, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_plugins_owner);
     return 1;
 }
 
@@ -312,7 +312,7 @@ EMBED_INLINE unsigned int plugins_kept_last(const PluginsSettingsCtx *args)
     unsigned int found = count;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+        if (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){
                 .cell = args->table, .offset = PLUGINS_KEPT_AT(at), .src = args->id, .bytes = bytes}) == 0)
         {
             found = at;
@@ -406,7 +406,7 @@ EMBED_INLINE int plugins_setting_put(const CliPluginsSettingSetCfg *args)
     {
         return 0;
     }
-    g_cli_guard->persistent_buf_release(text, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_plugins_owner);
     if (kept.tree.cell == NULL)
     {
         return 0;
@@ -423,7 +423,7 @@ EMBED_INLINE int plugins_setting_put(const CliPluginsSettingSetCfg *args)
     const unsigned int root = put ? EMBED_CALL(cli_json_tree_node.json_copy_from, CliJsonTreeNodeCfg, .node = kept.root,
                                                .to = &to, .from = &from)
                                   : CLI_JSON_NONE;
-    g_cli_guard->persistent_buf_release(from.node, kept.tree.owner);
+    g_platform_guard->persistent_buf_release(from.node, kept.tree.owner);
     const unsigned int object = (root != CLI_JSON_NONE)
                                     ? EMBED_CALL(cli_plugins_setting_table.setting, CliPluginsSettingCfg, .json = &to,
                                                  .node = root, .key = args->object)
@@ -446,10 +446,10 @@ EMBED_INLINE int plugins_setting_put(const CliPluginsSettingSetCfg *args)
     {
         // the new tree's cell and root go into the table in place of the kept ones
         kept.root = root;
-        put = g_cli_guard->movable_buf_write(
+        put = g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = table, .offset = PLUGINS_KEPT_AT(at), .src = &kept, .bytes = sizeof(kept)});
     }
-    g_cli_guard->persistent_buf_release(to.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), to.node));
+    g_platform_guard->persistent_buf_release(to.node, mmgr_owner_of_buf(platform_pool_series(), to.node));
     return put;
 }
 

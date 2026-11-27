@@ -7,7 +7,7 @@
 #define WRITINGS_INTERNAL_H
 
 #include "../../../../../engine/rmc/word_web.h"
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../../../../../../includes/file_defs/kdm/kdm.h"
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../lstar/protocol/counterexample/ladder.h"

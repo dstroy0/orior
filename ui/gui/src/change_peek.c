@@ -341,18 +341,18 @@ typedef struct
 static void peek_revert_applied(const CliChangeRevertCfg *each)
 {
     PeekRevertCtx *const revert = each->context;
-    char *const text = g_cli_guard->temporary_buf_alloc(each->length + 1ULL, g_cli_view_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(each->length + 1ULL, g_cli_view_owner);
     if (text == NULL)
     {
         mmgr_line_put(revert->err_msg, "the revert's text could not be read");
         return;
     }
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = each->cell, .offset = 0ULL, .dst = text, .bytes = each->length + 1ULL});
     const CliEdit edit = {each->from, each->to, text, each->length};
     revert->applied = EMBED_CALL(cli_view_edits.apply, CliViewEditsCfg, .key = revert->key, .edit = &edit, .count = 1u,
                                  .err_msg = revert->err_msg);
-    g_cli_guard->persistent_buf_release(text, g_cli_view_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_view_owner);
 }
 
 int gui_change_peek_revert(const GuiChangePeekCfg *args)

@@ -110,9 +110,9 @@ EMBED_INLINE void walked_from(const FilesSeenCtx *args)
         walk.folder = folder;
         EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = walk_each,
                    .context_bytess = &walk);
-        g_cli_guard->persistent_buf_release(folder, g_cli_files_views_owner);
+        g_platform_guard->persistent_buf_release(folder, g_cli_files_views_owner);
     }
-    g_cli_guard->persistent_buf_release(walk.pending, g_cli_files_views_owner);
+    g_platform_guard->persistent_buf_release(walk.pending, g_cli_files_views_owner);
 }
 
 void cli_files_walk(const CliFilesRootEachContextCfg *args)
@@ -287,7 +287,7 @@ void cli_files_ignored_read(const CliFilesRootPathsCfg *args)
         }
     }
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
-    g_cli_guard->persistent_buf_release(input, g_cli_files_views_owner);
+    g_platform_guard->persistent_buf_release(input, g_cli_files_views_owner);
 }
 
 const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args)
@@ -321,7 +321,7 @@ const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args)
 void cli_files_let(const CliFilesCfg *args)
 {
     // the release gives the cell back as the view took it, and const is the reader's view of it
-    g_cli_guard->persistent_buf_release(((void *)(embed_word)args->files), g_cli_files_views_owner);
+    g_platform_guard->persistent_buf_release(((void *)(embed_word)args->files), g_cli_files_views_owner);
 }
 
 // Where the name of the file at `path`, `length` bytes, starts in it. The bytes of its ending from its last dot go
@@ -436,6 +436,6 @@ void cli_files_warm(const CliFilesRootPathsCfg *args)
     memor.cpy(&(MemoriaCfg){.dst = s_root,
                             .src = args->root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
-    s_warmer = (CliThread){seen_warm, s_root, CLI_PRIORITY_IDLE};
+    s_warmer = (CliThread){seen_warm, s_root, PLATFORM_PRIORITY_IDLE};
     EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_warmer);
 }

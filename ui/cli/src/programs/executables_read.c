@@ -73,12 +73,12 @@ char *cli_text_alloc(const CliExecutablesWalkCtx *args)
     unsigned long long size = 0ULL;
     char *const text =
         EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = args->path, .size_pointer = &size)
-            ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_executables_owner)
+            ? g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_executables_owner)
             : NULL;
     if ((text != NULL) && !EMBED_CALL(cli_executables_capacity_internal.text_read, CliExecutablesCapacityCtx,
                                       .path = args->path, .bytes = text, .capacity = size + 1ULL))
     {
-        g_cli_guard->persistent_buf_release(text, g_cli_executables_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_executables_owner);
         return NULL;
     }
     return text;
@@ -88,7 +88,7 @@ void cli_executables_walk_alloc(const CliExecutablesWalkCtx *args)
 {
     CliWalk *walk = args->walk;
     const unsigned long long paths = (unsigned long long)CLI_EXECUTABLES_PENDING + CLI_EXECUTABLES_SCRIPTS;
-    char (*const cell)[CLI_PATH_MAX_LEN] = g_cli_guard->temporary_buf_alloc(
+    char (*const cell)[CLI_PATH_MAX_LEN] = g_platform_guard->temporary_buf_alloc(
         (paths * CLI_PATH_MAX_LEN) + ((unsigned long long)CLI_EXECUTABLES_PENDING * sizeof(unsigned int)),
         g_cli_executables_owner);
     *walk = (CliWalk){NULL, NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, 0};
@@ -297,7 +297,7 @@ static void cli_projects(const ExecutablesReadCtx *args)
                                                          CliExecutablesTextOutCtx, .text = top_text, .out = project)
                                             : EMBED_CALL(cli_executables_text_out_internal.meson_project,
                                                          CliExecutablesTextOutCtx, .text = top_text, .out = project));
-        g_cli_guard->persistent_buf_release(top_text, g_cli_executables_owner);
+        g_platform_guard->persistent_buf_release(top_text, g_cli_executables_owner);
         if (!named)
         {
             continue;
@@ -331,7 +331,7 @@ static void cli_projects(const ExecutablesReadCtx *args)
                 EMBED_CALL(cli_executables_names_internal.meson_targets, CliExecutablesNamesCtx, .text = text,
                            .names = &s_scripts->names);
             }
-            g_cli_guard->persistent_buf_release(reserved, g_cli_executables_owner);
+            g_platform_guard->persistent_buf_release(reserved, g_cli_executables_owner);
             for (unsigned int at = 0u; at < s_scripts->names.count; at += 1u)
             {
                 EMBED_CALL(cli_executables_name_names_internal.names_append, CliExecutablesNameNamesCtx,
@@ -450,7 +450,7 @@ EMBED_INLINE void cli_script_text_read(const ExecutablesReadCtx *args)
             char *const bin = EMBED_CALL(cli_executables_walk_internal.text_alloc, CliExecutablesWalkCtx, .path = path);
             EMBED_CALL(cli_executables_folder_internal.npm_builders, CliExecutablesFolderCtx, .folder = folder,
                        .script = (bin != NULL) ? bin : "", .one = one);
-            g_cli_guard->persistent_buf_release(bin, g_cli_executables_owner);
+            g_platform_guard->persistent_buf_release(bin, g_cli_executables_owner);
         }
     }
 }
@@ -466,18 +466,18 @@ EMBED_INLINE void cli_script_read(const ExecutablesReadCtx *args)
         EMBED_CALL(cli_script_text_read, ExecutablesReadCtx, .root = args->root, .script = args->script, .text = text,
                    .type = args->type, .found = args->found);
     }
-    g_cli_guard->persistent_buf_release(text, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_executables_owner);
 }
 
 void cli_executables_read(const CliExecutablesFoundCtx *args)
 {
-    g_cli_guard->persistent_buf_release(args->found->item, g_cli_executables_owner);
-    g_cli_guard->persistent_buf_release(args->found->order, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(args->found->item, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(args->found->order, g_cli_executables_owner);
     *args->found = (CliExecutables){NULL, 0u, 0u, NULL};
-    args->found->item = g_cli_guard->temporary_buf_alloc(
+    args->found->item = g_platform_guard->temporary_buf_alloc(
         (unsigned long long)CLI_EXECUTABLES_MAX * sizeof(*args->found->item), g_cli_executables_owner);
     args->found->capacity = (args->found->item != NULL) ? CLI_EXECUTABLES_MAX : 0u;
-    s_scripts = g_cli_guard->temporary_buf_alloc(sizeof(*s_scripts), g_cli_executables_owner);
+    s_scripts = g_platform_guard->temporary_buf_alloc(sizeof(*s_scripts), g_cli_executables_owner);
     if (s_scripts == NULL)
     {
         return;
@@ -502,9 +502,9 @@ void cli_executables_read(const CliExecutablesFoundCtx *args)
                        .found = args->found);
         }
     }
-    g_cli_guard->persistent_buf_release(walk->pending, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(walk->pending, g_cli_executables_owner);
     *walk = (CliWalk){NULL, NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, 0};
-    g_cli_guard->persistent_buf_release(s_scripts, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(s_scripts, g_cli_executables_owner);
     s_scripts = NULL;
     cli_executables_found_internal.order(args);
 }

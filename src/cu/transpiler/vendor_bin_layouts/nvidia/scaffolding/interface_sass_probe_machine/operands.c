@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // operands.c: the operands: the machine's listing, the same operation root, an operand dropped, changed, twinned or
 // gained, a form turned, and a form unprinted
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "probe_machine_internal.h"

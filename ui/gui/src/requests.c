@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// requests.c: the Requests view of the Comms pane: its head's choices and its rows as the CLI positions them, each drawn
-// from the CLI's texts and numbers, and its presses passed to the CLI
+// requests.c: the Requests view of the Comms pane: its head's choices and its rows as the CLI positions them, each
+// drawn from the CLI's texts and numbers, and its presses passed to the CLI
 #include "requests.h"
 
 #include "../../cli/src/command_line/cli_internal.h"
@@ -205,8 +205,8 @@ static void requests_row_draw(const GuiPaneCfg *args)
                      .x_f32 = (float)x, .text = row.text, .length = row.text_length, .color = color);
 }
 
-// the row pressed: a group opened or closed, an answer's box checked or the answer displayed, and the two answers checked
-// compared; nothing opens
+// the row pressed: a group opened or closed, an answer's box checked or the answer displayed, and the two answers
+// checked compared; nothing opens
 static int requests_press(const GuiPaneCfg *args)
 {
     CliRequestsRow row;

@@ -146,7 +146,7 @@ extern CliDebugWorkState g_cli_debug;
 typedef struct
 {
     int reserved;
-    CliGrownLine args;
+    PlatformText args;
     CliJson json;
     unsigned int root;
 } CliDebugAnswer;

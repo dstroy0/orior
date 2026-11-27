@@ -53,7 +53,7 @@ EMBED_INLINE void form_set(const FormCtx *args)
     }
     const unsigned int params = store->form_params;
     unsigned int starts[CLI_JOB_RUNS_PARAMS_MAX + 1u];
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = g_cli_job_runs_store.form,
                             .offset = 0ULL,
                             .dst = starts,
@@ -63,23 +63,23 @@ EMBED_INLINE void form_set(const FormCtx *args)
     const unsigned long long tail = starts[params] - starts[args->param + 1u];
     if (tail != 0ULL)
     {
-        char *const moved = g_cli_guard->temporary_buf_alloc(tail, g_cli_job_runs_owner);
+        char *const moved = g_platform_guard->temporary_buf_alloc(tail, g_cli_job_runs_owner);
         if (moved == NULL)
         {
             return;
         }
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = store->form, .offset = values_at + starts[args->param + 1u], .dst = moved, .bytes = tail});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = store->form,
                                 .offset = values_at + starts[args->param] + args->length,
                                 .src = moved,
                                 .bytes = tail});
-        g_cli_guard->persistent_buf_release(moved, g_cli_job_runs_owner);
+        g_platform_guard->persistent_buf_release(moved, g_cli_job_runs_owner);
     }
     if (args->length != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = store->form, .offset = values_at + starts[args->param], .src = args->bytes, .bytes = args->length});
     }
     for (unsigned int at = args->param + 1u; at <= params; at += 1u)
@@ -87,7 +87,7 @@ EMBED_INLINE void form_set(const FormCtx *args)
         // each value is bounded by CLI_JOB_RUNS_FIELD_MAX, the starts far inside an unsigned int
         starts[at] = (unsigned int)(starts[at] - before + args->length);
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = store->form, .offset = 0ULL, .src = starts, .bytes = values_at});
 }
 
@@ -101,7 +101,7 @@ void cli_job_runs_form_clear(const CliJobRunsCtx *args)
 {
     (void)args;
     CliJobRunsStore *const store = &g_cli_job_runs_store;
-    (void)g_cli_guard->movable_buf_release(store->form, g_cli_job_runs_owner);
+    (void)g_platform_guard->movable_buf_release(store->form, g_cli_job_runs_owner);
     store->form = NULL;
     store->form_params = 0u;
     store->focus = CLI_JOB_RUNS_FILTER;
@@ -115,11 +115,11 @@ void cli_job_runs_form_clear(const CliJobRunsCtx *args)
     const unsigned int params = (listed <= CLI_JOB_RUNS_PARAMS_MAX) ? listed : CLI_JOB_RUNS_PARAMS_MAX;
     const unsigned long long bytes =
         ((params + 1ULL) * sizeof(unsigned int)) + ((unsigned long long)params * CLI_JOB_RUNS_FIELD_MAX);
-    store->form = g_cli_guard->movable_buf_alloc(bytes, g_cli_job_runs_owner);
+    store->form = g_platform_guard->movable_buf_alloc(bytes, g_cli_job_runs_owner);
     if (store->form != NULL)
     {
         const unsigned int starts[CLI_JOB_RUNS_PARAMS_MAX + 1u] = {0u};
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = store->form, .offset = 0ULL, .src = starts, .bytes = (params + 1ULL) * sizeof(unsigned int)});
         store->form_params = params;
     }
@@ -134,7 +134,7 @@ unsigned long long cli_job_runs_form_value(const CliJobRunsCtx *args)
         return 0ULL;
     }
     unsigned int starts[CLI_JOB_RUNS_PARAMS_MAX + 1u];
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = g_cli_job_runs_store.form,
                             .offset = 0ULL,
                             .dst = starts,
@@ -142,7 +142,7 @@ unsigned long long cli_job_runs_form_value(const CliJobRunsCtx *args)
     const unsigned long long length = starts[args->param + 1u] - starts[args->param];
     if (length != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = store->form,
                                 .offset = EMBED_CALL(form_starts_bytes, FormCtx, .param = 0u) + starts[args->param],
                                 .dst = args->value_out,
@@ -163,13 +163,13 @@ void cli_job_runs_filter_apply(const CliJobRunsCtx *args)
     for (unsigned int group = 0u; group < store->groups; group += 1u)
     {
         CliJobRunsGroup one;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = g_cli_job_runs_store.group[group], .offset = 0ULL, .dst = &one, .bytes = sizeof(one)});
         one.listed = 0u;
         for (unsigned int member = 0u; member < one.count; member += 1u)
         {
             unsigned int place = 0u;
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = g_cli_job_runs_store.order,
                                     .offset = (unsigned long long)(one.first + member) * sizeof(place),
                                     .dst = &place,
@@ -185,7 +185,7 @@ void cli_job_runs_filter_apply(const CliJobRunsCtx *args)
                            .text = EMBED_CALL(form_text, FormCtx, .text_at = job->about), .word_text = filter);
             // whether the job exists is 0 or 1, which a byte carries
             const unsigned char is = (unsigned char)passes;
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = store->passes, .offset = place, .src = &is, .bytes = sizeof(is)});
             one.listed += passes ? 1u : 0u;
         }

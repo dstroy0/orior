@@ -302,8 +302,8 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args)
                            .run_out = &s_run, .part = args->mode->part, .err_msg = err_msg);
     const char *const sliced[6] = {"slice", sass, tsv, cu, work, engine};
     whole = whole && EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                                .context = context, .run = &s_run, .identity = args->identity, .words_characters = sliced,
-                                .count = 6u, .code = &code, .err_msg = err_msg);
+                                .context = context, .run = &s_run, .identity = args->identity,
+                                .words_characters = sliced, .count = 6u, .code = &code, .err_msg = err_msg);
     stopped = whole && (code != 0LL);
     whole = whole && !stopped &&
             EMBED_CALL(query_pairs_context_internal.host_answer, QueryPairsContextCtx, .context = context,
@@ -328,8 +328,8 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args)
     }
     whole = whole && !stopped &&
             EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                       .context = context, .run = &s_run, .identity = args->identity, .words_characters = s_read.word_text,
-                       .count = s_read.count, .code = &code, .err_msg = err_msg);
+                       .context = context, .run = &s_run, .identity = args->identity,
+                       .words_characters = s_read.word_text, .count = s_read.count, .code = &code, .err_msg = err_msg);
     stopped = stopped || (whole && (code != 0LL));
     const char *const permuted[4] = {"permute", sass, tsv, work};
     whole = whole && !stopped &&
@@ -371,11 +371,11 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args)
                            .word_text = s_read.word_text[at]);
             }
         }
-        whole =
-            whole && !stopped &&
-            EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                       .context = context, .run = &s_run, .identity = args->identity,
-                       .words_characters = s_broken.word_text, .count = s_broken.count, .code = &code, .err_msg = err_msg);
+        whole = whole && !stopped &&
+                EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
+                           .context = context, .run = &s_run, .identity = args->identity,
+                           .words_characters = s_broken.word_text, .count = s_broken.count, .code = &code,
+                           .err_msg = err_msg);
     }
     else if (whole && !stopped)
     {

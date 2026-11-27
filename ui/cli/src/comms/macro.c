@@ -59,18 +59,18 @@ static DoorMacroCtx s_macros;
 // the record at `at` read into `macro`, and `macro_read` written at `at`
 EMBED_INLINE void macro_read(const DoorMacroOpCtx *args)
 {
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_macros.cell,
-                                                            .offset = (embed_word)args->at * sizeof(DoorMacro),
-                                                            .dst = args->macro,
-                                                            .bytes = sizeof(DoorMacro)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_macros.cell,
+                                                                 .offset = (embed_word)args->at * sizeof(DoorMacro),
+                                                                 .dst = args->macro,
+                                                                 .bytes = sizeof(DoorMacro)});
 }
 
 EMBED_INLINE void macro_write(const DoorMacroOpCtx *args)
 {
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_macros.cell,
-                                                             .offset = (embed_word)args->at * sizeof(DoorMacro),
-                                                             .src = args->macro_read,
-                                                             .bytes = sizeof(DoorMacro)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_macros.cell,
+                                                                  .offset = (embed_word)args->at * sizeof(DoorMacro),
+                                                                  .src = args->macro_read,
+                                                                  .bytes = sizeof(DoorMacro)});
 }
 
 // the cell of records taken where none is, each record free: 1, or 0 where no cell is free
@@ -81,7 +81,7 @@ EMBED_INLINE int macros_cell_ready(void)
         return 1;
     }
     s_macros.cell =
-        g_cli_guard->movable_buf_alloc((unsigned long long)CLI_DOOR_MACROS * sizeof(DoorMacro), g_cli_comms_owner);
+        g_platform_guard->movable_buf_alloc((unsigned long long)CLI_DOOR_MACROS * sizeof(DoorMacro), g_cli_comms_owner);
     if (s_macros.cell == NULL)
     {
         return 0;
@@ -484,7 +484,7 @@ void cli_door_macro_close(void)
 {
     if (s_macros.cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_macros.cell, g_cli_comms_owner);
+        (void)g_platform_guard->movable_buf_release(s_macros.cell, g_cli_comms_owner);
     }
     s_macros.cell = NULL;
     s_macros.recording = 0;

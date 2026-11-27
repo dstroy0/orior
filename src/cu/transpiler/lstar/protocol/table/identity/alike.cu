@@ -3,7 +3,7 @@
 // alike.cu: a question put and read alike or apart with the host, the host's questions written and its answers read,
 // and a chain's code read from the engine
 #include "../../../../../../../includes/parsers/who.h"
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "identity_internal.h"
 
 // the head of a query's line of the trace: the query's number, the code's size, the registers, the shape, the launches

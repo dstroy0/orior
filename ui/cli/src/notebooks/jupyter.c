@@ -310,15 +310,15 @@ EMBED_INLINE int jupyter_process_start(const JupyterCtx *args)
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < spec->env_count; at += 1u)
     {
-        kernel->settings[count] = (CliSetting){EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx,
-                                                          .spec = spec, .at = spec->env_name[at]),
-                                               EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx,
-                                                          .spec = spec, .at = spec->env_value[at])};
+        kernel->settings[count] = (PlatformSetting){EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx,
+                                                               .spec = spec, .at = spec->env_name[at]),
+                                                    EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx,
+                                                               .spec = spec, .at = spec->env_value[at])};
         count += 1u;
     }
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = kernel->path,
                .size = CLI_PATH_TEXT);
-    kernel->settings[count] = (CliSetting){"PATH", kernel->path};
+    kernel->settings[count] = (PlatformSetting){"PATH", kernel->path};
     count += 1u;
     count = EMBED_CALL(cli_jupyter_system.interrupt_setting, CliJupyterSystemCtx, .kernel = kernel, .count = count);
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &kernel->spawned,

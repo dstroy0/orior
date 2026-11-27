@@ -157,7 +157,7 @@
       "script": "utils/test/src/cu/engine/runtime/daemon/tessera_crossing_test.sh",
       "src": [
         "+<cu/engine/runtime/daemon/tessera_job.*>",
-        "+<platform/platform_device.*>"
+        "+<../includes/platform/platform_device.*>"
       ],
       "tests": [
         "src/cu/engine/runtime/daemon"
@@ -202,7 +202,7 @@
       "desc": "The pool of the device on the GPU: one thread places it and takes a temporary cell, a grid writes each byte of the cell through its address and one thread reads each byte back and gives it back, a movable cell is written and read through its handle, a persistent take and give leave the pool as it was, and a take past the pool is refused.",
       "script": "utils/test/src/platform/platform_device_test.sh",
       "src": [
-        "+<platform/platform_device.*>"
+        "+<../includes/platform/platform_device.*>"
       ],
       "tests": [
         "src/platform"
@@ -1163,7 +1163,7 @@
       "src": [
         "+<cu/engine/nbody/max_tree/*>",
         "+<cu/engine/runtime/daemon/tessera_job.*>",
-        "+<platform/platform_device.*>"
+        "+<../includes/platform/platform_device.*>"
       ],
       "tests": [
         "src/cu/engine/nbody/max_tree"
@@ -1180,7 +1180,7 @@
         "+<cu/engine/analysis/compression/*>",
         "+<cu/engine/runtime/obsignatio/*>",
         "+<cu/engine/runtime/daemon/tessera_job.*>",
-        "+<platform/platform_device.*>"
+        "+<../includes/platform/platform_device.*>"
       ],
       "tests": [
         "src/cu/engine"
@@ -1192,7 +1192,7 @@
       "src": [
         "+<cu/engine/runtime/obsignatio/*>",
         "+<cu/engine/runtime/daemon/tessera_job.*>",
-        "+<platform/platform_device.*>"
+        "+<../includes/platform/platform_device.*>"
       ],
       "tests": [
         "src/cu/engine/runtime/obsignatio"
@@ -1204,7 +1204,7 @@
       "src": [
         "+<cu/engine/analysis/compression/*>",
         "+<cu/engine/runtime/daemon/tessera_job.*>",
-        "+<platform/platform_device.*>"
+        "+<../includes/platform/platform_device.*>"
       ],
       "tests": [
         "src/cu/engine/analysis/compression"
@@ -1216,7 +1216,7 @@
       "src": [
         "+<cu/engine/analysis/tower/*>",
         "+<cu/engine/runtime/daemon/tessera_job.*>",
-        "+<platform/platform_device.*>"
+        "+<../includes/platform/platform_device.*>"
       ],
       "tests": [
         "src/cu/engine/analysis/tower"

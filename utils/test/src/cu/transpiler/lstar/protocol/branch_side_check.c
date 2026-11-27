@@ -25,7 +25,7 @@
 // branches doing the same work give a count that leans by chance at some trial more often than the spread predicts. It
 // is read on the whole record, at CHECK_TRIALS_MAX. The run size is steered by the part, as query_descent.h states.
 #include "query_descent.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include <stdio.h>
 

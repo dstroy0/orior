@@ -60,8 +60,8 @@ typedef struct
     unsigned int icons;
 } GuiTheme;
 
-// The themes retained, in the order of the entry: `count` records of GuiTheme in one movable cell their holder owns, each
-// at its place times the record's bytes, read into a record of the call that reads it
+// The themes retained, in the order of the entry: `count` records of GuiTheme in one movable cell their holder owns,
+// each at its place times the record's bytes, read into a record of the call that reads it
 typedef struct
 {
     const CarcerMovableEntry *cell;
@@ -98,8 +98,8 @@ int gui_theme_color_get(const GuiThemesAtColorCfg *args);
 // `pattern` taken off
 void gui_theme_icon_set(const GuiThemesAtIconCfg *args);
 void gui_theme_icon_remove(const GuiThemesAtIconCfg *args);
-// the first icon of `theme` whose pattern covers the file name `name`, `length` bytes, characters compared without case:
-// the icon, or NULL where none does
+// the first icon of `theme` whose pattern covers the file name `name`, `length` bytes, characters compared without
+// case: the icon, or NULL where none does
 const GuiThemeIcon *gui_theme_icon_match(const GuiThemeNameCfg *args);
 // `theme` written into `out` as text to share, one member a line; and a theme read from `size` bytes of `text` into
 // `theme_out`, the tree read in a cell of `owner`: 1, or 0 where the text is no theme of the window's scheme

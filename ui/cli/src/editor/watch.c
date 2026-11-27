@@ -202,7 +202,7 @@ static int cli_gather(const WatchCtx *args)
     int relist = args->batch->lost;
     // the paths that came and went, which the round mirrors to their closest parents as it ends
     const char **const moved =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)count * sizeof(const char *), g_cli_watch_owner);
+        g_platform_guard->temporary_buf_alloc((unsigned long long)count * sizeof(const char *), g_cli_watch_owner);
     unsigned int moves = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -292,7 +292,7 @@ static int cli_gather(const WatchCtx *args)
     {
         EMBED_CALL(cli_symbols_root.tree_mirror, CliSymbolsRootCfg, .root = root, .paths = moved, .count = moves);
     }
-    g_cli_guard->persistent_buf_release((void *)moved, g_cli_watch_owner);
+    g_platform_guard->persistent_buf_release((void *)moved, g_cli_watch_owner);
     args->batch->lost = args->batch->lost ||
                         !EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = &args->batch->folders) ||
                         !EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = &args->batch->written);
@@ -436,15 +436,15 @@ int cli_watch_gathered_get(const CliWatchPathsCtx *args)
                             .src = args->root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_POOL_BYTES}) + 1u});
     // the bundle, its changes and their paths are the call's own
-    CliBatch *const batch = g_cli_guard->temporary_buf_alloc(sizeof(CliBatch), g_cli_watch_owner);
-    CliChange *const change =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_WATCH_GATHERED * sizeof(CliChange), g_cli_watch_owner);
-    char *const text = g_cli_guard->temporary_buf_alloc(CLI_WATCH_TEXT_CAPACITY, g_cli_watch_owner);
+    CliBatch *const batch = g_platform_guard->temporary_buf_alloc(sizeof(CliBatch), g_cli_watch_owner);
+    CliChange *const change = g_platform_guard->temporary_buf_alloc(
+        (unsigned long long)CLI_WATCH_GATHERED * sizeof(CliChange), g_cli_watch_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(CLI_WATCH_TEXT_CAPACITY, g_cli_watch_owner);
     if ((batch == NULL) || (change == NULL) || (text == NULL))
     {
-        g_cli_guard->persistent_buf_release(text, g_cli_watch_owner);
-        g_cli_guard->persistent_buf_release(change, g_cli_watch_owner);
-        g_cli_guard->persistent_buf_release(batch, g_cli_watch_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_watch_owner);
+        g_platform_guard->persistent_buf_release(change, g_cli_watch_owner);
+        g_platform_guard->persistent_buf_release(batch, g_cli_watch_owner);
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = batch, .val = 0, .bytes = sizeof(*batch)});
@@ -463,8 +463,8 @@ int cli_watch_gathered_get(const CliWatchPathsCtx *args)
     }
     EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->folders);
     EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->written);
-    g_cli_guard->persistent_buf_release(text, g_cli_watch_owner);
-    g_cli_guard->persistent_buf_release(change, g_cli_watch_owner);
-    g_cli_guard->persistent_buf_release(batch, g_cli_watch_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_watch_owner);
+    g_platform_guard->persistent_buf_release(change, g_cli_watch_owner);
+    g_platform_guard->persistent_buf_release(batch, g_cli_watch_owner);
     return any;
 }

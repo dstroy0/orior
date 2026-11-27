@@ -648,6 +648,6 @@ int cli_debug_plan(const CliDebugStartCfg *args)
     const int planned =
         plan_made(args, &made) && EMBED_CALL(cli_json_tree_stored.json_stored, CliJsonTreeStoredCfg, .json_read = &made,
                                              .stored = &args->place->start, .owner = g_cli_debug_owner);
-    g_cli_guard->persistent_buf_release(made.node, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(made.node, g_cli_debug_owner);
     return planned;
 }

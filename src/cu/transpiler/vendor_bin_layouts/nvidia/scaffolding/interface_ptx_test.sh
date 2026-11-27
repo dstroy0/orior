@@ -59,7 +59,7 @@ source "$TOP/includes/exact_types/exact_types.sh"
 exact_types_device_platform_link || exit 1
 OBJECTS=()
 # the interface compares and copies through MMgr, whose line comes in PLATFORM_LINK
-for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TEST/interface_ptx_test.c"; do
+for source in "$INTERFACE/interface.c" "${PLATFORM_PROBE[@]}" "$INTERFACE/interface_names.c" "$TEST/interface_ptx_test.c"; do
     object="$OUT/$(basename "$source" .c).$EXTENSION"
     rm -f "$object"
     case "$(uname -s)" in

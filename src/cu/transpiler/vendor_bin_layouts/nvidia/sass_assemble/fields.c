@@ -3,7 +3,7 @@
 // fields.c: the fields: bits written, a register's, a constant's, an address's and an operand's value, the fields of a
 // type and the field at a place, the places of an instruction found, the high word written, and the control word made
 // safe
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sass_assemble_internal.h"

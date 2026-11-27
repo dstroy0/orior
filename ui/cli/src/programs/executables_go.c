@@ -44,7 +44,7 @@ static void cli_go_each(const CliEachNameIsFolderCfg *args)
                      EMBED_CALL(cli_executables_text_out_internal.go_package, CliExecutablesTextOutCtx, .text = text,
                                 .out = package) &&
                      (cellul.eq(&(CatenaFinitaCfg){.src = package, .other = "main", .cap = CLI_POOL_BYTES}));
-        g_cli_guard->persistent_buf_release(text, g_cli_executables_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_executables_owner);
     }
 }
 
@@ -121,7 +121,7 @@ void cli_go_mains(const CliExecutablesTextModuleCtx *args)
             args->mains->count += 1u;
         }
     }
-    g_cli_guard->persistent_buf_release(walk->pending, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(walk->pending, g_cli_executables_owner);
     *walk = (CliWalk){NULL, NULL, 0u, 0u, NULL, 0u, NULL, 0u, 0u, 0};
     // the mains in the order of their names, then their folders
     for (unsigned int at = 1u; at < args->mains->count; at += 1u)

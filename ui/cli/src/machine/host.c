@@ -147,7 +147,7 @@ long long cli_host_prepare(const CliHostIntoCfg *args)
     const char *const listing[5] = {"flatpak-spawn", "--host", "sh", "-c",
                                     "IFS=:; for dir in $PATH; do ls -1 \"$dir\" 2>/dev/null; done"};
     const char *const words[6] = {listing[0], listing[1], listing[2], listing[3], listing[4], NULL};
-    QueryProcess list_entries;
+    PlatformProgram list_entries;
     if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &list_entries, .words = words,
                     .folder = NULL, .output = QUERY_OUTPUT_PIPED))
     {

@@ -67,7 +67,7 @@
  *       names it, and this file does not use it. Nothing in this file is new mathematics.
  */
 #include "torus_fields.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 #include <stdlib.h>
 

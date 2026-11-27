@@ -20,7 +20,7 @@
 //
 // The two member words are for a script, which is no member itself. The exit is 0 where each record and file went
 // whole, or where the member did its task. It is 1 where not, and 2 where the words are not those
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "../ksg/ksg_writing.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_tower_test_ruleset.cu: matches, rulesets, the operation stack, blocks, errors and main
-#include "../../../../../../../src/platform/platform.h"
-#include "../../../../../../../src/platform/platform_device.h"
+#include "../../../../../../../includes/platform/platform.h"
+#include "../../../../../../../includes/platform/platform_device.h"
 #include "record_tower_test_internal.h"
 
 // The pool of the test. The code generator writes the PTX lane of a program of three thousand steps into a text of

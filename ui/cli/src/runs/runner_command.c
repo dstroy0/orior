@@ -310,7 +310,7 @@ EMBED_INLINE void cli_unpath(const RunnerCommandCtx *args)
     // the PATH's folders read off the cell the process holds them in, each without the program joined into a PATH
     // text in a cell of the temporary tier for the call
     const CliToolchainsFolders folders = cli_toolchains_run_folders();
-    char *const path = g_cli_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_runs_owner);
+    char *const path = g_platform_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_runs_owner);
     if (path == NULL)
     {
         return;
@@ -322,10 +322,10 @@ EMBED_INLINE void cli_unpath(const RunnerCommandCtx *args)
     {
         char folder[CLI_PATH_MAX_LEN];
         char found[CLI_PATH_MAX_LEN];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell,
-                                                                .offset = (embed_word)at * CLI_PATH_MAX_LEN,
-                                                                .dst = folder,
-                                                                .bytes = CLI_PATH_MAX_LEN});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell,
+                                                                     .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                                     .dst = folder,
+                                                                     .bytes = CLI_PATH_MAX_LEN});
         if (!EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = folder, .names = names, .count = 1u,
                         .path = found))
         {
@@ -340,7 +340,7 @@ EMBED_INLINE void cli_unpath(const RunnerCommandCtx *args)
     (void)mmgr_line_finish(&joined);
     EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = args->command, .name = "PATH",
                .value = path);
-    g_cli_guard->persistent_buf_release(path, g_cli_runs_owner);
+    g_platform_guard->persistent_buf_release(path, g_cli_runs_owner);
     mmgr_line_put(args->set, (args->set->at != 0ULL) ? "\nPATH=<PATH without " : "PATH=<PATH without ");
     mmgr_line_put(args->set, args->name);
     mmgr_line_ch(args->set, '>');
@@ -606,7 +606,7 @@ int cli_runner_command(const CliRunnerCommandCfg *args)
     EMBED_CALL(cli_runner_command_folder.command_folder, CliRunnerCommandFolderCfg, .command = args->command,
                .folder = args->root);
     // the settings' lines in a cell of the temporary tier for the call
-    char *const set_text = g_cli_guard->temporary_buf_alloc(CLI_COMMAND_TEXT, g_cli_runs_owner);
+    char *const set_text = g_platform_guard->temporary_buf_alloc(CLI_COMMAND_TEXT, g_cli_runs_owner);
     VerbaLinea set = {set_text, (set_text != NULL) ? CLI_COMMAND_TEXT : 0ULL, 0ULL};
     char moved_text[CLI_PATH_MAX_LEN + 8u];
     VerbaLinea moved = {moved_text, sizeof(moved_text), 0ULL};
@@ -626,7 +626,7 @@ int cli_runner_command(const CliRunnerCommandCfg *args)
     // each setting, one to a line of the set, then the program and its words
     EMBED_CALL(cli_set_displayed, RunnerCommandCtx, .word_text = set_text, .length = mmgr_line_ok(&set) ? set.at : 0ULL,
                .displayed = args->displayed, .first = &first);
-    g_cli_guard->persistent_buf_release(set_text, g_cli_runs_owner);
+    g_platform_guard->persistent_buf_release(set_text, g_cli_runs_owner);
     EMBED_CALL(cli_displayed_word, RunnerCommandCtx, .displayed = args->displayed, .word_text = displayed_program,
                .length = cellul.len(&(CatenaFinitaCfg){.src = displayed_program, .cap = CLI_POOL_BYTES}),
                .first = &first);
@@ -659,7 +659,8 @@ int cli_runner_show(const CliRunnerErrMsgRootCfg *args)
     const CliValues *values = args->values;
     VerbaLinea *err_msg = args->err_msg;
     // the command built and the line it displays, in one cell of the temporary tier for the call
-    CliCommand *const command = g_cli_guard->temporary_buf_alloc(sizeof(*command) + CLI_COMMAND_TEXT, g_cli_runs_owner);
+    CliCommand *const command =
+        g_platform_guard->temporary_buf_alloc(sizeof(*command) + CLI_COMMAND_TEXT, g_cli_runs_owner);
     if (command == NULL)
     {
         mmgr_line_put(err_msg, "the cells cannot meet the command the step shows");
@@ -686,6 +687,6 @@ int cli_runner_show(const CliRunnerErrMsgRootCfg *args)
             EMBED_CALL(args->each, CliEachDisplayedCfg, .context = args->context, .displayed = displayed_text);
         }
     }
-    g_cli_guard->persistent_buf_release(command, g_cli_runs_owner);
+    g_platform_guard->persistent_buf_release(command, g_cli_runs_owner);
     return shown;
 }

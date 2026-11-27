@@ -76,7 +76,7 @@ void cli_catalog_alloc(const CliCatalogCellsCfg *args)
     const unsigned long long list_bytes = (unsigned long long)CLI_CATALOG_LIST_MAX * sizeof(unsigned int);
     // the catalog's cell is the process's own internal take, persistent, taken as the process starts and never given
     // back
-    char *const cell = g_cli_guard->persistent_buf_alloc(
+    char *const cell = g_platform_guard->persistent_buf_alloc(
         job_bytes + param_bytes + step_bytes + arg_bytes + list_bytes + CLI_CATALOG_TEXT_MAX, cells);
     args->catalog->cells = cells;
     args->catalog->full = cell == NULL;

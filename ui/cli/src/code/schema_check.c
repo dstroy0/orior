@@ -59,7 +59,7 @@ EMBED_INLINE char *bases_alloc(const SchemaCheckCtx *args)
     if ((s_bases == NULL) || (s_bases->capacity - s_bases->used < args->size))
     {
         const unsigned int capacity = (args->size > CLI_SCHEMA_BASES_PIECE) ? args->size : CLI_SCHEMA_BASES_PIECE;
-        SchemaBasesPiece *const piece = g_cli_guard->temporary_buf_alloc(
+        SchemaBasesPiece *const piece = g_platform_guard->temporary_buf_alloc(
             sizeof(SchemaBasesPiece) + (unsigned long long)capacity, g_cli_schema_owner);
         if (piece == NULL)
         {
@@ -85,7 +85,7 @@ EMBED_INLINE void bases_release(const SchemaCheckCtx *args)
     while (s_bases != args->mark.piece)
     {
         SchemaBasesPiece *const before = s_bases->before;
-        g_cli_guard->persistent_buf_release(s_bases, g_cli_schema_owner);
+        g_platform_guard->persistent_buf_release(s_bases, g_cli_schema_owner);
         s_bases = before;
     }
     if (s_bases != NULL)

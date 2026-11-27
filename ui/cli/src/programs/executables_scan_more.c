@@ -250,7 +250,7 @@ void cli_zig_exes(const CliExecutablesNamesCtx *args)
     args->names->count = 0u;
     // each line up to its `//`, the lines joined by a newline, no longer than the text
     const unsigned long long capacity = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}) + 1ULL;
-    char *const code_cell = g_cli_guard->temporary_buf_alloc(capacity, g_cli_executables_owner);
+    char *const code_cell = g_platform_guard->temporary_buf_alloc(capacity, g_cli_executables_owner);
     if (code_cell == NULL)
     {
         return;
@@ -310,8 +310,8 @@ void cli_zig_exes(const CliExecutablesNamesCtx *args)
                        .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .value = NULL);
         }
     }
-    g_cli_guard->persistent_buf_release(calls, g_cli_executables_owner);
-    g_cli_guard->persistent_buf_release(code_cell, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(calls, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(code_cell, g_cli_executables_owner);
 }
 
 int cli_spec_init(const CliExecutablesTextExeCtx *args)
@@ -339,7 +339,7 @@ int cli_spec_init(const CliExecutablesTextExeCtx *args)
             at += 1u;
         }
     }
-    g_cli_guard->persistent_buf_release(calls, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(calls, g_cli_executables_owner);
     calls = NULL;
     found = found && named;
     char folder[CLI_NAME_MAX_LEN];
@@ -357,8 +357,8 @@ int cli_spec_init(const CliExecutablesTextExeCtx *args)
             at += 1u;
         }
     }
-    g_cli_guard->persistent_buf_release(calls, g_cli_executables_owner);
-    g_cli_guard->persistent_buf_release(code, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(calls, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(code, g_cli_executables_owner);
     if (!found)
     {
         return 0;
@@ -401,7 +401,7 @@ void cli_npm_bins(const CliExecutablesNamesTextModuleCtx *args)
     if ((package == CLI_JSON_NONE) || !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg,
                                                   .json_read = &json, .node = package, .type = CFG_JSON_OBJECT))
     {
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return;
@@ -453,7 +453,7 @@ void cli_npm_bins(const CliExecutablesNamesTextModuleCtx *args)
             }
         }
     }
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }

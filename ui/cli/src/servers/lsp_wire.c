@@ -63,10 +63,11 @@ EMBED_INLINE unsigned long long wire_part(const LspWireCtx *args)
         {
             const unsigned long long left = args->part->size - at;
             const unsigned long long bytes = (left < sizeof(window)) ? left : sizeof(window);
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->part->cell,
-                                                                    .offset = (embed_word)(args->part->offset + at),
-                                                                    .dst = window,
-                                                                    .bytes = (embed_word)bytes});
+            (void)g_platform_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = args->part->cell,
+                                    .offset = (embed_word)(args->part->offset + at),
+                                    .dst = window,
+                                    .bytes = (embed_word)bytes});
             const unsigned long long end =
                 EMBED_CALL(wire_piece_end, LspWireCtx, .text = window, .size = bytes, .at = 0ULL);
             const CliLspPart piece = {window, end, args->part->quoted, NULL, 0ULL};
@@ -260,10 +261,10 @@ char *cli_lsp_message_alloc(const CliLspReaderSizeCfg *args)
             return NULL;
         }
         // one byte past the body, and an empty body is a cell too; a body the cells cannot meet is passed over whole
-        char *const body = g_cli_guard->temporary_buf_alloc(length + 1ULL, args->owner);
+        char *const body = g_platform_guard->temporary_buf_alloc(length + 1ULL, args->owner);
         if (!EMBED_CALL(wire_bytes, LspWireCtx, .reader = args->reader, .into = body, .size = length))
         {
-            g_cli_guard->persistent_buf_release(body, args->owner);
+            g_platform_guard->persistent_buf_release(body, args->owner);
             return NULL;
         }
         if ((body != NULL) && EMBED_CALL(wire_body_valid, LspWireCtx, .body = body, .length_value = length))
@@ -272,7 +273,7 @@ char *cli_lsp_message_alloc(const CliLspReaderSizeCfg *args)
             *size = length;
             return body;
         }
-        g_cli_guard->persistent_buf_release(body, args->owner);
+        g_platform_guard->persistent_buf_release(body, args->owner);
     }
 }
 

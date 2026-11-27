@@ -16,7 +16,7 @@
 #define QUERY_DESCENT_H
 
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/query_order.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include <stdio.h>
 

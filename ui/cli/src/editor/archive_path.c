@@ -45,7 +45,7 @@ EMBED_INLINE CliByteBuffer *cli_archive_buffers(const ArchivePathCtx *args)
 int cli_archive_lock(const CliArchiveErrMsgPartsCtx *args)
 {
     // the levels live from the lock to its unlock within one call: a cell of the temporary tier
-    g_cli_archive_levels = g_cli_guard->temporary_buf_alloc(sizeof(*g_cli_archive_levels), g_cli_editor_owner);
+    g_cli_archive_levels = g_platform_guard->temporary_buf_alloc(sizeof(*g_cli_archive_levels), g_cli_editor_owner);
     if (g_cli_archive_levels == NULL)
     {
         mmgr_line_put(args->err_msg, "the archives a path runs through could not be taken");
@@ -62,10 +62,10 @@ void cli_archive_release(void)
 {
     for (unsigned int at = 0u; at < CLI_ARCHIVE_BUFFERS; at += 1u)
     {
-        g_cli_guard->persistent_buf_release(EMBED_CALL(cli_archive_buffers, ArchivePathCtx, .at = at)->bytes,
-                                            g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release(EMBED_CALL(cli_archive_buffers, ArchivePathCtx, .at = at)->bytes,
+                                                 g_cli_editor_owner);
     }
-    g_cli_guard->persistent_buf_release(g_cli_archive_levels, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(g_cli_archive_levels, g_cli_editor_owner);
     g_cli_archive_levels = NULL;
 }
 
@@ -82,14 +82,14 @@ int cli_archive_buffer_reserve(const CliArchiveErrMsgBufferCtx *args)
         mmgr_line_put(args->err_msg, " is larger than impero supports");
         return 0;
     }
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(args->need, g_cli_editor_owner);
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(args->need, g_cli_editor_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, args->what);
         mmgr_line_put(args->err_msg, " could not be taken");
         return 0;
     }
-    g_cli_guard->persistent_buf_release(buffer->bytes, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(buffer->bytes, g_cli_editor_owner);
     buffer->bytes = cell;
     buffer->capacity = args->need;
     return 1;
@@ -494,7 +494,7 @@ int cli_archive_list(const CliArchiveErrMsgRootCfg *args)
         EMBED_CALL(cli_children, ArchivePathCtx, .descent = &descent, .parts = &s_parts, .prefix = prefix,
                    .found = args->found);
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_editor_owner);
     cli_archive_release();
     return done;
 }
@@ -551,24 +551,24 @@ int cli_archive_each(const CliArchiveErrMsgCfg *args)
     // The member's bytes and a 0 go into a movable cell of this module. The copy lets the archive's lock go before the
     // cell goes to `each`
     const CarcerMovableEntry *const cell =
-        done ? g_cli_guard->movable_buf_alloc(data_size + 1ULL, g_cli_editor_owner) : NULL;
+        done ? g_platform_guard->movable_buf_alloc(data_size + 1ULL, g_cli_editor_owner) : NULL;
     static const char s_end = '\0';
     const int written =
         (cell != NULL) &&
-        g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = cell, .offset = 0ULL, .src = g_cli_archive_levels->written[0].bytes, .bytes = data_size}) &&
-        g_cli_guard->movable_buf_write(
+        g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = cell, .offset = data_size, .src = &s_end, .bytes = sizeof(s_end)});
     if (done && !written)
     {
         mmgr_line_put(args->err_msg, "the file read out of the archive could not be stored");
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_editor_owner);
     cli_archive_release();
     if (written)
     {
         args->each(&(CliArchiveEachCfg){.context = args->context, .cell = cell, .size = data_size});
     }
-    (void)g_cli_guard->movable_buf_release(cell, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(cell, g_cli_editor_owner);
     return written;
 }

@@ -111,8 +111,8 @@ EMBED_INLINE void lsp_server_message(const LspCtx *args)
     const int has_id = EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = body, .size_value = size, .name = "id",
                                   .start = &id, .length_pointer = &id_size);
     // a request's answer on a line grown to it; what the server sends unprompted is answered with nothing
-    CliGrownLine answer;
-    cli_grown_begin(&answer, CLI_LSP_ANSWERED, g_cli_servers_owner);
+    PlatformText answer;
+    platform_text_begun(&answer, CLI_LSP_ANSWERED, platform_place_g_cli_servers_owner, PLATFORM_TIER_TEMPORARY);
     t_request_id = has_id ? (body + id) : NULL;
     t_request_id_size = has_id ? id_size : 0ULL;
     t_later = 0;
@@ -122,7 +122,7 @@ EMBED_INLINE void lsp_server_message(const LspCtx *args)
     t_request_id = NULL;
     if (has_id && !t_later)
     {
-        const unsigned long long answer_size = cli_grown_size(&answer);
+        const unsigned long long answer_size = platform_text_size(&answer);
         const int answered = mmgr_line_ok(&answer.line) && (answer_size > 0ULL);
         const CliLspPart parts[5] = {CLI_LSP_RAW("{\"jsonrpc\":\"2.0\",\"id\":"),
                                      {body + id, id_size, 0},
@@ -134,7 +134,7 @@ EMBED_INLINE void lsp_server_message(const LspCtx *args)
         (void)EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->lsp->input,
                          .parts = parts, .count = 5u, .err_msg = &unsent);
     }
-    cli_grown_end(&answer);
+    platform_text_ended(&answer);
 }
 
 // a message the server sent, `size` bytes of `body`, ended by a 0: what it sends unprompted received, an answer passed
@@ -207,7 +207,7 @@ static void lsp_read(void *context)
     {
         if (!EMBED_CALL(lsp_message, LspCtx, .lsp = lsp, .body_out = body, .size = size))
         {
-            g_cli_guard->persistent_buf_release(body, g_cli_servers_owner);
+            g_platform_guard->persistent_buf_release(body, g_cli_servers_owner);
         }
     }
     for (unsigned int at = 0u; at < CLI_LSP_WAITERS; at += 1u)
@@ -442,7 +442,7 @@ const char *cli_lsp_capabilities(const CliLspSizeTypeCfg *args)
     const unsigned long long copied = (*size < args->capacity) ? *size : (args->capacity - 1ULL);
     if (copied != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = args->lsp_read->capabilities, .offset = 0ULL, .dst = args->out, .bytes = copied});
     }
     args->out[copied] = '\0';
@@ -522,7 +522,7 @@ void cli_lsp_stop(const CliLspContextCfg *args)
     VerbaLinea err_buf = {why, sizeof(why), 0ULL};
     (void)EMBED_CALL(cli_lsp_err_msg_length.request, CliLspErrMsgLengthCfg, .lsp = args->lsp, .method = "shutdown",
                      .params = "null", .length = 4ULL, .wait = 2000ULL, .answer = &answer, .err_msg = &err_buf);
-    g_cli_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(answer.message, g_cli_servers_owner);
     (void)EMBED_CALL(cli_lsp_err_msg_length.notify, CliLspErrMsgLengthCfg, .lsp = args->lsp, .method = "exit",
                      .params = "null", .length = 4ULL, .err_msg = &err_buf);
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 100u);
@@ -567,7 +567,7 @@ void cli_lsp_unref(const CliLspContextCfg *args)
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &args->lsp->spawned);
     if (args->lsp->capabilities != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(args->lsp->capabilities, g_cli_servers_owner);
+        (void)g_platform_guard->movable_buf_release(args->lsp->capabilities, g_cli_servers_owner);
     }
     args->lsp->reserved = 0;
 }

@@ -1,11 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_child.c: the job's folders and records, the daemon channel, the wait and the child
-#include "../../../../platform/platform.h"
+// the internal header comes first, since it sets the macros of the system before any header
+#include "tessera_run_internal.h"
+
+#include "../../../../../includes/platform/platform.h"
 #include "../../engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
-#include "tessera_run_internal.h"
 
 _Alignas(8) static const char s_run_unwatched[] =
     "  tessera_run: the command runs with no child to watch it: its records could not be made under the "
@@ -17,27 +19,8 @@ _Alignas(8) static const char s_run_wsl_unmeasured[] =
     "tessera_run ($TESSERA_RUN_WSL, or tessera_run beside this program)\n";
 #endif
 
-// every folder along the path made where it is not; 1 where the last is there
-static int run_folders_make(char *path)
-{
-    // each separator after the first byte, reached from the one before it
-    static const char s_separators[3] = {'/', RUN_SEPARATOR, '\0'};
-    for (size_t at = 1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &path[1],
-                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_separators);
-         path[at] != '\0'; at += 1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &path[at + 1u],
-                                                 .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_separators))
-    {
-        const char character = path[at];
-        path[at] = '\0';
-        run_folder_make(path);
-        path[at] = character;
-    }
-    run_folder_make(path);
-    return run_folder_exists(path);
-}
-
 // the parent's record rewritten from its start: the pid launched, the child's pid once it reported it, and the
-// keepalive, one more at each write. A line never shortens, and none is left from the one before
+// keepalive, one more at each write. A line never shortens, and a write leaves none of the one before
 static void run_record_write(RunChannel *channel)
 {
     if ((channel == NULL) || !channel->open)
@@ -76,8 +59,8 @@ void run_record_launched(RunChannel *channel, unsigned long long pid)
     }
 }
 
-// the records' path: the host's tessera state, then children, then this process's pid and the job's signum, as a lost
-// ticket's record is named. The folders are made where they are not
+// the records' path. It is the host's tessera state, then children, then this process's pid and the job's signum. The
+// record of a lost ticket names its own the same way. The call makes each folder that is not there
 static int run_records_place(RunChannel *channel, const EngineSignum *signum)
 {
     unsigned char host[TESSERA_DEVICE_BYTES];
@@ -95,8 +78,8 @@ static int run_records_place(RunChannel *channel, const EngineSignum *signum)
     mmgr_line_put(&formed_line_1, s_run_children);
     (void)mmgr_line_finish(&formed_line_1);
     const int folder = (int)formed_line_1.at;
-    // a non-negative length is compared whole against the capacity
-    if ((folder <= 0) || ((size_t)folder >= (capacity - at)) || !run_folders_make(records))
+    // the test compares a non-negative length whole against the capacity
+    if ((folder <= 0) || ((size_t)folder >= (capacity - at)) || !platform_folders_made(records, 0755u))
     {
         return 0;
     }
@@ -107,7 +90,7 @@ static int run_records_place(RunChannel *channel, const EngineSignum *signum)
     mmgr_line_put(&formed_line_2, "-");
     (void)mmgr_line_finish(&formed_line_2);
     const int named = (int)formed_line_2.at;
-    // a non-negative length is compared whole against the capacity
+    // the test compares a non-negative length whole against the capacity
     if ((named <= 0) || ((size_t)named >= (capacity - at)))
     {
         return 0;
@@ -129,8 +112,8 @@ static int run_records_place(RunChannel *channel, const EngineSignum *signum)
     return 1;
 }
 
-// a child tessera_run is put between this process and the command where one is requested (--child), and always for a
-// WSL command, whose tree only a child inside the VM can measure. The words to start, NULL-ended, or NULL for the
+// A child tessera_run goes between this process and the command where --child requests one. It goes there always for
+// a WSL command, whose tree only a child inside the VM can measure. The words to start, NULL-ended, or NULL for the
 // command as it is
 char **run_channel_open(RunChannel *channel, const RunRequest *request, char *const *words, int count,
                         const EngineSignum *signum, int *started_count)
@@ -201,7 +184,7 @@ char **run_channel_open(RunChannel *channel, const RunRequest *request, char *co
         }
         return NULL;
     }
-    // records a child of an earlier process of the same pid left are not read as this child's
+    // the read takes no record that a child of an earlier process of the same pid left as this child's
     (void)platform_file_removed(run_path_joined(channel->records, ".child", path, sizeof(path)) ? path : "");
     (void)platform_file_removed(run_path_joined(channel->records, ".log", path, sizeof(path)) ? path : "");
     // the words before the command's own, a count at least 0. It converts exactly
@@ -261,7 +244,7 @@ static void run_channel_refresh(RunChannel *channel)
                 engine_note_written(&engine_note);
             }
         }
-        // the command's processors between two of the child's records, on its clock, once they span half a sweep: a
+        // the command's processors between two of the child's records, on its clock, once they span half a sweep. A
         // record read late, or missed mid-write, shifts no time into the next reading
         const int spans = (fields >= 3) && (numbers[2] >= (channel->reported_wall + (RUN_SWEEP_MICROSECONDS / 2ULL)));
         if (channel->bound && (numbers[0] == channel->child) && spans)
@@ -312,10 +295,10 @@ void run_channel_close(RunChannel *channel)
     (void)platform_file_removed(run_path_joined(channel->records, ".log", path, sizeof(path)) ? path : "");
 }
 
-// reports the command's processors each sweep until it ends, the last reading only when it spans half a sweep, since
-// a shorter one is mostly the clock's own step. Across the VM the child's last rate is added to this job's own. A
-// child not yet greeted is read, and maintained alive, every greeting step
-void run_wait(RunChild *child, RunChannel *channel, TesseraClient *client, TesseraTicket *ticket, EngineError *error)
+// reports the command's processors each sweep until it ends. The last reading counts only when it spans half a sweep,
+// since a shorter one is mostly the clock's own step. Across the VM this job adds the child's last rate to its own. A
+// child not yet greeted gets a read, and stays alive, every RUN_GREETING_MICROSECONDS
+void run_wait(PlatformProgram *child, RunChannel *channel, TesseraClient *client, TesseraTicket *ticket, EngineError *error)
 {
     const int across = channel->open && channel->across;
     unsigned long long cpu_before = 0ULL;
@@ -349,8 +332,8 @@ void run_wait(RunChild *child, RunChannel *channel, TesseraClient *client, Tesse
     }
 }
 
-// the child's record, rewritten whole: its state, its pid, its command's processor time and the wall time it was read
-// at since the child began, then its exit once it has one
+// the child's record, rewritten whole. It holds its state, its pid, its command's processor time and the wall time of
+// the reading since the child began. It then holds its exit, once it has one
 static void run_child_write(const char *records, const char *state, unsigned long long pid, unsigned long long cpu,
                             unsigned long long wall, int ended, int code)
 {
@@ -363,7 +346,7 @@ static void run_child_write(const char *records, const char *state, unsigned lon
     }
     if (ended)
     {
-        // an exit code is written as the unsigned word a process ends with, which a reader parses as digits
+        // the line writes an exit code as the unsigned word that a process ends with, which a reader parses as digits
         {
             mmgr_line_put(platform_file_line(file), state);
             mmgr_line_put(platform_file_line(file), " ");
@@ -391,18 +374,20 @@ static void run_child_write(const char *records, const char *state, unsigned lon
     platform_file_close(file);
 }
 
-// the command's processor time read now, or the time read before where that is more: a tree that has lost processes
-// no longer counts theirs, and the time it has used never falls
-static unsigned long long run_child_cpu(const RunChild *child, unsigned long long before)
+// the command's processor time read now, or the time read before where that is more. A tree that lost processes no
+// longer counts theirs, and the time that it used never falls
+static unsigned long long run_child_cpu(const PlatformProgram *child, unsigned long long before)
 {
     unsigned long long read = 0ULL;
     return (run_cpu(child, &read) && (read > before)) ? read : before;
 }
 
-// the child's side. It reports it lives, reads that its parent launched it, checks its own pid against the one the
-// parent recorded, and only then runs the command, its processor time in its record each sweep. A parent whose
-// keepalive stops is looked for: one gone, or one that still locks its record and has not answered for the unresponsive
-// time, has the child end the command, log it and exit, and whoever runs the parent may relaunch or resume it
+// the child's side. It reports it lives and reads that its parent launched it. It checks its own pid against the one
+// the parent recorded, and only then runs the command, its processor time in its record each sweep.
+//
+// The child looks for a parent whose keepalive stops. That parent may end, or still lock its record and give no answer for the
+// unresponsive time. The child then ends the command, logs it and exits. Whoever runs the parent may relaunch or
+// resume it
 int run_child(const RunRequest *request, char **arguments, int count, unsigned long long mask, const char *label)
 {
     const char *const records = request->parent;
@@ -431,7 +416,7 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
         return RUN_FAILED;
     }
     run_child_write(records, "alive", self, 0ULL, 0ULL, 0, 0);
-    // the parent reads this record and records this pid within its greeting step
+    // the parent reads this record and records this pid within its RUN_GREETING_MICROSECONDS
     const unsigned long long greeted = run_now();
     int bound = 0;
     while (!bound && ((run_now() - greeted) < silent))
@@ -494,7 +479,7 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
     }
     run_log(records, entry);
     run_child_write(records, "confirmed", self, 0ULL, 0ULL, 0, 0);
-    RunChild child;
+    PlatformProgram child;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &child, .bytes = sizeof(child), .val = 0);
     if (!run_start(&child, arguments + request->command, count - request->command, mask, NULL))
     {
@@ -546,7 +531,8 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
         seen_at = parent_alive ? now : seen_at;
         keepalive = parent_alive ? parent_fields[2] : keepalive;
         const unsigned long long silence = now - seen_at;
-        // a keepalive unchanged past the silent time: the parent is looked for, by whether it still locks its record
+        // a keepalive unchanged past the silent time: the child looks for the parent, by whether it still locks its
+        // record
         alive = (silence < silent) || run_parent_alive(parent);
         orphaned = !ended && (!alive || (silence >= unresponsive));
         if (!ended && !orphaned && (silence >= silent) && !looked)
@@ -616,4 +602,70 @@ int run_child(const RunRequest *request, char **arguments, int count, unsigned l
     }
     run_log(records, entry);
     return code;
+}
+
+// The command started through the platform's programs, below normal and on the processors of `mask`, with the input,
+// the output and the errors of this process. It waits until run_record_launched records its pid, and then it runs. Its
+// job on Windows and its tree on Linux are what its processor time counts
+int run_start(PlatformProgram *child, char *const *words, int count, unsigned long long mask, RunChannel *channel)
+{
+    (void)count;
+    char why[ENGINE_PATH_CAPACITY];
+    VerbaLinea err_msg = mmgr_line_over(why, sizeof(why));
+    // the command's words are a program's, which it runs and writes to none of
+    const PlatformStart start = {.words = (const char *const *)words,
+                                 .priority = PLATFORM_PRIORITY_GUEST,
+                                 .output = PLATFORM_OUTPUT_OWN,
+                                 .input_own = 1,
+                                 .suspended = 1,
+                                 .found_on_path = 1,
+                                 .processor_mask = mask,
+                                 .err_msg = &err_msg};
+    if (!platform_program_started(&start, child))
+    {
+        return 0;
+    }
+    unsigned long long measured = 0ULL;
+    if (!platform_program_processor_time(child, &measured))
+    {
+        run_unmeasured_noted();
+    }
+    // the record takes a watched command's pid before it runs, and its child reads that this process launched it
+    run_record_launched(channel, child->id);
+    platform_program_resumed(child);
+    run_interrupts_passed();
+    return 1;
+}
+
+// 1 once the command ended, within `microseconds` at most. It stays unreaped, and the last reading of its tree still
+// counts its own ticks
+int run_ended(PlatformProgram *child, unsigned long long microseconds)
+{
+    return platform_program_ended_within(child, microseconds);
+}
+
+// the command's end waited for and its exit code read, 128 and the signal's number where a signal ended it, and the
+// command let go
+int run_finish(PlatformProgram *child)
+{
+    PlatformEnding ending = {0, 0ULL};
+    const int read = platform_program_ending(child, &ending);
+    platform_program_closed(child);
+    if (!read)
+    {
+        return RUN_FAILED;
+    }
+    // an exit code goes on whole, and a shell reads its low byte. A signal's number is small and positive
+    return ending.signaled ? (128 + (int)ending.code) : (int)ending.code;
+}
+
+int run_cpu(const PlatformProgram *child, unsigned long long *microseconds)
+{
+    return platform_program_processor_time(child, microseconds);
+}
+
+// the command's tree asked to end, and the rest of it after the grace ended by force: the count ended by force
+unsigned long long run_end_command(PlatformProgram *child, unsigned long long grace)
+{
+    return platform_program_tree_stopped(child, grace, (unsigned int)RUN_ORPHANED);
 }

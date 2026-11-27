@@ -58,7 +58,7 @@ EMBED_INLINE void request_answer(const RecordingRequestCtx *args)
     // the members around the body, the body or null, and the command and the reason with every byte escaped
     const unsigned long long capacity =
         (body_untruncated ? args->body->at : 4ULL) + ((command_size + args->err_msg->at) * 6ULL) + 512ULL;
-    char *const sent = g_cli_guard->temporary_buf_alloc(capacity, g_cli_debug_owner);
+    char *const sent = g_platform_guard->temporary_buf_alloc(capacity, g_cli_debug_owner);
     VerbaLinea reply = mmgr_line_over(sent, capacity);
     mmgr_line_put(&reply, "{\"seq\":");
     mmgr_line_decimal(&reply, s_seq, 1u);
@@ -88,7 +88,7 @@ EMBED_INLINE void request_answer(const RecordingRequestCtx *args)
     {
         (void)EMBED_CALL(cli_dap_message.send, CliDapMessageCfg, .dap = dap, .message = reply.out, .size = reply.at);
     }
-    g_cli_guard->persistent_buf_release(sent, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(sent, g_cli_debug_owner);
 }
 
 // the breakpoints of one file set, each line once, its place among the files the one its path's key had, or a new
@@ -253,8 +253,8 @@ static int request_served(const CliDapServeCfg *args)
     const unsigned int arguments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = &s_json, .object = message, .name = "arguments");
     // the answer's body on a line grown to it, ended once the reply is sent
-    CliGrownLine body_grown;
-    cli_grown_begin(&body_grown, CLI_RECORDING_BODY, g_cli_debug_owner);
+    PlatformText body_grown;
+    platform_text_begun(&body_grown, CLI_RECORDING_BODY, platform_place_g_cli_debug_owner, PLATFORM_TIER_TEMPORARY);
     VerbaLinea *const body_line = &body_grown.line;
     int success = 1;
     if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "initialize", .cap = CLI_POOL_BYTES}))
@@ -283,7 +283,7 @@ static int request_served(const CliDapServeCfg *args)
         mmgr_line_put(body_line, "null");
         EMBED_CALL(request_answer, RecordingRequestCtx, .dap = dap, .message = message, .command = command,
                    .success = 1, .body = body_line, .err_msg = &err_msg);
-        cli_grown_end(&body_grown);
+        platform_text_ended(&body_grown);
         const char initialized[] = "{\"type\":\"event\",\"event\":\"initialized\"}";
         (void)EMBED_CALL(cli_dap_message.send, CliDapMessageCfg, .dap = dap, .message = initialized,
                          .size = sizeof(initialized) - 1u);
@@ -304,7 +304,7 @@ static int request_served(const CliDapServeCfg *args)
         mmgr_line_put(body_line, "null");
         EMBED_CALL(request_answer, RecordingRequestCtx, .dap = dap, .message = message, .command = command,
                    .success = success, .body = body_line, .err_msg = &err_msg);
-        cli_grown_end(&body_grown);
+        platform_text_ended(&body_grown);
         if (!success)
         {
             const char terminated[] = "{\"type\":\"event\",\"event\":\"terminated\",\"body\":{}}";
@@ -320,7 +320,7 @@ static int request_served(const CliDapServeCfg *args)
         mmgr_line_put(body_line, "null");
         EMBED_CALL(request_answer, RecordingRequestCtx, .dap = dap, .message = message, .command = command,
                    .success = 1, .body = body_line, .err_msg = &err_msg);
-        cli_grown_end(&body_grown);
+        platform_text_ended(&body_grown);
         return !cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "disconnect", .cap = CLI_POOL_BYTES});
     }
     else
@@ -331,14 +331,14 @@ static int request_served(const CliDapServeCfg *args)
     }
     EMBED_CALL(request_answer, RecordingRequestCtx, .dap = dap, .message = message, .command = command,
                .success = success, .body = body_line, .err_msg = &err_msg);
-    cli_grown_end(&body_grown);
+    platform_text_ended(&body_grown);
     return 1;
 }
 
 int cli_recording_serve(const CliDapServeCfg *args)
 {
     const int served = request_served(args);
-    g_cli_guard->persistent_buf_release(s_json.node, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(s_json.node, g_cli_debug_owner);
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return served;

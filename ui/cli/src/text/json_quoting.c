@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // json_quoting.c: a line whose bytes go into a JSON string in another line as it fills, escaped as
-// cli_json_quoted_lossy escapes them, a character a piece ends inside of carried over to the next, so a text of any length
-// is quoted into an answer with no capacity of its own
+// cli_json_quoted_lossy escapes them, a character a piece ends inside of carried over to the next, so a text of any
+// length is quoted into an answer with no capacity of its own
 #include "json_tree.h"
 
 typedef struct
@@ -37,7 +37,8 @@ static int json_quoting_append(void *context, const char *bytes, size_t size)
     unsigned long long left = size;
     if (quoting->count != 0u)
     {
-        const unsigned long long required = EMBED_CALL(json_character_bytes, JsonQuotingCtx, .lead = quoting->pending[0]);
+        const unsigned long long required =
+            EMBED_CALL(json_character_bytes, JsonQuotingCtx, .lead = quoting->pending[0]);
         while ((quoting->count < required) && (left > 0ULL) && ((*at & 0xc0u) == 0x80u))
         {
             quoting->pending[quoting->count] = *at;

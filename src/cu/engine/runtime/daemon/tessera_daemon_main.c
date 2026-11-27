@@ -1,11 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_daemon_main.c: the daemon's arguments and main
-#include "../../../../platform/platform.h"
+// the internal header comes first, since it sets the macros of the system before any header
+#include "tessera_daemon_internal.h"
+
+#include "../../../../../includes/platform/platform.h"
 #include "../../engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
-#include "tessera_daemon_internal.h"
 
 _Alignas(8) static const char s_daemon_lock_file[] = "daemon.lock";
 _Alignas(8) static const char s_daemon_usage[] = "  tessera daemon: --device <32 hex digits, all zero for the host's "
@@ -38,7 +40,7 @@ int program_main(int count, char **arguments)
         return 2;
     }
     if (!tessera_path_state(g_daemon.device, g_daemon.state, ENGINE_PATH_CAPACITY) ||
-        !daemon_directories_make(g_daemon.state) ||
+        !platform_folders_made(g_daemon.state, TESSERA_DAEMON_FOLDER_MODE) ||
         !tessera_path_endpoint(g_daemon.device, g_daemon.endpoint, ENGINE_PATH_CAPACITY))
     {
         {

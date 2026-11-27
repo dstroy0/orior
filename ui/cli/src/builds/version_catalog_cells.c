@@ -67,18 +67,18 @@ int cli_versions_alloc(const CliVersionCatalogTextCtx *args)
                                           ((unsigned long long)parsed->errors_capacity * CLI_VERSIONS_MSG_MAX_LEN),
                                  .max = CLI_VERSIONS_POOL);
     // a part of none is a cell of one, so every part is a cell
-    parsed->section = g_cli_guard->temporary_buf_alloc((parsed->sections_capacity + 1ULL) * sizeof(CliVersionsSection),
-                                                       g_cli_versions_owner);
-    parsed->field = g_cli_guard->temporary_buf_alloc((parsed->fields_capacity + 1ULL) * sizeof(CliVersionsField),
-                                                     g_cli_versions_owner);
-    parsed->item = g_cli_guard->temporary_buf_alloc((parsed->items_capacity + 1ULL) * sizeof(CliVersionsItem),
-                                                    g_cli_versions_owner);
-    parsed->error = g_cli_guard->temporary_buf_alloc((parsed->errors_capacity + 1ULL) * sizeof(CliVersionsError),
-                                                     g_cli_versions_owner);
-    parsed->pool = g_cli_guard->temporary_buf_alloc(parsed->pool_capacity + 1ULL, g_cli_versions_owner);
+    parsed->section = g_platform_guard->temporary_buf_alloc(
+        (parsed->sections_capacity + 1ULL) * sizeof(CliVersionsSection), g_cli_versions_owner);
+    parsed->field = g_platform_guard->temporary_buf_alloc((parsed->fields_capacity + 1ULL) * sizeof(CliVersionsField),
+                                                          g_cli_versions_owner);
+    parsed->item = g_platform_guard->temporary_buf_alloc((parsed->items_capacity + 1ULL) * sizeof(CliVersionsItem),
+                                                         g_cli_versions_owner);
+    parsed->error = g_platform_guard->temporary_buf_alloc((parsed->errors_capacity + 1ULL) * sizeof(CliVersionsError),
+                                                          g_cli_versions_owner);
+    parsed->pool = g_platform_guard->temporary_buf_alloc(parsed->pool_capacity + 1ULL, g_cli_versions_owner);
     // a key or a string the line contains, and after it a message naming a key
-    parsed->line = g_cli_guard->temporary_buf_alloc((2ULL * (parsed->longest + 1ULL)) + CLI_VERSIONS_MSG_MAX_LEN,
-                                                    g_cli_versions_owner);
+    parsed->line = g_platform_guard->temporary_buf_alloc((2ULL * (parsed->longest + 1ULL)) + CLI_VERSIONS_MSG_MAX_LEN,
+                                                         g_cli_versions_owner);
     if ((parsed->section == NULL) || (parsed->field == NULL) || (parsed->item == NULL) || (parsed->error == NULL) ||
         (parsed->pool == NULL) || (parsed->line == NULL))
     {

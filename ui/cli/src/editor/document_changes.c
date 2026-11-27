@@ -238,7 +238,7 @@ int cli_document_change_revert(const CliChangeCfg *args)
                          .count = &count);
         bytes += (3ULL * count) + 1ULL;
     }
-    char *const text = g_cli_guard->temporary_buf_alloc(bytes, g_cli_editor_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(bytes, g_cli_editor_owner);
     if (text == NULL)
     {
         mmgr_line_put(args->err_msg, "the revert's cell could not be taken");
@@ -261,7 +261,7 @@ int cli_document_change_revert(const CliChangeCfg *args)
                          .count = &count);
         // the older line's units copied out into a cell of the temporary tier
         unsigned short *const units =
-            (count != 0ULL) ? g_cli_guard->temporary_buf_alloc(count * sizeof(*units), g_cli_editor_owner) : NULL;
+            (count != 0ULL) ? g_platform_guard->temporary_buf_alloc(count * sizeof(*units), g_cli_editor_owner) : NULL;
         if (units != NULL)
         {
             (void)EMBED_CALL(cli_document_line.head_line_units, CliDocumentLineUnitsCfg, .key = args->key, .line = line,
@@ -273,7 +273,7 @@ int cli_document_change_revert(const CliChangeCfg *args)
         }
         EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = &out, .units = units,
                    .count = (units != NULL) ? count : 0ULL);
-        g_cli_guard->persistent_buf_release(units, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release(units, g_cli_editor_owner);
         if (!at_end)
         {
             mmgr_line_put(&out, "\n");
@@ -297,17 +297,17 @@ int cli_document_change_revert(const CliChangeCfg *args)
         }
     }
     // The text goes into a movable cell of this module with its 0, and the work cell goes back before the callback
-    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(length + 1ULL, g_cli_editor_owner);
+    const CarcerMovableEntry *const cell = g_platform_guard->movable_buf_alloc(length + 1ULL, g_cli_editor_owner);
     if (cell == NULL)
     {
-        g_cli_guard->persistent_buf_release(text, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_editor_owner);
         mmgr_line_put(args->err_msg, "the revert's cell could not be taken");
         return 0;
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = text, .bytes = length + 1ULL});
-    g_cli_guard->persistent_buf_release(text, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_editor_owner);
     args->each(&(CliChangeRevertCfg){.context = args->context, .from = from, .to = to, .cell = cell, .length = length});
-    (void)g_cli_guard->movable_buf_release(cell, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(cell, g_cli_editor_owner);
     return 1;
 }

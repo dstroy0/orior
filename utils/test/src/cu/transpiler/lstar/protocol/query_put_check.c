@@ -17,7 +17,7 @@
 // and the protocol's answer is checked against the fact that the word counts. A platform that names no such address
 // to the test skips the clock checks and reports it.
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/query/query_put.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include <stdio.h>
 

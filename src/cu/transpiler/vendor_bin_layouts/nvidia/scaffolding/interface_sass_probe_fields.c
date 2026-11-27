@@ -20,7 +20,7 @@
 // writes <folder>/list.txt and the cubins it names; interface_sass_run runs that list and writes the answers, which a
 // later pass reads back against the form's runs. The kernel opens with its section's label, loads the case into
 // registers and stores the answer's first word from R7.
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "interface_sass_probe_fields/fields_internal.h"

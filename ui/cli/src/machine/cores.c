@@ -21,7 +21,7 @@ typedef struct
 
 unsigned int cli_cores_machine(void)
 {
-    return cli_processors();
+    return platform_processors();
 }
 
 void cli_cores_reserve(const CliCoresCfg *args)
@@ -68,7 +68,7 @@ unsigned int cli_cores_on_reserve(void)
         const unsigned int reserved = s_reserved;
         return reserved;
     }
-    CliCoresRead *const read = g_cli_guard->temporary_buf_alloc(sizeof(*read), g_cli_settings_owner);
+    CliCoresRead *const read = g_platform_guard->temporary_buf_alloc(sizeof(*read), g_cli_settings_owner);
     if (read == NULL)
     {
         return CLI_CORES_RESERVED_MIN;
@@ -106,17 +106,17 @@ unsigned int cli_cores_on_reserve(void)
     {
         reserved = CLI_CORES_RESERVED_MIN;
     }
-    cli_grown_end(&read->layers.grown);
+    platform_text_ended(&read->layers.grown);
     read->layers.text = NULL;
     read->layers.used = 0ULL;
     read->layers.capacity = 0ULL;
-    g_cli_guard->persistent_buf_release(read->reader.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), read->reader.json.node));
+    g_platform_guard->persistent_buf_release(read->reader.json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), read->reader.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&read->reader.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     read->reader.files = 0u;
     read->reader.problems = 0u;
-    g_cli_guard->persistent_buf_release(read, g_cli_settings_owner);
+    g_platform_guard->persistent_buf_release(read, g_cli_settings_owner);
     s_reserved = (reserved > CLI_CORES_RESERVED_MIN) ? reserved : CLI_CORES_RESERVED_MIN;
     reserved = s_reserved;
     return reserved;

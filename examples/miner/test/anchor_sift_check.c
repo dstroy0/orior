@@ -14,7 +14,7 @@
  *       The ratio is a measurement on this machine, and the test does not assert it.
  */
 #include "anchor_sift.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 #include <math.h>
 #include <stdio.h>

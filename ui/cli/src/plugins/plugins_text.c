@@ -258,13 +258,13 @@ int cli_plugins_json_write(const CliPluginsJsonWriteCfg *args)
         mmgr_line_put(args->err_msg, ": it could not be made");
         return 0;
     }
-    CliGrownLine text;
-    cli_grown_begin(&text, CLI_PLUGIN_TEXT_CAPACITY, g_cli_plugins_owner);
+    PlatformText text;
+    platform_text_begun(&text, CLI_PLUGIN_TEXT_CAPACITY, platform_place_g_cli_plugins_owner, PLATFORM_TIER_TEMPORARY);
     EMBED_CALL(cli_plugins_json_out.text_get, CliPluginsJsonOutCfg, .json = json, .plugin = plugin, .out = &text.line);
     const int written =
         mmgr_line_ok(&text.line) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
-                                               .path = file, .bytes = text.cell, .size = cli_grown_size(&text));
-    cli_grown_end(&text);
+                                               .path = file, .bytes = text.cell, .size = platform_text_size(&text));
+    platform_text_ended(&text);
     if (!written)
     {
         mmgr_line_put(args->err_msg, file);
@@ -297,14 +297,15 @@ EMBED_INLINE int plugins_write(const PluginsTextCtx *args)
     mmgr_line_put(&sample_name, folder);
     mmgr_line_put(&sample_name, "/sample.");
     mmgr_line_put(&sample_name, (extension != NULL) ? extension : "txt");
-    CliGrownLine sample_text;
-    cli_grown_begin(&sample_text, CLI_PLUGIN_TEXT_CAPACITY, g_cli_plugins_owner);
+    PlatformText sample_text;
+    platform_text_begun(&sample_text, CLI_PLUGIN_TEXT_CAPACITY, platform_place_g_cli_plugins_owner,
+                        PLATFORM_TIER_TEMPORARY);
     EMBED_CALL(cli_plugins_json_out.sample_get, CliPluginsJsonOutCfg, .json = json, .plugin = plugin,
                .out = &sample_text.line);
     const int sampled = (mmgr_line_finish(&sample_name) != 0ULL) && mmgr_line_ok(&sample_text.line) &&
                         EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = sample,
-                                   .bytes = sample_text.cell, .size = cli_grown_size(&sample_text));
-    cli_grown_end(&sample_text);
+                                   .bytes = sample_text.cell, .size = platform_text_size(&sample_text));
+    platform_text_ended(&sample_text);
     if (!sampled)
     {
         mmgr_line_put(args->err_msg, sample);
@@ -328,7 +329,7 @@ int cli_plugins_create_in(const CliPluginsErrMsgCfg *args)
     const int written = (plugin != CLI_JSON_NONE) &&
                         EMBED_CALL(plugins_write, PluginsTextCtx, .dir = args->dir, .json = &draft, .plugin = plugin,
                                    .replace = args->replace, .folder = args->folder, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release(draft.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), draft.node));
+    g_platform_guard->persistent_buf_release(draft.node, mmgr_owner_of_buf(platform_pool_series(), draft.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&draft),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return written;

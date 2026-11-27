@@ -13,7 +13,7 @@
 //
 // The lifting runs on the device. Exit 0 where it was done and every sample matched, 1 where it was not, 2 where the
 // words are none of the above
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "../../../engine/engine.h"
 #include "../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"

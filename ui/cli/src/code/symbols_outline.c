@@ -50,7 +50,7 @@ static unsigned long long s_outline_serial;
 // the outline located let go, none located
 static void outline_released(void)
 {
-    (void)g_cli_guard->movable_buf_release(s_outline_cell, g_cli_code_owner);
+    (void)g_platform_guard->movable_buf_release(s_outline_cell, g_cli_code_owner);
     s_outline_cell = NULL;
     s_outline_count = 0u;
     s_outline_text_at = 0ULL;
@@ -67,14 +67,14 @@ static void outline_published(void)
     {
         return;
     }
-    s_outline_cell = g_cli_guard->movable_buf_alloc(rows_bytes + s_outline->used, g_cli_code_owner);
+    s_outline_cell = g_platform_guard->movable_buf_alloc(rows_bytes + s_outline->used, g_cli_code_owner);
     if (s_outline_cell == NULL)
     {
         return;
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_outline_cell, .src = s_outline->row, .bytes = rows_bytes});
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = s_outline_cell, .offset = rows_bytes, .src = s_outline->text, .bytes = s_outline->used});
     s_outline_count = s_outline->count;
     s_outline_text_at = rows_bytes;
@@ -196,7 +196,7 @@ int cli_outline_read(const CliOutlineCfg *args)
         return 0;
     }
     // the outline built in a cell of this read, then published sized to its rows
-    s_outline = g_cli_guard->temporary_buf_alloc(sizeof(Outline), g_cli_code_owner);
+    s_outline = g_platform_guard->temporary_buf_alloc(sizeof(Outline), g_cli_code_owner);
     if (s_outline == NULL)
     {
         return 0;
@@ -212,7 +212,7 @@ int cli_outline_read(const CliOutlineCfg *args)
         (void)mmgr_line_finish(&key);
         s_outline_serial = stored->serial;
     }
-    g_cli_guard->persistent_buf_release(s_outline, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(s_outline, g_cli_code_owner);
     s_outline = NULL;
     return 1;
 }
@@ -230,27 +230,29 @@ int cli_outline_row(const CliOutlineCfg *args)
         return 0;
     }
     OutlineRow row;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_outline_cell, .offset = (embed_word)args->at * sizeof(row), .dst = &row, .bytes = sizeof(row)});
     {
         const unsigned long long text_read =
             (row.length < ((sizeof(args->row->name)) - 1ULL)) ? row.length : ((sizeof(args->row->name)) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_outline_cell,
-                                                                .offset = (embed_word)(s_outline_text_at + row.name),
-                                                                .dst = args->row->name,
-                                                                .bytes = (embed_word)text_read});
+        (void)g_platform_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_outline_cell,
+                                .offset = (embed_word)(s_outline_text_at + row.name),
+                                .dst = args->row->name,
+                                .bytes = (embed_word)text_read});
         args->row->name[text_read] = '\0';
     }
     // the type is ended in the text: its bytes are those before the end
-    const embed_word type_length = g_cli_guard->movable_buf_measure(
+    const embed_word type_length = g_platform_guard->movable_buf_measure(
         &(CarcerMovableCfg){.cell = s_outline_cell, .offset = (embed_word)(s_outline_text_at + row.type)});
     {
         const unsigned long long text_read =
             (type_length < ((sizeof(args->row->type)) - 1ULL)) ? type_length : ((sizeof(args->row->type)) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_outline_cell,
-                                                                .offset = (embed_word)(s_outline_text_at + row.type),
-                                                                .dst = args->row->type,
-                                                                .bytes = (embed_word)text_read});
+        (void)g_platform_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = s_outline_cell,
+                                .offset = (embed_word)(s_outline_text_at + row.type),
+                                .dst = args->row->type,
+                                .bytes = (embed_word)text_read});
         args->row->type[text_read] = '\0';
     }
     args->row->length = row.length;

@@ -22,10 +22,10 @@ CC="${CC:-clang}"
 
 # the system's body for this machine joins the modules, with the libraries it links. The checks test the body too
 case "$(uname -s)" in
-    MINGW*|MSYS*|CYGWIN*) HOST="x86_64-pc-windows-msvc"; SUFFIX=".exe"; BODY="system_windows.c"
+    MINGW*|MSYS*|CYGWIN*) HOST="x86_64-pc-windows-msvc"; SUFFIX=".exe"; BODY="$TOP/includes/platform/windows/windows_window.c"
                           LIBRARIES=(-lws2_32 -lsynchronization -lsecur32 -lcrypt32 -lshell32 -ladvapi32 -luser32 -lole32 -luuid -lgdi32 -ldwmapi -ld3d12 -ldxgi -ldxguid) ;;
     Darwin) HOST="$(uname -m)-apple-darwin"; SUFFIX=""; BODY=""; LIBRARIES=(-lpthread -lm) ;;
-    *) HOST="$(uname -m)-unknown-linux-gnu"; SUFFIX=""; BODY="system_x11.c"; LIBRARIES=(-lpthread -ldl -lm -lrt -lX11) ;;
+    *) HOST="$(uname -m)-unknown-linux-gnu"; SUFFIX=""; BODY="$TOP/includes/platform/posix/linux/x11_window.c"; LIBRARIES=(-lpthread -ldl -lm -lrt -lX11) ;;
 esac
 if [ "$(uname -s)" = "Linux" ] && ldd --version 2>&1 | grep -qi musl; then
     HOST="$(uname -m)-alpine-linux-musl"
@@ -64,12 +64,12 @@ if [ ! -f "$TOP/build/compile_commands.json" ]; then
 fi
 
 # The modules a check can call, compiled here with the check's clock. They are every source of the view and the
-# window, without the program's own and the other systems' bodies
+# window, without the program's own. They also take the body of this system from the folders of the platform
 MODULES=()
+[ -n "$BODY" ] && MODULES+=("$BODY")
 while IFS= read -r source; do
     case "$source" in
         */main.c) ;;
-        */system_*.c) [ "$(basename "$source")" = "$BODY" ] && MODULES+=("$source") ;;
         *) MODULES+=("$source") ;;
     esac
 done < <(find "$WINDOW" "${VIEW[@]}" -name '*.c' | sort)

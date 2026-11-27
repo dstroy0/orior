@@ -7,7 +7,7 @@
 #include "record.h"
 
 #include "core_radius_weights.h"
-#include "../../../../src/platform/platform.h"
+#include "../../../../includes/platform/platform.h"
 
 // The datum enters the core through Z_{-2A} Pi alone, and the tangent of the rule of core_radius_weights.h along a
 // datum direction p is the same rule taken once in the tangent of each field: with j = k - i,

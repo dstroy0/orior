@@ -9,7 +9,7 @@
 // launches what the code generator writes. This header is the base every language inherits; each language is its
 // ruleset's file (code_generator.h)
 
-#include "../../../platform/platform.h"
+#include "../../../../includes/platform/platform.h"
 #include "../../engine/engine_config.h"
 
 // the division operations' scratch per lane, in limbs: long division stores the normalized numerator (one limb

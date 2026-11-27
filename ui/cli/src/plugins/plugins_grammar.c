@@ -36,7 +36,7 @@ typedef struct
     const char *tree;
     int found;
     int made;
-    CliGrownLine *whole;
+    PlatformText *whole;
     VerbaLinea *err_msg;
 } CliGrammarNeedle;
 
@@ -45,7 +45,7 @@ typedef struct
     const char *text;
     unsigned long long size;
     const char *key;
-    const CliGrownLine *whole;
+    const PlatformText *whole;
     VerbaLinea *err_msg;
     unsigned int at;
     const char *id;
@@ -57,13 +57,13 @@ static CliPluginGrammar grammar_listed(const PluginsGrammarCtx *args)
 {
     CliPluginGrammar listed = {{0}, 0ULL};
     const unsigned long long bytes =
-        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_grammars[args->at]});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_grammars[args->at]});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_grammars[args->at], .offset = 0ULL, .dst = &listed.stamp, .bytes = sizeof(listed.stamp)});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grammars[args->at],
-                                                            .offset = CLI_PLUGIN_GRAMMAR_ID_AT,
-                                                            .dst = listed.id,
-                                                            .bytes = bytes - CLI_PLUGIN_GRAMMAR_ID_AT});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grammars[args->at],
+                                                                 .offset = CLI_PLUGIN_GRAMMAR_ID_AT,
+                                                                 .dst = listed.id,
+                                                                 .bytes = bytes - CLI_PLUGIN_GRAMMAR_ID_AT});
     return listed;
 }
 
@@ -75,15 +75,15 @@ static int cli_grammar_listed_put(const PluginsGrammarCtx *args)
         cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_NAME_MAX_LEN - 1u}) + 1ULL;
     const CarcerMovableEntry *const cell =
         (s_grammar_count < CLI_PLUGIN_GRAMMARS_MAX)
-            ? g_cli_guard->movable_buf_alloc(CLI_PLUGIN_GRAMMAR_ID_AT + id_bytes, g_cli_plugins_owner)
+            ? g_platform_guard->movable_buf_alloc(CLI_PLUGIN_GRAMMAR_ID_AT + id_bytes, g_cli_plugins_owner)
             : NULL;
     if (cell == NULL)
     {
         return 0;
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = &args->stamp, .bytes = sizeof(args->stamp)});
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = CLI_PLUGIN_GRAMMAR_ID_AT, .src = args->id, .bytes = id_bytes});
     s_grammars[s_grammar_count] = cell;
     s_grammar_count += 1u;
@@ -105,7 +105,7 @@ static void cli_grammar_each(const CliEachPluginCfg *args)
 {
     CliGrammarNeedle *const needle = (CliGrammarNeedle *)args->context;
     needle->found = 1;
-    cli_grown_reset(needle->whole);
+    platform_text_reset(needle->whole);
     const CliJson *const json = args->plugin->json;
     const unsigned int root = (json != NULL) ? args->plugin->root : CLI_JSON_NONE;
     if (root == CLI_JSON_NONE)
@@ -137,10 +137,11 @@ static void cli_grammar_each(const CliEachPluginCfg *args)
     if (needle->made &&
         EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = pairs,
                    .type = CFG_JSON_ARRAY) &&
-        (cli_grown_size(needle->whole) > 2ULL) && (needle->whole->cell[cli_grown_size(needle->whole) - 1ULL] == '}'))
+        (platform_text_size(needle->whole) > 2ULL) &&
+        (needle->whole->cell[platform_text_size(needle->whole) - 1ULL] == '}'))
     {
         // the closing brace written as the comma before the brackets, the brackets after it, and a brace closes again
-        needle->whole->cell[cli_grown_size(needle->whole) - 1ULL] = ',';
+        needle->whole->cell[platform_text_size(needle->whole) - 1ULL] = ',';
         mmgr_line_put(&needle->whole->line, "\"brackets\":");
         EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = json, .node = pairs,
                    .out = &needle->whole->line, .indent = 0u, .sorted = 0);
@@ -159,12 +160,12 @@ EMBED_INLINE int cli_grammar_resolved_store(const PluginsGrammarCtx *args)
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int grammar =
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
-                   .text = args->whole->cell, .size = cli_grown_size(args->whole), .nodes_more = 0u, .text_more = 0ULL,
-                   .err_msg = err_msg, .owner = g_cli_plugins_owner);
+                   .text = args->whole->cell, .size = platform_text_size(args->whole), .nodes_more = 0u,
+                   .text_more = 0ULL, .err_msg = err_msg, .owner = g_cli_plugins_owner);
     const int stored =
         (grammar != CLI_JSON_NONE) && EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg, .key = key,
                                                  .json = &json, .def = grammar, .err_msg = err_msg);
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return stored;
@@ -204,8 +205,9 @@ static int plugins_grammar_stored(const CliPluginsIdKeyCfg *args)
         mmgr_line_put(args->err_msg, "a plugin's id is longer than impero supports");
         return 0;
     }
-    CliGrownLine whole;
-    cli_grown_begin(&whole, CLI_PLUGIN_GRAMMAR_CAPACITY, g_cli_plugins_owner);
+    PlatformText whole;
+    platform_text_begun(&whole, CLI_PLUGIN_GRAMMAR_CAPACITY, platform_place_g_cli_plugins_owner,
+                        PLATFORM_TIER_TEMPORARY);
     if (whole.cell == NULL)
     {
         mmgr_line_put(args->err_msg, "a plugin's grammar could not be given a cell to be made whole in");
@@ -220,7 +222,7 @@ static int plugins_grammar_stored(const CliPluginsIdKeyCfg *args)
     (void)EMBED_CALL(cli_plugins_settings_of_table.of, CliPluginsSettingsOfCfg, .id = plugin_id,
                      .each = cli_grammar_each, .context = &needle);
     const unsigned long long stamp =
-        EMBED_CALL(cli_grammar_stamp, PluginsGrammarCtx, .text = whole.cell, .size = cli_grown_size(&whole));
+        EMBED_CALL(cli_grammar_stamp, PluginsGrammarCtx, .text = whole.cell, .size = platform_text_size(&whole));
     unsigned int at = 0u;
     CliPluginGrammar listed = {{0}, 0ULL};
     while (at < s_grammar_count)
@@ -244,11 +246,11 @@ static int plugins_grammar_stored(const CliPluginsIdKeyCfg *args)
         }
         else if (stored)
         {
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = s_grammars[at], .offset = 0ULL, .src = &stamp, .bytes = sizeof(stamp)});
         }
     }
-    cli_grown_end(&whole);
+    platform_text_ended(&whole);
     if (!needle.found)
     {
         mmgr_line_put(args->err_msg, "no plugin is named ");

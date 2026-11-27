@@ -5,7 +5,7 @@
 #ifndef ENGINE_NOTE_H
 #define ENGINE_NOTE_H
 
-#include "../../platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 // the bytes of one note. A note past them keeps what fits
 #define ENGINE_NOTE_BYTES 512u

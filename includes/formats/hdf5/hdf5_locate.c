@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_locate.c: finding a dataset, the survey, and the checks on it
 #include "../../../src/cu/engine/engine_note.h"
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "hdf5_internal.h"
 #include "memoria_operor/memoria_operor.h"

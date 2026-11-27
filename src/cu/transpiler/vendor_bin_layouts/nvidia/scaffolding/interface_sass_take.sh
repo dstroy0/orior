@@ -29,7 +29,7 @@ type -P nvdisasm > /dev/null || { echo "  no nvdisasm on the PATH: the CUDA tool
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$INTERFACE" -I "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
           -I "$TOP/includes/parsers" -I "$TEST" "${FILE_DEFS_MMGR_FLAGS[@]}")
 OBJECTS=()
-for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
+for source in "$INTERFACE/interface.c" "${PLATFORM_PROBE[@]}" "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" \
               "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c" \
               "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_machine/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_read.c" \
               "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_take.c"; do

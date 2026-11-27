@@ -102,10 +102,10 @@ EMBED_INLINE int rows_key_order(const DebugPaneRowsCtx *args)
 {
     CliDebugPaneStore *const flipped = &g_cli_debug_pane.flipped;
     CliDebugPaneEntry entry;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = flipped->entry,
-                                                            .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
-                                                            .dst = &entry,
-                                                            .bytes = sizeof(CliDebugPaneEntry)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = flipped->entry,
+                                                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
+                                                                 .dst = &entry,
+                                                                 .bytes = sizeof(CliDebugPaneEntry)});
     char key[ROWS_KEY];
     EMBED_CALL(cli_debug_pane_internal.text_read, CliDebugPaneCtx, .store = flipped, .offset = entry.text,
                .length = entry.text_length, .text_out = key, .capacity = sizeof(key));
@@ -167,10 +167,10 @@ EMBED_INLINE unsigned int rows_entry(const DebugPaneRowsCtx *args)
                              .text = args->text, .length = args->length);
     entry->text_length = (entry->text != CLI_DEBUG_PANE_NONE) ? args->length : 0ULL;
     entry->text = (entry->text != CLI_DEBUG_PANE_NONE) ? entry->text : 0ULL;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
-                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
-                                                             .src = entry,
-                                                             .bytes = sizeof(CliDebugPaneEntry)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
+                                                                  .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
+                                                                  .src = entry,
+                                                                  .bytes = sizeof(CliDebugPaneEntry)});
     return at;
 }
 
@@ -191,10 +191,10 @@ EMBED_INLINE void rows_flip(const DebugPaneRowsCtx *args)
                 continue;
             }
             CliDebugPaneEntry entry;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = flipped->entry,
-                                                                    .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
-                                                                    .dst = &entry,
-                                                                    .bytes = sizeof(CliDebugPaneEntry)});
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = flipped->entry,
+                                                                         .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
+                                                                         .dst = &entry,
+                                                                         .bytes = sizeof(CliDebugPaneEntry)});
             char key[ROWS_KEY];
             EMBED_CALL(cli_debug_pane_internal.text_read, CliDebugPaneCtx, .store = flipped, .offset = entry.text,
                        .length = entry.text_length, .text_out = key, .capacity = sizeof(key));
@@ -222,22 +222,22 @@ EMBED_INLINE void rows_flip(const DebugPaneRowsCtx *args)
     for (unsigned int at = last; at > place; at -= 1u)
     {
         CliDebugPaneEntry moved;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = flipped->entry,
-                                                                .offset = CLI_DEBUG_PANE_ENTRY_AT(at - 1u),
-                                                                .dst = &moved,
-                                                                .bytes = sizeof(CliDebugPaneEntry)});
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = flipped->entry,
-                                                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
-                                                                 .src = &moved,
-                                                                 .bytes = sizeof(CliDebugPaneEntry)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = flipped->entry,
+                                                                     .offset = CLI_DEBUG_PANE_ENTRY_AT(at - 1u),
+                                                                     .dst = &moved,
+                                                                     .bytes = sizeof(CliDebugPaneEntry)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = flipped->entry,
+                                                                      .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
+                                                                      .src = &moved,
+                                                                      .bytes = sizeof(CliDebugPaneEntry)});
     }
     CliDebugPaneEntry entry = {0};
     entry.text = text;
     entry.text_length = args->length;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = flipped->entry,
-                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
-                                                             .src = &entry,
-                                                             .bytes = sizeof(CliDebugPaneEntry)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = flipped->entry,
+                                                                  .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
+                                                                  .src = &entry,
+                                                                  .bytes = sizeof(CliDebugPaneEntry)});
 }
 
 // the request's answer, `length` bytes of `text`, read into `tree` in a cell sized to it, the caller's to release:
@@ -254,7 +254,7 @@ EMBED_INLINE unsigned int rows_answer_read(const DebugPaneRowsCtx *args)
 // its name, and under each open one its own, to CLI_DEBUG_DEPTH levels
 EMBED_INLINE void rows_variables_under(const DebugPaneRowsCtx *args)
 {
-    char *const scratch = g_cli_guard->temporary_buf_alloc(ROWS_ANSWER, g_cli_debug_pane_owner);
+    char *const scratch = g_platform_guard->temporary_buf_alloc(ROWS_ANSWER, g_cli_debug_pane_owner);
     if (scratch == NULL)
     {
         return;
@@ -269,7 +269,7 @@ EMBED_INLINE void rows_variables_under(const DebugPaneRowsCtx *args)
         (answered && mmgr_line_ok(&out))
             ? EMBED_CALL(rows_answer_read, DebugPaneRowsCtx, .tree = &json, .text = scratch, .length = out.at)
             : CLI_JSON_NONE;
-    g_cli_guard->persistent_buf_release(scratch, g_cli_debug_pane_owner);
+    g_platform_guard->persistent_buf_release(scratch, g_cli_debug_pane_owner);
     for (unsigned int at = 0u; root != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
@@ -321,17 +321,17 @@ EMBED_INLINE void rows_variables_under(const DebugPaneRowsCtx *args)
         entry.key = EMBED_CALL(cli_debug_pane_internal.text_put, CliDebugPaneCtx, .store = args->store, .text = key,
                                .length = keyed ? key_line.at : 0ULL);
         entry.key_length = keyed ? key_line.at : 0ULL;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
-                                                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
-                                                                 .src = &entry,
-                                                                 .bytes = sizeof(CliDebugPaneEntry)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
+                                                                      .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
+                                                                      .src = &entry,
+                                                                      .bytes = sizeof(CliDebugPaneEntry)});
         if (open && (args->depth < CLI_DEBUG_DEPTH))
         {
             EMBED_CALL(rows_variables_under, DebugPaneRowsCtx, .store = args->store, .reference = reference,
                        .depth = args->depth + 1u, .text = key, .length = key_line.at);
         }
     }
-    g_cli_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
+    g_platform_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
 }
 
 // a watch's row put into the store, its expression, `length` bytes of `text` with its end after them, evaluated in
@@ -347,15 +347,15 @@ EMBED_INLINE void rows_watch(const DebugPaneRowsCtx *args)
         return;
     }
     entry.type = CLI_DEBUG_ROW_WATCH;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
-                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
-                                                             .src = &entry,
-                                                             .bytes = sizeof(CliDebugPaneEntry)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
+                                                                  .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
+                                                                  .src = &entry,
+                                                                  .bytes = sizeof(CliDebugPaneEntry)});
     if (!args->framed)
     {
         return;
     }
-    char *const scratch = g_cli_guard->temporary_buf_alloc(ROWS_ANSWER, g_cli_debug_pane_owner);
+    char *const scratch = g_platform_guard->temporary_buf_alloc(ROWS_ANSWER, g_cli_debug_pane_owner);
     if (scratch == NULL)
     {
         return;
@@ -394,18 +394,18 @@ EMBED_INLINE void rows_watch(const DebugPaneRowsCtx *args)
     entry.third = EMBED_CALL(cli_debug_pane_internal.text_put, CliDebugPaneCtx, .store = args->store,
                              .text = (type != NULL) ? type : "", .length = type_length);
     entry.third_length = type_length;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
-                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
-                                                             .src = &entry,
-                                                             .bytes = sizeof(CliDebugPaneEntry)});
-    g_cli_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
-    g_cli_guard->persistent_buf_release(scratch, g_cli_debug_pane_owner);
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
+                                                                  .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
+                                                                  .src = &entry,
+                                                                  .bytes = sizeof(CliDebugPaneEntry)});
+    g_platform_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
+    g_platform_guard->persistent_buf_release(scratch, g_cli_debug_pane_owner);
 }
 
 // the chosen frame's scopes put into the store, each open one's variables under it
 EMBED_INLINE void rows_scopes(const DebugPaneRowsCtx *args)
 {
-    char *const scratch = g_cli_guard->temporary_buf_alloc(ROWS_ANSWER, g_cli_debug_pane_owner);
+    char *const scratch = g_platform_guard->temporary_buf_alloc(ROWS_ANSWER, g_cli_debug_pane_owner);
     if (scratch == NULL)
     {
         return;
@@ -420,7 +420,7 @@ EMBED_INLINE void rows_scopes(const DebugPaneRowsCtx *args)
         (answered && mmgr_line_ok(&out))
             ? EMBED_CALL(rows_answer_read, DebugPaneRowsCtx, .tree = &json, .text = scratch, .length = out.at)
             : CLI_JSON_NONE;
-    g_cli_guard->persistent_buf_release(scratch, g_cli_debug_pane_owner);
+    g_platform_guard->persistent_buf_release(scratch, g_cli_debug_pane_owner);
     for (unsigned int at = 0u; root != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
@@ -464,17 +464,17 @@ EMBED_INLINE void rows_scopes(const DebugPaneRowsCtx *args)
         entry.key = EMBED_CALL(cli_debug_pane_internal.text_put, CliDebugPaneCtx, .store = args->store, .text = key,
                                .length = keyed ? key_line.at : 0ULL);
         entry.key_length = keyed ? key_line.at : 0ULL;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
-                                                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
-                                                                 .src = &entry,
-                                                                 .bytes = sizeof(CliDebugPaneEntry)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->store->entry,
+                                                                      .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
+                                                                      .src = &entry,
+                                                                      .bytes = sizeof(CliDebugPaneEntry)});
         if (open)
         {
             EMBED_CALL(rows_variables_under, DebugPaneRowsCtx, .store = args->store, .reference = reference,
                        .depth = 1u, .text = key, .length = key_line.at);
         }
     }
-    g_cli_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
+    g_platform_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
 }
 
 void cli_debug_pane_variables_read(const CliDebugPaneCtx *args)
@@ -487,7 +487,7 @@ void cli_debug_pane_variables_read(const CliDebugPaneCtx *args)
     CliDebugPaneEntry chosen = {0};
     if (framed)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = frames->entry,
                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(g_cli_debug_pane.frame_at),
                                 .dst = &chosen,
@@ -498,10 +498,10 @@ void cli_debug_pane_variables_read(const CliDebugPaneCtx *args)
     for (unsigned int at = 0u; at < watches->count; at += 1u)
     {
         CliDebugPaneEntry watch;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = watches->entry,
-                                                                .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
-                                                                .dst = &watch,
-                                                                .bytes = sizeof(CliDebugPaneEntry)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = watches->entry,
+                                                                     .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
+                                                                     .dst = &watch,
+                                                                     .bytes = sizeof(CliDebugPaneEntry)});
         char expression[CLI_DEBUG_FIELD_MAX];
         EMBED_CALL(cli_debug_pane_internal.text_read, CliDebugPaneCtx, .store = watches, .offset = watch.text,
                    .length = watch.text_length, .text_out = expression, .capacity = sizeof(expression));
@@ -520,7 +520,7 @@ void cli_debug_pane_variables_read(const CliDebugPaneCtx *args)
 void cli_debug_pane_frames_read(const CliDebugPaneCtx *args)
 {
     EMBED_CALL(cli_debug_pane_internal.store_empty, CliDebugPaneCtx, .store = &g_cli_debug_pane.frames);
-    char *const scratch = g_cli_guard->temporary_buf_alloc(ROWS_ANSWER, g_cli_debug_pane_owner);
+    char *const scratch = g_platform_guard->temporary_buf_alloc(ROWS_ANSWER, g_cli_debug_pane_owner);
     if (scratch == NULL)
     {
         return;
@@ -545,7 +545,7 @@ void cli_debug_pane_frames_read(const CliDebugPaneCtx *args)
                                           .json_read = &json, .array = threads, .index = 0u),
                        .name = "id", .value = &thread);
         g_cli_debug_pane.thread = thread;
-        g_cli_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
+        g_platform_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
         json = (CliJson){0};
         out.at = 0ULL;
     }
@@ -562,7 +562,7 @@ void cli_debug_pane_frames_read(const CliDebugPaneCtx *args)
         (answered && mmgr_line_ok(&out))
             ? EMBED_CALL(rows_answer_read, DebugPaneRowsCtx, .tree = &json, .text = scratch, .length = out.at)
             : CLI_JSON_NONE;
-    g_cli_guard->persistent_buf_release(scratch, g_cli_debug_pane_owner);
+    g_platform_guard->persistent_buf_release(scratch, g_cli_debug_pane_owner);
     CliDebugPaneStore *const frames = &g_cli_debug_pane.frames;
     for (unsigned int at = 0u; root != CLI_JSON_NONE; at += 1u)
     {
@@ -615,12 +615,12 @@ void cli_debug_pane_frames_read(const CliDebugPaneCtx *args)
                                      .length = path_length);
             entry.third_length = path_length;
         }
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = frames->entry,
-                                                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
-                                                                 .src = &entry,
-                                                                 .bytes = sizeof(CliDebugPaneEntry)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = frames->entry,
+                                                                      .offset = CLI_DEBUG_PANE_ENTRY_AT(place),
+                                                                      .src = &entry,
+                                                                      .bytes = sizeof(CliDebugPaneEntry)});
     }
-    g_cli_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
+    g_platform_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
 }
 
 void cli_debug_pane_ended(const CliDebugPaneCtx *args)
@@ -628,7 +628,7 @@ void cli_debug_pane_ended(const CliDebugPaneCtx *args)
     EMBED_CALL(cli_debug_pane_internal.store_empty, CliDebugPaneCtx, .store = &g_cli_debug_pane.frames);
     if (g_cli_debug_pane.session_texts != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(g_cli_debug_pane.session_texts, g_cli_debug_pane_owner);
+        (void)g_platform_guard->movable_buf_release(g_cli_debug_pane.session_texts, g_cli_debug_pane_owner);
     }
     g_cli_debug_pane.session_texts = NULL;
     g_cli_debug_pane.has_session = 0;
@@ -666,13 +666,14 @@ EMBED_INLINE int rows_console_fit(const DebugPaneRowsCtx *args)
     }
     const unsigned long long wanted = (live + args->extra) * 2ULL;
     const unsigned long long size = (wanted > ROWS_CONSOLE_TEXT) ? wanted : ROWS_CONSOLE_TEXT;
-    const CarcerMovableEntry *const grown = g_cli_guard->movable_buf_alloc(size, g_cli_debug_pane_owner);
-    char *const copied = (grown != NULL) ? g_cli_guard->temporary_buf_alloc(live + 1ULL, g_cli_debug_pane_owner) : NULL;
+    const CarcerMovableEntry *const grown = g_platform_guard->movable_buf_alloc(size, g_cli_debug_pane_owner);
+    char *const copied =
+        (grown != NULL) ? g_platform_guard->temporary_buf_alloc(live + 1ULL, g_cli_debug_pane_owner) : NULL;
     if (copied == NULL)
     {
         if (grown != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(grown, g_cli_debug_pane_owner);
+            (void)g_platform_guard->movable_buf_release(grown, g_cli_debug_pane_owner);
         }
         return 0;
     }
@@ -680,20 +681,20 @@ EMBED_INLINE int rows_console_fit(const DebugPaneRowsCtx *args)
     for (unsigned int at = 0u; at < console->count; at += 1u)
     {
         CliDebugPaneEntry *const line = EMBED_CALL(rows_console_at, DebugPaneRowsCtx, .at = at);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = console->text, .offset = line->text, .dst = copied + used, .bytes = line->text_length + 1ULL});
         line->text = used;
         used += line->text_length + 1ULL;
     }
     if (used != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = grown, .offset = 0ULL, .src = copied, .bytes = used});
     }
-    g_cli_guard->persistent_buf_release(copied, g_cli_debug_pane_owner);
+    g_platform_guard->persistent_buf_release(copied, g_cli_debug_pane_owner);
     if (console->text != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(console->text, g_cli_debug_pane_owner);
+        (void)g_platform_guard->movable_buf_release(console->text, g_cli_debug_pane_owner);
     }
     console->text = grown;
     console->size = size;
@@ -760,11 +761,11 @@ void cli_debug_pane_line_write(const CliDebugPaneCtx *args)
             CliDebugPaneEntry *const line = EMBED_CALL(rows_console_at, DebugPaneRowsCtx, .at = console->count - 1u);
             if (piece != 0ULL)
             {
-                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = console->text, .offset = console->used - 1ULL, .src = args->text + from, .bytes = piece});
             }
             console->used += piece;
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = console->text, .offset = console->used - 1ULL, .src = &end, .bytes = 1ULL});
             line->text_length += piece;
             line->ended = ended ? 1u : 0u;
@@ -788,10 +789,10 @@ void cli_debug_pane_line_write(const CliDebugPaneCtx *args)
             line->ended = ended ? 1u : 0u;
             if (piece != 0ULL)
             {
-                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = console->text, .offset = console->used, .src = args->text + from, .bytes = piece});
             }
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = console->text, .offset = console->used + piece, .src = &end, .bytes = 1ULL});
             console->used += piece + 1ULL;
         }
@@ -874,10 +875,10 @@ int cli_debug_pane_row(const CliDebugPaneViewCfg *args)
     }
     else
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = store->entry,
-                                                                .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
-                                                                .dst = &entry,
-                                                                .bytes = sizeof(CliDebugPaneEntry)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = store->entry,
+                                                                     .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
+                                                                     .dst = &entry,
+                                                                     .bytes = sizeof(CliDebugPaneEntry)});
     }
     EMBED_CALL(rows_positioned, DebugPaneRowsCtx, .store = store, .entry_out = &entry, .row = row);
     row->current = (args->view == CLI_DEBUG_VIEW_FRAMES) && (args->at == g_cli_debug_pane.frame_at);
@@ -892,10 +893,10 @@ int cli_debug_pane_toggle(const CliDebugPaneViewCfg *args)
         return 0;
     }
     CliDebugPaneEntry entry;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = variables->entry,
-                                                            .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
-                                                            .dst = &entry,
-                                                            .bytes = sizeof(CliDebugPaneEntry)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = variables->entry,
+                                                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
+                                                                 .dst = &entry,
+                                                                 .bytes = sizeof(CliDebugPaneEntry)});
     if (entry.type == CLI_DEBUG_ROW_WATCH)
     {
         // the watches are first, the row's place the watch's
@@ -908,10 +909,10 @@ int cli_debug_pane_toggle(const CliDebugPaneViewCfg *args)
                 continue;
             }
             CliDebugPaneEntry watch;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = watches->entry,
-                                                                    .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
-                                                                    .dst = &watch,
-                                                                    .bytes = sizeof(CliDebugPaneEntry)});
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = watches->entry,
+                                                                         .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
+                                                                         .dst = &watch,
+                                                                         .bytes = sizeof(CliDebugPaneEntry)});
             char expression[CLI_DEBUG_FIELD_MAX];
             EMBED_CALL(cli_debug_pane_internal.text_read, CliDebugPaneCtx, .store = watches, .offset = watch.text,
                        .length = watch.text_length, .text_out = expression, .capacity = sizeof(expression));
@@ -949,10 +950,10 @@ int cli_debug_pane_press(const CliDebugPaneViewCfg *args)
     g_cli_debug_pane.frame_at = args->at;
     EMBED_CALL(cli_debug_pane_internal.variables_read, CliDebugPaneCtx, .root = args->root);
     CliDebugPaneEntry entry;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = frames->entry,
-                                                            .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
-                                                            .dst = &entry,
-                                                            .bytes = sizeof(CliDebugPaneEntry)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = frames->entry,
+                                                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(args->at),
+                                                                 .dst = &entry,
+                                                                 .bytes = sizeof(CliDebugPaneEntry)});
     // the path outlives the call, read into the pane's own bytes
     static char s_pressed_path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_debug_pane_internal.text_read, CliDebugPaneCtx, .store = frames, .offset = entry.third,

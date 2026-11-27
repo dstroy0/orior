@@ -34,7 +34,7 @@ static VerbaLinea s_listing;
 // deepens the region of the thread that takes, and the one stack's top does not move
 static size_t regions_depth(void)
 {
-    const SeriesCellularum *const series = cli_pool_series_cellularum();
+    const SeriesCellularum *const series = platform_pool_series();
     size_t depth = 0u;
     for (size_t region = 0u; region < MMGR_CARCER_REGION_COUNT; region += 1u)
     {

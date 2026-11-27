@@ -16,7 +16,7 @@
 //
 // The listing is what cuobjdump -sass or nvdisasm prints. The architecture is named as the disassembler names it,
 // SM86; the folder contains the encodings the disassembler is given.
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "interface_sass_probe.h"

@@ -194,8 +194,8 @@ int cli_servers_spec_for(const CliServersLanguageCtx *args)
                        .spec = args->spec);
         }
     }
-    g_cli_guard->persistent_buf_release(manifest_json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), manifest_json.node));
+    g_platform_guard->persistent_buf_release(manifest_json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), manifest_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&manifest_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return found;
@@ -439,7 +439,7 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
     for (unsigned int one = 0u; one < s_reopen.entries; one += 1u)
     {
         CliKeyedEntry entry = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_reopen.page[one / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(one % CLI_KEYED_PAGE) * sizeof(entry),
                                 .dst = &entry,
@@ -451,7 +451,7 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
         // the path is the key, read out of the entry's cell; the text goes to the server out of the cell
         char path[CLI_PATH_MAX_LEN];
         const unsigned long long path_bytes = (entry.key_size < sizeof(path)) ? entry.key_size : (sizeof(path) - 1u);
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = entry.cell, .offset = 0u, .dst = path, .bytes = (embed_word)path_bytes});
         path[path_bytes] = '\0';
         char id[CLI_NAME_MAX_LEN];

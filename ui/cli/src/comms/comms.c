@@ -20,7 +20,7 @@ static void comms_tables_init(void)
     {
         return;
     }
-    const CarcerMovableEntry *const tables = g_cli_guard->movable_buf_alloc(COMMS_TABLES_BYTES, g_cli_comms_owner);
+    const CarcerMovableEntry *const tables = g_platform_guard->movable_buf_alloc(COMMS_TABLES_BYTES, g_cli_comms_owner);
     if (tables == NULL)
     {
         return;
@@ -29,10 +29,10 @@ static void comms_tables_init(void)
     // persistent tier; emptied here for each begin
     static CliCommsStored s_stored[CLI_COMMS_CHANNELS];
     // every place empty: the whole cell written as zeroes in one write from a temporary cell
-    unsigned char *const zeroes = g_cli_guard->temporary_buf_alloc(COMMS_TABLES_BYTES, g_cli_comms_owner);
+    unsigned char *const zeroes = g_platform_guard->temporary_buf_alloc(COMMS_TABLES_BYTES, g_cli_comms_owner);
     if (zeroes == NULL)
     {
-        (void)g_cli_guard->movable_buf_release(tables, g_cli_comms_owner);
+        (void)g_platform_guard->movable_buf_release(tables, g_cli_comms_owner);
         return;
     }
     memor.set(&(MemoriaCfg){.dst = s_stored, .val = 0, .bytes = sizeof(s_stored)});
@@ -44,9 +44,9 @@ static void comms_tables_init(void)
     }
     g_cli_comms.stored = s_stored;
     memor.set(&(MemoriaCfg){.dst = zeroes, .val = 0, .bytes = (embed_word)COMMS_TABLES_BYTES});
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = tables, .src = zeroes, .bytes = COMMS_TABLES_BYTES});
-    g_cli_guard->persistent_buf_release(zeroes, g_cli_comms_owner);
+    g_platform_guard->persistent_buf_release(zeroes, g_cli_comms_owner);
     g_cli_comms.tables = tables;
     g_cli_comms.parts_capacity = CLI_COMMS_PARTS;
     g_cli_comms.listeners_capacity = CLI_COMMS_LISTENERS;
@@ -63,14 +63,14 @@ void cli_comms_end(void)
     for (unsigned int at = 0u; at < g_cli_comms.parts_capacity; at += 1u)
     {
         CliCommsPart part = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(part)),
                                 .dst = &part,
                                 .bytes = sizeof(part)});
         if (part.reserved && (part.grants != NULL))
         {
-            (void)g_cli_guard->movable_buf_release(part.grants, g_cli_comms_owner);
+            (void)g_platform_guard->movable_buf_release(part.grants, g_cli_comms_owner);
         }
     }
     // every channel's stored messages' cells let go, then the stored rings' cell and the tables
@@ -82,11 +82,11 @@ void cli_comms_end(void)
         const size_t stored = anularis.seg_inflight(&(AnularisCfg){.ring = &ring->ring});
         for (size_t one = 0u; one < stored; one += 1u)
         {
-            (void)g_cli_guard->movable_buf_release(ring->last[MMGR_RING_WRAP(front + one, CLI_COMMS_STORED_RING)].cell,
-                                                   g_cli_comms_owner);
+            (void)g_platform_guard->movable_buf_release(
+                ring->last[MMGR_RING_WRAP(front + one, CLI_COMMS_STORED_RING)].cell, g_cli_comms_owner);
         }
     }
-    (void)g_cli_guard->movable_buf_release(g_cli_comms.tables, g_cli_comms_owner);
+    (void)g_platform_guard->movable_buf_release(g_cli_comms.tables, g_cli_comms_owner);
     g_cli_comms = (CliCommsWorkState){0};
 }
 
@@ -112,7 +112,7 @@ EMBED_INLINE unsigned int comms_part_get(const CommsCtx *args)
     for (unsigned int at = 0u; at < g_cli_comms.parts_capacity; at += 1u)
     {
         CliCommsPart part = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(part)),
                                 .dst = &part,
@@ -136,7 +136,7 @@ EMBED_INLINE int comms_granted(const CommsCtx *args)
         outer[0] = '\0';
         if ((args->part->grants != NULL) && ((args->from + grant) < args->part->listens + args->part->send_grants))
         {
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = args->part->grants,
                                     .offset = (unsigned long long)(args->from + grant) * CLI_NAME_MAX_LEN,
                                     .dst = outer,
@@ -178,7 +178,7 @@ int cli_comms_register(const CliCommsNameCfg *args)
     for (unsigned int at = 0u; (at < g_cli_comms.parts_capacity) && (place == CLI_COMMS_PARTS); at += 1u)
     {
         CliCommsPart part_1 = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(part_1)),
                                 .dst = &part_1,
@@ -189,7 +189,7 @@ int cli_comms_register(const CliCommsNameCfg *args)
     const unsigned int grants = listens + send_grants;
     const CarcerMovableEntry *const granted =
         ((place != CLI_COMMS_PARTS) && (grants != 0u))
-            ? g_cli_guard->movable_buf_alloc((unsigned long long)grants * CLI_NAME_MAX_LEN, g_cli_comms_owner)
+            ? g_platform_guard->movable_buf_alloc((unsigned long long)grants * CLI_NAME_MAX_LEN, g_cli_comms_owner)
             : NULL;
     if ((place == CLI_COMMS_PARTS) || ((grants != 0u) && (granted == NULL)))
     {
@@ -216,12 +216,12 @@ int cli_comms_register(const CliCommsNameCfg *args)
         memor.cpy(&(MemoriaCfg){.dst = name,
                                 .src = grant,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = grant, .cap = CLI_POOL_BYTES}) + 1u});
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = granted, .offset = (unsigned long long)at * CLI_NAME_MAX_LEN, .src = name, .bytes = sizeof(name)});
     }
     part.listens = listens;
     part.send_grants = send_grants;
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                             .offset = COMMS_PARTS_AT + ((unsigned long long)place * sizeof(CliCommsPart)),
                             .src = &part,
@@ -242,13 +242,13 @@ int cli_comms_register_persistent(const CliCommsNameCfg *args)
     if (at < CLI_COMMS_PARTS)
     {
         CliCommsPart part = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(part)),
                                 .dst = &part,
                                 .bytes = sizeof(part)});
         part.persistent = 1;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(CliCommsPart)),
                                 .src = &part,
@@ -281,7 +281,7 @@ int cli_comms_register_under(const CliCommsNameCfg *args)
         return 0;
     }
     CliCommsPart granter = {0};
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                             .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(granter)),
                             .dst = &granter,
@@ -307,7 +307,7 @@ int cli_comms_is_persistent(const CliCommsProcessCfg *args)
 {
     const unsigned int at = EMBED_CALL(comms_part_get, CommsCtx, .key = args->key);
     CliCommsPart part_2 = {0};
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                             .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(part_2)),
                             .dst = &part_2,
@@ -324,14 +324,14 @@ void cli_comms_bind(const CliCommsProcessCfg *args)
     if (at < CLI_COMMS_PARTS)
     {
         CliCommsPart part = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(part)),
                                 .dst = &part,
                                 .bytes = sizeof(part)});
         part.has_process = 1;
         part.process = process;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(CliCommsPart)),
                                 .src = &part,
@@ -346,17 +346,17 @@ void cli_comms_leave(const CliCommsProcessCfg *args)
     if (at < CLI_COMMS_PARTS)
     {
         CliCommsPart part = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(part)),
                                 .dst = &part,
                                 .bytes = sizeof(part)});
         part.reserved = 0;
-        (void)g_cli_guard->movable_buf_release(part.grants, g_cli_comms_owner);
+        (void)g_platform_guard->movable_buf_release(part.grants, g_cli_comms_owner);
         part.grants = NULL;
         part.listens = 0u;
         part.send_grants = 0u;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(CliCommsPart)),
                                 .src = &part,
@@ -364,7 +364,7 @@ void cli_comms_leave(const CliCommsProcessCfg *args)
         for (unsigned int one = 0u; one < g_cli_comms.listeners_capacity; one += 1u)
         {
             CliCommsListener listener = {0};
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                     .offset = COMMS_LISTENERS_AT + ((unsigned long long)one * sizeof(listener)),
                                     .dst = &listener,
@@ -372,7 +372,7 @@ void cli_comms_leave(const CliCommsProcessCfg *args)
             if (listener.reserved && (listener.part == at))
             {
                 listener.reserved = 0;
-                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = g_cli_comms.tables,
                     .offset = COMMS_LISTENERS_AT + ((unsigned long long)one * sizeof(CliCommsListener)),
                     .src = &listener,
@@ -390,7 +390,7 @@ int cli_comms_process_get(const CliCommsKeyProcessCfg *args)
     CliCommsPart part = {0};
     if (at < CLI_COMMS_PARTS)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(part)),
                                 .dst = &part,
@@ -407,7 +407,7 @@ int cli_comms_name_get(const CliCommsKeyCfg *args)
     if (at < CLI_COMMS_PARTS)
     {
         CliCommsPart part = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(part)),
                                 .dst = &part,
@@ -429,7 +429,7 @@ int cli_comms_listen(const CliCommsChannelCfg *args)
         return 0;
     }
     CliCommsPart part = {0};
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                             .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(part)),
                             .dst = &part,
@@ -448,7 +448,7 @@ int cli_comms_listen(const CliCommsChannelCfg *args)
          one += 1u)
     {
         CliCommsListener listener_3 = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_LISTENERS_AT + ((unsigned long long)one * sizeof(listener_3)),
                                 .dst = &listener_3,
@@ -463,7 +463,7 @@ int cli_comms_listen(const CliCommsChannelCfg *args)
             &(MemoriaCfg){.dst = place.pattern,
                           .src = args->channel,
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->channel, .cap = CLI_POOL_BYTES}) + 1u});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_LISTENERS_AT + ((unsigned long long)vacant * sizeof(CliCommsListener)),
                                 .src = &place,
@@ -481,13 +481,13 @@ void cli_comms_unlisten(const CliCommsListenerCfg *args)
     if (args->listener_value < g_cli_comms.listeners_capacity)
     {
         CliCommsListener listener = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = g_cli_comms.tables,
             .offset = COMMS_LISTENERS_AT + ((unsigned long long)args->listener_value * sizeof(listener)),
             .dst = &listener,
             .bytes = sizeof(listener)});
         listener.reserved = 0;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = g_cli_comms.tables,
             .offset = COMMS_LISTENERS_AT + ((unsigned long long)args->listener_value * sizeof(CliCommsListener)),
             .src = &listener,
@@ -503,7 +503,7 @@ EMBED_INLINE unsigned int comms_traffic_get(const CommsCtx *args)
     for (unsigned int at = 0u; at < g_cli_comms.channels; at += 1u)
     {
         CliCommsTraffic traffic = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_TRAFFIC_AT + ((unsigned long long)at * sizeof(traffic)),
                                 .dst = &traffic,
@@ -531,7 +531,7 @@ EMBED_INLINE unsigned int comms_traffic_get(const CommsCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = made.name,
                             .src = args->channel,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->channel, .cap = CLI_POOL_BYTES}) + 1u});
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                             .offset = COMMS_TRAFFIC_AT + ((unsigned long long)at * sizeof(CliCommsTraffic)),
                             .src = &made,
@@ -548,7 +548,7 @@ EMBED_INLINE void comms_traffic_counted(const CommsCtx *args)
         return;
     }
     CliCommsTraffic traffic = {0};
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                             .offset = COMMS_TRAFFIC_AT + ((unsigned long long)args->traffic_at * sizeof(traffic)),
                             .dst = &traffic,
@@ -556,7 +556,7 @@ EMBED_INLINE void comms_traffic_counted(const CommsCtx *args)
     traffic.refused += args->refused ? 1ULL : 0ULL;
     traffic.messages += args->refused ? 0ULL : 1ULL;
     traffic.bytes += args->refused ? 0ULL : args->size;
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                             .offset = COMMS_TRAFFIC_AT + ((unsigned long long)args->traffic_at * sizeof(traffic)),
                             .src = &traffic,
@@ -590,7 +590,8 @@ EMBED_INLINE void comms_store(const CommsCtx *args)
         oldest = ring->last[front];
     }
     const int fits = full && (need <= oldest.capacity);
-    const CarcerMovableEntry *const cell = fits ? oldest.cell : g_cli_guard->movable_buf_alloc(need, g_cli_comms_owner);
+    const CarcerMovableEntry *const cell =
+        fits ? oldest.cell : g_platform_guard->movable_buf_alloc(need, g_cli_comms_owner);
     if (cell == NULL)
     {
         return;
@@ -601,10 +602,10 @@ EMBED_INLINE void comms_store(const CommsCtx *args)
     }
     if (full && !fits)
     {
-        (void)g_cli_guard->movable_buf_release(oldest.cell, g_cli_comms_owner);
+        (void)g_platform_guard->movable_buf_release(oldest.cell, g_cli_comms_owner);
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = from, .bytes = from_size});
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = from, .bytes = from_size});
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = from_size, .src = stored, .bytes = stored_size});
     size_t segment = 0u;
     (void)anularis.seg_next(&(AnularisCfg){.ring = &ring->ring, .out_index = &segment});
@@ -626,7 +627,7 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
         return 0;
     }
     CliCommsPart part = {0};
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                             .offset = COMMS_PARTS_AT + ((unsigned long long)at * sizeof(part)),
                             .dst = &part,
@@ -641,7 +642,7 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
     if (!granted)
     {
         part.refused += 1ULL;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_PARTS_AT + ((unsigned long long)(at) * sizeof(CliCommsPart)),
                                 .src = &part,
@@ -654,7 +655,7 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
         return 0;
     }
     part.sent_count += 1ULL;
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                             .offset = COMMS_PARTS_AT + ((unsigned long long)(at) * sizeof(CliCommsPart)),
                             .src = &part,
@@ -671,7 +672,7 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
     for (unsigned int one = 0u; one < g_cli_comms.listeners_capacity; one += 1u)
     {
         CliCommsListener listener = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_LISTENERS_AT + ((unsigned long long)one * sizeof(listener)),
                                 .dst = &listener,
@@ -697,7 +698,7 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
             if (got == 0)
             {
                 listener.reserved = 0;
-                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = g_cli_comms.tables,
                     .offset = COMMS_LISTENERS_AT + ((unsigned long long)one * sizeof(CliCommsListener)),
                     .src = &listener,
@@ -720,13 +721,13 @@ void cli_comms_transfer(const CliCommsChannelBytesCfg *args)
     if (traffic_at != CLI_COMMS_CHANNELS)
     {
         CliCommsTraffic traffic = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_TRAFFIC_AT + ((unsigned long long)traffic_at * sizeof(traffic)),
                                 .dst = &traffic,
                                 .bytes = sizeof(traffic)});
         traffic.transferred += args->bytes;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = g_cli_comms.tables,
                                 .offset = COMMS_TRAFFIC_AT + ((unsigned long long)traffic_at * sizeof(CliCommsTraffic)),
                                 .src = &traffic,

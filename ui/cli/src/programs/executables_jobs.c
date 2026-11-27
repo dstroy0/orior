@@ -423,7 +423,7 @@ void cli_executables_jobs(const CliCatalogRootCfg *args)
                        .catalog = catalog);
         }
     }
-    g_cli_guard->persistent_buf_release(found.item, g_cli_executables_owner);
-    g_cli_guard->persistent_buf_release(found.order, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(found.item, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(found.order, g_cli_executables_owner);
     found = (CliExecutables){NULL, 0u, 0u, NULL};
 }

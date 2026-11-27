@@ -5,7 +5,7 @@
 #define _GNU_SOURCE
 #endif
 #include "tessera_measure.h"
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 

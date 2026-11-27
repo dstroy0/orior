@@ -65,10 +65,10 @@ typedef struct
 EMBED_INLINE const CarcerMovableEntry *within_message_alloc(const DapWithinCtx *args)
 {
     const CarcerMovableEntry *const message =
-        g_cli_guard->movable_buf_alloc(CLI_DAP_BYTES_AT + args->size, g_cli_debug_owner);
+        g_platform_guard->movable_buf_alloc(CLI_DAP_BYTES_AT + args->size, g_cli_debug_owner);
     if (message != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = message, .offset = 0ULL, .src = &args->size, .bytes = sizeof(args->size)});
     }
     return message;
@@ -89,7 +89,7 @@ EMBED_INLINE int within_queue(const DapWithinCtx *args)
         const unsigned int room = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_queue_wake);
         if (queue->closed)
         {
-            (void)g_cli_guard->movable_buf_release(args->message, g_cli_debug_owner);
+            (void)g_platform_guard->movable_buf_release(args->message, g_cli_debug_owner);
             return 0;
         }
         if (cli_ticket_room(&queue->ring, ticket) &&
@@ -115,7 +115,7 @@ EMBED_INLINE int within_push(const DapWithinCtx *args)
     {
         return 0;
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = message, .offset = CLI_DAP_BYTES_AT, .src = args->bytes, .bytes = (embed_word)args->size});
     return EMBED_CALL(within_queue, DapWithinCtx, .queue = args->queue, .message = message);
 }
@@ -169,7 +169,7 @@ EMBED_INLINE void within_clear(const DapWithinCtx *args)
             EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &queue->ring.slots[at].stamp);
         if (((stamp & EMBED_TICKET_PUSHED_BIT) != 0u) && ((stamp & EMBED_TICKET_POPPED_BIT) == 0u))
         {
-            (void)g_cli_guard->movable_buf_release(queue->ring.slots[at].job, g_cli_debug_owner);
+            (void)g_platform_guard->movable_buf_release(queue->ring.slots[at].job, g_cli_debug_owner);
         }
     }
     memor.set(&(MemoriaCfg){.dst = &queue->turnstiles, .val = 0, .bytes = sizeof(queue->turnstiles)});
@@ -247,18 +247,18 @@ static int within_request_complete(void)
     const CarcerMovableEntry *const request = s_coming;
     const unsigned long long size = s_coming_size;
     s_coming = NULL;
-    char *const bytes = g_cli_guard->temporary_buf_alloc((size != 0ULL) ? size : 1ULL, g_cli_debug_owner);
+    char *const bytes = g_platform_guard->temporary_buf_alloc((size != 0ULL) ? size : 1ULL, g_cli_debug_owner);
     if (bytes != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = request, .offset = CLI_DAP_BYTES_AT, .dst = bytes, .bytes = (embed_word)size});
     }
     const int json = (bytes != NULL) && EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = bytes,
                                                    .size = size, .out = &checked);
-    g_cli_guard->persistent_buf_release(bytes, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(bytes, g_cli_debug_owner);
     if (!json)
     {
-        (void)g_cli_guard->movable_buf_release(request, g_cli_debug_owner);
+        (void)g_platform_guard->movable_buf_release(request, g_cli_debug_owner);
         return 0;
     }
     return EMBED_CALL(within_queue, DapWithinCtx, .queue = &s_incoming, .message = request);
@@ -308,7 +308,7 @@ static int within_frame(const CliSinkBytesSizeCfg *args)
             const unsigned long long required = s_coming_size - s_coming_got;
             const unsigned long long reserved = (left < required) ? left : required;
             // a piece of a message, which a embed_word counts
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = s_coming, .offset = CLI_DAP_BYTES_AT + s_coming_got, .src = at, .bytes = (embed_word)reserved});
             s_coming_got += reserved;
             at += reserved;
@@ -330,7 +330,7 @@ static unsigned long long within_unframed(const CliSourcePieceCapacityCfg *args)
     {
         if (s_pending != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(s_pending, g_cli_debug_owner);
+            (void)g_platform_guard->movable_buf_release(s_pending, g_cli_debug_owner);
         }
         s_pending = EMBED_CALL(within_pop, DapWithinCtx, .queue = &s_outgoing);
         if (s_pending == NULL)
@@ -338,7 +338,7 @@ static unsigned long long within_unframed(const CliSourcePieceCapacityCfg *args)
             return 0ULL;
         }
         s_pending_size = 0ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_pending, .offset = 0ULL, .dst = &s_pending_size, .bytes = sizeof(s_pending_size)});
         VerbaLinea line = {s_pending_head, sizeof(s_pending_head), 0ULL};
         mmgr_line_put(&line, "Content-Length: ");
@@ -358,7 +358,7 @@ static unsigned long long within_unframed(const CliSourcePieceCapacityCfg *args)
     }
     else
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_pending,
                                 .offset = CLI_DAP_BYTES_AT + (s_pending_at - s_pending_head_size),
                                 .dst = args->piece,
@@ -377,19 +377,19 @@ static void within_serve(void *context)
     while ((request = EMBED_CALL(within_pop, DapWithinCtx, .queue = &s_incoming)) != NULL)
     {
         unsigned long long size = 0ULL;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = request, .offset = 0ULL, .dst = &size, .bytes = sizeof(size)});
-        char *const bytes = g_cli_guard->temporary_buf_alloc((size != 0ULL) ? size : 1ULL, g_cli_debug_owner);
+        char *const bytes = g_platform_guard->temporary_buf_alloc((size != 0ULL) ? size : 1ULL, g_cli_debug_owner);
         int goes_on = bytes != NULL;
         if (bytes != NULL)
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = request, .offset = CLI_DAP_BYTES_AT, .dst = bytes, .bytes = (embed_word)size});
             goes_on = EMBED_CALL(s_serve, CliDapServeCfg, .context = s_serve_context, .dap = dap, .request = bytes,
                                  .size = size);
         }
-        g_cli_guard->persistent_buf_release(bytes, g_cli_debug_owner);
-        (void)g_cli_guard->movable_buf_release(request, g_cli_debug_owner);
+        g_platform_guard->persistent_buf_release(bytes, g_cli_debug_owner);
+        (void)g_platform_guard->movable_buf_release(request, g_cli_debug_owner);
         if (!goes_on)
         {
             break;
@@ -431,13 +431,13 @@ CliDap *cli_dap_within(const CliDapEmitCfg *args)
     s_head_size = 0ULL;
     if (s_coming != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_coming, g_cli_debug_owner);
+        (void)g_platform_guard->movable_buf_release(s_coming, g_cli_debug_owner);
     }
     s_coming = NULL;
     s_coming_size = 0ULL;
     if (s_pending != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_pending, g_cli_debug_owner);
+        (void)g_platform_guard->movable_buf_release(s_pending, g_cli_debug_owner);
     }
     s_pending = NULL;
     s_pending_size = 0ULL;

@@ -23,7 +23,7 @@ typedef struct
 // the run being recorded: its process, whether it goes on not ended by the adapter, whether its readers go on, the
 // adapter they report to, its out file, the readers, its words and PATH, and the count of runs recorded, which names
 // each out file
-static CliSpawned s_running;
+static PlatformProgram s_running;
 static int s_has_running;
 static int s_going;
 static unsigned int s_readers;
@@ -177,7 +177,7 @@ int cli_recording_run(const CliRecordingDapCtx *args)
     EMBED_CALL(cli_folder_internal.temp_folder, CliFolderCtx, .folder_out = temporary);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = temporary, .relative = name, .joined = s_out);
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
-    const CliSetting settings[2] = {{"PATH", s_path}, {"PYTHONUNBUFFERED", "1"}};
+    const PlatformSetting settings[2] = {{"PATH", s_path}, {"PYTHONUNBUFFERED", "1"}};
     s_words.count = 0u;
     s_words.used = 0u;
     s_words.full = 0;

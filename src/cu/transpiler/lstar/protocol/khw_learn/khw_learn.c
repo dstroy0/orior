@@ -46,7 +46,7 @@
 // file is written before querying and the carrier is passed that same path. The vendor's writer runs in a gate mode,
 // which stores every place of the kernel whole under its own encoding so the gate reads a question against what the
 // part has already run, and a final mode, which at the end stores only the forms the part named.
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "khw_learn_internal.h"
 #include "memoria_operor/memoria_operor.h"

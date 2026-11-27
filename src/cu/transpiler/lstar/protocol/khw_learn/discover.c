@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // discover.c: the discover: the kernel read line by line, a form queried, the register bits, the seeds queried their
 // relation, and the working set widened
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "khw_learn_internal.h"
 #include "memoria_operor/memoria_operor.h"

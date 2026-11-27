@@ -59,18 +59,18 @@ EMBED_INLINE int pages_cells_alloc(const PagesCtx *args)
     args->one->index.starts_max = (starts < CLI_PAGE_STARTS) ? starts : CLI_PAGE_STARTS;
     // the index's two lists and the one piece a text opens with, each in a movable cell sized to it; the pieces are
     // written anew sized to their count as an edit replaces them
-    args->one->index.start = g_cli_guard->movable_buf_alloc(
+    args->one->index.start = g_platform_guard->movable_buf_alloc(
         (embed_word)args->one->index.starts_max * sizeof(unsigned long long), g_cli_editor_owner);
-    args->one->index.line = g_cli_guard->movable_buf_alloc(
+    args->one->index.line = g_platform_guard->movable_buf_alloc(
         (embed_word)args->one->index.starts_max * sizeof(unsigned long long), g_cli_editor_owner);
-    args->one->piece = g_cli_guard->movable_buf_alloc(sizeof(CliPagePiece), g_cli_editor_owner);
+    args->one->piece = g_platform_guard->movable_buf_alloc(sizeof(CliPagePiece), g_cli_editor_owner);
     const int reserved =
         (args->one->index.start != NULL) && (args->one->index.line != NULL) && (args->one->piece != NULL);
     if (!reserved)
     {
-        (void)g_cli_guard->movable_buf_release(args->one->piece, g_cli_editor_owner);
-        (void)g_cli_guard->movable_buf_release(args->one->index.start, g_cli_editor_owner);
-        (void)g_cli_guard->movable_buf_release(args->one->index.line, g_cli_editor_owner);
+        (void)g_platform_guard->movable_buf_release(args->one->piece, g_cli_editor_owner);
+        (void)g_platform_guard->movable_buf_release(args->one->index.start, g_cli_editor_owner);
+        (void)g_platform_guard->movable_buf_release(args->one->index.line, g_cli_editor_owner);
         args->one->piece = NULL;
         args->one->index.start = NULL;
         args->one->index.line = NULL;
@@ -98,9 +98,9 @@ EMBED_INLINE void pages_let_go(const PagesCtx *args)
         EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &g_cli_index_wake, .seen = wake_seen);
         wake_seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &g_cli_index_wake);
     }
-    (void)g_cli_guard->movable_buf_release(args->one->piece, g_cli_editor_owner);
-    (void)g_cli_guard->movable_buf_release(args->one->index.start, g_cli_editor_owner);
-    (void)g_cli_guard->movable_buf_release(args->one->index.line, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(args->one->piece, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(args->one->index.start, g_cli_editor_owner);
+    (void)g_platform_guard->movable_buf_release(args->one->index.line, g_cli_editor_owner);
     args->one->piece = NULL;
     args->one->index.start = NULL;
     args->one->index.line = NULL;
@@ -175,26 +175,27 @@ static void cli_index_read(void *context)
             const unsigned long long last = index->starts - 1ULL;
             unsigned long long last_line = 0ULL;
             unsigned long long last_start = 0ULL;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = index->line,
-                                                                    .offset = (embed_word)last * sizeof(last_line),
-                                                                    .dst = &last_line,
-                                                                    .bytes = sizeof(last_line)});
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = index->start,
-                                                                    .offset = (embed_word)last * sizeof(last_start),
-                                                                    .dst = &last_start,
-                                                                    .bytes = sizeof(last_start)});
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = index->line,
+                                                                         .offset = (embed_word)last * sizeof(last_line),
+                                                                         .dst = &last_line,
+                                                                         .bytes = sizeof(last_line)});
+            (void)g_platform_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = index->start,
+                                    .offset = (embed_word)last * sizeof(last_start),
+                                    .dst = &last_start,
+                                    .bytes = sizeof(last_start)});
             const int far = ((lines - last_line) >= CLI_PAGE_STEP) || ((at - last_start) >= CLI_PAGE_SPAN);
             if (far && (index->starts < index->starts_max))
             {
                 {
                     const unsigned long long start = at;
                     const unsigned long long line = lines;
-                    (void)g_cli_guard->movable_buf_write(
+                    (void)g_platform_guard->movable_buf_write(
                         &(CarcerMovableCfg){.cell = index->start,
                                             .offset = (embed_word)index->starts * sizeof(start),
                                             .src = &start,
                                             .bytes = sizeof(start)});
-                    (void)g_cli_guard->movable_buf_write(
+                    (void)g_platform_guard->movable_buf_write(
                         &(CarcerMovableCfg){.cell = index->line,
                                             .offset = (embed_word)index->starts * sizeof(line),
                                             .src = &line,
@@ -206,7 +207,7 @@ static void cli_index_read(void *context)
         }
         index->lines = lines;
         stop = index->cancel || (chunk == NULL) || (len == 0ULL);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)chunk, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)chunk, g_cli_editor_owner);
         offset += CLI_PAGE_CHUNK;
     }
     index->lines = lines;
@@ -226,7 +227,7 @@ EMBED_INLINE const char *cli_eol_get(const PagesCtx *args)
     const unsigned char *const newline =
         (bytes != NULL) ? memor.chr(&(MemoriaCfg){.src = bytes, .val = '\n', .bytes = size}) : NULL;
     const int crlf = (newline != NULL) && (newline > bytes) && (newline[-1] == '\r');
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
     return crlf ? "\r\n" : "\n";
 }
 
@@ -240,7 +241,7 @@ EMBED_INLINE unsigned long long pages_total(const PagesCtx *args)
     for (unsigned int at = 0u; at < args->one->pieces; at += 1u)
     {
         CliPagePiece piece = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = args->one->piece, .offset = (embed_word)at * sizeof(piece), .dst = &piece, .bytes = sizeof(piece)});
         lines += EMBED_CALL(cli_pages_internal.page_length, CliPagesCtx, .piece = &piece, .indexed = indexed);
     }
@@ -306,14 +307,14 @@ int cli_page_open_read_state(const CliPagesErrMsgCtx *args)
     {
         const unsigned long long start = 0ULL;
         const unsigned long long line = 0ULL;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = (&one->index)->start,
-                                                                 .offset = (embed_word)0ULL * sizeof(start),
-                                                                 .src = &start,
-                                                                 .bytes = sizeof(start)});
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = (&one->index)->line,
-                                                                 .offset = (embed_word)0ULL * sizeof(line),
-                                                                 .src = &line,
-                                                                 .bytes = sizeof(line)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = (&one->index)->start,
+                                                                      .offset = (embed_word)0ULL * sizeof(start),
+                                                                      .src = &start,
+                                                                      .bytes = sizeof(start)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = (&one->index)->line,
+                                                                      .offset = (embed_word)0ULL * sizeof(line),
+                                                                      .src = &line,
+                                                                      .bytes = sizeof(line)});
     }
     one->index.starts = 1ULL;
     one->index.lines = 1ULL;
@@ -332,7 +333,7 @@ int cli_page_open_read_state(const CliPagesErrMsgCtx *args)
     one->size = size;
     one->eol = EMBED_CALL(cli_eol_get, PagesCtx, .path = args->path);
     const CliPagePiece whole_piece = {0, 0ULL, 0ULL, 1, 0ULL};
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = one->piece, .src = &whole_piece, .bytes = sizeof(whole_piece)});
     one->pieces = 1u;
     one->next = g_cli_paged;
@@ -376,10 +377,10 @@ EMBED_INLINE int cli_index_adjacent(const PagesCtx *args)
     {
         const unsigned long long middle = low + ((high - low) / 2ULL);
         unsigned long long line_3 = 0ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = index->line,
-                                                                .offset = (embed_word)middle * sizeof(line_3),
-                                                                .dst = &line_3,
-                                                                .bytes = sizeof(line_3)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = index->line,
+                                                                     .offset = (embed_word)middle * sizeof(line_3),
+                                                                     .dst = &line_3,
+                                                                     .bytes = sizeof(line_3)});
 
         if (line_3 <= args->from)
         {
@@ -392,12 +393,12 @@ EMBED_INLINE int cli_index_adjacent(const PagesCtx *args)
     }
     const int indexed = index->starts != 0ULL;
     unsigned long long start_1 = 0ULL;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = index->start, .offset = (embed_word)low * sizeof(start_1), .dst = &start_1, .bytes = sizeof(start_1)});
 
     *start = indexed ? start_1 : 0ULL;
     unsigned long long line_4 = 0ULL;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = index->line, .offset = (embed_word)low * sizeof(line_4), .dst = &line_4, .bytes = sizeof(line_4)});
 
     *first_line = indexed ? line_4 : 0ULL;
@@ -416,10 +417,10 @@ EMBED_INLINE unsigned long long cli_index_end(const PagesCtx *args)
     {
         const unsigned long long middle = low + ((high - low) / 2ULL);
         unsigned long long line_5 = 0ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = index->line,
-                                                                .offset = (embed_word)middle * sizeof(line_5),
-                                                                .dst = &line_5,
-                                                                .bytes = sizeof(line_5)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = index->line,
+                                                                     .offset = (embed_word)middle * sizeof(line_5),
+                                                                     .dst = &line_5,
+                                                                     .bytes = sizeof(line_5)});
 
         if (line_5 < args->to)
         {
@@ -433,13 +434,13 @@ EMBED_INLINE unsigned long long cli_index_end(const PagesCtx *args)
     unsigned long long end = args->whole;
     if (low < index->starts)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = index->start, .offset = (embed_word)low * sizeof(end), .dst = &end, .bytes = sizeof(end)});
     }
     else if (!index->done && (index->starts != 0ULL) && (index->starts < index->starts_max))
     {
         unsigned long long start_2 = 0ULL;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = index->start,
                                 .offset = (embed_word)(index->starts - 1ULL) * sizeof(start_2),
                                 .dst = &start_2,
@@ -533,7 +534,7 @@ EMBED_INLINE int cli_file_lines(const PagesCtx *args)
             break;
         }
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
     while (((lines->count - first) < (args->to - from)) && !lines->full)
     {
         EMBED_CALL(cli_pages_lines_bytes_internal.page_lines_append, CliPagesLinesBytesCtx, .lines = lines, .bytes = "",
@@ -555,7 +556,7 @@ EMBED_INLINE int cli_write_lines(const PagesCtx *args)
         .count_u64 = args->piece->to - args->piece->from, .size_pointer = &size, .owner = g_cli_editor_owner);
     if ((bytes == NULL) || (size < (args->piece->to - args->piece->from)))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
         mmgr_line_put(args->err_msg, args->one_read->shadow);
         mmgr_line_put(args->err_msg, ": it could not be read");
         return 0;
@@ -574,7 +575,7 @@ EMBED_INLINE int cli_write_lines(const PagesCtx *args)
         }
         at = (end < size) ? (end + 1ULL) : size;
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
     return 1;
 }
 
@@ -591,7 +592,7 @@ EMBED_INLINE unsigned long long pages_reach(const PagesCtx *args)
     for (unsigned int index = 0u; (index < one->pieces) && (at < args->to); index += 1u)
     {
         CliPagePiece read = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = one->piece, .offset = (embed_word)index * sizeof(read), .dst = &read, .bytes = sizeof(read)});
         const CliPagePiece *const piece = &read;
         const unsigned long long count =
@@ -627,7 +628,7 @@ EMBED_INLINE int pages_pieces_read(const PagesCtx *args)
     for (unsigned int index = 0u; index < one->pieces; index += 1u)
     {
         CliPagePiece read = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = one->piece, .offset = (embed_word)index * sizeof(read), .dst = &read, .bytes = sizeof(read)});
         const CliPagePiece *const piece = &read;
         const unsigned long long count =
@@ -734,7 +735,8 @@ char *cli_pages_lines_alloc(const CliPagesFromCfg *args)
                                 .from = args->from, .to_value = args->to, .lines = &lines, .err_msg = &err_msg) &&
                      !lines.full;
     // each line's bytes and its NUL, in a cell of the caller's call, which gives it back as it ends
-    char *const text = read ? g_cli_guard->temporary_buf_alloc(lines.used + lines.count + 1ULL, args->owner) : NULL;
+    char *const text =
+        read ? g_platform_guard->temporary_buf_alloc(lines.used + lines.count + 1ULL, args->owner) : NULL;
     const unsigned long long reserved = (lines.count < required) ? lines.count : required;
     unsigned long long at = 0ULL;
     for (unsigned long long each = 0ULL; (text != NULL) && (each < reserved); each += 1ULL)

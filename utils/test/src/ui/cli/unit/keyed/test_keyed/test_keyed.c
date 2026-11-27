@@ -15,7 +15,7 @@ static void listing_append(const CliEachKeyedEntryCfg *args)
     char texts[256];
     const unsigned long long bytes = (unsigned long long)args->entry.key_size + args->entry.adjacent_size + 2ull;
     TEST_ASSERT_TRUE(bytes <= sizeof(texts));
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = args->entry.cell, .offset = 0u, .dst = texts, .bytes = (embed_word)bytes});
     (void)mmgr_line_put_n(line, texts, bytes);
 }

@@ -10,7 +10,7 @@
 //
 //     frame_relation_check
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/khw_learn/frame_relation.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../../../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/cubin_run_internal.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"

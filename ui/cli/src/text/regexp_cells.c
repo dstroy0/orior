@@ -8,13 +8,13 @@
 void *regexp_cell_taken(unsigned long long bytes)
 {
     // a read's or a match's cell is far below what a size_t counts
-    return g_cli_guard->temporary_buf_alloc((size_t)bytes, g_cli_text_owner);
+    return g_platform_guard->temporary_buf_alloc((size_t)bytes, g_cli_text_owner);
 }
 
 void regexp_cell_released(void *cell)
 {
     if (cell != NULL)
     {
-        g_cli_guard->persistent_buf_release(cell, g_cli_text_owner);
+        g_platform_guard->persistent_buf_release(cell, g_cli_text_owner);
     }
 }

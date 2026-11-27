@@ -30,7 +30,7 @@
  */
 
 #include "arm.h"
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "arm_cuda.h"
 
 #include <cuda_runtime.h>

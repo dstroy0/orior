@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../../../src/cu/engine/runtime/device_pool/device_pool.h"
-#include "../../../../src/platform/platform.h"
+#include "../../../../includes/platform/platform.h"
 #include "drift.h"
 #include "../../../../src/cu/engine/nbody/heaviest_matching/heaviest_matching.h"
 #include "scan.h"

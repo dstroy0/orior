@@ -225,7 +225,7 @@ EMBED_INLINE int cli_alike(const NotebookMergeCtx *args)
         EMBED_CALL(cli_lines_split, NotebookMergeCtx, .text = right_text, .length = right_length, .lines = NULL);
     const char *(*const lines)[2] =
         ((left != 0u) && (right != 0u))
-            ? g_cli_guard->temporary_buf_alloc(((left + right) * sizeof(*lines)) + right, g_cli_notebook_owner)
+            ? g_platform_guard->temporary_buf_alloc(((left + right) * sizeof(*lines)) + right, g_cli_notebook_owner)
             : NULL;
     if (lines == NULL)
     {
@@ -254,7 +254,7 @@ EMBED_INLINE int cli_alike(const NotebookMergeCtx *args)
             }
         }
     }
-    g_cli_guard->persistent_buf_release(lines, g_cli_notebook_owner);
+    g_platform_guard->persistent_buf_release(lines, g_cli_notebook_owner);
     // twice the lines in common over all the lines of both at least a half
     return (4ULL * shared) >= ((unsigned long long)left + right);
 }
@@ -581,7 +581,7 @@ unsigned int cli_notebook_merge(const CliNotebookCfg *args)
     const unsigned long long wider = ((our_count > their_count) ? our_count : their_count) + 1ULL;
     const unsigned long long lists = (3ULL * bases) + our_count + their_count;
     unsigned int *const cell =
-        g_cli_guard->temporary_buf_alloc((lists + ((bases + 1ULL) * wider)) * sizeof(*cell), g_cli_notebook_owner);
+        g_platform_guard->temporary_buf_alloc((lists + ((bases + 1ULL) * wider)) * sizeof(*cell), g_cli_notebook_owner);
     if (cell == NULL)
     {
         return CLI_JSON_NONE;
@@ -616,7 +616,7 @@ unsigned int cli_notebook_merge(const CliNotebookCfg *args)
         EMBED_CALL(cli_added_append, NotebookMergeCtx, .json_out = args->json, .work_state = &work_state,
                    .entries = entries, .after = index, .bases = bases, .ours = our_count, .theirs = their_count);
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_notebook_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_notebook_owner);
     const unsigned int book =
         EMBED_CALL(cli_json_tree.json_copy, CliJsonTreeCfg, .json = args->json, .node = args->ours);
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json, .object = book,

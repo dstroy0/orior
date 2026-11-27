@@ -115,7 +115,7 @@ typedef struct
     unsigned int projects;
     CliCompilerOf compiler[CLI_GATHER_LANGUAGES];
     unsigned int compilers;
-    CliGrownLine flags_text;
+    PlatformText flags_text;
     unsigned int flag[CLI_GATHER_FLAGS];
     unsigned int flags;
 } CliGathering;

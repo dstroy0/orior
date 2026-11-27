@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frame_round.c: the frame round: each place of the kernel put at the probe place in its variants over cases that reach
 // a second block, and the places that answered retained as forms
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "khw_learn_internal.h"
 #include "memoria_operor/memoria_operor.h"
 

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "run_cfg.h"
-#include "../../../../src/platform/platform.h"
+#include "../../../../includes/platform/platform.h"
 
 #include "../../../../includes/formats/cfg_json/cfg_json.h"
 #include "../../../../src/cu/engine/engine.h"

@@ -69,25 +69,26 @@ static void raster_faces_release(void)
     {
         for (unsigned int face = 0u; face < 4u; face += 1u)
         {
-            g_cli_guard->persistent_buf_release((void *)(embed_word)(s_typefaces->face_data[face]), g_cli_print_owner);
+            g_platform_guard->persistent_buf_release((void *)(embed_word)(s_typefaces->face_data[face]),
+                                                     g_cli_print_owner);
         }
-        g_cli_guard->persistent_buf_release(s_typefaces->cover, g_cli_print_owner);
+        g_platform_guard->persistent_buf_release(s_typefaces->cover, g_cli_print_owner);
     }
-    g_cli_guard->persistent_buf_release(s_typefaces, g_cli_print_owner);
+    g_platform_guard->persistent_buf_release(s_typefaces, g_cli_print_owner);
     s_typefaces = NULL;
 }
 
 int cli_print_faces(const CliPrintJsonCfg *args)
 {
     raster_faces_release();
-    s_typefaces = g_cli_guard->temporary_buf_alloc(sizeof(*s_typefaces), g_cli_print_owner);
+    s_typefaces = g_platform_guard->temporary_buf_alloc(sizeof(*s_typefaces), g_cli_print_owner);
     if (s_typefaces == NULL)
     {
         mmgr_line_put(args->err_msg, "the faces drawn with could not be taken");
         return 0;
     }
     // the cover cache lives for the program: a persistent cell, not a stack's
-    s_typefaces->cover = g_cli_guard->persistent_buf_alloc(CLI_COVER_CACHE * sizeof(float), g_cli_print_owner);
+    s_typefaces->cover = g_platform_guard->persistent_buf_alloc(CLI_COVER_CACHE * sizeof(float), g_cli_print_owner);
     s_typefaces->cover_capacity = (s_typefaces->cover != NULL) ? CLI_COVER_CACHE : 0ULL;
     s_typefaces->cover_used = 0ULL;
     char paths[4][CLI_PATH_MAX_LEN];
@@ -101,12 +102,12 @@ int cli_print_faces(const CliPrintJsonCfg *args)
             ((paths[face][0] != '\0') &&
              EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = paths[face], .size_pointer = &size) &&
              (size <= FONT_BYTES))
-                ? g_cli_guard->temporary_buf_alloc(size + CLI_FILE_SLACK, g_cli_print_owner)
+                ? g_platform_guard->temporary_buf_alloc(size + CLI_FILE_SLACK, g_cli_print_owner)
                 : NULL;
         if ((data == NULL) || !EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = paths[face],
                                           .from = 0ULL, .bytes_bytes = data, .count_u64 = size, .got = &size))
         {
-            g_cli_guard->persistent_buf_release(data, g_cli_print_owner);
+            g_platform_guard->persistent_buf_release(data, g_cli_print_owner);
             data = NULL;
             size = 0ULL;
         }
@@ -359,7 +360,7 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
     const CliPrintListing *listing = args->listing;
     const CliPrintLayout *layout = args->layout;
     s_work_state =
-        (s_typefaces != NULL) ? g_cli_guard->temporary_buf_alloc(sizeof(*s_work_state), g_cli_print_owner) : NULL;
+        (s_typefaces != NULL) ? g_platform_guard->temporary_buf_alloc(sizeof(*s_work_state), g_cli_print_owner) : NULL;
     if (s_work_state == NULL)
     {
         return;
@@ -375,11 +376,12 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
                       (unsigned long long)arith_round_f32(height * scale), layout->gray ? 1ULL : 3ULL, NULL};
     // the page's pixels a cell of their own, sized to the page at the resolution asked
     const unsigned long long bytes = page.width * page.height * page.channels;
-    s_work_state->page = (bytes <= CLI_PAGE_BYTES) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_print_owner) : NULL;
+    s_work_state->page =
+        (bytes <= CLI_PAGE_BYTES) ? g_platform_guard->temporary_buf_alloc(bytes, g_cli_print_owner) : NULL;
     page.data = s_work_state->page;
     if (s_work_state->page == NULL)
     {
-        g_cli_guard->persistent_buf_release(s_work_state, g_cli_print_owner);
+        g_platform_guard->persistent_buf_release(s_work_state, g_cli_print_owner);
         s_work_state = NULL;
         return;
     }
@@ -441,8 +443,8 @@ void cli_print_render(const CliPrintLayoutListingCfg *args)
                    .count = count);
         index += 1u;
     }
-    g_cli_guard->persistent_buf_release(s_work_state->page, g_cli_print_owner);
-    g_cli_guard->persistent_buf_release(s_work_state, g_cli_print_owner);
+    g_platform_guard->persistent_buf_release(s_work_state->page, g_cli_print_owner);
+    g_platform_guard->persistent_buf_release(s_work_state, g_cli_print_owner);
     s_work_state = NULL;
     // the print is drawn: its faces go back with its work state
     raster_faces_release();

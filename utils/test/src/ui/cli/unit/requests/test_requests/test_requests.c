@@ -76,7 +76,7 @@ static const char *value_of(const char *name)
 // the values' cell given back and the values emptied
 static void values_released(void)
 {
-    g_cli_guard->persistent_buf_release(s_values.text, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(s_values.text, g_cli_requests_owner);
     s_values.text = NULL;
     s_values.capacity = 0ULL;
     s_values.used = 0ULL;
@@ -213,8 +213,8 @@ void tearDown(void)
     if (s_parsed_live)
     {
         s_parsed_live = 0;
-        g_cli_guard->persistent_buf_release(s_parsed.requests, g_cli_requests_owner);
-        g_cli_guard->persistent_buf_release(s_parsed.text, g_cli_requests_owner);
+        g_platform_guard->persistent_buf_release(s_parsed.requests, g_cli_requests_owner);
+        g_platform_guard->persistent_buf_release(s_parsed.text, g_cli_requests_owner);
         s_parsed.requests = NULL;
         s_parsed.requests_capacity = 0u;
         s_parsed.text = NULL;
@@ -353,25 +353,25 @@ void test_a_request_created_ready_has_its_key_address_and_body_filled_in(void)
     VerbaLinea key_line = {key, sizeof(key), 0ull};
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     environments_written();
-    char *const body_cell = g_cli_guard->temporary_buf_alloc(4096ull, g_checks_owner);
+    char *const body_cell = g_platform_guard->temporary_buf_alloc(4096ull, g_checks_owner);
     VerbaLinea body = {body_cell, 4096ull, 0ull};
     const int ready = EMBED_CALL(cli_requests_text_internal.ready, CliRequestsTextCtx, .root = s_root, .path = "api/v1/calls.http", .text = s_file, .size = sizeof(s_file) - 1u, .line_u64 = 14ull, .env = "dev", .sent_out = &s_sent, .body = &body, .key = &key_line, .err_msg = &err_msg);
     TEST_ASSERT_TRUE(ready);
     CLI_TEST_ASSERT_TEXT("make", key, key_line.at);
     TEST_ASSERT_EQUAL_STRING("http://localhost:1/v1/items", s_sent.url);
     CLI_TEST_ASSERT_TEXT("{\"name\": \"all\"}", s_sent.body, s_sent.body_size);
-    g_cli_guard->persistent_buf_release(body.out, g_checks_owner);
+    g_platform_guard->persistent_buf_release(body.out, g_checks_owner);
 }
 
 void test_no_environment_leaves_no_host_and_the_request_is_refused(void)
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     environments_written();
-    char *const body_cell = g_cli_guard->temporary_buf_alloc(4096ull, g_checks_owner);
+    char *const body_cell = g_platform_guard->temporary_buf_alloc(4096ull, g_checks_owner);
     VerbaLinea body = {body_cell, 4096ull, 0ull};
     const int ready = EMBED_CALL(cli_requests_text_internal.ready, CliRequestsTextCtx, .root = s_root, .path = "api/v1/calls.http", .text = s_file, .size = sizeof(s_file) - 1u, .line_u64 = 14ull, .env = NULL, .sent_out = &s_sent, .body = &body, .key = NULL, .err_msg = &err_msg);
     (void)mmgr_line_finish(&err_msg);
-    g_cli_guard->persistent_buf_release(body.out, g_checks_owner);
+    g_platform_guard->persistent_buf_release(body.out, g_checks_owner);
     TEST_ASSERT_FALSE(ready);
     CLI_TEST_ASSERT_CONTAINS("{{host}}", s_error);
 }

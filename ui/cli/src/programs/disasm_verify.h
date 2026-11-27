@@ -68,8 +68,8 @@ unsigned int cli_disasm_functions_define(const CliDisasmVerifyIrSizeCfg *args);
 // program defines it, else `name` with the suffix link-time optimization gives a promoted local, as name.llvm.1234;
 // into `symbol`, sized for CLI_NAME_MAX_LEN: 1, or 0 where the program has no such symbol
 int cli_disasm_symbol_get(const CliDisasmVerifySizeTextCfg *args);
-// the instructions of the function `symbol` read from llvm-objdump's output with each instruction's bytes displayed, `text`
-// of `size` bytes, into `read_state`, whose cell is sized for CLI_DISASM_INSTRUCTIONS: 1, or 0 where the output
+// the instructions of the function `symbol` read from llvm-objdump's output with each instruction's bytes displayed,
+// `text` of `size` bytes, into `read_state`, whose cell is sized for CLI_DISASM_INSTRUCTIONS: 1, or 0 where the output
 // contains no such function
 int cli_disasm_objdump_read(const CliDisasmVerifySizeCfg *args);
 // the units of the function from the file the plugin's script wrote, `text` of `size` bytes: its instructions, and the

@@ -46,10 +46,10 @@ int cli_servers_plugin_program(const CliServersErrMsgJsonCtx *args)
         char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, g_cli_servers_owner);
         EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &manifest_json, .tool = tool,
                    .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count, .found = &found);
-        g_cli_guard->persistent_buf_release(folders, g_cli_servers_owner);
+        g_platform_guard->persistent_buf_release(folders, g_cli_servers_owner);
     }
-    g_cli_guard->persistent_buf_release(manifest_json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), manifest_json.node));
+    g_platform_guard->persistent_buf_release(manifest_json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), manifest_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&manifest_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const char *const names[1] = {name};

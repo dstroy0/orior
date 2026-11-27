@@ -19,7 +19,7 @@
 // alone (cubin_listing.h). Exit 0 where every code was read, 2 where the run, the pattern, a code or the disassembler
 // was not reached
 #include "cubin_listing.h"
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "cubin_write.h"

@@ -4,7 +4,7 @@
 // enumeration region read from them. An address that ends its probe answered nothing, and the walk goes on from the
 // next address in a fresh probe.
 #include "bus_enum_walk.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // assembled.c: the texts the protocol passes, each assembled against the machine file with every stall safe, and passed
 // back to the run
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "khw_machine_write_internal.h"

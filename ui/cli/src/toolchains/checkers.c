@@ -24,7 +24,7 @@ static CliCheckWorkState *s_work_state;
 // the lock taken and the work state a cell under it: 1, or 0 with the lock given back where no cell is left
 static int checkers_lock(void)
 {
-    s_work_state = g_cli_guard->temporary_buf_alloc(sizeof(*s_work_state), g_cli_toolchains_owner);
+    s_work_state = g_platform_guard->temporary_buf_alloc(sizeof(*s_work_state), g_cli_toolchains_owner);
     if (s_work_state == NULL)
     {
         return 0;
@@ -37,8 +37,8 @@ static int checkers_lock(void)
 // the manifest read into the work state, the one read before given back: its array of toolchains
 static unsigned int cli_manifest(void)
 {
-    g_cli_guard->persistent_buf_release(s_work_state->json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_work_state->json.node));
+    g_platform_guard->persistent_buf_release(s_work_state->json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_work_state->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
@@ -150,11 +150,11 @@ int cli_checkers_by_name(const CliCheckersNameCfg *args)
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = tool_id, .cap = CLI_POOL_BYTES}) + 1u});
         }
     }
-    g_cli_guard->persistent_buf_release(s_work_state->json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_work_state->json.node));
+    g_platform_guard->persistent_buf_release(s_work_state->json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_work_state->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
     s_work_state = NULL;
     return found;
 }
@@ -173,11 +173,11 @@ int cli_checkers_reads_tree(const CliCheckersCfg *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                       .json_read = &s_work_state->json, .object = spec, .name = "tree"),
                    .type = CFG_JSON_ARRAY);
-    g_cli_guard->persistent_buf_release(s_work_state->json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_work_state->json.node));
+    g_platform_guard->persistent_buf_release(s_work_state->json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_work_state->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
     s_work_state = NULL;
     return tree;
 }
@@ -196,11 +196,11 @@ int cli_checkers_reads_input(const CliCheckersCfg *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                       .json_read = &s_work_state->json, .object = spec, .name = "stdin"),
                    .type = CFG_JSON_TRUE);
-    g_cli_guard->persistent_buf_release(s_work_state->json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_work_state->json.node));
+    g_platform_guard->persistent_buf_release(s_work_state->json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_work_state->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
     s_work_state = NULL;
     return input;
 }
@@ -231,11 +231,11 @@ int cli_checkers_checks(const CliCheckersCfg *args)
         checks = (one != NULL) &&
                  (cellul.eq(&(CatenaFinitaCfg){.src = one, .other = args->language, .cap = CLI_POOL_BYTES}));
     }
-    g_cli_guard->persistent_buf_release(s_work_state->json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_work_state->json.node));
+    g_platform_guard->persistent_buf_release(s_work_state->json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_work_state->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
     s_work_state = NULL;
     return checks;
 }
@@ -297,7 +297,7 @@ static int cli_on_check(const CheckersCtx *args)
     EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = json, .tool = args->tool,
                .path_callback = (const char (*)[CLI_PATH_MAX_LEN])path, .count = folders,
                .found = &s_work_state->found);
-    g_cli_guard->persistent_buf_release(path, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(path, g_cli_toolchains_owner);
     char program[CLI_PATH_MAX_LEN];
     const char *const names[1] = {program_name};
     if ((s_work_state->found.folder[0] == '\0') ||
@@ -344,7 +344,7 @@ static int cli_on_check(const CheckersCtx *args)
     words[count] = NULL;
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_work_state->path,
                .size = sizeof(s_work_state->path));
-    const CliSetting settings[1] = {{"PATH", s_work_state->path}};
+    const PlatformSetting settings[1] = {{"PATH", s_work_state->path}};
     CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ULL};
@@ -416,11 +416,11 @@ int cli_checkers_check_file(const CliCheckersOutCfg *args)
     {
         mmgr_line_put(args->err_msg, args->id);
         mmgr_line_put(args->err_msg, " is not in the manifest");
-        g_cli_guard->persistent_buf_release(s_work_state->json.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), s_work_state->json.node));
+        g_platform_guard->persistent_buf_release(s_work_state->json.node,
+                                                 mmgr_owner_of_buf(platform_pool_series(), s_work_state->json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
+        g_platform_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
         s_work_state = NULL;
         return 0;
     }
@@ -460,18 +460,18 @@ int cli_checkers_check_file(const CliCheckersOutCfg *args)
     const int checked =
         EMBED_CALL(cli_on_check, CheckersCtx, .tool = tool, .args_key = "args", .file = args->path, .root = args->root,
                    .input = input, .length = input_length, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)mapped, g_cli_toolchains_owner);
     if (checked)
     {
         EMBED_CALL(cli_checkers_path_internal.file, CliCheckersPathCtx, .findings = &s_work_state->findings,
                    .path = args->path, .first = 1);
         EMBED_CALL(cli_findings_write, CheckersCtx, .out = args->out);
     }
-    g_cli_guard->persistent_buf_release(s_work_state->json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_work_state->json.node));
+    g_platform_guard->persistent_buf_release(s_work_state->json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_work_state->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
     s_work_state = NULL;
     return checked;
 }
@@ -492,11 +492,11 @@ int cli_checkers_check_tree(const CliCheckersOutCfg *args)
                     .type = CFG_JSON_ARRAY))
     {
         mmgr_line_put(args->out, "[]");
-        g_cli_guard->persistent_buf_release(s_work_state->json.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), s_work_state->json.node));
+        g_platform_guard->persistent_buf_release(s_work_state->json.node,
+                                                 mmgr_owner_of_buf(platform_pool_series(), s_work_state->json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        g_cli_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
+        g_platform_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
         s_work_state = NULL;
         return 1;
     }
@@ -506,11 +506,11 @@ int cli_checkers_check_tree(const CliCheckersOutCfg *args)
     {
         EMBED_CALL(cli_findings_write, CheckersCtx, .out = args->out);
     }
-    g_cli_guard->persistent_buf_release(s_work_state->json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_work_state->json.node));
+    g_platform_guard->persistent_buf_release(s_work_state->json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_work_state->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
     s_work_state = NULL;
     return checked;
 }

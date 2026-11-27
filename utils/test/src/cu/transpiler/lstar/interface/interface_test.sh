@@ -43,7 +43,7 @@ rm -f "$BINARY" "$PROBE"
 source "$TOP/includes/exact_types/exact_types.sh"
 exact_types_platform_link || exit 1
 OBJECTS=()
-for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TEST/interface_test.c"; do
+for source in "$INTERFACE/interface.c" "${PLATFORM_PROBE[@]}" "$INTERFACE/interface_names.c" "$TEST/interface_test.c"; do
     object="$OUT/$(basename "$source" .c).$EXTENSION"
     rm -f "$object"
     case "$(uname -s)" in

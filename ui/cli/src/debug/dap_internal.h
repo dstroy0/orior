@@ -51,7 +51,7 @@ struct CliDap
     int ends_program;
     CliWords words;
     char path[CLI_PATH_TEXT];
-    CliSpawned spawned;
+    PlatformProgram spawned;
     int ended;
     CliSocket socket;
     CliLspWriter input;

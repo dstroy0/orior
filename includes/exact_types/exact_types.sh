@@ -16,19 +16,17 @@ source "$EXACT_TYPES_REPO/includes/file_defs/file_defs.sh"
 EXACT_TYPES_INTEGERS=("$EXACT_TYPES_TOP"/integers/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c)
 EXACT_TYPES_RECORD=("$EXACT_TYPES_TOP/integers/exact_record/exact_record.c")
 
-# the platform of a library: the pool, the owners, and the calls into the system. The process that loads the library
-# runs the process stage, platform_open of platform.h, before its first call into it
-EXACT_TYPES_PLATFORM_LIBRARY=("$EXACT_TYPES_REPO/src/platform/platform_pool.c" "$EXACT_TYPES_REPO/src/platform/platform_file.c"
-    "$EXACT_TYPES_REPO/src/platform/platform_windows.c"
-    "$EXACT_TYPES_REPO/src/platform/platform_posix.c")
+# the platform of a library: the pool, the owners, and the calls into the system (platform.sh). The process that loads
+# the library runs the process stage, platform_open of platform.h, before its first call into it
+EXACT_TYPES_PLATFORM_LIBRARY=("$PLATFORM_TOP/platform_pool.c" "$PLATFORM_TOP/platform_file.c" "${PLATFORM_SYSTEM[@]}")
 
 # the platform of a program: main and the process stage, and the platform of a library. A program that links them
 # defines program_main (platform.h) and no main
-EXACT_TYPES_PLATFORM=("$EXACT_TYPES_REPO/src/platform/platform_process.c" "${EXACT_TYPES_PLATFORM_LIBRARY[@]}")
+EXACT_TYPES_PLATFORM=("$PLATFORM_TOP/platform_process.c" "${EXACT_TYPES_PLATFORM_LIBRARY[@]}")
 
 # the cellblock of MMgr, which the platform places. It calls the hooks that the platform defines. A build keeps it out
 # of the objects that the tessera daemon links
-EXACT_TYPES_CARCER=("$EXACT_TYPES_REPO/src/platform/platform_carcer.c")
+EXACT_TYPES_CARCER=("$PLATFORM_TOP/platform_carcer.c")
 
 # the modules of MMgr: the line and the modules that it reaches, and the cellblock
 EXACT_TYPES_MMGR=("${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_CARCER[@]}")
@@ -40,7 +38,7 @@ EXACT_TYPES_SOURCES=("${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_RECORD[@]}" "${
 EXACT_TYPES_ARITHMETIC=("${EXACT_TYPES_INTEGERS[@]}" "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_MMGR[@]}")
 
 EXACT_TYPES_FLAGS=("${FILE_DEFS_MMGR_FLAGS[@]}" -I "$EXACT_TYPES_TOP/integers" -I "$EXACT_TYPES_TOP/integers/exact_record"
-    -I "$EXACT_TYPES_REPO/src/platform")
+    -I "$PLATFORM_TOP")
 
 # the libraries of the system that the platform calls: the address wait on Windows, and the threads and the loader on
 # Linux and macOS.
@@ -55,7 +53,7 @@ esac
 # of the platform, the line of MMgr, the platform and the cellblock. The libraries of the system come last in it, and
 # so it goes after every source of the command. It goes with FILE_DEFS_FORMATS, as FILE_DEFS holds a second copy of
 # MMgr
-EXACT_TYPES_PLATFORM_PROGRAM=("${FILE_DEFS_MMGR_FLAGS[@]}" -I "$EXACT_TYPES_REPO/src/platform" "${FILE_DEFS_LINEA[@]}"
+EXACT_TYPES_PLATFORM_PROGRAM=("${FILE_DEFS_MMGR_FLAGS[@]}" -I "$PLATFORM_TOP" "${FILE_DEFS_LINEA[@]}"
     "${EXACT_TYPES_PLATFORM[@]}" "${EXACT_TYPES_CARCER[@]}" "${EXACT_TYPES_LIBRARIES[@]}")
 
 source "$EXACT_TYPES_REPO/utils/maint/engine/shared_objects.sh"
@@ -96,7 +94,7 @@ exact_types_device_line()
     local extra=("${EXACT_TYPES_EXTRA[@]+"${EXACT_TYPES_EXTRA[@]}"}")
     local words=(nvcc "${host[@]}" -std=c++20 -O2 "${gencode[@]}" -rdc=true -x cu "${extra[@]}" "${EXACT_TYPES_FLAGS[@]}")
     shared_objects_built words "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_CARCER[@]}" \
-        "$EXACT_TYPES_REPO/src/platform/platform_device.cu" \
+        "$PLATFORM_TOP/platform_device.cu" \
         "$EXACT_TYPES_REPO/src/cu/engine/runtime/daemon/tessera_job.cu" || return 1
     EXACT_TYPES_DEVICE_LINE=("${SHARED_OBJECTS[@]}")
     return 0

@@ -5,7 +5,7 @@
  * @brief The theta function of Riemann and Siegel, by the series of Stirling. zeta_theta.h states the rules.
  */
 #include "zeta_theta.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

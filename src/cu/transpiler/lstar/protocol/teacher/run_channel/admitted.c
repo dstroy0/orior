@@ -3,7 +3,7 @@
 // admitted.c: the admission: a gated question's conference of cross, gate and record, the round checked, the carrier's
 // output passed, one question traced and queried
 #include "../../../../../../../includes/parsers/line_read.h"
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "run_channel_internal.h"

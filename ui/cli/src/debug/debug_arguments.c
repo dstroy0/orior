@@ -211,7 +211,7 @@ EMBED_INLINE unsigned long long arguments_marks_counted(const DebugArgumentsCtx 
 EMBED_INLINE char *arguments_string_fill(const DebugArgumentsCtx *args)
 {
     unsigned long long *size = args->size;
-    char *was = g_cli_guard->temporary_buf_alloc(args->length + 1ULL, g_cli_debug_owner);
+    char *was = g_platform_guard->temporary_buf_alloc(args->length + 1ULL, g_cli_debug_owner);
     if (was == NULL)
     {
         return NULL;
@@ -233,10 +233,10 @@ EMBED_INLINE char *arguments_string_fill(const DebugArgumentsCtx *args)
                                                     .size_value = at_end, .mark = mark, .mark_size = mark_size);
         // the pass's text: the marks' bytes out, their replacements in, and the end's 0
         const unsigned long long bytes = at_end - (marks * mark_size) + (marks * with_size) + 1ULL;
-        char *const filled = g_cli_guard->temporary_buf_alloc(bytes, g_cli_debug_owner);
+        char *const filled = g_platform_guard->temporary_buf_alloc(bytes, g_cli_debug_owner);
         if (filled == NULL)
         {
-            g_cli_guard->persistent_buf_release(was, g_cli_debug_owner);
+            g_platform_guard->persistent_buf_release(was, g_cli_debug_owner);
             return NULL;
         }
         VerbaLinea next = {filled, bytes, 0ULL};
@@ -256,7 +256,7 @@ EMBED_INLINE char *arguments_string_fill(const DebugArgumentsCtx *args)
         }
         at_end = next.at;
         (void)mmgr_line_finish(&next);
-        g_cli_guard->persistent_buf_release(was, g_cli_debug_owner);
+        g_platform_guard->persistent_buf_release(was, g_cli_debug_owner);
         was = filled;
     }
     *size = at_end;
@@ -318,7 +318,7 @@ static unsigned int arguments_fill(const DebugArgumentsCtx *args)
             made = EMBED_CALL(cli_json_tree_text_length_type.json_string_init, CliJsonTreeTextLengthTypeCfg, .json = to,
                               .text = filled, .length = size);
         }
-        g_cli_guard->persistent_buf_release(filled, g_cli_debug_owner);
+        g_platform_guard->persistent_buf_release(filled, g_cli_debug_owner);
         return made;
     }
     if (EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = from,

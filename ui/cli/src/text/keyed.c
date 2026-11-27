@@ -62,7 +62,7 @@ static int keyed_order_of(const void *left, const void *right)
 static KeyedOrder keyed_order_at(const CliKeyed *keyed, unsigned int at)
 {
     KeyedOrder record = {0u, 0u, 0u};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = keyed->order, .offset = (embed_word)at * sizeof(record), .dst = &record, .bytes = sizeof(record)});
     return record;
 }
@@ -75,7 +75,7 @@ EMBED_INLINE void keyed_ordered(const KeyedCtx *args)
     CliKeyed *const keyed = args->keyed_out;
     if (keyed->order != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(keyed->order, g_cli_text_owner);
+        (void)g_platform_guard->movable_buf_release(keyed->order, g_cli_text_owner);
     }
     keyed->order = NULL;
     keyed->ordered = 0u;
@@ -83,7 +83,7 @@ EMBED_INLINE void keyed_ordered(const KeyedCtx *args)
     for (unsigned int at = 0u; at < keyed->entries; at += 1u)
     {
         CliKeyedEntry one = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = keyed->page[at / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(at % CLI_KEYED_PAGE) * sizeof(one),
                                 .dst = &one,
@@ -94,7 +94,7 @@ EMBED_INLINE void keyed_ordered(const KeyedCtx *args)
     {
         return;
     }
-    KeyedOrder *const records = g_cli_guard->temporary_buf_alloc(2ULL * count * sizeof(KeyedOrder), g_cli_text_owner);
+    KeyedOrder *const records = g_platform_guard->temporary_buf_alloc(2ULL * count * sizeof(KeyedOrder), g_cli_text_owner);
     if (records == NULL)
     {
         return;
@@ -103,7 +103,7 @@ EMBED_INLINE void keyed_ordered(const KeyedCtx *args)
     for (unsigned int at = 0u; at < keyed->entries; at += 1u)
     {
         CliKeyedEntry one = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = keyed->page[at / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(at % CLI_KEYED_PAGE) * sizeof(one),
                                 .dst = &one,
@@ -120,15 +120,15 @@ EMBED_INLINE void keyed_ordered(const KeyedCtx *args)
                                                 .bytes = sizeof(KeyedOrder),
                                                 .order = keyed_order_of});
     keyed->order =
-        sorted ? g_cli_guard->movable_buf_alloc((unsigned long long)count * sizeof(KeyedOrder), g_cli_text_owner)
+        sorted ? g_platform_guard->movable_buf_alloc((unsigned long long)count * sizeof(KeyedOrder), g_cli_text_owner)
                : NULL;
     if (keyed->order != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = keyed->order, .offset = 0u, .src = records, .bytes = (embed_word)count * sizeof(KeyedOrder)});
         keyed->ordered = count;
     }
-    g_cli_guard->persistent_buf_release(records, g_cli_text_owner);
+    g_platform_guard->persistent_buf_release(records, g_cli_text_owner);
 }
 
 // The entry stored under `key`, whose hash is `hash`, `entries` where none is. A binary search of the order finds the
@@ -163,12 +163,12 @@ EMBED_INLINE unsigned int keyed_find(const KeyedCtx *args)
             break;
         }
         CliKeyedEntry one = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = keyed->page[record.place / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(record.place % CLI_KEYED_PAGE) * sizeof(one),
                                 .dst = &one,
                                 .bytes = sizeof(one)});
-        if (one.used && (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+        if (one.used && (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){
                              .cell = one.cell, .offset = 0u, .src = args->key, .bytes = wanted.key_size + 1u}) == 0))
         {
             return record.place;
@@ -209,7 +209,7 @@ EMBED_INLINE void keyed_pages_release(const KeyedCtx *args)
     {
         if (args->keyed_out->page[page] != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(args->keyed_out->page[page], g_cli_text_owner);
+            (void)g_platform_guard->movable_buf_release(args->keyed_out->page[page], g_cli_text_owner);
         }
         args->keyed_out->page[page] = NULL;
     }
@@ -223,14 +223,14 @@ EMBED_INLINE void keyed_compact(const KeyedCtx *args)
     for (unsigned int at = 0u; at < keyed->entries; at += 1u)
     {
         CliKeyedEntry one = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = keyed->page[at / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(at % CLI_KEYED_PAGE) * sizeof(one),
                                 .dst = &one,
                                 .bytes = sizeof(one)});
         if (one.used)
         {
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = keyed->page[count / CLI_KEYED_PAGE],
                                     .offset = (embed_word)(count % CLI_KEYED_PAGE) * sizeof(CliKeyedEntry),
                                     .src = &one,
@@ -254,7 +254,7 @@ EMBED_INLINE const CarcerMovableEntry *keyed_cell_kept(const KeyedCtx *args)
         return NULL;
     }
     CliKeyedEntry one = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = keyed->page[at / CLI_KEYED_PAGE],
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = keyed->page[at / CLI_KEYED_PAGE],
                                                             .offset = (embed_word)(at % CLI_KEYED_PAGE) * sizeof(one),
                                                             .dst = &one,
                                                             .bytes = sizeof(one)});
@@ -266,7 +266,7 @@ EMBED_INLINE const CarcerMovableEntry *keyed_cell_kept(const KeyedCtx *args)
     const CarcerMovableEntry *const kept = one.cell;
     one.used = 0;
     one.cell = NULL;
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = keyed->page[at / CLI_KEYED_PAGE],
                             .offset = (embed_word)(at % CLI_KEYED_PAGE) * sizeof(CliKeyedEntry),
                             .src = &one,
@@ -295,17 +295,17 @@ int cli_keyed_append(const CliKeyedKeyAdjacentCfg *args)
     if ((args->keyed_out->entries < args->keyed_out->entries_max) && (args->keyed_out->page[page] == NULL))
     {
         args->keyed_out->page[page] =
-            g_cli_guard->movable_buf_alloc(CLI_KEYED_PAGE * sizeof(CliKeyedEntry), g_cli_text_owner);
+            g_platform_guard->movable_buf_alloc(CLI_KEYED_PAGE * sizeof(CliKeyedEntry), g_cli_text_owner);
     }
     if ((args->keyed_out->entries == args->keyed_out->entries_max) || (args->keyed_out->page[page] == NULL))
     {
-        (void)g_cli_guard->movable_buf_release(kept, g_cli_text_owner);
+        (void)g_platform_guard->movable_buf_release(kept, g_cli_text_owner);
         EMBED_CALL(keyed_reject, KeyedCtx, .keyed = args->keyed_out, .key = args->key, .why = "every entry is taken");
         EMBED_CALL(keyed_ordered, KeyedCtx, .keyed_out = args->keyed_out);
         return 0;
     }
     const CarcerMovableEntry *const place =
-        (kept != NULL) ? kept : g_cli_guard->movable_buf_alloc(capacity, g_cli_text_owner);
+        (kept != NULL) ? kept : g_platform_guard->movable_buf_alloc(capacity, g_cli_text_owner);
     if (place == NULL)
     {
         EMBED_CALL(keyed_reject, KeyedCtx, .keyed = args->keyed_out, .key = args->key,
@@ -314,14 +314,14 @@ int cli_keyed_append(const CliKeyedKeyAdjacentCfg *args)
         return 0;
     }
     static const char s_zero = '\0';
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = place, .offset = 0u, .src = args->key, .bytes = key_size + 1u});
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = place, .offset = key_size + 1u, .src = args->adjacent_value, .bytes = adjacent_size + 1u});
     // a size the cell allocated fits a embed_word; a text out of a cell crosses in windows
     if (args->text_cell == NULL)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = place, .offset = (embed_word)text_at, .src = args->text, .bytes = (embed_word)args->size_value});
     }
     for (unsigned long long at = 0ULL; (args->text_cell != NULL) && (at < args->size_value);)
@@ -329,15 +329,15 @@ int cli_keyed_append(const CliKeyedKeyAdjacentCfg *args)
         char window[KEYED_WINDOW];
         const unsigned long long left = args->size_value - at;
         const unsigned long long bytes = (left < sizeof(window)) ? left : sizeof(window);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->text_cell,
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->text_cell,
                                                                 .offset = (embed_word)(args->text_at + at),
                                                                 .dst = window,
                                                                 .bytes = (embed_word)bytes});
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = place, .offset = (embed_word)(text_at + at), .src = window, .bytes = (embed_word)bytes});
         at += bytes;
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = place, .offset = (embed_word)(needed - 1ULL), .src = &s_zero, .bytes = 1u});
     // a key's and a second text's sizes are a path's and a URI's, far inside what an unsigned int represents
     const CliKeyedEntry entry = {1,
@@ -348,7 +348,7 @@ int cli_keyed_append(const CliKeyedKeyAdjacentCfg *args)
                                  (unsigned int)adjacent_size,
                                  text_at,
                                  args->size_value};
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = args->keyed_out->page[(args->keyed_out->entries) / CLI_KEYED_PAGE],
                             .offset = (embed_word)((args->keyed_out->entries) % CLI_KEYED_PAGE) * sizeof(CliKeyedEntry),
                             .src = &entry,
@@ -374,18 +374,18 @@ unsigned int cli_keyed_find(const CliKeyedKeyAdjacentCfg *args)
 void cli_keyed_remove_at(const CliKeyedCfg *args)
 {
     CliKeyedEntry one = {0};
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = args->keyed_out->page[(args->at) / CLI_KEYED_PAGE],
                             .offset = (embed_word)((args->at) % CLI_KEYED_PAGE) * sizeof(one),
                             .dst = &one,
                             .bytes = sizeof(one)});
     if (one.used && (one.cell != NULL))
     {
-        (void)g_cli_guard->movable_buf_release(one.cell, g_cli_text_owner);
+        (void)g_platform_guard->movable_buf_release(one.cell, g_cli_text_owner);
     }
     one.used = 0;
     one.cell = NULL;
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = args->keyed_out->page[(args->at) / CLI_KEYED_PAGE],
                             .offset = (embed_word)((args->at) % CLI_KEYED_PAGE) * sizeof(CliKeyedEntry),
                             .src = &one,
@@ -408,14 +408,14 @@ void cli_keyed_clear(const CliKeyedNameCfg *args)
     for (unsigned int at = 0u; at < args->keyed_out->entries; at += 1u)
     {
         CliKeyedEntry one = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = args->keyed_out->page[at / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(at % CLI_KEYED_PAGE) * sizeof(one),
                                 .dst = &one,
                                 .bytes = sizeof(one)});
         if (one.used && (one.cell != NULL))
         {
-            (void)g_cli_guard->movable_buf_release(one.cell, g_cli_text_owner);
+            (void)g_platform_guard->movable_buf_release(one.cell, g_cli_text_owner);
         }
     }
     args->keyed_out->entries = 0u;
@@ -429,7 +429,7 @@ void cli_keyed_each(const CliKeyedEachCfg *args)
     for (unsigned int at = 0u; at < keyed->entries; at += 1u)
     {
         CliKeyedEntry one = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = keyed->page[at / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(at % CLI_KEYED_PAGE) * sizeof(one),
                                 .dst = &one,
@@ -447,7 +447,7 @@ unsigned long long cli_keyed_listing_size(const CliKeyedCfg *args)
     for (unsigned int at = 0u; at < args->keyed->entries; at += 1u)
     {
         CliKeyedEntry one = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = args->keyed->page[at / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(at % CLI_KEYED_PAGE) * sizeof(one),
                                 .dst = &one,

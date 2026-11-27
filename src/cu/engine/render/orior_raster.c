@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_raster.c: the raster on the host
 #include "orior_raster_internal.h"
-#include "../../../platform/platform.h"
+#include "../../../../includes/platform/platform.h"
 
 /**
  * @brief Gray value for an alignment that died at `level`, or passed every probe.

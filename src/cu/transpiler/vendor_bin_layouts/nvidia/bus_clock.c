@@ -17,7 +17,7 @@
 #include "../../../../../includes/file_defs/ksc/ksc.h"
 #include "../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../includes/parsers/who.h"
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "../../../engine/engine_note.h"
 #include "../../lstar/protocol/query/query_put.h"
 #include "cellularum_laboro/cellularum_laboro.h"

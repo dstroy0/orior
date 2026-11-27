@@ -37,7 +37,7 @@
 // A run that is satisfied and costs past the bound is written PAST_BOUND. The four baseline cycles gnascor_read.py
 // reads its edge from are written at the head of the trace, from the first eight runs.
 #include "../../../src/cu/transpiler/lstar/protocol/query/query_put.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"
 #include <stdio.h>

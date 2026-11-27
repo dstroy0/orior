@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_coherence_test_residue.cu: the residue table and main
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "record_coherence_test_internal.h"
 

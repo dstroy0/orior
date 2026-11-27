@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // fixed.cu: the fixed registers queried of the part: the probe place of the kernel the system accepted, the register
 // that reads 0 whatever is written to it, and what each register contains at the probe place (Open 6.2)
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "fixed_read.h"
 #include "identity_internal.h"

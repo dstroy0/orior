@@ -43,7 +43,7 @@ extern "C"
 #include "interface_sass_probe.h"
 }
 
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../scaffolding/c_target.h"
 #include "machine_ir_types.h"
 #include "target.h"

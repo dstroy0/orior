@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cut.c: a cubin's listing cut into each kernel's, every label a kernel's lines name put as the offset it is at
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../cubin_listing.h"
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"

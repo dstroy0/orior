@@ -18,7 +18,7 @@
  * Usage: pbkdf2_check RFC4231 HMAC_JSON PBKDF2_JSON BIP39_JSON
  */
 #include "../../../../../includes/codecs/pbkdf2/pbkdf2.h"
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"

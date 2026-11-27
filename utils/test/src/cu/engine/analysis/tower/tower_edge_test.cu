@@ -5,7 +5,7 @@
 // exactly, the edges actually change the crystal, and a table that is not a permutation errors.
 
 #include "../../../../../../../src/cu/engine/analysis/tower/tower.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include <cuda_runtime.h>
 

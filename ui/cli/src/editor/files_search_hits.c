@@ -27,7 +27,7 @@ EMBED_INLINE CliHitCell *hits_cell(const FilesSearchHitsCtx *args)
         return last;
     }
     // a store lasts the search: its cells are the temporary tier's, given back as the lines are read out
-    CliHitCell *const cell = g_cli_guard->temporary_buf_alloc(CLI_HIT_CELL_BYTES, g_cli_search_owner);
+    CliHitCell *const cell = g_platform_guard->temporary_buf_alloc(CLI_HIT_CELL_BYTES, g_cli_search_owner);
     if (cell == NULL)
     {
         return NULL;

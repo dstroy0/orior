@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_pairs.c: pairs and overlap sums
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "max_tree_internal.h"
 #include "memoria_operor/memoria_operor.h"
 

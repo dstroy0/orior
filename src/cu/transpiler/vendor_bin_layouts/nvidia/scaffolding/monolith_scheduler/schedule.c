@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schedule.c: the schedule: what is waited on, the same operation, what is behind later or earlier, an instruction
 // followed, the container read, the stalls, the operations by count, and the record written
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "scheduler_internal.h"

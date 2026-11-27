@@ -58,7 +58,7 @@ static const CarcerMovableEntry *tracked_cell_fit(const FilesTrackedCtx *args)
     {
         grown *= 2ULL;
     }
-    const CarcerMovableEntry *const moved = g_cli_guard->movable_buf_alloc(grown, g_cli_editor_owner);
+    const CarcerMovableEntry *const moved = g_platform_guard->movable_buf_alloc(grown, g_cli_editor_owner);
     if (moved == NULL)
     {
         return NULL;
@@ -67,14 +67,14 @@ static const CarcerMovableEntry *tracked_cell_fit(const FilesTrackedCtx *args)
     {
         char piece[CLI_PATH_MAX_LEN];
         const unsigned long long size = (args->used - at < sizeof(piece)) ? args->used - at : sizeof(piece);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = args->entry, .offset = (embed_word)at, .dst = piece, .bytes = (embed_word)size});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = moved, .offset = (embed_word)at, .src = piece, .bytes = (embed_word)size});
     }
     if (args->entry != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(args->entry, g_cli_editor_owner);
+        (void)g_platform_guard->movable_buf_release(args->entry, g_cli_editor_owner);
     }
     *args->capacity = grown;
     return moved;
@@ -95,17 +95,17 @@ EMBED_INLINE int tracked_cache(const FilesTrackedCtx *args)
     while (!found && (each < s_cache.count))
     {
         TrackedCached cached = {0ULL, 0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_cache.cached,
-                                                                .offset = (embed_word)(each * sizeof(cached)),
-                                                                .dst = &cached,
-                                                                .bytes = sizeof(cached)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_cache.cached,
+                                                                     .offset = (embed_word)(each * sizeof(cached)),
+                                                                     .dst = &cached,
+                                                                     .bytes = sizeof(cached)});
         char path[CLI_PATH_MAX_LEN];
-        const unsigned long long length =
-            g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_cache.text,
-                                                                 .offset = (embed_word)cached.path_at,
-                                                                 .bytes = (embed_word)(s_cache.used - cached.path_at)});
+        const unsigned long long length = g_platform_guard->movable_buf_measure(
+            &(CarcerMovableCfg){.cell = s_cache.text,
+                                .offset = (embed_word)cached.path_at,
+                                .bytes = (embed_word)(s_cache.used - cached.path_at)});
         const unsigned long long size = (length < sizeof(path)) ? length : (sizeof(path) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_cache.text, .offset = (embed_word)cached.path_at, .dst = path, .bytes = (embed_word)size});
         path[size] = '\0';
         found = cellul.eq(&(CatenaFinitaCfg){.src = path, .other = args->outside, .cap = CLI_POOL_BYTES});
@@ -139,9 +139,9 @@ EMBED_INLINE void tracked_append(const FilesTrackedCtx *args)
         return;
     }
     const TrackedCached one = {s_cache.used, args->ignored_value};
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = text, .offset = (embed_word)s_cache.used, .src = args->outside, .bytes = (embed_word)bytes});
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = cached, .offset = (embed_word)(s_cache.count * sizeof(one)), .src = &one, .bytes = sizeof(one)});
     s_cache.count += 1ULL;
     s_cache.used += bytes;

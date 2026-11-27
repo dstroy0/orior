@@ -57,7 +57,7 @@ typedef struct
 // the cached paths of `one` let go
 static void trust_found_let(const TrustCodeCtx *args)
 {
-    (void)g_cli_guard->movable_buf_release(args->one->paths, g_cli_trust_owner);
+    (void)g_platform_guard->movable_buf_release(args->one->paths, g_cli_trust_owner);
     args->one->paths = NULL;
     args->one->size = 0ULL;
     args->one->count = 0u;
@@ -86,7 +86,7 @@ EMBED_INLINE int cli_code_copy(const TrustCodeCtx *args)
     {
         return 1;
     }
-    code->paths = g_cli_guard->temporary_buf_alloc(size, g_cli_trust_owner);
+    code->paths = g_platform_guard->temporary_buf_alloc(size, g_cli_trust_owner);
     if (code->paths == NULL)
     {
         return 0;
@@ -197,7 +197,8 @@ int cli_trust_names_a_hook(const CliTrustCfg *args)
 }
 
 // The file `name` under `folder` read whole, a zero after it, into a cell of its size. The caller gives it back with
-// g_cli_guard->persistent_buf_release. Returns the cell, or NULL where the read fails or the cellblock cannot meet it
+// g_platform_guard->persistent_buf_release. Returns the cell, or NULL where the read fails or the cellblock cannot meet
+// it
 EMBED_INLINE char *cli_read_in(const TrustCodeCtx *args)
 {
     char path[CLI_PATH_MAX_LEN];
@@ -210,13 +211,13 @@ EMBED_INLINE char *cli_read_in(const TrustCodeCtx *args)
                                            ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                         .size_pointer = &size, .owner = g_cli_trust_owner)
                                            : NULL;
-    char *const text = (bytes != NULL) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_trust_owner) : NULL;
+    char *const text = (bytes != NULL) ? g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_trust_owner) : NULL;
     if (text != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (embed_word)size});
         text[size] = '\0';
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_trust_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_trust_owner);
     return text;
 }
 
@@ -282,7 +283,7 @@ EMBED_INLINE int cli_by_name(const TrustCodeCtx *args)
 typedef struct
 {
     const char *tree;
-    CliGrownLine *paths;
+    PlatformText *paths;
     unsigned int found;
 } TrustLooked;
 
@@ -314,7 +315,7 @@ static void trust_files_looked(const CliFilesEachCfg *view)
         {
             char *const text = EMBED_CALL(cli_read_in, TrustCodeCtx, .folder = looked->tree, .name = file);
             is_code = (text != NULL) && EMBED_CALL(cli_proc_macro, TrustCodeCtx, .text = text);
-            g_cli_guard->persistent_buf_release(text, g_cli_trust_owner);
+            g_platform_guard->persistent_buf_release(text, g_cli_trust_owner);
         }
         else
         {
@@ -332,8 +333,8 @@ static void trust_files_looked(const CliFilesEachCfg *view)
 
 int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
 {
-    CliGrownLine paths;
-    cli_grown_begin(&paths, CLI_TRUST_PATHS_CAPACITY, g_cli_trust_owner);
+    PlatformText paths;
+    platform_text_begun(&paths, CLI_TRUST_PATHS_CAPACITY, platform_place_g_cli_trust_owner, PLATFORM_TIER_TEMPORARY);
     TrustLooked looked = {args->tree, &paths, 0u};
     (void)EMBED_CALL(cli_files_root_paths.each, CliFilesRootPathsCfg, .root = args->tree, .each = trust_files_looked,
                      .context = &looked);
@@ -344,11 +345,11 @@ int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
         mmgr_line_put_n(&paths.line, ".git/config", sizeof(".git/config"));
         found += 1u;
     }
-    g_cli_guard->persistent_buf_release(config, g_cli_trust_owner);
+    g_platform_guard->persistent_buf_release(config, g_cli_trust_owner);
     const int done =
         mmgr_line_ok(&paths.line) && EMBED_CALL(cli_code_copy, TrustCodeCtx, .paths = paths.cell,
-                                                .size = cli_grown_size(&paths), .count = found, .code = args->code);
-    cli_grown_end(&paths);
+                                                .size = platform_text_size(&paths), .count = found, .code = args->code);
+    platform_text_ended(&paths);
     return done;
 }
 
@@ -368,12 +369,12 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
             {
                 return 1;
             }
-            code->paths = g_cli_guard->temporary_buf_alloc(one->size, g_cli_trust_owner);
+            code->paths = g_platform_guard->temporary_buf_alloc(one->size, g_cli_trust_owner);
             if (code->paths == NULL)
             {
                 return 0;
             }
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = one->paths, .dst = code->paths, .bytes = (embed_word)one->size});
             code->size = one->size;
             code->count = one->count;
@@ -426,11 +427,11 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
     EMBED_CALL(trust_found_let, TrustCodeCtx, .one = one);
     // the paths go in the cache's movable cell of their bytes; the next ask looks again through a tree the cells cannot
     // keep
-    one->paths = (looked.count != 0u) ? g_cli_guard->movable_buf_alloc(looked.size, g_cli_trust_owner) : NULL;
+    one->paths = (looked.count != 0u) ? g_platform_guard->movable_buf_alloc(looked.size, g_cli_trust_owner) : NULL;
     one->has = (one->paths != NULL) || (looked.count == 0u);
     if (one->paths != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = one->paths, .src = looked.paths, .bytes = (embed_word)looked.size});
         one->size = looked.size;
         one->count = looked.count;
@@ -452,7 +453,7 @@ int cli_trust_block(const CliTrustTreeWordsCfg *args)
     const int blocked =
         !EMBED_CALL(cli_trust_tree_code.own_code, CliTrustTreeCodeCfg, .tree = args->tree, .code = &code) ||
         (code.count != 0u);
-    g_cli_guard->persistent_buf_release(code.paths, g_cli_trust_owner);
+    g_platform_guard->persistent_buf_release(code.paths, g_cli_trust_owner);
     code = (CliTrustCode){NULL, 0ULL, 0u};
     return blocked;
 }
@@ -475,7 +476,7 @@ int cli_trust_prettier_block(const CliTrustTreeWordsCfg *args)
                              .names = s_prettier, .count = 6u);
         path += length + 1u;
     }
-    g_cli_guard->persistent_buf_release(code.paths, g_cli_trust_owner);
+    g_platform_guard->persistent_buf_release(code.paths, g_cli_trust_owner);
     code = (CliTrustCode){NULL, 0ULL, 0u};
     return blocked;
 }
@@ -500,7 +501,7 @@ unsigned int cli_trust_git_words(const CliTrustTreeWordsCfg *args)
         {
             char *const config = EMBED_CALL(cli_read_in, TrustCodeCtx, .folder = folder, .name = ".git/config");
             hook = (config != NULL) && EMBED_CALL(cli_trust_table.names_a_hook, CliTrustCfg, .config = config);
-            g_cli_guard->persistent_buf_release(config, g_cli_trust_owner);
+            g_platform_guard->persistent_buf_release(config, g_cli_trust_owner);
             going = 0;
             continue;
         }

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// interface.h: the comms layer reached from another process: a named pipe of the container's own on Windows, which takes no
-// one from another machine, and elsewhere a socket in a folder only the reader can open.
+// interface.h: the comms layer reached from another process: a named pipe of the container's own on Windows, which
+// takes no one from another machine, and elsewhere a socket in a folder only the reader can open.
 //
 // A frame is the length of its JSON in four bytes, least first, then the JSON. A process joins by its first frame,
 // {"key": its key}; the container takes it only where the key is a part's and the key was given to the process at the
@@ -27,17 +27,17 @@ typedef struct CliIpcErrMsgAddressCfg CliIpcErrMsgAddressCfg;
 typedef struct CliIpcAddressCfg CliIpcAddressCfg;
 typedef struct CliIpcCfg CliIpcCfg;
 
-// One process's end of the interface: what it joined as, the answers to what it requests, and the messages on the channels
-// it listens on
+// One process's end of the interface: what it joined as, the answers to what it requests, and the messages on the
+// channels it listens on
 typedef struct CliIpcClient CliIpcClient;
 
-// the interface opened to the comms layer, once, its address into `address`, sized for CLI_PATH_MAX_LEN: 1, or 0 with why
-// given (ipc_serve.c)
+// the interface opened to the comms layer, once, its address into `address`, sized for CLI_PATH_MAX_LEN: 1, or 0 with
+// why given (ipc_serve.c)
 int cli_ipc_open(const CliIpcAddressCfg *args);
 
-// the interface at `address` joined with `key`: the client, or NULL with why given; the interface the variables name joined with
-// the key they contain, where this process was started with both, NULL where it was not or the interface refused; the name
-// the client joined as; and the client let go (ipc_client.c)
+// the interface at `address` joined with `key`: the client, or NULL with why given; the interface the variables name
+// joined with the key they contain, where this process was started with both, NULL where it was not or the interface
+// refused; the name the client joined as; and the client let go (ipc_client.c)
 CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args);
 const char *cli_ipc_name(const CliIpcCfg *args);
 void cli_ipc_leave(const CliIpcClientCfg *args);

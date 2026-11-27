@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_raster_output.c: the PGM, the volume and the device entry points
 #include "orior_raster_internal.h"
-#include "../../../platform/platform.h"
+#include "../../../../includes/platform/platform.h"
 
 int orior_raster_write_pgm(const char *path, const uint8_t *pixels, size_t width, size_t height)
 {

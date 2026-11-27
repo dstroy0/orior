@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // assembled.cu: texts of the vendor's language put into code by the vendor's writer, a member of the run started
 // through the interface; the identity contains no machine file and assembles nothing itself
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "identity_internal.h"
 #include "memoria_operor/memoria_operor.h"
 

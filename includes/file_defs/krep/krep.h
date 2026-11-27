@@ -4,7 +4,7 @@
 #define KREP_H
 
 #include "../../../src/cu/engine/engine_config.h"
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 
 #include "../kbo/kbo.h"
 #include "../kcr/kcr.h"

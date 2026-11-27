@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // rules.c: the rules: a register read and blocked out of range, the key's form and the key straight, the exit and where
 // it ends, the code gated safe, the image, the launch, and a fault's status read
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "cubin_safe_internal.h"
 

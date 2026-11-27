@@ -29,7 +29,7 @@ typedef struct
     char program[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_TEXT];
     char own[CLI_PATH_MAX_LEN];
-    CliSetting settings[SHELLS_SETTINGS];
+    PlatformSetting settings[SHELLS_SETTINGS];
     unsigned int setting_count;
 } ShellsStart;
 
@@ -85,7 +85,7 @@ EMBED_INLINE void shells_reader_shell(void)
     s_start.words[1] = NULL;
     s_start.words[2] = NULL;
     s_start.words[3] = NULL;
-    const CliSetting settings[4] = {
+    const PlatformSetting settings[4] = {
         {"TERM", "xterm-256color"},
         {"COLORTERM", "truecolor"},
         {"PATH", s_start.path},
@@ -118,7 +118,7 @@ EMBED_INLINE void shells_send(const ShellsCtx *args)
 int cli_terminal_shell_start(const CliTerminalShellCfg *args)
 {
     CliTerminalShell *const shell = args->shell;
-    const CliSetting *settings = NULL;
+    const PlatformSetting *settings = NULL;
     unsigned int setting_count = 0u;
     const char *const *words = args->words;
     if (words == NULL)
@@ -128,7 +128,7 @@ int cli_terminal_shell_start(const CliTerminalShellCfg *args)
         settings = s_start.settings;
         setting_count = s_start.setting_count;
     }
-    CliSpawned spawned;
+    PlatformProgram spawned;
     if (!EMBED_CALL(cli_words_err_msg_spawned_internal.spawn_terminal, CliWordsErrMsgSpawnedCtx, .words = words,
                     .err_msg = args->err_msg, .spawned = &spawned, .folder = args->folder, .settings = settings,
                     .count = setting_count, .cols = args->xterm->columns, .rows = args->xterm->rows))

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // stall.cu: the stall walk: the soonest a result is read, queried of the part link by link
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "identity_internal.h"
 
 // the order of the texts `left` and `right`, each read to its terminator or to `cap`: below 0 where `left`

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_self_program.cu: the self program built
 #include "qasm_self_internal.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 // Part p of e x, for an entry e and an amplitude x, is the sum over x's parts q of e's part qasm_self_entry_part[p][q]
 // times x's part q, doubled where qasm_self_doubled[p][q] and negated where qasm_self_negated[p][q]. With r = sqrt2,

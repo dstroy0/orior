@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // line.c: the line: a gate block on an unknown operation key read, the conference a fault or refusal calls, the line a
 // panic opens ruled on and closed, the halt, and what the teacher reported
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "run_channel_internal.h"
 

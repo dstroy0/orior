@@ -22,7 +22,7 @@
  * @note Each shuffle keeps every value of a row and moves the place that carries it, by the twister of CPython at the
  *       seeds 0 to 11. The tallest margin of the twelve is the floor of the row.
  */
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "../period_detector.h"
 #include "../subtraction_record.h"
 #include "../twister_record.h"

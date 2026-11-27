@@ -65,7 +65,7 @@ EMBED_INLINE int crumbs_separator(const CrumbsCtx *args)
 EMBED_INLINE void crumbs_released(const CrumbsCtx *args)
 {
     (void)args;
-    (void)g_cli_guard->movable_buf_release(s_crumbs.cell, g_cli_widgets_owner);
+    (void)g_platform_guard->movable_buf_release(s_crumbs.cell, g_cli_widgets_owner);
     s_crumbs.cell = NULL;
     s_crumbs.text_at = 0ULL;
     s_crumbs.count = 0u;
@@ -180,7 +180,7 @@ void cli_crumbs_read(const CliCrumbsCfg *args)
     const unsigned int count = (parts + chained < CLI_CRUMBS_MAX) ? parts + chained : CLI_CRUMBS_MAX;
     // the rows and texts positioned in a scratch of the temporary tier, then written into a movable cell of their bytes
     const unsigned long long rows_bytes = (unsigned long long)count * sizeof(CrumbStored);
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(rows_bytes + bytes, g_cli_widgets_owner);
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(rows_bytes + bytes, g_cli_widgets_owner);
     EMBED_CALL(crumbs_released, CrumbsCtx, .at = 0u);
     if (cell == NULL)
     {
@@ -220,17 +220,17 @@ void cli_crumbs_read(const CliCrumbsCfg *args)
         used += row.length + 1ULL;
     }
     const embed_word positioned_bytes = (embed_word)rows_bytes + (embed_word)used;
-    s_crumbs.cell = g_cli_guard->movable_buf_alloc(positioned_bytes, g_cli_widgets_owner);
+    s_crumbs.cell = g_platform_guard->movable_buf_alloc(positioned_bytes, g_cli_widgets_owner);
     if (s_crumbs.cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_crumbs.cell, .src = cell, .bytes = positioned_bytes});
         s_crumbs.text_at = rows_bytes;
         s_crumbs.count = positioned;
         memor.cpy(&(MemoriaCfg){.dst = s_crumbs.path, .src = args->path, .bytes = path_length});
         s_crumbs.path[path_length] = '\0';
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_widgets_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_widgets_owner);
 }
 
 unsigned int cli_crumbs_rows(const CliCrumbsCfg *args)
@@ -246,17 +246,18 @@ int cli_crumbs_row(const CliCrumbsCfg *args)
         return 0;
     }
     CrumbStored stored = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_crumbs.cell,
-                                                            .offset = (unsigned long long)args->at * sizeof(stored),
-                                                            .dst = &stored,
-                                                            .bytes = sizeof(stored)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_crumbs.cell,
+                            .offset = (unsigned long long)args->at * sizeof(stored),
+                            .dst = &stored,
+                            .bytes = sizeof(stored)});
     args->row->type = stored.type;
     args->row->length = stored.length;
     args->row->depth = stored.depth;
     {
         const embed_word text_length =
             ((&stored)->length < (CLI_PATH_MAX_LEN - 1u)) ? (&stored)->length : (CLI_PATH_MAX_LEN - 1u);
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_crumbs.cell,
                                 .offset = (embed_word)s_crumbs.text_at + (&stored)->text,
                                 .dst = args->row->text,
@@ -291,7 +292,7 @@ EMBED_INLINE int crumbs_menu_built(const CrumbsMenuCtx *args)
     {
         bytes += args->rows[at].label_length + args->rows[at].word_length + 2ULL;
     }
-    char *const texts = (args->count != 0u) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_widgets_owner) : NULL;
+    char *const texts = (args->count != 0u) ? g_platform_guard->temporary_buf_alloc(bytes, g_cli_widgets_owner) : NULL;
     if (texts == NULL)
     {
         return 0;
@@ -311,7 +312,7 @@ EMBED_INLINE int crumbs_menu_built(const CrumbsMenuCtx *args)
         cli_menus_own_row(
             &(CliMenusCfg){.item = &(CliItem){label, args->command, "", word_copy, "", "", 0, 0, 0, 0, 0u}});
     }
-    g_cli_guard->persistent_buf_release(texts, g_cli_widgets_owner);
+    g_platform_guard->persistent_buf_release(texts, g_cli_widgets_owner);
     return 1;
 }
 
@@ -404,10 +405,11 @@ int cli_crumbs_menu(const CliCrumbsCfg *args)
         return 0;
     }
     CrumbStored stored = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_crumbs.cell,
-                                                            .offset = (unsigned long long)args->at * sizeof(stored),
-                                                            .dst = &stored,
-                                                            .bytes = sizeof(stored)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_crumbs.cell,
+                            .offset = (unsigned long long)args->at * sizeof(stored),
+                            .dst = &stored,
+                            .bytes = sizeof(stored)});
     if (stored.type == CLI_CRUMB_SYMBOL)
     {
         return EMBED_CALL(crumbs_symbol_menu, CrumbsCtx, .at = stored.outline, .depth = stored.depth);
@@ -454,7 +456,8 @@ void cli_crumbs_displayed_set(const CliCrumbsCfg *args)
         EMBED_CALL(crumbs_released, CrumbsCtx, .at = 0u);
     }
     // the folder the save writes into and the error line, for the save alone
-    char *const folder = g_cli_guard->temporary_buf_alloc(CLI_PATH_MAX_LEN + CLI_ERR_MSG_MAX_LEN, g_cli_widgets_owner);
+    char *const folder =
+        g_platform_guard->temporary_buf_alloc(CLI_PATH_MAX_LEN + CLI_ERR_MSG_MAX_LEN, g_cli_widgets_owner);
     if (folder == NULL)
     {
         return;
@@ -465,5 +468,5 @@ void cli_crumbs_displayed_set(const CliCrumbsCfg *args)
         (void)cli_state_value_save(&(CliStateValueCfg){
             .folder = folder, .key = CLI_CRUMBS_KEY, .value = args->on ? "true" : "false", .err_msg = &err_msg});
     }
-    g_cli_guard->persistent_buf_release(folder, g_cli_widgets_owner);
+    g_platform_guard->persistent_buf_release(folder, g_cli_widgets_owner);
 }

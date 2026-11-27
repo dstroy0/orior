@@ -135,7 +135,7 @@ static void cli_worker(void *context)
             if (bytes != NULL)
             {
                 EMBED_CALL(cli_search, FilesSearchCtx, .bytes = bytes, .size = got, .index = index, .hits = hits);
-                g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
+                g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_editor_owner);
             }
         }
     }
@@ -186,7 +186,7 @@ EMBED_INLINE void cli_search_run(const FilesSearchCtx *args)
     for (unsigned int at = 0u; at < workers; at += 1u)
     {
         (void)EMBED_ATOMIC_ADD_32(&s_search.workers, 1u);
-        s_search.worker_thread[started] = (CliThread){cli_worker, &s_search.hits[started], CLI_PRIORITY_WORK};
+        s_search.worker_thread[started] = (CliThread){cli_worker, &s_search.hits[started], PLATFORM_PRIORITY_WORK};
         if (EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_search.worker_thread[started]))
         {
             started += 1u;
@@ -223,7 +223,7 @@ EMBED_INLINE void cli_stores_released(const FilesSearchCtx *args)
         while (cell != NULL)
         {
             CliHitCell *const next = cell->next;
-            g_cli_guard->persistent_buf_release(cell, g_cli_search_owner);
+            g_platform_guard->persistent_buf_release(cell, g_cli_search_owner);
             cell = next;
         }
         s_search.hits[store] = (CliSearchHits){NULL, NULL, 0u, NULL, NULL};
@@ -257,11 +257,12 @@ EMBED_INLINE void cli_search_ordered(const FilesSearchCtx *args)
         s_search.first_at = SEARCH_STANDING_LINE_AT(count);
         s_search.text_at = s_search.first_at + ((unsigned long long)count * sizeof(unsigned int));
         bytes = s_search.text_at + text_bytes + 1ULL;
-        positioned = g_cli_guard->temporary_buf_alloc(bytes, g_cli_search_owner);
-        s_search.located_cell = (positioned != NULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_search_owner) : NULL;
+        positioned = g_platform_guard->temporary_buf_alloc(bytes, g_cli_search_owner);
+        s_search.located_cell =
+            (positioned != NULL) ? g_platform_guard->movable_buf_alloc(bytes, g_cli_search_owner) : NULL;
         if (s_search.located_cell == NULL)
         {
-            g_cli_guard->persistent_buf_release(positioned, g_cli_search_owner);
+            g_platform_guard->persistent_buf_release(positioned, g_cli_search_owner);
             positioned = NULL;
         }
     }
@@ -315,9 +316,9 @@ EMBED_INLINE void cli_search_ordered(const FilesSearchCtx *args)
     }
     if (positioned != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_search.located_cell, .offset = 0ULL, .src = positioned, .bytes = bytes});
-        g_cli_guard->persistent_buf_release(positioned, g_cli_search_owner);
+        g_platform_guard->persistent_buf_release(positioned, g_cli_search_owner);
     }
     if (s_search.located)
     {
@@ -340,10 +341,10 @@ int cli_search_located_line(const CliSearchLocatedCfg *args)
     {
         return 0;
     }
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_search.located_cell,
-                                                            .offset = SEARCH_STANDING_LINE_AT(args->at),
-                                                            .dst = args->line_out,
-                                                            .bytes = sizeof(*args->line_out)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_search.located_cell,
+                                                                 .offset = SEARCH_STANDING_LINE_AT(args->at),
+                                                                 .dst = args->line_out,
+                                                                 .bytes = sizeof(*args->line_out)});
     return 1;
 }
 
@@ -352,10 +353,10 @@ unsigned long long cli_search_located_text(const CliSearchLocatedCfg *args)
     const unsigned long long copied = (args->line->size < args->capacity) ? args->line->size : (args->capacity - 1ULL);
     if ((copied != 0ULL) && (s_search.located_cell != NULL))
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_search.located_cell,
-                                                                .offset = s_search.text_at + args->line->text_at,
-                                                                .dst = args->out,
-                                                                .bytes = copied});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_search.located_cell,
+                                                                     .offset = s_search.text_at + args->line->text_at,
+                                                                     .dst = args->out,
+                                                                     .bytes = copied});
     }
     args->out[copied] = '\0';
     return copied;
@@ -373,7 +374,7 @@ unsigned int cli_search_located_file_first(const CliSearchLocatedCfg *args)
         return s_search.found;
     }
     unsigned int first = 0u;
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_search.located_cell,
                             .offset = s_search.first_at + ((unsigned long long)args->file * sizeof(first)),
                             .dst = &first,
@@ -400,7 +401,7 @@ void cli_search_located_free(void)
     EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &s_search.paths);
     if (s_search.located_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_search.located_cell, g_cli_search_owner);
+        (void)g_platform_guard->movable_buf_release(s_search.located_cell, g_cli_search_owner);
     }
     s_search.located_cell = NULL;
     s_search.found = 0u;

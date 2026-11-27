@@ -33,7 +33,7 @@ static CliFilesWorkState *s_work_state;
 // the command's work state taken: 1, or 0 reported on the errors
 static int files_work_state_init(void)
 {
-    s_work_state = g_cli_guard->temporary_buf_alloc(sizeof(*s_work_state), g_cli_command_line_owner);
+    s_work_state = g_platform_guard->temporary_buf_alloc(sizeof(*s_work_state), g_cli_command_line_owner);
     if (s_work_state == NULL)
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = "a command on files could not be taken");
@@ -158,7 +158,7 @@ EMBED_INLINE int files_run_words(const CommandLineFilesCtx *args)
     EMBED_CALL(files_err, CommandLineFilesCtx, .one = "$ ", .two = line, .three = "");
     static char s_path[CLI_PATH_TEXT];
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
-    const CliSetting setting = {"PATH", s_path};
+    const PlatformSetting setting = {"PATH", s_path};
     const char *const command[4] = {bash, "-c", line, NULL};
     long long run_result = 0LL;
     err_msg.at = 0ULL;
@@ -557,7 +557,7 @@ int cli_run_file_words(const CliCommandLineWordsCountCtx *args)
     }
     const int code = EMBED_CALL(files_run_words, CommandLineFilesCtx, .named = args->named, .words = args->words,
                                 .count = args->count);
-    g_cli_guard->persistent_buf_release(s_work_state, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(s_work_state, g_cli_command_line_owner);
     s_work_state = NULL;
     return code;
 }
@@ -569,7 +569,7 @@ int cli_validate_files(const CliCommandLineWordsCountCtx *args)
         return CLI_NO_CODE;
     }
     const int code = EMBED_CALL(files_validate, CommandLineFilesCtx, .words = args->words, .count = args->count);
-    g_cli_guard->persistent_buf_release(s_work_state, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(s_work_state, g_cli_command_line_owner);
     s_work_state = NULL;
     return code;
 }
@@ -581,7 +581,7 @@ int cli_format_files(const CliCommandLineWordsCountCtx *args)
         return CLI_NO_CODE;
     }
     const int code = EMBED_CALL(files_format, CommandLineFilesCtx, .words = args->words, .count = args->count);
-    g_cli_guard->persistent_buf_release(s_work_state, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(s_work_state, g_cli_command_line_owner);
     s_work_state = NULL;
     return code;
 }

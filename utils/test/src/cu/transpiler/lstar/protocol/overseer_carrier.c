@@ -25,7 +25,7 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"

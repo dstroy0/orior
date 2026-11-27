@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // written.c: what the pass writes: the run's texts, the runs read, the answers and the working set
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "../../../parsers/who.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "khw_write.h"

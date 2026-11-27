@@ -6,7 +6,7 @@
 // answer out, and then the offsets and the stream at the size in the answer.
 #include "compression_job.h"
 
-#include "../../../../platform/platform_device.h"
+#include "../../../../../includes/platform/platform_device.h"
 #include "compression_internal.h"
 #include "memoria_operor/memoria_operor.h"
 

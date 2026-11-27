@@ -3,7 +3,7 @@
 // cycle_launch.cu: keys loaded and the sweep launched
 #include "cycle_internal.h"
 
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "../../runtime/daemon/tessera_job.h"
 #include "memoria_operor/memoria_operor.h"
 

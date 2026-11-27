@@ -34,7 +34,7 @@ EMBED_INLINE unsigned int hints_capability(const ServersHintsCtx *args)
     // the capabilities copied into a cell of this call, the tree taking its own copy of the text
     unsigned long long length = 0ULL;
     (void)EMBED_CALL(cli_lsp_size_type.capabilities, CliLspSizeTypeCfg, .lsp_read = args->server, .size = &length);
-    char *const capabilities = g_cli_guard->temporary_buf_alloc(length + 1ULL, g_cli_servers_owner);
+    char *const capabilities = g_platform_guard->temporary_buf_alloc(length + 1ULL, g_cli_servers_owner);
     if (capabilities == NULL)
     {
         return CLI_JSON_NONE;
@@ -46,7 +46,7 @@ EMBED_INLINE unsigned int hints_capability(const ServersHintsCtx *args)
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = &s_capable, .text = capabilities, .size = length, .nodes_more = 0u,
                                          .text_more = 0ULL, .err_msg = &err_msg, .owner = g_cli_servers_owner);
-    g_cli_guard->persistent_buf_release(capabilities, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(capabilities, g_cli_servers_owner);
     return EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_capable, .object = root,
                       .name = name);
 }
@@ -60,8 +60,7 @@ int cli_servers_capable(const CliServersServerCtx *args)
                                     .node = member, .type = CFG_JSON_NULL) &&
                         !EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = &s_capable,
                                     .node = member, .type = CFG_JSON_FALSE);
-    g_cli_guard->persistent_buf_release(s_capable.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_capable.node));
+    g_platform_guard->persistent_buf_release(s_capable.node, mmgr_owner_of_buf(platform_pool_series(), s_capable.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_capable),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return capable;
@@ -75,8 +74,7 @@ int cli_servers_capable_true(const CliServersServerCtx *args)
                                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                       .json_read = &s_capable, .object = member, .name = args->inner),
                                    .type = CFG_JSON_TRUE);
-    g_cli_guard->persistent_buf_release(s_capable.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_capable.node));
+    g_platform_guard->persistent_buf_release(s_capable.node, mmgr_owner_of_buf(platform_pool_series(), s_capable.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_capable),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return capable;
@@ -100,8 +98,7 @@ int cli_servers_capable_command(const CliServersServerCommandCtx *args)
         list_entries =
             (name != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = args->command, .cap = CLI_POOL_BYTES});
     }
-    g_cli_guard->persistent_buf_release(s_capable.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_capable.node));
+    g_platform_guard->persistent_buf_release(s_capable.node, mmgr_owner_of_buf(platform_pool_series(), s_capable.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_capable),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return list_entries;
@@ -164,7 +161,7 @@ int cli_servers_selection(const CliServersPathErrMsgOutCtx *args)
             EMBED_CALL(hints_selection_spans, CliEachTextLengthCfg, .context = &selection, .text = text,
                        .length = size);
         }
-        g_cli_guard->persistent_buf_release(text, g_cli_servers_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_servers_owner);
     }
     mmgr_line_ch(args->out, ']');
     return selection.done;

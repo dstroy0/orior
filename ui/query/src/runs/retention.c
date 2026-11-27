@@ -80,7 +80,7 @@ void query_median_print(const QueryRetentionContextFolderCtx *args)
     }
     // the rates sorted in a cell of their count
     double *const sorted =
-        g_cli_guard->persistent_buf_alloc((unsigned long long)args->count * sizeof(double), g_query_owner);
+        g_platform_guard->persistent_buf_alloc((unsigned long long)args->count * sizeof(double), g_query_owner);
     if (sorted == NULL)
     {
         return;
@@ -96,7 +96,7 @@ void query_median_print(const QueryRetentionContextFolderCtx *args)
         sorted[place] = args->rates[at];
     }
     const double median = sorted[((args->count + 1u) / 2u) - 1u];
-    g_cli_guard->persistent_buf_release(sorted, g_query_owner);
+    g_platform_guard->persistent_buf_release(sorted, g_query_owner);
     char text[QUERY_PATH_MAX_LEN + 128u];
     VerbaLinea line = {text, sizeof(text), 0ULL};
     mmgr_line_put(&line, "  ");
@@ -233,11 +233,13 @@ EMBED_INLINE void query_writers_read(const RetentionCtx *args)
                      .runs = &list_entries);
     const unsigned int runs = list_entries.count;
     char (*const names)[QUERY_PATH_MAX_LEN] =
-        (runs > 0u) ? g_cli_guard->persistent_buf_alloc((unsigned long long)runs * QUERY_PATH_MAX_LEN, g_query_owner)
-                    : NULL;
+        (runs > 0u)
+            ? g_platform_guard->persistent_buf_alloc((unsigned long long)runs * QUERY_PATH_MAX_LEN, g_query_owner)
+            : NULL;
     double *const rates_of =
-        (names != NULL) ? g_cli_guard->persistent_buf_alloc((unsigned long long)runs * sizeof(double), g_query_owner)
-                        : NULL;
+        (names != NULL)
+            ? g_platform_guard->persistent_buf_alloc((unsigned long long)runs * sizeof(double), g_query_owner)
+            : NULL;
     unsigned int rates = 0u;
     for (unsigned int at = 0u; (rates_of != NULL) && (at < runs); at += 1u)
     {
@@ -298,10 +300,10 @@ EMBED_INLINE void query_writers_read(const RetentionCtx *args)
     }
     EMBED_CALL(query_retention_context_folder_internal.median_print, QueryRetentionContextFolderCtx,
                .context = args->context, .folder = args->displayed, .names = names, .rates = rates_of, .count = rates);
-    g_cli_guard->persistent_buf_release(rates_of, g_query_owner);
-    g_cli_guard->persistent_buf_release(names, g_query_owner);
-    g_cli_guard->persistent_buf_release(list_entries.number, g_query_owner);
-    g_cli_guard->persistent_buf_release(list_entries.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(rates_of, g_query_owner);
+    g_platform_guard->persistent_buf_release(names, g_query_owner);
+    g_platform_guard->persistent_buf_release(list_entries.number, g_query_owner);
+    g_platform_guard->persistent_buf_release(list_entries.path, g_query_owner);
     list_entries = (QueryRuns){NULL, NULL, 0u};
 }
 
@@ -325,8 +327,8 @@ void query_retention_folder(const QueryRetentionContextOwnCtx *args)
         .bytes = cellul.len(&(CatenaFinitaCfg){.src = (list_entries.count != 0u) ? list_entries.path[0] : "",
                                                .cap = CLI_POOL_BYTES}) +
                  1u});
-    g_cli_guard->persistent_buf_release(list_entries.number, g_query_owner);
-    g_cli_guard->persistent_buf_release(list_entries.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(list_entries.number, g_query_owner);
+    g_platform_guard->persistent_buf_release(list_entries.path, g_query_owner);
     list_entries = (QueryRuns){NULL, NULL, 0u};
     char text[QUERY_PATH_MAX_LEN + 128u];
     VerbaLinea line = {text, sizeof(text), 0ULL};
@@ -423,7 +425,7 @@ int query_retention_run(const QueryLoopCfg *args)
                    .root = context->root, .found = NULL, .capacity = 0u);
     char (*const folders_found)[QUERY_PATH_MAX_LEN] =
         (counted > 0u)
-            ? g_cli_guard->persistent_buf_alloc((unsigned long long)counted * QUERY_PATH_MAX_LEN, g_query_owner)
+            ? g_platform_guard->persistent_buf_alloc((unsigned long long)counted * QUERY_PATH_MAX_LEN, g_query_owner)
             : NULL;
     const unsigned int folders =
         (folders_found != NULL)
@@ -436,7 +438,7 @@ int query_retention_run(const QueryLoopCfg *args)
                    .folder = folders_found[at], .crystal = built ? s_crystal : NULL, .max = query_retain_max(),
                    .own = &s_own.writer);
     }
-    g_cli_guard->persistent_buf_release(folders_found, g_query_owner);
+    g_platform_guard->persistent_buf_release(folders_found, g_query_owner);
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_own,
                     .err_msg = err_msg))
     {

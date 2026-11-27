@@ -110,7 +110,7 @@ static int run_ended(void)
         {
             return 1;
         }
-        cli_thread_yield();
+        platform_thread_yield();
     }
     return 0;
 }

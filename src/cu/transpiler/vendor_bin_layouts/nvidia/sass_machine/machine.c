@@ -4,7 +4,7 @@
 // transfer control or wait, the barrier and the schedule. It takes the machine from text, writes and reads the runs,
 // the types and the answers, and writes and reads the file.
 #include "../../../../../../includes/parsers/line_read.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sass_machine_internal.h"

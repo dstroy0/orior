@@ -5,7 +5,7 @@
 // and as a volume, of two sizes each, on the device and on the host. The device must answer each case, its bytes must
 // equal the bytes of the host, and the signum of all its bytes must equal the signum of the device path
 #include "../../../../../../src/cu/engine/render/orior_raster.h"
-#include "../../../../../../src/platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 
 #include "memoria_operor/memoria_operor.h"
 

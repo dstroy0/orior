@@ -106,7 +106,7 @@ static unsigned long long line_raw(const char *key, unsigned long long line)
     const unsigned long long fits = (size < (sizeof(s_text) - 1u)) ? size : (sizeof(s_text) - 1u);
     memor.cpy(&(MemoriaCfg){.dst = s_text, .src = start, .bytes = fits});
     s_text[fits] = '\0';
-    g_cli_guard->persistent_buf_release(cell, g_checks_owner);
+    g_platform_guard->persistent_buf_release(cell, g_checks_owner);
     return fits;
 }
 
@@ -133,7 +133,7 @@ static unsigned long long file_text(void)
     const unsigned long long fits = (size < (sizeof(s_text) - 1u)) ? size : (sizeof(s_text) - 1u);
     memor.cpy(&(MemoriaCfg){.dst = s_text, .src = bytes, .bytes = fits});
     s_text[fits] = '\0';
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_checks_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_checks_owner);
     return fits;
 }
 
@@ -361,7 +361,7 @@ void test_a_column_is_found_past_the_sequences_and_a_line_read_without_them(void
         TEST_ASSERT_EQUAL_UINT64(s_places[column], EMBED_CALL(cli_terminal_xterm_column_unit, CliTerminalXtermUnitsCfg,
                                                               .units = units, .count = count, .column = column));
     }
-    g_cli_guard->persistent_buf_release(units, g_cli_terminal_owner);
+    g_platform_guard->persistent_buf_release(units, g_cli_terminal_owner);
     TEST_ASSERT_EQUAL_STRING("abc", xterm_row_text(0u));
 }
 
@@ -803,7 +803,7 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     {
         found = found || (memor.cmp(&(MemoriaCfg){.src = history + at, .other = "place_folder", .bytes = 12u}) == 0);
     }
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)history, (g_cli_terminal_owner));
+    g_platform_guard->persistent_buf_release((void *)(uintptr_t)history, (g_cli_terminal_owner));
     TEST_ASSERT_TRUE_MESSAGE(found, "the rows located as the window ended are in the tab's history");
 }
 

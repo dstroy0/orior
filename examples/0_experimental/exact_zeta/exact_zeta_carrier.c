@@ -31,7 +31,7 @@
  *       nothing. It reads whether w holds to a carrier set on the own clock of theta.
  */
 #include "zeta_machine.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "zeta_shuffle.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"

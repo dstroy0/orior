@@ -628,8 +628,8 @@ static int cli_slice_cut(const SymbolsSliceCtx *args)
 {
     CliEffect *effect = args->effect;
     const unsigned long long name_bytes = CLI_EFFECT_LIST_MAX * sizeof(CliSliceName);
-    char *const lists =
-        g_cli_guard->temporary_buf_alloc(name_bytes + (CLI_EFFECT_LIST_MAX * sizeof(CliSlicePart)), g_cli_code_owner);
+    char *const lists = g_platform_guard->temporary_buf_alloc(name_bytes + (CLI_EFFECT_LIST_MAX * sizeof(CliSlicePart)),
+                                                              g_cli_code_owner);
     CliSlice slice = {effect, CLI_JSON_NONE, NULL, 0u, 0u, NULL, 0u, 0u, NULL};
     if (lists != NULL)
     {
@@ -654,7 +654,7 @@ static int cli_slice_cut(const SymbolsSliceCtx *args)
                           : slice.start;
     }
     slice.written = (effect->seens != 0u)
-                        ? g_cli_guard->temporary_buf_alloc((unsigned long long)effect->seens, g_cli_code_owner)
+                        ? g_platform_guard->temporary_buf_alloc((unsigned long long)effect->seens, g_cli_code_owner)
                         : NULL;
     effect->refused |= (effect->seens != 0u) && (slice.written == NULL);
     if (slice.written != NULL)
@@ -728,8 +728,8 @@ static int cli_slice_cut(const SymbolsSliceCtx *args)
         EMBED_CALL(cli_slice_dispatch, SymbolsSliceCtx, .slice_read = &slice, .each = args->each,
                    .context = args->context);
     }
-    g_cli_guard->persistent_buf_release(lists, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(slice.written, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(lists, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(slice.written, g_cli_code_owner);
     return !effect->refused;
 }
 
@@ -737,7 +737,7 @@ int cli_symbols_slice_each(const CliSymbolsPathCfg *args)
 {
     // the names every walk sifts for and the texts of those carried from a walk before, in one cell
     const unsigned long long name_bytes = CLI_EFFECT_SIFT_NAMES * (sizeof(const char *) + sizeof(unsigned long long));
-    char *const cell = g_cli_guard->temporary_buf_alloc(name_bytes + CLI_SLICE_CARRIED_BYTES, g_cli_code_owner);
+    char *const cell = g_platform_guard->temporary_buf_alloc(name_bytes + CLI_SLICE_CARRIED_BYTES, g_cli_code_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the slice");
@@ -798,7 +798,7 @@ int cli_symbols_slice_each(const CliSymbolsPathCfg *args)
         }
         carry.rounds_left -= 1u;
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_code_owner);
     if (!cut)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the slice");

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tokens.c: the tokens of an instruction's text: spaces, a token taken, digits, the high half, an operand's type and
 // the operand taken, an instruction read, and two forms the same
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

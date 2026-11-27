@@ -90,8 +90,9 @@ EMBED_INLINE void cli_value_write(const SettingsSyncImportCtx *args)
     VerbaLinea *out = args->out;
     const unsigned long long line_capacity = EMBED_CALL(cli_json_tree_node_out.json_write_capacity,
                                                         CliJsonTreeNodeOutCfg, .json_read = &s_alloc.work_state.json);
-    char *const line_cell =
-        (args->value != CLI_JSON_NONE) ? g_cli_guard->temporary_buf_alloc(line_capacity, g_cli_machine_owner) : NULL;
+    char *const line_cell = (args->value != CLI_JSON_NONE)
+                                ? g_platform_guard->temporary_buf_alloc(line_capacity, g_cli_machine_owner)
+                                : NULL;
     VerbaLinea line = mmgr_line_over(line_cell, line_capacity);
     if (line_cell == NULL)
     {
@@ -102,7 +103,7 @@ EMBED_INLINE void cli_value_write(const SettingsSyncImportCtx *args)
                .node = args->value, .out = &line, .indent = 0u, .sorted = 0);
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = line.out,
                .length = mmgr_line_ok(&line) ? line.at : 0ULL);
-    g_cli_guard->persistent_buf_release(line.out, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release(line.out, g_cli_machine_owner);
 }
 
 // the settings that differ between two settings texts written, each with its value here and there: 1 where any do
@@ -171,8 +172,9 @@ EMBED_INLINE int cli_settings_differ(const SettingsSyncImportCtx *args)
 
 void cli_settings_sync_differences(const CliSettingsSyncHomeCfg *args)
 {
-    CliGrownLine settings;
-    cli_grown_begin(&settings, CLI_SETTINGS_SYNC_WRITTEN_CAPACITY, g_cli_machine_owner);
+    PlatformText settings;
+    platform_text_begun(&settings, CLI_SETTINGS_SYNC_WRITTEN_CAPACITY, platform_place_g_cli_machine_owner,
+                        PLATFORM_TIER_TEMPORARY);
     if (settings.cell == NULL)
     {
         mmgr_line_put(args->out, "[]");
@@ -225,7 +227,7 @@ void cli_settings_sync_differences(const CliSettingsSyncHomeCfg *args)
         ours_at += (order <= 0) ? 1u : 0u;
         theirs_at += (order >= 0) ? 1u : 0u;
         const char *how = NULL;
-        cli_grown_reset(&settings);
+        platform_text_reset(&settings);
         if (cellul.eq(&(CatenaFinitaCfg){.src = place, .other = "settings.json", .cap = CLI_POOL_BYTES}))
         {
             how = EMBED_CALL(cli_settings_differ, SettingsSyncImportCtx, .there = args->there, .ours_at = ours_index,
@@ -259,18 +261,18 @@ void cli_settings_sync_differences(const CliSettingsSyncHomeCfg *args)
         mmgr_line_put(args->out, ",\"how\":\"");
         mmgr_line_put(args->out, how);
         mmgr_line_put(args->out, "\",\"settings\":[");
-        mmgr_line_put_n(args->out, settings.cell, mmgr_line_ok(&settings.line) ? cli_grown_size(&settings) : 0ULL);
+        mmgr_line_put_n(args->out, settings.cell, mmgr_line_ok(&settings.line) ? platform_text_size(&settings) : 0ULL);
         mmgr_line_put(args->out, "]}");
         written += 1u;
     }
     mmgr_line_ch(args->out, ']');
     EMBED_CALL(cli_settings_sync_transferred_position_internal.transferred_clear, CliSettingsSyncTransferredPositionCtx,
                .transferred_out = &s_alloc.here);
-    g_cli_guard->persistent_buf_release(s_alloc.work_state.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_alloc.work_state.json.node));
+    g_platform_guard->persistent_buf_release(s_alloc.work_state.json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_alloc.work_state.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_alloc.work_state.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    cli_grown_end(&settings);
+    platform_text_ended(&settings);
 }
 
 // the text of the file at `path` written whole at `to`, the folder above it made: 1, or 0 with why given
@@ -352,8 +354,9 @@ EMBED_INLINE int cli_settings_alloc(const SettingsSyncImportCtx *args)
 EMBED_INLINE int cli_position_alloc(const SettingsSyncImportCtx *args)
 {
     const char *place = args->place;
-    CliGrownLine settings;
-    cli_grown_begin(&settings, CLI_SETTINGS_SYNC_WRITTEN_CAPACITY, g_cli_machine_owner);
+    PlatformText settings;
+    platform_text_begun(&settings, CLI_SETTINGS_SYNC_WRITTEN_CAPACITY, platform_place_g_cli_machine_owner,
+                        PLATFORM_TIER_TEMPORARY);
     if (settings.cell == NULL)
     {
         mmgr_line_put(args->err_msg, "the settings written could not be given a cell");
@@ -378,7 +381,7 @@ EMBED_INLINE int cli_position_alloc(const SettingsSyncImportCtx *args)
             mmgr_line_put(args->err_msg, "the settings taken could not be given cells");
         }
         text = settings.cell;
-        size = cli_grown_size(&settings);
+        size = platform_text_size(&settings);
     }
     else
     {
@@ -400,7 +403,7 @@ EMBED_INLINE int cli_position_alloc(const SettingsSyncImportCtx *args)
     // view of one that was is a fault elsewhere; what the writing needs of it is in the settings written and the saved
     // copy already
     const unsigned int existed = (before != NULL) ? 1u : 0u;
-    g_cli_guard->persistent_buf_release((void *)(embed_word)before, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)before, g_cli_machine_owner);
     if (reserved && (text != NULL))
     {
         reserved = EMBED_CALL(cli_write_on_to, SettingsSyncImportCtx, .to = path, .text = text, .size = size,
@@ -413,14 +416,15 @@ EMBED_INLINE int cli_position_alloc(const SettingsSyncImportCtx *args)
         s_alloc.allocating.existed[s_alloc.allocating.files] = (unsigned char)((existed != 0u) ? 1u : 0u);
         s_alloc.allocating.files += 1u;
     }
-    cli_grown_end(&settings);
+    platform_text_ended(&settings);
     return reserved;
 }
 
 int cli_settings_sync_alloc(const CliSettingsSyncHomeCfg *args)
 {
-    CliGrownLine written;
-    cli_grown_begin(&written, CLI_SETTINGS_SYNC_WRITTEN_CAPACITY, g_cli_machine_owner);
+    PlatformText written;
+    platform_text_begun(&written, CLI_SETTINGS_SYNC_WRITTEN_CAPACITY, platform_place_g_cli_machine_owner,
+                        PLATFORM_TIER_TEMPORARY);
     if (written.cell == NULL)
     {
         mmgr_line_put(args->err_msg, "an import written could not be given a cell");
@@ -429,11 +433,11 @@ int cli_settings_sync_alloc(const CliSettingsSyncHomeCfg *args)
     EMBED_CALL(cli_settings_sync_capacity_object_internal.capacity_begin, CliSettingsSyncWorkStateObjectCtx,
                .work_state = &s_alloc.work_state);
     CliAllocating *const allocating = &s_alloc.allocating;
-    allocating->place = g_cli_guard->temporary_buf_alloc(CLI_ALLOCATING_BYTES, g_cli_machine_owner);
+    allocating->place = g_platform_guard->temporary_buf_alloc(CLI_ALLOCATING_BYTES, g_cli_machine_owner);
     if (allocating->place == NULL)
     {
         mmgr_line_put(args->err_msg, "an import written could not be given a cell");
-        cli_grown_end(&written);
+        platform_text_ended(&written);
         return 0;
     }
     allocating->existed = (unsigned char *)(void *)(allocating->place + CLI_ALLOCATING_FILES);
@@ -467,18 +471,18 @@ int cli_settings_sync_alloc(const CliSettingsSyncHomeCfg *args)
     reserved = reserved && mmgr_line_ok(&written.line) &&
                EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = backup_dir) &&
                EMBED_CALL(cli_write_on_to, SettingsSyncImportCtx, .to = file, .text = written.cell,
-                          .size = cli_grown_size(&written), .err_msg = args->err_msg);
+                          .size = platform_text_size(&written), .err_msg = args->err_msg);
     if (reserved)
     {
         EMBED_CALL(cli_settings_sync_out_internal.allocating_write, CliSettingsSyncOutCtx, .allocating = allocating,
                    .pretty = 0, .out = args->out);
     }
-    g_cli_guard->persistent_buf_release(s_alloc.work_state.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_alloc.work_state.json.node));
+    g_platform_guard->persistent_buf_release(s_alloc.work_state.json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_alloc.work_state.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_alloc.work_state.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(allocating->place, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release(allocating->place, g_cli_machine_owner);
     allocating->place = NULL;
-    cli_grown_end(&written);
+    platform_text_ended(&written);
     return reserved;
 }

@@ -19,8 +19,8 @@ typedef struct CliPythonPathsTextTypeCtx CliPythonPathsTextTypeCtx;
 typedef struct CliPythonPathsFirstCtx CliPythonPathsFirstCtx;
 
 // the max expressions, list items, characters of one expression, bytes of texts, values and names one script's reading
-// contains; no expression; and the max values a pairing of two lists gives. A reading's own the majority of each is sized to
-// its script within these
+// contains; no expression; and the max values a pairing of two lists gives. A reading's own the majority of each is
+// sized to its script within these
 #define CLI_PY_EXPRS 16384u
 #define CLI_PY_ITEMS 16384u
 #define CLI_PY_CHARACTERS (1u << 20u)

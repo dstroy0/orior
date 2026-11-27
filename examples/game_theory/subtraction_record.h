@@ -18,7 +18,7 @@
 #ifndef SUBTRACTION_RECORD_H
 #define SUBTRACTION_RECORD_H
 
-#include "../../src/platform/platform.h"
+#include "../../includes/platform/platform.h"
 #include "game_record.h"
 #include "memoria_operor/memoria_operor.h"
 

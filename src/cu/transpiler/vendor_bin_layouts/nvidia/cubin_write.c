@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cubin_write.c: a cubin written by the one emitter, from the layout of the ELF a CUDA toolchain writes
 #include "cubin_write.h"
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 

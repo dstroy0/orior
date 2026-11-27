@@ -37,7 +37,7 @@
  *       same way. The bar: the V_n of the device meets the direct sum within 2^-40 at every boundary checked.
  */
 #include "zeta_exact.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"
 #include <dirent.h>

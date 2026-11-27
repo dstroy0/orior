@@ -61,7 +61,7 @@ done < "$EXACT_LIST"
 
 source "$TOP/includes/exact_types/exact_types.sh"
 # the process stage of the platform: main, which calls program_main. The engine holds the rest of the platform
-exact_types_compile "$TOP/src/platform/platform_process.c" || exit 1
+exact_types_compile "$TOP/includes/platform/platform_process.c" || exit 1
 PROCESS_OBJECTS=("${EXACT_TYPES_OBJECTS[@]}")
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/includes/codecs/crc" "${EXACT_WIDTH[@]}" "${FILE_DEFS_MMGR_FLAGS[@]}")
 rm -f "$BINARY"

@@ -3,7 +3,7 @@
 // ksg_seal.c: a file's seal made as its bytes are written, as ksg.h positions it out: each line a leaf passed on as it
 // ends, the leaves joined two by two as they come, at max KSG_DEPTH nodes waiting, and the root over the size, the max
 // bytes of a leaf and the top node
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "ksg.h"
 #include "memoria_operor/memoria_operor.h"

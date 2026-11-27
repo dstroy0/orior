@@ -23,7 +23,7 @@
 //
 // It runs in a query run (qry_run.sh): every file it writes is passed to the run's writer.
 #include "../../../../../../../includes/file_defs/kdm/kdm.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../../../../../../includes/file_defs/klang/klang.h"
 
 #include "../../../../../../../includes/parsers/who.h"

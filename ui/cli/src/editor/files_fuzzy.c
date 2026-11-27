@@ -255,7 +255,7 @@ int cli_files_fuzzy(const CliFilesQueryCfg *args)
     // least, and one entry more, which gives an empty query and text a take
     const unsigned long long query_bytes = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_POOL_BYTES});
     const unsigned long long text_bytes = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
-    unsigned int *const scratch = g_cli_guard->temporary_buf_alloc(
+    unsigned int *const scratch = g_platform_guard->temporary_buf_alloc(
         ((2ULL * query_bytes) + (2ULL * text_bytes) + 1ULL) * sizeof(unsigned int), args->owner);
     if (scratch == NULL)
     {
@@ -280,6 +280,6 @@ int cli_files_fuzzy(const CliFilesQueryCfg *args)
         cli_files_bytes_requested_internal.fuzzy_characters, CliFilesBytesRequestedCtx, .required = requested,
         .requested_count = required, .displayed = displayed, .lower = lower, .count_u32 = characters, .from_u32 = start,
         .bytes_i32 = 0, .latest = latest, .score = args->score, .hits = args->hits, .hit_count = args->count_pointer);
-    g_cli_guard->persistent_buf_release(scratch, args->owner);
+    g_platform_guard->persistent_buf_release(scratch, args->owner);
     return matched;
 }

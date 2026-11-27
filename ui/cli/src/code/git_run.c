@@ -19,8 +19,8 @@ typedef struct
     CliWake wake;
     unsigned int ended;
     char err[CLI_GIT_ERR];
-    CliGrownLine out;
-    CliSpawned spawned;
+    PlatformText out;
+    PlatformProgram spawned;
     CliThread reader;
     CliThread writer;
     const char *input;
@@ -36,7 +36,7 @@ static CliGitResult s_refused = {s_nothing, 0ULL, 1, s_nothing, 0ULL, 0};
 void cli_git_text_begin(const CliGitTextCfg *args)
 {
     // the read writes into a work cell of the temporary tier; a list read before had its texts released by its holder
-    args->text->bytes = g_cli_guard->temporary_buf_alloc(CLI_GIT_TEXT, g_cli_git_owner);
+    args->text->bytes = g_platform_guard->temporary_buf_alloc(CLI_GIT_TEXT, g_cli_git_owner);
     args->text->cell = NULL;
     args->text->capacity = 0ULL;
     args->text->used = 0ULL;
@@ -57,13 +57,13 @@ void cli_git_text_end(const CliGitTextCfg *args)
         return;
     }
     // the texts moved into a movable cell sized to them; where the cells cannot meet it the list holds none
-    text->cell = g_cli_guard->movable_buf_alloc(text->used, g_cli_git_owner);
+    text->cell = g_platform_guard->movable_buf_alloc(text->used, g_cli_git_owner);
     if (text->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = text->cell, .src = text->bytes, .bytes = text->used});
     }
-    g_cli_guard->persistent_buf_release(text->bytes, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(text->bytes, g_cli_git_owner);
     text->bytes = NULL;
     text->capacity = 0ULL;
     text->used = (text->cell != NULL) ? text->used : 0ULL;
@@ -73,8 +73,8 @@ void cli_git_text_end(const CliGitTextCfg *args)
 void cli_git_text_release(const CliGitTextCfg *args)
 {
     CliGitText *const text = args->text;
-    g_cli_guard->persistent_buf_release(text->bytes, g_cli_git_owner);
-    (void)g_cli_guard->movable_buf_release(text->cell, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(text->bytes, g_cli_git_owner);
+    (void)g_platform_guard->movable_buf_release(text->cell, g_cli_git_owner);
     text->bytes = NULL;
     text->cell = NULL;
     text->used = 0ULL;
@@ -111,9 +111,9 @@ const char *cli_git_text_get(const CliGitTextAtCfg *args)
     }
     // the text's bytes up to its end copied out of the movable cell, cut where `dst` is smaller
     const embed_word measured =
-        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = text->cell, .offset = args->at});
+        g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = text->cell, .offset = args->at});
     const unsigned long long length = (measured < args->capacity) ? measured : (args->capacity - 1ULL);
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = text->cell, .offset = args->at, .dst = args->dst, .bytes = length});
     args->dst[length] = '\0';
     return args->dst;
@@ -122,15 +122,15 @@ const char *cli_git_text_get(const CliGitTextAtCfg *args)
 CliGitResult *cli_git_alloc(void)
 {
     // the run's cell lives for the one call that takes it and gives it back: a take of the temporary tier
-    CliGitWorkState *const work_state = g_cli_guard->temporary_buf_alloc(sizeof(*work_state), g_cli_git_owner);
+    CliGitWorkState *const work_state = g_platform_guard->temporary_buf_alloc(sizeof(*work_state), g_cli_git_owner);
     if (work_state == NULL)
     {
         return &s_refused;
     }
-    cli_grown_begin(&work_state->out, CLI_GIT_OUT, g_cli_git_owner);
+    platform_text_begun(&work_state->out, CLI_GIT_OUT, platform_place_g_cli_git_owner, PLATFORM_TIER_TEMPORARY);
     if (work_state->out.cell == NULL)
     {
-        g_cli_guard->persistent_buf_release(work_state, g_cli_git_owner);
+        g_platform_guard->persistent_buf_release(work_state, g_cli_git_owner);
         return &s_refused;
     }
     const CliWake wake = CLI_WAKE_INIT;
@@ -157,8 +157,8 @@ void cli_git_free(const CliGitResultCtx *args)
     if (args->result != &s_refused)
     {
         CliGitWorkState *const work_state = EMBED_CALL(cli_capacity_get, GitRunCtx, .result = args->result);
-        cli_grown_end(&work_state->out);
-        g_cli_guard->persistent_buf_release(work_state, g_cli_git_owner);
+        platform_text_ended(&work_state->out);
+        g_platform_guard->persistent_buf_release(work_state, g_cli_git_owner);
     }
 }
 
@@ -214,8 +214,8 @@ int cli_git_result(const CliGitResultCtx *args)
     }
     CliGitWorkState *const work_state = EMBED_CALL(cli_capacity_get, GitRunCtx, .result = args->result);
     // a run after another on the same state starts its output's line over, at its first cell
-    cli_grown_end(&work_state->out);
-    cli_grown_begin(&work_state->out, CLI_GIT_OUT, g_cli_git_owner);
+    platform_text_ended(&work_state->out);
+    platform_text_begun(&work_state->out, CLI_GIT_OUT, platform_place_g_cli_git_owner, PLATFORM_TIER_TEMPORARY);
     if (work_state->out.cell == NULL)
     {
         mmgr_line_put(args->err_msg, "git: the cells cannot meet a run of git");
@@ -244,21 +244,21 @@ int cli_git_result(const CliGitResultCtx *args)
         words += 1u;
     }
     work_state->words[words] = NULL;
-    CliSetting settings[3];
+    PlatformSetting settings[3];
     unsigned int set = 0u;
     if ((args->how & CLI_GIT_LOCKS_OFF) != 0u)
     {
-        settings[set] = (CliSetting){"GIT_OPTIONAL_LOCKS", "0"};
+        settings[set] = (PlatformSetting){"GIT_OPTIONAL_LOCKS", "0"};
         set += 1u;
     }
     if ((args->how & CLI_GIT_PROMPT_OFF) != 0u)
     {
-        settings[set] = (CliSetting){"GIT_TERMINAL_PROMPT", "0"};
+        settings[set] = (PlatformSetting){"GIT_TERMINAL_PROMPT", "0"};
         set += 1u;
     }
     if (args->index != NULL)
     {
-        settings[set] = (CliSetting){"GIT_INDEX_FILE", args->index};
+        settings[set] = (PlatformSetting){"GIT_INDEX_FILE", args->index};
         set += 1u;
     }
     const int started =
@@ -298,7 +298,7 @@ int cli_git_result(const CliGitResultCtx *args)
         (void)mmgr_line_put_n(&work_state->out.line, piece, got);
     }
     args->result->out = work_state->out.cell;
-    args->result->out_size = cli_grown_size(&work_state->out);
+    args->result->out_size = platform_text_size(&work_state->out);
     args->result->out_untruncated = mmgr_line_ok(&work_state->out.line) ? 1 : 0;
     (void)mmgr_line_finish(&work_state->out.line);
     if (!read_state)
@@ -353,7 +353,7 @@ int cli_git_on_run(const CliGitRootCtx *args)
     }
     // what it wrote and reported joined, in a cell of their size
     const unsigned long long joined_capacity = result->out_size + result->err_size + 1ULL;
-    char *const joined_cell = g_cli_guard->temporary_buf_alloc(joined_capacity, g_cli_git_owner);
+    char *const joined_cell = g_platform_guard->temporary_buf_alloc(joined_capacity, g_cli_git_owner);
     VerbaLinea joined = mmgr_line_over(joined_cell, joined_capacity);
     if (joined.out == NULL)
     {
@@ -381,7 +381,7 @@ int cli_git_on_run(const CliGitRootCtx *args)
     {
         mmgr_line_put_n(args->err_msg, from, (unsigned long long)(to - from));
     }
-    g_cli_guard->persistent_buf_release(joined.out, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(joined.out, g_cli_git_owner);
     EMBED_CALL(cli_git_result_internal.free, CliGitResultCtx, .result = result);
     return ok;
 }

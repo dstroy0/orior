@@ -18,8 +18,8 @@ int cli_reply_read(const CliReplyPathCfg *args)
 
 void cli_reply_let_go(const CliReplyPathCfg *args)
 {
-    g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)args->reply_out->text),
-                                        g_cli_text_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)args->reply_out->text),
+                                             g_cli_text_owner);
     args->reply_out->text = NULL;
     args->reply_out->size = 0ULL;
 }

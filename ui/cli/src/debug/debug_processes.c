@@ -118,15 +118,15 @@ void cli_debug_processes(const CliDebugOutErrMsgIdStepCfg *args)
 {
     CliDebugListing listing = {NULL, 0u, CLI_DEBUG_PROCESSES, NULL, 1ULL, CLI_DEBUG_PROCESS_TEXT, cli_process_own(),
                                NULL};
-    listing.process =
-        g_cli_guard->temporary_buf_alloc(CLI_DEBUG_PROCESSES * sizeof(CliDebugProcess), g_cli_debug_processes_owner);
-    listing.text = g_cli_guard->temporary_buf_alloc(CLI_DEBUG_PROCESS_TEXT, g_cli_debug_processes_owner);
+    listing.process = g_platform_guard->temporary_buf_alloc(CLI_DEBUG_PROCESSES * sizeof(CliDebugProcess),
+                                                            g_cli_debug_processes_owner);
+    listing.text = g_platform_guard->temporary_buf_alloc(CLI_DEBUG_PROCESS_TEXT, g_cli_debug_processes_owner);
     if ((listing.process != NULL) && (listing.text != NULL))
     {
         listing.text[0] = '\0';
         EMBED_CALL(cli_context_internal.processes_each, CliContextCtx, .each_callback = processes_list,
                    .context = &listing);
-        listing.sorted = g_cli_guard->temporary_buf_alloc(
+        listing.sorted = g_platform_guard->temporary_buf_alloc(
             ((unsigned long long)listing.count + 1ULL) * sizeof(CliDebugProcess), g_cli_debug_processes_owner);
     }
     const unsigned int count = (listing.sorted != NULL) ? listing.count : 0u;
@@ -149,7 +149,7 @@ void cli_debug_processes(const CliDebugOutErrMsgIdStepCfg *args)
         mmgr_line_ch(args->out, '}');
     }
     mmgr_line_ch(args->out, ']');
-    g_cli_guard->persistent_buf_release(listing.sorted, g_cli_debug_processes_owner);
-    g_cli_guard->persistent_buf_release(listing.text, g_cli_debug_processes_owner);
-    g_cli_guard->persistent_buf_release(listing.process, g_cli_debug_processes_owner);
+    g_platform_guard->persistent_buf_release(listing.sorted, g_cli_debug_processes_owner);
+    g_platform_guard->persistent_buf_release(listing.text, g_cli_debug_processes_owner);
+    g_platform_guard->persistent_buf_release(listing.process, g_cli_debug_processes_owner);
 }

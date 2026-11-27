@@ -59,20 +59,20 @@ EMBED_INLINE CliDap *launch_adapter_from(const DebugLaunchCtx *args)
                      .paths = &folders);
     // the folders copied out for the PATH's writer, in a cell of this call given back after it
     char (*const ahead)[CLI_PATH_MAX_LEN] =
-        (folders.count != 0u)
-            ? g_cli_guard->temporary_buf_alloc((unsigned long long)folders.count * CLI_PATH_MAX_LEN, g_cli_debug_owner)
-            : NULL;
+        (folders.count != 0u) ? g_platform_guard->temporary_buf_alloc(
+                                    (unsigned long long)folders.count * CLI_PATH_MAX_LEN, g_cli_debug_owner)
+                              : NULL;
     for (unsigned int at = 0u; (ahead != NULL) && (at < folders.count); at += 1u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell,
-                                                                .offset = (embed_word)at * CLI_PATH_MAX_LEN,
-                                                                .dst = ahead[at],
-                                                                .bytes = CLI_PATH_MAX_LEN});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell,
+                                                                     .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                                     .dst = ahead[at],
+                                                                     .bytes = CLI_PATH_MAX_LEN});
     }
     EMBED_CALL(cli_toolchains_count_path.run_path_with, CliToolchainsCountPathCfg,
                .ahead = (const char (*)[CLI_PATH_MAX_LEN])ahead, .count = (ahead != NULL) ? folders.count : 0u,
                .path = s_path[session_at], .size = sizeof(s_path[session_at]));
-    g_cli_guard->persistent_buf_release(ahead, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(ahead, g_cli_debug_owner);
     cli_toolchains_paths_release(&(CliToolchainsPathsCfg){.paths = &folders});
     const char *words[CLI_DEBUG_ADAPTER_WORDS];
     unsigned int count = 0u;
@@ -108,7 +108,7 @@ EMBED_INLINE CliDap *launch_adapter(const DebugLaunchCtx *args)
     }
     CliDap *const adapter = EMBED_CALL(launch_adapter_from, DebugLaunchCtx, .place = args->place, .root = args->root,
                                        .plan = args->plan, .err_msg = args->err_msg, .json = &start);
-    g_cli_guard->persistent_buf_release(start.node, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(start.node, g_cli_debug_owner);
     return adapter;
 }
 
@@ -149,7 +149,7 @@ EMBED_INLINE int launch_fail(const DebugLaunchCtx *args)
     }
     if (pinned)
     {
-        g_cli_guard->persistent_buf_release(start.node, g_cli_debug_owner);
+        g_platform_guard->persistent_buf_release(start.node, g_cli_debug_owner);
     }
     EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = args->place);
     return 0;
@@ -410,7 +410,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
             mmgr_line_put(err_msg, plan.name);
             mmgr_line_put(err_msg, " took the connection and did not answer; it may be serving another debugger");
         }
-        g_cli_guard->persistent_buf_release(start.node, g_cli_debug_owner);
+        g_platform_guard->persistent_buf_release(start.node, g_cli_debug_owner);
         return EMBED_CALL(launch_fail, DebugLaunchCtx, .place = place, .plan = &plan, .err_msg = err_msg);
     }
     CliDebugInfo info;
@@ -427,17 +427,17 @@ int cli_debug_start(const CliDebugRootCfg *args)
                    .options = args->options, .info_read = &info);
     }
     // the launch's arguments on a line grown to them, ended once sent
-    CliGrownLine arguments;
-    cli_grown_begin(&arguments, CLI_DEBUG_ARGS, g_cli_debug_owner);
+    PlatformText arguments;
+    platform_text_begun(&arguments, CLI_DEBUG_ARGS, platform_place_g_cli_debug_owner, PLATFORM_TIER_TEMPORARY);
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &start, .node = plan.arguments,
                .out = &arguments.line, .indent = 0u, .sorted = 0);
     unsigned long long seq = 0ULL;
     const int sent = mmgr_line_ok(&arguments.line) &&
                      EMBED_CALL(cli_dap_err_msg_command.send, CliDapErrMsgCommandCfg, .dap = place->dap,
                                 .command = plan.request, .arguments = arguments.cell,
-                                .length = cli_grown_size(&arguments), .seq_pointer = &seq, .err_msg = err_msg);
-    cli_grown_end(&arguments);
-    g_cli_guard->persistent_buf_release(start.node, g_cli_debug_owner);
+                                .length = platform_text_size(&arguments), .seq_pointer = &seq, .err_msg = err_msg);
+    platform_text_ended(&arguments);
+    g_platform_guard->persistent_buf_release(start.node, g_cli_debug_owner);
     if (!sent)
     {
         return EMBED_CALL(launch_fail, DebugLaunchCtx, .place = place, .plan = &plan, .err_msg = err_msg);
@@ -473,7 +473,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
     {
         return EMBED_CALL(launch_fail, DebugLaunchCtx, .place = place, .plan = &plan, .err_msg = err_msg);
     }
-    g_cli_guard->persistent_buf_release(launched.message, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(launched.message, g_cli_debug_owner);
     if (!info.has_process && (place->pid != 0ULL))
     {
         info.has_process = 1;

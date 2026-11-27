@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // prompt.c: the one ask. Its sentence, its statement and its buttons' labels are in the ask's own bytes with their
-// ends, positioned as the ask opens, the sentence and the statement each cut to CLI_PROMPT_STATEMENT_MAX bytes; its field
-// is in a cell of its own sized to the characters typed, with the count of its characters following each change; and its
-// rows are types positioned as the ask opens, a number a row. An answer passes the field's text to the continuation with the
-// ask already cleared, so that the continuation may open another
+// ends, positioned as the ask opens, the sentence and the statement each cut to CLI_PROMPT_STATEMENT_MAX bytes; its
+// field is in a cell of its own sized to the characters typed, with the count of its characters following each change;
+// and its rows are types positioned as the ask opens, a number a row. An answer passes the field's text to the
+// continuation with the ask already cleared, so that the continuation may open another
 #include "prompt.h"
 
 // the bytes the sentence, the statement and the labels take at max, each with its end
@@ -13,8 +13,8 @@
      ((unsigned long long)CLI_PROMPT_CHOICES * (CLI_PROMPT_LABEL_MAX + 1ULL)))
 
 // The ask: its texts, the sentence's and the statement's bytes and places in them, the buttons' labels in them with
-// their bytes and how many, its mode, its field and the characters the field carries, its continuation with its context,
-// whether it is, and its rows' types and how many
+// their bytes and how many, its mode, its field and the characters the field carries, its continuation with its
+// context, whether it is, and its rows' types and how many
 typedef struct
 {
     char texts[PROMPT_TEXTS];
@@ -129,8 +129,8 @@ int cli_prompt_open(const CliPromptCfg *args)
                    .max = CLI_PROMPT_FIELD_MAX, .owner = g_cli_command_line_owner);
     }
     EMBED_CALL(field_refreshed, PromptCtx, .size = 0ULL);
-    // the rows as the mode positions them: the sentence, the statement where one is asked about, the field where the mode
-    // takes one, and the buttons where there are any
+    // the rows as the mode positions them: the sentence, the statement where one is asked about, the field where the
+    // mode takes one, and the buttons where there are any
     unsigned int rows = 0u;
     s_prompt.row_type[rows] = CLI_PROMPT_ROW_SENTENCE;
     rows += 1u;

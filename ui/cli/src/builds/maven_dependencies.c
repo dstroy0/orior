@@ -67,7 +67,7 @@ EMBED_INLINE int dependencies_cell_grown(const MavenDependenciesCtx *args)
     }
     const unsigned long long doubled = (store->bytes != 0ULL) ? (store->bytes * 2ULL) : args->first;
     const unsigned long long bytes = (doubled < args->needed) ? args->needed : doubled;
-    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_build_owner);
+    const CarcerMovableEntry *const cell = g_platform_guard->movable_buf_alloc(bytes, g_cli_build_owner);
     if (cell == NULL)
     {
         return 0;
@@ -77,14 +77,14 @@ EMBED_INLINE int dependencies_cell_grown(const MavenDependenciesCtx *args)
         char page[CLI_MAVEN_SEEN_PAGE];
         const unsigned long long piece =
             ((store->bytes - at) < CLI_MAVEN_SEEN_PAGE) ? (store->bytes - at) : CLI_MAVEN_SEEN_PAGE;
-        (void)g_cli_guard->movable_buf_read(
-            &(CarcerMovableCfg){.cell = store->cell, .offset = (embed_word)at, .dst = page, .bytes = (embed_word)piece});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
+            .cell = store->cell, .offset = (embed_word)at, .dst = page, .bytes = (embed_word)piece});
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = cell, .offset = (embed_word)at, .src = page, .bytes = (embed_word)piece});
     }
     if (store->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(store->cell, g_cli_build_owner);
+        (void)g_platform_guard->movable_buf_release(store->cell, g_cli_build_owner);
     }
     store->cell = cell;
     store->bytes = bytes;
@@ -117,15 +117,15 @@ EMBED_INLINE int dependencies_visit(const MavenDependenciesCtx *args)
     for (unsigned int at = 0u; at < seen->count; at += 1u)
     {
         CliMavenPlace place;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = seen->places.cell,
-                                                               .offset = (embed_word)at * sizeof(CliMavenPlace),
-                                                               .dst = &place,
-                                                               .bytes = sizeof(place)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = seen->places.cell,
+                                                                     .offset = (embed_word)at * sizeof(CliMavenPlace),
+                                                                     .dst = &place,
+                                                                     .bytes = sizeof(place)});
         if ((place.size == args->size) &&
-            (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = seen->texts.cell,
-                                                                 .offset = (embed_word)place.at,
-                                                                 .src = args->whole,
-                                                                 .bytes = (embed_word)args->size}) == 0))
+            (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = seen->texts.cell,
+                                                                       .offset = (embed_word)place.at,
+                                                                       .src = args->whole,
+                                                                       .bytes = (embed_word)args->size}) == 0))
         {
             return 1;
         }
@@ -137,14 +137,14 @@ EMBED_INLINE int dependencies_visit(const MavenDependenciesCtx *args)
                    .needed = seen->used + args->size, .first = CLI_MAVEN_SEEN_TEXTS_FIRST))
     {
         const CliMavenPlace place = {seen->used, args->size};
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = seen->texts.cell,
-                                                                .offset = (embed_word)seen->used,
-                                                                .src = args->whole,
-                                                                .bytes = (embed_word)args->size});
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = seen->places.cell,
-                                                                .offset = (embed_word)seen->count * sizeof(place),
-                                                                .src = &place,
-                                                                .bytes = sizeof(place)});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = seen->texts.cell,
+                                                                      .offset = (embed_word)seen->used,
+                                                                      .src = args->whole,
+                                                                      .bytes = (embed_word)args->size});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = seen->places.cell,
+                                                                      .offset = (embed_word)seen->count * sizeof(place),
+                                                                      .src = &place,
+                                                                      .bytes = sizeof(place)});
         seen->count += 1u;
         seen->used += args->size;
     }
@@ -342,10 +342,10 @@ void cli_maven_dependencies(const CliMavenCheckCtx *args)
     }
     if (seen.texts.cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(seen.texts.cell, g_cli_build_owner);
+        (void)g_platform_guard->movable_buf_release(seen.texts.cell, g_cli_build_owner);
     }
     if (seen.places.cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(seen.places.cell, g_cli_build_owner);
+        (void)g_platform_guard->movable_buf_release(seen.places.cell, g_cli_build_owner);
     }
 }

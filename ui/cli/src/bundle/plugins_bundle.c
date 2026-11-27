@@ -84,7 +84,7 @@ EMBED_INLINE int cli_cell_grown(const PluginsBundleCtx *args)
     }
     const unsigned long long doubled = (s_plugins_bytes != 0ULL) ? (s_plugins_bytes * 2ULL) : CLI_BUNDLE_FIRST;
     const unsigned long long bytes = (doubled < args->needed) ? args->needed : doubled;
-    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_bundle_owner);
+    const CarcerMovableEntry *const cell = g_platform_guard->movable_buf_alloc(bytes, g_cli_bundle_owner);
     if (cell == NULL)
     {
         return 0;
@@ -92,14 +92,14 @@ EMBED_INLINE int cli_cell_grown(const PluginsBundleCtx *args)
     for (unsigned long long at = 0ULL; at < s_plugins_bytes; at += sizeof(CliBundlePlugin))
     {
         CliBundlePlugin record;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_plugins_cell, .offset = (embed_word)at, .dst = &record, .bytes = sizeof(record)});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = cell, .offset = (embed_word)at, .src = &record, .bytes = sizeof(record)});
     }
     if (s_plugins_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_plugins_cell, g_cli_bundle_owner);
+        (void)g_platform_guard->movable_buf_release(s_plugins_cell, g_cli_bundle_owner);
     }
     s_plugins_cell = cell;
     s_plugins_bytes = bytes;
@@ -145,7 +145,7 @@ EMBED_INLINE int cli_array_appended(const PluginsBundleCtx *args)
 {
     const unsigned long long bytes =
         EMBED_CALL(cli_array_text_bytes, PluginsBundleCtx, .size = args->size, .name = args->prefix);
-    char *const text = g_cli_guard->temporary_buf_alloc(bytes, g_cli_bundle_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(bytes, g_cli_bundle_owner);
     if (text == NULL)
     {
         return 0;
@@ -154,7 +154,7 @@ EMBED_INLINE int cli_array_appended(const PluginsBundleCtx *args)
     EMBED_CALL(cli_bytes_write, PluginsBundleCtx, .out = &out, .prefix = args->prefix, .at = args->at,
                .bytes = args->bytes, .size = args->size);
     const int appended = EMBED_CALL(cli_appended, PluginsBundleCtx, .out = &out, .written = args->written, .fresh = 0);
-    g_cli_guard->persistent_buf_release(text, g_cli_bundle_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_bundle_owner);
     return appended;
 }
 
@@ -180,7 +180,7 @@ EMBED_INLINE int cli_script(const PluginsBundleCtx *args)
             : NULL;
     const int script =
         (type != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = type, .other = "script", .cap = CLI_NAME_MAX_LEN});
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return script;
@@ -225,7 +225,7 @@ EMBED_INLINE int cli_code_bundle(const PluginsBundleCtx *args)
     folder.folder = path;
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = path, .each = cli_code_file_each,
                .context_bytess = &folder);
-    char *const code_text = g_cli_guard->temporary_buf_alloc(folder.bytes + 1ULL, g_cli_bundle_owner);
+    char *const code_text = g_platform_guard->temporary_buf_alloc(folder.bytes + 1ULL, g_cli_bundle_owner);
     if (code_text == NULL)
     {
         return 0;
@@ -239,7 +239,7 @@ EMBED_INLINE int cli_code_bundle(const PluginsBundleCtx *args)
         mmgr_line_ok(&code) &&
         EMBED_CALL(cli_array_appended, PluginsBundleCtx, .prefix = "s_code_", .at = args->at,
                    .bytes = (const unsigned char *)code_text, .size = code.at, .written = args->written);
-    g_cli_guard->persistent_buf_release(code_text, g_cli_bundle_owner);
+    g_platform_guard->persistent_buf_release(code_text, g_cli_bundle_owner);
     args->plugin->coded = read;
     args->plugin->code_size = read ? code.at : 0ULL;
     return read;
@@ -259,7 +259,7 @@ static void cli_folder_each(const CliEachNameIsFolderCfg *args)
     CliBundlePlugin before;
     while (place > 0u)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_plugins_cell,
                                 .offset = (embed_word)(place - 1u) * sizeof(CliBundlePlugin),
                                 .dst = &before,
@@ -268,20 +268,21 @@ static void cli_folder_each(const CliEachNameIsFolderCfg *args)
         {
             break;
         }
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_plugins_cell,
-                                                                 .offset = (embed_word)place * sizeof(CliBundlePlugin),
-                                                                 .src = &before,
-                                                                 .bytes = sizeof(CliBundlePlugin)});
+        (void)g_platform_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = s_plugins_cell,
+                                .offset = (embed_word)place * sizeof(CliBundlePlugin),
+                                .src = &before,
+                                .bytes = sizeof(CliBundlePlugin)});
         place -= 1u;
     }
     CliBundlePlugin found = {{0}, 0ULL, 0, 0};
     VerbaLinea id = {found.id, sizeof(found.id), 0ULL};
     mmgr_line_put(&id, args->name);
     (void)mmgr_line_finish(&id);
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_plugins_cell,
-                                                             .offset = (embed_word)place * sizeof(CliBundlePlugin),
-                                                             .src = &found,
-                                                             .bytes = sizeof(CliBundlePlugin)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_plugins_cell,
+                                                                  .offset = (embed_word)place * sizeof(CliBundlePlugin),
+                                                                  .src = &found,
+                                                                  .bytes = sizeof(CliBundlePlugin)});
     s_count += 1u;
 }
 
@@ -309,10 +310,10 @@ EMBED_INLINE int cli_file_bundle(const PluginsBundleCtx *args)
     }
     const unsigned long long text_bytes =
         EMBED_CALL(cli_array_text_bytes, PluginsBundleCtx, .size = size, .name = args->name);
-    char *const text = g_cli_guard->temporary_buf_alloc(text_bytes, g_cli_bundle_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(text_bytes, g_cli_bundle_owner);
     if (text == NULL)
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_bundle_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_bundle_owner);
         return 0;
     }
     VerbaLinea out = {text, text_bytes, 0ULL};
@@ -331,8 +332,8 @@ EMBED_INLINE int cli_file_bundle(const PluginsBundleCtx *args)
     mmgr_line_decimal(&out, size, 1u);
     mmgr_line_put(&out, "ull;\n");
     const int appended = EMBED_CALL(cli_appended, PluginsBundleCtx, .out = &out, .written = args->written, .fresh = 0);
-    g_cli_guard->persistent_buf_release(text, g_cli_bundle_owner);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_bundle_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_bundle_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_bundle_owner);
     return appended;
 }
 
@@ -342,10 +343,11 @@ EMBED_INLINE int cli_file_bundle(const PluginsBundleCtx *args)
 EMBED_INLINE int cli_plugin_bundle(const PluginsBundleCtx *args)
 {
     CliBundlePlugin plugin;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_plugins_cell,
-                                                            .offset = (embed_word)args->at * sizeof(CliBundlePlugin),
-                                                            .dst = &plugin,
-                                                            .bytes = sizeof(CliBundlePlugin)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_plugins_cell,
+                            .offset = (embed_word)args->at * sizeof(CliBundlePlugin),
+                            .dst = &plugin,
+                            .bytes = sizeof(CliBundlePlugin)});
     char path[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ULL;
     const unsigned char *const bytes =
@@ -356,7 +358,7 @@ EMBED_INLINE int cli_plugin_bundle(const PluginsBundleCtx *args)
     if (bytes == NULL)
     {
         plugin.bundled = 0;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_plugins_cell,
                                 .offset = (embed_word)args->at * sizeof(CliBundlePlugin),
                                 .src = &plugin,
@@ -371,12 +373,13 @@ EMBED_INLINE int cli_plugin_bundle(const PluginsBundleCtx *args)
         done = EMBED_CALL(cli_code_bundle, PluginsBundleCtx, .plugins = args->plugins, .at = args->at,
                           .plugin = &plugin, .text = bytes, .size = size, .written = args->written);
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_bundle_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_bundle_owner);
     plugin.bundled = done;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_plugins_cell,
-                                                             .offset = (embed_word)args->at * sizeof(CliBundlePlugin),
-                                                             .src = &plugin,
-                                                             .bytes = sizeof(CliBundlePlugin)});
+    (void)g_platform_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = s_plugins_cell,
+                            .offset = (embed_word)args->at * sizeof(CliBundlePlugin),
+                            .src = &plugin,
+                            .bytes = sizeof(CliBundlePlugin)});
     return done;
 }
 
@@ -386,7 +389,7 @@ EMBED_INLINE int cli_table_appended(const PluginsBundleCtx *args)
 {
     const unsigned long long bytes =
         (((unsigned long long)s_count + 1ULL) * (CLI_NAME_MAX_LEN + CLI_BUNDLE_ARRAY_MORE)) + CLI_BUNDLE_ARRAY_MORE;
-    char *const text = g_cli_guard->temporary_buf_alloc(bytes, g_cli_bundle_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(bytes, g_cli_bundle_owner);
     if (text == NULL)
     {
         return 0;
@@ -397,10 +400,10 @@ EMBED_INLINE int cli_table_appended(const PluginsBundleCtx *args)
     for (unsigned int at = 0u; at < s_count; at += 1u)
     {
         CliBundlePlugin plugin;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_plugins_cell,
-                                                                .offset = (embed_word)at * sizeof(CliBundlePlugin),
-                                                                .dst = &plugin,
-                                                                .bytes = sizeof(CliBundlePlugin)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_plugins_cell,
+                                                                     .offset = (embed_word)at * sizeof(CliBundlePlugin),
+                                                                     .dst = &plugin,
+                                                                     .bytes = sizeof(CliBundlePlugin)});
         if (!plugin.bundled)
         {
             continue;
@@ -434,7 +437,7 @@ EMBED_INLINE int cli_table_appended(const PluginsBundleCtx *args)
     mmgr_line_decimal(&out, bundled, 1u);
     mmgr_line_put(&out, "u;\n\n");
     const int appended = EMBED_CALL(cli_appended, PluginsBundleCtx, .out = &out, .written = args->written, .fresh = 0);
-    g_cli_guard->persistent_buf_release(text, g_cli_bundle_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_bundle_owner);
     return appended;
 }
 
@@ -483,7 +486,7 @@ int main(int count, char **words)
     }
     if (s_plugins_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_plugins_cell, g_cli_bundle_owner);
+        (void)g_platform_guard->movable_buf_release(s_plugins_cell, g_cli_bundle_owner);
     }
     return 0;
 }

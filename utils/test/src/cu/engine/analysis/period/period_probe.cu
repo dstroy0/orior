@@ -20,7 +20,7 @@
 // Each record prints "case <n> mode <read|draw> status <s>", the measurement's lines when the status is 0, and "end".
 
 #include "../../../../../../../src/cu/engine/runtime/device_pool/device_pool.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/period/period.h"
 #include "sim.h"
 

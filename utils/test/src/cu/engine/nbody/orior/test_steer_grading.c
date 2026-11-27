@@ -1,6 +1,6 @@
 
 // test_steer_grading.c: counting with probes and grading a field
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "test_steer_internal.h"

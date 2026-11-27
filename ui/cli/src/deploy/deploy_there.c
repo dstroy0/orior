@@ -21,7 +21,7 @@ CliDeployPair *g_cli_deploy_last;
 unsigned int g_cli_deploy_last_count;
 static CliDeployPool s_pool;
 static CliDeployPairNode *s_pairs;
-static CliGrownLine s_listing;
+static PlatformText s_listing;
 static CliJson s_record;
 static const char *s_walk_top;
 static int s_walk_full;
@@ -35,8 +35,8 @@ void cli_deploy_there_free(void)
     s_pairs = NULL;
     s_pool.used = 0ULL;
     s_pool.refused = 0;
-    cli_grown_end(&s_listing);
-    g_cli_guard->persistent_buf_release(s_record.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_record.node));
+    platform_text_ended(&s_listing);
+    g_platform_guard->persistent_buf_release(s_record.node, mmgr_owner_of_buf(platform_pool_series(), s_record.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_record),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
@@ -147,7 +147,7 @@ void cli_deploy_last_read(const CliDeployErrMsgIndexCtx *args)
 {
     g_cli_deploy_last = NULL;
     g_cli_deploy_last_count = 0u;
-    g_cli_guard->persistent_buf_release(s_record.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_record.node));
+    g_platform_guard->persistent_buf_release(s_record.node, mmgr_owner_of_buf(platform_pool_series(), s_record.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_record),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char path[CLI_PATH_MAX_LEN];
@@ -234,7 +234,7 @@ static void there_walk(const CliEachNameIsFolderCfg *args)
     char digest[65];
     VerbaLinea digest_line = {digest, sizeof(digest), 0ULL};
     EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = bytes, .size = size, .text = &digest_line);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
     EMBED_CALL(there_pair_append, DeployThereCtx,
                .path = EMBED_CALL(cli_deploy_pool_internal.text_store, CliDeployPoolCtx, .pool = &s_pool, .text = path,
                                   .size = path_line.at),
@@ -264,7 +264,7 @@ int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args)
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES}), .out = &command);
         mmgr_line_put(&command, " 2>/dev/null || exit 0; find . -type f -exec sha256sum {} + 2>/dev/null; true");
         mmgr_line_finish(&command);
-        cli_grown_begin(&s_listing, CLI_DEPLOY_HASHES, g_cli_deploy_owner);
+        platform_text_begun(&s_listing, CLI_DEPLOY_HASHES, platform_place_g_cli_deploy_owner, PLATFORM_TIER_TEMPORARY);
         const int run_result =
             EMBED_CALL(cli_deploy_size_internal.remote_run, CliDeploySizeCtx, .place = place, .line_text = line,
                        .input = NULL, .size = 0ULL, .out = &s_listing.line, .err_msg = args->err_msg);
@@ -273,7 +273,7 @@ int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args)
             return 0;
         }
         s_walk_full = !mmgr_line_ok(&s_listing.line);
-        const unsigned long long size = s_walk_full ? 0ULL : cli_grown_size(&s_listing);
+        const unsigned long long size = s_walk_full ? 0ULL : platform_text_size(&s_listing);
         static const char s_split[] = "  ";
         // a line is ended by a 0 from its first write, and a line with none holds nothing to walk
         for (char *at = (size > 0ULL) ? s_listing.cell : NULL; (at != NULL) && (*at != '\0');)

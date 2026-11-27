@@ -23,8 +23,8 @@ typedef struct
 // whether a character is white as Rust's char::is_whitespace has it
 EMBED_INLINE int words_white(const RequestsWordsCtx *args)
 {
-    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) || (args->character == 0x85u) ||
-           (args->character == 0xa0u) || (args->character == 0x1680u) ||
+    return ((args->character >= 0x09u) && (args->character <= 0x0du)) || (args->character == 0x20u) ||
+           (args->character == 0x85u) || (args->character == 0xa0u) || (args->character == 0x1680u) ||
            ((args->character >= 0x2000u) && (args->character <= 0x200au)) || (args->character == 0x2028u) ||
            (args->character == 0x2029u) || (args->character == 0x202fu) || (args->character == 0x205fu) ||
            (args->character == 0x3000u);
@@ -148,8 +148,9 @@ EMBED_INLINE int words_double(const RequestsWordsCtx *args)
             *at += 1u;
         }
         unsigned int whole = 0u;
-        const unsigned long long reserved = EMBED_CALL(words_character, RequestsWordsCtx, .line = args->line,
-                                                       .size = args->size, .at_value = *at, .character_pointer = &whole);
+        const unsigned long long reserved =
+            EMBED_CALL(words_character, RequestsWordsCtx, .line = args->line, .size = args->size, .at_value = *at,
+                       .character_pointer = &whole);
         fits = EMBED_CALL(words_append, RequestsWordsCtx, .words = args->words, .bytes = args->line + *at,
                           .size = reserved);
         *at += reserved;
@@ -184,9 +185,10 @@ int cli_requests_words(const CliRequestsSizeCtx *args)
         {
             unsigned int whole = 0u;
             const unsigned long long reserved =
-                (at + 1u < args->size) ? EMBED_CALL(words_character, RequestsWordsCtx, .line = args->line,
-                                                    .size = args->size, .at_value = at + 1u, .character_pointer = &whole)
-                                       : 0u;
+                (at + 1u < args->size)
+                    ? EMBED_CALL(words_character, RequestsWordsCtx, .line = args->line, .size = args->size,
+                                 .at_value = at + 1u, .character_pointer = &whole)
+                    : 0u;
             read = (reserved == 0u) || EMBED_CALL(words_append, RequestsWordsCtx, .words = args->words,
                                                   .bytes = args->line + at + 1u, .size = reserved);
             started = started || (reserved > 0u);

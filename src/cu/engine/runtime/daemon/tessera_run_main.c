@@ -1,11 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_main.c: tessera_run's main
-#include "../../../../platform/platform.h"
+// the internal header comes first, since it sets the macros of the system before any header
+#include "tessera_run_internal.h"
+
+#include "../../../../../includes/platform/platform.h"
 #include "../../engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
-#include "tessera_run_internal.h"
 
 _Alignas(8) static const
     char s_run_usage[] = "  tessera_run: --processors <count> [--name <text>] [--child] -- <command> [arguments]\n"
@@ -119,7 +121,7 @@ int program_main(int count, char **arguments)
     char **const watched = run_channel_open(&channel, &request, arguments + request.command, count - request.command,
                                             &submit.signum, &started_count);
     char *const *const words = (watched != NULL) ? watched : (arguments + request.command);
-    RunChild child;
+    PlatformProgram child;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &child, .bytes = sizeof(child), .val = 0);
     int code = RUN_NOT_STARTED;
     // the whole processors of the reservation, and never none: a job reserves its tracked peak where that is more than

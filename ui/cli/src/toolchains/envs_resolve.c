@@ -82,7 +82,7 @@ static int cli_tool_output_read(const EnvsResolveCtx *args)
                    .id = id, .err_msg = &unknown);
     if (tool == CLI_JSON_NONE)
     {
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, id);
@@ -101,8 +101,8 @@ static int cli_tool_output_read(const EnvsResolveCtx *args)
     EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = tool,
                .path_callback = (const char (*)[CLI_PATH_MAX_LEN])path, .count = folders,
                .found = &s_work_state->found);
-    g_cli_guard->persistent_buf_release(path, g_cli_toolchains_owner);
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(path, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (!s_work_state->found.has_program)
@@ -119,7 +119,7 @@ static int cli_tool_output_read(const EnvsResolveCtx *args)
     words[((count < 14u) ? count : 14u) + 1u] = NULL;
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_work_state->path,
                .size = sizeof(s_work_state->path));
-    const CliSetting settings[2] = {{"PATH", s_work_state->path}, {"PIPENV_IGNORE_VIRTUALENVS", "1"}};
+    const PlatformSetting settings[2] = {{"PATH", s_work_state->path}, {"PIPENV_IGNORE_VIRTUALENVS", "1"}};
     CliRunResult *const run_result = cli_run_result_alloc();
     VerbaLinea unstarted = {why, sizeof(why), 0ULL};
     if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = folder, .settings = settings,
@@ -158,8 +158,8 @@ static int cli_tool_output_read(const EnvsResolveCtx *args)
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
-    g_cli_guard->persistent_buf_release(s_work_state->output, g_cli_toolchains_owner);
-    s_work_state->output = g_cli_guard->temporary_buf_alloc(run_result->out_size + 1ULL, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(s_work_state->output, g_cli_toolchains_owner);
+    s_work_state->output = g_platform_guard->temporary_buf_alloc(run_result->out_size + 1ULL, g_cli_toolchains_owner);
     if (s_work_state->output == NULL)
     {
         s_work_state->output_size = 0ULL;
@@ -188,7 +188,7 @@ EMBED_INLINE int cli_nix_read(const EnvsResolveCtx *args)
                    .err_msg = &unread, .owner = g_cli_toolchains_owner);
     if (root == CLI_JSON_NONE)
     {
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, "Nix: ");
@@ -246,7 +246,7 @@ EMBED_INLINE int cli_nix_read(const EnvsResolveCtx *args)
             args->environment->has_python = 1;
         }
     }
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return 1;
@@ -266,7 +266,7 @@ int cli_envs_resolve(const CliEnvsRootCfg *args)
     {
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = args->place, .joined = folder);
     }
-    s_work_state = g_cli_guard->temporary_buf_alloc(sizeof(*s_work_state), g_cli_toolchains_owner);
+    s_work_state = g_platform_guard->temporary_buf_alloc(sizeof(*s_work_state), g_cli_toolchains_owner);
     if (s_work_state == NULL)
     {
         mmgr_line_put(args->err_msg, "an environment's resolving could not be taken");
@@ -318,8 +318,8 @@ int cli_envs_resolve(const CliEnvsRootCfg *args)
                           .src = args->place,
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->place, .cap = CLI_POOL_BYTES}) + 1u});
     }
-    g_cli_guard->persistent_buf_release(s_work_state->output, g_cli_toolchains_owner);
-    g_cli_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(s_work_state->output, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(s_work_state, g_cli_toolchains_owner);
     s_work_state = NULL;
     return made;
 }

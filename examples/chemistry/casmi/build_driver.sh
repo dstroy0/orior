@@ -109,7 +109,7 @@ for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
 done
 # the member reader of a query file, which the ruleset reader reads the blob of a ruleset through
 PORTABLE+=("$ROOT/src/parquet/parquet.c" "$ROOT/src/mass/mass.c" "$TOP/includes/file_defs/qry/writer/qry_member.c"
-    "$TOP/includes/file_defs/qry/writer/platform/"*.c "$TOP/includes/file_defs/qry/qry_read.c"
+    "${PLATFORM_QRY_RUN[@]}" "$TOP/includes/file_defs/qry/qry_read.c"
     "${EXACT_TYPES_PLATFORM[@]}")
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)

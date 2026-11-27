@@ -28,8 +28,8 @@ int cli_compile_stamp(const CliCompileDbPathStampedCtx *args)
 void cli_compile_found_alloc(const CliCompileDbFoundTopCtx *args)
 {
     CliFoundFolders *found = args->found;
-    char (*const paths)[CLI_PATH_MAX_LEN] =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_COMPILE_FOUND * CLI_PATH_MAX_LEN, g_cli_compile_owner);
+    char (*const paths)[CLI_PATH_MAX_LEN] = g_platform_guard->temporary_buf_alloc(
+        (unsigned long long)CLI_COMPILE_FOUND * CLI_PATH_MAX_LEN, g_cli_compile_owner);
     *found = (CliFoundFolders){paths, 0u, (paths != NULL) ? CLI_COMPILE_FOUND : 0u};
 }
 
@@ -74,8 +74,8 @@ typedef struct
 EMBED_INLINE void cli_walked_below(const CompileDbCtx *args)
 {
     CliBelow below = {NULL, 0u, CLI_COMPILE_PENDING, NULL, 0u};
-    below.pending = g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_COMPILE_PENDING * sizeof(CliBelowFolder),
-                                                     g_cli_compile_owner);
+    below.pending = g_platform_guard->temporary_buf_alloc(
+        (unsigned long long)CLI_COMPILE_PENDING * sizeof(CliBelowFolder), g_cli_compile_owner);
     if (below.pending == NULL)
     {
         return;
@@ -102,7 +102,7 @@ EMBED_INLINE void cli_walked_below(const CompileDbCtx *args)
         EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = cli_below_each,
                    .context_bytess = &below);
     }
-    g_cli_guard->persistent_buf_release(below.pending, g_cli_compile_owner);
+    g_platform_guard->persistent_buf_release(below.pending, g_cli_compile_owner);
 }
 
 // A search for folders ending in a tail, or for files of a name
@@ -295,8 +295,8 @@ unsigned int cli_compile_json_read(const CliCompileDbPathCtx *args)
     const unsigned int tokens_max = EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg,
                                                .text = (const char *)bytes, .size = size) +
                                     1u;
-    CfgJsonToken *const tokens =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken), g_cli_compile_owner);
+    CfgJsonToken *const tokens = g_platform_guard->temporary_buf_alloc(
+        (unsigned long long)tokens_max * sizeof(CfgJsonToken), g_cli_compile_owner);
     unsigned int root = CLI_JSON_NONE;
     if ((tokens != NULL) && EMBED_CALL(cli_json_tree_nodes.json_capacity, CliJsonTreeNodesCfg, .json = args->json,
                                        .nodes = tokens_max, .text_u64 = size))
@@ -307,7 +307,7 @@ unsigned int cli_compile_json_read(const CliCompileDbPathCtx *args)
                           .text = (const char *)bytes, .size = size, .tokens = tokens, .tokens_max = tokens_max,
                           .err_msg = &unread);
     }
-    g_cli_guard->persistent_buf_release(tokens, g_cli_compile_owner);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_compile_owner);
+    g_platform_guard->persistent_buf_release(tokens, g_cli_compile_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_compile_owner);
     return root;
 }

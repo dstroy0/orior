@@ -62,25 +62,25 @@ typedef struct
 int cli_job_runs_group_write(const CliJobRunsCellCfg *args)
 {
     const CarcerMovableEntry **const cell = &g_cli_job_runs_store.group[args->at];
-    *cell = (*cell != NULL) ? *cell : g_cli_guard->movable_buf_alloc(sizeof(*args->group), g_cli_job_runs_owner);
-    return (*cell != NULL) && g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    *cell = (*cell != NULL) ? *cell : g_platform_guard->movable_buf_alloc(sizeof(*args->group), g_cli_job_runs_owner);
+    return (*cell != NULL) && g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                                   .cell = *cell, .offset = 0ULL, .src = args->group, .bytes = sizeof(*args->group)});
 }
 
 int cli_job_runs_run_write(const CliJobRunsCellCfg *args)
 {
     const CarcerMovableEntry **const cell = &g_cli_job_runs_store.run[args->at];
-    *cell = (*cell != NULL) ? *cell : g_cli_guard->movable_buf_alloc(sizeof(*args->run), g_cli_job_runs_owner);
-    return (*cell != NULL) && g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    *cell = (*cell != NULL) ? *cell : g_platform_guard->movable_buf_alloc(sizeof(*args->run), g_cli_job_runs_owner);
+    return (*cell != NULL) && g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                                   .cell = *cell, .offset = 0ULL, .src = args->run, .bytes = sizeof(*args->run)});
 }
 
 int cli_job_runs_section_write(const CliJobRunsCellCfg *args)
 {
     const CarcerMovableEntry **const cell = &g_cli_job_runs_store.section[args->at];
-    *cell = (*cell != NULL) ? *cell : g_cli_guard->movable_buf_alloc(sizeof(*args->section), g_cli_job_runs_owner);
+    *cell = (*cell != NULL) ? *cell : g_platform_guard->movable_buf_alloc(sizeof(*args->section), g_cli_job_runs_owner);
     return (*cell != NULL) &&
-           g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+           g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                .cell = *cell, .offset = 0ULL, .src = args->section, .bytes = sizeof(*args->section)});
 }
 
@@ -91,7 +91,7 @@ EMBED_INLINE void groups_released(const JobRunsCtx *args)
     CliJobRunsStore *const store = &g_cli_job_runs_store;
     for (unsigned int at = 0u; at < store->groups; at += 1u)
     {
-        (void)g_cli_guard->movable_buf_release(store->group[at], g_cli_job_runs_owner);
+        (void)g_platform_guard->movable_buf_release(store->group[at], g_cli_job_runs_owner);
         store->group[at] = NULL;
     }
     store->groups = 0u;
@@ -104,10 +104,10 @@ EMBED_INLINE unsigned int run_place(const JobRunsCtx *args)
     for (unsigned int at = store->runs; at > 0u; at -= 1u)
     {
         unsigned long long number = 0ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = store->run[at - 1u],
-                                                                .offset = offsetof(CliJobRunsRun, run),
-                                                                .dst = &number,
-                                                                .bytes = sizeof(number)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = store->run[at - 1u],
+                                                                     .offset = offsetof(CliJobRunsRun, run),
+                                                                     .dst = &number,
+                                                                     .bytes = sizeof(number)});
         if (number == args->run)
         {
             return at - 1u;
@@ -153,7 +153,7 @@ EMBED_INLINE void state_written(const JobRunsCtx *args)
 // the copy's cells let go: its id, and its set of rings made free where it took one
 EMBED_INLINE void run_cells_released(const JobRunsCtx *args)
 {
-    (void)g_cli_guard->movable_buf_release(args->copy->job_id, g_cli_job_runs_owner);
+    (void)g_platform_guard->movable_buf_release(args->copy->job_id, g_cli_job_runs_owner);
     if (args->copy->rings_taken != NULL)
     {
         *args->copy->rings_taken = 0u;
@@ -166,11 +166,11 @@ EMBED_INLINE void run_released(const JobRunsCtx *args)
 {
     CliJobRunsStore *const store = &g_cli_job_runs_store;
     CliJobRunsRun run;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = g_cli_job_runs_store.run[args->at], .offset = 0ULL, .dst = &run, .bytes = sizeof(run)});
     store->displayed = (store->displayed == run.run) ? 0ULL : store->displayed;
     EMBED_CALL(run_cells_released, JobRunsCtx, .copy = &run);
-    (void)g_cli_guard->movable_buf_release(store->run[args->at], g_cli_job_runs_owner);
+    (void)g_platform_guard->movable_buf_release(store->run[args->at], g_cli_job_runs_owner);
     for (unsigned int from = args->at + 1u; from < store->runs; from += 1u)
     {
         store->run[from - 1u] = store->run[from];
@@ -191,10 +191,10 @@ EMBED_INLINE void start_read(const JobRunsCtx *args)
         int live = 1;
         while ((oldest < store->runs) && live)
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = store->run[oldest],
-                                                                    .offset = offsetof(CliJobRunsRun, live),
-                                                                    .dst = &live,
-                                                                    .bytes = sizeof(live)});
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = store->run[oldest],
+                                                                         .offset = offsetof(CliJobRunsRun, live),
+                                                                         .dst = &live,
+                                                                         .bytes = sizeof(live)});
             oldest += live ? 1u : 0u;
         }
         if (oldest == store->runs)
@@ -215,7 +215,7 @@ EMBED_INLINE void start_read(const JobRunsCtx *args)
     CliJobRunsRun run = {0};
     run.run = args->report->run;
     run.live = 1;
-    run.job_id = g_cli_guard->movable_buf_alloc(length + 1ULL, g_cli_job_runs_owner);
+    run.job_id = g_platform_guard->movable_buf_alloc(length + 1ULL, g_cli_job_runs_owner);
     run.job_id_length = length;
     // the rings lie over the pane's part of the rings block, one set's span for each run the pane holds; a free set
     // taken for this run
@@ -256,7 +256,7 @@ EMBED_INLINE void start_read(const JobRunsCtx *args)
                        .capacity = (unsigned long long)CLI_JOB_RUNS_SPANS_MAX * sizeof(CliTerminalXtermSpan),
                        .segment_count = CLI_JOB_RUNS_SPANS_MAX,
                        .segment_bytes = sizeof(CliTerminalXtermSpan)});
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = run.job_id, .offset = 0ULL, .src = id, .bytes = length + 1ULL});
     run.job = (store->catalog != NULL)
                   ? EMBED_CALL(cli_catalog_id.find, CliCatalogIdCfg, .catalog_read = store->catalog, .id = id)
@@ -295,7 +295,7 @@ EMBED_INLINE void oldest_released(const JobRunsCtx *args)
 EMBED_INLINE void line_read(const JobRunsCtx *args)
 {
     CliJobRunsRun run;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = g_cli_job_runs_store.run[args->at], .offset = 0ULL, .dst = &run, .bytes = sizeof(run)});
     CliJobRunsRings *const rings = run.rings;
     const unsigned long long size =
@@ -347,12 +347,12 @@ EMBED_INLINE void runs_retained(const JobRunsCtx *args)
 {
     const CliJobRunsStore *const store = &g_cli_job_runs_store;
     CliJobRunsRun ended_run;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = g_cli_job_runs_store.run[args->at], .offset = 0ULL, .dst = &ended_run, .bytes = sizeof(ended_run)});
     char job_id[CLI_PATH_MAX_LEN];
     const unsigned long long job_id_length =
         (ended_run.job_id_length < CLI_PATH_MAX_LEN) ? ended_run.job_id_length : CLI_PATH_MAX_LEN - 1ULL;
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = ended_run.job_id, .offset = 0ULL, .dst = job_id, .bytes = job_id_length});
     job_id[job_id_length] = '\0';
     char other_id[CLI_PATH_MAX_LEN];
@@ -360,11 +360,11 @@ EMBED_INLINE void runs_retained(const JobRunsCtx *args)
     for (unsigned int at = 0u; at < store->runs; at += 1u)
     {
         CliJobRunsRun one;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = g_cli_job_runs_store.run[at], .offset = 0ULL, .dst = &one, .bytes = sizeof(one)});
         const unsigned long long other_length =
             (one.job_id_length < CLI_PATH_MAX_LEN) ? one.job_id_length : CLI_PATH_MAX_LEN - 1ULL;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = one.job_id, .offset = 0ULL, .dst = other_id, .bytes = other_length});
         other_id[other_length] = '\0';
         ended += (!one.live && cellul.eq(&(CatenaFinitaCfg){.src = other_id, .other = job_id, .cap = CLI_PATH_MAX_LEN}))
@@ -374,11 +374,11 @@ EMBED_INLINE void runs_retained(const JobRunsCtx *args)
     for (unsigned int at = 0u; (ended > CLI_JOB_RUNS_RETAINED) && (at < store->runs);)
     {
         CliJobRunsRun one;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = g_cli_job_runs_store.run[at], .offset = 0ULL, .dst = &one, .bytes = sizeof(one)});
         const unsigned long long other_length =
             (one.job_id_length < CLI_PATH_MAX_LEN) ? one.job_id_length : CLI_PATH_MAX_LEN - 1ULL;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = one.job_id, .offset = 0ULL, .dst = other_id, .bytes = other_length});
         other_id[other_length] = '\0';
         if (!one.live && (one.run != ended_run.run) &&
@@ -396,7 +396,7 @@ EMBED_INLINE void runs_retained(const JobRunsCtx *args)
 EMBED_INLINE void end_read(const JobRunsCtx *args)
 {
     CliJobRunsRun run;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = g_cli_job_runs_store.run[args->at], .offset = 0ULL, .dst = &run, .bytes = sizeof(run)});
     run.live = 0;
     run.stopped = args->report->stopped;
@@ -454,17 +454,17 @@ void cli_job_runs_reported(const CliJobRunsReportCfg *args)
                                   args->code, args->has_code, args->stopped};
     // the report in a movable cell of its own, its text after its record; one the cells cannot meet is dropped
     const CarcerMovableEntry *const cell =
-        (s_reports.slots != NULL) ? g_cli_guard->movable_buf_alloc(sizeof(report) + length, g_cli_job_runs_owner)
+        (s_reports.slots != NULL) ? g_platform_guard->movable_buf_alloc(sizeof(report) + length, g_cli_job_runs_owner)
                                   : NULL;
     if (cell == NULL)
     {
         return;
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = &report, .bytes = sizeof(report)});
     if (length != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = cell, .offset = sizeof(report), .src = text, .bytes = length});
     }
     // a ticket taken, its slot waited for where the ring is a lap behind, the cell's token pushed under it; the view's
@@ -511,19 +511,19 @@ EMBED_INLINE char *report_popped(const JobRunsCtx *args)
     (void)EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, &s_turnstiles, address, &s_reports, stamp,
                      &popped, &seen_word);
     const CarcerMovableEntry *const cell = popped;
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .dst = report, .bytes = sizeof(*report)});
-    char *const text = g_cli_guard->temporary_buf_alloc(report->length + 1ULL, g_cli_job_runs_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(report->length + 1ULL, g_cli_job_runs_owner);
     if (text != NULL)
     {
         if (report->length != 0ULL)
         {
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = cell, .offset = sizeof(*report), .dst = text, .bytes = report->length});
         }
         text[report->length] = '\0';
     }
-    (void)g_cli_guard->movable_buf_release(cell, g_cli_job_runs_owner);
+    (void)g_platform_guard->movable_buf_release(cell, g_cli_job_runs_owner);
     (void)EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, &s_turnstiles, &s_reports, stamp,
                      &seen_word);
     s_taken += 1u;
@@ -563,7 +563,7 @@ int cli_job_runs_step(const CliJobRunsWokenCfg *args)
                 }
             }
         }
-        g_cli_guard->persistent_buf_release(text, g_cli_job_runs_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_job_runs_owner);
     }
     if (!read)
     {
@@ -581,12 +581,12 @@ void cli_job_runs_read(const CliJobRunsRootCfg *args)
     const unsigned int was_groups = store->groups;
     JobRunsGroupWas *const was =
         (was_groups != 0u)
-            ? g_cli_guard->temporary_buf_alloc(was_groups * sizeof(JobRunsGroupWas), g_cli_job_runs_owner)
+            ? g_platform_guard->temporary_buf_alloc(was_groups * sizeof(JobRunsGroupWas), g_cli_job_runs_owner)
             : NULL;
     for (unsigned int old = 0u; (was != NULL) && (old < was_groups); old += 1u)
     {
         CliJobRunsGroup one;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = g_cli_job_runs_store.group[old], .offset = 0ULL, .dst = &one, .bytes = sizeof(one)});
         const unsigned long long length =
             cellul.len(&(CatenaFinitaCfg){.src = one.name, .cap = CLI_NAME_MAX_LEN - 1ULL});
@@ -608,16 +608,16 @@ void cli_job_runs_read(const CliJobRunsRootCfg *args)
     unsigned int jobs = (listed <= CLI_LINE_JOBS) ? listed : CLI_LINE_JOBS;
     // the jobs' order and their passes, cells of the jobs listed taken anew for this read, none where the cells cannot
     // meet them
-    (void)g_cli_guard->movable_buf_release(store->order, g_cli_job_runs_owner);
-    (void)g_cli_guard->movable_buf_release(store->passes, g_cli_job_runs_owner);
-    store->order = (jobs != 0u) ? g_cli_guard->movable_buf_alloc((unsigned long long)jobs * sizeof(unsigned int),
-                                                                 g_cli_job_runs_owner)
+    (void)g_platform_guard->movable_buf_release(store->order, g_cli_job_runs_owner);
+    (void)g_platform_guard->movable_buf_release(store->passes, g_cli_job_runs_owner);
+    store->order = (jobs != 0u) ? g_platform_guard->movable_buf_alloc((unsigned long long)jobs * sizeof(unsigned int),
+                                                                      g_cli_job_runs_owner)
                                 : NULL;
-    store->passes = (jobs != 0u) ? g_cli_guard->movable_buf_alloc(jobs, g_cli_job_runs_owner) : NULL;
+    store->passes = (jobs != 0u) ? g_platform_guard->movable_buf_alloc(jobs, g_cli_job_runs_owner) : NULL;
     if ((store->order == NULL) || (store->passes == NULL))
     {
-        (void)g_cli_guard->movable_buf_release(store->order, g_cli_job_runs_owner);
-        (void)g_cli_guard->movable_buf_release(store->passes, g_cli_job_runs_owner);
+        (void)g_platform_guard->movable_buf_release(store->order, g_cli_job_runs_owner);
+        (void)g_platform_guard->movable_buf_release(store->passes, g_cli_job_runs_owner);
         store->order = NULL;
         store->passes = NULL;
         jobs = 0u;
@@ -631,7 +631,7 @@ void cli_job_runs_read(const CliJobRunsRootCfg *args)
         CliJobRunsGroup one;
         while (group < store->groups)
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = g_cli_job_runs_store.group[group], .offset = 0ULL, .dst = &one, .bytes = sizeof(one)});
             if (cellul.eq(
                     &(CatenaFinitaCfg){.src = one.name, .other = catalog->job[job].group, .cap = CLI_NAME_MAX_LEN}))
@@ -656,7 +656,7 @@ void cli_job_runs_read(const CliJobRunsRootCfg *args)
             if (cellul.eq(
                     &(CatenaFinitaCfg){.src = catalog->job[member].group, .other = one.name, .cap = CLI_NAME_MAX_LEN}))
             {
-                (void)g_cli_guard->movable_buf_write(
+                (void)g_platform_guard->movable_buf_write(
                     &(CarcerMovableCfg){.cell = store->order,
                                         .offset = (unsigned long long)placed * sizeof(member),
                                         .src = &member,
@@ -668,7 +668,7 @@ void cli_job_runs_read(const CliJobRunsRootCfg *args)
         (void)EMBED_CALL(cli_job_runs_cells.group_write, CliJobRunsCellCfg, .at = store->groups, .group = &one);
         store->groups += 1u;
     }
-    g_cli_guard->persistent_buf_release(was, g_cli_job_runs_owner);
+    g_platform_guard->persistent_buf_release(was, g_cli_job_runs_owner);
     // the job chosen followed by its id, its form located where it is still listed, and each run's job found again
     const unsigned int chosen =
         ((store->chosen_id[0] != '\0') && (catalog != NULL))
@@ -684,12 +684,12 @@ void cli_job_runs_read(const CliJobRunsRootCfg *args)
     for (unsigned int at = 0u; at < store->runs; at += 1u)
     {
         CliJobRunsRun run;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = g_cli_job_runs_store.run[at], .offset = 0ULL, .dst = &run, .bytes = sizeof(run)});
         char id[CLI_PATH_MAX_LEN];
         const unsigned long long id_length =
             (run.job_id_length < CLI_PATH_MAX_LEN) ? run.job_id_length : CLI_PATH_MAX_LEN - 1ULL;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = run.job_id, .offset = 0ULL, .dst = id, .bytes = id_length});
         id[id_length] = '\0';
         run.job = (catalog != NULL)
@@ -709,7 +709,7 @@ int cli_job_runs_start(const CliJobRunsRunCfg *args)
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     unsigned long long run = 0ULL;
     CliValues *const values = (store->chosen != CLI_CATALOG_NONE)
-                                  ? g_cli_guard->temporary_buf_alloc(sizeof(CliValues), g_cli_job_runs_owner)
+                                  ? g_platform_guard->temporary_buf_alloc(sizeof(CliValues), g_cli_job_runs_owner)
                                   : NULL;
     if (values != NULL)
     {
@@ -719,7 +719,7 @@ int cli_job_runs_start(const CliJobRunsRunCfg *args)
         (values != NULL) && EMBED_CALL(cli_runner_err_msg.runs_start, CliRunnerErrMsgCfg, .err_msg = &err_msg,
                                        .root = args->root, .catalog = store->catalog, .job = store->chosen,
                                        .values = values, .sink = cli_job_runs_sink, .run_number_pointer = &run);
-    g_cli_guard->persistent_buf_release(values, g_cli_job_runs_owner);
+    g_platform_guard->persistent_buf_release(values, g_cli_job_runs_owner);
     if (started)
     {
         store->displayed = run;
@@ -750,7 +750,7 @@ int cli_job_runs_live(const CliJobRunsRunCfg *args)
         return 0;
     }
     int live = 0;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = store->run[place], .offset = offsetof(CliJobRunsRun, live), .dst = &live, .bytes = sizeof(live)});
     return live;
 }
@@ -786,7 +786,7 @@ void cli_job_runs_end(const CliJobRunsWokenCfg *args)
         {
             break;
         }
-        g_cli_guard->persistent_buf_release(text, g_cli_job_runs_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_job_runs_owner);
     }
     while (store->runs != 0u)
     {
@@ -794,16 +794,16 @@ void cli_job_runs_end(const CliJobRunsWokenCfg *args)
     }
     if (store->own.cells != NULL)
     {
-        g_cli_guard->persistent_buf_release(store->own.job, store->own.cells);
+        g_platform_guard->persistent_buf_release(store->own.job, store->own.cells);
     }
     EMBED_CALL(groups_released, JobRunsCtx, .at = 0u);
-    (void)g_cli_guard->movable_buf_release(store->order, g_cli_job_runs_owner);
-    (void)g_cli_guard->movable_buf_release(store->passes, g_cli_job_runs_owner);
+    (void)g_platform_guard->movable_buf_release(store->order, g_cli_job_runs_owner);
+    (void)g_platform_guard->movable_buf_release(store->passes, g_cli_job_runs_owner);
     for (unsigned int at = 0u; at < CLI_JOB_RUNS_SECTIONS_MAX; at += 1u)
     {
-        (void)g_cli_guard->movable_buf_release(store->section[at], g_cli_job_runs_owner);
+        (void)g_platform_guard->movable_buf_release(store->section[at], g_cli_job_runs_owner);
     }
-    (void)g_cli_guard->movable_buf_release(store->form, g_cli_job_runs_owner);
+    (void)g_platform_guard->movable_buf_release(store->form, g_cli_job_runs_owner);
     EMBED_CALL(cli_typed.release, CliTypedCfg, .typed = &store->filter, .owner = g_cli_job_runs_owner);
     *store = (CliJobRunsStore){.chosen = CLI_CATALOG_NONE, .focus = CLI_JOB_RUNS_FILTER};
     s_woken = NULL;

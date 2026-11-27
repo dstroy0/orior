@@ -80,7 +80,7 @@ EMBED_INLINE void complete_catalog(const GradleCompleteCtx *args)
         EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)catalog, .size = read) &&
         EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases, CliVersionCatalogTextSizeAliasesCtx,
                    .text = (const char *)catalog, .size = read, .aliases = &aliases);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)catalog, g_cli_gradle_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)catalog, g_cli_gradle_owner);
     if (!whole)
     {
         return;
@@ -111,8 +111,8 @@ EMBED_INLINE void complete_catalog(const GradleCompleteCtx *args)
             }
         }
     }
-    g_cli_guard->persistent_buf_release(aliases.text, g_cli_versions_owner);
-    g_cli_guard->persistent_buf_release(aliases.alias, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(aliases.text, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(aliases.alias, g_cli_versions_owner);
     aliases.alias = NULL;
     aliases.text = NULL;
     aliases.count = 0u;
@@ -165,7 +165,7 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
         return;
     }
     // the bytes before the cursor classed in a cell of their own, given back once the last of them is read
-    unsigned char *const before = g_cli_guard->temporary_buf_alloc(args->at + 1ULL, g_cli_gradle_owner);
+    unsigned char *const before = g_platform_guard->temporary_buf_alloc(args->at + 1ULL, g_cli_gradle_owner);
     if (before == NULL)
     {
         return;
@@ -173,7 +173,7 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
     EMBED_CALL(cli_gradle_text_size_class_of_internal.classes, CliGradleTextSizeClassOfCtx, .text = text,
                .size = args->at, .class_of = before);
     const int open = (args->at > 0u) && (before[args->at - 1u] != CLI_GRADLE_CODE) && (text[args->at - 1u] != '\n');
-    g_cli_guard->persistent_buf_release(before, g_cli_gradle_owner);
+    g_platform_guard->persistent_buf_release(before, g_cli_gradle_owner);
     const unsigned long long token = EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg, .text = text,
                                                 .at = args->at, .of = complete_chain_character);
     const char *const dot =
@@ -234,7 +234,8 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
         unsigned long long count =
             1ULL + EMBED_CALL(cli_text_size_byte.count, CliTextSizeByteCfg, .text = text, .size = size, .byte = '\n');
         count = (count < CLI_GRADLE_LINES) ? count : CLI_GRADLE_LINES;
-        unsigned int *const starts = g_cli_guard->temporary_buf_alloc(count * sizeof(unsigned int), g_cli_gradle_owner);
+        unsigned int *const starts =
+            g_platform_guard->temporary_buf_alloc(count * sizeof(unsigned int), g_cli_gradle_owner);
         if (starts != NULL)
         {
             CliBuildLines lines;
@@ -244,7 +245,7 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
             EMBED_CALL(cli_gradle_lines_internal.declare, CliGradleLinesCtx, .lines = &lines);
             EMBED_CALL(complete_declare, GradleCompleteCtx, .items = items);
         }
-        g_cli_guard->persistent_buf_release(starts, g_cli_gradle_owner);
+        g_platform_guard->persistent_buf_release(starts, g_cli_gradle_owner);
     }
     else
     {
@@ -260,9 +261,9 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
                    .count = count, .type = "keyword", .detail = s_name);
     }
     CliGradleScript *const script = &g_cli_gradle;
-    g_cli_guard->persistent_buf_release(script->stray, g_cli_gradle_owner);
-    g_cli_guard->persistent_buf_release(script->block, g_cli_gradle_owner);
-    g_cli_guard->persistent_buf_release(script->class_of, g_cli_gradle_owner);
+    g_platform_guard->persistent_buf_release(script->stray, g_cli_gradle_owner);
+    g_platform_guard->persistent_buf_release(script->block, g_cli_gradle_owner);
+    g_platform_guard->persistent_buf_release(script->class_of, g_cli_gradle_owner);
     script->class_of = NULL;
     script->block = NULL;
     script->stray = NULL;

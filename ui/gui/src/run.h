@@ -3,10 +3,10 @@
 // run.h: the Run tool's pane table, located in the panel at the work's foot, the rows the CLI's job runs list
 // (runs/job_runs.h): a group with its arrow and its count, a job with a dot while a run of it goes, under the job
 // chosen its file and about, a field a param, its key in signal where it is required and its default quieter, the
-// choices of the param focused each with its box, a run a row in its state's color, and the lines of the run displayed in
-// the code face in their stream's color and their spans' colors, its end last. Over the rows the pane's head: the
-// filter's field, Start and Stop, Stop quieter while no run displayed goes, and the refusal of the last start under them
-// (run.c)
+// choices of the param focused each with its box, a run a row in its state's color, and the lines of the run displayed
+// in the code face in their stream's color and their spans' colors, its end last. Over the rows the pane's head: the
+// filter's field, Start and Stop, Stop quieter while no run displayed goes, and the refusal of the last start under
+// them (run.c)
 #ifndef GUI_WINDOW_RUN_H
 #define GUI_WINDOW_RUN_H
 #include "pane.h"

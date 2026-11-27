@@ -4,7 +4,7 @@
 #ifndef NOISE_DETECTOR_INTERNAL_H
 #define NOISE_DETECTOR_INTERNAL_H
 
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "noise_detector.h"
 
 #include "../../../../../includes/exact_types/integers/exact_integer.h"

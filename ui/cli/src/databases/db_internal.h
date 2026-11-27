@@ -60,7 +60,7 @@ enum
 // is
 typedef struct
 {
-    CliSpawned child;
+    PlatformProgram child;
     unsigned int port;
     int open;
 } CliDbTunnel;
@@ -71,7 +71,7 @@ typedef struct
 // the PATH its process runs with
 typedef struct
 {
-    CliSpawned child;
+    PlatformProgram child;
     unsigned char in[CLI_DB_LITE_READ];
     unsigned long long start;
     unsigned long long end;

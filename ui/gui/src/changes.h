@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // changes.h: the Commit tool's side pane table, the Changes: a row each file that differs from the last commit, read
 // where the git module lists them (code/git.h), a box lit while the next commit takes the file, the file's mark, its
-// name in its state's color, its folder quieter after it and its state's character at the right; a row pressed on its box
-// leaves the file out or takes it again, pressed on its arrow opens the file's changes under it, a row each change
+// name in its state's color, its folder quieter after it and its state's character at the right; a row pressed on its
+// box leaves the file out or takes it again, pressed on its arrow opens the file's changes under it, a row each change
 // with the lines it covers and a row each line of it with its sign, each with a box of its own, so that the next
 // commit takes the file in part, and pressed elsewhere opens the file. Over the rows the pane's head: the bar, the
 // tree read again, the files taken rolled back on a second press, the branch pulled and pushed with how many commits
@@ -16,9 +16,9 @@
 
 typedef struct GuiChangesFileCfg GuiChangesFileCfg;
 
-// the sizes in the page's pixels: the gap before the state character, the state character's text size, the taken box's side
-// and its corners' radius, the gap after it, the bar's tool side, its icon's side, the gap between tools, the width of
-// a count after a tool and its text size, the taken count's text size, and the refusal's row and its text size
+// the sizes in the page's pixels: the gap before the state character, the state character's text size, the taken box's
+// side and its corners' radius, the gap after it, the bar's tool side, its icon's side, the gap between tools, the
+// width of a count after a tool and its text size, the taken count's text size, and the refusal's row and its text size
 #define GUI_CHANGES_GAP 8
 #define GUI_CHANGES_STATE_SIZE 11u
 #define GUI_CHANGES_BOX 11
@@ -37,9 +37,9 @@ typedef struct GuiChangesFileCfg GuiChangesFileCfg;
 #define GUI_CHANGES_LINE_UNITS 256ULL
 #define GUI_CHANGES_LINE_BYTES 769u
 
-// the color of a `state` character: a changed file in the third mark's, one added or not yet tracked in the second's, one
-// gone in the first's, and any other in the text's quieter color; and a changed file drawn in the pane's row from x:
-// its state character at the row's right padding in the state's color, bold in the code face, and before it the file
+// the color of a `state` character: a changed file in the third mark's, one added or not yet tracked in the second's,
+// one gone in the first's, and any other in the text's quieter color; and a changed file drawn in the pane's row from
+// x: its state character at the row's right padding in the state's color, bold in the code face, and before it the file
 // through the explorer's file drawing, its name in `color` and its folder, `folder_length` bytes of `path`, quieter,
 // both cut before the character and to `clip`: the x after the name and folder
 GuiColor gui_changes_state_color(const GuiChangesFileCfg *args);

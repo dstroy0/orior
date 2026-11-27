@@ -8,7 +8,7 @@
 #include "../../../../../../../src/cu/engine/engine.h"
 #include "../../../../../../../src/cu/engine/nbody/max_tree/max_tree.h"
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include <cuda_runtime.h>
 

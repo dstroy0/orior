@@ -4,7 +4,7 @@
 // rounded up to the 2 MiB page once, and the negation and root tables rounded up to the page together. The test is
 // host arithmetic and touches no device.
 #include "../../../../../../../src/cu/engine/analysis/shift_agreement/shift_agreement.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include <stdio.h>
 

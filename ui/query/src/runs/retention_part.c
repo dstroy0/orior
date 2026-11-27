@@ -23,7 +23,7 @@ EMBED_INLINE int query_output_get(const RetentionPartCtx *args)
     const char *const *words = args->words;
     char *output = args->output;
     size_t capacity = args->capacity;
-    QueryProcess process;
+    PlatformProgram process;
     if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &process, .words = words,
                     .folder = NULL, .output = QUERY_OUTPUT_PIPED))
     {
@@ -61,7 +61,7 @@ int query_on_the_part(const QueryRetentionRootCtx *args)
     // the lines as the root is written, in a cell of their size: where it is refused the answer is that a program
     // is there, which saves a run from being taken for one the part has let go
     const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->apps, .cap = CLI_POOL_BYTES});
-    char *const plain = g_cli_guard->temporary_buf_alloc(size + 1u, g_query_owner);
+    char *const plain = g_platform_guard->temporary_buf_alloc(size + 1u, g_query_owner);
     if (plain == NULL)
     {
         return 1;
@@ -71,7 +71,7 @@ int query_on_the_part(const QueryRetentionRootCtx *args)
     EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = plain, .size = size);
     const int there =
         cellul.find(&(CatenaFinitaCfg){.src = plain, .cap = size + 1u, .other = top, .other_cap = sizeof(top)}) != NULL;
-    g_cli_guard->persistent_buf_release(plain, g_query_owner);
+    g_platform_guard->persistent_buf_release(plain, g_query_owner);
     return there;
 }
 
@@ -281,8 +281,8 @@ void query_crystals(const QueryRetentionContextOwnCtx *args)
             EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = text);
         }
     }
-    g_cli_guard->persistent_buf_release(list_entries.number, g_query_owner);
-    g_cli_guard->persistent_buf_release(list_entries.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(list_entries.number, g_query_owner);
+    g_platform_guard->persistent_buf_release(list_entries.path, g_query_owner);
     list_entries = (QueryRuns){NULL, NULL, 0u};
 }
 
@@ -322,7 +322,7 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "PATH",
                .value = context->programs->run_path(context->programs->context));
     const char *const engine_build[3] = {"bash", script, NULL};
-    QueryProcess built;
+    PlatformProgram built;
     if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &built, .words = engine_build,
                     .folder = NULL, .output = QUERY_OUTPUT_NONE) ||
         (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &built) != 0LL))
@@ -341,7 +341,7 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     // build looks at it, and the words name its lines
     static char *s_objects_text;
     static const char *s_objects[QUERY_WORDS_MAX];
-    g_cli_guard->persistent_buf_release(s_objects_text, g_query_owner);
+    g_platform_guard->persistent_buf_release(s_objects_text, g_query_owner);
     s_objects_text = NULL;
     const unsigned int objects =
         EMBED_CALL(query_engine_objects, QueryNvccCtx, .engine = engine, .objects = s_objects, .text = &s_objects_text);
@@ -392,7 +392,7 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
                .word_text = source);
     EMBED_CALL(query_engine_link, QueryNvccCtx, .words = &s_words, .engine = engine, .objects = s_objects,
                .count = objects);
-    QueryProcess linked;
+    PlatformProgram linked;
     if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &linked,
                     .words = s_words.word_text, .folder = NULL, .output = QUERY_OUTPUT_NONE) ||
         (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &linked) != 0LL))

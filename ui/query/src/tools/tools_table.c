@@ -8,7 +8,8 @@
 
 // the sources of the file definitions, which every program of a run links (includes/file_defs)
 const char *const g_query_file_defs[] = {"includes/file_defs/qry/writer/qry_member.c",
-                                         "includes/file_defs/qry/writer/platform/*.c",
+                                         "includes/platform/windows/windows_qry_run.c",
+                                         "includes/platform/posix/posix_qry_run.c",
                                          "includes/parsers/line_read.c",
                                          "includes/file_defs/qry/qry_read.c",
                                          "includes/parsers/who.c",
@@ -30,7 +31,7 @@ const char *const g_query_mmgr[] = {
     "includes/mmgr/src/fractio/*.c",
     // the cellblock through the platform's unit, which leaves out the weak table of no owners (platform_carcer.c)
     "includes/mmgr/src/impensa_ancorae_acus/impensa_ancorae_acus.c",
-    "includes/mmgr/src/impensa_ancorae_acus/impensa_ancorae_acus_generic.c", "src/platform/platform_carcer.c",
+    "includes/mmgr/src/impensa_ancorae_acus/impensa_ancorae_acus_generic.c", "includes/platform/platform_carcer.c",
     "includes/mmgr/src/memoria_anularis/*.c", "includes/mmgr/src/memoria_externa/*.c",
     "includes/mmgr/src/memoria_operor/*.c", "includes/mmgr/src/memoria_vector/*.c",
     "includes/mmgr/src/memoriam_praetereo/*.c", "includes/mmgr/src/numeros_scribo/*.c",
@@ -40,8 +41,10 @@ const char *const g_query_mmgr[] = {
     // the platform: main and the process stage, the pool, and the calls into the system. It defines the host's
     // address wait, wake and clock, which the turnstiles of LocusCarcerum sleep, wake and stamp through. Every program
     // defines program_main and no main
-    "src/platform/platform_process.c", "src/platform/platform_pool.c", "src/platform/platform_file.c",
-    "src/platform/platform_windows.c", "src/platform/platform_posix.c", NULL};
+    "includes/platform/platform_process.c", "includes/platform/platform_pool.c", "includes/platform/platform_file.c",
+    "includes/platform/windows/platform_windows.c", "includes/platform/posix/platform_posix.c",
+    "includes/platform/posix/linux/platform_linux.c", "includes/platform/posix/macos/platform_macos.c",
+    "includes/platform/platform_shared.c", NULL};
 
 // MMgr's include folders, from the top of the tree, and the settings its build takes, given every compile
 const char *const g_query_mmgr_includes[] = {"includes/mmgr/include", "includes/mmgr/src",
@@ -56,8 +59,14 @@ const char *const g_query_file_defs_headers[] = {"includes/file_defs", "includes
 
 // the interface every program that starts a probe links
 static const char *const s_interface[] = {"src/cu/transpiler/lstar/interface/interface.c",
-                                          "src/cu/transpiler/lstar/interface/platform/*.c",
-                                          "src/cu/transpiler/lstar/interface/interface_names.c", NULL};
+                                          "includes/platform/windows/windows_probe.c",
+                                          "includes/platform/posix/posix_probe.c",
+                                          "includes/platform/windows/platform_windows_programs.c",
+                                          "includes/platform/posix/platform_posix_programs.c",
+                                          "includes/platform/posix/linux/platform_linux_programs.c",
+                                          "includes/platform/posix/macos/platform_macos_programs.c",
+                                          "src/cu/transpiler/lstar/interface/interface_names.c",
+                                          NULL};
 
 // the code generator, compiled as C++, and the sources every reader of it skips
 static const char *const s_codegen[] = {"src/cu/engine/rmc/*.cu", "includes/parsers/*.cu",
@@ -88,13 +97,11 @@ static const char *const s_bus_clock[] = {"src/cu/transpiler/vendor_bin_layouts/
 static const char *const s_bus_clock_headers[] = {"src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding",
                                                   "src/cu/transpiler/lstar/protocol/query", NULL};
 
-static const char *const s_qry_writer[] = {"includes/file_defs/qry/qry_writer.c",
-                                           "includes/file_defs/qry/writer/*.c",
-                                           "includes/file_defs/qry/writer/platform/*.c",
-                                           "includes/file_defs/qry/qry_read.c",
-                                           "includes/file_defs/ksg/ksg_seal.c",
-                                           "includes/file_defs/ksg/ksg_writing.c",
-                                           NULL};
+static const char *const s_qry_writer[] = {
+    "includes/file_defs/qry/qry_writer.c",         "includes/file_defs/qry/writer/*.c",
+    "includes/platform/windows/windows_qry_run.c", "includes/platform/posix/posix_qry_run.c",
+    "includes/file_defs/qry/qry_read.c",           "includes/file_defs/ksg/ksg_seal.c",
+    "includes/file_defs/ksg/ksg_writing.c",        NULL};
 
 static const char *const s_protocol[] = {"src/cu/transpiler/lstar/protocol", NULL};
 
@@ -164,9 +171,9 @@ static const char *const s_rmc[] = {"src/cu/engine/rmc", NULL};
 static const char *const s_gsm_write[] = {"includes/file_defs/gsm/gsm_write.c",
                                           "includes/file_defs/vendor_writer_run.c", NULL};
 
-static const char *const s_member_c[] = {"includes/file_defs/qry/writer/qry_member.c",
-                                         "includes/file_defs/qry/writer/platform/*.c",
-                                         "includes/file_defs/qry/qry_read.c", NULL};
+static const char *const s_member_c[] = {
+    "includes/file_defs/qry/writer/qry_member.c", "includes/platform/windows/windows_qry_run.c",
+    "includes/platform/posix/posix_qry_run.c", "includes/file_defs/qry/qry_read.c", NULL};
 
 // the regular expressions the table's tools read their texts by (table_regexp.h)
 static const char *const s_regexp_c[] = {"includes/regexp/*.c",

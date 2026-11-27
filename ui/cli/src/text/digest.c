@@ -116,7 +116,8 @@ void cli_sha256_alloc(const CliDigestShaCfg *args)
     {
         const unsigned long long room = 64ULL - args->sha->buffered;
         const unsigned long long piece = ((args->size - at) < room) ? (args->size - at) : room;
-        memor.cpy(&(MemoriaCfg){.dst = args->sha->block + args->sha->buffered, .src = from + at, .bytes = (embed_word)piece});
+        memor.cpy(
+            &(MemoriaCfg){.dst = args->sha->block + args->sha->buffered, .src = from + at, .bytes = (embed_word)piece});
         // the piece is at max the room in a block of 64 bytes, which the count's width holds
         args->sha->buffered += (unsigned int)piece;
         at += piece;

@@ -1,6 +1,6 @@
 
 // test_adversarial_joint.c: trichotomy and joint symbols
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "test_adversarial_internal.h"
 

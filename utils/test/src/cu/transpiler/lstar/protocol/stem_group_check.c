@@ -10,7 +10,7 @@
 //   drawn sets    members drawn around a few centers, with drawn floors and drawn refusals. Every member agrees
 //                 with its anchor, no two anchors agree, and the grouping is the same under every shuffle tried
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/order/stem_group.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include <stdio.h>
 

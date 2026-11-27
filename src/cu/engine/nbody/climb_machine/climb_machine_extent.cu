@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_extent.cu: the extent
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "climb_machine_internal.h"
 
 __global__ static void machine_extent_kernel(const unsigned int *run_start, const unsigned int *run_length,

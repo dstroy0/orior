@@ -3,7 +3,7 @@
 // ksg_writing.c: a file written whole and sealed as it is written, as ksg_writing.h specifies, through the run writer's
 // file calls, which make each file durable and put it in its place
 #include "ksg_writing.h"
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 

@@ -73,8 +73,8 @@ static void reach_entry_add(const ReachCtx *args)
     if (args->read->count == args->read->capacity)
     {
         const unsigned int capacity = (args->read->capacity != 0u) ? args->read->capacity * 2u : 4u;
-        const CarcerMovableEntry *const grown =
-            g_cli_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(CliReachEntry), g_cli_machine_owner);
+        const CarcerMovableEntry *const grown = g_platform_guard->movable_buf_alloc(
+            (unsigned long long)capacity * sizeof(CliReachEntry), g_cli_machine_owner);
         if (grown == NULL)
         {
             return;
@@ -83,21 +83,21 @@ static void reach_entry_add(const ReachCtx *args)
         {
             CliReachEntry one;
             memor.set(&(MemoriaCfg){.dst = &one, .val = 0, .bytes = sizeof(one)});
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->read->entries,
-                                                                    .offset = (embed_word)at * sizeof(one),
-                                                                    .dst = &one,
-                                                                    .bytes = sizeof(one)});
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->read->entries,
+                                                                         .offset = (embed_word)at * sizeof(one),
+                                                                         .dst = &one,
+                                                                         .bytes = sizeof(one)});
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = grown, .offset = (embed_word)at * sizeof(one), .src = &one, .bytes = sizeof(one)});
         }
         if (args->read->entries != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(args->read->entries, g_cli_machine_owner);
+            (void)g_platform_guard->movable_buf_release(args->read->entries, g_cli_machine_owner);
         }
         args->read->entries = grown;
         args->read->capacity = capacity;
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = args->read->entries,
                             .offset = (embed_word)args->read->count * sizeof(*args->entry),
                             .src = args->entry,
@@ -236,7 +236,7 @@ static void reach_entry(const CliEachNameIsFolderCfg *args)
             EMBED_CALL(reach_entry_add, ReachCtx, .read = read, .entry = one);
         }
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_machine_owner);
 }
 
 // whether two paths name one place, as their parts compare, a separator at the end aside
@@ -356,10 +356,10 @@ int cli_reach_request_in(const CliReachMenuCfg *args)
     {
         CliReachEntry read_entry;
         memor.set(&(MemoriaCfg){.dst = &read_entry, .val = 0, .bytes = sizeof(read_entry)});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = read.entries,
-                                                                .offset = (embed_word)at * sizeof(read_entry),
-                                                                .dst = &read_entry,
-                                                                .bytes = sizeof(read_entry)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = read.entries,
+                                                                     .offset = (embed_word)at * sizeof(read_entry),
+                                                                     .dst = &read_entry,
+                                                                     .bytes = sizeof(read_entry)});
         const CliReachEntry *const entry = &read_entry;
         // a command for a tree goes to the windows open on it; with no tree named, to the one window where there is
         // only one
@@ -390,7 +390,7 @@ int cli_reach_request_in(const CliReachMenuCfg *args)
     }
     if (read.entries != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(read.entries, g_cli_machine_owner);
+        (void)g_platform_guard->movable_buf_release(read.entries, g_cli_machine_owner);
     }
     return answered;
 }

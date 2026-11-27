@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // accumulated.c: every piece of the cross's work read as one raw run at one start of the vendor, a piece it stops at
 // set aside, and the listing cut into each piece's reading
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "msq_internal.h"
 

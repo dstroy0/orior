@@ -16,7 +16,7 @@ typedef struct
 {
     int reserved;
     CliJsonSink sink;
-    CliSpawned spawned;
+    PlatformProgram spawned;
     int running;
     unsigned int going;
     int has_code;
@@ -73,7 +73,7 @@ void cli_profile_stop(void)
 EMBED_INLINE void profile_output_emit(const ProfileCtx *args)
 {
     const unsigned long long capacity = (args->size * 6ULL) + 64ULL;
-    char *const json_buf = g_cli_guard->temporary_buf_alloc(capacity, g_cli_profile_owner);
+    char *const json_buf = g_platform_guard->temporary_buf_alloc(capacity, g_cli_profile_owner);
     if (json_buf == NULL)
     {
         return;
@@ -88,7 +88,7 @@ EMBED_INLINE void profile_output_emit(const ProfileCtx *args)
         EMBED_CALL(args->profile->sink.emit, CliEachJsonSizeCfg, .context = args->profile->sink.context,
                    .json = out.out, .size = out.at);
     }
-    g_cli_guard->persistent_buf_release(json_buf, g_cli_profile_owner);
+    g_platform_guard->persistent_buf_release(json_buf, g_cli_profile_owner);
 }
 
 // a line of the program's output received: the counts so far where it starts with the mark, the code the program ended
@@ -108,7 +108,7 @@ static void profile_line(const CliProfileLineSizeCfg *args)
     const unsigned long long length = size - mark;
     // the counts compacted are no longer than they are written
     const unsigned long long capacity = length + 64ULL;
-    char *const json_buf = g_cli_guard->temporary_buf_alloc(capacity, g_cli_profile_owner);
+    char *const json_buf = g_platform_guard->temporary_buf_alloc(capacity, g_cli_profile_owner);
     if (json_buf == NULL)
     {
         return;
@@ -149,14 +149,14 @@ static void profile_line(const CliProfileLineSizeCfg *args)
         EMBED_CALL(profile->sink.emit, CliEachJsonSizeCfg, .context = profile->sink.context, .json = out.out,
                    .size = out.at);
     }
-    g_cli_guard->persistent_buf_release(json_buf, g_cli_profile_owner);
+    g_platform_guard->persistent_buf_release(json_buf, g_cli_profile_owner);
 }
 
 // the lines of a pipe read until it ends, each in one cell of CLI_PROFILE_LINE, passed on with its "\r" before "\n"
 // taken off, a longer line passed on in pieces of that length
 static void profile_lines(const ProfileCtx *args)
 {
-    char *const line = g_cli_guard->temporary_buf_alloc(CLI_PROFILE_LINE, g_cli_profile_owner);
+    char *const line = g_platform_guard->temporary_buf_alloc(CLI_PROFILE_LINE, g_cli_profile_owner);
     const unsigned long long capacity = (line != NULL) ? CLI_PROFILE_LINE : 0ULL;
     unsigned long long used = 0ULL;
     char piece[4096];
@@ -199,7 +199,7 @@ static void profile_lines(const ProfileCtx *args)
     {
         EMBED_CALL(args->each_line, CliProfileLineSizeCfg, .profile = args->profile, .line = line, .size = used);
     }
-    g_cli_guard->persistent_buf_release(line, g_cli_profile_owner);
+    g_platform_guard->persistent_buf_release(line, g_cli_profile_owner);
 }
 
 // a line the program wrote to its errors reported as output
@@ -356,13 +356,13 @@ int cli_profile_start(const CliProfileCfg *args)
     CliProfile *const profile = EMBED_CALL(profile_alloc, ProfileCtx, .sink = args->sink);
     // the words the program is started with, and the PATH a program here runs with, as long as the system lets an
     // environment's value be: cells of this call, given back once the program is started
-    CliWords *const words = g_cli_guard->temporary_buf_alloc(sizeof(*words), g_cli_profile_owner);
+    CliWords *const words = g_platform_guard->temporary_buf_alloc(sizeof(*words), g_cli_profile_owner);
     char *const path =
-        ((words != NULL) && !far) ? g_cli_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_profile_owner) : NULL;
+        ((words != NULL) && !far) ? g_platform_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_profile_owner) : NULL;
     if ((words == NULL) || (!far && (path == NULL)))
     {
-        g_cli_guard->persistent_buf_release(path, g_cli_profile_owner);
-        g_cli_guard->persistent_buf_release(words, g_cli_profile_owner);
+        g_platform_guard->persistent_buf_release(path, g_cli_profile_owner);
+        g_platform_guard->persistent_buf_release(words, g_cli_profile_owner);
         EMBED_CALL(profile_let_go, ProfileCtx, .profile = profile);
         mmgr_line_put(args->err_msg, "the cells a profile is run in could not be taken");
         return 0;
@@ -374,7 +374,7 @@ int cli_profile_start(const CliProfileCfg *args)
     char shell[CLI_PATH_MAX_LEN * 3u];
     char full[CLI_PATH_MAX_LEN];
     unsigned int settings_count = 1u;
-    CliSetting settings[2] = {{"PYTHONUNBUFFERED", "1"}, {"PATH", path}};
+    PlatformSetting settings[2] = {{"PYTHONUNBUFFERED", "1"}, {"PATH", path}};
     if (far)
     {
         VerbaLinea host_line = {host, sizeof(host), 0ULL};
@@ -409,8 +409,8 @@ int cli_profile_start(const CliProfileCfg *args)
         EMBED_CALL(cli_words_err_msg_internal.spawn_feed, CliWordsErrMsgCtx, .spawned = &profile->spawned,
                    .words = words->word_text, .folder = far ? NULL : args->root, .settings = settings,
                    .count = settings_count, .detached = 1, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release(path, g_cli_profile_owner);
-    g_cli_guard->persistent_buf_release(words, g_cli_profile_owner);
+    g_platform_guard->persistent_buf_release(path, g_cli_profile_owner);
+    g_platform_guard->persistent_buf_release(words, g_cli_profile_owner);
     if (!started)
     {
         EMBED_CALL(profile_let_go, ProfileCtx, .profile = profile);

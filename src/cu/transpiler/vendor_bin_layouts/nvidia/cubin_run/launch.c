@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // launch.c: the launch: the host's clock and its turn given up, the launch bounded and timed, the answers read, the
 // container out, and a dry run written
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "cubin_run_internal.h"
 #include "memoria_operor/memoria_operor.h"
@@ -28,11 +28,7 @@ unsigned long long cubin_run_host_now(void)
 // the host's turn given up while the part runs, so that reading the stop event does not occupy the processor
 static void cubin_run_host_yield(void)
 {
-#if defined(_WIN32)
-    Sleep(0);
-#else
-    sched_yield();
-#endif
+    platform_paused(0ULL);
 }
 
 // 1 where the last launch broke cubin_safe's rule 7: the process launches nothing after it and leaves what the launch

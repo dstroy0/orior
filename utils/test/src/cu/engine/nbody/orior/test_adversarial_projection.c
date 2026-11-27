@@ -1,7 +1,7 @@
 
 // test_adversarial_projection.c: the joint projection and main
 #include "test_adversarial_internal.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 /**
  * @brief Case 13. A corpus and needle projected apart lose true occurrences; projected together

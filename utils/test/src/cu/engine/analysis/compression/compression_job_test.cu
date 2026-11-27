@@ -5,7 +5,7 @@
 // (compression_decode_job) must give back the values that went in. The counts go below one chunk, across several
 // chunks with a part chunk at the end, and with values large enough to escape. A count of 0 must error both ways
 #include "../../../../../../../src/cu/engine/analysis/compression/compression.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include <cuda_runtime.h>
 

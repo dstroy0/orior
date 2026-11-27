@@ -274,7 +274,7 @@ EMBED_INLINE int serve_may_join(const InterfaceServeCtx *args)
         args->joined->has_peer && ((args->joined->peer == supplied) ||
                                    EMBED_CALL(cli_container_root_id.under, CliContainerRootIdCfg, .root = supplied,
                                               .id = args->joined->peer, .parents = parents, .count = count));
-    g_cli_guard->persistent_buf_release(parents, g_cli_ipc_owner);
+    g_platform_guard->persistent_buf_release(parents, g_cli_ipc_owner);
     if (!under)
     {
         mmgr_line_put(&err_msg, "the key of ");

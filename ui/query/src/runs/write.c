@@ -277,8 +277,8 @@ EMBED_INLINE int query_bare_names(const WriteCtx *args)
     return 1;
 }
 
-// whether the `named` names in `names` make a query: two or three, each with characters and no `/`, `\` or `.`, and three
-// for a `dry` one
+// whether the `named` names in `names` make a query: two or three, each with characters and no `/`, `\` or `.`, and
+// three for a `dry` one
 EMBED_INLINE int query_names_usable(const WriteCtx *args)
 {
     const unsigned int named = *args->named;
@@ -360,7 +360,8 @@ int query_query_words(const QueryLoopsErrMsgContextWordsCfg *args)
                                           .names = args->names_characters, .named = named)
                              : EMBED_CALL(query_bare_names, WriteCtx, .plain = plain, .plains = plains,
                                           .names = args->names_characters, .named = named);
-    if (!read || !EMBED_CALL(query_names_usable, WriteCtx, .names = args->names_characters, .named = named, .dry = *dry))
+    if (!read ||
+        !EMBED_CALL(query_names_usable, WriteCtx, .names = args->names_characters, .named = named, .dry = *dry))
     {
         mmgr_line_put(args->err_msg, s_usage);
         return 0;

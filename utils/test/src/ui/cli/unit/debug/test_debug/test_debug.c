@@ -31,8 +31,8 @@ static unsigned int step_tree_read(const char *text)
 {
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    g_cli_guard->persistent_buf_release(s_step_tree.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_step_tree.node));
+    g_platform_guard->persistent_buf_release(s_step_tree.node,
+                                        mmgr_owner_of_buf(platform_pool_series(), s_step_tree.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_step_tree),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_step_tree,
@@ -101,7 +101,7 @@ static void processes_run_result(void)
 #else
     const char *const words[3] = {"sleep", "3", NULL};
 #endif
-    CliSpawned child;
+    PlatformProgram child;
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     if (s_processes_run_result)
@@ -149,7 +149,7 @@ static CliDebugSession *position_planned(void)
     TEST_ASSERT_NOT_NULL(place);
     for (long long number = 0ll; number < 100ll; number += 1ll)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = place->positioned_cell,
                                 .offset = (unsigned long long)place->positioned_count * sizeof(number),
                                 .src = &number,
@@ -442,7 +442,7 @@ void test_a_positions_breakpoints_are_in_one_cell_of_the_max_it_accepts(void)
     TEST_ASSERT_EQUAL_UINT(100u, place->positioned_count);
     TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_POSITIONED, place->positioned_capacity);
     long long placed = 0ll;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = place->positioned_cell, .offset = 99ull * sizeof(placed), .dst = &placed, .bytes = sizeof(placed)});
     TEST_ASSERT_EQUAL_INT64(99ll, placed);
     position_freed(place);
@@ -474,7 +474,7 @@ void test_c_rust_and_python_each_have_a_debugger(void)
     const int c_debugger = tool_has(&json, manifest, "c", NULL);
     const int rust_debugger = tool_has(&json, manifest, "rust", NULL);
     const int python_debugger = tool_has(&json, manifest, "python", NULL);
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_TRUE(c_debugger);
@@ -490,7 +490,7 @@ void test_c_and_rust_have_a_build_and_python_does_not(void)
     const int c_build = tool_has(&json, manifest, NULL, "c.c");
     const int rust_build = tool_has(&json, manifest, NULL, "rust");
     const int python_build = tool_has(&json, manifest, NULL, "python");
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_TRUE(c_build);

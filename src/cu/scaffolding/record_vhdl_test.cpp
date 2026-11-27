@@ -19,7 +19,7 @@
 // Last, the test reads what each job gave, in the order of the programs, and makes its checks.
 #include "../../../includes/file_defs/krep/krep.h"
 #include "../../../utils/test/src/cu/engine/analysis/cycle/record_image.h"
-#include "../../platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

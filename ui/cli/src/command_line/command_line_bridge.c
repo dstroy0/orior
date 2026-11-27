@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // command_line_bridge.c: the bridge at the command line: its keys listed, each with how many pairs it has and how many
-// of them are open and closed, those that contain a word where one is given; and one key displayed whole, its pairs with
-// their verdicts and notes, the name each .klm gives it, and each ruleset's entries of it, every line with the file and
-// line it is read from
+// of them are open and closed, those that contain a word where one is given; and one key displayed whole, its pairs
+// with their verdicts and notes, the name each .klm gives it, and each ruleset's entries of it, every line with the
+// file and line it is read from
 #include "../editor/bridge.h"
 #include "../text/text.h"
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
@@ -396,7 +396,7 @@ EMBED_INLINE int bridge_words(const CommandLineBridgeCtx *args)
 
 int cli_bridge_words(const CliCommandLineWordCtx *args)
 {
-    s_work_state = g_cli_guard->temporary_buf_alloc(sizeof(*s_work_state), g_cli_command_line_owner);
+    s_work_state = g_platform_guard->temporary_buf_alloc(sizeof(*s_work_state), g_cli_command_line_owner);
     if (s_work_state == NULL)
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
@@ -404,11 +404,11 @@ int cli_bridge_words(const CliCommandLineWordCtx *args)
         return CLI_NO_CODE;
     }
     const int code = EMBED_CALL(bridge_words, CommandLineBridgeCtx, .root = args->root, .word_text = args->word_text);
-    g_cli_guard->persistent_buf_release(s_work_state->json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_work_state->json.node));
+    g_platform_guard->persistent_buf_release(s_work_state->json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_work_state->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_work_state->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(s_work_state, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(s_work_state, g_cli_command_line_owner);
     s_work_state = NULL;
     return code;
 }

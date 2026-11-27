@@ -36,7 +36,7 @@ typedef struct
 
 // A cell of `bytes` for work given back within its call, from the temporary tier, or NULL where the cellblock cannot
 // meet it. The files' report goes out where their mark rose a step past the last report. The caller gives the cell
-// back with g_cli_guard->persistent_buf_release, and NULL gives back nothing.
+// back with g_platform_guard->persistent_buf_release, and NULL gives back nothing.
 //
 // A list made for work for `count` paths of `bytes` together, each bounded by the list's limits, and none for no
 // paths. Returns 1, or 0 where the cellblock cannot meet its cells and the list stays empty. A path put after the files

@@ -586,7 +586,7 @@ int cli_requests_from_curl(const CliRequestsCfg *args)
                .end = &end);
     const char *text = args->line_text + start;
     unsigned long long length = end - start;
-    s_curl = g_cli_guard->temporary_buf_alloc(sizeof(*s_curl), g_cli_requests_owner);
+    s_curl = g_platform_guard->temporary_buf_alloc(sizeof(*s_curl), g_cli_requests_owner);
     if (s_curl == NULL)
     {
         mmgr_line_put(args->err_msg, "a curl line's reading could not be taken");
@@ -638,7 +638,7 @@ int cli_requests_from_curl(const CliRequestsCfg *args)
     }
     // a request's headers may carry a secret, and the pool leaves a cell as it is
     mmgr_zero_buf(s_curl, sizeof(*s_curl));
-    g_cli_guard->persistent_buf_release(s_curl, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(s_curl, g_cli_requests_owner);
     s_curl = NULL;
     return read;
 }

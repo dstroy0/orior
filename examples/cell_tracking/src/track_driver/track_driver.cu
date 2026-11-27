@@ -27,7 +27,7 @@
 #include "../../../../src/cu/engine/analysis/tower/tower.h"
 #include "track.h"
 #include "../../../../src/cu/engine/nbody/velocity/velocity.h"
-#include "../../../../src/platform/platform.h"
+#include "../../../../includes/platform/platform.h"
 
 #include <cuda_runtime.h>
 

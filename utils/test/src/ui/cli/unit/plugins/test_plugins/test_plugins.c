@@ -528,7 +528,7 @@ void test_a_plugin_starts_from_another_larger_than_the_answers_own_tree(void)
     err_msg.at = 0ull;
     const int created = EMBED_CALL(cli_plugins_err_msg.create_in, CliPluginsErrMsgCfg, .dir = s_dir, .json = &tight,
                                    .spec = answers, .replace = 0, .folder = s_folder, .err_msg = &err_msg);
-    g_cli_guard->persistent_buf_release(tight.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), tight.node));
+    g_platform_guard->persistent_buf_release(tight.node, mmgr_owner_of_buf(platform_pool_series(), tight.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&tight),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     TEST_ASSERT_TRUE(created);
@@ -659,7 +659,7 @@ void test_a_draft_tree_is_sized_to_the_answers_and_holds_their_copy(void)
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &draft, .node = name,
                .out = &line, .indent = 0u, .sorted = 0);
     CLI_TEST_ASSERT_TEXT("\"Toy Lang\"", text, line.at);
-    g_cli_guard->persistent_buf_release(draft.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), draft.node));
+    g_platform_guard->persistent_buf_release(draft.node, mmgr_owner_of_buf(platform_pool_series(), draft.node));
 }
 
 void test_a_plugins_sample_tries_a_comment_a_keyword_a_type_and_a_constant(void)

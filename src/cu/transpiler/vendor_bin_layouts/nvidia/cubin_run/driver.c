@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // driver.c: the driver opened by name with every entry point taken, and the part's fault telemetry: the management
 // library and the system's event log opened, drained before a launch and read after it for a fault
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "cubin_run_internal.h"
@@ -354,7 +354,7 @@ int cubin_run_telemetry_faulted(CubinRunStatus status)
         {
             break;
         }
-        Sleep(25u);
+        platform_paused(25ULL);
     }
 #else
     (void)status;

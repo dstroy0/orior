@@ -7,8 +7,8 @@
 
 int cli_tex_white(const CliLatexCtx *args)
 {
-    return (args->character == ' ') || (args->character == '\t') || (args->character == '\n') || (args->character == '\r') ||
-           (args->character == '\f') || (args->character == '\v');
+    return (args->character == ' ') || (args->character == '\t') || (args->character == '\n') ||
+           (args->character == '\r') || (args->character == '\f') || (args->character == '\v');
 }
 
 int cli_tex_line(const CliLatexTextCtx *args)

@@ -3,7 +3,7 @@
 // queries.c: a query and a sample as the record stores them: an answer's name, a query's identity read, written, hashed
 // and stored, the slot of an identity, a query's and a sample's words, a row put with its who, the marks written, the
 // record opened, and the queries indexed
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "../../../parsers/who.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "kqr_internal.h"
@@ -194,8 +194,8 @@ unsigned int kqr_query_at(const KqrRecord *record, const KqrIdentity *identity)
     return KQR_QUERY_NONE;
 }
 
-// the query of `identity` at the record `at` noted: into the run, the run sorted once and merged into the order from
-// its end first where it is full. 1, or 0 where the record holds KQR_QUERIES_MAX queries
+// the query of `identity` at the record `at` noted into the run. Where the run is full, the call sorts it once and
+// merges it into the order from its end first. 1, or 0 where the record holds KQR_QUERIES_MAX queries
 int kqr_query_noted(KqrRecord *record, const KqrIdentity *identity, unsigned int at)
 {
     if ((record->ordered + record->run_count) >= KQR_QUERIES_MAX)

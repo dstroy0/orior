@@ -139,7 +139,7 @@ EMBED_INLINE void answer_variables(const RecordingAnswerCtx *args)
         mmgr_line_put(args->body, ",\"type\":\"\",\"variablesReference\":0}");
     }
     mmgr_line_put(args->body, "]}");
-    g_cli_guard->persistent_buf_release(values, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(values, g_cli_debug_owner);
 }
 
 // a name looked up in the frame, then in each module's frame located, one whose caller is none
@@ -184,11 +184,11 @@ EMBED_INLINE int answer_evaluate(const RecordingAnswerCtx *args)
                            .text_bytes = (const unsigned char *)values[at].value,
                            .length = cellul.len(&(CatenaFinitaCfg){.src = values[at].value, .cap = CLI_POOL_BYTES}));
                 mmgr_line_put(args->body, ",\"type\":\"\",\"variablesReference\":0}");
-                g_cli_guard->persistent_buf_release(values, g_cli_debug_owner);
+                g_platform_guard->persistent_buf_release(values, g_cli_debug_owner);
                 return 1;
             }
         }
-        g_cli_guard->persistent_buf_release(values, g_cli_debug_owner);
+        g_platform_guard->persistent_buf_release(values, g_cli_debug_owner);
     }
     mmgr_line_put(args->err_msg, "a recorded run reads the names its frames contained, and ");
     mmgr_line_put_n(args->err_msg, name, length);

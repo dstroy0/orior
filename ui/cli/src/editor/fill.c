@@ -162,7 +162,7 @@ void cli_fill_words(const CliFillFilledCtx *args)
                 EMBED_CALL(cli_fill_size_internal.filled_line, CliFillSizeCtx, .filled = args->filled,
                            .bytes = args->rest, .size = args->remainder_size);
                 characters = EMBED_CALL(cli_text_size_byte.characters, CliTextSizeByteCfg, .text = args->rest,
-                                     .size = args->remainder_size);
+                                        .size = args->remainder_size);
                 empty = 1;
             }
             if (!empty)

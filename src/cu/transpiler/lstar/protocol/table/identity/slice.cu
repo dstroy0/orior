@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // slice.cu: the slice: nvcc's writing of the stick cut into windows, each an identity at the address it occurs at, and
 // the chains written
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "identity_internal.h"
 
 // the names a window gives its registers, literals and targets: each key with its class and its count. The first keys

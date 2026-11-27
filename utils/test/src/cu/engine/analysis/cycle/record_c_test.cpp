@@ -13,7 +13,7 @@
 // the assembly printer's records and written by the host oracle (asm_printer.h), checked against the code generator's
 // text byte for byte.
 #include "../../../../../../../src/cu/engine/engine_note.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "asm_printer.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "code_generator.h"

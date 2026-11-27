@@ -3,7 +3,7 @@
 // accounts.c: the accounts: a conference named, an account written to the run, a located joined, a cause read, text
 // trimmed, an expert named, a clause read, and an account and the accounts read back
 #include "../../../../../../includes/parsers/who.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../table_text.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

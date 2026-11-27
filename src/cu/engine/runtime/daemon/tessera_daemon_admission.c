@@ -1,9 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_daemon_admission.c: frames, admission, the handler and the timer
-#include "../../../../platform/platform.h"
-#include "memoria_operor/memoria_operor.h"
+// the internal header comes first, since it sets the macros of the system before any header
 #include "tessera_daemon_internal.h"
+
+#include "../../../../../includes/platform/platform.h"
+#include "memoria_operor/memoria_operor.h"
 
 _Alignas(8) static const char s_daemon_precalc[] = "precalc saved\n";
 _Alignas(8) static const char s_daemon_reason_grace[] = "reserved past its grace time over its signum's last peak";

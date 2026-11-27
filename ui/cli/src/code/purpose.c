@@ -127,9 +127,9 @@ int cli_purpose_uses(const CliPurposeTextCfg *args)
         while (lead < length)
         {
             unsigned int character = 0u;
-            const unsigned long long step =
-                EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
-                           .text_bytes = (const unsigned char *)line, .length = length, .at = lead, .character = &character);
+            const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                                                       .text_bytes = (const unsigned char *)line, .length = length,
+                                                       .at = lead, .character = &character);
             if (!EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = character))
             {
                 break;

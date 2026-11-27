@@ -507,8 +507,9 @@ int cli_console_setting(const CliCommandLineWordsCountCtx *args)
             cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = g_cli_command_line_owner});
         // the text read out of the entries' cell into a cell of this call
         const unsigned long long size = cli_state_entry_size(&(CliStateEntryCfg){.entries = &entries, .key = key});
-        char *const located_text =
-            (size != CLI_STATE_NONE) ? g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_command_line_owner) : NULL;
+        char *const located_text = (size != CLI_STATE_NONE)
+                                       ? g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_command_line_owner)
+                                       : NULL;
         const char *const located =
             (located_text != NULL) ? cli_state_entry_value(&(CliStateEntryCfg){
                                          .entries = &entries, .key = key, .out = located_text, .capacity = size + 1ULL})
@@ -517,7 +518,7 @@ int cli_console_setting(const CliCommandLineWordsCountCtx *args)
         {
             EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = located);
         }
-        g_cli_guard->persistent_buf_release(located_text, g_cli_command_line_owner);
+        g_platform_guard->persistent_buf_release(located_text, g_cli_command_line_owner);
         cli_state_entries_release(&(CliStateEntriesCfg){.entries = &entries});
         return (located != NULL) ? 0 : CLI_WRONG;
     }

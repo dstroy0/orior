@@ -44,11 +44,11 @@ typedef struct
 // a search's toolchains and the PATH's folders given back, and the lock
 EMBED_INLINE void find_release(const DebugFindCtx *args)
 {
-    g_cli_guard->persistent_buf_release(args->manifest->node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), args->manifest->node));
+    g_platform_guard->persistent_buf_release(args->manifest->node,
+                                             mmgr_owner_of_buf(platform_pool_series(), args->manifest->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = args->manifest,
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(s_folders, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(s_folders, g_cli_debug_owner);
     s_folders = NULL;
 }
 
@@ -287,7 +287,7 @@ int cli_debug_build_program(const CliDebugErrMsgProgramCtx *args)
     }
     char path[CLI_PATH_TEXT];
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = path, .size = sizeof(path));
-    const CliSetting settings[1] = {{"PATH", path}};
+    const PlatformSetting settings[1] = {{"PATH", path}};
     const int meson = (cellul.eq(&(CatenaFinitaCfg){.src = args->made->tool, .other = "meson", .cap = CLI_POOL_BYTES}));
     const char *const meson_words[6] = {tool, "compile", "-C", args->made->build, args->made->target, NULL};
     const char *const cmake_words[9] = {
@@ -307,8 +307,8 @@ int cli_debug_build_program(const CliDebugErrMsgProgramCtx *args)
     if (run_result->code != 0LL)
     {
         // what the build wrote to its output, then to its errors, as one text, a cell of their size
-        char *const both =
-            g_cli_guard->temporary_buf_alloc(run_result->out_size + run_result->err_size + 1ULL, g_cli_debug_owner);
+        char *const both = g_platform_guard->temporary_buf_alloc(run_result->out_size + run_result->err_size + 1ULL,
+                                                                 g_cli_debug_owner);
         mmgr_line_put(args->err_msg, "The build of ");
         mmgr_line_put(args->err_msg, args->made->target);
         mmgr_line_put(args->err_msg, " failed");
@@ -321,7 +321,7 @@ int cli_debug_build_program(const CliDebugErrMsgProgramCtx *args)
             EMBED_CALL(find_tail, DebugFindCtx, .text = both, .size = run_result->out_size + run_result->err_size,
                        .out = args->err_msg);
         }
-        g_cli_guard->persistent_buf_release(both, g_cli_debug_owner);
+        g_platform_guard->persistent_buf_release(both, g_cli_debug_owner);
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
@@ -561,7 +561,7 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
     char run_path[CLI_PATH_TEXT];
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = run_path,
                .size = sizeof(run_path));
-    const CliSetting settings[1] = {{"PATH", run_path}};
+    const PlatformSetting settings[1] = {{"PATH", run_path}};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_buf = {why, sizeof(why), 0ULL};
     CliRunResult *const run_result = cli_run_result_alloc();

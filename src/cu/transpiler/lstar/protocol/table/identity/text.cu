@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // text.cu: the queue of the stick's manifest read against the record, and the text identity each side of a slice is put
 // through
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "identity_internal.h"
 
 // the next line of a file read in binary from `*at` into `line`, a carriage return at its end taken off

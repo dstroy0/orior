@@ -9,7 +9,7 @@
 #ifndef KLANG_H
 #define KLANG_H
 
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include <stddef.h>

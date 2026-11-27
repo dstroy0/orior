@@ -24,7 +24,7 @@ int cli_executables_program(const CliExecutablesToolCfg *args)
                    .id = args->tool, .err_msg = &unknown);
     if (one == CLI_JSON_NONE)
     {
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, "no toolchain ");
@@ -35,7 +35,7 @@ int cli_executables_program(const CliExecutablesToolCfg *args)
     char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, g_cli_executables_owner);
     EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = one,
                .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count, .found = &found_tool);
-    g_cli_guard->persistent_buf_release(folders, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(folders, g_cli_executables_owner);
     char folder[CLI_PATH_MAX_LEN];
     const char *const names[1] = {args->name};
     const int found = found_tool.has_program &&
@@ -54,7 +54,7 @@ int cli_executables_program(const CliExecutablesToolCfg *args)
         mmgr_line_put(err_msg,
                       " builds it, and is not found: File, Toolchains opens its install page or takes its folder");
     }
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return found;
@@ -164,7 +164,7 @@ EMBED_INLINE int cli_cargo_target(const ExecutablesCtx *args)
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     if (root == CLI_JSON_NONE)
     {
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, "cargo metadata: ");
@@ -178,7 +178,7 @@ EMBED_INLINE int cli_cargo_target(const ExecutablesCtx *args)
                    .length_pointer = NULL);
     if (target == NULL)
     {
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         mmgr_line_put(err_msg, "cargo metadata names no target_directory");
@@ -186,7 +186,7 @@ EMBED_INLINE int cli_cargo_target(const ExecutablesCtx *args)
     }
     memor.cpy(&(MemoriaCfg){
         .dst = out, .src = target, .bytes = cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_POOL_BYTES}) + 1u});
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return 1;
@@ -209,7 +209,8 @@ int cli_dotnet_artifact(const CliExecutablesNameOutErrMsgCtx *args)
     const unsigned long long longest =
         EMBED_CALL(cli_runner_lines_index.lines_longest, CliRunnerLinesIndexCfg, .lines_read = lines);
     // each line read out of the run's rings into one temporary cell sized for the longest, the newest first
-    char *const read = (count != 0u) ? g_cli_guard->temporary_buf_alloc(longest + 1ULL, g_cli_executables_owner) : NULL;
+    char *const read =
+        (count != 0u) ? g_platform_guard->temporary_buf_alloc(longest + 1ULL, g_cli_executables_owner) : NULL;
     for (unsigned int index = (read != NULL) ? count : 0u; index > 0u; index -= 1u)
     {
         unsigned long long length =
@@ -261,10 +262,10 @@ int cli_dotnet_artifact(const CliExecutablesNameOutErrMsgCtx *args)
             mmgr_line_put(&joined, file);
             mmgr_line_finish(&joined);
         }
-        g_cli_guard->persistent_buf_release(read, g_cli_executables_owner);
+        g_platform_guard->persistent_buf_release(read, g_cli_executables_owner);
         return 1;
     }
-    g_cli_guard->persistent_buf_release(read, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(read, g_cli_executables_owner);
     mmgr_line_put(args->err_msg, "dotnet named no file for ");
     mmgr_line_put(args->err_msg, args->name);
     return 0;
@@ -435,7 +436,7 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
         }
         found = EMBED_CALL(cli_executables_text_exe_internal.spec_init, CliExecutablesTextExeCtx, .text = spec,
                            .exe_capacity = exe, .path_out = under);
-        g_cli_guard->persistent_buf_release(spec, g_cli_executables_owner);
+        g_platform_guard->persistent_buf_release(spec, g_cli_executables_owner);
         if (!found)
         {
             mmgr_line_put(args->err_msg, script);

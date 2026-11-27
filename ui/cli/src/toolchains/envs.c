@@ -43,7 +43,7 @@ void cli_required_alloc(const CliEnvsCtx *args)
 {
     CliRequired *required = args->required;
     const unsigned long long name_bytes = (unsigned long long)CLI_ENVS_NAMES * sizeof(CliRequiredName);
-    char *const cell = g_cli_guard->temporary_buf_alloc(name_bytes + CLI_ENVS_TEXT, g_cli_envs_owner);
+    char *const cell = g_platform_guard->temporary_buf_alloc(name_bytes + CLI_ENVS_TEXT, g_cli_envs_owner);
     *required = (CliRequired){NULL, 0u, 0u, NULL, 0u, 0u};
     if (cell != NULL)
     {
@@ -63,8 +63,8 @@ static void cli_add(const EnvsCtx *args)
         const unsigned long long step = EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
                                                    .text_bytes = (const unsigned char *)args->name.at,
                                                    .length = args->name.length, .at = length, .character = &character);
-        if (!EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx, .character = character) && (character != '-') &&
-            (character != '.'))
+        if (!EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx, .character = character) &&
+            (character != '-') && (character != '.'))
         {
             break;
         }
@@ -279,6 +279,6 @@ void cli_required_in(const CliEnvsCtx *args)
         {
             EMBED_CALL(cli_requirements_read, EnvsCtx, .required = args->required, .bytes = bytes, .size = size);
         }
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_envs_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_envs_owner);
     }
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // queries.cu: the queries: the trace and the log of the thread that carries them, each question's identity, and a round
 // answered from the record or carried
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "identity_internal.h"
 #include "memoria_operor/memoria_operor.h"

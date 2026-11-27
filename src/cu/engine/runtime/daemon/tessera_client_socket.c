@@ -1,10 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_client_socket.c: connecting, spawning, sending and receiving
-#include "../../../../platform/platform.h"
+// the internal header comes first, since it sets the macros of the system before any header
+#include "tessera_client_internal.h"
+
+#include "../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
-#include "tessera_client_internal.h"
 
 #if defined(_WIN32)
 _Alignas(8) static const char s_client_quote[] = "\"";
@@ -249,22 +251,7 @@ int tessera_receive(TesseraClient *client, TesseraFrame *frame)
 
 unsigned long long tessera_client_now(void)
 {
-#if defined(_WIN32)
-    LARGE_INTEGER counter;
-    LARGE_INTEGER frequency;
-    QueryPerformanceCounter(&counter);
-    QueryPerformanceFrequency(&frequency);
-    // a performance counter and its frequency are positive
-    const unsigned long long ticks = (unsigned long long)counter.QuadPart;
-    // a performance counter and its frequency are positive
-    const unsigned long long rate = (unsigned long long)frequency.QuadPart;
-    return ((ticks / rate) * 1000000ULL) + (((ticks % rate) * 1000000ULL) / rate);
-#else
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    // a monotonic clock's seconds and nanoseconds are not negative
-    return ((unsigned long long)now.tv_sec * 1000000ULL) + ((unsigned long long)now.tv_nsec / 1000ULL);
-#endif
+    return platform_clock_ns() / 1000ULL;
 }
 
 int tessera_readable(TesseraClient *client, unsigned long long deadline)

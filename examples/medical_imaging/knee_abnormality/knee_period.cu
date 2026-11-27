@@ -28,7 +28,7 @@
 #include "compression.h"
 #include "device_pool.h"
 #include "tower.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 #include <cuda_runtime.h>
 

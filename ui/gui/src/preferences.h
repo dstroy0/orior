@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// preferences.h: File, Preferences, in a system window of its own, drawn in the window's own terms: one section displayed
-// at a time beside a quiet list of the sections, each row of a section a sentence that says what it is set to, and
-// nothing but how bright each thing is to tell them apart, no line or ground about any of them. Colors is the one
-// exception, a grid of the palette's colors, each with its swatch, its name and its value, a value typed in as hex, and
-// a color of text under the least contrast marked with its ratio, a row over the grid saying what each is drawn on. The
-// window holds what each row sets and acts on what is changed here (preferences.c)
+// preferences.h: File, Preferences, in a system window of its own, drawn in the window's own terms: one section
+// displayed at a time beside a quiet list of the sections, each row of a section a sentence that says what it is set
+// to, and nothing but how bright each thing is to tell them apart, no line or ground about any of them. Colors is the
+// one exception, a grid of the palette's colors, each with its swatch, its name and its value, a value typed in as hex,
+// and a color of text under the least contrast marked with its ratio, a row over the grid saying what each is drawn on.
+// The window holds what each row sets and acts on what is changed here (preferences.c)
 #ifndef GUI_WINDOW_PREFERENCES_H
 #define GUI_WINDOW_PREFERENCES_H
 #include "../../../includes/glass/glass.h"
@@ -31,8 +31,8 @@ typedef struct GuiPreferencesRowCfg GuiPreferencesRowCfg;
 
 // the sections; the rows of Settings; the zoom's steps; the opacities' step and max; and the sizes in unscaled pixels:
 // how far everything is from the edges of what it is in, a row's
-// height, the text's size, a cell of the grid's width and height, the swatch's side, the code's size, the displayed tab's
-// underline, and the max bytes a value's text and a color's name take
+// height, the text's size, a cell of the grid's width and height, the swatch's side, the code's size, the displayed
+// tab's underline, and the max bytes a value's text and a color's name take
 #define GUI_PREFERENCES_SETTINGS 0u
 #define GUI_PREFERENCES_SHORTCUTS 1u
 #define GUI_PREFERENCES_FONTS 2u
@@ -177,19 +177,19 @@ typedef struct
     unsigned int text;
 } GuiPreferencesPixels;
 
-// Preferences: whether it is displayed; the section displayed; the row or color marked; the grid's first row in view; whether a
-// value is being typed, what has been typed and how much; its window's client size and the scale it is positioned at, a
-// percent; whether the pointer is on its close mark; whether its window holds the focus, which its edge shows in
-// the signal and the main window's work then does not; where the pointer last was, -1 before it first is in the
-// window; each section's first row among all rows and its count of rows; the displayed section's first row and count;
-// each row's type, as the window sets it; whether the next keys pressed are a row's keys; whether the pointer drags
-// the marked row's slider; its sizes at its scale; the scrollbar beside a section's rows, and whether the pointer drags
-// its thumb; and a slider's thumb, a disc made as a mask as the window is sized. Then the palettes' list at the colors'
-// grid's left: each palette's name, the window's first and then each language plugin's id, how many, the one chosen,
-// the list's first row in view, and the first of the palette's colors the grid shows, 0 for the window's palette and
-// the count of its named colors for a plugin's, whose tokens are after them. Last, the tabs' beads of water, one a
-// section, which a press on a tab sinks, and whether they moved in the last frame, so the frame after they rest is
-// drawn
+// Preferences: whether it is displayed; the section displayed; the row or color marked; the grid's first row in view;
+// whether a value is being typed, what has been typed and how much; its window's client size and the scale it is
+// positioned at, a percent; whether the pointer is on its close mark; whether its window holds the focus, which its
+// edge shows in the signal and the main window's work then does not; where the pointer last was, -1 before it first is
+// in the window; each section's first row among all rows and its count of rows; the displayed section's first row and
+// count; each row's type, as the window sets it; whether the next keys pressed are a row's keys; whether the pointer
+// drags the marked row's slider; its sizes at its scale; the scrollbar beside a section's rows, and whether the pointer
+// drags its thumb; and a slider's thumb, a disc made as a mask as the window is sized. Then the palettes' list at the
+// colors' grid's left: each palette's name, the window's first and then each language plugin's id, how many, the one
+// chosen, the list's first row in view, and the first of the palette's colors the grid shows, 0 for the window's
+// palette and the count of its named colors for a plugin's, whose tokens are after them. Last, the tabs' beads of
+// water, one a section, which a press on a tab sinks, and whether they moved in the last frame, so the frame after they
+// rest is drawn
 typedef struct
 {
     unsigned int section_first[GUI_PREFERENCES_SECTIONS];

@@ -156,10 +156,10 @@ typedef struct
 void cli_runs_pane_begin(const CliRunsPaneCfg *args);
 // the runs of the tree at `root` listed now
 void cli_runs_pane_relist(const CliRunsPaneCfg *args);
-// one step of the window at `now_ms` for the tree at `root`, NULL where none is open, the pane in sight where `displayed`:
-// the runs listed where none were, where the listing is stale or where one is live and CLI_RUNS_LIST_LIVE_MS passed;
-// and where the pane shows, each opened live run read on where CLI_RUNS_READ_LIVE_MS passed: 1 where the rows changed.
-// And when the next beat falls, 0 where none is awaited
+// one step of the window at `now_ms` for the tree at `root`, NULL where none is open, the pane in sight where
+// `displayed`: the runs listed where none were, where the listing is stale or where one is live and
+// CLI_RUNS_LIST_LIVE_MS passed; and where the pane shows, each opened live run read on where CLI_RUNS_READ_LIVE_MS
+// passed: 1 where the rows changed. And when the next beat falls, 0 where none is awaited
 int cli_runs_pane_step(const CliRunsPaneCfg *args);
 unsigned long long cli_runs_pane_deadline_ms(const CliRunsPaneCfg *args);
 // how many rows there are; the row `at` into `row`: 1, or 0 past the last; and the run row `at` opened and read, or

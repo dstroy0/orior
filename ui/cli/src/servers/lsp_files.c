@@ -73,10 +73,10 @@ EMBED_INLINE unsigned int files_position(const LspFilesCtx *args)
     for (unsigned int at = 0u; at < s_files_capacity; at += 1u)
     {
         CliLspFile file;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(at), .dst = &file, .bytes = sizeof(file)});
         if (file.reserved && (file.server == args->lsp->number) && (file.uri_length == length) &&
-            (g_cli_guard->movable_buf_compare(
+            (g_platform_guard->movable_buf_compare(
                  &(CarcerMovableCfg){.cell = file.uri, .offset = 0ULL, .src = args->uri, .bytes = length}) == 0))
         {
             return at;
@@ -94,18 +94,18 @@ static int files_init(void)
     {
         return 0;
     }
-    unsigned char *const empty = g_cli_guard->temporary_buf_alloc(bytes, g_cli_lsp_files_owner);
+    unsigned char *const empty = g_platform_guard->temporary_buf_alloc(bytes, g_cli_lsp_files_owner);
     const CarcerMovableEntry *const cell =
-        (empty != NULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_lsp_files_owner) : NULL;
+        (empty != NULL) ? g_platform_guard->movable_buf_alloc(bytes, g_cli_lsp_files_owner) : NULL;
     if (cell == NULL)
     {
-        g_cli_guard->persistent_buf_release(empty, g_cli_lsp_files_owner);
+        g_platform_guard->persistent_buf_release(empty, g_cli_lsp_files_owner);
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = empty, .val = 0, .bytes = (embed_word)bytes});
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = empty, .bytes = bytes});
-    g_cli_guard->persistent_buf_release(empty, g_cli_lsp_files_owner);
+    g_platform_guard->persistent_buf_release(empty, g_cli_lsp_files_owner);
     s_files = cell;
     s_files_capacity = CLI_LSP_FILES;
     return 1;
@@ -119,14 +119,14 @@ EMBED_INLINE void files_let_go(const LspFilesCtx *args)
     EMBED_CALL(files_saved_path, LspFilesCtx, .place = args->at, .path = saved_path);
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = saved_path);
     CliLspFile file;
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(args->at), .dst = &file, .bytes = sizeof(file)});
     if (file.uri != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(file.uri, g_cli_lsp_files_owner);
+        (void)g_platform_guard->movable_buf_release(file.uri, g_cli_lsp_files_owner);
     }
     file = (CliLspFile){0, 0u, NULL, 0ULL, 0ULL};
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(args->at), .src = &file, .bytes = sizeof(file)});
 }
 
@@ -144,7 +144,7 @@ EMBED_INLINE unsigned int files_position_alloc(const LspFilesCtx *args)
     while (vacant < s_files_capacity)
     {
         CliLspFile file;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(vacant), .dst = &file, .bytes = sizeof(file)});
         if (!file.reserved)
         {
@@ -154,16 +154,16 @@ EMBED_INLINE unsigned int files_position_alloc(const LspFilesCtx *args)
     }
     const CarcerMovableEntry *const text_cell =
         ((vacant < s_files_capacity) || files_init())
-            ? g_cli_guard->movable_buf_alloc(length + 1ULL, g_cli_lsp_files_owner)
+            ? g_platform_guard->movable_buf_alloc(length + 1ULL, g_cli_lsp_files_owner)
             : NULL;
     if (text_cell == NULL)
     {
         return CLI_LSP_FILES;
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = text_cell, .offset = 0ULL, .src = args->uri, .bytes = length + 1ULL});
     const CliLspFile file = {1, args->lsp->number, text_cell, length, 1ULL};
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(vacant), .src = &file, .bytes = sizeof(file)});
     return vacant;
 }
@@ -189,10 +189,10 @@ EMBED_INLINE int files_text_save(const LspFilesCtx *args)
             char window[LSP_FILES_WINDOW];
             const unsigned long long left = args->length - at;
             const unsigned long long bytes = (left < sizeof(window)) ? left : sizeof(window);
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->cell,
-                                                                    .offset = (embed_word)(args->cell_at + at),
-                                                                    .dst = window,
-                                                                    .bytes = (embed_word)bytes});
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->cell,
+                                                                         .offset = (embed_word)(args->cell_at + at),
+                                                                         .dst = window,
+                                                                         .bytes = (embed_word)bytes});
             written = EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = path, .bytes = window,
                                  .size = bytes, .fresh = 0);
             at += bytes;
@@ -216,10 +216,10 @@ int cli_lsp_open(const CliLspErrMsgTextCfg *args)
     if (place < CLI_LSP_FILES)
     {
         CliLspFile versioned;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_files, .offset = LSP_FILE_AT(place), .dst = &versioned, .bytes = sizeof(versioned)});
         versioned.version = 1ULL;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = s_files, .offset = LSP_FILE_AT(place), .src = &versioned, .bytes = sizeof(versioned)});
     }
     const int saved = (place < CLI_LSP_FILES) &&
@@ -263,14 +263,14 @@ int cli_lsp_change(const CliLspErrMsgTextCfg *args)
     if (place < CLI_LSP_FILES)
     {
         CliLspFile file = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(place), .dst = &file, .bytes = sizeof(file)});
         version = file.version + 1ULL;
         CliLspFile versioned;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_files, .offset = LSP_FILE_AT(place), .dst = &versioned, .bytes = sizeof(versioned)});
         versioned.version = version;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = s_files, .offset = LSP_FILE_AT(place), .src = &versioned, .bytes = sizeof(versioned)});
     }
     const int saved = (place < CLI_LSP_FILES) &&
@@ -333,7 +333,7 @@ int cli_lsp_text(const CliLspPathOutCfg *args)
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = saved_path,
                                                       .size_pointer = &size, .owner = g_cli_lsp_files_owner);
         mmgr_line_put_n(args->out, (bytes != NULL) ? (const char *)bytes : "", size);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_lsp_files_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_lsp_files_owner);
         read = 1;
     }
     return read;
@@ -360,7 +360,7 @@ int cli_lsp_read_again(const CliLspErrMsgTextCfg *args)
     const int changed =
         EMBED_CALL(cli_lsp_err_msg_text.change, CliLspErrMsgTextCfg, .lsp = args->lsp, .path = args->path,
                    .text = (bytes != NULL) ? (const char *)bytes : "", .length = size, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_lsp_files_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_lsp_files_owner);
     return changed;
 }
 
@@ -392,7 +392,7 @@ unsigned long long cli_lsp_version(const CliLspPathOutCfg *args)
     CliLspFile file = {0};
     if (place < CLI_LSP_FILES)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(place), .dst = &file, .bytes = sizeof(file)});
     }
     return file.version;
@@ -415,20 +415,20 @@ char *cli_lsp_open_uris_alloc(const CliLspSizeCfg *args)
     for (unsigned int at = 0u; at < s_files_capacity; at += 1u)
     {
         CliLspFile file;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(at), .dst = &file, .bytes = sizeof(file)});
         open += (file.reserved && (file.server == args->lsp->number)) ? 1ULL : 0ULL;
     }
-    char *const uris = (open > 0ULL) ? g_cli_guard->temporary_buf_alloc(open * CLI_LSP_URI, args->owner) : NULL;
+    char *const uris = (open > 0ULL) ? g_platform_guard->temporary_buf_alloc(open * CLI_LSP_URI, args->owner) : NULL;
     unsigned long long used = 0ULL;
     for (unsigned int at = 0u; (uris != NULL) && (at < s_files_capacity); at += 1u)
     {
         CliLspFile file;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(at), .dst = &file, .bytes = sizeof(file)});
         if (file.reserved && (file.server == args->lsp->number))
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = file.uri, .offset = 0ULL, .dst = uris + used, .bytes = file.uri_length + 1ULL});
             used += file.uri_length + 1ULL;
         }
@@ -446,7 +446,7 @@ void cli_lsp_open_each(const CliLspContextCfg *args)
     for (unsigned int at = 0u; at < s_files_capacity; at += 1u)
     {
         CliLspFile file;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(at), .dst = &file, .bytes = sizeof(file)});
         if (file.reserved && (file.server == args->lsp->number))
         {
@@ -454,9 +454,9 @@ void cli_lsp_open_each(const CliLspContextCfg *args)
             bytes += file.uri_length + 1ULL;
         }
     }
-    unsigned int *const positions = g_cli_guard->temporary_buf_alloc(
+    unsigned int *const positions = g_platform_guard->temporary_buf_alloc(
         ((unsigned long long)count + 1ULL) * sizeof(unsigned int), g_cli_lsp_files_owner);
-    char *const uris = g_cli_guard->temporary_buf_alloc(bytes + 1ULL, g_cli_lsp_files_owner);
+    char *const uris = g_platform_guard->temporary_buf_alloc(bytes + 1ULL, g_cli_lsp_files_owner);
     count = ((positions != NULL) && (uris != NULL)) ? count : 0u;
     unsigned int copied = 0u;
     unsigned long long used = 0ULL;
@@ -465,12 +465,12 @@ void cli_lsp_open_each(const CliLspContextCfg *args)
         while ((copied < count) && (at < s_files_capacity))
         {
             CliLspFile file;
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(at), .dst = &file, .bytes = sizeof(file)});
             if (file.reserved && (file.server == args->lsp->number))
             {
                 positions[copied] = at;
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                     .cell = file.uri, .offset = 0ULL, .dst = uris + used, .bytes = file.uri_length + 1ULL});
                 used += file.uri_length + 1ULL;
                 copied += 1u;
@@ -499,10 +499,10 @@ void cli_lsp_open_each(const CliLspContextCfg *args)
         EMBED_CALL(args->each, CliEachPathTextLengthCfg, .context = args->context, .path = path,
                    .text = (inner_bytes != NULL) ? (const char *)inner_bytes : "",
                    .length = (inner_bytes != NULL) ? size : 0ULL);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)inner_bytes, g_cli_lsp_files_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)inner_bytes, g_cli_lsp_files_owner);
     }
-    g_cli_guard->persistent_buf_release(uris, g_cli_lsp_files_owner);
-    g_cli_guard->persistent_buf_release(positions, g_cli_lsp_files_owner);
+    g_platform_guard->persistent_buf_release(uris, g_cli_lsp_files_owner);
+    g_platform_guard->persistent_buf_release(positions, g_cli_lsp_files_owner);
 }
 
 void cli_lsp_files_let_go(const CliLspTypeCtx *args)
@@ -510,7 +510,7 @@ void cli_lsp_files_let_go(const CliLspTypeCtx *args)
     for (unsigned int at = 0u; at < s_files_capacity; at += 1u)
     {
         CliLspFile file;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_files, .offset = LSP_FILE_AT(at), .dst = &file, .bytes = sizeof(file)});
         if (file.reserved && (file.server == args->lsp_read->number))
         {

@@ -5,9 +5,9 @@
 // gives the cell back. One thread writes a movable cell through its handle and reads it back, takes and gives back a
 // persistent cell, and asks for more bytes than the pool holds. Each answer goes into a record in the memory of the
 // device, and the host reads the record once and agrees with it
-#include "../../../../src/platform/platform.h"
-#include "../../../../src/platform/platform_device.h"
-#include "../../../../src/platform/platform_places.h"
+#include "../../../../includes/platform/platform.h"
+#include "../../../../includes/platform/platform_device.h"
+#include "../../../../includes/platform/platform_places.h"
 
 #include <cuda_runtime.h>
 

@@ -30,7 +30,7 @@ extern "C"
 #include "memoria_operor/memoria_operor.h"
 }
 
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/rmc/word_web.h"
 #include "sass_target.h"
 #include "target.h"

@@ -11,7 +11,7 @@ char *cli_uncommented_alloc(const CliExecutablesTextCtx *args)
 {
     // the code with its comments taken out is no longer than the text
     const unsigned long long capacity = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES}) + 1ULL;
-    char *const code = g_cli_guard->temporary_buf_alloc(capacity, g_cli_executables_owner);
+    char *const code = g_platform_guard->temporary_buf_alloc(capacity, g_cli_executables_owner);
     if (code != NULL)
     {
         EMBED_CALL(cli_executables_text_internal.uncommented, CliExecutablesTextCtx, .text = args->text,
@@ -28,8 +28,8 @@ unsigned int cli_calls_alloc(const CliExecutablesCodeCommandCtx *args)
             ? EMBED_CALL(cli_executables_code_internal.calls, CliExecutablesCodeCtx, .code = args->code,
                          .command = args->command, .calls = NULL, .capacity_u32 = 0u)
             : 0u;
-    *calls = (count != 0u) ? g_cli_guard->temporary_buf_alloc((unsigned long long)count * sizeof(CliCall),
-                                                              g_cli_executables_owner)
+    *calls = (count != 0u) ? g_platform_guard->temporary_buf_alloc((unsigned long long)count * sizeof(CliCall),
+                                                                   g_cli_executables_owner)
                            : NULL;
     return (*calls != NULL) ? EMBED_CALL(cli_executables_code_internal.calls, CliExecutablesCodeCtx, .code = args->code,
                                          .command = args->command, .calls = *calls, .capacity_u32 = count)
@@ -65,7 +65,8 @@ void cli_scan_trim(const CliExecutablesTextLengthCtx *args)
 {
     const char **text = args->text_pointer;
     unsigned long long *length = args->length_pointer;
-    while ((*length > 0ULL) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = (*text)[0]))
+    while ((*length > 0ULL) &&
+           EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = (*text)[0]))
     {
         *text += 1;
         *length -= 1ULL;
@@ -212,7 +213,8 @@ EMBED_INLINE int cli_cmake_word(const ExecutablesScanCtx *args)
             at += 1;
         }
         const char *stop = at;
-        while ((stop < end) && !EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = stop[0]))
+        while ((stop < end) &&
+               !EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .character = stop[0]))
         {
             stop += 1;
         }
@@ -274,8 +276,8 @@ void cli_cmake_targets(const CliExecutablesNamesTextCtx *args)
                        .names = args->names, .name = name, .length = length, .value = NULL);
         }
     }
-    g_cli_guard->persistent_buf_release(calls, g_cli_executables_owner);
-    g_cli_guard->persistent_buf_release(code, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(calls, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(code, g_cli_executables_owner);
 }
 
 int cli_cmake_project(const CliExecutablesTextOutCtx *args)
@@ -293,8 +295,8 @@ int cli_cmake_project(const CliExecutablesTextOutCtx *args)
         found = EMBED_CALL(cli_cmake_word, ExecutablesScanCtx, .call = &calls[at], .index = 0u, .out = args->out);
         at += 1u;
     }
-    g_cli_guard->persistent_buf_release(calls, g_cli_executables_owner);
-    g_cli_guard->persistent_buf_release(code, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(calls, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(code, g_cli_executables_owner);
     return found;
 }
 
@@ -336,8 +338,8 @@ void cli_meson_targets(const CliExecutablesNamesCtx *args)
                        .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES}), .value = NULL);
         }
     }
-    g_cli_guard->persistent_buf_release(calls, g_cli_executables_owner);
-    g_cli_guard->persistent_buf_release(code, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(calls, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(code, g_cli_executables_owner);
 }
 
 int cli_meson_project(const CliExecutablesTextOutCtx *args)
@@ -355,7 +357,7 @@ int cli_meson_project(const CliExecutablesTextOutCtx *args)
         found = EMBED_CALL(cli_meson_first, ExecutablesScanCtx, .call = &calls[at], .out = args->out);
         at += 1u;
     }
-    g_cli_guard->persistent_buf_release(calls, g_cli_executables_owner);
-    g_cli_guard->persistent_buf_release(code, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(calls, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(code, g_cli_executables_owner);
     return found;
 }

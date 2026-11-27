@@ -3,8 +3,8 @@
 // system.h: the face of the system the window is on, the only part of the program written twice, once a system: the
 // monitors' areas; a window opened undecorated at a place, its events passed on as they come, its pixels presented from
 // a raster it is passed, its thread woken from another, its place read, its state changed and its closing; and the
-// scale the system draws it at. Nothing here takes memory: each window's record is the body's own (system_windows.c,
-// system_x11.c)
+// scale the system draws it at. Nothing here takes memory: each window's record is the body's own (windows_window.c,
+// x11_window.c, in the folders of the platform)
 #ifndef GUI_SYSTEM_H
 #define GUI_SYSTEM_H
 #include "../../../includes/window/pointer.h"

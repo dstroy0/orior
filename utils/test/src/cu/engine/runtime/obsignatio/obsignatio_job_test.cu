@@ -5,7 +5,7 @@
 // as one job (obsignatio_bits_job) is held to obsignatio_bits signum for signum. An offset past the stream must error
 // both ways
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include <cuda_runtime.h>
 

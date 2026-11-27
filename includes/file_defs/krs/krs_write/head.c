@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // head.c: the lines of a SASS ruleset's head, each the part's answer in its .ksc or left out
 #include "head.h"
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 
 #include "../../ksc/ksc.h"

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // viewed.c: the file as a view: its rows viewed from a run's table, the rows gathered from a finished .qry, a text's
 // number and text, and the who at a row
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "../../../parsers/who.h"
 #include "../../qry/qry_read.h"
 #include "cellularum_laboro/cellularum_laboro.h"

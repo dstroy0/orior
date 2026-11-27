@@ -110,7 +110,7 @@ EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
         return CLI_WRONG;
     }
     CliProgramsReadState *const read_state =
-        g_cli_guard->temporary_buf_alloc(sizeof(*read_state), g_cli_command_line_owner);
+        g_platform_guard->temporary_buf_alloc(sizeof(*read_state), g_cli_command_line_owner);
     if (read_state == NULL)
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
@@ -127,7 +127,7 @@ EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
                                 .err_msg = &err_msg);
     if (!read)
     {
-        g_cli_guard->persistent_buf_release(read_state, g_cli_command_line_owner);
+        g_platform_guard->persistent_buf_release(read_state, g_cli_command_line_owner);
         return EMBED_CALL(programs_fail, CommandLineProgramsCtx, .err_msg = &err_msg, .code = CLI_WRONG);
     }
     const CliBinaryReport *const report = &read_state->report;
@@ -145,7 +145,7 @@ EMBED_INLINE int programs_libraries(const CommandLineProgramsCtx *args)
     }
     const QuerySink sink = {programs_err, NULL};
     EMBED_CALL(cli_binary_report.report_print, CliBinaryReportCfg, .report_read = report, .sink = sink);
-    g_cli_guard->persistent_buf_release(read_state, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(read_state, g_cli_command_line_owner);
     return 0;
 }
 

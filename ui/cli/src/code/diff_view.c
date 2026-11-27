@@ -52,10 +52,10 @@ EMBED_INLINE unsigned int row_at_right(const DiffViewOptionCtx *args)
     {
         const unsigned int middle = low + ((high - low) / 2u);
         CliDiffViewLaid positioned;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_diff_view.rows_cell,
-                                                                .offset = CLI_DIFF_VIEW_ROW_AT(middle),
-                                                                .dst = &positioned,
-                                                                .bytes = sizeof(positioned)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_diff_view.rows_cell,
+                                                                     .offset = CLI_DIFF_VIEW_ROW_AT(middle),
+                                                                     .dst = &positioned,
+                                                                     .bytes = sizeof(positioned)});
         if (positioned.right_at < args->at)
         {
             low = middle + 1u;
@@ -125,10 +125,10 @@ unsigned int cli_diff_view_option_toggle(const CliDiffViewOptionOnCfg *args)
     CliDiffViewLaid positioned = {0};
     if (args->at < view->rows)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_diff_view.rows_cell,
-                                                                .offset = CLI_DIFF_VIEW_ROW_AT(args->at),
-                                                                .dst = &positioned,
-                                                                .bytes = sizeof(positioned)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_diff_view.rows_cell,
+                                                                     .offset = CLI_DIFF_VIEW_ROW_AT(args->at),
+                                                                     .dst = &positioned,
+                                                                     .bytes = sizeof(positioned)});
     }
     const unsigned int right_at = (args->at < view->rows) ? positioned.right_at : 0u;
     err_msg.at = 0ULL;
@@ -148,14 +148,14 @@ unsigned int cli_diff_view_option_toggle(const CliDiffViewOptionOnCfg *args)
     const int has_id = view->has_id;
     const int has_other_id = view->has_other_id;
     const unsigned long long size = view->size;
-    char *const text = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_diff_view_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_diff_view_owner);
     if (text == NULL)
     {
         return 0u;
     }
     if ((size != 0ULL) && (view->text_cell != NULL))
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = view->text_cell, .offset = 0ULL, .dst = text, .bytes = size});
     }
     text[size] = '\0';
@@ -164,7 +164,7 @@ unsigned int cli_diff_view_option_toggle(const CliDiffViewOptionOnCfg *args)
                    .path = path, .other_path = has_other_path ? other_path : NULL, .id = has_id ? id : NULL,
                    .other_id = has_other_id ? other_id : NULL, .at_ms = view->at_ms, .text = text, .size = size,
                    .err_msg = &err_msg);
-    g_cli_guard->persistent_buf_release(text, g_cli_diff_view_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_diff_view_owner);
     if (!opened)
     {
         return 0u;
@@ -186,10 +186,10 @@ int cli_diff_view_row(const CliDiffViewAtRowLengthCfg *args)
         return 0;
     }
     CliDiffViewLaid positioned;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_diff_view.rows_cell,
-                                                            .offset = CLI_DIFF_VIEW_ROW_AT(args->at),
-                                                            .dst = &positioned,
-                                                            .bytes = sizeof(positioned)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = g_cli_diff_view.rows_cell,
+                                                                 .offset = CLI_DIFF_VIEW_ROW_AT(args->at),
+                                                                 .dst = &positioned,
+                                                                 .bytes = sizeof(positioned)});
     CliDiffViewRow *const row = args->row;
     *row = (CliDiffViewRow){0};
     row->type = positioned.type;
@@ -203,12 +203,12 @@ int cli_diff_view_row(const CliDiffViewAtRowLengthCfg *args)
         // the line's start and length among its side's lines, then its units, as many as a row holds
         unsigned long long left_start = 0ULL;
         unsigned long long left_length = 0ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = g_cli_diff_view.lines_cell,
             .offset = (&view->left)->start_at + ((unsigned long long)positioned.left * sizeof(left_start)),
             .dst = &left_start,
             .bytes = sizeof(left_start)});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = g_cli_diff_view.lines_cell,
             .offset = (&view->left)->length_at + ((unsigned long long)positioned.left * sizeof(left_length)),
             .dst = &left_length,
@@ -216,7 +216,7 @@ int cli_diff_view_row(const CliDiffViewAtRowLengthCfg *args)
         row->left_count = (left_length < CLI_DIFF_VIEW_ROW_UNITS) ? left_length : CLI_DIFF_VIEW_ROW_UNITS;
         if (row->left_count != 0ULL)
         {
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = g_cli_diff_view.lines_cell,
                                     .offset = (&view->left)->unit_at + (left_start * sizeof(unsigned short)),
                                     .dst = row->left_units_copied,
@@ -229,12 +229,12 @@ int cli_diff_view_row(const CliDiffViewAtRowLengthCfg *args)
         // the line's start and length among its side's lines, then its units, as many as a row holds
         unsigned long long right_start = 0ULL;
         unsigned long long right_length = 0ULL;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = g_cli_diff_view.lines_cell,
             .offset = (&view->right)->start_at + ((unsigned long long)positioned.right * sizeof(right_start)),
             .dst = &right_start,
             .bytes = sizeof(right_start)});
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = g_cli_diff_view.lines_cell,
             .offset = (&view->right)->length_at + ((unsigned long long)positioned.right * sizeof(right_length)),
             .dst = &right_length,
@@ -242,7 +242,7 @@ int cli_diff_view_row(const CliDiffViewAtRowLengthCfg *args)
         row->right_count = (right_length < CLI_DIFF_VIEW_ROW_UNITS) ? right_length : CLI_DIFF_VIEW_ROW_UNITS;
         if (row->right_count != 0ULL)
         {
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = g_cli_diff_view.lines_cell,
                                     .offset = (&view->right)->unit_at + (right_start * sizeof(unsigned short)),
                                     .dst = row->right_units_copied,
@@ -282,7 +282,7 @@ unsigned int cli_diff_view_step(const CliDiffViewAtRowLengthCfg *args)
         {
             const unsigned int middle = low + ((high - low) / 2u);
             unsigned int change_row = 0u;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = g_cli_diff_view.rows_cell,
                 .offset = g_cli_diff_view.change_row_at + ((unsigned long long)middle * sizeof(change_row)),
                 .dst = &change_row,
@@ -300,7 +300,7 @@ unsigned int cli_diff_view_step(const CliDiffViewAtRowLengthCfg *args)
     }
     cli_diff_view_where_written(args);
     unsigned int change_row = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = g_cli_diff_view.rows_cell,
         .offset = g_cli_diff_view.change_row_at + ((unsigned long long)view->change_at * sizeof(change_row)),
         .dst = &change_row,

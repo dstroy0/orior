@@ -6,7 +6,7 @@
 // rounds is an add two threads made at once, and a slot claimed twice is a swap that did not compare. The host pass of
 // the same unit runs the same operations once, so the host arm compiles as C++ beside the device arm
 #include "embed_atomic.h"
-#include "../../../../src/platform/platform.h"
+#include "../../../../includes/platform/platform.h"
 
 #include <cstdio>
 

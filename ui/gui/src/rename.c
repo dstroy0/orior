@@ -165,10 +165,10 @@ void gui_rename_draw(const GuiRenameCfg *args)
                    .rect = (GuiRect){text_x, y + pad_y, (int)(text_width + 0.5f), args->anchor.height},
                    .color = args->palette->selection);
     }
-    const float after = EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = args->raster,
-                                   .glyphs = args->glyphs, .face = GUI_FACE_CODE, .size = size, .x_f32 = (float)text_x,
-                                   .y = baseline, .text = rename->text, .length = rename->length,
-                                   .color = args->palette->editor_text, .clip = rename->rect);
+    const float after =
+        EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = args->raster, .glyphs = args->glyphs,
+                   .face = GUI_FACE_CODE, .size = size, .x_f32 = (float)text_x, .y = baseline, .text = rename->text,
+                   .length = rename->length, .color = args->palette->editor_text, .clip = rename->rect);
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
                .rect = (GuiRect){(int)(after + 0.5f), y + pad_y, caret, args->anchor.height},
                .color = args->palette->caret);
@@ -177,6 +177,6 @@ void gui_rename_draw(const GuiRenameCfg *args)
 int gui_rename_hit(const GuiRenameCfg *args)
 {
     const GuiRename *const rename = args->rename_read;
-    return rename->open && EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = rename->rect, .x = args->x,
-                                      .y = args->y);
+    return rename->open &&
+           EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = rename->rect, .x = args->x, .y = args->y);
 }

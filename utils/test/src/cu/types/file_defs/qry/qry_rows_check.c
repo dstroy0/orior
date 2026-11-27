@@ -12,7 +12,7 @@
 //
 // It runs in a query run (qry_run.sh).
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/table_text.h"
 #include "cellularum_laboro/cellularum_laboro.h"

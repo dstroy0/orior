@@ -12,7 +12,7 @@
 // key here and is never read by the walk: the walk queries every word of the page's head whether it advances, and the
 // check compares what came back against the key.
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/query/query_interface.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include <stdio.h>
 

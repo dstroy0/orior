@@ -15,11 +15,12 @@ typedef struct CliRunnerCtx CliRunnerCtx;
 // the max steps a run's job takes
 #define CLI_RUN_STEPS 256u
 
-// A run: its number, sink and tree; its job, its catalog's counts retained on the run and its lists and the values it runs
-// with positioned in one movable cell sized to the job, each part at its place from the cell's start, read into a cell of the
-// call that reads them; its thread; whether it has ended and whether a reader stopped it; the process of its step still
-// running and the job it heads; the lines its steps wrote, which are fixed outside the pool; when it began, and when
-// the step running began and wrote its first line. The job's cell is taken as the run starts and given back as it ends
+// A run: its number, sink and tree; its job, its catalog's counts retained on the run and its lists and the values it
+// runs with positioned in one movable cell sized to the job, each part at its place from the cell's start, read into a
+// cell of the call that reads them; its thread; whether it has ended and whether a reader stopped it; the process of
+// its step still running and the job it heads; the lines its steps wrote, which are fixed outside the pool; when it
+// began, and when the step running began and wrote its first line. The job's cell is taken as the run starts and given
+// back as it ends
 typedef struct
 {
     int used;
@@ -110,7 +111,7 @@ struct CliRunnerRunStreamCtx
 struct CliRunnerRunSpawnedCtx
 {
     CliRun *run;
-    const CliSpawned *spawned;
+    const PlatformProgram *spawned;
 };
 
 struct CliRunnerCtx

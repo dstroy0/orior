@@ -147,7 +147,7 @@ static void run_lived(void)
     err_msg.at = 0ull;
     (void)EMBED_CALL(query_err_msg_writer_internal.writer_stop, QueryErrMsgWriterCtx, .writer_out = &s_writer,
                      .err_msg = &err_msg);
-    QueryProcess waited = {process, 0ull};
+    PlatformProgram waited = {process, 0ull};
     (void)EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &waited);
     s_life.running_after_stop = EMBED_CALL(query_writer_internal.writer_runs, QueryWriterCtx, .writer = &s_writer);
     s_life.read_after_stop = latest_is(&s_writer, "a.txt", "one\ntwo\n");
@@ -318,7 +318,7 @@ void test_a_programs_exit_code_and_output_are_teed_into_the_run(void)
     err_msg.at = 0ull;
     (void)EMBED_CALL(query_err_msg_writer_internal.writer_stop, QueryErrMsgWriterCtx, .writer_out = &s_writer,
                      .err_msg = &err_msg);
-    QueryProcess waited = {process, 0ull};
+    PlatformProgram waited = {process, 0ull};
     (void)EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &waited);
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = out);
     TEST_ASSERT_TRUE(teed);

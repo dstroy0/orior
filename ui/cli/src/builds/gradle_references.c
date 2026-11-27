@@ -44,7 +44,7 @@ EMBED_INLINE unsigned long long references_word(const GradleReferencesCtx *args)
         unsigned long long length = 0ULL;
         if (!EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg,
                         .character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = g_cli_gradle.text,
-                                             .size = g_cli_gradle.size, .at = end, .length = &length)))
+                                                .size = g_cli_gradle.size, .at = end, .length = &length)))
         {
             break;
         }
@@ -186,7 +186,7 @@ EMBED_INLINE void references_one(const GradleReferencesCtx *args)
         .from = from[path_from], .to = to[args->count - 1u], .severity = CLI_BUILD_ERROR, .code = "gradle-catalog");
     // each accessor is as long as its alias, so a cell of the aliases' texts contains those the nearest are chosen from
     const unsigned long long capacity = args->aliases->used + 1ULL;
-    char *const accessors = g_cli_guard->temporary_buf_alloc(capacity, g_cli_gradle_owner);
+    char *const accessors = g_platform_guard->temporary_buf_alloc(capacity, g_cli_gradle_owner);
     unsigned long long used = 0ULL;
     for (unsigned int at = 0u; (accessors != NULL) && (at < args->aliases->count); at += 1u)
     {
@@ -221,7 +221,7 @@ EMBED_INLINE void references_one(const GradleReferencesCtx *args)
                    .title = &title, .lines = lines, .from = from[path_from], .to = to[args->count - 1u],
                    .text = adjacent.adjacent[at], .size = adjacent.adjacent_size[at]);
     }
-    g_cli_guard->persistent_buf_release(accessors, g_cli_gradle_owner);
+    g_platform_guard->persistent_buf_release(accessors, g_cli_gradle_owner);
 }
 
 void cli_gradle_references(const CliVersionCatalogLinesCtx *args)
@@ -242,7 +242,8 @@ void cli_gradle_references(const CliVersionCatalogLinesCtx *args)
         const unsigned int before = (at > 0u) ? EMBED_CALL(cli_text_length.character_before, CliTextLengthCfg,
                                                            .text = text, .end_value = at, .length = &length)
                                               : ' ';
-        if (EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg, .character = before) || (before == '.'))
+        if (EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg, .character = before) ||
+            (before == '.'))
         {
             at += 1u;
             continue;

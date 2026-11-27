@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "marginal.h"
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 
 _Static_assert(MARGINAL_LIMBS <= ORIOR_EXACT_LIMBS, "marginal: the host's exact integer must represent every sum");

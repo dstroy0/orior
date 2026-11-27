@@ -199,7 +199,7 @@ EMBED_INLINE const char *store_text_get(const SchemaStoreCtx *args)
                                                   .size_pointer = size, .owner = g_cli_schema_owner);
     if ((bytes != NULL) && (*size > CLI_SCHEMA_DOCUMENT_TEXT))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_schema_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_schema_owner);
         return NULL;
     }
     *mapped = (bytes != NULL);
@@ -212,7 +212,7 @@ EMBED_INLINE unsigned int store_read(const SchemaStoreCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    char *const stripped = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_schema_owner);
+    char *const stripped = g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_schema_owner);
     if (stripped == NULL)
     {
         return CLI_JSON_NONE;
@@ -221,7 +221,7 @@ EMBED_INLINE unsigned int store_read(const SchemaStoreCtx *args)
     const unsigned int tokens_max =
         EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = stripped, .size = size) + 1u;
     CfgJsonToken *const tokens = (tokens_max <= CLI_SCHEMA_TOKENS)
-                                     ? g_cli_guard->temporary_buf_alloc(
+                                     ? g_platform_guard->temporary_buf_alloc(
                                            (unsigned long long)tokens_max * sizeof(CfgJsonToken), g_cli_schema_owner)
                                      : NULL;
     unsigned int root = CLI_JSON_NONE;
@@ -235,8 +235,8 @@ EMBED_INLINE unsigned int store_read(const SchemaStoreCtx *args)
                           .tokens_max = tokens_max, .err_msg = &err_msg);
         root = args->store->json.full ? CLI_JSON_NONE : root;
     }
-    g_cli_guard->persistent_buf_release(tokens, g_cli_schema_owner);
-    g_cli_guard->persistent_buf_release(stripped, g_cli_schema_owner);
+    g_platform_guard->persistent_buf_release(tokens, g_cli_schema_owner);
+    g_platform_guard->persistent_buf_release(stripped, g_cli_schema_owner);
     return root;
 }
 
@@ -264,7 +264,7 @@ unsigned int cli_schema_load(const CliSchemaStoreCtx *args)
             : CLI_JSON_NONE;
     if (mapped)
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), g_cli_schema_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), g_cli_schema_owner);
     }
     if (root == CLI_JSON_NONE)
     {

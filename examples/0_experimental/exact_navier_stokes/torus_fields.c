@@ -9,7 +9,7 @@
  *       A denominator is positive, and shares no divisor with the integers of the value.
  */
 #include "torus_fields.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 #include "memoria_operor/memoria_operor.h"
 #include <stdlib.h>

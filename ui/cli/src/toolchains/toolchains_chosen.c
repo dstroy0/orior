@@ -50,7 +50,7 @@ static void found_emptied(void)
 {
     for (unsigned int at = 0u; at < s_found.count; at += 1u)
     {
-        (void)g_cli_guard->movable_buf_release(s_found.tool[at], g_cli_toolchains_found_owner);
+        (void)g_platform_guard->movable_buf_release(s_found.tool[at], g_cli_toolchains_found_owner);
         s_found.tool[at] = NULL;
     }
     s_found.count = 0u;
@@ -80,14 +80,14 @@ static void found_read(const ToolchainsChosenCtx *args)
 {
     ToolFoundHead head = {0u, 0u, 0u};
     memor.set(&(MemoriaCfg){.dst = args->tool, .val = 0, .bytes = sizeof(*args->tool)});
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_found.tool[args->place], .offset = 0ULL, .dst = &head, .bytes = sizeof(head)});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_found.tool[args->place], .offset = sizeof(head), .dst = args->tool->id, .bytes = head.id_bytes});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_found.tool[args->place],
-                                                            .offset = sizeof(head) + head.id_bytes,
-                                                            .dst = args->tool->program,
-                                                            .bytes = head.program_bytes});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_found.tool[args->place],
+                                                                 .offset = sizeof(head) + head.id_bytes,
+                                                                 .dst = args->tool->program,
+                                                                 .bytes = head.program_bytes});
     args->tool->state = s_found_states[head.state & 3u];
 }
 // The folders the reader gave, by tool, read into a tree sized to them with capacity for one folder more, which
@@ -119,8 +119,7 @@ int cli_toolchains_on_choose(const CliToolchainsIdFolderCfg *args)
                                 .src = supplied,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = supplied, .cap = CLI_POOL_BYTES}) + 1u});
     }
-    g_cli_guard->persistent_buf_release((&json)->node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), (&json)->node));
+    g_platform_guard->persistent_buf_release((&json)->node, mmgr_owner_of_buf(platform_pool_series(), (&json)->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = ((&json)),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return supplied != NULL;
@@ -141,9 +140,9 @@ EMBED_INLINE const CarcerMovableEntry *cli_chosen_cell_grown(const ToolchainsCho
     }
     if (s_chosen_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_chosen_cell, g_cli_toolchains_found_owner);
+        (void)g_platform_guard->movable_buf_release(s_chosen_cell, g_cli_toolchains_found_owner);
     }
-    s_chosen_cell = g_cli_guard->movable_buf_alloc(args->needed, g_cli_toolchains_found_owner);
+    s_chosen_cell = g_platform_guard->movable_buf_alloc(args->needed, g_cli_toolchains_found_owner);
     s_chosen_bytes = (s_chosen_cell != NULL) ? args->needed : 0ULL;
     return s_chosen_cell;
 }
@@ -157,8 +156,8 @@ void cli_toolchains_chosen_each(const CliToolchainsContextCfg *args)
     // a read the cells refused has no tree, and tells nothing
     if (chosen == CLI_JSON_NONE)
     {
-        g_cli_guard->persistent_buf_release((&json)->node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), (&json)->node));
+        g_platform_guard->persistent_buf_release((&json)->node,
+                                                 mmgr_owner_of_buf(platform_pool_series(), (&json)->node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = ((&json)),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return;
@@ -182,12 +181,12 @@ void cli_toolchains_chosen_each(const CliToolchainsContextCfg *args)
             char id[CLI_NAME_MAX_LEN];
             (void)cellul.copy(
                 &(CatenaFinitaCfg){.dst = id, .src = json.text + json.node[item].key, .cap = CLI_NAME_MAX_LEN});
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = cell,
                 .offset = (embed_word)count * CLI_CHOSEN_RECORD,
                 .src = id,
                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_NAME_MAX_LEN}) + 1ULL});
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = cell,
                 .offset = ((embed_word)count * CLI_CHOSEN_RECORD) + CLI_NAME_MAX_LEN,
                 .src = folder,
@@ -195,17 +194,16 @@ void cli_toolchains_chosen_each(const CliToolchainsContextCfg *args)
             count += 1u;
         }
     }
-    g_cli_guard->persistent_buf_release((&json)->node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), (&json)->node));
+    g_platform_guard->persistent_buf_release((&json)->node, mmgr_owner_of_buf(platform_pool_series(), (&json)->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = ((&json)),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         char id[CLI_NAME_MAX_LEN];
         char folder[CLI_PATH_MAX_LEN];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = cell, .offset = (embed_word)at * CLI_CHOSEN_RECORD, .dst = id, .bytes = CLI_NAME_MAX_LEN});
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = cell,
                                 .offset = ((embed_word)at * CLI_CHOSEN_RECORD) + CLI_NAME_MAX_LEN,
                                 .dst = folder,
@@ -227,8 +225,8 @@ int cli_toolchains_choose(const CliToolchainsIdCfg *args)
                    .manifest = manifest, .id = args->id, .err_msg = args->err_msg);
     if (tool == CLI_JSON_NONE)
     {
-        g_cli_guard->persistent_buf_release(manifest_json.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), manifest_json.node));
+        g_platform_guard->persistent_buf_release(manifest_json.node,
+                                                 mmgr_owner_of_buf(platform_pool_series(), manifest_json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&manifest_json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return 0;
@@ -248,14 +246,14 @@ int cli_toolchains_choose(const CliToolchainsIdCfg *args)
                                                 .json_read = &manifest_json, .node = item, .length_pointer = NULL);
             mmgr_line_put(args->err_msg, (name != NULL) ? name : "");
         }
-        g_cli_guard->persistent_buf_release(manifest_json.node,
-                                            mmgr_owner_of_buf(cli_pool_series_cellularum(), manifest_json.node));
+        g_platform_guard->persistent_buf_release(manifest_json.node,
+                                                 mmgr_owner_of_buf(platform_pool_series(), manifest_json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&manifest_json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         return 0;
     }
-    g_cli_guard->persistent_buf_release(manifest_json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), manifest_json.node));
+    g_platform_guard->persistent_buf_release(manifest_json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), manifest_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&manifest_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     CliJson json;
@@ -269,8 +267,7 @@ int cli_toolchains_choose(const CliToolchainsIdCfg *args)
     const int saved = (path[0] != '\0') &&
                       EMBED_CALL(cli_toolchains_path_internal.file_save, CliToolchainsPathCtx, .json_read = &json,
                                  .node = chosen, .path_read = path, .sorted = 1, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release((&json)->node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), (&json)->node));
+    g_platform_guard->persistent_buf_release((&json)->node, mmgr_owner_of_buf(platform_pool_series(), (&json)->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = ((&json)),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if ((path[0] == '\0') && !saved)
@@ -294,8 +291,7 @@ int cli_toolchains_forget(const CliToolchainsIdErrMsgCfg *args)
         saved = EMBED_CALL(cli_toolchains_path_internal.file_save, CliToolchainsPathCtx, .json_read = &json,
                            .node = chosen, .path_read = path, .sorted = 1, .err_msg = args->err_msg);
     }
-    g_cli_guard->persistent_buf_release((&json)->node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), (&json)->node));
+    g_platform_guard->persistent_buf_release((&json)->node, mmgr_owner_of_buf(platform_pool_series(), (&json)->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = ((&json)),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return saved;
@@ -319,8 +315,8 @@ int cli_toolchains_chosen_program(const CliToolchainsIdPathCfg *args)
     const int found =
         (tool != CLI_JSON_NONE) && EMBED_CALL(cli_toolchains_json_dir.tool_program_in, CliToolchainsJsonDirCfg,
                                               .json = &manifest_json, .tool = tool, .dir = folder, .path = args->path);
-    g_cli_guard->persistent_buf_release(manifest_json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), manifest_json.node));
+    g_platform_guard->persistent_buf_release(manifest_json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), manifest_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&manifest_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return found;
@@ -419,21 +415,21 @@ EMBED_INLINE int found_append(const ToolchainsChosenCtx *args)
     }
     // the texts' bytes with their ends are far inside what an unsigned int counts
     const ToolFoundHead head = {state, (unsigned int)id_length + 1u, (unsigned int)program_length + 1u};
-    const CarcerMovableEntry *const cell =
-        g_cli_guard->movable_buf_alloc(sizeof(head) + head.id_bytes + head.program_bytes, g_cli_toolchains_found_owner);
+    const CarcerMovableEntry *const cell = g_platform_guard->movable_buf_alloc(
+        sizeof(head) + head.id_bytes + head.program_bytes, g_cli_toolchains_found_owner);
     if (cell == NULL)
     {
         return 0;
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = sizeof(head), .src = args->id, .bytes = head.id_bytes});
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = cell, .offset = sizeof(head) + head.id_bytes, .src = args->program, .bytes = head.program_bytes});
     if (place < s_found.count)
     {
-        (void)g_cli_guard->movable_buf_release(s_found.tool[place], g_cli_toolchains_found_owner);
+        (void)g_platform_guard->movable_buf_release(s_found.tool[place], g_cli_toolchains_found_owner);
     }
     s_found.tool[place] = cell;
     s_found.count += (place == s_found.count) ? 1u : 0u;
@@ -506,7 +502,7 @@ static void found_current(const ToolchainsChosenCtx *args)
                                  .state = state, .program = (program != NULL) ? program : "");
             }
         }
-        g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+        g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                    .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
         s_found.changed = 0;

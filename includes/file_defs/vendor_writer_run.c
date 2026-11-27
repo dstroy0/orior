@@ -3,7 +3,7 @@
 // vendor_writer_run.c: the vendor's writer run through the interface by a format's writer, its output printed and
 // passed to the run
 #include "vendor_writer_run.h"
-#include "../../src/platform/platform.h"
+#include "../platform/platform.h"
 
 #include "../../src/cu/transpiler/lstar/interface/interface.h"
 #include "qry/writer/qry_member.h"

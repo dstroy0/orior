@@ -4,7 +4,7 @@
 #include "codegen_device_internal.h"
 #include "memoria_operor/memoria_operor.h"
 
-#include "../../../platform/platform.h"
+#include "../../../../includes/platform/platform.h"
 
 #if (defined(__CUDACC__))
 

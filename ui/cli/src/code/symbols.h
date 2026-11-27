@@ -141,7 +141,7 @@ int cli_symbols_slices_each(const CliSymbolsPathTextSizeContextErrMsgCfg *args);
 
 // one usage of a name: the tree's file it is in, by its path in the tree, and its line counted from 0. Its span from
 // `from` to `to` in UTF-16 units, and its line's text, `length` bytes. Then the editor's text of the tree's file at
-// `path`, with its size into `size`. The caller gives the cell back with g_cli_guard->persistent_buf_release. NULL
+// `path`, with its size into `size`. The caller gives the cell back with g_platform_guard->persistent_buf_release. NULL
 // where the editor has no text of the file
 typedef void (*CliUsage)(const CliUsageCfg *args);
 typedef char *(*CliOpenText)(const CliOpenTextCfg *args);

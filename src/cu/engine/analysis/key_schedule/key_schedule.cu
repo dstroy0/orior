@@ -3,7 +3,7 @@
 #include "key_schedule.h"
 #include "key_schedule_core.h"
 
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 
 #define KEY_SCHEDULE_CHECK(condition_, evacaddr_, error_, type_)                                                       \

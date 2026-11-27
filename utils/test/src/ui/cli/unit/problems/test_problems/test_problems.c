@@ -39,23 +39,23 @@ static const CarcerMovableEntry *report_positioned(const char *path, unsigned in
     const unsigned long long path_at = CLI_SERVER_REPORT_ITEM_AT(count);
     const unsigned long long message_at = path_at + path_bytes;
     const CarcerMovableEntry *const report =
-        g_cli_guard->movable_buf_alloc(message_at + message_bytes, g_cli_servers_owner);
+        g_platform_guard->movable_buf_alloc(message_at + message_bytes, g_cli_servers_owner);
     if (report == NULL)
     {
         return NULL;
     }
     const CliServerReportHead head = {count, path_at};
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = report, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = report, .offset = path_at, .src = path, .bytes = path_bytes});
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = report, .offset = message_at, .src = message, .bytes = message_bytes});
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const CliServerStoredDiagnostic item = {
             at, 0ULL, at, 4ULL, ((at % 2u) == 0u) ? 2u : 1u, message_at, message_bytes - 1u};
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = report, .offset = CLI_SERVER_REPORT_ITEM_AT(at), .src = &item, .bytes = sizeof(item)});
     }
     return report;
@@ -172,7 +172,7 @@ void test_threads_publishing_while_a_reader_steps_and_reads_every_row_leave_each
     atomic_store(&s_writers_done, 0u);
     for (unsigned int writer = 0u; writer < TEST_WRITERS; writer += 1u)
     {
-        s_threads[writer] = (CliThread){writer_run, (void *)s_paths[writer], CLI_PRIORITY_WORK};
+        s_threads[writer] = (CliThread){writer_run, (void *)s_paths[writer], PLATFORM_PRIORITY_WORK};
         TEST_ASSERT_EQUAL_INT(1, cli_thread_start(&(CliThreadCtx){.thread = &s_threads[writer]}));
     }
     unsigned long long rows_read = 0ULL;

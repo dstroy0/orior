@@ -1211,7 +1211,7 @@ int cli_view_begin(const CliViewBeginCfg *args)
     EMBED_CALL(gui_window_table.start, GuiWindowCfg, .window = &s_view.window, .woken = view_woken);
     s_view.thread.run = view_run;
     s_view.thread.context = NULL;
-    s_view.thread.priority = CLI_PRIORITY_WORK;
+    s_view.thread.priority = PLATFORM_PRIORITY_WORK;
     (void)EMBED_ATOMIC_ADD_32(&s_view.running, 1u);
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_view.thread))
     {

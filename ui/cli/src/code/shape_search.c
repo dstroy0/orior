@@ -157,8 +157,8 @@ EMBED_INLINE int search_work_state_alloc(const ShapeSearchCtx *args)
     const unsigned long long words = (2ULL * args->code_capacity) + (3ULL * args->part_capacity);
     const unsigned long long bytes = 2ULL * ((unsigned long long)args->code_capacity + args->part_capacity);
     // the work state lives for the one search: a cell of the temporary tier
-    s_work_state = g_cli_guard->temporary_buf_alloc(sizeof(*s_work_state) + (words * sizeof(unsigned int)) + bytes,
-                                                    g_cli_shape_owner);
+    s_work_state = g_platform_guard->temporary_buf_alloc(sizeof(*s_work_state) + (words * sizeof(unsigned int)) + bytes,
+                                                         g_cli_shape_owner);
     if (s_work_state == NULL)
     {
         return 0;
@@ -213,11 +213,11 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
         !EMBED_CALL(cli_shape_languages_internal.tokens, CliShapeLanguagesCtx, .language = args->language, .src = src,
                     .size = args->size, .tokens = &s_work_state->code, .holes = NULL))
     {
-        g_cli_guard->persistent_buf_release(s_work_state->matcher.ends, g_cli_shape_owner);
+        g_platform_guard->persistent_buf_release(s_work_state->matcher.ends, g_cli_shape_owner);
         s_work_state->matcher.ends = NULL;
         s_work_state->matcher.ends_top = 0u;
         s_work_state->matcher.ends_capacity = 0u;
-        g_cli_guard->persistent_buf_release(s_work_state, g_cli_shape_owner);
+        g_platform_guard->persistent_buf_release(s_work_state, g_cli_shape_owner);
         s_work_state = NULL;
         return;
     }
@@ -266,7 +266,7 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
                 (unsigned long long)(s_work_state->code.end[end - 1u] - s_work_state->code.start[at]);
             const unsigned long long with_capacity =
                 template_length + (((template_length / 3ULL) + 1ULL) * span) + 1ULL;
-            char *const with_cell = g_cli_guard->temporary_buf_alloc(with_capacity, g_cli_shape_owner);
+            char *const with_cell = g_platform_guard->temporary_buf_alloc(with_capacity, g_cli_shape_owner);
             with = mmgr_line_over(with_cell, with_capacity);
             EMBED_CALL(search_fill, ShapeSearchCtx, .template_text = args->template_text, .out = &with);
             found.has_with = mmgr_line_ok(&with);
@@ -274,13 +274,13 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
             found.with_size = with.at;
         }
         EMBED_CALL(args->each, CliShapeEachCfg, .context = args->context, .found = &found);
-        g_cli_guard->persistent_buf_release(with.out, g_cli_shape_owner);
+        g_platform_guard->persistent_buf_release(with.out, g_cli_shape_owner);
         at = end;
     }
-    g_cli_guard->persistent_buf_release(s_work_state->matcher.ends, g_cli_shape_owner);
+    g_platform_guard->persistent_buf_release(s_work_state->matcher.ends, g_cli_shape_owner);
     s_work_state->matcher.ends = NULL;
     s_work_state->matcher.ends_top = 0u;
     s_work_state->matcher.ends_capacity = 0u;
-    g_cli_guard->persistent_buf_release(s_work_state, g_cli_shape_owner);
+    g_platform_guard->persistent_buf_release(s_work_state, g_cli_shape_owner);
     s_work_state = NULL;
 }

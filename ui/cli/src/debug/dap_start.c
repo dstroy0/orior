@@ -88,7 +88,7 @@ CliDap *cli_dap_start(const CliDapProgramCfg *args)
     memor.cpy(&(MemoriaCfg){.dst = dap->path,
                             .src = args->path,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u});
-    const CliSetting settings[1] = {{"PATH", dap->path}};
+    const PlatformSetting settings[1] = {{"PATH", dap->path}};
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn_feed, CliWordsErrMsgCtx, .spawned = &dap->spawned,
                     .words = dap->words.word_text, .folder = args->folder, .settings = settings, .count = 1u,
                     .detached = 1, .err_msg = args->err_msg))

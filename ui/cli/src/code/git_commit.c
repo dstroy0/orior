@@ -77,8 +77,8 @@ EMBED_INLINE int cli_committing_alloc(const GitCommitCtx *args)
     const unsigned long long parts = many * sizeof(CliGitPart);
     const unsigned long long pointers = ((many + 8ULL) + (many * 2ULL)) * sizeof(const char *);
     const unsigned long long marks = many * (sizeof(unsigned int) + sizeof(int));
-    char *const cell = g_cli_guard->temporary_buf_alloc(parts + pointers + marks + (many * CLI_PATH_MAX_LEN) + capacity,
-                                                        g_cli_git_owner);
+    char *const cell = g_platform_guard->temporary_buf_alloc(
+        parts + pointers + marks + (many * CLI_PATH_MAX_LEN) + capacity, g_cli_git_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "a commit's work state could not be allocated");
@@ -152,8 +152,8 @@ EMBED_INLINE int cli_commit_in(const GitCommitCtx *args)
             return 0;
         }
     }
-    CliGrownLine run_result;
-    cli_grown_begin(&run_result, CLI_GIT_OUTPUT_CAPACITY, g_cli_git_owner);
+    PlatformText run_result;
+    platform_text_begun(&run_result, CLI_GIT_OUTPUT_CAPACITY, platform_place_g_cli_git_owner, PLATFORM_TIER_TEMPORARY);
     if (run_result.cell == NULL)
     {
         mmgr_line_put(err_msg, "a commit's work state could not be allocated");
@@ -168,7 +168,7 @@ EMBED_INLINE int cli_commit_in(const GitCommitCtx *args)
                           .request = s_committing.words, .count = words, .out = &run_result.line, .err_msg = err_msg);
     if (made)
     {
-        cli_grown_reset(&run_result);
+        platform_text_reset(&run_result);
         s_committing.words[0] = "commit";
         s_committing.words[1] = "-m";
         s_committing.words[2] = s_committing.message;
@@ -181,9 +181,9 @@ EMBED_INLINE int cli_commit_in(const GitCommitCtx *args)
     if (made)
     {
         EMBED_CALL(cli_git_length_out_internal.commit_line, CliGitLengthOutCtx, .output = run_result.cell,
-                   .length = cli_grown_size(&run_result), .out = out);
+                   .length = platform_text_size(&run_result), .out = out);
     }
-    cli_grown_end(&run_result);
+    platform_text_ended(&run_result);
     return made;
 }
 
@@ -228,8 +228,8 @@ EMBED_INLINE int cli_commit_parts_in(const GitCommitCtx *args)
     mmgr_line_put(&joined, absolute ? "" : "/");
     mmgr_line_put(&joined, named);
     mmgr_line_finish(&joined);
-    CliGrownLine run_result;
-    cli_grown_begin(&run_result, CLI_GIT_OUTPUT_CAPACITY, g_cli_git_owner);
+    PlatformText run_result;
+    platform_text_begun(&run_result, CLI_GIT_OUTPUT_CAPACITY, platform_place_g_cli_git_owner, PLATFORM_TIER_TEMPORARY);
     if (run_result.cell == NULL)
     {
         mmgr_line_put(err_msg, "a commit's work state could not be allocated");
@@ -246,7 +246,7 @@ EMBED_INLINE int cli_commit_parts_in(const GitCommitCtx *args)
                    .index = index, .input = NULL, .length = 0ULL, .out = &run_result.line, .err_msg = err_msg);
     if (made && (args->full_files_count != 0u))
     {
-        cli_grown_reset(&run_result);
+        platform_text_reset(&run_result);
         s_committing.words[0] = "add";
         s_committing.words[1] = "-A";
         s_committing.words[2] = "--";
@@ -301,7 +301,7 @@ EMBED_INLINE int cli_commit_parts_in(const GitCommitCtx *args)
     }
     if (made)
     {
-        cli_grown_reset(&run_result);
+        platform_text_reset(&run_result);
         const char *const commit[3] = {"commit", "-m", s_committing.message};
         made =
             EMBED_CALL(cli_git_root_internal.run, CliGitRootCtx, .root = args->folder, .request = commit, .count = 3u,
@@ -329,9 +329,9 @@ EMBED_INLINE int cli_commit_parts_in(const GitCommitCtx *args)
     if (made)
     {
         EMBED_CALL(cli_git_length_out_internal.commit_line, CliGitLengthOutCtx, .output = run_result.cell,
-                   .length = cli_grown_size(&run_result), .out = out);
+                   .length = platform_text_size(&run_result), .out = out);
     }
-    cli_grown_end(&run_result);
+    platform_text_ended(&run_result);
     return made;
 }
 
@@ -457,7 +457,7 @@ int cli_git_commit(const CliGitRootOutCountCfg *args)
                         .commit = cli_commit_in, .paths = s_committing.own_full_files, .count = group);
     }
     EMBED_CALL(cli_git_text.text_release, CliGitTextCfg, .text = &s_repositories.text);
-    g_cli_guard->persistent_buf_release(s_committing.own_parts, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_committing.own_parts, g_cli_git_owner);
     s_committing = (CliCommitting){0};
     return ok;
 }
@@ -528,7 +528,7 @@ int cli_git_commit_parts(const CliGitRootCfg *args)
         first += 1u;
     }
     EMBED_CALL(cli_git_text.text_release, CliGitTextCfg, .text = &s_repositories.text);
-    g_cli_guard->persistent_buf_release(s_committing.own_parts, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(s_committing.own_parts, g_cli_git_owner);
     s_committing = (CliCommitting){0};
     return ok;
 }

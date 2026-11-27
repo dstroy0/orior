@@ -58,7 +58,7 @@ static void assert_full_text_pages(const char *name, unsigned int pages)
     TEST_ASSERT_EQUAL_UINT64(pages * PAGE,
                              cellul.len(&(CatenaFinitaCfg){.src = (const char *)bytes, .cap = CLI_POOL_BYTES}));
     TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = (const char *)bytes, .cap = CLI_POOL_BYTES, .byte = '!'}));
-    g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, g_checks_owner);
+    g_platform_guard->persistent_buf_release((void *)(uintptr_t)bytes, g_checks_owner);
 }
 
 void setUp(void)
@@ -80,7 +80,7 @@ void tearDown(void)
 void test_a_pool_emptied_for_a_request_is_idle_with_no_cell_allocated(void)
 {
     TEST_ASSERT_TRUE(cli_pool_made(64ull << 20u));
-    TEST_ASSERT_TRUE(mmgr_series_cellularum_idle(cli_pool_series_cellularum()));
+    TEST_ASSERT_TRUE(mmgr_series_cellularum_idle(platform_pool_series()));
 }
 
 void test_a_request_past_the_pool_declared_is_refused(void)
@@ -91,23 +91,23 @@ void test_a_request_past_the_pool_declared_is_refused(void)
 void test_a_cell_is_allocated_from_a_pool_emptied_for_a_request(void)
 {
     TEST_ASSERT_TRUE(cli_pool_made(64ull << 20u));
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(1000ull, g_checks_owner);
+    unsigned char *const cell = g_platform_guard->persistent_buf_alloc(1000ull, g_checks_owner);
     TEST_ASSERT_NOT_NULL(cell);
-    g_cli_guard->persistent_buf_release(cell, g_checks_owner);
+    g_platform_guard->persistent_buf_release(cell, g_checks_owner);
 }
 
 void test_the_pool_is_not_emptied_while_a_cell_is_allocated(void)
 {
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(1000ull, g_checks_owner);
+    unsigned char *const cell = g_platform_guard->persistent_buf_alloc(1000ull, g_checks_owner);
     const int made = cli_pool_made(32ull << 20u);
-    g_cli_guard->persistent_buf_release(cell, g_checks_owner);
+    g_platform_guard->persistent_buf_release(cell, g_checks_owner);
     TEST_ASSERT_FALSE(made);
 }
 
 void test_the_pool_is_emptied_once_the_cell_is_released(void)
 {
-    unsigned char *const cell = g_cli_guard->persistent_buf_alloc(1000ull, g_checks_owner);
-    g_cli_guard->persistent_buf_release(cell, g_checks_owner);
+    unsigned char *const cell = g_platform_guard->persistent_buf_alloc(1000ull, g_checks_owner);
+    g_platform_guard->persistent_buf_release(cell, g_checks_owner);
     TEST_ASSERT_TRUE(cli_pool_made(32ull << 20u));
 }
 
@@ -216,10 +216,10 @@ void test_the_walks_and_the_lists_cells_are_released(void)
 
 void test_a_take_is_counted_to_its_owner(void)
 {
-    void *const counted = g_cli_guard->persistent_buf_alloc(1000ull, g_checks_owner);
+    void *const counted = g_platform_guard->persistent_buf_alloc(1000ull, g_checks_owner);
     TEST_ASSERT_NOT_NULL(counted);
     const unsigned long long in_use = mmgr_owner_in_use(g_checks_owner);
-    g_cli_guard->persistent_buf_release(counted, g_checks_owner);
+    g_platform_guard->persistent_buf_release(counted, g_checks_owner);
     TEST_ASSERT_GREATER_OR_EQUAL_UINT64(1000ull, in_use);
 }
 
@@ -242,36 +242,36 @@ static unsigned long long listed_in_use(const char *listing, const char *name)
 
 void test_the_audit_lists_the_owner_with_its_bytes(void)
 {
-    void *const counted = g_cli_guard->persistent_buf_alloc(1000ull, g_checks_owner);
+    void *const counted = g_platform_guard->persistent_buf_alloc(1000ull, g_checks_owner);
     VerbaLinea listing = {s_list_result, sizeof(s_list_result), 0ull};
     cli_pool_owners_write(&listing);
     TEST_ASSERT_TRUE(mmgr_line_ok(&listing));
     (void)mmgr_line_finish(&listing);
     const unsigned long long in_use = mmgr_owner_in_use(g_checks_owner);
     const unsigned long long list_entries = listed_in_use(s_list_result, "checks");
-    g_cli_guard->persistent_buf_release(counted, g_checks_owner);
+    g_platform_guard->persistent_buf_release(counted, g_checks_owner);
     TEST_ASSERT_EQUAL_UINT64(in_use, list_entries);
 }
 
 void test_a_released_cell_comes_off_its_owner(void)
 {
-    void *const counted = g_cli_guard->persistent_buf_alloc(1000ull, g_checks_owner);
-    g_cli_guard->persistent_buf_release(counted, g_checks_owner);
+    void *const counted = g_platform_guard->persistent_buf_alloc(1000ull, g_checks_owner);
+    g_platform_guard->persistent_buf_release(counted, g_checks_owner);
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_checks_owner));
 }
 
 void test_a_cell_answers_the_owner_it_counts_to(void)
 {
-    void *const counted = g_cli_guard->persistent_buf_alloc(1000ull, g_checks_owner);
-    TEST_ASSERT_EQUAL_PTR(g_checks_owner, mmgr_owner_of_buf(cli_pool_series_cellularum(), counted));
-    g_cli_guard->persistent_buf_release(counted, g_checks_owner);
-    TEST_ASSERT_NULL(mmgr_owner_of_buf(cli_pool_series_cellularum(), counted));
+    void *const counted = g_platform_guard->persistent_buf_alloc(1000ull, g_checks_owner);
+    TEST_ASSERT_EQUAL_PTR(g_checks_owner, mmgr_owner_of_buf(platform_pool_series(), counted));
+    g_platform_guard->persistent_buf_release(counted, g_checks_owner);
+    TEST_ASSERT_NULL(mmgr_owner_of_buf(platform_pool_series(), counted));
 }
 
 void test_a_take_past_the_pool_is_refused_and_counts_nothing(void)
 {
     // the pool's size is a size_t's on the machines this runs on
-    TEST_ASSERT_NULL(g_cli_guard->persistent_buf_alloc((size_t)CLI_POOL_BYTES, g_checks_owner));
+    TEST_ASSERT_NULL(g_platform_guard->persistent_buf_alloc((size_t)CLI_POOL_BYTES, g_checks_owner));
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_checks_owner));
 }
 
@@ -298,20 +298,20 @@ void test_a_grown_line_holds_a_long_text_whole(void)
         // a byte of the pattern, a character of the alphabet
         s_piece[at] = (char)('a' + (at % 26u));
     }
-    CliGrownLine grown;
-    cli_grown_begin(&grown, ((unsigned long long)PIECE * PIECES) + 1ULL, g_checks_owner);
+    PlatformText grown;
+    platform_text_begun(&grown, ((unsigned long long)PIECE * PIECES) + 1ULL, platform_place_g_checks_owner, PLATFORM_TIER_TEMPORARY);
     for (unsigned int piece = 0u; piece < PIECES; piece += 1u)
     {
         mmgr_line_put_n(&grown.line, s_piece, PIECE);
     }
     TEST_ASSERT_TRUE(mmgr_line_ok(&grown.line));
-    TEST_ASSERT_EQUAL_UINT64((unsigned long long)PIECE * PIECES, cli_grown_size(&grown));
-    TEST_ASSERT_EQUAL_CHAR('\0', grown.cell[cli_grown_size(&grown)]);
+    TEST_ASSERT_EQUAL_UINT64((unsigned long long)PIECE * PIECES, platform_text_size(&grown));
+    TEST_ASSERT_EQUAL_CHAR('\0', grown.cell[platform_text_size(&grown)]);
     for (unsigned int piece = 0u; piece < PIECES; piece += 1u)
     {
         TEST_ASSERT_EQUAL_MEMORY(s_piece, grown.cell + ((unsigned long long)piece * PIECE), PIECE);
     }
-    cli_grown_end(&grown);
+    platform_text_ended(&grown);
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_checks_owner));
 }
 
@@ -322,32 +322,32 @@ void test_a_grown_line_fills_at_the_max_it_is_given(void)
         PIECE = 65536
     };
     static char s_piece[PIECE];
-    CliGrownLine grown;
-    cli_grown_begin(&grown, 3ull * PIECE, g_checks_owner);
+    PlatformText grown;
+    platform_text_begun(&grown, 3ull * PIECE, platform_place_g_checks_owner, PLATFORM_TIER_TEMPORARY);
     for (unsigned int piece = 0u; piece < 4u; piece += 1u)
     {
         mmgr_line_put_n(&grown.line, s_piece, sizeof(s_piece));
     }
     TEST_ASSERT_FALSE(mmgr_line_ok(&grown.line));
-    TEST_ASSERT_EQUAL_UINT64((3ull * PIECE) - 1ull, cli_grown_size(&grown));
-    TEST_ASSERT_EQUAL_CHAR('\0', grown.cell[cli_grown_size(&grown)]);
-    cli_grown_end(&grown);
+    TEST_ASSERT_EQUAL_UINT64((3ull * PIECE) - 1ull, platform_text_size(&grown));
+    TEST_ASSERT_EQUAL_CHAR('\0', grown.cell[platform_text_size(&grown)]);
+    platform_text_ended(&grown);
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_checks_owner));
 }
 
 void test_a_grown_line_begun_over_again_keeps_its_cell_at_the_size_it_grew_to(void)
 {
-    CliGrownLine grown;
-    cli_grown_begin(&grown, 1ull << 20u, g_checks_owner);
+    PlatformText grown;
+    platform_text_begun(&grown, 1ull << 20u, platform_place_g_checks_owner, PLATFORM_TIER_TEMPORARY);
     mmgr_line_put(&grown.line, "some text that grows the line past its first cell's worth of bytes");
     const unsigned long long capacity = grown.capacity;
-    cli_grown_reset(&grown);
-    TEST_ASSERT_EQUAL_UINT64(0ull, cli_grown_size(&grown));
+    platform_text_reset(&grown);
+    TEST_ASSERT_EQUAL_UINT64(0ull, platform_text_size(&grown));
     TEST_ASSERT_EQUAL_UINT64(capacity, grown.capacity);
     mmgr_line_put(&grown.line, "ab");
-    TEST_ASSERT_EQUAL_UINT64(2ull, cli_grown_size(&grown));
+    TEST_ASSERT_EQUAL_UINT64(2ull, platform_text_size(&grown));
     TEST_ASSERT_EQUAL_MEMORY("ab", grown.cell, 2u);
-    cli_grown_end(&grown);
+    platform_text_ended(&grown);
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_checks_owner));
 }
 
@@ -357,8 +357,8 @@ void test_an_owners_usage_is_the_pools_bytes_its_peak_and_a_zero_and_the_reports
     char pool[32];
     VerbaLinea out = mmgr_line_over(text, sizeof(text));
     VerbaLinea pool_line = mmgr_line_over(pool, sizeof(pool));
-    void *const counted = g_cli_guard->persistent_buf_alloc(1000ull, g_checks_owner);
-    g_cli_guard->persistent_buf_release(counted, g_checks_owner);
+    void *const counted = g_platform_guard->persistent_buf_alloc(1000ull, g_checks_owner);
+    g_platform_guard->persistent_buf_release(counted, g_checks_owner);
     cli_pool_owner_usage_write(g_checks_owner, &out);
     (void)mmgr_line_finish(&out);
     mmgr_line_decimal(&pool_line, CLI_POOL_BYTES, 1u);
@@ -387,9 +387,8 @@ void test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes(void)
     static unsigned char s_written[CELL_BYTES];
     static unsigned char s_read[CELL_BYTES];
     static CliWake s_wake = CLI_WAKE_INIT;
-    cli_pool_movable_ready();
-    void *const hole = g_cli_guard->persistent_buf_alloc(HOLE_BYTES, g_checks_owner);
-    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(CELL_BYTES, g_checks_owner);
+    void *const hole = g_platform_guard->persistent_buf_alloc(HOLE_BYTES, g_checks_owner);
+    const CarcerMovableEntry *const cell = g_platform_guard->movable_buf_alloc(CELL_BYTES, g_checks_owner);
     TEST_ASSERT_NOT_NULL(hole);
     TEST_ASSERT_NOT_NULL(cell);
     for (unsigned int at = 0u; at < CELL_BYTES; at += 1u)
@@ -398,26 +397,26 @@ void test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes(void)
         s_written[at] = (unsigned char)(at * 7u);
     }
     TEST_ASSERT_TRUE(
-        g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = s_written, .bytes = CELL_BYTES}));
+        g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = s_written, .bytes = CELL_BYTES}));
     TEST_ASSERT_FALSE_MESSAGE(
-        g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = s_written, .bytes = CELL_BYTES + 1u}),
+        g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = s_written, .bytes = CELL_BYTES + 1u}),
         "a write past its end");
-    const size_t gap = g_cli_guard->buf_available();
-    g_cli_guard->persistent_buf_release(hole, g_checks_owner);
+    const size_t gap = g_platform_guard->buf_available();
+    g_platform_guard->persistent_buf_release(hole, g_checks_owner);
     const unsigned long long began = cli_clock_milliseconds();
-    while ((g_cli_guard->buf_available() <= gap) && ((cli_clock_milliseconds() - began) < PATIENCE_MS))
+    while ((g_platform_guard->buf_available() <= gap) && ((cli_clock_milliseconds() - began) < PATIENCE_MS))
     {
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_wake, .milliseconds_u64 = 50ull);
     }
-    TEST_ASSERT_GREATER_THAN_UINT64(gap, g_cli_guard->buf_available());
+    TEST_ASSERT_GREATER_THAN_UINT64(gap, g_platform_guard->buf_available());
     TEST_ASSERT_TRUE(
-        g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = cell, .dst = s_read, .bytes = CELL_BYTES}));
+        g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = cell, .dst = s_read, .bytes = CELL_BYTES}));
     TEST_ASSERT_EQUAL_MEMORY(s_written, s_read, CELL_BYTES);
-    TEST_ASSERT_TRUE(g_cli_guard->movable_buf_release(cell, g_checks_owner));
+    TEST_ASSERT_TRUE(g_platform_guard->movable_buf_release(cell, g_checks_owner));
     TEST_ASSERT_EQUAL_UINT64(0ull, mmgr_owner_in_use(g_checks_owner));
     // a pool reset stops the mover first and then restarts it: a movable allocation succeeds after the reset as before
     TEST_ASSERT_TRUE_MESSAGE(cli_pool_made(CLI_POOL_BYTES), "the pool made anew with the mover running");
-    const CarcerMovableEntry *const again = g_cli_guard->movable_buf_alloc(CELL_BYTES, g_checks_owner);
+    const CarcerMovableEntry *const again = g_platform_guard->movable_buf_alloc(CELL_BYTES, g_checks_owner);
     TEST_ASSERT_NOT_NULL_MESSAGE(again, "a movable cell taken from the pool made anew");
-    TEST_ASSERT_TRUE(g_cli_guard->movable_buf_release(again, g_checks_owner));
+    TEST_ASSERT_TRUE(g_platform_guard->movable_buf_release(again, g_checks_owner));
 }

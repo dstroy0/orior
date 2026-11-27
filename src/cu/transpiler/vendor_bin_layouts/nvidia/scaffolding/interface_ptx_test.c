@@ -5,7 +5,7 @@
 // integers; then the illegal operations, each queried from a fresh process, since a fault on the device leaves its
 // context unusable; and after each, a fresh process whose device answers. The first argument is interface_ptx_probe's
 // path, the second a folder for the probes' output
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "../../../lstar/interface/interface.h"
 #include "cellularum_laboro/cellularum_laboro.h"

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // orior_raster_reduce_test.c: the host raster and volume reduce a 0 byte the way the device's identity seed does
 #include "orior_raster.h"
-#include "../../../../../../src/platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 
 #include <stdio.h>
 

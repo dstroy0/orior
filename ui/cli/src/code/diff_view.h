@@ -81,8 +81,8 @@ typedef struct
     unsigned int type;
 } CliDiffViewMark;
 
-// the view opened from `source` for the tree at `root`: the file at `path`, or the displayed view's file where `path` is
-// NULL, its text the open view's where one is open on it, else the file's own; `other_path` the second file; `id` a
+// the view opened from `source` for the tree at `root`: the file at `path`, or the displayed view's file where `path`
+// is NULL, its text the open view's where one is open on it, else the file's own; `other_path` the second file; `id` a
 // commit and `other_id` a second; `size` bytes of `text` the clipboard's; and `at_ms` the snapshot's milliseconds: 1,
 // or 0 with why in `err_msg`, the view open before closed either way; and the view closed, its cells released
 int cli_diff_view_open(const CliDiffViewSourceErrMsgCfg *args);

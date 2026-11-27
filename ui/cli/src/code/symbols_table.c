@@ -9,7 +9,7 @@
 #include "symbols_tree.h"
 
 // every file a table can name, and the one taken while the cell it replaces still is
-_Static_assert(CLI_BRANCHES_MAX < CLI_POOL_MOVABLE, "the movable cells cannot name every symbol file");
+_Static_assert(CLI_BRANCHES_MAX < PLATFORM_POOL_MOVABLE, "the movable cells cannot name every symbol file");
 
 // the places of one chunk as a two's power, the chunks, the words of a chunk's bitmap of places in use, and the
 // records of the run of the newest branches
@@ -140,7 +140,7 @@ EMBED_INLINE int cli_branch_is(unsigned int place, const char *path, embed_word 
 {
     CliTreeBranch branch;
     EMBED_CALL(cli_branch_read, CliSymbolsTreeAtCfg, .file = place, .branch_out = &branch);
-    return g_cli_guard->movable_buf_compare(
+    return g_platform_guard->movable_buf_compare(
                &(CarcerMovableCfg){.cell = branch.cell, .offset = branch.path, .src = path, .bytes = bytes}) == 0;
 }
 
@@ -153,7 +153,7 @@ void cli_branch_read(const CliSymbolsTreeAtCfg *args)
         memor.set(&(MemoriaCfg){.dst = args->branch_out, .val = 0, .bytes = sizeof(*args->branch_out)});
         return;
     }
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = chunk,
         .offset = (unsigned long long)(args->file & (CLI_BRANCH_CHUNK - 1u)) * sizeof(CliTreeBranch),
         .dst = args->branch_out,
@@ -167,7 +167,7 @@ void cli_branch_write(const CliSymbolsTreeAtCfg *args)
     {
         return;
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = chunk,
         .offset = (unsigned long long)(args->file & (CLI_BRANCH_CHUNK - 1u)) * sizeof(CliTreeBranch),
         .src = args->branch,
@@ -176,7 +176,7 @@ void cli_branch_write(const CliSymbolsTreeAtCfg *args)
 
 char *cli_branch_copy_alloc(void)
 {
-    return g_cli_guard->temporary_buf_alloc(s_cell_max, g_cli_code_owner);
+    return g_platform_guard->temporary_buf_alloc(s_cell_max, g_cli_code_owner);
 }
 
 const char *cli_branch_copy_path(const CliSymbolsTreeBranchScratchCfg *args)
@@ -192,10 +192,10 @@ const CliDeclaration *cli_branch_copy_declarations(const CliSymbolsTreeBranchScr
 void cli_branch_path_read(const CliSymbolsTreeBranchPathCfg *args)
 {
     const embed_word measured =
-        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = args->branch->cell, .offset = args->branch->path});
+        g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = args->branch->cell, .offset = args->branch->path});
     const embed_word bytes = (measured < CLI_PATH_MAX_LEN) ? measured : (CLI_PATH_MAX_LEN - 1u);
 
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = args->branch->cell, .offset = args->branch->path, .dst = args->path_out, .bytes = bytes});
     args->path_out[bytes] = '\0';
 }
@@ -235,7 +235,7 @@ EMBED_INLINE void cli_cell_zeroed(const SymbolsTableCtx *args)
     {
         const unsigned long long step =
             ((args->bytes - done) < sizeof(s_zeros)) ? (args->bytes - done) : sizeof(s_zeros);
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = args->entry, .offset = done, .src = s_zeros, .bytes = step});
     }
 }
@@ -257,8 +257,7 @@ EMBED_INLINE unsigned int cli_place_taken(const SymbolsTableCtx *args)
     }
     if (s_chunk[chunk] == NULL)
     {
-        cli_pool_movable_ready();
-        s_chunk[chunk] = g_cli_guard->movable_buf_alloc((unsigned long long)CLI_BRANCH_CHUNK * sizeof(CliTreeBranch),
+        s_chunk[chunk] = g_platform_guard->movable_buf_alloc((unsigned long long)CLI_BRANCH_CHUNK * sizeof(CliTreeBranch),
                                                         g_cli_code_owner);
         if (s_chunk[chunk] == NULL)
         {
@@ -293,7 +292,7 @@ EMBED_INLINE void cli_place_left(const SymbolsTableCtx *args)
     s_chunk_used[chunk] -= 1u;
     if (s_chunk_used[chunk] == 0u)
     {
-        (void)g_cli_guard->movable_buf_release(s_chunk[chunk], g_cli_code_owner);
+        (void)g_platform_guard->movable_buf_release(s_chunk[chunk], g_cli_code_owner);
         s_chunk[chunk] = NULL;
     }
 }
@@ -328,7 +327,7 @@ EMBED_INLINE void cli_bucket_unlinked(const SymbolsTableCtx *args)
 EMBED_INLINE unsigned int cli_branch_init(const SymbolsTableCtx *args)
 {
     unsigned long long bytes = args->bytes;
-    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_code_owner);
+    const CarcerMovableEntry *const cell = g_platform_guard->movable_buf_alloc(bytes, g_cli_code_owner);
     if (cell == NULL)
     {
         return CLI_BRANCHES_MAX;
@@ -336,10 +335,10 @@ EMBED_INLINE unsigned int cli_branch_init(const SymbolsTableCtx *args)
     const unsigned int place = EMBED_CALL(cli_place_taken, SymbolsTableCtx, .file = 0u);
     if (place == CLI_BRANCHES_MAX)
     {
-        (void)g_cli_guard->movable_buf_release(cell, g_cli_code_owner);
+        (void)g_platform_guard->movable_buf_release(cell, g_cli_code_owner);
         return CLI_BRANCHES_MAX;
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = args->path, .bytes = bytes});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = args->path, .bytes = bytes});
     // a path is below CLI_PATH_MAX_LEN, which an unsigned int counts
     const CliTreeBranch branch = {.cell = cell,
                                   .bytes = (unsigned int)bytes,
@@ -425,7 +424,7 @@ void cli_branch_leave(const CliSymbolsTreeFileCfg *args)
         EMBED_CALL(cli_symbols_tree_branch_path.branch_path_read, CliSymbolsTreeBranchPathCfg, .branch = &branch,
                    .path_out = path);
         EMBED_CALL(cli_bucket_unlinked, SymbolsTableCtx, .path = path, .file = at);
-        (void)g_cli_guard->movable_buf_release(branch.cell, g_cli_code_owner);
+        (void)g_platform_guard->movable_buf_release(branch.cell, g_cli_code_owner);
         const unsigned int parent = branch.parent;
         if (!branch.folder && (parent != CLI_BRANCH_MOUNTED))
         {
@@ -462,12 +461,12 @@ void cli_tree_clear(void)
     {
         CliTreeBranch branch;
         EMBED_CALL(cli_branch_read, CliSymbolsTreeAtCfg, .file = at, .branch_out = &branch);
-        (void)g_cli_guard->movable_buf_release(branch.cell, g_cli_code_owner);
+        (void)g_platform_guard->movable_buf_release(branch.cell, g_cli_code_owner);
     }
     g_cli_branch_count = 0u;
     for (unsigned int chunk = 0u; chunk < CLI_BRANCH_CHUNKS; chunk += 1u)
     {
-        (void)g_cli_guard->movable_buf_release(s_chunk[chunk], g_cli_code_owner);
+        (void)g_platform_guard->movable_buf_release(s_chunk[chunk], g_cli_code_owner);
         s_chunk[chunk] = NULL;
     }
     memor.set(&(MemoriaCfg){.dst = s_chunk_used, .val = 0, .bytes = sizeof(s_chunk_used)});

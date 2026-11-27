@@ -3,7 +3,7 @@
 // printed.c: what is written into the text passed to the run: a row's word, a key named, a text, a who and a column,
 // the columns of a table, the format oracle, a change, and the table
 #include "../../../../../../../includes/parsers/who.h"
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../table_text.h"
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"

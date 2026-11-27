@@ -114,7 +114,7 @@ int query_context_run(const QueryLoopsContextErrMsgNameRunCfg *args)
     EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "QRY", .value = args->run->writer.qry);
     EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "QRY_TOP", .value = args->run->writer.top);
     EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "PATH", .value = args->run->writer.path);
-    QueryProcess process;
+    PlatformProgram process;
     if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &process, .words = words,
                     .folder = args->context->root, .output = QUERY_OUTPUT_OWN))
     {
@@ -140,7 +140,7 @@ int query_context_dispatch(const QueryLoopsContextErrMsgNameRunCfg *args)
     EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "QRY", .value = args->run->writer.qry);
     EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "QRY_TOP", .value = args->run->writer.top);
     EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "PATH", .value = args->run->writer.path);
-    QueryProcess process;
+    PlatformProgram process;
     if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &process, .words = words,
                     .folder = args->context->root, .output = QUERY_OUTPUT_PIPED))
     {
@@ -150,7 +150,7 @@ int query_context_dispatch(const QueryLoopsContextErrMsgNameRunCfg *args)
     }
     // the output read to its end into a cell of the max it holds; what it writes past that is read and let go, for the
     // program to run to its end, and the output refused
-    char *const output = g_cli_guard->temporary_buf_alloc(QUERY_OUTPUT_MAX, g_query_owner);
+    char *const output = g_platform_guard->temporary_buf_alloc(QUERY_OUTPUT_MAX, g_query_owner);
     const unsigned long long capacity = (output != NULL) ? QUERY_OUTPUT_MAX - 1ULL : 0ULL;
     unsigned long long used = 0ULL;
     int whole = (output != NULL);
@@ -173,7 +173,7 @@ int query_context_dispatch(const QueryLoopsContextErrMsgNameRunCfg *args)
     *code = EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &process);
     if (!whole)
     {
-        g_cli_guard->persistent_buf_release(output, g_query_owner);
+        g_platform_guard->persistent_buf_release(output, g_query_owner);
         mmgr_line_put(err_msg, words[0]);
         mmgr_line_put(err_msg, ": its output could not be stored");
         return 0;
@@ -181,7 +181,7 @@ int query_context_dispatch(const QueryLoopsContextErrMsgNameRunCfg *args)
     const int appended =
         EMBED_CALL(query_name_bytes_internal.writer_append, QueryNameBytesCtx, .writer = &args->run->writer,
                    .name = name, .bytes = output, .size = used, .priority = QRY_ORDINARY, .err_msg = err_msg);
-    g_cli_guard->persistent_buf_release(output, g_query_owner);
+    g_platform_guard->persistent_buf_release(output, g_query_owner);
     return appended;
 }
 

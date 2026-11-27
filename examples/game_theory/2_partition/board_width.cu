@@ -15,7 +15,7 @@
  * @note The games of Reversi run on the record machine, a game a lane, and the twister on the device draws each move.
  *       The Grundy sequences run on the record machine too, and each cell of a grid is the exclusive or of two values.
  */
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "../period_detector.h"
 #include "../reversi_record.h"
 #include "../subtraction_record.h"

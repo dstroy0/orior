@@ -23,16 +23,16 @@ void cli_typed_put(const CliTypedCfg *args)
     }
     if (typed->cell == NULL)
     {
-        typed->cell = g_cli_guard->movable_buf_alloc(args->max, args->owner);
+        typed->cell = g_platform_guard->movable_buf_alloc(args->max, args->owner);
         if (typed->cell == NULL)
         {
             return;
         }
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = typed->cell, .offset = length, .src = args->text, .bytes = size});
     const char end = '\0';
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = typed->cell, .offset = length + size, .src = &end, .bytes = 1ULL});
     typed->length = length + size;
 }
@@ -48,7 +48,7 @@ void cli_typed_erase(const CliTypedCfg *args)
     // the last character's bytes read back: a continuation byte each until its lead byte
     const unsigned long long from = (length > TYPED_CHARACTER_MAX) ? length - TYPED_CHARACTER_MAX : 0ULL;
     unsigned char tail[TYPED_CHARACTER_MAX];
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = typed->cell, .offset = from, .dst = tail, .bytes = length - from});
     while (length > from)
     {
@@ -59,7 +59,7 @@ void cli_typed_erase(const CliTypedCfg *args)
         }
     }
     const char end = '\0';
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = typed->cell, .offset = length, .src = &end, .bytes = 1ULL});
     typed->length = length;
 }
@@ -67,7 +67,7 @@ void cli_typed_erase(const CliTypedCfg *args)
 void cli_typed_release(const CliTypedCfg *args)
 {
     CliTyped *const typed = args->typed;
-    (void)g_cli_guard->movable_buf_release(typed->cell, args->owner);
+    (void)g_platform_guard->movable_buf_release(typed->cell, args->owner);
     typed->cell = NULL;
     typed->length = 0ULL;
 }
@@ -85,7 +85,7 @@ unsigned long long cli_typed_copy(const CliTypedCfg *args)
                                                                                         : 0ULL;
     if (copied != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = typed->cell, .dst = args->dst, .bytes = copied});
     }
     args->dst[copied] = '\0';

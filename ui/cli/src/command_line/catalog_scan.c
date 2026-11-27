@@ -277,7 +277,7 @@ void cli_catalog_about(const CliCatalogCfg *args)
     const char *const text = (const char *)bytes;
     EMBED_CALL(cli_about_write, CatalogScanCtx, .path = args->path, .text = text,
                .end = EMBED_CALL(cli_about_end, CatalogScanCtx, .text = text, .size = size), .out = args->out);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_catalog_owner);
 }
 
 // what a file declares of itself is the text of the lines it is read from, a space put for each line's end it passes,
@@ -295,14 +295,14 @@ char *cli_catalog_about_alloc(const CliCatalogPathCtx *args)
     const char *const text = (const char *)bytes;
     const char *const end = EMBED_CALL(cli_about_end, CatalogScanCtx, .text = text, .size = size);
     const unsigned long long capacity = (unsigned long long)(end - text) + 1ULL;
-    char *const about = g_cli_guard->temporary_buf_alloc(capacity, g_cli_catalog_owner);
+    char *const about = g_platform_guard->temporary_buf_alloc(capacity, g_cli_catalog_owner);
     if (about != NULL)
     {
         VerbaLinea line = {about, capacity, 0ULL};
         EMBED_CALL(cli_about_write, CatalogScanCtx, .path = args->path, .text = text, .end = end, .out = &line);
         mmgr_line_finish(&line);
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_catalog_owner);
     return about;
 }
 
@@ -410,7 +410,7 @@ unsigned int cli_catalog_driver_parts(const CliCatalogCapacityCtx *args)
     }
     const char *const literals = found + cellul.len(&(CatenaFinitaCfg){.src = s_marker, .cap = CLI_POOL_BYTES});
     const unsigned long long length = EMBED_CALL(cli_driver_join, CatalogScanCtx, .from = literals, .joined = NULL);
-    char *const joined = g_cli_guard->temporary_buf_alloc(length + 1ULL, g_cli_catalog_owner);
+    char *const joined = g_platform_guard->temporary_buf_alloc(length + 1ULL, g_cli_catalog_owner);
     if (joined == NULL)
     {
         return 0u;
@@ -437,7 +437,7 @@ unsigned int cli_catalog_driver_parts(const CliCatalogCapacityCtx *args)
             from = cut + 1ULL;
         }
     }
-    g_cli_guard->persistent_buf_release(joined, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release(joined, g_cli_catalog_owner);
     return count;
 }
 
@@ -452,10 +452,10 @@ char *cli_catalog_markdown_alloc(const CliCatalogPathOutCtx *args)
     {
         return NULL;
     }
-    char *const opening = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_catalog_owner);
+    char *const opening = g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_catalog_owner);
     if (opening == NULL)
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_catalog_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_catalog_owner);
         return NULL;
     }
     VerbaLinea opened = {opening, size + 1ULL, 0ULL};
@@ -480,6 +480,6 @@ char *cli_catalog_markdown_alloc(const CliCatalogPathOutCtx *args)
                    .length = line.length);
     }
     mmgr_line_finish(&opened);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_catalog_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_catalog_owner);
     return opening;
 }

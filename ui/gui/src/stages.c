@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// stages.c: the claim's movement positioned once: every stage's frame, holes, map and titles positioned as a slide is sent, sized
-// in one pass and written in a second into one cell, and read by index for the rest of the slide
+// stages.c: the claim's movement positioned once: every stage's frame, holes, map and titles positioned as a slide is
+// sent, sized in one pass and written in a second into one cell, and read by index for the rest of the slide
 #include "stages.h"
 
 #include "../../../includes/window/block.h"
@@ -59,8 +59,8 @@ EMBED_INLINE unsigned long long stages_moment(const StagesCtx *args)
                                           : args->time_ms + ((unsigned long long)args->at * GUI_STAGE_MS);
 }
 
-// `positioned` at the claim's numbers, the side's slide and the panel's arrival at `moment`, and the base and the menu bar
-// positioned for it
+// `positioned` at the claim's numbers, the side's slide and the panel's arrival at `moment`, and the base and the menu
+// bar positioned for it
 EMBED_INLINE void stages_one_layout(const StagesCtx *args)
 {
     GuiAutohide *claim = args->claim;
@@ -72,14 +72,14 @@ EMBED_INLINE void stages_one_layout(const StagesCtx *args)
     EMBED_CALL(gui_autohide_state.numbers, GuiAutohideStateCfg, .claim = claim, .time_ms = args->moment,
                .numbers = &numbers);
     args->positioned->side_displayed = EMBED_CALL(gui_sides.is, GuiSidesCfg, .sides_read = args->sides_read,
-                                            .side_menu_read = args->side_menu_read, .time_ms = args->moment);
+                                                  .side_menu_read = args->side_menu_read, .time_ms = args->moment);
     args->positioned->side_away =
         EMBED_CALL(gui_sides.away, GuiSidesCfg, .sides_read = args->sides_read, .time_ms = args->moment);
     args->positioned->terminal_away =
         EMBED_CALL(gui_docks.away, GuiDocksCfg, .docks_read = args->docks_read, .time_ms = args->moment);
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = args->positioned, .numbers = &numbers);
-    (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = base, .frame = args->positioned, .palette = palette,
-                     .controls_steady = args->positioned->controls_pane_share >= GUI_FIXED_ONE);
+    (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = base, .frame = args->positioned,
+                     .palette = palette, .controls_steady = args->positioned->controls_pane_share >= GUI_FIXED_ONE);
     EMBED_CALL(gui_menubar_bar.titles_layout, GuiMenubarBarCfg, .menubar = menubar, .glyphs = glyphs,
                .frame = args->positioned);
 }
@@ -107,9 +107,10 @@ int gui_stages_init(const GuiStagesAutohideCfg *args)
     unsigned long long titles = 0ULL;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        EMBED_CALL(stages_one_layout, StagesCtx, .positioned = &positioned, .claim = claim, .sides_read = args->sides_read,
-                   .side_menu_read = args->side_menu_read, .docks_read = args->docks_read, .base = args->base,
-                   .palette = args->palette, .menubar = args->menubar, .glyphs = args->glyphs,
+        EMBED_CALL(stages_one_layout, StagesCtx, .positioned = &positioned, .claim = claim,
+                   .sides_read = args->sides_read, .side_menu_read = args->side_menu_read,
+                   .docks_read = args->docks_read, .base = args->base, .palette = args->palette,
+                   .menubar = args->menubar, .glyphs = args->glyphs,
                    .moment = EMBED_CALL(stages_moment, StagesCtx, .at = at, .count = count, .time_ms = args->time_ms,
                                         .end_ms = end_ms));
         words += (2ULL * (unsigned long long)args->base->bands) + 2ULL;
@@ -137,9 +138,10 @@ int gui_stages_init(const GuiStagesAutohideCfg *args)
     positioned = *frame;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        EMBED_CALL(stages_one_layout, StagesCtx, .positioned = &positioned, .claim = claim, .sides_read = args->sides_read,
-                   .side_menu_read = args->side_menu_read, .docks_read = args->docks_read, .base = args->base,
-                   .palette = args->palette, .menubar = args->menubar, .glyphs = args->glyphs,
+        EMBED_CALL(stages_one_layout, StagesCtx, .positioned = &positioned, .claim = claim,
+                   .sides_read = args->sides_read, .side_menu_read = args->side_menu_read,
+                   .docks_read = args->docks_read, .base = args->base, .palette = args->palette,
+                   .menubar = args->menubar, .glyphs = args->glyphs,
                    .moment = EMBED_CALL(stages_moment, StagesCtx, .at = at, .count = count, .time_ms = args->time_ms,
                                         .end_ms = end_ms));
         GuiStage *const one = &stage[at];

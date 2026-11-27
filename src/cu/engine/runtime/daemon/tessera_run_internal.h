@@ -8,6 +8,7 @@
 // fork, exec, the affinity mask, the pid descriptor, waitid, flock, gmtime_r and the clock are outside strict C11
 #define _GNU_SOURCE
 #endif
+#include "../../../../../includes/platform/platform.h"
 #include "../obsignatio/obsignatio.h"
 #include "tessera.h"
 
@@ -37,14 +38,14 @@
 #define RUN_IDLE_MICROSECONDS 30000000ULL
 // until a parent and its child greeted each other, each reads the other's record this often
 #define RUN_GREETING_MICROSECONDS 20000ULL
-// a keepalive unchanged this long sends the child looking for its parent ($TESSERA_RUN_SILENT_MS)
+// a keepalive unchanged this long sends the child to look for its parent ($TESSERA_RUN_SILENT_MS)
 #define RUN_SILENT_MICROSECONDS 10000000ULL
-// a parent that still locks its record and sent no keepalive this long is not responding
+// a parent that still locks its record and sent no keepalive this long gives no answer
 // ($TESSERA_RUN_UNRESPONSIVE_MS)
 #define RUN_UNRESPONSIVE_MICROSECONDS 60000000ULL
-// a command requested to end is given this long before what is left of it is ended by force
+// the grace of a command asked to end, before the rest of it ends by force
 #define RUN_GRACE_MICROSECONDS 10000000ULL
-// how often a command requested to end is read for what is left of it
+// how often the child reads a command asked to end for the rest of it
 #define RUN_ENDING_MICROSECONDS 100000ULL
 #define RUN_MILLION 1000000ULL
 #define RUN_THOUSAND 1000ULL
@@ -76,22 +77,13 @@ typedef struct
     int command;
 } RunRequest;
 
-typedef struct
-{
-#if defined(_WIN32)
-    HANDLE job;
-    HANDLE process;
-#else
-    pid_t pid;
-    int watch;
-#endif
-} RunChild;
-
-// the parent's side of a child tessera_run. Their records share one path, before .parent (the parent's, locked open for
-// the parent's whole life), .child (the child's) and .log (the child's entries); named_records is that path as the
-// child names it. The parent records the pid it launched, then the pid the child reports it has. Across the VM (a child
-// in WSL) the child's record carries its command's processor time and the wall time it was read at, on the child's own
-// clock, which no job here uses: the rate between two of its records is the command's processors
+// the parent's side of a child tessera_run. Their records share one path, before .parent, .child and .log. The parent
+// locks .parent open for its whole life, .child is the child's, and .log holds the child's entries. Its named_records
+// is that path as the child names it. The parent records the pid it launched, then the pid the child reports it has.
+//
+// Across the VM, a child in WSL, the child's record carries its command's processor time and the wall time of the
+// reading. Both are on the child's own clock, which no job here uses. The rate between two of its records is the
+// command's processors
 typedef struct
 {
     char records[ENGINE_PATH_CAPACITY];
@@ -136,23 +128,19 @@ int run_record_read(const char *path, char state[RUN_STATE_CAPACITY], unsigned l
 
 void run_log(const char *records, const char *entry);
 
-// the whole processors the job was granted, written to $TESSERA_RUN_PROCESSORS for the command and every process it
-// starts to read: the workers a command starts are the processors its job has
+// the whole processors of the job, written to $TESSERA_RUN_PROCESSORS for the command and every process it
+// starts to read. The workers a command starts are the processors its job has
 int run_processors_named(unsigned long long processors);
 
-int run_start(RunChild *child, char *const *words, int count, unsigned long long mask, RunChannel *channel);
+int run_start(PlatformProgram *child, char *const *words, int count, unsigned long long mask, RunChannel *channel);
 
-int run_ended(RunChild *child, unsigned long long microseconds);
+int run_ended(PlatformProgram *child, unsigned long long microseconds);
 
-int run_finish(RunChild *child);
+int run_finish(PlatformProgram *child);
 
-int run_cpu(const RunChild *child, unsigned long long *microseconds);
+int run_cpu(const PlatformProgram *child, unsigned long long *microseconds);
 
-unsigned long long run_end_command(RunChild *child, unsigned long long grace);
-
-void run_folder_make(const char *path);
-
-int run_folder_exists(const char *path);
+unsigned long long run_end_command(PlatformProgram *child, unsigned long long grace);
 
 int run_record_make(RunChannel *channel, const char *path);
 
@@ -161,6 +149,13 @@ void run_record_put(RunChannel *channel, const char *line, size_t length);
 void run_record_close(RunChannel *channel);
 
 int run_parent_alive(const char *parent);
+
+// The calls of each system (platform/windows/windows_tessera_run.c, platform/posix/posix_tessera_run.c). The first
+// notes that the command runs unmeasured, where a read of its processor time fails. The second leaves the interrupts
+// of the terminal to the command, which ends, while this process waits for it
+void run_unmeasured_noted(void);
+
+void run_interrupts_passed(void);
 #if (defined(_WIN32))
 
 int run_names_wsl(const char *program);
@@ -168,20 +163,6 @@ int run_names_wsl(const char *program);
 int run_mounted_path(const char *path, char *mounted, size_t capacity);
 
 int run_wsl_program(char *mounted, size_t capacity);
-#endif
-#if !(defined(_WIN32))
-typedef struct
-{
-    unsigned long long pid;
-    unsigned long long parent;
-    unsigned long long ticks;
-    char state;
-    int in_tree;
-} RunProcess;
-
-int run_process_read(unsigned long long pid, RunProcess *process);
-
-RunProcess *run_tree(pid_t root, unsigned long long *count);
 #endif
 
 void run_record_launched(RunChannel *channel, unsigned long long pid);
@@ -191,7 +172,7 @@ char **run_channel_open(RunChannel *channel, const RunRequest *request, char *co
 
 void run_channel_close(RunChannel *channel);
 
-void run_wait(RunChild *child, RunChannel *channel, TesseraClient *client, TesseraTicket *ticket, EngineError *error);
+void run_wait(PlatformProgram *child, RunChannel *channel, TesseraClient *client, TesseraTicket *ticket, EngineError *error);
 
 int run_child(const RunRequest *request, char **arguments, int count, unsigned long long mask, const char *label);
 

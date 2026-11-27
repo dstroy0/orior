@@ -86,9 +86,9 @@ typedef struct
 
 // The comms layer: its parts, listeners and channels, the three tables in one movable cell of `*_capacity` places at
 // their max, NULL until the first is needed; each channel's stored ring, CLI_COMMS_CHANNELS of them fixed outside the
-// pool and emptied with the tables, a ring positioned as its channel's traffic is made; and the change stamp, moved on by
-// every register, bind, leave, listen, unlisten, send and transfer, which the view compares with the stamp it last read
-// so that it lists the layer again only where the layer moved
+// pool and emptied with the tables, a ring positioned as its channel's traffic is made; and the change stamp, moved on
+// by every register, bind, leave, listen, unlisten, send and transfer, which the view compares with the stamp it last
+// read so that it lists the layer again only where the layer moved
 typedef struct
 {
     const CarcerMovableEntry *tables;

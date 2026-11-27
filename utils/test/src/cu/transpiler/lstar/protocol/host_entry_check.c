@@ -5,7 +5,7 @@
 // (query_interface_check.c); here the decision over the read-back words and the width over a sizing register's mask are
 // put their own values
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/query/host_entry.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 #include <stdio.h>
 

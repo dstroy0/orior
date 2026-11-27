@@ -132,9 +132,9 @@ EMBED_INLINE unsigned int tests_text_append(const TestsPaneCtx *args)
     }
     const unsigned int at = s_tests.used;
     const char end = '\0';
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = s_tests.cell, .offset = TESTS_TEXT_AT(at), .src = args->text, .bytes = args->length});
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = s_tests.cell, .offset = TESTS_TEXT_AT(at + args->length), .src = &end, .bytes = 1ULL});
     // a text that fits the bytes is counted by an unsigned int
     s_tests.used = at + (unsigned int)args->length + 1u;
@@ -150,14 +150,14 @@ static void tests_found(const CliTestEachCfg *args)
     TestsFile last = {0u, 0ULL, 0u, 0u, 0};
     if (s_tests.files != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_tests.cell, .offset = TESTS_FILE_AT(s_tests.files - 1u), .dst = &last, .bytes = sizeof(last)});
     }
     if ((s_tests.files == 0u) ||
-        (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = s_tests.cell,
-                                                              .offset = TESTS_TEXT_AT(last.path),
-                                                              .src = test->file,
-                                                              .bytes = file_length + 1ULL}) != 0))
+        (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = s_tests.cell,
+                                                                   .offset = TESTS_TEXT_AT(last.path),
+                                                                   .src = test->file,
+                                                                   .bytes = file_length + 1ULL}) != 0))
     {
         if (s_tests.files >= TESTS_FILES)
         {
@@ -175,7 +175,7 @@ static void tests_found(const CliTestEachCfg *args)
             cut = (test->file[each] == '/') ? each : cut;
         }
         last = (TestsFile){path, cut, s_tests.tests, 0u, 0};
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = s_tests.cell, .offset = TESTS_FILE_AT(s_tests.files), .src = &last, .bytes = sizeof(last)});
         EMBED_ATOMIC_STORE(TESTS_FILE_MESSAGES(s_tests.files), 0u);
         s_tests.files += 1u;
@@ -206,12 +206,12 @@ static void tests_found(const CliTestEachCfg *args)
         return;
     }
     const TestsTest found = {id, label_at, line.at, test->line, 0, 0u, 0u, 0ULL, 0ULL, 0};
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = s_tests.cell, .offset = TESTS_TEST_AT(s_tests.tests), .src = &found, .bytes = sizeof(found)});
     EMBED_ATOMIC_STORE(TESTS_OUTCOME(s_tests.tests), CLI_TESTS_NONE);
     s_tests.tests += 1u;
     last.count += 1u;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = s_tests.cell, .offset = TESTS_FILE_AT(s_tests.files - 1u), .src = &last, .bytes = sizeof(last)});
 }
 
@@ -238,7 +238,7 @@ void cli_tests_pane_read(const CliTestsPaneCfg *args)
         // the outcome and message words are read and written by the runs' threads as atomics, so they are fixed
         // outside the pool, where they punch no hole in the persistent tier
         static embed_atomic_u32 s_words[TESTS_TESTS + TESTS_FILES];
-        s_tests.cell = g_cli_guard->movable_buf_alloc(TESTS_CELL_BYTES, g_cli_tests_pane_owner);
+        s_tests.cell = g_platform_guard->movable_buf_alloc(TESTS_CELL_BYTES, g_cli_tests_pane_owner);
         if (s_tests.cell == NULL)
         {
             return;
@@ -268,7 +268,7 @@ int cli_tests_pane_loaded(const CliTestsPaneCfg *args)
 EMBED_INLINE unsigned int tests_file_rows(const TestsPaneCtx *args)
 {
     TestsFile file;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_tests.cell, .offset = TESTS_FILE_AT(args->file), .dst = &file, .bytes = sizeof(file)});
     return 1u + (file.closed ? 0u : file.count + EMBED_ATOMIC_LOAD(TESTS_FILE_MESSAGES(args->file)));
 }
@@ -293,7 +293,7 @@ unsigned int cli_tests_pane_rows(const CliTestsPaneCfg *args)
 EMBED_INLINE void tests_file_row(const TestsPaneCtx *args)
 {
     TestsFile file;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_tests.cell, .offset = TESTS_FILE_AT(args->file), .dst = &file, .bytes = sizeof(file)});
     CliTestsRow *const row = (CliTestsRow *)args->text;
     unsigned int worst = CLI_TESTS_SKIPPED + 1u;
@@ -334,7 +334,7 @@ EMBED_INLINE void tests_row_text(const TestsPaneCtx *args)
 {
     char *const copied = (char *)args->text;
     const unsigned long long length = (args->length < CLI_TESTS_ROW_TEXT) ? args->length : (CLI_TESTS_ROW_TEXT - 1ULL);
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_tests.cell, .offset = args->at, .dst = copied, .bytes = length});
     copied[length] = '\0';
     *(const char **)args->file_out = copied;
@@ -353,9 +353,9 @@ int cli_tests_pane_row(const CliTestsPaneCfg *args)
     if (EMBED_CALL(tests_file_of, TestsPaneCtx, .at = args->at, .file_out = &file_index, .text = (char *)&under))
     {
         TestsFile file;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_tests.cell, .offset = TESTS_FILE_AT(file_index), .dst = &file, .bytes = sizeof(file)});
-        const unsigned long long path_length = g_cli_guard->movable_buf_measure(
+        const unsigned long long path_length = g_platform_guard->movable_buf_measure(
             &(CarcerMovableCfg){.cell = s_tests.cell, .offset = TESTS_TEXT_AT(file.path)});
         EMBED_CALL(tests_row_text, TestsPaneCtx, .at = (unsigned int)TESTS_TEXT_AT(file.path), .length = path_length,
                    .text = row->path_copied, .file_out = (unsigned int *)&row->path);
@@ -374,7 +374,7 @@ int cli_tests_pane_row(const CliTestsPaneCfg *args)
         for (unsigned int at = file.first; at < file.first + file.count; at += 1u)
         {
             TestsTest test;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = s_tests.cell, .offset = TESTS_TEST_AT(at), .dst = &test, .bytes = sizeof(test)});
             const unsigned int outcome = EMBED_ATOMIC_LOAD(TESTS_OUTCOME(at));
             if (under == 0u)
@@ -419,7 +419,7 @@ int cli_tests_pane_row(const CliTestsPaneCfg *args)
         for (unsigned int at = 0u; at < covers; at += 1u)
         {
             TestsCover cover;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = s_tests.cell, .offset = TESTS_COVER_AT(at), .dst = &cover, .bytes = sizeof(cover)});
             row->passed += cover.ran;
             row->failed += cover.missed;
@@ -427,10 +427,10 @@ int cli_tests_pane_row(const CliTestsPaneCfg *args)
         return 1;
     }
     TestsCover cover;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_tests.cell, .offset = TESTS_COVER_AT(under - 1u), .dst = &cover, .bytes = sizeof(cover)});
     row->type = CLI_TESTS_ROW_COVER;
-    const unsigned long long path_length = g_cli_guard->movable_buf_measure(
+    const unsigned long long path_length = g_platform_guard->movable_buf_measure(
         &(CarcerMovableCfg){.cell = s_tests.cell, .offset = TESTS_TEXT_AT(cover.path)});
     EMBED_CALL(tests_row_text, TestsPaneCtx, .at = (unsigned int)TESTS_TEXT_AT(cover.path), .length = path_length,
                .text = row->path_copied, .file_out = (unsigned int *)&row->path);
@@ -451,10 +451,10 @@ void cli_tests_pane_toggle(const CliTestsPaneCfg *args)
         (under == 0u))
     {
         TestsFile file;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_tests.cell, .offset = TESTS_FILE_AT(file_index), .dst = &file, .bytes = sizeof(file)});
         file.closed = !file.closed;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = s_tests.cell, .offset = TESTS_FILE_AT(file_index), .src = &file, .bytes = sizeof(file)});
     }
 }
@@ -474,22 +474,22 @@ int cli_tests_pane_run(const CliTestsPaneCfg *args)
     }
     // the names passed to the run are in a copy of the text that lasts the start
     char *const text =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)s_tests.used + 1ULL, g_cli_tests_pane_owner);
+        g_platform_guard->temporary_buf_alloc((unsigned long long)s_tests.used + 1ULL, g_cli_tests_pane_owner);
     if (text == NULL)
     {
         return 0;
     }
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_tests.cell, .offset = TESTS_TEXT_AT(0u), .dst = text, .bytes = s_tests.used});
     text[s_tests.used] = '\0';
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < s_tests.tests; at += 1u)
     {
         TestsTest given_test;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_tests.cell, .offset = TESTS_TEST_AT(at), .dst = &given_test, .bytes = sizeof(given_test)});
         given_test.given = (int)(0u);
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = s_tests.cell, .offset = TESTS_TEST_AT(at), .src = &given_test, .bytes = sizeof(given_test)});
     }
     if (args->failed)
@@ -499,25 +499,25 @@ int cli_tests_pane_run(const CliTestsPaneCfg *args)
             if (EMBED_ATOMIC_LOAD(TESTS_OUTCOME(at)) == CLI_TESTS_FAILED)
             {
                 TestsTest test;
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                     .cell = s_tests.cell, .offset = TESTS_TEST_AT(at), .dst = &test, .bytes = sizeof(test)});
                 s_supplied[count] = text + test.id;
                 TestsTest given_test;
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_tests.cell,
-                                                                        .offset = TESTS_TEST_AT(at),
-                                                                        .dst = &given_test,
-                                                                        .bytes = sizeof(given_test)});
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_tests.cell,
+                                                                             .offset = TESTS_TEST_AT(at),
+                                                                             .dst = &given_test,
+                                                                             .bytes = sizeof(given_test)});
                 given_test.given = (int)(1u);
-                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_tests.cell,
-                                                                         .offset = TESTS_TEST_AT(at),
-                                                                         .src = &given_test,
-                                                                         .bytes = sizeof(given_test)});
+                (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_tests.cell,
+                                                                              .offset = TESTS_TEST_AT(at),
+                                                                              .src = &given_test,
+                                                                              .bytes = sizeof(given_test)});
                 count += 1u;
             }
         }
         if (count == 0u)
         {
-            g_cli_guard->persistent_buf_release(text, g_cli_tests_pane_owner);
+            g_platform_guard->persistent_buf_release(text, g_cli_tests_pane_owner);
             cli_notice_post(&(CliNoticesCfg){.text = "No test failed in the last run.", .failed = 0});
             return 0;
         }
@@ -527,7 +527,7 @@ int cli_tests_pane_run(const CliTestsPaneCfg *args)
         for (unsigned int file_index = 0u; (file_index < s_tests.files) && (count < TESTS_SUPPLIED); file_index += 1u)
         {
             TestsFile file;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = s_tests.cell, .offset = TESTS_FILE_AT(file_index), .dst = &file, .bytes = sizeof(file)});
             const char *const path = text + file.path;
             // a run with coverage runs the Python files alone, cargo test recording none
@@ -540,20 +540,20 @@ int cli_tests_pane_run(const CliTestsPaneCfg *args)
             for (unsigned int at = file.first; at < file.first + file.count; at += 1u)
             {
                 TestsTest given_test;
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_tests.cell,
-                                                                        .offset = TESTS_TEST_AT(at),
-                                                                        .dst = &given_test,
-                                                                        .bytes = sizeof(given_test)});
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_tests.cell,
+                                                                             .offset = TESTS_TEST_AT(at),
+                                                                             .dst = &given_test,
+                                                                             .bytes = sizeof(given_test)});
                 given_test.given = (int)(1u);
-                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_tests.cell,
-                                                                         .offset = TESTS_TEST_AT(at),
-                                                                         .src = &given_test,
-                                                                         .bytes = sizeof(given_test)});
+                (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_tests.cell,
+                                                                              .offset = TESTS_TEST_AT(at),
+                                                                              .src = &given_test,
+                                                                              .bytes = sizeof(given_test)});
             }
         }
         if (count == 0u)
         {
-            g_cli_guard->persistent_buf_release(text, g_cli_tests_pane_owner);
+            g_platform_guard->persistent_buf_release(text, g_cli_tests_pane_owner);
             cli_notice_post(&(CliNoticesCfg){
                 .text = "No test is found to run: Run, Find Tests says what is taken as one.", .failed = 1});
             return 0;
@@ -568,7 +568,7 @@ int cli_tests_pane_run(const CliTestsPaneCfg *args)
     const int started = EMBED_CALL(cli_test_runs_root.start, CliTestRunsRootCfg, .root = args->root,
                                    .supplied = s_supplied, .count = count, .parallel = s_parallel, .cover = args->cover,
                                    .sink = sink, .number = &number, .err_msg = &err_msg);
-    g_cli_guard->persistent_buf_release(text, g_cli_tests_pane_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_tests_pane_owner);
     if (!started)
     {
         EMBED_ATOMIC_STORE(&s_running, 0u);
@@ -672,12 +672,12 @@ EMBED_INLINE unsigned int tests_by_id(const TestsPaneCtx *args)
     for (unsigned int at = 0u; at < s_tests.tests; at += 1u)
     {
         TestsTest test;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_tests.cell, .offset = TESTS_TEST_AT(at), .dst = &test, .bytes = sizeof(test)});
-        if (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = s_tests.cell,
-                                                                 .offset = TESTS_TEXT_AT(test.id),
-                                                                 .src = args->text,
-                                                                 .bytes = args->length + 1ULL}) == 0)
+        if (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = s_tests.cell,
+                                                                      .offset = TESTS_TEXT_AT(test.id),
+                                                                      .src = args->text,
+                                                                      .bytes = args->length + 1ULL}) == 0)
         {
             return at;
         }
@@ -691,7 +691,7 @@ EMBED_INLINE unsigned int tests_file_holding(const TestsPaneCtx *args)
     for (unsigned int file_index = 0u; file_index < s_tests.files; file_index += 1u)
     {
         TestsFile file;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_tests.cell, .offset = TESTS_FILE_AT(file_index), .dst = &file, .bytes = sizeof(file)});
         if ((args->at >= file.first) && (args->at < file.first + file.count))
         {
@@ -716,7 +716,7 @@ EMBED_INLINE void tests_started(const TestsPaneCtx *args)
     for (unsigned int at = 0u; at < s_tests.tests; at += 1u)
     {
         TestsTest test;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_tests.cell, .offset = TESTS_TEST_AT(at), .dst = &test, .bytes = sizeof(test)});
         if (test.given)
         {
@@ -740,7 +740,7 @@ EMBED_INLINE void tests_result(const TestsPaneCtx *args)
         return;
     }
     TestsTest test;
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_tests.cell, .offset = TESTS_TEST_AT(at), .dst = &test, .bytes = sizeof(test)});
     const char *const how = EMBED_CALL(tests_string, TestsPaneCtx, .json = json, .node = outcome, .name = "outcome",
                                        .file_out = (unsigned int *)&length);
@@ -777,9 +777,9 @@ EMBED_INLINE void tests_result(const TestsPaneCtx *args)
         {
             const char end = '\0';
             test.message = s_tests.messages_used;
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = s_tests.cell, .offset = TESTS_MESSAGE_AT(test.message), .src = message, .bytes = first});
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = s_tests.cell, .offset = TESTS_MESSAGE_AT(test.message + first), .src = &end, .bytes = 1ULL});
             // a message that fits the bytes is counted by an unsigned int
             s_tests.messages_used += (unsigned int)first + 1u;
@@ -787,7 +787,7 @@ EMBED_INLINE void tests_result(const TestsPaneCtx *args)
             file_index = EMBED_CALL(tests_file_holding, TestsPaneCtx, .at = at);
         }
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_tests.cell, .offset = TESTS_TEST_AT(at), .src = &test, .bytes = sizeof(test)});
     if (file_index != TESTS_FILES)
     {
@@ -842,7 +842,7 @@ EMBED_INLINE void tests_coverage(const TestsPaneCtx *args)
             }
             cover.first_missed = (first != ~0ULL) ? first : 0ULL;
         }
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = s_tests.cell, .offset = TESTS_COVER_AT(count), .src = &cover, .bytes = sizeof(cover)});
         count += 1u;
     }
@@ -910,7 +910,7 @@ void cli_tests_pane_event(const CliEachJsonSizeCfg *args)
     {
         EMBED_CALL(tests_done, TestsPaneCtx, .json = json, .node = root);
     }
-    g_cli_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json->node));
+    g_platform_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(platform_pool_series(), json->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
                .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     EMBED_ATOMIC_STORE(&s_changed, 1u);
@@ -946,7 +946,7 @@ unsigned long long cli_tests_pane_summary(const CliTestsPaneCfg *args)
         for (unsigned int at = 0u; at < s_tests.tests; at += 1u)
         {
             TestsTest test;
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = s_tests.cell, .offset = TESTS_TEST_AT(at), .dst = &test, .bytes = sizeof(test)});
             const unsigned int outcome = EMBED_ATOMIC_LOAD(TESTS_OUTCOME(at));
             done += (test.given && (outcome != CLI_TESTS_RUNNING) && (outcome != CLI_TESTS_NONE)) ? 1u : 0u;

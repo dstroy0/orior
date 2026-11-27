@@ -103,7 +103,7 @@ EMBED_INLINE long long cli_effect_number(const SymbolsEffectValueCtx *args)
 EMBED_INLINE CliEffectToken *cli_effect_tokens_get(const SymbolsEffectValueCtx *args)
 {
     const CliEffect *effect = args->effect;
-    CliEffectToken *const tokens = g_cli_guard->temporary_buf_alloc(
+    CliEffectToken *const tokens = g_platform_guard->temporary_buf_alloc(
         (unsigned long long)(args->count + 1u) * sizeof(CliEffectToken), g_cli_code_owner);
     for (unsigned int at = 0u; (tokens != NULL) && (at < args->count); at += 1u)
     {
@@ -246,12 +246,12 @@ EMBED_INLINE long long cli_effect_call(const SymbolsEffectValueCtx *args)
     const unsigned long long token_bytes = (unsigned long long)capacity * sizeof(CliEffectToken);
     const unsigned long long position_bytes = (unsigned long long)capacity * sizeof(unsigned int);
     char *const cell = (value != NULL)
-                           ? g_cli_guard->temporary_buf_alloc(token_bytes + position_bytes + CLI_EFFECT_JOINED_CAPACITY,
-                                                              g_cli_code_owner)
+                           ? g_platform_guard->temporary_buf_alloc(
+                                 token_bytes + position_bytes + CLI_EFFECT_JOINED_CAPACITY, g_cli_code_owner)
                            : NULL;
     if (cell == NULL)
     {
-        g_cli_guard->persistent_buf_release(value, g_cli_code_owner);
+        g_platform_guard->persistent_buf_release(value, g_cli_code_owner);
         return 0LL;
     }
     CliEffectCalled called = {(CliEffectToken *)(void *)cell,
@@ -329,8 +329,8 @@ EMBED_INLINE long long cli_effect_call(const SymbolsEffectValueCtx *args)
                                             : EMBED_CALL(cli_symbols_effect_internal.effect_value, CliSymbolsEffectCtx,
                                                          .effect = effect, .token = called.token, .count = called.count,
                                                          .through = args->read_state->through + 1u);
-    g_cli_guard->persistent_buf_release(cell, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(value, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(value, g_cli_code_owner);
     return result;
 }
 
@@ -362,7 +362,7 @@ EMBED_INLINE long long cli_effect_by_name(const SymbolsEffectValueCtx *args)
             ? EMBED_CALL(cli_symbols_effect_internal.effect_value, CliSymbolsEffectCtx, .effect = effect,
                          .token = value, .count = effect->macro[macro].count, .through = args->read_state->through + 1u)
             : 0LL;
-    g_cli_guard->persistent_buf_release(value, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(value, g_cli_code_owner);
     return result;
 }
 

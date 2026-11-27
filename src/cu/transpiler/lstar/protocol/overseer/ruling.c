@@ -4,7 +4,7 @@
 // a blocked encoding, what the lessons admit and block, and the lessons read, passed and cleared
 #include "../../../../../../includes/parsers/line_read.h"
 #include "../../../../../../includes/parsers/who.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../table_text.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

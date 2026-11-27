@@ -21,7 +21,7 @@
 #define LNG_H
 
 #include "../../includes/file_defs/kfile_lines/kfile_lines.h"
-#include "../platform/platform.h"
+#include "../../includes/platform/platform.h"
 
 #include <stddef.h>
 

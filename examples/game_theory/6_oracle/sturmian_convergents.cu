@@ -23,7 +23,7 @@
  *       cube root. A record program writes each word on the device from both ends of the interval. The run checks
  *       that the ends agree at every term.
  */
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "../period_detector.h"
 #include "../twister_record.h"
 #include "memoria_operor/memoria_operor.h"

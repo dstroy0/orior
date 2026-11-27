@@ -8,7 +8,7 @@
 #endif
 
 #include <stdio.h>
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include <stdlib.h>
 
 #if defined(_WIN32)

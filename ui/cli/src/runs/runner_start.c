@@ -34,7 +34,7 @@ int cli_run_cells_alloc(const CliRunnerRunCtx *args)
         ((unsigned long long)extent.steps * sizeof(CliStep)) + ((unsigned long long)extent.args * sizeof(CliArg)) +
         ((unsigned long long)extent.lists * sizeof(unsigned int)) + extent.text + sizeof(CliValues) + 64ULL;
     // the job positioned in a cell of this call, then written into the run's movable cell
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_runs_owner);
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(bytes, g_cli_runs_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "a run's cells could not be taken");
@@ -71,11 +71,11 @@ int cli_run_cells_alloc(const CliRunnerRunCtx *args)
     const CarcerMovableEntry *const stored =
         (EMBED_CALL(cli_catalog_from.copy, CliCatalogFromCfg, .from = args->catalog, .index = args->job,
                     .to = &args->run->catalog) != CLI_CATALOG_NONE)
-            ? g_cli_guard->movable_buf_alloc(bytes, g_cli_runs_owner)
+            ? g_platform_guard->movable_buf_alloc(bytes, g_cli_runs_owner)
             : NULL;
     if (stored != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = stored, .offset = 0ULL, .src = cell, .bytes = bytes});
     }
     args->run->job_cell = stored;
@@ -94,7 +94,7 @@ int cli_run_cells_alloc(const CliRunnerRunCtx *args)
     args->run->catalog.arg = NULL;
     args->run->catalog.list = NULL;
     args->run->catalog.text = NULL;
-    g_cli_guard->persistent_buf_release(cell, g_cli_runs_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_runs_owner);
     args->run->lines = lines;
     if (stored == NULL)
     {
@@ -108,12 +108,13 @@ int cli_run_pinned(const CliRunnerRunCtx *args)
 {
     CliRunPinned *const pinned = args->pinned;
     const CliRun *const run = args->run;
-    pinned->cell = (run->job_cell != NULL) ? g_cli_guard->temporary_buf_alloc(run->job_bytes, g_cli_runs_owner) : NULL;
+    pinned->cell =
+        (run->job_cell != NULL) ? g_platform_guard->temporary_buf_alloc(run->job_bytes, g_cli_runs_owner) : NULL;
     if (pinned->cell == NULL)
     {
         return 0;
     }
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = run->job_cell, .offset = 0ULL, .dst = pinned->cell, .bytes = run->job_bytes});
     pinned->catalog = run->catalog;
     pinned->catalog.job = (CliJob *)(void *)(pinned->cell + run->job_at);
@@ -128,7 +129,7 @@ int cli_run_pinned(const CliRunnerRunCtx *args)
 
 void cli_run_unpinned(const CliRunnerRunCtx *args)
 {
-    g_cli_guard->persistent_buf_release(args->pinned->cell, g_cli_runs_owner);
+    g_platform_guard->persistent_buf_release(args->pinned->cell, g_cli_runs_owner);
     args->pinned->cell = NULL;
 }
 
@@ -177,7 +178,7 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
     {
         return 0;
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = run->job_cell, .offset = run->values_at, .src = args->values, .bytes = sizeof(*args->values)});
     memor.cpy(&(MemoriaCfg){.dst = run->root,
                             .src = args->root,

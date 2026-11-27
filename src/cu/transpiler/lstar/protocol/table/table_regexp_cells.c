@@ -3,7 +3,7 @@
 // table_regexp_cells.c: the cells of the regular expressions in the table's tools, from the platform's pool on the
 // temporary tier, under the owner of the program (includes/regexp/regexp_base.h)
 #include "../../../../../../includes/regexp/regexp_base.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 
 void *regexp_cell_taken(unsigned long long bytes)
 {

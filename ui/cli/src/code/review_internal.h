@@ -113,7 +113,7 @@ struct CliReviewOneCtx
 
 struct CliReviewLineCtx
 {
-    CliGrownLine *line;
+    PlatformText *line;
     int written;
     unsigned int *at;
     unsigned long long *size;

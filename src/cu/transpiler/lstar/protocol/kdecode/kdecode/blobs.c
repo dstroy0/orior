@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // blobs.c: a run's records walked in the order the writer wrote them, the run read whole, and its blobs of a name
 // written whole
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "kdecode_internal.h"
 #include "memoria_operor/memoria_operor.h"

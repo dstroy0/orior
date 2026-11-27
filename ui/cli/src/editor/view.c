@@ -411,10 +411,10 @@ static void *view_cell_copy(const ViewCtx *args)
     {
         return NULL;
     }
-    void *const copy = g_cli_guard->temporary_buf_alloc(args->count * args->size, g_cli_views_owner);
+    void *const copy = g_platform_guard->temporary_buf_alloc(args->count * args->size, g_cli_views_owner);
     if (copy != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = args->entry, .dst = copy, .bytes = args->count * args->size});
     }
     return copy;
@@ -425,7 +425,7 @@ static int view_cell_taken(const CarcerMovableEntry **cell, unsigned long long b
 {
     if (*cell == NULL)
     {
-        *cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_views_owner);
+        *cell = g_platform_guard->movable_buf_alloc(bytes, g_cli_views_owner);
     }
     return *cell != NULL;
 }
@@ -436,7 +436,7 @@ static int view_record_used(const ViewCtx *args)
     int used = 0;
     if ((s_views != NULL) && (args->at_u32 < CLI_VIEWS))
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_views,
             .offset = ((unsigned long long)args->at_u32 * sizeof(CliView)) + offsetof(CliView, used),
             .dst = &used,
@@ -465,7 +465,7 @@ static int view_record_tab(const ViewCtx *args)
     {
         return 0;
     }
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = ((unsigned long long)args->at_u32 * sizeof(CliView)) + offsetof(CliView, path),
                             .dst = &first,
@@ -513,7 +513,7 @@ static int view_record_key(const ViewCtx *args)
     {
         return 0;
     }
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = ((unsigned long long)args->at_u32 * sizeof(CliView)) + offsetof(CliView, key),
                             .dst = args->key_out,
@@ -528,10 +528,10 @@ static char *view_edit_text_copy(const ViewCtx *args)
     const unsigned long long length = args->put ? args->retained->append_length : args->retained->consumed_length;
     const unsigned long long offset =
         sizeof(*args->retained) + (args->put ? 0ULL : args->retained->append_length + 1ULL);
-    char *const copy = g_cli_guard->temporary_buf_alloc(length + 1ULL, g_cli_views_owner);
+    char *const copy = g_platform_guard->temporary_buf_alloc(length + 1ULL, g_cli_views_owner);
     if (copy != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = args->entry, .offset = offset, .dst = copy, .bytes = length + 1ULL});
     }
     return copy;
@@ -542,17 +542,18 @@ static char *view_edit_text_copy(const ViewCtx *args)
 static void view_step_edits_released(const ViewCtx *args)
 {
     CliViewStep step = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view->step,
-                                                            .offset = (unsigned long long)args->at_u32 * sizeof(step),
-                                                            .dst = &step,
-                                                            .bytes = sizeof(step)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = args->view->step,
+                            .offset = (unsigned long long)args->at_u32 * sizeof(step),
+                            .dst = &step,
+                            .bytes = sizeof(step)});
     for (const CarcerMovableEntry *edit = step.first; edit != NULL;)
     {
         CliViewEditKept retained = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = edit, .offset = 0ULL, .dst = &retained, .bytes = sizeof(retained)});
         args->view->save_point_lost = args->view->save_point_lost || (edit == args->view->save_point);
-        (void)g_cli_guard->movable_buf_release(edit, g_cli_views_owner);
+        (void)g_platform_guard->movable_buf_release(edit, g_cli_views_owner);
         edit = retained.after;
     }
 }
@@ -560,14 +561,14 @@ static void view_step_edits_released(const ViewCtx *args)
 // a view's cells given back as it closes or opens anew: its steps, folds, query and matches, and its line cell
 static void view_cells_released(const ViewCtx *args)
 {
-    (void)g_cli_guard->movable_buf_release(args->view->step, g_cli_views_owner);
-    (void)g_cli_guard->movable_buf_release(args->view->fold, g_cli_views_owner);
-    (void)g_cli_guard->movable_buf_release(args->view->find_query, g_cli_views_owner);
-    (void)g_cli_guard->movable_buf_release(args->view->match, g_cli_views_owner);
-    (void)g_cli_guard->movable_buf_release(args->view->line_units, g_cli_views_owner);
-    (void)g_cli_guard->movable_buf_release(args->view->column_width, g_cli_views_owner);
-    (void)g_cli_guard->movable_buf_release(args->view->column_set, g_cli_views_owner);
-    (void)g_cli_guard->movable_buf_release(args->view->frame, g_cli_views_owner);
+    (void)g_platform_guard->movable_buf_release(args->view->step, g_cli_views_owner);
+    (void)g_platform_guard->movable_buf_release(args->view->fold, g_cli_views_owner);
+    (void)g_platform_guard->movable_buf_release(args->view->find_query, g_cli_views_owner);
+    (void)g_platform_guard->movable_buf_release(args->view->match, g_cli_views_owner);
+    (void)g_platform_guard->movable_buf_release(args->view->line_units, g_cli_views_owner);
+    (void)g_platform_guard->movable_buf_release(args->view->column_width, g_cli_views_owner);
+    (void)g_platform_guard->movable_buf_release(args->view->column_set, g_cli_views_owner);
+    (void)g_platform_guard->movable_buf_release(args->view->frame, g_cli_views_owner);
     args->view->frame = NULL;
     args->view->frame_bytes = 0ULL;
     args->view->frame_capacity = 0ULL;
@@ -578,14 +579,14 @@ static void view_cells_released(const ViewCtx *args)
 static unsigned short *view_units_copy(const ViewCtx *args)
 {
     unsigned short *const copy =
-        g_cli_guard->temporary_buf_alloc((args->view_read->line_length + 1ULL) * sizeof(*copy), g_cli_views_owner);
+        g_platform_guard->temporary_buf_alloc((args->view_read->line_length + 1ULL) * sizeof(*copy), g_cli_views_owner);
     if (copy == NULL)
     {
         return NULL;
     }
     if (args->view_read->line_length != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = args->view_read->line_units, .dst = copy, .bytes = args->view_read->line_length * sizeof(*copy)});
     }
     copy[args->view_read->line_length] = 0u;
@@ -615,10 +616,10 @@ EMBED_INLINE CliView *view_get(const ViewCtx *args)
     {
         return NULL;
     }
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_views,
-                                                            .offset = (unsigned long long)at * sizeof(CliView),
-                                                            .dst = args->copy,
-                                                            .bytes = sizeof(CliView)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_views,
+                                                                 .offset = (unsigned long long)at * sizeof(CliView),
+                                                                 .dst = args->copy,
+                                                                 .bytes = sizeof(CliView)});
     args->copy->place = at;
     return args->copy;
 }
@@ -870,7 +871,7 @@ int cli_view_open(const CliViewCfg *args)
         for (unsigned int at = 0u; at < CLI_VIEWS; at += 1u)
         {
             zero.place = at;
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = s_views,
                                     .offset = (unsigned long long)(&zero)->place * sizeof(CliView),
                                     .src = &zero,
@@ -913,7 +914,7 @@ int cli_view_open(const CliViewCfg *args)
     EMBED_CALL(view_language_read, ViewCtx, .view = view);
     EMBED_CALL(view_column_measure_all, ViewCtx, .view = view);
     // the record is in the table before the watcher reads the views
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = (unsigned long long)view->place * sizeof(CliView),
                             .src = view,
@@ -955,13 +956,14 @@ void cli_view_close(const CliViewCfg *args)
         const unsigned int count = view_records_count();
         for (unsigned int at = (unsigned int)closed + 1u; at < count; at += 1u)
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_views,
-                                                                    .offset = (unsigned long long)at * sizeof(CliView),
-                                                                    .dst = &copy,
-                                                                    .bytes = sizeof(CliView)});
+            (void)g_platform_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = s_views,
+                                    .offset = (unsigned long long)at * sizeof(CliView),
+                                    .dst = &copy,
+                                    .bytes = sizeof(CliView)});
             (&copy)->place = at;
             copy.place = at - 1u;
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = s_views,
                                     .offset = (unsigned long long)(&copy)->place * sizeof(CliView),
                                     .src = &copy,
@@ -969,7 +971,7 @@ void cli_view_close(const CliViewCfg *args)
         }
         memor.set(&(MemoriaCfg){.dst = &copy, .val = 0, .bytes = sizeof(copy)});
         copy.place = count - 1u;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = (unsigned long long)(&copy)->place * sizeof(CliView),
                                 .src = &copy,
@@ -1010,7 +1012,7 @@ int cli_view_path_at(const CliViewAtCfg *args)
     {
         return 0;
     }
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = ((unsigned long long)place * sizeof(CliView)) + offsetof(CliView, path),
                             .dst = args->path_out,
@@ -1057,7 +1059,7 @@ int cli_view_closing(const CliViewAtCfg *args)
     int closing = 0;
     if (place != CLI_VIEWS)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = ((unsigned long long)place * sizeof(CliView)) + offsetof(CliView, closing),
                                 .dst = &closing,
@@ -1071,7 +1073,7 @@ void cli_view_closing_set(const CliViewAtCfg *args)
     const unsigned int place = EMBED_CALL(view_tab_place, ViewCtx, .tab = args->at);
     if (place != CLI_VIEWS)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = ((unsigned long long)place * sizeof(CliView)) + offsetof(CliView, closing),
                                 .src = &args->closing,
@@ -1126,10 +1128,10 @@ EMBED_INLINE int view_hide_timer(const ViewCtx *args)
     for (unsigned int at = 0u; at < args->view_read->folds; at += 1u)
     {
         CliViewFold fold = {0ULL, 0ULL};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view_read->fold,
-                                                                .offset = (unsigned long long)at * sizeof(fold),
-                                                                .dst = &fold,
-                                                                .bytes = sizeof(fold)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view_read->fold,
+                                                                     .offset = (unsigned long long)at * sizeof(fold),
+                                                                     .dst = &fold,
+                                                                     .bytes = sizeof(fold)});
         if ((fold.first < args->line) && (args->line <= fold.last))
         {
             *args->hide_timer = fold;
@@ -1262,14 +1264,14 @@ static void view_fold_refresh(const CliFoldEachCfg *args)
     for (unsigned int at = 0u; at < view->folds; at += 1u)
     {
         CliViewFold fold = {0ULL, 0ULL};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = view->fold, .offset = (unsigned long long)at * sizeof(fold), .dst = &fold, .bytes = sizeof(fold)});
         if (fold.first == args->first)
         {
             fold.last = last;
             {
                 const CliViewFold fold_put = fold;
-                (void)g_cli_guard->movable_buf_write(
+                (void)g_platform_guard->movable_buf_write(
                     &(CarcerMovableCfg){.cell = view->fold,
                                         .offset = (unsigned long long)at * sizeof(fold_put),
                                         .src = &fold_put,
@@ -1300,10 +1302,10 @@ EMBED_INLINE int view_fold_append(const ViewCtx *args)
     int below = 1;
     while (below && (at < args->view->folds))
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view->fold,
-                                                                .offset = (unsigned long long)at * sizeof(found),
-                                                                .dst = &found,
-                                                                .bytes = sizeof(found)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view->fold,
+                                                                     .offset = (unsigned long long)at * sizeof(found),
+                                                                     .dst = &found,
+                                                                     .bytes = sizeof(found)});
         below = found.first < args->first;
         at += below ? 1u : 0u;
     }
@@ -1312,7 +1314,7 @@ EMBED_INLINE int view_fold_append(const ViewCtx *args)
         found.last = last;
         {
             const CliViewFold fold_put = found;
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = args->view->fold,
                                     .offset = (unsigned long long)at * sizeof(fold_put),
                                     .src = &fold_put,
@@ -1330,12 +1332,12 @@ EMBED_INLINE int view_fold_append(const ViewCtx *args)
     {
         {
             CliViewFold fold_put = {0ULL, 0ULL};
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = args->view->fold,
                                     .offset = (unsigned long long)(after - 1u) * sizeof(fold_put),
                                     .dst = &fold_put,
                                     .bytes = sizeof(fold_put)});
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = args->view->fold,
                                     .offset = (unsigned long long)after * sizeof(fold_put),
                                     .src = &fold_put,
@@ -1344,10 +1346,11 @@ EMBED_INLINE int view_fold_append(const ViewCtx *args)
     }
     {
         const CliViewFold fold_put = (CliViewFold){args->first, last};
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->view->fold,
-                                                                 .offset = (unsigned long long)at * sizeof(fold_put),
-                                                                 .src = &fold_put,
-                                                                 .bytes = sizeof(fold_put)});
+        (void)g_platform_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = args->view->fold,
+                                .offset = (unsigned long long)at * sizeof(fold_put),
+                                .src = &fold_put,
+                                .bytes = sizeof(fold_put)});
     }
     args->view->folds += 1u;
     return 1;
@@ -1364,10 +1367,10 @@ EMBED_INLINE void view_folds_edit(const ViewCtx *args)
     for (unsigned int at = 0u; at < args->view->folds; at += 1u)
     {
         CliViewFold fold = {0ULL, 0ULL};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view->fold,
-                                                                .offset = (unsigned long long)at * sizeof(fold),
-                                                                .dst = &fold,
-                                                                .bytes = sizeof(fold)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view->fold,
+                                                                     .offset = (unsigned long long)at * sizeof(fold),
+                                                                     .dst = &fold,
+                                                                     .bytes = sizeof(fold)});
         if (args->edit->to.line < fold.first)
         {
             // a fold below the edit is past the lines it takes out: the move stays in the text
@@ -1385,7 +1388,7 @@ EMBED_INLINE void view_folds_edit(const ViewCtx *args)
         }
         {
             const CliViewFold fold_put = fold;
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = args->view->fold,
                                     .offset = (unsigned long long)saved * sizeof(fold_put),
                                     .src = &fold_put,
@@ -1440,8 +1443,8 @@ EMBED_INLINE int view_units_capacity(const ViewCtx *args)
     }
     // the view reads the line's units anew into a movable cell of their count
     const unsigned long long capacity = (args->units_u64 > CLI_VIEW_UNITS_MIN) ? args->units_u64 : CLI_VIEW_UNITS_MIN;
-    (void)g_cli_guard->movable_buf_release(args->view->line_units, g_cli_views_owner);
-    args->view->line_units = g_cli_guard->movable_buf_alloc(capacity * sizeof(unsigned short), g_cli_views_owner);
+    (void)g_platform_guard->movable_buf_release(args->view->line_units, g_cli_views_owner);
+    args->view->line_units = g_platform_guard->movable_buf_alloc(capacity * sizeof(unsigned short), g_cli_views_owner);
     args->view->units_capacity = (args->view->line_units != NULL) ? capacity : 0ULL;
     return args->view->line_units != NULL;
 }
@@ -1452,7 +1455,7 @@ EMBED_INLINE void view_units_store(const ViewCtx *args)
     args->view->line_length = args->count;
     if (args->count != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = args->view->line_units, .src = args->units_read, .bytes = args->count * sizeof(*args->units_read)});
     }
 }
@@ -1479,16 +1482,16 @@ EMBED_INLINE void view_line_read(const ViewCtx *args)
         {
             const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES});
             unsigned short *const units =
-                g_cli_guard->temporary_buf_alloc((size + 1ULL) * sizeof(*units), g_cli_views_owner);
+                g_platform_guard->temporary_buf_alloc((size + 1ULL) * sizeof(*units), g_cli_views_owner);
             if ((units != NULL) && EMBED_CALL(view_units_capacity, ViewCtx, .view = args->view, .units_u64 = size))
             {
                 const unsigned long long made = EMBED_CALL(view_units_get, ViewCtx, .text = text, .size = size,
                                                            .units = units, .capacity = size + 1ULL);
                 EMBED_CALL(view_units_store, ViewCtx, .view = args->view, .units_read = units, .count = made);
             }
-            g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
+            g_platform_guard->persistent_buf_release(units, g_cli_views_owner);
         }
-        g_cli_guard->persistent_buf_release(cell, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(cell, g_cli_views_owner);
         return;
     }
     const CliStoredText *const one =
@@ -1496,29 +1499,30 @@ EMBED_INLINE void view_line_read(const ViewCtx *args)
     unsigned long long length = 0ULL;
     if ((one != NULL) && (line < one->lines.lines))
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = one->lines.lengths, .offset = line * sizeof(length), .dst = &length, .bytes = sizeof(length)});
     }
     if ((one != NULL) && (line < one->lines.lines) &&
         EMBED_CALL(view_units_capacity, ViewCtx, .view = args->view, .units_u64 = length))
     {
         unsigned short *const units =
-            g_cli_guard->temporary_buf_alloc((length + 1ULL) * sizeof(*units), g_cli_views_owner);
+            g_platform_guard->temporary_buf_alloc((length + 1ULL) * sizeof(*units), g_cli_views_owner);
         if (units != NULL)
         {
             {
                 unsigned long long line_start = 0ULL;
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (&one->lines)->starts,
-                                                                        .offset = line * sizeof(line_start),
-                                                                        .dst = &line_start,
-                                                                        .bytes = sizeof(line_start)});
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (&one->lines)->units,
-                                                                        .offset = line_start * sizeof(unsigned short),
-                                                                        .dst = units,
-                                                                        .bytes = length * sizeof(unsigned short)});
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (&one->lines)->starts,
+                                                                             .offset = line * sizeof(line_start),
+                                                                             .dst = &line_start,
+                                                                             .bytes = sizeof(line_start)});
+                (void)g_platform_guard->movable_buf_read(
+                    &(CarcerMovableCfg){.cell = (&one->lines)->units,
+                                        .offset = line_start * sizeof(unsigned short),
+                                        .dst = units,
+                                        .bytes = length * sizeof(unsigned short)});
             }
             EMBED_CALL(view_units_store, ViewCtx, .view = args->view, .units_read = units, .count = length);
-            g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
+            g_platform_guard->persistent_buf_release(units, g_cli_views_owner);
         }
     }
 }
@@ -1536,7 +1540,7 @@ EMBED_INLINE unsigned int view_unit(const ViewCtx *args)
     unsigned short unit = 0u;
     if ((args->col) < args->view->line_length)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = args->view->line_units, .offset = (args->col) * sizeof(unit), .dst = &unit, .bytes = sizeof(unit)});
     }
     return unit;
@@ -1556,10 +1560,10 @@ EMBED_INLINE unsigned long long view_column_measured(const ViewCtx *args)
     unsigned long long width = 0ULL;
     if ((args->view_read->column_width != NULL) && (args->count_u32 < args->view_read->column_count))
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view_read->column_width,
-                                                                .offset = args->count_u32 * sizeof(width),
-                                                                .dst = &width,
-                                                                .bytes = sizeof(width)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view_read->column_width,
+                                                                     .offset = args->count_u32 * sizeof(width),
+                                                                     .dst = &width,
+                                                                     .bytes = sizeof(width)});
     }
     return width;
 }
@@ -1571,10 +1575,10 @@ EMBED_INLINE unsigned long long view_column_width(const ViewCtx *args)
     unsigned long long width = 0ULL;
     if ((args->view_read->column_set != NULL) && (args->count_u32 < CLI_VIEW_TABLE_COLUMNS))
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view_read->column_set,
-                                                                .offset = args->count_u32 * sizeof(width),
-                                                                .dst = &width,
-                                                                .bytes = sizeof(width)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view_read->column_set,
+                                                                     .offset = args->count_u32 * sizeof(width),
+                                                                     .dst = &width,
+                                                                     .bytes = sizeof(width)});
     }
     return (width != 0ULL) ? width : view_column_measured(args);
 }
@@ -1675,10 +1679,10 @@ EMBED_INLINE void view_column_line_measure(const ViewCtx *args)
                     EMBED_CALL(view_column_measured, ViewCtx, .view_read = view, .count_u32 = field);
                 if ((width > current) || (field >= view->column_count))
                 {
-                    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = view->column_width,
-                                                                             .offset = field * sizeof(width),
-                                                                             .src = &width,
-                                                                             .bytes = sizeof(width)});
+                    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = view->column_width,
+                                                                                  .offset = field * sizeof(width),
+                                                                                  .src = &width,
+                                                                                  .bytes = sizeof(width)});
                 }
                 view->column_count = (field >= view->column_count) ? field + 1u : view->column_count;
             }
@@ -1763,7 +1767,7 @@ EMBED_INLINE const CarcerMovableEntry *view_table_map_alloc(const ViewCtx *args)
     unsigned int bars = 0u;
     for (unsigned long long line = from; line < to; line += 1ULL)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = map, .offset = CLI_DOCUMENT_MAP_LINE_AT(line - from), .src = &bars, .bytes = sizeof(bars)});
         const unsigned long long length = EMBED_CALL(view_length, ViewCtx, .view = view, .line = line);
         ViewCellPosition position = {0ULL, 0ULL, 0u, 0};
@@ -1778,7 +1782,7 @@ EMBED_INLINE const CarcerMovableEntry *view_table_map_alloc(const ViewCtx *args)
                 // the field from `start` to the cell before its delimiter is one bar; the cells of a field are far
                 // inside what an unsigned int represents
                 const CliDocumentMapBar bar = {(unsigned int)start, (unsigned int)(position.cell - start), 0u};
-                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = map, .offset = CLI_DOCUMENT_MAP_BAR_AT(count, bars), .src = &bar, .bytes = sizeof(bar)});
                 bars += 1u;
             }
@@ -1790,11 +1794,11 @@ EMBED_INLINE const CarcerMovableEntry *view_table_map_alloc(const ViewCtx *args)
             start = ends ? position.cell : start;
         }
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = map, .offset = CLI_DOCUMENT_MAP_LINE_AT(count), .src = &bars, .bytes = sizeof(bars)});
     // a count of lines a map holds is far inside what an unsigned int represents
     const CliDocumentMapHead head = {from, (unsigned int)count, bars};
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = map, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
     return map;
 }
@@ -2041,11 +2045,11 @@ EMBED_INLINE void view_query_moved(const ViewCtx *args)
     {
         return;
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->view->find_query,
-                                                             .offset = args->at * sizeof(*moved),
-                                                             .src = moved,
-                                                             .bytes = count * sizeof(*moved)});
-    g_cli_guard->persistent_buf_release(moved, g_cli_views_owner);
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->view->find_query,
+                                                                  .offset = args->at * sizeof(*moved),
+                                                                  .src = moved,
+                                                                  .bytes = count * sizeof(*moved)});
+    g_platform_guard->persistent_buf_release(moved, g_cli_views_owner);
 }
 
 // `count` units put into the query at its cursor, which moves past them. Then the units from `from` to before `to`
@@ -2058,10 +2062,11 @@ EMBED_INLINE void view_query_append(const ViewCtx *args)
     }
     EMBED_CALL(view_query_moved, ViewCtx, .view = args->view, .from_u64 = args->view->find_at,
                .to_u64 = args->view->find_length, .at = args->view->find_at + args->count);
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = args->view->find_query,
-                                                             .offset = args->view->find_at * sizeof(*args->units_read),
-                                                             .src = args->units_read,
-                                                             .bytes = args->count * sizeof(*args->units_read)});
+    (void)g_platform_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = args->view->find_query,
+                            .offset = args->view->find_at * sizeof(*args->units_read),
+                            .src = args->units_read,
+                            .bytes = args->count * sizeof(*args->units_read)});
     args->view->find_length += args->count;
     args->view->find_at += args->count;
     args->view->find_stale = 1;
@@ -2157,7 +2162,7 @@ EMBED_INLINE void view_current_settle(const ViewCtx *args)
             break;
         }
     }
-    g_cli_guard->persistent_buf_release(match, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(match, g_cli_views_owner);
 }
 
 // The text searched for the query where the query or the text changed since the last search. The matches come anew,
@@ -2177,28 +2182,28 @@ static void view_search(const ViewCtx *args)
         return;
     }
     const unsigned long long query_capacity = (args->view->find_length * 4ULL) + 1ULL;
-    char *const query = g_cli_guard->temporary_buf_alloc(query_capacity, g_cli_views_owner);
+    char *const query = g_platform_guard->temporary_buf_alloc(query_capacity, g_cli_views_owner);
     if (query == NULL)
     {
-        g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(units, g_cli_views_owner);
         return;
     }
     VerbaLinea line = {query, query_capacity, 0ULL};
     EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = &line, .units = units,
                .count = args->view->find_length);
     (void)mmgr_line_finish(&line);
-    g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(units, g_cli_views_owner);
     const CliDocNeedle needle = {query, args->view->find_regex, args->view->find_case, args->view->find_word};
     char error_text[256];
     VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     // The matches written as text, a paged text's through the pages and a text in the store by the store. They read
     // back into a temporary cell of the max, then go into the view's matches cell, taken once at max
     const unsigned long long capacity = CLI_VIEW_MATCHES * 24ULL;
-    char *const cell = g_cli_guard->temporary_buf_alloc(capacity, g_cli_views_owner);
+    char *const cell = g_platform_guard->temporary_buf_alloc(capacity, g_cli_views_owner);
     ViewMatchesFound found = {NULL, 0ULL};
-    found.match = (cell != NULL)
-                      ? g_cli_guard->temporary_buf_alloc(CLI_VIEW_MATCHES * sizeof(*found.match), g_cli_views_owner)
-                      : NULL;
+    found.match = (cell != NULL) ? g_platform_guard->temporary_buf_alloc(CLI_VIEW_MATCHES * sizeof(*found.match),
+                                                                         g_cli_views_owner)
+                                 : NULL;
     if (found.match != NULL)
     {
         VerbaLinea out = {cell, capacity, 0ULL};
@@ -2214,14 +2219,14 @@ static void view_search(const ViewCtx *args)
         }
         if ((found.count != 0ULL) && view_cell_taken(&args->view->match, CLI_VIEW_MATCHES * sizeof(*found.match)))
         {
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = args->view->match, .src = found.match, .bytes = found.count * sizeof(*found.match)});
             args->view->matches = found.count;
         }
     }
-    g_cli_guard->persistent_buf_release(found.match, g_cli_views_owner);
-    g_cli_guard->persistent_buf_release(cell, g_cli_views_owner);
-    g_cli_guard->persistent_buf_release(query, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(found.match, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(query, g_cli_views_owner);
     view_current_settle(args);
 }
 
@@ -2265,7 +2270,7 @@ EMBED_INLINE void view_find_step(const ViewCtx *args)
     args->view->current = (long long)chosen;
     args->view->anchor = (CliPosition){match[chosen][0], match[chosen][1]};
     const CliPosition end = {match[chosen][0], match[chosen][2]};
-    g_cli_guard->persistent_buf_release(match, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(match, g_cli_views_owner);
     EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = end, .extend = 1, .saved = 0);
 }
 
@@ -2288,7 +2293,7 @@ EMBED_INLINE void view_find_open(const ViewCtx *args)
         {
             EMBED_CALL(view_query_append, ViewCtx, .view = args->view, .units_read = units + from.col,
                        .count = end - from.col);
-            g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
+            g_platform_guard->persistent_buf_release(units, g_cli_views_owner);
         }
     }
     args->view->find_at = args->view->find_length;
@@ -2457,10 +2462,10 @@ EMBED_INLINE int view_unfolded(const ViewCtx *args)
     for (unsigned int at = 0u; at < args->view->folds; at += 1u)
     {
         CliViewFold fold_1 = {0ULL, 0ULL};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view->fold,
-                                                                .offset = (unsigned long long)at * sizeof(fold_1),
-                                                                .dst = &fold_1,
-                                                                .bytes = sizeof(fold_1)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view->fold,
+                                                                     .offset = (unsigned long long)at * sizeof(fold_1),
+                                                                     .dst = &fold_1,
+                                                                     .bytes = sizeof(fold_1)});
 
         if (fold_1.first == args->line)
         {
@@ -2468,12 +2473,12 @@ EMBED_INLINE int view_unfolded(const ViewCtx *args)
             {
                 {
                     CliViewFold fold_put = {0ULL, 0ULL};
-                    (void)g_cli_guard->movable_buf_read(
+                    (void)g_platform_guard->movable_buf_read(
                         &(CarcerMovableCfg){.cell = args->view->fold,
                                             .offset = (unsigned long long)after * sizeof(fold_put),
                                             .dst = &fold_put,
                                             .bytes = sizeof(fold_put)});
-                    (void)g_cli_guard->movable_buf_write(
+                    (void)g_platform_guard->movable_buf_write(
                         &(CarcerMovableCfg){.cell = args->view->fold,
                                             .offset = (unsigned long long)(after - 1u) * sizeof(fold_put),
                                             .src = &fold_put,
@@ -2532,7 +2537,7 @@ EMBED_INLINE unsigned long long view_span_bytes(const ViewCtx *args)
             unsigned short unit = 0u;
             if (at < args->view->line_length)
             {
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                     .cell = args->view->line_units, .offset = at * sizeof(unit), .dst = &unit, .bytes = sizeof(unit)});
             }
             if (unit < 0x80u)
@@ -2582,7 +2587,7 @@ EMBED_INLINE CliViewEdit *view_edit_cell(const ViewCtx *args)
 {
     const unsigned long long consumed_capacity = view_span_bytes(args);
     const unsigned long long append_capacity = args->append_bytes + (args->append_spans * consumed_capacity);
-    CliViewEdit *const made = g_cli_guard->temporary_buf_alloc(
+    CliViewEdit *const made = g_platform_guard->temporary_buf_alloc(
         sizeof(CliViewEdit) + append_capacity + 1ULL + consumed_capacity + 1ULL, g_cli_views_owner);
     if (made == NULL)
     {
@@ -2611,19 +2616,19 @@ EMBED_INLINE const CarcerMovableEntry *view_edit_published(const ViewCtx *args)
     const unsigned long long put_at = sizeof(retained);
     const unsigned long long consumed_at = put_at + args->made_read->append_length + 1ULL;
     const CarcerMovableEntry *const cell =
-        g_cli_guard->movable_buf_alloc(consumed_at + args->made_read->consumed_length + 1ULL, g_cli_views_owner);
+        g_platform_guard->movable_buf_alloc(consumed_at + args->made_read->consumed_length + 1ULL, g_cli_views_owner);
     if (cell == NULL)
     {
         return NULL;
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = &retained, .bytes = sizeof(CliViewEditKept)});
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = cell, .offset = put_at, .src = args->made_read->put, .bytes = args->made_read->append_length + 1ULL});
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell,
-                                                             .offset = consumed_at,
-                                                             .src = args->made_read->consumed,
-                                                             .bytes = args->made_read->consumed_length + 1ULL});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell,
+                                                                  .offset = consumed_at,
+                                                                  .src = args->made_read->consumed,
+                                                                  .bytes = args->made_read->consumed_length + 1ULL});
     return cell;
 }
 
@@ -2639,7 +2644,7 @@ EMBED_INLINE int view_steps_room(const ViewCtx *args)
         const unsigned int doubled = (view->steps_capacity == 0u) ? CLI_VIEW_STEPS_FIRST : (view->steps_capacity * 2u);
         const unsigned int capacity = (doubled < CLI_VIEW_STEPS) ? doubled : CLI_VIEW_STEPS;
         const CarcerMovableEntry *const grown =
-            g_cli_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(CliViewStep), g_cli_views_owner);
+            g_platform_guard->movable_buf_alloc((unsigned long long)capacity * sizeof(CliViewStep), g_cli_views_owner);
         if (grown == NULL)
         {
             return 0;
@@ -2647,16 +2652,18 @@ EMBED_INLINE int view_steps_room(const ViewCtx *args)
         for (unsigned int at = 0u; at < view->steps; at += 1u)
         {
             CliViewStep carried = {0};
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = view->step,
-                                                                    .offset = (unsigned long long)at * sizeof(carried),
-                                                                    .dst = &carried,
-                                                                    .bytes = sizeof(carried)});
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = grown,
-                                                                     .offset = (unsigned long long)at * sizeof(carried),
-                                                                     .src = &carried,
-                                                                     .bytes = sizeof(carried)});
+            (void)g_platform_guard->movable_buf_read(
+                &(CarcerMovableCfg){.cell = view->step,
+                                    .offset = (unsigned long long)at * sizeof(carried),
+                                    .dst = &carried,
+                                    .bytes = sizeof(carried)});
+            (void)g_platform_guard->movable_buf_write(
+                &(CarcerMovableCfg){.cell = grown,
+                                    .offset = (unsigned long long)at * sizeof(carried),
+                                    .src = &carried,
+                                    .bytes = sizeof(carried)});
         }
-        (void)g_cli_guard->movable_buf_release(view->step, g_cli_views_owner);
+        (void)g_platform_guard->movable_buf_release(view->step, g_cli_views_owner);
         view->step = grown;
         view->steps_capacity = capacity;
     }
@@ -2669,11 +2676,11 @@ EMBED_INLINE int view_steps_room(const ViewCtx *args)
     for (unsigned int at = 1u; at < view->steps; at += 1u)
     {
         CliViewStep moved = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = view->step,
-                                                                .offset = (unsigned long long)at * sizeof(moved),
-                                                                .dst = &moved,
-                                                                .bytes = sizeof(moved)});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = view->step,
+                                                                     .offset = (unsigned long long)at * sizeof(moved),
+                                                                     .dst = &moved,
+                                                                     .bytes = sizeof(moved)});
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = view->step,
                                 .offset = (unsigned long long)(at - 1u) * sizeof(CliViewStep),
                                 .src = &moved,
@@ -2697,7 +2704,7 @@ static int view_edit_cell_write(const ViewCtx *args)
     if (!EMBED_CALL(view_write, ViewCtx, .view = args->view, .edits = edits, .counts = counts,
                     .err_msg = args->err_msg))
     {
-        g_cli_guard->persistent_buf_release(args->made, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(args->made, g_cli_views_owner);
         return 0;
     }
     args->made->end = EMBED_CALL(view_position_end, ViewCtx, .from = args->made->from, .text = args->made->put,
@@ -2709,7 +2716,7 @@ static int view_edit_cell_write(const ViewCtx *args)
     memor.set(&(MemoriaCfg){.dst = &step, .val = 0, .bytes = sizeof(step)});
     if (args->view->steps != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = args->view->step,
                                 .offset = (unsigned long long)(args->view->steps - 1u) * sizeof(step),
                                 .dst = &step,
@@ -2719,7 +2726,7 @@ static int view_edit_cell_write(const ViewCtx *args)
                        (now - step.at_ms <= CLI_VIEW_JOINED) && (step.edits < CLI_VIEW_STEP_EDITS);
     if (!joined && !view_steps_room(args))
     {
-        g_cli_guard->persistent_buf_release(args->made, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(args->made, g_cli_views_owner);
         mmgr_line_put(args->err_msg, "the steps' cell could not be taken");
         return 0;
     }
@@ -2727,7 +2734,7 @@ static int view_edit_cell_write(const ViewCtx *args)
         EMBED_CALL(view_edit_published, ViewCtx, .made_read = args->made, .before = joined ? step.last : NULL);
     if (retained == NULL)
     {
-        g_cli_guard->persistent_buf_release(args->made, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(args->made, g_cli_views_owner);
         mmgr_line_put(args->err_msg, "the edit's retained cell could not be taken");
         return 0;
     }
@@ -2742,10 +2749,10 @@ static int view_edit_cell_write(const ViewCtx *args)
     if (step.last != NULL)
     {
         CliViewEditKept last = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = step.last, .offset = 0ULL, .dst = &last, .bytes = sizeof(last)});
         last.after = retained;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = step.last, .offset = 0ULL, .src = &last, .bytes = sizeof(CliViewEditKept)});
     }
     step.first = (step.first != NULL) ? step.first : retained;
@@ -2756,12 +2763,12 @@ static int view_edit_cell_write(const ViewCtx *args)
     EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = args->made->end, .extend = 0, .saved = 0);
     step.cursor_after = args->view->cursor;
     step.anchor_after = args->view->anchor;
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = args->view->step,
                             .offset = (unsigned long long)(args->view->steps - 1u) * sizeof(CliViewStep),
                             .src = &step,
                             .bytes = sizeof(CliViewStep)});
-    g_cli_guard->persistent_buf_release(args->made, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(args->made, g_cli_views_owner);
     return 1;
 }
 
@@ -2791,7 +2798,7 @@ EMBED_INLINE int view_undone(const ViewCtx *args)
         return 1;
     }
     CliViewStep step = {0};
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = args->view->step,
                             .offset = (unsigned long long)(args->view->done - 1u) * sizeof(step),
                             .dst = &step,
@@ -2799,7 +2806,7 @@ EMBED_INLINE int view_undone(const ViewCtx *args)
     for (const CarcerMovableEntry *edit = step.last; edit != NULL;)
     {
         CliViewEditKept retained = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = edit, .offset = 0ULL, .dst = &retained, .bytes = sizeof(retained)});
         char *const consumed = EMBED_CALL(view_edit_text_copy, ViewCtx, .entry = edit, .retained = &retained, .put = 0);
         if (consumed == NULL)
@@ -2812,7 +2819,7 @@ EMBED_INLINE int view_undone(const ViewCtx *args)
         const unsigned int counts[1] = {1u};
         const int written = EMBED_CALL(view_write, ViewCtx, .view = args->view, .edits = edits, .counts = counts,
                                        .err_msg = args->err_msg);
-        g_cli_guard->persistent_buf_release(consumed, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(consumed, g_cli_views_owner);
         if (!written)
         {
             return 0;
@@ -2834,7 +2841,7 @@ EMBED_INLINE int view_redone(const ViewCtx *args)
         return 1;
     }
     CliViewStep step = {0};
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = args->view->step,
                             .offset = (unsigned long long)args->view->done * sizeof(step),
                             .dst = &step,
@@ -2842,7 +2849,7 @@ EMBED_INLINE int view_redone(const ViewCtx *args)
     for (const CarcerMovableEntry *edit = step.first; edit != NULL;)
     {
         CliViewEditKept retained = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = edit, .offset = 0ULL, .dst = &retained, .bytes = sizeof(retained)});
         char *const put = EMBED_CALL(view_edit_text_copy, ViewCtx, .entry = edit, .retained = &retained, .put = 1);
         if (put == NULL)
@@ -2855,7 +2862,7 @@ EMBED_INLINE int view_redone(const ViewCtx *args)
         const unsigned int counts[1] = {1u};
         const int written = EMBED_CALL(view_write, ViewCtx, .view = args->view, .edits = edits, .counts = counts,
                                        .err_msg = args->err_msg);
-        g_cli_guard->persistent_buf_release(put, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(put, g_cli_views_owner);
         if (!written)
         {
             return 0;
@@ -2891,14 +2898,14 @@ EMBED_INLINE void view_settle(const ViewCtx *args)
     if (args->view->done != 0u)
     {
         CliViewStep step = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = args->view->step,
                                 .offset = (unsigned long long)(args->view->done - 1u) * sizeof(step),
                                 .dst = &step,
                                 .bytes = sizeof(step)});
         step.cursor_after = cursor;
         step.anchor_after = anchor;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = args->view->step,
                                 .offset = (unsigned long long)(args->view->done - 1u) * sizeof(CliViewStep),
                                 .src = &step,
@@ -3014,7 +3021,7 @@ EMBED_INLINE int view_opens_block(const ViewCtx *args)
     }
     const unsigned long long length = view_length(args);
     const unsigned long long count = (args->col < length) ? args->col : length;
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(
         sizeof(RegexpWorkState) + ((count + 1ULL) * sizeof(unsigned int)), g_cli_views_owner);
     if (cell == NULL)
     {
@@ -3026,7 +3033,7 @@ EMBED_INLINE int view_opens_block(const ViewCtx *args)
     unsigned short *const units = EMBED_CALL(view_units_copy, ViewCtx, .view_read = args->view);
     if (units == NULL)
     {
-        g_cli_guard->persistent_buf_release(cell, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(cell, g_cli_views_owner);
         return 0;
     }
     {
@@ -3041,7 +3048,7 @@ EMBED_INLINE int view_opens_block(const ViewCtx *args)
             at += 1ULL;
         }
     }
-    g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(units, g_cli_views_owner);
     char error_text[256];
     VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
     Regexp regexp;
@@ -3072,7 +3079,7 @@ EMBED_INLINE int view_opens_block(const ViewCtx *args)
             at += 1ULL;
         }
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_views_owner);
     return matched;
 }
 
@@ -3288,7 +3295,7 @@ EMBED_INLINE void view_span_write(const ViewCtx *args)
         {
             EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = out,
                        .units = units + start, .count = end - start);
-            g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
+            g_platform_guard->persistent_buf_release(units, g_cli_views_owner);
         }
         if (line < args->to.line)
         {
@@ -3307,7 +3314,7 @@ EMBED_INLINE int view_character_wrap(const ViewCtx *args)
     {
         capacity += (EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = line) * 4ULL) + 1ULL;
     }
-    char *const cell = g_cli_guard->temporary_buf_alloc(capacity + args->length + 8ULL, g_cli_views_owner);
+    char *const cell = g_platform_guard->temporary_buf_alloc(capacity + args->length + 8ULL, g_cli_views_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "the wrap's cell could not be taken");
@@ -3320,7 +3327,7 @@ EMBED_INLINE int view_character_wrap(const ViewCtx *args)
                .character = args->character);
     const int written = EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = args->to, .text = cell,
                                    .length = wrapped.at, .type = CLI_VIEW_TYPE_NONE, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release(cell, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_views_owner);
     if (!written)
     {
         return 0;
@@ -3514,7 +3521,7 @@ static int view_edit_trim(const ViewCtx *args)
     }
     if ((same == shorter) && (args->made->append_length == args->made->consumed_length))
     {
-        g_cli_guard->persistent_buf_release(args->made, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(args->made, g_cli_views_owner);
         return 0;
     }
     args->made->put += head;
@@ -4094,7 +4101,7 @@ EMBED_INLINE int view_lines_comment(const ViewCtx *args)
     }
     if (!any)
     {
-        g_cli_guard->persistent_buf_release(made, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(made, g_cli_views_owner);
         return 1;
     }
     const int after = EMBED_CALL(view_select, ViewCtx, .view_read = args->view) &&
@@ -4498,10 +4505,10 @@ static int view_lines_sort(const ViewCtx *args)
     const unsigned long long table = (((unsigned long long)count + 1ULL) * sizeof(unsigned long long)) +
                                      ((unsigned long long)count * ((2ULL * sizeof(unsigned int)) + 1ULL));
     unsigned long long *const start =
-        (made != NULL) ? g_cli_guard->temporary_buf_alloc(table, g_cli_views_owner) : NULL;
+        (made != NULL) ? g_platform_guard->temporary_buf_alloc(table, g_cli_views_owner) : NULL;
     if (start == NULL)
     {
-        g_cli_guard->persistent_buf_release(made, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(made, g_cli_views_owner);
         return 0;
     }
     unsigned int *const order = (unsigned int *)(start + count + 1u);
@@ -4566,7 +4573,7 @@ static int view_lines_sort(const ViewCtx *args)
         }
     }
     made->append_length = at;
-    g_cli_guard->persistent_buf_release(start, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(start, g_cli_views_owner);
     return EMBED_CALL(view_cell_replace, ViewCtx, .view = args->view, .made = made, .err_msg = args->err_msg);
 }
 
@@ -5211,9 +5218,9 @@ EMBED_INLINE int view_move_key(const ViewCtx *args)
 EMBED_INLINE void view_line_place(const CliStoredText *one, unsigned long long line, unsigned long long *start,
                                   unsigned long long *length)
 {
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = one->lines.starts, .offset = line * sizeof(*start), .dst = start, .bytes = sizeof(*start)});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = one->lines.lengths, .offset = line * sizeof(*length), .dst = length, .bytes = sizeof(*length)});
 }
 
@@ -5317,14 +5324,14 @@ EMBED_INLINE int view_on_key(const ViewCtx *args)
     // the copy goes back to the table before it and reads again after it
     if (!(args->view->find_open && args->view->find_focus))
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = (unsigned long long)args->view->place * sizeof(CliView),
                                 .src = args->view,
                                 .bytes = sizeof(CliView)});
         const int taken = EMBED_CALL(cli_vim_view.key, CliVimCfg, .key = args->view->key, .name = args->supplied,
                                      .err_msg = args->err_msg);
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = (unsigned long long)args->view->place * sizeof(CliView),
                                 .dst = args->view,
@@ -5488,14 +5495,14 @@ EMBED_INLINE int view_input_text(const ViewCtx *args)
     // the copy goes back to the table before it and reads again after it
     if (!(view->find_open && view->find_focus))
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = (unsigned long long)view->place * sizeof(CliView),
                                 .src = view,
                                 .bytes = sizeof(CliView)});
         const int taken = EMBED_CALL(cli_vim_view.text, CliVimCfg, .key = view->key, .text = input->text,
                                      .length = input->length, .err_msg = args->err_msg);
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = (unsigned long long)view->place * sizeof(CliView),
                                 .dst = view,
@@ -5522,13 +5529,13 @@ EMBED_INLINE int view_input_text(const ViewCtx *args)
     if (view->find_open && view->find_focus)
     {
         unsigned short *const units =
-            g_cli_guard->temporary_buf_alloc((input->length + 1ULL) * sizeof(*units), g_cli_views_owner);
+            g_platform_guard->temporary_buf_alloc((input->length + 1ULL) * sizeof(*units), g_cli_views_owner);
         if (units != NULL)
         {
             EMBED_CALL(view_query_append, ViewCtx, .view = view, .units_read = units,
                        .count = EMBED_CALL(view_units_get, ViewCtx, .text = input->text, .size = input->length,
                                            .units = units, .capacity = input->length + 1ULL));
-            g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
+            g_platform_guard->persistent_buf_release(units, g_cli_views_owner);
         }
         return 1;
     }
@@ -5631,13 +5638,13 @@ EMBED_INLINE int view_input_taken(const ViewCtx *args)
             const unsigned long long none = 0ULL;
             for (unsigned int at = 0u; !taken && (at < CLI_VIEW_TABLE_COLUMNS); at += 1u)
             {
-                (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+                (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                     .cell = view->column_set, .offset = at * sizeof(none), .src = &none, .bytes = sizeof(none)});
             }
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = view->column_set,
-                                                                     .offset = args->input->column * sizeof(width),
-                                                                     .src = &width,
-                                                                     .bytes = sizeof(width)});
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = view->column_set,
+                                                                          .offset = args->input->column * sizeof(width),
+                                                                          .src = &width,
+                                                                          .bytes = sizeof(width)});
         }
         break;
     }
@@ -5817,7 +5824,7 @@ static void view_pair_job(const CliServersJobCfg *args)
     {
         return;
     }
-    ViewPairRead *const read = g_cli_guard->temporary_buf_alloc(sizeof(ViewPairRead), g_cli_views_owner);
+    ViewPairRead *const read = g_platform_guard->temporary_buf_alloc(sizeof(ViewPairRead), g_cli_views_owner);
     if (read == NULL)
     {
         return;
@@ -5825,17 +5832,18 @@ static void view_pair_job(const CliServersJobCfg *args)
     memor.cpy(&(MemoriaCfg){.dst = read, .src = args->job, .bytes = sizeof(*read)});
     if (read->asked != EMBED_ATOMIC_LOAD(&s_pair_asked))
     {
-        g_cli_guard->persistent_buf_release(read, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(read, g_cli_views_owner);
         return;
     }
     EMBED_CALL(view_pair_read, ViewCtx, .read = read);
     // the answer written to a movable cell of its own, whose entry the view thread takes
-    const CarcerMovableEntry *const landed = g_cli_guard->movable_buf_alloc(sizeof(*read), g_cli_views_owner);
+    const CarcerMovableEntry *const landed = g_platform_guard->movable_buf_alloc(sizeof(*read), g_cli_views_owner);
     if (landed != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = landed, .src = read, .bytes = sizeof(*read)});
+        (void)g_platform_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = landed, .src = read, .bytes = sizeof(*read)});
     }
-    g_cli_guard->persistent_buf_release(read, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(read, g_cli_views_owner);
     if (landed == NULL)
     {
         return;
@@ -5890,9 +5898,9 @@ static void view_pair_answers_taken(void)
         }
         const CarcerMovableEntry *const landed = job;
         ViewPairRead answer;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = landed, .dst = &answer, .bytes = sizeof(answer)});
-        (void)g_cli_guard->movable_buf_release(landed, g_cli_views_owner);
+        (void)g_platform_guard->movable_buf_release(landed, g_cli_views_owner);
         if (answer.asked >= s_pair_answer.asked)
         {
             s_pair_answer = answer;
@@ -6031,7 +6039,7 @@ EMBED_INLINE void view_frame_paged(const ViewCtx *args)
             memor.cpy(&(MemoriaCfg){.dst = frame->bytes + bytes->at, .src = row_text, .bytes = cut});
             bytes->at += cut;
         }
-        g_cli_guard->persistent_buf_release(cell, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(cell, g_cli_views_owner);
         at = end + 1ULL;
     }
 }
@@ -6049,7 +6057,7 @@ EMBED_INLINE void view_frame_stored(const ViewCtx *args)
         unsigned long long whole = 0ULL;
         if ((one != NULL) && (line < one->lines.lines))
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = one->lines.lengths, .offset = line * sizeof(whole), .dst = &whole, .bytes = sizeof(whole)});
         }
         const unsigned long long units = (whole < args->width) ? whole : args->width;
@@ -6058,25 +6066,26 @@ EMBED_INLINE void view_frame_stored(const ViewCtx *args)
         *row = (CliViewFrameRow){line, bytes->at, 0ULL};
         // the row's units copied out into a cell of the temporary tier and written as UTF-8
         unsigned short *const copied =
-            (units != 0ULL) ? g_cli_guard->temporary_buf_alloc(units * sizeof(*copied), g_cli_views_owner) : NULL;
+            (units != 0ULL) ? g_platform_guard->temporary_buf_alloc(units * sizeof(*copied), g_cli_views_owner) : NULL;
         if (copied != NULL)
         {
             const unsigned long long began = bytes->at;
             {
                 unsigned long long line_start = 0ULL;
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (&one->lines)->starts,
-                                                                        .offset = line * sizeof(line_start),
-                                                                        .dst = &line_start,
-                                                                        .bytes = sizeof(line_start)});
-                (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (&one->lines)->units,
-                                                                        .offset = line_start * sizeof(unsigned short),
-                                                                        .dst = copied,
-                                                                        .bytes = units * sizeof(unsigned short)});
+                (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = (&one->lines)->starts,
+                                                                             .offset = line * sizeof(line_start),
+                                                                             .dst = &line_start,
+                                                                             .bytes = sizeof(line_start)});
+                (void)g_platform_guard->movable_buf_read(
+                    &(CarcerMovableCfg){.cell = (&one->lines)->units,
+                                        .offset = line_start * sizeof(unsigned short),
+                                        .dst = copied,
+                                        .bytes = units * sizeof(unsigned short)});
             }
             EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = bytes, .units = copied,
                        .count = units);
             row->length = bytes->at - began;
-            g_cli_guard->persistent_buf_release(copied, g_cli_views_owner);
+            g_platform_guard->persistent_buf_release(copied, g_cli_views_owner);
         }
     }
 }
@@ -6096,7 +6105,7 @@ EMBED_INLINE void view_frame_folds(const ViewCtx *args)
         for (unsigned int each = 0u; each < view->folds; each += 1u)
         {
             CliViewFold each_fold = {0ULL, 0ULL};
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = view->fold,
                                     .offset = (unsigned long long)each * sizeof(each_fold),
                                     .dst = &each_fold,
@@ -6129,7 +6138,7 @@ EMBED_INLINE void view_frame_folds(const ViewCtx *args)
         const unsigned long long began = bytes->at;
         EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = bytes, .units = units + start,
                    .count = displayed);
-        g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(units, g_cli_views_owner);
         frame->fold[at].closer_length = bytes->at - began;
     }
 }
@@ -6146,7 +6155,7 @@ EMBED_INLINE void view_frame_find(const ViewCtx *args)
     {
         EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = &query_line, .units = units,
                    .count = view->find_length);
-        g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(units, g_cli_views_owner);
     }
     frame->find.query_length = query_line.at;
     frame->find.focus = view->find_focus;
@@ -6169,7 +6178,7 @@ EMBED_INLINE void view_frame_find(const ViewCtx *args)
             frame->matches += 1ULL;
         }
     }
-    g_cli_guard->persistent_buf_release(match, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(match, g_cli_views_owner);
 }
 
 // whether the line's text is its brace alone, blanks either side left off
@@ -6182,7 +6191,7 @@ EMBED_INLINE int view_brace_line(const ViewCtx *args)
         unsigned short unit = 0u;
         if (at < args->view->line_length)
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = args->view->line_units, .offset = at * sizeof(unit), .dst = &unit, .bytes = sizeof(unit)});
         }
         if (unit == '{')
@@ -6257,7 +6266,7 @@ int cli_view_input(const CliViewInputCfg *args)
     }
     const int reserved = EMBED_CALL(view_input_taken, ViewCtx, .view = view, .key = args->key, .input = args->input,
                                     .err_msg = args->err_msg);
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = (unsigned long long)view->place * sizeof(CliView),
                             .src = view,
@@ -6274,8 +6283,8 @@ EMBED_INLINE int view_frame_kept(const ViewCtx *args)
     const CliViewFrame *const frame = args->frame_read;
     if ((view->frame == NULL) || (view->frame_capacity < args->bytes))
     {
-        (void)g_cli_guard->movable_buf_release(view->frame, g_cli_views_owner);
-        view->frame = g_cli_guard->movable_buf_alloc(args->bytes, g_cli_views_owner);
+        (void)g_platform_guard->movable_buf_release(view->frame, g_cli_views_owner);
+        view->frame = g_platform_guard->movable_buf_alloc(args->bytes, g_cli_views_owner);
         view->frame_capacity = (view->frame != NULL) ? args->bytes : 0ULL;
     }
     view->frame_bytes = (view->frame != NULL) ? args->bytes : 0ULL;
@@ -6283,7 +6292,7 @@ EMBED_INLINE int view_frame_kept(const ViewCtx *args)
     {
         return 0;
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = view->frame, .offset = 0ULL, .src = frame, .bytes = args->bytes});
     const unsigned char *const base = (const unsigned char *)(const void *)frame;
     view->frame_layout =
@@ -6318,7 +6327,7 @@ EMBED_INLINE unsigned long long view_frame_made(const ViewCtx *args)
     // frame takes its layout. They lie in a cell of the temporary tier, given back before the frame goes out. There
     // are the rows, and the sticky rows after them
     const unsigned long long capacity = rows + CLI_VIEW_STICKY_MAX;
-    unsigned long long *const number = g_cli_guard->temporary_buf_alloc(
+    unsigned long long *const number = g_platform_guard->temporary_buf_alloc(
         capacity * (sizeof(unsigned long long) + sizeof(const char *) + sizeof(CliViewFoldSeen)), g_cli_views_owner);
     if (number == NULL)
     {
@@ -6359,10 +6368,10 @@ EMBED_INLINE unsigned long long view_frame_made(const ViewCtx *args)
         sizeof(CliViewFrame) + ((displayed.count + stickies) * sizeof(CliViewFrameRow)) +
         (folds.count * sizeof(CliViewFrameFold)) + (matches_max * 3ULL * sizeof(unsigned long long)) +
         (column_count * sizeof(unsigned long long)) + query_bytes + text_bytes;
-    CliViewFrame *const frame = g_cli_guard->temporary_buf_alloc(frame_bytes, g_cli_views_owner);
+    CliViewFrame *const frame = g_platform_guard->temporary_buf_alloc(frame_bytes, g_cli_views_owner);
     if (frame == NULL)
     {
-        g_cli_guard->persistent_buf_release(number, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(number, g_cli_views_owner);
         return 0ULL;
     }
     memor.set(&(MemoriaCfg){.dst = frame, .val = 0, .bytes = sizeof(*frame)});
@@ -6462,14 +6471,14 @@ EMBED_INLINE unsigned long long view_frame_made(const ViewCtx *args)
     // line
     const int walked = EMBED_CALL(cli_document_runs.runs_walk, CliDocumentRunsCfg, .key = view->key,
                                   .number = displayed.number, .count = displayed.count, .mirrored = 1);
-    g_cli_guard->persistent_buf_release(number, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(number, g_cli_views_owner);
     memor.cpy(
         &(MemoriaCfg){.dst = frame->key,
                       .src = view->key,
                       .bytes = cellul.len(&(CatenaFinitaCfg){.src = view->key, .cap = CLI_NAME_MAX_LEN - 1u}) + 1u});
     const int kept =
         walked && EMBED_CALL(view_frame_kept, ViewCtx, .view = view, .frame_read = frame, .bytes = frame_bytes);
-    g_cli_guard->persistent_buf_release(frame, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(frame, g_cli_views_owner);
     if (!kept)
     {
         return 0ULL;
@@ -6491,7 +6500,7 @@ unsigned long long cli_view_frame_build(const CliViewAtCfg *args)
         return 0ULL;
     }
     const unsigned long long bytes = EMBED_CALL(view_frame_made, ViewCtx, .view = view);
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = (unsigned long long)view->place * sizeof(CliView),
                             .src = view,
@@ -6515,7 +6524,7 @@ const CliViewFrame *cli_view_frame_read(const CliViewAtCfg *args)
         return NULL;
     }
     unsigned char *const base = args->frame_out;
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = view->frame, .offset = 0ULL, .dst = base, .bytes = view->frame_bytes});
     // the frame's lists point into the caller's buffer at the places the view kept
     CliViewFrame *const frame = (CliViewFrame *)(void *)base;
@@ -6566,7 +6575,7 @@ static CliDocumentMapHead s_view_map_head;
 void cli_view_map_release(const CliViewMapCfg *args)
 {
     (void)args;
-    (void)g_cli_guard->movable_buf_release(s_view_map, g_cli_views_owner);
+    (void)g_platform_guard->movable_buf_release(s_view_map, g_cli_views_owner);
     s_view_map = NULL;
     s_view_map_capacity = 0ULL;
     s_view_map_head = (CliDocumentMapHead){0ULL, 0u, 0u};
@@ -6591,7 +6600,7 @@ int cli_view_map_place(const CliViewMapCfg *args)
     s_view_map_head = (CliDocumentMapHead){0ULL, 0u, 0u};
     if (s_view_map != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_view_map, .offset = 0ULL, .dst = &s_view_map_head, .bytes = sizeof(s_view_map_head)});
     }
     return s_view_map != NULL;
@@ -6606,7 +6615,7 @@ static int view_map_line_places(unsigned long long line, unsigned int pair[2])
     {
         return 0;
     }
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_view_map,
                             .offset = CLI_DOCUMENT_MAP_LINE_AT(line - s_view_map_head.from),
                             .dst = pair,
@@ -6627,7 +6636,7 @@ int cli_view_map_bar(const CliViewMapCfg *args)
     {
         return 0;
     }
-    return g_cli_guard->movable_buf_read(
+    return g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_view_map,
                             .offset = CLI_DOCUMENT_MAP_BAR_AT(s_view_map_head.count, pair[0] + args->at),
                             .dst = args->bar_out,
@@ -6664,7 +6673,7 @@ int cli_view_served_set(const CliViewFullCfg *args)
         mmgr_line_put(&line, args->full);
         (void)mmgr_line_finish(&line);
         view->changed = 0;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = (unsigned long long)view->place * sizeof(CliView),
                                 .src = view,
@@ -6694,7 +6703,7 @@ int cli_view_serving(const CliViewFullCfg *args)
     for (unsigned int at = 0u; !serving && (at < CLI_VIEWS) && EMBED_CALL(view_record_used, ViewCtx, .at_u32 = at);
          at += 1u)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = ((unsigned long long)at * sizeof(CliView)) + offsetof(CliView, served),
                                 .dst = served,
@@ -6711,14 +6720,14 @@ void cli_view_saved(const CliViewCfg *args)
     if (view != NULL)
     {
         CliViewStep step = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = view->step,
                                 .offset = (unsigned long long)(view->done - 1u) * sizeof(step),
                                 .dst = &step,
                                 .bytes = sizeof(step)});
         view->save_point = step.last;
         view->save_point_lost = 0;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = (unsigned long long)view->place * sizeof(CliView),
                                 .src = view,
@@ -6733,7 +6742,7 @@ void cli_view_unsaved(const CliViewCfg *args)
     if (view != NULL)
     {
         view->save_point_lost = 1;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = (unsigned long long)view->place * sizeof(CliView),
                                 .src = view,
@@ -6746,7 +6755,7 @@ int cli_view_modified(const CliViewCfg *args)
     CliView copy;
     const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key, .copy = &copy);
     CliViewStep step = {0};
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = view->step,
                             .offset = (unsigned long long)(view->done - 1u) * sizeof(step),
                             .dst = &step,
@@ -6800,7 +6809,7 @@ int cli_view_changed_clear(const CliViewCfg *args)
     if (changed)
     {
         view->changed = 0;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = (unsigned long long)view->place * sizeof(CliView),
                                 .src = view,
@@ -6845,7 +6854,7 @@ int cli_view_position_at(const CliViewRowCfg *args)
     {
         *line = EMBED_CALL(view_down, ViewCtx, .view_read = view, .line = view->top, .count = args->row);
         *col = EMBED_CALL(view_col_at, ViewCtx, .view = view, .line = *line, .cell = args->column);
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = (unsigned long long)view->place * sizeof(CliView),
                                 .src = view,
@@ -6868,11 +6877,11 @@ int cli_view_word_at(const CliViewLineCfg *args)
         EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = &text,
                    .units = units + *args->from, .count = *args->to - *args->from);
         (void)mmgr_line_finish(&text);
-        g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(units, g_cli_views_owner);
     }
     if (view != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = (unsigned long long)view->place * sizeof(CliView),
                                 .src = view,
@@ -6908,10 +6917,10 @@ int cli_view_prefix(const CliViewFromCfg *args)
     {
         EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = &text, .units = units + start,
                    .count = end - start);
-        g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
+        g_platform_guard->persistent_buf_release(units, g_cli_views_owner);
     }
     (void)mmgr_line_finish(&text);
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = (unsigned long long)view->place * sizeof(CliView),
                             .src = view,
@@ -6981,13 +6990,13 @@ int cli_view_edits_apply(const CliViewEditsCfg *args)
         {
             step_at = view->steps - 1u;
             CliViewStep step = {0};
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = view->step,
                                     .offset = (unsigned long long)step_at * sizeof(step),
                                     .dst = &step,
                                     .bytes = sizeof(step)});
             step.type = CLI_VIEW_TYPE_EDITS;
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = view->step,
                                     .offset = (unsigned long long)step_at * sizeof(CliViewStep),
                                     .src = &step,
@@ -6997,21 +7006,22 @@ int cli_view_edits_apply(const CliViewEditsCfg *args)
     if (step_at != CLI_VIEW_STEPS)
     {
         CliViewStep step = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = view->step,
-                                                                .offset = (unsigned long long)step_at * sizeof(step),
-                                                                .dst = &step,
-                                                                .bytes = sizeof(step)});
+        (void)g_platform_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = view->step,
+                                .offset = (unsigned long long)step_at * sizeof(step),
+                                .dst = &step,
+                                .bytes = sizeof(step)});
         step.type = CLI_VIEW_TYPE_NONE;
         EMBED_CALL(view_move, ViewCtx, .view = view, .place = args->edit[0].from, .extend = 0, .saved = 0);
         step.cursor_after = view->cursor;
         step.anchor_after = view->anchor;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = view->step,
                                 .offset = (unsigned long long)step_at * sizeof(CliViewStep),
                                 .src = &step,
                                 .bytes = sizeof(CliViewStep)});
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = (unsigned long long)view->place * sizeof(CliView),
                             .src = view,
@@ -7036,7 +7046,7 @@ const unsigned short *cli_view_vim_line(const CliViewVimCfg *args)
         return NULL;
     }
     *args->count = EMBED_CALL(view_length, ViewCtx, .view = view, .line = args->line);
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = (unsigned long long)view->place * sizeof(CliView),
                             .src = view,
@@ -7047,7 +7057,7 @@ const unsigned short *cli_view_vim_line(const CliViewVimCfg *args)
 void cli_view_vim_line_end(const CliViewVimCfg *args)
 {
     // the copy is the view's temporary take, passed out read-only and given back here
-    g_cli_guard->persistent_buf_release((void *)(embed_word)args->units, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)args->units, g_cli_views_owner);
 }
 
 unsigned int cli_view_vim_rows(const CliViewVimCfg *args)
@@ -7067,7 +7077,7 @@ unsigned long long cli_view_vim_span_bytes(const CliViewVimCfg *args)
     }
     const unsigned long long bytes =
         EMBED_CALL(view_span_bytes, ViewCtx, .view = view, .from = args->from, .to = args->to);
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = (unsigned long long)view->place * sizeof(CliView),
                             .src = view,
@@ -7082,7 +7092,7 @@ void cli_view_vim_span(const CliViewVimCfg *args)
     if (view != NULL)
     {
         EMBED_CALL(view_span_write, ViewCtx, .view = view, .from = args->from, .to = args->to, .out = args->out);
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = (unsigned long long)view->place * sizeof(CliView),
                                 .src = view,
@@ -7104,7 +7114,7 @@ int cli_view_vim_edit(const CliViewVimCfg *args)
     const int edited =
         EMBED_CALL(view_edit, ViewCtx, .view = view, .from = args->from, .to = args->to, .text = args->text,
                    .length = args->length, .type = CLI_VIEW_TYPE_NONE, .err_msg = err_msg);
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = (unsigned long long)view->place * sizeof(CliView),
                             .src = view,
@@ -7128,7 +7138,7 @@ int cli_view_vim_indent(const CliViewVimCfg *args)
     view->cursor = (CliPosition){args->to.line, EMBED_CALL(view_length, ViewCtx, .view = view, .line = args->to.line)};
     const int indented = EMBED_CALL(view_lines_indent, ViewCtx, .view = view, .deeper = args->deeper,
                                     .err_msg = (args->err_msg != NULL) ? args->err_msg : &own);
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = (unsigned long long)view->place * sizeof(CliView),
                             .src = view,
@@ -7148,7 +7158,7 @@ void cli_view_vim_place(const CliViewVimCfg *args)
     view->anchor = args->anchor;
     view->goal_saved = 0;
     EMBED_CALL(view_follow, ViewCtx, .view = view);
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = (unsigned long long)view->place * sizeof(CliView),
                             .src = view,
@@ -7168,7 +7178,7 @@ int cli_view_vim_step(const CliViewVimCfg *args)
     VerbaLinea *const err_msg = (args->err_msg != NULL) ? args->err_msg : &own;
     const int stepped = args->redo ? EMBED_CALL(view_redone, ViewCtx, .view = view, .err_msg = err_msg)
                                    : EMBED_CALL(view_undone, ViewCtx, .view = view, .err_msg = err_msg);
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = (unsigned long long)view->place * sizeof(CliView),
                             .src = view,
@@ -7186,10 +7196,11 @@ EMBED_INLINE unsigned long long view_match_after(const ViewCtx *args)
     {
         const unsigned long long middle = low + ((high - low) / 2ULL);
         unsigned long long one[3];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->view_read->match,
-                                                                .offset = middle * 3ULL * sizeof(unsigned long long),
-                                                                .dst = one,
-                                                                .bytes = 3ULL * sizeof(unsigned long long)});
+        (void)g_platform_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = args->view_read->match,
+                                .offset = middle * 3ULL * sizeof(unsigned long long),
+                                .dst = one,
+                                .bytes = 3ULL * sizeof(unsigned long long)});
         const CliPosition start = {one[0], one[1]};
         if (EMBED_CALL(view_before, ViewCtx, .one = start, .other = args->place) ||
             (args->exact && (start.line == args->place.line) && (start.col == args->place.col)))
@@ -7213,7 +7224,7 @@ int cli_view_vim_find(const CliViewVimCfg *args)
         return 0;
     }
     unsigned short *const units =
-        g_cli_guard->temporary_buf_alloc((args->length + 1ULL) * sizeof(*units), g_cli_views_owner);
+        g_platform_guard->temporary_buf_alloc((args->length + 1ULL) * sizeof(*units), g_cli_views_owner);
     if (units == NULL)
     {
         return 0;
@@ -7223,7 +7234,7 @@ int cli_view_vim_find(const CliViewVimCfg *args)
     // the query is where it is the same, with case, whole words as asked, and a pattern or the text itself
     const int same = (view->find_query != NULL) && (view->find_length == count) && view->find_case &&
                      (view->find_word == args->word_text) && (!args->word_text || !view->find_regex) &&
-                     (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+                     (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){
                           .cell = view->find_query, .src = units, .bytes = count * sizeof(*units)}) == 0);
     if (!same)
     {
@@ -7235,7 +7246,7 @@ int cli_view_vim_find(const CliViewVimCfg *args)
         EMBED_CALL(view_query_append, ViewCtx, .view = view, .units_read = units, .count = count);
         view->find_stale = 1;
     }
-    g_cli_guard->persistent_buf_release(units, g_cli_views_owner);
+    g_platform_guard->persistent_buf_release(units, g_cli_views_owner);
     EMBED_CALL(view_search, ViewCtx, .view = view);
     if (!same && (view->matches == 0ULL) && view->find_regex)
     {
@@ -7246,7 +7257,7 @@ int cli_view_vim_find(const CliViewVimCfg *args)
     }
     if (view->matches == 0ULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_views,
                                 .offset = (unsigned long long)view->place * sizeof(CliView),
                                 .src = view,
@@ -7269,12 +7280,12 @@ int cli_view_vim_find(const CliViewVimCfg *args)
     // the matches are fewer than CLI_VIEW_MATCHES, which a long long counts
     view->current = (long long)chosen;
     unsigned long long one[3];
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = view->match,
-                                                            .offset = chosen * 3ULL * sizeof(unsigned long long),
-                                                            .dst = one,
-                                                            .bytes = 3ULL * sizeof(unsigned long long)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = view->match,
+                                                                 .offset = chosen * 3ULL * sizeof(unsigned long long),
+                                                                 .dst = one,
+                                                                 .bytes = 3ULL * sizeof(unsigned long long)});
     *args->place = (CliPosition){one[0], one[1]};
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_views,
                             .offset = (unsigned long long)view->place * sizeof(CliView),
                             .src = view,

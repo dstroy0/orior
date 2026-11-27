@@ -26,7 +26,7 @@
 #include "../../../../../../../src/cu/engine/analysis/tower/tower.h"
 #include "sim.h"
 
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 
 #define TOWER_TEST_VOLUMES 256u

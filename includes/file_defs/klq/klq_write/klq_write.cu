@@ -27,7 +27,7 @@
 // belong to no ruleset. The writer stores each line as the bridge recorded it, and writes it after the keys.
 // A pair that the bridge recorded a verdict for, put to the part, goes out with that verdict. It also goes out with the
 // set, the concept and the intent that orior_klq_decoder read it into
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "../../krs/ruleset_flat.h"
 #include "../../qry/writer/qry_member.h"
 #include "cellularum_laboro/cellularum_laboro.h"

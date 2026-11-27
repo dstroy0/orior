@@ -70,7 +70,7 @@ for source in "${FILE_DEFS_FORMATS[@]}"; do
     FORMAT_SOURCE["$source"]=1
 done
 FORMAT_OBJECTS=()
-for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" \
+for source in "$INTERFACE/interface.c" "${PLATFORM_PROBE[@]}" "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" \
               "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TEST/interface_sass_probe_main.c" "$TEST"/interface_sass_probe_main/*.c "$TEST"/interface_sass_probe_machine/*.c \
               "$TEST"/interface_sass_probe_query/*.c "$TEST/interface_sass_probe_class.c" "$TEST/interface_sass_probe_cubin.c" \
               "$TEST/interface_sass_probe_read.c" "$TEST/interface_sass_probe_check.c"; do

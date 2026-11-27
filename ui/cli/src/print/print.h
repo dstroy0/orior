@@ -5,12 +5,12 @@
 // orior's own queue to a printer on the network by IPP (ipp.c, ipp_jobs.c) or its raw port, to a printer of the
 // system's through its driver or CUPS, or to a PDF file.
 //
-// A listing prints as its lines, each a run of colored text, positioned on pages of a paper size, upright or on its side, in
-// columns of a monospace face 9.5 points tall, each line with its number and a long line going on under itself. The
-// PDF and the raster both draw the pages arranged here, the one as text and the other as pixels.
+// A listing prints as its lines, each a run of colored text, positioned on pages of a paper size, upright or on its
+// side, in columns of a monospace face 9.5 points tall, each line with its number and a long line going on under
+// itself. The PDF and the raster both draw the pages arranged here, the one as text and the other as pixels.
 //
-// Every call that positions a listing out works on the one layout page.c stores, and is made with the print lock acquired
-// (cli_print_alloc, cli_print_release)
+// Every call that positions a listing out works on the one layout page.c stores, and is made with the print lock
+// acquired (cli_print_alloc, cli_print_release)
 #ifndef PRINT_H
 #define PRINT_H
 #include "../text/json_tree.h"
@@ -88,8 +88,8 @@ typedef struct
     unsigned long long tab;
 } CliPrintListing;
 
-// How a page prints: a4 or character, on its side, in gray, the pages printed as 1-3,5 (every page where none are named),
-// and the copies
+// How a page prints: a4 or character, on its side, in gray, the pages printed as 1-3,5 (every page where none are
+// named), and the copies
 typedef struct
 {
     char paper[16];

@@ -27,7 +27,7 @@
  */
 
 #include "../../../../../../src/cu/engine/nbody/orior/orior.h"
-#include "../../../../../../src/platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 
 #include <stdio.h>
 #include <stdlib.h>

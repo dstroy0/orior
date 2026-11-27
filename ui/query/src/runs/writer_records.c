@@ -49,9 +49,10 @@ int query_writer_latest(const QueryCountNameCtx *args)
                      ? record
                      : latest;
     }
-    g_cli_guard->persistent_buf_release(s_read, g_query_owner);
+    g_platform_guard->persistent_buf_release(s_read, g_query_owner);
     // one byte past the blob, so an empty blob is a cell too
-    s_read = (latest != NULL) ? g_cli_guard->persistent_buf_alloc(latest->blob_length + 1ULL, g_query_owner) : NULL;
+    s_read =
+        (latest != NULL) ? g_platform_guard->persistent_buf_alloc(latest->blob_length + 1ULL, g_query_owner) : NULL;
     if (s_read != NULL)
     {
         // a record fits half a ring, whose bytes a size_t counts
@@ -125,7 +126,8 @@ char *query_writer_read_alloc(const QueryCountNameCtx *args)
         for (;;)
         {
             const unsigned long long named = EMBED_CALL(query_member_name_size, WriterRecordsCtx, .name = args->name);
-            char *const joined = (named > 0ULL) ? g_cli_guard->persistent_buf_alloc(named + 1ULL, g_query_owner) : NULL;
+            char *const joined =
+                (named > 0ULL) ? g_platform_guard->persistent_buf_alloc(named + 1ULL, g_query_owner) : NULL;
             if (joined == NULL)
             {
                 return NULL;
@@ -138,7 +140,7 @@ char *query_writer_read_alloc(const QueryCountNameCtx *args)
                 return joined;
             }
             // records of the name came between the count and the gathering, so they are counted again
-            g_cli_guard->persistent_buf_release(joined, g_query_owner);
+            g_platform_guard->persistent_buf_release(joined, g_query_owner);
         }
     }
     unsigned long long mapped_size = 0ULL;
@@ -157,7 +159,7 @@ char *query_writer_read_alloc(const QueryCountNameCtx *args)
                      ? record->blob_length
                      : 0ULL;
     }
-    char *const joined = (named > 0ULL) ? g_cli_guard->persistent_buf_alloc(named + 1ULL, g_query_owner) : NULL;
+    char *const joined = (named > 0ULL) ? g_platform_guard->persistent_buf_alloc(named + 1ULL, g_query_owner) : NULL;
     unsigned long long put = 0ULL;
     at = 0ULL;
     while ((joined != NULL) && qry_record_read(mapped, mapped_size, &at, &record))
@@ -228,7 +230,7 @@ int query_writer_records_import(const QueryCountNameCtx *args)
     }
     const QryRecord **const latest =
         (records > 0u)
-            ? g_cli_guard->persistent_buf_alloc((unsigned long long)records * sizeof(QryRecord *), g_query_owner)
+            ? g_platform_guard->persistent_buf_alloc((unsigned long long)records * sizeof(QryRecord *), g_query_owner)
             : NULL;
     unsigned int latests = 0u;
     at = 0ULL;
@@ -263,7 +265,7 @@ int query_writer_records_import(const QueryCountNameCtx *args)
                 ? 1u
                 : 0u;
     }
-    g_cli_guard->persistent_buf_release((void *)latest, g_query_owner);
+    g_platform_guard->persistent_buf_release((void *)latest, g_query_owner);
     qry_member_settled();
     qry_member_file_unmapped(mapped, mapped_size);
     if (!whole)
@@ -284,18 +286,19 @@ int query_writer_records_import_list(const QueryFromWriterCtx *args)
     // the list copied into a cell of its size, each name trimmed of the spaces about it and ended by a 0 in place, and
     // a place for each line in a cell of their count
     const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->list_entries, .cap = CLI_POOL_BYTES});
-    char *const names = g_cli_guard->persistent_buf_alloc(size + 1u, g_query_owner);
+    char *const names = g_platform_guard->persistent_buf_alloc(size + 1u, g_query_owner);
     unsigned int lines = 1u;
     for (size_t at = 0u; at < size; at += 1u)
     {
         lines += (args->list_entries[at] == '\n') ? 1u : 0u;
     }
     const char **const named =
-        (names != NULL) ? g_cli_guard->persistent_buf_alloc((unsigned long long)lines * sizeof(char *), g_query_owner)
-                        : NULL;
+        (names != NULL)
+            ? g_platform_guard->persistent_buf_alloc((unsigned long long)lines * sizeof(char *), g_query_owner)
+            : NULL;
     if (named == NULL)
     {
-        g_cli_guard->persistent_buf_release(names, g_query_owner);
+        g_platform_guard->persistent_buf_release(names, g_query_owner);
         mmgr_line_put(args->err_msg, "the names carried could not be stored");
         return 0;
     }
@@ -328,7 +331,7 @@ int query_writer_records_import_list(const QueryFromWriterCtx *args)
         mmgr_line_put(args->err_msg, "no records carried from ");
         mmgr_line_put(args->err_msg, args->from);
     }
-    g_cli_guard->persistent_buf_release((void *)named, g_query_owner);
-    g_cli_guard->persistent_buf_release(names, g_query_owner);
+    g_platform_guard->persistent_buf_release((void *)named, g_query_owner);
+    g_platform_guard->persistent_buf_release(names, g_query_owner);
     return carried;
 }

@@ -9,7 +9,7 @@
 // One line a case and a cubin, and a last line with the checks. Exit 0 where every case gives its rule's verdict, 1
 // where one does not, 2 where the machine file did not read. A cubin's verdict is reported and is no check: a cubin
 // blocked from the part is the gate doing its work.
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "../cubin_safe.h"
 #include "../sass_assemble.h"

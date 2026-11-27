@@ -121,7 +121,7 @@ static void view_tidy_read(const CliEachTextLengthCfg *args)
     const char *const text = args->text;
     const unsigned long long size = args->length;
     const unsigned long long lines = EMBED_CALL(tidy_lines, ViewTidyCtx, .text = text, .size = size);
-    CliEdit *const edits = g_cli_guard->temporary_buf_alloc((lines + 1ULL) * sizeof(CliEdit), g_cli_view_owner);
+    CliEdit *const edits = g_platform_guard->temporary_buf_alloc((lines + 1ULL) * sizeof(CliEdit), g_cli_view_owner);
     if (edits == NULL)
     {
         mmgr_line_put(ask->err_msg, "the cells cannot meet the edits that tidy the text");
@@ -170,7 +170,7 @@ int cli_view_tidy(const CliViewTidyCfg *args)
     const int applied =
         (tidied.count == 0u) || EMBED_CALL(cli_view_edits.apply, CliViewEditsCfg, .key = args->key,
                                            .edit = tidied.edits, .count = tidied.count, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release(tidied.edits, g_cli_view_owner);
+    g_platform_guard->persistent_buf_release(tidied.edits, g_cli_view_owner);
     return applied;
 }
 
@@ -294,7 +294,7 @@ static void view_format_read(const CliEachTextLengthCfg *args)
     ViewFormatted *const formatted = (ViewFormatted *)args->context;
     const CliViewFormatCfg *const ask = formatted->ask;
     const unsigned long long capacity = (args->length * 2ULL) + CLI_VIEW_FORMAT_ROOM;
-    formatted->formatted = g_cli_guard->temporary_buf_alloc(capacity, g_cli_view_owner);
+    formatted->formatted = g_platform_guard->temporary_buf_alloc(capacity, g_cli_view_owner);
     if (formatted->formatted == NULL)
     {
         mmgr_line_put(ask->err_msg, "the cells cannot meet the formatted text");
@@ -334,6 +334,6 @@ int cli_view_format(const CliViewFormatCfg *args)
         replaced = EMBED_CALL(cli_view_replace_table.replace, CliViewReplaceCfg, .key = args->key, .text = formatted,
                               .length = length, .err_msg = args->err_msg);
     }
-    g_cli_guard->persistent_buf_release(formatted, g_cli_view_owner);
+    g_platform_guard->persistent_buf_release(formatted, g_cli_view_owner);
     return replaced;
 }

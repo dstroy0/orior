@@ -11,7 +11,7 @@ CliValidateWorkState *g_cli_validate;
 
 int cli_validate_lock(void)
 {
-    g_cli_validate = g_cli_guard->temporary_buf_alloc(sizeof(*g_cli_validate), g_cli_plugins_owner);
+    g_cli_validate = g_platform_guard->temporary_buf_alloc(sizeof(*g_cli_validate), g_cli_plugins_owner);
     if (g_cli_validate == NULL)
     {
         return 0;
@@ -334,7 +334,7 @@ EMBED_INLINE int validate_text(const ValidateCtx *args)
     VerbaLinea *report = args->report;
     const GuiTool *const tool = &g_cli_validate->tool;
     CliJson *const json = &g_cli_validate->manifest;
-    g_cli_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json->node));
+    g_platform_guard->persistent_buf_release(json->node, mmgr_owner_of_buf(platform_pool_series(), json->node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
                .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
@@ -368,7 +368,7 @@ EMBED_INLINE int validate_text(const ValidateCtx *args)
     EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = json, .tool = chain,
                .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count,
                .found = &g_cli_validate->found);
-    g_cli_guard->persistent_buf_release(folders, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(folders, g_cli_plugins_owner);
     if (!g_cli_validate->found.has_program)
     {
         const char *const name =
@@ -478,18 +478,18 @@ int cli_on_validate(const CliValidatePathCfg *args)
             validated = EMBED_CALL(validate_text, ValidateCtx, .path = args->path, .text = (const char *)bytes,
                                    .size = size, .report = args->report, .err_msg = args->err_msg);
         }
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_plugins_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_plugins_owner);
     }
-    g_cli_guard->persistent_buf_release(g_cli_validate->json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_validate->json.node));
+    g_platform_guard->persistent_buf_release(g_cli_validate->json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), g_cli_validate->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_validate->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(g_cli_validate->manifest.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), g_cli_validate->manifest.node));
+    g_platform_guard->persistent_buf_release(g_cli_validate->manifest.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), g_cli_validate->manifest.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&g_cli_validate->manifest),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-    g_cli_guard->persistent_buf_release(g_cli_validate->output, g_cli_plugins_owner);
-    g_cli_guard->persistent_buf_release(g_cli_validate, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(g_cli_validate->output, g_cli_plugins_owner);
+    g_platform_guard->persistent_buf_release(g_cli_validate, g_cli_plugins_owner);
     g_cli_validate = NULL;
     return validated;
 }

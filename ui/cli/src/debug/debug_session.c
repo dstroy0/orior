@@ -56,11 +56,11 @@ void cli_debug_lists_released(const CliDebugSessionErrMsgCtx *args)
     CliDebugSession *const session = args->session;
     if (session->positioned_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(session->positioned_cell, g_cli_debug_owner);
+        (void)g_platform_guard->movable_buf_release(session->positioned_cell, g_cli_debug_owner);
     }
     if (session->data_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(session->data_cell, g_cli_debug_owner);
+        (void)g_platform_guard->movable_buf_release(session->data_cell, g_cli_debug_owner);
     }
     session->positioned_cell = NULL;
     session->positioned_count = 0u;
@@ -83,10 +83,10 @@ CliDebugSession *cli_debug_position(void)
             session->users = 1u;
             session->dap = NULL;
             // the two lists in movable cells at their max, both or neither
-            session->positioned_cell = g_cli_guard->movable_buf_alloc(
+            session->positioned_cell = g_platform_guard->movable_buf_alloc(
                 (unsigned long long)CLI_DEBUG_POSITIONED * sizeof(long long), g_cli_debug_owner);
             session->data_cell = (session->positioned_cell != NULL)
-                                     ? g_cli_guard->movable_buf_alloc(
+                                     ? g_platform_guard->movable_buf_alloc(
                                            (unsigned long long)CLI_DEBUG_DATA * CLI_NAME_MAX_LEN, g_cli_debug_owner)
                                      : NULL;
             session->positioned_count = 0u;
@@ -151,7 +151,7 @@ CliDebugAnswer *cli_debug_answer_alloc(void)
         }
     }
     answer->reserved = 1;
-    cli_grown_begin(&answer->args, CLI_DEBUG_ARGS, g_cli_debug_owner);
+    platform_text_begun(&answer->args, CLI_DEBUG_ARGS, platform_place_g_cli_debug_owner, PLATFORM_TIER_TEMPORARY);
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &answer->json,
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     answer->root = CLI_JSON_NONE;
@@ -160,9 +160,9 @@ CliDebugAnswer *cli_debug_answer_alloc(void)
 
 void cli_debug_answer_free(const CliDebugSessionCommandCtx *args)
 {
-    cli_grown_end(&args->answer->args);
-    g_cli_guard->persistent_buf_release(args->answer->json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), args->answer->json.node));
+    platform_text_ended(&args->answer->args);
+    g_platform_guard->persistent_buf_release(args->answer->json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), args->answer->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&args->answer->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     args->answer->reserved = 0;
@@ -181,9 +181,9 @@ int cli_debug_request(const CliDebugSessionCommandCtx *args)
         return 0;
     }
     // the arguments as written, an empty object where none are; and the work state emptied for a request after this one
-    const unsigned long long written = cli_grown_size(&answer->args);
-    g_cli_guard->persistent_buf_release(answer->json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), answer->json.node));
+    const unsigned long long written = platform_text_size(&answer->args);
+    g_platform_guard->persistent_buf_release(answer->json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), answer->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&answer->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     CliLspAnswer reply;
@@ -191,7 +191,7 @@ int cli_debug_request(const CliDebugSessionCommandCtx *args)
         EMBED_CALL(cli_dap_err_msg.request, CliDapErrMsgCfg, .dap = args->session->dap, .command = command,
                    .arguments = (written > 0ULL) ? answer->args.cell : "{}",
                    .length = (written > 0ULL) ? written : 2ULL, .wait = wait, .answer = &reply, .err_msg = err_msg);
-    cli_grown_reset(&answer->args);
+    platform_text_reset(&answer->args);
     if (!answered)
     {
         return 0;
@@ -199,7 +199,7 @@ int cli_debug_request(const CliDebugSessionCommandCtx *args)
     answer->root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                               .json = &answer->json, .text = reply.text, .size = reply.size, .nodes_more = 0u,
                               .text_more = 0ULL, .err_msg = err_msg, .owner = g_cli_debug_owner);
-    g_cli_guard->persistent_buf_release(reply.message, g_cli_debug_owner);
+    g_platform_guard->persistent_buf_release(reply.message, g_cli_debug_owner);
     return answer->root != CLI_JSON_NONE;
 }
 
@@ -342,7 +342,7 @@ int cli_debug_set(const CliDebugSessionCtx *args)
         }
         if (args->session->positioned_count < args->session->positioned_capacity)
         {
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = args->session->positioned_cell,
                                     .offset = (unsigned long long)args->session->positioned_count * sizeof(number),
                                     .src = &number,

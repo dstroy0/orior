@@ -21,7 +21,7 @@
  *       chaining value at the end, and it cancels in the exclusive-or exactly.
  */
 
-#include "../../src/platform/platform.h"
+#include "../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include <cuda_runtime.h>
 

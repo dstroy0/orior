@@ -74,8 +74,8 @@ unsigned int cli_toolchains_manifest(const CliToolchainsJsonNodesMoreCfg *args)
                                              1u)
                                           : 0u;
     const unsigned int tokens_max = (bundled_tokens > added_tokens) ? bundled_tokens : added_tokens;
-    CfgJsonToken *const tokens =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken), g_cli_toolchains_owner);
+    CfgJsonToken *const tokens = g_platform_guard->temporary_buf_alloc(
+        (unsigned long long)tokens_max * sizeof(CfgJsonToken), g_cli_toolchains_owner);
     const int reserved =
         (tokens != NULL) &&
         EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = args->json_out,
@@ -99,8 +99,8 @@ unsigned int cli_toolchains_manifest(const CliToolchainsJsonNodesMoreCfg *args)
                          .text = (const char *)added_text, .size = added_size, .tokens = tokens,
                          .tokens_max = tokens_max, .err_msg = &err_msg)
             : CLI_JSON_NONE;
-    g_cli_guard->persistent_buf_release(tokens, g_cli_toolchains_owner);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)added_text, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release(tokens, g_cli_toolchains_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)added_text, g_cli_toolchains_owner);
     if (!EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = args->json_out, .node = tools,
                     .type = CFG_JSON_ARRAY))
     {
@@ -457,7 +457,7 @@ static void cli_matching_each(const CliEachNameIsFolderCfg *args)
     const unsigned int last = matching->names->count - 1u;
     unsigned int place = last;
     char before[CLI_PATH_MAX_LEN];
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = matching->names->cell,
                             .offset = (embed_word)((place > 0u) ? place - 1u : 0u) * CLI_PATH_MAX_LEN,
                             .dst = before,
@@ -465,12 +465,12 @@ static void cli_matching_each(const CliEachNameIsFolderCfg *args)
     while ((place > 0u) &&
            (EMBED_CALL(cli_toolchains_a_internal.natural, CliToolchainsACtx, .a = before, .b = name) < 0))
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = matching->names->cell,
-                                                                 .offset = (embed_word)place * CLI_PATH_MAX_LEN,
-                                                                 .src = before,
-                                                                 .bytes = CLI_PATH_MAX_LEN});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = matching->names->cell,
+                                                                      .offset = (embed_word)place * CLI_PATH_MAX_LEN,
+                                                                      .src = before,
+                                                                      .bytes = CLI_PATH_MAX_LEN});
         place -= 1u;
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = matching->names->cell,
                                 .offset = (embed_word)((place > 0u) ? place - 1u : 0u) * CLI_PATH_MAX_LEN,
                                 .dst = before,
@@ -482,10 +482,10 @@ static void cli_matching_each(const CliEachNameIsFolderCfg *args)
         VerbaLinea line = {slot, sizeof(slot), 0ULL};
         mmgr_line_put(&line, name);
         (void)mmgr_line_finish(&line);
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = matching->names->cell,
-                                                                 .offset = (embed_word)place * CLI_PATH_MAX_LEN,
-                                                                 .src = slot,
-                                                                 .bytes = CLI_PATH_MAX_LEN});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = matching->names->cell,
+                                                                      .offset = (embed_word)place * CLI_PATH_MAX_LEN,
+                                                                      .src = slot,
+                                                                      .bytes = CLI_PATH_MAX_LEN});
     }
 }
 
@@ -512,10 +512,10 @@ EMBED_INLINE void cli_folders_expanded(const ToolchainsCtx *args)
     for (unsigned int at = 0u; at < args->found_from->count; at += 1u)
     {
         char path[CLI_PATH_MAX_LEN];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->found_from->cell,
-                                                                .offset = (embed_word)at * CLI_PATH_MAX_LEN,
-                                                                .dst = path,
-                                                                .bytes = CLI_PATH_MAX_LEN});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->found_from->cell,
+                                                                     .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                                     .dst = path,
+                                                                     .bytes = CLI_PATH_MAX_LEN});
         if (!pattern)
         {
             (void)EMBED_CALL(cli_folder_joined, ToolchainsCtx, .path = path, .text = args->text,
@@ -529,10 +529,10 @@ EMBED_INLINE void cli_folders_expanded(const ToolchainsCtx *args)
         for (unsigned int each = 0u; each < args->names->count; each += 1u)
         {
             char named[CLI_PATH_MAX_LEN];
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->names->cell,
-                                                                    .offset = (embed_word)each * CLI_PATH_MAX_LEN,
-                                                                    .dst = named,
-                                                                    .bytes = CLI_PATH_MAX_LEN});
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->names->cell,
+                                                                         .offset = (embed_word)each * CLI_PATH_MAX_LEN,
+                                                                         .dst = named,
+                                                                         .bytes = CLI_PATH_MAX_LEN});
             (void)EMBED_CALL(cli_folder_joined, ToolchainsCtx, .path = path, .text = named,
                              .separator = args->separator, .found_into = args->found_into);
         }
@@ -552,8 +552,8 @@ int cli_toolchains_paths_add(const CliToolchainsPathsCfg *args)
     if (args->paths->count == args->paths->capacity)
     {
         const unsigned int capacity = (args->paths->capacity != 0u) ? args->paths->capacity * 2u : 8u;
-        const CarcerMovableEntry *const grown =
-            g_cli_guard->movable_buf_alloc((unsigned long long)capacity * CLI_PATH_MAX_LEN, g_cli_toolchains_owner);
+        const CarcerMovableEntry *const grown = g_platform_guard->movable_buf_alloc(
+            (unsigned long long)capacity * CLI_PATH_MAX_LEN, g_cli_toolchains_owner);
         if (grown == NULL)
         {
             return 0;
@@ -561,21 +561,21 @@ int cli_toolchains_paths_add(const CliToolchainsPathsCfg *args)
         for (unsigned int at = 0u; at < args->paths->count; at += 1u)
         {
             char held[CLI_PATH_MAX_LEN];
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->paths->cell,
-                                                                    .offset = (embed_word)at * CLI_PATH_MAX_LEN,
-                                                                    .dst = held,
-                                                                    .bytes = CLI_PATH_MAX_LEN});
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = args->paths->cell,
+                                                                         .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                                         .dst = held,
+                                                                         .bytes = CLI_PATH_MAX_LEN});
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
                 .cell = grown, .offset = (embed_word)at * CLI_PATH_MAX_LEN, .src = held, .bytes = sizeof(held)});
         }
         if (args->paths->cell != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(args->paths->cell, g_cli_toolchains_owner);
+            (void)g_platform_guard->movable_buf_release(args->paths->cell, g_cli_toolchains_owner);
         }
         args->paths->cell = grown;
         args->paths->capacity = capacity;
     }
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = args->paths->cell,
                             .offset = (embed_word)args->paths->count * CLI_PATH_MAX_LEN,
                             .src = slot,
@@ -588,7 +588,7 @@ void cli_toolchains_paths_release(const CliToolchainsPathsCfg *args)
 {
     if (args->paths->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(args->paths->cell, g_cli_toolchains_owner);
+        (void)g_platform_guard->movable_buf_release(args->paths->cell, g_cli_toolchains_owner);
     }
     *args->paths = (CliToolchainsPaths){NULL, 0u, 0u};
 }
@@ -626,10 +626,10 @@ unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args)
     for (unsigned int at = 0u; at < found[now].count; at += 1u)
     {
         char path[CLI_PATH_MAX_LEN];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = found[now].cell,
-                                                                .offset = (embed_word)at * CLI_PATH_MAX_LEN,
-                                                                .dst = path,
-                                                                .bytes = CLI_PATH_MAX_LEN});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = found[now].cell,
+                                                                     .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                                     .dst = path,
+                                                                     .bytes = CLI_PATH_MAX_LEN});
         // the separator after the last part left off
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES});
         if ((length > 1u) && ((path[length - 1u] == '/') || (path[length - 1u] == '\\')))

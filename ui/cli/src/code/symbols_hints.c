@@ -34,7 +34,7 @@ static char *hints_open_text(const CliOpenTextCfg *args)
     {
         return NULL;
     }
-    char *const open_text = g_cli_guard->temporary_buf_alloc(hints->size + 1ULL, g_cli_code_owner);
+    char *const open_text = g_platform_guard->temporary_buf_alloc(hints->size + 1ULL, g_cli_code_owner);
     if (open_text != NULL)
     {
         // a text the editor holds fits a embed_word
@@ -191,7 +191,7 @@ int cli_symbols_hints(const CliSymbolsPathTextSizeContextCfg *args)
     }
     if (leaved)
     {
-        g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
+        g_platform_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
         read.leaf = NULL;
         read.count = 0u;
         read.capacity = 0u;

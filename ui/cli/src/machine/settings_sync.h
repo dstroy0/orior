@@ -3,9 +3,9 @@
 // settings_sync.h: the reader's settings synced to another machine: settings.json, without its part for this machine
 // alone and the settings that name this machine's own; the themes; the reader's plugins, and each plugin's own
 // settings; the menus and toolbar, menus.json; the stylesheet, user.css; and the reader's language files. They go as
-// one file, a JSON object of each file's text by its place in orior's own folder, or into a folder of the reader's positioned
-// out as orior's own folder positions them, which, where it is a repository, is committed and pushed, and pulled before it
-// is read.
+// one file, a JSON object of each file's text by its place in orior's own folder, or into a folder of the reader's
+// positioned out as orior's own folder positions them, which, where it is a repository, is committed and pushed, and
+// pulled before it is read.
 //
 // Taking them in writes nothing until the reader has seen the differences and chosen what to take: each file chosen,
 // and in settings.json each setting chosen, the settings of this machine alone retained as they are. Each file an

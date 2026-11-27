@@ -155,9 +155,9 @@ void tearDown(void)
 {
     if (s_message_allocated)
     {
-        g_cli_guard->persistent_buf_release(s_message.group, g_cli_ipp_owner);
+        g_platform_guard->persistent_buf_release(s_message.group, g_cli_ipp_owner);
         *(&s_message) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
-        g_cli_guard->persistent_buf_release(s_back.group, g_cli_ipp_owner);
+        g_platform_guard->persistent_buf_release(s_back.group, g_cli_ipp_owner);
         *(&s_back) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
     }
 }
@@ -232,9 +232,9 @@ void test_a_messages_memory_is_released_once_it_is_done(void)
 {
     message_decoded();
     const unsigned long long in_use = mmgr_owner_in_use(g_cli_ipp_owner);
-    g_cli_guard->persistent_buf_release(s_message.group, g_cli_ipp_owner);
+    g_platform_guard->persistent_buf_release(s_message.group, g_cli_ipp_owner);
     *(&s_message) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
-    g_cli_guard->persistent_buf_release(s_back.group, g_cli_ipp_owner);
+    g_platform_guard->persistent_buf_release(s_back.group, g_cli_ipp_owner);
     *(&s_back) = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
     s_message_allocated = 0;
     TEST_ASSERT_NOT_EQUAL(0ull, in_use);

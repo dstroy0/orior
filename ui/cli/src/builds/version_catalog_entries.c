@@ -390,7 +390,7 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
     // a dependency's coordinates are a module, or a group and a name, of the catalog's texts, and with its version
     // twice that; the entries are checked only where these and the accessors are met
     s_check.capacity = g_cli_versions.used + 2ULL;
-    s_check.coordinates = g_cli_guard->temporary_buf_alloc(3ULL * s_check.capacity, g_cli_versions_owner);
+    s_check.coordinates = g_platform_guard->temporary_buf_alloc(3ULL * s_check.capacity, g_cli_versions_owner);
     s_check.full = (s_check.coordinates != NULL) ? s_check.coordinates + s_check.capacity : NULL;
     const int met = (s_check.coordinates != NULL) &&
                     EMBED_CALL(cli_version_catalog_name_internal.versions_names_get, CliVersionCatalogNameCtx,
@@ -439,7 +439,7 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
             }
         }
     }
-    g_cli_guard->persistent_buf_release(s_check.coordinates, g_cli_versions_owner);
+    g_platform_guard->persistent_buf_release(s_check.coordinates, g_cli_versions_owner);
     s_check.coordinates = NULL;
     s_check.full = NULL;
     cli_versions_free();

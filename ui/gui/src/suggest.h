@@ -31,8 +31,8 @@ typedef struct GuiSuggestCfg GuiSuggestCfg;
 #define GUI_SUGGEST_DETAIL_PAD_X 11
 #define GUI_SUGGEST_DETAIL_PAD_Y 6
 
-// The completion: the panel displayed, NULL for none, its rows read from the panels; and the list's rectangle, the rows'
-// and the detail pane's, where they were drawn last
+// The completion: the panel displayed, NULL for none, its rows read from the panels; and the list's rectangle, the
+// rows' and the detail pane's, where they were drawn last
 typedef struct
 {
     const CliCompletionPanel *panel;

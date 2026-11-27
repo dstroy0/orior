@@ -75,7 +75,7 @@ EMBED_INLINE int code_mains_read(const PluginsCodeCtx *args)
     {
         EMBED_CALL(code_main_append, PluginsCodeCtx, .mains = mains, .name = (one != NULL) ? one : "plugin.js");
     }
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     return root != CLI_JSON_NONE;

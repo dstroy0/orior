@@ -5,7 +5,7 @@
 // children must be as many as its precept takes; and a leaf must be an operand the word actually reads. None of this
 // needs a device or a target: the webs are the compiler's own and are the same on every part
 #include "../../../../../../src/cu/engine/rmc/precept_value.h"
-#include "../../../../../../src/platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../../../src/cu/engine/rmc/tree_number.h"
 #include "../../../../../../src/cu/engine/rmc/word_web.h"
 

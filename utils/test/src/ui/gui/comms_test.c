@@ -246,7 +246,7 @@ int main(void)
     while (EMBED_CALL(cli_requests_pane.sending, CliRequestsPaneCfg, .at = 0u) && (cli_clock_milliseconds() < until))
     {
         (void)EMBED_CALL(cli_comms_pane.step, CliCommsPaneCfg, .displayed = 0);
-        cli_thread_yield();
+        platform_thread_yield();
     }
     EMBED_CALL(cli_comms_pane.choose, CliCommsPaneCfg, .view = CLI_COMMS_VIEW_CHANNELS);
     cli_command_line_tree_end();

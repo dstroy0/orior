@@ -1159,11 +1159,12 @@ int gui_preferences_wheel(const GuiPreferencesPaletteCfg *args)
                               EMBED_CALL(preferences_list_in_view, PreferencesCtx, .preferences = args->preferences),
                           .rows = args->rows);
     }
-    return EMBED_CALL(preferences_top_move, PreferencesCtx, .top_pointer = &args->preferences->top,
-                      .total = EMBED_CALL(preferences_scroll_total, PreferencesCtx, .preferences = args->preferences,
-                                          .palette = palette),
-                      .in_view = EMBED_CALL(preferences_scroll_displayed, PreferencesCtx, .preferences = args->preferences),
-                      .rows = args->rows);
+    return EMBED_CALL(
+        preferences_top_move, PreferencesCtx, .top_pointer = &args->preferences->top,
+        .total =
+            EMBED_CALL(preferences_scroll_total, PreferencesCtx, .preferences = args->preferences, .palette = palette),
+        .in_view = EMBED_CALL(preferences_scroll_displayed, PreferencesCtx, .preferences = args->preferences),
+        .rows = args->rows);
 }
 
 // A rectangle `rect` filled in `color` inside `clip`, the corners in `corners` rounded. The rounding is the outer
@@ -1811,9 +1812,9 @@ void gui_preferences_draw(const GuiPreferencesPaletteValuesCfg *args)
     const GuiPalette *palette = args->palette;
     const GuiRect clip = gui_preferences_palette_values.rect(args);
     const GuiPreferences *const tabs = args->preferences_read;
-    // The lattice every pane lies on: Preferences' own, or the deep color where none is positioned. The glass covers the
-    // whole window with the sheet's tint and grain, as the main window's glass lies about its work. The clear ground
-    // is the same lattice with no tint and no grain
+    // The lattice every pane lies on: Preferences' own, or the deep color where none is positioned. The glass covers
+    // the whole window with the sheet's tint and grain, as the main window's glass lies about its work. The clear
+    // ground is the same lattice with no tint and no grain
     const GuiUnder table = EMBED_CALL(gui_glass.table, GuiGlassCfg, .background_fill = args->ground,
                                       .color = palette->deep, .glass = palette->glass, .grain = palette->grain);
     const GuiUnder clear = {args->ground, 0u, NULL, 0u, palette->deep};
@@ -1851,8 +1852,8 @@ void gui_preferences_draw(const GuiPreferencesPaletteValuesCfg *args)
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = (int)GUI_TAB_SIZE, .scale = tabs->scale);
     // The tabs, as the editor's tabs are in the main window's work: a line along the row's foot and one at each
-    // tab's right, and the tab displayed on the tab's ground, its corners rounded, the tab's line along its top and down
-    // its left
+    // tab's right, and the tab displayed on the tab's ground, its corners rounded, the tab's line along its top and
+    // down its left
     const int one = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = tabs->scale);
     const int space =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_SPACE, .scale = tabs->scale);

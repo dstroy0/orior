@@ -6,7 +6,7 @@
 // what leaves a remainder; the gcd divides both values and leaves coprime cofactors.
 
 #include "../../../../../../includes/exact_types/integers/exact_integer.h"
-#include "../../../../../../src/platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 
 #include <cstdio>
 

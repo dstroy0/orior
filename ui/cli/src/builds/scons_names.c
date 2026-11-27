@@ -102,8 +102,8 @@ static void names_export_argument(const CliSconsSpanCfg *args)
     {
         unsigned long long length = 0ULL;
         if (!EMBED_CALL(cli_each_character.build_word_character, CliEachLetterCfg,
-                        .character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = text, .size = from + bare_to,
-                                             .at = walk, .length = &length)))
+                        .character = EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = text,
+                                                .size = from + bare_to, .at = walk, .length = &length)))
         {
             return;
         }

@@ -27,10 +27,10 @@ int cli_review_text_add(const CliReviewLineCtx *args)
     if (args->written && mmgr_line_ok(&args->line->line))
     {
         *at = EMBED_CALL(cli_review_text_length_internal.text_append, CliReviewTextLengthCtx, .text = args->line->cell,
-                         .length = cli_grown_size(args->line));
+                         .length = platform_text_size(args->line));
     }
     const int added = g_cli_review.used != was;
-    *size = added ? cli_grown_size(args->line) : 0ULL;
-    cli_grown_end(args->line);
+    *size = added ? platform_text_size(args->line) : 0ULL;
+    platform_text_ended(args->line);
     return added;
 }

@@ -412,7 +412,7 @@ int cli_symbols_spans(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPositio
                    .to = args->size);
     }
     const int refused = read.refused;
-    g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
+    g_platform_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
     read.leaf = NULL;
     read.count = 0u;
     read.capacity = 0u;
@@ -501,7 +501,7 @@ int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args)
         args->pair[1] = EMBED_CALL(spans_position, SymbolsSpansCtx, .spans_read = &spans, .leaf = peer,
                                    .byte = read.leaf[peer].from);
     }
-    g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
+    g_platform_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
     read.leaf = NULL;
     read.count = 0u;
     read.capacity = 0u;

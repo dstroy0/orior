@@ -5,7 +5,7 @@
 // through the tower and compression's coder and names the root, the term whose yank saves the max bits. The null
 // names none; a planted term is the root or there is none, never another term; at the strongest each is the root; and
 // every yank returns the box exactly.
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sim_camera.h"
 

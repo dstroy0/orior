@@ -197,7 +197,7 @@ static CliCargoTargets s_targets;
 
 void cli_cargo_firsts_free(void)
 {
-    g_cli_guard->persistent_buf_release(s_targets.firsts, g_cli_cargo_owner);
+    g_platform_guard->persistent_buf_release(s_targets.firsts, g_cli_cargo_owner);
     s_targets.firsts = NULL;
     s_targets.count = 0u;
     s_targets.capacity = 0u;
@@ -464,12 +464,12 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
     unsigned int *count = args->count;
     cli_cargo_firsts_free();
     s_targets.folder = folder;
-    s_targets.firsts = g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_CARGO_TARGETS * sizeof(CliCargoFirst),
-                                                        g_cli_cargo_owner);
+    s_targets.firsts = g_platform_guard->temporary_buf_alloc(
+        (unsigned long long)CLI_CARGO_TARGETS * sizeof(CliCargoFirst), g_cli_cargo_owner);
     s_targets.capacity = (s_targets.firsts != NULL) ? CLI_CARGO_TARGETS : 0u;
     // the folder's entries and the tables the manifest lists, given back as the targets are found
     const unsigned long long entry_bytes = (unsigned long long)CLI_CARGO_ENTRIES * sizeof(CliCargoFirst);
-    char *const work = g_cli_guard->temporary_buf_alloc(
+    char *const work = g_platform_guard->temporary_buf_alloc(
         entry_bytes + ((unsigned long long)CLI_CARGO_TARGETS * sizeof(CliCargoListing)), g_cli_cargo_owner);
     s_targets.entries = NULL;
     s_targets.entry_capacity = 0u;
@@ -520,7 +520,7 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
         EMBED_CALL(found_auto, CargoTargetsCtx, .dir = "tests", .type = CLI_CARGO_TEST, .from = listing_first,
                    .to = reserved);
     }
-    g_cli_guard->persistent_buf_release(work, g_cli_cargo_owner);
+    g_platform_guard->persistent_buf_release(work, g_cli_cargo_owner);
     s_targets.entries = NULL;
     s_targets.entry_count = 0u;
     s_targets.entry_capacity = 0u;

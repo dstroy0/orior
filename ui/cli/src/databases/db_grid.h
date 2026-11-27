@@ -5,9 +5,9 @@
 // and its message lines; and the stretch of rows stored, one start a cell into one text of every cell's bytes, a null
 // flag a cell. Each
 // column's width in characters is the longest of its label and its first rows' cells, cut to a max, and its start the
-// sum of the widths before it, both positioned once at the adopt. The window's draw reaches the first and last row it shows
-// as two numbers; the step reads the rows the stretch lacks from the run in one read, as far ahead the way the rows
-// move as their speed carries over two reads, and lets go the rows far behind the motion first (db_grid.c)
+// sum of the widths before it, both positioned once at the adopt. The window's draw reaches the first and last row it
+// shows as two numbers; the step reads the rows the stretch lacks from the run in one read, as far ahead the way the
+// rows move as their speed carries over two reads, and lets go the rows far behind the motion first (db_grid.c)
 #ifndef DB_GRID_H
 #define DB_GRID_H
 #include "db.h"
@@ -24,9 +24,9 @@ typedef struct CliDbGridStepCfg CliDbGridStepCfg;
 #define CLI_DB_GRID_ROW_FAILURE 3u
 #define CLI_DB_GRID_ROW_NOTICE 4u
 
-// the rows a width is positioned from, the max characters a column is positioned at and the characters between columns; the rows a
-// read carries at the least; the spare rows stored each side of the view; the rows a page is; the rest after which
-// the rows are still; and the share in hundredths a new reading moves a smoothed one
+// the rows a width is positioned from, the max characters a column is positioned at and the characters between columns;
+// the rows a read carries at the least; the spare rows stored each side of the view; the rows a page is; the rest after
+// which the rows are still; and the share in hundredths a new reading moves a smoothed one
 #define CLI_DB_GRID_WIDTH_ROWS 50u
 #define CLI_DB_GRID_WIDTH_MAX 40u
 #define CLI_DB_GRID_WIDTH_GAP 2u
@@ -40,8 +40,8 @@ typedef struct CliDbGridStepCfg CliDbGridStepCfg;
 #define CLI_DB_GRID_CELL_TEXT 1024u
 
 // A column: its label and its type with their bytes, each copied into the column's own bytes, whether its values are
-// numbers, its width in characters and its start in characters from the column the grid is panned to, below 0 for one panned
-// off to the left
+// numbers, its width in characters and its start in characters from the column the grid is panned to, below 0 for one
+// panned off to the left
 typedef struct
 {
     const char *label;

@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // statusbar.c: the status bar's items are from its right end, the lock first, then the editor's line, Focus and the
-// memory reading, each a gap apart, and the crumbs from its left as the crumbs part positions them, the notice a gap after
-// them with Silence beside it. One pass positions the bar out and draws it, or with no raster positions it out alone, so a press
-// finds what the drawing showed
+// memory reading, each a gap apart, and the crumbs from its left as the crumbs part positions them, the notice a gap
+// after them with Silence beside it. One pass positions the bar out and draws it, or with no raster positions it out
+// alone, so a press finds what the drawing showed
 #include "statusbar.h"
 #include "../../cli/src/command_line/pool.h"
 #include "../../cli/src/text/text.h"
@@ -49,8 +49,8 @@ void gui_status_selection_text(const GuiStatusbarCfg *args)
                                          ? args->status->anchor_line - args->status->line
                                          : args->status->line - args->status->anchor_line;
     const unsigned long long characters = (args->status->anchor_col > args->status->col)
-                                           ? args->status->anchor_col - args->status->col
-                                           : args->status->col - args->status->anchor_col;
+                                              ? args->status->anchor_col - args->status->col
+                                              : args->status->col - args->status->anchor_col;
     if (lines != 0ULL)
     {
         mmgr_line_decimal(&line, lines + 1ULL, 1u);

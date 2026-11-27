@@ -209,8 +209,8 @@ void test_a_folders_runs_are_counted_to_the_query_while_in_use(void)
     QueryRuns runs;
     const int list_entries = EMBED_CALL(query_folder_runs_internal.runs_alloc, QueryFolderRunsCtx, .folder = folder, .runs = &runs);
     const unsigned long long in_use_during = mmgr_owner_in_use(g_query_owner);
-    g_cli_guard->persistent_buf_release(runs.number, g_query_owner);
-    g_cli_guard->persistent_buf_release(runs.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(runs.number, g_query_owner);
+    g_platform_guard->persistent_buf_release(runs.path, g_query_owner);
     *(&runs) = (QueryRuns){NULL, NULL, 0u};
     TEST_ASSERT_TRUE(list_entries);
     TEST_ASSERT_EQUAL_UINT(0u, runs.count);

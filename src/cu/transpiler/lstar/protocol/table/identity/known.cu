@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // known.cu: the known and the permute: the engine's writing of the stick sifted through what nvcc writes, and nvcc's
 // chains put together by their categories
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "identity_internal.h"
 
 // The first occurrence of a window where nvcc's chains contain it, its constituents the same link for link. It

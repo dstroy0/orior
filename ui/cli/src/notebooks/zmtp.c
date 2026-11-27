@@ -218,7 +218,7 @@ unsigned char *cli_zmtp_message_init(const CliZmtpCfg *args)
     {
         total += ((args->frames[at].size > 255ULL) ? 9ULL : 2ULL) + args->frames[at].size;
     }
-    unsigned char *const message = g_cli_guard->temporary_buf_alloc(total, g_cli_notebook_owner);
+    unsigned char *const message = g_platform_guard->temporary_buf_alloc(total, g_cli_notebook_owner);
     if (message == NULL)
     {
         return NULL;
@@ -244,7 +244,7 @@ int cli_zmtp_send(const CliZmtpFramesCountCfg *args)
         EMBED_CALL(cli_zmtp.message_init, CliZmtpCfg, .frames = args->frames, .count = args->count, .size = &size);
     const int sent = (message != NULL) && EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx,
                                                      .sock = args->socket, .bytes = message, .size = size);
-    g_cli_guard->persistent_buf_release(message, g_cli_notebook_owner);
+    g_platform_guard->persistent_buf_release(message, g_cli_notebook_owner);
     return sent;
 }
 

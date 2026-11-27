@@ -9,7 +9,7 @@
 // with no positive voxel gives none, and a malformed request, a width of no limbs among them, errors. The test is one
 // job on the device's tessera daemon, submitted before its first device work.
 #include "../../../../../includes/exact_types/integers/exact_integer.h"
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "peaks.h"
 #include "sim.h"
 

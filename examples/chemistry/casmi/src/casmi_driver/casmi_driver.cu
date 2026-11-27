@@ -3,7 +3,7 @@
 // casmi_driver: the CASMI library and its ranking on the engine, each part one job on the device's tessera daemon.
 // --ingest seals every member of a parquet file as a crystal of a set through the engine's ingest (src/ingest);
 // --rank reads the parquet files and ranks each query molecule's structures (src/rank)
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "../ingest/ingest.h"
 #include "../rank/rank.h"
 #include "cellularum_laboro/cellularum_laboro.h"

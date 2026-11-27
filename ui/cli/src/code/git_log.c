@@ -156,10 +156,10 @@ EMBED_INLINE void root_write(const GitLogCtx *args)
     const int listed = (s_log.repositories_cell != NULL) && (s_log.chosen < s_log.repositories);
     if (listed)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_log.repositories_cell,
-                                                                .offset = GIT_LOG_REPOSITORY_AT(s_log.chosen),
-                                                                .dst = &chosen,
-                                                                .bytes = sizeof(CliRepository)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_log.repositories_cell,
+                                                                     .offset = GIT_LOG_REPOSITORY_AT(s_log.chosen),
+                                                                     .dst = &chosen,
+                                                                     .bytes = sizeof(CliRepository)});
     }
     const char *const relative =
         listed ? EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_log.repositories_text,
@@ -179,7 +179,7 @@ EMBED_INLINE void root_write(const GitLogCtx *args)
 EMBED_INLINE const char *commit_id(const GitLogCtx *args)
 {
     CliDrawn drawn;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_log.graph_cell, .offset = GIT_LOG_DRAWN_AT(args->at), .dst = &drawn, .bytes = sizeof(CliDrawn)});
     return EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &s_log.graph_text, .at = drawn.id,
                       .dst = args->out, .capacity = CLI_GIT_LOG_ID);
@@ -195,7 +195,7 @@ EMBED_INLINE unsigned int opened_at(const GitLogCtx *args)
     {
         const unsigned int middle = low + ((high - low) / 2u);
         GitLogOpened record;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_log.opened, .offset = GIT_LOG_OPENED_AT(middle), .dst = &record, .bytes = sizeof(record)});
         if (record.commit == args->which)
         {
@@ -216,10 +216,10 @@ EMBED_INLINE void rows_index(const GitLogCtx *args)
     GitLog *const log = &s_log;
     const unsigned long long bytes = GIT_LOG_OPENED_AT(log->opens);
     GitLogOpened *const opened =
-        (log->opens != 0u) ? g_cli_guard->temporary_buf_alloc(bytes, g_cli_git_log_owner) : NULL;
+        (log->opens != 0u) ? g_platform_guard->temporary_buf_alloc(bytes, g_cli_git_log_owner) : NULL;
     if (opened != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = log->opened, .offset = 0ULL, .dst = opened, .bytes = bytes});
         for (unsigned int at = 1u; at < log->opens; at += 1u)
         {
@@ -244,9 +244,9 @@ EMBED_INLINE void rows_index(const GitLogCtx *args)
     }
     if (opened != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = log->opened, .offset = 0ULL, .src = opened, .bytes = bytes});
-        g_cli_guard->persistent_buf_release(opened, g_cli_git_log_owner);
+        g_platform_guard->persistent_buf_release(opened, g_cli_git_log_owner);
     }
     log->rows = log->listed ? 1u + log->commits + extra : 0u;
 }
@@ -270,7 +270,7 @@ EMBED_INLINE unsigned int commit_of(const GitLogCtx *args)
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_log.opened, .offset = GIT_LOG_OPENED_AT(middle), .dst = &record, .bytes = sizeof(record)});
         low = (record.row <= args->at) ? middle + 1u : low;
         high = (record.row <= args->at) ? high : middle;
@@ -279,7 +279,7 @@ EMBED_INLINE unsigned int commit_of(const GitLogCtx *args)
     {
         return args->at - 1u;
     }
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_log.opened, .offset = GIT_LOG_OPENED_AT((low - 1u)), .dst = &record, .bytes = sizeof(record)});
     const unsigned int block = 1u + (record.displayed ? ((record.count != 0u) ? record.count : 1u) : 0u);
     if (args->at < record.row + block)
@@ -299,7 +299,7 @@ EMBED_INLINE void files_read(const GitLogCtx *args)
 {
     GitLog *const log = &s_log;
     // the touched list, the repository's path and the error line for this read alone
-    CliTouchedList *const touched = g_cli_guard->temporary_buf_alloc(
+    CliTouchedList *const touched = g_platform_guard->temporary_buf_alloc(
         sizeof(CliTouchedList) + CLI_PATH_MAX_LEN + CLI_ERR_MSG_MAX_LEN, g_cli_git_log_owner);
     if (touched == NULL)
     {
@@ -319,10 +319,10 @@ EMBED_INLINE void files_read(const GitLogCtx *args)
     CliRepository chosen = {0};
     if (log->chosen < log->repositories)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_log.repositories_cell,
-                                                                .offset = GIT_LOG_REPOSITORY_AT(log->chosen),
-                                                                .dst = &chosen,
-                                                                .bytes = sizeof(CliRepository)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_log.repositories_cell,
+                                                                     .offset = GIT_LOG_REPOSITORY_AT(log->chosen),
+                                                                     .dst = &chosen,
+                                                                     .bytes = sizeof(CliRepository)});
     }
     (void)EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg, .text_read = &log->repositories_text,
                      .at = chosen.path, .dst = folder, .capacity = sizeof(folder));
@@ -333,27 +333,29 @@ EMBED_INLINE void files_read(const GitLogCtx *args)
     const unsigned long long text_bytes =
         touched->text.used + ((unsigned long long)touched->count * (folder_length + 1ULL));
     const unsigned long long before_bytes = GIT_LOG_OPENED_AT(log->opens);
-    GitLogFile *const file = g_cli_guard->temporary_buf_alloc(files_bytes + text_bytes + 1ULL, g_cli_git_log_owner);
+    GitLogFile *const file =
+        g_platform_guard->temporary_buf_alloc(files_bytes + text_bytes + 1ULL, g_cli_git_log_owner);
     GitLogOpened *const opened =
-        g_cli_guard->temporary_buf_alloc(before_bytes + sizeof(GitLogOpened), g_cli_git_log_owner);
+        g_platform_guard->temporary_buf_alloc(before_bytes + sizeof(GitLogOpened), g_cli_git_log_owner);
     const CarcerMovableEntry *const records =
-        g_cli_guard->movable_buf_alloc(before_bytes + sizeof(GitLogOpened), g_cli_git_log_owner);
+        g_platform_guard->movable_buf_alloc(before_bytes + sizeof(GitLogOpened), g_cli_git_log_owner);
     const CarcerMovableEntry *const cell =
-        (touched->count != 0u) ? g_cli_guard->movable_buf_alloc(files_bytes + text_bytes, g_cli_git_log_owner) : NULL;
+        (touched->count != 0u) ? g_platform_guard->movable_buf_alloc(files_bytes + text_bytes, g_cli_git_log_owner)
+                               : NULL;
     if ((file == NULL) || (opened == NULL) || (records == NULL) || ((touched->count != 0u) && (cell == NULL)))
     {
         if (cell != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(cell, g_cli_git_log_owner);
+            (void)g_platform_guard->movable_buf_release(cell, g_cli_git_log_owner);
         }
         if (records != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(records, g_cli_git_log_owner);
+            (void)g_platform_guard->movable_buf_release(records, g_cli_git_log_owner);
         }
-        g_cli_guard->persistent_buf_release(opened, g_cli_git_log_owner);
-        g_cli_guard->persistent_buf_release(file, g_cli_git_log_owner);
+        g_platform_guard->persistent_buf_release(opened, g_cli_git_log_owner);
+        g_platform_guard->persistent_buf_release(file, g_cli_git_log_owner);
         EMBED_CALL(cli_git_text.text_release, CliGitTextCfg, .text = &touched->text);
-        g_cli_guard->persistent_buf_release(touched, g_cli_git_log_owner);
+        g_platform_guard->persistent_buf_release(touched, g_cli_git_log_owner);
         return;
     }
     char *const text = (char *)(void *)(file + touched->count);
@@ -378,24 +380,24 @@ EMBED_INLINE void files_read(const GitLogCtx *args)
     }
     if (cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = file, .bytes = files_bytes + text_bytes});
     }
     if (log->opens != 0u)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = log->opened, .offset = 0ULL, .dst = opened, .bytes = before_bytes});
-        (void)g_cli_guard->movable_buf_release(log->opened, g_cli_git_log_owner);
+        (void)g_platform_guard->movable_buf_release(log->opened, g_cli_git_log_owner);
     }
     opened[log->opens] = (GitLogOpened){args->id, args->which, 0u, 1, touched->count, cell};
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = records, .offset = 0ULL, .src = opened, .bytes = before_bytes + sizeof(GitLogOpened)});
     log->opened = records;
     log->opens += 1u;
-    g_cli_guard->persistent_buf_release(opened, g_cli_git_log_owner);
-    g_cli_guard->persistent_buf_release(file, g_cli_git_log_owner);
+    g_platform_guard->persistent_buf_release(opened, g_cli_git_log_owner);
+    g_platform_guard->persistent_buf_release(file, g_cli_git_log_owner);
     EMBED_CALL(cli_git_text.text_release, CliGitTextCfg, .text = &touched->text);
-    g_cli_guard->persistent_buf_release(touched, g_cli_git_log_owner);
+    g_platform_guard->persistent_buf_release(touched, g_cli_git_log_owner);
 }
 
 // the opened commits found again in the graph by their ids; one the graph does not list now, a query leaving it out,
@@ -407,7 +409,7 @@ EMBED_INLINE void opened_found(const GitLogCtx *args)
     for (unsigned int record = 0u; record < log->opens; record += 1u)
     {
         GitLogOpened opened;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_log.opened, .offset = GIT_LOG_OPENED_AT(record), .dst = &opened, .bytes = sizeof(opened)});
         opened.commit = CLI_GIT_GRAPH;
         for (unsigned int at = 0u; (opened.commit == CLI_GIT_GRAPH) && (at < log->commits); at += 1u)
@@ -416,7 +418,7 @@ EMBED_INLINE void opened_found(const GitLogCtx *args)
             (void)EMBED_CALL(commit_id, GitLogCtx, .at = at, .out = id);
             opened.commit = (EMBED_CALL(id_number, GitLogCtx, .text = id) == opened.id) ? at : CLI_GIT_GRAPH;
         }
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = log->opened, .offset = GIT_LOG_OPENED_AT(record), .src = &opened, .bytes = sizeof(opened)});
     }
 }
@@ -428,7 +430,7 @@ EMBED_INLINE void listing_released(const GitLogCtx *args)
     GitLog *const log = &s_log;
     if (log->days != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(log->days, g_cli_git_log_owner);
+        (void)g_platform_guard->movable_buf_release(log->days, g_cli_git_log_owner);
     }
     log->days = NULL;
     log->label[0] = '\0';
@@ -444,11 +446,11 @@ EMBED_INLINE void lists_released(const GitLogCtx *args)
     GitLog *const log = &s_log;
     if (log->repositories_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(log->repositories_cell, g_cli_git_log_owner);
+        (void)g_platform_guard->movable_buf_release(log->repositories_cell, g_cli_git_log_owner);
     }
     if (log->graph_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(log->graph_cell, g_cli_git_log_owner);
+        (void)g_platform_guard->movable_buf_release(log->graph_cell, g_cli_git_log_owner);
     }
     log->repositories_cell = NULL;
     log->repositories = 0u;
@@ -467,10 +469,12 @@ EMBED_INLINE int lists_stored(const GitLogCtx *args)
     const unsigned long long repositories_bytes = GIT_LOG_REPOSITORY_AT(repositories->count);
     const unsigned long long drawn_bytes = GIT_LOG_DRAWN_AT(graph->count);
     const unsigned long long strokes_bytes = (unsigned long long)graph->strokes * 4ULL * sizeof(unsigned int);
-    log->repositories_cell =
-        (repositories->count != 0u) ? g_cli_guard->movable_buf_alloc(repositories_bytes, g_cli_git_log_owner) : NULL;
-    log->graph_cell =
-        (graph->count != 0u) ? g_cli_guard->movable_buf_alloc(drawn_bytes + strokes_bytes, g_cli_git_log_owner) : NULL;
+    log->repositories_cell = (repositories->count != 0u)
+                                 ? g_platform_guard->movable_buf_alloc(repositories_bytes, g_cli_git_log_owner)
+                                 : NULL;
+    log->graph_cell = (graph->count != 0u)
+                          ? g_platform_guard->movable_buf_alloc(drawn_bytes + strokes_bytes, g_cli_git_log_owner)
+                          : NULL;
     if (((repositories->count != 0u) && (log->repositories_cell == NULL)) ||
         ((graph->count != 0u) && (log->graph_cell == NULL)))
     {
@@ -479,17 +483,17 @@ EMBED_INLINE int lists_stored(const GitLogCtx *args)
     }
     if (log->repositories_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = log->repositories_cell, .offset = 0ULL, .src = repositories->item, .bytes = repositories_bytes});
     }
     if (log->graph_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = log->graph_cell, .offset = 0ULL, .src = graph->item, .bytes = drawn_bytes});
     }
     if ((log->graph_cell != NULL) && (strokes_bytes != 0ULL))
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = log->graph_cell, .offset = drawn_bytes, .src = graph->stroke, .bytes = strokes_bytes});
     }
     log->repositories = repositories->count;
@@ -513,14 +517,14 @@ EMBED_INLINE int listing_read(const GitLogCtx *args)
     log->repositories_text.located = 1;
     log->graph_text.located = 1;
     CliRepositories *const repositories =
-        g_cli_guard->temporary_buf_alloc(sizeof(CliRepositories), g_cli_git_log_owner);
-    CliGraph *const graph = g_cli_guard->temporary_buf_alloc(sizeof(CliGraph), g_cli_git_log_owner);
-    char *const root = g_cli_guard->temporary_buf_alloc(CLI_PATH_MAX_LEN, g_cli_git_log_owner);
+        g_platform_guard->temporary_buf_alloc(sizeof(CliRepositories), g_cli_git_log_owner);
+    CliGraph *const graph = g_platform_guard->temporary_buf_alloc(sizeof(CliGraph), g_cli_git_log_owner);
+    char *const root = g_platform_guard->temporary_buf_alloc(CLI_PATH_MAX_LEN, g_cli_git_log_owner);
     if ((repositories == NULL) || (graph == NULL) || (root == NULL))
     {
-        g_cli_guard->persistent_buf_release(root, g_cli_git_log_owner);
-        g_cli_guard->persistent_buf_release(graph, g_cli_git_log_owner);
-        g_cli_guard->persistent_buf_release(repositories, g_cli_git_log_owner);
+        g_platform_guard->persistent_buf_release(root, g_cli_git_log_owner);
+        g_platform_guard->persistent_buf_release(graph, g_cli_git_log_owner);
+        g_platform_guard->persistent_buf_release(repositories, g_cli_git_log_owner);
         return 0;
     }
     repositories->count = 0u;
@@ -555,7 +559,7 @@ EMBED_INLINE int listing_read(const GitLogCtx *args)
     EMBED_CALL(cli_git_root_query.graph, CliGitRootQueryCfg, .root = root, .query = query, .authors = log->authors,
                .found_graph_pointer = graph);
     log->graph_text = graph->text;
-    g_cli_guard->persistent_buf_release(root, g_cli_git_log_owner);
+    g_platform_guard->persistent_buf_release(root, g_cli_git_log_owner);
     // the listing's texts: the label `name: branch`, the commits' count, and each commit's day, sized to them
     const CliRepository *const chosen = (repositories->count != 0u) ? &repositories->item[log->chosen] : NULL;
     char name_copied[CLI_NAME_MAX_LEN];
@@ -572,16 +576,16 @@ EMBED_INLINE int listing_read(const GitLogCtx *args)
     const unsigned int commits = graph->count;
     // the days positioned in the temporary tier, then written into their movable cell whole
     const unsigned long long days_bytes = (unsigned long long)commits * CLI_GIT_LOG_DAY;
-    char *const days = (commits != 0u) ? g_cli_guard->temporary_buf_alloc(days_bytes, g_cli_git_log_owner) : NULL;
-    log->days = (commits != 0u) ? g_cli_guard->movable_buf_alloc(days_bytes, g_cli_git_log_owner) : NULL;
+    char *const days = (commits != 0u) ? g_platform_guard->temporary_buf_alloc(days_bytes, g_cli_git_log_owner) : NULL;
+    log->days = (commits != 0u) ? g_platform_guard->movable_buf_alloc(days_bytes, g_cli_git_log_owner) : NULL;
     const int stored = ((commits == 0u) || ((days != NULL) && (log->days != NULL))) &&
                        EMBED_CALL(lists_stored, GitLogCtx, .text = (const char *)(const void *)repositories,
                                   .out = (char *)(void *)graph);
     if (!stored)
     {
-        g_cli_guard->persistent_buf_release(days, g_cli_git_log_owner);
-        g_cli_guard->persistent_buf_release(graph, g_cli_git_log_owner);
-        g_cli_guard->persistent_buf_release(repositories, g_cli_git_log_owner);
+        g_platform_guard->persistent_buf_release(days, g_cli_git_log_owner);
+        g_platform_guard->persistent_buf_release(graph, g_cli_git_log_owner);
+        g_platform_guard->persistent_buf_release(repositories, g_cli_git_log_owner);
         EMBED_CALL(listing_released, GitLogCtx, .at = 0u);
         return 0;
     }
@@ -605,12 +609,12 @@ EMBED_INLINE int listing_read(const GitLogCtx *args)
     }
     if (commits != 0u)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = log->days, .offset = 0ULL, .src = days, .bytes = days_bytes});
-        g_cli_guard->persistent_buf_release(days, g_cli_git_log_owner);
+        g_platform_guard->persistent_buf_release(days, g_cli_git_log_owner);
     }
-    g_cli_guard->persistent_buf_release(graph, g_cli_git_log_owner);
-    g_cli_guard->persistent_buf_release(repositories, g_cli_git_log_owner);
+    g_platform_guard->persistent_buf_release(graph, g_cli_git_log_owner);
+    g_platform_guard->persistent_buf_release(repositories, g_cli_git_log_owner);
     log->listed = 1;
     EMBED_CALL(opened_found, GitLogCtx, .at = 0u);
     EMBED_CALL(rows_index, GitLogCtx, .at = 0u);
@@ -638,16 +642,16 @@ EMBED_INLINE void list(const GitLogCtx *args)
     for (unsigned int at = 0u; at < log->opens; at += 1u)
     {
         GitLogOpened record;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_log.opened, .offset = GIT_LOG_OPENED_AT(at), .dst = &record, .bytes = sizeof(record)});
         if (record.cell != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(record.cell, g_cli_git_log_owner);
+            (void)g_platform_guard->movable_buf_release(record.cell, g_cli_git_log_owner);
         }
     }
     if (log->opened != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(log->opened, g_cli_git_log_owner);
+        (void)g_platform_guard->movable_buf_release(log->opened, g_cli_git_log_owner);
     }
     log->opened = NULL;
     log->opens = 0u;
@@ -713,7 +717,8 @@ void cli_git_log_authors_set(const CliGitLogCfg *args)
 {
     s_log.authors = args->on;
     // the folder it is saved in and the error line, for the save alone
-    char *const folder = g_cli_guard->temporary_buf_alloc(CLI_PATH_MAX_LEN + CLI_ERR_MSG_MAX_LEN, g_cli_git_log_owner);
+    char *const folder =
+        g_platform_guard->temporary_buf_alloc(CLI_PATH_MAX_LEN + CLI_ERR_MSG_MAX_LEN, g_cli_git_log_owner);
     if (folder != NULL)
     {
         VerbaLinea err_msg = {folder + CLI_PATH_MAX_LEN, CLI_ERR_MSG_MAX_LEN, 0ULL};
@@ -724,7 +729,7 @@ void cli_git_log_authors_set(const CliGitLogCfg *args)
                                                            .value = args->on ? "true" : "false",
                                                            .err_msg = &err_msg});
         }
-        g_cli_guard->persistent_buf_release(folder, g_cli_git_log_owner);
+        g_platform_guard->persistent_buf_release(folder, g_cli_git_log_owner);
     }
     EMBED_CALL(changed, GitLogCtx, .now_ms = args->now_ms - CLI_GIT_LOG_REST_MS);
 }
@@ -804,10 +809,10 @@ int cli_git_log_row(const CliGitLogCfg *args)
         const int listed = (log->repositories != 0u) && (log->chosen < log->repositories);
         if (listed)
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_log.repositories_cell,
-                                                                    .offset = GIT_LOG_REPOSITORY_AT(log->chosen),
-                                                                    .dst = &chosen,
-                                                                    .bytes = sizeof(CliRepository)});
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_log.repositories_cell,
+                                                                         .offset = GIT_LOG_REPOSITORY_AT(log->chosen),
+                                                                         .dst = &chosen,
+                                                                         .bytes = sizeof(CliRepository)});
         }
         row->type = CLI_GIT_LOG_ROW_BRANCH;
         row->text =
@@ -827,10 +832,10 @@ int cli_git_log_row(const CliGitLogCfg *args)
     const unsigned int commit = EMBED_CALL(commit_of, GitLogCtx, .at = args->at, .under_out = &under,
                                            .record_out = &record, .opened_out = &opened);
     CliDrawn drawn_read_out;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_log.graph_cell,
-                                                            .offset = GIT_LOG_DRAWN_AT(commit),
-                                                            .dst = &drawn_read_out,
-                                                            .bytes = sizeof(CliDrawn)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_log.graph_cell,
+                                                                 .offset = GIT_LOG_DRAWN_AT(commit),
+                                                                 .dst = &drawn_read_out,
+                                                                 .bytes = sizeof(CliDrawn)});
     const CliDrawn *const drawn = &drawn_read_out;
     row->id = EMBED_CALL(commit_id, GitLogCtx, .at = commit, .out = row->id_copied);
     if (under == 0u)
@@ -845,10 +850,11 @@ int cli_git_log_row(const CliGitLogCfg *args)
                                      .at = drawn->author, .dst = row->second_copied, .capacity = CLI_NAME_MAX_LEN);
             row->second_length = cellul.len(&(CatenaFinitaCfg){.src = row->second, .cap = CLI_NAME_MAX_LEN});
         }
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = log->days,
-                                                                .offset = (unsigned long long)commit * CLI_GIT_LOG_DAY,
-                                                                .dst = row->day_copied,
-                                                                .bytes = CLI_GIT_LOG_DAY});
+        (void)g_platform_guard->movable_buf_read(
+            &(CarcerMovableCfg){.cell = log->days,
+                                .offset = (unsigned long long)commit * CLI_GIT_LOG_DAY,
+                                .dst = row->day_copied,
+                                .bytes = CLI_GIT_LOG_DAY});
         row->day = row->day_copied;
         row->open = opened && record.displayed;
         row->merge = drawn->parents > 1u;
@@ -858,7 +864,7 @@ int cli_git_log_row(const CliGitLogCfg *args)
         row->strokes = (drawn->stroke_count < CLI_GIT_LOG_ROW_STROKES) ? drawn->stroke_count : CLI_GIT_LOG_ROW_STROKES;
         if (row->strokes != 0u)
         {
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = log->graph_cell,
                                     .offset = GIT_LOG_STROKE_AT(drawn->first_stroke),
                                     .dst = row->stroke_copied,
@@ -878,13 +884,13 @@ int cli_git_log_row(const CliGitLogCfg *args)
     }
     // the file's record, then its path copied out of the commit's cell into the row's text, its end measured first
     GitLogFile file;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = record.cell, .offset = GIT_LOG_FILE_AT(under - 1u), .dst = &file, .bytes = sizeof(file)});
     const unsigned long long path_at = GIT_LOG_FILE_AT(record.count) + file.path;
     const unsigned long long measured =
-        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = record.cell, .offset = path_at});
+        g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = record.cell, .offset = path_at});
     const unsigned long long path_length = (measured < CLI_PATH_MAX_LEN - 1ULL) ? measured : CLI_PATH_MAX_LEN - 1ULL;
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = record.cell, .offset = path_at, .dst = row->text_copied, .bytes = path_length});
     row->text_copied[path_length] = '\0';
     row->type = CLI_GIT_LOG_ROW_FILE;
@@ -910,7 +916,7 @@ int cli_git_log_ref(const CliGitLogCfg *args)
     CliDrawn drawn = {0};
     if (commit != CLI_GIT_GRAPH)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_log.graph_cell, .offset = GIT_LOG_DRAWN_AT(commit), .dst = &drawn, .bytes = sizeof(CliDrawn)});
     }
     if ((commit == CLI_GIT_GRAPH) || (under != 0u) || (args->which >= drawn.refs))
@@ -948,10 +954,10 @@ EMBED_INLINE void commit_toggle(const GitLogCtx *args)
     if (at < s_log.opens)
     {
         GitLogOpened record;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_log.opened, .offset = GIT_LOG_OPENED_AT(at), .dst = &record, .bytes = sizeof(record)});
         record.displayed = !record.displayed;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = s_log.opened, .offset = GIT_LOG_OPENED_AT(at), .src = &record, .bytes = sizeof(record)});
     }
     else
@@ -999,7 +1005,8 @@ int cli_git_log_message(const CliGitLogCfg *args)
         return 0;
     }
     // the repository's path and the error line, for the read alone
-    char *const root = g_cli_guard->temporary_buf_alloc(CLI_PATH_MAX_LEN + CLI_ERR_MSG_MAX_LEN, g_cli_git_log_owner);
+    char *const root =
+        g_platform_guard->temporary_buf_alloc(CLI_PATH_MAX_LEN + CLI_ERR_MSG_MAX_LEN, g_cli_git_log_owner);
     if (root == NULL)
     {
         return 0;
@@ -1009,7 +1016,7 @@ int cli_git_log_message(const CliGitLogCfg *args)
     const char *const request[4] = {"log", "-1", "--format=%B", args->name};
     const int read = EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = root,
                                 .out = args->out, .count = 4u, .err_msg = &err_msg, .request = request);
-    g_cli_guard->persistent_buf_release(root, g_cli_git_log_owner);
+    g_platform_guard->persistent_buf_release(root, g_cli_git_log_owner);
     return read;
 }
 

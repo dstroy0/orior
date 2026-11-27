@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_run.cu: the landing options, the spiral, pending pairs and the run
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "climb_machine_internal.h"
 
 extern "C" void climb_machine_land_by_mass(ClimbMachine *machine, unsigned int by_mass)

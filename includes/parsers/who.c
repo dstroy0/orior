@@ -3,7 +3,7 @@
 // who.c: the who of a write, its source and program numbered by the who table as the run stores it and its time on
 // the run's one clock, its two words, its code and its name
 #include "who.h"
-#include "../../src/platform/platform.h"
+#include "../platform/platform.h"
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

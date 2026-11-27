@@ -247,7 +247,7 @@ EMBED_INLINE int query_codes_dispatch(const StickCtx *args)
     {
         size += cellul.len(&(CatenaFinitaCfg){.src = args->codes->path[at], .cap = QUERY_PATH_MAX_LEN}) + 1u;
     }
-    char *const text = g_cli_guard->persistent_buf_alloc(size + 1ULL, g_query_owner);
+    char *const text = g_platform_guard->persistent_buf_alloc(size + 1ULL, g_query_owner);
     if (text == NULL)
     {
         mmgr_line_put(err_msg, "the codes the vendor reads could not be stored");
@@ -263,7 +263,7 @@ EMBED_INLINE int query_codes_dispatch(const StickCtx *args)
         mmgr_line_ok(&list) && EMBED_CALL(query_name_bytes_internal.writer_append, QueryNameBytesCtx,
                                           .writer = &args->run->writer, .name = "cubin_listing_codes.txt",
                                           .bytes = text, .size = list.at, .priority = QRY_ORDINARY, .err_msg = err_msg);
-    g_cli_guard->persistent_buf_release(text, g_query_owner);
+    g_platform_guard->persistent_buf_release(text, g_query_owner);
     return transferred;
 }
 
@@ -335,7 +335,7 @@ int query_listings_read(const QueryLoopsContextFolderCfg *args)
                      EMBED_CALL(query_codes_list, StickCtx, .context = args->context, .run = args->run,
                                 .pattern = args->pattern, .prefix = args->prefix, .architecture = args->architecture,
                                 .codes = &codes, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release(codes.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(codes.path, g_query_owner);
     codes = (QueryPaths){NULL, 0u, 0u};
     return read;
 }

@@ -24,7 +24,7 @@
 //
 // and whether the machine file's form for the operation records the barrier NVIDIA writes.
 #include "monolith_scheduler/scheduler_internal.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 
 int program_main(int count, char **words)

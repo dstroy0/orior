@@ -118,10 +118,10 @@ EMBED_INLINE int bar_python(const DebugPaneBarCtx *args)
 {
     (void)args;
     return (g_cli_debug_pane.session_texts != NULL) && (g_cli_debug_pane.language_length == 6ULL) &&
-           (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = g_cli_debug_pane.session_texts,
-                                                                 .offset = g_cli_debug_pane.language_at,
-                                                                 .src = "python",
-                                                                 .bytes = 7ULL}) == 0);
+           (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){.cell = g_cli_debug_pane.session_texts,
+                                                                      .offset = g_cli_debug_pane.language_at,
+                                                                      .src = "python",
+                                                                      .bytes = 7ULL}) == 0);
 }
 
 int cli_debug_pane_run(const CliDebugPaneBarCfg *args)
@@ -150,7 +150,7 @@ int cli_debug_pane_run(const CliDebugPaneBarCfg *args)
     if (!g_cli_debug_pane.has_thread && (args->at == CLI_DEBUG_STEP_PAUSE))
     {
         // a program that has not stopped yet is paused on the first thread the adapter lists
-        char *const scratch = g_cli_guard->temporary_buf_alloc(BAR_ANSWER, g_cli_debug_pane_owner);
+        char *const scratch = g_platform_guard->temporary_buf_alloc(BAR_ANSWER, g_cli_debug_pane_owner);
         VerbaLinea threads_out = {scratch, (scratch != NULL) ? BAR_ANSWER : 0ULL, 0ULL};
         CliJson json = {0};
         const unsigned int threads =
@@ -173,8 +173,8 @@ int cli_debug_pane_run(const CliDebugPaneBarCfg *args)
                                    .name = "id"),
                 .value = &thread);
         g_cli_debug_pane.thread = thread;
-        g_cli_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
-        g_cli_guard->persistent_buf_release(scratch, g_cli_debug_pane_owner);
+        g_platform_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
+        g_platform_guard->persistent_buf_release(scratch, g_cli_debug_pane_owner);
         if (!g_cli_debug_pane.has_thread)
         {
             return 0;
@@ -279,7 +279,7 @@ EMBED_INLINE void bar_evaluated(const DebugPaneBarCtx *args)
     }
     const CliDebugPaneStore *const frames = &g_cli_debug_pane.frames;
     const int framed = g_cli_debug_pane.paused && (g_cli_debug_pane.frame_at < frames->count);
-    char *const scratch = g_cli_guard->temporary_buf_alloc(BAR_ANSWER, g_cli_debug_pane_owner);
+    char *const scratch = g_platform_guard->temporary_buf_alloc(BAR_ANSWER, g_cli_debug_pane_owner);
     if (scratch == NULL)
     {
         return;
@@ -290,7 +290,7 @@ EMBED_INLINE void bar_evaluated(const DebugPaneBarCtx *args)
     CliDebugPaneEntry chosen = {0};
     if (framed)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = frames->entry,
                                 .offset = CLI_DEBUG_PANE_ENTRY_AT(g_cli_debug_pane.frame_at),
                                 .dst = &chosen,
@@ -329,8 +329,8 @@ EMBED_INLINE void bar_evaluated(const DebugPaneBarCtx *args)
     {
         EMBED_CALL(bar_refused, DebugPaneBarCtx, .text = why, .length = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
     }
-    g_cli_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
-    g_cli_guard->persistent_buf_release(scratch, g_cli_debug_pane_owner);
+    g_platform_guard->persistent_buf_release(json.node, g_cli_debug_pane_owner);
+    g_platform_guard->persistent_buf_release(scratch, g_cli_debug_pane_owner);
     if (g_cli_debug_pane.paused)
     {
         EMBED_CALL(cli_debug_pane_internal.variables_read, CliDebugPaneCtx, .root = args->root);
@@ -357,10 +357,10 @@ EMBED_INLINE void bar_watched(const DebugPaneBarCtx *args)
     entry.type = CLI_DEBUG_ROW_WATCH;
     entry.text = text;
     entry.text_length = args->length;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = watches->entry,
-                                                             .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
-                                                             .src = &entry,
-                                                             .bytes = sizeof(CliDebugPaneEntry)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = watches->entry,
+                                                                  .offset = CLI_DEBUG_PANE_ENTRY_AT(at),
+                                                                  .src = &entry,
+                                                                  .bytes = sizeof(CliDebugPaneEntry)});
     EMBED_CALL(cli_debug_pane_internal.variables_read, CliDebugPaneCtx, .root = args->root);
 }
 

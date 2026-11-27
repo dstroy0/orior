@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_boundary_test_codes.cu: counts, primes, determinants and codes
 #include "record_boundary_test_internal.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 
 // Haar measure counted: a tower of 4 samples and one level, whose range each way is 3 bits. Every input quantum at
 // level w + 3 runs through the map and the output's quantum at level w is tallied. The map's low w bits read only the

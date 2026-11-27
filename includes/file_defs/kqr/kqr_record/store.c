@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // store.c: the record stored: tabled and written by a who, freed, a query found and stored, a sample stored, a mark
 // made, an query, a sample and a path read, the paths cleared and added, and the text form rendered and sliced
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "../../../parsers/who.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "kqr_internal.h"

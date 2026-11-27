@@ -37,7 +37,8 @@ CliSpan cli_purpose_trim(const CliPurposeLinesSpanCfg *args)
                                                    .text_bytes = (const unsigned char *)span.at, .length = span.length,
                                                    .at = at, .character = &character);
         at += step;
-        end = EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = character) ? end : at;
+        end =
+            EMBED_CALL(cli_files_character_internal.fuzzy_white, CliFilesLetterCtx, .character = character) ? end : at;
     }
     return (CliSpan){span.at, end};
 }

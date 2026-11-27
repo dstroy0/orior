@@ -6,8 +6,8 @@
 // The host crosses the answer out, and agrees with the flags as tower_lift and tower_lower do.
 #include "tower_job.h"
 
-#include "../../../../platform/platform.h"
-#include "../../../../platform/platform_device.h"
+#include "../../../../../includes/platform/platform.h"
+#include "../../../../../includes/platform/platform_device.h"
 #include "memoria_operor/memoria_operor.h"
 #include "tower_internal.h"
 

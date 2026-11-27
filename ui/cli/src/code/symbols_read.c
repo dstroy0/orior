@@ -193,7 +193,7 @@ static int cli_symbols_leaves_at(const SymbolsReadCtx *args)
     }
     // the text's lines in a cell of their own, each ended by a NUL in place of its line's end, its carriage return
     // before it dropped
-    char *const lines = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_code_owner);
+    char *const lines = g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_code_owner);
     if (lines == NULL)
     {
         return 0;
@@ -245,7 +245,7 @@ static int cli_symbols_leaves_at(const SymbolsReadCtx *args)
                                 .src = (length != 0ULL) ? ended_text : "root",
                                 .bytes = (length != 0ULL) ? (length + 1u) : 5u});
     }
-    g_cli_guard->persistent_buf_release(lines, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(lines, g_cli_code_owner);
     return colored;
 }
 

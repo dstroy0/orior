@@ -17,7 +17,7 @@
 #include "../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../src/cu/engine/analysis/tower/tower.h"
 #include "../../../../../src/cu/engine/runtime/radix_keys/radix_keys.h"
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "../parquet/parquet.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sim.h"

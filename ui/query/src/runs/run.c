@@ -83,9 +83,9 @@ EMBED_INLINE int query_run_writer(const RunCtx *args)
 
 int query_run_joining(const QueryErrMsgRootCtx *args)
 {
-    g_cli_guard->persistent_buf_release(args->run->read.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(args->run->read.path, g_query_owner);
     args->run->read = (QueryPaths){NULL, 0u, 0u};
-    g_cli_guard->persistent_buf_release(args->run->left.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(args->run->left.path, g_query_owner);
     args->run->left = (QueryPaths){NULL, 0u, 0u};
     if (!EMBED_CALL(query_run_writer, RunCtx, .run = args->run, .root = args->root, .qry = args->qry,
                     .programs = args->programs, .err_msg = args->err_msg))
@@ -108,9 +108,9 @@ int query_run_joining(const QueryErrMsgRootCtx *args)
 int query_run_start(const QueryFolderContextCtx *args)
 {
     QueryRun *run = args->run;
-    g_cli_guard->persistent_buf_release(run->read.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(run->read.path, g_query_owner);
     run->read = (QueryPaths){NULL, 0u, 0u};
-    g_cli_guard->persistent_buf_release(run->left.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(run->left.path, g_query_owner);
     run->left = (QueryPaths){NULL, 0u, 0u};
     char qry_path[QUERY_PATH_MAX_LEN];
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "QRY", .value_out = qry_path,
@@ -195,8 +195,8 @@ EMBED_INLINE unsigned int query_transferred_runs(const RunCtx *args)
 {
     QueryTransferredRun **carried = args->carried;
     const unsigned int count = args->folder_runs_pointer->count + args->course->count;
-    *carried = (count > 0u) ? g_cli_guard->persistent_buf_alloc((unsigned long long)count * sizeof(QueryTransferredRun),
-                                                                g_query_owner)
+    *carried = (count > 0u) ? g_platform_guard->persistent_buf_alloc(
+                                  (unsigned long long)count * sizeof(QueryTransferredRun), g_query_owner)
                             : NULL;
     if (*carried == NULL)
     {
@@ -292,12 +292,12 @@ int query_run_files_add(const QueryCountFolderCtx *args)
         EMBED_CALL(query_count_name_internal.writer_records_import, QueryCountNameCtx, .writer = &args->run->writer,
                    .from = named, .names = s_missing, .count = missing, .err_msg = &transferred_line);
     }
-    g_cli_guard->persistent_buf_release(transferred_from, g_query_owner);
-    g_cli_guard->persistent_buf_release(course_runs.number, g_query_owner);
-    g_cli_guard->persistent_buf_release(course_runs.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(transferred_from, g_query_owner);
+    g_platform_guard->persistent_buf_release(course_runs.number, g_query_owner);
+    g_platform_guard->persistent_buf_release(course_runs.path, g_query_owner);
     course_runs = (QueryRuns){NULL, NULL, 0u};
-    g_cli_guard->persistent_buf_release(folder_runs.number, g_query_owner);
-    g_cli_guard->persistent_buf_release(folder_runs.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(folder_runs.number, g_query_owner);
+    g_platform_guard->persistent_buf_release(folder_runs.path, g_query_owner);
     folder_runs = (QueryRuns){NULL, NULL, 0u};
     for (unsigned int file = 0u; file < args->count; file += 1u)
     {
@@ -370,7 +370,8 @@ int query_run_read(const QueryCountErrMsgCtx *args)
             memor.cpy(&(MemoriaCfg){
                 .dst = args->run->read.path[args->run->read.count],
                 .src = args->paths_characters[at],
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->paths_characters[at], .cap = CLI_POOL_BYTES}) + 1u});
+                .bytes =
+                    cellul.len(&(CatenaFinitaCfg){.src = args->paths_characters[at], .cap = CLI_POOL_BYTES}) + 1u});
             args->run->read.count += 1u;
         }
     }
@@ -392,9 +393,9 @@ void query_run_leave(const QueryCountErrMsgCtx *args)
 
 int query_run_stop(const QueryContextErrMsgRunCtx *args)
 {
-    g_cli_guard->persistent_buf_release(args->run->read.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(args->run->read.path, g_query_owner);
     args->run->read = (QueryPaths){NULL, 0u, 0u};
-    g_cli_guard->persistent_buf_release(args->run->left.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(args->run->left.path, g_query_owner);
     args->run->left = (QueryPaths){NULL, 0u, 0u};
     // this process is a member of the run no more before the writer is requested to stop
     const unsigned long long process = args->run->process;
@@ -407,7 +408,7 @@ int query_run_stop(const QueryContextErrMsgRunCtx *args)
     EMBED_CALL(query_err_msg_writer_internal.writer_part, QueryErrMsgWriterCtx, .writer_out = &args->run->writer);
     const int stopped = EMBED_CALL(query_err_msg_writer_internal.writer_stop, QueryErrMsgWriterCtx,
                                    .writer_out = &args->run->writer, .err_msg = args->err_msg);
-    QueryProcess waited = {process, 0ULL};
+    PlatformProgram waited = {process, 0ULL};
     EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &waited);
     EMBED_CALL(query_folder_max_internal.runs_prune, QueryFolderMaxCtx, .folder = args->run->folder,
                .max = query_retain_max());
@@ -428,15 +429,15 @@ int query_run_end(const QueryContextErrMsgRunCtx *args)
             EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = left);
         }
     }
-    g_cli_guard->persistent_buf_release(args->run->left.path, g_query_owner);
+    g_platform_guard->persistent_buf_release(args->run->left.path, g_query_owner);
     args->run->left = (QueryPaths){NULL, 0u, 0u};
     if (!EMBED_CALL(query_context_err_msg_internal.leaves_settle, QueryContextErrMsgCtx, .run_read = args->run,
                     .leave = args->leave, .prompter = args->prompter, .context = args->context,
                     .err_msg = args->err_msg))
     {
-        g_cli_guard->persistent_buf_release(args->run->read.path, g_query_owner);
+        g_platform_guard->persistent_buf_release(args->run->read.path, g_query_owner);
         args->run->read = (QueryPaths){NULL, 0u, 0u};
-        g_cli_guard->persistent_buf_release(args->run->left.path, g_query_owner);
+        g_platform_guard->persistent_buf_release(args->run->left.path, g_query_owner);
         args->run->left = (QueryPaths){NULL, 0u, 0u};
         return 0;
     }

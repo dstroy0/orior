@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // zip_archive.c: opening an archive and walking its entries
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "zip_crc_tables.h"
 #include "zip_internal.h"

@@ -11,7 +11,7 @@
 // One line a file with its counts, and a last line with the total. Exit 0 where every vector passes, 1 where any does
 // not, 2 where a file did not read.
 #include "../../../../../includes/codecs/sha256/sha256.h"
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

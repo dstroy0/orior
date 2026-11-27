@@ -194,17 +194,17 @@ static int cli_grammars_taken(void)
         return 1;
     }
     const unsigned long long bytes = (unsigned long long)CLI_GRAMMARS_MAX * sizeof(CliGrammarEntry);
-    unsigned char *const zeroes = g_cli_guard->temporary_buf_alloc(bytes, g_cli_grammars_owner);
+    unsigned char *const zeroes = g_platform_guard->temporary_buf_alloc(bytes, g_cli_grammars_owner);
     const CarcerMovableEntry *const cell =
-        (zeroes != NULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_grammars_owner) : NULL;
+        (zeroes != NULL) ? g_platform_guard->movable_buf_alloc(bytes, g_cli_grammars_owner) : NULL;
     if (cell == NULL)
     {
-        g_cli_guard->persistent_buf_release(zeroes, g_cli_grammars_owner);
+        g_platform_guard->persistent_buf_release(zeroes, g_cli_grammars_owner);
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = zeroes, .val = 0, .bytes = (embed_word)bytes});
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = zeroes, .bytes = bytes});
-    g_cli_guard->persistent_buf_release(zeroes, g_cli_grammars_owner);
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = zeroes, .bytes = bytes});
+    g_platform_guard->persistent_buf_release(zeroes, g_cli_grammars_owner);
     s_grammars = cell;
     s_grammar_capacity = CLI_GRAMMARS_MAX;
     return 1;
@@ -279,20 +279,20 @@ EMBED_INLINE int cli_grammar_names_build(const HighlightStoreCtx *args)
     EMBED_CALL(cli_grammar_names_lay, HighlightStoreCtx, .read = args->read, .laid = &counted);
     const unsigned long long text_at = (unsigned long long)counted.count * sizeof(unsigned int);
     const unsigned long long bytes = text_at + counted.bytes;
-    unsigned char *const table = g_cli_guard->temporary_buf_alloc(bytes, g_cli_grammars_owner);
+    unsigned char *const table = g_platform_guard->temporary_buf_alloc(bytes, g_cli_grammars_owner);
     const CarcerMovableEntry *const cell =
-        (table != NULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_grammars_owner) : NULL;
+        (table != NULL) ? g_platform_guard->movable_buf_alloc(bytes, g_cli_grammars_owner) : NULL;
     if (cell != NULL)
     {
         CliGrammarNamesLaid laid = {0u, 0ULL, table, text_at};
         EMBED_CALL(cli_grammar_names_lay, HighlightStoreCtx, .read = args->read, .laid = &laid);
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = table, .bytes = bytes});
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = table, .bytes = bytes});
         s_name_serial += 1u;
         args->entry_out->name_table = cell;
         args->entry_out->name_count = laid.count;
         args->entry_out->name_serial = s_name_serial;
     }
-    g_cli_guard->persistent_buf_release(table, g_cli_grammars_owner);
+    g_platform_guard->persistent_buf_release(table, g_cli_grammars_owner);
     return cell != NULL;
 }
 
@@ -321,7 +321,7 @@ EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
     for (unsigned int at = 0u; at < s_grammar_capacity; at += 1u)
     {
         CliGrammarEntry listed = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_grammars, .offset = (embed_word)at * sizeof(listed), .dst = &listed, .bytes = sizeof(listed)});
         entry_at = (listed.used &&
                     (cellul.eq(&(CatenaFinitaCfg){.src = listed.key, .other = args->key, .cap = CLI_POOL_BYTES})))
@@ -332,16 +332,16 @@ EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
     if (entry_at != s_grammar_capacity)
     {
         CliGrammarEntry listed = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grammars,
-                                                                .offset = (embed_word)entry_at * sizeof(listed),
-                                                                .dst = &listed,
-                                                                .bytes = sizeof(listed)});
-        (void)g_cli_guard->movable_buf_release(listed.region, g_cli_grammars_owner);
-        (void)g_cli_guard->movable_buf_release(listed.name_table, g_cli_grammars_owner);
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grammars,
+                                                                     .offset = (embed_word)entry_at * sizeof(listed),
+                                                                     .dst = &listed,
+                                                                     .bytes = sizeof(listed)});
+        (void)g_platform_guard->movable_buf_release(listed.region, g_cli_grammars_owner);
+        (void)g_platform_guard->movable_buf_release(listed.name_table, g_cli_grammars_owner);
         listed.name_table = NULL;
         listed.used = 0;
         listed.region = NULL;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = s_grammars,
                                 .offset = (embed_word)entry_at * sizeof(CliGrammarEntry),
                                 .src = &listed,
@@ -359,12 +359,12 @@ EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
         return 0;
     }
     // the parts arranged in a temporary cell, then written whole into a movable cell sized to them
-    unsigned char *const arranged = g_cli_guard->temporary_buf_alloc(size, g_cli_grammars_owner);
+    unsigned char *const arranged = g_platform_guard->temporary_buf_alloc(size, g_cli_grammars_owner);
     const CarcerMovableEntry *const region =
-        (arranged != NULL) ? g_cli_guard->movable_buf_alloc(size, g_cli_grammars_owner) : NULL;
+        (arranged != NULL) ? g_platform_guard->movable_buf_alloc(size, g_cli_grammars_owner) : NULL;
     if (region == NULL)
     {
-        g_cli_guard->persistent_buf_release(arranged, g_cli_grammars_owner);
+        g_platform_guard->persistent_buf_release(arranged, g_cli_grammars_owner);
         mmgr_line_put(err_msg, "the grammars stored take more than impero supports");
         return 0;
     }
@@ -377,35 +377,36 @@ EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
     grammar.size = size;
     if (!EMBED_CALL(cli_grammar_names_build, HighlightStoreCtx, .read = &s_read, .entry_out = &grammar))
     {
-        (void)g_cli_guard->movable_buf_release(region, g_cli_grammars_owner);
-        g_cli_guard->persistent_buf_release(arranged, g_cli_grammars_owner);
+        (void)g_platform_guard->movable_buf_release(region, g_cli_grammars_owner);
+        g_platform_guard->persistent_buf_release(arranged, g_cli_grammars_owner);
         mmgr_line_put(err_msg, "the grammars stored take more than impero supports");
         return 0;
     }
     EMBED_CALL(cli_copy, HighlightStoreCtx, .read = &s_read, .region = arranged, .copy = &grammar.grammar);
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = region, .src = arranged, .bytes = size});
-    g_cli_guard->persistent_buf_release(arranged, g_cli_grammars_owner);
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = region, .src = arranged, .bytes = size});
+    g_platform_guard->persistent_buf_release(arranged, g_cli_grammars_owner);
     // the entry retains the parts' counts; a reader positions the pointers out over its own copy
     grammar.grammar = positioned;
     grammar.used = 1;
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_grammars,
-                                                             .offset = (embed_word)free_at * sizeof(CliGrammarEntry),
-                                                             .src = &grammar,
-                                                             .bytes = sizeof(CliGrammarEntry)});
+    (void)g_platform_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = s_grammars,
+                            .offset = (embed_word)free_at * sizeof(CliGrammarEntry),
+                            .src = &grammar,
+                            .bytes = sizeof(CliGrammarEntry)});
     return 1;
 }
 
 static unsigned char *cli_grammar_copied(const HighlightStoreCtx *args)
 {
-    unsigned char *const copy = g_cli_guard->temporary_buf_alloc(args->listed->size, g_cli_grammars_owner);
+    unsigned char *const copy = g_platform_guard->temporary_buf_alloc(args->listed->size, g_cli_grammars_owner);
     if (copy == NULL)
     {
         return NULL;
     }
-    if (!g_cli_guard->movable_buf_read(
+    if (!g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = args->listed->region, .dst = copy, .bytes = args->listed->size}))
     {
-        g_cli_guard->persistent_buf_release(copy, g_cli_grammars_owner);
+        g_platform_guard->persistent_buf_release(copy, g_cli_grammars_owner);
         return NULL;
     }
     *args->grammar = args->listed->grammar;
@@ -503,7 +504,7 @@ EMBED_INLINE unsigned char *cli_grammar_capacity(const HighlightStoreCtx *args)
     args->work_state->own_max = EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = nodes, .limit = CLI_GRAMMAR_OWN);
     args->work_state->text_max =
         EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = (4ULL * bytes) + nodes + 1ULL, .limit = CLI_GRAMMAR_TEXT);
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(
         EMBED_CALL(cli_grammar_parts, HighlightStoreCtx, .work_state = args->work_state, .cell = NULL),
         g_cli_grammars_owner);
     if (cell != NULL)
@@ -566,7 +567,7 @@ EMBED_INLINE CliHighlightWorkState *cli_coloring_capacity(const HighlightStoreCt
     // each line's ending, and the byte the endings reserve back for their terminator
     args->highlight_work_state_pointer->endings_size =
         (args->highlight_work_state_pointer->count * CLI_HIGHLIGHT_ENDING) + 1ULL;
-    *cell = g_cli_guard->temporary_buf_alloc(
+    *cell = g_platform_guard->temporary_buf_alloc(
         EMBED_CALL(cli_coloring_parts, HighlightStoreCtx,
                    .highlight_work_state_pointer = args->highlight_work_state_pointer, .cell = NULL),
         g_cli_grammars_owner);
@@ -587,7 +588,7 @@ int cli_highlight_store(const CliHighlightKeyJsonCfg *args)
     const int stored =
         (cell != NULL) && EMBED_CALL(cli_grammar_store, HighlightStoreCtx, .key = args->key, .json = args->json,
                                      .def = args->def, .work_state = &work_state, .err_msg = args->err_msg);
-    g_cli_guard->persistent_buf_release(cell, g_cli_grammars_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_grammars_owner);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "no capacity to read a grammar into");
@@ -602,10 +603,10 @@ EMBED_INLINE unsigned int cli_grammar_entry_get(const HighlightStoreCtx *args)
     while (entry_at < s_grammar_capacity)
     {
         CliGrammarEntry listed = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grammars,
-                                                                .offset = (embed_word)entry_at * sizeof(listed),
-                                                                .dst = &listed,
-                                                                .bytes = sizeof(listed)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grammars,
+                                                                     .offset = (embed_word)entry_at * sizeof(listed),
+                                                                     .dst = &listed,
+                                                                     .bytes = sizeof(listed)});
         if (listed.used &&
             (cellul.eq(&(CatenaFinitaCfg){.src = listed.key, .other = args->key, .cap = CLI_POOL_BYTES})))
         {
@@ -628,10 +629,10 @@ static int cli_color(const HighlightStoreCtx *args)
     if (has_entry)
     {
         CliGrammarEntry listed = {0};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grammars,
-                                                                .offset = (embed_word)entry_at * sizeof(listed),
-                                                                .dst = &listed,
-                                                                .bytes = sizeof(listed)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grammars,
+                                                                     .offset = (embed_word)entry_at * sizeof(listed),
+                                                                     .dst = &listed,
+                                                                     .bytes = sizeof(listed)});
         region = EMBED_CALL(cli_grammar_copied, HighlightStoreCtx, .listed = &listed, .grammar = &grammar);
     }
     if (!has_entry)
@@ -663,8 +664,8 @@ static int cli_color(const HighlightStoreCtx *args)
                    .work_state = work_state, .state = args->colored->state, .lines = args->colored->lines,
                    .count = args->colored->count, .out = args->colored->out);
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_grammars_owner);
-    g_cli_guard->persistent_buf_release(region, g_cli_grammars_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_grammars_owner);
+    g_platform_guard->persistent_buf_release(region, g_cli_grammars_owner);
     if (work_state == NULL)
     {
         mmgr_line_put(args->err_msg, "the coloring could not be taken");
@@ -694,7 +695,7 @@ unsigned int cli_highlight_names_each(const CliHighlightKeyContextCfg *args)
         return 0u;
     }
     CliGrammarEntry listed = {0};
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_grammars, .offset = (embed_word)entry_at * sizeof(listed), .dst = &listed, .bytes = sizeof(listed)});
     CliGrammar grammar;
     unsigned char *const region =
@@ -708,7 +709,7 @@ unsigned int cli_highlight_names_each(const CliHighlightKeyContextCfg *args)
         EMBED_CALL(args->each_name_each, CliNameEachCfg, .context = args->context, .place = at,
                    .name = grammar.text + grammar.name[at]);
     }
-    g_cli_guard->persistent_buf_release(region, g_cli_grammars_owner);
+    g_platform_guard->persistent_buf_release(region, g_cli_grammars_owner);
     return grammar.names;
 }
 
@@ -721,10 +722,11 @@ EMBED_INLINE int cli_grammar_listed(const HighlightStoreCtx *args)
     {
         return 0;
     }
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grammars,
-                                                            .offset = (embed_word)entry_at * sizeof(CliGrammarEntry),
-                                                            .dst = args->entry_out,
-                                                            .bytes = sizeof(CliGrammarEntry)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_grammars,
+                            .offset = (embed_word)entry_at * sizeof(CliGrammarEntry),
+                            .dst = args->entry_out,
+                            .bytes = sizeof(CliGrammarEntry)});
     return args->entry_out->name_table != NULL;
 }
 
@@ -751,19 +753,20 @@ int cli_highlight_name_read(const CliHighlightNamesCfg *args)
         return 0;
     }
     unsigned int place = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = listed.name_table,
-                                                            .offset = (unsigned long long)args->name * sizeof(place),
-                                                            .dst = &place,
-                                                            .bytes = sizeof(place)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = listed.name_table,
+                            .offset = (unsigned long long)args->name * sizeof(place),
+                            .dst = &place,
+                            .bytes = sizeof(place)});
     const unsigned long long length =
-        g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = listed.name_table, .offset = place});
+        g_platform_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = listed.name_table, .offset = place});
     // the name put after `out` a part at a time through this call's own bytes
     char part[64];
     unsigned long long done = 0ULL;
     while (done < length)
     {
         const unsigned long long taken = ((length - done) < sizeof(part)) ? (length - done) : sizeof(part);
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = listed.name_table, .offset = place + done, .dst = part, .bytes = taken});
         mmgr_line_put_n(args->out, part, taken);
         done += taken;
@@ -782,11 +785,11 @@ unsigned int cli_highlight_name_place(const CliHighlightNamesCfg *args)
     for (unsigned int at = 0u; at < listed.name_count; at += 1u)
     {
         unsigned int place = 0u;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = listed.name_table,
-                                                                .offset = (unsigned long long)at * sizeof(place),
-                                                                .dst = &place,
-                                                                .bytes = sizeof(place)});
-        if (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = listed.name_table,
+                                                                     .offset = (unsigned long long)at * sizeof(place),
+                                                                     .dst = &place,
+                                                                     .bytes = sizeof(place)});
+        if (g_platform_guard->movable_buf_compare(&(CarcerMovableCfg){
                 .cell = listed.name_table, .offset = place, .src = args->text, .bytes = bytes}) == 0)
         {
             return at;

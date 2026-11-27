@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// xsettings.c: the X settings list as its manager positions it out, read for the setting a desktop asks for less motion by:
-// a byte order, a serial and a count, then each setting its type, its name padded to four bytes, a serial and its value
+// xsettings.c: the X settings list as its manager positions it out, read for the setting a desktop asks for less motion
+// by: a byte order, a serial and a count, then each setting its type, its name padded to four bytes, a serial and its
+// value
 #include "xsettings.h"
 
 #include "../../cli/src/command_line/cli_internal.h"

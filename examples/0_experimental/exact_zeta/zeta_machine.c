@@ -10,7 +10,7 @@
 #endif
 
 #include "zeta_machine.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "zeta_riemann_siegel.h"
 
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"

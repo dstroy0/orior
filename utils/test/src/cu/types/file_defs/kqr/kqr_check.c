@@ -26,7 +26,7 @@
 //
 // It runs in a query run (qry_run.sh): every record it writes is passed to the run's writer.
 #include "../../../../../../../includes/file_defs/kqr/kqr_record.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../../../../../../includes/file_defs/qry/writer/qry_member.h"
 
 #include "../../../../../../../includes/parsers/who.h"

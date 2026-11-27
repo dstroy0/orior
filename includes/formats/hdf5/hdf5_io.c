@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // hdf5_io.c: errors, byte order, checksums and file access
 #include "../../../src/cu/engine/engine_note.h"
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "hdf5_internal.h"
 #include "memoria_operor/memoria_operor.h"
 

@@ -6,6 +6,7 @@
 #ifndef CLI_INTERNAL_H
 #define CLI_INTERNAL_H
 #include "../../../../includes/file_defs/ksg/ksg_writing.h"
+#include "../../../../includes/platform/platform_internal.h"
 #include "../../../query/src/query_internal.h"
 #include "callback_cfg.h"
 #include "embed_dispatch_layout.h"
@@ -125,6 +126,9 @@ typedef struct
 // POSIX; this process's id; the program this process runs, its path
 int cli_container_init(void);
 int cli_started_outside(const CliWordsIdCtx *args);
+// the ids of the processes started outside the container, which the container leaves out with every process under
+// them: their count, and the ids in `ids` (programs.c)
+unsigned int cli_started_outside_listed(const unsigned int **ids);
 unsigned int cli_container_members(const CliIdsCtx *args);
 unsigned int cli_processes_list(const CliCapacityProcessesCtx *args);
 void cli_container_members_end(void);
@@ -235,8 +239,8 @@ typedef struct
 // the calendar reading of `seconds` since 1970 in the machine's own zone into `civil_out`, 1970's first moment where
 // the system does not read it (platform/windows_system.c, platform/posix_system.c)
 void cli_clock_civil(const CliClockCivilCtx *args);
-// the size of the file at `path` into `size`: 1, or 0 where it is not there; and the milliseconds since 1970 the wall
-// clock reads (platform/windows_files.c, platform/posix_files.c)
+// the size of the file at `path` into `size`: 1, or 0 where it is not there (system_calls.c, through the platform); and
+// the milliseconds since 1970 the wall clock reads (windows_files.c, posix_files.c)
 int cli_file_size(const CliPathSizeCtx *args);
 // the size of the file at `path` and the milliseconds since 1970 it last changed at: 1, or 0 where it is not there
 int cli_file_stamp(const CliPathSizeCtx *args);
@@ -389,44 +393,20 @@ EMBED_INLINE int cli_ticket_room(const EmbedTicketRing *ring, embed_u32 next)
             (EMBED_CALL(embed_ticket_of_stamp, EmbedTicketOfStampCfg, current) == next - lap));
 }
 
-// A setting of a started process's environment: `name` set to `value`, or taken out where `value` is NULL
-typedef struct
-{
-    const char *name;
-    const char *value;
-} CliSetting;
-
-// The priority a thread or a program starts at, so that what must not wait does not, and what runs as the host's
-// guest gives the processor back the moment the host wants it. The window's own threads, which answer it, run at the
-// process's level and are not set here. Work is that level, and the default: language servers, git, formatters.
-// Run is above it: a run's writer and the channels that hand to it. A guest is below it: builds, tests,
-// checkers, clones, installs and scans. Idle runs only in time nothing else wants: caches warmed ahead
-#define CLI_PRIORITY_WORK 0u
-#define CLI_PRIORITY_RUN 1u
-#define CLI_PRIORITY_GUEST 2u
-#define CLI_PRIORITY_IDLE 3u
-
-// A process a run starts: the system's handle of it and its id, its output and its errors each piped back, the job it
-// was made the head of on Windows, 0 for none, the pipe its standard input is fed by, 0 for none, and 1 once it was
-// waited on to its end
-typedef struct
-{
-    unsigned long long process;
-    unsigned long long id;
-    unsigned long long out;
-    unsigned long long err;
-    unsigned long long group;
-    unsigned long long in;
-    unsigned long long waited;
-} CliSpawned;
+// The priority a thread or a program starts at (PLATFORM_PRIORITY_WORK and the rest, platform.h), so that what must
+// not wait does not, and what runs as the host's guest gives the processor back the moment the host wants it. The
+// window's own threads, which answer it, run at the process's level and are not set here. Work is that level, and the
+// default: language servers, git, formatters. Run is above it: a run's writer and the channels that hand to it. A
+// guest is below it: builds, tests, checkers, clones, installs and scans. Idle runs only in time nothing else wants:
+// caches warmed ahead. A run's process is the platform's program, and its settings the platform's settings
 
 // a process started with `words`, the program first and NULL after the last, in `folder`, its environment this
 // process's with `settings` after, `count` of them, its standard input nothing: where `detached`, with no console of
-// its own and a job of its own on Windows, a process group of its own elsewhere. 1, or 0 with why given
-// (platform/windows_spawn.c, platform/posix_spawn.c)
+// its own and a job of its own on Windows, a process group of its own elsewhere. 1, or 0 with why given. These calls
+// go to the platform's programs (programs.c)
 int cli_spawn(const CliWordsErrMsgCtx *args);
-// a process started as cli_spawn starts one, at `priority`, one of CLI_PRIORITY_WORK and the rest; cli_spawn starts
-// one at work
+// a process started as cli_spawn starts one, at `priority`, one of PLATFORM_PRIORITY_WORK and the rest; cli_spawn
+// starts one at work
 int cli_spawn_as(const CliWordsErrMsgCtx *args);
 // a process started as cli_spawn starts one, its standard input a pipe this process feeds through `in`, at work or at
 // `priority`; `size` bytes written whole to that pipe: 1, or 0 where the process stopped reading; and the pipe closed,
@@ -438,8 +418,7 @@ int cli_spawn_write(const CliPipeHandleCtx *args);
 // shell: its output and errors read from `out` and the keys typed written to `in`, the pseudo-console in `group` on
 // Windows: 1, or 0 with why given; the pseudo-terminal given a new size, which the shell and the programs in it are
 // told of: 1, or 0 where it could not be; the shell hung up on, as a terminal closed ends it; and the pseudo-terminal
-// let go, after which a reader of `out` meets its end, before cli_spawn_close lets the rest go
-// (platform/windows_spawn.c, platform/posix_spawn.c)
+// let go, after which a reader of `out` meets its end, before cli_spawn_close lets the rest go (programs.c)
 int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args);
 int cli_spawn_terminal_resize(const CliColsCtx *args);
 void cli_spawn_terminal_hung_up(const CliColsCtx *args);
@@ -521,14 +500,9 @@ int cli_file_end(const CliFileCtx *args);
 VerbaLinea cli_file_line(const CliFileStageCtx *args);
 int cli_file_line_end(const CliLineCtx *args);
 
-// what a move came to: it failed, the file or folder moved, or it failed for the two paths being on different drives
-#define CLI_MOVE_FAILED 0
-#define CLI_MOVE_DONE 1
-#define CLI_MOVE_ACROSS 2
-
 // the file or folder at `from` moved to `to`, a file there replaced: what the move came to; and `size` bytes of
 // `bytes` written at the end of the file at `path`, which is made anew, empty, first where `fresh` is 1 and must be
-// there already where it is 0: 1, or 0 where they could not be (platform/windows_files.c, platform/posix_files.c)
+// there already where it is 0: 1, or 0 where they could not be (system_calls.c, through the platform's calls)
 int cli_move(const CliErrMsgFromCtx *args);
 int cli_file_append(const CliPathBytesCtx *args);
 
@@ -616,17 +590,19 @@ void cli_spawn_tree_end(const CliIdCtx *args);
 void cli_spawn_kill(const CliColsCtx *args);
 int cli_spawn_interrupt(const CliColsCtx *args);
 // the folders of the PATH this process runs with, each into `folders`, sized for `capacity`: their count; and the PATH
-// those folders, `count` of them, make, into `path`, sized for `size`
+// those folders, `count` of them, make, into `path`, sized for `size` (programs.c)
 unsigned int cli_path_folders(const CliCapacityFoldersCtx *args);
 void cli_path_join(const CliPathCountSizeCtx *args);
 
 // What a thread runs: the function and its context, retained by its starter for as long as the thread lives, and the
-// priority it runs at, one of CLI_PRIORITY_WORK and the rest, work where none is set
+// priority it runs at, one of PLATFORM_PRIORITY_WORK and the rest, work where none is set. `started` is the record that
+// the platform starts the thread on (platform_internal.h)
 typedef struct
 {
     void (*run)(void *context);
     void *context;
     unsigned int priority;
+    PlatformThread started;
 } CliThread;
 
 // each thread that waits on the wake, woken; and a thread started on `thread`, let go to end on its own: 1, or 0 where
@@ -665,13 +641,9 @@ void cli_watch_system_stop(void);
 int cli_folder_watch_start(const CliFolderWatchCtx *args);
 void cli_folder_watch_stop(void);
 int cli_thread_start(const CliThreadCtx *args);
-// the calling thread put at `priority`, one of CLI_PRIORITY_WORK and the rest; its id, which no other live thread has;
-// and the processor given up to any thread waiting for it (platform/windows_threads.c, platform/posix_threads.c)
+// the calling thread put at `priority`, one of PLATFORM_PRIORITY_WORK and the rest (threads.c, through the platform). A
+// thread's id, the yield and the count of processors are the platform's (platform_internal.h, platform.h)
 void cli_priority_own(const CliWordsErrMsgCtx *args);
-embed_word cli_thread_id(void);
-void cli_thread_yield(void);
-// the processors the machine has, one at the fewest
-unsigned int cli_processors(void);
 
 // A connection over TCP: the system's handle of it, 0 for none
 typedef struct
@@ -719,14 +691,6 @@ int cli_socket_accept(const CliListenerCtx *args);
 // inherits, made unsignaled, its handle, 0 where none was made and off Windows; the event signaled: 1, or 0 where it
 // could not be, and off Windows; and the event let go (platform/windows_system.c, platform/posix_system.c)
 int cli_random_bytes(const CliSizeBytesCtx *args);
-// `size` bytes of pages from the system's own page allocator, zero, one allocation a graphics device can read from
-// where the system lets it: the pages, or NULL where it gives none; `size` bytes of pages reserved and none of them
-// committed, on the same terms; `size` bytes of reserved pages at `bytes_out` committed, zero: 1, or 0 where the system
-// refuses; and pages so taken or reserved at `bytes_out`, `size` of them, given back
-void *cli_pages_alloc(const CliSizeBytesCtx *args);
-void *cli_pages_reserve(const CliSizeBytesCtx *args);
-int cli_pages_commit(const CliSizeBytesCtx *args);
-void cli_pages_free(const CliSizeBytesCtx *args);
 // a folder made with every folder above it, readable by the reader alone, and a file written whole, made anew,
 // readable by the reader alone: each 1, or 0 where it could not be (platform/windows_system.c,
 // platform/posix_system.c)
@@ -757,14 +721,6 @@ typedef struct
 // not say (platform/windows_processes.c, platform/posix_processes.c)
 int cli_process_memory(const CliPidCtx *args);
 int cli_process_by_name(const CliCapacityPidCtx *args);
-// the whole pages from `at` for `bytes` given back to the system, their contents dropped: the next read of one
-// gets a page the system gives afresh. The window's thread calls it for the cellblock's idle spans
-// (platform/windows_processes.c, platform/posix_processes.c)
-void cli_pages_released(void *at, unsigned long long bytes);
-// `bytes` of memory the system gives, whole pages, readable and writable and zero, outside the program's image, for
-// the pool to be placed on: their first byte, or NULL where the system refuses; held for the process's life
-// (platform/windows_processes.c, platform/posix_processes.c)
-void *cli_pages_mapped(unsigned long long bytes);
 void cli_temp_folder(const CliFolderCtx *args);
 unsigned long long cli_event_inheritable(void);
 int cli_event_set(const CliEventCtx *args);
@@ -807,7 +763,7 @@ struct CliWordsCtx
     const char *const *words;
     VerbaLinea *err_msg;
     const char *folder;
-    const CliSetting *settings;
+    const PlatformSetting *settings;
     unsigned int count;
     CliRunResult *run_result;
     const char *input;
@@ -819,9 +775,9 @@ struct CliWordsErrMsgCtx
 {
     const char *const *words;
     VerbaLinea *err_msg;
-    CliSpawned *spawned;
+    PlatformProgram *spawned;
     const char *folder;
-    const CliSetting *settings;
+    const PlatformSetting *settings;
     unsigned int count;
     int detached;
     unsigned int priority;
@@ -833,9 +789,9 @@ struct CliWordsErrMsgSpawnedCtx
 {
     const char *const *words;
     VerbaLinea *err_msg;
-    CliSpawned *spawned;
+    PlatformProgram *spawned;
     const char *folder;
-    const CliSetting *settings;
+    const PlatformSetting *settings;
     unsigned int count;
     unsigned int cols;
     unsigned int rows;
@@ -882,7 +838,7 @@ struct CliWordsErrMsgSettingsCtx
 {
     const char *const *words;
     VerbaLinea *err_msg;
-    const CliSetting *settings;
+    const PlatformSetting *settings;
     unsigned int count;
     long long *code;
 };
@@ -1097,7 +1053,7 @@ struct CliColsCtx
 {
     unsigned int cols;
     unsigned int rows;
-    const CliSpawned *spawned_read;
+    const PlatformProgram *spawned_read;
 };
 
 struct CliPipeHandleCtx
@@ -1239,7 +1195,7 @@ struct CliSockCtx
 
 struct CliSpawnedCtx
 {
-    CliSpawned *spawned;
+    PlatformProgram *spawned;
     long long *code;
 };
 
@@ -1886,19 +1842,11 @@ typedef struct
 {
     int (*socket_read)(const CliSizeBytesCtx *args);
     int (*random_bytes)(const CliSizeBytesCtx *args);
-    void *(*pages_alloc)(const CliSizeBytesCtx *args);
-    void *(*pages_reserve)(const CliSizeBytesCtx *args);
-    int (*pages_commit)(const CliSizeBytesCtx *args);
-    void (*pages_free)(const CliSizeBytesCtx *args);
 } CliSizeBytesNs;
-EMBED_TABLE_LAYOUT(CliSizeBytesNs, socket_read, random_bytes, pages_alloc, pages_reserve, pages_commit, pages_free);
+EMBED_TABLE_LAYOUT(CliSizeBytesNs, socket_read, random_bytes);
 EMBED_TABLE_STORAGE CliSizeBytesNs cli_size_bytes_internal EMBED_UNUSED = {
     .socket_read = cli_socket_read,
     .random_bytes = cli_random_bytes,
-    .pages_alloc = cli_pages_alloc,
-    .pages_reserve = cli_pages_reserve,
-    .pages_commit = cli_pages_commit,
-    .pages_free = cli_pages_free,
 };
 
 typedef struct

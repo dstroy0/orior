@@ -101,10 +101,11 @@ unsigned int cli_disasm_functions_define(const CliDisasmVerifyIrSizeCfg *args)
             if (name_end > name)
             {
                 // with no names to write, every function is counted
-                const int kept = (args->names == NULL) ||
-                                 ((count < capacity) && EMBED_CALL(read_copy, DisasmVerifyReadCtx,
-                                                                   .into = args->names[count], .capacity = CLI_NAME_MAX_LEN,
-                                                                   .text = args->ir + name, .length = name_end - name));
+                const int kept =
+                    (args->names == NULL) ||
+                    ((count < capacity) &&
+                     EMBED_CALL(read_copy, DisasmVerifyReadCtx, .into = args->names[count],
+                                .capacity = CLI_NAME_MAX_LEN, .text = args->ir + name, .length = name_end - name));
                 count += kept ? 1u : 0u;
             }
         }

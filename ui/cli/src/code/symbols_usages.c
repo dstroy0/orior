@@ -36,10 +36,10 @@ typedef struct
 {
     const char *name;
     unsigned long long length;
-    CliGrownLine notes;
-    CliGrownLine texts;
-    CliGrownLine paths;
-    CliGrownLine regions;
+    PlatformText notes;
+    PlatformText texts;
+    PlatformText paths;
+    PlatformText regions;
     const CliLeafRead *read;
     unsigned int noted;
     unsigned int region_count;
@@ -85,7 +85,7 @@ typedef struct
     int mapped_value;
     unsigned int col;
     char *name;
-    CliGrownLine *paths;
+    PlatformText *paths;
     int across;
     int definition;
 } SymbolsUsagesCtx;
@@ -111,7 +111,7 @@ EMBED_INLINE CliUsageRegion *usages_region_at(const SymbolsUsagesCtx *args)
 EMBED_INLINE void usages_regions_read(const SymbolsUsagesCtx *args)
 {
     const CliLeafRead *read = args->read;
-    cli_grown_reset(&args->usages_out->regions);
+    platform_text_reset(&args->usages_out->regions);
     args->usages_out->region_count = 0u;
     args->usages_out->read = read;
     unsigned int depth = 0u;
@@ -248,9 +248,9 @@ static void usages_note(const CliEffectNotedCfg *args)
         units + width,
         (region != CLI_JSON_NONE) ? EMBED_CALL(usages_region_at, SymbolsUsagesCtx, .usages = usages, .at = region)->head
                                   : CLI_JSON_NONE,
-        cli_grown_size(&usages->texts),
+        platform_text_size(&usages->texts),
         end - start,
-        (args->path != NULL) ? (unsigned int)cli_grown_size(&usages->paths) : CLI_JSON_NONE,
+        (args->path != NULL) ? (unsigned int)platform_text_size(&usages->paths) : CLI_JSON_NONE,
         args->line,
         local};
     mmgr_line_put_n(&usages->texts.line, read->text + start, (embed_word)(end - start));
@@ -276,9 +276,9 @@ EMBED_INLINE int usages_walk(const SymbolsUsagesCtx *args)
     // notes the notes again from none
     for (unsigned int scale = cli_effect_scale_first();; scale += 1u)
     {
-        cli_grown_reset(&args->usages_out->notes);
-        cli_grown_reset(&args->usages_out->texts);
-        cli_grown_reset(&args->usages_out->paths);
+        platform_text_reset(&args->usages_out->notes);
+        platform_text_reset(&args->usages_out->texts);
+        platform_text_reset(&args->usages_out->paths);
         args->usages_out->noted = 0u;
         args->usages_out->read = NULL;
         CliEffect *const effect =
@@ -441,7 +441,7 @@ EMBED_INLINE unsigned long long usages_name_at(const SymbolsUsagesCtx *args)
     args->name[length] = '\0';
     if (leaved)
     {
-        g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
+        g_platform_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
         read.leaf = NULL;
         read.count = 0u;
         read.capacity = 0u;
@@ -476,8 +476,8 @@ EMBED_INLINE void usages_tree_paths(const SymbolsUsagesCtx *args)
 // `defined` at `line` passed on: 1, or 0 with why given
 EMBED_INLINE int usages_across(const SymbolsUsagesCtx *args)
 {
-    CliGrownLine paths;
-    cli_grown_begin(&paths, CLI_USAGES_CAPACITY, g_cli_code_owner);
+    PlatformText paths;
+    platform_text_begun(&paths, CLI_USAGES_CAPACITY, platform_place_g_cli_code_owner, PLATFORM_TIER_TEMPORARY);
     if (paths.cell == NULL)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the usages' walk");
@@ -485,7 +485,7 @@ EMBED_INLINE int usages_across(const SymbolsUsagesCtx *args)
     }
     EMBED_CALL(usages_tree_paths, SymbolsUsagesCtx, .path = args->path, .paths = &paths);
     int walked = mmgr_line_ok(&paths.line);
-    for (unsigned long long at = 0ULL; walked && (at < cli_grown_size(&paths));
+    for (unsigned long long at = 0ULL; walked && (at < platform_text_size(&paths));
          at += cellul.len(&(CatenaFinitaCfg){.src = paths.cell + at, .cap = CLI_POOL_BYTES}) + 1ULL)
     {
         const char *const one = paths.cell + at;
@@ -508,14 +508,15 @@ EMBED_INLINE int usages_across(const SymbolsUsagesCtx *args)
         }
         if (mapped && (text != NULL))
         {
-            g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), g_cli_code_owner);
+            g_platform_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text),
+                                                     g_cli_code_owner);
         }
         else
         {
-            g_cli_guard->persistent_buf_release(text, g_cli_code_owner);
+            g_platform_guard->persistent_buf_release(text, g_cli_code_owner);
         }
     }
-    cli_grown_end(&paths);
+    platform_text_ended(&paths);
     return walked;
 }
 
@@ -539,11 +540,12 @@ EMBED_INLINE int usages_definition_dispatch(const SymbolsUsagesCtx *args)
                                       .path = args->defined, .text = text, .size = size, .err_msg = args->err_msg);
         if (mapped && (text != NULL))
         {
-            g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), g_cli_code_owner);
+            g_platform_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text),
+                                                     g_cli_code_owner);
         }
         else
         {
-            g_cli_guard->persistent_buf_release(text, g_cli_code_owner);
+            g_platform_guard->persistent_buf_release(text, g_cli_code_owner);
         }
         if (!walked)
         {
@@ -641,10 +643,14 @@ static int usages_request(const SymbolsUsagesCtx *args)
     usages.length = length;
     if (length != 0ULL)
     {
-        cli_grown_begin(&usages.notes, CLI_USAGES_CAPACITY, g_cli_code_owner);
-        cli_grown_begin(&usages.texts, CLI_USAGES_CAPACITY, g_cli_code_owner);
-        cli_grown_begin(&usages.paths, CLI_USAGES_CAPACITY, g_cli_code_owner);
-        cli_grown_begin(&usages.regions, CLI_USAGES_CAPACITY, g_cli_code_owner);
+        platform_text_begun(&usages.notes, CLI_USAGES_CAPACITY, platform_place_g_cli_code_owner,
+                            PLATFORM_TIER_TEMPORARY);
+        platform_text_begun(&usages.texts, CLI_USAGES_CAPACITY, platform_place_g_cli_code_owner,
+                            PLATFORM_TIER_TEMPORARY);
+        platform_text_begun(&usages.paths, CLI_USAGES_CAPACITY, platform_place_g_cli_code_owner,
+                            PLATFORM_TIER_TEMPORARY);
+        platform_text_begun(&usages.regions, CLI_USAGES_CAPACITY, platform_place_g_cli_code_owner,
+                            PLATFORM_TIER_TEMPORARY);
     }
     const int made = (length != 0ULL) && (usages.notes.cell != NULL) && (usages.texts.cell != NULL) &&
                      (usages.paths.cell != NULL) && (usages.regions.cell != NULL);
@@ -662,17 +668,17 @@ static int usages_request(const SymbolsUsagesCtx *args)
         mmgr_line_put(args->err_msg, "the cells cannot meet the usages' walk");
         read = -1;
     }
-    cli_grown_end(&usages.notes);
-    cli_grown_end(&usages.texts);
-    cli_grown_end(&usages.paths);
-    cli_grown_end(&usages.regions);
+    platform_text_ended(&usages.notes);
+    platform_text_ended(&usages.texts);
+    platform_text_ended(&usages.paths);
+    platform_text_ended(&usages.regions);
     if (mapped && (text != NULL))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), g_cli_code_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)((const unsigned char *)text), g_cli_code_owner);
     }
     else
     {
-        g_cli_guard->persistent_buf_release(text, g_cli_code_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_code_owner);
     }
     return read;
 }

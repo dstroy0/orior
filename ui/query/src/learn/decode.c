@@ -62,8 +62,7 @@ int query_decode_run(const QueryLoopCfg *args)
             const unsigned long long length = (end != NULL) ? (unsigned long long)(end - line) : (displayed_size - at);
             char text[QUERY_LINE_MAX_LEN];
             VerbaLinea text_line = {text, sizeof(text), 0ULL};
-            mmgr_line_put_max(&text_line, line,
-                               length - (((length != 0ULL) && (line[length - 1u] == '\r')) ? 1u : 0u));
+            mmgr_line_put_max(&text_line, line, length - (((length != 0ULL) && (line[length - 1u] == '\r')) ? 1u : 0u));
             if (mmgr_line_finish(&text_line) != 0ULL)
             {
                 EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = text);
@@ -71,7 +70,7 @@ int query_decode_run(const QueryLoopCfg *args)
             at += length + 1ULL;
         }
     }
-    g_cli_guard->persistent_buf_release(displayed, g_query_owner);
+    g_platform_guard->persistent_buf_release(displayed, g_query_owner);
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
                     .err_msg = err_msg))
     {

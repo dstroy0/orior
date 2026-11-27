@@ -35,7 +35,8 @@ EMBED_INLINE int cli_has(const ExecutablesAdviceCtx *args)
     const unsigned long long longest =
         EMBED_CALL(cli_runner_lines_index.lines_longest, CliRunnerLinesIndexCfg, .lines_read = lines);
     // each line read out of the run's rings into one temporary cell sized for the longest
-    char *const read = (count != 0u) ? g_cli_guard->temporary_buf_alloc(longest + 1ULL, g_cli_executables_owner) : NULL;
+    char *const read =
+        (count != 0u) ? g_platform_guard->temporary_buf_alloc(longest + 1ULL, g_cli_executables_owner) : NULL;
     int found = 0;
     for (unsigned int at = 0u; !found && (read != NULL) && (at < count); at += 1u)
     {
@@ -44,7 +45,7 @@ EMBED_INLINE int cli_has(const ExecutablesAdviceCtx *args)
         found = cellul.find(&(CatenaFinitaCfg){
                     .src = read, .cap = CLI_POOL_BYTES, .other = args->mark, .other_cap = CLI_POOL_BYTES}) != NULL;
     }
-    g_cli_guard->persistent_buf_release(read, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(read, g_cli_executables_owner);
     return found;
 }
 
@@ -125,7 +126,7 @@ void cli_executables_advice(const CliExecutablesRootCfg *args)
         // each line read out of the run's rings into one temporary cell sized for the longest, which holds the target's
         // name until it is printed
         char *const read =
-            (count != 0u) ? g_cli_guard->temporary_buf_alloc(longest + 1ULL, g_cli_executables_owner) : NULL;
+            (count != 0u) ? g_platform_guard->temporary_buf_alloc(longest + 1ULL, g_cli_executables_owner) : NULL;
         for (unsigned int at = 0u; (target == NULL) && (read != NULL) && (at < count); at += 1u)
         {
             (void)EMBED_CALL(cli_runner_lines_index.lines_read, CliRunnerLinesIndexCfg, .lines_read = lines,
@@ -167,7 +168,7 @@ void cli_executables_advice(const CliExecutablesRootCfg *args)
                            "linking for the target chosen needs that system's linker: the musl targets link here with "
                            "rust-lld, and a Linux GNU or macOS target links with cargo-zigbuild where it is installed");
         }
-        g_cli_guard->persistent_buf_release(read, g_cli_executables_owner);
+        g_platform_guard->persistent_buf_release(read, g_cli_executables_owner);
     }
     if ((type == CLI_TYPE_PYINSTALLER) &&
         EMBED_CALL(cli_has, ExecutablesAdviceCtx, .lines = lines, .mark = "No module named PyInstaller"))
@@ -389,7 +390,7 @@ static void cli_fullest_each(const CliEachNameIsFolderCfg *args)
                      : NULL;
         }
     }
-    g_cli_guard->persistent_buf_release(text, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_executables_owner);
 }
 
 void cli_executables_run_result_advice(const CliExecutablesRootCfg *args)
@@ -429,7 +430,8 @@ void cli_executables_run_result_advice(const CliExecutablesRootCfg *args)
     const unsigned long long longest =
         EMBED_CALL(cli_runner_lines_index.lines_longest, CliRunnerLinesIndexCfg, .lines_read = lines);
     // each line read out of the run's rings into one temporary cell sized for the longest
-    char *const read = (count != 0u) ? g_cli_guard->temporary_buf_alloc(longest + 1ULL, g_cli_executables_owner) : NULL;
+    char *const read =
+        (count != 0u) ? g_platform_guard->temporary_buf_alloc(longest + 1ULL, g_cli_executables_owner) : NULL;
     for (unsigned int at = 0u; (read != NULL) && (at < count); at += 1u)
     {
         (void)EMBED_CALL(cli_runner_lines_index.lines_read, CliRunnerLinesIndexCfg, .lines_read = lines, .index = at,
@@ -498,6 +500,6 @@ void cli_executables_run_result_advice(const CliExecutablesRootCfg *args)
         mmgr_line_finish(&line);
         EMBED_CALL(cli_print, ExecutablesAdviceCtx, .sink = args->sink, .text = print_buf);
     }
-    g_cli_guard->persistent_buf_release(read, g_cli_executables_owner);
-    g_cli_guard->persistent_buf_release(warned, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(read, g_cli_executables_owner);
+    g_platform_guard->persistent_buf_release(warned, g_cli_executables_owner);
 }

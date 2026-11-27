@@ -249,8 +249,8 @@ int cli_deploy_read(const CliDeployRootCtx *args)
     unsigned int *count = args->count_pointer;
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = "deploy.json", .joined = path);
-    g_cli_guard->persistent_buf_release(args->tree->json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), args->tree->json.node));
+    g_platform_guard->persistent_buf_release(args->tree->json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), args->tree->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&args->tree->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     args->tree->pool.used = 0ULL;
@@ -263,7 +263,7 @@ int cli_deploy_read(const CliDeployRootCtx *args)
     if ((bytes == NULL) ||
         !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
         return 1;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
@@ -272,7 +272,7 @@ int cli_deploy_read(const CliDeployRootCtx *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &args->tree->json,
                    .text = (const char *)bytes, .size = size, .nodes_more = 0u, .text_more = 0ULL,
                    .err_msg = &read_err_msg, .owner = g_cli_deploy_owner);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_deploy_owner);
     const CliJson *const json = &args->tree->json;
     if (top == CLI_JSON_NONE)
     {

@@ -23,7 +23,7 @@ source "$QRY_TOP/includes/exact_types/exact_types.sh"
 
 qry_writer_built() {
     QRY_WRITER="$1/orior_qry_writer"
-    local binary="$QRY_WRITER" sources=("$QRY_TOP/includes/file_defs/qry/qry_writer.c" "$QRY_TOP/includes/file_defs/qry/writer"/*.c "$QRY_TOP/includes/file_defs/qry/writer"/platform/*.c
+    local binary="$QRY_WRITER" sources=("$QRY_TOP/includes/file_defs/qry/qry_writer.c" "$QRY_TOP/includes/file_defs/qry/writer"/*.c "${PLATFORM_QRY_RUN[@]}"
         "$QRY_TOP/includes/file_defs/qry/qry_read.c" "$QRY_TOP/includes/file_defs/ksg/ksg_seal.c"
         "$QRY_TOP/includes/file_defs/ksg/ksg_writing.c")
     [ -f "$binary.exe" ] && binary="$binary.exe"

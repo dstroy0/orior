@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // lng.c: the three language tables read, and each checked against the tree and against the others (lng.h)
 #include "lng.h"
-#include "../platform/platform.h"
+#include "../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
@@ -2262,61 +2262,27 @@ static void lng_entry_taken(const char *folder, const char *name, int folder_exi
     lng_list_free(&path);
 }
 
-#if defined(_WIN32)
+// what one listing of a folder hands to the platform: the folder and the walk that it is part of
+typedef struct
+{
+    const char *folder;
+    const LngWalk *walk;
+} LngListing;
+
+// one entry of the folder, which the platform heard, taken into the walk
+static void lng_entry_heard(void *context, const char *name, int folder)
+{
+    // Explicit cast takes the context that lng_files_under gave as the listing that it holds
+    const LngListing *const listing = (const LngListing *)context;
+    lng_entry_taken(listing->folder, name, folder, listing->walk);
+}
+
 static void lng_files_under(const char *folder, const LngWalk *walk)
 {
-    LngList pattern = {NULL, 0u, 0u};
-    {
-        LngNote lng_note;
-        lng_note_begun(&lng_note, &pattern);
-        mmgr_line_put(&lng_note.line, folder);
-        mmgr_line_put(&lng_note.line, "/*");
-        lng_note_written(&lng_note);
-    }
-    // the entries requested in large reads, without the short names nothing here reads
-    WIN32_FIND_DATAA entry;
-    const HANDLE search = FindFirstFileExA(pattern.text[0], FindExInfoBasic, &entry, FindExSearchNameMatch, NULL,
-                                           FIND_FIRST_EX_LARGE_FETCH);
-    lng_list_free(&pattern);
-    if (search == INVALID_HANDLE_VALUE)
-    {
-        return;
-    }
-    int more = 0;
-    do
-    {
-        lng_entry_taken(folder, entry.cFileName, (entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0u, walk);
-        more = (FindNextFileA(search, &entry) != 0);
-    } while (more);
-    FindClose(search);
+    LngListing listing = {folder, walk};
+    // a folder that the system does not open adds nothing to the walk
+    (void)platform_folder_listed(folder, lng_entry_heard, &listing);
 }
-#else
-static void lng_files_under(const char *folder, const LngWalk *walk)
-{
-    DIR *const directory = opendir(folder);
-    if (directory == NULL)
-    {
-        return;
-    }
-    for (const struct dirent *entry = readdir(directory); entry != NULL; entry = readdir(directory))
-    {
-        LngList path = {NULL, 0u, 0u};
-        {
-            LngNote lng_note;
-            lng_note_begun(&lng_note, &path);
-            mmgr_line_put(&lng_note.line, folder);
-            mmgr_line_put(&lng_note.line, "/");
-            mmgr_line_put(&lng_note.line, entry->d_name);
-            lng_note_written(&lng_note);
-        }
-        struct stat status;
-        const int folder_exists = (stat(path.text[0], &status) == 0) && S_ISDIR(status.st_mode);
-        lng_list_free(&path);
-        lng_entry_taken(folder, entry->d_name, folder_exists, walk);
-    }
-    closedir(directory);
-}
-#endif
 
 void lng_files_ending(const char *const *suffixes, unsigned int count, LngList *found)
 {
@@ -2674,7 +2640,7 @@ void lng_theorem_names(const char *const *line, unsigned int lines, LngList *nam
         const char *start = line[at] + sizeof(s_theorem) - 1u;
         const int guarded = (lng_text_order(start, "\xc2\xab", (size_t)(2u)) == 0);
         start += guarded ? 2u : 0u;
-        // the name up to a space, a colon or the close of its guillemets: each lead byte 0xc2 reached is the close
+        // the name up to a space, a colon or the close of its guillemets. Each lead byte 0xc2 reached is the close
         // where 0xbb follows it, and is part of the name where not
         size_t length = 0u;
         for (;;)

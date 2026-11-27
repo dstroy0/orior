@@ -116,10 +116,10 @@ EMBED_INLINE void notices_put(const CliNoticesCtx *args)
 // type at `type_at`; NULL where the cell could not be taken; the caller gives the copy back
 EMBED_INLINE char *notices_text_copy(const CliNoticesCtx *args)
 {
-    char *const copy = g_cli_guard->temporary_buf_alloc(args->notice_read->size, g_cli_command_line_owner);
+    char *const copy = g_platform_guard->temporary_buf_alloc(args->notice_read->size, g_cli_command_line_owner);
     if (copy != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = args->notice_read->cell, .dst = copy, .bytes = args->notice_read->size});
     }
     return copy;
@@ -132,10 +132,10 @@ EMBED_INLINE char *notices_away_copy(const CliNoticesCtx *args)
     (void)args;
     if (s_notices.away_owned)
     {
-        char *const copy = g_cli_guard->temporary_buf_alloc(s_notices.away_size + 1ULL, g_cli_command_line_owner);
+        char *const copy = g_platform_guard->temporary_buf_alloc(s_notices.away_size + 1ULL, g_cli_command_line_owner);
         if (copy != NULL)
         {
-            (void)g_cli_guard->movable_buf_read(
+            (void)g_platform_guard->movable_buf_read(
                 &(CarcerMovableCfg){.cell = s_notices.away, .dst = copy, .bytes = s_notices.away_size});
             copy[s_notices.away_size] = '\0';
         }
@@ -146,7 +146,7 @@ EMBED_INLINE char *notices_away_copy(const CliNoticesCtx *args)
         return NULL;
     }
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_notices.away_read, .cap = CLI_POOL_BYTES});
-    char *const copy = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_command_line_owner);
+    char *const copy = g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_command_line_owner);
     if (copy != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = copy, .src = s_notices.away_read, .bytes = size + 1ULL});
@@ -170,12 +170,12 @@ EMBED_INLINE int notices_built(const CliNoticesCtx *args)
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES});
     const unsigned long long first = EMBED_CALL(notices_first_line, CliNoticesCtx, .text = args->text);
     const unsigned long long bytes = size + first + 2ULL;
-    char *const positioned = g_cli_guard->temporary_buf_alloc(bytes, g_cli_command_line_owner);
+    char *const positioned = g_platform_guard->temporary_buf_alloc(bytes, g_cli_command_line_owner);
     const CarcerMovableEntry *const cell =
-        (positioned != NULL) ? g_cli_guard->movable_buf_alloc(bytes, g_cli_command_line_owner) : NULL;
+        (positioned != NULL) ? g_platform_guard->movable_buf_alloc(bytes, g_cli_command_line_owner) : NULL;
     if (cell == NULL)
     {
-        g_cli_guard->persistent_buf_release(positioned, g_cli_command_line_owner);
+        g_platform_guard->persistent_buf_release(positioned, g_cli_command_line_owner);
         return 0;
     }
     // the newline that ends the first line becomes its NUL, the lines after it located where they was
@@ -194,8 +194,8 @@ EMBED_INLINE int notices_built(const CliNoticesCtx *args)
         mmgr_line_put(&type, (digit < first) ? "#" : "");
     }
     (void)mmgr_line_finish(&type);
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = positioned, .bytes = bytes});
-    g_cli_guard->persistent_buf_release(positioned, g_cli_command_line_owner);
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = positioned, .bytes = bytes});
+    g_platform_guard->persistent_buf_release(positioned, g_cli_command_line_owner);
     *args->notice = (CliNotice){cell, bytes, rest_at, size + 1ULL, args->failed, cli_clock_milliseconds()};
     return 1;
 }
@@ -217,7 +217,7 @@ EMBED_INLINE void notices_released(const CliNoticesCtx *args)
     {
         EMBED_CALL(notices_hidden, CliNoticesCtx, .seen = 0);
     }
-    (void)g_cli_guard->movable_buf_release(args->notice_read->cell, g_cli_command_line_owner);
+    (void)g_platform_guard->movable_buf_release(args->notice_read->cell, g_cli_command_line_owner);
 }
 
 // the notice put last in the list, the oldest let go where the list is full, counted unseen where it is not `seen`: 1,
@@ -261,7 +261,7 @@ EMBED_INLINE void notices_displayed(const CliNoticesCtx *args)
     VerbaLinea type = {s_notices.displayed_type, sizeof(s_notices.displayed_type), 0ULL};
     mmgr_line_put(&type, text + notice.type_at);
     (void)mmgr_line_finish(&type);
-    g_cli_guard->persistent_buf_release(text, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(text, g_cli_command_line_owner);
     s_notices.displayed = notice.cell;
     s_notices.displayed_failed = notice.failed;
     s_notices.displayed_until_ms =
@@ -283,7 +283,7 @@ EMBED_INLINE int notices_away(const CliNoticesCtx *args)
         found = (end == length) && (memor.cmp(&(MemoriaCfg){.src = line, .other = args->type, .bytes = length}) == 0);
         line += (end < size) ? (end + 1ULL) : end;
     }
-    g_cli_guard->persistent_buf_release(away, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(away, g_cli_command_line_owner);
     return found;
 }
 
@@ -291,15 +291,16 @@ EMBED_INLINE int notices_away(const CliNoticesCtx *args)
 EMBED_INLINE void notices_away_set(const CliNoticesCtx *args)
 {
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->owned, .cap = CLI_POOL_BYTES});
-    const CarcerMovableEntry *const away = g_cli_guard->movable_buf_alloc(size + 1ULL, g_cli_command_line_owner);
+    const CarcerMovableEntry *const away = g_platform_guard->movable_buf_alloc(size + 1ULL, g_cli_command_line_owner);
     if (away == NULL)
     {
         return;
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = away, .src = args->owned, .bytes = size + 1ULL});
+    (void)g_platform_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = away, .src = args->owned, .bytes = size + 1ULL});
     if (s_notices.away_owned)
     {
-        (void)g_cli_guard->movable_buf_release(s_notices.away, g_cli_command_line_owner);
+        (void)g_platform_guard->movable_buf_release(s_notices.away, g_cli_command_line_owner);
     }
     s_notices.away = away;
     s_notices.away_size = size;
@@ -349,7 +350,7 @@ void cli_notice_post(const CliNoticesCfg *args)
     }
     char *const copy = EMBED_CALL(notices_text_copy, CliNoticesCtx, .notice_read = &notice);
     const int away = (copy != NULL) && EMBED_CALL(notices_away, CliNoticesCtx, .type = copy + notice.type_at);
-    g_cli_guard->persistent_buf_release(copy, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(copy, g_cli_command_line_owner);
     if (away)
     {
         (void)EMBED_CALL(notices_listed, CliNoticesCtx, .notice_read = &notice, .seen = 1);
@@ -433,7 +434,7 @@ void cli_notices_press(const CliNoticesCfg *args)
         const unsigned long long had =
             (away != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = away, .cap = CLI_POOL_BYTES}) : 0ULL;
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_POOL_BYTES});
-        char *const joined = g_cli_guard->temporary_buf_alloc(had + length + 2ULL, g_cli_command_line_owner);
+        char *const joined = g_platform_guard->temporary_buf_alloc(had + length + 2ULL, g_cli_command_line_owner);
         if (joined != NULL)
         {
             VerbaLinea line = {joined, had + length + 2ULL, 0ULL};
@@ -443,8 +444,8 @@ void cli_notices_press(const CliNoticesCfg *args)
             (void)mmgr_line_finish(&line);
             EMBED_CALL(notices_away_set, CliNoticesCtx, .owned = joined);
         }
-        g_cli_guard->persistent_buf_release(joined, g_cli_command_line_owner);
-        g_cli_guard->persistent_buf_release(away, g_cli_command_line_owner);
+        g_platform_guard->persistent_buf_release(joined, g_cli_command_line_owner);
+        g_platform_guard->persistent_buf_release(away, g_cli_command_line_owner);
     }
     if ((args->part == CLI_NOTICES_PRESS_NOTICE) || (args->part == CLI_NOTICES_PRESS_SILENCE))
     {
@@ -469,7 +470,7 @@ char *cli_notices_away_alloc(void)
 
 void cli_notices_away_end(const CliNoticesCfg *args)
 {
-    g_cli_guard->persistent_buf_release(args->away, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(args->away, g_cli_command_line_owner);
 }
 
 void cli_notices_show_again(const CliNoticesCfg *args)
@@ -477,15 +478,15 @@ void cli_notices_show_again(const CliNoticesCfg *args)
     char *const away = EMBED_CALL(notices_away_copy, CliNoticesCtx, .seen = 0);
     if ((away == NULL) || !EMBED_CALL(notices_away, CliNoticesCtx, .type = args->type))
     {
-        g_cli_guard->persistent_buf_release(away, g_cli_command_line_owner);
+        g_platform_guard->persistent_buf_release(away, g_cli_command_line_owner);
         return;
     }
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = away, .cap = CLI_POOL_BYTES});
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->type, .cap = CLI_POOL_BYTES});
-    char *const left = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_command_line_owner);
+    char *const left = g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_command_line_owner);
     if (left == NULL)
     {
-        g_cli_guard->persistent_buf_release(away, g_cli_command_line_owner);
+        g_platform_guard->persistent_buf_release(away, g_cli_command_line_owner);
         return;
     }
     VerbaLinea line = {left, size + 1ULL, 0ULL};
@@ -504,8 +505,8 @@ void cli_notices_show_again(const CliNoticesCfg *args)
     }
     (void)mmgr_line_finish(&line);
     EMBED_CALL(notices_away_set, CliNoticesCtx, .owned = left);
-    g_cli_guard->persistent_buf_release(left, g_cli_command_line_owner);
-    g_cli_guard->persistent_buf_release(away, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(left, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(away, g_cli_command_line_owner);
 }
 
 int cli_notices_step(void)
@@ -550,25 +551,26 @@ void cli_notices_restore(const CliNoticesCfg *args)
     {
         return;
     }
-    char *const away_text = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_command_line_owner);
-    const CarcerMovableEntry *const away = g_cli_guard->movable_buf_alloc(size + 1ULL, g_cli_command_line_owner);
+    char *const away_text = g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_command_line_owner);
+    const CarcerMovableEntry *const away = g_platform_guard->movable_buf_alloc(size + 1ULL, g_cli_command_line_owner);
     if ((away_text == NULL) || (away == NULL) ||
         (cli_state_entry_value(&(CliStateEntryCfg){
              .entries = args->entries, .key = CLI_NOTICES_AWAY_KEY, .out = away_text, .capacity = size + 1ULL}) ==
          NULL))
     {
-        g_cli_guard->persistent_buf_release(away_text, g_cli_command_line_owner);
+        g_platform_guard->persistent_buf_release(away_text, g_cli_command_line_owner);
         if (away != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(away, g_cli_command_line_owner);
+            (void)g_platform_guard->movable_buf_release(away, g_cli_command_line_owner);
         }
         return;
     }
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = away, .src = away_text, .bytes = size + 1ULL});
-    g_cli_guard->persistent_buf_release(away_text, g_cli_command_line_owner);
+    (void)g_platform_guard->movable_buf_write(
+        &(CarcerMovableCfg){.cell = away, .src = away_text, .bytes = size + 1ULL});
+    g_platform_guard->persistent_buf_release(away_text, g_cli_command_line_owner);
     if (s_notices.away_owned)
     {
-        (void)g_cli_guard->movable_buf_release(s_notices.away, g_cli_command_line_owner);
+        (void)g_platform_guard->movable_buf_release(s_notices.away, g_cli_command_line_owner);
     }
     s_notices.away = away;
     s_notices.away_size = size;
@@ -584,13 +586,13 @@ void cli_notices_end(void)
         const unsigned int count = EMBED_CALL(notices_count, CliNoticesCtx, .ring = rings[ring]);
         for (unsigned int at = 0u; at < count; at += 1u)
         {
-            (void)g_cli_guard->movable_buf_release(
+            (void)g_platform_guard->movable_buf_release(
                 EMBED_CALL(notices_at, CliNoticesCtx, .ring = rings[ring], .at = at)->cell, g_cli_command_line_owner);
         }
     }
     if (s_notices.away_owned)
     {
-        (void)g_cli_guard->movable_buf_release(s_notices.away, g_cli_command_line_owner);
+        (void)g_platform_guard->movable_buf_release(s_notices.away, g_cli_command_line_owner);
     }
     s_notices = (CliNotices){0};
 }

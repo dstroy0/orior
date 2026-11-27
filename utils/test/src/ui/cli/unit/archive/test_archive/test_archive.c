@@ -238,7 +238,7 @@ static void archive_read_held(const CliArchiveEachCfg *args)
     read->calls += 1u;
     char bytes[4096];
     const int fits = (args->size + 1ULL) <= sizeof(bytes);
-    const int got = fits && g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    const int got = fits && g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                                 .cell = args->cell, .offset = 0ULL, .dst = bytes, .bytes = args->size + 1ULL});
     read->matched = got && (CLI_UNITY_LENGTH(read->required) == args->size) &&
                     (memor.cmp(&(MemoriaCfg){.src = bytes, .other = read->required, .bytes = args->size}) == 0);

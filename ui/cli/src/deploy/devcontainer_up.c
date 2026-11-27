@@ -285,7 +285,7 @@ static int cli_docker(const DevcontainerUpCtx *args)
     }
     const unsigned long long length = mmgr_line_finish(&displayed_line);
     EMBED_CALL(args->sink.print, CliEachLineSizeCfg, .context = args->sink.context, .line = displayed, .size = length);
-    QueryProcess process;
+    PlatformProgram process;
     if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &process, .words = line,
                     .folder = NULL, .output = QUERY_OUTPUT_OWN))
     {
@@ -318,7 +318,7 @@ static int cli_docker_read(const DevcontainerUpCtx *args)
     const char *line[CLI_WORDS_MAX + 2u];
     char err_buf[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ULL};
-    QueryProcess process;
+    PlatformProgram process;
     if (!EMBED_CALL(cli_docker_line, DevcontainerUpCtx, .words = words, .line = line, .err_msg = &err_msg) ||
         !EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &process, .words = line,
                     .folder = NULL, .output = QUERY_OUTPUT_PIPED_ALONE))

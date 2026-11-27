@@ -9,7 +9,7 @@
 // With no argument it reads PMC_BOOT_0 alone. Given an offset in hex, and a count of 32-bit words, it reads that many
 // registers from that offset and prints each. Exit 0 where the read looks live, 1 where it does not, 2 where the
 // driver was not reached.
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

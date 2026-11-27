@@ -92,7 +92,7 @@ EMBED_INLINE int ready_body_file(const RequestsReadyCtx *args)
     {
         *size = length;
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_requests_owner);
     if (!whole)
     {
         mmgr_line_put(err_msg, args->name);
@@ -226,7 +226,7 @@ int cli_requests_ready(const CliRequestsTextCtx *args)
         ready = EMBED_CALL(ready_init, RequestsReadyCtx, .root = args->root, .path = args->path, .parsed = parsed,
                            .request = request, .env = args->env, .sent = args->sent_out, .body = args->body,
                            .err_msg = args->err_msg);
-        g_cli_guard->persistent_buf_release(s_values.text, g_cli_requests_owner);
+        g_platform_guard->persistent_buf_release(s_values.text, g_cli_requests_owner);
         s_values.text = NULL;
         s_values.capacity = 0ULL;
         s_values.used = 0ULL;
@@ -238,8 +238,8 @@ int cli_requests_ready(const CliRequestsTextCtx *args)
         }
     }
     // what is sent was copied out of the file read, so the file read is given back here
-    g_cli_guard->persistent_buf_release(g_cli_requests_parsed.requests, g_cli_requests_owner);
-    g_cli_guard->persistent_buf_release(g_cli_requests_parsed.text, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(g_cli_requests_parsed.requests, g_cli_requests_owner);
+    g_platform_guard->persistent_buf_release(g_cli_requests_parsed.text, g_cli_requests_owner);
     g_cli_requests_parsed.requests = NULL;
     g_cli_requests_parsed.requests_capacity = 0u;
     g_cli_requests_parsed.text = NULL;

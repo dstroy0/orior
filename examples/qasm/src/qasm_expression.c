@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_expression.c: expressions and gate bounds
 #include "qasm_internal.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 static int qasm_primary(QasmParser *parser, const QasmScope *scope, QasmAngle *value)
 {

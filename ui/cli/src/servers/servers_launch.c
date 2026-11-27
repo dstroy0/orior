@@ -29,7 +29,7 @@ typedef struct
     const char *name;
     const char *at;
     unsigned int at_depth;
-    CliGrownLine found;
+    PlatformText found;
     unsigned int count;
 } CliServersProjects;
 
@@ -83,15 +83,16 @@ static void launch_project_entry(const CliEachNameIsFolderCfg *args)
 
 void cli_servers_projects_in(const CliServersRootOutCtx *args)
 {
-    CliServersProjects projects = {
-        args->name, args->root, 0u, {NULL, 0ULL, 0ULL, NULL, {NULL, 0ULL, 0ULL, NULL, NULL, 0ULL}}, 0u};
-    cli_grown_begin(&projects.found, CLI_SERVERS_FOUND_CAPACITY, g_cli_servers_launch_owner);
+    CliServersProjects projects = {args->name, args->root, 0u, {NULL}, 0u};
+    platform_text_begun(&projects.found, CLI_SERVERS_FOUND_CAPACITY, platform_place_g_cli_servers_launch_owner,
+                        PLATFORM_TIER_TEMPORARY);
     (void)EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->root,
                      .each = launch_project_entry, .context_bytess = &projects);
     // the projects in order, each by where it starts among those found
     const unsigned int count = mmgr_line_ok(&projects.found.line) ? projects.count : 0u;
     const char **const found =
-        (count != 0u) ? g_cli_guard->temporary_buf_alloc(count * sizeof(*found), g_cli_servers_launch_owner) : NULL;
+        (count != 0u) ? g_platform_guard->temporary_buf_alloc(count * sizeof(*found), g_cli_servers_launch_owner)
+                      : NULL;
     const unsigned int list_entries = (found != NULL) ? count : 0u;
     const char *path = projects.found.cell;
     for (unsigned int at = 0u; at < list_entries; at += 1u)
@@ -120,8 +121,8 @@ void cli_servers_projects_in(const CliServersRootOutCtx *args)
                    .length = cellul.len(&(CatenaFinitaCfg){.src = found[at], .cap = CLI_POOL_BYTES}));
     }
     mmgr_line_ch(args->out, ']');
-    g_cli_guard->persistent_buf_release(found, g_cli_servers_launch_owner);
-    cli_grown_end(&projects.found);
+    g_platform_guard->persistent_buf_release(found, g_cli_servers_launch_owner);
+    platform_text_ended(&projects.found);
 }
 
 typedef struct
@@ -184,7 +185,7 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
         EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &manifest_json,
                    .manifest = manifest, .id = args->spec_read->tool, .err_msg = &ignored);
     CliServersLaunching *const launching =
-        g_cli_guard->temporary_buf_alloc(sizeof(*launching), g_cli_servers_launch_owner);
+        g_platform_guard->temporary_buf_alloc(sizeof(*launching), g_cli_servers_launch_owner);
     if (launching != NULL)
     {
         memor.set(&(MemoriaCfg){.dst = &launching->found, .val = 0, .bytes = sizeof(launching->found)});
@@ -196,10 +197,10 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
         EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &manifest_json, .tool = tool,
                    .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count,
                    .found = &launching->found);
-        g_cli_guard->persistent_buf_release(folders, g_cli_servers_launch_owner);
+        g_platform_guard->persistent_buf_release(folders, g_cli_servers_launch_owner);
     }
-    g_cli_guard->persistent_buf_release(manifest_json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), manifest_json.node));
+    g_platform_guard->persistent_buf_release(manifest_json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), manifest_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&manifest_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     if (launching == NULL)
@@ -219,11 +220,12 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
         mmgr_line_put(err_msg, " is not found: File, Toolchains opens ");
         mmgr_line_put(err_msg, args->spec_read->name);
         mmgr_line_put(err_msg, "'s install page or takes its folder");
-        g_cli_guard->persistent_buf_release(launching, g_cli_servers_launch_owner);
+        g_platform_guard->persistent_buf_release(launching, g_cli_servers_launch_owner);
         return NULL;
     }
-    CliGrownLine options;
-    cli_grown_begin(&options, CLI_SERVERS_OPTIONS_CAPACITY, g_cli_servers_launch_owner);
+    PlatformText options;
+    platform_text_begun(&options, CLI_SERVERS_OPTIONS_CAPACITY, platform_place_g_cli_servers_launch_owner,
+                        PLATFORM_TIER_TEMPORARY);
     EMBED_CALL(launch_options, ServersLaunchCtx, .root = root, .spec = args->spec_read, .out = &options.line);
     CliWords *const words = &launching->words;
     words->count = 0u;
@@ -247,13 +249,14 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
     }
     // the settings of the server's environment, the PATH and Visual Studio's where one is cl, in a cell of their count
     const unsigned int max = 1u + ((vs != NULL) ? vs->count : 0u);
-    CliSetting *const setting = g_cli_guard->temporary_buf_alloc(max * sizeof(*setting), g_cli_servers_launch_owner);
+    PlatformSetting *const setting =
+        g_platform_guard->temporary_buf_alloc(max * sizeof(*setting), g_cli_servers_launch_owner);
     char *vs_path = NULL;
     unsigned int settings = (setting != NULL) ? 1u : 0u;
     const unsigned int vs_settings = ((setting != NULL) && (vs != NULL)) ? vs->count : 0u;
     if (setting != NULL)
     {
-        setting[0] = (CliSetting){"PATH", launching->path};
+        setting[0] = (PlatformSetting){"PATH", launching->path};
     }
     for (unsigned int at = 0u; at < vs_settings; at += 1u)
     {
@@ -269,8 +272,8 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
             const unsigned long long joined_size =
                 cellul.len(&(CatenaFinitaCfg){.src = vs->value[at], .cap = CLI_POOL_BYTES}) +
                 cellul.len(&(CatenaFinitaCfg){.src = launching->path, .cap = CLI_POOL_BYTES}) + 2ULL;
-            g_cli_guard->persistent_buf_release(vs_path, g_cli_servers_launch_owner);
-            vs_path = g_cli_guard->temporary_buf_alloc(joined_size, g_cli_servers_launch_owner);
+            g_platform_guard->persistent_buf_release(vs_path, g_cli_servers_launch_owner);
+            vs_path = g_platform_guard->temporary_buf_alloc(joined_size, g_cli_servers_launch_owner);
             VerbaLinea joined = mmgr_line_over(vs_path, joined_size);
             mmgr_line_put(&joined, vs->value[at]);
             mmgr_line_ch(&joined, g_cli_system_facts.list_separator);
@@ -278,7 +281,7 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
             setting[0].value = (mmgr_line_finish(&joined) != 0ULL) ? vs_path : launching->path;
             continue;
         }
-        setting[settings] = (CliSetting){vs->name[at], vs->value[at]};
+        setting[settings] = (PlatformSetting){vs->name[at], vs->value[at]};
         settings += 1u;
     }
     CliServersSink *const server_sink = &s_server_sinks[s_server_sink_next % 64u];
@@ -294,14 +297,14 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
     CliLsp *const server =
         met ? EMBED_CALL(cli_lsp_err_msg.start, CliLspErrMsgCfg, .program = program, .request = words->word_text,
                          .count = words->count, .root = root, .options = options.cell,
-                         .length = cli_grown_size(&options), .settings = setting, .setting_count = settings,
+                         .length = platform_text_size(&options), .settings = setting, .setting_count = settings,
                          .recv = cli_servers_recv, .context = server_sink, .overseen = args->spec_read->tool,
                          .err_msg = &reason)
             : NULL;
-    g_cli_guard->persistent_buf_release(vs_path, g_cli_servers_launch_owner);
-    g_cli_guard->persistent_buf_release(setting, g_cli_servers_launch_owner);
-    cli_grown_end(&options);
-    g_cli_guard->persistent_buf_release(launching, g_cli_servers_launch_owner);
+    g_platform_guard->persistent_buf_release(vs_path, g_cli_servers_launch_owner);
+    g_platform_guard->persistent_buf_release(setting, g_cli_servers_launch_owner);
+    platform_text_ended(&options);
+    g_platform_guard->persistent_buf_release(launching, g_cli_servers_launch_owner);
     if (server == NULL)
     {
         mmgr_line_put(err_msg, args->spec_read->program);

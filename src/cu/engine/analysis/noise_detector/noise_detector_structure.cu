@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // noise_detector_structure.cu: structure
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "noise_detector_internal.h"
 
 // a 128 bit value times a factor, limited to 128 bits

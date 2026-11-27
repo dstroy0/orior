@@ -12,9 +12,9 @@ static unsigned int s_next = 1u;
 // the request and the answer given back once the answer is read, and the lock given with them
 static void cli_jobs_let_go(void)
 {
-    g_cli_guard->persistent_buf_release(s_request.group, g_cli_ipp_owner);
+    g_platform_guard->persistent_buf_release(s_request.group, g_cli_ipp_owner);
     s_request = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
-    g_cli_guard->persistent_buf_release(s_answer.group, g_cli_ipp_owner);
+    g_platform_guard->persistent_buf_release(s_answer.group, g_cli_ipp_owner);
     s_answer = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ULL, 0};
 }
 

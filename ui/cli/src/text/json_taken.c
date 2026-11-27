@@ -83,7 +83,7 @@ EMBED_INLINE int json_reserved_in(const JsonTakenCtx *args)
     const char *what = args->what;
     const unsigned long long nodes_bytes = (unsigned long long)nodes_max * sizeof(CliJsonNode);
     const unsigned long long bytes = nodes_bytes + text_max + 1ULL;
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, args->owner);
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(bytes, args->owner);
     if (cell != NULL)
     {
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json,
@@ -109,23 +109,24 @@ int cli_json_stored(const CliJsonTreeStoredCfg *args)
 {
     const CliJson *const json = args->json_read;
     const unsigned long long nodes_bytes = (unsigned long long)json->nodes * sizeof(CliJsonNode);
-    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(nodes_bytes + json->used + 1ULL, args->owner);
+    const CarcerMovableEntry *const cell =
+        g_platform_guard->movable_buf_alloc(nodes_bytes + json->used + 1ULL, args->owner);
     if (cell == NULL)
     {
         return 0;
     }
     if (json->nodes > 0u)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = json->node, .bytes = nodes_bytes});
     }
     if (json->used > 0ULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = cell, .offset = nodes_bytes, .src = json->text, .bytes = json->used});
     }
     const char zero = '\0';
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = cell, .offset = nodes_bytes + json->used, .src = &zero, .bytes = 1ULL});
     cli_json_stored_release(&(CliJsonStoredCfg){.stored = args->stored});
     *args->stored = (CliJsonStored){cell, args->owner, json->nodes, json->used};
@@ -146,10 +147,10 @@ int cli_json_pinned(const CliJsonTreeStoredCfg *args)
     const unsigned long long nodes_bytes = (unsigned long long)stored->nodes * sizeof(CliJsonNode);
     if (stored->nodes > 0u)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = stored->cell, .offset = 0ULL, .dst = args->json->node, .bytes = nodes_bytes});
     }
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = stored->cell, .offset = nodes_bytes, .dst = args->json->text, .bytes = stored->used + 1ULL});
     args->json->nodes = stored->nodes;
     args->json->used = stored->used;
@@ -160,7 +161,7 @@ void cli_json_stored_release(const CliJsonStoredCfg *args)
 {
     if (args->stored->cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(args->stored->cell, args->stored->owner);
+        (void)g_platform_guard->movable_buf_release(args->stored->cell, args->stored->owner);
     }
     args->stored->cell = NULL;
     args->stored->nodes = 0u;
@@ -195,19 +196,19 @@ EMBED_INLINE unsigned int json_alloc_in(const JsonTakenCtx *args)
     const unsigned int tokens_max =
         EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = text, .size = size) + 1u;
     CfgJsonToken *const tokens =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken), args->owner);
+        g_platform_guard->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken), args->owner);
     if ((tokens == NULL) ||
         !EMBED_CALL(json_reserved_in, JsonTakenCtx, .json = json, .nodes_max = tokens_max + args->nodes_more,
                     .text_max = size + args->text_more, .what = "a tree's nodes and texts", .owner = args->owner))
     {
-        g_cli_guard->persistent_buf_release(tokens, args->owner);
+        g_platform_guard->persistent_buf_release(tokens, args->owner);
         mmgr_line_put(err_msg, "the cells a tree is read into could not be taken");
         return CLI_JSON_NONE;
     }
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = json, .text = text,
                    .size = size, .tokens = tokens, .tokens_max = tokens_max, .err_msg = err_msg);
-    g_cli_guard->persistent_buf_release(tokens, args->owner);
+    g_platform_guard->persistent_buf_release(tokens, args->owner);
     return root;
 }
 
@@ -261,6 +262,6 @@ unsigned int cli_json_file_alloc(const CliJsonTreeErrMsgCfg *args)
         EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = args->json,
                    .text = (const char *)bytes, .size = size, .nodes_more = args->nodes_more,
                    .text_more = args->text_more, .err_msg = args->err_msg, .owner = args->owner);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_text_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_text_owner);
     return root;
 }

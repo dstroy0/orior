@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // rows.c: the rows: a number's halves, a number read, put and added, the hash, a row passed to the run with its who, a
 // record's row and a text's, the text slots grown, and a text taken
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "../../../parsers/who.h"
 #include "krep_records_internal.h"
 #include "memoria_operor/memoria_operor.h"
@@ -170,8 +170,8 @@ static int krep_place_order(const void *left, const void *right)
     return (one->hash < other->hash) ? -1 : ((one->hash > other->hash) ? 1 : 0);
 }
 
-// the number of the text of `length` bytes at `bytes` in `file`, 0 where the file has none: the run first, then the
-// order from the first place of the hash, which a binary search finds
+// the number of the text of `length` bytes at `bytes` in `file`, 0 where the file has none. The call reads the run
+// first, then the order from the first place of the hash, which a binary search finds
 unsigned int krep_text_found(const KrepFile *file, const char *bytes, unsigned long long length)
 {
     const unsigned long long hash = krep_hash(bytes, length);
@@ -206,9 +206,9 @@ unsigned int krep_text_found(const KrepFile *file, const char *bytes, unsigned l
     return 0u;
 }
 
-// the text numbered `number`, of `length` bytes at `bytes`, noted: into the run, the run sorted once and merged into
-// the order from its end first where it is full, the order's cell grown first where it has no room for the run. 1, or
-// 0 where there was no memory
+// the text numbered `number`, of `length` bytes at `bytes`, noted into the run. Where the run is full, the call sorts
+// it once and merges it into the order from its end first. It grows the order's cell first where that cell has no
+// room for the run. 1, or 0 where there was no memory
 static int krep_text_noted(KrepFile *file, unsigned int number, const char *bytes, unsigned long long length)
 {
     if (file->text_run_count == KREP_TEXT_RUN)

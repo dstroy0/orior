@@ -32,7 +32,7 @@
 // .links beside it. The states are then chain's B 32, D 33 and E 1, and with the .divide files too D is daughter two
 // and no start, 40.
 //   check_test <directory>
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include <stdio.h>

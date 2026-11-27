@@ -39,10 +39,10 @@ int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args)
     }
     if (queue->files_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(queue->files_cell, g_cli_servers_check_work_state_owner);
+        (void)g_platform_guard->movable_buf_release(queue->files_cell, g_cli_servers_check_work_state_owner);
     }
     // the starts, the waiting bytes and the texts in one cell
-    queue->files_cell = g_cli_guard->movable_buf_alloc(
+    queue->files_cell = g_platform_guard->movable_buf_alloc(
         CLI_SERVERS_FILE_AT(positions) + (unsigned long long)positions + bytes, g_cli_servers_check_work_state_owner);
     queue->files_max = bytes;
     queue->file_at_max = positions;
@@ -61,7 +61,7 @@ void cli_servers_check_queued_cleared(const CliServersQueueFilesCtx *args)
     for (unsigned int at = 0u; (queue->files_cell != NULL) && (at < queue->file_at_max); at += sizeof(s_zeros))
     {
         const unsigned int left = queue->file_at_max - at;
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = queue->files_cell,
                                 .offset = CLI_SERVERS_QUEUED_AT(queue, at),
                                 .src = s_zeros,
@@ -88,8 +88,8 @@ int cli_servers_check_queue_append(const CliServersQueueCtx *args)
     const unsigned int size = (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES});
     const unsigned int named =
         (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = args->waiting->id, .cap = CLI_NAME_MAX_LEN}) + 1u;
-    const CarcerMovableEntry *const job = g_cli_guard->movable_buf_alloc(sizeof(CliServersQueued) + size + 1u + named,
-                                                                         g_cli_servers_check_work_state_owner);
+    const CarcerMovableEntry *const job = g_platform_guard->movable_buf_alloc(
+        sizeof(CliServersQueued) + size + 1u + named, g_cli_servers_check_work_state_owner);
     if (job == NULL)
     {
         return 0;
@@ -97,11 +97,11 @@ int cli_servers_check_queue_append(const CliServersQueueCtx *args)
     const CliServersQueued head = {
         args->waiting->server,
         EMBED_CALL(embed_atomic_u64_table.load, EmbedAtomicU64LoadCfg, .word = &queue->generation), args->file, size};
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = job, .offset = 0ULL, .src = &head, .bytes = sizeof(head)});
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = job, .offset = sizeof(head), .src = args->path, .bytes = size + 1u});
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = job, .offset = sizeof(head) + size + 1u, .src = args->waiting->id, .bytes = named});
     (void)EMBED_ATOMIC_ADD_32(&ring->ticket, 1u);
     const embed_u64 stamp = EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, cli_ticket_epoch(), ticket);
@@ -115,10 +115,11 @@ int cli_servers_check_queue_append(const CliServersQueueCtx *args)
     if ((args->file != CLI_SERVERS_NO_FILE) && (args->file < queue->file_at_max))
     {
         static const unsigned char s_waiting = 1u;
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = queue->files_cell,
-                                                                 .offset = CLI_SERVERS_QUEUED_AT(queue, args->file),
-                                                                 .src = &s_waiting,
-                                                                 .bytes = 1u});
+        (void)g_platform_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = queue->files_cell,
+                                .offset = CLI_SERVERS_QUEUED_AT(queue, args->file),
+                                .src = &s_waiting,
+                                .bytes = 1u});
     }
     return 1;
 }
@@ -150,16 +151,16 @@ void cli_servers_check_files_append(const CliServersQueueFilesCtx *args)
         {
             return;
         }
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = queue->files_cell,
                                 .offset = CLI_SERVERS_FILES_TEXT_AT(queue, queue->files_used),
                                 .src = args->files[at],
                                 .bytes = size});
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = queue->files_cell,
-                                                                 .offset = CLI_SERVERS_FILE_AT(queue->file_count),
-                                                                 .src = &queue->files_used,
-                                                                 .bytes = sizeof(queue->files_used)});
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = queue->files_cell,
+                                                                      .offset = CLI_SERVERS_FILE_AT(queue->file_count),
+                                                                      .src = &queue->files_used,
+                                                                      .bytes = sizeof(queue->files_used)});
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = queue->files_cell,
                                 .offset = CLI_SERVERS_QUEUED_AT(queue, queue->file_count),
                                 .src = &s_idle,

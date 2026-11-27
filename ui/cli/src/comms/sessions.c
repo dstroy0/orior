@@ -17,7 +17,7 @@
 typedef struct
 {
     char address[CLI_PATH_MAX_LEN];
-    CliSpawned child;
+    PlatformProgram child;
     unsigned long long got;
     int answered;
     unsigned char answer[SESSIONS_HEAD + SESSIONS_ANSWER];
@@ -38,7 +38,7 @@ typedef struct
     VerbaLinea line;
     // the file server that serves this window's tree, git daemon on a port of the loopback, 0 while none is up, and
     // the tree it serves
-    CliSpawned server;
+    PlatformProgram server;
     unsigned int port;
     char served[CLI_PATH_MAX_LEN];
 } SessionsCtx;
@@ -67,18 +67,18 @@ EMBED_INLINE void relay_text_put(const SessionsOpCtx *args);
 // the record at `at` read into `session`, and `session_read` written at `at`
 EMBED_INLINE void session_read(const SessionsOpCtx *args)
 {
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_sessions.cell,
-                                                            .offset = (embed_word)args->at * sizeof(CliSession),
-                                                            .dst = args->session,
-                                                            .bytes = sizeof(CliSession)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_sessions.cell,
+                                                                 .offset = (embed_word)args->at * sizeof(CliSession),
+                                                                 .dst = args->session,
+                                                                 .bytes = sizeof(CliSession)});
 }
 
 EMBED_INLINE void session_write(const SessionsOpCtx *args)
 {
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_sessions.cell,
-                                                             .offset = (embed_word)args->at * sizeof(CliSession),
-                                                             .src = args->session_read,
-                                                             .bytes = sizeof(CliSession)});
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_sessions.cell,
+                                                                  .offset = (embed_word)args->at * sizeof(CliSession),
+                                                                  .src = args->session_read,
+                                                                  .bytes = sizeof(CliSession)});
 }
 
 // `size` written as a frame's head, little-endian, and read back from one
@@ -200,7 +200,7 @@ int cli_sessions_join_words(const CliSessionsCfg *args)
     EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = session.address, .role = CLI_OVERSEER_REMOTE,
                .event = CLI_OVERSEER_CONNECTING);
     // the words end at a NULL, as a spawn reads them; the count is the settings', and there are none
-    if (!EMBED_CALL(cli_words_err_msg_internal.spawn_piped_as, CliWordsErrMsgCtx, .priority = CLI_PRIORITY_WORK,
+    if (!EMBED_CALL(cli_words_err_msg_internal.spawn_piped_as, CliWordsErrMsgCtx, .priority = PLATFORM_PRIORITY_WORK,
                     .spawned = &session.child, .words = args->words, .count = 0u, .folder = NULL, .settings = NULL,
                     .detached = 0, .err_msg = args->err_msg))
     {
@@ -210,7 +210,7 @@ int cli_sessions_join_words(const CliSessionsCfg *args)
     // the link counts as connected at the first whole answer through it
     EMBED_CALL(cli_overseer.report, CliOverseerCfg, .name = session.address, .event = CLI_OVERSEER_SPAWNED,
                .pid = session.child.id);
-    const CarcerMovableEntry *const grown = g_cli_guard->movable_buf_alloc(
+    const CarcerMovableEntry *const grown = g_platform_guard->movable_buf_alloc(
         (unsigned long long)(s_sessions.count + 1u) * sizeof(CliSession), g_cli_comms_owner);
     if (grown == NULL)
     {
@@ -227,12 +227,12 @@ int cli_sessions_join_words(const CliSessionsCfg *args)
         for (unsigned int at = 0u; at < s_sessions.count; at += 1u)
         {
             EMBED_CALL(session_read, SessionsOpCtx, .at = at, .session = &kept);
-            (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = grown,
-                                                                     .offset = (embed_word)at * sizeof(CliSession),
-                                                                     .src = &kept,
-                                                                     .bytes = sizeof(CliSession)});
+            (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){.cell = grown,
+                                                                          .offset = (embed_word)at * sizeof(CliSession),
+                                                                          .src = &kept,
+                                                                          .bytes = sizeof(CliSession)});
         }
-        (void)g_cli_guard->movable_buf_release(s_sessions.cell, g_cli_comms_owner);
+        (void)g_platform_guard->movable_buf_release(s_sessions.cell, g_cli_comms_owner);
     }
     s_sessions.cell = grown;
     EMBED_CALL(session_write, SessionsOpCtx, .at = s_sessions.count, .session_read = &session);
@@ -361,7 +361,7 @@ int cli_sessions_leave(const CliSessionsCfg *args)
     s_sessions.count -= 1u;
     if (s_sessions.count == 0u)
     {
-        (void)g_cli_guard->movable_buf_release(s_sessions.cell, g_cli_comms_owner);
+        (void)g_platform_guard->movable_buf_release(s_sessions.cell, g_cli_comms_owner);
         s_sessions.cell = NULL;
     }
     EMBED_CALL(sessions_answer_begin, SessionsOpCtx, .done = 1);
@@ -581,7 +581,7 @@ void cli_sessions_close(void)
     }
     if (s_sessions.cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_sessions.cell, g_cli_comms_owner);
+        (void)g_platform_guard->movable_buf_release(s_sessions.cell, g_cli_comms_owner);
     }
     s_sessions.cell = NULL;
     s_sessions.count = 0u;

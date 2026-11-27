@@ -6,7 +6,7 @@
 // machine file after those two, the folder is one an earlier run left its cubins in and only the loop query is put:
 // exit 0 where a form came back on every count, 1 where none did, 2 where the machine file was not read. Given
 // `queries` and a machine file, the questions are compiled and only the queries are put (sass_queries_main)
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../engine/engine_note.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "interface_sass_probe_main/probe_main_internal.h"

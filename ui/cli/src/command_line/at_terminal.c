@@ -16,7 +16,7 @@
 // grown to them up to the max their bytes are, the last path put, and how many are put
 typedef struct
 {
-    CliGrownLine line;
+    PlatformText line;
     char last[CLI_PATH_MAX_LEN];
     unsigned int count;
 } CliTerminalFiles;
@@ -71,7 +71,7 @@ EMBED_INLINE int at_terminal_home(const AtTerminalCtx *args)
 EMBED_INLINE void at_terminal_branches(const AtTerminalCtx *args)
 {
     const char *root = args->root;
-    CliBranches *const found = g_cli_guard->temporary_buf_alloc(sizeof(*found), g_cli_git_owner);
+    CliBranches *const found = g_platform_guard->temporary_buf_alloc(sizeof(*found), g_cli_git_owner);
     if (found == NULL)
     {
         return;
@@ -94,14 +94,14 @@ EMBED_INLINE void at_terminal_branches(const AtTerminalCtx *args)
         }
     }
     EMBED_CALL(cli_git_text.text_release, CliGitTextCfg, .text = &found->text);
-    g_cli_guard->persistent_buf_release(found, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(found, g_cli_git_owner);
 }
 
 // every stash with its line, a line each
 EMBED_INLINE void at_terminal_stashes(const AtTerminalCtx *args)
 {
     const char *root = args->root;
-    CliStashes *const found = g_cli_guard->temporary_buf_alloc(sizeof(*found), g_cli_git_owner);
+    CliStashes *const found = g_platform_guard->temporary_buf_alloc(sizeof(*found), g_cli_git_owner);
     if (found == NULL)
     {
         return;
@@ -118,7 +118,7 @@ EMBED_INLINE void at_terminal_stashes(const AtTerminalCtx *args)
                                             .at = found->item[at].subject));
     }
     EMBED_CALL(cli_git_text.text_release, CliGitTextCfg, .text = &found->text);
-    g_cli_guard->persistent_buf_release(found, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(found, g_cli_git_owner);
 }
 
 // the commits of the other branches the branch open does not contain, each by its short id with its subject, a line
@@ -126,7 +126,7 @@ EMBED_INLINE void at_terminal_stashes(const AtTerminalCtx *args)
 EMBED_INLINE void at_terminal_elsewhere(const AtTerminalCtx *args)
 {
     const char *root = args->root;
-    CliCommits *const found = g_cli_guard->temporary_buf_alloc(sizeof(*found), g_cli_git_owner);
+    CliCommits *const found = g_platform_guard->temporary_buf_alloc(sizeof(*found), g_cli_git_owner);
     if (found == NULL)
     {
         return;
@@ -144,7 +144,7 @@ EMBED_INLINE void at_terminal_elsewhere(const AtTerminalCtx *args)
                                             .at = found->item[at].subject));
     }
     EMBED_CALL(cli_git_text.text_release, CliGitTextCfg, .text = &found->text);
-    g_cli_guard->persistent_buf_release(found, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(found, g_cli_git_owner);
 }
 
 // a branch deleted, with --force where it is given, a branch whose commits no other branch contains refused with how to
@@ -193,7 +193,8 @@ static void at_terminal_test_file(const CliTestEachCfg *args)
     const embed_word size = cellul.len(&(CatenaFinitaCfg){.src = args->test->file, .cap = CLI_POOL_BYTES}) + 1u;
     if (((found->count > 0u) &&
          (cellul.eq(&(CatenaFinitaCfg){.src = found->last, .other = args->test->file, .cap = CLI_POOL_BYTES}))) ||
-        (found->count == CLI_AT_TERMINAL_FILES) || (cli_grown_size(&found->line) + size > CLI_AT_TERMINAL_FILES_TEXT))
+        (found->count == CLI_AT_TERMINAL_FILES) ||
+        (platform_text_size(&found->line) + size > CLI_AT_TERMINAL_FILES_TEXT))
     {
         return;
     }
@@ -217,7 +218,7 @@ EMBED_INLINE int at_terminal_files_run(const AtTerminalCtx *args)
     const char *const joined = args->found->line.cell;
     const char **const files =
         mmgr_line_ok(&args->found->line.line)
-            ? g_cli_guard->temporary_buf_alloc((args->found->count + 1ULL) * sizeof(const char *), g_cli_git_owner)
+            ? g_platform_guard->temporary_buf_alloc((args->found->count + 1ULL) * sizeof(const char *), g_cli_git_owner)
             : NULL;
     if (files == NULL)
     {
@@ -232,7 +233,7 @@ EMBED_INLINE int at_terminal_files_run(const AtTerminalCtx *args)
     }
     const int good = EMBED_CALL(cli_at_terminal_root.tests, CliAtTerminalRootCfg, .root = root, .supplied = files,
                                 .count = args->found->count, .cover = cover, .out = out, .err_msg = err_msg);
-    g_cli_guard->persistent_buf_release(files, g_cli_git_owner);
+    g_platform_guard->persistent_buf_release(files, g_cli_git_owner);
     return good;
 }
 
@@ -339,14 +340,15 @@ int cli_at_terminal_run(const CliAtTerminalCommandCfg *args)
         (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "cover-tests", .cap = CLI_POOL_BYTES})))
     {
         static CliTerminalFiles s_found;
-        cli_grown_begin(&s_found.line, CLI_AT_TERMINAL_FILES_TEXT + 1ULL, g_cli_git_owner);
+        platform_text_begun(&s_found.line, CLI_AT_TERMINAL_FILES_TEXT + 1ULL, platform_place_g_cli_git_owner,
+                            PLATFORM_TIER_TEMPORARY);
         s_found.last[0] = '\0';
         s_found.count = 0u;
         EMBED_CALL(cli_testing_root.tests_find, CliTestingRootCfg, .root = root, .each = at_terminal_test_file,
                    .context = &s_found);
         const int good = EMBED_CALL(at_terminal_files_run, AtTerminalCtx, .root = root, .found = &s_found,
                                     .cover = cover, .out = out, .err_msg = err_msg);
-        cli_grown_end(&s_found.line);
+        platform_text_ended(&s_found.line);
         return good;
     }
     if ((cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "test-run", .cap = CLI_POOL_BYTES})) ||

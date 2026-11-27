@@ -7,7 +7,7 @@
 // or the BAR0 driver is not reached, the launches are timed on the driver's event timer as before, and the answer
 // reports which clock timed them
 #include "../../../../../../includes/file_defs/ksc/ksc.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "cubin_run_internal.h"
 

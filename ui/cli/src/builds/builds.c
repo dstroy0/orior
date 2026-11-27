@@ -88,9 +88,9 @@ void cli_build_check(const CliBuildsPathCfg *args)
     }
     }
     EMBED_CALL(cli_builds_table.build_findings_write, CliBuildsCfg, .found_read = &s_found, .out = args->out);
-    g_cli_guard->persistent_buf_release(s_found.finding, g_cli_build_owner);
+    g_platform_guard->persistent_buf_release(s_found.finding, g_cli_build_owner);
     s_found = (CliBuildFindings){NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, 0};
-    g_cli_guard->persistent_buf_release(starts, g_cli_build_owner);
+    g_platform_guard->persistent_buf_release(starts, g_cli_build_owner);
 }
 
 void cli_build_complete(const CliBuildsPathCfg *args)

@@ -175,14 +175,14 @@ static int cli_step(const RunnerRunCtx *args)
                     .name = "PATH"))
     {
         // the PATH every step runs with, in a cell of the temporary tier for the call; the command keeps its own copy
-        char *const path = g_cli_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_runs_owner);
+        char *const path = g_platform_guard->temporary_buf_alloc(CLI_PATH_TEXT, g_cli_runs_owner);
         if (path != NULL)
         {
             EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = path,
                        .size = CLI_PATH_TEXT);
-            EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = command,
-                       .name = "PATH", .value = path);
-            g_cli_guard->persistent_buf_release(path, g_cli_runs_owner);
+            EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = command, .name = "PATH",
+                       .value = path);
+            g_platform_guard->persistent_buf_release(path, g_cli_runs_owner);
         }
     }
     char number[24];
@@ -200,7 +200,7 @@ static int cli_step(const RunnerRunCtx *args)
     {
         return 0;
     }
-    CliSpawned spawned;
+    PlatformProgram spawned;
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const int started = EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &spawned,
@@ -359,7 +359,7 @@ EMBED_INLINE void cli_run_end(const RunnerRunCtx *args)
     EMBED_CALL(run->sink.emit, CliEachEventCfg, .context = run->sink.context, .event = &end);
     if (run->job_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(run->job_cell, g_cli_runs_owner);
+        (void)g_platform_guard->movable_buf_release(run->job_cell, g_cli_runs_owner);
     }
     run->job_cell = NULL;
     run->lines = NULL;
@@ -503,14 +503,14 @@ void cli_run_steps(void *context)
         (void)cellul.copy(&(CatenaFinitaCfg){.dst = opens, .src = pinned.catalog.job[0].opens, .cap = sizeof(opens)});
         EMBED_CALL(cli_runner_run_internal.run_unpinned, CliRunnerRunCtx, .pinned = &pinned);
     }
-    // the command a step runs and the line it is displayed as, a cell of the run's allocated while it runs; and the pages
-    // it wrote, a cell taken as it ends
+    // the command a step runs and the line it is displayed as, a cell of the run's allocated while it runs; and the
+    // pages it wrote, a cell taken as it ends
     typedef struct
     {
         CliCommand command;
         char displayed[CLI_COMMAND_TEXT];
     } CliRunCommand;
-    CliRunCommand *const run_command = g_cli_guard->temporary_buf_alloc(sizeof(CliRunCommand), g_cli_runs_owner);
+    CliRunCommand *const run_command = g_platform_guard->temporary_buf_alloc(sizeof(CliRunCommand), g_cli_runs_owner);
     if (run_command == NULL)
     {
         EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = run, .text = "a run's command could not be taken");
@@ -564,9 +564,10 @@ void cli_run_steps(void *context)
         }
         at += 1u;
     }
-    g_cli_guard->persistent_buf_release(run_command, g_cli_runs_owner);
+    g_platform_guard->persistent_buf_release(run_command, g_cli_runs_owner);
     char (*const pages_found)[CLI_PATH_MAX_LEN] =
-        views ? g_cli_guard->temporary_buf_alloc((unsigned long long)CLI_VIEWS_MAX * CLI_PATH_MAX_LEN, g_cli_runs_owner)
+        views ? g_platform_guard->temporary_buf_alloc((unsigned long long)CLI_VIEWS_MAX * CLI_PATH_MAX_LEN,
+                                                      g_cli_runs_owner)
               : NULL;
     const unsigned int pages = (pages_found != NULL)
                                    ? EMBED_CALL(cli_runner_root_internal.run_pages, CliRunnerRootCtx, .root = run->root,
@@ -594,5 +595,5 @@ void cli_run_steps(void *context)
     EMBED_CALL(cli_run_end, RunnerRunCtx, .run = run, .has_code_value = has_code, .code_value = code,
                .pages_found = (const char (*)[CLI_PATH_MAX_LEN])pages_found, .pages = pages,
                .created_text = has_created ? created_text : NULL);
-    g_cli_guard->persistent_buf_release(pages_found, g_cli_runs_owner);
+    g_platform_guard->persistent_buf_release(pages_found, g_cli_runs_owner);
 }

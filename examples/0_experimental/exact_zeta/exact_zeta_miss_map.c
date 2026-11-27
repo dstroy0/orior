@@ -58,7 +58,7 @@
  *       repr, its compensated sum, its hypot and its round to even.
  */
 #include "zeta_machine.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "zeta_shuffle.h"
 
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"

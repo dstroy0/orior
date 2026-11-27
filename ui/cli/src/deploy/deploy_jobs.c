@@ -66,7 +66,7 @@ void cli_deploy_jobs(const CliCatalogRootCfg *args)
         VerbaLinea id = {s_id, sizeof(s_id), 0ULL};
         // the folder it sends from and each place, and the words around them
         const unsigned long long capacity = ((unsigned long long)deployment->tos + 2ULL) * CLI_PATH_MAX_LEN;
-        char *const about_text = g_cli_guard->temporary_buf_alloc(capacity, g_cli_deploy_owner);
+        char *const about_text = g_platform_guard->temporary_buf_alloc(capacity, g_cli_deploy_owner);
         VerbaLinea about = mmgr_line_over(about_text, capacity);
         mmgr_line_put(&id, "deploy/");
         mmgr_line_put(&id, deployment->name);
@@ -84,7 +84,7 @@ void cli_deploy_jobs(const CliCatalogRootCfg *args)
             (EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = args->catalog, .id = s_id,
                         .group = "deploy", .title = deployment->name, .file = "deploy.json", .about = about_text,
                         .opens = "") != CLI_CATALOG_NONE);
-        g_cli_guard->persistent_buf_release(about_text, g_cli_deploy_owner);
+        g_platform_guard->persistent_buf_release(about_text, g_cli_deploy_owner);
         if (!list_entries)
         {
             continue;
@@ -108,8 +108,8 @@ void cli_deploy_jobs(const CliCatalogRootCfg *args)
         EMBED_CALL(cli_catalog_type.arg, CliCatalogTypeCfg, .catalog = args->catalog, .type_u32 = CLI_ARG_VALUE,
                    .a = "gone there", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     }
-    g_cli_guard->persistent_buf_release(s_tree.json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), s_tree.json.node));
+    g_platform_guard->persistent_buf_release(s_tree.json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), s_tree.json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_tree.json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     s_tree.pool.used = 0ULL;

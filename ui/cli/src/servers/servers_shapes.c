@@ -17,8 +17,8 @@ void cli_servers_read_state_lock(const CliServersReadStateAnswerCtx *args)
 
 unsigned int cli_servers_read(const CliServersReadStateCtx *args)
 {
-    g_cli_guard->persistent_buf_release(args->read_state->json.node,
-                                        mmgr_owner_of_buf(cli_pool_series_cellularum(), args->read_state->json.node));
+    g_platform_guard->persistent_buf_release(args->read_state->json.node,
+                                             mmgr_owner_of_buf(platform_pool_series(), args->read_state->json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&args->read_state->json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char quiet[256];
@@ -33,7 +33,7 @@ unsigned int cli_servers_answer_read(const CliServersReadStateAnswerCtx *args)
     const unsigned int root =
         EMBED_CALL(cli_servers_read_state_internal.read, CliServersReadStateCtx, .read_state = args->read_state,
                    .text = args->answer->text, .size = args->answer->size);
-    g_cli_guard->persistent_buf_release(args->answer->message, g_cli_servers_owner);
+    g_platform_guard->persistent_buf_release(args->answer->message, g_cli_servers_owner);
     args->answer->message = NULL;
     return root;
 }

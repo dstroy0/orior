@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ipc_serve.h: the interface's container side: each joined process's place, its end, its key, what it listens on, and the
-// queue of what it receives (ipc_serve.c, ipc_requests.c)
+// ipc_serve.h: the interface's container side: each joined process's place, its end, its key, what it listens on, and
+// the queue of what it receives (ipc_serve.c, ipc_requests.c)
 #ifndef INTERFACE_SERVE_H
 #define INTERFACE_SERVE_H
 #include "comms.h"
-#include "interface_internal.h"
 #include "embed_dispatch_layout.h"
 #include "embed_ticket_ring.h"
+#include "interface_internal.h"
 
 typedef struct CliIpcServeCfg CliIpcServeCfg;
 typedef struct CliIpcServeChannelCfg CliIpcServeChannelCfg;
@@ -20,7 +20,8 @@ typedef struct CliIpcServeErrorCfg CliIpcServeErrorCfg;
 #define CLI_IPC_ENTRIES (1u << CLI_IPC_ENTRIES_SHIFT)
 #define CLI_IPC_LISTENS 32u
 // the bytes the joined processes' rings' slots take, the joined part of the rings block
-#define CLI_INTERFACE_JOINED_RING_BYTES ((unsigned long long)CLI_IPC_JOINED * CLI_IPC_ENTRIES * sizeof(EmbedTicketRingSlot))
+#define CLI_INTERFACE_JOINED_RING_BYTES                                                                                \
+    ((unsigned long long)CLI_IPC_JOINED * CLI_IPC_ENTRIES * sizeof(EmbedTicketRingSlot))
 #define CLI_IPC_SERVE_ANSWER (CLI_ERR_MSG_MAX_LEN + CLI_NAME_MAX_LEN + 8u)
 
 // A joined process's place, a cell of the cellblock from its join to the end of its last thread: where it is among

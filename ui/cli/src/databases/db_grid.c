@@ -140,7 +140,7 @@ EMBED_INLINE unsigned long long head_text_read(const GridCtx *args)
     const unsigned long long copied = (args->size < args->capacity) ? args->size : args->capacity - 1ULL;
     if ((copied != 0ULL) && (s_grid.head_cell != NULL))
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_grid.head_cell, .offset = s_grid.text_at + args->from, .dst = args->dst, .bytes = copied});
     }
     args->dst[copied] = '\0';
@@ -151,16 +151,16 @@ EMBED_INLINE unsigned long long head_text_read(const GridCtx *args)
 // null into `null_out`
 EMBED_INLINE void cell_numbers_read(const GridCtx *args)
 {
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grid.stretch_cell,
-                                                            .offset = args->count * sizeof(unsigned long long),
-                                                            .dst = args->start_out,
-                                                            .bytes = sizeof(unsigned long long)});
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grid.stretch_cell,
+                                                                 .offset = args->count * sizeof(unsigned long long),
+                                                                 .dst = args->start_out,
+                                                                 .bytes = sizeof(unsigned long long)});
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = s_grid.stretch_cell,
                             .offset = s_grid.length_at + (args->count * sizeof(unsigned long long)),
                             .dst = args->length_pointer,
                             .bytes = sizeof(unsigned long long)});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_grid.stretch_cell, .offset = s_grid.null_at + args->count, .dst = args->null_out, .bytes = 1ULL});
 }
 
@@ -171,10 +171,10 @@ EMBED_INLINE unsigned long long cell_text_read(const GridCtx *args)
     const unsigned long long copied = (args->size < args->capacity) ? args->size : args->capacity - 1ULL;
     if (copied != 0ULL)
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grid.stretch_cell,
-                                                                .offset = s_grid.cell_text_at + args->from,
-                                                                .dst = args->dst,
-                                                                .bytes = copied});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grid.stretch_cell,
+                                                                     .offset = s_grid.cell_text_at + args->from,
+                                                                     .dst = args->dst,
+                                                                     .bytes = copied});
     }
     args->dst[copied] = '\0';
     return copied;
@@ -186,7 +186,7 @@ EMBED_INLINE void stretch_released(const GridCtx *args)
     (void)args;
     if (s_grid.stretch_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_grid.stretch_cell, g_cli_db_pane_owner);
+        (void)g_platform_guard->movable_buf_release(s_grid.stretch_cell, g_cli_db_pane_owner);
     }
     s_grid.stretch_cell = NULL;
     s_grid.stored = 0ULL;
@@ -218,7 +218,7 @@ EMBED_INLINE int stretch_positioned(const GridCtx *args)
     const unsigned long long numbers = cells * 2ULL * sizeof(unsigned long long);
     const unsigned long long flags = (cells + 7ULL) & ~7ULL;
     const unsigned long long bytes = numbers + flags + text_bytes + 1ULL;
-    unsigned char *const stretch = g_cli_guard->temporary_buf_alloc(bytes, g_cli_db_pane_owner);
+    unsigned char *const stretch = g_platform_guard->temporary_buf_alloc(bytes, g_cli_db_pane_owner);
     if (stretch == NULL)
     {
         return 0;
@@ -251,10 +251,10 @@ EMBED_INLINE int stretch_positioned(const GridCtx *args)
             used += cell_length[at] + 1ULL;
         }
     }
-    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(bytes, g_cli_db_pane_owner);
+    const CarcerMovableEntry *const cell = g_platform_guard->movable_buf_alloc(bytes, g_cli_db_pane_owner);
     if (cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(
+        (void)g_platform_guard->movable_buf_write(
             &(CarcerMovableCfg){.cell = cell, .offset = 0ULL, .src = stretch, .bytes = bytes});
         EMBED_CALL(stretch_released, GridCtx, .rows = 0u);
         s_grid.stretch_cell = cell;
@@ -264,7 +264,7 @@ EMBED_INLINE int stretch_positioned(const GridCtx *args)
         s_grid.first = args->from;
         s_grid.stored = args->rows;
     }
-    g_cli_guard->persistent_buf_release(stretch, g_cli_db_pane_owner);
+    g_platform_guard->persistent_buf_release(stretch, g_cli_db_pane_owner);
     return cell != NULL;
 }
 
@@ -324,7 +324,7 @@ EMBED_INLINE int head_taken(const GridCtx *args)
     const unsigned long long columns = (args->count * sizeof(GridColumn) + 7ULL) & ~7ULL;
     const unsigned long long lines = (unsigned long long)args->rows * sizeof(GridLine);
     const unsigned long long bytes = columns + lines + args->size + 1ULL;
-    unsigned char *const head = g_cli_guard->temporary_buf_alloc(bytes, g_cli_db_pane_owner);
+    unsigned char *const head = g_platform_guard->temporary_buf_alloc(bytes, g_cli_db_pane_owner);
     if (head == NULL)
     {
         return 0;
@@ -347,18 +347,18 @@ EMBED_INLINE int head_taken(const GridCtx *args)
 EMBED_INLINE int head_stored(const GridCtx *args)
 {
     (void)args;
-    const CarcerMovableEntry *const cell = g_cli_guard->movable_buf_alloc(s_grid.head_bytes, g_cli_db_pane_owner);
+    const CarcerMovableEntry *const cell = g_platform_guard->movable_buf_alloc(s_grid.head_bytes, g_cli_db_pane_owner);
     if (cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
             .cell = cell, .offset = 0ULL, .src = s_grid.head_positioned, .bytes = s_grid.head_bytes});
     }
     if (s_grid.head_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_grid.head_cell, g_cli_db_pane_owner);
+        (void)g_platform_guard->movable_buf_release(s_grid.head_cell, g_cli_db_pane_owner);
     }
     s_grid.head_cell = cell;
-    g_cli_guard->persistent_buf_release(s_grid.head_positioned, g_cli_db_pane_owner);
+    g_platform_guard->persistent_buf_release(s_grid.head_positioned, g_cli_db_pane_owner);
     s_grid.head_positioned = NULL;
     s_grid.head_bytes = 0ULL;
     s_grid.column = NULL;
@@ -387,9 +387,9 @@ void cli_db_grid_clear(const CliDbGridCfg *args)
     EMBED_CALL(stretch_released, GridCtx, .rows = 0u);
     if (s_grid.head_cell != NULL)
     {
-        (void)g_cli_guard->movable_buf_release(s_grid.head_cell, g_cli_db_pane_owner);
+        (void)g_platform_guard->movable_buf_release(s_grid.head_cell, g_cli_db_pane_owner);
     }
-    g_cli_guard->persistent_buf_release(s_grid.head_positioned, g_cli_db_pane_owner);
+    g_platform_guard->persistent_buf_release(s_grid.head_positioned, g_cli_db_pane_owner);
     memor.set(&(MemoriaCfg){.dst = &s_grid, .val = 0, .bytes = sizeof(s_grid)});
     if (args->title == NULL)
     {
@@ -638,7 +638,7 @@ int cli_db_grid_adopt(const CliDbGridCfg *args)
             s_grid.ms = (s_grid.ms * 10ULL) + (unsigned long long)(json.text[json.node[ms].text + at] - '0');
         }
     }
-    g_cli_guard->persistent_buf_release(json.node, g_cli_db_pane_owner);
+    g_platform_guard->persistent_buf_release(json.node, g_cli_db_pane_owner);
     if (adopted)
     {
         EMBED_CALL(widths_positioned, GridCtx, .rows = 0u);
@@ -683,14 +683,14 @@ int cli_db_grid_column(const CliDbGridCfg *args)
     }
     GridColumn positioned;
     GridColumn panned;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grid.head_cell,
-                                                            .offset = GRID_COLUMN_AT(args->column_at),
-                                                            .dst = &positioned,
-                                                            .bytes = sizeof(GridColumn)});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grid.head_cell,
-                                                            .offset = GRID_COLUMN_AT(s_grid.offset),
-                                                            .dst = &panned,
-                                                            .bytes = sizeof(GridColumn)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grid.head_cell,
+                                                                 .offset = GRID_COLUMN_AT(args->column_at),
+                                                                 .dst = &positioned,
+                                                                 .bytes = sizeof(GridColumn)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grid.head_cell,
+                                                                 .offset = GRID_COLUMN_AT(s_grid.offset),
+                                                                 .dst = &panned,
+                                                                 .bytes = sizeof(GridColumn)});
     CliDbGridColumn *const column = args->column;
     *column = (CliDbGridColumn){0};
     column->label_length =
@@ -737,7 +737,7 @@ int cli_db_grid_row(const CliDbGridCfg *args)
             return 0;
         }
         GridLine line;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
             .cell = s_grid.head_cell, .offset = GRID_LINE_AT(args->at), .dst = &line, .bytes = sizeof(line)});
         *row = (CliDbGridRow){0};
         row->type = s_grid.failed ? CLI_DB_GRID_ROW_FAILURE : CLI_DB_GRID_ROW_NOTICE;
@@ -784,10 +784,10 @@ int cli_db_grid_cell(const CliDbGridCfg *args)
     EMBED_CALL(cell_numbers_read, GridCtx, .count = at, .start_out = &start, .length_pointer = &length,
                .null_out = &null);
     GridColumn column;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grid.head_cell,
-                                                            .offset = GRID_COLUMN_AT(args->column_at),
-                                                            .dst = &column,
-                                                            .bytes = sizeof(GridColumn)});
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_grid.head_cell,
+                                                                 .offset = GRID_COLUMN_AT(args->column_at),
+                                                                 .dst = &column,
+                                                                 .bytes = sizeof(GridColumn)});
     CliDbGridCell *const cell = args->cell;
     *cell = (CliDbGridCell){0};
     cell->null = null != 0u;
@@ -882,7 +882,7 @@ int cli_db_grid_read_ahead(const CliDbGridStepCfg *args)
     {
         return 0;
     }
-    char *const answer = g_cli_guard->temporary_buf_alloc(GRID_ANSWER, g_cli_db_pane_owner);
+    char *const answer = g_platform_guard->temporary_buf_alloc(GRID_ANSWER, g_cli_db_pane_owner);
     if (answer == NULL)
     {
         return 0;
@@ -933,9 +933,9 @@ int cli_db_grid_read_ahead(const CliDbGridStepCfg *args)
             EMBED_CALL(sentence_positioned, GridCtx, .rows = 0u);
             changed = 1;
         }
-        g_cli_guard->persistent_buf_release(json.node, g_cli_db_pane_owner);
+        g_platform_guard->persistent_buf_release(json.node, g_cli_db_pane_owner);
     }
-    g_cli_guard->persistent_buf_release(answer, g_cli_db_pane_owner);
+    g_platform_guard->persistent_buf_release(answer, g_cli_db_pane_owner);
     // a read that leaves the view uncovered, refused or short of it, is not tried again until the view moves
     s_grid.refused = !EMBED_CALL(view_covered, GridCtx, .rows = 0u);
     return changed;

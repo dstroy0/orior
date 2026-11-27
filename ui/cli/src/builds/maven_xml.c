@@ -58,7 +58,7 @@ EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
     const unsigned long long comment_bytes = (unsigned long long)comments * sizeof(unsigned long long);
     const unsigned long long error_bytes = (unsigned long long)errors * sizeof(CliXmlError);
     const unsigned long long open_bytes = (unsigned long long)elements * sizeof(unsigned int);
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(
         element_bytes + (2ULL * comment_bytes) + error_bytes + open_bytes + 1ULL, g_cli_xml_owner);
     *xml = (CliXml){args->text, args->size, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
     if (cell == NULL)

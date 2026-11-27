@@ -7,7 +7,7 @@
 // A probe for the interface test: one question a process, named by its first word, posed to the host part and its
 // system. Built with no optimization: each question reaches the part as written. The operands are volatile: no compiler
 // folds a division it can see is undefined, and the part itself answers
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include <limits.h>

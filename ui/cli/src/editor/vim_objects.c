@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// vim_objects.c: Vim's text objects, the span each takes about a place: a word or a word of every character but a blank on
-// the line, a quoted text on the line, or a bracketed text across the lines, inside its marks for i and with them for
-// a, a word's or a quote's a taking the blanks after it or, where none follow, those before it
+// vim_objects.c: Vim's text objects, the span each takes about a place: a word or a word of every character but a blank
+// on the line, a quoted text on the line, or a bracketed text across the lines, inside its marks for i and with them
+// for a, a word's or a quote's a taking the blanks after it or, where none follow, those before it
 #include "vim_internal.h"
 
 #include "../text/text.h"

@@ -3,7 +3,7 @@
 // words.c: the words: a form's parameters named, a word's answers and the word written, a text named, and the folder of
 // a path
 #include "../../../../src/cu/engine/rmc/precept_value.h"
-#include "../../../../src/platform/platform.h"
+#include "../../../platform/platform.h"
 #include "../../../parsers/line_read.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "krs_write_internal.h"

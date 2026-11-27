@@ -35,7 +35,8 @@ EMBED_INLINE CfgJsonToken *cli_net_tokens(const NetCtx *args)
     unsigned long long size = args->size;
     unsigned int *count = args->count;
     *count = EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = text, .size = size) + 1u;
-    return g_cli_guard->temporary_buf_alloc((unsigned long long)*count * sizeof(CfgJsonToken), g_cli_machine_owner);
+    return g_platform_guard->temporary_buf_alloc((unsigned long long)*count * sizeof(CfgJsonToken),
+                                                 g_cli_machine_owner);
 }
 
 void cli_net_disable(const CliNetCfg *args)
@@ -65,11 +66,11 @@ static int cli_settings_off(void)
         return 0;
     }
     // a text made plain is never longer than the text, as it only leaves comments and commas out
-    char *const plain_text = g_cli_guard->temporary_buf_alloc(size + 1ULL, g_cli_machine_owner);
+    char *const plain_text = g_platform_guard->temporary_buf_alloc(size + 1ULL, g_cli_machine_owner);
     VerbaLinea plain = mmgr_line_over(plain_text, size + 1ULL);
     EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = (const char *)bytes, .size = size,
                .plain = &plain);
-    g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_machine_owner);
     unsigned int count = 0u;
     CfgJsonToken *const tokens =
         (plain_text != NULL) ? EMBED_CALL(cli_net_tokens, NetCtx, .text = plain_text, .size = plain.at, .count = &count)
@@ -82,8 +83,8 @@ static int cli_settings_off(void)
                                      : 0u;
     const int off = (network != 0u) && cfg_json_string(plain_text, &tokens[network], value, sizeof(value)) &&
                     (cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "off", .cap = CLI_POOL_BYTES}));
-    g_cli_guard->persistent_buf_release(tokens, g_cli_machine_owner);
-    g_cli_guard->persistent_buf_release(plain_text, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release(tokens, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release(plain_text, g_cli_machine_owner);
     return off;
 }
 
@@ -206,7 +207,7 @@ EMBED_INLINE void net_log(const NetCtx *args)
     unsigned long long log_size = 0ULL;
     (void)EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &log_size);
     const unsigned long long line_capacity = log_size + CLI_NET_LINE_MORE;
-    char *const line_cell = g_cli_guard->temporary_buf_alloc(line_capacity, g_cli_machine_owner);
+    char *const line_cell = g_platform_guard->temporary_buf_alloc(line_capacity, g_cli_machine_owner);
     VerbaLinea line = mmgr_line_over(line_cell, line_capacity);
     if (line.out == NULL)
     {
@@ -225,7 +226,7 @@ EMBED_INLINE void net_log(const NetCtx *args)
     mmgr_line_put(&line, "}\n");
     if (!mmgr_line_ok(&line))
     {
-        g_cli_guard->persistent_buf_release(line.out, g_cli_machine_owner);
+        g_platform_guard->persistent_buf_release(line.out, g_cli_machine_owner);
         return;
     }
     // the lines counted from the end, the file cut from the CLI_NET_LOG_MAX_LINES-th last where it contains more than
@@ -244,7 +245,7 @@ EMBED_INLINE void net_log(const NetCtx *args)
     EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
                .bytes = line.out + ((lines > (2u * CLI_NET_LOG_MAX_LINES)) ? from : 0ULL),
                .size = line.at - ((lines > (2u * CLI_NET_LOG_MAX_LINES)) ? from : 0ULL));
-    g_cli_guard->persistent_buf_release(line.out, g_cli_machine_owner);
+    g_platform_guard->persistent_buf_release(line.out, g_cli_machine_owner);
 }
 
 int cli_net_reach(const CliNetAddressCfg *args)

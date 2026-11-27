@@ -87,7 +87,7 @@ static void revert_applied(const CliChangeRevertCfg *each)
 {
     char text[1024];
     TEST_ASSERT_TRUE(each->length < sizeof(text));
-    (void)g_cli_guard->movable_buf_read(
+    (void)g_platform_guard->movable_buf_read(
         &(CarcerMovableCfg){.cell = each->cell, .offset = 0ULL, .dst = text, .bytes = each->length + 1ULL});
     const CliEdit edit = {each->from, each->to, text, each->length};
     TEST_ASSERT_TRUE(EMBED_CALL(cli_view_edits.apply, CliViewEditsCfg, .key = s_key, .edit = &edit, .count = 1u,

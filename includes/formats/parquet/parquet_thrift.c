@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // parquet_thrift.c: the Thrift compact protocol the footer and every page header are written in, and growing bytes
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "parquet_internal.h"
 

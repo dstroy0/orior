@@ -4,7 +4,7 @@
 #define STACK_H
 
 #include "../../../src/cu/engine/engine_config.h"
-#include "../../../src/platform/platform.h"
+#include "../../platform/platform.h"
 
 #include <stdio.h>
 

@@ -4,7 +4,7 @@
 // tools; this is the other direction, putting instructions of the interface's own into a cubin the part will load and
 // run, with a cubin the toolchain built located as the pattern for everything an ELF carries that no instruction
 // states
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../cubin_write.h"
 #include "../sass_assemble.h"
 #include "interface_sass_probe.h"

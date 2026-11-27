@@ -20,7 +20,7 @@
  * @note The host sets the positions that lose against floor(n phi) and floor(n phi^2), from the exact integer square
  * root of 5 n^2. Each irrational value that it prints is an interval of exact integers.
  */
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "../game_record.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"

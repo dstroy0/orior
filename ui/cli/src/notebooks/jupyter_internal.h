@@ -83,10 +83,10 @@ struct CliKernel
     unsigned int refs;
     CliKernelSpec spec;
     CliWords words;
-    CliSetting settings[CLI_KERNEL_SETTINGS + 2u];
+    PlatformSetting settings[CLI_KERNEL_SETTINGS + 2u];
     char path[CLI_PATH_TEXT];
     char event_number[24];
-    CliSpawned spawned;
+    PlatformProgram spawned;
     int ended;
     long long code;
     CliSocket shell;

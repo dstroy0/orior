@@ -121,7 +121,7 @@ static void calls_files_read(const ScriptsCallsCtx *args)
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->answer,
                    .text_bytes = text, .length = size);
     }
-    g_cli_guard->persistent_buf_release((void *)(embed_word)text, g_cli_scripts_owner);
+    g_platform_guard->persistent_buf_release((void *)(embed_word)text, g_cli_scripts_owner);
 }
 
 // files.write(path, text): the text written as the tree's file, null after
@@ -330,14 +330,14 @@ EMBED_INLINE void calls_json(const ScriptsCallsCtx *args)
 static char *calls_json_alloc(const ScriptsCallsCtx *args, unsigned long long *size)
 {
     const unsigned long long capacity = (args->size * 2ULL) + 64ULL;
-    char *const text = g_cli_guard->temporary_buf_alloc(capacity, g_cli_scripts_owner);
+    char *const text = g_platform_guard->temporary_buf_alloc(capacity, g_cli_scripts_owner);
     VerbaLinea written = mmgr_line_over(text, (text != NULL) ? capacity : 0ULL);
     EMBED_CALL(calls_json, ScriptsCallsCtx, .json = args->json, .args = args->args, .index = args->index,
                .answer = &written);
     *size = mmgr_line_ok(&written) ? written.at : 0ULL;
     if ((text != NULL) && !mmgr_line_ok(&written))
     {
-        g_cli_guard->persistent_buf_release(text, g_cli_scripts_owner);
+        g_platform_guard->persistent_buf_release(text, g_cli_scripts_owner);
         return NULL;
     }
     return text;
@@ -371,7 +371,7 @@ static void calls_server_start(const ScriptsCallsCtx *args)
                         EMBED_CALL(cli_servers_plugin_start_table.plugin_start, CliServersRootSinkCfg, .root = s_root,
                                    .sink = &sink, .err_msg = &err_msg, .id = args->id, .options = options,
                                    .length = length, .first_characters = first, .firsts = firsts);
-    g_cli_guard->persistent_buf_release(options, g_cli_scripts_owner);
+    g_platform_guard->persistent_buf_release(options, g_cli_scripts_owner);
     (void)mmgr_line_finish(&err_msg);
     if (started)
     {
@@ -407,7 +407,7 @@ EMBED_INLINE void calls_server_sent(const ScriptsCallsCtx *args)
                                         .wait = CLI_SCRIPTS_SERVER_WAIT_MS, .result = args->answer)
                            : EMBED_CALL(cli_servers_err_msg.plugin_notify, CliServersErrMsgCfg, .err_msg = &err_msg,
                                         .id = args->id, .length = length, .method = method, .params = params));
-    g_cli_guard->persistent_buf_release(params, g_cli_scripts_owner);
+    g_platform_guard->persistent_buf_release(params, g_cli_scripts_owner);
     (void)mmgr_line_finish(&err_msg);
     if (sent && args->asks_answer && (args->answer->at == before))
     {
@@ -473,7 +473,7 @@ EMBED_INLINE int calls_held(const ScriptsCallsCtx *args)
     {
         return 0;
     }
-    char *const params = g_cli_guard->persistent_buf_alloc(args->size + 1ULL, g_cli_scripts_owner);
+    char *const params = g_platform_guard->persistent_buf_alloc(args->size + 1ULL, g_cli_scripts_owner);
     if (params == NULL)
     {
         return 0;
@@ -500,7 +500,7 @@ EMBED_INLINE int calls_held(const ScriptsCallsCtx *args)
     cli_gate_opened(&s_held_gate);
     if (at == CLI_SCRIPTS_HELD)
     {
-        g_cli_guard->persistent_buf_release(params, g_cli_scripts_owner);
+        g_platform_guard->persistent_buf_release(params, g_cli_scripts_owner);
         return 0;
     }
     return 1;
@@ -533,7 +533,7 @@ EMBED_INLINE int calls_later(const ScriptsCallsCtx *args)
     static const char s_no_thread[] = "{\"oriorError\":\"no thread for the call\"}";
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    ScriptsLater *const later = (ScriptsLater *)g_cli_guard->persistent_buf_alloc(
+    ScriptsLater *const later = (ScriptsLater *)g_platform_guard->persistent_buf_alloc(
         sizeof(ScriptsLater) + args->size + 1ULL, g_cli_scripts_owner);
     if (later == NULL)
     {
@@ -552,7 +552,7 @@ EMBED_INLINE int calls_later(const ScriptsCallsCtx *args)
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &later->thread))
     {
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = args->lsp);
-        g_cli_guard->persistent_buf_release(later, g_cli_scripts_owner);
+        g_platform_guard->persistent_buf_release(later, g_cli_scripts_owner);
         (void)EMBED_CALL(cli_lsp_answered_table.answered, CliLspAnsweredCfg, .lsp = args->lsp, .id = request,
                          .result = s_no_thread, .size = sizeof(s_no_thread) - 1u, .err_msg = &err_msg);
     }
@@ -651,7 +651,7 @@ EMBED_INLINE int calls_read_run(const ScriptsCallsCtx *args)
     const int answered =
         EMBED_CALL(calls_run, ScriptsCallsCtx, .id = args->id, .lsp = args->lsp, .params = args->params,
                    .size = args->size, .answer = args->answer, .json = &json, .root = root, .may_wait = args->may_wait);
-    g_cli_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), json.node));
+    g_platform_guard->persistent_buf_release(json.node, mmgr_owner_of_buf(platform_pool_series(), json.node));
     return answered;
 }
 
@@ -659,7 +659,7 @@ EMBED_INLINE int calls_read_run(const ScriptsCallsCtx *args)
 static void calls_later_run(void *context)
 {
     ScriptsLater *const later = (ScriptsLater *)context;
-    char *const answer_text = g_cli_guard->temporary_buf_alloc(CLI_LSP_ANSWERED, g_cli_scripts_owner);
+    char *const answer_text = g_platform_guard->temporary_buf_alloc(CLI_LSP_ANSWERED, g_cli_scripts_owner);
     VerbaLinea answer = mmgr_line_over(answer_text, (answer_text != NULL) ? CLI_LSP_ANSWERED : 0ULL);
     (void)EMBED_CALL(calls_read_run, ScriptsCallsCtx, .id = later->id, .lsp = later->lsp, .params = later->params,
                      .size = later->size, .answer = &answer, .may_wait = 0);
@@ -668,8 +668,8 @@ static void calls_later_run(void *context)
     (void)EMBED_CALL(cli_lsp_answered_table.answered, CliLspAnsweredCfg, .lsp = later->lsp, .id = later->request,
                      .result = answer_text, .size = mmgr_line_ok(&answer) ? answer.at : 0ULL, .err_msg = &err_msg);
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = later->lsp);
-    g_cli_guard->persistent_buf_release(answer_text, g_cli_scripts_owner);
-    g_cli_guard->persistent_buf_release(later, g_cli_scripts_owner);
+    g_platform_guard->persistent_buf_release(answer_text, g_cli_scripts_owner);
+    g_platform_guard->persistent_buf_release(later, g_cli_scripts_owner);
 }
 
 void cli_scripts_call(const CliScriptsCallCtx *args)
@@ -733,7 +733,7 @@ void cli_scripts_question_answered(const CliScriptsQuestionCfg *args)
         (void)EMBED_CALL(cli_scripts_rights.answer_set, CliScriptsRightsCfg, .id = s_asking_id, .right = s_asking_right,
                          .answer = args->answer, .err_msg = &err_msg);
     }
-    char *const answer_text = g_cli_guard->temporary_buf_alloc(CLI_LSP_ANSWERED, g_cli_scripts_owner);
+    char *const answer_text = g_platform_guard->temporary_buf_alloc(CLI_LSP_ANSWERED, g_cli_scripts_owner);
     unsigned int at = 0u;
     while (at < CLI_SCRIPTS_HELD)
     {
@@ -754,10 +754,10 @@ void cli_scripts_question_answered(const CliScriptsQuestionCfg *args)
                              .result = answer_text, .size = mmgr_line_ok(&answer) ? answer.at : 0ULL,
                              .err_msg = &err_msg);
             EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = held.lsp);
-            g_cli_guard->persistent_buf_release(held.params, g_cli_scripts_owner);
+            g_platform_guard->persistent_buf_release(held.params, g_cli_scripts_owner);
         }
         at += 1u;
     }
-    g_cli_guard->persistent_buf_release(answer_text, g_cli_scripts_owner);
+    g_platform_guard->persistent_buf_release(answer_text, g_cli_scripts_owner);
     s_asking = 0;
 }

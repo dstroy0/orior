@@ -39,8 +39,8 @@ int cli_commands_read(const CliCommandsCfg *args)
     const unsigned int tokens =
         EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = s_text, .size = s_size) + 1u;
     s_tokens = (s_tokens != NULL) ? s_tokens
-                                  : g_cli_guard->persistent_buf_alloc((unsigned long long)tokens * sizeof(*s_tokens),
-                                                                      g_cli_command_line_owner);
+                                  : g_platform_guard->persistent_buf_alloc(
+                                        (unsigned long long)tokens * sizeof(*s_tokens), g_cli_command_line_owner);
     if (s_tokens == NULL)
     {
         mmgr_line_put(args->err_msg, "commands.json: the cells cannot meet its tokens");
@@ -57,8 +57,8 @@ int cli_commands_read(const CliCommandsCfg *args)
         return 0;
     }
     s_count = parse.tokens;
-    s_string = g_cli_guard->persistent_buf_alloc(((unsigned long long)s_count * sizeof(*s_string)) + s_size + s_count,
-                                                 g_cli_command_line_owner);
+    s_string = g_platform_guard->persistent_buf_alloc(
+        ((unsigned long long)s_count * sizeof(*s_string)) + s_size + s_count, g_cli_command_line_owner);
     if (s_string == NULL)
     {
         mmgr_line_put(args->err_msg, "commands.json: the cells cannot meet its texts");
@@ -90,8 +90,8 @@ int cli_commands_read(const CliCommandsCfg *args)
     const unsigned int line = cfg_json_member(s_text, s_tokens, 0u, "line");
     s_line = ((line != 0u) && (s_tokens[line].type == CFG_JSON_ARRAY)) ? line : 0u;
     s_menu = ((s_menu == NULL) && (s_tokens[menus].count != 0u))
-                 ? g_cli_guard->movable_buf_alloc((unsigned long long)s_tokens[menus].count * sizeof(unsigned int),
-                                                  g_cli_command_line_owner)
+                 ? g_platform_guard->movable_buf_alloc((unsigned long long)s_tokens[menus].count * sizeof(unsigned int),
+                                                       g_cli_command_line_owner)
                  : s_menu;
     if ((s_menu == NULL) && (s_tokens[menus].count != 0u))
     {
@@ -102,10 +102,11 @@ int cli_commands_read(const CliCommandsCfg *args)
     unsigned int at = menus + 1u;
     for (unsigned int each = 0u; each < s_tokens[menus].count; each += 1u)
     {
-        (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = s_menu,
-                                                                 .offset = (embed_word)s_menus * sizeof(unsigned int),
-                                                                 .src = &at,
-                                                                 .bytes = sizeof(unsigned int)});
+        (void)g_platform_guard->movable_buf_write(
+            &(CarcerMovableCfg){.cell = s_menu,
+                                .offset = (embed_word)s_menus * sizeof(unsigned int),
+                                .src = &at,
+                                .bytes = sizeof(unsigned int)});
         s_menus += 1u;
         at = s_tokens[at].next;
     }
@@ -173,10 +174,11 @@ EMBED_INLINE void cli_member_text(const CommandsCtx *args)
 void cli_menu_title(const CliCommandsMenuTitleCfg *args)
 {
     unsigned int menu_token = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_menu,
-                                                            .offset = (embed_word)args->menu * sizeof(unsigned int),
-                                                            .dst = &menu_token,
-                                                            .bytes = sizeof(menu_token)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_menu,
+                            .offset = (embed_word)args->menu * sizeof(unsigned int),
+                            .dst = &menu_token,
+                            .bytes = sizeof(menu_token)});
     EMBED_CALL(cli_member_text, CommandsCtx, .object = menu_token, .name = "title", .out = args->title,
                .capacity = CLI_LABEL_MAX_LEN);
 }
@@ -192,10 +194,11 @@ void cli_menu_word(const CliCommandsMenuWordCfg *args)
 void cli_menu_split(const CliCommandsMenuSplitCfg *args)
 {
     unsigned int menu_token = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_menu,
-                                                            .offset = (embed_word)args->menu * sizeof(unsigned int),
-                                                            .dst = &menu_token,
-                                                            .bytes = sizeof(menu_token)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_menu,
+                            .offset = (embed_word)args->menu * sizeof(unsigned int),
+                            .dst = &menu_token,
+                            .bytes = sizeof(menu_token)});
     EMBED_CALL(cli_member_text, CommandsCtx, .object = menu_token, .name = "split", .out = args->split,
                .capacity = CLI_LABEL_MAX_LEN);
 }
@@ -203,10 +206,11 @@ void cli_menu_split(const CliCommandsMenuSplitCfg *args)
 unsigned int cli_menu_groups(const CliCommandsMenuGroupsCfg *args)
 {
     unsigned int menu_token = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_menu,
-                                                            .offset = (embed_word)args->menu * sizeof(unsigned int),
-                                                            .dst = &menu_token,
-                                                            .bytes = sizeof(menu_token)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_menu,
+                            .offset = (embed_word)args->menu * sizeof(unsigned int),
+                            .dst = &menu_token,
+                            .bytes = sizeof(menu_token)});
     const unsigned int list = cfg_json_member(s_text, s_tokens, menu_token, "groups");
     if ((list == 0u) || (s_tokens[list].type != CFG_JSON_ARRAY))
     {
@@ -254,7 +258,7 @@ static unsigned long long commands_cell_claim(const CommandsCtx *args)
         {
             capacity *= 2ULL;
         }
-        const CarcerMovableEntry *const grown = g_cli_guard->movable_buf_alloc(capacity, g_cli_command_line_owner);
+        const CarcerMovableEntry *const grown = g_platform_guard->movable_buf_alloc(capacity, g_cli_command_line_owner);
         if (grown == NULL)
         {
             return CLI_TEXT_NONE;
@@ -264,14 +268,14 @@ static unsigned long long commands_cell_claim(const CommandsCtx *args)
             char piece[CLI_LABEL_MAX_LEN];
             const unsigned long long left = args->held->used - at;
             const unsigned long long size = (left < sizeof(piece)) ? left : sizeof(piece);
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = args->held->cell, .offset = (embed_word)at, .dst = piece, .bytes = (embed_word)size});
-            (void)g_cli_guard->movable_buf_write(
+            (void)g_platform_guard->movable_buf_write(
                 &(CarcerMovableCfg){.cell = grown, .offset = (embed_word)at, .src = piece, .bytes = (embed_word)size});
         }
         if (args->held->cell != NULL)
         {
-            (void)g_cli_guard->movable_buf_release(args->held->cell, g_cli_command_line_owner);
+            (void)g_platform_guard->movable_buf_release(args->held->cell, g_cli_command_line_owner);
         }
         args->held->cell = grown;
         args->held->capacity = capacity;
@@ -292,9 +296,9 @@ static unsigned long long commands_text_put(const CommandsCtx *args)
         return at;
     }
     const char zero = '\0';
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = args->held->cell, .offset = (embed_word)at, .src = args->text, .bytes = (embed_word)args->length});
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = args->held->cell, .offset = (embed_word)(at + args->length), .src = &zero, .bytes = 1u});
     return at;
 }
@@ -323,21 +327,21 @@ static unsigned long long commands_own_keys_at(const CommandsCtx *args)
     for (unsigned int at = 0u; at < s_keys_own.count; at += 1u)
     {
         CommandsOwnKey pair = {0ULL, 0ULL};
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.pair.cell,
-                                                                .offset = (embed_word)at * sizeof(pair),
-                                                                .dst = &pair,
-                                                                .bytes = sizeof(pair)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.pair.cell,
+                                                                     .offset = (embed_word)at * sizeof(pair),
+                                                                     .dst = &pair,
+                                                                     .bytes = sizeof(pair)});
         char named[CLI_LABEL_MAX_LEN];
-        const unsigned long long named_measured = g_cli_guard->movable_buf_measure(
+        const unsigned long long named_measured = g_platform_guard->movable_buf_measure(
             &(CarcerMovableCfg){.cell = s_keys_own.text.cell,
                                 .offset = (embed_word)pair.command_at,
                                 .bytes = (embed_word)(s_keys_own.text.used - pair.command_at)});
         const unsigned long long named_length =
             (named_measured < sizeof(named)) ? named_measured : (sizeof(named) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.text.cell,
-                                                                .offset = (embed_word)pair.command_at,
-                                                                .dst = named,
-                                                                .bytes = (embed_word)named_length});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.text.cell,
+                                                                     .offset = (embed_word)pair.command_at,
+                                                                     .dst = named,
+                                                                     .bytes = (embed_word)named_length});
         named[named_length] = '\0';
         if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->command, .cap = CLI_LABEL_MAX_LEN}))
         {
@@ -362,21 +366,21 @@ void cli_commands_keys_own(const CliMenusCfg *args)
     int named_already = 0;
     while (!named_already && (at < s_keys_own.count))
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.pair.cell,
-                                                                .offset = (embed_word)at * sizeof(pair),
-                                                                .dst = &pair,
-                                                                .bytes = sizeof(pair)});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.pair.cell,
+                                                                     .offset = (embed_word)at * sizeof(pair),
+                                                                     .dst = &pair,
+                                                                     .bytes = sizeof(pair)});
         char named[CLI_LABEL_MAX_LEN];
-        const unsigned long long named_measured = g_cli_guard->movable_buf_measure(
+        const unsigned long long named_measured = g_platform_guard->movable_buf_measure(
             &(CarcerMovableCfg){.cell = s_keys_own.text.cell,
                                 .offset = (embed_word)pair.command_at,
                                 .bytes = (embed_word)(s_keys_own.text.used - pair.command_at)});
         const unsigned long long named_length =
             (named_measured < sizeof(named)) ? named_measured : (sizeof(named) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.text.cell,
-                                                                .offset = (embed_word)pair.command_at,
-                                                                .dst = named,
-                                                                .bytes = (embed_word)named_length});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.text.cell,
+                                                                     .offset = (embed_word)pair.command_at,
+                                                                     .dst = named,
+                                                                     .bytes = (embed_word)named_length});
         named[named_length] = '\0';
         named_already = cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->command, .cap = CLI_LABEL_MAX_LEN});
         at += named_already ? 0u : 1u;
@@ -396,7 +400,7 @@ void cli_commands_keys_own(const CliMenusCfg *args)
         return;
     }
     pair = (CommandsOwnKey){command_at, keys_at};
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = s_keys_own.pair.cell, .offset = (embed_word)pair_at, .src = &pair, .bytes = sizeof(pair)});
     s_keys_own.count += (at == s_keys_own.count) ? 1u : 0u;
 }
@@ -424,16 +428,16 @@ EMBED_INLINE void cli_item_read(const CommandsCtx *args)
     }
     else if (keys_at != CLI_TEXT_NONE)
     {
-        const unsigned long long keys_measured = g_cli_guard->movable_buf_measure(
+        const unsigned long long keys_measured = g_platform_guard->movable_buf_measure(
             &(CarcerMovableCfg){.cell = s_keys_own.text.cell,
                                 .offset = (embed_word)keys_at,
                                 .bytes = (embed_word)(s_keys_own.text.used - keys_at)});
         const unsigned long long keys_length =
             (keys_measured < sizeof(s_row_keys)) ? keys_measured : (sizeof(s_row_keys) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.text.cell,
-                                                                .offset = (embed_word)keys_at,
-                                                                .dst = s_row_keys,
-                                                                .bytes = (embed_word)keys_length});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.text.cell,
+                                                                     .offset = (embed_word)keys_at,
+                                                                     .dst = s_row_keys,
+                                                                     .bytes = (embed_word)keys_length});
         s_row_keys[keys_length] = '\0';
         args->item->keys = s_row_keys;
     }
@@ -544,10 +548,11 @@ static unsigned int cli_flat_count(const CommandsCtx *args)
 unsigned int cli_menu_items_count(const CliMenusCfg *args)
 {
     unsigned int menu_token = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_menu,
-                                                            .offset = (embed_word)args->menu * sizeof(unsigned int),
-                                                            .dst = &menu_token,
-                                                            .bytes = sizeof(menu_token)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_menu,
+                            .offset = (embed_word)args->menu * sizeof(unsigned int),
+                            .dst = &menu_token,
+                            .bytes = sizeof(menu_token)});
     const unsigned int list = cfg_json_member(s_text, s_tokens, menu_token, "items");
     return ((list != 0u) && (s_tokens[list].type == CFG_JSON_ARRAY))
                ? EMBED_CALL(cli_flat_count, CommandsCtx, .list = list)
@@ -566,20 +571,20 @@ CliItem *cli_items_alloc(const CliMenusCfg *args)
         return NULL;
     }
     // the items, and after them a copy of the own keys' text, which the items' keys point into
-    CliItem *const items = g_cli_guard->temporary_buf_alloc(
+    CliItem *const items = g_platform_guard->temporary_buf_alloc(
         ((unsigned long long)args->count * sizeof(CliItem)) + s_keys_own.text.used, g_cli_command_line_owner);
     if ((items != NULL) && (s_keys_own.text.used != 0ULL))
     {
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.text.cell,
-                                                                .dst = (void *)(items + args->count),
-                                                                .bytes = (embed_word)s_keys_own.text.used});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_keys_own.text.cell,
+                                                                     .dst = (void *)(items + args->count),
+                                                                     .bytes = (embed_word)s_keys_own.text.used});
     }
     return items;
 }
 
 void cli_items_release(const CliMenusCfg *args)
 {
-    g_cli_guard->persistent_buf_release(args->items, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(args->items, g_cli_command_line_owner);
 }
 
 unsigned int cli_menu_rows(const CliMenusCfg *args)
@@ -617,10 +622,11 @@ unsigned int cli_menu_rows(const CliMenusCfg *args)
 unsigned int cli_menu_list(const CliMenusCfg *args)
 {
     unsigned int menu_token = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_menu,
-                                                            .offset = (embed_word)args->menu * sizeof(unsigned int),
-                                                            .dst = &menu_token,
-                                                            .bytes = sizeof(menu_token)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_menu,
+                            .offset = (embed_word)args->menu * sizeof(unsigned int),
+                            .dst = &menu_token,
+                            .bytes = sizeof(menu_token)});
     const unsigned int list = cfg_json_member(s_text, s_tokens, menu_token, "items");
     return ((list != 0u) && (s_tokens[list].type == CFG_JSON_ARRAY)) ? list : 0u;
 }
@@ -629,10 +635,11 @@ int cli_menu_displayed(const CliMenusCfg *args)
 {
     const unsigned int list = cli_menu_list(&(CliMenusCfg){.menu = args->menu});
     unsigned int menu_token = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_menu,
-                                                            .offset = (embed_word)args->menu * sizeof(unsigned int),
-                                                            .dst = &menu_token,
-                                                            .bytes = sizeof(menu_token)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_menu,
+                            .offset = (embed_word)args->menu * sizeof(unsigned int),
+                            .dst = &menu_token,
+                            .bytes = sizeof(menu_token)});
     const unsigned int popup = cfg_json_member(s_text, s_tokens, menu_token, "popup");
     return (list != 0u) && (s_tokens[list].count != 0u) &&
            (cfg_json_member(s_text, s_tokens, menu_token, "strip") == 0u) &&
@@ -642,10 +649,11 @@ int cli_menu_displayed(const CliMenusCfg *args)
 unsigned int cli_menu_items(const CliCommandsMenuCapacityCfg *args)
 {
     unsigned int menu_token = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_menu,
-                                                            .offset = (embed_word)args->menu * sizeof(unsigned int),
-                                                            .dst = &menu_token,
-                                                            .bytes = sizeof(menu_token)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_menu,
+                            .offset = (embed_word)args->menu * sizeof(unsigned int),
+                            .dst = &menu_token,
+                            .bytes = sizeof(menu_token)});
     const unsigned int list = cfg_json_member(s_text, s_tokens, menu_token, "items");
     // the own keys' text lies after the items of a cell of cli_items_alloc
     return ((list != 0u) && (s_tokens[list].type == CFG_JSON_ARRAY))
@@ -658,10 +666,11 @@ unsigned int cli_menu_items(const CliCommandsMenuCapacityCfg *args)
 int cli_menu_command(const CliCommandsMenuCfg *args)
 {
     unsigned int menu_token = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_menu,
-                                                            .offset = (embed_word)args->menu * sizeof(unsigned int),
-                                                            .dst = &menu_token,
-                                                            .bytes = sizeof(menu_token)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_menu,
+                            .offset = (embed_word)args->menu * sizeof(unsigned int),
+                            .dst = &menu_token,
+                            .bytes = sizeof(menu_token)});
     const unsigned int list = cfg_json_member(s_text, s_tokens, menu_token, "items");
     return (list != 0u) && (s_tokens[list].type == CFG_JSON_ARRAY) &&
            EMBED_CALL(cli_flat_find, CommandsCtx, .list = list, .word_text = args->word_text, .item = args->item);
@@ -809,10 +818,11 @@ const char *cli_menu_title_text(const CliMenusCfg *args)
         return "";
     }
     unsigned int menu_token = 0u;
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_menu,
-                                                            .offset = (embed_word)args->menu * sizeof(unsigned int),
-                                                            .dst = &menu_token,
-                                                            .bytes = sizeof(menu_token)});
+    (void)g_platform_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = s_menu,
+                            .offset = (embed_word)args->menu * sizeof(unsigned int),
+                            .dst = &menu_token,
+                            .bytes = sizeof(menu_token)});
     return EMBED_CALL(cli_member_string, CommandsCtx, .object = menu_token, .name = "title");
 }
 
@@ -1055,7 +1065,7 @@ void cli_menus_own_row(const CliMenusCfg *args)
     const CommandsOwnRow row = {
         *args->item, EMBED_CALL(commands_own_text, CommandsCtx, .text = args->item->label, .cap = CLI_LABEL_MAX_LEN),
         EMBED_CALL(commands_own_text, CommandsCtx, .text = args->item->args, .cap = CLI_PATH_MAX_LEN)};
-    (void)g_cli_guard->movable_buf_write(
+    (void)g_platform_guard->movable_buf_write(
         &(CarcerMovableCfg){.cell = s_own.row.cell, .offset = (embed_word)at, .src = &row, .bytes = sizeof(row)});
     s_own.count += 1u;
 }
@@ -1112,10 +1122,10 @@ void cli_menus_own_relabel(const CliMenusCfg *args)
     }
     CommandsOwnRow row;
     memor.set(&(MemoriaCfg){.dst = &row, .val = 0, .bytes = sizeof(row)});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_own.row.cell, .offset = (embed_word)args->at * sizeof(row), .dst = &row, .bytes = sizeof(row)});
     row.label_at = EMBED_CALL(commands_own_text, CommandsCtx, .text = args->label, .cap = CLI_LABEL_MAX_LEN);
-    (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_write(&(CarcerMovableCfg){
         .cell = s_own.row.cell, .offset = (embed_word)args->at * sizeof(row), .src = &row, .bytes = sizeof(row)});
 }
 
@@ -1132,36 +1142,36 @@ int cli_menus_own_read(const CliMenusCfg *args)
     }
     CommandsOwnRow row;
     memor.set(&(MemoriaCfg){.dst = &row, .val = 0, .bytes = sizeof(row)});
-    (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+    (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
         .cell = s_own.row.cell, .offset = (embed_word)args->at * sizeof(row), .dst = &row, .bytes = sizeof(row)});
     *args->item = row.item;
     if (row.label_at != CLI_TEXT_NONE)
     {
-        const unsigned long long label_measured = g_cli_guard->movable_buf_measure(
+        const unsigned long long label_measured = g_platform_guard->movable_buf_measure(
             &(CarcerMovableCfg){.cell = s_own.text.cell,
                                 .offset = (embed_word)row.label_at,
                                 .bytes = (embed_word)(s_own.text.used - row.label_at)});
         const unsigned long long label_length =
             (label_measured < sizeof(s_row_label)) ? label_measured : (sizeof(s_row_label) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_own.text.cell,
-                                                                .offset = (embed_word)row.label_at,
-                                                                .dst = s_row_label,
-                                                                .bytes = (embed_word)label_length});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_own.text.cell,
+                                                                     .offset = (embed_word)row.label_at,
+                                                                     .dst = s_row_label,
+                                                                     .bytes = (embed_word)label_length});
         s_row_label[label_length] = '\0';
         args->item->label = s_row_label;
     }
     if (row.args_at != CLI_TEXT_NONE)
     {
-        const unsigned long long args_measured =
-            g_cli_guard->movable_buf_measure(&(CarcerMovableCfg){.cell = s_own.text.cell,
-                                                                 .offset = (embed_word)row.args_at,
-                                                                 .bytes = (embed_word)(s_own.text.used - row.args_at)});
+        const unsigned long long args_measured = g_platform_guard->movable_buf_measure(
+            &(CarcerMovableCfg){.cell = s_own.text.cell,
+                                .offset = (embed_word)row.args_at,
+                                .bytes = (embed_word)(s_own.text.used - row.args_at)});
         const unsigned long long args_length =
             (args_measured < sizeof(s_row_args)) ? args_measured : (sizeof(s_row_args) - 1ULL);
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_own.text.cell,
-                                                                .offset = (embed_word)row.args_at,
-                                                                .dst = s_row_args,
-                                                                .bytes = (embed_word)args_length});
+        (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){.cell = s_own.text.cell,
+                                                                     .offset = (embed_word)row.args_at,
+                                                                     .dst = s_row_args,
+                                                                     .bytes = (embed_word)args_length});
         s_row_args[args_length] = '\0';
         args->item->args = s_row_args;
     }

@@ -115,7 +115,7 @@ EMBED_INLINE unsigned short *xterm_paged_units(const XtermCtx *args)
                                         : 0ULL;
     // a character of one to three bytes is one unit and one of four two: the units are no more than the bytes
     unsigned short *const units =
-        (size != 0ULL) ? g_cli_guard->temporary_buf_alloc(size * sizeof(*units), g_cli_terminal_owner) : NULL;
+        (size != 0ULL) ? g_platform_guard->temporary_buf_alloc(size * sizeof(*units), g_cli_terminal_owner) : NULL;
     unsigned long long made = 0ULL;
     for (unsigned long long at = 0ULL; (units != NULL) && (at < size);)
     {
@@ -138,7 +138,7 @@ EMBED_INLINE unsigned short *xterm_paged_units(const XtermCtx *args)
         }
         at += length;
     }
-    g_cli_guard->persistent_buf_release(read, g_cli_terminal_owner);
+    g_platform_guard->persistent_buf_release(read, g_cli_terminal_owner);
     *args->characters_out = (units != NULL) ? made : 0ULL;
     return units;
 }
@@ -159,7 +159,7 @@ EMBED_INLINE unsigned short *xterm_line_units(const XtermCtx *args)
                          .line = args->line, .count = &count);
     }
     unsigned short *const units =
-        (count != 0ULL) ? g_cli_guard->temporary_buf_alloc(count * sizeof(*units), g_cli_terminal_owner) : NULL;
+        (count != 0ULL) ? g_platform_guard->temporary_buf_alloc(count * sizeof(*units), g_cli_terminal_owner) : NULL;
     unsigned long long copied = 0ULL;
     if (units != NULL)
     {
@@ -176,7 +176,7 @@ EMBED_INLINE unsigned long long xterm_line_count(const XtermCtx *args)
     unsigned long long count = 0ULL;
     unsigned short *const units = EMBED_CALL(xterm_line_units, XtermCtx, .xterm_read = args->xterm_read,
                                              .line = args->line, .characters_out = &count);
-    g_cli_guard->persistent_buf_release(units, g_cli_terminal_owner);
+    g_platform_guard->persistent_buf_release(units, g_cli_terminal_owner);
     return count;
 }
 
@@ -618,7 +618,7 @@ EMBED_INLINE void xterm_cells_erase(const XtermCtx *args)
         EMBED_CALL(xterm_column_start, XtermCtx, .units = units, .units_count = count, .x = args->from);
     if (start >= count)
     {
-        g_cli_guard->persistent_buf_release(units, g_cli_terminal_owner);
+        g_platform_guard->persistent_buf_release(units, g_cli_terminal_owner);
         return;
     }
     const unsigned long long end =
@@ -628,7 +628,7 @@ EMBED_INLINE void xterm_cells_erase(const XtermCtx *args)
     const int follows = EMBED_CALL(xterm_characters_follow, XtermCtx, .units = units, .units_count = count, .at = end);
     if (!follows)
     {
-        g_cli_guard->persistent_buf_release(units, g_cli_terminal_owner);
+        g_platform_guard->persistent_buf_release(units, g_cli_terminal_owner);
         (void)EMBED_CALL(xterm_edit, XtermCtx, .xterm = xterm, .place = (CliPosition){line, start},
                          .past = (CliPosition){line, count}, .text = "", .size = 0ULL);
         return;
@@ -642,7 +642,7 @@ EMBED_INLINE void xterm_cells_erase(const XtermCtx *args)
          EMBED_CALL(xterm_style_same, XtermCtx, .style_read = &before, .style = &after))
             ? 0ULL
             : EMBED_CALL(xterm_sgr_write, XtermCtx, .style_read = &after, .out = put_back);
-    g_cli_guard->persistent_buf_release(units, g_cli_terminal_owner);
+    g_platform_guard->persistent_buf_release(units, g_cli_terminal_owner);
     unsigned long long blanks = (unsigned long long)args->to - args->from;
     // the edits from the right, so each place is as it was read
     if (put_back_size != 0ULL)
@@ -791,7 +791,7 @@ EMBED_INLINE void xterm_row_put(const XtermCtx *args)
          EMBED_CALL(xterm_style_same, XtermCtx, .style_read = &after, .style = &xterm->cursor.style))
             ? 0ULL
             : EMBED_CALL(xterm_sgr_write, XtermCtx, .style_read = &after, .out = put_back);
-    g_cli_guard->persistent_buf_release(units, g_cli_terminal_owner);
+    g_platform_guard->persistent_buf_release(units, g_cli_terminal_owner);
     if (put_back_size != 0ULL)
     {
         (void)EMBED_CALL(xterm_edit, XtermCtx, .xterm = xterm, .place = (CliPosition){line, end},
@@ -819,7 +819,7 @@ EMBED_INLINE void xterm_row_put(const XtermCtx *args)
             EMBED_CALL(xterm_line_units, XtermCtx, .xterm_read = xterm, .line = line, .characters_out = &now);
         const unsigned long long cut =
             EMBED_CALL(xterm_column_end, XtermCtx, .units = row, .units_count = now, .x = xterm->columns - 1u);
-        g_cli_guard->persistent_buf_release(row, g_cli_terminal_owner);
+        g_platform_guard->persistent_buf_release(row, g_cli_terminal_owner);
         if (cut < now)
         {
             (void)EMBED_CALL(xterm_edit, XtermCtx, .xterm = xterm, .place = (CliPosition){line, cut},
@@ -1066,7 +1066,7 @@ EMBED_INLINE void xterm_cells_insert(const XtermCtx *args)
         EMBED_CALL(xterm_column_start, XtermCtx, .units = units, .units_count = count, .x = xterm->cursor.x);
     if (start >= count)
     {
-        g_cli_guard->persistent_buf_release(units, g_cli_terminal_owner);
+        g_platform_guard->persistent_buf_release(units, g_cli_terminal_owner);
         return;
     }
     if (args->on)
@@ -1087,7 +1087,7 @@ EMBED_INLINE void xterm_cells_insert(const XtermCtx *args)
             blanks -= run;
         }
         xterm->inserts = inserted;
-        g_cli_guard->persistent_buf_release(units, g_cli_terminal_owner);
+        g_platform_guard->persistent_buf_release(units, g_cli_terminal_owner);
         return;
     }
     const unsigned long long end =
@@ -1106,7 +1106,7 @@ EMBED_INLINE void xterm_cells_insert(const XtermCtx *args)
          EMBED_CALL(xterm_style_same, XtermCtx, .style_read = &before, .style = &after))
             ? 0ULL
             : EMBED_CALL(xterm_sgr_write, XtermCtx, .style_read = &after, .out = put_back);
-    g_cli_guard->persistent_buf_release(units, g_cli_terminal_owner);
+    g_platform_guard->persistent_buf_release(units, g_cli_terminal_owner);
     (void)EMBED_CALL(xterm_edit, XtermCtx, .xterm = xterm, .place = (CliPosition){line, from},
                      .past = (CliPosition){line, end}, .text = put_back, .size = put_back_size);
 }

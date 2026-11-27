@@ -5,7 +5,7 @@
  * @brief The exact arithmetic of the zeta examples. zeta_exact.h states each rule.
  */
 #include "zeta_exact.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 
 #include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"

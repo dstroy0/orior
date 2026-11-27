@@ -6,7 +6,7 @@
 #include "../../../../../src/cu/engine/analysis/compression/compression.h"
 #include "../../../../../src/cu/engine/analysis/tower/tower.h"
 #include "../../../../../src/cu/engine/engine.h"
-#include "../../../../../src/platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sim.h"
 #include "verba_scribo/verba_linea.h"

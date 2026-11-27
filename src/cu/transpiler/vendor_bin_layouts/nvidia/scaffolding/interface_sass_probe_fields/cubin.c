@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cubin.c: the container: a file read and written, a word read and written, the kernel, a splice, a place found, the
 // container written, the keys, a flip checked safe, the first field and the operand at a place
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "fields_internal.h"
 #include "memoria_operor/memoria_operor.h"

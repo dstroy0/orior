@@ -9,7 +9,7 @@
 // Every number is read as hexadecimal. A line is passed before the next address is queried. An address that ends the
 // process ends it with every line before it already passed, and the interface reads where the walk stopped.
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "query_put.h"

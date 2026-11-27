@@ -86,7 +86,7 @@ static CliJson s_json;
 
 const CliJson *cli_unity_parsed(const char *text, unsigned long long size, unsigned int *root)
 {
-    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
+    g_platform_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(platform_pool_series(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
     char why[512];
@@ -99,7 +99,7 @@ const CliJson *cli_unity_parsed(const char *text, unsigned long long size, unsig
 
 void cli_unity_parsed_released(void)
 {
-    g_cli_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(cli_pool_series_cellularum(), s_json.node));
+    g_platform_guard->persistent_buf_release(s_json.node, mmgr_owner_of_buf(platform_pool_series(), s_json.node));
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = (&s_json),
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }

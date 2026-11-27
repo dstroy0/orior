@@ -63,14 +63,14 @@ unsigned long long cli_servers_run_count(const CliServersKeyCtx *args)
     if (stored != CLI_KEYED_NONE)
     {
         CliKeyedEntry one = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_runs.page[stored / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(stored % CLI_KEYED_PAGE) * sizeof(one),
                                 .dst = &one,
                                 .bytes = sizeof(one)});
         if (one.text_size == sizeof(run))
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = one.cell, .offset = (embed_word)one.text_at, .dst = &run, .bytes = sizeof(run)});
         }
     }
@@ -91,14 +91,14 @@ int cli_servers_run_last(const CliServersKeyCtx *args)
     if (stored != CLI_KEYED_NONE)
     {
         CliKeyedEntry one = {0};
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = s_runs.page[stored / CLI_KEYED_PAGE],
                                 .offset = (embed_word)(stored % CLI_KEYED_PAGE) * sizeof(one),
                                 .dst = &one,
                                 .bytes = sizeof(one)});
         if (one.text_size == sizeof(last))
         {
-            (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
+            (void)g_platform_guard->movable_buf_read(&(CarcerMovableCfg){
                 .cell = one.cell, .offset = (embed_word)one.text_at, .dst = &last, .bytes = sizeof(last)});
         }
     }
@@ -115,8 +115,8 @@ static void checkers_file_job(const CliServersJobCfg *args)
     {
         return;
     }
-    CliGrownLine found;
-    cli_grown_begin(&found, CLI_SERVERS_ANSWER, g_cli_servers_owner);
+    PlatformText found;
+    platform_text_begun(&found, CLI_SERVERS_ANSWER, platform_place_g_cli_servers_owner, PLATFORM_TIER_TEMPORARY);
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
     const char *const text = one->has_text ? (const char *)args->job + sizeof(*one) : NULL;
@@ -128,9 +128,9 @@ static void checkers_file_job(const CliServersJobCfg *args)
                    .run_u64 = one->run))
     {
         EMBED_CALL(cli_servers_size_internal.findings_store, CliServersSizeCtx, .id = one->id, .found = found.cell,
-                   .size = cli_grown_size(&found), .always = 0, .sink = &one->sink);
+                   .size = platform_text_size(&found), .always = 0, .sink = &one->sink);
     }
-    cli_grown_end(&found);
+    platform_text_ended(&found);
 }
 
 // the tree checked whole by one checker, its findings written on a line grown to them and stored
@@ -142,8 +142,8 @@ static void checkers_tree_job(const CliServersJobCfg *args)
     {
         return;
     }
-    CliGrownLine found;
-    cli_grown_begin(&found, CLI_SERVERS_FINDINGS, g_cli_servers_owner);
+    PlatformText found;
+    platform_text_begun(&found, CLI_SERVERS_FINDINGS, platform_place_g_cli_servers_owner, PLATFORM_TIER_TEMPORARY);
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ULL};
     const int checked = EMBED_CALL(cli_checkers_out.check_tree, CliCheckersOutCfg, .id = one->id, .root = one->root,
@@ -151,9 +151,9 @@ static void checkers_tree_job(const CliServersJobCfg *args)
     if (checked && mmgr_line_ok(&found.line))
     {
         EMBED_CALL(cli_servers_size_internal.findings_store, CliServersSizeCtx, .id = one->id, .found = found.cell,
-                   .size = cli_grown_size(&found), .always = 0, .sink = &one->sink);
+                   .size = platform_text_size(&found), .always = 0, .sink = &one->sink);
     }
-    cli_grown_end(&found);
+    platform_text_ended(&found);
 }
 
 // a path copied into what is sized for CLI_PATH_MAX_LEN
@@ -197,7 +197,7 @@ void cli_servers_run_checkers(const CliServersPathSizeRootSinkCtx *args)
         const int has_text = (args->text != NULL) && (size <= CLI_SERVERS_LARGEST);
         const unsigned long long text_size = has_text ? size : 0ULL;
         char *const job =
-            g_cli_guard->temporary_buf_alloc(sizeof(CliServersCheckerJob) + text_size, g_cli_servers_owner);
+            g_platform_guard->temporary_buf_alloc(sizeof(CliServersCheckerJob) + text_size, g_cli_servers_owner);
         if (job == NULL)
         {
             continue;
@@ -219,7 +219,7 @@ void cli_servers_run_checkers(const CliServersPathSizeRootSinkCtx *args)
         }
         (void)EMBED_CALL(cli_servers_run_internal.later, CliServersRunCtx, .run = checkers_file_job, .job = job,
                          .size = sizeof(*one) + text_size);
-        g_cli_guard->persistent_buf_release(job, g_cli_servers_owner);
+        g_platform_guard->persistent_buf_release(job, g_cli_servers_owner);
     }
 }
 

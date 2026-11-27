@@ -227,7 +227,7 @@ EMBED_INLINE int cli_joined_get(const DocumentCtx *args)
     }
     // the units' bytes rounded up to a boundary of the starts after them
     const unsigned long long unit_bytes = ((units * sizeof(unsigned short)) + 7ULL) & ~7ULL;
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(
         unit_bytes + (((unsigned long long)lines->lines + 1ULL) * sizeof(unsigned long long)), g_cli_editor_owner);
     *joined = (CliJoined){(unsigned short *)(void *)cell, 0ULL, (unsigned long long *)(void *)(cell + unit_bytes), 0u};
     if (cell == NULL)
@@ -253,7 +253,7 @@ EMBED_INLINE int cli_joined_get(const DocumentCtx *args)
 EMBED_INLINE void cli_joined_let_go(const DocumentCtx *args)
 {
     CliJoined *joined = args->joined;
-    g_cli_guard->persistent_buf_release(joined->unit, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(joined->unit, g_cli_editor_owner);
     *joined = (CliJoined){NULL, 0ULL, NULL, 0u};
 }
 
@@ -359,7 +359,7 @@ static int cli_found_pattern(const DocumentCtx *args)
         longest = (args->lines->length[line] > longest) ? args->lines->length[line] : longest;
     }
     const unsigned long long bytes = sizeof(RegexpWorkState) + (2ULL * (longest + 1ULL) * sizeof(unsigned int));
-    unsigned char *const cell = g_cli_guard->temporary_buf_alloc(bytes, g_cli_editor_owner);
+    unsigned char *const cell = g_platform_guard->temporary_buf_alloc(bytes, g_cli_editor_owner);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, "the text could not be searched: the cells cannot meet it");
@@ -412,7 +412,7 @@ static int cli_found_pattern(const DocumentCtx *args)
             at += 1ULL;
         }
     }
-    g_cli_guard->persistent_buf_release(cell, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(cell, g_cli_editor_owner);
     return read;
 }
 
@@ -437,7 +437,7 @@ int cli_document_find_each(const CliDocumentLinesCfg *args)
     // a unit of the query takes a byte of it at the least, and the unit after the last is written as a pair's second
     CliFindWorkState work_state = {
         {NULL, 0ULL, NULL, 0u},
-        g_cli_guard->temporary_buf_alloc((query_size + 1ULL) * sizeof(unsigned short), g_cli_editor_owner),
+        g_platform_guard->temporary_buf_alloc((query_size + 1ULL) * sizeof(unsigned short), g_cli_editor_owner),
         NULL,
         0ULL};
     if (work_state.required == NULL)
@@ -471,8 +471,8 @@ int cli_document_find_each(const CliDocumentLinesCfg *args)
     {
         const unsigned long long fit = (work_state.joined.used / size) + 1ULL;
         work_state.match_capacity = (fit < CLI_FIND_MATCHES) ? fit : CLI_FIND_MATCHES;
-        work_state.match =
-            g_cli_guard->temporary_buf_alloc(work_state.match_capacity * sizeof(*work_state.match), g_cli_editor_owner);
+        work_state.match = g_platform_guard->temporary_buf_alloc(work_state.match_capacity * sizeof(*work_state.match),
+                                                                 g_cli_editor_owner);
     }
     const int with_capacity = !needle_any || (joined && (work_state.match != NULL));
     if (!with_capacity)
@@ -484,9 +484,9 @@ int cli_document_find_each(const CliDocumentLinesCfg *args)
         (!needle_any || EMBED_CALL(cli_found_each, DocumentCtx, .work_state = &work_state, .lines = args->lines,
                                    .size = size, .needle = args->needle, .max = args->max, .each = args->each,
                                    .context = args->context, .err_msg = args->err_msg));
-    g_cli_guard->persistent_buf_release(work_state.match, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(work_state.match, g_cli_editor_owner);
     EMBED_CALL(cli_joined_let_go, DocumentCtx, .joined = &work_state.joined);
-    g_cli_guard->persistent_buf_release(work_state.required, g_cli_editor_owner);
+    g_platform_guard->persistent_buf_release(work_state.required, g_cli_editor_owner);
     return done;
 }
 

@@ -57,7 +57,7 @@ int cli_tests_list(const CliCommandLineRootCtx *args)
             CliJson json;
         } CliTestsListWorkState;
         CliTestsListWorkState *const work_state =
-            g_cli_guard->temporary_buf_alloc(sizeof(*work_state), g_cli_command_line_owner);
+            g_platform_guard->temporary_buf_alloc(sizeof(*work_state), g_cli_command_line_owner);
         if (work_state == NULL)
         {
             EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
@@ -87,7 +87,7 @@ int cli_tests_list(const CliCommandLineRootCtx *args)
         }
         EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = work_state->pretty,
                    .size = mmgr_line_ok(&pretty) ? pretty.at : 0ULL);
-        g_cli_guard->persistent_buf_release(work_state, g_cli_command_line_owner);
+        g_platform_guard->persistent_buf_release(work_state, g_cli_command_line_owner);
         return 0;
     }
     unsigned int list_entries = 0u;
@@ -274,7 +274,7 @@ void cli_job_show(const CliCommandLineRootCtx *args)
     EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "runs");
     char why[4096];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    CliValues *const values = g_cli_guard->temporary_buf_alloc(sizeof(*values), g_cli_command_line_owner);
+    CliValues *const values = g_platform_guard->temporary_buf_alloc(sizeof(*values), g_cli_command_line_owner);
     if (values == NULL)
     {
         mmgr_line_put(&err_msg, "the cells cannot meet the values a job is displayed with");
@@ -285,7 +285,7 @@ void cli_job_show(const CliCommandLineRootCtx *args)
                    .job = args->job, .words = NULL, .count = 0u, .values = values, .err_msg = &err_msg) &&
         EMBED_CALL(cli_runner_err_msg_root.show, CliRunnerErrMsgRootCfg, .root = args->root, .catalog = catalog,
                    .job = args->job, .values = values, .each = jobs_show, .context = NULL, .err_msg = &err_msg);
-    g_cli_guard->persistent_buf_release(values, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(values, g_cli_command_line_owner);
     if (!displayed)
     {
         line.at = 0ULL;
@@ -367,7 +367,7 @@ int cli_job_run(const CliCommandLineRootCtx *args)
     unsigned int job = args->job;
     char why[4096];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-    CliValues *const values = g_cli_guard->temporary_buf_alloc(sizeof(*values), g_cli_command_line_owner);
+    CliValues *const values = g_platform_guard->temporary_buf_alloc(sizeof(*values), g_cli_command_line_owner);
     if ((values == NULL) ||
         !EMBED_CALL(cli_command_line_catalog_internal.job_values, CliCommandLineCatalogCtx, .catalog = catalog,
                     .job = job, .words = args->words, .count = args->count, .values = values, .err_msg = &err_msg))
@@ -375,7 +375,7 @@ int cli_job_run(const CliCommandLineRootCtx *args)
         mmgr_line_put(&err_msg, (values == NULL) ? "the cells cannot meet the values a job is run with" : "");
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = why,
                    .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
-        g_cli_guard->persistent_buf_release(values, g_cli_command_line_owner);
+        g_platform_guard->persistent_buf_release(values, g_cli_command_line_owner);
         return CLI_WRONG;
     }
     s_run.ended = 0;
@@ -387,7 +387,7 @@ int cli_job_run(const CliCommandLineRootCtx *args)
     const int started =
         EMBED_CALL(cli_runner_err_msg.runs_start, CliRunnerErrMsgCfg, .sink = sink, .root = root, .catalog = catalog,
                    .job = job, .values = values, .run_number_pointer = &run, .err_msg = &err_msg);
-    g_cli_guard->persistent_buf_release(values, g_cli_command_line_owner);
+    g_platform_guard->persistent_buf_release(values, g_cli_command_line_owner);
     if (!started)
     {
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = why,

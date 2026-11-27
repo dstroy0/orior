@@ -37,7 +37,7 @@
 // code named through its format's oracle and the texts of the file a record names given after it. Exit 0 where every
 // file was read, 1 where one was not
 #include "../../../../../../includes/parsers/who.h"
-#include "../../../../../platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "kdecode/kdecode_internal.h"
 #include "memoria_operor/memoria_operor.h"

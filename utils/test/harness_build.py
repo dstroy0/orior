@@ -4,6 +4,7 @@
 the compiler and the linker's tools.
 
     harness.py build gui                      the window's release program, every window running from it ended first
+    harness.py build cli [TARGET]             the command line's program, its debug information next to it
     harness.py build mmgr [--suffix S] [--flags F] [--tests R]
                                               MMgr's Unity suites under build/mmgr_tests<S>, the owner queue's room
                                               as orior builds MMgr, the accuracy suites run, or those R matches
@@ -17,7 +18,7 @@ the compiler and the linker's tools.
     harness.py source frames                  each CLI function whose stack frame is 64 KB or more
     harness.py source static-sizes <list>     each object's .bss and .data bytes, the largest last
     harness.py source static-symbols <name>...  the zero-filled statics of a CLI object, largest first
-    harness.py source format                  clang-format over ui/gui/src, ui/cli/src and ui/query/src, the files changed listed
+    harness.py source format                  clang-format over ui/gui/src, ui/cli/src, ui/query/src and includes/platform, the files changed listed
     harness.py source repeats [folder] [lines]  the runs of C lines located in two or more places under the folder,
                                               blank and comment lines dropped, the longest first
     harness.py source cells [folder]          every persistent take under the folder, with the function it is in,
@@ -37,6 +38,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from utils.tools import findroot  # noqa: E402
 
+import harness_move  # noqa: E402
 import harness_rename  # noqa: E402
 
 ROOT = findroot.root()
@@ -72,6 +74,27 @@ def cmd_build_gui(a):
     log = os.path.join(BUILD, "gui_build.log")
     with open(log, "wb") as out:
         built = subprocess.run([harness_cli.bash(), os.path.join(ROOT, "ui", "cli", "build.sh"), "window"], cwd=ROOT, stdout=out, stderr=subprocess.STDOUT)
+    if built.returncode != 0:
+        print("\n".join(grep(log, r"^error", 5)))
+        print(tail(log, 3), end="")
+        return 1
+    print(tail(log, 1), end="")
+    return 0
+
+
+def cmd_build_cli(a):
+    """The command line's program, its debug information kept in a file next to it, for the host or for `a.target`."""
+    import harness_window
+
+    # a window runs the program as its session's far end, and Windows writes no program that is running
+    if os.name == "nt":
+        harness_window.windows_ended()
+    import harness_cli
+
+    log = os.path.join(BUILD, "cli_build.log")
+    words = [harness_cli.bash(), os.path.join(ROOT, "ui", "cli", "build.sh")] + ([a.target] if a.target else [])
+    with open(log, "wb") as out:
+        built = subprocess.run(words, cwd=ROOT, stdout=out, stderr=subprocess.STDOUT)
     if built.returncode != 0:
         print("\n".join(grep(log, r"^error", 5)))
         print(tail(log, 3), end="")
@@ -249,7 +272,7 @@ def frame_lines(source):
 
 def cmd_source_frames(a):
     listed = os.path.join(BUILD, "harness", "frames.txt")
-    sources = [os.path.join(folder, name) for folder, _, names in os.walk(os.path.join(ROOT, "ui", "cli", "src")) for name in names if name.endswith(".c")]
+    sources = [os.path.join(folder, name) for top in ("ui/cli/src", "includes/platform") for folder, _, names in os.walk(os.path.join(ROOT, *top.split("/"))) for name in names if name.endswith(".c")]
     with concurrent.futures.ThreadPoolExecutor(max_workers=FRAME_JOBS) as pool:
         found = [line for lines in pool.map(frame_lines, sorted(sources)) for line in lines]
     os.makedirs(os.path.dirname(listed), exist_ok=True)
@@ -313,7 +336,7 @@ FORMAT_BATCH = 200
 def cmd_source_format(a):
     os.makedirs(OUT, exist_ok=True)
     # the lattice stays as it is until the window's own computing replaces it
-    files = sorted(os.path.join(folder, name) for top in ("ui/gui/src", "ui/cli/src", "ui/query/src") for folder, _, names in os.walk(os.path.join(ROOT, *top.split("/"))) for name in names if name.endswith((".c", ".h")) and name not in ("lattice.c", "lattice.h"))
+    files = sorted(os.path.join(folder, name) for top in ("ui/gui/src", "ui/cli/src", "ui/query/src", "includes/platform") for folder, _, names in os.walk(os.path.join(ROOT, *top.split("/"))) for name in names if name.endswith((".c", ".h")) and name not in ("lattice.c", "lattice.h"))
     before = {path: digest(path) for path in files}
     # a few at a time, since every file on one command line passes the length Windows takes
     for at in range(0, len(files), FORMAT_BATCH):
@@ -524,6 +547,9 @@ def register(sub):
     build = group.add_subparsers(dest="command", required=True)
     p = build.add_parser("gui", help="the window's release program, every window running from it ended first")
     p.set_defaults(fn=cmd_build_gui)
+    p = build.add_parser("cli", help="the command line's program, its debug information next to it, every window ended first")
+    p.add_argument("target", nargs="?", default="", help="the target triple, the host's where none is named")
+    p.set_defaults(fn=cmd_build_cli)
     p = build.add_parser("mmgr", help="MMgr's Unity suites built and the accuracy suites run")
     p.add_argument("--suffix", default="", help="the build tree's suffix under build/mmgr_tests")
     p.add_argument("--flags", default="", help="C flags past the tree's own")
@@ -547,7 +573,7 @@ def register(sub):
     p = source.add_parser("static-symbols", help="the zero-filled statics of CLI objects, largest first")
     p.add_argument("names", nargs="+", help="the source's name under ui/cli/src, without .c")
     p.set_defaults(fn=cmd_source_static_symbols)
-    p = source.add_parser("format", help="clang-format over ui/gui/src, ui/cli/src and ui/query/src, the files changed listed")
+    p = source.add_parser("format", help="clang-format over ui/gui/src, ui/cli/src, ui/query/src and includes/platform, the files changed listed")
     p.set_defaults(fn=cmd_source_format)
     p = source.add_parser("repeats", help="the runs of C lines located in two or more places under the folder, the longest first")
     p.add_argument("folder", nargs="?", default="includes/window", help="the folder read, from the top of the tree")
@@ -562,6 +588,7 @@ def register(sub):
     p.add_argument("--compile-only", action="store_true", help="the compiler's errors and warnings alone, with no analysis")
     p.set_defaults(fn=cmd_source_analyze)
     p = source.add_parser("tidy", help="clang-tidy with the static analyzer, and cppcheck, in the Linux image, their reports under build/sonarqube")
-    p.add_argument("--folders", nargs="+", default=["ui/cli/src", "ui/query/src"], help="the folders read, from the top of the tree")
+    p.add_argument("--folders", nargs="+", default=["ui/cli/src", "ui/query/src", "includes/platform"], help="the folders read, from the top of the tree")
     p.set_defaults(fn=cmd_source_tidy)
     harness_rename.register(source)
+    harness_move.register(source)

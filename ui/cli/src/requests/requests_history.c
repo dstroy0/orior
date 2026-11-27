@@ -140,7 +140,7 @@ EMBED_INLINE int history_read(const RequestsHistoryCtx *args)
                              !EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg,
                                          .text = (const char *)*bytes, .size = *size, .out = &none)))
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)(*bytes), g_cli_requests_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)(*bytes), g_cli_requests_owner);
         *bytes = NULL;
     }
     *first = at + 1u;
@@ -217,7 +217,7 @@ int cli_requests_history_save(const CliRequestsErrMsgCtx *args)
     }
     if (before)
     {
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_requests_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_requests_owner);
     }
     mmgr_line_ch(&piece, ']');
     done = done && mmgr_line_flush(&piece) &&
@@ -262,7 +262,7 @@ int cli_requests_answers(const CliRequestsTextCfg *args)
     {
         (void)EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = (const char *)bytes,
                          .size = byte_count, .out = args->out);
-        g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_requests_owner);
+        g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_requests_owner);
     }
     else
     {

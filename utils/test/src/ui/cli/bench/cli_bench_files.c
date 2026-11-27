@@ -4,7 +4,7 @@
 // through the cells or through the system's allocator alone; the view of the tree's files picked as a search picks it;
 // and the tree searched as the window's search does it
 #include "../../../../../../ui/cli/src/code/symbols.h"
-#include "../../../../../../src/platform/platform.h"
+#include "../../../../../../includes/platform/platform.h"
 #include "../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "../../../../../../ui/cli/src/editor/files.h"
 #include "../../../../../../ui/cli/src/editor/files_internal.h"
@@ -57,7 +57,7 @@ static void readers_run(void *context)
         const unsigned char *const bytes =
             EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = corpus->paths[index], .size_pointer = &size,
                        .owner = g_checks_owner);
-        g_cli_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_checks_owner));
+        g_platform_guard->persistent_buf_release((void *)(uintptr_t)bytes, (g_checks_owner));
     }
     s_readers.running -= 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_readers.wake);
@@ -77,7 +77,7 @@ BenchMeasure bench_files_read_by(const BenchCorpus *corpus, unsigned int threads
         const unsigned long long began = cli_clock_microseconds();
         for (unsigned int at = 0u; at < threads; at += 1u)
         {
-            s_thread[at] = (CliThread){readers_run, NULL, CLI_PRIORITY_WORK};
+            s_thread[at] = (CliThread){readers_run, NULL, PLATFORM_PRIORITY_WORK};
             if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_thread[at]))
             {
                 readers_run(NULL);
@@ -130,7 +130,7 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
     char under[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = corpus->root, .relative = "ui/cli/src", .joined = under);
     const unsigned long long out_capacity = 1ull << 20u;
-    char *const out_cell = g_cli_guard->temporary_buf_alloc(out_capacity, g_checks_owner);
+    char *const out_cell = g_platform_guard->temporary_buf_alloc(out_capacity, g_checks_owner);
     VerbaLinea out = mmgr_line_over(out_cell, out_capacity);
     for (unsigned int round = 0u; round < corpus->repeat; round += 1u)
     {
@@ -149,6 +149,6 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
         measure.bytes = corpus->whole;
         measure.min = (consumed < measure.min) ? consumed : measure.min;
     }
-    g_cli_guard->persistent_buf_release(out.out, g_checks_owner);
+    g_platform_guard->persistent_buf_release(out.out, g_checks_owner);
     return measure;
 }

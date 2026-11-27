@@ -17,7 +17,7 @@
 // one at a spacing, and spacings past the extent. The test is one job on the device's tessera daemon, submitted before
 // its first device work.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
-#include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../../../src/cu/engine/analysis/residual/residual.h"

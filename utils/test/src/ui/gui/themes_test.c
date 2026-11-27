@@ -5,7 +5,7 @@
 // matched to a file's name, and one theme shared as text and read back
 #include "../../../../../includes/window/block.h"
 #include "../../../../../ui/gui/src/themes.h"
-#include "../../../../../ui/cli/src/command_line/owners.h"
+#include "../../../../../includes/platform/owners.h"
 #include "../cli/cli_check.h"
 
 static GuiThemes s_themes;

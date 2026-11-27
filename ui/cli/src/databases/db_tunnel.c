@@ -58,7 +58,7 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                .word_text = args->through);
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
-    const CliSetting settings[1] = {{"PATH", s_path}};
+    const PlatformSetting settings[1] = {{"PATH", s_path}};
     const int started = EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &args->tunnel->child,
                                    .words = s_words.word_text, .folder = NULL, .settings = settings, .count = 1u,
                                    .detached = 1, .err_msg = &err_msg);

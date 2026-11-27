@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pair_witness.cu: the lower witness: a pair whose puts queried nothing put at the links of a third form, both
 // forms located in there and the part's two answers checked against each other
-#include "../../../../../../platform/platform.h"
+#include "../../../../../../../includes/platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "pair.h"
 

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_grade.cu: grading the codes
-#include "../../../../platform/platform.h"
+#include "../../../../../includes/platform/platform.h"
 #include "max_tree_device_internal.h"
 
 static int max_tree_grade_codes(const unsigned int *residual, unsigned int depth, unsigned int height,

@@ -518,11 +518,11 @@ EMBED_INLINE int effect_sift_lex(const EffectSiftCtx *args)
     {
         return 1;
     }
-    char *const joined = g_cli_guard->temporary_buf_alloc(bytes, g_cli_code_owner);
+    char *const joined = g_platform_guard->temporary_buf_alloc(bytes, g_cli_code_owner);
     unsigned int *const origin =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)count * sizeof(unsigned int), g_cli_code_owner);
+        g_platform_guard->temporary_buf_alloc((unsigned long long)count * sizeof(unsigned int), g_cli_code_owner);
     unsigned long long *const joined_at =
-        g_cli_guard->temporary_buf_alloc((unsigned long long)count * sizeof(unsigned long long), g_cli_code_owner);
+        g_platform_guard->temporary_buf_alloc((unsigned long long)count * sizeof(unsigned long long), g_cli_code_owner);
     int leaved = (joined != NULL) && (origin != NULL) && (joined_at != NULL);
     unsigned long long used = 0ULL;
     unsigned int placed = 0u;
@@ -562,9 +562,9 @@ EMBED_INLINE int effect_sift_lex(const EffectSiftCtx *args)
     args->read->size = sifted->size;
     args->read->lines = sifted->lines;
     args->read->first = NULL;
-    g_cli_guard->persistent_buf_release(joined_at, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(origin, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(joined, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(joined_at, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(origin, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(joined, g_cli_code_owner);
     return leaved;
 }
 
@@ -574,7 +574,7 @@ EMBED_INLINE int effect_sift_lex(const EffectSiftCtx *args)
 EMBED_INLINE unsigned int effect_sift_statement_end(const EffectSiftCtx *args)
 {
     CliEffectSifted *const sifted = args->sifted;
-    unsigned char *const window = g_cli_guard->temporary_buf_alloc(sifted->lines, g_cli_code_owner);
+    unsigned char *const window = g_platform_guard->temporary_buf_alloc(sifted->lines, g_cli_code_owner);
     if (window == NULL)
     {
         return args->line;
@@ -619,14 +619,14 @@ EMBED_INLINE unsigned int effect_sift_statement_end(const EffectSiftCtx *args)
                 ended = 1;
             }
         }
-        g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
+        g_platform_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
         if (ended || (last == sifted->lines))
         {
             end = ended ? end : (last - 1u);
             break;
         }
     }
-    g_cli_guard->persistent_buf_release(window, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(window, g_cli_code_owner);
     return end;
 }
 
@@ -657,11 +657,11 @@ EMBED_INLINE int effect_sift_index(const EffectSiftCtx *args)
         at = (unsigned long long)(newline - text);
     }
     *sifted = (CliEffectSifted){text, size, NULL, lines, NULL, NULL, NULL};
-    sifted->start = g_cli_guard->temporary_buf_alloc(((unsigned long long)lines + 1ULL) * sizeof(unsigned long long),
-                                                     g_cli_code_owner);
-    sifted->taken = g_cli_guard->temporary_buf_alloc(lines, g_cli_code_owner);
-    sifted->declares = g_cli_guard->temporary_buf_alloc(lines, g_cli_code_owner);
-    sifted->named = g_cli_guard->temporary_buf_alloc(lines, g_cli_code_owner);
+    sifted->start = g_platform_guard->temporary_buf_alloc(
+        ((unsigned long long)lines + 1ULL) * sizeof(unsigned long long), g_cli_code_owner);
+    sifted->taken = g_platform_guard->temporary_buf_alloc(lines, g_cli_code_owner);
+    sifted->declares = g_platform_guard->temporary_buf_alloc(lines, g_cli_code_owner);
+    sifted->named = g_platform_guard->temporary_buf_alloc(lines, g_cli_code_owner);
     if ((sifted->start == NULL) || (sifted->taken == NULL) || (sifted->declares == NULL) || (sifted->named == NULL))
     {
         return 0;
@@ -687,10 +687,10 @@ EMBED_INLINE int effect_sift_index(const EffectSiftCtx *args)
 // the cells of the index `sifted` given back
 EMBED_INLINE void effect_sift_index_free(const EffectSiftCtx *args)
 {
-    g_cli_guard->persistent_buf_release(args->sifted->named, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(args->sifted->declares, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(args->sifted->taken, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(args->sifted->start, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(args->sifted->named, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(args->sifted->declares, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(args->sifted->taken, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(args->sifted->start, g_cli_code_owner);
 }
 
 EMBED_INLINE int effect_sift_read(const EffectSiftCtx *args)
@@ -745,7 +745,7 @@ EMBED_INLINE int effect_sift_read(const EffectSiftCtx *args)
                              .mask = sifted.named, .read = &found, .each = NULL, .context = NULL);
     if (leaved)
     {
-        g_cli_guard->persistent_buf_release(found.leaf, g_cli_leaves_owner);
+        g_platform_guard->persistent_buf_release(found.leaf, g_cli_leaves_owner);
     }
     unsigned int reached = 0u;
     for (unsigned int line = 0u; leaved && (line < lines); line += 1u)
@@ -818,7 +818,7 @@ EMBED_INLINE void effect_sift_view_names(const EffectSiftCtx *args)
         effect->sift_length[effect->sift_names] = length;
         effect->sift_names += 1u;
     }
-    g_cli_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
+    g_platform_guard->persistent_buf_release(read.leaf, g_cli_leaves_owner);
     EMBED_CALL(effect_sift_index_free, EffectSiftCtx, .sifted = &sifted);
 }
 
@@ -861,10 +861,10 @@ EMBED_INLINE void cli_effect_find(const SymbolsEffectCtx *args)
     const char *path = args->path;
     CliEffectBranch *branch = args->branch;
     branch->needles = 0u;
-    branch->declared =
-        args->effect->slicing
-            ? g_cli_guard->temporary_buf_alloc(CLI_EFFECT_DECLARED_MAX * sizeof(CliEffectDeclared), g_cli_code_owner)
-            : NULL;
+    branch->declared = args->effect->slicing
+                           ? g_platform_guard->temporary_buf_alloc(CLI_EFFECT_DECLARED_MAX * sizeof(CliEffectDeclared),
+                                                                   g_cli_code_owner)
+                           : NULL;
     branch->declareds = 0u;
     branch->declared_capacity = (branch->declared != NULL) ? CLI_EFFECT_DECLARED_MAX : 0u;
     if (args->effect->noted != NULL)
@@ -881,7 +881,7 @@ EMBED_INLINE void cli_effect_find(const SymbolsEffectCtx *args)
     char *const scratch = (stored != NULL) ? cli_branch_copy_alloc() : NULL;
     if (scratch != NULL)
     {
-        (void)g_cli_guard->movable_buf_read(
+        (void)g_platform_guard->movable_buf_read(
             &(CarcerMovableCfg){.cell = stored->cell, .dst = scratch, .bytes = stored->bytes});
     }
     const unsigned int count = (scratch != NULL) ? stored->count : 0u;
@@ -897,7 +897,7 @@ EMBED_INLINE void cli_effect_find(const SymbolsEffectCtx *args)
             branch->needles += 1u;
         }
     }
-    g_cli_guard->persistent_buf_release(scratch, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(scratch, g_cli_code_owner);
 }
 
 // a declaration the leaves of a branch a slice's walk or a noting walk reads name, as the leaves are read: a branch's
@@ -979,7 +979,7 @@ EMBED_INLINE long long cli_effect_judged(const SymbolsEffectCtx *args)
 {
     CliEffect *effect = args->effect;
     const CliLeafRead *read = args->read;
-    CliEffectToken *const token = g_cli_guard->temporary_buf_alloc(
+    CliEffectToken *const token = g_platform_guard->temporary_buf_alloc(
         (unsigned long long)((args->to - args->from) + 1u) * sizeof(CliEffectToken), g_cli_code_owner);
     if (token == NULL)
     {
@@ -1001,7 +1001,7 @@ EMBED_INLINE long long cli_effect_judged(const SymbolsEffectCtx *args)
     }
     const long long value = EMBED_CALL(cli_symbols_effect_internal.effect_value, CliSymbolsEffectCtx, .effect = effect,
                                        .token = token, .count = count, .through = 0u);
-    g_cli_guard->persistent_buf_release(token, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(token, g_cli_code_owner);
     return value;
 }
 
@@ -1389,7 +1389,7 @@ static void cli_effect_walk(const SymbolsEffectCtx *args)
         return;
     }
     const unsigned int path_at = effect->walked[effect->walks - 1u];
-    CliEffectBranch *const branch = g_cli_guard->temporary_buf_alloc(sizeof(CliEffectBranch), g_cli_code_owner);
+    CliEffectBranch *const branch = g_platform_guard->temporary_buf_alloc(sizeof(CliEffectBranch), g_cli_code_owner);
     char full[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = effect->root, .relative = path, .joined = full);
     // the branch the walk starts from is the editor's text where one is given, else every branch is the disk's
@@ -1413,7 +1413,7 @@ static void cli_effect_walk(const SymbolsEffectCtx *args)
     if (bytes == NULL)
     {
         effect->refused |= branch == NULL;
-        g_cli_guard->persistent_buf_release(branch, g_cli_code_owner);
+        g_platform_guard->persistent_buf_release(branch, g_cli_code_owner);
         return;
     }
     branch->open = 0u;
@@ -1444,17 +1444,17 @@ static void cli_effect_walk(const SymbolsEffectCtx *args)
     // a branch a slice's walk read whole stays in the walk's cell until the walk is given back
     if (branch->read_at == CLI_JSON_NONE)
     {
-        g_cli_guard->persistent_buf_release(branch->read.leaf, g_cli_leaves_owner);
+        g_platform_guard->persistent_buf_release(branch->read.leaf, g_cli_leaves_owner);
         branch->read.leaf = NULL;
         branch->read.count = 0u;
         branch->read.capacity = 0u;
         if (from_disk)
         {
-            g_cli_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_code_owner);
+            g_platform_guard->persistent_buf_release((void *)(embed_word)bytes, g_cli_code_owner);
         }
     }
-    g_cli_guard->persistent_buf_release(branch->declared, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(branch, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(branch->declared, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(branch, g_cli_code_owner);
 }
 
 // the least scale that fit the last walk taken whole, where the next walk starts
@@ -1508,7 +1508,7 @@ CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
     const unsigned int values = CLI_EFFECT_VALUES_MAX >> down;
     const unsigned long long texts = CLI_EFFECT_TEXT_CAPACITY >> down;
     // the effect lives for the one walk that takes it: a cell of the temporary tier
-    CliEffect *const effect = g_cli_guard->temporary_buf_alloc(sizeof(CliEffect), g_cli_code_owner);
+    CliEffect *const effect = g_platform_guard->temporary_buf_alloc(sizeof(CliEffect), g_cli_code_owner);
     // the walk's lists and texts in one cell, each at the scale's size
     const unsigned long long branch_bytes = list * sizeof(CliEffectBranchRead);
     const unsigned long long macro_bytes = list * sizeof(CliEffectMacro);
@@ -1516,10 +1516,11 @@ CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
     const unsigned long long leaf_bytes = values * sizeof(CliEffectValueLeaf);
     const unsigned long long walked_bytes = list * sizeof(unsigned int);
     const unsigned long long list_bytes = branch_bytes + macro_bytes + seen_bytes + leaf_bytes + walked_bytes;
-    char *const cell = (effect != NULL) ? g_cli_guard->temporary_buf_alloc(list_bytes + texts, g_cli_code_owner) : NULL;
+    char *const cell =
+        (effect != NULL) ? g_platform_guard->temporary_buf_alloc(list_bytes + texts, g_cli_code_owner) : NULL;
     if (cell == NULL)
     {
-        g_cli_guard->persistent_buf_release(effect, g_cli_code_owner);
+        g_platform_guard->persistent_buf_release(effect, g_cli_code_owner);
         mmgr_line_put(args->err_msg, "the cells cannot meet the walk");
         return NULL;
     }
@@ -1582,16 +1583,16 @@ void cli_effect_input_back(const CliSymbolsTextLengthCtx *args)
 {
     for (unsigned int at = 0u; at < args->effect->branches_read; at += 1u)
     {
-        g_cli_guard->persistent_buf_release((&args->effect->branch_read[at].read)->leaf, g_cli_leaves_owner);
+        g_platform_guard->persistent_buf_release((&args->effect->branch_read[at].read)->leaf, g_cli_leaves_owner);
         (&args->effect->branch_read[at].read)->leaf = NULL;
         (&args->effect->branch_read[at].read)->count = 0u;
         (&args->effect->branch_read[at].read)->capacity = 0u;
         if (args->effect->branch_read[at].from_disk)
         {
-            g_cli_guard->persistent_buf_release((void *)(embed_word)(args->effect->branch_read[at].bytes),
-                                                g_cli_code_owner);
+            g_platform_guard->persistent_buf_release((void *)(embed_word)(args->effect->branch_read[at].bytes),
+                                                     g_cli_code_owner);
         }
     }
-    g_cli_guard->persistent_buf_release(args->effect->branch_read, g_cli_code_owner);
-    g_cli_guard->persistent_buf_release(args->effect, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(args->effect->branch_read, g_cli_code_owner);
+    g_platform_guard->persistent_buf_release(args->effect, g_cli_code_owner);
 }

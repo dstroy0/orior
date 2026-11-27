@@ -42,7 +42,7 @@
  *       routes of theta. Then the routes do not meet at the doublings shown, and the search decides no Gram index.
  */
 #include "zeta_gram_walk.h"
-#include "../../../src/platform/platform.h"
+#include "../../../includes/platform/platform.h"
 #include "zeta_search.h"
 #include "zeta_theta.h"
 #include "zeta_shuffle.h"
