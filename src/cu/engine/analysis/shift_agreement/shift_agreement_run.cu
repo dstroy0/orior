@@ -99,27 +99,34 @@ static VolumesResident s_volumes_resident;
 
 #define SHIFT_AGREEMENT_SLICES (2u + SHIFT_AGREEMENT_VOLUMES)
 
-// The pool's slices for `total` padded elements and `words` bit words, in the order that the plan sets and the pool
-// takes them. First the before and after words, then the four volumes. The plan comes from them, and a pool that the
-// plan reserves takes them
-static DevicePoolPlan plan_volumes(size_t total, size_t words, EngineError *error,
-                                   DevicePoolTakeRequest takes[SHIFT_AGREEMENT_SLICES])
+// The bytes of the slices for `total` padded elements and `words` bit words, in the order that the run takes them.
+// First the before and after words, then the four volumes. The reserve of a caller plans them in this order
+static DevicePoolPlan plan_volumes(size_t total, size_t words)
 {
-    VolumesResident *const resident = &s_volumes_resident;
-    const DevicePoolTakeRequest requests[SHIFT_AGREEMENT_SLICES] = {
-        {&resident->pool, words * sizeof(unsigned long long), (void **)&resident->before, error},
-        {&resident->pool, words * sizeof(unsigned long long), (void **)&resident->after, error},
-        {&resident->pool, total * sizeof(unsigned int), (void **)&resident->volumes[0], error},
-        {&resident->pool, total * sizeof(unsigned int), (void **)&resident->volumes[1], error},
-        {&resident->pool, total * sizeof(unsigned int), (void **)&resident->volumes[2], error},
-        {&resident->pool, total * sizeof(unsigned int), (void **)&resident->volumes[3], error}};
+    const unsigned long long bytes[SHIFT_AGREEMENT_SLICES] = {
+        (unsigned long long)words * sizeof(unsigned long long), (unsigned long long)words * sizeof(unsigned long long),
+        (unsigned long long)total * sizeof(unsigned int),       (unsigned long long)total * sizeof(unsigned int),
+        (unsigned long long)total * sizeof(unsigned int),       (unsigned long long)total * sizeof(unsigned int)};
     DevicePoolPlan plan = {0ULL, 0ULL, 0};
     for (unsigned int at = 0u; at < SHIFT_AGREEMENT_SLICES; at += 1u)
     {
-        takes[at] = requests[at];
-        device_pool_plan_slice(&plan, requests[at].bytes);
+        device_pool_plan_slice(&plan, bytes[at]);
     }
     return plan;
+}
+
+// the six cells of the volumes given back to the pool of the device, the newest first, and the record empty
+static void release_volumes(VolumesResident *resident)
+{
+    for (unsigned int at = SHIFT_AGREEMENT_VOLUMES; at > 0u; at -= 1u)
+    {
+        agreement_cell_given((void **)&resident->volumes[at - 1u]);
+    }
+    agreement_cell_given((void **)&resident->after);
+    agreement_cell_given((void **)&resident->before);
+    platform_cell_released(resident->cached_words, platform_place_g_program_owner);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
+    resident->cached = SHIFT_AGREEMENT_NONE_CACHED;
 }
 
 static int reserve_volumes(size_t total, size_t words)
@@ -129,31 +136,22 @@ static int reserve_volumes(size_t total, size_t words)
     {
         return 1;
     }
-    device_pool_release(&resident->pool);
-    platform_cell_released(resident->cached_words, platform_place_g_program_owner);
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
-    resident->cached = SHIFT_AGREEMENT_NONE_CACHED;
-    // the run errors without detail. The code records the pool's error here and drops it
-    EngineError error;
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
-    DevicePoolTakeRequest takes[SHIFT_AGREEMENT_SLICES];
-    const DevicePoolPlan plan = plan_volumes(total, words, &error, takes);
-    const DevicePoolReserveRequest reserve = {&plan, &resident->pool, &error};
-    int ok = device_pool_reserve(&reserve) == 0L;
-    // the code takes the slices in the plan's order. Each lands where the plan placed it, where none errored
-    for (unsigned int at = 0u; (ok != 0) && (at < SHIFT_AGREEMENT_SLICES); at += 1u)
+    release_volumes(resident);
+    // the words and the volumes, persistent cells of the pool of the device until the next size of the run
+    const unsigned long long word_bytes = (unsigned long long)words * sizeof(unsigned long long);
+    const unsigned long long volume_bytes = (unsigned long long)total * sizeof(unsigned int);
+    int ok = agreement_cell_taken((void **)&resident->before, word_bytes) &&
+             agreement_cell_taken((void **)&resident->after, word_bytes);
+    for (unsigned int at = 0u; (ok != 0) && (at < SHIFT_AGREEMENT_VOLUMES); at += 1u)
     {
-        ok = device_pool_take(&takes[at]) == 0L;
+        ok = agreement_cell_taken((void **)&resident->volumes[at], volume_bytes);
     }
     resident->cached_words = (unsigned long long *)platform_cell_taken(words * sizeof(unsigned long long),
                                                                        platform_place_g_program_owner, 0);
     ok = ok && (resident->cached_words != NULL);
     if (ok == 0)
     {
-        device_pool_release(&resident->pool);
-        platform_cell_released(resident->cached_words, platform_place_g_program_owner);
-        EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
-        resident->cached = SHIFT_AGREEMENT_NONE_CACHED;
+        release_volumes(resident);
         return 0;
     }
     resident->total = total;
@@ -173,7 +171,7 @@ static int reserve_negation(const AgreementLayout *layout)
         return 1;
     }
     s_volumes_resident.cached = SHIFT_AGREEMENT_NONE_CACHED;
-    cudaFree(resident->negation);
+    agreement_cell_given((void **)&resident->negation);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
     size_t entries = 0u;
     for (unsigned int axis = 0u; axis < layout->axes; axis += 1u)
@@ -198,13 +196,14 @@ static int reserve_negation(const AgreementLayout *layout)
                        .bytes = (size_t)layout->padded[axis] * sizeof(unsigned int));
         }
     }
-    ok = ok && (cudaMalloc((void **)&resident->negation, (entries + 1u) * sizeof(unsigned int)) == cudaSuccess);
     ok = ok &&
-         (cudaMemcpy(resident->negation, host, entries * sizeof(unsigned int), cudaMemcpyHostToDevice) == cudaSuccess);
+         agreement_cell_taken((void **)&resident->negation,
+                              ((unsigned long long)entries + 1ULL) * sizeof(unsigned int)) &&
+         tessera_job_crossed_into(resident->negation, host, (unsigned long long)entries * sizeof(unsigned int));
     platform_cell_released(host, platform_place_g_program_owner);
     if (ok == 0)
     {
-        cudaFree(resident->negation);
+        agreement_cell_given((void **)&resident->negation);
         EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
         return 0;
     }
@@ -222,8 +221,7 @@ extern "C" unsigned long long shift_agreement_reserve_bytes(unsigned int axes, c
     {
         return 0ULL;
     }
-    DevicePoolTakeRequest takes[SHIFT_AGREEMENT_SLICES];
-    const DevicePoolPlan plan = plan_volumes((size_t)layout.total, ((size_t)layout.voxels + 63u) / 64u, NULL, takes);
+    const DevicePoolPlan plan = plan_volumes((size_t)layout.total, ((size_t)layout.voxels + 63u) / 64u);
     // the negation table, one entry past every padded coordinate, and each distinct length's two root tables
     unsigned long long tables = 1ULL;
     for (unsigned int axis = 0u; axis < axes; axis += 1u)
@@ -295,12 +293,12 @@ extern "C" long shift_agreement_run(ShiftAgreementRequest *args)
     unsigned int *moved = roles[1];
     unsigned int *spare = roles[2];
     const unsigned int blocks = (layout.total + SHIFT_AGREEMENT_BLOCK - 1u) / SHIFT_AGREEMENT_BLOCK;
-    ok = ok && ((reuse != 0) || (cudaMemcpy(device_before, args->before, words * sizeof(unsigned long long),
-                                            cudaMemcpyHostToDevice) == cudaSuccess));
-    ok = ok && (cudaMemcpy(device_after, args->after, words * sizeof(unsigned long long), cudaMemcpyHostToDevice) ==
-                cudaSuccess);
-    ok = ok && ((reuse != 0) || (cudaMemset(reflected, 0, total * sizeof(unsigned int)) == cudaSuccess));
-    ok = ok && (cudaMemset(moved, 0, total * sizeof(unsigned int)) == cudaSuccess);
+    const unsigned long long word_bytes = (unsigned long long)words * sizeof(unsigned long long);
+    const unsigned long long volume_bytes = (unsigned long long)total * sizeof(unsigned int);
+    ok = ok && ((reuse != 0) || tessera_job_crossed_into(device_before, args->before, word_bytes));
+    ok = ok && tessera_job_crossed_into(device_after, args->after, word_bytes);
+    ok = ok && ((reuse != 0) || tessera_job_cleared(reflected, volume_bytes));
+    ok = ok && tessera_job_cleared(moved, volume_bytes);
     const unsigned int voxel_blocks = (layout.voxels + SHIFT_AGREEMENT_BLOCK - 1u) / SHIFT_AGREEMENT_BLOCK;
     if (ok != 0)
     {
@@ -332,9 +330,7 @@ extern "C" long shift_agreement_run(ShiftAgreementRequest *args)
     }
     if ((ok != 0) && (host_counts != NULL))
     {
-        ok = (cudaMemcpy(host_counts, reflected, total * sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess)
-                 ? 1
-                 : 0;
+        ok = tessera_job_crossed_out(host_counts, reflected, volume_bytes);
     }
 
     if (ok != 0)
@@ -351,9 +347,8 @@ extern "C" long shift_agreement_run(ShiftAgreementRequest *args)
     }
     unsigned int winner = 0u;
     unsigned int winner_count = 0u;
-    ok = ok && (cudaMemcpy(&winner, spare, sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess);
-    ok = ok &&
-         (cudaMemcpy(&winner_count, &reflected[winner], sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess);
+    ok = ok && tessera_job_crossed_out(&winner, spare, sizeof(unsigned int));
+    ok = ok && tessera_job_crossed_out(&winner_count, &reflected[winner], sizeof(unsigned int));
 
     long answer = SHIFT_AGREEMENT_ERROR;
     if (ok != 0)

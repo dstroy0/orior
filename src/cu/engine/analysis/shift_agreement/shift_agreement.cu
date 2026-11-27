@@ -279,6 +279,17 @@ static_assert((1u << (SHIFT_AGREEMENT_TABLES - 1u)) == SHIFT_AGREEMENT_LONGEST_A
 
 static AxisTables s_axis_tables[SHIFT_AGREEMENT_TABLES];
 
+int agreement_cell_taken(void **cell, unsigned long long bytes)
+{
+    return tessera_job_persistent_taken(bytes, SHIFT_AGREEMENT_PLACE, cell);
+}
+
+void agreement_cell_given(void **cell)
+{
+    tessera_job_given(*cell, SHIFT_AGREEMENT_PLACE);
+    *cell = NULL;
+}
+
 static unsigned int agreement_reverse(unsigned int position, unsigned int bits)
 {
     unsigned int reversed = 0u;
@@ -311,9 +322,11 @@ const AxisTables *axis_tables(unsigned int length)
                                             (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
     tables->negation =
         (unsigned int *)platform_cell_taken((size_t)length * sizeof(unsigned int), platform_place_g_program_owner, 0);
-    int ok = (host != NULL) && (tables->negation != NULL);
-    ok = ok && (cudaMalloc((void **)&tables->roots[0], (size_t)length * sizeof(unsigned int)) == cudaSuccess);
-    ok = ok && (cudaMalloc((void **)&tables->roots[1], (size_t)length * sizeof(unsigned int)) == cudaSuccess);
+    const unsigned long long root_bytes = (unsigned long long)length * sizeof(unsigned int);
+    // the two root tables of the length, persistent cells of the pool of the device that the agreement keeps
+    int ok = (host != NULL) && (tables->negation != NULL) &&
+             agreement_cell_taken((void **)&tables->roots[0], root_bytes) &&
+             agreement_cell_taken((void **)&tables->roots[1], root_bytes);
     for (unsigned int position = 0u; (ok != 0) && (position < length); position += 1u)
     {
         const unsigned int exponent = (length - agreement_reverse(position, logarithm)) % length;
@@ -334,16 +347,13 @@ const AxisTables *axis_tables(unsigned int length)
                     (inverse != 0) ? device_agreement_power(root, SHIFT_AGREEMENT_PRIME - 2u) : root;
             }
         }
-        ok = (cudaMemcpy(tables->roots[inverse], host, (size_t)length * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
-              cudaSuccess)
-                 ? 1
-                 : 0;
+        ok = tessera_job_crossed_into(tables->roots[inverse], host, root_bytes);
     }
     platform_cell_released(host, (unsigned int)platform_place_g_engine_owner);
     if (ok == 0)
     {
-        cudaFree(tables->roots[0]);
-        cudaFree(tables->roots[1]);
+        agreement_cell_given((void **)&tables->roots[1]);
+        agreement_cell_given((void **)&tables->roots[0]);
         platform_cell_released(tables->negation, platform_place_g_program_owner);
         EMBED_CALL(memor.set, MemoriaCfg, .dst = tables, .bytes = sizeof(*tables), .val = 0);
         return NULL;

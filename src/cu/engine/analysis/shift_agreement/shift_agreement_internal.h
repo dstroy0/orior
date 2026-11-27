@@ -6,6 +6,7 @@
 
 #include "shift_agreement.h"
 
+#include "../../runtime/daemon/tessera_job.h"
 #include "../../runtime/device_pool/device_pool.h"
 
 #include <cuda_runtime.h>
@@ -57,6 +58,16 @@ unsigned int device_agreement_power(unsigned int base, unsigned long long expone
 
 int agreement_launched(void);
 
+// the owner that the cells of the agreement in the pool of the device count to
+#define SHIFT_AGREEMENT_PLACE ((unsigned int)platform_place_g_engine_owner)
+
+// A cell of the device that the agreement holds across its calls, a persistent cell of the pool of the device, every
+// byte 0. 1, or 0 where the pool cannot meet the bytes
+int agreement_cell_taken(void **cell, unsigned long long bytes);
+
+// the cell given back to the pool of the device and the address set to NULL. The call passes over a NULL cell
+void agreement_cell_given(void **cell);
+
 struct AxisTables
 {
     unsigned int length;
@@ -68,11 +79,10 @@ const AxisTables *axis_tables(unsigned int length);
 
 #define SHIFT_AGREEMENT_VOLUMES 4u
 
-// the before and after words and the four transform volumes are slices of one pool, sized for one total and one word
-// count at a time
+// The before and after words and the four transform volumes are persistent cells of the pool of the device. They hold
+// one total and one word count at a time
 struct VolumesResident
 {
-    DevicePool pool;
     size_t total;
     size_t words;
     unsigned long long *before;
@@ -85,7 +95,7 @@ struct VolumesResident
 };
 
 static_assert(SHIFT_AGREEMENT_VOLUMES == 4u,
-              "shift_agreement: the pool arranges one slice for each of the four volumes");
+              "shift_agreement: the reserve plans one slice for each of the four volumes");
 
 struct NegationResident
 {
