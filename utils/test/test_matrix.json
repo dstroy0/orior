@@ -1036,6 +1036,18 @@
         "src/cu/engine/runtime/daemon"
       ]
     },
+    "max_tree_paths": {
+      "desc": "The paths of the max tree on the device past its objects, with the engine linked into the program. With frames retained, the objects of two seeded residuals run. The slide and the pack follow the first, and the overlap of the two frames the second. The bind, the proof of the contraction and the check of the order run on the first residual. The answers of each path equal the signum of its case.",
+      "script": "utils/test/src/cu/engine/nbody/max_tree/max_tree_paths_test.sh",
+      "src": [
+        "+<cu/engine/nbody/max_tree/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/nbody/max_tree"
+      ]
+    },
     "max_tree_objects": {
       "desc": "The objects of the max tree on the device, with the engine linked into the program. Seeded residuals of positive blobs over a negative background run with their grade off and on. The mass of each body equals the count of the voxels of its label, and the bodies, labels, positive words and level code equal the signum of each case.",
       "script": "utils/test/src/cu/engine/nbody/max_tree/max_tree_objects_test.sh",
