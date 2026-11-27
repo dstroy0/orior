@@ -273,55 +273,59 @@ void tower_floors(const unsigned long long *extent, TowerFloors *floors)
 
 TowerResident g_tower_resident;
 
+void tower_cells(TowerResident *resident, void **cells[TOWER_SLICES])
+{
+    cells[0] = (void **)&resident->coefficients;
+    cells[1] = (void **)&resident->scratch;
+    cells[2] = (void **)&resident->flag;
+    cells[3] = (void **)&resident->mismatches;
+}
+
 extern "C" void tower_resident_release(void)
 {
     TowerResident *const resident = &g_tower_resident;
-    device_pool_release(&resident->pool);
-    cudaFree(resident->edge_table);
-    resident->coefficients = NULL;
-    resident->scratch = NULL;
-    resident->flag = NULL;
-    resident->mismatches = NULL;
+    tessera_job_given(resident->edge_table, TOWER_PLACE);
+    void **cells[TOWER_SLICES];
+    tower_cells(resident, cells);
+    for (unsigned int at = TOWER_SLICES; at > 0u; at -= 1u)
+    {
+        tessera_job_given(*cells[at - 1u], TOWER_PLACE);
+        *cells[at - 1u] = NULL;
+    }
     resident->lanes = 0u;
     resident->edge_table = NULL;
     resident->edge_entries = 0u;
 }
 
+// the edge table, a persistent cell of the pool of the device that grows to the most entries that a call puts
 int tower_edge_reserve(unsigned int entries, EngineError *error)
 {
     TowerResident *const resident = &g_tower_resident;
     if ((size_t)entries > resident->edge_entries)
     {
-        cudaFree(resident->edge_table);
+        tessera_job_given(resident->edge_table, TOWER_PLACE);
         resident->edge_table = NULL;
         resident->edge_entries = 0u;
-        if (TOWER_STATUS_CHECK(cudaMalloc((void **)&resident->edge_table, (size_t)entries * sizeof(unsigned int)),
-                               &resident->edge_table, error) == 0)
+        void *cell = NULL;
+        if (TOWER_CHECK(
+                tessera_job_persistent_taken((unsigned long long)entries * sizeof(unsigned int), TOWER_PLACE, &cell),
+                &resident->edge_table, error, ENGINE_ERROR_RESOURCE) == 0)
         {
             return 0;
         }
+        // Explicit cast reads the cell as the entries that it holds
+        resident->edge_table = (unsigned int *)cell;
         resident->edge_entries = entries;
     }
     return 1;
 }
 
-// The slices of the pool for `lanes`: the coefficients, the scratch, the flag and the mismatch count. The plan puts them
-// in that order, and the pool takes them in it. The plan comes from them, and a pool that the plan reserves takes them
-DevicePoolPlan tower_plan(size_t lanes, EngineError *error, DevicePoolTakeRequest takes[TOWER_SLICES])
+void tower_slices(size_t lanes, unsigned long long bytes[TOWER_SLICES])
 {
-    TowerResident *const resident = &g_tower_resident;
-    const DevicePoolTakeRequest requests[TOWER_SLICES] = {
-        {&resident->pool, lanes * sizeof(int), (void **)&resident->coefficients, error},
-        {&resident->pool, lanes * sizeof(int), (void **)&resident->scratch, error},
-        {&resident->pool, sizeof(unsigned int), (void **)&resident->flag, error},
-        {&resident->pool, sizeof(unsigned long long), (void **)&resident->mismatches, error}};
-    DevicePoolPlan plan = {0ULL, 0ULL, 0};
-    for (unsigned int at = 0u; at < TOWER_SLICES; at += 1u)
-    {
-        takes[at] = requests[at];
-        device_pool_plan_slice(&plan, requests[at].bytes);
-    }
-    return plan;
+    bytes[0] = (unsigned long long)lanes * sizeof(int);
+    bytes[1] = (unsigned long long)lanes * sizeof(int);
+    bytes[2] = sizeof(unsigned int);
+    bytes[3] = sizeof(unsigned long long);
 }
 
 __host__ __device__ void tower_edge_region(const TowerFloors *floors, const unsigned long long *extent,

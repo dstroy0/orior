@@ -11,20 +11,22 @@ static int tower_reserve(size_t lanes, EngineError *error)
     {
         return 1;
     }
-    device_pool_release(&resident->pool);
-    resident->coefficients = NULL;
-    resident->scratch = NULL;
-    resident->flag = NULL;
-    resident->mismatches = NULL;
+    // the cells given back, the newest first, then taken again at the new count of lanes
+    void **cells[TOWER_SLICES];
+    tower_cells(resident, cells);
+    for (unsigned int at = TOWER_SLICES; at > 0u; at -= 1u)
+    {
+        tessera_job_given(*cells[at - 1u], TOWER_PLACE);
+        *cells[at - 1u] = NULL;
+    }
     resident->lanes = 0u;
-    DevicePoolTakeRequest takes[TOWER_SLICES];
-    const DevicePoolPlan plan = tower_plan(lanes, error, takes);
-    const DevicePoolReserveRequest reserve = {&plan, &resident->pool, error};
-    int ok = device_pool_reserve(&reserve) == 0L;
-    // The pool takes the slices in the order of the plan. Each lands where the plan put it, and none errors
+    unsigned long long bytes[TOWER_SLICES];
+    tower_slices(lanes, bytes);
+    int ok = 1;
     for (unsigned int at = 0u; (ok != 0) && (at < TOWER_SLICES); at += 1u)
     {
-        ok = device_pool_take(&takes[at]) == 0L;
+        ok = TOWER_CHECK(tessera_job_persistent_taken(bytes[at], TOWER_PLACE, cells[at]), cells[at], error,
+                         ENGINE_ERROR_RESOURCE);
     }
     resident->lanes = (ok != 0) ? lanes : 0u;
     return ok;
@@ -38,9 +40,14 @@ extern "C" unsigned long long tower_reserve_bytes(unsigned long long lanes)
     {
         return 0ULL;
     }
-    DevicePoolTakeRequest takes[TOWER_SLICES];
+    unsigned long long bytes[TOWER_SLICES];
     // a size_t represents 64 bits, which device_pool asserts. The lane count converts exactly
-    const DevicePoolPlan plan = tower_plan((size_t)lanes, NULL, takes);
+    tower_slices((size_t)lanes, bytes);
+    DevicePoolPlan plan = {0ULL, 0ULL, 0};
+    for (unsigned int at = 0u; at < TOWER_SLICES; at += 1u)
+    {
+        device_pool_plan_slice(&plan, bytes[at]);
+    }
     return device_pool_plan_bytes(&plan);
 }
 
@@ -136,9 +143,9 @@ static int tower_edge_run(const TowerEdge *edges, unsigned int edge_count, const
             }
             upload = inverted;
         }
-        ok = TOWER_STATUS_CHECK(
-            cudaMemcpy(resident->edge_table, upload, (size_t)entries * sizeof(unsigned int), cudaMemcpyHostToDevice),
-            resident->edge_table, error);
+        ok = TOWER_CHECK(
+            tessera_job_crossed_into(resident->edge_table, upload, (unsigned long long)entries * sizeof(unsigned int)),
+            resident->edge_table, error, ENGINE_ERROR_RESOURCE);
         if (ok != 0)
         {
             tower_edge_kernel<<<tower_blocks(region.count), TOWER_THREADS>>>(resident->coefficients, region,
@@ -176,7 +183,8 @@ extern "C" long tower_lift(const TowerLiftRequest *request)
     {
         return TOWER_ERROR;
     }
-    int ok = TOWER_STATUS_CHECK(cudaMemset(resident->flag, 0, sizeof(unsigned int)), resident->flag, error);
+    int ok = TOWER_CHECK(tessera_job_cleared(resident->flag, sizeof(unsigned int)), resident->flag, error,
+                         ENGINE_ERROR_RESOURCE);
     if ((ok != 0) && (request->device_values != NULL))
     {
         tower_take_kernel<<<tower_blocks(lanes), TOWER_THREADS>>>(request->device_values, lanes, resident->coefficients,
@@ -213,8 +221,8 @@ extern "C" long tower_lift(const TowerLiftRequest *request)
     }
     unsigned int overflow = 1u;
     ok = ok &&
-         TOWER_STATUS_CHECK(cudaMemcpy(&overflow, resident->flag, sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                            &overflow, error) &&
+         TOWER_CHECK(tessera_job_crossed_out(&overflow, resident->flag, sizeof(unsigned int)), &overflow, error,
+                     ENGINE_ERROR_RESOURCE) &&
          TOWER_CHECK(overflow == 0u, &overflow, error, ENGINE_ERROR_REQUEST);
     if (ok == 0)
     {
@@ -292,21 +300,22 @@ extern "C" long tower_lower(const TowerLowerRequest *request)
         ok = ok && tower_edge_run(request->edges, request->edge_count, floors, request->extent,
                                   (unsigned int)(level - 1u), 1, error);
     }
-    ok = ok && TOWER_STATUS_CHECK(cudaMemset(resident->mismatches, 0, sizeof(unsigned long long)), resident->mismatches,
-                                  error);
+    ok = ok && TOWER_CHECK(tessera_job_cleared(resident->mismatches, sizeof(unsigned long long)), resident->mismatches,
+                           error, ENGINE_ERROR_RESOURCE);
     if ((ok != 0) && (request->device_lanes != NULL))
     {
         tower_differ_kernel<<<tower_blocks(lanes), TOWER_THREADS>>>(resident->coefficients, request->device_lanes,
                                                                     lanes, resident->mismatches);
         ok = TOWER_STATUS_CHECK(cudaGetLastError(), resident->mismatches, error);
     }
-    ok = ok && TOWER_STATUS_CHECK(cudaMemcpy(request->mismatches, resident->mismatches, sizeof(unsigned long long),
-                                             cudaMemcpyDeviceToHost),
-                                  request->mismatches, error);
+    ok = ok &&
+         TOWER_CHECK(tessera_job_crossed_out(request->mismatches, resident->mismatches, sizeof(unsigned long long)),
+                     request->mismatches, error, ENGINE_ERROR_RESOURCE);
     // the scratch contains lanes ints. Its first half contains the lanes' 16-bit narrowing with room to spare
     unsigned short *const narrowed = (unsigned short *)resident->scratch;
     unsigned int outside = 1u;
-    ok = ok && TOWER_STATUS_CHECK(cudaMemset(resident->flag, 0, sizeof(unsigned int)), resident->flag, error);
+    ok = ok && TOWER_CHECK(tessera_job_cleared(resident->flag, sizeof(unsigned int)), resident->flag, error,
+                           ENGINE_ERROR_RESOURCE);
     if (ok != 0)
     {
         tower_narrow_kernel<<<tower_blocks(lanes), TOWER_THREADS>>>(resident->coefficients, lanes, narrowed,
@@ -314,14 +323,14 @@ extern "C" long tower_lower(const TowerLowerRequest *request)
         ok = TOWER_STATUS_CHECK(cudaGetLastError(), narrowed, error);
     }
     ok = ok &&
-         TOWER_STATUS_CHECK(cudaMemcpy(&outside, resident->flag, sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                            &outside, error) &&
+         TOWER_CHECK(tessera_job_crossed_out(&outside, resident->flag, sizeof(unsigned int)), &outside, error,
+                     ENGINE_ERROR_RESOURCE) &&
          TOWER_CHECK(outside == 0u, &outside, error, ENGINE_ERROR_LOGIC);
     if ((ok != 0) && (request->rebuilt != NULL))
     {
-        ok = TOWER_STATUS_CHECK(
-            cudaMemcpy(request->rebuilt, narrowed, (size_t)lanes * sizeof(unsigned short), cudaMemcpyDeviceToHost),
-            request->rebuilt, error);
+        ok = TOWER_CHECK(
+            tessera_job_crossed_out(request->rebuilt, narrowed, (unsigned long long)lanes * sizeof(unsigned short)),
+            request->rebuilt, error, ENGINE_ERROR_RESOURCE);
     }
     if (ok == 0)
     {

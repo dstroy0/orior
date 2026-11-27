@@ -7,6 +7,7 @@
 #include "tower.h"
 
 #include "../../../../platform/platform.h"
+#include "../../runtime/daemon/tessera_job.h"
 #include "../../runtime/device_pool/device_pool.h"
 
 #include <cuda_runtime.h>
@@ -97,11 +98,10 @@ struct TowerFloors
 
 void tower_floors(const unsigned long long *extent, TowerFloors *floors);
 
-// The coefficients, the scratch, the flag and the mismatch count are slices of one pool, which holds the most lanes
-// that a call asked for. The edge table grows apart, and only where a call puts an edge
+// The coefficients, the scratch, the flag and the mismatch count are persistent cells of the pool of the device. They
+// hold the most lanes that a call asked for. The edge table grows apart, and only where a call puts an edge
 struct TowerResident
 {
-    DevicePool pool;
     int *coefficients;
     int *scratch;
     size_t lanes;
@@ -117,7 +117,15 @@ int tower_edge_reserve(unsigned int entries, EngineError *error);
 
 #define TOWER_SLICES 4u
 
-DevicePoolPlan tower_plan(size_t lanes, EngineError *error, DevicePoolTakeRequest takes[TOWER_SLICES]);
+// the owner that the cells of the tower in the pool of the device count to
+#define TOWER_PLACE ((unsigned int)platform_place_g_engine_owner)
+
+// The bytes of the cells for `lanes`, in the order that the reserve takes them: the coefficients, the scratch, the flag
+// and the mismatch count
+void tower_slices(size_t lanes, unsigned long long bytes[TOWER_SLICES]);
+
+// the addresses of the cells of the resident, in the order of tower_slices
+void tower_cells(TowerResident *resident, void **cells[TOWER_SLICES]);
 
 unsigned long long tower_lanes(const unsigned long long *extent);
 
