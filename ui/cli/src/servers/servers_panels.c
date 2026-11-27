@@ -1201,19 +1201,30 @@ EMBED_INLINE int panels_item_put(const PanelsCtx *args)
 
 // The entries of the table of items in a list, a power of two above twice the items at max. Each entry is an item's
 // place plus one, 0 for an empty entry
-#define PANELS_SEEN_ENTRIES 4096u
+// the labels of the run of the newest words
+#define PANELS_SEEN_RUN 256u
+
+// a label of the list: the hash of its bytes, and its item
+typedef struct
+{
+    unsigned int hash;
+    unsigned int item;
+} PanelsLabel;
 
 // The words put into a completion list: the list's cell and its head in the caller's record. Then whether the cell has
-// room for one more, and the table of the items in the list by the hash of their labels
+// room for one more. Then the labels of the items: an order of them sorted by their hash, `ordered` of them; a run of
+// the newest, `run_count` of them; and the room that a sort writes as it merges
 typedef struct
 {
     const CarcerMovableEntry *list;
     PanelsListHead *head;
     int room;
-    unsigned int seen[PANELS_SEEN_ENTRIES];
+    PanelsLabel order[CLI_PANELS_ITEMS_MAX];
+    unsigned int ordered;
+    PanelsLabel run[PANELS_SEEN_RUN];
+    unsigned int run_count;
+    PanelsLabel sort_room[CLI_PANELS_ITEMS_MAX];
 } PanelsWordsPut;
-
-_Static_assert(PANELS_SEEN_ENTRIES >= (2u * CLI_PANELS_ITEMS_MAX), "the table of items holds twice the items at max");
 
 // the FNV-1a hash of `length` bytes of `label`
 static unsigned int panels_label_hash(const char *label, unsigned long long length)
@@ -1226,30 +1237,101 @@ static unsigned int panels_label_hash(const char *label, unsigned long long leng
     return hash;
 }
 
-// The entry of the table for `length` bytes of `label`: the entry that holds the item of that label, else the empty
-// entry where it goes. Each entry compares its item's label through the list's cell
-static unsigned int panels_seen_entry(const PanelsWordsPut *put, const char *label, unsigned long long length)
+// the order of two labels, by their hash: below 0, 0 or above 0
+static int panels_label_order(const void *left, const void *right)
 {
-    unsigned int entry = panels_label_hash(label, length) & (PANELS_SEEN_ENTRIES - 1u);
-    while (put->seen[entry] != 0u)
+    const PanelsLabel *const one = (const PanelsLabel *)left;
+    const PanelsLabel *const other = (const PanelsLabel *)right;
+    return (one->hash < other->hash) ? -1 : ((one->hash > other->hash) ? 1 : 0);
+}
+
+// 1 where the item `item` of the list's cell has the label of `length` bytes of `label`
+static int panels_label_is(const PanelsWordsPut *put, unsigned int item, const char *label, unsigned long long length)
+{
+    PanelsItem given;
+    (void)g_cli_guard->movable_buf_read(
+        &(CarcerMovableCfg){.cell = put->list,
+                            .offset = offsetof(PanelsCompletion, item) + ((unsigned long long)item * sizeof(given)),
+                            .dst = &given,
+                            .bytes = sizeof(given)});
+    return (given.label_length == length) && (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
+                                                  .cell = put->list,
+                                                  .offset = offsetof(PanelsCompletion, text) + given.label,
+                                                  .src = label,
+                                                  .bytes = length}) == 0);
+}
+
+// 1 where the list holds an item of the label of `length` bytes of `label`: the run first, then the order from the
+// first label of the hash, which a binary search finds
+static int panels_seen(const PanelsWordsPut *put, const char *label, unsigned long long length)
+{
+    const unsigned int hash = panels_label_hash(label, length);
+    for (unsigned int each = 0u; each < put->run_count; each += 1u)
     {
-        PanelsItem given;
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){
-            .cell = put->list,
-            .offset = offsetof(PanelsCompletion, item) + ((unsigned long long)(put->seen[entry] - 1u) * sizeof(given)),
-            .dst = &given,
-            .bytes = sizeof(given)});
-        if ((given.label_length == length) && (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
-                                                   .cell = put->list,
-                                                   .offset = offsetof(PanelsCompletion, text) + given.label,
-                                                   .src = label,
-                                                   .bytes = length}) == 0))
+        if ((put->run[each].hash == hash) && panels_label_is(put, put->run[each].item, label, length))
         {
-            return entry;
+            return 1;
         }
-        entry = (entry + 1u) & (PANELS_SEEN_ENTRIES - 1u);
     }
-    return entry;
+    unsigned int low = 0u;
+    unsigned int high = put->ordered;
+    while (low < high)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        if (put->order[middle].hash < hash)
+        {
+            low = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    for (unsigned int each = low; (each < put->ordered) && (put->order[each].hash == hash); each += 1u)
+    {
+        if (panels_label_is(put, put->order[each].item, label, length))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// the label of the item `item` noted: into the run, the run sorted once and merged into the order from its end first
+// where it is full
+static void panels_seen_noted(PanelsWordsPut *put, const char *label, unsigned long long length, unsigned int item)
+{
+    if (put->run_count == PANELS_SEEN_RUN)
+    {
+        (void)memor.sort(&(MemoriaCfg){.dst = put->run,
+                                       .scratch = put->sort_room,
+                                       .count = put->run_count,
+                                       .bytes = sizeof(PanelsLabel),
+                                       .order = panels_label_order});
+        unsigned int from_order = put->ordered;
+        unsigned int from_run = put->run_count;
+        unsigned int to = put->ordered + put->run_count;
+        while (from_run != 0u)
+        {
+            const int order_first =
+                (from_order != 0u) && (put->order[from_order - 1u].hash > put->run[from_run - 1u].hash);
+            to -= 1u;
+            if (order_first)
+            {
+                from_order -= 1u;
+                put->order[to] = put->order[from_order];
+            }
+            else
+            {
+                from_run -= 1u;
+                put->order[to] = put->run[from_run];
+            }
+        }
+        put->ordered += put->run_count;
+        put->run_count = 0u;
+    }
+    put->run[put->run_count] = (PanelsLabel){panels_label_hash(label, length), item};
+    put->run_count += 1u;
 }
 
 // one word of the file put after the list's items, where the cell has room and the server gave no item of that label
@@ -1268,19 +1350,21 @@ static void panels_word_put(const CliEachTextLengthCfg *args)
         return;
     }
     // a word in the list already, from the server, the tree or the edited line, goes in once
-    const unsigned int entry = panels_seen_entry(put, label, kept);
-    if (put->seen[entry] != 0u)
+    if (panels_seen(put, label, kept))
     {
         return;
     }
     put->room = EMBED_CALL(panels_item_put, PanelsCtx, .list = put->list, .head = put->head, .text = label,
                            .length = label_length, .type = "word", .detail = "", .insert = label,
                            .insert_length = label_length);
-    put->seen[entry] = put->room ? put->head->items : 0u;
+    if (put->room)
+    {
+        panels_seen_noted(put, label, kept, put->head->items - 1u);
+    }
 }
 
-// The items the list holds put in the table of items: each label read out of the list's cell into this call's own
-// array
+// The items the list holds put in the order of labels, every one before the first word, and the order sorted once:
+// each label read out of the list's cell into this call's own array
 static void panels_seen_fill(PanelsWordsPut *put)
 {
     for (unsigned int at = 0u; at < put->head->items; at += 1u)
@@ -1299,9 +1383,14 @@ static void panels_seen_fill(PanelsWordsPut *put)
                                 .offset = offsetof(PanelsCompletion, text) + given.label,
                                 .dst = label,
                                 .bytes = length});
-        const unsigned int entry = panels_seen_entry(put, label, length);
-        put->seen[entry] = (put->seen[entry] == 0u) ? (at + 1u) : put->seen[entry];
+        put->order[put->ordered] = (PanelsLabel){panels_label_hash(label, length), at};
+        put->ordered += 1u;
     }
+    (void)memor.sort(&(MemoriaCfg){.dst = put->order,
+                                   .scratch = put->sort_room,
+                                   .count = put->ordered,
+                                   .bytes = sizeof(PanelsLabel),
+                                   .order = panels_label_order});
 }
 
 // The list put in the list's cell `list` from the server's items and the words of the view `key`. A word the server
@@ -1355,7 +1444,12 @@ EMBED_INLINE void panels_completion_positioned(const PanelsCtx *args)
     }
     // The file's own words: first the names of the file's branch in the tree, as its walk or its save joined them. Then
     // the words of the line under edit. No read of the text goes past that line
-    PanelsWordsPut put = {list, head, room, {0u}};
+    PanelsWordsPut put;
+    put.list = list;
+    put.head = head;
+    put.room = room;
+    put.ordered = 0u;
+    put.run_count = 0u;
     panels_seen_fill(&put);
     char path[CLI_PATH_MAX_LEN];
     if ((args->key != NULL) &&
