@@ -1,5 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#include "../../../../platform/platform.h"
+#include "../../runtime/daemon/tessera_job.h"
 #include "box_history.h"
 
 #include <cuda_runtime.h>
@@ -161,34 +163,37 @@ extern "C" long box_history_gather(const BoxHistoryRequest *request)
     const unsigned int windows = (unsigned int)request->history->windows;
     const size_t key_cells = (size_t)(box_extent.depth + 1u) * (box_extent.height + 1u) * (box_extent.width + 1u);
     const size_t count_entries = (size_t)request->bodies * windows * ENGINE_HISTORY_BITS;
-    unsigned long long *device_window_counts = NULL;
-    unsigned int *device_key = NULL;
-    unsigned int *device_extents = NULL;
-    unsigned int *device_counts = NULL;
-    unsigned long long *device_disagreements = NULL;
+    const unsigned long long window_bytes = voxels * sizeof(unsigned long long);
+    const unsigned long long key_bytes = (unsigned long long)key_cells * sizeof(unsigned int);
+    // The extents cross in. The window, the key, the counts and the count of the disagreements are temporary cells of
+    // the pool of the device. Every byte is 0 at the take. The call gives them back last first before it returns
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, (unsigned int)platform_place_g_engine_owner);
+    void *cell[5] = {NULL, NULL, NULL, NULL, NULL};
     int steps_succeeded =
-        (cudaMalloc((void **)&device_window_counts, (size_t)voxels * sizeof(unsigned long long)) == cudaSuccess) &&
-        (cudaMalloc((void **)&device_key, key_cells * sizeof(unsigned int)) == cudaSuccess) &&
-        (cudaMalloc((void **)&device_extents, ((size_t)request->bodies * BOX_HISTORY_EXTENT_FIELDS + 1u) *
-                                                  sizeof(unsigned int)) == cudaSuccess) &&
-        (cudaMalloc((void **)&device_counts, (count_entries + 1u) * sizeof(unsigned int)) == cudaSuccess) &&
-        (cudaMalloc((void **)&device_disagreements, sizeof(unsigned long long)) == cudaSuccess) &&
-        (cudaMemset(device_disagreements, 0, sizeof(unsigned long long)) == cudaSuccess) &&
-        (cudaMemcpy(device_extents, request->extents,
-                    (size_t)request->bodies * BOX_HISTORY_EXTENT_FIELDS * sizeof(unsigned int),
-                    cudaMemcpyHostToDevice) == cudaSuccess);
+        tessera_job_cells_in(&cells, request->extents,
+                             (unsigned long long)request->bodies * BOX_HISTORY_EXTENT_FIELDS * sizeof(unsigned int),
+                             &cell[0]) &&
+        tessera_job_cells_room(&cells, window_bytes, &cell[1]) && tessera_job_cells_room(&cells, key_bytes, &cell[2]) &&
+        tessera_job_cells_room(&cells, ((unsigned long long)count_entries + 1ULL) * sizeof(unsigned int), &cell[3]) &&
+        tessera_job_cells_room(&cells, sizeof(unsigned long long), &cell[4]);
+    // Explicit casts read each cell as the words that it holds
+    const unsigned int *const device_extents = (const unsigned int *)cell[0];
+    unsigned long long *const device_window_counts = (unsigned long long *)cell[1];
+    unsigned int *const device_key = (unsigned int *)cell[2];
+    unsigned int *const device_counts = (unsigned int *)cell[3];
+    unsigned long long *const device_disagreements = (unsigned long long *)cell[4];
     const unsigned int rows = box_extent.depth * box_extent.height;
     const unsigned int height_columns = box_extent.depth * box_extent.width;
     const unsigned int depth_columns = box_extent.height * box_extent.width;
     const unsigned int body_blocks = (request->bodies + BOX_HISTORY_THREADS - 1u) / BOX_HISTORY_THREADS;
     for (unsigned int window = 0u; steps_succeeded && (window < windows); window += 1u)
     {
-        steps_succeeded =
-            (cudaMemcpy(device_window_counts, &request->history->history[(size_t)window * voxels],
-                        (size_t)voxels * sizeof(unsigned long long), cudaMemcpyHostToDevice) == cudaSuccess);
+        steps_succeeded = tessera_job_crossed_into(device_window_counts,
+                                                   &request->history->history[(size_t)window * voxels], window_bytes);
         for (unsigned int bit = 0u; steps_succeeded && (bit < ENGINE_HISTORY_BITS); bit += 1u)
         {
-            steps_succeeded = (cudaMemset(device_key, 0, key_cells * sizeof(unsigned int)) == cudaSuccess);
+            steps_succeeded = tessera_job_cleared(device_key, key_bytes);
             if (steps_succeeded)
             {
                 box_history_row_kernel<<<(rows + BOX_HISTORY_THREADS - 1u) / BOX_HISTORY_THREADS,
@@ -215,15 +220,10 @@ extern "C" long box_history_gather(const BoxHistoryRequest *request)
     }
     unsigned long long host_disagreements = 0ULL;
     steps_succeeded = steps_succeeded && (cudaDeviceSynchronize() == cudaSuccess) &&
-                      (cudaMemcpy(&host_disagreements, device_disagreements, sizeof(unsigned long long),
-                                  cudaMemcpyDeviceToHost) == cudaSuccess) &&
-                      (cudaMemcpy(request->counts, device_counts, count_entries * sizeof(unsigned int),
-                                  cudaMemcpyDeviceToHost) == cudaSuccess);
-    cudaFree(device_window_counts);
-    cudaFree(device_key);
-    cudaFree(device_extents);
-    cudaFree(device_counts);
-    cudaFree(device_disagreements);
+                      tessera_job_crossed_out(&host_disagreements, device_disagreements, sizeof(unsigned long long)) &&
+                      tessera_job_crossed_out(request->counts, device_counts,
+                                              (unsigned long long)count_entries * sizeof(unsigned int));
+    tessera_job_cells_given(&cells);
     if (steps_succeeded)
     {
         *request->disagreements = host_disagreements;
