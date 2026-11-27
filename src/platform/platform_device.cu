@@ -52,19 +52,40 @@ EMBED_WEAK_ZERO(const unsigned long long, g_device_pool_bytes)
 // 1 once the host took the memory of the pool of the device
 static int s_device_storage_taken;
 
+// the bytes of the pool that the process declared through platform_device_pool_declared, 0 for none
+static unsigned long long s_device_declared_bytes;
+
+extern "C" int platform_device_pool_declared(unsigned long long bytes)
+{
+    if (s_device_storage_taken != 0)
+    {
+        return 0;
+    }
+    s_device_declared_bytes = bytes;
+    return 1;
+}
+
 extern "C" int platform_device_storage_taken(void)
 {
     if (s_device_storage_taken != 0)
     {
         return 1;
     }
-    const unsigned long long bytes =
-        ((g_device_pool_bytes != 0ULL) ? g_device_pool_bytes : PLATFORM_DEVICE_POOL_BYTES) +
-        (unsigned long long)MMGR_CARCER_REGION_AREA;
+    // the bytes that the process declared, else the bytes that the program defines, else the default
+    const unsigned long long declared = (s_device_declared_bytes != 0ULL) ? s_device_declared_bytes
+                                        : (g_device_pool_bytes != 0ULL)   ? g_device_pool_bytes
+                                                                          : PLATFORM_DEVICE_POOL_BYTES;
+    const unsigned long long bytes = declared + (unsigned long long)MMGR_CARCER_REGION_AREA;
     void *storage = NULL;
+    // The stack of each device thread comes up to PLATFORM_DEVICE_STACK_BYTES first, as the CUDA guide of MMgr asks.
+    // Every kernel that takes a cell then runs on it, the kernels of one thread among them
+    size_t stack = 0u;
+    const int stacked = (cudaDeviceGetLimit(&stack, cudaLimitStackSize) == cudaSuccess) &&
+                        ((stack >= PLATFORM_DEVICE_STACK_BYTES) ||
+                         (cudaDeviceSetLimit(cudaLimitStackSize, PLATFORM_DEVICE_STACK_BYTES) == cudaSuccess));
     // The one take of device memory from the system, for the life of the program. The runtime aligns it to 256 bytes,
     // past MMGR_ALIGN_BYTES. Explicit cast takes the count of bytes in memory, which a size_t counts
-    const int taken = (cudaMalloc(&storage, (size_t)bytes) == cudaSuccess) &&
+    const int taken = stacked && (cudaMalloc(&storage, (size_t)bytes) == cudaSuccess) &&
                       (cudaMemcpyToSymbol(s_device_storage, &storage, sizeof(storage)) == cudaSuccess) &&
                       (cudaMemcpyToSymbol(s_device_storage_bytes, &bytes, sizeof(bytes)) == cudaSuccess);
     s_device_storage_taken = taken;

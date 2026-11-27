@@ -87,13 +87,14 @@ exact_types_compile()
 # tables of MMgr in each pass. The line also holds the job interface of tessera (tessera_job.cu). That interface
 # crosses the bytes of a job in and out of the pool of the device.
 #
-# The compile takes the caller's HOST_FLAGS and GENCODE. EXACT_TYPES_DEVICE_LINE holds the objects. 0, or 1 where a
-# source did not compile
+# The compile takes the caller's HOST_FLAGS and GENCODE, and the caller's EXACT_TYPES_EXTRA where set, such as the
+# define that marks a library. EXACT_TYPES_DEVICE_LINE holds the objects. 0, or 1 where a source did not compile
 exact_types_device_line()
 {
     local host=("${HOST_FLAGS[@]+"${HOST_FLAGS[@]}"}")
     local gencode=("${GENCODE[@]+"${GENCODE[@]}"}")
-    local words=(nvcc "${host[@]}" -std=c++20 -O2 "${gencode[@]}" -rdc=true -x cu "${EXACT_TYPES_FLAGS[@]}")
+    local extra=("${EXACT_TYPES_EXTRA[@]+"${EXACT_TYPES_EXTRA[@]}"}")
+    local words=(nvcc "${host[@]}" -std=c++20 -O2 "${gencode[@]}" -rdc=true -x cu "${extra[@]}" "${EXACT_TYPES_FLAGS[@]}")
     shared_objects_built words "${FILE_DEFS_LINEA[@]}" "${EXACT_TYPES_CARCER[@]}" \
         "$EXACT_TYPES_REPO/src/platform/platform_device.cu" \
         "$EXACT_TYPES_REPO/src/cu/engine/runtime/daemon/tessera_job.cu" || return 1

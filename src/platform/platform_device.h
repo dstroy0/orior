@@ -19,6 +19,32 @@
 #define PLATFORM_DEVICE_POOL_BYTES (256ULL << 20u)
 #endif
 
+// The bytes of the stack of each device thread that takes a cell. The frame of cellul.find alone takes 1344 on sm_86,
+// and the spill of a take goes deeper
+#define PLATFORM_DEVICE_STACK_BYTES (64u * 1024u)
+
+// A library that the build marks with PLATFORM_DEVICE_BUILD_DLL gives the process that loads it the call below
+#if defined(PLATFORM_DEVICE_BUILD_DLL) && PLATFORM_DEVICE_BUILD_DLL && defined(_WIN32)
+#define PLATFORM_DEVICE_EXPORT __declspec(dllexport)
+#else
+#define PLATFORM_DEVICE_EXPORT
+#endif
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+    // The bytes of the pool of the device that the process declares, before the first job. A process that loads a
+    // library calls it, as it calls platform_open for the pool of the host. The process cannot replace the
+    // g_device_pool_bytes of the library. The bytes declared here come before g_device_pool_bytes. 1, or 0 where the
+    // pool already holds its memory and the call changes nothing
+    PLATFORM_DEVICE_EXPORT int platform_device_pool_declared(unsigned long long bytes);
+
+#ifdef __cplusplus
+}
+#endif
+
 #if defined(__CUDACC__)
 
 #ifdef __cplusplus

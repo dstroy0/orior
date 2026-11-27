@@ -124,7 +124,10 @@ CU_WORDS=(nvcc "${HOST_FLAGS[@]}" -std=c++20 -O2 -fmad=false -rdc=true "${GENCOD
           "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}")
 # Each source compiles one time for its words (shared_objects.sh). The .cu sources reach the tables of MMgr in each pass
 # of nvcc, and they compile with -rdc=true. The line of MMgr, the cellblock and the device hooks compile as CUDA
-# (exact_types_device_line). The library links them all with the device link
+# (exact_types_device_line). The library links them all with the device link.
+#
+# The library gives the process that loads it the call that declares the bytes of the pool of the device
+EXACT_TYPES_EXTRA=(-DPLATFORM_DEVICE_BUILD_DLL=1)
 exact_types_device_line || exit 1
 OBJECTS=("${EXACT_TYPES_DEVICE_LINE[@]}")
 shared_objects_built PORTABLE_WORDS "${PORTABLE_SOURCES[@]}" || exit 1

@@ -150,6 +150,8 @@ COMPILED=$((COMPILED + SHARED_OBJECTS_COMPILED))
 shared_objects_built EXACT_WORDS "$EXACT_ROOT"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c || exit 1
 OBJECTS+=("${SHARED_OBJECTS[@]}")
 COMPILED=$((COMPILED + SHARED_OBJECTS_COMPILED))
+# The library gives the process that loads it the call that declares the bytes of the pool of the device
+EXACT_TYPES_EXTRA=(-DPLATFORM_DEVICE_BUILD_DLL=1)
 exact_types_device_line || exit 1
 OBJECTS+=("${EXACT_TYPES_DEVICE_LINE[@]}")
 COMPILED=$((COMPILED + SHARED_OBJECTS_COMPILED))

@@ -9,9 +9,9 @@
 
 #include <cuda_runtime.h>
 
-// The bytes of the stack of each device thread of a job. The frame of cellul.find alone takes 1344 on sm_86, and a job
-// calls MMgr through its cellblock
-#define TESSERA_JOB_STACK_BYTES (64u * 1024u)
+// The bytes of the stack of each device thread of a job: the stack of the platform, as a job calls MMgr through its
+// cellblock
+#define TESSERA_JOB_STACK_BYTES PLATFORM_DEVICE_STACK_BYTES
 
 // the cell that the last take on the device gave, which the host reads back after the kernel of the take ends
 static __device__ void *s_job_cell;

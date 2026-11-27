@@ -22,8 +22,8 @@
 // the owner that the cells count to
 #define DEVICE_TEST_PLACE 3u
 
-// The pool of the device that the test declares, twice the default. The persistent tier must then offer more than the
-// default holds
+// The pool of the device that the program defines, twice the default. The process declares more before the first take,
+// and the persistent tier must then offer more than this holds
 extern "C" const unsigned long long g_device_pool_bytes = 2ULL * PLATFORM_DEVICE_POOL_BYTES;
 
 // What the kernels found, which the host reads after the last of them ends
@@ -112,8 +112,9 @@ __global__ void device_test_read(void)
     void *const kept = platform_device_cell_taken(4096ULL, DEVICE_TEST_PLACE, 0);
     platform_device_cell_released(kept, DEVICE_TEST_PLACE);
     s_record.persistent_back = (unsigned int)((kept != NULL) && (platform_device_available() == left));
-    s_record.refused =
-        (unsigned int)(platform_device_cell_taken(PLATFORM_DEVICE_POOL_BYTES * 2ULL, DEVICE_TEST_PLACE, 0) == NULL);
+    // a take of one MiB past the bytes that the pool can still give, which no size of the pool meets
+    s_record.refused = (unsigned int)(platform_device_cell_taken(platform_device_available() + (1ULL << 20u),
+                                                                 DEVICE_TEST_PLACE, 0) == NULL);
 }
 
 // one check of the record, printed as it passes or fails
@@ -131,19 +132,32 @@ int program_main(int argc, char **argv)
 {
     (void)argc;
     (void)argv;
-    // the memory of the pool, taken from the system before the first kernel opens the pool
+    // The process declares three times the default, past the twice of g_device_pool_bytes. The memory of the pool then
+    // comes from the system before the first kernel opens the pool, and a later declaration changes nothing
+    const int declared = platform_device_pool_declared(3ULL * PLATFORM_DEVICE_POOL_BYTES);
     const int stored = platform_device_storage_taken();
+    const int declared_late = platform_device_pool_declared(4ULL * PLATFORM_DEVICE_POOL_BYTES);
     device_test_opened<<<1, 1>>>();
     device_test_written<<<DEVICE_TEST_BLOCKS, DEVICE_TEST_BLOCK_THREADS>>>();
     device_test_read<<<1, 1>>>();
     DeviceTestRecord record = {0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
-    const int ran = (cudaDeviceSynchronize() == cudaSuccess) &&
-                    (cudaMemcpyFromSymbol(&record, s_record, sizeof(record)) == cudaSuccess);
+    const cudaError_t synced = cudaDeviceSynchronize();
+    const int ran = (synced == cudaSuccess) && (cudaMemcpyFromSymbol(&record, s_record, sizeof(record)) == cudaSuccess);
+    if (synced != cudaSuccess)
+    {
+        // the error of the runtime, which names the fault of a kernel
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "  the kernels ended with ");
+        mmgr_line_put(output_line, cudaGetErrorString(synced));
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     unsigned long long before = 0ULL;
     const int read_before = cudaMemcpyFromSymbol(&before, s_before, sizeof(before)) == cudaSuccess;
     unsigned int failed = device_test_check((unsigned int)stored, "the memory of the pool comes from the system");
-    failed += device_test_check((unsigned int)(read_before && (before > PLATFORM_DEVICE_POOL_BYTES)),
-                                "the pool holds the bytes that the program declares, past the default");
+    failed += device_test_check((unsigned int)(declared && read_before && (before > 2ULL * PLATFORM_DEVICE_POOL_BYTES)),
+                                "the pool holds the bytes that the process declares, past g_device_pool_bytes");
+    failed += device_test_check((unsigned int)(declared_late == 0), "a declaration after the take is refused");
     failed += device_test_check((unsigned int)ran, "the three kernels ran and the record came back");
     failed += device_test_check(record.opened, "the pool of the device is placed");
     failed += device_test_check(record.opened_again, "a second open answers that the pool is placed");
@@ -155,7 +169,7 @@ int program_main(int argc, char **argv)
     failed += device_test_check(record.persistent_back, "a persistent take and give leave the pool as it was");
     failed += device_test_check(record.refused, "a take past the bytes of the pool is refused");
     VerbaLinea *const output_line = platform_line_out();
-    mmgr_line_put(output_line, "  platform device test: 12 checks, ");
+    mmgr_line_put(output_line, "  platform device test: 13 checks, ");
     mmgr_line_decimal(output_line, failed, 1u);
     mmgr_line_put(output_line, " failed\n");
     platform_line_out_ended();
