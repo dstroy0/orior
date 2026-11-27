@@ -1036,6 +1036,19 @@
         "src/cu/engine/runtime/daemon"
       ]
     },
+    "flatten_paths": {
+      "desc": "The flatten of a set on the device, with the engine linked into the program. Two seeded samples, each frame with more blobs than the one before, are written as .npy sources and sealed as a set. The flatten packs the bodies of each frame, and the read gives them back. The count of the bodies and their magnitudes equal the signum of the device path.",
+      "script": "utils/test/src/cu/engine/nbody/flatten/flatten_paths_test.sh",
+      "src": [
+        "+<cu/engine/nbody/flatten/*>",
+        "+<cu/engine/nbody/max_tree/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/nbody/flatten"
+      ]
+    },
     "shift_agreement_paths": {
       "desc": "The path of the shift agreement on the device, with the engine linked into the program. Seeded pairs of bit volumes of one, two and three axes, each later volume the earlier shifted with some bits flipped, run through shift_agreement_run and shift_agreement_host. One pair starts from the later volume of the one before, so the device takes its kept transform. The lag, the padding, the agreement and the counts of the device equal those of the host, the lag is the shift of each case, and the answers equal the signum of the device path.",
       "script": "utils/test/src/cu/engine/analysis/shift_agreement/shift_agreement_paths_test.sh",
