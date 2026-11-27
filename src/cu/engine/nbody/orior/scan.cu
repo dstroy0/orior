@@ -33,11 +33,11 @@
  *       disagreement and blame the scan for what was an allocation failure.
  */
 
-#include "orior.h"
 #include "../../../../platform/platform.h"
+#include "../../runtime/daemon/tessera_job.h"
+#include "orior.h"
 
 #include <cuda_runtime.h>
-
 
 /** @brief Threads per block. 256 suits every device this is built for and needs no tuning here. */
 #define ORIOR_STEER_GPU_BLOCK 256u
@@ -148,49 +148,30 @@ extern "C" size_t orior_steer_truthy_after_cuda(const uint8_t *corpus, size_t al
     const unsigned char *host_alive = (const unsigned char *)alive;
     const size_t corpus_bytes = alignments + offset;
 
-    unsigned char *device_corpus = NULL;
-    unsigned char *device_alive = NULL;
-    unsigned int *device_located = NULL;
-    size_t answer = (size_t)-1;
-
-    if ((cudaMalloc((void **)&device_corpus, corpus_bytes) != cudaSuccess) ||
-        (cudaMalloc((void **)&device_alive, alignments) != cudaSuccess) ||
-        (cudaMalloc((void **)&device_located, sizeof(unsigned int)) != cudaSuccess))
-    {
-        goto done;
-    }
-
-    if ((cudaMemcpy(device_corpus, host_corpus, corpus_bytes, cudaMemcpyHostToDevice) != cudaSuccess) ||
-        (cudaMemcpy(device_alive, host_alive, alignments, cudaMemcpyHostToDevice) != cudaSuccess) ||
-        (cudaMemset(device_located, 0, sizeof(unsigned int)) != cudaSuccess))
-    {
-        goto done;
-    }
-
+    // The corpus and the survivors cross in. The count is a temporary cell of the pool of the device, 0 at the take.
+    // The call gives the cells back last first before it returns
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, (unsigned int)platform_place_g_engine_owner);
+    void *cell[3] = {NULL, NULL, NULL};
+    int ok = tessera_job_cells_in(&cells, host_corpus, (unsigned long long)corpus_bytes, &cell[0]) &&
+             tessera_job_cells_in(&cells, host_alive, (unsigned long long)alignments, &cell[1]) &&
+             tessera_job_cells_room(&cells, sizeof(unsigned int), &cell[2]);
+    // Explicit casts read each cell as the bytes and the count that it holds
+    const unsigned char *const device_corpus = (const unsigned char *)cell[0];
+    const unsigned char *const device_alive = (const unsigned char *)cell[1];
+    unsigned int *const device_located = (unsigned int *)cell[2];
+    if (ok != 0)
     {
         const unsigned int blocks =
             (unsigned int)((alignments + (size_t)ORIOR_STEER_GPU_BLOCK - 1u) / (size_t)ORIOR_STEER_GPU_BLOCK);
         scan_kernel<<<blocks, ORIOR_STEER_GPU_BLOCK>>>(device_corpus, alignments, device_alive, (unsigned char)wanted,
                                                        offset, device_located);
-        if ((cudaGetLastError() != cudaSuccess) || (cudaDeviceSynchronize() != cudaSuccess))
-        {
-            goto done;
-        }
+        ok = (cudaGetLastError() == cudaSuccess) && (cudaDeviceSynchronize() == cudaSuccess);
     }
-
-    {
-        unsigned int host_count = 0u;
-        if (cudaMemcpy(&host_count, device_located, sizeof(unsigned int), cudaMemcpyDeviceToHost) != cudaSuccess)
-        {
-            goto done;
-        }
-        answer = (size_t)host_count;
-    }
-
-done:
-    cudaFree(device_corpus);
-    cudaFree(device_alive);
-    cudaFree(device_located);
+    unsigned int host_count = 0u;
+    ok = ok && tessera_job_crossed_out(&host_count, device_located, sizeof(unsigned int));
+    tessera_job_cells_given(&cells);
+    const size_t answer = (ok != 0) ? (size_t)host_count : (size_t)-1;
 
     if (answer == (size_t)-1)
     {
