@@ -46,13 +46,17 @@ typedef struct
 
 // Texts stored by a key: the store's name, reported where a put is refused; the entries in pages of CLI_KEYED_PAGE,
 // each page a movable cell taken as its first place is and given back as the store empties, how many places were ever
-// taken, and the max there are, at max CLI_KEYED_PAGE pages of them
+// taken, and the max there are, at max CLI_KEYED_PAGE pages of them. The order is a movable cell of `ordered` records,
+// one for each entry in use, sorted by the hash and the size of its key. Each change to the entries sorts it again,
+// and a key is found by a binary search of it
 typedef struct
 {
     const char *name;
     const CarcerMovableEntry *page[CLI_KEYED_PAGES];
     unsigned int entries;
     unsigned int entries_max;
+    const CarcerMovableEntry *order;
+    unsigned int ordered;
 } CliKeyed;
 
 // the bytes of every key and the text beside it, each ended by a 0; and the entry at `at` taken out
