@@ -29,6 +29,16 @@ __global__ void tessera_job_taken_kernel(unsigned long long count, unsigned int 
                                 : platform_device_cell_taken(count, place, ephemeral);
 }
 
+// The grid: each of the `count` bytes of `from` copied into `into`
+__global__ void tessera_job_copied_kernel(unsigned char *into, const unsigned char *from, unsigned long long count)
+{
+    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
+    for (unsigned long long at = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; at < count; at += jump)
+    {
+        into[at] = from[at];
+    }
+}
+
 // The grid: every byte of the `count` bytes of the cell set to 0
 __global__ void tessera_job_cleared_kernel(unsigned char *cell, unsigned long long count)
 {
@@ -98,6 +108,23 @@ extern "C" int tessera_job_cleared(void *cell, unsigned long long count)
     // Explicit casts take a count of blocks below 4096, and the bytes of the cell
     tessera_job_cleared_kernel<<<(unsigned int)((needed < 4096ULL) ? needed : 4096ULL), 256u>>>((unsigned char *)cell,
                                                                                                 count);
+    return (cudaGetLastError() == cudaSuccess) && (cudaDeviceSynchronize() == cudaSuccess);
+}
+
+extern "C" int tessera_job_copied(void *into, const void *from, unsigned long long count)
+{
+    if (count == 0ULL)
+    {
+        return 1;
+    }
+    if ((into == NULL) || (from == NULL))
+    {
+        return 0;
+    }
+    const unsigned long long needed = (count + 255ULL) / 256ULL;
+    // Explicit casts take a count of blocks below 4096, and the bytes of the two cells
+    tessera_job_copied_kernel<<<(unsigned int)((needed < 4096ULL) ? needed : 4096ULL), 256u>>>(
+        (unsigned char *)into, (const unsigned char *)from, count);
     return (cudaGetLastError() == cudaSuccess) && (cudaDeviceSynchronize() == cudaSuccess);
 }
 

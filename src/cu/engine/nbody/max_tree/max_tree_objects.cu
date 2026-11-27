@@ -171,45 +171,49 @@ __global__ void max_tree_code_values_kernel(const unsigned int *residual, const 
 
 MaxTreeResident g_max_tree_resident;
 
+int max_tree_cell_taken(void **cell, unsigned long long bytes, EngineError *error)
+{
+    *cell = NULL;
+    return MAX_TREE_CHECK(tessera_job_persistent_taken(bytes, MAX_TREE_PLACE, cell), cell, error,
+                          ENGINE_ERROR_RESOURCE);
+}
+
+void max_tree_cell_given(void *cell)
+{
+    tessera_job_given(cell, MAX_TREE_PLACE);
+}
+
 void max_tree_release_resident(MaxTreeResident *resident)
 {
-    cudaFree(resident->code);
-    cudaFree(resident->order[0]);
-    cudaFree(resident->order[1]);
-    cudaFree(resident->keys[0]);
-    cudaFree(resident->keys[1]);
-    cudaFree(resident->scratch);
-    cudaFree(resident->faces);
-    cudaFree(resident->belongs);
-    cudaFree(resident->best);
-    cudaFree(resident->partner);
-    cudaFree(resident->bound);
-    cudaFree(resident->ranges);
-    cudaFree(resident->label);
-    cudaFree(resident->change);
-    cudaFree(resident->counts);
-    cudaFree(resident->max);
-    cudaFree(resident->level);
-    cudaFree(resident->moved);
-    cudaFreeHost(resident->pinned_moved);
-    if (resident->blocks_done[0] != NULL)
+    // the cells go back newest first, and max_tree_cell_given passes over a NULL cell
+    for (unsigned int body_at = 2u; body_at > 0u; body_at -= 1u)
     {
-        cudaEventDestroy(resident->blocks_done[0]);
+        max_tree_cell_given(resident->frame_values[body_at - 1u]);
+        max_tree_cell_given(resident->frame_code[body_at - 1u]);
     }
-    if (resident->blocks_done[1] != NULL)
-    {
-        cudaEventDestroy(resident->blocks_done[1]);
-    }
-    cudaFree(resident->roots);
-    cudaFree(resident->at_chunk);
+    max_tree_cell_given(resident->bodies);
+    max_tree_cell_given(resident->packed);
     platform_cell_released(resident->host_chunks, platform_place_g_program_owner);
-    cudaFree(resident->packed);
-    cudaFree(resident->bodies);
-    for (unsigned int body_at = 0u; body_at < 2u; body_at += 1u)
-    {
-        cudaFree(resident->frame_code[body_at]);
-        cudaFree(resident->frame_values[body_at]);
-    }
+    max_tree_cell_given(resident->at_chunk);
+    max_tree_cell_given(resident->roots);
+    max_tree_cell_given(resident->moved);
+    max_tree_cell_given(resident->level);
+    max_tree_cell_given(resident->max);
+    max_tree_cell_given(resident->counts);
+    max_tree_cell_given(resident->change);
+    max_tree_cell_given(resident->label);
+    max_tree_cell_given(resident->ranges);
+    max_tree_cell_given(resident->bound);
+    max_tree_cell_given(resident->partner);
+    max_tree_cell_given(resident->best);
+    max_tree_cell_given(resident->belongs);
+    max_tree_cell_given(resident->faces);
+    max_tree_cell_given(resident->scratch);
+    max_tree_cell_given(resident->keys[1]);
+    max_tree_cell_given(resident->keys[0]);
+    max_tree_cell_given(resident->order[1]);
+    max_tree_cell_given(resident->order[0]);
+    max_tree_cell_given(resident->code);
     const int retaining = resident->retaining_frames;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = resident, .bytes = sizeof(*resident), .val = 0);
     resident->retaining_frames = retaining;
@@ -240,59 +244,38 @@ int max_tree_reserve(size_t voxels, EngineError *error)
                                    &max_bytes, error);
     resident->scratch_bytes = (sort_bytes > scan_bytes) ? sort_bytes : scan_bytes;
     resident->scratch_bytes = (max_bytes > resident->scratch_bytes) ? max_bytes : resident->scratch_bytes;
-    ok = ok &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->code, voxels * sizeof(unsigned int)), &resident->code,
-                               error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->order[0], voxels * sizeof(unsigned int)),
-                               &resident->order[0], error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->order[1], voxels * sizeof(unsigned int)),
-                               &resident->order[1], error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->keys[0], voxels * sizeof(unsigned int)),
-                               &resident->keys[0], error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->keys[1], voxels * sizeof(unsigned int)),
-                               &resident->keys[1], error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc(&resident->scratch, resident->scratch_bytes), &resident->scratch, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->faces, voxels), &resident->faces, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->belongs, voxels * sizeof(unsigned int)),
-                               &resident->belongs, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->best, voxels * sizeof(unsigned long long)),
-                               &resident->best, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->partner, voxels * sizeof(unsigned int)),
-                               &resident->partner, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->bound, voxels * 3u), &resident->bound, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->ranges, voxels), &resident->ranges, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->label, voxels * sizeof(unsigned int)), &resident->label,
-                               error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->change, (voxels + 2u) * sizeof(int)), &resident->change,
-                               error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->counts, (voxels + 2u) * sizeof(int)), &resident->counts,
-                               error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->max, sizeof(int)), &resident->max, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->level, sizeof(unsigned int)), &resident->level, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->moved, 3u * sizeof(unsigned int)), &resident->moved,
-                               error) &&
-         MAX_TREE_STATUS_CHECK(cudaMallocHost((void **)&resident->pinned_moved, 2u * sizeof(unsigned int)),
-                               &resident->pinned_moved, error) &&
-         MAX_TREE_STATUS_CHECK(cudaEventCreateWithFlags(&resident->blocks_done[0], cudaEventDisableTiming),
-                               &resident->blocks_done[0], error) &&
-         MAX_TREE_STATUS_CHECK(cudaEventCreateWithFlags(&resident->blocks_done[1], cudaEventDisableTiming),
-                               &resident->blocks_done[1], error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->roots, sizeof(unsigned int)), &resident->roots, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->at_chunk, chunks * sizeof(unsigned int)),
-                               &resident->at_chunk, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->packed, words * sizeof(unsigned long long)),
-                               &resident->packed, error);
+    // Each buffer is a persistent cell of the pool of the device, which the max tree holds while the voxels stay the
+    // same, across calls. Explicit casts give the address of each pointer as the place of its cell
+    const unsigned long long lanes = (unsigned long long)voxels;
+    ok = ok && max_tree_cell_taken((void **)&resident->code, lanes * sizeof(unsigned int), error) &&
+         max_tree_cell_taken((void **)&resident->order[0], lanes * sizeof(unsigned int), error) &&
+         max_tree_cell_taken((void **)&resident->order[1], lanes * sizeof(unsigned int), error) &&
+         max_tree_cell_taken((void **)&resident->keys[0], lanes * sizeof(unsigned int), error) &&
+         max_tree_cell_taken((void **)&resident->keys[1], lanes * sizeof(unsigned int), error) &&
+         max_tree_cell_taken(&resident->scratch, resident->scratch_bytes, error) &&
+         max_tree_cell_taken((void **)&resident->faces, lanes, error) &&
+         max_tree_cell_taken((void **)&resident->belongs, lanes * sizeof(unsigned int), error) &&
+         max_tree_cell_taken((void **)&resident->best, lanes * sizeof(unsigned long long), error) &&
+         max_tree_cell_taken((void **)&resident->partner, lanes * sizeof(unsigned int), error) &&
+         max_tree_cell_taken((void **)&resident->bound, lanes * 3ULL, error) &&
+         max_tree_cell_taken((void **)&resident->ranges, lanes, error) &&
+         max_tree_cell_taken((void **)&resident->label, lanes * sizeof(unsigned int), error) &&
+         max_tree_cell_taken((void **)&resident->change, (lanes + 2ULL) * sizeof(int), error) &&
+         max_tree_cell_taken((void **)&resident->counts, (lanes + 2ULL) * sizeof(int), error) &&
+         max_tree_cell_taken((void **)&resident->max, sizeof(int), error) &&
+         max_tree_cell_taken((void **)&resident->level, sizeof(unsigned int), error) &&
+         max_tree_cell_taken((void **)&resident->moved, 3ULL * sizeof(unsigned int), error) &&
+         max_tree_cell_taken((void **)&resident->roots, sizeof(unsigned int), error) &&
+         max_tree_cell_taken((void **)&resident->at_chunk, (unsigned long long)chunks * sizeof(unsigned int), error);
     resident->host_chunks =
         (unsigned int *)platform_cell_taken(chunks * sizeof(unsigned int), platform_place_g_program_owner, 0);
-    ok = ok && MAX_TREE_CHECK(resident->host_chunks != NULL, &resident->host_chunks, error, ENGINE_ERROR_RESOURCE);
+    ok = ok && MAX_TREE_CHECK(resident->host_chunks != NULL, &resident->host_chunks, error, ENGINE_ERROR_RESOURCE) &&
+         max_tree_cell_taken((void **)&resident->packed, (unsigned long long)words * sizeof(unsigned long long), error);
     for (unsigned int body_at = 0u; (resident->retaining_frames != 0) && (body_at < 2u); body_at += 1u)
     {
-        ok = ok &&
-             MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->frame_code[body_at], voxels * sizeof(unsigned int)),
-                                   &resident->frame_code[body_at], error) &&
-             MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->frame_values[body_at],
-                                              (voxels + 2u) * ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int)),
-                                   &resident->frame_values[body_at], error);
+        ok = ok && max_tree_cell_taken((void **)&resident->frame_code[body_at], lanes * sizeof(unsigned int), error) &&
+             max_tree_cell_taken((void **)&resident->frame_values[body_at],
+                                 (lanes + 2ULL) * ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int), error);
     }
     if (ok == 0)
     {
@@ -358,10 +341,11 @@ int max_tree_grow_bodies(size_t bodies, EngineError *error)
         return 1;
     }
     const size_t capacity = (bodies + 1u) + ((bodies + 1u) / 2u);
-    cudaFree(resident->bodies);
+    max_tree_cell_given(resident->bodies);
     resident->bodies = NULL;
-    const int ok = MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->bodies, capacity * sizeof(EngineBody)),
-                                         &resident->bodies, error);
+    // Explicit cast gives the address of the pointer as the place of its cell
+    const int ok =
+        max_tree_cell_taken((void **)&resident->bodies, (unsigned long long)capacity * sizeof(EngineBody), error);
     resident->body_capacity = (ok != 0) ? capacity : 0u;
     return ok;
 }

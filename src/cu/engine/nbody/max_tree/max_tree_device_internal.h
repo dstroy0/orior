@@ -194,8 +194,6 @@ struct MaxTreeResident
     int *max;
     unsigned int *level;
     unsigned int *moved;
-    unsigned int *pinned_moved;
-    cudaEvent_t blocks_done[2];
     unsigned int *roots;
     unsigned int *at_chunk;
     unsigned int *host_chunks;
@@ -217,6 +215,16 @@ struct MaxTreeResident
 };
 
 extern MaxTreeResident g_max_tree_resident;
+
+// the owner that the cells of the max tree on the device count to
+#define MAX_TREE_PLACE ((unsigned int)platform_place_g_engine_owner)
+
+// A persistent cell of `bytes` of the pool of the device, every byte 0, in `*cell`. The max tree holds it until it
+// gives it back with max_tree_cell_given. 1, or 0 with the error set where the pool cannot meet the bytes
+int max_tree_cell_taken(void **cell, unsigned long long bytes, EngineError *error);
+
+// a cell given back to the pool of the device. Nothing goes back where the cell is NULL
+void max_tree_cell_given(void *cell);
 
 void max_tree_release_resident(MaxTreeResident *resident);
 

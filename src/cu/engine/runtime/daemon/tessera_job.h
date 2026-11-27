@@ -34,6 +34,10 @@ extern "C"
     // kernel errors
     int tessera_job_cleared(void *cell, unsigned long long count);
 
+    // `count` bytes of the cell `from` copied into the cell `into` on the device, both cells of the job. No byte
+    // crosses the host. 1, or 0 where the kernel errors
+    int tessera_job_copied(void *into, const void *from, unsigned long long count);
+
     // `count` bytes of `bytes` copied into the start of a cell that the job holds, such as a room of
     // tessera_job_cell_taken with more bytes than the copy. 1, or 0 where the copy errors
     int tessera_job_crossed_into(void *cell, const void *bytes, unsigned long long count);
