@@ -1,5 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+#include "../../../../platform/platform.h"
+#include "../../runtime/daemon/tessera_job.h"
 #include "marginal.h"
 #include "memoria_operor/memoria_operor.h"
 
@@ -144,25 +146,26 @@ extern "C" long marginal_run(const MarginalRequest *request)
     }
     const size_t question_words = (size_t)request->question_count * MARGINAL_SUMS * MARGINAL_LIMBS;
     const size_t option_words = (size_t)request->option_count * MARGINAL_LIMBS;
-    MarginalQuestion *questions = NULL;
-    MarginalSource *sources = NULL;
-    MarginalOption *options = NULL;
-    unsigned int *question_sums = NULL;
-    unsigned int *option_sums = NULL;
+    // The questions, the sources and the options cross in. The sums are temporary cells of the pool of the device,
+    // every byte 0 at the take. The call gives them back last first before it returns
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, (unsigned int)platform_place_g_engine_owner);
+    void *cell[5] = {NULL, NULL, NULL, NULL, NULL};
     int ok =
-        (cudaMalloc((void **)&questions, ((size_t)request->question_count + 1u) * sizeof(MarginalQuestion)) ==
-         cudaSuccess) &&
-        (cudaMalloc((void **)&sources, ((size_t)request->source_count + 1u) * sizeof(MarginalSource)) == cudaSuccess) &&
-        (cudaMalloc((void **)&options, ((size_t)request->option_count + 1u) * sizeof(MarginalOption)) == cudaSuccess) &&
-        (cudaMalloc((void **)&question_sums, (question_words + 1u) * sizeof(unsigned int)) == cudaSuccess) &&
-        (cudaMalloc((void **)&option_sums, (option_words + 1u) * sizeof(unsigned int)) == cudaSuccess) &&
-        (cudaMemset(option_sums, 0, (option_words + 1u) * sizeof(unsigned int)) == cudaSuccess) &&
-        (cudaMemcpy(questions, request->questions, (size_t)request->question_count * sizeof(MarginalQuestion),
-                    cudaMemcpyHostToDevice) == cudaSuccess) &&
-        (cudaMemcpy(sources, request->sources, (size_t)request->source_count * sizeof(MarginalSource),
-                    cudaMemcpyHostToDevice) == cudaSuccess) &&
-        (cudaMemcpy(options, request->options, (size_t)request->option_count * sizeof(MarginalOption),
-                    cudaMemcpyHostToDevice) == cudaSuccess);
+        tessera_job_cells_in(&cells, request->questions,
+                             (unsigned long long)request->question_count * sizeof(MarginalQuestion), &cell[0]) &&
+        tessera_job_cells_in(&cells, request->sources,
+                             (unsigned long long)request->source_count * sizeof(MarginalSource), &cell[1]) &&
+        tessera_job_cells_in(&cells, request->options,
+                             (unsigned long long)request->option_count * sizeof(MarginalOption), &cell[2]) &&
+        tessera_job_cells_room(&cells, ((unsigned long long)question_words + 1ULL) * sizeof(unsigned int), &cell[3]) &&
+        tessera_job_cells_room(&cells, ((unsigned long long)option_words + 1ULL) * sizeof(unsigned int), &cell[4]);
+    // Explicit casts read each cell as the records and the limbs that it holds
+    const MarginalQuestion *const questions = (const MarginalQuestion *)cell[0];
+    const MarginalSource *const sources = (const MarginalSource *)cell[1];
+    const MarginalOption *const options = (const MarginalOption *)cell[2];
+    unsigned int *const question_sums = (unsigned int *)cell[3];
+    unsigned int *const option_sums = (unsigned int *)cell[4];
     if (ok && (request->question_count != 0u))
     {
         MarginalLaunch launch;
@@ -178,14 +181,10 @@ extern "C" long marginal_run(const MarginalRequest *request)
         ok = (cudaGetLastError() == cudaSuccess) && (cudaDeviceSynchronize() == cudaSuccess);
     }
     ok = ok &&
-         (cudaMemcpy(request->question_sums, question_sums, question_words * sizeof(unsigned int),
-                     cudaMemcpyDeviceToHost) == cudaSuccess) &&
-         (cudaMemcpy(request->option_sums, option_sums, option_words * sizeof(unsigned int), cudaMemcpyDeviceToHost) ==
-          cudaSuccess);
-    cudaFree(questions);
-    cudaFree(sources);
-    cudaFree(options);
-    cudaFree(question_sums);
-    cudaFree(option_sums);
+         tessera_job_crossed_out(request->question_sums, question_sums,
+                                 (unsigned long long)question_words * sizeof(unsigned int)) &&
+         tessera_job_crossed_out(request->option_sums, option_sums,
+                                 (unsigned long long)option_words * sizeof(unsigned int));
+    tessera_job_cells_given(&cells);
     return ok ? (long)request->question_count : MARGINAL_ERROR;
 }
