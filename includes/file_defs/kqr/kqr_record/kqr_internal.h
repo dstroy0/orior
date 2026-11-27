@@ -12,7 +12,9 @@
 #include <stdlib.h>
 
 // the buckets of the table a query is found by its identity in, a power of two past every query a record contains
-#define KQR_SLOTS 1048576u
+// the queries a record holds at max, and no record
+#define KQR_QUERIES_MAX 524288u
+#define KQR_QUERY_NONE 0xffffffffu
 
 // the words of a query's identity and answer in its record, before its answer's words or its refusal: the identity's
 // seven numbers, then the answer
@@ -22,7 +24,9 @@
 #define KQR_LINE (1u << 20u)
 
 int kqr_number_read(const char *text, size_t length, int base, unsigned long long *value);
-unsigned int kqr_slot_of(const KqrRecord *record, const KqrIdentity *identity);
+unsigned int kqr_query_at(const KqrRecord *record, const KqrIdentity *identity);
+int kqr_query_noted(KqrRecord *record, const KqrIdentity *identity, unsigned int at);
+void kqr_queries_forgotten(KqrRecord *record);
 void kqr_text_copied(const KqrRecord *record, unsigned long long number, char *text, size_t room);
 unsigned long long kqr_text_number(KqrRecord *record, const char *text);
 int kqr_query_of(const KqrRecord *record, const KrepRecord *entry, KqrQuery *query);

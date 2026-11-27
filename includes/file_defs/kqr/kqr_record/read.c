@@ -295,7 +295,7 @@ static void kqr_queries_once(KqrRecord *record)
     static KqrQuery s_query;
     static KqrQuery s_before;
     static unsigned long long s_words[KQR_QUERY_WORDS + KQR_WORDS + 1u];
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = record->slot, .bytes = KQR_SLOTS * sizeof(unsigned int), .val = 0);
+    kqr_queries_forgotten(record);
     unsigned int at = 0u;
     while (at < record->file.records)
     {
@@ -305,14 +305,13 @@ static void kqr_queries_once(KqrRecord *record)
             at += 1u;
             continue;
         }
-        const unsigned int slot = kqr_slot_of(record, &s_query.identity);
-        if (record->slot[slot] == 0u)
+        const unsigned int before = kqr_query_at(record, &s_query.identity);
+        if (before == KQR_QUERY_NONE)
         {
-            record->slot[slot] = at + 1u;
+            (void)kqr_query_noted(record, &s_query.identity, at);
             at += 1u;
             continue;
         }
-        const unsigned int before = record->slot[slot] - 1u;
         if (kqr_query_of(record, &record->file.record[before], &s_before) && (s_before.answer == KQR_TIMED_OUT))
         {
             krep_record_set(&record->file, before, s_words, kqr_query_words(record, &s_query, s_words));

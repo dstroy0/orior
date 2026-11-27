@@ -149,19 +149,95 @@ static int kqr_identity_matches(const KrepRecord *entry, const KqrIdentity *iden
                        .bytes = (KQR_QUERY_WORDS - 1u) * sizeof(unsigned long long)) == 0);
 }
 
-// the bucket of `identity`: the one that holds it, or the empty one where it goes
-unsigned int kqr_slot_of(const KqrRecord *record, const KqrIdentity *identity)
+// the order of two places, by the hash of the identity: below 0, 0 or above 0
+static int kqr_place_order(const void *left, const void *right)
 {
-    unsigned int at = (unsigned int)(kqr_identity_hash(identity) & (KQR_SLOTS - 1u));
-    while (record->slot[at] != 0u)
+    const KqrQueryPlace *const one = (const KqrQueryPlace *)left;
+    const KqrQueryPlace *const other = (const KqrQueryPlace *)right;
+    return (one->hash < other->hash) ? -1 : ((one->hash > other->hash) ? 1 : 0);
+}
+
+// the record of the query of `identity`: the run first, then the order from the first place of the hash, which a
+// binary search finds. KQR_QUERY_NONE where the record holds none
+unsigned int kqr_query_at(const KqrRecord *record, const KqrIdentity *identity)
+{
+    const unsigned long long hash = kqr_identity_hash(identity);
+    for (unsigned int each = 0u; each < record->run_count; each += 1u)
     {
-        if (kqr_identity_matches(&record->file.record[record->slot[at] - 1u], identity))
+        if ((record->run[each].hash == hash) &&
+            kqr_identity_matches(&record->file.record[record->run[each].at], identity))
         {
-            return at;
+            return record->run[each].at;
         }
-        at = (at + 1u) & (KQR_SLOTS - 1u);
     }
-    return at;
+    unsigned int low = 0u;
+    unsigned int high = record->ordered;
+    while (low < high)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        if (record->order[middle].hash < hash)
+        {
+            low = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    for (unsigned int each = low; (each < record->ordered) && (record->order[each].hash == hash); each += 1u)
+    {
+        if (kqr_identity_matches(&record->file.record[record->order[each].at], identity))
+        {
+            return record->order[each].at;
+        }
+    }
+    return KQR_QUERY_NONE;
+}
+
+// the query of `identity` at the record `at` noted: into the run, the run sorted once and merged into the order from
+// its end first where it is full. 1, or 0 where the record holds KQR_QUERIES_MAX queries
+int kqr_query_noted(KqrRecord *record, const KqrIdentity *identity, unsigned int at)
+{
+    if ((record->ordered + record->run_count) >= KQR_QUERIES_MAX)
+    {
+        return 0;
+    }
+    if (record->run_count == KQR_QUERY_RUN)
+    {
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = record->run, .bytes = sizeof(KqrQueryPlace),
+                         .scratch = record->run_room, .count = record->run_count, .order = kqr_place_order);
+        unsigned int from_order = record->ordered;
+        unsigned int from_run = record->run_count;
+        unsigned int to = record->ordered + record->run_count;
+        while (from_run != 0u)
+        {
+            const int order_first =
+                (from_order != 0u) && (record->order[from_order - 1u].hash > record->run[from_run - 1u].hash);
+            to -= 1u;
+            if (order_first)
+            {
+                from_order -= 1u;
+                record->order[to] = record->order[from_order];
+            }
+            else
+            {
+                from_run -= 1u;
+                record->order[to] = record->run[from_run];
+            }
+        }
+        record->ordered += record->run_count;
+        record->run_count = 0u;
+    }
+    record->run[record->run_count] = (KqrQueryPlace){kqr_identity_hash(identity), at};
+    record->run_count += 1u;
+    return 1;
+}
+
+// every query's place forgotten
+void kqr_queries_forgotten(KqrRecord *record)
+{
+    record->ordered = 0u;
+    record->run_count = 0u;
 }
 
 // the text of the number `number` copied into `text`, which has room for `room`, cut to it; empty where the file gives
@@ -284,12 +360,16 @@ unsigned int kqr_sample_words(KqrRecord *record, const KqrSample *sample, unsign
     return count;
 }
 
-// every bucket, sample and the pairs' start that is at the record `from` or past it moved `by` records on
+// every query's place, sample and the pairs' start that is at the record `from` or past it moved `by` records on
 void kqr_shifted(KqrRecord *record, unsigned int from, unsigned int by)
 {
-    for (unsigned int at = 0u; at < KQR_SLOTS; at += 1u)
+    for (unsigned int at = 0u; at < record->ordered; at += 1u)
     {
-        record->slot[at] += ((record->slot[at] != 0u) && ((record->slot[at] - 1u) >= from)) ? by : 0u;
+        record->order[at].at += (record->order[at].at >= from) ? by : 0u;
+    }
+    for (unsigned int at = 0u; at < record->run_count; at += 1u)
+    {
+        record->run[at].at += (record->run[at].at >= from) ? by : 0u;
     }
     for (unsigned int at = 0u; at < record->samples; at += 1u)
     {
@@ -359,9 +439,10 @@ int kqr_opened(KqrRecord *record, const char *member)
 {
     kqr_free(record);
     krep_open(&record->file, KQR_TYPE);
-    record->slot =
-        (unsigned int *)platform_cell_cleared(KQR_SLOTS, sizeof(unsigned int), platform_place_g_program_owner, 0);
-    record->open = (record->slot != NULL);
+    record->order = (KqrQueryPlace *)platform_cell_taken((size_t)KQR_QUERIES_MAX * sizeof(KqrQueryPlace),
+                                                         platform_place_g_program_owner, 0);
+    kqr_queries_forgotten(record);
+    record->open = (record->order != NULL);
     const unsigned long long named =
         krep_text_number(&record->file, member,
                          EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = member, .cap = PLATFORM_TEXT_TO_TERMINATOR));
@@ -392,7 +473,7 @@ int kqr_sample_take(KqrRecord *record, unsigned int at)
 // the record's table of queries, its samples, its cycles and where its pairs start read off its records
 void kqr_indexed(KqrRecord *record)
 {
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = record->slot, .bytes = KQR_SLOTS * sizeof(unsigned int), .val = 0);
+    kqr_queries_forgotten(record);
     record->samples = 0u;
     record->query_count = 0u;
     record->cycles = 0u;
@@ -403,8 +484,10 @@ void kqr_indexed(KqrRecord *record)
         const KrepRecord *const entry = &record->file.record[at];
         if ((entry->code == KQR_QUERY_RECORD) && kqr_query_of(record, entry, &s_query))
         {
-            const unsigned int slot = kqr_slot_of(record, &s_query.identity);
-            record->slot[slot] = (record->slot[slot] == 0u) ? (at + 1u) : record->slot[slot];
+            if (kqr_query_at(record, &s_query.identity) == KQR_QUERY_NONE)
+            {
+                (void)kqr_query_noted(record, &s_query.identity, at);
+            }
             record->query_count += 1u;
         }
         record->samples += 0u;

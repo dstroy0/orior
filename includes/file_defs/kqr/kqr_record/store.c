@@ -21,7 +21,7 @@ int kqr_write_by(const KqrRecord *record, const char *path, Who who)
 void kqr_free(KqrRecord *record)
 {
     krep_free(&record->file);
-    platform_cell_released(record->slot, platform_place_g_program_owner);
+    platform_cell_released(record->order, platform_place_g_program_owner);
     platform_cell_released(record->sample, platform_place_g_program_owner);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = record, .bytes = sizeof(*record), .val = 0);
 }
@@ -32,8 +32,8 @@ int kqr_find(const KqrRecord *record, const KqrIdentity *identity, KqrQuery *out
     {
         return 0;
     }
-    const unsigned int slot = kqr_slot_of(record, identity);
-    return (record->slot[slot] != 0u) && kqr_query_of(record, &record->file.record[record->slot[slot] - 1u], out);
+    const unsigned int at = kqr_query_at(record, identity);
+    return (at != KQR_QUERY_NONE) && kqr_query_of(record, &record->file.record[at], out);
 }
 
 void kqr_store_by(KqrRecord *record, const KqrQuery *query, Who who)
@@ -45,21 +45,21 @@ void kqr_store_by(KqrRecord *record, const KqrQuery *query, Who who)
     static unsigned long long s_words[KQR_QUERY_WORDS + KQR_WORDS + 1u];
     static KqrQuery s_stored;
     const unsigned int count = kqr_query_words(record, query, s_words);
-    const unsigned int slot = kqr_slot_of(record, &query->identity);
-    if (record->slot[slot] == 0u)
+    const unsigned int stored_at = kqr_query_at(record, &query->identity);
+    if (stored_at == KQR_QUERY_NONE)
     {
         kqr_marks_written(record, who);
         const unsigned int at = kqr_put(record, KQR_QUERY_RECORD, s_words, count, who);
         if (at < record->file.records)
         {
             // the marks and the who put before it moved no query: they went where the pairs start, past every query
-            record->slot[kqr_slot_of(record, &query->identity)] = at + 1u;
+            (void)kqr_query_noted(record, &query->identity, at);
             record->query_count += 1u;
             record->changed = 1;
         }
         return;
     }
-    unsigned int at = record->slot[slot] - 1u;
+    unsigned int at = stored_at;
     if (!kqr_query_of(record, &record->file.record[at], &s_stored) ||
         ((s_stored.answer != KQR_TIMED_OUT) && (s_stored.answer != KQR_CENSORED)))
     {

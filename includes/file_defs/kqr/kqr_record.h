@@ -21,15 +21,31 @@ extern "C"
 
     // The record of a member. A record starts as zeros, and kqr_read opens it. It holds:
     //   - its records, the record of the member first.
-    //   - the record of the query of each identity, plus one, 0 for an entry with none.
+    //   - the record of the query of each identity, by the hash of the identity: an order of them sorted by the
+    //     hash, `ordered` of them in one cell, and a run of the newest, `run_count` of them, with the room that the
+    //     sort of a full run writes as it merges into the order.
     //   - the record of each sample.
     //   - the record where the pairs start, and the who before them where it belongs to them.
     //   - the pending marks, each its code and its two words. The first of a cycle is the text of its mode, numbered
     //     as the code writes it.
+    // the place of a query: the hash of its identity, and its record
+    typedef struct
+    {
+        unsigned long long hash;
+        unsigned int at;
+    } KqrQueryPlace;
+
+    // the places of the run of the newest queries
+#define KQR_QUERY_RUN 256u
+
     typedef struct
     {
         KrepFile file;
-        unsigned int *slot;
+        KqrQueryPlace *order;
+        unsigned int ordered;
+        KqrQueryPlace run[KQR_QUERY_RUN];
+        unsigned int run_count;
+        KqrQueryPlace run_room[KQR_QUERY_RUN];
         unsigned int *sample;
         unsigned int samples;
         unsigned int sample_room;
