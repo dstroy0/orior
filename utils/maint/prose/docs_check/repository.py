@@ -28,8 +28,8 @@ while (REPOSITORY != os.path.dirname(REPOSITORY)) and not os.path.isfile(
 # The one root is the top of the repository. Every file of the project is in the check: the code, the comments,
 # the pages and the hooks.
 #
-# A list of folders missed each new folder, and it missed it with no error. ui/, evidence/ and most of utils/ were
-# not in the list, and the gate did not read them. The walk keeps out what is not the writing of this project:
+# A list of folders missed each new folder, and it missed it with no error. The list did not have ui/, evidence/
+# or most of utils/, and the gate did not read them. The walk keeps out what is not the writing of this project:
 # build output, fetched files, caches and fixtures (SKIP_DIRS in files.py). It also keeps out each folder that holds
 # its own .git, such as a submodule. That repository has its own check.
 DEFAULT_ROOTS = (REPOSITORY,)

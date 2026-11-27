@@ -7,7 +7,7 @@
 
 import re
 
-from .files import build_file
+from .files import DASH_SUFFIXES, HEADER_SUFFIXES, MATLAB_SUFFIXES, SEMICOLON_SUFFIXES, build_file, hash_file
 from .legal import legal_blank
 from .quoting import QUIET_CLOSE, quieted
 
@@ -154,22 +154,99 @@ def tex_prose(lines):
 STRING_SPAN = re.compile(r"\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*'")
 
 
-def hash_tail(line):
-    """The `#` comment on one line, or empty where there is none.
+def marked_tail(line, mark):
+    """The comment that the character `mark` opens on one line, or empty where there is none.
 
-    The hash has to open a word: at the start of the line, or after whitespace. Without that rule
-    `$#` in a shell script and `${#name}` in both shell and CMake read as comment markers, and a run
-    of argument arithmetic gets scanned as prose.
+    The mark has to open a word: at the start of the line, or after whitespace. Without that rule,
+    `$#` in a shell script and `${#name}` in shell and CMake read as comment markers. Then the check
+    reads a run of argument arithmetic as prose.
 
     Strings are masked first. `message("count: #1")` is not read as a comment either.
     """
     masked = STRING_SPAN.sub(lambda hit: " " * len(hit.group(0)), line)
     for at, character in enumerate(masked):
-        if character != "#":
+        if character != mark:
             continue
         if at == 0 or masked[at - 1].isspace():
             return line[at:]
     return ""
+
+
+def hash_tail(line):
+    """The `#` comment on one line, or empty where there is none."""
+    return marked_tail(line, "#")
+
+
+def dash_prose(lines):
+    """The comment text of a Lean or a VHDL file, with the code blanked and the line numbers kept.
+
+    Both write a `--` comment to the end of the line. Lean also writes a `/- -/` block, and a block
+    can hold a block. The doc forms `/-- -/` and `/-! -/` are blocks too. The marks become spaces, because the
+    checker reads `--` as a dash. The reader skips a `"` string, and a mark inside it opens nothing.
+    """
+    retained = []
+    depth = 0
+    for line in lines:
+        kept = []
+        at = 0
+        while at < len(line):
+            two = line[at:at + 2]
+            if depth:
+                if two == "/-":
+                    depth += 1
+                    kept.append("  ")
+                    at += 2
+                elif two == "-/":
+                    depth -= 1
+                    kept.append("  ")
+                    at += 2
+                else:
+                    kept.append(line[at])
+                    at += 1
+                continue
+            if two == "--":
+                kept.append("  " + line[at + 2:])
+                break
+            if two == "/-":
+                depth = 1
+                kept.append("  ")
+                at += 2
+                # The `-` of `/--` and the `!` of `/-!` mark a doc block. They are not prose.
+                if at < len(line) and line[at] in "-!":
+                    kept.append(" ")
+                    at += 1
+                continue
+            if line[at] == '"':
+                close = line.find('"', at + 1)
+                at = len(line) if close < 0 else close + 1
+                continue
+            kept.append(" ")
+            at += 1
+        retained.append("".join(kept) if "".join(kept).strip() else "")
+    return retained
+
+
+def matlab_prose(lines):
+    """The comment text of a MATLAB file, with the code blanked and the line numbers kept.
+
+    MATLAB writes a `%` comment to the end of the line, and a `%{` line and a `%}` line hold a block
+    between them. The mark becomes a space.
+    """
+    retained = []
+    in_block = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "%{":
+            in_block = True
+            retained.append("")
+            continue
+        if in_block:
+            in_block = stripped != "%}"
+            retained.append(line if in_block else "")
+            continue
+        tail = marked_tail(line, "%")
+        retained.append(" " + tail[1:] if tail else "")
+    return retained
 
 
 def comment_prose(lines):
@@ -261,8 +338,17 @@ def prose_only(path, lines, ledger=None):
     if path.endswith(".tex"):
         return legal_blank(tex_prose(lines), path, ledger)
     # Tested before .py, because a build file can be named or extended and a .py never is.
-    if build_file(path):
+    if build_file(path) or hash_file(path):
         return legal_blank(quieted(comment_prose(lines)), path, ledger)
+    # A table or a word list: only a line that starts with `#` is a header comment.
+    if path.endswith(HEADER_SUFFIXES):
+        return legal_blank(quieted([line if line.startswith("#") else "" for line in lines]), path, ledger)
+    if path.endswith(DASH_SUFFIXES):
+        return legal_blank(quieted(dash_prose(lines)), path, ledger)
+    if path.endswith(MATLAB_SUFFIXES):
+        return legal_blank(quieted(matlab_prose(lines)), path, ledger)
+    if path.endswith(SEMICOLON_SUFFIXES):
+        return legal_blank(quieted([" " + tail[1:] if tail else "" for tail in (marked_tail(line, ";") for line in lines)]), path, ledger)
 
     retained = []
     in_block = False
