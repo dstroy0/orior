@@ -13,8 +13,8 @@
 
 #include "embed_compiler_directives.h"
 
-// The bytes of the pool of the device, which the job kernel places. A program that needs another size compiles
-// platform_device.cu with its own value, and its objects then stay apart from the others
+// The bytes of the pool of the device where the program declares none. A program that needs more defines
+// g_device_pool_bytes, as it defines g_program_pool_bytes for the pool of the host
 #ifndef PLATFORM_DEVICE_POOL_BYTES
 #define PLATFORM_DEVICE_POOL_BYTES (256ULL << 20u)
 #endif
@@ -25,6 +25,15 @@
 extern "C"
 {
 #endif
+
+    // The bytes of the pool of the device that the program declares, or 0 for PLATFORM_DEVICE_POOL_BYTES. The platform
+    // gives a default of 0, and a definition in the program replaces it
+    extern const unsigned long long g_device_pool_bytes;
+
+    // The memory of the pool of the device, which the platform takes from the system one time for the life of the
+    // program. The pool of the host comes the same way. The host calls it before the first kernel that opens the pool,
+    // and each later call does nothing. 1, or 0 where the system refuses the bytes
+    int platform_device_storage_taken(void);
 
     // The pool placed on the memory of the device, one time for the life of the program. The first thread of the job
     // kernel calls it before any other thread takes a cell. 1, or 0 where the cellblock refuses the pool

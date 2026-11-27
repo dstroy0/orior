@@ -38,10 +38,40 @@ __device__ const size_t mmgr_owner_table_count_device = (size_t)platform_device_
 #define PLATFORM_DEVICE_WIDTH 32u
 #define PLATFORM_DEVICE_TOUCH_ROWS 64u
 
-// The bytes of the pool of the device, in the memory of the device alone. The regions of the temporary tier come off
-// its top beside the bytes that platform_device.h asks for, as they do on the host
-EMBED_ALIGN(MMGR_ALIGN_BYTES)
-static __device__ uint8_t s_device_storage[PLATFORM_DEVICE_POOL_BYTES + (unsigned long long)MMGR_CARCER_REGION_AREA];
+// The memory of the pool of the device and its bytes. Before the first kernel that opens the pool,
+// platform_device_storage_taken takes them from the system and writes them here. The regions of the temporary tier come
+// off its top beside the bytes that the program declares, as they do on the host
+static __device__ uint8_t *s_device_storage;
+static __device__ unsigned long long s_device_storage_bytes;
+
+#if !defined(__CUDA_ARCH__)
+
+// the bytes of the pool of the device where the program declares none: 0, which reads as PLATFORM_DEVICE_POOL_BYTES
+EMBED_WEAK_ZERO(const unsigned long long, g_device_pool_bytes)
+
+// 1 once the host took the memory of the pool of the device
+static int s_device_storage_taken;
+
+extern "C" int platform_device_storage_taken(void)
+{
+    if (s_device_storage_taken != 0)
+    {
+        return 1;
+    }
+    const unsigned long long bytes =
+        ((g_device_pool_bytes != 0ULL) ? g_device_pool_bytes : PLATFORM_DEVICE_POOL_BYTES) +
+        (unsigned long long)MMGR_CARCER_REGION_AREA;
+    void *storage = NULL;
+    // The one take of device memory from the system, for the life of the program. The runtime aligns it to 256 bytes,
+    // past MMGR_ALIGN_BYTES. Explicit cast takes the count of bytes in memory, which a size_t counts
+    const int taken = (cudaMalloc(&storage, (size_t)bytes) == cudaSuccess) &&
+                      (cudaMemcpyToSymbol(s_device_storage, &storage, sizeof(storage)) == cudaSuccess) &&
+                      (cudaMemcpyToSymbol(s_device_storage_bytes, &bytes, sizeof(bytes)) == cudaSuccess);
+    s_device_storage_taken = taken;
+    return taken;
+}
+
+#endif
 
 // The cellblock of the device over that pool, and the storage of its movable option. Each pass of nvcc has its own copy
 // of the two records, and a kernel reads the copy of the device. Minimum security: a release leaves the bytes of a cell
@@ -68,8 +98,9 @@ extern "C" __device__ int platform_device_open(void)
     {
         return 1;
     }
-    if (!mmgr_series_cellularum_placed(&platform_device_site_platform_device_pool_ctx, s_device_storage,
-                                       sizeof(s_device_storage)))
+    // Explicit cast takes the count of bytes in memory, which a size_t counts
+    if ((s_device_storage == NULL) || !mmgr_series_cellularum_placed(&platform_device_site_platform_device_pool_ctx,
+                                                                     s_device_storage, (size_t)s_device_storage_bytes))
     {
         return 0;
     }

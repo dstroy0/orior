@@ -50,6 +50,10 @@ __global__ void tessera_job_given_kernel(void *cell, unsigned int place)
 static int tessera_job_taken(unsigned long long count, unsigned int place, int cleared, int ephemeral, void **cell)
 {
     *cell = NULL;
+    if (!platform_device_storage_taken())
+    {
+        return 0;
+    }
     tessera_job_taken_kernel<<<1, 1>>>(count, place, cleared, ephemeral);
     if ((cudaGetLastError() != cudaSuccess) || (cudaDeviceSynchronize() != cudaSuccess) ||
         (cudaMemcpyFromSymbol(cell, s_job_cell, sizeof(*cell)) != cudaSuccess))
@@ -127,7 +131,8 @@ extern "C" int tessera_job_ran(const void *kernel, unsigned int threads, void **
     int cooperative = 0;
     int processors = 0;
     int blocks_each = 0;
-    if ((cudaGetDevice(&device) != cudaSuccess) ||
+    // the memory of the pool comes first, as a job kernel takes its cells from the pool
+    if (!platform_device_storage_taken() || (cudaGetDevice(&device) != cudaSuccess) ||
         (cudaDeviceGetAttribute(&cooperative, cudaDevAttrCooperativeLaunch, device) != cudaSuccess) ||
         (cooperative == 0) ||
         (cudaDeviceGetAttribute(&processors, cudaDevAttrMultiProcessorCount, device) != cudaSuccess) ||
