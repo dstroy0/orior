@@ -1036,6 +1036,18 @@
         "src/cu/engine/runtime/daemon"
       ]
     },
+    "max_tree_objects": {
+      "desc": "The objects of the max tree on the device, with the engine linked into the program. Seeded residuals of positive blobs over a negative background run with their grade off and on. The mass of each body equals the count of the voxels of its label, and the bodies, labels, positive words and level code equal the signum of each case.",
+      "script": "utils/test/src/cu/engine/nbody/max_tree/max_tree_objects_test.sh",
+      "src": [
+        "+<cu/engine/nbody/max_tree/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/nbody/max_tree"
+      ]
+    },
     "engine_codec": {
       "desc": "The codec of the engine from end to end, with the engine linked into the program. A seeded .npy sample is ingested: the encode and the seal run as jobs of the device, and the crystal is written, read back and verified. The proof of the set verifies it again, the load gives the samples back, and the bits of a lattice of ints equal the bits of tower_lift and compression_encode.",
       "script": "utils/test/src/cu/engine/engine_codec_test.sh",
