@@ -6,6 +6,7 @@
 #include "../editor/files.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "trust_internal.h"
 
 // the configurations Prettier and ESLint run as code
@@ -105,8 +106,10 @@ EMBED_INLINE int cli_same_word(const TrustCodeCtx *args)
     }
     for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
-        const char one = ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] + ('a' - 'A'))
-                                                                              : args->text[at];
+        // Explicit cast reads the byte as its code point
+        const char one = (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)args->text[at]}))
+                             ? (char)(args->text[at] + ('a' - 'A'))
+                             : args->text[at];
         if (one != args->word_text[at])
         {
             return 0;

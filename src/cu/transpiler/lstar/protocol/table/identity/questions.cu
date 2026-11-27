@@ -98,11 +98,10 @@ int rule_broken(const char *link)
         // operation at the link's start
         guarded = (space != NULL) ? ((size_t)(space - link) + 1u) : 0u;
     }
-    size_t end = guarded;
-    while ((end < text.length) && (link[end] != '.') && (link[end] != ' '))
-    {
-        end += 1u;
-    }
+    const size_t end = (guarded < text.length)
+                           ? guarded + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &link[guarded],
+                                                  .cap = text.length - guarded, .other = ". ")
+                           : guarded;
     const CarrierPiece operation = {&link[guarded], end - guarded};
     if (identity_piece_is(operation, "EXIT"))
     {
@@ -227,11 +226,8 @@ static int link_word_put(LinkWord *words, unsigned int *count, unsigned int most
 
 CarrierPiece trimmed(CarrierPiece text)
 {
-    size_t first = 0u;
-    while ((first < text.length) && carrier_space(text.text[first]))
-    {
-        first += 1u;
-    }
+    const size_t first =
+        EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text.text, .cap = text.length, .other = CARRIER_SPACES);
     if (first == text.length)
     {
         const CarrierPiece empty = {text.text, 0u};
@@ -371,16 +367,16 @@ int link_read(CarrierPiece line, Link *link)
         // the guard ends at its space, which lies past the text's start
         operation_first = (at_space != NULL) ? ((size_t)(at_space - plain.text) + 1u) : plain.length;
     }
-    size_t operation_last = operation_first;
-    while ((operation_last < plain.length) && (plain.text[operation_last] != ' '))
-    {
-        operation_last += 1u;
-    }
-    size_t name_end = operation_first;
-    while ((name_end < plain.length) && (plain.text[name_end] != '.') && (plain.text[name_end] != ' '))
-    {
-        name_end += 1u;
-    }
+    // the operation up to its space, and its name up to its point or its space
+    const size_t left = (operation_first < plain.length) ? (plain.length - operation_first) : 0u;
+    const size_t operation_last =
+        operation_first + ((left != 0u) ? EMBED_CALL(cellul.span_not, CatenaFinitaCfg,
+                                                     .src = &plain.text[operation_first], .cap = left, .other = " ")
+                                        : 0u);
+    const size_t name_end =
+        operation_first + ((left != 0u) ? EMBED_CALL(cellul.span_not, CatenaFinitaCfg,
+                                                     .src = &plain.text[operation_first], .cap = left, .other = ". ")
+                                        : 0u);
     const CarrierPiece operation_name = {&plain.text[operation_first], name_end - operation_first};
     static const char *const s_aimed[] = {"BRA", "JMP", "CALL", "BSSY"};
     int transfers = 0;

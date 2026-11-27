@@ -3,6 +3,7 @@
 // validate_code.c: a file's code as the validation reads it: its comments and strings blanked, its words with their
 // lines and columns, the theorems it declares, and the flagged words it uses
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "validate_internal.h"
 
 // the max namespaces and sections open at once
@@ -131,8 +132,11 @@ EMBED_INLINE int code_word_character(const ValidateCodeCtx *args)
 {
     if (args->character < 0x80u)
     {
-        return ((args->character >= 'a') && (args->character <= 'z')) || ((args->character >= 'A') && (args->character <= 'Z')) ||
-               ((args->character >= '0') && (args->character <= '9')) ||
+        // Explicit cast reads the byte as its code point
+        return (((args->character) < 0x80u) &&
+                ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)(args->character)})) ||
+               (((args->character) < 0x80u) &&
+                ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)(args->character)})) ||
                ((args->character != 0u) && (args->character < 0x80u) &&
                 (cellul.chr(&(CatenaFinitaCfg){
                      .src = "_.'#!?", .cap = CLI_POOL_BYTES, .byte = (unsigned char)args->character}) != NULL));

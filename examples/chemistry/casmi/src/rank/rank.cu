@@ -29,6 +29,7 @@
 #include "../../../../../includes/formats/cfg_json/cfg_json.h"
 #include "../mass/mass.h"
 
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
@@ -111,11 +112,12 @@ static int rank_hex_read(const char *text, OriorExactInteger *value)
     }
     for (size_t digit = 0u; digit < digits; digit += 1u)
     {
-        const char digit_char = at[digits - 1u - digit];
-        const int nibble = ((digit_char >= '0') && (digit_char <= '9'))   ? (digit_char - '0')
-                           : ((digit_char >= 'a') && (digit_char <= 'f')) ? (digit_char - 'a' + 10)
-                           : ((digit_char >= 'A') && (digit_char <= 'F')) ? (digit_char - 'A' + 10)
-                                                                          : -1;
+        // Explicit casts read the byte as its code point, and the folded letter as a count from 'a'
+        const uint8_t digit_char = (uint8_t)at[digits - 1u - digit];
+        const int nibble = !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_HEX, .byte = digit_char) ? -1
+                           : EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = digit_char)
+                               ? (int)(digit_char - '0')
+                               : 10 + (int)(EMBED_CALL(ascii.lower, AsciiCfg, .byte = digit_char) - 'a');
         if (nibble < 0)
         {
             return 0;

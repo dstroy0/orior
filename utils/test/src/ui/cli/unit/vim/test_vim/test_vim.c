@@ -5,6 +5,7 @@
 // motions, text objects and lines with counts and registers; x X D C Y s S J ~ r p P; undo and redo; the ways into
 // insert mode and out; the dot repeat; visual and visual line mode; the search prompt, n N * #; which keys each mode
 // takes; the label and the block caret; and Vim turned off. Each case opens its own view
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "ui/cli/src/editor/document.h"
 #include "ui/cli/src/editor/view.h"
 #include "ui/cli/src/editor/vim.h"
@@ -45,7 +46,10 @@ static void typed(const char *text)
     for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
         char name[2] = {text[at], '\0'};
-        name[0] = ((name[0] >= 'a') && (name[0] <= 'z')) ? (char)(name[0] - 'a' + 'A') : name[0];
+        // Explicit cast reads the byte as its code point
+        name[0] = (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)name[0]}))
+                      ? (char)(name[0] - 'a' + 'A')
+                      : name[0];
         const CliViewInput key = {.type = CLI_VIEW_KEY, .name = name};
         const CliViewInput character = {.type = CLI_VIEW_TEXT, .text = text + at, .length = 1ULL};
         TEST_ASSERT_TRUE(sent(&key));

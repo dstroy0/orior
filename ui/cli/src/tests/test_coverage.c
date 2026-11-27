@@ -9,6 +9,7 @@
 #include "test_runs_internal.h"
 
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // The counts a coverage file's bytes give before it is read: its quotes, two to each key, its runs of digits, one to
 // each line marked, and its bytes
@@ -137,7 +138,8 @@ EMBED_INLINE void cover_count(const TestCoverageCtx *args)
     for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         const char character = args->text[at];
-        const int digit = (character >= '0') && (character <= '9');
+        // Explicit cast reads the byte as its code point
+        const int digit = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character});
         args->counts->quotes += (character == '"') ? 1ULL : 0ULL;
         args->counts->numbers += (digit && !in_digits) ? 1ULL : 0ULL;
         in_digits = digit;

@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_pdf.c: a listing is a PDF whose cross-reference finds each object, and a layout that names one page prints one
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "ui/cli/src/print/print.h"
 #include "ui/cli/src/text/text.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
@@ -53,7 +54,9 @@ static unsigned long long cross_reference_offset(void)
     }
     TEST_ASSERT_NOT_NULL(start);
     unsigned long long offset = 0ull;
-    for (const char *digit = start + 10; (*digit >= '0') && (*digit <= '9'); digit += 1)
+    // Explicit cast reads the byte as its code point
+    for (const char *digit = start + 10; ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)*digit});
+         digit += 1)
     {
         offset = offset * 10ull + (unsigned long long)(*digit - '0');
     }

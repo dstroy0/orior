@@ -7,6 +7,7 @@
 #include "../command_line/command_line.h"
 #include "../plugins/plugins.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "notebook_cells_internal.h"
 #include "notebook_internal.h"
 
@@ -86,7 +87,8 @@ EMBED_INLINE unsigned int number_of(const NotebookCellsCtx *args)
     for (unsigned long long at = 0ULL; at < number->length; at += 1ULL)
     {
         const char digit = args->json_read->text[number->text + at];
-        if ((digit < '0') || (digit > '9'))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)digit})))
         {
             break;
         }

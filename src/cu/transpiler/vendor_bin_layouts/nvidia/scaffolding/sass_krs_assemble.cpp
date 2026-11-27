@@ -199,11 +199,10 @@ static KrsForm *krs_forms(const Ruleset *rules, const char *path, unsigned int *
                         : NULL;
     for (size_t at = 0u; (forms != NULL) && (at < size);)
     {
-        size_t end = at;
-        while ((end < size) && (bytes[end] != '\n'))
-        {
-            end += 1u;
-        }
+        // the end of the line, or of the file where no line feed follows. Explicit cast reads the found byte as a byte
+        // of the file
+        const void *const ended = EMBED_CALL(memor.chr, MemoriaCfg, .src = &bytes[at], .bytes = size - at, .val = '\n');
+        const size_t end = (ended != NULL) ? (size_t)((const char *)ended - bytes) : size;
         *count += krs_form_read(&bytes[at], end - at, &forms[*count]) ? 1u : 0u;
         at = end + 1u;
     }
@@ -217,16 +216,13 @@ static int krs_has_instruction(const char *text, size_t length)
     size_t at = 0u;
     while (at < length)
     {
-        size_t stop = at;
-        while ((stop < length) && (text[stop] != '\n'))
-        {
-            stop += 1u;
-        }
-        size_t first = at;
-        while ((first < stop) && ((text[first] == ' ') || (text[first] == '\t')))
-        {
-            first += 1u;
-        }
+        // the end of the line, or of the text where no line feed follows, and the first byte past its blanks.
+        // Explicit cast reads the found byte as a byte of the text
+        const void *const ended =
+            EMBED_CALL(memor.chr, MemoriaCfg, .src = &text[at], .bytes = length - at, .val = '\n');
+        const size_t stop = (ended != NULL) ? (size_t)((const char *)ended - text) : length;
+        const size_t first =
+            at + EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[at], .cap = stop - at, .other = " \t");
         if ((first < stop) && (text[first] != '.') && (text[first] != '/') && (text[first] != '#') &&
             (EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = &text[first], .cap = stop - first, .byte = ':') == NULL))
         {

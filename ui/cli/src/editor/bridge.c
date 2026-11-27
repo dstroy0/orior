@@ -6,6 +6,7 @@
 
 #include "../command_line/pool.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // One line that contains something: its number from 0, its first word and the rest, trimmed
 typedef struct
@@ -552,7 +553,9 @@ EMBED_INLINE int cli_is_type(const BridgeCtx *args)
 {
     for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
-        if (!(((args->word_text[at] >= 'a') && (args->word_text[at] <= 'z')) || (args->word_text[at] == '_')))
+        // Explicit cast reads the byte as its code point
+        if (!((ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)args->word_text[at]})) ||
+              (args->word_text[at] == '_')))
         {
             return 0;
         }
@@ -570,8 +573,10 @@ EMBED_INLINE int cli_is_name(const BridgeCtx *args)
     for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         const char character = args->word_text[at];
-        if (!(((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z')) ||
-              ((character >= '0') && (character <= '9')) || (character == '_') || (character == '.')))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)character}) ||
+              (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character})) || (character == '_') ||
+              (character == '.')))
         {
             return 0;
         }

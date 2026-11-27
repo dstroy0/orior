@@ -9,6 +9,7 @@
 #include "../command_line/pool.h"
 #include "../command_line/rings.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "dap_internal.h"
 
 // a message's place in its movable cell: its size in the first word, its bytes after it
@@ -226,7 +227,8 @@ EMBED_INLINE int within_length(const DapWithinCtx *args)
             unsigned long long digit = at;
             while (has_length && (digit < stop))
             {
-                has_length = (s_head[digit] >= '0') && (s_head[digit] <= '9');
+                // Explicit cast reads the byte as its code point
+                has_length = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)s_head[digit]});
                 *length = (*length * 10ULL) + (unsigned long long)(s_head[digit] - '0');
                 digit += 1ULL;
             }

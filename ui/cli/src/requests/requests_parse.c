@@ -60,14 +60,9 @@ EMBED_INLINE int parse_begins(const RequestsParseCtx *args)
 // whether a word is all capitals, as a method is
 EMBED_INLINE int parse_is_method(const RequestsParseCtx *args)
 {
-    for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
-    {
-        if ((args->word_text[at] < 'A') || (args->word_text[at] > 'Z'))
-        {
-            return 0;
-        }
-    }
-    return args->size > 0u;
+    return (args->size > 0u) &&
+           (cellul.span(&(CatenaFinitaCfg){
+                .src = args->word_text, .cap = args->size, .other = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}) == args->size);
 }
 
 // `size` bytes of `text` stored in the parse's pool: where they are, and the parse full where they do not fit

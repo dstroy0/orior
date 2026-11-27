@@ -106,15 +106,17 @@ int program_main(int count, char **words)
             mmgr_line_decimal(platform_file_line(record), number + 1u, 1u);
             mmgr_line_put(platform_file_line(record), ". `");
         }
-        for (const char *walk = s_questions[number].lines; *walk != '\0'; walk += 1)
+        // each line as it is, and "`; `" in place of each line end
+        for (const char *walk = s_questions[number].lines; *walk != '\0';)
         {
+            const size_t run = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = walk,
+                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\n");
+            (void)platform_file_write_items(walk, 1u, run, record);
+            walk += run;
             if (*walk == '\n')
             {
                 platform_file_text_put("`; `", record);
-            }
-            else
-            {
-                platform_file_char_put(*walk, record);
+                walk += 1;
             }
         }
         {

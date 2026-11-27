@@ -5,6 +5,7 @@
 // index: a step, a frame, a step by frame, a file, a thread, a raise, a name and a line record
 #include "../command_line/pool.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "recording_internal.h"
 
 // The counts a recording's lines give by their types, read off the text before the lines are read whole: the steps,
@@ -343,7 +344,9 @@ EMBED_INLINE unsigned long long read_number(const RecordingReadCtx *args)
     for (unsigned long long character = 0ULL; character < json->node[node].length; character += 1ULL)
     {
         const unsigned long long digit = (unsigned long long)(text[character] - '0');
-        if ((text[character] < '0') || (text[character] > '9') || (value > (~0ULL - digit) / 10ULL))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)text[character]})) ||
+            (value > (~0ULL - digit) / 10ULL))
         {
             return 0ULL;
         }
@@ -647,7 +650,9 @@ EMBED_INLINE void read_store(const RecordingReadCtx *args)
         unsigned long long character = negative ? 1ULL : 0ULL;
         while (whole && (character < length))
         {
-            whole = (text[character] >= '0') && (text[character] <= '9') && (value < 922337203685477580LL);
+            // Explicit cast reads the byte as its code point
+            whole = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)text[character]}) &&
+                    (value < 922337203685477580LL);
             value = (value * 10LL) + (long long)(text[character] - '0');
             character += 1ULL;
         }

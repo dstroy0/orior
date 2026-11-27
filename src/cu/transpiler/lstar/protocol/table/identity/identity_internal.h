@@ -442,6 +442,9 @@ static inline void identity_text_mode(char *text, size_t *size)
 #endif
 }
 
+// the bytes that identity_space takes as spaces, for a span over them
+#define IDENTITY_SPACES " \t\n\r\v\f"
+
 // 1 where `character` is a space as a stream's extraction skips it
 static inline int identity_space(char character)
 {
@@ -453,19 +456,16 @@ static inline int identity_space(char character)
 // where the text holds no word past `*at`
 static inline int identity_word_next(CarrierPiece text, size_t *at, CarrierPiece *word)
 {
-    while ((*at < text.length) && identity_space(text.text[*at]))
-    {
-        *at += 1u;
-    }
+    *at += (*at < text.length) ? EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text.text[*at],
+                                            .cap = text.length - *at, .other = IDENTITY_SPACES)
+                               : 0u;
     if (*at >= text.length)
     {
         return 0;
     }
     const size_t first = *at;
-    while ((*at < text.length) && !identity_space(text.text[*at]))
-    {
-        *at += 1u;
-    }
+    *at += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text.text[*at], .cap = text.length - *at,
+                      .other = IDENTITY_SPACES);
     word->text = &text.text[first];
     word->length = *at - first;
     return 1;

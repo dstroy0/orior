@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // git_lines.c: the commit that last changed each line of a file as the editor has it, read from git blame's porcelain
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "git_internal.h"
 
 // A path git gives from the repository's folder made the tree's: `strip` taken from its start and `add` put there
@@ -40,8 +41,9 @@ EMBED_INLINE int cli_all_hex(const GitLinesCtx *args)
     for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         const char character = args->text[at];
-        if (!(((character >= '0') && (character <= '9')) || ((character >= 'a') && (character <= 'f')) ||
-              ((character >= 'A') && (character <= 'F'))))
+        // Explicit cast reads the byte as its code point
+        if (!((ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character})) ||
+              ((character >= 'a') && (character <= 'f')) || ((character >= 'A') && (character <= 'F'))))
         {
             return 0;
         }

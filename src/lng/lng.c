@@ -2330,11 +2330,13 @@ void lng_files_ending(const char *const *suffixes, unsigned int count, LngList *
 
 void lng_target_of(const char *path, char *target, size_t capacity)
 {
-    const char *name = path;
-    for (const char *at = path; *at != '\0'; at += 1)
-    {
-        name = ((*at == '/') || (*at == '\\')) ? (at + 1) : name;
-    }
+    // the name past the last separator of either kind
+    const char *const slash =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+    const char *const back =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
+    const char *const separator = ((back != NULL) && ((slash == NULL) || (back > slash))) ? back : slash;
+    const char *const name = (separator != NULL) ? (separator + 1) : path;
     const char *const dot =
         EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.');
     const size_t length =
@@ -2672,10 +2674,17 @@ void lng_theorem_names(const char *const *line, unsigned int lines, LngList *nam
         const char *start = line[at] + sizeof(s_theorem) - 1u;
         const int guarded = (lng_text_order(start, "\xc2\xab", (size_t)(2u)) == 0);
         start += guarded ? 2u : 0u;
+        // the name up to a space, a colon or the close of its guillemets: each lead byte 0xc2 reached is the close
+        // where 0xbb follows it, and is part of the name where not
         size_t length = 0u;
-        while ((start[length] != '\0') && (start[length] != ' ') && (start[length] != ':') &&
-               (lng_text_order(&start[length], "\xc2\xbb", (size_t)(2u)) != 0))
+        for (;;)
         {
+            length += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &start[length],
+                                 .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " :\xc2");
+            if ((start[length] != '\xc2') || (lng_text_order(&start[length], "\xc2\xbb", (size_t)(2u)) == 0))
+            {
+                break;
+            }
             length += 1u;
         }
         LngList name = {NULL, 0u, 0u};

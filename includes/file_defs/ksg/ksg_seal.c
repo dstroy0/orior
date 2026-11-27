@@ -153,14 +153,10 @@ int ksg_type_sealed(const char *path)
     }
     const size_t characters =
         EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = dot + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR);
-    int lower = (dot[1] == 'k') && (characters >= 3u) && (characters <= 6u);
-    size_t at = 1u;
-    while (lower && (at <= characters))
-    {
-        lower = (dot[at] >= 'a') && (dot[at] <= 'z');
-        at += 1u;
-    }
-    return lower;
+    // every byte of the extension a lower case letter
+    const size_t lower = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = dot + 1, .cap = characters,
+                                    .other = "abcdefghijklmnopqrstuvwxyz");
+    return (dot[1] == 'k') && (characters >= 3u) && (characters <= 6u) && (lower == characters);
 }
 
 void ksg_head(unsigned char *head)

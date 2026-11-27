@@ -3,6 +3,7 @@
 // test_query_tools.c: the query's builds: compiles pace as the interface's queue does, every pattern of every tool reaches a file of the tree,
 // paths given the compilers use forward slashes, no two sources of a tool share an object, a tool is stale where its binary is missing or
 // older than a source, a missing compiler is reported before any build, and the writer builds and runs
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "ui/cli/src/text/text.h"
 #include "ui/query/src/tools/tools_internal.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
@@ -33,7 +34,8 @@ static unsigned long long interface_number(const char *name)
                 digit += 1;
             }
             unsigned long long value = 0ull;
-            while ((digit[0] >= '0') && (digit[0] <= '9'))
+            // Explicit cast reads the byte as its code point
+            while (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)digit[0]}))
             {
                 value = (value * 10ull) + (unsigned long long)(digit[0] - '0');
                 digit += 1;

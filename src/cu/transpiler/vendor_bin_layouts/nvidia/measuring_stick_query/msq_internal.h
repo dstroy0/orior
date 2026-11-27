@@ -228,6 +228,8 @@ extern _Atomic unsigned long long s_vendor_nanoseconds;
 unsigned long long msq_now(void);
 int msq_added(unsigned char **memory, size_t *size_used, size_t *room, const void *bytes, size_t size);
 int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count);
+// the bytes that the vendor's listing reads as spaces, the set that msq_space tests
+#define MSQ_SPACES " \t\n\r\v\f"
 int msq_space(char c);
 int msq_word(char c);
 void msq_listing_free(MsqListing *listing);

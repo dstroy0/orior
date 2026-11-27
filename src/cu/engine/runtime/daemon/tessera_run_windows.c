@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tessera_run_windows.c: starting, timing and ending a job's process tree on Windows
 #include "../../../../platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "tessera_run_internal.h"
@@ -109,11 +110,13 @@ static void run_inheritable(HANDLE handle)
 // 1 where the command's program is wsl.exe (or wsl), whatever folder names it
 int run_names_wsl(const char *program)
 {
-    const char *base = program;
-    for (const char *walk = program; *walk != '\0'; walk += 1)
-    {
-        base = ((*walk == '\\') || (*walk == '/')) ? (walk + 1) : base;
-    }
+    // the program's name past the last separator of either kind
+    const char *const slash =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = program, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+    const char *const back =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = program, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
+    const char *const separator = ((back != NULL) && ((slash == NULL) || (back > slash))) ? back : slash;
+    const char *const base = (separator != NULL) ? (separator + 1) : program;
     return (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = base, .other = "wsl.exe", .cap = PLATFORM_TEXT_TO_TERMINATOR,
                        .ci = EMBED_TRUE)) ||
            (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = base, .other = "wsl", .cap = PLATFORM_TEXT_TO_TERMINATOR,
@@ -123,8 +126,10 @@ int run_names_wsl(const char *program)
 // a path on a drive as WSL mounts it, X:\a\b as /mnt/x/a/b; 0 for a path on no drive character
 int run_mounted_path(const char *path, char *mounted, size_t capacity)
 {
-    const int upper = (path[0] >= 'A') && (path[0] <= 'Z');
-    const int lower = (path[0] >= 'a') && (path[0] <= 'z');
+    // Explicit cast reads the byte as its code point
+    const int upper = EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_UPPER, .byte = (uint8_t)path[0]);
+    // Explicit cast reads the byte as its code point
+    const int lower = EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_LOWER, .byte = (uint8_t)path[0]);
     if ((!upper && !lower) || (path[1] != ':') || ((path[2] != '\\') && (path[2] != '/')))
     {
         return 0;
@@ -143,9 +148,13 @@ int run_mounted_path(const char *path, char *mounted, size_t capacity)
     {
         return 0;
     }
-    for (char *walk = mounted; *walk != '\0'; walk += 1)
+    // each back slash, reached from the one before it, written as a forward slash
+    for (size_t at = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = mounted, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = "\\");
+         mounted[at] != '\0'; at += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &mounted[at],
+                                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\\"))
     {
-        *walk = (*walk == '\\') ? '/' : *walk;
+        mounted[at] = '/';
     }
     return 1;
 }

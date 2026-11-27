@@ -14,6 +14,7 @@
 #include "../editor/view.h"
 #include "../plugins/plugins.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "servers_internal.h"
 
 // how long the pointer rests before the panels ask for a hover, and stays off it before the hover goes. How long the
@@ -323,8 +324,10 @@ EMBED_INLINE const char *panels_viewed_key(const PanelsCtx *args)
 EMBED_INLINE int panels_word_byte(const PanelsCtx *args)
 {
     const unsigned char value = (unsigned char)args->text[0];
-    return ((value >= 'a') && (value <= 'z')) || ((value >= 'A') && (value <= 'Z')) ||
-           ((value >= '0') && (value <= '9')) || (value == '_') || (value == '$') || (value >= 0x80u);
+    // Explicit cast reads the byte as its code point
+    return ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)value}) ||
+           (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)value})) || (value == '_') ||
+           (value == '$') || (value >= 0x80u);
 }
 
 // the hover gone, and its timer to go with it

@@ -10,6 +10,7 @@
 #include "../../../../includes/formats/cfg_json/cfg_json.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "pool.h"
 
 // the list as it is built in, with a zero after it, read where it lies; its tokens, a cell of their count for as long
@@ -1275,8 +1276,10 @@ int cli_menus_rest(void)
 // a character in lower case
 EMBED_INLINE char commands_lower(const CommandsCtx *args)
 {
-    return ((args->character >= 'A') && (args->character <= 'Z')) ? (char)(args->character - 'A' + 'a')
-                                                                  : args->character;
+    // Explicit cast reads the byte as its code point
+    return (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)args->character}))
+               ? (char)(args->character - 'A' + 'a')
+               : args->character;
 }
 
 // whether the key `name` is `required`
@@ -1305,7 +1308,10 @@ static int commands_title_character(const CommandsCtx *args)
         while ((character == '\0') && (text[byte] != '\0'))
         {
             const char lower = EMBED_CALL(commands_lower, CommandsCtx, .character = text[byte]);
-            character = ((lower >= 'a') && (lower <= 'z') && !taken[lower - 'a']) ? lower : '\0';
+            // Explicit cast reads the folded byte as its code point
+            character = (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)lower}) && !taken[lower - 'a'])
+                            ? lower
+                            : '\0';
             byte += 1u;
         }
         if (character == '\0')

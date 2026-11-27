@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // parquet_read.c: a parquet file's members, the one cached decoded, and its lanes and side
 #include "../../../src/platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "parquet_internal.h"
@@ -45,8 +46,10 @@ static int parquet_member_find(const ParquetFooter *footer, const char *member, 
 {
     unsigned int group = 0u;
     size_t at = 0u;
-    // the loop stops once the count passes the row groups; the count stays far below an unsigned int's ceiling
-    while ((member[at] >= '0') && (member[at] <= '9') && (group <= footer->row_group_count))
+    // the loop stops once the count passes the row groups; the count stays far below an unsigned int's ceiling.
+    // Explicit cast reads the byte as its code point
+    while (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)member[at]) &&
+           (group <= footer->row_group_count))
     {
         group = (group * 10u) + (unsigned int)(member[at] - '0');
         at += 1u;

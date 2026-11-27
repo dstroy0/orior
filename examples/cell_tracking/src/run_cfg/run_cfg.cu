@@ -89,11 +89,19 @@ static void cfg_append_quoted(CfgText *text, const char *piece)
         return;
     }
     cfg_append_text(text, "\"");
-    for (const char *at = piece; *at; at += 1u)
+    // each run of plain bytes as it is, then a quote or a back slash after a back slash of its own
+    for (const char *at = piece; *at != '\0';)
     {
-        const bool plain = (*at != '"') && (*at != '\\');
-        cfg_append(text, "\\", (size_t)!plain);
-        cfg_append(text, at, 1u);
+        const size_t plain = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                        .other = "\"\\");
+        cfg_append(text, at, plain);
+        at += plain;
+        if (*at != '\0')
+        {
+            cfg_append(text, "\\", 1u);
+            cfg_append(text, at, 1u);
+            at += 1u;
+        }
     }
     cfg_append_text(text, "\"");
 }

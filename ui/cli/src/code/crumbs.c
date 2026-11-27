@@ -10,6 +10,7 @@
 #include "../command_line/commands.h"
 #include "../command_line/pool.h"
 #include "../editor/files.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "symbols.h"
 
 // no line past the last; and the max digits a line takes as a menu row's word
@@ -427,7 +428,8 @@ int cli_crumbs_go(const CliCrumbsCfg *args)
     for (unsigned int at = 0u; args->text[at] != '\0'; at += 1u)
     {
         const char digit = args->text[at];
-        if ((digit < '0') || (digit > '9') || (at >= CRUMBS_DIGITS))
+        // Explicit cast reads the byte as its code point
+        if (!ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)digit}) || (at >= CRUMBS_DIGITS))
         {
             return 0;
         }

@@ -385,9 +385,9 @@ int cli_debug_pane_key(const CliDebugPaneInputCfg *args)
     unsigned long long first = 0ULL;
     unsigned long long last =
         EMBED_CALL(cli_typed.copy, CliTypedCfg, .typed = typed, .dst = bytes, .capacity = sizeof(bytes));
-    while ((first < last) && ((bytes[first] == ' ') || (bytes[first] == '\t')))
+    if (first < last)
     {
-        first += 1ULL;
+        first += cellul.span(&(CatenaFinitaCfg){.src = &bytes[first], .cap = last - first, .other = " \t"});
     }
     while ((last > first) && ((bytes[last - 1ULL] == ' ') || (bytes[last - 1ULL] == '\t')))
     {

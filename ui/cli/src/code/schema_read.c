@@ -5,6 +5,7 @@
 // file gives all its faults at once; values nested deeper than 512 not read. Values, members and texts past what the
 // read fits are not stored, and it is marked full
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "schema_internal.h"
 
 // A reader of a JSON file: the read it fills, the byte it is at, and how deep it is
@@ -530,7 +531,8 @@ static unsigned int read_value(const SchemaReadCtx *args)
     {
         return EMBED_CALL(read_word, SchemaReadCtx, .reader = args->reader, .from = from);
     }
-    if ((byte == '-') || ((byte >= '0') && (byte <= '9')))
+    // Explicit cast reads the byte as its code point
+    if ((byte == '-') || (((byte) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)(byte)})))
     {
         return EMBED_CALL(read_number, SchemaReadCtx, .reader = args->reader, .from = from);
     }

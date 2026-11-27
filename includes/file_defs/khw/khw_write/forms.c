@@ -125,8 +125,10 @@ unsigned int khw_forms_read(const char *name)
             EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = FRAME_READS, .cap = PLATFORM_TEXT_TO_TERMINATOR);
         if (forms_text_order(relation, FRAME_READS, (size_t)(frame_prefix)) == 0)
         {
-            char *const dot = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = relation + frame_prefix,
-                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.');
+            // the dot reached through the relation itself, which the read writes
+            const char *const dot_found = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = relation + frame_prefix,
+                                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '.');
+            char *const dot = (dot_found != NULL) ? &relation[dot_found - relation] : NULL;
             answered.reading =
                 (dot != NULL) ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = dot + 1, .end = NULL, .base = 16)
                               : 0ULL;

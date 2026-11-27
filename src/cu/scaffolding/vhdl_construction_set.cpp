@@ -82,11 +82,10 @@ static int construction_line(const char *line, size_t length, ConstructionForm *
     size_t word = 5u;
     while (word < equals)
     {
-        size_t stop = word;
-        while ((stop < equals) && (line[stop] != ' '))
-        {
-            stop += 1u;
-        }
+        // the word up to its space, inside the bytes before the equals sign
+        const size_t stop = (word < equals) ? word + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &line[word],
+                                                                .cap = equals - word, .other = " ")
+                                            : word;
         if ((stop > word) && (named == 0))
         {
             fits = fits && construction_copied(&line[word], stop - word, form->name, sizeof(form->name));

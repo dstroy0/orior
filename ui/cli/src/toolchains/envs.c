@@ -7,6 +7,7 @@
 #include "../editor/files_internal.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "envs_internal.h"
 
 typedef struct
@@ -85,8 +86,10 @@ static void cli_add(const EnvsCtx *args)
         {
             const char one = args->required->text[args->required->name[at].start + same];
             const char other = args->name.at[same];
-            const char one_lower = ((one >= 'A') && (one <= 'Z')) ? (char)(one + 32) : one;
-            const char other_lower = ((other >= 'A') && (other <= 'Z')) ? (char)(other + 32) : other;
+            // Explicit cast reads the byte as its code point
+            const char one_lower = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)one});
+            // Explicit cast reads the byte as its code point
+            const char other_lower = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)other});
             if (one_lower != other_lower)
             {
                 break;

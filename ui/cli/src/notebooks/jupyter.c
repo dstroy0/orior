@@ -203,10 +203,9 @@ EMBED_INLINE void jupyter_program(const JupyterCtx *args)
 {
     const char *const given = args->text;
     int python = cellul.starts(&(CatenaFinitaCfg){.src = given, .other = "python", .cap = sizeof("python")});
-    for (unsigned int at = 6u; python && (given[at] != '\0'); at += 1u)
-    {
-        python = ((given[at] >= '0') && (given[at] <= '9')) || (given[at] == '.');
-    }
+    // every byte after the name a digit or a point
+    python = python && (given[6u + cellul.span(&(CatenaFinitaCfg){
+                                       .src = &given[6u], .cap = CLI_POOL_BYTES, .other = "0123456789."})] == '\0');
     VerbaLinea line = {args->out, args->capacity, 0ULL};
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_PATH_MAX_LEN - 1u});
     unsigned long long end = length;

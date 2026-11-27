@@ -409,7 +409,12 @@ static int chains_write(const Questions *questions, const char *folder)
                 const Link *const written = &current->chain[within];
                 unsigned int literal = 0u;
                 unsigned int target = 0u;
-                for (const char *part = written->marked.text; *part != '\0'; part += 1)
+                // each mark of an operand, reached from the one before it
+                const char *const marked = written->marked.text;
+                for (const char *part = marked + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = marked,
+                                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\x02\x03");
+                     *part != '\0'; part += 1 + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = part + 1,
+                                                           .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\x02\x03"))
                 {
                     if (*part == '\x02')
                     {

@@ -3,8 +3,9 @@
 // test_sift.c: the byte search: the sift finds what the plain comparison finds on flat, skewed and repeating texts, a search without case
 // finds each character in either case and only characters fold, a needle at the ends and in the middle of a long text is found once each, and
 // empty and too long needles are found nowhere
-#include "ui/cli/src/text/sift.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
+#include "ui/cli/src/text/sift.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 // the max offsets a search records, and the bytes of the long text
@@ -34,7 +35,10 @@ static void offset_recorded(const CliEachAtCfg *args)
 // `byte` as a search without case reads it where `fold` is set: a capital to its small character
 static unsigned char folded(unsigned char byte, int fold)
 {
-    return (fold && (byte >= 'A') && (byte <= 'Z')) ? (unsigned char)(byte | 0x20u) : byte;
+    // Explicit cast reads the byte as its code point
+    return (fold && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)byte}))
+               ? (unsigned char)(byte | 0x20u)
+               : byte;
 }
 
 // the sift finds where the needle is, by comparing at every alignment

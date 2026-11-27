@@ -175,11 +175,7 @@ static const char *line_characters(const char *key, unsigned long long line)
 // `text`, a C string, read onto the xterm
 static void xterm_put(const char *text)
 {
-    unsigned long long size = 0ULL;
-    while (text[size] != '\0')
-    {
-        size += 1ULL;
-    }
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES});
     EMBED_CALL(cli_terminal_xterm_bytes.write, CliTerminalXtermBytesCfg, .xterm = &s_xterm,
                .bytes = (const unsigned char *)text, .size = size);
 }
@@ -193,11 +189,8 @@ static const char *xterm_row_text(unsigned int y)
 // the bytes the key `name` sends with the modifiers `mods` into s_text, ended by a 0: 1, or 0 where it sends nothing
 static int key_sent(const char *name, unsigned int mods, int application_cursor)
 {
-    unsigned int size = 0u;
-    while (name[size] != '\0')
-    {
-        size += 1u;
-    }
+    // Explicit cast takes the length of a key's name, which an unsigned int counts
+    const unsigned int size = (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_POOL_BYTES});
     VerbaLinea out = {s_text, sizeof(s_text), 0ULL};
     const int sends = EMBED_CALL(cli_terminal_key.bytes, CliTerminalKeyCfg, .name = name, .name_size = size,
                                  .mods = mods, .application_cursor = application_cursor, .out = &out);
@@ -508,11 +501,8 @@ static int shell_run(const char *const *words, const char *typed)
                                    .words = words, .err_msg = &err_msg);
     (void)mmgr_line_finish(&err_msg);
     TEST_ASSERT_TRUE_MESSAGE(started, why);
-    unsigned long long typed_size = 0ULL;
-    while ((typed != NULL) && (typed[typed_size] != '\0'))
-    {
-        typed_size += 1ULL;
-    }
+    const unsigned long long typed_size =
+        (typed != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = typed, .cap = CLI_POOL_BYTES}) : 0ULL;
     EMBED_CALL(cli_terminal_shell.write, CliTerminalShellCfg, .shell = &s_shell, .bytes = (const unsigned char *)typed,
                .size = typed_size);
     const unsigned long long last_ms = cli_clock_milliseconds() + 10000ULL;

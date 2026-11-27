@@ -9,6 +9,7 @@
 #include "../command_line/rings.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "memoria_anularis/memoria_anularis.h"
 
 // the latest errors retained for a report that requests them, and the max bytes of each; the nodes and the bytes
@@ -380,7 +381,8 @@ void cli_report_fingerprint(const CliReportCategoryTextCfg *args)
     }
     for (const char *at = args->text; at[0] != '\0'; at += 1)
     {
-        if ((at[0] < '0') || (at[0] > '9'))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)at[0]})))
         {
             hash = (hash ^ (unsigned char)at[0]) * 0x100000001b3ULL;
         }

@@ -3,6 +3,7 @@
 // ipp_exchange.c: an ipp:// address read, and a message exchanged with a printer over HTTP/1.1, its answer read whole
 // as the printer sends it: by its length, in chunks, or to the end
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "ipp.h"
 
 // the max bytes of a printer's answer, its HTTP head and its body together; the bytes an answer and an encoded request
@@ -64,7 +65,8 @@ EMBED_INLINE int cli_port(const IppExchangeCtx *args)
     }
     for (const char *at = args->from; at < args->to; at += 1)
     {
-        if ((at[0] < '0') || (at[0] > '9'))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)at[0]})))
         {
             return 0;
         }
@@ -175,7 +177,8 @@ EMBED_INLINE int cli_chunk_size(const IppExchangeCtx *args)
     for (; (at < args->to_bytes) && (at[0] != ';') && (at[0] != ' '); at += 1)
     {
         unsigned int digit;
-        if ((at[0] >= '0') && (at[0] <= '9'))
+        // Explicit cast reads the byte as its code point
+        if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)at[0]}))
         {
             digit = (unsigned int)(at[0] - '0');
         }
@@ -391,7 +394,9 @@ EMBED_INLINE int cli_exchange(const IppExchangeCtx *args)
             has_length = value < stop;
             for (unsigned long long digit = value; digit < stop; digit += 1ULL)
             {
-                has_length = has_length && (s_answer[digit] >= '0') && (s_answer[digit] <= '9');
+                // Explicit cast reads the byte as its code point
+                has_length =
+                    has_length && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)s_answer[digit]});
                 length = (length * 10ULL) + (unsigned long long)(s_answer[digit] - '0');
             }
         }

@@ -276,8 +276,17 @@ static inline void table_replaced(const TablePattern *pattern, const char *text,
     {
         const RegexpSpan whole = match.group[0];
         (void)mmgr_line_put_n(&out->line, &text[at], (size_t)(whole.from - at));
+        // each run of the replacement up to a dollar sign as it is, then the dollar sign read with the byte after it
         for (const char *each = replacement; *each != '\0'; each += 1)
         {
+            const size_t plain = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = each,
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "$");
+            (void)mmgr_line_put_n(&out->line, each, plain);
+            each += plain;
+            if (each[0] == '\0')
+            {
+                break;
+            }
             if ((each[0] == '$') && (each[1] == '&'))
             {
                 (void)mmgr_line_put_n(&out->line, &text[whole.from], (size_t)(whole.to - whole.from));

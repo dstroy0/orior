@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // symbols_score.c: how well a query names a name, its characters read whatever their case
 #include "../../../../includes/regexp/regexp.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "symbols.h"
 
 // the max characters of a query or a name compared
@@ -96,7 +97,10 @@ int cli_symbols_score(const CliSymbolsQueryCfg *args)
             (at == 0ULL) || (before == '_') || (before == '-') || (before == '.') || (before == ' ') ||
             (EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_UPPER, .character = character) &&
              EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_LOWER, .character = before));
-        const unsigned int folded = ((character >= 'A') && (character <= 'Z')) ? (character + 32u) : character;
+        // Explicit cast reads the byte as its code point
+        const unsigned int folded =
+            (((character) < 0x80u) ? (unsigned int)ascii.lower(&(AsciiCfg){.byte = (uint8_t)(character)})
+                                   : (character));
         if (starts &&
             (EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_CHARACTER,
                         .character = folded) ||

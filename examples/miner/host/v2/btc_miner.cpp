@@ -17,6 +17,8 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -111,26 +113,16 @@ std::vector<uint8_t> bytes_from_hex(const std::string &hex)
         unsigned value = 0u;
         for (size_t nibble = 0u; nibble < 2u; nibble += 1u)
         {
-            const char character = hex[at + nibble];
-            unsigned digit = 0u;
-
-            if ((character >= '0') && (character <= '9'))
-            {
-                digit = (unsigned)(character - '0');
-            }
-            else if ((character >= 'a') && (character <= 'f'))
-            {
-                digit = (unsigned)(character - 'a') + 10u;
-            }
-            else if ((character >= 'A') && (character <= 'F'))
-            {
-                digit = (unsigned)(character - 'A') + 10u;
-            }
-            else
+            // Explicit casts read the byte as its code point, and the folded letter as a count from 'a'
+            const uint8_t character = (uint8_t)hex[at + nibble];
+            if (!EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_HEX, .byte = character))
             {
                 bytes.clear();
                 return bytes;
             }
+            const unsigned digit = EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = character)
+                                       ? (unsigned)(character - '0')
+                                       : (unsigned)(EMBED_CALL(ascii.lower, AsciiCfg, .byte = character) - 'a') + 10u;
             value = (value << 4) | digit;
         }
         bytes.push_back((uint8_t)value);
@@ -1035,11 +1027,8 @@ void report_job(const MiningJob &job)
         previous_block = block_hash_from_digest(header_order);
     }
 
-    size_t leading_zeros = 0u;
-    while ((leading_zeros < previous_block.size()) && (previous_block[leading_zeros] == '0'))
-    {
-        leading_zeros += 1u;
-    }
+    const size_t leading_zeros = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = previous_block.c_str(),
+                                            .cap = previous_block.size(), .other = "0");
 
     {
         VerbaLinea *const output_line = platform_line_out();

@@ -6,6 +6,7 @@
  */
 #include "mass.h"
 #include "../../../../../src/platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
@@ -107,7 +108,8 @@ static int mass_count_read(const char *text, unsigned long long length, unsigned
 {
     long long value = 0ll;
     int seen = 0;
-    while ((*at < length) && (text[*at] >= '0') && (text[*at] <= '9'))
+    // Explicit cast reads the byte of the text as its code point
+    while ((*at < length) && EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)text[*at]))
     {
         value = (value * 10ll) + (long long)(text[*at] - '0');
         if (value > (1ll << 31))
@@ -132,13 +134,15 @@ static int mass_formula_add(const char *text, unsigned long long start, unsigned
     }
     while (at < end)
     {
-        if (text[at] < 'A' || text[at] > 'Z')
+        // Explicit cast reads the byte of the text as its code point
+        if (!EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_UPPER, .byte = (uint8_t)text[at]))
         {
             return 0;
         }
         const unsigned long long symbol_start = at;
         at += 1ull;
-        if ((at < end) && (text[at] >= 'a') && (text[at] <= 'z'))
+        // Explicit cast reads the byte of the text as its code point
+        if ((at < end) && EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_LOWER, .byte = (uint8_t)text[at]))
         {
             at += 1ull;
         }
@@ -242,10 +246,9 @@ long long casmi_adduct_read(const CasmiAdductRead *args)
             return ENGINE_BYTES_ERROR;
         }
         const unsigned long long term_start = at;
-        while ((at < length) && (text[at] != '+') && (text[at] != '-') && (text[at] != ']'))
-        {
-            at += 1ull;
-        }
+        // Explicit cast takes the bytes left of the text as a count in memory, which a size_t counts
+        at += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text[at], .cap = (size_t)(length - at),
+                         .other = "+-]");
         if (!mass_formula_add(text, term_start, at, sign * times, &added))
         {
             return ENGINE_BYTES_ERROR;

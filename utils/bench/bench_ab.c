@@ -2119,15 +2119,13 @@ int program_main(int argc, char **argv)
                 continue;
             }
 
-            const char *label = argv[which];
-
-            for (const char *walk = argv[which]; *walk != '\0'; walk++)
-            {
-                if ((*walk == '/') || (*walk == '\\'))
-                {
-                    label = walk + 1;
-                }
-            }
+            // the name past the last separator of either kind
+            const char *const slash = EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = argv[which],
+                                                 .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+            const char *const back = EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = argv[which],
+                                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
+            const char *const last = ((back != NULL) && ((slash == NULL) || (back > slash))) ? back : slash;
+            const char *const label = (last != NULL) ? (last + 1) : argv[which];
 
             unsigned marker = 0u;
             double gap = 0.0;

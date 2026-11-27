@@ -14,6 +14,7 @@
 #ifndef JSON_VALUE_H
 #define JSON_VALUE_H
 
+#include "cellularum_laboro/cellularum_laboro.h"
 #include <cstdint>
 #include <map>
 #include <string>
@@ -97,10 +98,10 @@ namespace json_detail
  */
 inline void skip_whitespace(const std::string &source, size_t &at)
 {
-    while ((at < source.size()) && ((source[at] == ' ') || (source[at] == '\t') ||
-                                    (source[at] == '\r') || (source[at] == '\n')))
+    if (at < source.size())
     {
-        at += 1u;
+        at +=
+            EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &source[at], .cap = source.size() - at, .other = " \t\r\n");
     }
 }
 
@@ -319,12 +320,10 @@ inline bool parse_value(const std::string &source, size_t &at, JsonValue &out)
     }
 
     const size_t number_start = at;
-    while ((at < source.size()) && ((source[at] == '-') || (source[at] == '+') ||
-                                    (source[at] == '.') || (source[at] == 'e') ||
-                                    (source[at] == 'E') ||
-                                    ((source[at] >= '0') && (source[at] <= '9'))))
+    if (at < source.size())
     {
-        at += 1u;
+        at += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &source[at], .cap = source.size() - at,
+                         .other = "-+.eE0123456789");
     }
     if (at == number_start)
     {

@@ -664,12 +664,8 @@ static unsigned int rows_costed(CostRows *rows, const CostHeld *held, RunWritten
                                      .other = "alike", .ci = EMBED_FALSE);
         if (!alike || (row->least == ULLONG_MAX) || (clock == ULLONG_MAX))
         {
-            size_t reason_length = 0u;
-            while ((verdict[reason_length] != '\0') && (verdict[reason_length] != ' ') &&
-                   (verdict[reason_length] != ','))
-            {
-                reason_length += 1u;
-            }
+            const size_t reason_length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = verdict,
+                                                    .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ,");
             (void)IDENTITY_SET(reasons[*left], alike ? "untimed" : verdict, alike ? 7u : reason_length);
             *left += 1ULL;
             mmgr_line_put(&table->text.line, "  ");

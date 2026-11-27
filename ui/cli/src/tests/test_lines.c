@@ -3,6 +3,7 @@
 // test_lines.c: the lines pytest and unittest print in their verbose reports as each test ends, read, and a test's
 // name as unittest and as pytest give it
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "test_runs_internal.h"
 
 typedef struct
@@ -199,7 +200,8 @@ int cli_test_unittest_id(const CliTestRunsLengthCtx *args)
         const char *const dot =
             memor.chr(&(MemoriaCfg){.src = args->dotted + part, .val = '.', .bytes = args->length - part});
         const unsigned long long end = (dot != NULL) ? (unsigned long long)(dot - args->dotted) : args->length;
-        if ((end > part) && (args->dotted[part] >= 'A') && (args->dotted[part] <= 'Z'))
+        // Explicit cast reads the byte as its code point
+        if ((end > part) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)args->dotted[part]}))
         {
             class_start = part;
             class_end = end;

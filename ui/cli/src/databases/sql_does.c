@@ -4,6 +4,7 @@
 // the object a statement that shapes the schema names
 #include "../command_line/pool.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "sql.h"
 
 // a word at no place among a statement's words
@@ -458,7 +459,8 @@ EMBED_INLINE void cli_lower_into(const SqlDoesCtx *args)
          (args->index < args->count) && (at < s_tokens[args->index].end); at += 1ULL)
     {
         const char character = args->statement[at];
-        mmgr_line_ch(&line, ((character >= 'A') && (character <= 'Z')) ? (char)(character + 32) : character);
+        // Explicit cast reads the byte as its code point
+        mmgr_line_ch(&line, (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)character}));
     }
     mmgr_line_finish(&line);
 }

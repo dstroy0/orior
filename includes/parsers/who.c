@@ -4,6 +4,7 @@
 // the run's one clock, its two words, its code and its name
 #include "who.h"
 #include "../../src/platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
@@ -47,19 +48,15 @@ static const char s_who_digits[] = "0123456789abcdef";
 // the value of the hex digit `character`: 0 to 15, or 16 where it is none
 static unsigned int who_hex_digit(char character)
 {
-    if ((character >= '0') && (character <= '9'))
+    // Explicit casts read the byte as its code point, and the folded letter as a count from 'a'
+    const uint8_t code = (uint8_t)character;
+    if (!EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_HEX, .byte = code))
     {
-        return (unsigned int)(character - '0');
+        return 16u;
     }
-    if ((character >= 'a') && (character <= 'f'))
-    {
-        return (unsigned int)(character - 'a') + 10u;
-    }
-    if ((character >= 'A') && (character <= 'F'))
-    {
-        return (unsigned int)(character - 'A') + 10u;
-    }
-    return 16u;
+    return EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = code)
+               ? (unsigned int)(code - '0')
+               : (unsigned int)(EMBED_CALL(ascii.lower, AsciiCfg, .byte = code) - 'a') + 10u;
 }
 
 // the `characters` hex digits at `text` read into `value`: 1, or 0 where one is no hex digit
@@ -131,16 +128,10 @@ static int who_row(const unsigned char *table, unsigned long long size, unsigned
 // 1 where the `length` characters at `one` and `other` are the same, a character's case aside
 static int who_same_characters(const char *one, const char *other, size_t length)
 {
-    for (size_t at = 0u; at < length; at += 1u)
-    {
-        const char left = ((one[at] >= 'A') && (one[at] <= 'Z')) ? (char)(one[at] + ('a' - 'A')) : one[at];
-        const char right = ((other[at] >= 'A') && (other[at] <= 'Z')) ? (char)(other[at] + ('a' - 'A')) : other[at];
-        if (left != right)
-        {
-            return 0;
-        }
-    }
-    return 1;
+    return (EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = one, .cap = length, .other = other, .ci = EMBED_TRUE) ==
+            length)
+               ? 1
+               : 0;
 }
 
 // the number the table gives the source `file`, as __FILE__ gives it, its path from the top of the tree: 0 where it

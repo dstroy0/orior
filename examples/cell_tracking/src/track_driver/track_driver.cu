@@ -31,6 +31,7 @@
 
 #include <cuda_runtime.h>
 
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
@@ -1636,7 +1637,9 @@ int program_main(int argc, char **argv)
         {
             argument += 1;
             unsigned int channel = 0u;
-            for (const char *digit = argv[argument]; (*digit >= '0') && (*digit <= '9') && (channel < 65536u);
+            // Explicit cast reads the byte of the argument as its code point
+            for (const char *digit = argv[argument];
+                 EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)*digit) && (channel < 65536u);
                  digit += 1u)
             {
                 channel = (channel * 10u) + (unsigned int)(*digit - '0');
@@ -1880,7 +1883,10 @@ int program_main(int argc, char **argv)
         {
             argument += 1;
             unsigned int draws = 0u;
-            for (const char *digit = argv[argument]; (*digit >= '0') && (*digit <= '9') && (draws < 4096u); digit += 1u)
+            // Explicit cast reads the byte of the argument as its code point
+            for (const char *digit = argv[argument];
+                 EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)*digit) && (draws < 4096u);
+                 digit += 1u)
             {
                 draws = (draws * 10u) + (unsigned int)(*digit - '0');
             }
@@ -1893,7 +1899,10 @@ int program_main(int argc, char **argv)
         {
             argument += 1;
             unsigned int arms = 0u;
-            for (const char *digit = argv[argument]; (*digit >= '0') && (*digit <= '9') && (arms < 64u); digit += 1u)
+            // Explicit cast reads the byte of the argument as its code point
+            for (const char *digit = argv[argument];
+                 EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)*digit) && (arms < 64u);
+                 digit += 1u)
             {
                 arms = (arms * 10u) + (unsigned int)(*digit - '0');
             }

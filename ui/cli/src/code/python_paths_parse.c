@@ -6,6 +6,7 @@
 #include "../../../../includes/regexp/regexp.h"
 #include "../editor/files_internal.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "python_paths_internal.h"
 
 unsigned int cli_py_text_append(const CliPythonPathsTextCtx *args)
@@ -261,7 +262,8 @@ static unsigned int cli_primary(void)
                                 .left = 0u, .right = 0u, .first_value = first, .count_value = count);
     }
     unsigned int start = 0u;
-    if ((character >= '0') && (character <= '9'))
+    // Explicit cast reads the byte as its code point
+    if (((character) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)(character)}))
     {
         EMBED_CALL(cli_word, PythonPathsParseCtx, .start = &start);
         long long number = 0LL;

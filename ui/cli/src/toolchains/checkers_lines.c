@@ -3,6 +3,7 @@
 // checkers_lines.c: findings written a line each, `path:line:col: message`, with a severity word and a code where the
 // checker writes them, as flake8, mypy and pylint write them
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "checkers_internal.h"
 
 typedef struct
@@ -125,11 +126,12 @@ EMBED_INLINE void cli_code_get(const CheckersLinesCtx *args)
     if (close != NULL)
     {
         const char *code = rest + 1;
-        unsigned long long size = 0ULL;
-        while (((code + size) < close) && (code[size] != '(') && (code[size] != ','))
-        {
-            size += 1ULL;
-        }
+        // the code up to its open bracket or its comma, inside the close. Explicit cast takes the bytes before the
+        // close as a count, which never runs back
+        unsigned long long size =
+            (code < close)
+                ? cellul.span_not(&(CatenaFinitaCfg){.src = code, .cap = (size_t)(close - code), .other = "(,"})
+                : 0ULL;
         EMBED_CALL(cli_trim, CheckersLinesCtx, .at = &code, .length = &size);
         args->finding->code = code;
         args->finding->code_length = size;
@@ -156,12 +158,14 @@ EMBED_INLINE void cli_code_get(const CheckersLinesCtx *args)
     {
         first += 1ULL;
     }
-    int code = (first >= 2ULL) && (rest[0] >= 'A') && (rest[0] <= 'Z');
+    // Explicit cast reads the byte as its code point
+    int code = (first >= 2ULL) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)rest[0]});
     {
         unsigned long long at = 1ULL;
         while (code && (at < first))
         {
-            code = (rest[at] >= '0') && (rest[at] <= '9');
+            // Explicit cast reads the byte as its code point
+            code = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)rest[at]});
             at += 1ULL;
         }
     }

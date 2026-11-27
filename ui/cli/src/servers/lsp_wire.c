@@ -6,6 +6,7 @@
 #include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "lsp.h"
 
 // the max bytes of a text escaped at once as it is written, and the capacity they take escaped
@@ -227,7 +228,9 @@ static int wire_head_read(const LspWireCtx *args)
             while (has_length && (at < used))
             {
                 const unsigned long long digit = (unsigned long long)(line[at] - '0');
-                has_length = (line[at] >= '0') && (line[at] <= '9') && (*length <= (~0ULL - digit) / 10ULL);
+                // Explicit cast reads the byte as its code point
+                has_length = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)line[at]}) &&
+                             (*length <= (~0ULL - digit) / 10ULL);
                 *length = has_length ? (*length * 10ULL) + digit : *length;
                 at += 1ULL;
             }
@@ -427,7 +430,8 @@ void cli_lsp_uri_get(const CliLspCapacityPathCfg *args)
 // a hex digit's value, or 16 where it is none
 EMBED_INLINE unsigned int wire_hex(const LspWireCtx *args)
 {
-    if ((args->character >= '0') && (args->character <= '9'))
+    // Explicit cast reads the byte as its code point
+    if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->character}))
     {
         return (unsigned int)(args->character - '0');
     }

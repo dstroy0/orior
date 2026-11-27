@@ -5,6 +5,7 @@
 #include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "checkers_internal.h"
 
 // the max bytes of a finding's fixes
@@ -202,7 +203,8 @@ EMBED_INLINE unsigned long long cli_span_is_whole_word(const CheckersReadCtx *ar
     unsigned long long value = 0ULL;
     for (unsigned long long at = 0ULL; at < one->length; at += 1ULL)
     {
-        if ((digits[at] < '0') || (digits[at] > '9'))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)digits[at]})))
         {
             return args->otherwise;
         }

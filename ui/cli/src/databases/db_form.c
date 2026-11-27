@@ -5,6 +5,7 @@
 // for SQLite, the guard's choice while the connection matters, and the refusal of the last save under the buttons. A
 // save writes the connection into databases.json, a rename through the name it had, and a remove takes it out; the
 // pane's text and keys go to the field that has the keys, or to the ask while the pane asks
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "db_pane_internal.h"
 
 // the types a connection is of, as databases.json stores them and as the choice reads them; the guards the same; the
@@ -264,7 +265,8 @@ EMBED_INLINE void form_saved(const DbFormCtx *args)
         {
             const char digit = port[at];
             // a digit's value is 0 to 9, and a port past five digits is no port
-            value = ((digit >= '0') && (digit <= '9') && (value < 100000u))
+            // Explicit cast reads the byte as its code point
+            value = (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)digit}) && (value < 100000u))
                         ? (value * 10u) + (unsigned int)(digit - '0')
                         : value;
         }

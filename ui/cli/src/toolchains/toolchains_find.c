@@ -5,6 +5,7 @@
 #include "../command_line/callback_cfg.h"
 #include "../machine/report.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "toolchains_internal.h"
 
 // how long a program may take to report its version before it is stopped, in milliseconds
@@ -277,7 +278,9 @@ EMBED_INLINE int cli_version_dotted(const ToolchainsFindCtx *args)
     for (unsigned long long at = 0ULL; (at + 3ULL) <= args->length; at += 1ULL)
     {
         const char *const three = args->text + at;
-        if ((three[0] >= '0') && (three[0] <= '9') && (three[1] == '.') && (three[2] >= '0') && (three[2] <= '9'))
+        // Explicit cast reads the byte as its code point
+        if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)three[0]}) && (three[1] == '.') &&
+            ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)three[2]}))
         {
             return 1;
         }

@@ -3,6 +3,7 @@
 // editorconfig.c: a file's indentation from the `.editorconfig` files above it
 #include "editorconfig.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 #define CLI_VALUE_MAX_LEN 64u
 // A key's value as the last section that names the file sets it, lower case: 1 in `set` where one did
@@ -63,8 +64,8 @@ EMBED_INLINE int cli_folded_is(const EditorconfigCtx *args)
     }
     for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
-        const char character =
-            ((args->from[at] >= 'A') && (args->from[at] <= 'Z')) ? (char)(args->from[at] + 32) : args->from[at];
+        // Explicit cast reads the byte as its code point
+        const char character = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)args->from[at]});
         if (character != args->word_text[at])
         {
             return 0;
@@ -117,7 +118,8 @@ EMBED_INLINE void cli_value_store(const EditorconfigCtx *args)
     VerbaLinea line = {args->value->text, sizeof(args->value->text), 0ULL};
     for (const char *at = args->from; at < args->to; at += 1)
     {
-        mmgr_line_ch(&line, ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0]);
+        // Explicit cast reads the byte as its code point
+        mmgr_line_ch(&line, (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)at[0]}));
     }
     // a value too long to store is stored as none of the words or numbers it is read for
     args->value->set = mmgr_line_ok(&line) ? 1 : 2;

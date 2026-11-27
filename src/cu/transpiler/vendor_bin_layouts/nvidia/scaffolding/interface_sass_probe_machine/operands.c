@@ -4,6 +4,7 @@
 // gained, a form turned, and a form unprinted
 #include "../../../../../../platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 #include "probe_machine_internal.h"
 
 // the encodings one form is decoded with: itself, and the 128 that are one bit from it
@@ -29,12 +30,12 @@ void sass_machine_listing(SassMachine *machine, const SassListing *listing)
 // 1 where two operations share their name up to its first dot: IMAD.IADD, IMAD.MOV and IMAD share IMAD
 static int sass_operation_root_same(const char *one, const char *other)
 {
-    size_t length = 0u;
-    while ((one[length] != '\0') && (one[length] != '.') && (one[length] == other[length]))
-    {
-        length += 1u;
-    }
-    return ((one[length] == '\0') || (one[length] == '.')) && ((other[length] == '\0') || (other[length] == '.'));
+    // the two names up to their points, alike in length and in every byte
+    const size_t length =
+        EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = one, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".");
+    return (EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = other, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                       .other = ".") == length) &&
+           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = one, .other = other, .bytes = length) == 0);
 }
 
 // the immediate or predicate of `base` whose leaving the text gives `parts`, every other operand as it was, or the

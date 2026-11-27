@@ -5,6 +5,7 @@
 // and a job found by the word that names it; the values a run's words give a job; and a stage job's subject
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "callback_cfg.h"
 #include "command_line_internal.h"
 
@@ -117,8 +118,10 @@ int cli_contains_word(const CliCommandLineCtx *args)
         {
             const char one = args->text[at + same];
             const char other = args->word_text[same];
-            const char lower = ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one;
-            const char lower_other = ((other >= 'A') && (other <= 'Z')) ? (char)(other - 'A' + 'a') : other;
+            // Explicit cast reads the byte as its code point
+            const char lower = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)one});
+            // Explicit cast reads the byte as its code point
+            const char lower_other = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)other});
             if (lower != lower_other)
             {
                 break;

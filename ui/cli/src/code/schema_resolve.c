@@ -6,6 +6,7 @@
 #include "schema_internal.h"
 
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // the schema files of these names follow where they name none, by the SchemaStore's URL
 static const char *const s_known[8][2] = {
@@ -105,8 +106,10 @@ EMBED_INLINE unsigned int resolve_pointer(const SchemaResolveCtx *args)
         {
             const char *stop = NULL;
             const unsigned long long index = cellul.to_ulong(&(TransfiguroCfg){.src = token, .end = &stop});
-            const int digits = (line.at > 0u) && (token[0] >= '0') && (token[0] <= '9') && (*stop == '\0') &&
-                               !((line.at > 1u) && (token[0] == '0'));
+            // Explicit cast reads the byte as its code point
+            const int digits = (line.at > 0u) &&
+                               ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)token[0]}) &&
+                               (*stop == '\0') && !((line.at > 1u) && (token[0] == '0'));
             at = digits ? EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json,
                                      .array = at, .index = (unsigned int)index)
                         : CLI_JSON_NONE;

@@ -3,6 +3,7 @@
 // tiff_metadata.c: rows, chains, ImageJ and OME metadata
 #include "../../../src/cu/engine/engine_note.h"
 #include "../../../src/platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "tiff_internal.h"
@@ -150,7 +151,8 @@ static int tiff_digits(const char *text, size_t length, unsigned long long *valu
     int fits = (length > 0u);
     for (size_t at = 0u; fits && (at < length); at += 1u)
     {
-        const int digit = (text[at] >= '0') && (text[at] <= '9');
+        // Explicit cast reads the byte as its code point
+        const int digit = EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)text[at]);
         const unsigned long long place = digit ? (unsigned long long)(text[at] - '0') : 0ULL;
         fits = digit && (total <= ((~0ULL - place) / 10ULL));
         total = (total * 10ULL) + place;

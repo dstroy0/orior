@@ -36,9 +36,13 @@ void test_every_run_line_of_the_manifest_closes_its_placeholders(void)
         {
             const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_json, .node = run, .length_pointer = NULL);
             int open = 0;
-            for (const char *at = (text != NULL) ? text : ""; *at != '\0'; at += 1)
+            // the running depth of the braces, each brace reached from the one before it
+            const char *at = (text != NULL) ? text : "";
+            for (at += cellul.span_not(&(CatenaFinitaCfg){.src = at, .cap = CLI_POOL_BYTES, .other = "{}"});
+                 *at != '\0';
+                 at += 1 + cellul.span_not(&(CatenaFinitaCfg){.src = at + 1, .cap = CLI_POOL_BYTES, .other = "{}"}))
             {
-                open += (*at == '{') ? 1 : ((*at == '}') ? -1 : 0);
+                open += (*at == '{') ? 1 : -1;
             }
             TEST_ASSERT_EQUAL_INT_MESSAGE(0, open, text);
         }

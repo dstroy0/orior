@@ -8,6 +8,7 @@
 #include "../tests/test_runs.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "at_terminal.h"
 #include "callback_cfg.h"
 
@@ -130,9 +131,11 @@ EMBED_INLINE void tests_counts(const AtTerminalTestsCtx *args)
     unsigned long long tenths = 0ULL;
     if (written[at] == '.')
     {
-        const unsigned long long tenth = ((written[at + 1u] >= '0') && (written[at + 1u] <= '9'))
-                                             ? (unsigned long long)(written[at + 1u] - '0')
-                                             : 0ULL;
+        // Explicit cast reads the byte as its code point
+        const unsigned long long tenth =
+            (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)written[at + 1u]}))
+                ? (unsigned long long)(written[at + 1u] - '0')
+                : 0ULL;
         const int up =
             (tenth < 10ULL) && (written[at + 1u] != '\0') && (written[at + 2u] >= '5') && (written[at + 2u] <= '9');
         tenths = tenth + (up ? 1ULL : 0ULL);

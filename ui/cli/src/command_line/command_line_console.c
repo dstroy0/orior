@@ -16,6 +16,7 @@
 #include "../runs/runner.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "callback_cfg.h"
 #include "command_line_internal.h"
 
@@ -645,7 +646,8 @@ int cli_file_word(const CliCommandLineOutCtx *args)
             embed_word at = colon;
             while ((at < path) && digits)
             {
-                digits = (args->word_text[at] >= '0') && (args->word_text[at] <= '9');
+                // Explicit cast reads the byte as its code point
+                digits = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->word_text[at]});
                 at += 1u;
             }
         }

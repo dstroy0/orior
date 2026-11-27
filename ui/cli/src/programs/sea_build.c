@@ -5,6 +5,7 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "sea.h"
 
 // the max bytes of a script read, and the max modules outside Node reported
@@ -177,7 +178,8 @@ EMBED_INLINE int cli_version(const SeaBuildCtx *args)
         const char *digit = text;
         while (number && (digit < stop))
         {
-            number = (digit[0] >= '0') && (digit[0] <= '9');
+            // Explicit cast reads the byte as its code point
+            number = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)digit[0]});
             value = (value * 10ULL) + (unsigned long long)(digit[0] - '0');
             digit += 1;
         }

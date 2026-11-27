@@ -222,11 +222,9 @@ int hdf5_locate(Hdf5File *file, const char *member, unsigned long long *address)
             at += 1u;
             continue;
         }
-        size_t end = at;
-        while ((end < length) && (member[end] != '/'))
-        {
-            end += 1u;
-        }
+        // the name of this step of the path, up to the next slash
+        const size_t end =
+            at + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &member[at], .cap = length - at, .other = "/");
         Hdf5Find find = {&member[at], end - at, 0, 0u, 0ULL};
         if (hdf5_group_links(file, current, hdf5_find_link, &find, find.name, find.length) == HDF5_WALK_FAILED)
         {

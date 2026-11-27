@@ -9,6 +9,7 @@
 
 #include "../../cli/src/command_line/cli_internal.h"
 #include "../../cli/src/text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 typedef struct
 {
@@ -510,8 +511,10 @@ EMBED_INLINE unsigned int terminal_run_number(const TerminalCtx *args)
     {
         const char character = args->text[at];
         // a digit's value is far inside what an unsigned int counts
-        number =
-            ((character >= '0') && (character <= '9')) ? ((number * 10u) + (unsigned int)(character - '0')) : number;
+        // Explicit cast reads the byte as its code point
+        number = (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character}))
+                     ? ((number * 10u) + (unsigned int)(character - '0'))
+                     : number;
     }
     return number;
 }
@@ -582,8 +585,11 @@ EMBED_INLINE int terminal_token_read(const TerminalCtx *args)
     const unsigned int number = EMBED_CALL(terminal_run_number, TerminalCtx, .text = args->text, .size = args->size);
     const unsigned int sixteen = EMBED_CALL(terminal_run_number, TerminalCtx, .text = part,
                                             .size = (part_length < 3ULL) ? (unsigned int)part_length : 3u);
-    const int digits = (part_length != 0ULL) && (part_length < 3ULL) && (part[0] >= '0') && (part[0] <= '9') &&
-                       ((part_length == 1ULL) || ((part[1] >= '0') && (part[1] <= '9')));
+    // Explicit cast reads the byte as its code point
+    const int digits =
+        (part_length != 0ULL) && (part_length < 3ULL) &&
+        ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)part[0]}) &&
+        ((part_length == 1ULL) || (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)part[1]})));
     if (digits && (sixteen < GUI_TERMINAL_COLORS))
     {
         *color = CLI_TERMINAL_COLOR_INDEXED | sixteen;

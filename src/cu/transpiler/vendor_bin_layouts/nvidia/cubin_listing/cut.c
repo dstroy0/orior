@@ -3,6 +3,7 @@
 // cut.c: a cubin's listing cut into each kernel's, every label a kernel's lines name put as the offset it is at
 #include "../../../../../platform/platform.h"
 #include "../cubin_listing.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
@@ -70,10 +71,12 @@ static int cubin_blank(char c)
 // the value of the hex digit `c`, or 16 where it is none
 static unsigned int cubin_hex(char c)
 {
-    return ((c >= '0') && (c <= '9'))   ? (unsigned int)(c - '0')
-           : ((c >= 'a') && (c <= 'f')) ? (unsigned int)(c - 'a' + 10)
-           : ((c >= 'A') && (c <= 'F')) ? (unsigned int)(c - 'A' + 10)
-                                        : 16u;
+    // Explicit casts read the byte as its code point, and the folded letter as a count from 'a'
+    const uint8_t code = (uint8_t)c;
+    return !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_HEX, .byte = code) ? 16u
+           : EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = code)
+               ? (unsigned int)(code - '0')
+               : (unsigned int)(EMBED_CALL(ascii.lower, AsciiCfg, .byte = code) - 'a') + 10u;
 }
 
 // 1 where the line from `begin` to `end` is an instruction, its first word past its space `/*<hex>*/`, the hex its
@@ -81,10 +84,8 @@ static unsigned int cubin_hex(char c)
 static int cubin_instruction_line(const char *listing, size_t begin, size_t end, unsigned long long *offset)
 {
     size_t at = begin;
-    while ((at < end) && cubin_blank(listing[at]))
-    {
-        at += 1u;
-    }
+    at += (at < end) ? EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &listing[at], .cap = end - at, .other = " \t")
+                     : 0u;
     if (((at + 2u) >= end) || (listing[at] != '/') || (listing[at + 1u] != '*'))
     {
         return 0;
@@ -113,14 +114,11 @@ static int cubin_label_line(const char *listing, size_t begin, size_t end)
     {
         return 0;
     }
-    for (size_t at = begin; at < (end - 1u); at += 1u)
-    {
-        if (cubin_blank(listing[at]))
-        {
-            return 0;
-        }
-    }
-    return 1;
+    // a label is one word: no blank before its colon
+    const size_t word = (end - 1u) - begin;
+    return (EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &listing[begin], .cap = word, .other = " \t") == word)
+               ? 1
+               : 0;
 }
 
 // the name of the code section a `.section` line from `begin` to `end` opens, past `.text.` and short of its first
@@ -130,10 +128,8 @@ static int cubin_code_section(const char *listing, size_t begin, size_t end, siz
     static const char s_section[] = ".section";
     static const char s_code[] = ".text.";
     size_t at = begin;
-    while ((at < end) && cubin_blank(listing[at]))
-    {
-        at += 1u;
-    }
+    at += (at < end) ? EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &listing[at], .cap = end - at, .other = " \t")
+                     : 0u;
     // `.section` and a space: `.sectioninfo` and `.sectionflags` open no section
     if (((end - at) <= (sizeof(s_section) - 1u)) ||
         (EMBED_CALL(memor.cmp, MemoriaCfg, .src = listing + at, .other = s_section, .bytes = sizeof(s_section) - 1u) !=
@@ -143,10 +139,8 @@ static int cubin_code_section(const char *listing, size_t begin, size_t end, siz
         return 0;
     }
     at += sizeof(s_section) - 1u;
-    while ((at < end) && cubin_blank(listing[at]))
-    {
-        at += 1u;
-    }
+    at += (at < end) ? EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &listing[at], .cap = end - at, .other = " \t")
+                     : 0u;
     if (((end - at) < (sizeof(s_code) - 1u)) ||
         (EMBED_CALL(memor.cmp, MemoriaCfg, .src = listing + at, .other = s_code, .bytes = sizeof(s_code) - 1u) != 0))
     {
@@ -154,11 +148,10 @@ static int cubin_code_section(const char *listing, size_t begin, size_t end, siz
         return 1;
     }
     at += sizeof(s_code) - 1u;
-    size_t last = at;
-    while ((last < end) && (listing[last] != ',') && !cubin_blank(listing[last]))
-    {
-        last += 1u;
-    }
+    // the name up to its comma or its blank, inside the end
+    const size_t last = (at < end) ? at + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &listing[at],
+                                                     .cap = end - at, .other = ", \t")
+                                   : at;
     *name = at;
     *length = last - at;
     return 1;

@@ -9,17 +9,15 @@
 // one tab-separated word of `line` from `at`, into `word`; the place the next word starts, or 0 at the end
 static unsigned int layout_word(const char *line, unsigned int at, char *word, unsigned int room)
 {
-    while ((line[at] == '\t') || (line[at] == ' '))
-    {
-        at += 1u;
-    }
-    unsigned int copied = 0u;
-    while ((line[at] != '\0') && (line[at] != '\t') && (line[at] != '\n') && (line[at] != '\r'))
-    {
-        word[(copied < (room - 1u)) ? copied : (room - 1u)] = line[at];
-        copied += (copied < (room - 1u)) ? 1u : 0u;
-        at += 1u;
-    }
+    // Explicit casts take the length of a word of a line, which an unsigned int counts
+    at += (unsigned int)EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &line[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                   .other = "\t ");
+    // the word up to its tab or its line end, cut to the room
+    const unsigned int run = (unsigned int)EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &line[at],
+                                                      .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "\t\n\r");
+    const unsigned int copied = (run < (room - 1u)) ? run : (room - 1u);
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = word, .src = &line[at], .bytes = copied);
+    at += run;
     word[copied] = '\0';
     return (copied == 0u) ? 0u : at;
 }

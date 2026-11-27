@@ -3,6 +3,7 @@
 // debug_processes.c: the processes of the machine a session can attach to, by their names, this one and the system's
 // idle process left out
 #include "../command_line/callback_cfg.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "debug_internal.h"
 
 // A process listed: its number, and where its name and its line start in the text
@@ -74,8 +75,10 @@ EMBED_INLINE int processes_before(const DebugProcessesCtx *args)
     const char *right = args->text + args->other->name;
     for (;; left += 1, right += 1)
     {
-        const char a = ((*left >= 'A') && (*left <= 'Z')) ? (char)(*left - 'A' + 'a') : *left;
-        const char b = ((*right >= 'A') && (*right <= 'Z')) ? (char)(*right - 'A' + 'a') : *right;
+        // Explicit cast reads the byte as its code point
+        const char a = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)*left});
+        // Explicit cast reads the byte as its code point
+        const char b = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)*right});
         if ((a != b) || (a == '\0'))
         {
             return (a != b) ? ((unsigned char)a < (unsigned char)b) : (args->one->pid < args->other->pid);

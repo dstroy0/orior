@@ -44,12 +44,12 @@ static void ruleset_relation_layout(RulesetCellPlan *plan, unsigned long long ch
 // the part of `path` after its last separator, the name that a report knows a file by
 static const char *ruleset_label(const char *path)
 {
-    const char *label = path;
-    for (const char *at = path; *at != '\0'; at += 1)
-    {
-        label = ((*at == '/') || (*at == '\\')) ? (at + 1) : label;
-    }
-    return label;
+    const char *const slash =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+    const char *const back =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
+    const char *const last = ((back != NULL) && ((slash == NULL) || (back > slash))) ? back : slash;
+    return (last != NULL) ? (last + 1) : path;
 }
 
 int ruleset_relations_read(const char (*paths)[PLATFORM_PATH_BYTES], unsigned int count,

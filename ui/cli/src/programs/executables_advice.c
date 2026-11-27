@@ -6,6 +6,7 @@
 // PyInstaller found nowhere or as one the program imports by its name as it runs, which PyInstaller cannot see
 #include "../command_line/callback_cfg.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "executables_internal.h"
 
 typedef struct
@@ -366,8 +367,10 @@ static void cli_fullest_each(const CliEachNameIsFolderCfg *args)
             while (named && (character < length))
             {
                 const char one = piece[character];
-                named = ((one >= 'a') && (one <= 'z')) || ((one >= 'A') && (one <= 'Z')) ||
-                        ((one >= '0') && (one <= '9')) || (one == '_') || (one == '.') || ((unsigned char)one >= 0x80u);
+                // Explicit cast reads the byte as its code point
+                named = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)one}) ||
+                        (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)one})) || (one == '_') ||
+                        (one == '.') || ((unsigned char)one >= 0x80u);
                 character += 1ULL;
             }
             const int starts =

@@ -13,6 +13,7 @@
 #include "../command_line/callback_cfg.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 #if !defined(_WIN32)
 #include <fcntl.h>
@@ -201,7 +202,9 @@ void cli_processes_each(const CliContextCtx *args)
             }
             for (unsigned long long digit = first; (index == 0u) && (digit < at); digit += 1ULL)
             {
-                number = number && (run_result->out[digit] >= '0') && (run_result->out[digit] <= '9') &&
+                // Explicit cast reads the byte as its code point
+                number = number &&
+                         ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)run_result->out[digit]}) &&
                          (at - first <= 10ULL);
                 pid = (pid * 10ULL) + (unsigned long long)(run_result->out[digit] - '0');
             }

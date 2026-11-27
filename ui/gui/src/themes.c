@@ -8,6 +8,7 @@
 #include "../../../includes/window/palette.h"
 #include "../../cli/src/command_line/cli_internal.h"
 #include "../../cli/src/text/json_tree.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // the scheme every theme is drawn over, as the entry names it
 static const char s_base[] = "dark";
@@ -384,7 +385,8 @@ void gui_theme_free_name(const GuiThemesNameCfg *args)
     // the stem: the name less a space and digits at its end
     unsigned long long stem = cellul.len(&(CatenaFinitaCfg){.src = wanted, .cap = GUI_THEME_NAME});
     unsigned long long digits = stem;
-    while ((digits > 0ULL) && (wanted[digits - 1ULL] >= '0') && (wanted[digits - 1ULL] <= '9'))
+    // Explicit cast reads the byte as its code point
+    while ((digits > 0ULL) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)wanted[digits - 1ULL]}))
     {
         digits -= 1ULL;
     }
@@ -645,8 +647,10 @@ void gui_theme_icon_remove(const GuiThemesAtIconCfg *args)
 // a byte in lower case where it is an ASCII capital
 EMBED_INLINE char theme_lower(const ThemesCtx *args)
 {
-    return ((args->character >= 'A') && (args->character <= 'Z')) ? (char)(args->character + ('a' - 'A'))
-                                                                  : args->character;
+    // Explicit cast reads the byte as its code point
+    return (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)args->character}))
+               ? (char)(args->character + ('a' - 'A'))
+               : args->character;
 }
 
 // whether `pattern` covers `name`, `length` bytes: `*` is for any characters and `?` for one byte, the rest compared
@@ -687,10 +691,7 @@ EMBED_INLINE int theme_pattern_covers(const ThemesCtx *args)
             return 0;
         }
     }
-    while (pattern[reading] == '*')
-    {
-        reading += 1ULL;
-    }
+    reading += cellul.span(&(CatenaFinitaCfg){.src = &pattern[reading], .cap = CLI_POOL_BYTES, .other = "*"});
     return pattern[reading] == '\0';
 }
 

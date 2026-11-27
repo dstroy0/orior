@@ -14,6 +14,7 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 #if !defined(_WIN32)
 #include <errno.h>
@@ -120,10 +121,12 @@ typedef struct
 // whether `character` is in a file URI as it is
 EMBED_INLINE int clipboard_unreserved(const PosixClipboardCtx *args)
 {
-    return ((args->character >= 'a') && (args->character <= 'z')) ||
-           ((args->character >= 'A') && (args->character <= 'Z')) ||
-           ((args->character >= '0') && (args->character <= '9')) || (args->character == '-') ||
-           (args->character == '.') || (args->character == '_') || (args->character == '~') || (args->character == '/');
+    // Explicit cast reads the byte as its code point
+    return (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)args->character})) ||
+           (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)args->character})) ||
+           (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->character})) ||
+           (args->character == '-') || (args->character == '.') || (args->character == '_') ||
+           (args->character == '~') || (args->character == '/');
 }
 
 // `path` written as a file URI, each byte a URI does not save written as `%XX`

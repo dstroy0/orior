@@ -6,6 +6,7 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // the max snapshots a file retains
 #define CLI_HISTORY_RETAIN_MAX 100u
@@ -179,7 +180,8 @@ static void cli_stamp_each(const CliEachNameIsFolderCfg *args)
     for (unsigned long long at = 0ULL; at < (length - 4u); at += 1ULL)
     {
         const char digit = args->name[at];
-        if ((digit < '0') || (digit > '9') ||
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)digit})) ||
             (value > ((0xffffffffffffffffULL - (unsigned long long)(digit - '0')) / 10ULL)))
         {
             return;

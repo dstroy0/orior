@@ -3,6 +3,7 @@
 // debug_step.c: a session's steps, the step from the tree's Python into its own C and back out, lldb's own commands
 // and orior's script in lldb, and a stop where the bytes of a name change
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "debug_internal.h"
 
 // the spaces a text is trimmed of
@@ -313,7 +314,8 @@ int cli_debug_step_across(const CliDebugRootOutErrMsgCfg *args)
         unsigned long long at = start;
         while (number && (at < end))
         {
-            number = (count.out[at] >= '0') && (count.out[at] <= '9');
+            // Explicit cast reads the byte as its code point
+            number = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)count.out[at]});
             positioned = (positioned * 10ULL) + (unsigned long long)(count.out[at] - '0');
             at += 1ULL;
         }

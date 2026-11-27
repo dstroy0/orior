@@ -5,6 +5,7 @@
 #include "json_tree.h"
 
 #include "../command_line/pool.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "text.h"
 
 typedef struct
@@ -25,10 +26,11 @@ typedef struct
 // whether a character goes on a number or a literal: a digit, a character, or a sign, a point or an exponent's sign
 EMBED_INLINE int json_word_character(const JsonTakenCtx *args)
 {
-    return ((args->character >= '0') && (args->character <= '9')) ||
-           ((args->character >= 'a') && (args->character <= 'z')) ||
-           ((args->character >= 'A') && (args->character <= 'Z')) || (args->character == '.') ||
-           (args->character == '+') || (args->character == '-');
+    // Explicit cast reads the byte as its code point
+    return (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->character})) ||
+           (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)args->character})) ||
+           (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)args->character})) ||
+           (args->character == '.') || (args->character == '+') || (args->character == '-');
 }
 
 unsigned int cli_json_tokens_count(const CliJsonTreeTextCfg *args)

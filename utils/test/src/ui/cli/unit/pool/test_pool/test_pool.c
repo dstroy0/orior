@@ -232,17 +232,9 @@ static unsigned long long listed_in_use(const char *listing, const char *name)
     {
         if ((memor.cmp(&(MemoriaCfg){.src = line, .other = name, .bytes = length}) == 0) && (line[length] == '\t'))
         {
-            unsigned long long value = 0ull;
-            for (const char *digit = line + length + 1u; (*digit >= '0') && (*digit <= '9'); digit += 1u)
-            {
-                value = (value * 10ull) + (unsigned long long)(*digit - '0');
-            }
-            return value;
+            return cellul.to_ulong(&(TransfiguroCfg){.src = line + length + 1u});
         }
-        while ((*line != '\0') && (*line != '\n'))
-        {
-            line += 1u;
-        }
+        line += cellul.span_not(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES, .other = "\n"});
         line += (*line != '\0') ? 1u : 0u;
     }
     return 0ull;

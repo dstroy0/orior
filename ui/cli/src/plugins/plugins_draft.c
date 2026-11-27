@@ -3,6 +3,7 @@
 // plugins_draft.c: the plugin a few answers request: made from nothing, or from a plugin to start from with what the
 // answers name changed
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "plugins.h"
 
 // the max bytes of a pattern that the draft makes. The next two are the nodes and bytes of the texts a draft
@@ -487,8 +488,8 @@ EMBED_INLINE unsigned int cli_extensions_read(const PluginsDraftCtx *args)
         VerbaLinea line = {lower, sizeof(lower), 0ULL};
         for (const char *character = at; character < end; character += 1)
         {
-            mmgr_line_ch(&line,
-                         ((character[0] >= 'A') && (character[0] <= 'Z')) ? (char)(character[0] + 32) : character[0]);
+            // Explicit cast reads the byte as its code point
+            mmgr_line_ch(&line, (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)character[0]}));
         }
         if (mmgr_line_finish(&line) != 0ULL)
         {

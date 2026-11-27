@@ -6,6 +6,7 @@
 #include "validate_internal.h"
 
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // the max tool plugins looked over
 #define CLI_VALIDATE_TOOLS (CLI_USER_PLUGINS + 256u)
@@ -137,7 +138,8 @@ EMBED_INLINE int tool_count(const ValidateToolCtx *args)
     unsigned long long sum = 0ULL;
     for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
-        if ((text[at] < '0') || (text[at] > '9'))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)text[at]})))
         {
             return 0;
         }

@@ -7,6 +7,7 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "print.h"
 
 // The listing, its layout and the characters a run is arranged from, sized to the longest run: the work state, a cell
@@ -316,7 +317,9 @@ EMBED_INLINE int cli_parse(const PageCtx *args)
     for (const char *at = from; at < args->to_value; at += 1)
     {
         const unsigned long long digit = (unsigned long long)(at[0] - '0');
-        if ((at[0] < '0') || (at[0] > '9') || (total > ((args->max - digit) / 10ULL)))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)at[0]})) ||
+            (total > ((args->max - digit) / 10ULL)))
         {
             return 0;
         }

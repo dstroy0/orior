@@ -339,11 +339,10 @@ static void bridge_lines_read(const char *bytes, size_t size, KlqLine *lines, un
     *count = 0u;
     for (size_t at = 0u; at < size;)
     {
-        size_t end = at;
-        while ((end < size) && (bytes[end] != '\n'))
-        {
-            end += 1u;
-        }
+        // the end of the line, or of the bytes where no line feed follows. Explicit cast reads the found byte as a
+        // byte of the file
+        const void *const ended = EMBED_CALL(memor.chr, MemoriaCfg, .src = &bytes[at], .bytes = size - at, .val = '\n');
+        const size_t end = (ended != NULL) ? (size_t)((const char *)ended - bytes) : size;
         KlqName line = {&bytes[at], end - at};
         at = end + 1u;
         line.length -= ((line.length != 0u) && (line.text[line.length - 1u] == '\r')) ? 1u : 0u;

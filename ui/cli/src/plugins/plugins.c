@@ -8,6 +8,7 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // The reader's plugins' ids in order, in a cell of `capacity`, `count` of them
 typedef struct
@@ -261,8 +262,10 @@ EMBED_INLINE unsigned long long cli_extension_key(const PluginsCtx *args)
     VerbaLinea line = {args->key_out, CLI_NAME_MAX_LEN, 0ULL};
     for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
-        mmgr_line_ch(&line, ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] + 32)
-                                                                                 : args->text[at]);
+        // Explicit cast reads the byte as its code point
+        mmgr_line_ch(&line, (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)args->text[at]}))
+                                ? (char)(args->text[at] + 32)
+                                : args->text[at]);
     }
     return mmgr_line_finish(&line);
 }
@@ -818,12 +821,14 @@ void cli_plugins_slug(const CliPluginsIdNameCfg *args)
         while ((at < to) && ((length + 1ULL) < CLI_NAME_MAX_LEN))
         {
             const char character = at[0];
-            const int allowed = ((character >= 'a') && (character <= 'z')) ||
-                                ((character >= 'A') && (character <= 'Z')) ||
-                                ((character >= '0') && (character <= '9'));
+            // Explicit cast reads the byte as its code point
+            const int allowed = (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)character})) ||
+                                (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)character})) ||
+                                (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character}));
             if (allowed)
             {
-                args->id_out[length] = ((character >= 'A') && (character <= 'Z')) ? (char)(character + 32) : character;
+                // Explicit cast reads the byte as its code point
+                args->id_out[length] = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)character});
                 length += 1ULL;
             }
             else if ((length != 0ULL) && (args->id_out[length - 1u] != '-'))

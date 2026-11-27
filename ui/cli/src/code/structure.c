@@ -3,6 +3,7 @@
 // structure.c: a text's tokens line by line, the shortest edit between two sequences, and each token and line numbered
 // by its text
 #include "../../../../includes/regexp/regexp.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "structure_internal.h"
 
 typedef struct
@@ -165,7 +166,8 @@ int cli_structure_lex(const CliStructureTextCtx *args)
         {
             take = CLI_ALLOC_NAME;
         }
-        else if ((character >= '0') && (character <= '9'))
+        // Explicit cast reads the byte as its code point
+        else if (((character) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)(character)}))
         {
             take = CLI_ALLOC_NUMBER;
         }

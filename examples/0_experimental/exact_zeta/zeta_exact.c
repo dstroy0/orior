@@ -7,6 +7,7 @@
 #include "zeta_exact.h"
 #include "../../../src/platform/platform.h"
 
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include <math.h>
@@ -395,11 +396,8 @@ void pair_units(const char *text, DecimalPair *pair)
     int32_t places = 0;
     int after = 0;
     int digits = 0;
-    const char *at = text;
-    while ((*at == ' ') || (*at == '\t'))
-    {
-        at += 1;
-    }
+    const char *at = text + EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                       .other = " \t");
     if ((*at == '+') || (*at == '-'))
     {
         negative = *at == '-';
@@ -416,7 +414,8 @@ void pair_units(const char *text, DecimalPair *pair)
             after = 1;
             continue;
         }
-        if ((*at < '0') || (*at > '9'))
+        // Explicit cast reads the byte as its code point
+        if (!EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)*at))
         {
             zeta_stop("text that is not plain decimal");
         }

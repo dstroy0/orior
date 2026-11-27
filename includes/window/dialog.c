@@ -83,10 +83,14 @@ EMBED_INLINE unsigned int dialog_lines(const DialogCtx *args)
     {
         return 0u;
     }
+    // one line, and one more past each line feed, reached from the one before it. Explicit casts take the bytes of the
+    // body read so far as a count, which never runs back
     unsigned int lines = 1u;
-    for (unsigned int at = 0u; body[at] != '\0'; at += 1u)
+    for (const char *ended = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = body, .cap = GUI_DIALOG_BODY, .byte = '\n');
+         ended != NULL; ended = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = ended + 1,
+                                           .cap = GUI_DIALOG_BODY - (size_t)(ended + 1 - body), .byte = '\n'))
     {
-        lines += (body[at] == '\n') ? 1u : 0u;
+        lines += 1u;
     }
     return lines;
 }
@@ -95,24 +99,21 @@ EMBED_INLINE unsigned int dialog_lines(const DialogCtx *args)
 // where the body holds fewer lines
 EMBED_INLINE int dialog_line(const DialogCtx *args)
 {
+    // Explicit casts take the bytes of the body read so far as a count, which never runs back
     const char *start = args->dialog_read->body;
     for (unsigned int line = 0u; line < args->at; line += 1u)
     {
-        while ((*start != '\0') && (*start != '\n'))
-        {
-            start += 1;
-        }
+        start += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = start,
+                            .cap = GUI_DIALOG_BODY - (size_t)(start - args->dialog_read->body), .other = "\n");
         if (*start == '\0')
         {
             return 0;
         }
         start += 1;
     }
-    unsigned long long count = 0ULL;
-    while ((start[count] != '\0') && (start[count] != '\n'))
-    {
-        count += 1ULL;
-    }
+    const unsigned long long count =
+        EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = start,
+                   .cap = GUI_DIALOG_BODY - (size_t)(start - args->dialog_read->body), .other = "\n");
     *args->line_text = start;
     *args->line_length = count;
     return 1;

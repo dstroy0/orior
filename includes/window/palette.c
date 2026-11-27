@@ -5,6 +5,7 @@
 // what they serve; a translucent color carries the stylesheet's alpha as a byte of 255
 #include "palette.h"
 
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_linea.h"
@@ -379,21 +380,12 @@ int gui_palette_value_read(const GuiPaletteTextCfg *args)
     unsigned int value = 0u;
     for (unsigned long long at = 0ULL; at < digits; at += 1ULL)
     {
-        const char digit = args->text_read[skip + at];
-        unsigned int read = 16u;
-        if ((digit >= '0') && (digit <= '9'))
-        {
-            // the difference of two digits is far inside what an unsigned int represents
-            read = (unsigned int)(digit - '0');
-        }
-        else if ((digit >= 'a') && (digit <= 'f'))
-        {
-            read = 10u + (unsigned int)(digit - 'a');
-        }
-        else if ((digit >= 'A') && (digit <= 'F'))
-        {
-            read = 10u + (unsigned int)(digit - 'A');
-        }
+        // Explicit casts read the byte as its code point, and the folded letter as a count from 'a'
+        const uint8_t digit = (uint8_t)args->text_read[skip + at];
+        const unsigned int read = !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_HEX, .byte = digit) ? 16u
+                                  : EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = digit)
+                                      ? (unsigned int)(digit - '0')
+                                      : 10u + (unsigned int)(EMBED_CALL(ascii.lower, AsciiCfg, .byte = digit) - 'a');
         if (read == 16u)
         {
             return 0;

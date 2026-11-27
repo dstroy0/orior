@@ -257,9 +257,13 @@ unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writer
                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ' ') != NULL)
                                     ? 1u
                                     : 0u;
-        for (const char *walk = form->text; *walk != '\0'; walk += 1)
+        // each comma, reached from the one before it
+        for (const char *comma = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = form->text,
+                                            .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ',');
+             comma != NULL; comma = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = comma + 1,
+                                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ','))
         {
-            operands += (*walk == ',') ? 1u : 0u;
+            operands += 1u;
         }
         if ((found == writers) || (operands < fewest))
         {

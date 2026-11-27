@@ -3,6 +3,7 @@
 // settings_sync_undo.c: the imports saved, read back and written, and an import undone
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "settings_sync_internal.h"
 
 void cli_settings_sync_allocating_write(const CliSettingsSyncOutCtx *args)
@@ -137,7 +138,8 @@ static int cli_allocating_read(const SettingsSyncUndoCtx *args)
     for (unsigned long long digit = 0ULL; digit < number->length; digit += 1ULL)
     {
         const char character = json->text[number->text + digit];
-        if ((character < '0') || (character > '9'))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character})))
         {
             return 0;
         }

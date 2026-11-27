@@ -15,6 +15,7 @@
 #include "../command_line/pool.h"
 #include "../text/text.h"
 #include "../text/typed.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "embed_atomic.h"
 
 // the key the authors setting is saved under in orior's folder, the branch row's text where the repository is on no
@@ -121,11 +122,12 @@ EMBED_INLINE unsigned long long id_number(const GitLogCtx *args)
     unsigned long long number = 0ULL;
     for (unsigned int at = 0u; (at < 16u) && (args->text[at] != '\0'); at += 1u)
     {
-        const char digit = args->text[at];
-        const unsigned int value = ((digit >= '0') && (digit <= '9'))   ? (unsigned int)(digit - '0')
-                                   : ((digit >= 'a') && (digit <= 'f')) ? (unsigned int)(digit - 'a') + 10u
-                                   : ((digit >= 'A') && (digit <= 'F')) ? (unsigned int)(digit - 'A') + 10u
-                                                                        : 0u;
+        // Explicit casts read the byte as its code point, and the folded letter as a count from 'a'
+        const uint8_t digit = (uint8_t)args->text[at];
+        const unsigned int value = !ascii.in(&(AsciiCfg){.type = MMGR_ASCII_HEX, .byte = digit}) ? 0u
+                                   : ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = digit})
+                                       ? (unsigned int)(digit - '0')
+                                       : (unsigned int)(ascii.lower(&(AsciiCfg){.byte = digit}) - 'a') + 10u;
         number = (number << 4u) | value;
     }
     return number;

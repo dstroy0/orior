@@ -4,6 +4,7 @@
 // with each one added; and through lldb's own watchpoints where lldb-dap ends at reporting the stop of one, as on
 // Windows
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "debug_internal.h"
 
 typedef struct
@@ -48,7 +49,8 @@ EMBED_INLINE int watch_number(const DebugWatchCtx *args)
         int digits = (last > first) && (last - first <= 10ULL);
         for (unsigned long long at = first; digits && (at < last); at += 1ULL)
         {
-            digits = (text[at] >= '0') && (text[at] <= '9');
+            // Explicit cast reads the byte as its code point
+            digits = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)text[at]});
             value = (value * 10ULL) + (unsigned long long)(text[at] - '0');
         }
         if (digits && (value <= 0xffffffffULL))

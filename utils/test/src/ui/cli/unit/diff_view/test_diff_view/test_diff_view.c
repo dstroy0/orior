@@ -63,12 +63,9 @@ static void repository_created(const char *name, const char *text)
 static void last_id(char *id)
 {
     TEST_ASSERT_TRUE(git_ran("rev-parse", "HEAD", NULL, NULL));
-    unsigned long long length = 0ULL;
-    while ((length < 63ULL) && (s_out[length] != '\0') && (s_out[length] != '\n'))
-    {
-        id[length] = s_out[length];
-        length += 1ULL;
-    }
+    // the first line of what git wrote, at most 63 bytes
+    const unsigned long long length = cellul.span_not(&(CatenaFinitaCfg){.src = s_out, .cap = 63u, .other = "\n"});
+    memor.cpy(&(MemoriaCfg){.dst = id, .src = s_out, .bytes = length});
     id[length] = '\0';
 }
 

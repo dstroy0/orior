@@ -4,6 +4,7 @@
 // .qry a file handle, the one clock the performance counter, and the pause a sleep
 #include "../../../../../src/platform/platform.h"
 #include "../qry_writer_internal.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
@@ -33,10 +34,9 @@ static void qry_shared_named(const char *path, char *name)
     for (const char *at = path; *at != '\0'; at += 1)
     {
         // Windows reads a path the same with either separator, and whatever the case of its
-        // characters. Each written form of one path thus names one map
-        const unsigned char folded = (*at == '\\')                    ? (unsigned char)'/'
-                                     : ((*at >= 'A') && (*at <= 'Z')) ? (unsigned char)(*at + ('a' - 'A'))
-                                                                      : (unsigned char)*at;
+        // characters. Each written form of one path thus names one map. Explicit casts read the byte as its code point
+        const unsigned char folded =
+            (*at == '\\') ? (unsigned char)'/' : EMBED_CALL(ascii.lower, AsciiCfg, .byte = (uint8_t)*at);
         hash = (hash ^ folded) * 0x100000001b3ULL;
     }
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = name, .src = s_prefix, .bytes = sizeof(s_prefix) - 1u);

@@ -3,6 +3,7 @@
 // instructions.c: the instructions: a word and a field, an operation, predicates alone, control, what an instruction
 // reads and whether a register, and an instruction read whole
 #include "../../../../../../platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "scheduler_internal.h"
@@ -118,9 +119,14 @@ static int scheduler_control(const char *operation)
 // one after it too, the second of its pair
 static void scheduler_reads(const char *text, SchedulerInstruction *instruction)
 {
-    for (const char *walk = text; *walk != '\0'; walk += 1)
+    // each R, reached from the one before it
+    for (const char *walk = text + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = text,
+                                              .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "R");
+         *walk != '\0'; walk += 1 + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = walk + 1,
+                                               .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "R"))
     {
-        const int starts = (walk[0] == 'R') && (walk[1] >= '0') && (walk[1] <= '9') &&
+        // Explicit cast reads the byte as its code point
+        const int starts = EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)walk[1]) &&
                            ((walk == text) || ((walk[-1] != 'U') && (walk[-1] != 'S')));
         if (!starts)
         {

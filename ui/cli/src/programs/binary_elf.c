@@ -5,6 +5,7 @@
 // loader's settings name, then the system's own library folders; the libraries those load in turn
 #include "../command_line/pool.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "binary.h"
 
 // A library to look for: its name, the file that loads it, that file's folder, and the run paths that file names,
@@ -77,8 +78,10 @@ EMBED_INLINE int cli_glibc_order(const BinaryElfCtx *args)
     {
         unsigned long long left = 0ULL;
         unsigned long long right = 0ULL;
-        const int has_left = (a[0] >= '0') && (a[0] <= '9');
-        const int has_right = (b[0] >= '0') && (b[0] <= '9');
+        // Explicit cast reads the byte as its code point
+        const int has_left = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)a[0]});
+        // Explicit cast reads the byte as its code point
+        const int has_right = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)b[0]});
         unsigned long long end_left = 0ULL;
         left = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = a, .at = 0ULL,
                           .size = cellul.len(&(CatenaFinitaCfg){.src = a, .cap = CLI_POOL_BYTES}), .end = &end_left);

@@ -3,6 +3,7 @@
 #include "nifti.h"
 #include "../../../src/cu/engine/engine_note.h"
 #include "../../../src/platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
@@ -325,9 +326,11 @@ static char *nifti_sibling(const char *path, const char *from, const char *to, u
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = sibling, .src = path, .bytes = stem_end);
     for (size_t character = 0u; character < 3u; character += 1u)
     {
-        const char original = path[stem_end - 3u + character];
-        const int upper = (original >= 'A') && (original <= 'Z');
-        sibling[stem_end - 3u + character] = upper ? (char)(to[character] - 'a' + 'A') : to[character];
+        // Explicit casts read each byte as its code point, and the folded letter back as a byte of the path
+        const uint8_t original = (uint8_t)path[stem_end - 3u + character];
+        const int upper = EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_UPPER, .byte = original);
+        sibling[stem_end - 3u + character] =
+            upper ? (char)EMBED_CALL(ascii.upper, AsciiCfg, .byte = (uint8_t)to[character]) : to[character];
     }
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = sibling + stem_end, .src = ends_gzipped ? ".gz" : "",
                .bytes = ends_gzipped ? 4u : 1u);

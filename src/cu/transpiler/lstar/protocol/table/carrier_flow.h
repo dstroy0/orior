@@ -131,6 +131,9 @@ static inline void carrier_named(CarrierName *name, const char *text, size_t len
     (void)mmgr_line_finish(&line);
 }
 
+// the bytes that carrier_space takes as spaces, for a span over them
+#define CARRIER_SPACES " \t\r\n"
+
 static inline int carrier_space(char character)
 {
     return (character == ' ') || (character == '\t') || (character == '\r') || (character == '\n');
@@ -139,11 +142,10 @@ static inline int carrier_space(char character)
 // `piece` with the space at either end taken off
 static inline CarrierPiece carrier_trimmed(CarrierPiece piece)
 {
-    while ((piece.length != 0u) && carrier_space(piece.text[0]))
-    {
-        piece.text += 1;
-        piece.length -= 1u;
-    }
+    const size_t lead =
+        EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = piece.text, .cap = piece.length, .other = CARRIER_SPACES);
+    piece.text += lead;
+    piece.length -= lead;
     while ((piece.length != 0u) && carrier_space(piece.text[piece.length - 1u]))
     {
         piece.length -= 1u;
@@ -173,12 +175,7 @@ static inline int carrier_piece_next(CarrierPiece text, char separator, size_t *
 // the place of the first space or tab of `piece`, or its length where it has none
 static inline size_t carrier_space_at(CarrierPiece piece)
 {
-    size_t at = 0u;
-    while ((at < piece.length) && (piece.text[at] != ' ') && (piece.text[at] != '\t'))
-    {
-        at += 1u;
-    }
-    return at;
+    return EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = piece.text, .cap = piece.length, .other = " \t");
 }
 
 // `piece` from `at` on

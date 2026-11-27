@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // json_compact.c: JSON read and written again as serde_json writes a Value it read, with no tree: on one line, each
 // string as serde_json escapes it, each number as the integer or the float serde_json reads it as
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "json_tree.h"
 #include "text.h"
 
@@ -383,7 +384,8 @@ static int cli_compact_value(const JsonCompactCtx *args)
         return EMBED_CALL(cli_compact_many, JsonCompactCtx, .read = args->read, .out = args->out,
                           .object = character == '{');
     }
-    if ((character == '-') || ((character >= '0') && (character <= '9')))
+    // Explicit cast reads the byte as its code point
+    if ((character == '-') || (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character})))
     {
         return cli_compact_number(args);
     }

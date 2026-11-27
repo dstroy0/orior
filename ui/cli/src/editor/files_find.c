@@ -8,6 +8,7 @@
 #include "../machine/trust.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "files_internal.h"
 
 // the max paths a find returns
@@ -65,7 +66,9 @@ EMBED_INLINE int cli_span_is_whole_word(const FilesFindCtx *args)
     for (; at < args->length; at += 1ULL)
     {
         const unsigned long long digit = (unsigned long long)(args->text[at] - '0');
-        if ((args->text[at] < '0') || (args->text[at] > '9') || (*value > ((~0ULL - digit) / 10ULL)))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->text[at]})) ||
+            (*value > ((~0ULL - digit) / 10ULL)))
         {
             return 0;
         }

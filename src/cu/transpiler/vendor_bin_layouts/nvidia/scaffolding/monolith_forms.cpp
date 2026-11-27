@@ -262,6 +262,7 @@ static size_t forms_chr_n(const char *text, size_t length, char byte, size_t fro
 // the place of the last byte `byte` in the first `length` bytes at `text`, or `length` where none is there
 static size_t forms_chr_last(const char *text, size_t length, char byte)
 {
+    // Explicit cast reads the byte as its code point
     const char *const found =
         EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = text, .cap = length, .byte = (uint8_t)byte);
     // a found byte lies within the text
@@ -4602,7 +4603,8 @@ static void read_adopted(const Read *read, const Krs *rules, const Question *que
     {
         const int start = (at == 0u) || !forms_identifier(text[at - 1u]);
         const char next = ((at + 1u) < length) ? text[at + 1u] : '\0';
-        if (!start || (next < '0') || (next > '9'))
+        // Explicit cast reads the byte as its code point
+        if (!start || !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)next))
         {
             continue;
         }

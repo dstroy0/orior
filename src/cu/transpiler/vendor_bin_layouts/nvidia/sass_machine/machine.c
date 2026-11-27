@@ -668,10 +668,8 @@ int sass_machine_read(SassMachine *machine, const char *path)
                    line_number(&seen, 1, &low) && line_number(&seen, 1, &high) && line_word(&seen, runs, sizeof(runs));
         read = read && ((version != 2u) || (line_word(&seen, relation, sizeof(relation)) &&
                                             line_word(&seen, signed_read, sizeof(signed_read))));
-        while ((*seen == ' ') || (*seen == '\t'))
-        {
-            seen += 1;
-        }
+        seen +=
+            EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = seen, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \t");
         if (!read)
         {
             broken = 1;

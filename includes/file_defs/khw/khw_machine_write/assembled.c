@@ -3,6 +3,7 @@
 // assembled.c: the texts the protocol passes, each assembled against the machine file with every stall safe, and passed
 // back to the run
 #include "../../../../src/platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "khw_machine_write_internal.h"
 #include "memoria_operor/memoria_operor.h"
@@ -59,7 +60,7 @@ int khw_texts_assembled(const char *path, const char *answers)
         return khw_assembled_reason(answers, " names no call");
     }
     unsigned long long call = 0ULL;
-    while ((from < size) && (texts[from] >= '0') && (texts[from] <= '9'))
+    while ((from < size) && EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = texts[from]))
     {
         call = (call * 10ULL) + (unsigned long long)(texts[from] - '0');
         from += 1ULL;

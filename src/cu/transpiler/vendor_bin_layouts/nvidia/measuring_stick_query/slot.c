@@ -3,6 +3,7 @@
 // slot.c: the slot: whether the vendor read an illegal instruction, every register the slot's lines reach and write,
 // the container's code, and the distinct readings a run takes once each
 #include "../../../../../platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "msq_internal.h"
@@ -35,32 +36,31 @@ static void msq_register_add(MsqRegisters *set, unsigned long long number)
 // line is an EXIT with no guard, the end of what is read
 static int msq_addresses_added(const char *raw, MsqRegisters *set)
 {
-    for (size_t at = 0u; raw[at] != '\0'; at += 1u)
+    // each open bracket, reached from the one before it
+    for (size_t at =
+             EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = raw, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "[");
+         raw[at] != '\0'; at += 1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &raw[at + 1u],
+                                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "["))
     {
-        if ((raw[at] != '[') ||
-            ((at > 0u) && ((raw[at - 1u] == ']') || (raw[at - 1u] == 'c') || (raw[at - 1u] == 'C'))))
+        if ((at > 0u) && ((raw[at - 1u] == ']') || (raw[at - 1u] == 'c') || (raw[at - 1u] == 'C')))
         {
             continue;
         }
-        size_t walk = at + 1u;
-        while (msq_space(raw[walk]))
-        {
-            walk += 1u;
-        }
-        if ((raw[walk] != 'R') || (raw[walk + 1u] < '0') || (raw[walk + 1u] > '9'))
+        const size_t walk = at + 1u +
+                            EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &raw[at + 1u],
+                                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = MSQ_SPACES);
+        // Explicit cast reads the byte as its code point
+        if ((raw[walk] != 'R') ||
+            !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)raw[walk + 1u]))
         {
             continue;
         }
-        walk += 1u;
-        unsigned long long number = 0ULL;
-        while ((raw[walk] >= '0') && (raw[walk] <= '9'))
-        {
-            number = (number * 10ULL) + (unsigned long long)(raw[walk] - '0');
-            walk += 1u;
-        }
+        const char *after = NULL;
+        const unsigned long long number =
+            EMBED_CALL(cellul.to_ulong, TransfiguroCfg, .src = &raw[walk + 1u], .end = &after);
         msq_register_add(set, number);
-        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = raw + walk, .cap = PLATFORM_TEXT_TO_TERMINATOR,
-                       .other = ".64", .ci = EMBED_FALSE))
+        if (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = after, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = ".64",
+                       .ci = EMBED_FALSE))
         {
             msq_register_add(set, number + 1ULL);
         }
@@ -105,18 +105,10 @@ static unsigned int msq_widened(const char *operation, size_t length)
 // the length of the first word of `text`, its spaces before skipped into `*start`
 size_t msq_first_word(const char *text, size_t *start)
 {
-    size_t at = 0u;
-    while ((text[at] != '\0') && msq_space(text[at]))
-    {
-        at += 1u;
-    }
-    *start = at;
-    size_t end = at;
-    while ((text[end] != '\0') && !msq_space(text[end]))
-    {
-        end += 1u;
-    }
-    return end - at;
+    *start =
+        EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = MSQ_SPACES);
+    return EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text[*start], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                      .other = MSQ_SPACES);
 }
 
 // The highest register the instruction `body` reaches at or past `registers`, the count its kernel allots: a pair
@@ -135,21 +127,24 @@ int msq_register_reached(const char *body, unsigned int registers, unsigned long
     const unsigned int widened = msq_widened(body + start, operation);
     const char *const rest = body + start + operation;
     int found = 0;
-    for (size_t at = 0u; rest[at] != '\0'; at += 1u)
+    // each R, reached from the one before it
+    for (size_t at = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = rest, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = "R");
+         rest[at] != '\0'; at += 1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &rest[at + 1u],
+                                                 .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "R"))
     {
-        // the start of what follows the operation is a word's edge, as is any place after a character no word contains
-        if ((rest[at] != 'R') || ((at > 0u) && msq_word(rest[at - 1u])) || (rest[at + 1u] < '0') ||
-            (rest[at + 1u] > '9'))
+        // the start of what follows the operation is a word's edge, as is any place after a character no word contains.
+        // Explicit cast reads the byte as its code point
+        if (((at > 0u) && msq_word(rest[at - 1u])) ||
+            !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)rest[at + 1u]))
         {
             continue;
         }
-        size_t walk = at + 1u;
-        unsigned long long number = 0ULL;
-        while ((rest[walk] >= '0') && (rest[walk] <= '9'))
-        {
-            number = (number * 10ULL) + (unsigned long long)(rest[walk] - '0');
-            walk += 1u;
-        }
+        const char *after = NULL;
+        const unsigned long long number =
+            EMBED_CALL(cellul.to_ulong, TransfiguroCfg, .src = &rest[at + 1u], .end = &after);
+        // Explicit cast reads the place past the number as an offset into the operands
+        const size_t walk = (size_t)(after - rest);
         // the width the operand names where `.64` or `.128` follows it and a word's edge after that, else the
         // operation's
         unsigned int width = widened;
@@ -193,17 +188,15 @@ void msq_registers_written(const char *body, MsqRegisters *set)
         return;
     }
     const char *const first = rest + operand;
-    if ((first[0] != 'R') || (first[1] < '0') || (first[1] > '9'))
+    // Explicit cast reads the byte as its code point
+    if ((first[0] != 'R') || !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)first[1]))
     {
         return;
     }
-    size_t walk = 1u;
-    unsigned long long number = 0ULL;
-    while ((first[walk] >= '0') && (first[walk] <= '9'))
-    {
-        number = (number * 10ULL) + (unsigned long long)(first[walk] - '0');
-        walk += 1u;
-    }
+    const char *after = NULL;
+    const unsigned long long number = EMBED_CALL(cellul.to_ulong, TransfiguroCfg, .src = &first[1], .end = &after);
+    // Explicit cast reads the place past the number as an offset into the operand
+    const size_t walk = (size_t)(after - first);
     if (msq_word(first[walk]))
     {
         return;
@@ -222,10 +215,13 @@ int msq_memory(const char *body)
     size_t start = 0u;
     const size_t operation = msq_first_word(body, &start);
     const char *const operands = body + start + operation;
-    for (size_t at = 0u; operands[at] != '\0'; at += 1u)
+    // each open bracket, reached from the one before it
+    for (size_t at = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = operands, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = "[");
+         operands[at] != '\0'; at += 1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &operands[at + 1u],
+                                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "["))
     {
-        if ((operands[at] == '[') &&
-            ((at == 0u) || ((operands[at - 1u] != ']') && (operands[at - 1u] != 'c') && (operands[at - 1u] != 'C'))))
+        if ((at == 0u) || ((operands[at - 1u] != ']') && (operands[at - 1u] != 'c') && (operands[at - 1u] != 'C')))
         {
             return 1;
         }

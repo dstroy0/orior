@@ -3,6 +3,7 @@
 // validate_messages.c: the prover's messages as `lean --json` writes them, the barrier a message shows stopped the
 // check, the axioms a theorem rests on, and the copy of a file that is checked
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "validate_internal.h"
 
 // the max bytes of the lines of a check's output that are no message, recorded as one error
@@ -89,7 +90,9 @@ EMBED_INLINE int messages_position(const ValidateMessagesCtx *args)
     for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
         const unsigned long long digit = (unsigned long long)(text[at] - '0');
-        if ((text[at] < '0') || (text[at] > '9') || (sum > (~0ULL - digit) / 10ULL))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)text[at]})) ||
+            (sum > (~0ULL - digit) / 10ULL))
         {
             return 0;
         }

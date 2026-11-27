@@ -119,11 +119,10 @@ bool load_chain(const std::string &path, std::vector<ChainBlock> &blocks)
 
         // The explorer prints the hash most significant first. Thus leading zeros are leading
         // characters, and the free bits are the last ones.
-        unsigned zeros = 0u;
-        while ((zeros < 64u) && (identifier[zeros] == '0'))
-        {
-            zeros += 1u;
-        }
+        // Explicit cast takes a count of at most 64 zeros, which an unsigned counts
+        const unsigned zeros =
+            (unsigned)EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = identifier.c_str(),
+                                 .cap = (identifier.size() < 64u) ? identifier.size() : 64u, .other = "0");
         block.leading = zeros * 4u;
         block.free_bits = std::stoull(identifier.substr(48u, 16u), nullptr, 16);
         blocks.push_back(block);

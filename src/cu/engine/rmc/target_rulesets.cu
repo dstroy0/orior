@@ -84,15 +84,9 @@ static unsigned int ruleset_words(const char *line, size_t length, RulesetCoreSp
     size_t at = 0u;
     while (at < length)
     {
-        while ((at < length) && ((line[at] == ' ') || (line[at] == '\t') || (line[at] == '\r') || (line[at] == '\n')))
-        {
-            at += 1u;
-        }
+        at += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &line[at], .cap = length - at, .other = " \t\r\n");
         const size_t first = at;
-        while ((at < length) && (line[at] != ' ') && (line[at] != '\t') && (line[at] != '\r') && (line[at] != '\n'))
-        {
-            at += 1u;
-        }
+        at += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &line[at], .cap = length - at, .other = " \t\r\n");
         if (at > first)
         {
             if (count < max)

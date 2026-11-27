@@ -7,6 +7,7 @@
 #include "../command_line/pool.h"
 
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // One failure the report names: its name's start and size in the report, its message's in the failures' texts, and
 // its place
@@ -167,7 +168,8 @@ int cli_cargo_position_get(const CliCargoReportSizeTextPathCfg *args)
     }
     for (unsigned long long at = digits_start; at < digits_end; at += 1ULL)
     {
-        if ((base[at] < '0') || (base[at] > '9') || (value > 429496729ULL))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)base[at]})) || (value > 429496729ULL))
         {
             return 0;
         }

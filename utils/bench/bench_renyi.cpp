@@ -50,6 +50,7 @@
  */
 
 #include "bench_load_limit.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
@@ -1644,11 +1645,8 @@ int main(int argc, char **argv)
     if (argc > 7)
     {
         const char *const supplied = argv[7];
-        size_t given = 0u;
-        while (supplied[given] != '\0')
-        {
-            given += 1u;
-        }
+        // the length of the supplied header, with no bound but its terminator
+        const size_t given = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = supplied, .cap = ~(size_t)0);
         if (given != ((size_t)BITCOIN_HEADER_BYTES * 2u))
         {
             std::printf("\n  [!] a supplied header must be exactly %u hex characters, not %zu.\n",

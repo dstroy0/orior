@@ -5,6 +5,7 @@
 // ended
 #include "../command_line/pool.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "dap_internal.h"
 
 CliDap g_cli_daps[CLI_DAPS_MAX];
@@ -117,7 +118,9 @@ EMBED_INLINE int dap_response(const DapCtx *args)
     while (whole && (character < at + length))
     {
         const unsigned long long digit = (unsigned long long)(args->message[character] - '0');
-        whole = (args->message[character] >= '0') && (args->message[character] <= '9') && (seq <= (~0ULL - digit) / 10ULL);
+        // Explicit cast reads the byte as its code point
+        whole = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->message[character]}) &&
+                (seq <= (~0ULL - digit) / 10ULL);
         seq = whole ? (seq * 10ULL) + digit : seq;
         character += 1ULL;
     }

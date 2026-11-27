@@ -81,12 +81,10 @@ static void ruleset_part_named(const char *path, char *part, size_t bytes)
         if (((end - at) >= 5u) &&
             (EMBED_CALL(memor.cmp, MemoriaCfg, .src = &bytes_read[at], .other = "part ", .bytes = 5u) == 0))
         {
-            size_t stop = at + 5u;
-            while ((stop < end) && (bytes_read[stop] != ' ') && (bytes_read[stop] != '\t') &&
-                   (bytes_read[stop] != '\r'))
-            {
-                stop += 1u;
-            }
+            // the name of the part, up to the blank or the line end after it
+            const size_t stop = at + 5u +
+                                EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &bytes_read[at + 5u],
+                                           .cap = end - (at + 5u), .other = " \t\r");
             VerbaLinea named = mmgr_line_over(part, bytes);
             (void)mmgr_line_put_n(&named, &bytes_read[at + 5u], stop - (at + 5u));
             (void)mmgr_line_finish(&named);

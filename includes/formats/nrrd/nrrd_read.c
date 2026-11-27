@@ -143,11 +143,11 @@ static unsigned int nrrd_fields(const char *header, unsigned long long length, u
     unsigned long long line_number = 0ULL;
     while (at < length)
     {
-        unsigned long long stop = at;
-        while ((stop < length) && (header[stop] != '\n'))
-        {
-            stop += 1ULL;
-        }
+        // the end of the line, or of the header where no line feed follows. Explicit casts take the bytes left as a
+        // count in memory, and read the found byte as a byte of the header
+        const void *const ended =
+            EMBED_CALL(memor.chr, MemoriaCfg, .src = &header[at], .bytes = (size_t)(length - at), .val = '\n');
+        const unsigned long long stop = (ended != NULL) ? (unsigned long long)((const char *)ended - header) : length;
         if ((stop == length) && !complete)
         {
             return 0u;
@@ -228,11 +228,16 @@ static char *nrrd_join(const char *header_path, NrrdSpan name)
 {
     const int absolute =
         (name.text[0u] == '/') || (name.text[0u] == '\\') || ((name.length > 1ULL) && (name.text[1u] == ':'));
-    size_t directory_length = 0u;
-    for (size_t at = 0u; !absolute && (header_path[at] != '\0'); at += 1u)
-    {
-        directory_length = ((header_path[at] == '/') || (header_path[at] == '\\')) ? (at + 1u) : directory_length;
-    }
+    // the folder of the header: its path through the last separator of either kind. Explicit casts read each found
+    // byte as an offset into the path
+    const char *const slash = absolute ? NULL
+                                       : EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = header_path,
+                                                    .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+    const char *const back = absolute ? NULL
+                                      : EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = header_path,
+                                                   .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
+    const char *const last = ((back != NULL) && ((slash == NULL) || (back > slash))) ? back : slash;
+    const size_t directory_length = (last != NULL) ? ((size_t)(last - header_path) + 1u) : 0u;
     char *const joined =
         platform_cell_taken(directory_length + (size_t)name.length + 1u, platform_place_g_program_owner, 0);
     if (joined == NULL)

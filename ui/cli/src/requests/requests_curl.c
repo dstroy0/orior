@@ -6,6 +6,7 @@
 #include "../command_line/pool.h"
 #include "../text/base64.h"
 #include "../text/json_tree.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "requests_internal.h"
 
 // the max headers and pieces of data a curl line gives that are read
@@ -124,9 +125,10 @@ EMBED_INLINE void curl_encode(const RequestsCurlCtx *args)
     for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         const unsigned char byte = (unsigned char)args->text[at];
-        const int plain = ((byte >= 'a') && (byte <= 'z')) || ((byte >= 'A') && (byte <= 'Z')) ||
-                          ((byte >= '0') && (byte <= '9')) || (byte == '-') || (byte == '_') || (byte == '.') ||
-                          (byte == '~');
+        // Explicit cast reads the byte as its code point
+        const int plain = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)byte}) ||
+                          (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)byte})) || (byte == '-') ||
+                          (byte == '_') || (byte == '.') || (byte == '~');
         if (plain)
         {
             mmgr_line_ch(args->out, (char)byte);

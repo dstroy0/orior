@@ -17,6 +17,7 @@
 #include "../text/edits.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "document_internal.h"
 #include "editorconfig.h"
 #include "pages.h"
@@ -3778,11 +3779,12 @@ static int view_lines_move(const ViewCtx *args)
     // head
     const char *const consumed = made->consumed;
     const unsigned long long size = made->consumed_length;
-    unsigned long long split = args->up ? 0ULL : size - 1ULL;
-    while (consumed[split] != '\n')
-    {
-        split = args->up ? split + 1ULL : split - 1ULL;
-    }
+    // the first line end up and the last down, each of which the block holds. Explicit cast reads the found byte as an
+    // offset into the block
+    const char *const ended = args->up
+                                  ? (const char *)memor.chr(&(MemoriaCfg){.src = consumed, .bytes = size, .val = '\n'})
+                                  : cellul.chr_last(&(CatenaFinitaCfg){.src = consumed, .cap = size, .byte = '\n'});
+    const unsigned long long split = (unsigned long long)(ended - consumed);
     const unsigned long long after = size - split - 1ULL;
     memor.cpy(&(MemoriaCfg){.dst = made->put, .src = consumed + split + 1ULL, .bytes = after});
     made->put[after] = '\n';
@@ -3994,12 +3996,10 @@ EMBED_INLINE unsigned long long view_line_end(const ViewCtx *args)
 // the first byte of `text` from `from_u64` to before `to_u64` that is neither a space nor a tab, `to_u64` where none is
 EMBED_INLINE unsigned long long view_line_blanks(const ViewCtx *args)
 {
-    unsigned long long blanks = args->from_u64;
-    while ((blanks < args->to_u64) && ((args->text[blanks] == ' ') || (args->text[blanks] == '\t')))
-    {
-        blanks += 1ULL;
-    }
-    return blanks;
+    const unsigned long long from = args->from_u64;
+    return (from < args->to_u64) ? from + cellul.span(&(CatenaFinitaCfg){
+                                              .src = &args->text[from], .cap = args->to_u64 - from, .other = " \t"})
+                                 : from;
 }
 
 // The filled line `line` of the selection, its bytes from `from_u64` to `to_u64` of the edit's `text`, written into
@@ -4319,22 +4319,20 @@ EMBED_INLINE int view_numbers_compared(const ViewCtx *args)
     unsigned long long right = *args->to_u64s;
     unsigned long long a_end = left;
     unsigned long long b_end = right;
-    while ((a_end < args->size) && ((unsigned int)((unsigned char)one[a_end] - '0') < 10u))
-    {
-        a_end += 1ULL;
-    }
-    while ((b_end < args->length) && ((unsigned int)((unsigned char)other[b_end] - '0') < 10u))
-    {
-        b_end += 1ULL;
-    }
-    while ((left + 1ULL < a_end) && (one[left] == '0'))
-    {
-        left += 1ULL;
-    }
-    while ((right + 1ULL < b_end) && (other[right] == '0'))
-    {
-        right += 1ULL;
-    }
+    // each number's digits, then its leading zeros with its last digit kept
+    a_end += (a_end < args->size)
+                 ? cellul.span(&(CatenaFinitaCfg){.src = &one[a_end], .cap = args->size - a_end, .other = "0123456789"})
+                 : 0ULL;
+    b_end +=
+        (b_end < args->length)
+            ? cellul.span(&(CatenaFinitaCfg){.src = &other[b_end], .cap = args->length - b_end, .other = "0123456789"})
+            : 0ULL;
+    left += ((left + 1ULL) < a_end)
+                ? cellul.span(&(CatenaFinitaCfg){.src = &one[left], .cap = (a_end - left) - 1ULL, .other = "0"})
+                : 0ULL;
+    right += ((right + 1ULL) < b_end)
+                 ? cellul.span(&(CatenaFinitaCfg){.src = &other[right], .cap = (b_end - right) - 1ULL, .other = "0"})
+                 : 0ULL;
     *args->from_u64s = a_end;
     *args->to_u64s = b_end;
     if (a_end - left != b_end - right)
@@ -4577,7 +4575,9 @@ static int view_lines_sort(const ViewCtx *args)
 EMBED_INLINE int view_unit_small(const ViewCtx *args)
 {
     const unsigned int unit = args->unit;
-    return ((unit >= 'a') && (unit <= 'z')) || ((unit >= 0xe0u) && (unit <= 0xfeu) && (unit != 0xf7u)) ||
+    // Explicit cast reads the byte as its code point
+    return (((unit) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)(unit)})) ||
+           ((unit >= 0xe0u) && (unit <= 0xfeu) && (unit != 0xf7u)) ||
            ((unit >= 0x3b1u) && (unit <= 0x3c9u) && (unit != 0x3c2u)) || ((unit >= 0x430u) && (unit <= 0x44fu));
 }
 
@@ -4585,8 +4585,10 @@ EMBED_INLINE int view_unit_small(const ViewCtx *args)
 EMBED_INLINE int view_unit_capital(const ViewCtx *args)
 {
     const unsigned int unit = args->unit;
-    return ((unit >= 'A') && (unit <= 'Z')) || ((unit >= 0xc0u) && (unit <= 0xdeu) && (unit != 0xd7u)) ||
-           ((unit >= 0x391u) && (unit <= 0x3a9u)) || ((unit >= 0x410u) && (unit <= 0x42fu));
+    // Explicit cast reads the byte as its code point
+    return (((unit) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)(unit)})) ||
+           ((unit >= 0xc0u) && (unit <= 0xdeu) && (unit != 0xd7u)) || ((unit >= 0x391u) && (unit <= 0x3a9u)) ||
+           ((unit >= 0x410u) && (unit <= 0x42fu));
 }
 
 // A unit of Latin Extended-A, which pairs each capital with the character after it, an even or an odd capital by its
@@ -4640,8 +4642,9 @@ EMBED_INLINE unsigned int view_unit_case(const ViewCtx *args)
 // whether a unit is a character, and whether it carries a title's word on, a character, a digit or an apostrophe
 EMBED_INLINE int view_unit_character(const ViewCtx *args)
 {
+    // Explicit cast reads the byte as its code point
     return EMBED_CALL(cli_text_table.alphanumeric, CliTextCfg, .character = args->unit) &&
-           !((args->unit >= '0') && (args->unit <= '9'));
+           !(((args->unit) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)(args->unit)}));
 }
 
 EMBED_INLINE int view_unit_word_on(const ViewCtx *args)

@@ -3,6 +3,7 @@
 // report_page.c: a report's new-issue page with the template's fields filled in, and the issue's body as the
 // template's form arranges what is entered in it
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "report_internal.h"
 
 // the template a report fills, under .github/ISSUE_TEMPLATE
@@ -139,9 +140,10 @@ EMBED_INLINE void cli_encode(const ReportPageCtx *args)
     for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         const unsigned char byte = (unsigned char)args->text[at];
-        const int unreserved = ((byte >= 'a') && (byte <= 'z')) || ((byte >= 'A') && (byte <= 'Z')) ||
-                               ((byte >= '0') && (byte <= '9')) || (byte == '-') || (byte == '_') || (byte == '.') ||
-                               (byte == '~');
+        // Explicit cast reads the byte as its code point
+        const int unreserved = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)byte}) ||
+                               (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)byte})) ||
+                               (byte == '-') || (byte == '_') || (byte == '.') || (byte == '~');
         if (unreserved)
         {
             mmgr_line_ch(args->out, (char)byte);
@@ -162,9 +164,10 @@ EMBED_INLINE unsigned long long cli_encoded_length(const ReportPageCtx *args)
     for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         const unsigned char byte = (unsigned char)args->text[at];
-        const int unreserved = ((byte >= 'a') && (byte <= 'z')) || ((byte >= 'A') && (byte <= 'Z')) ||
-                               ((byte >= '0') && (byte <= '9')) || (byte == '-') || (byte == '_') || (byte == '.') ||
-                               (byte == '~');
+        // Explicit cast reads the byte as its code point
+        const int unreserved = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)byte}) ||
+                               (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)byte})) ||
+                               (byte == '-') || (byte == '_') || (byte == '.') || (byte == '~');
         size += unreserved ? 1ULL : 3ULL;
     }
     return size;

@@ -13,6 +13,7 @@
 #include "../../../src/platform/platform.h"
 #include "zeta_riemann_siegel.h"
 
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include <math.h>
@@ -1205,9 +1206,13 @@ static int served_start(const char *binary)
     {
         snprintf(absolute, sizeof(absolute), "%s", binary);
     }
-    for (char *at = absolute; *at != '\0'; at += 1)
+    // each forward slash, reached from the one before it, written as a back slash
+    for (size_t at = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = absolute, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                .other = "/");
+         absolute[at] != '\0'; at += 1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &absolute[at + 1u],
+                                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "/"))
     {
-        *at = (*at == '/') ? '\\' : *at;
+        absolute[at] = '\\';
     }
     char command[600];
     snprintf(command, sizeof(command), "\"%s\" serve", absolute);
@@ -1415,26 +1420,15 @@ void turing_parse_hex(const char *text, OriorExactInteger *result)
     const int negative = text[0] == '-';
     const char *digit = text + (negative ? 1 : 0);
     orior_exact_zero(result);
-    for (; *digit != '\0'; digit += 1)
+    // each hex digit is a step of the exact value. The loop ends at the first byte that is not a hex digit
+    // Explicit cast reads the byte as its code point
+    for (; EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_HEX, .byte = (uint8_t)*digit); digit += 1)
     {
-        const char c = *digit;
-        int value = -1;
-        if ((c >= '0') && (c <= '9'))
-        {
-            value = c - '0';
-        }
-        else if ((c >= 'a') && (c <= 'f'))
-        {
-            value = 10 + (c - 'a');
-        }
-        else if ((c >= 'A') && (c <= 'F'))
-        {
-            value = 10 + (c - 'A');
-        }
-        if (value < 0)
-        {
-            break;
-        }
+        // Explicit casts read the byte as its code point, and the folded letter as a count from 'a'
+        const uint8_t c = (uint8_t)*digit;
+        const int value = EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = c)
+                              ? (int)(c - '0')
+                              : 10 + (int)(EMBED_CALL(ascii.lower, AsciiCfg, .byte = c) - 'a');
         z_mul_small(result, 16, result);
         OriorExactInteger part;
         z_set(&part, value);
@@ -1460,10 +1454,8 @@ static size_t split_words(char *line, char **words, size_t most)
     char *cursor = line;
     while (*cursor != '\0')
     {
-        while ((*cursor == ' ') || (*cursor == '\t') || (*cursor == '\r') || (*cursor == '\n'))
-        {
-            cursor += 1;
-        }
+        cursor += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = cursor, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = " \t\r\n");
         if (*cursor == '\0')
         {
             break;
@@ -1473,10 +1465,8 @@ static size_t split_words(char *line, char **words, size_t most)
             words[count] = cursor;
             count += 1u;
         }
-        while ((*cursor != '\0') && (*cursor != ' ') && (*cursor != '\t') && (*cursor != '\r') && (*cursor != '\n'))
-        {
-            cursor += 1;
-        }
+        cursor += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = cursor, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = " \t\r\n");
         if (*cursor != '\0')
         {
             *cursor = '\0';

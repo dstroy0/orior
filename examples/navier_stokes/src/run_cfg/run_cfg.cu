@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // run_cfg.cu: reading a cfg (run_cfg.h)
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "run_cfg.h"
 
@@ -41,12 +42,10 @@ unsigned int run_cfg_find(const RunCfg *cfg, const char *path)
     const char *walk = path;
     while (*walk != '\0')
     {
-        size_t length = 0u;
-        while ((walk[length] != '\0') && (walk[length] != '.') && (length + 1u < sizeof(part)))
-        {
-            part[length] = walk[length];
-            length += 1u;
-        }
+        // the name before the next point, at most one byte short of the part's room
+        const size_t length =
+            EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = walk, .cap = sizeof(part) - 1u, .other = ".");
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = part, .src = walk, .bytes = length);
         part[length] = '\0';
         if ((cfg->tokens[at].type != CFG_JSON_OBJECT) ||
             ((at = cfg_json_member(cfg->text.data(), cfg->tokens.data(), at, part)) == 0u))

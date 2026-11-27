@@ -5,6 +5,7 @@
 #include "funnel.h"
 #include "../../../../../../includes/parsers/line_read.h"
 #include "../../../../../platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
 // the max an archive unpacks to: a table is a few million bytes, and a header past this is no header
@@ -216,11 +217,9 @@ unsigned int tables_funnelled(const unsigned char *bytes, size_t size, TablesTex
         }
         const int copy = (record.from != record.to);
         // the buffer's first copy begins with the head, past the line ends and spaces before it
-        size_t lead = 0u;
-        while ((lead < record.size) && ((record.bytes[lead] == '\n') || (record.bytes[lead] == ' ')))
-        {
-            lead += 1u;
-        }
+        // Explicit cast reads the copied bytes as text
+        const size_t lead = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = (const char *)record.bytes,
+                                       .cap = record.size, .other = "\n ");
         if (!buffer_found && copy && (record.size - lead >= sizeof(s_latencies_head) - 1u) &&
             (EMBED_CALL(memor.cmp, MemoriaCfg, .src = record.bytes + lead, .other = s_latencies_head,
                         .bytes = sizeof(s_latencies_head) - 1u) == 0))

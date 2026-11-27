@@ -6,6 +6,7 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "symbols_internal.h"
 
 // the capacity the first cell of leaves holds
@@ -115,7 +116,8 @@ EMBED_INLINE unsigned char cli_leaf_segment_number(const SymbolsLeavesCtx *args)
     unsigned int value = 0u;
     for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
-        if ((args->text[at] < '0') || (args->text[at] > '9') || (value > 25u))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->text[at]})) || (value > 25u))
         {
             return 0u;
         }

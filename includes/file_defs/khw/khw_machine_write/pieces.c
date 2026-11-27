@@ -80,19 +80,24 @@ int khw_pieces_read(const char *path)
         {
             continue;
         }
-        char *const piece =
+        // each tab reached through the line itself, which the loop writes
+        const char *const piece_found =
             EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
-        char *const reads = (piece != NULL) ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = piece + 1,
+        const char *const reads_found = (piece_found != NULL)
+                                            ? EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = piece_found + 1,
                                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t')
                                             : NULL;
-        if (reads == NULL)
+        if (reads_found == NULL)
         {
             continue;
         }
+        char *const piece = &line[piece_found - line];
+        char *const reads = &line[reads_found - line];
         *piece = '\0';
         *reads = '\0';
-        char *const gloss =
+        const char *const gloss_found =
             EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = reads + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
+        char *const gloss = (gloss_found != NULL) ? &line[gloss_found - line] : NULL;
         if (gloss != NULL)
         {
             *gloss = '\0';

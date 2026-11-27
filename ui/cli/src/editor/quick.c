@@ -13,6 +13,7 @@
 #include "../command_line/pool.h"
 #include "../machine/recent.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "files.h"
 #include "files_internal.h"
 #include "view.h"
@@ -315,7 +316,9 @@ EMBED_INLINE void quick_place(const QuickCtx *args)
         unsigned long long digits = end;
         unsigned long long value = 0ULL;
         unsigned long long scale = 1ULL;
-        while ((digits > 0ULL) && (args->text[digits - 1ULL] >= '0') && (args->text[digits - 1ULL] <= '9') &&
+        // Explicit cast reads the byte as its code point
+        while ((digits > 0ULL) &&
+               ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->text[digits - 1ULL]}) &&
                ((end - digits) < 9ULL))
         {
             // a digit's value is below ten
@@ -662,7 +665,9 @@ EMBED_INLINE void quick_line(const QuickCtx *args)
     for (unsigned long long at = 0ULL; whole && (at < args->length); at += 1ULL)
     {
         const char character = args->text[at];
-        const int digit = (character >= '0') && (character <= '9') && (numbers[found] < 1000000000ULL);
+        // Explicit cast reads the byte as its code point
+        const int digit = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character}) &&
+                          (numbers[found] < 1000000000ULL);
         const int colon = (character == ':') && (found == 0u) && (at != 0ULL);
         // a digit's value is below ten
         numbers[found] = digit ? ((numbers[found] * 10ULL) + (unsigned long long)(character - '0')) : numbers[found];

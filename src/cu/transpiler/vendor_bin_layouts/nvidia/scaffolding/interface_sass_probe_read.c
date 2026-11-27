@@ -193,20 +193,14 @@ static void sass_token_copy(char *into, const char *text, size_t length)
 void sass_parts_read(const char *text, SassParts *parts)
 {
     EMBED_CALL(memor.set, MemoriaCfg, .dst = parts, .bytes = sizeof(*parts), .val = 0);
-    while (*text == ' ')
-    {
-        text += 1;
-    }
+    text += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
     if (*text == '@')
     {
         const size_t length =
             EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
         sass_token_copy(parts->predicate, text, length);
         text += length;
-        while (*text == ' ')
-        {
-            text += 1;
-        }
+        text += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
     }
     const size_t operation_length =
         EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
@@ -307,11 +301,15 @@ static void sass_target_relative(char *text, unsigned long long address)
                                                    .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ")));
         (void)mmgr_line_finish(&buffer_line);
     }
-    char *const comma =
+    // the target reached through the text itself, which the call writes: past the last comma, else past the name
+    const char *const comma =
         EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ',');
-    char *target = (comma != NULL) ? (comma + 1)
-                                   : (char *)(operation + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name,
-                                                                     .cap = PLATFORM_TEXT_TO_TERMINATOR));
+    // Explicit casts read each found byte as an offset into the text, which never runs back
+    const size_t target_at = (comma != NULL)
+                                 ? ((size_t)(comma - text) + 1u)
+                                 : ((size_t)(operation - text) + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = name,
+                                                                            .cap = PLATFORM_TEXT_TO_TERMINATOR));
+    char *target = &text[target_at];
     target += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = target, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
     const int negative = (target[0] == '-');
     if (!sass_operation_relative(name) ||

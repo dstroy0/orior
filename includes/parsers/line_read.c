@@ -3,6 +3,7 @@
 // line_read.c: a text's lines read one at a time out of its bytes, and a line's words and numbers read one at a time
 #include "line_read.h"
 #include "../../src/platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
@@ -77,11 +78,10 @@ int line_word(const char **at, char *word, size_t room)
 
 int line_until(const char **at, char end, char *text, size_t room)
 {
-    size_t length = 0u;
-    while (((*at)[length] != end) && ((*at)[length] != '\r') && ((*at)[length] != '\n') && ((*at)[length] != '\0'))
-    {
-        length += 1u;
-    }
+    // the bytes that stop the text: `end` and the line ends. An `end` of 0 is the terminator, which stops it already
+    const char stops[4] = {'\r', '\n', end, '\0'};
+    const size_t length =
+        EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = *at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = stops);
     if ((length == 0u) || (length >= room))
     {
         return 0;
@@ -105,20 +105,14 @@ int line_number(const char **at, int hex, unsigned long long *value)
     unsigned int digits = 0u;
     for (;; walk += 1)
     {
-        const char character = *walk;
-        unsigned long long digit = base;
-        if ((character >= '0') && (character <= '9'))
-        {
-            digit = (unsigned long long)(character - '0');
-        }
-        else if (hex && (character >= 'a') && (character <= 'f'))
-        {
-            digit = (unsigned long long)(character - 'a') + 10ULL;
-        }
-        else if (hex && (character >= 'A') && (character <= 'F'))
-        {
-            digit = (unsigned long long)(character - 'A') + 10ULL;
-        }
+        // Explicit casts read the byte as its code point, and the folded letter as a count from 'a'
+        const uint8_t character = (uint8_t)*walk;
+        const unsigned long long digit =
+            EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = character)
+                ? (unsigned long long)(character - '0')
+            : (hex && EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_HEX, .byte = character))
+                ? (unsigned long long)(EMBED_CALL(ascii.lower, AsciiCfg, .byte = character) - 'a') + 10ULL
+                : base;
         if (digit >= base)
         {
             break;

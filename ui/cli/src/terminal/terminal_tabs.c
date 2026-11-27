@@ -22,6 +22,7 @@
 #include "../machine/state.h"
 #include "../plugins/plugins.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "keys.h"
 
 // the panel's height at first, in pixels at a scale of one; the tabs closed that wait for their shells to end, at the
@@ -185,7 +186,8 @@ EMBED_INLINE int terminal_start_folder(const TerminalCtx *args)
         mmgr_line_put(args->out, folder);
         return mmgr_line_ok(args->out);
     }
-    const int character = ((folder[1] >= 'a') && (folder[1] <= 'z')) || ((folder[1] >= 'A') && (folder[1] <= 'Z'));
+    // Explicit cast reads the byte as its code point
+    const int character = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)folder[1]});
     if ((folder[0] != '/') || !character || ((folder[2] != '/') && (folder[2] != '\0')))
     {
         return 0;
@@ -248,7 +250,9 @@ EMBED_INLINE int terminal_settings(const TerminalCtx *args)
     const char *const lines = cli_state_entry_value(&(CliStateEntryCfg){
         .entries = &entries, .key = TERMINAL_LINES_KEY, .out = lines_text, .capacity = sizeof(lines_text)});
     unsigned long long retain = 0ULL;
-    for (unsigned long long at = 0ULL; (lines != NULL) && (lines[at] >= '0') && (lines[at] <= '9'); at += 1ULL)
+    // Explicit cast reads the byte as its code point
+    for (unsigned long long at = 0ULL;
+         (lines != NULL) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)lines[at]}); at += 1ULL)
     {
         // a digit's value is below 10
         retain = (retain * 10ULL) + (unsigned long long)(lines[at] - '0');
@@ -1339,7 +1343,9 @@ EMBED_INLINE unsigned long long terminal_number_read(const TerminalCtx *args)
 {
     unsigned long long *const at = args->read_at;
     unsigned long long number = 0ULL;
-    while ((*at < args->size) && (args->bytes[*at] >= '0') && (args->bytes[*at] <= '9') && (number < 0xFFFFFFFFULL))
+    // Explicit cast reads the byte as its code point
+    while ((*at < args->size) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->bytes[*at]}) &&
+           (number < 0xFFFFFFFFULL))
     {
         // a digit's value is far inside what an unsigned long long counts
         number = (number * 10ULL) + (unsigned long long)(args->bytes[*at] - '0');

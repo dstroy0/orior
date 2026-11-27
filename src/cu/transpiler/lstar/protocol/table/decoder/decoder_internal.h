@@ -294,15 +294,12 @@ static inline void decoder_words(CarrierPiece line, DecoderWords *words)
     size_t at = 0u;
     while ((at < line.length) && (words->count < DECODER_WORDS_MAX))
     {
-        while ((at < line.length) && carrier_space(line.text[at]))
-        {
-            at += 1u;
-        }
+        at += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &line.text[at], .cap = line.length - at,
+                         .other = CARRIER_SPACES);
         const size_t start = at;
-        while ((at < line.length) && !carrier_space(line.text[at]))
-        {
-            at += 1u;
-        }
+        at += (at < line.length) ? EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &line.text[at],
+                                              .cap = line.length - at, .other = CARRIER_SPACES)
+                                 : 0u;
         if (at > start)
         {
             words->word[words->count].text = &line.text[start];

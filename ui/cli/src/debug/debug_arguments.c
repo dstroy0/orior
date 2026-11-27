@@ -4,6 +4,7 @@
 // tree, the files a session takes, bytes from base64, a launch's arguments with their names filled in, the arguments
 // that set stepping, and breakpoints as the protocol writes them
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "debug_internal.h"
 
 // the longest pattern a breakpoint's path is matched by
@@ -27,7 +28,8 @@ int cli_debug_sign(const CliDebugJsonNodeCtx *args)
     unsigned long long at = first;
     while (read && (at < length))
     {
-        read = (text[at] >= '0') && (text[at] <= '9');
+        // Explicit cast reads the byte as its code point
+        read = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)text[at]});
         whole = (whole * 10ULL) + (unsigned long long)(text[at] - '0');
         at += 1ULL;
     }
@@ -65,7 +67,9 @@ int cli_debug_unsigned(const CliDebugJsonNodeValueU64sCtx *args)
     while (read && (at < length))
     {
         const unsigned long long digit = (unsigned long long)(text[at] - '0');
-        read = (text[at] >= '0') && (text[at] <= '9') && (whole <= (18446744073709551615ULL - digit) / 10ULL);
+        // Explicit cast reads the byte as its code point
+        read = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)text[at]}) &&
+               (whole <= (18446744073709551615ULL - digit) / 10ULL);
         whole = (whole * 10ULL) + digit;
         at += 1ULL;
     }
@@ -114,7 +118,8 @@ EMBED_INLINE int arguments_ends_with(const DebugArgumentsCtx *args)
     for (embed_word at = 0u; (size <= length) && (at < size); at += 1u)
     {
         char one = args->text[length - size + at];
-        one = ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one;
+        // Explicit cast reads the byte as its code point
+        one = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)one});
         if (one != args->ending[at])
         {
             return 0;
@@ -139,15 +144,18 @@ unsigned long long cli_debug_base64(const CliDebugTextCtx *args)
     {
         const char one = args->text[at];
         int value;
-        if ((one >= 'A') && (one <= 'Z'))
+        // Explicit cast reads the byte as its code point
+        if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)one}))
         {
             value = one - 'A';
         }
-        else if ((one >= 'a') && (one <= 'z'))
+        // Explicit cast reads the byte as its code point
+        else if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)one}))
         {
             value = one - 'a' + 26;
         }
-        else if ((one >= '0') && (one <= '9'))
+        // Explicit cast reads the byte as its code point
+        else if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)one}))
         {
             value = one - '0' + 52;
         }
@@ -264,8 +272,9 @@ EMBED_INLINE int arguments_digits(const DebugArgumentsCtx *args)
     for (unsigned long long at = 0ULL; digits && (at < args->length); at += 1ULL)
     {
         const unsigned long long digit = (unsigned long long)(args->text[at] - '0');
-        digits =
-            (args->text[at] >= '0') && (args->text[at] <= '9') && (whole <= (18446744073709551615ULL - digit) / 10ULL);
+        // Explicit cast reads the byte as its code point
+        digits = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->text[at]}) &&
+                 (whole <= (18446744073709551615ULL - digit) / 10ULL);
         whole = (whole * 10ULL) + digit;
     }
     *value = whole;

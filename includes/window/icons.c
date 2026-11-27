@@ -8,8 +8,9 @@
 #include "icons.h"
 #include "palette.h"
 
-#include "memoria_operor/memoria_operor.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
+#include "memoria_operor/memoria_operor.h"
 
 #include "block.h"
 #include "../arith/arith.h"
@@ -642,7 +643,8 @@ EMBED_INLINE int icons_number(const IconsCtx *args)
     }
     float whole = 0.0f;
     unsigned int digits = 0u;
-    while ((*text >= '0') && (*text <= '9'))
+    // Explicit casts read each byte as its code point
+    while (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)*text))
     {
         whole = (whole * 10.0f) + (float)(*text - '0');
         text += 1;
@@ -653,7 +655,8 @@ EMBED_INLINE int icons_number(const IconsCtx *args)
     {
         text += 1;
         float place = 0.1f;
-        while ((*text >= '0') && (*text <= '9'))
+        // Explicit cast reads the byte as its code point
+        while (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)*text))
         {
             fraction += (float)(*text - '0') * place;
             place /= 10.0f;
@@ -683,18 +686,21 @@ EMBED_INLINE int icons_numbers(const IconsCtx *args)
     return 1;
 }
 
+// Explicit cast reads the byte as its code point
 EMBED_INLINE int icons_character(const IconsCtx *args)
 {
-    return ((args->byte >= 'A') && (args->byte <= 'Z')) || ((args->byte >= 'a') && (args->byte <= 'z'));
+    return EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_ALPHA, .byte = (uint8_t)args->byte);
 }
 
 // one part of a path drawn by its command with the numbers that follow it: 1, or 0 where the numbers run out
 EMBED_INLINE int pen_command(const IconsCtx *args)
 {
-    const int relative = (args->command >= 'a') && (args->command <= 'z');
+    // Explicit casts read the command as its code point, and the folded letter back as a command
+    const int relative = EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_LOWER, .byte = (uint8_t)args->command);
     const float base_x = relative ? args->pen->x : 0.0f;
     const float base_y = relative ? args->pen->y : 0.0f;
-    const char upper = relative ? (char)(args->command - 'a' + 'A') : args->command;
+    // Explicit cast reads the byte as its code point
+    const char upper = (char)EMBED_CALL(ascii.upper, AsciiCfg, .byte = (uint8_t)args->command);
     float values[7];
     switch (upper)
     {

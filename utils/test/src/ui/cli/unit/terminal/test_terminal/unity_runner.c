@@ -105,35 +105,65 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/terminal/test_terminal/test_terminal.c");
-  run_test(test_the_cursor_keys_send_plain_application_and_modified_sequences, "test_the_cursor_keys_send_plain_application_and_modified_sequences", 224);
-  run_test(test_the_keys_with_sequences_of_their_own_send_them_alt_putting_an_escape_first, "test_the_keys_with_sequences_of_their_own_send_them_alt_putting_an_escape_first", 236);
-  run_test(test_control_sends_control_characters_and_alt_an_escape_and_the_character, "test_control_sends_control_characters_and_alt_an_escape_and_the_character", 248);
-  run_test(test_what_the_xterm_writes_is_in_the_texts_file_once_written_through, "test_what_the_xterm_writes_is_in_the_texts_file_once_written_through", 281);
-  run_test(test_the_history_beyond_the_lines_retained_is_taken_out_of_the_texts_head, "test_the_history_beyond_the_lines_retained_is_taken_out_of_the_texts_head", 294);
-  run_test(test_characters_land_at_the_cursor_and_a_return_and_a_feed_start_the_next_line, "test_characters_land_at_the_cursor_and_a_return_and_a_feed_start_the_next_line", 310);
-  run_test(test_the_16_colors_and_bold_are_written_before_their_characters_and_a_reset_takes_them_off, "test_the_16_colors_and_bold_are_written_before_their_characters_and_a_reset_takes_them_off", 320);
-  run_test(test_the_256_colors_and_direct_colors_are_read_an_empty_color_space_among_them, "test_the_256_colors_and_direct_colors_are_read_an_empty_color_space_among_them", 328);
-  run_test(test_characters_written_over_others_put_the_style_after_them_back_where_characters_follow, "test_characters_written_over_others_put_the_style_after_them_back_where_characters_follow", 336);
-  run_test(test_characters_deleted_take_the_sequences_before_them_and_leave_the_style_after_them, "test_characters_deleted_take_the_sequences_before_them_and_leave_the_style_after_them", 347);
-  run_test(test_a_column_is_found_past_the_sequences_and_a_line_read_without_them, "test_a_column_is_found_past_the_sequences_and_a_line_read_without_them", 356);
-  run_test(test_where_the_cursor_is_is_answered_after_it_is_placed, "test_where_the_cursor_is_is_answered_after_it_is_placed", 375);
-  run_test(test_a_line_is_erased_from_the_cursor_to_its_end, "test_a_line_is_erased_from_the_cursor_to_its_end", 385);
-  run_test(test_lines_scrolled_off_the_main_screen_join_the_history_and_a_clear_of_it_takes_them_out, "test_lines_scrolled_off_the_main_screen_join_the_history_and_a_clear_of_it_takes_them_out", 392);
-  run_test(test_the_second_screen_is_drawn_on_after_the_main_one_and_left_with_the_main_screen_as_it_was, "test_the_second_screen_is_drawn_on_after_the_main_one_and_left_with_the_main_screen_as_it_was", 409);
-  run_test(test_the_folder_a_shell_reports_in_osc_7_is_written_as_a_path_ended_by_a_bell_or_a_string_terminator, "test_the_folder_a_shell_reports_in_osc_7_is_written_as_a_path_ended_by_a_bell_or_a_string_terminator", 425);
-  run_test(test_a_character_at_the_last_column_wraps_the_next_onto_the_next_line, "test_a_character_at_the_last_column_wraps_the_next_onto_the_next_line", 446);
-  run_test(test_a_character_past_ascii_is_read_whole_across_two_reads, "test_a_character_past_ascii_is_read_whole_across_two_reads", 454);
-  run_test(test_lines_inserted_and_deleted_stay_inside_the_region, "test_lines_inserted_and_deleted_stay_inside_the_region", 466);
-  run_test(test_a_smaller_xterm_sends_the_lines_above_the_cursor_to_the_history, "test_a_smaller_xterm_sends_the_lines_above_the_cursor_to_the_history", 482);
-  run_test(test_what_a_shell_writes_reaches_its_xterm_and_its_end_is_printed_after_it, "test_what_a_shell_writes_reaches_its_xterm_and_its_end_is_printed_after_it", 555);
-  run_test(test_text_typed_while_a_shell_starts_reaches_it_once_the_shell_settles, "test_text_typed_while_a_shell_starts_reaches_it_once_the_shell_settles", 567);
-  run_test(test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_what_it_writes, "test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_what_it_writes", 634);
-  run_test(test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_starts, "test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_starts", 713);
-  run_test(test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_history_as_the_window_ends, "test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_history_as_the_window_ends", 744);
-  run_test(test_the_terminal_menu_shows_split_terminal_on_while_a_shell_is_beside_the_one_displayed, "test_the_terminal_menu_shows_split_terminal_on_while_a_shell_is_beside_the_one_displayed", 875);
-  run_test(test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_the_first_it_can_choose_marked, "test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_the_first_it_can_choose_marked", 921);
-  run_test(test_the_panel_takes_the_keys_as_it_opens_and_a_press_elsewhere_takes_them_away, "test_the_panel_takes_the_keys_as_it_opens_and_a_press_elsewhere_takes_them_away", 973);
-  run_test(test_the_panels_next_timer_is_its_running_shells_look_and_the_wheel_stays_on_an_empty_screen, "test_the_panels_next_timer_is_its_running_shells_look_and_the_wheel_stays_on_an_empty_screen", 990);
+  run_test(test_the_cursor_keys_send_plain_application_and_modified_sequences,
+           "test_the_cursor_keys_send_plain_application_and_modified_sequences", 217);
+  run_test(test_the_keys_with_sequences_of_their_own_send_them_alt_putting_an_escape_first,
+           "test_the_keys_with_sequences_of_their_own_send_them_alt_putting_an_escape_first", 229);
+  run_test(test_control_sends_control_characters_and_alt_an_escape_and_the_character,
+           "test_control_sends_control_characters_and_alt_an_escape_and_the_character", 241);
+  run_test(test_what_the_xterm_writes_is_in_the_texts_file_once_written_through,
+           "test_what_the_xterm_writes_is_in_the_texts_file_once_written_through", 274);
+  run_test(test_the_history_beyond_the_lines_retained_is_taken_out_of_the_texts_head,
+           "test_the_history_beyond_the_lines_retained_is_taken_out_of_the_texts_head", 287);
+  run_test(test_characters_land_at_the_cursor_and_a_return_and_a_feed_start_the_next_line,
+           "test_characters_land_at_the_cursor_and_a_return_and_a_feed_start_the_next_line", 303);
+  run_test(test_the_16_colors_and_bold_are_written_before_their_characters_and_a_reset_takes_them_off,
+           "test_the_16_colors_and_bold_are_written_before_their_characters_and_a_reset_takes_them_off", 313);
+  run_test(test_the_256_colors_and_direct_colors_are_read_an_empty_color_space_among_them,
+           "test_the_256_colors_and_direct_colors_are_read_an_empty_color_space_among_them", 321);
+  run_test(test_characters_written_over_others_put_the_style_after_them_back_where_characters_follow,
+           "test_characters_written_over_others_put_the_style_after_them_back_where_characters_follow", 329);
+  run_test(test_characters_deleted_take_the_sequences_before_them_and_leave_the_style_after_them,
+           "test_characters_deleted_take_the_sequences_before_them_and_leave_the_style_after_them", 340);
+  run_test(test_a_column_is_found_past_the_sequences_and_a_line_read_without_them,
+           "test_a_column_is_found_past_the_sequences_and_a_line_read_without_them", 349);
+  run_test(test_where_the_cursor_is_is_answered_after_it_is_placed,
+           "test_where_the_cursor_is_is_answered_after_it_is_placed", 368);
+  run_test(test_a_line_is_erased_from_the_cursor_to_its_end, "test_a_line_is_erased_from_the_cursor_to_its_end", 378);
+  run_test(test_lines_scrolled_off_the_main_screen_join_the_history_and_a_clear_of_it_takes_them_out,
+           "test_lines_scrolled_off_the_main_screen_join_the_history_and_a_clear_of_it_takes_them_out", 385);
+  run_test(test_the_second_screen_is_drawn_on_after_the_main_one_and_left_with_the_main_screen_as_it_was,
+           "test_the_second_screen_is_drawn_on_after_the_main_one_and_left_with_the_main_screen_as_it_was", 402);
+  run_test(test_the_folder_a_shell_reports_in_osc_7_is_written_as_a_path_ended_by_a_bell_or_a_string_terminator,
+           "test_the_folder_a_shell_reports_in_osc_7_is_written_as_a_path_ended_by_a_bell_or_a_string_terminator", 418);
+  run_test(test_a_character_at_the_last_column_wraps_the_next_onto_the_next_line,
+           "test_a_character_at_the_last_column_wraps_the_next_onto_the_next_line", 439);
+  run_test(test_a_character_past_ascii_is_read_whole_across_two_reads,
+           "test_a_character_past_ascii_is_read_whole_across_two_reads", 447);
+  run_test(test_lines_inserted_and_deleted_stay_inside_the_region,
+           "test_lines_inserted_and_deleted_stay_inside_the_region", 459);
+  run_test(test_a_smaller_xterm_sends_the_lines_above_the_cursor_to_the_history,
+           "test_a_smaller_xterm_sends_the_lines_above_the_cursor_to_the_history", 475);
+  run_test(test_what_a_shell_writes_reaches_its_xterm_and_its_end_is_printed_after_it,
+           "test_what_a_shell_writes_reaches_its_xterm_and_its_end_is_printed_after_it", 545);
+  run_test(test_text_typed_while_a_shell_starts_reaches_it_once_the_shell_settles,
+           "test_text_typed_while_a_shell_starts_reaches_it_once_the_shell_settles", 557);
+  run_test(test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_what_it_writes,
+           "test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_what_it_writes", 624);
+  run_test(test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_starts,
+           "test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_starts", 703);
+  run_test(test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_history_as_the_window_ends,
+           "test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_history_as_the_window_ends",
+           734);
+  run_test(test_the_terminal_menu_shows_split_terminal_on_while_a_shell_is_beside_the_one_displayed,
+           "test_the_terminal_menu_shows_split_terminal_on_while_a_shell_is_beside_the_one_displayed", 865);
+  run_test(test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_the_first_it_can_choose_marked,
+           "test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_the_first_it_can_choose_marked",
+           911);
+  run_test(test_the_panel_takes_the_keys_as_it_opens_and_a_press_elsewhere_takes_them_away,
+           "test_the_panel_takes_the_keys_as_it_opens_and_a_press_elsewhere_takes_them_away", 963);
+  run_test(test_the_panels_next_timer_is_its_running_shells_look_and_the_wheel_stays_on_an_empty_screen,
+           "test_the_panels_next_timer_is_its_running_shells_look_and_the_wheel_stays_on_an_empty_screen", 980);
 
   return UNITY_END();
 }

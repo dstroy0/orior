@@ -1,17 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // dicom_decimal.c: decimal strings and the order of slices
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "dicom_internal.h"
 #include "memoria_operor/memoria_operor.h"
 
 static int dicom_decimal_parse(const unsigned char *text, unsigned long long length, DicomDecimal *out,
                                EngineError *error)
 {
-    unsigned long long at = 0ULL;
-    while ((at < length) && (text[at] == ' '))
-    {
-        at += 1ULL;
-    }
+    // Explicit casts read the bytes of the element as its text, and its length as a count in memory
+    unsigned long long at =
+        EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = (const char *)text, .cap = (size_t)length, .other = " ");
     unsigned long long end = length;
     while ((end > at) && ((text[end - 1ULL] == ' ') || (text[end - 1ULL] == '\0')))
     {
@@ -27,7 +27,8 @@ static int dicom_decimal_parse(const unsigned char *text, unsigned long long len
     unsigned long long count = 0ULL;
     long long fraction = 0LL;
     int seen_point = 0;
-    while ((at < end) && (((text[at] >= '0') && (text[at] <= '9')) || ((text[at] == '.') && (seen_point == 0))))
+    while ((at < end) && (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = text[at]) ||
+                          ((text[at] == '.') && (seen_point == 0))))
     {
         if (text[at] == '.')
         {
@@ -64,7 +65,7 @@ static int dicom_decimal_parse(const unsigned char *text, unsigned long long len
             at += 1ULL;
         }
         unsigned long long exponent_digits = 0ULL;
-        while ((at < end) && (text[at] >= '0') && (text[at] <= '9'))
+        while ((at < end) && EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = text[at]))
         {
             if (!DICOM_CHECK(exponent <= (((LLONG_MAX / 4LL) - 9LL) / 10LL), text, error, ENGINE_ERROR_REQUEST))
             {
@@ -193,6 +194,24 @@ int dicom_slice_key(const DicomDecimal *orientation, DicomSlice *slice, EngineEr
     return 1;
 }
 
+// the end of the part of the UID `uid` that begins at `from`: the next dot, or `length` where none follows. Explicit
+// casts take the bytes left as a count in memory, and read the found byte as a byte of the UID
+static unsigned long long dicom_uid_part_end(const unsigned char *uid, unsigned long long from,
+                                             unsigned long long length)
+{
+    const void *const dot =
+        EMBED_CALL(memor.chr, MemoriaCfg, .src = &uid[from], .bytes = (size_t)(length - from), .val = '.');
+    return (dot != NULL) ? (unsigned long long)((const unsigned char *)dot - uid) : length;
+}
+
+// the leading zeros of the part from `from` to `end`, with its last byte kept where every byte is a zero. Explicit
+// casts read the bytes as text, and take the bytes of the part as a count in memory
+static unsigned long long dicom_uid_zeros(const unsigned char *uid, unsigned long long from, unsigned long long end)
+{
+    const unsigned long long room = ((end - from) > 1ULL) ? ((end - from) - 1ULL) : 0ULL;
+    return EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = (const char *)&uid[from], .cap = (size_t)room, .other = "0");
+}
+
 static int dicom_uid_compare(const unsigned char *left, unsigned long long left_length, const unsigned char *right,
                              unsigned long long right_length)
 {
@@ -200,24 +219,10 @@ static int dicom_uid_compare(const unsigned char *left, unsigned long long left_
     unsigned long long other = 0ULL;
     while ((one < left_length) || (other < right_length))
     {
-        unsigned long long one_end = one;
-        while ((one_end < left_length) && (left[one_end] != '.'))
-        {
-            one_end += 1ULL;
-        }
-        unsigned long long other_end = other;
-        while ((other_end < right_length) && (right[other_end] != '.'))
-        {
-            other_end += 1ULL;
-        }
-        while (((one_end - one) > 1ULL) && (left[one] == '0'))
-        {
-            one += 1ULL;
-        }
-        while (((other_end - other) > 1ULL) && (right[other] == '0'))
-        {
-            other += 1ULL;
-        }
+        const unsigned long long one_end = dicom_uid_part_end(left, one, left_length);
+        const unsigned long long other_end = dicom_uid_part_end(right, other, right_length);
+        one += dicom_uid_zeros(left, one, one_end);
+        other += dicom_uid_zeros(right, other, other_end);
         const unsigned long long one_span = one_end - one;
         const unsigned long long other_span = other_end - other;
         if (one_span != other_span)

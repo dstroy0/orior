@@ -7,6 +7,7 @@
 // here but by its plugin's grammar
 #include "../command_line/pool.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "symbols_internal.h"
 
 // A condition being read: the walk, its leaves, how many, the one at hand, and how many macros deep the reading is
@@ -69,15 +70,18 @@ EMBED_INLINE long long cli_effect_number(const SymbolsEffectValueCtx *args)
     {
         const char character = args->token->text[at];
         unsigned long long digit;
-        if ((character >= '0') && (character <= '9'))
+        // Explicit cast reads the byte as its code point
+        if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character}))
         {
             digit = (unsigned long long)(character - '0');
         }
-        else if ((character >= 'a') && (character <= 'z'))
+        // Explicit cast reads the byte as its code point
+        else if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)character}))
         {
             digit = (unsigned long long)(character - 'a' + 10);
         }
-        else if ((character >= 'A') && (character <= 'Z'))
+        // Explicit cast reads the byte as its code point
+        else if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)character}))
         {
             digit = (unsigned long long)(character - 'A' + 10);
         }

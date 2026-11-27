@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // nrrd_header.c: the header's fields
 #include "../../../src/cu/engine/engine_note.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "nrrd_internal.h"
@@ -179,7 +180,8 @@ static unsigned int nrrd_unsigned(NrrdSpan span, unsigned long long *value)
     }
     for (unsigned long long at = 0ULL; at < span.length; at += 1ULL)
     {
-        if ((span.text[at] < '0') || (span.text[at] > '9'))
+        // Explicit cast reads the byte as its code point
+        if (!EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)span.text[at]))
         {
             return 0u;
         }

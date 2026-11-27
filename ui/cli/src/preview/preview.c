@@ -12,6 +12,7 @@
 #include "../editor/view.h"
 #include "../machine/report.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "preview_markdown.h"
 
 // a scale's whole, in percent; a line's fraction's whole; and no block
@@ -214,12 +215,15 @@ EMBED_INLINE void top_led(const PreviewCtx *args)
 EMBED_INLINE unsigned char slug_character(const PreviewCtx *args)
 {
     const unsigned char one = (unsigned char)args->text[args->at];
-    if ((one >= 'A') && (one <= 'Z'))
+    // Explicit cast reads the byte as its code point
+    if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)one}))
     {
         // a capital lowered stays a byte
         return (unsigned char)(one + 32u);
     }
-    if (((one >= 'a') && (one <= 'z')) || ((one >= '0') && (one <= '9')) || (one == '-') || (one == '_') ||
+    // Explicit cast reads the byte as its code point
+    if ((ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)one})) ||
+        (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)one})) || (one == '-') || (one == '_') ||
         (one >= 0x80u))
     {
         return one;
@@ -302,9 +306,10 @@ EMBED_INLINE int address_out(const PreviewCtx *args)
         {
             return at != 0u;
         }
-        const int scheme =
-            ((one >= 'a') && (one <= 'z')) || ((one >= 'A') && (one <= 'Z')) ||
-            ((at != 0u) && (((one >= '0') && (one <= '9')) || (one == '+') || (one == '.') || (one == '-')));
+        // Explicit cast reads the byte as its code point
+        const int scheme = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)one}) ||
+                           ((at != 0u) && ((ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)one})) ||
+                                           (one == '+') || (one == '.') || (one == '-')));
         if (!scheme)
         {
             return 0;
@@ -457,7 +462,8 @@ unsigned int cli_preview_type(const CliPreviewCfg *args)
     {
         const char one = path[at];
         // a capital lowered stays a byte
-        ending[ending_length] = ((one >= 'A') && (one <= 'Z')) ? (char)(one + 32) : one;
+        // Explicit cast reads the byte as its code point
+        ending[ending_length] = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)one});
         ending_length += 1u;
     }
     ending[ending_length] = '\0';

@@ -6,6 +6,7 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "toolchains_internal.h"
 
 #define CLI_PATTERN_LEVELS 16u
@@ -345,7 +346,8 @@ int cli_toolchains_matches(const CliToolchainsPatternCtx *args)
 // whether the text's first character is a digit
 EMBED_INLINE int cli_natural_digit(const ToolchainsCtx *args)
 {
-    return (args->text[0] >= '0') && (args->text[0] <= '9');
+    // Explicit cast reads the byte as its code point
+    return ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->text[0]});
 }
 
 // the end of the run that starts `text`: of digits where it starts with one, else of what is no digit
@@ -391,8 +393,10 @@ EMBED_INLINE embed_iword cli_natural_characters(const ToolchainsCtx *args)
     {
         const char left_read = (x < args->a_end) ? x[0] : '\0';
         const char right_read = (y < args->b_end) ? y[0] : '\0';
-        const char left = ((left_read >= 'A') && (left_read <= 'Z')) ? (char)(left_read + 32) : left_read;
-        const char right = ((right_read >= 'A') && (right_read <= 'Z')) ? (char)(right_read + 32) : right_read;
+        // Explicit cast reads the byte as its code point
+        const char left = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)left_read});
+        // Explicit cast reads the byte as its code point
+        const char right = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)right_read});
         if (left != right)
         {
             return (left < right) ? -1 : 1;

@@ -7,6 +7,7 @@
 #include "vim_internal.h"
 
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // the register `register_name` is at among the registers: " and none at the unnamed one, 0 at the last yank's,
 // a to z and A to Z at their character's, and CLI_VIM_REGISTERS for a character that is no register
@@ -21,11 +22,13 @@ EMBED_INLINE unsigned int commands_register_at(const CliVimCtx *args)
     {
         return CLI_VIM_REGISTER_YANKED;
     }
-    if ((name >= 'a') && (name <= 'z'))
+    // Explicit cast reads the byte as its code point
+    if (((name) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)(name)}))
     {
         return CLI_VIM_REGISTER_CHARACTERS + (name - 'a');
     }
-    if ((name >= 'A') && (name <= 'Z'))
+    // Explicit cast reads the byte as its code point
+    if (((name) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)(name)}))
     {
         return CLI_VIM_REGISTER_CHARACTERS + (name - 'A');
     }
@@ -84,12 +87,14 @@ void cli_vim_store(const CliVimCtx *args)
     const unsigned int at = EMBED_CALL(commands_register_at, CliVimCtx, .register_name = name);
     // a byte that is 0 or 1 is what whether a register takes lines carries
     const unsigned char lines = args->lines ? 1u : 0u;
-    if ((name >= 'a') && (name <= 'z'))
+    // Explicit cast reads the byte as its code point
+    if (((name) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)(name)}))
     {
         (void)EMBED_CALL(cli_vim_internal.part_put, CliVimCtx, .part = at, .text = args->text, .length = args->length);
         state->register_lines[at] = lines;
     }
-    else if ((name >= 'A') && (name <= 'Z'))
+    // Explicit cast reads the byte as its code point
+    else if (((name) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)(name)}))
     {
         unsigned long long before = 0ULL;
         // the register's text copied out of the cell, the new text joined after it in a cell of the call's own
@@ -323,11 +328,16 @@ void cli_vim_operate(const CliVimCtx *args)
 EMBED_INLINE unsigned short commands_case(const CliVimCtx *args)
 {
     const unsigned int unit = args->character;
-    const int small = ((unit >= 'a') && (unit <= 'z')) || ((unit >= 0xe0u) && (unit <= 0xfeu) && (unit != 0xf7u)) ||
+    // Explicit cast reads the byte as its code point
+    const int small = (((unit) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)(unit)})) ||
+                      ((unit >= 0xe0u) && (unit <= 0xfeu) && (unit != 0xf7u)) ||
                       ((unit >= 0x3b1u) && (unit <= 0x3c9u) && (unit != 0x3c2u)) ||
                       ((unit >= 0x430u) && (unit <= 0x44fu));
-    const int capital = ((unit >= 'A') && (unit <= 'Z')) || ((unit >= 0xc0u) && (unit <= 0xdeu) && (unit != 0xd7u)) ||
-                        ((unit >= 0x391u) && (unit <= 0x3a9u)) || ((unit >= 0x410u) && (unit <= 0x42fu));
+    // Explicit cast reads the byte as its code point
+    const int capital =
+        (((unit) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)(unit)})) ||
+        ((unit >= 0xc0u) && (unit <= 0xdeu) && (unit != 0xd7u)) || ((unit >= 0x391u) && (unit <= 0x3a9u)) ||
+        ((unit >= 0x410u) && (unit <= 0x42fu));
     unsigned int turned = unit;
     turned = small ? unit - 0x20u : turned;
     turned = capital ? unit + 0x20u : turned;

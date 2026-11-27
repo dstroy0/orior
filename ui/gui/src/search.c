@@ -284,10 +284,9 @@ static void search_row_draw(const GuiPaneCfg *args)
     // the line from a little before the match where the match is past the lead, its blanks before the lead
     // passed over, the match in signal, and what follows the match
     unsigned long long from = (row.match_at > GUI_SEARCH_LEAD_PAST) ? row.match_at - GUI_SEARCH_LEAD : 0ULL;
-    while ((from < row.match_at) && ((row.text[from] == ' ') || (row.text[from] == '\t')))
-    {
-        from += 1ULL;
-    }
+    from += (from < row.match_at)
+                ? cellul.span(&(CatenaFinitaCfg){.src = &row.text[from], .cap = row.match_at - from, .other = " \t"})
+                : 0ULL;
     const unsigned long long match_end =
         (row.match_at + row.match_length < row.text_length) ? row.match_at + row.match_length : row.text_length;
     const GuiColor text_color = pointed ? palette->text : palette->text_2;

@@ -11,6 +11,7 @@
 #include "../editor/view.h"
 #include "../servers/servers.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "symbols.h"
 
 // the max bytes the paths, the texts and the records each grow to as the tree answers
@@ -308,8 +309,10 @@ EMBED_INLINE int references_is_name(const ReferencesCtx *args)
     for (unsigned long long at = 0ULL; at < args->name_length; at += 1ULL)
     {
         const char byte = args->name[at];
-        const int letter = ((byte >= 'a') && (byte <= 'z')) || ((byte >= 'A') && (byte <= 'Z')) || (byte == '_');
-        const int digit = (byte >= '0') && (byte <= '9');
+        // Explicit cast reads the byte as its code point
+        const int letter = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)byte}) || (byte == '_');
+        // Explicit cast reads the byte as its code point
+        const int digit = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)byte});
         if (!letter && !(digit && (at != 0ULL)))
         {
             return 0;

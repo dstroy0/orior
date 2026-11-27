@@ -3,6 +3,7 @@
 // cli_unity.c: what impero's Unity suites share
 #include "cli_unity.h"
 
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "ui/cli/src/command_line/pool.h"
 #include "ui/cli/src/text/text.h"
 
@@ -193,7 +194,8 @@ void cli_unity_server(const char *name, unsigned int port, char *host, unsigned 
     int digits = (colon != NULL) && (colon[1] != '\0');
     for (const char *character = (colon != NULL) ? colon + 1 : ""; digits && (character[0] != '\0'); character += 1)
     {
-        digits = (character[0] >= '0') && (character[0] <= '9') && (number < 65536ull);
+        // Explicit cast reads the byte as its code point
+        digits = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character[0]}) && (number < 65536ull);
         number = (number * 10ull) + (unsigned long long)(character[0] - '0');
     }
     if (digits && (number < 65536ull))

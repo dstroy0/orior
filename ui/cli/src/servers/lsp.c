@@ -6,6 +6,7 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "lsp_internal.h"
 
 // the id of the request the reading thread passes to its receiver, as its JSON, and whether its receiver answers later
@@ -47,7 +48,9 @@ EMBED_INLINE int lsp_id(const LspCtx *args)
     for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
         const unsigned long long digit = (unsigned long long)(args->text[at] - '0');
-        if ((args->text[at] < '0') || (args->text[at] > '9') || (sum > (~0ULL - digit) / 10ULL))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->text[at]})) ||
+            (sum > (~0ULL - digit) / 10ULL))
         {
             return 0;
         }

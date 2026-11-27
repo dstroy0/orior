@@ -4,6 +4,7 @@
 // Meson's executables and projects, the calls of a command in a script's code, and the comments taken out of it
 // (executables_scan_more.c reads the rest)
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "executables_internal.h"
 
 char *cli_uncommented_alloc(const CliExecutablesTextCtx *args)
@@ -55,8 +56,9 @@ typedef struct
 EMBED_INLINE int cli_wordy(const ExecutablesScanCtx *args)
 {
     const unsigned char byte = (unsigned char)args->character;
-    return ((byte >= 'a') && (byte <= 'z')) || ((byte >= 'A') && (byte <= 'Z')) || ((byte >= '0') && (byte <= '9')) ||
-           (byte == '_') || (byte >= 0x80u);
+    // Explicit cast reads the byte as its code point
+    return ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)byte}) ||
+           (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)byte})) || (byte == '_') || (byte >= 0x80u);
 }
 
 void cli_scan_trim(const CliExecutablesTextLengthCtx *args)

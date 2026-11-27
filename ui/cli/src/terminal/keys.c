@@ -3,6 +3,7 @@
 // keys.c: what a key sends a shell (keys.h)
 #include "keys.h"
 #include "../command_line/cli_internal.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // A key the terminal sends a sequence for: its name as the window names it, and what it sends
 typedef struct
@@ -24,12 +25,10 @@ typedef struct
 // whether the key's name is `other`, a C string
 EMBED_INLINE int keys_name_is(const KeysCtx *args)
 {
-    unsigned int at = 0u;
-    while ((at < args->name_size) && (args->other[at] != '\0') && (args->name[at] == args->other[at]))
-    {
-        at += 1u;
-    }
-    return (at == args->name_size) && (args->other[at] == '\0');
+    // `other` as long as the name, read no further than one byte past it, and its bytes the name's
+    return (cellul.len(&(CatenaFinitaCfg){.src = args->other, .cap = (size_t)args->name_size + 1u}) ==
+            args->name_size) &&
+           (memor.cmp(&(MemoriaCfg){.src = args->name, .other = args->other, .bytes = args->name_size}) == 0);
 }
 
 // a cursor key: ESC [ 1 ; mods+1 character with modifiers, else ESC O character in the application mode and ESC [ character
@@ -96,7 +95,8 @@ EMBED_INLINE int keys_modified(const KeysCtx *args)
     const int control = (args->mods & CLI_TERMINAL_MOD_CONTROL) != 0u;
     const int alt = (args->mods & CLI_TERMINAL_MOD_ALT) != 0u;
     const int shift = (args->mods & CLI_TERMINAL_MOD_SHIFT) != 0u;
-    const int character = (key >= 'A') && (key <= 'Z');
+    // Explicit cast reads the byte as its code point
+    const int character = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)key});
     if (control && !alt)
     {
         // a character or one of @ [ \ ] ^ _ is its code less 64; Space, / and ? have control characters of their own

@@ -5,6 +5,7 @@
 // script writes them, and whether two readings give the same instructions, the two readers' spellings of one
 // instruction taken as one
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "disasm_verify.h"
 
 typedef struct
@@ -50,9 +51,12 @@ EMBED_INLINE unsigned long long read_line_end(const DisasmVerifyReadCtx *args)
 // whether `character` is one of a symbol's name as IR and the linker spell one
 EMBED_INLINE int read_by_name(const DisasmVerifyReadCtx *args)
 {
-    const int lower = (args->character >= 'a') && (args->character <= 'z');
-    const int upper = (args->character >= 'A') && (args->character <= 'Z');
-    const int digit = (args->character >= '0') && (args->character <= '9');
+    // Explicit cast reads the byte as its code point
+    const int lower = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)args->character});
+    // Explicit cast reads the byte as its code point
+    const int upper = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)args->character});
+    // Explicit cast reads the byte as its code point
+    const int digit = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->character});
     return lower || upper || digit || (args->character == '_') || (args->character == '.') || (args->character == '$');
 }
 
@@ -156,7 +160,8 @@ EMBED_INLINE int read_hex(const DisasmVerifyReadCtx *args)
     {
         const char character = args->text[*at];
         unsigned long long digit = 16ULL;
-        if ((character >= '0') && (character <= '9'))
+        // Explicit cast reads the byte as its code point
+        if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character}))
         {
             digit = (unsigned long long)(character - '0');
         }

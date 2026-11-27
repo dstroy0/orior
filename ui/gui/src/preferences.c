@@ -10,6 +10,7 @@
 #include "tabs.h"
 
 #include "../../cli/src/command_line/cli_internal.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // the zoom's steps in percent, and the sections' names
 static const unsigned int s_zoom_percent[GUI_PREFERENCE_ZOOM_STEPS] = {50u,  67u,  75u,  80u,  90u,  100u, 110u,
@@ -122,10 +123,7 @@ EMBED_INLINE void preferences_color_name(const PreferencesCtx *args)
     unsigned long long from = 0ULL;
     if (args->preferences->color_first != 0u)
     {
-        while ((name[from] != '\0') && (name[from] != '.'))
-        {
-            from += 1ULL;
-        }
+        from += cellul.span_not(&(CatenaFinitaCfg){.src = &name[from], .cap = CLI_POOL_BYTES, .other = "."});
         from += (name[from] == '.') ? 1ULL : 0ULL;
     }
     VerbaLinea line = {args->name_out, args->size, 0ULL};
@@ -862,8 +860,9 @@ int gui_preferences_type(const GuiPreferencesSizeCfg *args)
     {
         const char character = args->text[at];
         const unsigned char byte = (unsigned char)character;
-        const int digit = ((character >= '0') && (character <= '9')) || ((character >= 'a') && (character <= 'f')) ||
-                          ((character >= 'A') && (character <= 'F'));
+        // Explicit cast reads the byte as its code point
+        const int digit = (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character})) ||
+                          ((character >= 'a') && (character <= 'f')) || ((character >= 'A') && (character <= 'F'));
         const int mark = (character == '#') && (args->preferences->entered_length == 0u);
         const int printed = (byte >= 0x20u) && (byte != 0x7Fu);
         const int taken = colors ? (digit || mark) : printed;
@@ -1276,7 +1275,8 @@ EMBED_INLINE void preferences_slider_draw(const PreferencesCtx *args)
     const GuiRect control = EMBED_CALL(gui_preferences_row.control_rect, GuiPreferencesRowCfg,
                                        .preferences_read = preferences, .row = args->row);
     unsigned int percent = 0u;
-    for (unsigned int at = 0u; (row->value[at] >= '0') && (row->value[at] <= '9'); at += 1u)
+    // Explicit cast reads the byte as its code point
+    for (unsigned int at = 0u; ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)row->value[at]}); at += 1u)
     {
         // a digit's place is far inside what an unsigned int counts
         percent = (percent * 10u) + (unsigned int)(row->value[at] - '0');

@@ -4,6 +4,7 @@
 // branches and one applied here, and the branch pushed and pulled
 #include "../machine/net.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "git_internal.h"
 
 // the max bytes of what git reports of what it was requested to do, stored to be reported
@@ -206,7 +207,8 @@ int cli_git_stash_act(const CliGitRootOutMessageCfg *args)
     unsigned long long at = 7ULL;
     while (named && (at < (length - 1ULL)))
     {
-        named = (args->name_read[at] >= '0') && (args->name_read[at] <= '9');
+        // Explicit cast reads the byte as its code point
+        named = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->name_read[at]});
         at += 1ULL;
     }
     if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "push", .cap = CLI_POOL_BYTES})) && !named)

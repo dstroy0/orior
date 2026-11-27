@@ -5,6 +5,7 @@
 #include "requests_internal.h"
 
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 typedef struct
 {
@@ -19,7 +20,8 @@ typedef struct
 // a character in ASCII's lower case
 EMBED_INLINE char url_lower(const RequestsUrlCtx *args)
 {
-    return ((args->character >= 'A') && (args->character <= 'Z')) ? (char)(args->character - 'A' + 'a') : args->character;
+    // Explicit cast reads the byte as its code point
+    return (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)args->character});
 }
 
 int cli_requests_number(const CliRequestsTextSizeBaseCtx *args)
@@ -35,7 +37,8 @@ int cli_requests_number(const CliRequestsTextSizeBaseCtx *args)
     {
         const char character = EMBED_CALL(url_lower, RequestsUrlCtx, .character = args->text[at]);
         unsigned int digit;
-        if ((character >= '0') && (character <= '9'))
+        // Explicit cast reads the byte as its code point
+        if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character}))
         {
             digit = (unsigned int)(character - '0');
         }

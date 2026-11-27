@@ -25,6 +25,7 @@ extern "C"
 #include "../../../../engine/engine_note.h"
 #include "../sass_assemble.h"
 #include "../sass_machine.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 }
@@ -344,7 +345,8 @@ static unsigned int emit_operands(const char *text, EmitName *operands)
 // 1 where `operand` names a register that the code can write a word with: R and a number, not RZ
 static int emit_register(const char *operand)
 {
-    return (operand[0] == 'R') && (operand[1] >= '0') && (operand[1] <= '9');
+    // Explicit cast reads the byte as its code point
+    return (operand[0] == 'R') && EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)operand[1]);
 }
 
 // the alphabet web's tree for `precept` written into `tree`: 1, or 0 where it has none
@@ -650,8 +652,9 @@ static void emit_unread_read(const char *path, const SassMachine *machine)
         const char *const line = &file[at];
         const size_t length = end - at;
         at = end + 1u;
+        // Explicit cast reads the byte as its code point
         if ((length < 3u) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = line, .other = "| ", .bytes = 2u) != 0) ||
-            (line[2] < '0') || (line[2] > '9'))
+            !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)line[2]))
         {
             continue;
         }

@@ -3,6 +3,7 @@
 // jupyter_debug.c: a kernel's next run of a file's code readied to be debugged under that file's name, with debugpy
 // listening in the kernel's process from the first time it is requested
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "jupyter_internal.h"
 
 // how long the kernel has to ready the run, in milliseconds
@@ -79,7 +80,8 @@ EMBED_INLINE int jupyter_port_read(const JupyterDebugCtx *args)
     unsigned int value = 0u;
     for (unsigned long long at = start; at < end; at += 1ULL)
     {
-        if ((text[at] < '0') || (text[at] > '9'))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)text[at]})))
         {
             return 0;
         }

@@ -3,6 +3,7 @@
 // listing.c: the vendor's listing: the disassembler run over a container and its output read, the listing cut into
 // lines, each line's guard, word and body, the line at an address, and the address the vendor stopped at
 #include "../../../../../platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "msq_internal.h"
@@ -138,16 +139,16 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
     return ((answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL)) ? 0 : 1;
 }
 
-// 1 where `c` is a space as the vendor's listing reads it
+// 1 where `c` is a space as the vendor's listing reads it. Explicit cast reads the byte as its code point
 int msq_space(char c)
 {
-    return (c == ' ') || (c == '\t') || (c == '\n') || (c == '\r') || (c == '\v') || (c == '\f');
+    return EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_SPACE, .byte = (uint8_t)c);
 }
 
-// 1 where `c` is a character, a digit or `_`
+// 1 where `c` is a character, a digit or `_`. Explicit cast reads the byte as its code point
 int msq_word(char c)
 {
-    return ((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) || (c == '_');
+    return EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_ALNUM, .byte = (uint8_t)c) || (c == '_');
 }
 
 void msq_listing_free(MsqListing *listing)
@@ -194,8 +195,10 @@ int msq_listing_read(const char *printed, size_t length, MsqListing *listing)
         walk += 2u;
         unsigned long long offset = 0ULL;
         size_t digits = 0u;
+        // Explicit cast reads the byte as its code point. The listing writes its offsets in lower case hex
         while ((walk < length) &&
-               (((text[walk] >= '0') && (text[walk] <= '9')) || ((text[walk] >= 'a') && (text[walk] <= 'f'))))
+               (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)text[walk]) ||
+                ((text[walk] >= 'a') && (text[walk] <= 'f'))))
         {
             offset = (offset << 4u) |
                      (unsigned long long)((text[walk] <= '9') ? (text[walk] - '0') : (text[walk] - 'a' + 10));
@@ -211,16 +214,10 @@ int msq_listing_read(const char *printed, size_t length, MsqListing *listing)
         {
             continue;
         }
-        while ((walk < length) && msq_space(text[walk]))
-        {
-            walk += 1u;
-        }
+        walk += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[walk], .cap = length - walk, .other = MSQ_SPACES);
         // the text to the first `;` on its line
-        size_t end = walk;
-        while ((end < length) && (text[end] != ';') && (text[end] != '\n'))
-        {
-            end += 1u;
-        }
+        const size_t end = walk + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text[walk], .cap = length - walk,
+                                             .other = ";\n");
         if ((end >= length) || (text[end] != ';'))
         {
             continue;
@@ -242,16 +239,13 @@ int msq_listing_read(const char *printed, size_t length, MsqListing *listing)
             {
                 guard += 1u;
                 const size_t first_mark = guard;
-                while ((guard < last) && ((text[guard] == 'T') || ((text[guard] >= '0') && (text[guard] <= '9'))))
-                {
-                    guard += 1u;
-                }
+                guard += (guard < last) ? EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[guard],
+                                                     .cap = last - guard, .other = "T0123456789")
+                                        : 0u;
                 if ((guard > first_mark) && (guard < last) && msq_space(text[guard]))
                 {
-                    while ((guard < last) && msq_space(text[guard]))
-                    {
-                        guard += 1u;
-                    }
+                    guard += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[guard], .cap = last - guard,
+                                        .other = MSQ_SPACES);
                     body = guard;
                 }
             }
@@ -294,12 +288,9 @@ MsqReading msq_listing_at(const MsqListing *listing, unsigned long long offset)
             continue;
         }
         reading.type = MSQ_READ;
-        size_t length = 0u;
-        while ((line->body[length] != '\0') && !msq_space(line->body[length]) && (line->body[length] != '.') &&
-               (length < (sizeof(reading.operation) - 1u)))
-        {
-            length += 1u;
-        }
+        // the operation up to its space or its point, cut to the room
+        const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line->body,
+                                         .cap = sizeof(reading.operation) - 1u, .other = MSQ_SPACES ".");
         EMBED_CALL(memor.cpy, MemoriaCfg, .dst = reading.operation, .src = line->body, .bytes = length);
         reading.operation[length] = '\0';
         reading.body = line->body;
@@ -313,17 +304,21 @@ int msq_stopped_at(const char *text, size_t length, unsigned long long *address)
 {
     static const char s_address_marker[] = "at address 0x";
     const size_t marker_length = sizeof(s_address_marker) - 1u;
-    for (size_t at = 0u; (at + marker_length) < length; at += 1u)
+    // each marker in the text, reached from the one before it. Explicit casts read each found byte as an offset into
+    // the text
+    for (const char *found = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text, .cap = length,
+                                        .other = s_address_marker, .other_len = marker_length);
+         found != NULL; found = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = found + 1,
+                                           .cap = length - ((size_t)(found - text) + 1u), .other = s_address_marker,
+                                           .other_len = marker_length))
     {
-        if (EMBED_CALL(memor.cmp, MemoriaCfg, .src = text + at, .other = s_address_marker, .bytes = marker_length) != 0)
-        {
-            continue;
-        }
-        size_t walk = at + marker_length;
+        size_t walk = (size_t)(found - text) + marker_length;
         unsigned long long value = 0ULL;
         size_t digits = 0u;
+        // Explicit cast reads the byte as its code point. The listing writes its offsets in lower case hex
         while ((walk < length) &&
-               (((text[walk] >= '0') && (text[walk] <= '9')) || ((text[walk] >= 'a') && (text[walk] <= 'f'))))
+               (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)text[walk]) ||
+                ((text[walk] >= 'a') && (text[walk] <= 'f'))))
         {
             value = (value << 4u) |
                     (unsigned long long)((text[walk] <= '9') ? (text[walk] - '0') : (text[walk] - 'a' + 10));

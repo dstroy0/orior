@@ -50,12 +50,14 @@ int overseer_account(QryShared *run, const char *identity, const char *expert, c
 
 void overseer_located_joined(const char *located, char *joined)
 {
-    size_t length = 0u;
-    for (size_t at = 0u; (located[at] != '\0') && (length < (OVERSEER_STANDING_MAX_LEN - 1u)); at += 1u)
+    // the text cut to the room, then each line end, reached from the one before it, written as a space
+    size_t length =
+        EMBED_CALL(cellul.copy, CatenaFinitaCfg, .src = located, .cap = OVERSEER_STANDING_MAX_LEN, .dst = joined);
+    for (size_t at = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = joined, .cap = length, .other = "\r\n");
+         at < length;
+         at += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &joined[at], .cap = length - at, .other = "\r\n"))
     {
-        const char character = ((located[at] == '\n') || (located[at] == '\r')) ? ' ' : located[at];
-        joined[length] = character;
-        length += 1u;
+        joined[at] = ' ';
     }
     while ((length != 0u) && (joined[length - 1u] == ' '))
     {
@@ -81,10 +83,10 @@ unsigned int overseer_cause_read(const char *word)
 // `text` from `from` to `to` copied into `into`, which has room for `room`, the spaces at both ends left out
 void overseer_trimmed(const char *from, const char *to, char *into, size_t room)
 {
-    while ((from < to) && (*from == ' '))
-    {
-        from += 1;
-    }
+    // Explicit cast takes the bytes of the stretch as a count, which never runs back
+    from += (from < to)
+                ? EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = from, .cap = (size_t)(to - from), .other = " ")
+                : 0u;
     while ((to > from) && ((to[-1] == ' ') || (to[-1] == '\n') || (to[-1] == '\r')))
     {
         to -= 1;
@@ -235,9 +237,11 @@ static void overseer_account_read(OverseerTally *tally, const char *line, const 
         table_text(expert, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = expert, .cap = PLATFORM_TEXT_TO_TERMINATOR)),
         table_text(text, EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR))};
     const unsigned int votes_before = tally->vote_count;
-    char *const located =
+    // each mark reached through the text itself, which the call writes
+    const char *const located_found =
         EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "; located ",
                    .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+    char *const located = (located_found != NULL) ? &text[located_found - text] : NULL;
     if (located != NULL)
     {
         char joined[OVERSEER_STANDING_MAX_LEN];
@@ -248,11 +252,11 @@ static void overseer_account_read(OverseerTally *tally, const char *line, const 
         overseer_located_joined(joined, tally->located);
         *located = '\0';
     }
-    char *clause =
+    const char *clause =
         EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ';');
     while (clause != NULL)
     {
-        char *const next =
+        const char *const next =
             EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = clause + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ';');
         char one[OVERSEER_CLAUSE_MAX_LEN];
         overseer_trimmed(clause + 1,

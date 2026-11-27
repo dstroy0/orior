@@ -13,6 +13,7 @@
 #include "system.h"
 
 #include "../../cli/src/command_line/cli_internal.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 #define COBJMACROS
 #include <windows.h>
@@ -544,7 +545,9 @@ EMBED_INLINE int system_key_by_name(const SystemWindowsCtx *args)
             return mmgr_line_finish(&line) != 0ULL;
         }
     }
-    if (((key >= 'A') && (key <= 'Z')) || ((key >= '0') && (key <= '9')))
+    // Explicit cast reads the byte as its code point
+    if (((((key) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)(key)}))) ||
+        ((((key) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)(key)}))))
     {
         // a character's or a digit's virtual key is its own character
         mmgr_line_ch(&line, (char)key);

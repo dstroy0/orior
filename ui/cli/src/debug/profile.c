@@ -8,6 +8,7 @@
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // A profile: whether its place is taken, where it reports, its process and whether it still waits to be waited on, its
 // readers still reading, under the profiles' lock, and the code the shim reported the program ended with
@@ -134,7 +135,9 @@ static void profile_line(const CliProfileLineSizeCfg *args)
         unsigned long long character = at + (negative ? 1ULL : 0ULL);
         while (whole && (character < at + done_size))
         {
-            whole = (json[character] >= '0') && (json[character] <= '9') && (code < 922337203685477580LL);
+            // Explicit cast reads the byte as its code point
+            whole = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)json[character]}) &&
+                    (code < 922337203685477580LL);
             code = (code * 10LL) + (long long)(json[character] - '0');
             character += 1ULL;
         }

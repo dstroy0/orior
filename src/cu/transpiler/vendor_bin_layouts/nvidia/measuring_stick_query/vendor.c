@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // vendor.c: the vendor's instruction set for the part the cross reads for, and whether its disassembler reads a piece
 #include "../../../../../platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "memoria_operor/memoria_operor.h"
 #include "msq_internal.h"
 
@@ -26,9 +27,12 @@ int msq_tables_read(void)
     size_t length = 0u;
     for (const char *at = s_architecture; (*at != '\0') && (length < (sizeof(part) - 2u)); at += 1)
     {
-        const char c = (char)(((*at >= 'A') && (*at <= 'Z')) ? (*at - 'A' + 'a') : *at);
+        // Explicit cast reads the byte as its code point
+        const char c = (char)EMBED_CALL(ascii.lower, AsciiCfg, .byte = (uint8_t)*at);
         // the part's name puts an underscore between its characters and its digits
-        if ((length != 0u) && (c >= '0') && (c <= '9') && !((part[length - 1u] >= '0') && (part[length - 1u] <= '9')))
+        // Explicit cast reads the byte as its code point
+        if ((length != 0u) && EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)c) &&
+            !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)part[length - 1u]))
         {
             part[length] = '_';
             length += 1u;

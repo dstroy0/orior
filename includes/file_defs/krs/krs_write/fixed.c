@@ -8,6 +8,7 @@
 #include "../../../parsers/line_read.h"
 #include "../../krf/krf.h"
 #include "../../ksc/ksc.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_scribo.h"
@@ -252,20 +253,18 @@ static int fixed_numeric(const char *text)
     {
         return 0;
     }
-    for (const char *walk = text + 1; *walk != '\0'; walk += 1)
-    {
-        if ((*walk < '0') || (*walk > '9'))
-        {
-            return 0;
-        }
-    }
-    return 1;
+    // every byte after the R a digit
+    const size_t digits = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                     .other = "0123456789");
+    return (text[1u + digits] == '\0') ? 1 : 0;
 }
 
-// Return 1 if the character `ch` continues a word: a letter, a digit or an underscore.
+// Return 1 if the character `ch` continues a word: a letter, a digit or an underscore. Explicit cast reads the byte
+// as its code point
 static int fixed_word_character(char ch)
 {
-    return ((ch >= 'a') && (ch <= 'z')) || ((ch >= 'A') && (ch <= 'Z')) || ((ch >= '0') && (ch <= '9')) || (ch == '_');
+    // Explicit cast reads the byte as its code point
+    return EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_ALNUM, .byte = (uint8_t)ch) || (ch == '_');
 }
 
 int krs_fixed_placed(char *text, size_t room)

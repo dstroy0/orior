@@ -616,18 +616,11 @@ char entry_axis_named(const char *name)
 {
     static const char *const NAMES[7] = {"t", "time", "c", "channel", "z", "y", "x"};
     static const char AXES[7] = {'t', 't', 'c', 'c', 'z', 'y', 'x'};
-    char lowered[16];
-    size_t length = 0u;
-    while ((name[length] != '\0') && (length + 1u < sizeof(lowered)))
-    {
-        lowered[length] = (char)(((name[length] >= 'A') && (name[length] <= 'Z')) ? (name[length] + 32) : name[length]);
-        length += 1u;
-    }
-    lowered[length] = '\0';
+    // the name read past the case of its letters
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
-        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = lowered, .cap = PLATFORM_TEXT_TO_TERMINATOR,
-                       .other = NAMES[at], .ci = EMBED_FALSE))
+        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = name, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = NAMES[at],
+                       .ci = EMBED_TRUE))
         {
             return AXES[at];
         }

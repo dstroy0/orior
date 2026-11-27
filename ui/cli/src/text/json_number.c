@@ -74,18 +74,18 @@ EMBED_INLINE unsigned int cli_limbs_digits(const JsonNumberCtx *args)
     unsigned int written = 0u;
     for (unsigned int index = chunks; index > 0u; index -= 1u)
     {
-        char nine[9];
+        // the nine digits of a chunk, with room past them for the word that a scan of them reads
+        char nine[16];
         unsigned int value = chunk[index - 1u];
         for (unsigned int place = 9u; place > 0u; place -= 1u)
         {
             nine[place - 1u] = (char)('0' + (value % 10u));
             value /= 10u;
         }
-        unsigned int from = 0u;
-        while ((index == chunks) && (from < 8u) && (nine[from] == '0'))
-        {
-            from += 1u;
-        }
+        // the leading zeros of the first chunk, with its last digit kept
+        unsigned int from = (index == chunks)
+                                ? (unsigned int)cellul.span(&(CatenaFinitaCfg){.src = nine, .cap = 8u, .other = "0"})
+                                : 0u;
         for (; from < 9u; from += 1u)
         {
             args->digits[written] = nine[from];

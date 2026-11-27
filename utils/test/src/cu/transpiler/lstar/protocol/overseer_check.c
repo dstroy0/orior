@@ -468,11 +468,14 @@ int program_main(int count, char **words)
     // the part's count of registers past what a container declares, which a refusal's clearing count is raised by: 1,
     // read off a .ksc of the check's own written beside the carrier
     char past_path[1024];
-    size_t folder = 0u;
-    for (size_t at = 0u; words[1][at] != '\0'; at += 1u)
-    {
-        folder = ((words[1][at] == '/') || (words[1][at] == '\\')) ? (at + 1u) : folder;
-    }
+    // the carrier's folder: its path through the last separator of either kind. Explicit cast reads the found byte as
+    // an offset into the path
+    const char *const slash =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '/');
+    const char *const back =
+        EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\\');
+    const char *const separator = ((back != NULL) && ((slash == NULL) || (back > slash))) ? back : slash;
+    const size_t folder = (separator != NULL) ? ((size_t)(separator - words[1]) + 1u) : 0u;
     snprintf(past_path, sizeof(past_path), "%.*soverseer_registers.ksc", (int)folder, words[1]);
     FILE *const past = fopen(past_path, "w");
     check_that(past != NULL, "check: the .ksc naming the registers past is written beside the carrier");

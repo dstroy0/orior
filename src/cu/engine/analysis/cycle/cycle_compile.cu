@@ -13,6 +13,7 @@
 // to the host compiler alone, with -ccbin $CYCLE_HOST_CCBIN where it is set. Elsewhere it is $CXX, else c++
 #include "../../../../platform/platform.h"
 #include "../../engine_note.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "cycle_compile_internal.h"
 #include "cycle_record_internal.h"
@@ -567,8 +568,9 @@ static unsigned int cycle_host_threads(unsigned long long lanes)
     const char *const named =
         (platform_environment("CYCLE_HOST_THREADS", named_text, sizeof(named_text)) != 0ULL) ? named_text : NULL;
     const char *end = NULL;
+    // Explicit cast reads the byte as its code point
     const unsigned long long requested =
-        ((named != NULL) && (named[0] >= '0') && (named[0] <= '9'))
+        ((named != NULL) && EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)named[0]))
             ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = named, .end = &end, .base = 10)
             : 0ULL;
     const unsigned long long hardware = platform_processors();

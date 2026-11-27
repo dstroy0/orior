@@ -3,6 +3,7 @@
 // deploy_read.c: the deployments deploy.json names, read as serde reads them; the places a deployment sends to; and a
 // shell line run at one
 #include "../command_line/pool.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "deploy_internal.h"
 #include "memoria_operor/memoria_operor.h"
@@ -208,7 +209,8 @@ EMBED_INLINE int read_deployment(const DeployReadCtx *args)
         unsigned long long at = 0ULL;
         while (whole && (at < length))
         {
-            whole = (digits[at] >= '0') && (digits[at] <= '9') &&
+            // Explicit cast reads the byte as its code point
+            whole = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)digits[at]}) &&
                     (value <= (0xffffffffffffffffULL - (unsigned long long)(digits[at] - '0')) / 10u);
             value = whole ? ((value * 10u) + (unsigned long long)(digits[at] - '0')) : value;
             at += 1u;

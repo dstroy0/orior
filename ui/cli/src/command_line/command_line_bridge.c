@@ -6,6 +6,7 @@
 // line it is read from
 #include "../editor/bridge.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "command_line_internal.h"
 #include "pool.h"
 
@@ -58,7 +59,8 @@ EMBED_INLINE void bridge_at(const CommandLineBridgeCtx *args)
         for (unsigned long long at = 0ULL; at < one->length; at += 1ULL)
         {
             const char digit = s_work_state->json.text[one->text + at];
-            if ((digit < '0') || (digit > '9'))
+            // Explicit cast reads the byte as its code point
+            if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)digit})))
             {
                 break;
             }

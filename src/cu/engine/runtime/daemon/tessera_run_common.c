@@ -3,6 +3,7 @@
 // tessera_run_common.c: tessera_run's clock, arguments, paths, limits, record and log
 #include "../../../../platform/platform.h"
 #include "../../engine_note.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "tessera_run_internal.h"
@@ -231,7 +232,9 @@ static int run_record_fields(const char *line, char state[RUN_STATE_CAPACITY], u
     state[length] = '\0';
     const char *walk = line + length;
     int count = 0;
-    while ((count < RUN_NUMBERS) && (walk[0] == ' ') && (walk[1] >= '0') && (walk[1] <= '9'))
+    // Explicit cast reads the byte as its code point
+    while ((count < RUN_NUMBERS) && (walk[0] == ' ') &&
+           EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)walk[1]))
     {
         const char *end = NULL;
         numbers[count] = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = walk + 1, .end = &end, .base = 10);

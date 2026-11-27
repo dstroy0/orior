@@ -9,6 +9,7 @@
 #include "../text/json_tree.h"
 #include "../text/sift.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // A text's lines joined, each ended by "\n", and the unit each starts at, the units' count last, in a cell sized to
 // them
@@ -264,8 +265,9 @@ EMBED_INLINE int cli_word_unit(const DocumentCtx *args)
     {
         return -1;
     }
-    return ((args->unit >= 'a') && (args->unit <= 'z')) || ((args->unit >= 'A') && (args->unit <= 'Z')) ||
-           ((args->unit >= '0') && (args->unit <= '9')) || (args->unit == '_') || (args->unit == '$');
+    // Explicit cast reads a unit below 0x80 as its byte
+    return ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALNUM, .byte = (uint8_t)args->unit}) || (args->unit == '_') ||
+           (args->unit == '$');
 }
 
 // whether the span [from, to) of a line is a whole word: 1 or 0, or -1 where a unit beside it is outside ASCII

@@ -440,11 +440,11 @@ static size_t flagged_spans(const TuringCell *cell, int check, Span **spans, int
         char *cursor = line + 5;
         while (*cursor != '\0')
         {
-            while ((*cursor == ' ') || (*cursor == '\r') || (*cursor == '\n'))
-            {
-                *cursor = '\0';
-                cursor += 1;
-            }
+            // the blanks before the word, each written over with a terminator
+            const size_t blanks = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = cursor,
+                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \r\n");
+            EMBED_CALL(memor.set, MemoriaCfg, .dst = cursor, .bytes = blanks, .val = 0);
+            cursor += blanks;
             if (*cursor == '\0')
             {
                 break;
@@ -454,10 +454,8 @@ static size_t flagged_spans(const TuringCell *cell, int check, Span **spans, int
                 words[count] = cursor;
                 count += 1u;
             }
-            while ((*cursor != '\0') && (*cursor != ' ') && (*cursor != '\r') && (*cursor != '\n'))
-            {
-                cursor += 1;
-            }
+            cursor += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = cursor, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                 .other = " \r\n");
         }
         if (row_count >= capacity)
         {
@@ -1414,6 +1412,9 @@ static int main_machine(const char *binary, int64_t first, int64_t last, int64_t
     platform_cell_released(machine.present, platform_place_g_program_owner);
     return proven ? 0 : 1;
 }
+
+// The pool of the program. Its cells of exact integers grow with the count of the run, past 900 MB for three cells
+const unsigned long long g_program_pool_bytes = 1ULL << 31u;
 
 int program_main(int argument_count, char **arguments)
 {

@@ -20,6 +20,7 @@
 #include "../../../../../includes/codecs/pbkdf2/pbkdf2.h"
 #include "../../../../../src/platform/platform.h"
 
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include <stdio.h>
@@ -89,19 +90,15 @@ static char *file_read(const char *path)
  */
 static int hex_digit(char digit)
 {
-    if ((digit >= '0') && (digit <= '9'))
+    // Explicit casts read the byte as its code point, and the folded letter as a count from 'a'
+    const uint8_t code = (uint8_t)digit;
+    if (!EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_HEX, .byte = code))
     {
-        return digit - '0';
+        return -1;
     }
-    if ((digit >= 'a') && (digit <= 'f'))
-    {
-        return (digit - 'a') + 10;
-    }
-    if ((digit >= 'A') && (digit <= 'F'))
-    {
-        return (digit - 'A') + 10;
-    }
-    return -1;
+    return EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = code)
+               ? (int)(code - '0')
+               : (int)(EMBED_CALL(ascii.lower, AsciiCfg, .byte = code) - 'a') + 10;
 }
 
 /**
@@ -247,7 +244,10 @@ static char *next_line(char **cursor)
     {
         return NULL;
     }
-    char *end = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\n');
+    // the line end reached through the line itself, which the call writes
+    const char *const end_found =
+        EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\n');
+    char *const end = (end_found != NULL) ? &line[end_found - line] : NULL;
     if (end == NULL)
     {
         *cursor = line + EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR);
@@ -384,10 +384,7 @@ static unsigned rfc4231_check(Tally *tally, char *text)
             continue;
         }
 
-        while ((*hex == ' ') || (*hex == '='))
-        {
-            hex += 1;
-        }
+        hex += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = hex, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " =");
         size_t digits = 0u;
         while (hex_digit(hex[digits]) >= 0)
         {

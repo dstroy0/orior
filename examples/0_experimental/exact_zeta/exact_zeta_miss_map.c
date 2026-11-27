@@ -61,6 +61,7 @@
 #include "../../../src/platform/platform.h"
 #include "zeta_shuffle.h"
 
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include <math.h>
@@ -656,26 +657,16 @@ static double hex_double(const char *text)
     const int negative = text[0] == '-';
     uint64_t high = 0u;
     uint64_t low = 0u;
-    for (const char *at = text + (negative ? 1 : 0); *at != '\0'; at += 1)
+    // each hex digit is a step of the 128-bit value. The loop ends at the first byte that is not a hex digit. Explicit
+    // cast reads the byte as its code point
+    for (const char *at = text + (negative ? 1 : 0);
+         EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_HEX, .byte = (uint8_t)*at); at += 1)
     {
-        const char letter = *at;
-        uint64_t digit = 16u;
-        if ((letter >= '0') && (letter <= '9'))
-        {
-            digit = (uint64_t)(letter - '0');
-        }
-        else if ((letter >= 'a') && (letter <= 'f'))
-        {
-            digit = 10u + (uint64_t)(letter - 'a');
-        }
-        else if ((letter >= 'A') && (letter <= 'F'))
-        {
-            digit = 10u + (uint64_t)(letter - 'A');
-        }
-        if (digit >= 16u)
-        {
-            break;
-        }
+        // Explicit casts read the byte as its code point, and the folded letter as a count from 'a'
+        const uint8_t letter = (uint8_t)*at;
+        const uint64_t digit = EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = letter)
+                                   ? (uint64_t)(letter - '0')
+                                   : 10u + (uint64_t)(EMBED_CALL(ascii.lower, AsciiCfg, .byte = letter) - 'a');
         high = (high << 4u) | (low >> 60u);
         low = (low << 4u) | digit;
     }
@@ -714,21 +705,19 @@ static size_t words_of(char *line, char *words[16])
     char *cursor = line;
     while ((*cursor != '\0') && (found < 16u))
     {
-        while ((*cursor == ' ') || (*cursor == '\r') || (*cursor == '\n'))
-        {
-            *cursor = '\0';
-            cursor += 1;
-        }
+        // the blanks before the word, each written over with a terminator
+        const size_t blanks = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = cursor,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \r\n");
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = cursor, .bytes = blanks, .val = 0);
+        cursor += blanks;
         if (*cursor == '\0')
         {
             break;
         }
         words[found] = cursor;
         found += 1u;
-        while ((*cursor != '\0') && (*cursor != ' ') && (*cursor != '\r') && (*cursor != '\n'))
-        {
-            cursor += 1;
-        }
+        cursor += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = cursor, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                             .other = " \r\n");
     }
     return found;
 }
@@ -2034,15 +2023,16 @@ static void make_folder(const char *path)
 {
     char partial[PATH_BYTES];
     snprintf(partial, sizeof(partial), "%s", path);
-    for (size_t at = 1u; partial[at] != '\0'; at += 1u)
+    // each separator after the first byte, reached from the one before it
+    for (size_t at = 1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &partial[1],
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "/\\");
+         partial[at] != '\0'; at += 1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &partial[at + 1u],
+                                                    .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "/\\"))
     {
-        if ((partial[at] == '/') || (partial[at] == '\\'))
-        {
-            const char kept = partial[at];
-            partial[at] = '\0';
-            make_one_folder(partial);
-            partial[at] = kept;
-        }
+        const char kept = partial[at];
+        partial[at] = '\0';
+        make_one_folder(partial);
+        partial[at] = kept;
     }
     make_one_folder(partial);
 }
@@ -2970,7 +2960,8 @@ static void exact_rate(double rate, ExactRate *exact)
     int32_t power = 0;
     for (const char *at = text; *at != '\0'; at += 1)
     {
-        if ((*at >= '0') && (*at <= '9'))
+        // Explicit cast reads the byte as its code point
+        if (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)*at))
         {
             digits[length] = *at;
             length += 1u;

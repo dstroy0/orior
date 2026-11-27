@@ -53,26 +53,26 @@ static char s_written[CHAIN_MAX][KDM_TEXT_MAX_LEN];
 // with digits after it
 static int kdm_exact_text(const char *text)
 {
-    unsigned int at = (text[0] == '-') ? 1u : 0u;
-    unsigned int digits = 0u;
-    unsigned int slashes = 0u;
-    for (; text[at] != '\0'; at += 1u)
+    const char *at = text + ((text[0] == '-') ? 1 : 0);
+    const size_t whole =
+        EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "0123456789");
+    if (whole == 0u)
     {
-        if ((text[at] >= '0') && (text[at] <= '9'))
-        {
-            digits += 1u;
-        }
-        else if ((text[at] == '/') && (digits != 0u) && (slashes == 0u))
-        {
-            slashes = 1u;
-            digits = 0u;
-        }
-        else
+        return 0;
+    }
+    at += whole;
+    if (*at == '/')
+    {
+        at += 1;
+        const size_t below = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                        .other = "0123456789");
+        if (below == 0u)
         {
             return 0;
         }
+        at += below;
     }
-    return (digits != 0u) ? 1 : 0;
+    return (*at == '\0') ? 1 : 0;
 }
 static unsigned int s_cost_row_count;
 

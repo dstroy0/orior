@@ -6,6 +6,7 @@
 #include "../command_line/pool.h"
 #include "../text/measured.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "servers_internal.h"
 
 void cli_servers_read_state_lock(const CliServersReadStateAnswerCtx *args)
@@ -86,7 +87,9 @@ unsigned long long cli_servers_json_integer(const CliServersJsonNodeOtherwiseCtx
     unsigned long long value = 0ULL;
     for (unsigned long long at = 0ULL; at < args->json->node[args->node].length; at += 1ULL)
     {
-        if ((digits[at] < '0') || (digits[at] > '9') || (value > (~0ULL - 9ULL) / 10ULL))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)digits[at]})) ||
+            (value > (~0ULL - 9ULL) / 10ULL))
         {
             return args->otherwise;
         }

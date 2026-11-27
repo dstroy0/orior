@@ -8,6 +8,7 @@
 #include "git_internal.h"
 
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // the max words git is started with
 #define CLI_GIT_WORDS 8192u
@@ -492,7 +493,8 @@ int cli_git_seconds(const CliGitLengthTextCtx *args)
     long long number = 0LL;
     for (; at < args->length; at += 1ULL)
     {
-        if ((args->text[at] < '0') || (args->text[at] > '9'))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->text[at]})))
         {
             return 0;
         }

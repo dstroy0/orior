@@ -72,22 +72,18 @@ static unsigned int lane_assembles(const char *lane, unsigned long long length, 
     unsigned long long at = 0ULL;
     while (at < length)
     {
-        unsigned long long stop = at;
-        while ((stop < length) && (lane[stop] != '\n'))
-        {
-            stop += 1ULL;
-        }
+        // the end of the line, or of the lane where no line feed follows. Explicit casts take the bytes left as a count
+        // in memory, and read the found byte as a byte of the lane
+        const void *const ended =
+            EMBED_CALL(memor.chr, MemoriaCfg, .src = &lane[at], .bytes = (size_t)(length - at), .val = '\n');
+        const unsigned long long stop = (ended != NULL) ? (unsigned long long)((const char *)ended - lane) : length;
         // the line and its newline, cut where it passes the room of a line
         char line[LANE_LINE_BYTES];
         VerbaLinea line_text = mmgr_line_over(line, sizeof(line));
         (void)mmgr_line_put_n(&line_text, &lane[at], (size_t)(stop - at));
         mmgr_line_ch(&line_text, '\n');
         const size_t size = mmgr_line_finish(&line_text);
-        size_t character = 0u;
-        while ((character < size) && ((line[character] == ' ') || (line[character] == '\t')))
-        {
-            character += 1u;
-        }
+        const size_t character = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = line, .cap = size, .other = " \t");
         // a label, a note, a directive and a blank line are not instructions and assemble to nothing
         const int instruction =
             (character < (size - 1u)) && (line[character] != '.') && (line[character] != '/') &&

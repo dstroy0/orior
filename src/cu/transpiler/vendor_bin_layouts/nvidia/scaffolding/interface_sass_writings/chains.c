@@ -4,6 +4,7 @@
 #include "../../../../../../../includes/parsers/line_read.h"
 #include "../../../../../../platform/platform.h"
 #include "../../../../../engine/engine_note.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "writings_internal.h"
@@ -132,8 +133,9 @@ static int writings_put(const char *writing, const char *to, const char *left, c
         {
             const size_t length =
                 EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = from[one], .cap = PLATFORM_TEXT_TO_TERMINATOR);
+            // Explicit cast reads the byte as its code point
             if ((chains_text_order(walk, from[one], (size_t)(length)) == 0) &&
-                ((walk[length] < '0') || (walk[length] > '9')))
+                !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)walk[length]))
             {
                 which = one;
             }

@@ -4,6 +4,7 @@
 // the recording read when the run ends and what it contains reported, and the run ended
 #include "../tests/test_runs.h"
 #include "../toolchains/toolchains.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "recording_internal.h"
 
 // the bytes of one line of the run's output reported
@@ -261,7 +262,8 @@ void cli_recording_on_record(const CliRecordingDapJsonCtx *args)
     long long code = 0LL;
     for (unsigned long long at = negative ? 1ULL : 0ULL; !recording->has_code && has_code && (at < digits); at += 1ULL)
     {
-        has_code = (written[at] >= '0') && (written[at] <= '9');
+        // Explicit cast reads the byte as its code point
+        has_code = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)written[at]});
         code = (code * 10LL) + (long long)(written[at] - '0');
     }
     if (recording->has_code)

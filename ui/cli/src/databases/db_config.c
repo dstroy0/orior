@@ -5,6 +5,7 @@
 // it, with whether it is open
 #include "../command_line/pool.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "db_internal.h"
 
 // The writing of one connection: where it goes, whether it is arranged a member to a line, the indent of its braces,
@@ -112,7 +113,8 @@ int cli_db_connection_get(const CliDbConnectionErrMsgCfg *args)
     int whole = (port == CLI_JSON_NONE) || ((digits != NULL) && (args->json->node[port].length <= 5ULL));
     for (unsigned long long at = 0ULL; (digits != NULL) && whole && (at < args->json->node[port].length); at += 1ULL)
     {
-        whole = (digits[at] >= '0') && (digits[at] <= '9');
+        // Explicit cast reads the byte as its code point
+        whole = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)digits[at]});
         value = (value * 10ULL) + (unsigned long long)(digits[at] - '0');
     }
     const unsigned int matters = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,

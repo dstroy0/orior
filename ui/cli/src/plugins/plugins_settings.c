@@ -6,6 +6,7 @@
 #include "../command_line/cli_internal.h"
 #include "../command_line/pool.h"
 #include "../text/json_tree.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "plugins.h"
 
 // One plugin as the table keeps it. The record holds the plugin's id, whether it is the reader's, and its folder. It
@@ -369,7 +370,8 @@ unsigned int cli_plugins_setting(const CliPluginsSettingCfg *args)
         else if (json->node[node].type == CFG_JSON_ARRAY)
         {
             unsigned int index = 0u;
-            while ((key[taken] >= '0') && (key[taken] <= '9'))
+            // Explicit cast reads the byte as its code point
+            while (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)key[taken]}))
             {
                 index = (index * 10u) + (unsigned int)(key[taken] - '0');
                 taken += 1ULL;

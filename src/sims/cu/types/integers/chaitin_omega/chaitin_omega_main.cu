@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chaitin_omega_main.cu: the terms printed and main
 #include "../../../../../platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "chaitin_omega_internal.h"
 #include "memoria_operor/memoria_operor.h"
@@ -162,7 +163,9 @@ int program_main(int argc, char **argv)
     counts.length = (argc > 1) ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = argv[1],
                                                           .end = NULL, .base = 10)
                                : OMEGA_LENGTH_DEFAULT;
-    const int budgeted = (argc > 2) && (argv[2][0] >= '0') && (argv[2][0] <= '9');
+    // Explicit cast reads the byte as its code point
+    const int budgeted =
+        (argc > 2) && EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)argv[2][0]);
     counts.steps =
         budgeted ? (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = argv[2], .end = NULL, .base = 10)
                  : OMEGA_STEPS_DEFAULT;

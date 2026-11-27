@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // obsignatio_test_vectors.cu: files, hex and the test vectors
 #include "../../../../../../../src/platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "obsignatio_test_internal.h"
@@ -65,7 +66,8 @@ static const char *test_string_after(const char *from, const char *key, unsigned
 
 static int test_hex_nibble(char digit, unsigned int *value)
 {
-    if ((digit >= '0') && (digit <= '9'))
+    // Explicit cast reads the byte as its code point. The vectors write their hex in lower case
+    if (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)digit))
     {
         // a decimal digit less '0' lies in 0 to 9
         *value = (unsigned int)(digit - '0');

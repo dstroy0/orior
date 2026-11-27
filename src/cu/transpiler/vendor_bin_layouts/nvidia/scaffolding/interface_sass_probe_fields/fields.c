@@ -5,6 +5,7 @@
 #include "../../../../../../../includes/parsers/line_read.h"
 #include "../../../../../../platform/platform.h"
 #include "../../../../../engine/engine_note.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "fields_internal.h"
 #include "memoria_operor/memoria_operor.h"
@@ -309,7 +310,9 @@ static int fields_address_swap(const char *operand, const char *put, char *out, 
 {
     const char *const open =
         EMBED_CALL(cellul.chr_last, CatenaFinitaCfg, .src = operand, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '[');
-    if ((open == NULL) || (open[1] != 'R') || ((open[2] != 'Z') && ((open[2] < '0') || (open[2] > '9'))))
+    // Explicit cast reads the byte as its code point
+    if ((open == NULL) || (open[1] != 'R') ||
+        ((open[2] != 'Z') && !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)open[2])))
     {
         VerbaLinea formed_line_1 = mmgr_line_over(out, room);
         mmgr_line_put(&formed_line_1, operand);

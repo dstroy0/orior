@@ -4,6 +4,7 @@
 // build.zig's executables, the program a PyInstaller spec freezes, and a package.json's bins
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "executables_internal.h"
 
 int cli_go_package(const CliExecutablesTextOutCtx *args)
@@ -124,8 +125,10 @@ EMBED_INLINE int cli_same(const ExecutablesScanMoreCtx *args)
     }
     for (unsigned long long at = 0ULL; at < args->length_value; at += 1ULL)
     {
-        const char character = ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] + ('a' - 'A'))
-                                                                                 : args->text[at];
+        // Explicit cast reads the byte as its code point
+        const char character = (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)args->text[at]}))
+                                   ? (char)(args->text[at] + ('a' - 'A'))
+                                   : args->text[at];
         if (character != args->word_text[at])
         {
             return 0;
@@ -201,8 +204,10 @@ int cli_keyword(const CliExecutablesLengthCtx *args)
         }
         from = at + key_length;
         const char before = (at > 0ULL) ? args->call[at - 1ULL] : ' ';
-        if (((before >= 'a') && (before <= 'z')) || ((before >= 'A') && (before <= 'Z')) ||
-            ((before >= '0') && (before <= '9')) || (before == '_') || ((unsigned char)before >= 0x80u))
+        // Explicit cast reads the byte as its code point
+        if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)before}) ||
+            (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)before})) || (before == '_') ||
+            ((unsigned char)before >= 0x80u))
         {
             continue;
         }

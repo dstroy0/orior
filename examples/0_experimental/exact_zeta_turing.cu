@@ -4095,6 +4095,9 @@ static int turing_line(FILE *in, std::string *line)
     return 1;
 }
 
+// The pool of the program. The record programs of a cell compile with temporary cells past 72 MB
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 28u;
+
 int program_main(int count, char **arguments)
 {
     int code = 2;

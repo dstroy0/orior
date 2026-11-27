@@ -114,10 +114,9 @@ static void references_row_draw(const GuiPaneCfg *args)
     // the line from a little before the name where the name is past the lead, its blanks before the lead passed
     // over, the name in signal, and what follows the name
     unsigned long long from = (row.match_at > GUI_REFERENCES_LEAD_PAST) ? row.match_at - GUI_REFERENCES_LEAD : 0ULL;
-    while ((from < row.match_at) && ((row.text[from] == ' ') || (row.text[from] == '\t')))
-    {
-        from += 1ULL;
-    }
+    from += (from < row.match_at)
+                ? cellul.span(&(CatenaFinitaCfg){.src = &row.text[from], .cap = row.match_at - from, .other = " \t"})
+                : 0ULL;
     const unsigned long long match_end =
         (row.match_at + row.match_length < row.text_length) ? row.match_at + row.match_length : row.text_length;
     float at = (float)x;

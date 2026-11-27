@@ -224,11 +224,11 @@ void cli_job_runs_values_fill(const CliJobRunsCtx *args)
         char field_text[CLI_JOB_RUNS_FIELD_MAX];
         for (unsigned long long at = 0ULL; at < length;)
         {
-            unsigned long long end = at;
-            while ((end < length) && (!many || (value[end] != ' ')))
-            {
-                end += 1ULL;
-            }
+            // the field runs to the next space where the form takes many, else to the end of the value
+            const unsigned long long end =
+                (many && (at < length))
+                    ? at + cellul.span_not(&(CatenaFinitaCfg){.src = &value[at], .cap = length - at, .other = " "})
+                    : ((at < length) ? length : at);
             if (end > at)
             {
                 memor.cpy(&(MemoriaCfg){.dst = field_text, .src = value + at, .bytes = end - at});

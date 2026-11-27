@@ -3,6 +3,7 @@
 // base64.c: bytes as base64 and back. Three bytes make four characters, the last group padded with `=`; reading back,
 // a group stops at its first `=`
 #include "base64.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 void cli_base64(const CliBase64Cfg *args)
 {
@@ -28,15 +29,18 @@ typedef struct
 // the six bits a base64 character is for, or 64 where it is none
 EMBED_INLINE unsigned int cli_sextet(const Base64Ctx *args)
 {
-    if ((args->character >= 'A') && (args->character <= 'Z'))
+    // Explicit cast reads the byte as its code point
+    if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)args->character}))
     {
         return (unsigned int)(args->character - 'A');
     }
-    if ((args->character >= 'a') && (args->character <= 'z'))
+    // Explicit cast reads the byte as its code point
+    if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)args->character}))
     {
         return (unsigned int)(args->character - 'a') + 26u;
     }
-    if ((args->character >= '0') && (args->character <= '9'))
+    // Explicit cast reads the byte as its code point
+    if (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->character}))
     {
         return (unsigned int)(args->character - '0') + 52u;
     }

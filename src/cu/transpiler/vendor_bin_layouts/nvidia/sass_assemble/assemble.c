@@ -250,11 +250,7 @@ static const char *sass_line_take(const char *text, char *line, size_t room)
     {
         line_length -= 1u;
     }
-    size_t first = 0u;
-    while ((first < line_length) && ((text[first] == ' ') || (text[first] == '\t')))
-    {
-        first += 1u;
-    }
+    const size_t first = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text, .cap = line_length, .other = " \t");
     const size_t taken = ((line_length - first) < (room - 1u)) ? (line_length - first) : (room - 1u);
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = line, .src = text + first, .bytes = taken);
     line[taken] = '\0';

@@ -7,6 +7,7 @@
 #include "schema_internal.h"
 
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // the largest file checked
 #define CLI_SCHEMA_LARGEST (2ULL << 20u)
@@ -94,7 +95,8 @@ int cli_schema_reads(const CliSchemaCfg *args)
     }
     for (embed_word at = 0u; at < length; at += 1u)
     {
-        lower[at] = ((dot[1 + at] >= 'A') && (dot[1 + at] <= 'Z')) ? (char)(dot[1 + at] - 'A' + 'a') : dot[1 + at];
+        // Explicit cast reads the byte as its code point
+        lower[at] = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)dot[1 + at]});
     }
     return (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = "json", .cap = CLI_POOL_BYTES})) ||
            (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = "jsonc", .cap = CLI_POOL_BYTES}));

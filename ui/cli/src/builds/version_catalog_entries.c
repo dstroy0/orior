@@ -5,6 +5,7 @@
 // and bundle in its form, against the versions and libraries the catalog contains. The build a catalog belongs to is
 // the one above its `gradle` folder
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "builds_internal.h"
 #include "version_catalog_internal.h"
 
@@ -290,12 +291,16 @@ EMBED_INLINE void entries_alias(const VersionCatalogEntriesCtx *args)
         }
         above = g_cli_versions.field[above].next;
     }
-    int shaped = (args->entry->key_size > 1u) && (alias[0] >= 'a') && (alias[0] <= 'z');
+    // Explicit cast reads the byte as its code point
+    int shaped =
+        (args->entry->key_size > 1u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)alias[0]});
     for (unsigned int at = 0u; shaped && (at < args->entry->key_size); at += 1u)
     {
         const char one = alias[at];
-        shaped = ((one >= 'a') && (one <= 'z')) || ((one >= 'A') && (one <= 'Z')) || ((one >= '0') && (one <= '9')) ||
-                 (one == '_') || (one == '.') || (one == '-');
+        // Explicit cast reads the byte as its code point
+        shaped = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)one}) ||
+                 (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)one})) || (one == '_') ||
+                 (one == '.') || (one == '-');
     }
     if (!shaped)
     {

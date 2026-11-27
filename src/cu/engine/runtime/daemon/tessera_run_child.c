@@ -20,15 +20,17 @@ _Alignas(8) static const char s_run_wsl_unmeasured[] =
 // every folder along the path made where it is not; 1 where the last is there
 static int run_folders_make(char *path)
 {
-    for (size_t at = 1u; path[at] != '\0'; at += 1u)
+    // each separator after the first byte, reached from the one before it
+    static const char s_separators[3] = {'/', RUN_SEPARATOR, '\0'};
+    for (size_t at = 1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &path[1],
+                                     .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_separators);
+         path[at] != '\0'; at += 1u + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &path[at + 1u],
+                                                 .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = s_separators))
     {
         const char character = path[at];
-        if ((character == '/') || (character == RUN_SEPARATOR))
-        {
-            path[at] = '\0';
-            run_folder_make(path);
-            path[at] = character;
-        }
+        path[at] = '\0';
+        run_folder_make(path);
+        path[at] = character;
     }
     run_folder_make(path);
     return run_folder_exists(path);

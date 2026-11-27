@@ -126,10 +126,7 @@ static int table_decimal_read(const char *text, unsigned int places, long long *
         flagged = 1;
         at += 1;
     }
-    while (*at == ' ' || *at == '\r' || *at == '\n' || *at == '\t')
-    {
-        at += 1;
-    }
+    at += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \r\n\t");
     if (*at != '\0')
     {
         return 0;
@@ -259,11 +256,8 @@ int program_main(int argument_count, char **arguments)
         }
         else if ((value = table_field(line, "Isotopic Composition = ")) != NULL)
         {
-            const char *start = value;
-            while (*start == ' ')
-            {
-                start += 1;
-            }
+            const char *const start = value + EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = value,
+                                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
             if (*start != '\r' && *start != '\n' && *start != '\0')
             {
                 if (!table_decimal_read(start, TABLE_COMPOSITION_PLACES, &current.composition,

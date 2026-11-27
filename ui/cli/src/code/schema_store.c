@@ -8,6 +8,7 @@
 #include "schema_internal.h"
 
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // the max bytes of a schema read, and the max tokens it is read in
 #define CLI_SCHEMA_DOCUMENT_TEXT (1u << 22u)
@@ -63,8 +64,11 @@ int cli_schema_cache_path(const CliSchemaUrlCtx *args)
         unsigned long long length = 0ULL;
         const unsigned int character =
             EMBED_CALL(cli_text_at.character, CliTextAtCfg, .text = key, .size = line.at, .at = at, .length = &length);
-        const int allowed = ((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z')) ||
-                            ((character >= '0') && (character <= '9')) || (character == '.') || (character == '-');
+        // Explicit cast reads the byte as its code point
+        const int allowed =
+            (((character) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)(character)})) ||
+            (((character) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)(character)})) ||
+            (character == '.') || (character == '-');
         mmgr_line_ch(&named, allowed ? (char)character : '_');
         at += length;
     }

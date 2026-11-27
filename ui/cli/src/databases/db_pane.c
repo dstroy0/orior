@@ -7,6 +7,7 @@
 // of it a label at a time. A statement runs on a thread of its own into a cell sized to the max an answer takes; the
 // thread sets its end and wakes the view's thread, whose step adopts the answer into the grid, or opens the ask where
 // the run confirms first, and gives the run's cells back
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "db_pane_internal.h"
 
 // the max bytes of the connections' list; the sentences of the pane with no connection and of one not connected; the
@@ -617,7 +618,10 @@ EMBED_INLINE void confirm_asked(const DbPaneCtx *args)
         {
             const char character = run->statement[at];
             // a lower-case character's capital is 32 below it in ASCII
-            mmgr_line_ch(&line, ((character >= 'a') && (character <= 'z')) ? (char)(character - 32) : character);
+            // Explicit cast reads the byte as its code point
+            mmgr_line_ch(&line, (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)character}))
+                                    ? (char)(character - 32)
+                                    : character);
         }
         (void)mmgr_line_put(&line, " reaches every row on ");
         (void)mmgr_line_put(&line, name);

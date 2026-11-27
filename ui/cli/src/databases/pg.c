@@ -6,6 +6,7 @@
 #include "../command_line/pool.h"
 #include "../machine/net.h"
 #include "../text/json_tree.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "pg_internal.h"
 
 static CliPg *s_links[CLI_PG_LINKS];
@@ -169,7 +170,8 @@ void cli_pg_failure_get(const CliPgCtx *args)
             unsigned long long digit = type + 1u;
             while (whole && (digit < end))
             {
-                whole = (args->body[digit] >= '0') && (args->body[digit] <= '9');
+                // Explicit cast reads the byte as its code point
+                whole = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->body[digit]});
                 value = (value * 10ULL) + (unsigned long long)(args->body[digit] - '0');
                 digit += 1ULL;
             }

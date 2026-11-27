@@ -456,11 +456,7 @@ unsigned int chain_registers(const char *engine, const char *number)
     {
         return 0u;
     }
-    size_t at = 0u;
-    while ((at < size) && identity_space(file[at]))
-    {
-        at += 1u;
-    }
+    const size_t at = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = file, .cap = size, .other = " \t\n\r\v\f");
     const char *end = NULL;
     const unsigned long long registers =
         EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = &file[at], .end = &end, .base = 10);

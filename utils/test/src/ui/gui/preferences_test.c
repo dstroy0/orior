@@ -10,12 +10,7 @@
 // the bytes of `text`
 static unsigned long long text_length(const char *text)
 {
-    unsigned long long length = 0ull;
-    while (text[length] != '\0')
-    {
-        length += 1ull;
-    }
-    return length;
+    return cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES});
 }
 
 // whether two texts are the same

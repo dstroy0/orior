@@ -9,6 +9,7 @@
 #include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "gradle_internal.h"
 #include "version_catalog_internal.h"
 
@@ -130,7 +131,8 @@ EMBED_INLINE int complete_settings(const GradleCompleteCtx *args)
     static const char s_settings[] = "settings.gradle";
     for (unsigned int at = 0u; at < sizeof(s_settings) - 1u; at += 1u)
     {
-        const char one = ((name[at] >= 'A') && (name[at] <= 'Z')) ? (char)(name[at] - 'A' + 'a') : name[at];
+        // Explicit cast reads the byte as its code point
+        const char one = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)name[at]});
         if (one != s_settings[at])
         {
             return 0;

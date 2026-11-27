@@ -6,6 +6,7 @@
 #include "../command_line/callback_cfg.h"
 #include "../command_line/pool.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "db_internal.h"
 
 typedef struct
@@ -60,7 +61,8 @@ EMBED_INLINE int results_integer(const DbResultsCtx *args)
     }
     for (; at < args->size; at += 1ULL)
     {
-        if ((args->text[at] < '0') || (args->text[at] > '9'))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->text[at]})))
         {
             return 0;
         }
@@ -84,8 +86,8 @@ EMBED_INLINE int results_real(const DbResultsCtx *args)
         while (same && (one < rest))
         {
             const char character = text[at + one];
-            same =
-                (((character >= 'A') && (character <= 'Z')) ? (char)(character - 'A' + 'a') : character) == s_words[word_text][one];
+            // Explicit cast reads the byte as its code point
+            same = ((char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)character})) == s_words[word_text][one];
             one += 1ULL;
         }
         if (same)

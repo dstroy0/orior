@@ -3,6 +3,7 @@
 // recording_replay.c: where the replay goes and what it stops at: a step forward or back, a stop at a breakpoint or a
 // raise, a frame's last step, the stop reported, the paths it compares, and a frame as a stack frame
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "recording_internal.h"
 
 // a path of the tree as the replay compares it: whole, with one type of slash, and without case on Windows, into `key`
@@ -348,7 +349,8 @@ int cli_replay_integer(const CliRecordingJsonCtx *args)
     unsigned long long at = 0ULL;
     while (whole && (at < length))
     {
-        whole = (text[at] >= '0') && (text[at] <= '9');
+        // Explicit cast reads the byte as its code point
+        whole = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)text[at]});
         *value = (*value * 10ULL) + (unsigned long long)(text[at] - '0');
         at += 1ULL;
     }

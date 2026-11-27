@@ -126,15 +126,10 @@ static void tracked_tree_written(void)
 // whether `text` contains `part`
 static int text_contains(const char *text, const char *part)
 {
-    const unsigned long long length = CLI_UNITY_LENGTH(part);
-    for (const char *at = text; *at != '\0'; at += 1)
-    {
-        if (cellul.starts(&(CatenaFinitaCfg){.src = at, .other = part, .cap = length}))
-        {
-            return 1;
-        }
-    }
-    return 0;
+    return cellul.has(
+               &(CatenaFinitaCfg){.src = text, .cap = CLI_POOL_BYTES, .other = part, .other_cap = CLI_POOL_BYTES})
+               ? 1
+               : 0;
 }
 
 void setUp(void)

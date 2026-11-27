@@ -6,6 +6,7 @@
 #include "../text/digest.h"
 #include "../text/text.h"
 #include "archive.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "latex_internal.h"
 
 typedef struct
@@ -61,8 +62,10 @@ void cli_latex_job_get(const CliLatexFileCtx *args)
     while (plain && (at < start + size))
     {
         const char character = args->file_read[at];
-        plain = ((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z')) ||
-                ((character >= '0') && (character <= '9')) || (character == '-') || (character == '_');
+        // Explicit cast reads the byte as its code point
+        plain = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)character}) ||
+                (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character})) || (character == '-') ||
+                (character == '_');
         at += 1ULL;
     }
     if (!plain)

@@ -9,6 +9,7 @@
 #include "schema_internal.h"
 
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // the max characters of a string a pattern is matched against, the max bytes of a pattern, and the bytes a value is
 // written in before it is cut short
@@ -95,7 +96,8 @@ int cli_schema_u64(const CliSchemaJsonNodeValueU64sCtx *args)
     unsigned long long read = 0ULL;
     for (unsigned long long at = 0ULL; at < one->length; at += 1u)
     {
-        if ((text[at] < '0') || (text[at] > '9') || (read > (~0ULL - 9u) / 10u))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)text[at]})) || (read > (~0ULL - 9u) / 10u))
         {
             return 0;
         }

@@ -105,16 +105,19 @@ unsigned int krs_frame_read(const char *path)
         {
             continue;
         }
-        char *const form =
+        // each tab reached through the line itself, which the loop writes
+        const char *const form_found =
             EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
-        if (form == NULL)
+        if (form_found == NULL)
         {
             continue;
         }
+        char *const form = &line[form_found - line];
         *form = '\0';
         // The places column can be empty, a form of no parameters, and a line can end before it.
-        char *const places =
+        const char *const places_found =
             EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = form + 1, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\t');
+        char *const places = (places_found != NULL) ? &line[places_found - line] : NULL;
         if (places != NULL)
         {
             *places = '\0';
@@ -154,7 +157,11 @@ unsigned int krs_frame_read(const char *path)
 static unsigned int frame_places_count(const char *text)
 {
     unsigned int seen = 0u;
-    for (const char *walk = text; *walk != '\0'; walk += 1)
+    // each open brace, where a place begins, reached from the one before it
+    for (const char *walk =
+             EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '{');
+         walk != NULL; walk = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = walk + 1,
+                                         .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '{'))
     {
         unsigned int place = 0u;
         int length = 0;

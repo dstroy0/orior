@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cycle_compile_toolchain.cu: the environment, the compiler and linker, and the cache's names
 #include "../../../../platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "cycle_compile_internal.h"
 #include "memoria_operor/memoria_operor.h"
@@ -22,7 +23,8 @@ unsigned long long cycle_environment_microseconds(const char *name, unsigned lon
 {
     char value_text[PLATFORM_ENVIRONMENT_BYTES];
     const char *const value = (platform_environment(name, value_text, sizeof(value_text)) != 0ULL) ? value_text : NULL;
-    if ((value == NULL) || (value[0] < '0') || (value[0] > '9'))
+    // Explicit cast reads the byte as its code point
+    if ((value == NULL) || !EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)value[0]))
     {
         return otherwise;
     }

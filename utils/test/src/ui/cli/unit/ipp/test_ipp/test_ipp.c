@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_ipp.c: IPP: a message reads back as written, an address gives its host, port and path, and a CUPS server lists its printers, accepts a
 // job and cancels one. The server tests run where ORIOR_CUPS names a server as host:port
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "ui/cli/src/print/ipp.h"
 #include "ui/cli/src/text/text.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
@@ -76,7 +77,9 @@ static void server_required(void)
     }
     char *const colon = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = named, .length_value = CLI_UNITY_LENGTH(named), .byte = ':');
     s_port = 0u;
-    for (const char *digit = (colon != NULL) ? colon + 1 : ""; (digit[0] >= '0') && (digit[0] <= '9'); digit += 1)
+    // Explicit cast reads the byte as its code point
+    for (const char *digit = (colon != NULL) ? colon + 1 : "";
+         ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)digit[0]}); digit += 1)
     {
         // a digit's value is below 10
         s_port = (s_port * 10u) + (unsigned int)(digit[0] - '0');

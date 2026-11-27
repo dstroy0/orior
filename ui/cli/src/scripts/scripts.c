@@ -12,6 +12,7 @@
 #include "../programs/executables.h"
 #include "../servers/lsp.h"
 #include "../text/json_tree.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "scripts_internal.h"
 
 // the most bytes of a plugin's code, the most bytes of its stored state, and how often the watcher looks, in
@@ -115,7 +116,9 @@ EMBED_INLINE unsigned long long scripts_number(const ScriptsCtx *args)
     const char *const text = args->json->text + args->json->node[node].text;
     unsigned long long value = 0ULL;
     unsigned long long at = 0ULL;
-    while ((at < args->json->node[node].length) && (text[at] >= '0') && (text[at] <= '9'))
+    // Explicit cast reads the byte as its code point
+    while ((at < args->json->node[node].length) &&
+           ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)text[at]}))
     {
         value = (value * 10ULL) + (unsigned long long)(text[at] - '0');
         at += 1ULL;

@@ -4,6 +4,7 @@
 // name or path
 #include "../../../../includes/regexp/regexp.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "editorconfig.h"
 
 // A pattern spread: the file's name or path its texts are matched against, the text spread so far, and how many texts
@@ -183,7 +184,10 @@ EMBED_INLINE int cli_span_is_whole_word(const EditorconfigNamesCtx *args)
     for (unsigned long long step = sign; step < args->length; step += 1ULL)
     {
         const unsigned int digit = args->at[step] - '0';
-        if ((args->at[step] < '0') || (args->at[step] > '9') || (size > ((max - digit) / 10ULL)))
+        // Explicit cast reads the byte as its code point
+        if (!((((args->at[step]) < 0x80u) &&
+               ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)(args->at[step])}))) ||
+            (size > ((max - digit) / 10ULL)))
         {
             return 0;
         }

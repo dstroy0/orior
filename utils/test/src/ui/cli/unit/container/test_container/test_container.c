@@ -6,6 +6,7 @@
 // head before any case runs
 #include <stdlib.h>
 
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "ui/cli/src/command_line/command_line.h"
 #include "ui/cli/src/comms/container.h"
 #include "ui/cli/src/runs/runner.h"
@@ -124,10 +125,12 @@ static unsigned int head_run_result(const char *variable, unsigned int *ids)
         return 0u;
     }
     at += 4;
-    while ((count < 2u) && (at[0] >= '0') && (at[0] <= '9'))
+    // Explicit cast reads the byte as its code point
+    while ((count < 2u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)at[0]}))
     {
         ids[count] = 0u;
-        for (; (at[0] >= '0') && (at[0] <= '9'); at += 1)
+        // Explicit cast reads the byte as its code point
+        for (; ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)at[0]}); at += 1)
         {
             ids[count] = ids[count] * 10u + (unsigned int)(at[0] - '0');
         }

@@ -4,6 +4,7 @@
 // updates every snapshot dependency of its build, each passed to the reader of its type. One check runs at a time, its
 // findings stored in their own capacity
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "gradle_internal.h"
 #include "maven_internal.h"
 #include "scons_internal.h"
@@ -26,7 +27,8 @@ unsigned int cli_build_type_get(const CliBuildsPathCfg *args)
     }
     for (embed_word at = 0u; at <= length; at += 1u)
     {
-        lower[at] = ((name[at] >= 'A') && (name[at] <= 'Z')) ? (char)(name[at] - 'A' + 'a') : name[at];
+        // Explicit cast reads the byte as its code point
+        lower[at] = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)name[at]});
     }
     if (EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = lower, .size = length,
                    .suffix = ".gradle") ||

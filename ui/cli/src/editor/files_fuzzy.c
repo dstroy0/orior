@@ -4,6 +4,7 @@
 // than half its characters or three, a character scoring more at the start of a word or past where the text's name
 // starts. The palette's own matcher, fuzzy.js, scores the same
 #include "../../../../includes/regexp/regexp.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "files_internal.h"
 
 unsigned int cli_top_put(const CliFilesTopCtx *args)
@@ -71,7 +72,9 @@ EMBED_INLINE int cli_splits(const FilesFuzzyCtx *args)
 EMBED_INLINE int cli_upper(const FilesFuzzyCtx *args)
 {
     unsigned int character = args->character;
-    return args->bytes ? ((character >= 'A') && (character <= 'Z'))
+    // Explicit cast reads the byte as its code point
+    return args->bytes ? (((character) < 0x80u) &&
+                          ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)(character)}))
                        : EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_UPPER,
                                     .character = character);
 }

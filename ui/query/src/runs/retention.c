@@ -8,6 +8,7 @@
 // part is free and the crystal's program
 #include "../../../cli/src/command_line/callback_cfg.h"
 #include "../../../cli/src/text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "retention_internal.h"
 
 // The folders found containing runs: where they are stored, sorted, NULL for a walk that counts them, their count and
@@ -155,12 +156,13 @@ static void query_folder_walk(const CliEachNameIsFolderCfg *args)
         return;
     }
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES});
+    // Explicit cast reads the byte as its code point
     level->has_run =
         level->has_run ||
         ((cellul.starts(&(CatenaFinitaCfg){.src = args->name, .other = "query", .cap = CLI_POOL_BYTES})) &&
          (length > 9u) &&
          (cellul.eq(&(CatenaFinitaCfg){.src = args->name + length - 4u, .other = ".qry", .cap = CLI_POOL_BYTES})) &&
-         (args->name[5] >= '0') && (args->name[5] <= '9') &&
+         ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->name[5]}) &&
          (cellul.chr(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES, .byte = '-'}) != NULL));
 }
 

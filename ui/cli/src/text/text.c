@@ -7,6 +7,7 @@
 #include "json_tree.h"
 
 #include "../../../includes/utf8/utf8.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
@@ -36,7 +37,8 @@ int cli_text_alphabetic(const CliTextCfg *args)
     unsigned int character = args->character;
     if (character < 0x80u)
     {
-        return ((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z'));
+        // Explicit cast reads a code point below 0x80 as its byte
+        return ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)character});
     }
     return EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_CHARACTER, .character = character);
 }
@@ -46,8 +48,9 @@ int cli_text_alphanumeric(const CliTextCfg *args)
     unsigned int character = args->character;
     if (character < 0x80u)
     {
+        // Explicit cast reads the byte as its code point
         return EMBED_CALL(cli_text_table.alphabetic, CliTextCfg, .character = character) ||
-               ((character >= '0') && (character <= '9'));
+               ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character});
     }
     return EMBED_CALL(regexp_character.property, RegexpLetterCfg, .property = REGEXP_CHARACTER,
                       .character = character) ||
@@ -66,7 +69,6 @@ typedef struct
     int in;
     unsigned int classes;
     char byte;
-    int in_set;
     embed_word valued;
     unsigned long long count;
 } TextCtx;
@@ -823,10 +825,18 @@ int cli_text_quoted_end(const CliTextAtSizeCfg *args)
     {
         return 0;
     }
+    // the close of the quote: each run up to the quote, a line end or a back slash, and past each back slash the byte
+    // that it escapes
+    const char stops[4] = {rest[0], '\n', '\\', '\0'};
     unsigned long long walk = args->at + 1u;
-    while ((walk < args->size) && (args->text[walk] != rest[0]) && (args->text[walk] != '\n'))
+    while (walk < args->size)
     {
-        walk += (args->text[walk] == '\\') ? 2u : 1u;
+        walk += cellul.span_not(&(CatenaFinitaCfg){.src = &args->text[walk], .cap = args->size - walk, .other = stops});
+        if ((walk >= args->size) || (args->text[walk] != '\\'))
+        {
+            break;
+        }
+        walk += 2u;
     }
     *end = (walk + 1u < args->size) ? walk + 1u : args->size;
     return 1;
@@ -932,7 +942,8 @@ int cli_text_same(const CliTextSizeOneCfg *args)
 // a byte with an ASCII capital made its small character
 EMBED_INLINE char text_folded(const TextCtx *args)
 {
-    return ((args->byte >= 'A') && (args->byte <= 'Z')) ? (char)(args->byte + ('a' - 'A')) : args->byte;
+    // Explicit casts read the byte as its code point, and the folded letter back as a byte of the text
+    return (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)args->byte});
 }
 
 int cli_text_same_folded(const CliTextSizeOneCfg *args)
@@ -942,96 +953,53 @@ int cli_text_same_folded(const CliTextSizeOneCfg *args)
     {
         return 0;
     }
-    // a word at a time: the lanes that differ past a character's case, among the lanes loaded, say the texts differ
-    for (unsigned long long at = 0ULL; at < args->size; at += MMGR_SWAR_BYTES)
-    {
-        const embed_word bytes =
-            ((args->size - at) < MMGR_SWAR_BYTES) ? (embed_word)(args->size - at) : MMGR_SWAR_BYTES;
-        const embed_word one = EMBED_CALL(text_word_loaded, TextCtx, .text = args->one, .at = at, .size = args->size);
-        const embed_word two = EMBED_CALL(text_word_loaded, TextCtx, .text = other, .at = at, .size = args->size);
-        const embed_word same = lane.has_zero(
-            &(ScrutLaneCfg){.word = lane.xor_(&(ScrutLaneCfg){.word = one, .val = two, .ci = EMBED_TRUE})});
-        if ((~same & mask.lanes_below(&(ScrutMaskCfg){.bytes = bytes})) != 0u)
-        {
-            return 0;
-        }
-    }
-    return 1;
+    // the two the same past a character's case where no byte differs in the size
+    return cellul.diff(&(CatenaFinitaCfg){.src = args->one, .cap = args->size, .other = other, .ci = EMBED_TRUE}) ==
+           args->size;
 }
 
 int cli_text_before_folded(const CliTextSizeOneCfg *args)
 {
-    const char *one = args->one;
-    const char *other = args->other_pointer;
-    for (;; one += 1, other += 1)
+    // the first byte where the two differ past their case, read over the shorter text and its terminator
+    const char *const one = args->one;
+    const char *const other = args->other_pointer;
+    const size_t one_length = cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_POOL_BYTES});
+    const size_t other_length = cellul.len(&(CatenaFinitaCfg){.src = other, .cap = CLI_POOL_BYTES});
+    const size_t reach = ((one_length < other_length) ? one_length : other_length) + 1u;
+    const size_t at = cellul.diff(&(CatenaFinitaCfg){.src = one, .cap = reach, .other = other, .ci = EMBED_TRUE});
+    if (at >= reach)
     {
-        const char left = EMBED_CALL(text_folded, TextCtx, .byte = one[0]);
-        const char right = EMBED_CALL(text_folded, TextCtx, .byte = other[0]);
-        if ((left != right) || (left == '\0'))
-        {
-            return (unsigned char)left < (unsigned char)right;
-        }
+        return 0;
     }
+    const char left = EMBED_CALL(text_folded, TextCtx, .byte = one[at]);
+    const char right = EMBED_CALL(text_folded, TextCtx, .byte = other[at]);
+    // Explicit casts order the folded bytes as unsigned
+    return (unsigned char)left < (unsigned char)right;
 }
 
 unsigned int cli_text_hex_digit(const CliTextByteCfg *args)
 {
-    // a digit's distance from the first of its run is below 16 where the digit is one
-    if ((args->byte >= '0') && (args->byte <= '9'))
+    // Explicit casts read the byte as its code point, and the folded letter as a count from 'a'
+    const uint8_t code = (uint8_t)args->byte;
+    if (!ascii.in(&(AsciiCfg){.type = MMGR_ASCII_HEX, .byte = code}))
     {
-        return (unsigned int)(args->byte - '0');
+        return 16u;
     }
-    if ((args->byte >= 'a') && (args->byte <= 'f'))
-    {
-        return (unsigned int)(args->byte - 'a') + 10u;
-    }
-    if ((args->byte >= 'A') && (args->byte <= 'F'))
-    {
-        return (unsigned int)(args->byte - 'A') + 10u;
-    }
-    return 16u;
+    return ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = code})
+               ? (unsigned int)(code - '0')
+               : (unsigned int)(ascii.lower(&(AsciiCfg){.byte = code}) - 'a') + 10u;
 }
 
-// Walks the aligned words the text is in from the one containing its first byte, a word at a time: each word tested
-// against every byte of the set in every lane at once and the lanes the set contains joined, the lanes before the text
-// masked off, and the first lane that stops the run taken: its terminator, or a byte of the set where `in_set` and
-// one outside it where not. Every load is an aligned word containing a byte of the text, so nothing outside those words
-// is read
-EMBED_INLINE unsigned long long text_run(const TextCtx *args)
-{
-    // Explicit casts read the addresses as integers, so a word's place and the text's start compare as numbers
-    const embed_word first = (embed_word)args->text;
-    embed_word word_at = first & ~(embed_word)(MMGR_SWAR_BYTES - 1u);
-    embed_word before = mask.lanes_below(&(ScrutMaskCfg){.bytes = (first - word_at)});
-    for (;;)
-    {
-        const embed_word loaded = word.load_al(&(ScrutWordCfg){.at = (const void *)word_at});
-        embed_word match_mask = 0u;
-        for (const char *character = args->set; *character != '\0'; character += 1)
-        {
-            // Explicit cast reads the set's byte as unsigned before it is repeated into every lane
-            match_mask |= lane.eq(&(ScrutLaneCfg){.word = loaded, .byte = (embed_u8)*character});
-        }
-        const embed_word ended = lane.has_zero(&(ScrutLaneCfg){.word = loaded});
-        const embed_word stops =
-            (ended | (args->in_set ? match_mask : (~match_mask & MMGR_VERBUM_SCRUTOR_HIGH))) & ~before;
-        if (stops != 0u)
-        {
-            return (unsigned long long)(word_at + lane.first(&(ScrutLaneCfg){.mask = stops}) - first);
-        }
-        word_at += MMGR_SWAR_BYTES;
-        before = 0u;
-    }
-}
-
+// The bytes at the start of the text before the first byte that the set holds, or before the terminator
 unsigned long long cli_text_upto(const CliTextSetCfg *args)
 {
-    return EMBED_CALL(text_run, TextCtx, .text = args->text, .set = args->set, .in_set = 1);
+    return cellul.span_not(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES, .other = args->set});
 }
 
+// The bytes at the start of the text that the set holds, before the first that it does not or the terminator
 unsigned long long cli_text_over(const CliTextSetCfg *args)
 {
-    return EMBED_CALL(text_run, TextCtx, .text = args->text, .set = args->set, .in_set = 0);
+    return cellul.span(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_POOL_BYTES, .other = args->set});
 }
 
 // Walks the aligned words the text is in, from the one containing its last byte back to the one containing its

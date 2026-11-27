@@ -12,14 +12,9 @@ static char s_text[WALK_BYTES + 1u];
 
 static int byte_in_set(char byte, const char *set)
 {
-    for (const char *one = set; *one != '\0'; one += 1)
-    {
-        if (*one == byte)
-        {
-            return 1;
-        }
-    }
-    return 0;
+    // Explicit cast reads the byte as its code point. A byte of 0 is the set's terminator, which no set holds
+    return (byte != '\0') &&
+           (cellul.chr(&(CatenaFinitaCfg){.src = set, .cap = CLI_POOL_BYTES, .byte = (uint8_t)byte}) != NULL);
 }
 
 // the text filled with a newline every `every` bytes, 0 for none, a word's and a lane's scan turning on them

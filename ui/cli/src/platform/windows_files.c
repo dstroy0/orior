@@ -3,6 +3,7 @@
 // windows_files.c: the command line's file sizes, moves and writes, and the wall clock on Windows
 #include "../command_line/cli_internal.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -32,7 +33,9 @@ int cli_path_absolute(const CliPathCtx *args)
 {
     const char *const path = args->path;
     const char letter = (char)(path[0] | 0x20);
-    const int drive = (letter >= 'a') && (letter <= 'z') && (path[1] == ':') && ((path[2] == '\\') || (path[2] == '/'));
+    // Explicit cast reads the byte as its code point
+    const int drive = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)letter}) && (path[1] == ':') &&
+                      ((path[2] == '\\') || (path[2] == '/'));
     const int shared = ((path[0] == '\\') || (path[0] == '/')) && ((path[1] == '\\') || (path[1] == '/'));
     return drive || shared;
 }

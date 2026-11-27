@@ -7,6 +7,7 @@
 #include "../command_line/pool.h"
 #include "../text/text.h"
 #include "../toolchains/toolchains.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "executables_internal.h"
 
 // the max ranges of difference reported, and the max bytes of a tree's .env read
@@ -280,8 +281,10 @@ EMBED_INLINE void cli_dot_env(const ExecutablesCompareCtx *args)
             while (named && (at < name_length))
             {
                 const char one = name[at];
-                named = ((one >= 'a') && (one <= 'z')) || ((one >= 'A') && (one <= 'Z')) ||
-                        ((one >= '0') && (one <= '9')) || (one == '_') || ((unsigned char)one >= 0x80u);
+                // Explicit cast reads the byte as its code point
+                named = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)one}) ||
+                        (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)one})) || (one == '_') ||
+                        ((unsigned char)one >= 0x80u);
                 at += 1ULL;
             }
         }

@@ -10,6 +10,7 @@
 #include "servers_internal.h"
 
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // the max files whose diagnostics are stored, and the max bytes a report writes for each byte of it stored: an empty
 // report and its comma are 3 bytes, and it writes every member of a diagnostic
@@ -296,7 +297,8 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
         while (construct && (at < sizeof(s_construct) - 1u))
         {
             const char one = uri[length - (sizeof(s_construct) - 1u) + at];
-            const char lower = ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one;
+            // Explicit cast reads the byte as its code point
+            const char lower = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)one});
             construct = (lower == s_construct[at]);
             at += 1u;
         }
@@ -306,7 +308,8 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
         while (script && (at < sizeof(s_script) - 1u))
         {
             const char one = uri[length - (sizeof(s_script) - 1u) + at];
-            const char lower = ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one;
+            // Explicit cast reads the byte as its code point
+            const char lower = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)one});
             script = (lower == s_script[at]);
             at += 1u;
         }

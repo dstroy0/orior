@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // git.c: the commit and the branch a tree is at, and the files that differ from their last commits
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "git_internal.h"
 
 // the state character for a porcelain status's two columns
@@ -46,12 +47,14 @@ int cli_git_head(const CliGitRootCommitCfg *args)
     const char *space = from;
     space += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = space, .at = 0ULL,
                         .size = (unsigned long long)(to - space), .set = " ");
-    found = found && (space < to) && (space[1] >= '0') && (space[1] <= '9');
+    // Explicit cast reads the byte as its code point
+    found = found && (space < to) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)space[1]});
     long long seconds = 0LL;
     const char *digit = space + 1;
     while (found && (digit < to))
     {
-        found = (digit[0] >= '0') && (digit[0] <= '9');
+        // Explicit cast reads the byte as its code point
+        found = ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)digit[0]});
         seconds = (seconds * 10LL) + (long long)(digit[0] - '0');
         digit += 1;
     }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "decimal_double.h"
 #include "../../../../src/platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 #include <limits.h>
 #include <stdint.h>
@@ -253,9 +254,10 @@ static int decimal_double_expand_work(const DecimalDoubleRequest *request, Decim
     EngineError *const error = request->error;
     for (size_t index = 0u; index < request->digit_count; index += 1u)
     {
+        // Explicit cast reads the byte as its code point
         const char digit = request->digits[index];
-        if (!DECIMAL_DOUBLE_CHECK((digit >= '0') && (digit <= '9'), &request->digits[index], error,
-                                  ENGINE_ERROR_REQUEST))
+        if (!DECIMAL_DOUBLE_CHECK(EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)digit),
+                                  &request->digits[index], error, ENGINE_ERROR_REQUEST))
         {
             return 0;
         }

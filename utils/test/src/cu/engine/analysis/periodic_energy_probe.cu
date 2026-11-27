@@ -218,8 +218,10 @@ static void probe_results(SimResults *results)
     char *at = results->line.out;
     while (*at != '\0')
     {
-        char *end =
+        // the line end reached through the line itself, which the loop writes
+        const char *const end_found =
             EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '\n');
+        char *end = (end_found != NULL) ? &at[end_found - at] : NULL;
         if (end != NULL)
         {
             *end = '\0';

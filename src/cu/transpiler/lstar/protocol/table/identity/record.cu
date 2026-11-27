@@ -408,15 +408,14 @@ void record_close(void)
     s_query_record_path[0] = '\0';
 }
 
+// the bytes that the extraction of a stream takes as spaces
+#define RECORD_SPACES " \t\n\r\v\f"
+
 // a place past the spaces of `text` from `at`, as the extraction of a stream skips them
 static size_t record_spaces_past(const char *text, size_t at)
 {
-    while ((text[at] == ' ') || (text[at] == '\t') || (text[at] == '\n') || (text[at] == '\r') || (text[at] == '\v') ||
-           (text[at] == '\f'))
-    {
-        at += 1u;
-    }
-    return at;
+    return at + EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = RECORD_SPACES);
 }
 
 // The run rows of the .ksc at `ksc` that record a query, into the record, ordered by key. A key the .ksc gives twice
@@ -466,10 +465,8 @@ static void records_read(const char *ksc)
                 break;
             }
             const size_t word_first = place;
-            while ((words[place] != '\0') && (record_spaces_past(words, place) == place))
-            {
-                place += 1u;
-            }
+            place += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &words[place],
+                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = RECORD_SPACES);
             if (read != 0u)
             {
                 mmgr_line_ch(&key_line, ' ');

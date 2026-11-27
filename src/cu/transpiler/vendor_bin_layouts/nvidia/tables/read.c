@@ -4,6 +4,7 @@
 // operand
 #include "read.h"
 #include "../../../../../platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
@@ -29,11 +30,7 @@ static inline int read_text_order(const char *left, const char *right, size_t ca
 
 static const char *tables_past_spaces(const char *at)
 {
-    while ((*at == ' ') || (*at == '\t'))
-    {
-        at += 1;
-    }
-    return at;
+    return at + EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = at, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " \t");
 }
 
 static int tables_set_grown(TablesSet *set)
@@ -266,9 +263,10 @@ static void tables_name_before(const char *text, const char *end, char *name)
     }
     const char *at = colon + 1;
     size_t length = 0u;
-    while ((at + length < end) && (length + 1u < TABLES_NAME) &&
-           (((at[length] >= 'a') && (at[length] <= 'z')) || ((at[length] >= 'A') && (at[length] <= 'Z')) ||
-            ((at[length] >= '0') && (at[length] <= '9')) || (at[length] == '_')))
+    // Explicit cast reads the byte as its code point
+    while (
+        (at + length < end) && (length + 1u < TABLES_NAME) &&
+        (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_ALNUM, .byte = (uint8_t)at[length]) || (at[length] == '_')))
     {
         name[length] = at[length];
         length += 1u;
@@ -316,28 +314,21 @@ static void tables_size_read(const char *line, TablesClass *class_)
     class_->size_list[list_copied] = '\0';
     for (const char *at = size + 4; (at < open) && (class_->sizes < TABLES_SIZES);)
     {
-        const char *end = at;
-        while ((end < open) && (*end != '_'))
-        {
-            end += 1;
-        }
-        const char *digits = at;
-        while ((digits < end) && ((*digits < '0') || (*digits > '9')))
-        {
-            digits += 1;
-        }
+        // the size up to its underscore, and its digits past the letters before them. Explicit casts take the bytes
+        // before the parenthesis and before the underscore as counts, which never run back
+        const char *const end =
+            at + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = at, .cap = (size_t)(open - at), .other = "_");
+        const char *const digits = at + EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = at,
+                                                   .cap = (size_t)(end - at), .other = "0123456789");
         class_->size_bytes[class_->sizes] =
             (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = digits, .end = NULL, .base = 10) / 8u;
         class_->sizes += 1u;
         at = end + 1;
     }
-    size_t length = 0u;
-    for (const char *at = close + 2; (*at != '\0') && (*at != ' ') && (*at != ';') && (length + 1u < TABLES_NAME);
-         at += 1)
-    {
-        class_->size[length] = *at;
-        length += 1u;
-    }
+    // the size's name up to its space or its semicolon, cut to the room
+    const size_t length =
+        EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = close + 2, .cap = TABLES_NAME - 1u, .other = " ;");
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = class_->size, .src = close + 2, .bytes = length);
     class_->size[length] = '\0';
 }
 
@@ -511,7 +502,8 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
             register_type = 0;
             continue;
         }
-        else if ((line[0] >= 'A') && (line[0] <= 'Z') &&
+        // Explicit cast reads the byte as its code point
+        else if (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_UPPER, .byte = (uint8_t)line[0]) &&
                  (EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
                              .other = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_") == length))
         {
@@ -716,8 +708,8 @@ static int tables_condition_word(TablesCondition *condition, const char *word)
 
 static int tables_condition_name_char(char character)
 {
-    return ((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z')) ||
-           ((character >= '0') && (character <= '9')) || (character == '_');
+    // Explicit cast reads the byte as its code point
+    return EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_ALNUM, .byte = (uint8_t)character) || (character == '_');
 }
 
 // a constant after the backquote, `` `Register@RZ ``, `` `SZ_U8_S8_U16_S16_32_64@"64" ``: the registers' own by
@@ -846,7 +838,8 @@ static long long tables_condition_primary(TablesCondition *condition)
         }
         return value;
     }
-    if ((*condition->at >= '0') && (*condition->at <= '9'))
+    // Explicit cast reads the byte as its code point
+    if (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)*condition->at))
     {
         const char *end = NULL;
         // The text opens with a digit, and so the read has no sign. Explicit cast carries the unsigned word to the

@@ -12,6 +12,7 @@
 #include "../command_line/pool.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cargo_tests.h"
 #include "embed_atomic.h"
 #include "test_runs.h"
@@ -635,8 +636,10 @@ EMBED_INLINE unsigned int tests_milliseconds(const TestsPaneCtx *args)
     unsigned long long milliseconds = 1000ULL * EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = written,
                                                            .at = 0ULL, .size = size, .end = &at);
     unsigned long long place = 100ULL;
-    for (unsigned long long each = at + 1ULL; (at < size) && (written[at] == '.') && (each < size) &&
-                                              (written[each] >= '0') && (written[each] <= '9') && (place != 0ULL);
+    // Explicit cast reads each byte of the time as its code point
+    for (unsigned long long each = at + 1ULL;
+         (at < size) && (written[at] == '.') && (each < size) &&
+         ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)written[each]}) && (place != 0ULL);
          each += 1ULL)
     {
         milliseconds += (unsigned long long)(written[each] - '0') * place;

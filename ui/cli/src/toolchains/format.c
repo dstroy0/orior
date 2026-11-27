@@ -3,6 +3,7 @@
 // format.c: a file's language by the plugins, the toolchain that formats a language, and a text formatted by it
 #include "../plugins/plugins.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "format_internal.h"
 
 CliFormatWorkState g_cli_format;
@@ -36,10 +37,10 @@ EMBED_INLINE int cli_same_case_aside(const FormatCtx *args)
     }
     for (unsigned long long at = 0ULL; at < args->one_length; at += 1ULL)
     {
-        const char left =
-            ((args->one[at] >= 'A') && (args->one[at] <= 'Z')) ? (char)(args->one[at] + 32) : args->one[at];
-        const char right =
-            ((args->other[at] >= 'A') && (args->other[at] <= 'Z')) ? (char)(args->other[at] + 32) : args->other[at];
+        // Explicit cast reads the byte as its code point
+        const char left = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)args->one[at]});
+        // Explicit cast reads the byte as its code point
+        const char right = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)args->other[at]});
         if (left != right)
         {
             return 0;

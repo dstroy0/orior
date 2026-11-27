@@ -3,6 +3,7 @@
 // tokens.c: the tokens of an instruction's text: spaces, a token taken, digits, the high half, an operand's type and
 // the operand taken, an instruction read, and two forms the same
 #include "../../../../../platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sass_machine_internal.h"
@@ -16,11 +17,9 @@ static int sass_is_space(char character)
 // SASS_MACHINE_TOKEN characters
 static void sass_token_take(char *token, const char *text, size_t length)
 {
-    while ((length != 0u) && sass_is_space(*text))
-    {
-        text += 1;
-        length -= 1u;
-    }
+    const size_t lead = EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text, .cap = length, .other = SASS_SPACES);
+    text += lead;
+    length -= lead;
     while ((length != 0u) && sass_is_space(text[length - 1u]))
     {
         length -= 1u;
@@ -34,7 +33,8 @@ static void sass_token_take(char *token, const char *text, size_t length)
 static int sass_all_digits(const char *text, size_t at)
 {
     const size_t first = at;
-    while ((text[at] >= '0') && (text[at] <= '9'))
+    // Explicit cast reads the byte as its code point
+    while (EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)text[at]))
     {
         at += 1u;
     }
@@ -158,20 +158,16 @@ static void sass_operand_take(SassInstructionParts *parts, unsigned int place, c
 void sass_instruction_read(const char *text, SassInstructionParts *parts)
 {
     EMBED_CALL(memor.set, MemoriaCfg, .dst = parts, .bytes = sizeof(*parts), .val = 0);
-    while (sass_is_space(*text))
-    {
-        text += 1;
-    }
+    text +=
+        EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = SASS_SPACES);
     if (*text == '@')
     {
         const size_t length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = text,
                                          .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = SASS_SPACES);
         sass_token_take(parts->guard, text, length);
         text += length;
-        while (sass_is_space(*text))
-        {
-            text += 1;
-        }
+        text += EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                           .other = SASS_SPACES);
     }
     const size_t operation_length = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = text,
                                                .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = SASS_SPACES);

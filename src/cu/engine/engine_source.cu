@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // engine_source.cu: zip names, the source's type, its description and its bytes
 #include "../../platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "engine_internal.h"
 #include "engine_note.h"
@@ -15,7 +16,8 @@ int entry_ends(const char *path, const char *suffix)
     for (size_t at = 0u; same && (at < size); at += 1u)
     {
         const char character = path[length - size + at];
-        const char lowered = (char)(((character >= 'A') && (character <= 'Z')) ? (character + 32) : character);
+        // Explicit cast reads the byte as its code point
+        const char lowered = (char)EMBED_CALL(ascii.lower, AsciiCfg, .byte = (uint8_t)character);
         same = (lowered == suffix[at]);
     }
     return same;

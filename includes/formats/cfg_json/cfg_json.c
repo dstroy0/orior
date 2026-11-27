@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "cfg_json.h"
 #include "../../../src/platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
@@ -86,18 +87,20 @@ static int cfg_json_quoted(CfgJsonWalk *walk)
 // whether the character at the walk's place is a digit
 static int cfg_json_digit_at(const CfgJsonWalk *walk)
 {
-    return (walk->at < walk->length) && (walk->text[walk->at] >= '0') && (walk->text[walk->at] <= '9');
+    // Explicit cast reads the byte as its code point
+    return (walk->at < walk->length) &&
+           EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)walk->text[walk->at]);
 }
 
 // the digits at the walk's place passed over: how many
 static size_t cfg_json_digits(CfgJsonWalk *walk)
 {
-    const size_t from = walk->at;
-    while (cfg_json_digit_at(walk))
-    {
-        walk->at += 1u;
-    }
-    return walk->at - from;
+    const size_t digits = (walk->at < walk->length)
+                              ? EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &walk->text[walk->at],
+                                           .cap = walk->length - walk->at, .other = "0123456789")
+                              : 0u;
+    walk->at += digits;
+    return digits;
 }
 
 // a number as RFC 8259 writes one (section 6), a minus, then 0 or digits not opening with 0, where fractions are
@@ -233,7 +236,8 @@ static int cfg_json_value(CfgJsonWalk *walk, char byte)
     {
         return cfg_json_quoted(walk);
     }
-    if ((byte == '-') || ((byte >= '0') && (byte <= '9')))
+    // Explicit cast reads the byte as its code point
+    if ((byte == '-') || EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)byte))
     {
         return cfg_json_number(walk);
     }
@@ -362,19 +366,15 @@ int cfg_json_unsigned(const char *text, const CfgJsonToken *token, unsigned long
 // a hex digit's value; 16 where `digit` is none
 static unsigned int cfg_json_nibble(char digit)
 {
-    if ((digit >= '0') && (digit <= '9'))
+    // Explicit casts read the byte as its code point, and the folded letter as a count from 'a'
+    const uint8_t code = (uint8_t)digit;
+    if (!EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_HEX, .byte = code))
     {
-        return (unsigned int)(digit - '0');
+        return 16u;
     }
-    if ((digit >= 'a') && (digit <= 'f'))
-    {
-        return (unsigned int)(digit - 'a') + 10u;
-    }
-    if ((digit >= 'A') && (digit <= 'F'))
-    {
-        return (unsigned int)(digit - 'A') + 10u;
-    }
-    return 16u;
+    return EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = code)
+               ? (unsigned int)(code - '0')
+               : (unsigned int)(EMBED_CALL(ascii.lower, AsciiCfg, .byte = code) - 'a') + 10u;
 }
 
 static unsigned int cfg_json_hex4(const char *text, size_t at, size_t end)

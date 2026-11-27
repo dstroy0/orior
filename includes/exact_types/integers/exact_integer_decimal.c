@@ -1,5 +1,6 @@
 
 // exact_integer_decimal.c: small scaling and decimal reading
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "exact_integer_internal.h"
 
 /** @brief Ten raised to each power a single limb multiply can apply, 10^0 to 10^9. */
@@ -142,7 +143,8 @@ static int decimal_is_space(char one)
  */
 static int decimal_is_digit(char one)
 {
-    return ((one >= '0') && (one <= '9')) ? 1 : 0;
+    // Explicit cast reads the byte as its code point
+    return EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)one) ? 1 : 0;
 }
 
 /**

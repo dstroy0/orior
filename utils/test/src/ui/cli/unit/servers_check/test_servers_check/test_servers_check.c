@@ -31,24 +31,13 @@ static unsigned long long check_bytes_in_use(void)
     const char *line = s_owners;
     while (*line != '\0')
     {
-        const char *tab = line;
-        while ((*tab != '\0') && (*tab != '\t'))
-        {
-            tab += 1u;
-        }
+        const char *const tab =
+            line + cellul.span_not(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES, .other = "\t"});
         if ((*tab == '\t') && (memor.cmp(&(MemoriaCfg){.src = line, .other = s_named, .bytes = sizeof(s_named) - 1u}) == 0))
         {
-            unsigned long long value = 0ull;
-            for (const char *digit = tab + 1u; (*digit >= '0') && (*digit <= '9'); digit += 1u)
-            {
-                value = (value * 10ull) + (unsigned long long)(*digit - '0');
-            }
-            in_use += value;
+            in_use += cellul.to_ulong(&(TransfiguroCfg){.src = tab + 1u});
         }
-        while ((*line != '\0') && (*line != '\n'))
-        {
-            line += 1u;
-        }
+        line += cellul.span_not(&(CatenaFinitaCfg){.src = line, .cap = CLI_POOL_BYTES, .other = "\n"});
         line += (*line != '\0') ? 1u : 0u;
     }
     return in_use;

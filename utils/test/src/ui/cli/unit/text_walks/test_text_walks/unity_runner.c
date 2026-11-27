@@ -97,34 +97,50 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/text_walks/test_text_walks/test_text_walks.c");
-  run_test(test_a_byte_the_text_does_not_contain_scans_to_each_end, "test_a_byte_the_text_does_not_contain_scans_to_each_end", 81);
-  run_test(test_one_byte_is_found_at_its_first_and_last_position, "test_one_byte_is_found_at_its_first_and_last_position", 86);
-  run_test(test_one_byte_is_found_end_a_lanes_width, "test_one_byte_is_found_end_a_lanes_width", 91);
-  run_test(test_a_set_of_two_scans_to_the_first_and_end_the_run, "test_a_set_of_two_scans_to_the_first_and_end_the_run", 96);
-  run_test(test_the_whitespace_set_agrees, "test_the_whitespace_set_agrees", 101);
-  run_test(test_a_position_end_the_bound_stays_for_the_forward_scan, "test_a_position_end_the_bound_stays_for_the_forward_scan", 106);
-  run_test(test_a_position_end_the_bound_stays_for_the_end_scan, "test_a_position_end_the_bound_stays_for_the_end_scan", 111);
-  run_test(test_a_line_stops_at_its_newline_and_cuts_before_its_carriage_return, "test_a_line_stops_at_its_newline_and_cuts_before_its_carriage_return", 116);
-  run_test(test_a_line_with_no_carriage_return_cuts_where_it_stops, "test_a_line_with_no_carriage_return_cuts_where_it_stops", 124);
-  run_test(test_an_empty_line_has_no_characters, "test_an_empty_line_has_no_characters", 132);
-  run_test(test_a_last_line_with_no_newline_stops_at_the_end, "test_a_last_line_with_no_newline_stops_at_the_end", 140);
-  run_test(test_utf16_units_are_counted_across_words, "test_utf16_units_are_counted_across_words", 148);
-  run_test(test_characters_are_counted_across_words, "test_characters_are_counted_across_words", 157);
-  run_test(test_characters_are_alphabetic_or_alphanumeric_as_unicode_reads_them, "test_characters_are_alphabetic_or_alphanumeric_as_unicode_reads_them", 165);
-  run_test(test_a_text_is_written_marked_doubled_replaced_filled_lowered_swapped_and_unescaped, "test_a_text_is_written_marked_doubled_replaced_filled_lowered_swapped_and_unescaped", 181);
-  run_test(test_a_text_is_sorted_searched_trimmed_lowered_and_measured, "test_a_text_is_sorted_searched_trimmed_lowered_and_measured", 213);
-  run_test(test_the_byte_of_a_utf16_unit_is_found_across_words, "test_the_byte_of_a_utf16_unit_is_found_across_words", 240);
-  run_test(test_a_text_is_copied, "test_a_text_is_copied", 255);
-  run_test(test_the_fallback_is_copied_where_the_text_is_null, "test_the_fallback_is_copied_where_the_text_is_null", 262);
-  run_test(test_characters_are_raised_to_upper_case, "test_characters_are_raised_to_upper_case", 269);
-  run_test(test_a_number_reads_its_digits_and_reports_where_they_stop, "test_a_number_reads_its_digits_and_reports_where_they_stop", 276);
-  run_test(test_a_pair_is_found_where_it_is, "test_a_pair_is_found_where_it_is", 283);
-  run_test(test_a_pair_that_is_absent_reports_the_end, "test_a_pair_that_is_absent_reports_the_end", 288);
-  run_test(test_a_scan_end_classes_stops_at_the_first_byte_of_neither, "test_a_scan_end_classes_stops_at_the_first_byte_of_neither", 293);
-  run_test(test_a_control_byte_is_found_by_its_class, "test_a_control_byte_is_found_by_its_class", 298);
-  run_test(test_the_folded_compare_agrees_across_words, "test_the_folded_compare_agrees_across_words", 306);
-  run_test(test_the_place_past_the_last_byte_outside_a_set_before_a_place_is_found_and_zero_where_none_is, "test_the_place_past_the_last_byte_outside_a_set_before_a_place_is_found_and_zero_where_none_is", 318);
-  run_test(test_a_measured_line_counts_what_is_written_and_stores_none_of_it, "test_a_measured_line_counts_what_is_written_and_stores_none_of_it", 327);
+  run_test(test_a_byte_the_text_does_not_contain_scans_to_each_end,
+           "test_a_byte_the_text_does_not_contain_scans_to_each_end", 76);
+  run_test(test_one_byte_is_found_at_its_first_and_last_position,
+           "test_one_byte_is_found_at_its_first_and_last_position", 81);
+  run_test(test_one_byte_is_found_end_a_lanes_width, "test_one_byte_is_found_end_a_lanes_width", 86);
+  run_test(test_a_set_of_two_scans_to_the_first_and_end_the_run, "test_a_set_of_two_scans_to_the_first_and_end_the_run",
+           91);
+  run_test(test_the_whitespace_set_agrees, "test_the_whitespace_set_agrees", 96);
+  run_test(test_a_position_end_the_bound_stays_for_the_forward_scan,
+           "test_a_position_end_the_bound_stays_for_the_forward_scan", 101);
+  run_test(test_a_position_end_the_bound_stays_for_the_end_scan, "test_a_position_end_the_bound_stays_for_the_end_scan",
+           106);
+  run_test(test_a_line_stops_at_its_newline_and_cuts_before_its_carriage_return,
+           "test_a_line_stops_at_its_newline_and_cuts_before_its_carriage_return", 111);
+  run_test(test_a_line_with_no_carriage_return_cuts_where_it_stops,
+           "test_a_line_with_no_carriage_return_cuts_where_it_stops", 119);
+  run_test(test_an_empty_line_has_no_characters, "test_an_empty_line_has_no_characters", 127);
+  run_test(test_a_last_line_with_no_newline_stops_at_the_end, "test_a_last_line_with_no_newline_stops_at_the_end", 135);
+  run_test(test_utf16_units_are_counted_across_words, "test_utf16_units_are_counted_across_words", 143);
+  run_test(test_characters_are_counted_across_words, "test_characters_are_counted_across_words", 152);
+  run_test(test_characters_are_alphabetic_or_alphanumeric_as_unicode_reads_them,
+           "test_characters_are_alphabetic_or_alphanumeric_as_unicode_reads_them", 160);
+  run_test(test_a_text_is_written_marked_doubled_replaced_filled_lowered_swapped_and_unescaped,
+           "test_a_text_is_written_marked_doubled_replaced_filled_lowered_swapped_and_unescaped", 176);
+  run_test(test_a_text_is_sorted_searched_trimmed_lowered_and_measured,
+           "test_a_text_is_sorted_searched_trimmed_lowered_and_measured", 208);
+  run_test(test_the_byte_of_a_utf16_unit_is_found_across_words, "test_the_byte_of_a_utf16_unit_is_found_across_words",
+           235);
+  run_test(test_a_text_is_copied, "test_a_text_is_copied", 250);
+  run_test(test_the_fallback_is_copied_where_the_text_is_null, "test_the_fallback_is_copied_where_the_text_is_null",
+           257);
+  run_test(test_characters_are_raised_to_upper_case, "test_characters_are_raised_to_upper_case", 264);
+  run_test(test_a_number_reads_its_digits_and_reports_where_they_stop,
+           "test_a_number_reads_its_digits_and_reports_where_they_stop", 271);
+  run_test(test_a_pair_is_found_where_it_is, "test_a_pair_is_found_where_it_is", 278);
+  run_test(test_a_pair_that_is_absent_reports_the_end, "test_a_pair_that_is_absent_reports_the_end", 283);
+  run_test(test_a_scan_end_classes_stops_at_the_first_byte_of_neither,
+           "test_a_scan_end_classes_stops_at_the_first_byte_of_neither", 288);
+  run_test(test_a_control_byte_is_found_by_its_class, "test_a_control_byte_is_found_by_its_class", 293);
+  run_test(test_the_folded_compare_agrees_across_words, "test_the_folded_compare_agrees_across_words", 301);
+  run_test(test_the_place_past_the_last_byte_outside_a_set_before_a_place_is_found_and_zero_where_none_is,
+           "test_the_place_past_the_last_byte_outside_a_set_before_a_place_is_found_and_zero_where_none_is", 313);
+  run_test(test_a_measured_line_counts_what_is_written_and_stores_none_of_it,
+           "test_a_measured_line_counts_what_is_written_and_stores_none_of_it", 322);
 
   return UNITY_END();
 }

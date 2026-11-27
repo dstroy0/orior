@@ -3,6 +3,7 @@
 // vim_visual.c: visual mode and visual line mode: the selection from the anchor to the head, both characters taken, or
 // their lines whole, set as the view's selection; a text object taken as the selection, the ends swapped, and the
 // commands that act on what is chosen
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "vim_internal.h"
 
 void cli_vim_visual_span(const CliVimCtx *args)
@@ -64,8 +65,14 @@ EMBED_INLINE void visual_pasted(const CliVimCtx *args)
     unsigned int at = CLI_VIM_REGISTERS;
     at = ((name == 0u) || (name == '"')) ? CLI_VIM_REGISTER_UNNAMED : at;
     at = (name == '0') ? CLI_VIM_REGISTER_YANKED : at;
-    at = ((name >= 'a') && (name <= 'z')) ? CLI_VIM_REGISTER_CHARACTERS + (name - 'a') : at;
-    at = ((name >= 'A') && (name <= 'Z')) ? CLI_VIM_REGISTER_CHARACTERS + (name - 'A') : at;
+    // Explicit cast reads the byte as its code point
+    at = (((name) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)(name)}))
+             ? CLI_VIM_REGISTER_CHARACTERS + (name - 'a')
+             : at;
+    // Explicit cast reads the byte as its code point
+    at = (((name) < 0x80u) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_UPPER, .byte = (uint8_t)(name)}))
+             ? CLI_VIM_REGISTER_CHARACTERS + (name - 'A')
+             : at;
     CliVimPart part = {0};
     if (at < CLI_VIM_REGISTERS)
     {

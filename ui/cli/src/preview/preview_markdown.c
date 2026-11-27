@@ -10,6 +10,7 @@
 #include "preview_markdown.h"
 
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // the sizes in the page's pixels: the body's text and its line, the code's text and its line, the code block's
 // padding and its corners, the gap after a block and inside a list, the gap above a heading, a list item's indent,
@@ -502,8 +503,9 @@ EMBED_INLINE int character_escaped(const MarkdownCtx *args)
 EMBED_INLINE int character_word(const MarkdownCtx *args)
 {
     const unsigned char character = args->character;
-    return ((character >= 'a') && (character <= 'z')) || ((character >= 'A') && (character <= 'Z')) ||
-           ((character >= '0') && (character <= '9')) || (character >= 0x80u);
+    // Explicit cast reads the byte as its code point
+    return ascii.in(&(AsciiCfg){.type = MMGR_ASCII_ALPHA, .byte = (uint8_t)character}) ||
+           (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)character})) || (character >= 0x80u);
 }
 
 // whether the bytes from `from` to before `to` start with the `length` bytes of `bytes`, in any case
@@ -516,7 +518,8 @@ EMBED_INLINE int starts_with(const MarkdownCtx *args)
     for (unsigned int at = 0u; at < args->length; at += 1u)
     {
         const unsigned char one = (unsigned char)args->text[args->from + at];
-        const unsigned char lower = ((one >= 'A') && (one <= 'Z')) ? (unsigned char)(one + 32u) : one;
+        // Explicit cast reads the byte as its code point
+        const unsigned char lower = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)one});
         if (lower != (unsigned char)args->bytes[at])
         {
             return 0;
@@ -997,7 +1000,8 @@ EMBED_INLINE int slice_item(const MarkdownCtx *args)
     }
     unsigned long long number = 0ULL;
     unsigned int digits = 0u;
-    while ((at < to) && (text[at] >= '0') && (text[at] <= '9') && (digits < 9u))
+    // Explicit cast reads the byte as its code point
+    while ((at < to) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)text[at]}) && (digits < 9u))
     {
         // a digit's value is its byte less the zero's
         number = (number * 10ULL) + (unsigned long long)(unsigned char)(text[at] - '0');
@@ -1015,13 +1019,11 @@ EMBED_INLINE int slice_item(const MarkdownCtx *args)
     {
         return 0;
     }
-    unsigned int blanks = 0u;
-    unsigned int content = at;
-    while ((content < to) && ((text[content] == ' ') || (text[content] == '\t')))
-    {
-        blanks += 1u;
-        content += 1u;
-    }
+    // Explicit cast takes a run inside the line, which an unsigned int counts
+    const unsigned int blanks =
+        (at < to) ? (unsigned int)cellul.span(&(CatenaFinitaCfg){.src = &text[at], .cap = to - at, .other = " \t"})
+                  : 0u;
+    unsigned int content = at + blanks;
     const unsigned int spaces = (blanks < 1u) ? 1u : ((blanks > 4u) ? 1u : blanks);
     if (blanks > 4u)
     {
@@ -1097,10 +1099,10 @@ EMBED_INLINE unsigned int slice_cells(const MarkdownCtx *args)
         }
         unsigned int cell_from = start;
         unsigned int cell_to = at;
-        while ((cell_from < cell_to) && ((text[cell_from] == ' ') || (text[cell_from] == '\t')))
-        {
-            cell_from += 1u;
-        }
+        // Explicit cast takes a run inside the cell, which an unsigned int counts
+        cell_from += (cell_from < cell_to) ? (unsigned int)cellul.span(&(CatenaFinitaCfg){
+                                                 .src = &text[cell_from], .cap = cell_to - cell_from, .other = " \t"})
+                                           : 0u;
         while ((cell_to > cell_from) && ((text[cell_to - 1u] == ' ') || (text[cell_to - 1u] == '\t')))
         {
             cell_to -= 1u;
@@ -1562,10 +1564,10 @@ static unsigned int list_positioned(const MarkdownCtx *args)
                                                            .line = line});
             }
             content += 3u;
-            while ((content < marked->to) && ((text[content] == ' ') || (text[content] == '\t')))
-            {
-                content += 1u;
-            }
+            // Explicit cast takes a run inside the line, which an unsigned int counts
+            content += (content < marked->to) ? (unsigned int)cellul.span(&(CatenaFinitaCfg){
+                                                    .src = &text[content], .cap = marked->to - content, .other = " \t"})
+                                              : 0u;
         }
         else if (first.ordered)
         {

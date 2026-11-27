@@ -6,6 +6,7 @@
 #include "test_runs_internal.h"
 
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // the max attributes a tag of the report contains, and the max bytes their values and a failure's text take
 #define CLI_REPORT_ATTRIBUTES 32u
@@ -201,7 +202,8 @@ int cli_report_count(const CliTestRunsTextLengthCtx *args)
     unsigned long long sum = 0ULL;
     for (unsigned long long at = start; at < length; at += 1ULL)
     {
-        if ((args->text[at] < '0') || (args->text[at] > '9') || (sum > 429496729ULL))
+        // Explicit cast reads the byte as its code point
+        if (!(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->text[at]})) || (sum > 429496729ULL))
         {
             return 0;
         }

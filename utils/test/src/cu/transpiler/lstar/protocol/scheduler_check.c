@@ -218,12 +218,13 @@ int program_main(int count, char **words)
     run_channel_identity(question[0], &numbered);
     kqr_identity_text(&numbered, identity, sizeof(identity));
     snprintf(conference, sizeof(conference), "%s_%s", QRY_CONFERENCE_CALL, identity);
-    for (char *space = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = conference, .cap = PLATFORM_TEXT_TO_TERMINATOR,
-                                  .byte = ' ');
-         space != NULL;
-         space = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = space, .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = ' '))
+    // each space, reached from the one before it, written as an underscore
+    for (size_t space = EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = conference,
+                                   .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " ");
+         conference[space] != '\0'; space += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &conference[space],
+                                                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = " "))
     {
-        *space = '_';
+        conference[space] = '_';
     }
     const char *const account = "carrier: the part refused the launch as an illegal instruction; cause instruction\n";
     qry_member_append(conference, (const unsigned char *)account,

@@ -167,9 +167,11 @@ int program_main(int argc, char **argv)
     }
     ksg_check(alike, "the same bytes passed in pieces of every size seal alike");
     ksg_text(1000u, 0u);
-    char *const relation =
+    // the relation reached through the text itself, which the check writes
+    const char *const relation_found =
         EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = s_text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
                    .other = "rel 412 ge", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
+    char *const relation = &s_text[relation_found - s_text];
     relation[8] = 'l';
     relation[9] = 't';
     unsigned int differ = 0u;

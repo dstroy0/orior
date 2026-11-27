@@ -15,6 +15,7 @@
 #include "../editor/view.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "embed_atomic.h"
 #include "requests_internal.h"
 
@@ -222,7 +223,8 @@ EMBED_INLINE unsigned long long requests_tenths(const RequestsPaneCtx *args)
     const char *const text = args->json->text + one->text;
     unsigned long long whole = 0ULL;
     unsigned long long at = 0ULL;
-    while ((at < one->length) && (text[at] >= '0') && (text[at] <= '9'))
+    // Explicit cast reads the byte as its code point
+    while ((at < one->length) && ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)text[at]}))
     {
         whole = (whole * 10ULL) + (unsigned long long)(text[at] - '0');
         at += 1ULL;
@@ -231,10 +233,14 @@ EMBED_INLINE unsigned long long requests_tenths(const RequestsPaneCtx *args)
     unsigned long long hundredth = 0ULL;
     if ((at < one->length) && (text[at] == '.'))
     {
-        tenth = ((at + 1ULL < one->length) && (text[at + 1ULL] >= '0') && (text[at + 1ULL] <= '9'))
+        // Explicit cast reads the byte as its code point
+        tenth = ((at + 1ULL < one->length) &&
+                 ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)text[at + 1ULL]}))
                     ? (unsigned long long)(text[at + 1ULL] - '0')
                     : 0ULL;
-        hundredth = ((at + 2ULL < one->length) && (text[at + 2ULL] >= '0') && (text[at + 2ULL] <= '9'))
+        // Explicit cast reads the byte as its code point
+        hundredth = ((at + 2ULL < one->length) &&
+                     ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)text[at + 2ULL]}))
                         ? (unsigned long long)(text[at + 2ULL] - '0')
                         : 0ULL;
     }
@@ -309,8 +315,10 @@ EMBED_INLINE const char *requests_header(const RequestsPaneCtx *args)
         {
             const char one = name[character];
             const char two = args->name[character];
-            const char lower_one = ((one >= 'A') && (one <= 'Z')) ? (char)(one + ('a' - 'A')) : one;
-            const char lower_two = ((two >= 'A') && (two <= 'Z')) ? (char)(two + ('a' - 'A')) : two;
+            // Explicit cast reads the byte as its code point
+            const char lower_one = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)one});
+            // Explicit cast reads the byte as its code point
+            const char lower_two = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)two});
             same = lower_one == lower_two;
         }
         if (same)

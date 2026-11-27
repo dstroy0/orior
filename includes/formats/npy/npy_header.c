@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // npy_header.c: loading and the header's dictionary
 #include "../../../src/platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "npy_internal.h"
@@ -200,7 +201,8 @@ static unsigned int npy_extent(NpyText *text, EngineArrayExtent *extent)
         }
         unsigned long long value = 0ULL;
         const unsigned long long digits = text->at;
-        while ((text->at < text->length) && (text->text[text->at] >= '0') && (text->text[text->at] <= '9'))
+        while ((text->at < text->length) &&
+               EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = text->text[text->at]))
         {
             const unsigned long long digit = (unsigned long long)(text->text[text->at] - '0');
             if (value > ((NPY_BYTES_LIMIT - digit) / 10ULL))

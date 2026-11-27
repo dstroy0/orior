@@ -7,6 +7,7 @@
 #include "../deploy/devcontainer.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // the max addresses logged, and the bytes an address's line written is taken with past the file
 #define CLI_NET_LOG_MAX_LINES 1000u
@@ -160,7 +161,8 @@ int cli_net_local(const CliNetHostCfg *args)
         const char *at = from;
         while ((at < to) && (length + 1ULL < sizeof(lower)))
         {
-            lower[length] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
+            // Explicit cast reads the byte as its code point
+            lower[length] = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)at[0]});
             length += 1ULL;
             at += 1;
         }

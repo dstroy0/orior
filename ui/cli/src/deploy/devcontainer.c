@@ -4,6 +4,7 @@
 #include "devcontainer.h"
 #include "../command_line/callback_cfg.h"
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 typedef struct
 {
@@ -178,8 +179,11 @@ void cli_devcontainer_name(const CliDevcontainerRootNameCfg *args)
                 at += 1;
                 continue;
             }
-            const char lower = ((byte >= 'A') && (byte <= 'Z')) ? (char)(byte + 32u) : (char)byte;
-            const int reserved = ((lower >= 'a') && (lower <= 'z')) || ((lower >= '0') && (lower <= '9')) ||
+            // Explicit cast reads the byte as its code point
+            const char lower = (char)ascii.lower(&(AsciiCfg){.byte = (uint8_t)byte});
+            // Explicit cast reads the byte as its code point
+            const int reserved = (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = (uint8_t)lower})) ||
+                                 (ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)lower})) ||
                                  (lower == '-') || (lower == '_');
             docker_name[length] = reserved ? lower : '-';
             length += 1ULL;

@@ -104,12 +104,7 @@ static size_t s_containers_length;
 
 static void sass_text_copy(char *into, const char *from)
 {
-    unsigned int at = 0u;
-    for (; (from[at] != '\0') && (at < (SASS_TEXT - 1u)); at += 1u)
-    {
-        into[at] = from[at];
-    }
-    into[at] = '\0';
+    (void)EMBED_CALL(cellul.copy, CatenaFinitaCfg, .src = from, .cap = SASS_TEXT, .dst = into);
 }
 
 int sass_equal_known(const char *one, const char *other)

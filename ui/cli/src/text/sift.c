@@ -3,6 +3,7 @@
 // sift.c: every offset a needle is at in a text: each start the library's byte find gives for the needle's first
 // byte, proven by the library's bounded compare, so a zero byte in the text is a byte like any other
 #include "sift.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
@@ -47,7 +48,7 @@ EMBED_INLINE unsigned char sift_first_other_case(const CliSiftLengthCfg *args)
 {
     const unsigned char first = args->needle[0];
     const unsigned char lower = (unsigned char)(first | 0x20u);
-    if (!args->fold || (lower < 'a') || (lower > 'z'))
+    if (!args->fold || !ascii.in(&(AsciiCfg){.type = MMGR_ASCII_LOWER, .byte = lower}))
     {
         return first;
     }

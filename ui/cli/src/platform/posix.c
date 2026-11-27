@@ -15,6 +15,7 @@
 
 #if !defined(_WIN32)
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -126,7 +127,9 @@ unsigned int cli_processes_list(const CliCapacityProcessesCtx *args)
 static void cli_proc_walk(const CliEachNameIsFolderCfg *args)
 {
     CliProcWalk *const walk = (CliProcWalk *)args->context;
-    if (!args->is_folder || (args->name[0] < '0') || (args->name[0] > '9') || (walk->count >= walk->capacity))
+    // Explicit cast reads the byte as its code point
+    if (!args->is_folder || !(ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)args->name[0]})) ||
+        (walk->count >= walk->capacity))
     {
         return;
     }

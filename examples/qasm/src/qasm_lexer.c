@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // qasm_lexer.c: the lexer and tokens
 #include "../../../src/platform/platform.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "qasm_internal.h"
@@ -9,14 +10,26 @@
 // ---------------------------------------------------------------------------------------------------------------
 // the lexer
 
+// the bytes of a name after its first, and the digits of a number
+static const char QASM_NAME_BYTES[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_";
+static const char QASM_DIGIT_BYTES[] = "0123456789";
+
+// Explicit casts read the byte as its code point
 static int qasm_is_character(char c)
 {
-    return ((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) || (c == '_');
+    return EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_ALPHA, .byte = (uint8_t)c) || (c == '_');
 }
 
 static int qasm_is_digit(char c)
 {
-    return (c >= '0') && (c <= '9');
+    // Explicit cast reads the byte as its code point
+    return EMBED_CALL(ascii.in, AsciiCfg, .type = MMGR_ASCII_NUM, .byte = (uint8_t)c);
+}
+
+// the bytes at `from` of `text`, `length` bytes in all, that the set `bytes` holds
+static size_t qasm_lex_run(const char *text, size_t length, size_t from, const char *bytes)
+{
+    return EMBED_CALL(cellul.span, CatenaFinitaCfg, .src = &text[from], .cap = length - from, .other = bytes);
 }
 
 int qasm_lex(QasmParser *parser)
@@ -47,34 +60,38 @@ int qasm_lex(QasmParser *parser)
             }
             else if ((c == ' ') || (c == '\t') || (c == '\r'))
             {
-                column += 1u;
-                at += 1u;
+                const size_t blanks = qasm_lex_run(text, length, at, " \t\r");
+                // Explicit cast takes a column inside one line, which an unsigned int counts
+                column += (unsigned int)blanks;
+                at += blanks;
             }
             else if ((c == '/') && ((at + 1u) < length) && (text[at + 1u] == '/'))
             {
-                while ((at < length) && (text[at] != '\n'))
-                {
-                    at += 1u;
-                }
+                at += EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text[at], .cap = length - at, .other = "\n");
             }
             else if ((c == '/') && ((at + 1u) < length) && (text[at + 1u] == '*'))
             {
                 at += 2u;
                 column += 2u;
-                while ((at < length) && !((text[at] == '*') && ((at + 1u) < length) && (text[at + 1u] == '/')))
+                // the body ends at the close, or at the end of the text where no close follows
+                const char *const close = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = &text[at], .cap = length - at,
+                                                     .other = "*/", .other_len = 2u);
+                const size_t body_end = (close != NULL) ? (size_t)(close - text) : length;
+                // each line end of the body, reached from the one before it, and the column past the last
+                size_t from = at;
+                for (const void *ended =
+                         EMBED_CALL(memor.chr, MemoriaCfg, .src = &text[from], .bytes = body_end - from, .val = '\n');
+                     ended != NULL; ended = EMBED_CALL(memor.chr, MemoriaCfg, .src = &text[from],
+                                                       .bytes = body_end - from, .val = '\n'))
                 {
-                    if (text[at] == '\n')
-                    {
-                        line += 1u;
-                        column = 1u;
-                    }
-                    else
-                    {
-                        column += 1u;
-                    }
-                    at += 1u;
+                    line += 1u;
+                    column = 1u;
+                    // Explicit cast reads the found byte as a byte of the text
+                    from = (size_t)((const char *)ended - text) + 1u;
                 }
-                at += 2u;
+                // Explicit casts take a column inside one line, which an unsigned int counts
+                column += (unsigned int)(body_end - from);
+                at = body_end + 2u;
                 column += 2u;
             }
             else
@@ -110,26 +127,16 @@ int qasm_lex(QasmParser *parser)
         size_t end = at + 1u;
         if (qasm_is_character(c))
         {
-            while ((end < length) && (qasm_is_character(text[end]) || qasm_is_digit(text[end])))
-            {
-                end += 1u;
-            }
+            end += qasm_lex_run(text, length, end, QASM_NAME_BYTES);
             token->type = QASM_TOKEN_IDENT;
         }
         else if (qasm_is_digit(c) || ((c == '.') && ((at + 1u) < length) && qasm_is_digit(text[at + 1u])))
         {
-            end = at;
-            while ((end < length) && qasm_is_digit(text[end]))
-            {
-                end += 1u;
-            }
+            end = at + qasm_lex_run(text, length, at, QASM_DIGIT_BYTES);
             if ((end < length) && (text[end] == '.'))
             {
                 end += 1u;
-                while ((end < length) && qasm_is_digit(text[end]))
-                {
-                    end += 1u;
-                }
+                end += qasm_lex_run(text, length, end, QASM_DIGIT_BYTES);
             }
             if ((end < length) && ((text[end] == 'e') || (text[end] == 'E')))
             {
@@ -140,21 +147,15 @@ int qasm_lex(QasmParser *parser)
                 }
                 if ((exponent < length) && qasm_is_digit(text[exponent]))
                 {
-                    end = exponent;
-                    while ((end < length) && qasm_is_digit(text[end]))
-                    {
-                        end += 1u;
-                    }
+                    end = exponent + qasm_lex_run(text, length, exponent, QASM_DIGIT_BYTES);
                 }
             }
             token->type = QASM_TOKEN_NUMBER;
         }
         else if (c == '"')
         {
-            while ((end < length) && (text[end] != '"') && (text[end] != '\n'))
-            {
-                end += 1u;
-            }
+            end +=
+                EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = &text[end], .cap = length - end, .other = "\"\n");
             if ((end >= length) || (text[end] != '"'))
             {
                 token->type = QASM_TOKEN_SYMBOL;
@@ -299,24 +300,12 @@ int qasm_expect_count(QasmParser *parser, unsigned int *count)
 int qasm_number(QasmParser *parser, const QasmToken *token, QasmAngle *value)
 {
     const char *const text = parser->text + token->start;
-    unsigned int mantissa_end = 0u;
-    while ((mantissa_end < token->length) && (text[mantissa_end] != 'e') && (text[mantissa_end] != 'E'))
-    {
-        mantissa_end += 1u;
-    }
-    unsigned int places = 0u;
-    int seen_point = 0;
-    for (unsigned int at = 0u; at < mantissa_end; at += 1u)
-    {
-        if (text[at] == '.')
-        {
-            seen_point = 1;
-        }
-        else if (seen_point != 0)
-        {
-            places += 1u;
-        }
-    }
+    // Explicit casts take the length of a token, which an unsigned int counts. The lexer puts one point at most in a
+    // number, and the places are the digits of the mantissa after it
+    const unsigned int mantissa_end =
+        (unsigned int)EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = text, .cap = token->length, .other = "eE");
+    const void *const point = EMBED_CALL(memor.chr, MemoriaCfg, .src = text, .bytes = mantissa_end, .val = '.');
+    const unsigned int places = (point != NULL) ? (mantissa_end - (unsigned int)((const char *)point - text) - 1u) : 0u;
     if (places > 200u)
     {
         qasm_error(parser, token, "a number past 200 places is not read");

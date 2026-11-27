@@ -498,12 +498,8 @@ static unsigned int code_generator_write_ports(const Ruleset *rules)
     {
         return SCHEDULE_UNBOUNDED;
     }
-    unsigned int ports = 0u;
-    for (const char *digit = rules->write_ports; *digit != '\0'; digit += 1)
-    {
-        ports = (ports * 10u) + (unsigned int)(*digit - '0');
-    }
-    return ports;
+    // Explicit cast takes a count of ports, which an unsigned int counts
+    return (unsigned int)EMBED_CALL(cellul.to_ulong, TransfiguroCfg, .src = rules->write_ports);
 }
 
 // the cells of one decision, each given back as the decision ends

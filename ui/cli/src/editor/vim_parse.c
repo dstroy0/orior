@@ -6,6 +6,7 @@
 #include "vim_internal.h"
 
 #include "../text/text.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 
 // the motions and the commands a command starts with, as their tokens
 static const unsigned int s_motions[] = {'h', 'j', 'k', 'l', 'w', 'W', 'b', 'B', 'e', 'E',          '0',       '^',
@@ -57,7 +58,10 @@ EMBED_INLINE unsigned long long parse_count(const VimParseCtx *args)
 {
     VimTokens *const tokens = args->tokens;
     unsigned long long count = 0ULL;
-    while ((tokens->at < tokens->count) && (tokens->token[tokens->at] >= '0') && (tokens->token[tokens->at] <= '9') &&
+    // Explicit cast reads the byte as its code point
+    while ((tokens->at < tokens->count) &&
+           (((tokens->token[tokens->at]) < 0x80u) &&
+            ascii.in(&(AsciiCfg){.type = MMGR_ASCII_NUM, .byte = (uint8_t)(tokens->token[tokens->at])})) &&
            ((count != 0ULL) || (tokens->token[tokens->at] != '0')))
     {
         count = (count * 10ULL) + (unsigned long long)(tokens->token[tokens->at] - '0');
