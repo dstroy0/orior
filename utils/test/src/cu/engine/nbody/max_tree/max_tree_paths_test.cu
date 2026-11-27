@@ -244,8 +244,9 @@ static long paths_test_overlap(const unsigned int *earlier, const unsigned int *
     return max_tree_overlap(&request);
 }
 
-// the bind of the first residual on the host, its faces in `answers`
-static long paths_test_bind(const unsigned int *residual, PathsTestAnswers *answers)
+// The bind of the first residual on the host, its faces in `answers`. It proves the bound faces at the levels of the
+// values of the first PATHS_TEST_LEVELS probes
+static long paths_test_bind(const unsigned int *residual, const unsigned int *levels, PathsTestAnswers *answers)
 {
     EngineError error;
     memset(&error, 0, sizeof(error));
@@ -257,6 +258,8 @@ static long paths_test_bind(const unsigned int *residual, PathsTestAnswers *answ
     request.depth = PATHS_TEST_DEPTH;
     request.height = PATHS_TEST_HEIGHT;
     request.width = PATHS_TEST_WIDTH;
+    request.levels = levels;
+    request.level_count = PATHS_TEST_LEVELS;
     request.bound = answers->bind_bound;
     request.rounds = &answers->bind_counts[0];
     request.levels_equal = &answers->bind_counts[1];
@@ -282,7 +285,7 @@ int program_main(int argc, char **argv)
     (void)argv;
     // the first word of the signum of each path, the answer of the device path
     static const unsigned long long SIGNA[PATHS_TEST_PATHS] = {0xa993fcb66217cbc7ULL, 0xc4198cd0b3156a48ULL,
-                                                               0xecf4adf0941a03c5ULL, 0x11e797c38e9863bbULL,
+                                                               0xecf4adf0941a03c5ULL, 0xc951033a573443dfULL,
                                                                0x8b958cc4b2bef60fULL};
     static const char *const NAMES[PATHS_TEST_PATHS] = {"the slide", "the pack", "the overlap", "the bind",
                                                         "the proof of the contraction"};
@@ -331,7 +334,7 @@ int program_main(int argc, char **argv)
                                                                               sizeof(answers->overlap_count))
                               : 0ULL;
     }
-    const int bound = paths_test_bind(first, answers) != MAX_TREE_ERROR;
+    const int bound = (first_found > 0L) && (paths_test_bind(first, earlier, answers) != MAX_TREE_ERROR);
     words[3] = bound
                    ? paths_test_signum(answers->bind_bound, sizeof(answers->bind_bound) + sizeof(answers->bind_counts))
                    : 0ULL;
