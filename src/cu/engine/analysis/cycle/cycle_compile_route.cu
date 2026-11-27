@@ -525,11 +525,14 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
     s_cycle_codegen_depth -= 1;
     const char *const device_text = platform_text_bytes(&written);
     const unsigned long long device_length = platform_text_size(&written);
-    unsigned long long differs = 0ULL;
-    while ((differs < device_length) && (differs < host_length) && (device_text[differs] == host_text[differs]))
-    {
-        differs += 1ULL;
-    }
+    // the first byte where the two texts differ, read over the shorter text. Explicit casts take the count of bytes in
+    // memory, which a size_t counts, and give the offset back in the width of the lengths
+    const unsigned long long shorter = (device_length < host_length) ? device_length : host_length;
+    const unsigned long long differs =
+        (shorter == 0ULL)
+            ? 0ULL
+            : (unsigned long long)EMBED_CALL(cellul.diff, CatenaFinitaCfg, .src = device_text, .cap = (size_t)shorter,
+                                             .other = host_text, .ci = EMBED_FALSE);
     const int same = (ran != 0) && (device_length == host_length) && (differs == host_length);
     if ((same != 0) && (report != 0))
     {
