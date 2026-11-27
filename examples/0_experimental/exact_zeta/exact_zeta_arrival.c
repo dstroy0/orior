@@ -1009,6 +1009,9 @@ static int main_stretch(FILE *out, int64_t n0, int64_t count)
     return every ? 0 : 1;
 }
 
+// The pool of the program. A window of 1000000 places keeps seven exact integers a place, which is more than 1 GB
+const unsigned long long g_program_pool_bytes = 1ULL << 31u;
+
 int program_main(int argument_count, char **arguments)
 {
 #ifdef _WIN32

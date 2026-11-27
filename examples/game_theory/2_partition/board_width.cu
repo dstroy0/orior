@@ -28,6 +28,18 @@ static const unsigned int WIDTHS[WIDTH_COUNT] = {12u, 16u, 20u, 24u, 32u};
 /** @brief The positions of the sequence that names the own period of a game. */
 #define WIDTH_SEQUENCE 512u
 
+/**
+ * @brief The pool of the program. The detector takes two host cells of 51200000 bytes, and a sweep takes a temporary
+ *        cell of 321143680 bytes.
+ */
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 30u;
+
+/**
+ * @brief The pool of the device. The device writes the lane of the Reversi count of 46980 steps, and one cell of its
+ *        arena is 94633396 bytes.
+ */
+extern "C" const unsigned long long g_device_pool_bytes = 1ULL << 30u;
+
 /** @brief The games of the null of the grids, the first of the sweep. */
 #define WIDTH_SHUFFLED_GAMES 20u
 
@@ -131,10 +143,11 @@ int program_main(int argc, char **argv)
     EngineError error;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     const unsigned long long board_values = (unsigned long long)games * REVERSI_SQUARES;
+    // the cells of the run, and the pool of the device that the lane of the count takes its arena from
     const unsigned long long declared = (twister_bytes(2ULL * games) * 2ULL) + (2ULL * games * 64ULL) +
                                         subtraction_bytes(64ULL, WIDTH_SEQUENCE, DETECTOR_SWEEP_LANES) +
                                         (DETECTOR_SWEEP_LANES * 6ULL * 4ULL) + ((board_values + 1ULL) * 4ULL) +
-                                        (128ULL * 1024ULL * 4ULL);
+                                        (128ULL * 1024ULL * 4ULL) + g_device_pool_bytes;
     int ok = sim_job_submit(&results, "board_width", argc, argv, declared);
     WidthDetector detector;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &detector, .bytes = sizeof(detector), .val = 0);

@@ -211,6 +211,9 @@ static void print_list(const OriorExactInteger *values, size_t count, FILE *out)
     fputs("]", out);
 }
 
+// The pool of the program. Its cells of exact integers grow with the count of the run, and they pass the 64 MB default
+const unsigned long long g_program_pool_bytes = 1ULL << 30u;
+
 int program_main(int argument_count, char **arguments)
 {
 #ifdef _WIN32

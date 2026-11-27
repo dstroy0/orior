@@ -69,6 +69,9 @@ typedef struct
     unsigned int *values; /**< The value of each place of each series, one limb a record, a zero record last. */
 } GrundyDevice;
 
+/** @brief The pool of the program. The detector takes two host cells of 51200000 bytes for its lanes. */
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 28u;
+
 /**
  * @brief Runs the sweep.
  *

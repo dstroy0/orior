@@ -37,6 +37,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// The pool of the check. A part's record of 16 MB opens with its text form, and the four rooms hold more than 64 MB
+const unsigned long long g_program_pool_bytes = 1ULL << 30u;
+
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
@@ -206,7 +209,18 @@ static void part_checked(const char *part, const char *folder, unsigned int numb
     size_t records_size = 0u;
     char *const records = file_read(part, &records_size, 0u);
     check_that(records != NULL, "a part's record reads");
-    check_that(kqr_read(&s_record, part, "part", error, sizeof(error)) == 1, "a part's record opens");
+    error[0] = '\0';
+    const int opened = kqr_read(&s_record, part, "part", error, sizeof(error)) == 1;
+    check_that(opened, "a part's record opens");
+    // the reason of the reader, where the record does not open
+    if (!opened)
+    {
+        VerbaLinea *const output_line = platform_line_out();
+        mmgr_line_put(output_line, "    ");
+        mmgr_line_put(output_line, error);
+        mmgr_line_ch(output_line, '\n');
+        platform_line_out_ended();
+    }
     size_t size = 0u;
     char *const text = rendered(&s_record, &size, 1u);
     check_that(text != NULL, "a part's record renders its text form");
