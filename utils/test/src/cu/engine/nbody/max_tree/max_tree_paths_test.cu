@@ -7,6 +7,7 @@
 // case, the answer that the device path gives
 #include "../../../../../../../src/cu/engine/engine.h"
 #include "../../../../../../../src/cu/engine/nbody/max_tree/max_tree.h"
+#include "../../../../../../../src/cu/engine/nbody/max_tree/max_tree_device_internal.h"
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
 #include "../../../../../../../src/platform/platform.h"
 
@@ -269,6 +270,47 @@ static long paths_test_bind(const unsigned int *residual, const unsigned int *le
     return max_tree_bind(&request);
 }
 
+// The frame that the last objects retained, checked against the codes that they built and against the residual. The
+// codes of the frame must equal the codes of the max tree word for word. Its top must equal the top of the tree. The
+// values of the frame must hold, at the code of each selected voxel, the limbs of the residual of that voxel. 1 where
+// all agree
+static int paths_test_frame(const unsigned int *residual)
+{
+    const MaxTreeResident *const resident = &g_max_tree_resident;
+    const unsigned int place = resident->frame_current;
+    const unsigned int top = resident->frame_top[place];
+    const unsigned long long value_words = ((unsigned long long)top + 2ULL) * ENGINE_RESIDUAL_LIMBS;
+    unsigned int *const codes = (unsigned int *)platform_cell_taken(PATHS_TEST_VOXELS * sizeof(unsigned int),
+                                                                    platform_place_g_program_owner, 1);
+    unsigned int *const frame_codes = (unsigned int *)platform_cell_taken(PATHS_TEST_VOXELS * sizeof(unsigned int),
+                                                                          platform_place_g_program_owner, 1);
+    unsigned int *const values =
+        (unsigned int *)platform_cell_taken(value_words * sizeof(unsigned int), platform_place_g_program_owner, 1);
+    int agree = (codes != NULL) && (frame_codes != NULL) && (values != NULL) && (resident->frame_ready[place] != 0u) &&
+                (top == resident->top) &&
+                (cudaMemcpy(codes, resident->code, PATHS_TEST_VOXELS * sizeof(unsigned int), cudaMemcpyDeviceToHost) ==
+                 cudaSuccess) &&
+                (cudaMemcpy(frame_codes, resident->frame_code[place], PATHS_TEST_VOXELS * sizeof(unsigned int),
+                            cudaMemcpyDeviceToHost) == cudaSuccess) &&
+                (cudaMemcpy(values, resident->frame_values[place], (size_t)value_words * sizeof(unsigned int),
+                            cudaMemcpyDeviceToHost) == cudaSuccess) &&
+                (memcmp(codes, frame_codes, PATHS_TEST_VOXELS * sizeof(unsigned int)) == 0);
+    for (unsigned int voxel = 0u; (agree != 0) && (voxel < PATHS_TEST_VOXELS); voxel++)
+    {
+        const unsigned int *const lane = &residual[voxel * ENGINE_RESIDUAL_LIMBS];
+        if ((lane[ENGINE_RESIDUAL_LIMBS - 1u] != 0u) || (lane[0] == 0u))
+        {
+            continue;
+        }
+        agree = (codes[voxel] <= top) && (memcmp(&values[(size_t)codes[voxel] * ENGINE_RESIDUAL_LIMBS], lane,
+                                                 ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int)) == 0);
+    }
+    platform_cell_released(values, platform_place_g_program_owner);
+    platform_cell_released(frame_codes, platform_place_g_program_owner);
+    platform_cell_released(codes, platform_place_g_program_owner);
+    return agree;
+}
+
 // the peaks of the first PATHS_TEST_PROBES bodies, which the slide and the overlap probe
 static void paths_test_probes(const EngineBody *bodies, long found, unsigned int *probes)
 {
@@ -310,6 +352,8 @@ int program_main(int argc, char **argv)
     unsigned int failed = paths_test_check(max_tree_retain_frames() == 1, "the max tree retains its frames");
     const long first_found = paths_test_objects(first, bodies);
     failed += paths_test_check(first_found > 0L, "the objects of the first frame are found");
+    failed += paths_test_check(paths_test_frame(first),
+                               "the first frame retains the codes of the tree and the values of the residual");
     if (first_found > 0L)
     {
         paths_test_probes(bodies, first_found, earlier);
@@ -325,6 +369,8 @@ int program_main(int argc, char **argv)
     }
     const long second_found = paths_test_objects(second, bodies);
     failed += paths_test_check(second_found > 0L, "the objects of the second frame are found");
+    failed += paths_test_check(paths_test_frame(second),
+                               "the second frame retains the codes of the tree and the values of the residual");
     if ((first_found > 0L) && (second_found > 0L))
     {
         paths_test_probes(bodies, second_found, later);
@@ -366,7 +412,7 @@ int program_main(int argc, char **argv)
     platform_cell_released(first, place);
     max_tree_resident_release();
     VerbaLinea *const output_line = platform_line_out();
-    mmgr_line_put(output_line, "  max tree paths test: 9 checks, ");
+    mmgr_line_put(output_line, "  max tree paths test: 11 checks, ");
     mmgr_line_decimal(output_line, failed, 1u);
     mmgr_line_put(output_line, " failed\n");
     platform_line_out_ended();
