@@ -14,8 +14,9 @@
 // the room of a text member as the cfg reads it, with its end
 #define RUN_CFG_TEXT_ROOM 4096u
 
-// A cfg read once: its text in one cell of the process, `size` bytes and a 0 after them, and its tokens in one cell at
-// the count the text can hold, `token_room` of them. The process keeps both for the life of the run. A decimal value is
+// A cfg that the process reads once. Its text is in one cell of the process: `size` bytes and a 0 after them. Its
+// tokens are in one cell, `token_room` of them, the count that the text can hold. The process keeps both for the life
+// of the run. A decimal value is
 // a JSON string, "0.0010016", read exactly as a rational; a count is a JSON number.
 typedef struct
 {
@@ -28,28 +29,28 @@ typedef struct
 // the cfg at `path` read and parsed: 1, or 0 with the reason written to `line`
 int run_cfg_open(const char *path, RunCfg *cfg, VerbaLinea *line);
 
-// the token a dotted path names from the root, "fluid.viscosity": its index, or 0 where a part is missing
+// the token a dotted path names from the root, "fluid.viscosity": its index, or 0 where a part is absent
 unsigned int run_cfg_find(const RunCfg *cfg, const char *path);
 
-// the decimal string at `path` read exactly: 1, or 0 where it is missing or does not read
+// the decimal string at `path` read exactly: 1, or 0 where it is absent or does not read
 int run_cfg_rational(const RunCfg *cfg, const char *path, SimRational *value);
 
-// the whole number at `path`: 1, or 0 where it is missing or does not read
+// the whole number at `path`: 1, or 0 where it is absent or does not read
 int run_cfg_count(const RunCfg *cfg, const char *path, unsigned long long *value);
 
-// the array of decimal strings at `path` read exactly: 1, or 0 where it is missing, empty or an element does not read
+// the array of decimal strings at `path` read exactly: 1, or 0 where it is absent, empty or an element does not read
 int run_cfg_rationals(const RunCfg *cfg, const char *path, std::vector<SimRational> *values);
 
-// the array of whole numbers at `path`: 1, or 0 where it is missing, empty or an element does not read
+// the array of whole numbers at `path`: 1, or 0 where it is absent, empty or an element does not read
 int run_cfg_counts(const RunCfg *cfg, const char *path, std::vector<unsigned long long> *values);
 
-// the string at `path` as it is written, without escapes read: 1, or 0 where it is missing, empty or not a string
 // the text member at `path` into `value`, which has room for `room` bytes with its end: 1, or 0 where it is absent,
 // empty or longer than the room
 int run_cfg_text(const RunCfg *cfg, const char *path, char *value, size_t room);
 
-// the path of the text member `member`, a path from the folder that the cfg at `cfg_path` is in, into `path`, which has
-// room for `room` bytes with its end: 1, or 0 where the member does not read or the path passes the room
+// the path of the text member `member` into `path`. The member gives a path from the folder of the cfg at `cfg_path`.
+// The buffer `path` has room for `room` bytes with its end. The return is 1, or 0 where the member does not read or
+// the path passes the room.
 int run_cfg_beside(const char *cfg_path, const RunCfg *cfg, const char *member, char *path, size_t room);
 
 // one line naming the members a cfg lacks or could not read

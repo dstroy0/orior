@@ -87,8 +87,8 @@ int main(void)
     }
     cli_check((EMBED_CALL(gui_glyphs_face.face_had, GuiGlyphsFaceCfg, .glyphs_read = &glyphs, .face = GUI_FACE_HEAD_BOLD) != GUI_FACE_HEAD_BOLD) && (glyphs.data[GUI_FACE_HEAD_BOLD] == NULL), "given back it holds no file");
 
-    // a check mark, which the interface face has none of, is drawn from the symbol face, read the first time a character
-    // needs it
+    // The interface face has no check mark. The window draws it from the symbol face, which it reads the first time a
+    // character needs it.
     cli_check(!glyphs.symbol_looked && !glyphs.has[GUI_FACE_SYMBOL], "the symbol face is not looked for until a character needs it");
     float mark_advance = 0.0f;
     const GuiMask *const mark = EMBED_CALL(gui_glyphs_face_character.glyph, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .face = GUI_FACE_HEAD, .character = 0x2713u, .size = 13u, .advance = &mark_advance);
@@ -219,9 +219,9 @@ int main(void)
                   (s_atlas.entry[baked_space].advance == first->advance),
               "a space is baked with no pixels and the code cell's advance");
 
-    // More glyphs and cells than a run of a cache's keys holds, so that each order merges its runs: each one asked
-    // again is the one retained. Then glyphs past three quarters of the cache, which empty it, and a glyph after that
-    // retained
+    // More glyphs and cells than a run of the keys of a cache holds. Thus each order merges its runs, and the cache
+    // keeps each glyph that the check asks for again. Then glyphs past three quarters of the cache, which empty it,
+    // and a glyph after that retained
     static const GuiMask *s_drawn[52u * 38u];
     static const GuiGlyphCell *s_celled[128u * 20u];
     const unsigned int cached_before = glyphs.cached;

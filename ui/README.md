@@ -229,7 +229,7 @@ certificate's thumbprint in the reader's store or the path of a `.pfx` file, its
 
 The programs are `imp`, the command line, and `tab`, the window, over the same jobs and the same
 door. A menu's title and one of its commands are the words for it, read from `cli/commands.json`,
-the file the menus are drawn from as well. [The app](../../README.md#the-app) in the repository's
-own page is the guide to the window and the command line, and `imp help` lists every word.
+the file that the window also draws the menus from. [The app](../docs/app.md) is the guide to the window and the
+command line, and `imp help` lists every word.
 
 From inside the tree, `build/cli/<target>/imp run list` runs it without an install.
