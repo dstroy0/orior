@@ -186,31 +186,42 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
     }
     MachineBoxCells device;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &device, .bytes = sizeof(device), .val = 0);
-    unsigned int *device_cell_climber = NULL;
-    unsigned int *device_climber_of_box = NULL;
-    int *device_cell_shift = NULL;
-    unsigned int *device_entry_first = NULL;
-    unsigned int *device_cell_entries = NULL;
-    unsigned int *device_cell_total = NULL;
-    unsigned int *device_cell_raw = NULL;
+    // The scratch of the box is temporary cells of the pool of the device, every byte 0 at the take. The call gives
+    // them back last first before it returns
+    TesseraJobCells job_cells;
+    tessera_job_cells_begun(&job_cells, CLIMB_MACHINE_PLACE);
+    const unsigned long long cell_words = ((unsigned long long)cell_count + 1ULL) * sizeof(unsigned int);
+    void *room[8] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+    const unsigned long long bytes[8] = {cell_words,
+                                         (unsigned long long)capacity * sizeof(unsigned int),
+                                         ((unsigned long long)cell_count + 1ULL) * 3ULL * sizeof(int),
+                                         cell_words,
+                                         cell_words,
+                                         cell_words,
+                                         cell_words,
+                                         2ULL * sizeof(unsigned int)};
+    for (unsigned int which = 0u; ok && (which < 8u); which += 1u)
+    {
+        ok = tessera_job_cells_room(&job_cells, bytes[which], &room[which]);
+    }
+    // Explicit casts read each cell as the words that it holds
+    unsigned int *const device_cell_climber = (unsigned int *)room[0];
+    unsigned int *const device_climber_of_box = (unsigned int *)room[1];
+    int *const device_cell_shift = (int *)room[2];
+    unsigned int *const device_entry_first = (unsigned int *)room[3];
+    unsigned int *const device_cell_entries = (unsigned int *)room[4];
+    unsigned int *const device_cell_total = (unsigned int *)room[5];
+    unsigned int *const device_cell_raw = (unsigned int *)room[6];
+    unsigned int *const device_error = (unsigned int *)room[7];
     unsigned int *device_target = NULL;
     unsigned int *device_count = NULL;
-    unsigned int *device_error = NULL;
-    ok = ok && (cudaMalloc((void **)&device_cell_climber, (cell_count + 1u) * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMalloc((void **)&device_climber_of_box, capacity * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMalloc((void **)&device_cell_shift, (cell_count + 1u) * 3u * sizeof(int)) == cudaSuccess) &&
-         (cudaMalloc((void **)&device_entry_first, (cell_count + 1u) * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMalloc((void **)&device_cell_entries, (cell_count + 1u) * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMalloc((void **)&device_cell_total, (cell_count + 1u) * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMalloc((void **)&device_cell_raw, (cell_count + 1u) * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMalloc((void **)&device_error, 2u * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMemset(device_error, 0, 2u * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMemcpy(device_cell_climber, cell_climber, cell_count * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
-          cudaSuccess) &&
-         (cudaMemcpy(device_climber_of_box, climber_of_box, (size_t)boxed * sizeof(unsigned int),
-                     cudaMemcpyHostToDevice) == cudaSuccess) &&
-         (cudaMemcpy(device_cell_shift, machine->box_cell_shift, cell_count * 3u * sizeof(int),
-                     cudaMemcpyHostToDevice) == cudaSuccess);
+    ok = ok &&
+         tessera_job_crossed_into(device_cell_climber, cell_climber,
+                                  (unsigned long long)cell_count * sizeof(unsigned int)) &&
+         tessera_job_crossed_into(device_climber_of_box, climber_of_box,
+                                  (unsigned long long)boxed * sizeof(unsigned int)) &&
+         tessera_job_crossed_into(device_cell_shift, machine->box_cell_shift,
+                                  (unsigned long long)cell_count * 3ULL * sizeof(int));
     device.cell_climber = device_cell_climber;
     device.climber_of_box = device_climber_of_box;
     device.cell_shift = device_cell_shift;
@@ -229,13 +240,10 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
             (unsigned int)machine->run_capacity, machine->positive, machine->geometry);
         ok = machine_launched() && (cudaDeviceSynchronize() == cudaSuccess);
     }
-    ok = ok && ((cell_count == 0u) ||
-                ((cudaMemcpy(machine->box_entry_first, device_cell_entries, cell_count * sizeof(unsigned int),
-                             cudaMemcpyDeviceToHost) == cudaSuccess) &&
-                 (cudaMemcpy(cell_total, device_cell_total, cell_count * sizeof(unsigned int),
-                             cudaMemcpyDeviceToHost) == cudaSuccess) &&
-                 (cudaMemcpy(cell_raw, device_cell_raw, cell_count * sizeof(unsigned int), cudaMemcpyDeviceToHost) ==
-                  cudaSuccess)));
+    const unsigned long long counted_bytes = (unsigned long long)cell_count * sizeof(unsigned int);
+    ok = ok && tessera_job_crossed_out(machine->box_entry_first, device_cell_entries, counted_bytes) &&
+         tessera_job_crossed_out(cell_total, device_cell_total, counted_bytes) &&
+         tessera_job_crossed_out(cell_raw, device_cell_raw, counted_bytes);
     unsigned long long entries = 0ULL;
     for (size_t cell = 0u; ok && (cell < cell_count); cell += 1u)
     {
@@ -255,11 +263,16 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
     machine->box_count = ok ? (unsigned int *)platform_cell_taken((entry_count + 1u) * sizeof(unsigned int),
                                                                   platform_place_g_program_owner, 0)
                             : NULL;
+    const unsigned long long entry_words = ((unsigned long long)entry_count + 1ULL) * sizeof(unsigned int);
+    void *target_cell = NULL;
+    void *count_cell = NULL;
     ok = ok && (machine->box_target != NULL) && (machine->box_count != NULL) &&
-         (cudaMalloc((void **)&device_target, (entry_count + 1u) * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMalloc((void **)&device_count, (entry_count + 1u) * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMemcpy(device_entry_first, machine->box_entry_first, (cell_count + 1u) * sizeof(unsigned int),
-                     cudaMemcpyHostToDevice) == cudaSuccess);
+         tessera_job_cells_room(&job_cells, entry_words, &target_cell) &&
+         tessera_job_cells_room(&job_cells, entry_words, &count_cell) &&
+         tessera_job_crossed_into(device_entry_first, machine->box_entry_first, cell_words);
+    // Explicit casts read the two cells as the words that they hold
+    device_target = (unsigned int *)target_cell;
+    device_count = (unsigned int *)count_cell;
     device.target = device_target;
     device.count = device_count;
     if (ok && (cell_count != 0u))
@@ -272,13 +285,11 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
         ok = machine_launched() && (cudaDeviceSynchronize() == cudaSuccess);
     }
     unsigned int error[2] = {0u, 0u};
-    ok = ok &&
-         ((entry_count == 0u) || ((cudaMemcpy(machine->box_target, device_target, entry_count * sizeof(unsigned int),
-                                              cudaMemcpyDeviceToHost) == cudaSuccess) &&
-                                  (cudaMemcpy(machine->box_count, device_count, entry_count * sizeof(unsigned int),
-                                              cudaMemcpyDeviceToHost) == cudaSuccess)));
-    const int counted = (device_error != NULL) && (cudaMemcpy(error, device_error, 2u * sizeof(unsigned int),
-                                                              cudaMemcpyDeviceToHost) == cudaSuccess);
+    const unsigned long long target_bytes = (unsigned long long)entry_count * sizeof(unsigned int);
+    ok = ok && tessera_job_crossed_out(machine->box_target, device_target, target_bytes) &&
+         tessera_job_crossed_out(machine->box_count, device_count, target_bytes);
+    const int counted =
+        (device_error != NULL) && tessera_job_crossed_out(error, device_error, 2ULL * sizeof(unsigned int));
     box->climbers = boxed;
     box->cells = (unsigned int)((cells <= 0xFFFFFFFFULL) ? cells : 0xFFFFFFFFULL);
     box->crowded = counted ? error[0] : 0u;
@@ -298,16 +309,7 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
         }
         not_highest += (higher != 0u) ? 1u : 0u;
     }
-    cudaFree(device_cell_climber);
-    cudaFree(device_climber_of_box);
-    cudaFree(device_cell_shift);
-    cudaFree(device_entry_first);
-    cudaFree(device_cell_entries);
-    cudaFree(device_cell_total);
-    cudaFree(device_cell_raw);
-    cudaFree(device_target);
-    cudaFree(device_count);
-    cudaFree(device_error);
+    tessera_job_cells_given(&job_cells);
     platform_cell_released(cell_climber, platform_place_g_program_owner);
     platform_cell_released(cell_total, platform_place_g_program_owner);
     platform_cell_released(cell_raw, platform_place_g_program_owner);

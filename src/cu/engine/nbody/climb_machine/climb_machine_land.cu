@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_land.cu: land, boxes, maps and rows
-#include "climb_machine_internal.h"
 #include "../../../../platform/platform.h"
+#include "climb_machine_internal.h"
 
 __global__ void machine_land_mass_kernel(const unsigned int *climber_side, const unsigned int *side_residents,
                                          const unsigned int *climber_entry_start, const unsigned int *entry_first,
@@ -341,11 +341,44 @@ unsigned int machine_resident_of(const ClimbMachine *machine, unsigned int frame
     return CLIMB_MACHINE_EMPTY;
 }
 
+int machine_cell_taken(void **cell, unsigned long long bytes)
+{
+    return tessera_job_persistent_taken(bytes, CLIMB_MACHINE_PLACE, cell);
+}
+
+void machine_cell_given(void **cell)
+{
+    tessera_job_given(*cell, CLIMB_MACHINE_PLACE);
+    *cell = NULL;
+}
+
+__global__ static void machine_filled_kernel(unsigned int *words, unsigned long long count, unsigned int value)
+{
+    const unsigned long long jump = (unsigned long long)gridDim.x * blockDim.x;
+    for (unsigned long long word = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; word < count;
+         word += jump)
+    {
+        words[word] = value;
+    }
+}
+
+int machine_filled(void *cell, unsigned long long words, unsigned int value)
+{
+    if ((words == 0ULL) || (cell == NULL))
+    {
+        return (words == 0ULL) ? 1 : 0;
+    }
+    const unsigned long long needed = (words + CLIMB_MACHINE_BLOCK - 1ULL) / CLIMB_MACHINE_BLOCK;
+    // Explicit casts take a count of blocks below 4096, and the words of the cell
+    machine_filled_kernel<<<(unsigned int)((needed < 4096ULL) ? needed : 4096ULL), CLIMB_MACHINE_BLOCK>>>(
+        (unsigned int *)cell, words, value);
+    return machine_launched();
+}
+
 int machine_grow(void **host, void **device, size_t bytes)
 {
     platform_cell_released(*host, platform_place_g_program_owner);
-    cudaFree(*device);
-    *device = NULL;
+    machine_cell_given(device);
     *host = platform_cell_taken(bytes, platform_place_g_program_owner, 0);
-    return ((*host != NULL) && (cudaMalloc(device, bytes) == cudaSuccess)) ? 1 : 0;
+    return ((*host != NULL) && machine_cell_taken(device, bytes)) ? 1 : 0;
 }

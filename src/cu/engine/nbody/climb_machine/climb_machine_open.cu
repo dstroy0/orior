@@ -13,8 +13,8 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int resident, cons
     const unsigned int leaves = frame->leaf_count;
     const unsigned int row_blocks = (rows + CLIMB_MACHINE_BLOCK - 1u) / CLIMB_MACHINE_BLOCK;
     const unsigned int leaf_blocks = (leaves + CLIMB_MACHINE_BLOCK - 1u) / CLIMB_MACHINE_BLOCK;
-    int ok = (leaves == 0u) || (cudaMemcpy(machine->device_peaks, frame->peaks, (size_t)leaves * sizeof(unsigned int),
-                                           cudaMemcpyHostToDevice) == cudaSuccess);
+    int ok = tessera_job_crossed_into(machine->device_peaks, frame->peaks,
+                                      (unsigned long long)leaves * sizeof(unsigned int));
     if ((ok != 0) && (leaves != 0u))
     {
         machine_map_kernel<<<leaf_blocks, CLIMB_MACHINE_BLOCK>>>(machine->device_peaks, leaves, 0u,
@@ -27,8 +27,8 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int resident, cons
                                                                 machine->device_row_counts, NULL, NULL, NULL);
         ok = machine_launched();
     }
-    ok = ok && (cudaMemcpy(machine->row_counts, machine->device_row_counts, (size_t)rows * sizeof(unsigned int),
-                           cudaMemcpyDeviceToHost) == cudaSuccess);
+    const unsigned long long row_bytes = (unsigned long long)rows * sizeof(unsigned int);
+    ok = ok && tessera_job_crossed_out(machine->row_counts, machine->device_row_counts, row_bytes);
     size_t runs = 0u;
     for (unsigned int row = 0u; (ok != 0) && (row < rows); row += 1u)
     {
@@ -39,18 +39,13 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int resident, cons
     if ((ok != 0) && (runs + 1u > machine->unsorted_capacity))
     {
         const size_t capacity = runs + (runs / 2u) + 1u;
-        cudaFree(machine->device_unsorted_start);
-        cudaFree(machine->device_unsorted_length);
-        cudaFree(machine->device_unsorted_leaf);
-        machine->device_unsorted_start = NULL;
-        machine->device_unsorted_length = NULL;
-        machine->device_unsorted_leaf = NULL;
-        ok = ok &&
-             (cudaMalloc((void **)&machine->device_unsorted_start, capacity * sizeof(unsigned int)) == cudaSuccess);
-        ok = ok &&
-             (cudaMalloc((void **)&machine->device_unsorted_length, capacity * sizeof(unsigned int)) == cudaSuccess);
-        ok =
-            ok && (cudaMalloc((void **)&machine->device_unsorted_leaf, capacity * sizeof(unsigned int)) == cudaSuccess);
+        const unsigned long long capacity_bytes = (unsigned long long)capacity * sizeof(unsigned int);
+        machine_cell_given((void **)&machine->device_unsorted_leaf);
+        machine_cell_given((void **)&machine->device_unsorted_length);
+        machine_cell_given((void **)&machine->device_unsorted_start);
+        ok = ok && machine_cell_taken((void **)&machine->device_unsorted_start, capacity_bytes) &&
+             machine_cell_taken((void **)&machine->device_unsorted_length, capacity_bytes) &&
+             machine_cell_taken((void **)&machine->device_unsorted_leaf, capacity_bytes);
         ok = ok &&
              machine_grow((void **)&machine->order, (void **)&machine->device_order, capacity * sizeof(unsigned int));
         platform_cell_released(machine->unsorted_leaf, platform_place_g_program_owner);
@@ -59,8 +54,7 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int resident, cons
         ok = ok && (machine->unsorted_leaf != NULL);
         machine->unsorted_capacity = (ok != 0) ? capacity : 0u;
     }
-    ok = ok && (cudaMemcpy(machine->device_row_offsets, machine->row_counts, (size_t)rows * sizeof(unsigned int),
-                           cudaMemcpyHostToDevice) == cudaSuccess);
+    ok = ok && tessera_job_crossed_into(machine->device_row_offsets, machine->row_counts, row_bytes);
     if (ok != 0)
     {
         machine_row_kernel<<<row_blocks, CLIMB_MACHINE_BLOCK>>>(
@@ -74,8 +68,8 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int resident, cons
                                                                  machine->device_map);
         ok = machine_launched();
     }
-    ok = ok && ((runs == 0u) || (cudaMemcpy(machine->unsorted_leaf, machine->device_unsorted_leaf,
-                                            runs * sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess));
+    ok = ok && tessera_job_crossed_out(machine->unsorted_leaf, machine->device_unsorted_leaf,
+                                       (unsigned long long)runs * sizeof(unsigned int));
     if (ok == 0)
     {
         return 0;
@@ -108,8 +102,8 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int resident, cons
         ok = ok && ((residents * capacity) <= 0xFFFFFFFFULL);
         for (unsigned int which = 0u; (ok != 0) && (which < 4u); which += 1u)
         {
-            ok = (cudaMalloc((void **)&grown[which], residents * capacity * sizeof(unsigned int)) == cudaSuccess) ? 1
-                                                                                                                  : 0;
+            ok = machine_cell_taken((void **)&grown[which],
+                                    (unsigned long long)residents * capacity * sizeof(unsigned int));
         }
         for (unsigned int other_resident = 0u; (ok != 0) && (other_resident < machine->capacity); other_resident += 1u)
         {
@@ -121,16 +115,15 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int resident, cons
             }
             for (unsigned int which = 0u; (ok != 0) && (which < 4u); which += 1u)
             {
-                ok = (cudaMemcpy(&grown[which][(size_t)other_resident * capacity],
-                                 &current[which][(size_t)other_resident * machine->run_capacity],
-                                 count * sizeof(unsigned int), cudaMemcpyDeviceToDevice) == cudaSuccess)
-                         ? 1
-                         : 0;
+                ok = tessera_job_copied(&grown[which][(size_t)other_resident * capacity],
+                                        &current[which][(size_t)other_resident * machine->run_capacity],
+                                        (unsigned long long)count * sizeof(unsigned int));
             }
         }
-        for (unsigned int which = 0u; which < 4u; which += 1u)
+        for (unsigned int which = 4u; which > 0u; which -= 1u)
         {
-            cudaFree(current[which]);
+            void *old = current[which - 1u];
+            machine_cell_given(&old);
         }
         machine->run_start = grown[0];
         machine->run_length = grown[1];
@@ -138,8 +131,8 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int resident, cons
         machine->run_at_row = grown[3];
         machine->run_capacity = (ok != 0) ? capacity : 0u;
     }
-    ok = ok && ((runs == 0u) || (cudaMemcpy(machine->device_order, machine->order, runs * sizeof(unsigned int),
-                                            cudaMemcpyHostToDevice) == cudaSuccess));
+    ok = ok && tessera_job_crossed_into(machine->device_order, machine->order,
+                                        (unsigned long long)runs * sizeof(unsigned int));
     if ((ok != 0) && (runs != 0u))
     {
         const size_t base = (size_t)resident * machine->run_capacity;
@@ -154,12 +147,8 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int resident, cons
     {
         const size_t offsets = (size_t)resident * ((size_t)rows + 1u);
         const unsigned int total = (unsigned int)runs;
-        ok = (cudaMemcpy(&machine->row_first[offsets], machine->row_counts, (size_t)rows * sizeof(unsigned int),
-                         cudaMemcpyHostToDevice) == cudaSuccess)
-                 ? 1
-                 : 0;
-        ok = ok && (cudaMemcpy(&machine->row_first[offsets + rows], &total, sizeof(unsigned int),
-                               cudaMemcpyHostToDevice) == cudaSuccess);
+        ok = tessera_job_crossed_into(&machine->row_first[offsets], machine->row_counts, row_bytes) &&
+             tessera_job_crossed_into(&machine->row_first[offsets + rows], &total, sizeof(unsigned int));
     }
 
     platform_cell_released(machine->resident_leaf_bundles[resident], platform_place_g_program_owner);
@@ -219,15 +208,18 @@ extern "C" ClimbMachine *climb_machine_open(const ClimbMachineExtent *extent)
     machine->peak_capacity = extent->peak_capacity;
     machine->capacity = (extent->frames < 2u) ? 2u : extent->frames;
     const size_t residents = (size_t)machine->capacity;
+    // The cells of the device that the machine holds from its open to its close are persistent cells of the pool of
+    // the device. The cells that grow with the frames go back and come again at the new size
     int ok = 1;
-    ok = ok && (cudaMalloc((void **)&machine->scratch_labels, 2u * (size_t)geometry->voxels * sizeof(unsigned int)) ==
-                cudaSuccess);
+    ok = ok && machine_cell_taken((void **)&machine->scratch_labels, 2ULL * geometry->voxels * sizeof(unsigned int));
     machine->scratch_frame[0] = CLIMB_MACHINE_EMPTY;
     machine->scratch_frame[1] = CLIMB_MACHINE_EMPTY;
-    ok = ok && (cudaMalloc((void **)&machine->positive,
-                           residents * (size_t)geometry->words * sizeof(unsigned long long)) == cudaSuccess);
-    ok = ok && (cudaMalloc((void **)&machine->row_first, residents * (((size_t)extent->depth * extent->height) + 1u) *
-                                                             sizeof(unsigned int)) == cudaSuccess);
+    ok = ok && machine_cell_taken((void **)&machine->positive,
+                                  (unsigned long long)residents * geometry->words * sizeof(unsigned long long));
+    ok = ok &&
+         machine_cell_taken((void **)&machine->row_first,
+                            (unsigned long long)residents *
+                                (((unsigned long long)extent->depth * extent->height) + 1ULL) * sizeof(unsigned int));
     machine->resident_frame =
         (unsigned int *)platform_cell_taken(residents * sizeof(unsigned int), platform_place_g_program_owner, 0);
     machine->resident_leaves =
@@ -253,27 +245,24 @@ extern "C" ClimbMachine *climb_machine_open(const ClimbMachineExtent *extent)
         machine->resident_frame[resident] = CLIMB_MACHINE_EMPTY;
     }
     const size_t rows = (size_t)extent->depth * extent->height;
-    ok = ok && (cudaMalloc((void **)&machine->device_map, (size_t)geometry->voxels * sizeof(int)) == cudaSuccess);
-    ok = ok && (cudaMemset(machine->device_map, 0xFF, (size_t)geometry->voxels * sizeof(int)) == cudaSuccess);
-    ok = ok && (cudaMalloc((void **)&machine->device_peaks,
-                           ((size_t)extent->peak_capacity + 1u) * sizeof(unsigned int)) == cudaSuccess);
+    // every leaf of the map starts at -1, every byte 0xFF
+    ok = ok && machine_cell_taken((void **)&machine->device_map, geometry->voxels * sizeof(int)) &&
+         machine_filled(machine->device_map, geometry->voxels, 0xFFFFFFFFu);
+    ok = ok && machine_cell_taken((void **)&machine->device_peaks,
+                                  ((unsigned long long)extent->peak_capacity + 1ULL) * sizeof(unsigned int));
     ok = ok &&
          machine_grow((void **)&machine->row_counts, (void **)&machine->device_row_counts, rows * sizeof(unsigned int));
-    ok = ok && (cudaMalloc((void **)&machine->device_row_offsets, rows * sizeof(unsigned int)) == cudaSuccess);
+    ok = ok &&
+         machine_cell_taken((void **)&machine->device_row_offsets, (unsigned long long)rows * sizeof(unsigned int));
     machine->leaf_counts = (unsigned int *)platform_cell_taken(
         ((size_t)extent->peak_capacity + 2u) * sizeof(unsigned int), platform_place_g_program_owner, 0);
     ok = ok && (machine->leaf_counts != NULL);
-    ok = ok && (cudaMalloc((void **)&machine->device_moved, 2u * sizeof(unsigned int)) == cudaSuccess);
-    ok = ok && (cudaMallocHost((void **)&machine->pinned_moved, 2u * sizeof(unsigned int)) == cudaSuccess);
-    ok = ok && (cudaMallocHost((void **)&machine->pinned_zero, sizeof(unsigned int)) == cudaSuccess);
-    ok = ok && (cudaEventCreate(&machine->blocks_done[0]) == cudaSuccess);
-    ok = ok && (cudaEventCreate(&machine->blocks_done[1]) == cudaSuccess);
+    ok = ok && machine_cell_taken((void **)&machine->device_moved, 2ULL * sizeof(unsigned int));
     if (ok == 0)
     {
         climb_machine_close(machine);
         return NULL;
     }
-    machine->pinned_zero[0] = 0u;
     machine->newest = CLIMB_MACHINE_EMPTY;
     return machine;
 }
@@ -309,13 +298,11 @@ extern "C" int climb_machine_store(ClimbMachine *machine, const ClimbMachineFram
     const unsigned int half = machine->scratch_next;
     unsigned int *const labels = &machine->scratch_labels[(size_t)half * (size_t)geometry->voxels];
     machine->scratch_frame[half] = CLIMB_MACHINE_EMPTY;
-    ok = ok && (cudaMemcpy(labels, frame->labels, (size_t)geometry->voxels * sizeof(unsigned int),
-                           cudaMemcpyHostToDevice) == cudaSuccess);
+    ok = ok && tessera_job_crossed_into(labels, frame->labels, geometry->voxels * sizeof(unsigned int));
     machine->scratch_frame[half] = (ok != 0) ? frame->frame : CLIMB_MACHINE_EMPTY;
     machine->scratch_next = 1u - half;
-    ok =
-        ok && (cudaMemcpy(&machine->positive[at * (size_t)geometry->words], frame->positive,
-                          (size_t)geometry->words * sizeof(unsigned long long), cudaMemcpyHostToDevice) == cudaSuccess);
+    ok = ok && tessera_job_crossed_into(&machine->positive[at * (size_t)geometry->words], frame->positive,
+                                        geometry->words * sizeof(unsigned long long));
     platform_cell_released(machine->resident_contact_start[resident], platform_place_g_program_owner);
     platform_cell_released(machine->resident_contacts[resident], platform_place_g_program_owner);
     machine->resident_contact_start[resident] = NULL;

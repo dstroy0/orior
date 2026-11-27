@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // climb_machine_run.cu: the landing options, the spiral, pending pairs and the run
-#include "climb_machine_internal.h"
 #include "../../../../platform/platform.h"
+#include "climb_machine_internal.h"
 
 extern "C" void climb_machine_land_by_mass(ClimbMachine *machine, unsigned int by_mass)
 {
@@ -24,10 +24,10 @@ extern "C" int climb_machine_spiral(ClimbMachine *machine, unsigned int tries)
     {
         return 1;
     }
-    const int ok =
-        (cudaMalloc((void **)&machine->device_spiral, (size_t)SPIRAL_STEPS * 3u * sizeof(int)) == cudaSuccess) &&
-        (cudaMemcpy(machine->device_spiral, SPIRAL_OFFSETS, (size_t)SPIRAL_STEPS * 3u * sizeof(int),
-                    cudaMemcpyHostToDevice) == cudaSuccess);
+    // the offsets of the spiral, a persistent cell of the pool of the device that the machine holds until it closes
+    const unsigned long long bytes = (unsigned long long)SPIRAL_STEPS * 3ULL * sizeof(int);
+    const int ok = machine_cell_taken((void **)&machine->device_spiral, bytes) &&
+                   tessera_job_crossed_into(machine->device_spiral, SPIRAL_OFFSETS, bytes);
     return ok ? 1 : 0;
 }
 
@@ -151,10 +151,9 @@ extern "C" int climb_machine_run(ClimbMachine *machine)
                                 capacity * sizeof(unsigned int));
         ok = ok && machine_grow((void **)&machine->entry_climber, (void **)&machine->device_entry_climber,
                                 capacity * sizeof(unsigned int));
-        cudaFree(machine->device_scores);
-        machine->device_scores = NULL;
-        ok = ok && (cudaMalloc((void **)&machine->device_scores,
-                               capacity * CLIMB_MACHINE_CANDIDATES * sizeof(unsigned int)) == cudaSuccess);
+        machine_cell_given((void **)&machine->device_scores);
+        ok = ok && machine_cell_taken((void **)&machine->device_scores,
+                                      (unsigned long long)capacity * CLIMB_MACHINE_CANDIDATES * sizeof(unsigned int));
         machine->entry_capacity = (ok != 0) ? capacity : 0u;
     }
     if (ok == 0)
@@ -213,67 +212,43 @@ extern "C" int climb_machine_run(ClimbMachine *machine)
         }
     }
     machine->climber_entry_start[climber] = entry;
-    ok = ok && (cudaMemcpy(machine->device_side_residents, machine->side_residents, sides * 2u * sizeof(unsigned int),
-                           cudaMemcpyHostToDevice) == cudaSuccess);
-    ok = ok && (cudaMemcpy(machine->device_climber_side, machine->climber_side, climbers * sizeof(unsigned int),
-                           cudaMemcpyHostToDevice) == cudaSuccess);
-    ok = ok && (cudaMemcpy(machine->device_climber_peak, machine->climber_peak, climbers * sizeof(unsigned int),
-                           cudaMemcpyHostToDevice) == cudaSuccess);
-    ok = ok && (cudaMemcpy(machine->device_climber_entry_start, machine->climber_entry_start,
-                           (climbers + 1u) * sizeof(unsigned int), cudaMemcpyHostToDevice) == cudaSuccess);
-    ok = ok && (cudaMemcpy(machine->device_centers, machine->centers, climbers * 3u * sizeof(int),
-                           cudaMemcpyHostToDevice) == cudaSuccess);
-    ok = ok && (cudaMemcpy(machine->device_active, machine->active, climbers * sizeof(unsigned int),
-                           cudaMemcpyHostToDevice) == cudaSuccess);
+    const unsigned long long climber_words = (unsigned long long)climbers * sizeof(unsigned int);
+    const unsigned long long entry_words = (unsigned long long)entries * sizeof(unsigned int);
     ok = ok &&
-         ((entries == 0u) || ((cudaMemcpy(machine->device_entry_first, machine->entry_first,
-                                          entries * sizeof(unsigned int), cudaMemcpyHostToDevice) == cudaSuccess) &&
-                              (cudaMemcpy(machine->device_entry_end, machine->entry_end, entries * sizeof(unsigned int),
-                                          cudaMemcpyHostToDevice) == cudaSuccess) &&
-                              (cudaMemcpy(machine->device_entry_climber, machine->entry_climber,
-                                          entries * sizeof(unsigned int), cudaMemcpyHostToDevice) == cudaSuccess)));
+         tessera_job_crossed_into(machine->device_side_residents, machine->side_residents,
+                                  (unsigned long long)sides * 2ULL * sizeof(unsigned int)) &&
+         tessera_job_crossed_into(machine->device_climber_side, machine->climber_side, climber_words) &&
+         tessera_job_crossed_into(machine->device_climber_peak, machine->climber_peak, climber_words) &&
+         tessera_job_crossed_into(machine->device_climber_entry_start, machine->climber_entry_start,
+                                  climber_words + sizeof(unsigned int)) &&
+         tessera_job_crossed_into(machine->device_centers, machine->centers,
+                                  (unsigned long long)climbers * 3ULL * sizeof(int)) &&
+         tessera_job_crossed_into(machine->device_active, machine->active, climber_words) &&
+         tessera_job_crossed_into(machine->device_entry_first, machine->entry_first, entry_words) &&
+         tessera_job_crossed_into(machine->device_entry_end, machine->entry_end, entry_words) &&
+         tessera_job_crossed_into(machine->device_entry_climber, machine->entry_climber, entry_words);
 
-    const unsigned int entry_blocks = (entry + CLIMB_MACHINE_BLOCK - 1u) / CLIMB_MACHINE_BLOCK;
     const unsigned int climber_blocks = (climber + CLIMB_MACHINE_BLOCK - 1u) / CLIMB_MACHINE_BLOCK;
-    int settled = (climber == 0u) ? 1 : 0;
-    unsigned int block = 0u;
-    while ((ok != 0) && (settled == 0))
+    if ((ok != 0) && (climber != 0u))
     {
-        const unsigned int parity = block % 2u;
-        ok = (cudaMemcpyAsync(&machine->device_moved[parity], machine->pinned_zero, sizeof(unsigned int),
-                              cudaMemcpyHostToDevice, 0) == cudaSuccess)
-                 ? 1
-                 : 0;
-        for (unsigned int tick = 0u; (ok != 0) && (tick < CLIMB_MACHINE_TICKS); tick += 1u)
-        {
-            if (entry != 0u)
-            {
-                machine_score_kernel<<<entry_blocks, CLIMB_MACHINE_BLOCK>>>(
-                    machine->run_start, machine->run_length, machine->device_entry_first, machine->device_entry_end,
-                    machine->device_entry_climber, entry, machine->device_climber_side, machine->device_side_residents,
-                    machine->device_centers, machine->device_active, machine->positive, geometry,
-                    machine->device_scores);
-                ok = machine_launched();
-            }
-            if (ok != 0)
-            {
-                machine_decide_kernel<<<climber_blocks, CLIMB_MACHINE_BLOCK>>>(
-                    machine->device_climber_entry_start, machine->device_scores, climber, geometry,
-                    machine->device_centers, machine->device_active, &machine->device_moved[parity],
-                    machine->device_final_score);
-                ok = machine_launched();
-            }
-        }
-        ok = ok && (cudaMemcpyAsync(&machine->pinned_moved[parity], &machine->device_moved[parity],
-                                    sizeof(unsigned int), cudaMemcpyDeviceToHost, 0) == cudaSuccess);
-        ok = ok && (cudaEventRecord(machine->blocks_done[parity], 0) == cudaSuccess);
-        if ((ok != 0) && (block > 0u))
-        {
-            const unsigned int previous = 1u - parity;
-            ok = (cudaEventSynchronize(machine->blocks_done[previous]) == cudaSuccess) ? 1 : 0;
-            settled = ((ok != 0) && (machine->pinned_moved[previous] == 0u)) ? 1 : 0;
-        }
-        block += 1u;
+        const MachineClimbJob job = {machine->run_start,
+                                     machine->run_length,
+                                     machine->device_entry_first,
+                                     machine->device_entry_end,
+                                     machine->device_entry_climber,
+                                     entry,
+                                     machine->device_climber_side,
+                                     machine->device_side_residents,
+                                     machine->device_climber_entry_start,
+                                     climber,
+                                     machine->device_centers,
+                                     machine->device_active,
+                                     machine->positive,
+                                     geometry,
+                                     machine->device_scores,
+                                     machine->device_moved,
+                                     machine->device_final_score};
+        ok = machine_climbed(&job);
     }
 
     if ((ok != 0) && (climber != 0u))
@@ -297,12 +272,11 @@ extern "C" int climb_machine_run(ClimbMachine *machine)
         }
         ok = machine_launched();
     }
-    ok = ok && (cudaMemcpy(machine->centers, machine->device_centers, climbers * 3u * sizeof(int),
-                           cudaMemcpyDeviceToHost) == cudaSuccess);
-    ok = ok && (cudaMemcpy(machine->landed, machine->device_landed, climbers * sizeof(unsigned int),
-                           cudaMemcpyDeviceToHost) == cudaSuccess);
-    ok = ok && (cudaMemcpy(machine->final_score, machine->device_final_score, climbers * sizeof(unsigned int),
-                           cudaMemcpyDeviceToHost) == cudaSuccess);
+    ok = ok &&
+         tessera_job_crossed_out(machine->centers, machine->device_centers,
+                                 (unsigned long long)climbers * 3ULL * sizeof(int)) &&
+         tessera_job_crossed_out(machine->landed, machine->device_landed, climber_words) &&
+         tessera_job_crossed_out(machine->final_score, machine->device_final_score, climber_words);
 
     climber = 0u;
     for (unsigned int pair = 0u; (ok != 0) && (pair < machine->pending_count); pair += 1u)

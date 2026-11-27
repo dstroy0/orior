@@ -4,8 +4,9 @@
 #ifndef CLIMB_MACHINE_INTERNAL_H
 #define CLIMB_MACHINE_INTERNAL_H
 
-#include "climb_machine.h"
 #include "../../engine_config.h"
+#include "../../runtime/daemon/tessera_job.h"
+#include "climb_machine.h"
 #include "spiral_table.h"
 
 #include <cuda_runtime.h>
@@ -108,9 +109,6 @@ struct ClimbMachine
     unsigned int *device_entry_climber;
     unsigned int *device_scores;
     unsigned int *device_moved;
-    unsigned int *pinned_moved;
-    unsigned int *pinned_zero;
-    cudaEvent_t blocks_done[2];
     unsigned int ran_count;
     unsigned int *box_earlier;
     unsigned int *box_later;
@@ -184,16 +182,31 @@ __device__ static inline unsigned int machine_agreeing(const unsigned long long 
     return agreeing;
 }
 
-__global__ void machine_score_kernel(const unsigned int *run_start, const unsigned int *run_length,
-                                     const unsigned int *entry_first, const unsigned int *entry_end,
-                                     const unsigned int *entry_climber, unsigned int entries,
-                                     const unsigned int *climber_side, const unsigned int *side_residents,
-                                     const int *centers, const unsigned int *active, const unsigned long long *positive,
-                                     MachineGeometry geometry, unsigned int *scores);
+// The arguments of the climb, which the job kernel takes by value. Each entry is a bundle of the runs of one climber,
+// and the scores hold CLIMB_MACHINE_CANDIDATES counts an entry
+struct MachineClimbJob
+{
+    const unsigned int *run_start;
+    const unsigned int *run_length;
+    const unsigned int *entry_first;
+    const unsigned int *entry_end;
+    const unsigned int *entry_climber;
+    unsigned int entries;
+    const unsigned int *climber_side;
+    const unsigned int *side_residents;
+    const unsigned int *climber_entry_start;
+    unsigned int climbers;
+    int *centers;
+    unsigned int *active;
+    const unsigned long long *positive;
+    MachineGeometry geometry;
+    unsigned int *scores;
+    unsigned int *moved;
+    unsigned int *final_score;
+};
 
-__global__ void machine_decide_kernel(const unsigned int *climber_entry_start, const unsigned int *scores,
-                                      unsigned int climbers, MachineGeometry geometry, int *centers,
-                                      unsigned int *active, unsigned int *moved, unsigned int *final_score);
+// The climb as one job of the device, until a round moves no climber. 1, or 0 where the launch or the kernel errors
+int machine_climbed(const MachineClimbJob *job);
 
 __device__ static inline unsigned int machine_leaf_at(unsigned long long voxel, unsigned long long resident,
                                                       const unsigned int *row_first, const unsigned int *run_at_row,
@@ -264,6 +277,21 @@ int machine_launched(void);
 
 unsigned int machine_resident_of(const ClimbMachine *machine, unsigned int frame);
 
+// the owner that the cells of the machine in the pool of the device count to
+#define CLIMB_MACHINE_PLACE ((unsigned int)platform_place_g_engine_owner)
+
+// A persistent cell of `bytes` bytes in the pool of the device, every byte 0, for state that the machine holds across
+// calls. 1, or 0 where the pool cannot meet the bytes
+int machine_cell_taken(void **cell, unsigned long long bytes);
+
+// the cell given back to the pool of the device and the address set to NULL. The call passes over a NULL cell
+void machine_cell_given(void **cell);
+
+// every word of the first `words` words of a cell of the device set to `value`: 1, or 0 where the kernel errors
+int machine_filled(void *cell, unsigned long long words, unsigned int value);
+
+// A host cell and a device cell of `bytes` bytes each, in place of the cells at `host` and `device`. 1, or 0 where
+// either take fails
 int machine_grow(void **host, void **device, size_t bytes);
 
 extern "C" int climb_machine_run(ClimbMachine *machine);

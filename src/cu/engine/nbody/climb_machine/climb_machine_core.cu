@@ -314,15 +314,35 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     const size_t bins = (size_t)max_resident_items * widest * CLIMB_MACHINE_CORE_FIELDS;
     // max_resident_items widens from unsigned int to size_t. Max_resident_items + 1 cannot wrap in 32 bits
     const size_t item_capacity = (size_t)max_resident_items + 1u;
-    unsigned int *painted = NULL;
-    unsigned int *range_first = NULL;
-    unsigned int *range_second = NULL;
-    unsigned int *device_run_first = NULL;
-    unsigned int *device_run_end = NULL;
-    int *device_center = NULL;
-    unsigned int *device_match = NULL;
-    unsigned long long *device_bins = NULL;
-    unsigned int *device_error = NULL;
+    // The scratch of the core is temporary cells of the pool of the device, every byte 0 at the take. The call gives
+    // them back last first before it returns
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, CLIMB_MACHINE_PLACE);
+    void *room[9] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+    const unsigned long long item_words = (unsigned long long)item_capacity * sizeof(unsigned int);
+    const unsigned long long bytes[9] = {(unsigned long long)voxels * sizeof(unsigned int),
+                                         (unsigned long long)voxels * sizeof(unsigned int),
+                                         (unsigned long long)voxels * sizeof(unsigned int),
+                                         item_words,
+                                         item_words,
+                                         (unsigned long long)item_capacity * 3ULL * sizeof(int),
+                                         item_words,
+                                         ((unsigned long long)bins + 1ULL) * sizeof(unsigned long long),
+                                         sizeof(unsigned int)};
+    for (unsigned int which = 0u; steps_succeeded && (which < 9u); which += 1u)
+    {
+        steps_succeeded = tessera_job_cells_room(&cells, bytes[which], &room[which]);
+    }
+    // Explicit casts read each cell as the words that it holds
+    unsigned int *const painted = (unsigned int *)room[0];
+    unsigned int *const range_first = (unsigned int *)room[1];
+    unsigned int *const range_second = (unsigned int *)room[2];
+    unsigned int *const device_run_first = (unsigned int *)room[3];
+    unsigned int *const device_run_end = (unsigned int *)room[4];
+    int *const device_center = (int *)room[5];
+    unsigned int *const device_match = (unsigned int *)room[6];
+    unsigned long long *const device_bins = (unsigned long long *)room[7];
+    unsigned int *const device_error = (unsigned int *)room[8];
     unsigned int *const item_run_first = steps_succeeded
                                              ? (unsigned int *)platform_cell_taken(item_capacity * sizeof(unsigned int),
                                                                                    platform_place_g_program_owner, 0)
@@ -343,17 +363,7 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
                                                                     platform_place_g_program_owner, 0)
                         : NULL;
     steps_succeeded = steps_succeeded && (item_run_first != NULL) && (item_run_end != NULL) && (item_center != NULL) &&
-                      (item_match != NULL) && (host_bins != NULL) &&
-                      (cudaMalloc((void **)&painted, voxels * sizeof(unsigned int)) == cudaSuccess) &&
-                      (cudaMalloc((void **)&range_first, voxels * sizeof(unsigned int)) == cudaSuccess) &&
-                      (cudaMalloc((void **)&range_second, voxels * sizeof(unsigned int)) == cudaSuccess) &&
-                      (cudaMalloc((void **)&device_run_first, item_capacity * sizeof(unsigned int)) == cudaSuccess) &&
-                      (cudaMalloc((void **)&device_run_end, item_capacity * sizeof(unsigned int)) == cudaSuccess) &&
-                      (cudaMalloc((void **)&device_center, item_capacity * 3u * sizeof(int)) == cudaSuccess) &&
-                      (cudaMalloc((void **)&device_match, item_capacity * sizeof(unsigned int)) == cudaSuccess) &&
-                      (cudaMalloc((void **)&device_bins, (bins + 1u) * sizeof(unsigned long long)) == cudaSuccess) &&
-                      (cudaMalloc((void **)&device_error, sizeof(unsigned int)) == cudaSuccess) &&
-                      (cudaMemset(device_error, 0, sizeof(unsigned int)) == cudaSuccess);
+                      (item_match != NULL) && (host_bins != NULL);
     unsigned long long *staged = NULL;
     size_t staged_capacity = 0u;
     size_t staged_count = 0u;
@@ -383,16 +393,15 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
         // resident_items widens from unsigned int to size_t before the multiply. Items * widest * 10 cannot wrap in 32
         // bits
         const size_t resident_bins = (size_t)resident_items * widest * CLIMB_MACHINE_CORE_FIELDS;
-        steps_succeeded = (cudaMemset(painted, 0xFF, voxels * sizeof(unsigned int)) == cudaSuccess) &&
-                          (cudaMemset(device_bins, 0, resident_bins * sizeof(unsigned long long)) == cudaSuccess) &&
-                          (cudaMemcpy(device_run_first, item_run_first, resident_items * sizeof(unsigned int),
-                                      cudaMemcpyHostToDevice) == cudaSuccess) &&
-                          (cudaMemcpy(device_run_end, item_run_end, resident_items * sizeof(unsigned int),
-                                      cudaMemcpyHostToDevice) == cudaSuccess) &&
-                          (cudaMemcpy(device_center, item_center, resident_items * sizeof(int) * 3u,
-                                      cudaMemcpyHostToDevice) == cudaSuccess) &&
-                          (cudaMemcpy(device_match, item_match, resident_items * sizeof(unsigned int),
-                                      cudaMemcpyHostToDevice) == cudaSuccess);
+        // every voxel of the paint starts outside each leaf, every byte 0xFF
+        const unsigned long long resident_words = (unsigned long long)resident_items * sizeof(unsigned int);
+        steps_succeeded =
+            machine_filled(painted, voxels, CLIMB_MACHINE_OUTSIDE) &&
+            tessera_job_cleared(device_bins, (unsigned long long)resident_bins * sizeof(unsigned long long)) &&
+            tessera_job_crossed_into(device_run_first, item_run_first, resident_words) &&
+            tessera_job_crossed_into(device_run_end, item_run_end, resident_words) &&
+            tessera_job_crossed_into(device_center, item_center, resident_words * 3ULL) &&
+            tessera_job_crossed_into(device_match, item_match, resident_words);
         if (steps_succeeded && (runs != 0u))
         {
             machine_paint_kernel<<<(runs + CLIMB_MACHINE_BLOCK - 1u) / CLIMB_MACHINE_BLOCK, CLIMB_MACHINE_BLOCK>>>(
@@ -414,8 +423,8 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
             steps_succeeded = machine_launched() && (cudaDeviceSynchronize() == cudaSuccess);
         }
         steps_succeeded =
-            steps_succeeded && (cudaMemcpy(host_bins, device_bins, resident_bins * sizeof(unsigned long long),
-                                           cudaMemcpyDeviceToHost) == cudaSuccess);
+            steps_succeeded && tessera_job_crossed_out(host_bins, device_bins,
+                                                       (unsigned long long)resident_bins * sizeof(unsigned long long));
         for (unsigned int item = 0u; steps_succeeded && (item < resident_items); item += 1u)
         {
             const unsigned int listed_place = resident_order[resident_item_first + item];
@@ -456,8 +465,7 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
         }
     }
     unsigned int error = 0u;
-    steps_succeeded = steps_succeeded &&
-                      (cudaMemcpy(&error, device_error, sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess) &&
+    steps_succeeded = steps_succeeded && tessera_job_crossed_out(&error, device_error, sizeof(unsigned int)) &&
                       (error == 0u) && (staged_count <= 0xFFFFFFFFULL);
     machine->core_fields = steps_succeeded
                                ? (unsigned long long *)platform_cell_taken(
@@ -482,15 +490,7 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
         // exactly
         machine->core_width_first[listed_count] = (unsigned int)widths_written;
     }
-    cudaFree(painted);
-    cudaFree(range_first);
-    cudaFree(range_second);
-    cudaFree(device_run_first);
-    cudaFree(device_run_end);
-    cudaFree(device_center);
-    cudaFree(device_match);
-    cudaFree(device_bins);
-    cudaFree(device_error);
+    tessera_job_cells_given(&cells);
     platform_cell_released(item_run_first, platform_place_g_program_owner);
     platform_cell_released(item_run_end, platform_place_g_program_owner);
     platform_cell_released(item_center, platform_place_g_program_owner);

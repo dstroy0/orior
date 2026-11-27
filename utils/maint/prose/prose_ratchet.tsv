@@ -517,7 +517,6 @@ src/cu/engine/engine_files.cu	18
 src/cu/engine/engine_source.cu	3
 src/cu/engine/nbody/body_overlap/body_overlap.cu	1
 src/cu/engine/nbody/body_overlap/body_overlap.h	2
-src/cu/engine/nbody/climb_machine/climb_machine_core.cu	3
 src/cu/engine/nbody/flatten/flatten.cu	3
 src/cu/engine/nbody/flatten/flatten.h	2
 src/cu/engine/nbody/max_tree/max_tree.h	20

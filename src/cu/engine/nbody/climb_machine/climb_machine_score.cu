@@ -3,37 +3,30 @@
 // climb_machine_score.cu: scoring and deciding
 #include "climb_machine_internal.h"
 
-__global__ void machine_score_kernel(const unsigned int *run_start, const unsigned int *run_length,
-                                     const unsigned int *entry_first, const unsigned int *entry_end,
-                                     const unsigned int *entry_climber, unsigned int entries,
-                                     const unsigned int *climber_side, const unsigned int *side_residents,
-                                     const int *centers, const unsigned int *active, const unsigned long long *positive,
-                                     MachineGeometry geometry, unsigned int *scores)
+#include <cooperative_groups.h>
+
+__device__ static void machine_score_entry(const MachineClimbJob *job, unsigned int entry)
 {
-    const unsigned int entry = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (entry >= entries)
+    const unsigned int climber = job->entry_climber[entry];
+    if (job->active[climber] == 0u)
     {
         return;
     }
-    const unsigned int climber = entry_climber[entry];
-    if (active[climber] == 0u)
-    {
-        return;
-    }
-    const unsigned int side = climber_side[climber];
-    const unsigned long long own_word = (unsigned long long)side_residents[2u * side] * geometry.words;
-    const unsigned long long other_word = (unsigned long long)side_residents[(2u * side) + 1u] * geometry.words;
-    const int *const center = &centers[3u * climber];
+    const MachineGeometry geometry = job->geometry;
+    const unsigned int side = job->climber_side[climber];
+    const unsigned long long own_word = (unsigned long long)job->side_residents[2u * side] * geometry.words;
+    const unsigned long long other_word = (unsigned long long)job->side_residents[(2u * side) + 1u] * geometry.words;
+    const int *const center = &job->centers[3u * climber];
     const unsigned int plane = geometry.height * geometry.width;
     unsigned int counts[CLIMB_MACHINE_CANDIDATES];
     for (unsigned int candidate = 0u; candidate < CLIMB_MACHINE_CANDIDATES; candidate += 1u)
     {
         counts[candidate] = 0u;
     }
-    for (unsigned int run = entry_first[entry]; run < entry_end[entry]; run += 1u)
+    for (unsigned int run = job->entry_first[entry]; run < job->entry_end[entry]; run += 1u)
     {
-        const unsigned int start = run_start[run];
-        const long long length = (long long)run_length[run];
+        const unsigned int start = job->run_start[run];
+        const long long length = (long long)job->run_length[run];
         const unsigned int rest = start % plane;
         const long long base_z = (long long)(start / plane) + (long long)center[0];
         const long long base_y = (long long)(rest / geometry.width) + (long long)center[1];
@@ -57,9 +50,10 @@ __global__ void machine_score_kernel(const unsigned int *run_start, const unsign
                     {
                         const unsigned long long row =
                             (unsigned long long)((z * (long long)geometry.height + y) * (long long)geometry.width);
-                        counts[candidate] += machine_agreeing(
-                            positive, geometry.words, own_word, (unsigned long long)start + (unsigned long long)first,
-                            other_word, row + (unsigned long long)(x + first), (unsigned int)(end - first));
+                        counts[candidate] +=
+                            machine_agreeing(job->positive, geometry.words, own_word,
+                                             (unsigned long long)start + (unsigned long long)first, other_word,
+                                             row + (unsigned long long)(x + first), (unsigned int)(end - first));
                     }
                     candidate += 1u;
                 }
@@ -68,32 +62,32 @@ __global__ void machine_score_kernel(const unsigned int *run_start, const unsign
     }
     for (unsigned int candidate = 0u; candidate < CLIMB_MACHINE_CANDIDATES; candidate += 1u)
     {
-        scores[((unsigned long long)entry * CLIMB_MACHINE_CANDIDATES) + candidate] = counts[candidate];
+        job->scores[((unsigned long long)entry * CLIMB_MACHINE_CANDIDATES) + candidate] = counts[candidate];
     }
 }
 
-__global__ void machine_decide_kernel(const unsigned int *climber_entry_start, const unsigned int *scores,
-                                      unsigned int climbers, MachineGeometry geometry, int *centers,
-                                      unsigned int *active, unsigned int *moved, unsigned int *final_score)
+__device__ static void machine_decide_climber(const MachineClimbJob *job, unsigned int climber)
 {
-    const unsigned int climber = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if ((climber >= climbers) || (active[climber] == 0u))
+    if (job->active[climber] == 0u)
     {
         return;
     }
+    const MachineGeometry geometry = job->geometry;
     long long sums[CLIMB_MACHINE_CANDIDATES];
     for (unsigned int candidate = 0u; candidate < CLIMB_MACHINE_CANDIDATES; candidate += 1u)
     {
         sums[candidate] = 0LL;
     }
-    for (unsigned int entry = climber_entry_start[climber]; entry < climber_entry_start[climber + 1u]; entry += 1u)
+    for (unsigned int entry = job->climber_entry_start[climber]; entry < job->climber_entry_start[climber + 1u];
+         entry += 1u)
     {
         for (unsigned int candidate = 0u; candidate < CLIMB_MACHINE_CANDIDATES; candidate += 1u)
         {
-            sums[candidate] += (long long)scores[((unsigned long long)entry * CLIMB_MACHINE_CANDIDATES) + candidate];
+            sums[candidate] +=
+                (long long)job->scores[((unsigned long long)entry * CLIMB_MACHINE_CANDIDATES) + candidate];
         }
     }
-    int *const center = &centers[3u * climber];
+    int *const center = &job->centers[3u * climber];
     const long long here[3] = {(long long)center[0], (long long)center[1], (long long)center[2]};
     long long best[3] = {here[0], here[1], here[2]};
     long long best_score = sums[13];
@@ -130,11 +124,57 @@ __global__ void machine_decide_kernel(const unsigned int *climber_entry_start, c
         center[0] = (int)best[0];
         center[1] = (int)best[1];
         center[2] = (int)best[2];
-        moved[0] = 1u;
+        job->moved[0] = 1u;
     }
     else
     {
-        active[climber] = 0u;
-        final_score[climber] = (unsigned int)sums[13];
+        job->active[climber] = 0u;
+        job->final_score[climber] = (unsigned int)sums[13];
     }
+}
+
+// The climb as one job of the device. Each round clears the mark, then runs CLIMB_MACHINE_TICKS ticks. Each tick
+// scores every entry, then lets each climber step to its best candidate. A sync of the grid follows each step. A
+// climber that does not step stops, with its score at its center. The grid reads the mark after the round, and a
+// round that moved no climber ends the loop
+__global__ void machine_climb_job_kernel(MachineClimbJob job)
+{
+    cooperative_groups::grid_group grid = cooperative_groups::this_grid();
+    const unsigned long long first = grid.thread_rank();
+    const unsigned long long jump = grid.size();
+    int settled = 0;
+    while (settled == 0)
+    {
+        if (first == 0ULL)
+        {
+            job.moved[0] = 0u;
+        }
+        grid.sync();
+        for (unsigned int tick = 0u; tick < CLIMB_MACHINE_TICKS; tick += 1u)
+        {
+            for (unsigned long long entry = first; entry < job.entries; entry += jump)
+            {
+                // Explicit cast takes an entry below the count, which an unsigned int holds
+                machine_score_entry(&job, (unsigned int)entry);
+            }
+            grid.sync();
+            for (unsigned long long climber = first; climber < job.climbers; climber += jump)
+            {
+                // Explicit cast takes a climber below the count, which an unsigned int holds
+                machine_decide_climber(&job, (unsigned int)climber);
+            }
+            grid.sync();
+        }
+        settled = (job.moved[0] == 0u) ? 1 : 0;
+        // each thread reads the mark before the first thread clears it for the next round
+        grid.sync();
+    }
+}
+
+int machine_climbed(const MachineClimbJob *job)
+{
+    MachineClimbJob arguments = *job;
+    void *args[1] = {(void *)&arguments};
+    // Explicit cast gives the address of the kernel as the job that tessera runs
+    return tessera_job_ran((const void *)machine_climb_job_kernel, CLIMB_MACHINE_BLOCK, args);
 }
