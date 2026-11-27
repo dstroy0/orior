@@ -327,7 +327,7 @@ extern "C"
      * @note An arm with its own search is a different algorithm. A time of it against the portable arm then
      *       measures the algorithm, and not the instruction set.
      * @note orior_exact_agreement documents how the count takes a repeated position.
-     * @note Where the call cannot get the table, a quadratic scan gives the same count and needs no order.
+     * @note Where the call cannot get the order, a quadratic scan gives the same count and needs no memory.
      */
     size_t orior_exact_agreement_using(int (*equal)(const OriorExactInteger *left, const OriorExactInteger *right),
                                         const OriorExactInteger *positions, const uint64_t *values, size_t count,
