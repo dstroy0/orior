@@ -249,8 +249,6 @@ typedef struct
     unsigned int *probe_labels;
     unsigned int *roots;
     unsigned int *moved;
-    unsigned int *pinned_moved;
-    cudaEvent_t blocks_done[2];
     unsigned int *raw;
     MaxTreeSlideStep *steps;
     unsigned int *partitions;
@@ -317,8 +315,6 @@ typedef struct
     unsigned int *thresholds;
     unsigned int *tallies;
     unsigned int *moved;
-    unsigned int *pinned_moved;
-    cudaEvent_t blocks_done[2];
     EngineError *error;
 } MaxTreeOverlap;
 

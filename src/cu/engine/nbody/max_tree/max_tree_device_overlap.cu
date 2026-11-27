@@ -25,9 +25,9 @@ static int max_tree_overlap_step(MaxTreeOverlap *overlap, unsigned int origin, u
         const unsigned int place = overlap->frame_place[frame];
         const unsigned int top = resident->frame_top[place];
         thresholds[frame] = top + 1u;
-        ok = MAX_TREE_STATUS_CHECK(
-            cudaMemcpy(&overlap->thresholds[frame], &thresholds[frame], sizeof(unsigned int), cudaMemcpyHostToDevice),
-            &overlap->thresholds[frame], error);
+        ok = MAX_TREE_CHECK(
+            tessera_job_crossed_into(&overlap->thresholds[frame], &thresholds[frame], sizeof(unsigned int)),
+            &overlap->thresholds[frame], error, ENGINE_ERROR_RESOURCE);
         if (ok != 0)
         {
             max_tree_overlap_threshold_kernel<<<(top + MAX_TREE_BLOCK - 1u) / MAX_TREE_BLOCK, MAX_TREE_BLOCK>>>(
@@ -35,12 +35,10 @@ static int max_tree_overlap_step(MaxTreeOverlap *overlap, unsigned int origin, u
             ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), &overlap->thresholds[frame], error);
         }
     }
-    ok = ok &&
-         MAX_TREE_STATUS_CHECK(
-             cudaMemcpy(thresholds, overlap->thresholds, 2u * sizeof(unsigned int), cudaMemcpyDeviceToHost),
-             overlap->thresholds, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMemset(overlap->tallies, 0, MAX_TREE_OVERLAP_TALLIES * sizeof(unsigned int)),
-                               overlap->tallies, error);
+    ok =
+        ok && MAX_TREE_CHECK(tessera_job_crossed_out(thresholds, overlap->thresholds, 2ULL * sizeof(unsigned int)) &&
+                                 tessera_job_cleared(overlap->tallies, MAX_TREE_OVERLAP_TALLIES * sizeof(unsigned int)),
+                             overlap->tallies, error, ENGINE_ERROR_RESOURCE);
     for (unsigned int frame = 0u; (ok != 0) && (frame < 2u); frame += 1u)
     {
         max_tree_cc_start_kernel<<<spread, MAX_TREE_BLOCK>>>(resident->frame_code[overlap->frame_place[frame]], count,
@@ -49,10 +47,10 @@ static int max_tree_overlap_step(MaxTreeOverlap *overlap, unsigned int origin, u
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), overlap->label[frame], error) &&
              max_tree_cc(overlap->ranges[frame], overlap->depth, overlap->height, overlap->width, overlap->label[frame],
                          overlap->moved, error) &&
-             MAX_TREE_STATUS_CHECK(cudaMemset(overlap->partners[frame], 0, (size_t)count * sizeof(unsigned int)),
-                                   overlap->partners[frame], error) &&
-             MAX_TREE_STATUS_CHECK(cudaMemset(overlap->backs[frame], 0, (size_t)count * sizeof(unsigned int)),
-                                   overlap->backs[frame], error);
+             MAX_TREE_CHECK(
+                 tessera_job_cleared(overlap->partners[frame], (unsigned long long)count * sizeof(unsigned int)) &&
+                     tessera_job_cleared(overlap->backs[frame], (unsigned long long)count * sizeof(unsigned int)),
+                 overlap->partners[frame], error, ENGINE_ERROR_RESOURCE);
         if (ok != 0)
         {
             max_tree_roots_kernel<<<spread, MAX_TREE_BLOCK>>>(overlap->ranges[frame], overlap->label[frame], count,
@@ -109,25 +107,16 @@ static int max_tree_overlap_step(MaxTreeOverlap *overlap, unsigned int origin, u
         }
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), overlap->tallies, error);
     }
-    ok = ok &&
-         ((overlap->probe_counts[0] == 0u) ||
-          MAX_TREE_STATUS_CHECK(cudaMemcpy(probes, overlap->probes[0],
-                                           (size_t)overlap->probe_counts[0] * sizeof(MaxTreeOverlapProbe),
-                                           cudaMemcpyDeviceToHost),
-                                probes, error)) &&
-         ((overlap->probe_counts[1] == 0u) ||
-          MAX_TREE_STATUS_CHECK(cudaMemcpy(&probes[overlap->probe_counts[0]], overlap->probes[1],
-                                           (size_t)overlap->probe_counts[1] * sizeof(MaxTreeOverlapProbe),
-                                           cudaMemcpyDeviceToHost),
-                                &probes[overlap->probe_counts[0]], error)) &&
-         ((overlap->link_count == 0u) || MAX_TREE_STATUS_CHECK(cudaMemcpy(links_present, overlap->links_present,
-                                                                          overlap->link_count, cudaMemcpyDeviceToHost),
-                                                               links_present, error));
     unsigned int tallies[MAX_TREE_OVERLAP_TALLIES] = {0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
-    ok =
-        ok && MAX_TREE_STATUS_CHECK(cudaMemcpy(tallies, overlap->tallies,
-                                               MAX_TREE_OVERLAP_TALLIES * sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                                    overlap->tallies, error);
+    ok = ok &&
+         MAX_TREE_CHECK(
+             tessera_job_crossed_out(probes, overlap->probes[0],
+                                     (unsigned long long)overlap->probe_counts[0] * sizeof(MaxTreeOverlapProbe)) &&
+                 tessera_job_crossed_out(&probes[overlap->probe_counts[0]], overlap->probes[1],
+                                         (unsigned long long)overlap->probe_counts[1] * sizeof(MaxTreeOverlapProbe)) &&
+                 tessera_job_crossed_out(links_present, overlap->links_present, overlap->link_count) &&
+                 tessera_job_crossed_out(tallies, overlap->tallies, MAX_TREE_OVERLAP_TALLIES * sizeof(unsigned int)),
+             overlap->tallies, error, ENGINE_ERROR_RESOURCE);
     step->origin = origin;
     step->level = level;
     step->earlier_code = thresholds[0];
@@ -206,65 +195,66 @@ extern "C" long max_tree_overlap(const MaxTreeOverlapRequest *request)
     {
         overlap.lag[axis] = request->lag[axis];
     }
-    unsigned int *device_probe_voxels[2] = {NULL, NULL};
-    unsigned int *device_links = NULL;
+    // Every buffer of the overlap is a temporary cell of the pool of the device, every byte 0 at the take. The call
+    // gives them back last first before it returns
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, MAX_TREE_PLACE);
+    void *cell = NULL;
     int ok = 1;
     for (unsigned int frame = 0u; frame < 2u; frame += 1u)
     {
-        const size_t probes = request->probe_counts[frame];
+        const unsigned long long probes = request->probe_counts[frame];
         overlap.probe_counts[frame] = request->probe_counts[frame];
-        ok = ok &&
-             ((probes == 0u) ||
-              (MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&device_probe_voxels[frame], probes * sizeof(unsigned int)),
-                                     &device_probe_voxels[frame], error) &&
-               MAX_TREE_STATUS_CHECK(cudaMemcpy(device_probe_voxels[frame], request->probe_voxels[frame],
-                                                probes * sizeof(unsigned int), cudaMemcpyHostToDevice),
-                                     device_probe_voxels[frame], error) &&
-               MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&overlap.probes[frame], probes * sizeof(MaxTreeOverlapProbe)),
-                                     &overlap.probes[frame], error)));
-        overlap.probe_voxels[frame] = device_probe_voxels[frame];
+        ok = ok && MAX_TREE_CHECK(
+                       tessera_job_cells_in(&cells, request->probe_voxels[frame], probes * sizeof(unsigned int), &cell),
+                       &request->probe_voxels[frame], error, ENGINE_ERROR_RESOURCE);
+        // Explicit casts read each cell as the words that it holds
+        overlap.probe_voxels[frame] = (const unsigned int *)cell;
+        ok = ok && MAX_TREE_CHECK(tessera_job_cells_room(&cells, probes * sizeof(MaxTreeOverlapProbe), &cell),
+                                  &request->probes, error, ENGINE_ERROR_RESOURCE);
+        overlap.probes[frame] = (MaxTreeOverlapProbe *)cell;
     }
-    const size_t link_words = (size_t)request->link_count * 2u;
-    ok = ok && ((request->link_count == 0u) ||
-                (MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&device_links, link_words * sizeof(unsigned int)),
-                                       &device_links, error) &&
-                 MAX_TREE_STATUS_CHECK(cudaMemcpy(device_links, request->probe_links, link_words * sizeof(unsigned int),
-                                                  cudaMemcpyHostToDevice),
-                                       device_links, error) &&
-                 MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&overlap.links_present, request->link_count),
-                                       &overlap.links_present, error)));
-    overlap.probe_links = device_links;
-    // The cut of the frame holds the voxel count below 2^32, and the sort takes it as int
+    const unsigned long long link_words = (unsigned long long)request->link_count * 2ULL;
     ok = ok &&
-         MAX_TREE_STATUS_CHECK(cub::DeviceRadixSort::SortKeys(NULL, overlap.scratch_bytes,
-                                                              (const unsigned long long *)NULL,
-                                                              (unsigned long long *)NULL, (int)voxels),
-                               &overlap.scratch_bytes, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc(&overlap.scratch, overlap.scratch_bytes), &overlap.scratch, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&overlap.thresholds, 2u * sizeof(unsigned int)), &overlap.thresholds,
-                               error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&overlap.tallies, MAX_TREE_OVERLAP_TALLIES * sizeof(unsigned int)),
-                               &overlap.tallies, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&overlap.moved, 3u * sizeof(unsigned int)), &overlap.moved, error) &&
-         MAX_TREE_STATUS_CHECK(cudaMallocHost((void **)&overlap.pinned_moved, 2u * sizeof(unsigned int)),
-                               &overlap.pinned_moved, error) &&
-         MAX_TREE_STATUS_CHECK(cudaEventCreateWithFlags(&overlap.blocks_done[0], cudaEventDisableTiming),
-                               &overlap.blocks_done[0], error) &&
-         MAX_TREE_STATUS_CHECK(cudaEventCreateWithFlags(&overlap.blocks_done[1], cudaEventDisableTiming),
-                               &overlap.blocks_done[1], error);
+         MAX_TREE_CHECK(tessera_job_cells_in(&cells, request->probe_links, link_words * sizeof(unsigned int), &cell),
+                        &request->probe_links, error, ENGINE_ERROR_RESOURCE);
+    overlap.probe_links = (const unsigned int *)cell;
+    ok = ok && MAX_TREE_CHECK(tessera_job_cells_room(&cells, request->link_count, &cell), &request->links_present,
+                              error, ENGINE_ERROR_RESOURCE);
+    overlap.links_present = (unsigned char *)cell;
+    // The cut of the frame holds the voxel count below 2^32, and the sort takes it as int
+    ok = ok && MAX_TREE_STATUS_CHECK(cub::DeviceRadixSort::SortKeys(NULL, overlap.scratch_bytes,
+                                                                    (const unsigned long long *)NULL,
+                                                                    (unsigned long long *)NULL, (int)voxels),
+                                     &overlap.scratch_bytes, error);
+    ok = ok && MAX_TREE_CHECK(tessera_job_cells_room(&cells, overlap.scratch_bytes, &overlap.scratch), request, error,
+                              ENGINE_ERROR_RESOURCE);
+    ok = ok && MAX_TREE_CHECK(tessera_job_cells_room(&cells, 2ULL * sizeof(unsigned int), &cell), request, error,
+                              ENGINE_ERROR_RESOURCE);
+    overlap.thresholds = (unsigned int *)cell;
+    ok = ok && MAX_TREE_CHECK(tessera_job_cells_room(&cells, MAX_TREE_OVERLAP_TALLIES * sizeof(unsigned int), &cell),
+                              request, error, ENGINE_ERROR_RESOURCE);
+    overlap.tallies = (unsigned int *)cell;
+    ok = ok && MAX_TREE_CHECK(tessera_job_cells_room(&cells, 3ULL * sizeof(unsigned int), &cell), request, error,
+                              ENGINE_ERROR_RESOURCE);
+    overlap.moved = (unsigned int *)cell;
+    const unsigned long long lanes = (unsigned long long)voxels;
     for (unsigned int frame = 0u; frame < 2u; frame += 1u)
     {
-        ok =
-            ok &&
-            MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&overlap.ranges[frame], voxels), &overlap.ranges[frame], error) &&
-            MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&overlap.label[frame], voxels * sizeof(unsigned int)),
-                                  &overlap.label[frame], error) &&
-            MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&overlap.partners[frame], voxels * sizeof(unsigned int)),
-                                  &overlap.partners[frame], error) &&
-            MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&overlap.backs[frame], voxels * sizeof(unsigned int)),
-                                  &overlap.backs[frame], error) &&
-            MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&overlap.pairs[frame], voxels * sizeof(unsigned long long)),
-                                  &overlap.pairs[frame], error);
+        ok = ok && MAX_TREE_CHECK(tessera_job_cells_room(&cells, lanes, &cell), request, error, ENGINE_ERROR_RESOURCE);
+        overlap.ranges[frame] = (unsigned char *)cell;
+        ok = ok && MAX_TREE_CHECK(tessera_job_cells_room(&cells, lanes * sizeof(unsigned int), &cell), request, error,
+                                  ENGINE_ERROR_RESOURCE);
+        overlap.label[frame] = (unsigned int *)cell;
+        ok = ok && MAX_TREE_CHECK(tessera_job_cells_room(&cells, lanes * sizeof(unsigned int), &cell), request, error,
+                                  ENGINE_ERROR_RESOURCE);
+        overlap.partners[frame] = (unsigned int *)cell;
+        ok = ok && MAX_TREE_CHECK(tessera_job_cells_room(&cells, lanes * sizeof(unsigned int), &cell), request, error,
+                                  ENGINE_ERROR_RESOURCE);
+        overlap.backs[frame] = (unsigned int *)cell;
+        ok = ok && MAX_TREE_CHECK(tessera_job_cells_room(&cells, lanes * sizeof(unsigned long long), &cell), request,
+                                  error, ENGINE_ERROR_RESOURCE);
+        overlap.pairs[frame] = (unsigned long long *)cell;
     }
     const size_t probes_a_step = (size_t)request->probe_counts[0] + request->probe_counts[1];
     unsigned int written = 0u;
@@ -282,34 +272,7 @@ extern "C" long max_tree_overlap(const MaxTreeOverlapRequest *request)
                                    &request->links_present[(size_t)written * request->link_count]);
         written += 1u;
     }
-    for (unsigned int frame = 0u; frame < 2u; frame += 1u)
-    {
-        cudaFree(device_probe_voxels[frame]);
-        cudaFree(overlap.probes[frame]);
-    }
-    cudaFree(device_links);
-    cudaFree(overlap.links_present);
-    cudaFree(overlap.scratch);
-    cudaFree(overlap.thresholds);
-    cudaFree(overlap.tallies);
-    cudaFree(overlap.moved);
-    cudaFreeHost(overlap.pinned_moved);
-    if (overlap.blocks_done[0] != NULL)
-    {
-        cudaEventDestroy(overlap.blocks_done[0]);
-    }
-    if (overlap.blocks_done[1] != NULL)
-    {
-        cudaEventDestroy(overlap.blocks_done[1]);
-    }
-    for (unsigned int frame = 0u; frame < 2u; frame += 1u)
-    {
-        cudaFree(overlap.ranges[frame]);
-        cudaFree(overlap.label[frame]);
-        cudaFree(overlap.partners[frame]);
-        cudaFree(overlap.backs[frame]);
-        cudaFree(overlap.pairs[frame]);
-    }
+    tessera_job_cells_given(&cells);
     if (ok == 0)
     {
         return MAX_TREE_ERROR;

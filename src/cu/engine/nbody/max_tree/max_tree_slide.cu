@@ -40,7 +40,8 @@ static int max_tree_slide_partition(MaxTreeSlide *slide, unsigned int level, uns
         max_tree_cc_start_kernel<<<spread, MAX_TREE_BLOCK>>>(resident->code, count, level, slide->ranges, slide->label);
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), slide->label, error) &&
              max_tree_cc(slide->ranges, slide->depth, slide->height, slide->width, slide->label, slide->moved, error) &&
-             MAX_TREE_STATUS_CHECK(cudaMemset(slide->roots, 0, sizeof(unsigned int)), slide->roots, error);
+             MAX_TREE_CHECK(tessera_job_cleared(slide->roots, sizeof(unsigned int)), slide->roots, error,
+                            ENGINE_ERROR_RESOURCE);
         if (ok != 0)
         {
             max_tree_roots_kernel<<<spread, MAX_TREE_BLOCK>>>(slide->ranges, slide->label, count, slide->roots);
@@ -54,16 +55,12 @@ static int max_tree_slide_partition(MaxTreeSlide *slide, unsigned int level, uns
         }
         unsigned int roots = 0u;
         int components = 0;
-        ok = ok &&
-             MAX_TREE_STATUS_CHECK(cudaMemcpy(&roots, slide->roots, sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                                   slide->roots, error) &&
-             MAX_TREE_STATUS_CHECK(
-                 cudaMemcpy(&components, &resident->counts[slide->top - level], sizeof(int), cudaMemcpyDeviceToHost),
-                 &resident->counts[slide->top - level], error) &&
-             ((slide->probes == 0u) ||
-              MAX_TREE_STATUS_CHECK(cudaMemcpy(slide->raw, slide->probe_labels,
-                                               (size_t)slide->probes * sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                                    slide->raw, error));
+        ok = ok && MAX_TREE_CHECK(
+                       tessera_job_crossed_out(&roots, slide->roots, sizeof(unsigned int)) &&
+                           tessera_job_crossed_out(&components, &resident->counts[slide->top - level], sizeof(int)) &&
+                           tessera_job_crossed_out(slide->raw, slide->probe_labels,
+                                                   (unsigned long long)slide->probes * sizeof(unsigned int)),
+                       slide->roots, error, ENGINE_ERROR_RESOURCE);
         // components counts the superlevel set's pieces, never negative. It re-signs to unsigned int exactly
         step->components = (unsigned int)components;
         ok = ok && MAX_TREE_CHECK(roots == step->components, slide->roots, error, ENGINE_ERROR_LOGIC);
@@ -154,9 +151,8 @@ extern "C" long max_tree_slide(const MaxTreeSlideRequest *request)
     slide.partitions = request->partitions;
     slide.step_capacity = request->step_capacity;
     slide.error = error;
-    const size_t voxels = resident->voxels;
+    const unsigned long long voxels = (unsigned long long)resident->voxels;
     const size_t probe_capacity = (size_t)request->probe_count + 1u;
-    unsigned int *device_probes = NULL;
     slide.raw = (unsigned int *)platform_cell_taken(probe_capacity * sizeof(unsigned int),
                                                     platform_place_g_program_owner, PLATFORM_TIER_TEMPORARY);
     unsigned int *const low_partition =
@@ -165,49 +161,42 @@ extern "C" long max_tree_slide(const MaxTreeSlideRequest *request)
     unsigned int *const high_partition =
         (unsigned int *)platform_cell_taken((unsigned long long)(probe_capacity * sizeof(unsigned int)),
                                             (unsigned int)platform_place_g_engine_owner, PLATFORM_TIER_TEMPORARY);
-    int ok =
-        MAX_TREE_CHECK(slide.raw != NULL, &slide.raw, error, ENGINE_ERROR_RESOURCE) &&
-        MAX_TREE_CHECK(low_partition != NULL, &low_partition, error, ENGINE_ERROR_RESOURCE) &&
-        MAX_TREE_CHECK(high_partition != NULL, &high_partition, error, ENGINE_ERROR_RESOURCE) &&
-        MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&device_probes, probe_capacity * sizeof(unsigned int)),
-                              &device_probes, error) &&
-        MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&slide.probe_labels, probe_capacity * sizeof(unsigned int)),
-                              &slide.probe_labels, error) &&
-        MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&slide.ranges, voxels), &slide.ranges, error) &&
-        MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&slide.label, voxels * sizeof(unsigned int)), &slide.label, error) &&
-        MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&slide.roots, sizeof(unsigned int)), &slide.roots, error) &&
-        MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&slide.moved, 3u * sizeof(unsigned int)), &slide.moved, error) &&
-        MAX_TREE_STATUS_CHECK(cudaMallocHost((void **)&slide.pinned_moved, 2u * sizeof(unsigned int)),
-                              &slide.pinned_moved, error) &&
-        MAX_TREE_STATUS_CHECK(cudaEventCreateWithFlags(&slide.blocks_done[0], cudaEventDisableTiming),
-                              &slide.blocks_done[0], error) &&
-        MAX_TREE_STATUS_CHECK(cudaEventCreateWithFlags(&slide.blocks_done[1], cudaEventDisableTiming),
-                              &slide.blocks_done[1], error) &&
-        ((request->probe_count == 0u) ||
-         MAX_TREE_STATUS_CHECK(cudaMemcpy(device_probes, request->probe_voxels,
-                                          (size_t)request->probe_count * sizeof(unsigned int), cudaMemcpyHostToDevice),
-                               device_probes, error));
+    // The probes, their labels, the range, the labels, the count of the roots and the mark of the components are cells.
+    // Each is a temporary cell of the pool of the device. The call gives them back last first before it returns
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, MAX_TREE_PLACE);
+    void *cell[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
+    const unsigned long long bytes[6] = {probe_capacity * sizeof(unsigned int),
+                                         probe_capacity * sizeof(unsigned int),
+                                         voxels,
+                                         voxels * sizeof(unsigned int),
+                                         sizeof(unsigned int),
+                                         3ULL * sizeof(unsigned int)};
+    int ok = MAX_TREE_CHECK(slide.raw != NULL, &slide.raw, error, ENGINE_ERROR_RESOURCE) &&
+             MAX_TREE_CHECK(low_partition != NULL, &low_partition, error, ENGINE_ERROR_RESOURCE) &&
+             MAX_TREE_CHECK(high_partition != NULL, &high_partition, error, ENGINE_ERROR_RESOURCE);
+    for (unsigned int at = 0u; (ok != 0) && (at < 6u); at += 1u)
+    {
+        ok =
+            MAX_TREE_CHECK(tessera_job_cells_room(&cells, bytes[at], &cell[at]), request, error, ENGINE_ERROR_RESOURCE);
+    }
+    // Explicit casts read each cell as the words that it holds
+    unsigned int *const device_probes = (unsigned int *)cell[0];
+    slide.probe_labels = (unsigned int *)cell[1];
+    slide.ranges = (unsigned char *)cell[2];
+    slide.label = (unsigned int *)cell[3];
+    slide.roots = (unsigned int *)cell[4];
+    slide.moved = (unsigned int *)cell[5];
+    ok = ok && MAX_TREE_CHECK(tessera_job_crossed_into(device_probes, request->probe_voxels,
+                                                       (unsigned long long)request->probe_count * sizeof(unsigned int)),
+                              device_probes, error, ENGINE_ERROR_RESOURCE);
     slide.device_probes = device_probes;
     MaxTreeSlideStep low_step;
     MaxTreeSlideStep high_step;
     ok = ok && max_tree_slide_partition(&slide, 1u, low_partition, &low_step) &&
          max_tree_slide_partition(&slide, slide.top + 1u, high_partition, &high_step) &&
          max_tree_slide_search(&slide, 1u, slide.top + 1u, low_partition, &low_step, high_partition);
-    cudaFree(device_probes);
-    cudaFree(slide.probe_labels);
-    cudaFree(slide.ranges);
-    cudaFree(slide.label);
-    cudaFree(slide.roots);
-    cudaFree(slide.moved);
-    cudaFreeHost(slide.pinned_moved);
-    if (slide.blocks_done[0] != NULL)
-    {
-        cudaEventDestroy(slide.blocks_done[0]);
-    }
-    if (slide.blocks_done[1] != NULL)
-    {
-        cudaEventDestroy(slide.blocks_done[1]);
-    }
+    tessera_job_cells_given(&cells);
     platform_cell_released(slide.raw, platform_place_g_program_owner);
     platform_cell_released(low_partition, (unsigned int)platform_place_g_engine_owner);
     platform_cell_released(high_partition, (unsigned int)platform_place_g_engine_owner);
