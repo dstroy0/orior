@@ -606,21 +606,6 @@ static void gap_at(const DecimalPair *u, int32_t places, int remainder, const Or
 
 /* ---------------------------------------------------------------- where each C_n vanishes */
 
-/** @brief A sign kept by its text key. */
-typedef struct
-{
-    char *key; /**< The key [OWNS]. */
-    int sign;  /**< The sign. */
-} SignEntry;
-
-/** @brief Where each C_n changes sign on [0, 1], by verdicts at dyadic z. */
-typedef struct
-{
-    SignEntry *entries;  /**< The open table [OWNS]. */
-    size_t bucket_count; /**< How many buckets, a power of two. */
-    size_t count;        /**< How many entries. */
-} CurveSigns;
-
 /**
  * @brief The hash of a text, by FNV-1a.
  *
@@ -638,56 +623,14 @@ static uint64_t key_hash(const char *text)
 }
 
 /**
- * @brief The entry of a key, the table grown where it fills.
- *
- * @param[in,out] signs The table [BORROWS].
- * @param[in]     key   The key [BORROWS].
- * @return              The entry [BORROWS].
- */
-static SignEntry *curve_sign_entry(CurveSigns *signs, const char *key)
-{
-    if ((signs->count * 2u) >= signs->bucket_count)
-    {
-        const size_t grown = (signs->bucket_count == 0u) ? 4096u : (signs->bucket_count * 2u);
-        SignEntry *const entries = (SignEntry *)siegel_memory(
-            platform_cell_cleared(grown, sizeof(SignEntry), platform_place_g_program_owner, 0));
-        for (size_t at = 0u; at < signs->bucket_count; at += 1u)
-        {
-            if (signs->entries[at].key == NULL)
-            {
-                continue;
-            }
-            size_t place = (size_t)(key_hash(signs->entries[at].key) & (grown - 1u));
-            while (entries[place].key != NULL)
-            {
-                place = (place + 1u) & (grown - 1u);
-            }
-            entries[place] = signs->entries[at];
-        }
-        platform_cell_released(signs->entries, platform_place_g_program_owner);
-        signs->entries = entries;
-        signs->bucket_count = grown;
-    }
-    size_t place = (size_t)(key_hash(key) & (signs->bucket_count - 1u));
-    while ((signs->entries[place].key != NULL) &&
-           (!EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = signs->entries[place].key,
-                        .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = key, .ci = EMBED_FALSE)))
-    {
-        place = (place + 1u) & (signs->bucket_count - 1u);
-    }
-    return &signs->entries[place];
-}
-
-/**
  * @brief The sign of C_n at a / 2^bits, with a reduced while it is even.
  *
- * @param[in,out] signs The table [BORROWS].
- * @param[in]     n     The index of the curve.
- * @param[in]     a     The numerator [BORROWS].
- * @param[in]     bits  The bits of the denominator.
- * @return              The sign.
+ * @param[in] n    The index of the curve.
+ * @param[in] a    The numerator [BORROWS].
+ * @param[in] bits The bits of the denominator.
+ * @return         The sign.
  */
-static int sign_at(CurveSigns *signs, int64_t n, const OriorExactInteger *a, int64_t bits)
+static int sign_at(int64_t n, const OriorExactInteger *a, int64_t bits)
 {
     OriorExactInteger value = *a;
     OriorExactInteger two;
@@ -697,30 +640,10 @@ static int sign_at(CurveSigns *signs, int64_t n, const OriorExactInteger *a, int
         z_floor_div(&value, &two, &value);
         bits -= 1;
     }
-    static char digits[8192];
-    z_text(&value, digits, sizeof(digits));
-    char key[8300];
-    snprintf(key, sizeof(key), "%lld/%s/%lld", (long long)n, digits, (long long)bits);
-    SignEntry *const entry = curve_sign_entry(signs, key);
-    if ((entry->key != NULL) && (entry->sign != 0))
-    {
-        return entry->sign;
-    }
     int32_t places = 24;
     OriorExactInteger read;
     rs_c_verdict(n, &value, bits, &places, &read);
-    if (entry->key == NULL)
-    {
-        entry->key = (char *)siegel_memory(platform_cell_taken(
-            EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u,
-            platform_place_g_program_owner, 0));
-        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = entry->key, .src = key,
-                   .bytes =
-                       EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = key, .cap = PLATFORM_TEXT_TO_TERMINATOR) + 1u);
-        signs->count += 1u;
-    }
-    entry->sign = sign_of(&read);
-    return entry->sign;
+    return sign_of(&read);
 }
 
 /**
@@ -757,20 +680,26 @@ static int past_zero(int64_t n)
 /**
  * @brief The signs of C_n at j / 2^m for j = 0 to 2^m.
  *
- * @param[in,out] signs The table [BORROWS].
- * @param[in]     n     The index of the curve.
- * @param[in]     m     The bits of the parts.
- * @param[out]    row   The signs [BORROWS]. 2^m + 1 of them.
+ * @param[in]  n       The index of the curve.
+ * @param[in]  m       The bits of the parts.
+ * @param[in]  coarser The signs at j / 2^(m - 1), 2^(m - 1) + 1 of them, or NULL [BORROWS]. Each even j of the row
+ *                     carries the sign at j / 2 of it, and only each odd j is read.
+ * @param[out] row     The signs [BORROWS]. 2^m + 1 of them.
  */
-static void sign_row(CurveSigns *signs, int64_t n, int64_t m, int *row)
+static void sign_row(int64_t n, int64_t m, const int *coarser, int *row)
 {
     OriorExactInteger a;
     orior_exact_zero(&a);
-    row[0] = ((n % 2) != 0) ? past_zero(n) : sign_at(signs, n, &a, m);
+    row[0] = (coarser != NULL) ? coarser[0] : (((n % 2) != 0) ? past_zero(n) : sign_at(n, &a, m));
     for (int64_t j = 1; j <= ((int64_t)1 << m); j += 1)
     {
+        if ((coarser != NULL) && ((j % 2) == 0))
+        {
+            row[j] = coarser[j / 2];
+            continue;
+        }
         z_set(&a, j);
-        row[j] = sign_at(signs, n, &a, m);
+        row[j] = sign_at(n, &a, m);
     }
 }
 
@@ -811,15 +740,15 @@ static size_t sign_changes(const int *row, size_t count, int64_t *changes)
  * @return              How many zeros.
  * @note The count m grows from 6 until the two counts agree.
  */
-static size_t curve_zeros(CurveSigns *signs, int64_t n, int64_t bits, OriorExactInteger *found, int64_t *parts)
+static size_t curve_zeros(int64_t n, int64_t bits, OriorExactInteger *found, int64_t *parts)
 {
     int64_t m = 6;
     int *row = (int *)siegel_memory(
         platform_cell_taken((((size_t)1 << m) + 1u) * sizeof(int), platform_place_g_program_owner, 0));
     int *finer = (int *)siegel_memory(
         platform_cell_taken((((size_t)1 << (m + 1)) + 1u) * sizeof(int), platform_place_g_program_owner, 0));
-    sign_row(signs, n, m, row);
-    sign_row(signs, n, m + 1, finer);
+    sign_row(n, m, NULL, row);
+    sign_row(n, m + 1, row, finer);
     while (sign_changes(row, ((size_t)1 << m) + 1u, NULL) != sign_changes(finer, ((size_t)1 << (m + 1)) + 1u, NULL))
     {
         m += 1;
@@ -827,7 +756,7 @@ static size_t curve_zeros(CurveSigns *signs, int64_t n, int64_t bits, OriorExact
         row = finer;
         finer = (int *)siegel_memory(
             platform_cell_taken((((size_t)1 << (m + 1)) + 1u) * sizeof(int), platform_place_g_program_owner, 0));
-        sign_row(signs, n, m + 1, finer);
+        sign_row(n, m + 1, row, finer);
     }
     const size_t length = ((size_t)1 << (m + 1)) + 1u;
     int64_t *const changes =
@@ -842,7 +771,9 @@ static size_t curve_zeros(CurveSigns *signs, int64_t n, int64_t bits, OriorExact
         OriorExactInteger low;
         z_set(&low, changes[at]);
         int64_t depth = m + 1;
-        const int left = sign_at(signs, n, &low, depth);
+        // the sign at the change, which the finer row holds: at 0 of an odd curve the row holds the sign past 0, and
+        // the sign at 0 itself is read
+        const int left = ((changes[at] == 0) && ((n % 2) != 0)) ? sign_at(n, &low, depth) : finer[changes[at]];
         while (depth < bits)
         {
             z_mul_small(&low, 2, &low);
@@ -851,7 +782,7 @@ static size_t curve_zeros(CurveSigns *signs, int64_t n, int64_t bits, OriorExact
             OriorExactInteger one;
             z_set(&one, 1);
             z_add(&low, &one, &probe);
-            if (sign_at(signs, n, &probe, depth) == left)
+            if (sign_at(n, &probe, depth) == left)
             {
                 low = probe;
             }
@@ -874,8 +805,10 @@ static size_t curve_zeros(CurveSigns *signs, int64_t n, int64_t bits, OriorExact
  * @note The zeros of the even C_n crowd toward z = 1. Two zeros between adjacent points of the coarse grid do not
  *       show there.
  */
-static void curve_edge(CurveSigns *signs, int64_t n, int64_t counts[2])
+static void curve_edge(int64_t n, int64_t counts[2])
 {
+    // the row at 2^-14 first, then the row at 2^-15, whose even places are the places of the first
+    int *rows[2] = {NULL, NULL};
     for (int64_t m = 14; m <= 15; m += 1)
     {
         const int64_t base = ((int64_t)1 << m) - ((int64_t)1 << (m - 6));
@@ -884,15 +817,22 @@ static void curve_edge(CurveSigns *signs, int64_t n, int64_t counts[2])
             (int *)siegel_memory(platform_cell_taken(length * sizeof(int), platform_place_g_program_owner, 0));
         for (size_t j = 0u; j < length; j += 1u)
         {
+            if ((m == 15) && ((j % 2u) == 0u))
+            {
+                row[j] = rows[0][j / 2u];
+                continue;
+            }
             OriorExactInteger a;
             // j is below 2^9, and fits a machine integer.
             z_set(&a, base + (int64_t)j);
-            row[j] = sign_at(signs, n, &a, m);
+            row[j] = sign_at(n, &a, m);
         }
         // The count of changes is below the length of the row.
         counts[m - 14] = (int64_t)sign_changes(row, length, NULL);
-        platform_cell_released(row, platform_place_g_program_owner);
+        rows[m - 14] = row;
     }
+    platform_cell_released(rows[1], platform_place_g_program_owner);
+    platform_cell_released(rows[0], platform_place_g_program_owner);
 }
 
 /**
@@ -1286,8 +1226,6 @@ static int main_report(const char *height_text, int bits)
     list_text(apart, 11u, apart_text, sizeof(apart_text));
     fprintf(out, "  C_0(1) to C_10(1) less Gabcke's Table IV, in units of the 50th place: %s, within %d: %s\n",
             apart_text, TABLE_SPREAD, truth(table_four));
-    CurveSigns curve_signs;
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = &curve_signs, .bytes = sizeof(curve_signs), .val = 0);
     fprintf(out,
             "  the zeros of C_n on (0, 1), z = 1 - 2p, each halved to 2^-%d, and the p in a cell where C_n vanishes\n",
             ZERO_BITS);
@@ -1299,7 +1237,7 @@ static int main_report(const char *height_text, int bits)
     {
         OriorExactInteger zeros[64];
         int64_t parts = 0;
-        const size_t count = curve_zeros(&curve_signs, n, ZERO_BITS, zeros, &parts);
+        const size_t count = curve_zeros(n, ZERO_BITS, zeros, &parts);
         // The count is at most 64.
         counts[n] = (int64_t)count;
         fprintf(out, "    C_%-3lld %llu  parts 2^%lld  ", (long long)n, (unsigned long long)count, (long long)parts);
@@ -1324,7 +1262,7 @@ static int main_report(const char *height_text, int bits)
     for (int64_t n = 0; n <= TOP_C; n += 1)
     {
         int64_t edge[2];
-        curve_edge(&curve_signs, n, edge);
+        curve_edge(n, edge);
         fprintf(out, "%s[%lld, %lld]", (n > 0) ? ", " : "", (long long)edge[0], (long long)edge[1]);
     }
     fputs("]\n", out);
@@ -5225,6 +5163,10 @@ static int64_t argument_or(int argument_count, char **arguments, int at, int64_t
 {
     return (at < argument_count) ? atoll(arguments[at]) : fallback;
 }
+
+// The pool of the program, the most that the platform places. Its cells of exact integers grow with the count of the
+// run, and they pass the 64 MB default
+const unsigned long long g_program_pool_bytes = 1ULL << 31u;
 
 int program_main(int argument_count, char **arguments)
 {
