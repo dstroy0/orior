@@ -219,6 +219,95 @@ int main(void)
                   (s_atlas.entry[baked_space].advance == first->advance),
               "a space is baked with no pixels and the code cell's advance");
 
+    // More glyphs and cells than a run of a cache's keys holds, so that each order merges its runs: each one asked
+    // again is the one retained. Then glyphs past three quarters of the cache, which empty it, and a glyph after that
+    // retained
+    static const GuiMask *s_drawn[52u * 38u];
+    static const GuiGlyphCell *s_celled[128u * 20u];
+    const unsigned int cached_before = glyphs.cached;
+    unsigned int drawn = 0u;
+    for (unsigned int size = 10u; size < 48u; size += 1u)
+    {
+        for (unsigned int letter = 0u; letter < 52u; letter += 1u)
+        {
+            const unsigned int asked = (letter < 26u) ? ('A' + letter) : ('a' + (letter - 26u));
+            float drawn_advance = 0.0f;
+            s_drawn[drawn] =
+                EMBED_CALL(gui_glyphs_face_character.glyph, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs,
+                           .face = GUI_FACE_CODE, .character = asked, .size = size, .advance = &drawn_advance);
+            drawn += 1u;
+        }
+    }
+    // the checks before drew some of these glyphs already
+    const unsigned int cached_after = glyphs.cached;
+    cli_check((cached_after >= drawn) && (cached_after <= (cached_before + drawn)),
+              "each glyph drawn takes an entry of its own");
+    int retained = 1;
+    drawn = 0u;
+    for (unsigned int size = 10u; size < 48u; size += 1u)
+    {
+        for (unsigned int letter = 0u; letter < 52u; letter += 1u)
+        {
+            const unsigned int asked = (letter < 26u) ? ('A' + letter) : ('a' + (letter - 26u));
+            float drawn_advance = 0.0f;
+            retained &=
+                (s_drawn[drawn] != NULL) && (EMBED_CALL(gui_glyphs_face_character.glyph, GuiGlyphsFaceLetterCfg,
+                                                        .glyphs = &glyphs, .face = GUI_FACE_CODE, .character = asked,
+                                                        .size = size, .advance = &drawn_advance) == s_drawn[drawn]);
+            drawn += 1u;
+        }
+    }
+    cli_check(retained && (glyphs.cached == cached_after), "each glyph asked again is the one retained");
+    const unsigned int celled_before = glyphs.celled;
+    unsigned int celled = 0u;
+    for (unsigned int color = 0u; color < 20u; color += 1u)
+    {
+        for (unsigned int letter = 0x100u; letter < 0x180u; letter += 1u)
+        {
+            float celled_advance = 0.0f;
+            s_celled[celled] = EMBED_CALL(gui_glyphs_face_character.glyph_cell, GuiGlyphsFaceLetterCfg,
+                                          .glyphs = &glyphs, .face = GUI_FACE_CODE, .character = letter, .size = 13u,
+                                          .color = GUI_RGB(color * 12u, 0x40u, 0x80u), .advance = &celled_advance);
+            celled += 1u;
+        }
+    }
+    cli_check(glyphs.celled == (celled_before + celled), "each cell made takes a cell of its own");
+    retained = 1;
+    celled = 0u;
+    for (unsigned int color = 0u; color < 20u; color += 1u)
+    {
+        for (unsigned int letter = 0x100u; letter < 0x180u; letter += 1u)
+        {
+            float celled_advance = 0.0f;
+            retained &=
+                (s_celled[celled] != NULL) && (EMBED_CALL(gui_glyphs_face_character.glyph_cell, GuiGlyphsFaceLetterCfg,
+                                                          .glyphs = &glyphs, .face = GUI_FACE_CODE, .character = letter,
+                                                          .size = 13u, .color = GUI_RGB(color * 12u, 0x40u, 0x80u),
+                                                          .advance = &celled_advance) == s_celled[celled]);
+            celled += 1u;
+        }
+    }
+    cli_check(retained && (glyphs.celled == (celled_before + celled)), "each cell asked again is the one retained");
+    for (unsigned int size = 48u; size < 81u; size += 1u)
+    {
+        for (unsigned int letter = 0u; letter < 52u; letter += 1u)
+        {
+            const unsigned int asked = (letter < 26u) ? ('A' + letter) : ('a' + (letter - 26u));
+            float drawn_advance = 0.0f;
+            (void)EMBED_CALL(gui_glyphs_face_character.glyph, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs,
+                             .face = GUI_FACE_CODE, .character = asked, .size = size, .advance = &drawn_advance);
+        }
+    }
+    cli_check((glyphs.cached * 4u) <= (GUI_GLYPH_CACHE_ENTRIES * 3u), "glyphs past three quarters empty the cache");
+    float late_advance = 0.0f;
+    const GuiMask *const late =
+        EMBED_CALL(gui_glyphs_face_character.glyph, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .face = GUI_FACE_CODE,
+                   .character = 'Q', .size = 20u, .advance = &late_advance);
+    cli_check((late != NULL) &&
+                  (EMBED_CALL(gui_glyphs_face_character.glyph, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs,
+                              .face = GUI_FACE_CODE, .character = 'Q', .size = 20u, .advance = &late_advance) == late),
+              "a glyph drawn after the cache empties is retained");
+
     raster.pixels = NULL;
     raster.width = 0u;
     raster.height = 0u;
