@@ -1036,6 +1036,18 @@
         "src/cu/engine/runtime/daemon"
       ]
     },
+    "marginal_paths": {
+      "desc": "The path of the marginals on the device, with the engine linked into the program. Seeded questions of sources and options run through marginal_run and through marginal_run_host. The sums of the device equal the sums of the host, are not 0, and equal the signum of the device path.",
+      "script": "utils/test/src/cu/engine/nbody/marginal/marginal_paths_test.sh",
+      "src": [
+        "+<cu/engine/nbody/marginal/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/nbody/marginal"
+      ]
+    },
     "body_overlap_paths": {
       "desc": "The paths of the body overlap on the device, with the engine linked into the program. Seeded pairs of frames of three and four axes, with lags of their own on some labels and a capacity below the pairs on one, run through body_overlap_run, through body_overlap_run_on_device from cells on the device, and through body_overlap_host. The answers of each device path equal the answers of the host, and the answers of the device paths equal the signum of the device path.",
       "script": "utils/test/src/cu/engine/nbody/body_overlap/body_overlap_paths_test.sh",
