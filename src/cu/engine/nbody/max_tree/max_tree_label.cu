@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_label.cu: labeling
-#include "max_tree_device_internal.h"
 #include "../../../../platform/platform.h"
+#include "max_tree_device_internal.h"
 
 __global__ static void max_tree_ranges_kernel(const unsigned int *residual, unsigned int voxels, unsigned int level,
                                               unsigned char *ranges)
@@ -204,7 +204,7 @@ extern "C" long max_tree_bind(const MaxTreeBindRequest *request)
     const unsigned int count = (unsigned int)voxels;
     const unsigned int spread = (count + MAX_TREE_BLOCK - 1u) / MAX_TREE_BLOCK;
     ok = ok && max_tree_contract(device_residual, depth, height, width, device_faces, device_belongs, device_strongest,
-                                 device_partner, device_bound, device_moved, pinned_moved, blocks_done, error);
+                                 device_partner, device_bound, device_moved, error);
     const unsigned long long bound_at = engine_clock_microseconds();
 
     if ((ok != 0) && (request->level_count != 0u))

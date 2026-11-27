@@ -32,8 +32,8 @@ static int max_tree_grade_codes(const unsigned int *residual, unsigned int depth
         MAX_TREE_STATUS_CHECK(cudaEventCreateWithFlags(&done[1], cudaEventDisableTiming), &done[1], error) &&
         MAX_TREE_STATUS_CHECK(cudaMemset(moved, 0, 3u * sizeof(unsigned int)), moved, error) &&
         MAX_TREE_STATUS_CHECK(cudaMemset(device_differ, 0, sizeof(unsigned int)), device_differ, error);
-    ok = ok && max_tree_contract(residual, depth, height, width, faces, belongs, strongest, partner, bound, moved,
-                                 pinned, done, error);
+    ok = ok &&
+         max_tree_contract(residual, depth, height, width, faces, belongs, strongest, partner, bound, moved, error);
     const unsigned int face_count = (unsigned int)(voxels * 3u);
     if (ok != 0)
     {
@@ -145,8 +145,7 @@ extern "C" long max_tree_objects(const MaxTreeObjectsRequest *request)
 
     ok = ok && MAX_TREE_STATUS_CHECK(cudaMemset(resident->moved, 0, 3u * sizeof(unsigned int)), resident->moved, error);
     ok = ok && max_tree_code_contract(resident->code, depth, height, width, resident->faces, resident->belongs,
-                                      resident->best, resident->partner, resident->bound, resident->moved,
-                                      resident->pinned_moved, resident->blocks_done, error);
+                                      resident->best, resident->partner, resident->bound, resident->moved, error);
     max_tree_stage(1u, &stage_mark);
     unsigned int faces_differ = 0u;
     ok = ok && ((request->grade == 0u) ||

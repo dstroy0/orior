@@ -96,14 +96,18 @@ __device__ static inline unsigned int max_tree_leads(const unsigned int *residua
     return ties;
 }
 
-__global__ void max_tree_jump_kernel(unsigned int voxels, unsigned int *belongs);
+// one voxel of a jump, which halves its path to its root, and one voxel of a flatten, which points it at its root. Both
+// contractions run them
+__device__ void max_tree_jump_voxel(unsigned int *belongs, unsigned int voxel);
 
-__global__ void max_tree_flatten_kernel(unsigned int voxels, unsigned int *belongs);
+__device__ void max_tree_flatten_voxel(unsigned int *belongs, unsigned int voxel);
 
+// The contraction over the residual, as one cooperative launch that decides on the device when its rounds end.
+// `moved` is three words of the device: the mark of a round, a spare word, and the last tick that joined plus 1.
+// 1, or 0 with the error set
 int max_tree_contract(const unsigned int *residual, unsigned int depth, unsigned int height, unsigned int width,
                       unsigned char *faces, unsigned int *belongs, unsigned long long *strongest, unsigned int *partner,
-                      unsigned char *bound, unsigned int *moved, unsigned int *pinned_moved, cudaEvent_t *blocks_done,
-                      EngineError *error);
+                      unsigned char *bound, unsigned int *moved, EngineError *error);
 
 #define MAX_TREE_CHUNK 256u
 
@@ -120,10 +124,10 @@ __global__ void max_tree_code_scatter_kernel(const unsigned int *residual, unsig
                                              const unsigned int *order, const unsigned int *ranks, unsigned int voxels,
                                              unsigned int *code);
 
+// the contraction over the codes, as max_tree_contract runs it over the residual
 int max_tree_code_contract(const unsigned int *code, unsigned int depth, unsigned int height, unsigned int width,
                            unsigned char *faces, unsigned int *belongs, unsigned long long *best, unsigned int *partner,
-                           unsigned char *bound, unsigned int *moved, unsigned int *pinned_moved,
-                           cudaEvent_t *blocks_done, EngineError *error);
+                           unsigned char *bound, unsigned int *moved, EngineError *error);
 
 __global__ void max_tree_faces_differ_kernel(const unsigned char *one, const unsigned char *other, unsigned int faces,
                                              unsigned int *differ);

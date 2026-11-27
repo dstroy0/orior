@@ -1,17 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// max_tree_contract.cu: contraction (max_tree_contract) and its kernels
+// max_tree_contract.cu: contraction (max_tree_contract) and its steps
 #include "max_tree_device_internal.h"
 
-__global__ static void max_tree_faces_kernel(const unsigned int *residual, unsigned int depth, unsigned int height,
-                                             unsigned int width, unsigned char *faces)
+__device__ static void max_tree_faces_voxel(const unsigned int *residual, unsigned int depth, unsigned int height,
+                                            unsigned int width, unsigned char *faces, unsigned int voxel)
 {
-    const unsigned int voxels = depth * height * width;
-    const unsigned int voxel = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (voxel >= voxels)
-    {
-        return;
-    }
     const unsigned int plane = height * width;
     const unsigned int z = voxel / plane;
     const unsigned int y = (voxel % plane) / width;
@@ -31,14 +25,9 @@ __global__ static void max_tree_faces_kernel(const unsigned int *residual, unsig
     faces[voxel] = (unsigned char)flags;
 }
 
-__global__ static void max_tree_start_kernel(unsigned int voxels, unsigned int *belongs, unsigned long long *strongest,
-                                             unsigned char *bound)
+__device__ static void max_tree_start_voxel(unsigned int *belongs, unsigned long long *strongest, unsigned char *bound,
+                                            unsigned int voxel)
 {
-    const unsigned int voxel = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (voxel >= voxels)
-    {
-        return;
-    }
     belongs[voxel] = voxel;
     for (unsigned int word = 0u; word < MAX_TREE_KEY_WORDS; word += 1u)
     {
@@ -50,23 +39,13 @@ __global__ static void max_tree_start_kernel(unsigned int voxels, unsigned int *
     }
 }
 
-__global__ void max_tree_jump_kernel(unsigned int voxels, unsigned int *belongs)
+__device__ void max_tree_jump_voxel(unsigned int *belongs, unsigned int voxel)
 {
-    const unsigned int voxel = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (voxel >= voxels)
-    {
-        return;
-    }
     belongs[voxel] = belongs[belongs[voxel]];
 }
 
-__global__ void max_tree_flatten_kernel(unsigned int voxels, unsigned int *belongs)
+__device__ void max_tree_flatten_voxel(unsigned int *belongs, unsigned int voxel)
 {
-    const unsigned int voxel = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (voxel >= voxels)
-    {
-        return;
-    }
     unsigned int at = belongs[voxel];
     while (belongs[at] != at)
     {
@@ -75,16 +54,10 @@ __global__ void max_tree_flatten_kernel(unsigned int voxels, unsigned int *belon
     belongs[voxel] = at;
 }
 
-__global__ static void max_tree_choose_kernel(const unsigned int *residual, const unsigned char *faces,
-                                              const unsigned int *belongs, unsigned int depth, unsigned int height,
-                                              unsigned int width, unsigned int word, unsigned long long *strongest)
+__device__ static void max_tree_choose_voxel(const unsigned int *residual, const unsigned char *faces,
+                                             const unsigned int *belongs, unsigned int height, unsigned int width,
+                                             unsigned int word, unsigned long long *strongest, unsigned int voxel)
 {
-    const unsigned int voxels = depth * height * width;
-    const unsigned int voxel = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (voxel >= voxels)
-    {
-        return;
-    }
     const unsigned int flags = faces[voxel];
     const unsigned int plane = height * width;
     const unsigned int stride[3] = {plane, width, 1u};
@@ -112,16 +85,10 @@ __global__ static void max_tree_choose_kernel(const unsigned int *residual, cons
     }
 }
 
-__global__ static void max_tree_partner_kernel(const unsigned long long *strongest, const unsigned int *belongs,
-                                               unsigned int depth, unsigned int height, unsigned int width,
-                                               unsigned int *partner)
+__device__ static void max_tree_partner_voxel(const unsigned long long *strongest, const unsigned int *belongs,
+                                              unsigned int height, unsigned int width, unsigned int *partner,
+                                              unsigned int voxel)
 {
-    const unsigned int voxels = depth * height * width;
-    const unsigned int voxel = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (voxel >= voxels)
-    {
-        return;
-    }
     const unsigned long long low = strongest[(size_t)voxel * MAX_TREE_KEY_WORDS];
     const unsigned int chose = (unsigned int)((belongs[voxel] == voxel) && (low != 0ULL));
     if (chose == 0u)
@@ -139,15 +106,10 @@ __global__ static void max_tree_partner_kernel(const unsigned long long *stronge
     partner[voxel] = (one == voxel) ? other : one;
 }
 
-__global__ static void max_tree_hook_kernel(unsigned long long *strongest, const unsigned int *partner,
-                                            unsigned int voxels, unsigned int tick, unsigned int *belongs,
-                                            unsigned char *bound, unsigned int *moved, unsigned int *last)
+__device__ static void max_tree_hook_voxel(unsigned long long *strongest, const unsigned int *partner,
+                                           unsigned int tick, unsigned int *belongs, unsigned char *bound,
+                                           unsigned int *moved, unsigned int *last, unsigned int voxel)
 {
-    const unsigned int voxel = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (voxel >= voxels)
-    {
-        return;
-    }
     const unsigned long long low = strongest[(size_t)voxel * MAX_TREE_KEY_WORDS];
     for (unsigned int word = 0u; word < MAX_TREE_KEY_WORDS; word += 1u)
     {
@@ -166,50 +128,97 @@ __global__ static void max_tree_hook_kernel(unsigned long long *strongest, const
     last[0] = tick + 1u;
 }
 
-int max_tree_contract(const unsigned int *residual, unsigned int depth, unsigned int height, unsigned int width,
-                      unsigned char *faces, unsigned int *belongs, unsigned long long *strongest, unsigned int *partner,
-                      unsigned char *bound, unsigned int *moved, unsigned int *pinned_moved, cudaEvent_t *blocks_done,
-                      EngineError *error)
+// The arguments of a contraction, which the job kernel takes by value
+struct MaxTreeContractJob
 {
-    const unsigned int count = depth * height * width;
-    const unsigned int spread = (count + MAX_TREE_BLOCK - 1u) / MAX_TREE_BLOCK;
-    max_tree_faces_kernel<<<spread, MAX_TREE_BLOCK>>>(residual, depth, height, width, faces);
-    max_tree_start_kernel<<<spread, MAX_TREE_BLOCK>>>(count, belongs, strongest, bound);
-    int ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), bound, error);
-    int settled = 0;
-    unsigned int block = 0u;
-    while ((ok != 0) && (settled == 0))
+    const unsigned int *residual;
+    unsigned int depth;
+    unsigned int height;
+    unsigned int width;
+    unsigned char *faces;
+    unsigned int *belongs;
+    unsigned long long *strongest;
+    unsigned int *partner;
+    unsigned char *bound;
+    unsigned int *moved;
+};
+
+// The contraction as one job of the device. The grid marks the faces and starts each voxel. Each round clears the mark,
+// then runs MAX_TREE_TICKS ticks. A tick runs the jumps, the flatten, the choice of each key word, the partners and the
+// hooks. A sync of the grid follows each step.
+//
+// The tick of a hook counts across the rounds. The grid reads the mark after the round, and a round that joined nothing
+// ends the loop. moved[2] keeps the last tick that joined, plus 1
+__global__ void max_tree_contract_job_kernel(MaxTreeContractJob job)
+{
+    cooperative_groups::grid_group grid = cooperative_groups::this_grid();
+    const unsigned long long first = grid.thread_rank();
+    const unsigned long long jump = grid.size();
+    const unsigned int count = job.depth * job.height * job.width;
+    for (unsigned long long voxel = first; voxel < count; voxel += jump)
     {
-        const unsigned int parity = block % 2u;
-        ok = MAX_TREE_STATUS_CHECK(cudaMemsetAsync(&moved[parity], 0, sizeof(unsigned int), 0), &moved[parity], error);
-        for (unsigned int tick = 0u; (ok != 0) && (tick < MAX_TREE_TICKS); tick += 1u)
+        // Explicit casts take a voxel below the count, which an unsigned int holds
+        max_tree_faces_voxel(job.residual, job.depth, job.height, job.width, job.faces, (unsigned int)voxel);
+        max_tree_start_voxel(job.belongs, job.strongest, job.bound, (unsigned int)voxel);
+    }
+    int settled = 0;
+    for (unsigned int round = 0u; settled == 0; round += 1u)
+    {
+        if (first == 0ULL)
         {
-            for (unsigned int jump = 0u; jump < MAX_TREE_JUMPS; jump += 1u)
+            job.moved[0] = 0u;
+        }
+        grid.sync();
+        for (unsigned int tick = 0u; tick < MAX_TREE_TICKS; tick += 1u)
+        {
+            for (unsigned int step = 0u; step < MAX_TREE_JUMPS; step += 1u)
             {
-                max_tree_jump_kernel<<<spread, MAX_TREE_BLOCK>>>(count, belongs);
+                for (unsigned long long voxel = first; voxel < count; voxel += jump)
+                {
+                    max_tree_jump_voxel(job.belongs, (unsigned int)voxel);
+                }
+                grid.sync();
             }
-            max_tree_flatten_kernel<<<spread, MAX_TREE_BLOCK>>>(count, belongs);
+            for (unsigned long long voxel = first; voxel < count; voxel += jump)
+            {
+                max_tree_flatten_voxel(job.belongs, (unsigned int)voxel);
+            }
+            grid.sync();
             for (unsigned int word = MAX_TREE_KEY_WORDS; word > 0u; word -= 1u)
             {
-                max_tree_choose_kernel<<<spread, MAX_TREE_BLOCK>>>(residual, faces, belongs, depth, height, width,
-                                                                   word - 1u, strongest);
+                for (unsigned long long voxel = first; voxel < count; voxel += jump)
+                {
+                    max_tree_choose_voxel(job.residual, job.faces, job.belongs, job.height, job.width, word - 1u,
+                                          job.strongest, (unsigned int)voxel);
+                }
+                grid.sync();
             }
-            max_tree_partner_kernel<<<spread, MAX_TREE_BLOCK>>>(strongest, belongs, depth, height, width, partner);
-            max_tree_hook_kernel<<<spread, MAX_TREE_BLOCK>>>(strongest, partner, count, (block * MAX_TREE_TICKS) + tick,
-                                                             belongs, bound, &moved[parity], &moved[2]);
-            ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), belongs, error);
+            for (unsigned long long voxel = first; voxel < count; voxel += jump)
+            {
+                max_tree_partner_voxel(job.strongest, job.belongs, job.height, job.width, job.partner,
+                                       (unsigned int)voxel);
+            }
+            grid.sync();
+            for (unsigned long long voxel = first; voxel < count; voxel += jump)
+            {
+                max_tree_hook_voxel(job.strongest, job.partner, (round * MAX_TREE_TICKS) + tick, job.belongs, job.bound,
+                                    job.moved, &job.moved[2], (unsigned int)voxel);
+            }
+            grid.sync();
         }
-        ok = ok && MAX_TREE_STATUS_CHECK(cudaMemcpyAsync(&pinned_moved[parity], &moved[parity], sizeof(unsigned int),
-                                                         cudaMemcpyDeviceToHost, 0),
-                                         &pinned_moved[parity], error);
-        ok = ok && MAX_TREE_STATUS_CHECK(cudaEventRecord(blocks_done[parity], 0), &blocks_done[parity], error);
-        if ((ok != 0) && (block > 0u))
-        {
-            const unsigned int previous = 1u - parity;
-            ok = MAX_TREE_STATUS_CHECK(cudaEventSynchronize(blocks_done[previous]), &blocks_done[previous], error);
-            settled = ((ok != 0) && (pinned_moved[previous] == 0u)) ? 1 : 0;
-        }
-        block += 1u;
+        settled = (job.moved[0] == 0u) ? 1 : 0;
+        // each thread reads the mark before the first thread clears it for the next round
+        grid.sync();
     }
-    return (ok != 0) && MAX_TREE_STATUS_CHECK(cudaDeviceSynchronize(), bound, error);
+}
+
+int max_tree_contract(const unsigned int *residual, unsigned int depth, unsigned int height, unsigned int width,
+                      unsigned char *faces, unsigned int *belongs, unsigned long long *strongest, unsigned int *partner,
+                      unsigned char *bound, unsigned int *moved, EngineError *error)
+{
+    MaxTreeContractJob job = {residual, depth, height, width, faces, belongs, strongest, partner, bound, moved};
+    void *args[1] = {(void *)&job};
+    // Explicit cast gives the address of the record of the job as the one argument of the kernel
+    return MAX_TREE_CHECK(tessera_job_ran((const void *)max_tree_contract_job_kernel, MAX_TREE_BLOCK, args), bound,
+                          error, ENGINE_ERROR_RESOURCE);
 }
