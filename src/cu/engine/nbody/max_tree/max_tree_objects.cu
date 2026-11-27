@@ -6,45 +6,12 @@
 #include "memoria_operor/memoria_operor.h"
 
 int max_tree_cc(const unsigned char *ranges, unsigned int depth, unsigned int height, unsigned int width,
-                unsigned int *parent, unsigned int *moved, unsigned int *pinned_moved, cudaEvent_t *blocks_done,
-                EngineError *error)
+                unsigned int *parent, unsigned int *moved, EngineError *error)
 {
-    const unsigned int voxels = depth * height * width;
-    const unsigned int spread = (voxels + MAX_TREE_BLOCK - 1u) / MAX_TREE_BLOCK;
-    int ok = 1;
-    int settled = 0;
-    unsigned int block = 0u;
-    while ((ok != 0) && (settled == 0))
-    {
-        const unsigned int parity = block % 2u;
-        ok = MAX_TREE_STATUS_CHECK(cudaMemsetAsync(&moved[parity], 0, sizeof(unsigned int), 0), &moved[parity], error);
-        for (unsigned int tick = 0u; (ok != 0) && (tick < MAX_TREE_TICKS); tick += 1u)
-        {
-            max_tree_cc_hook_kernel<<<spread, MAX_TREE_BLOCK>>>(ranges, depth, height, width, parent, &moved[parity]);
-            for (unsigned int jump = 0u; jump < MAX_TREE_JUMPS; jump += 1u)
-            {
-                max_tree_cc_jump_kernel<<<spread, MAX_TREE_BLOCK>>>(ranges, voxels, parent);
-            }
-            ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), parent, error);
-        }
-        ok = ok && MAX_TREE_STATUS_CHECK(cudaMemcpyAsync(&pinned_moved[parity], &moved[parity], sizeof(unsigned int),
-                                                         cudaMemcpyDeviceToHost, 0),
-                                         &pinned_moved[parity], error);
-        ok = ok && MAX_TREE_STATUS_CHECK(cudaEventRecord(blocks_done[parity], 0), &blocks_done[parity], error);
-        if ((ok != 0) && (block > 0u))
-        {
-            const unsigned int previous = 1u - parity;
-            ok = MAX_TREE_STATUS_CHECK(cudaEventSynchronize(blocks_done[previous]), &blocks_done[previous], error);
-            settled = ((ok != 0) && (pinned_moved[previous] == 0u)) ? 1 : 0;
-        }
-        block += 1u;
-    }
-    if (ok != 0)
-    {
-        max_tree_cc_flatten_kernel<<<spread, MAX_TREE_BLOCK>>>(ranges, voxels, parent);
-        ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), parent, error);
-    }
-    return (ok != 0) && MAX_TREE_STATUS_CHECK(cudaDeviceSynchronize(), parent, error);
+    void *args[6] = {(void *)&ranges, (void *)&depth, (void *)&height, (void *)&width, (void *)&parent, (void *)&moved};
+    // Explicit casts give the addresses of the arguments of the kernel as its argument list
+    return MAX_TREE_CHECK(tessera_job_ran((const void *)max_tree_cc_job_kernel, MAX_TREE_BLOCK, args), parent, error,
+                          ENGINE_ERROR_RESOURCE);
 }
 
 __global__ void max_tree_roots_kernel(const unsigned char *ranges, const unsigned int *label, unsigned int voxels,

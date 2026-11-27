@@ -521,7 +521,6 @@ src/cu/engine/nbody/climb_machine/climb_machine_core.cu	3
 src/cu/engine/nbody/flatten/flatten.cu	3
 src/cu/engine/nbody/flatten/flatten.h	2
 src/cu/engine/nbody/max_tree/max_tree.h	20
-src/cu/engine/nbody/max_tree/max_tree_device_overlap.cu	4
 src/cu/engine/nbody/max_tree/max_tree_device_overlap_kernels.cu	1
 src/cu/engine/nbody/max_tree/max_tree_nodes.c	2
 src/cu/engine/nbody/orior/orior.h	4

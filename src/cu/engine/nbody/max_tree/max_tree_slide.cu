@@ -39,8 +39,7 @@ static int max_tree_slide_partition(MaxTreeSlide *slide, unsigned int level, uns
     {
         max_tree_cc_start_kernel<<<spread, MAX_TREE_BLOCK>>>(resident->code, count, level, slide->ranges, slide->label);
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), slide->label, error) &&
-             max_tree_cc(slide->ranges, slide->depth, slide->height, slide->width, slide->label, slide->moved,
-                         slide->pinned_moved, slide->blocks_done, error) &&
+             max_tree_cc(slide->ranges, slide->depth, slide->height, slide->width, slide->label, slide->moved, error) &&
              MAX_TREE_STATUS_CHECK(cudaMemset(slide->roots, 0, sizeof(unsigned int)), slide->roots, error);
         if (ok != 0)
         {

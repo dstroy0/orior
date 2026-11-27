@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // max_tree_grade.cu: grading the codes
-#include "max_tree_device_internal.h"
 #include "../../../../platform/platform.h"
+#include "max_tree_device_internal.h"
 
 static int max_tree_grade_codes(const unsigned int *residual, unsigned int depth, unsigned int height,
                                 unsigned int width, const unsigned char *coded, unsigned int *differ,
@@ -197,8 +197,7 @@ extern "C" long max_tree_objects(const MaxTreeObjectsRequest *request)
                                                              resident->label);
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), resident->label, error);
     }
-    ok = ok && max_tree_cc(resident->ranges, depth, height, width, resident->label, resident->moved,
-                           resident->pinned_moved, resident->blocks_done, error);
+    ok = ok && max_tree_cc(resident->ranges, depth, height, width, resident->label, resident->moved, error);
     unsigned int found = 0u;
     ok = ok && MAX_TREE_STATUS_CHECK(cudaMemset(resident->roots, 0, sizeof(unsigned int)), resident->roots, error);
     if (ok != 0)

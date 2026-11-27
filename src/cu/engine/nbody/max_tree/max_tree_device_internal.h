@@ -4,9 +4,11 @@
 #ifndef MAX_TREE_DEVICE_INTERNAL_H
 #define MAX_TREE_DEVICE_INTERNAL_H
 
-#include "max_tree.h"
+#include "../../runtime/daemon/tessera_job.h"
 #include "../../runtime/device_pool/device_pool.h"
+#include "max_tree.h"
 
+#include <cooperative_groups.h>
 #include <cub/cub.cuh>
 #include <cuda_runtime.h>
 
@@ -131,22 +133,19 @@ __global__ void max_tree_code_levels_kernel(const unsigned int *code, const unsi
 
 __global__ void max_tree_reverse_kernel(const int *change, unsigned int top, int *reversed);
 
-__global__ void max_tree_level_pick_kernel(const int *counts, unsigned int top, const int *max,
-                                           unsigned int *level);
+__global__ void max_tree_level_pick_kernel(const int *counts, unsigned int top, const int *max, unsigned int *level);
 
 __global__ void max_tree_cc_start_kernel(const unsigned int *code, unsigned int voxels, unsigned int level,
                                          unsigned char *ranges, unsigned int *parent);
 
-__global__ void max_tree_cc_hook_kernel(const unsigned char *ranges, unsigned int depth, unsigned int height,
-                                        unsigned int width, unsigned int *parent, unsigned int *moved);
+__global__ void max_tree_cc_job_kernel(const unsigned char *ranges, unsigned int depth, unsigned int height,
+                                       unsigned int width, unsigned int *parent, unsigned int *moved);
 
-__global__ void max_tree_cc_jump_kernel(const unsigned char *ranges, unsigned int voxels, unsigned int *parent);
-
-__global__ void max_tree_cc_flatten_kernel(const unsigned char *ranges, unsigned int voxels, unsigned int *parent);
-
+// The components of the range, each voxel in it pointed at the root of its component in `parent`. One cooperative
+// launch runs the rounds and decides on the device when they end. `moved` is one word of the device for the mark of a
+// round. 1, or 0 with the error set
 int max_tree_cc(const unsigned char *ranges, unsigned int depth, unsigned int height, unsigned int width,
-                unsigned int *parent, unsigned int *moved, unsigned int *pinned_moved, cudaEvent_t *blocks_done,
-                EngineError *error);
+                unsigned int *parent, unsigned int *moved, EngineError *error);
 
 __global__ void max_tree_roots_kernel(const unsigned char *ranges, const unsigned int *label, unsigned int voxels,
                                       unsigned int *roots);

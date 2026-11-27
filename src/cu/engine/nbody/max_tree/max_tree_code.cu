@@ -310,15 +310,12 @@ __device__ static unsigned int max_tree_cc_root(const unsigned int *parent, unsi
     return at;
 }
 
-__global__ void max_tree_cc_hook_kernel(const unsigned char *ranges, unsigned int depth, unsigned int height,
-                                        unsigned int width, unsigned int *parent, unsigned int *moved)
+// One voxel of the hook. Each neighbor past it on an axis that lies in the range hooks the higher of their two roots
+// under the lower. The hook marks `moved` where it does
+__device__ static void max_tree_cc_hooked(const unsigned char *ranges, unsigned int depth, unsigned int height,
+                                          unsigned int width, unsigned int *parent, unsigned int *moved,
+                                          unsigned int voxel)
 {
-    const unsigned int voxels = depth * height * width;
-    const unsigned int voxel = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if ((voxel >= voxels) || (ranges[voxel] == 0u))
-    {
-        return;
-    }
     const unsigned int plane = height * width;
     const unsigned int z = voxel / plane;
     const unsigned int y = (voxel % plane) / width;
@@ -346,22 +343,80 @@ __global__ void max_tree_cc_hook_kernel(const unsigned char *ranges, unsigned in
     }
 }
 
-__global__ void max_tree_cc_jump_kernel(const unsigned char *ranges, unsigned int voxels, unsigned int *parent)
+// The steps of the components as walks of their own: the voxels from `first` on, `jump` apart. The hook hooks each
+// voxel in the range, and the jump halves the path of each voxel to its root. The flatten points each voxel at its root
+__device__ static void max_tree_cc_hook_span(const unsigned char *ranges, unsigned int depth, unsigned int height,
+                                             unsigned int width, unsigned int *parent, unsigned int *moved,
+                                             unsigned long long first, unsigned long long jump)
 {
-    const unsigned int voxel = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if ((voxel >= voxels) || (ranges[voxel] == 0u))
+    const unsigned long long voxels = (unsigned long long)depth * height * width;
+    for (unsigned long long voxel = first; voxel < voxels; voxel += jump)
     {
-        return;
+        if (ranges[voxel] != 0u)
+        {
+            // Explicit cast takes a voxel below the count, which max_tree_objects holds below 2^32 / 3
+            max_tree_cc_hooked(ranges, depth, height, width, parent, moved, (unsigned int)voxel);
+        }
     }
-    parent[voxel] = parent[parent[voxel]];
 }
 
-__global__ void max_tree_cc_flatten_kernel(const unsigned char *ranges, unsigned int voxels, unsigned int *parent)
+__device__ static void max_tree_cc_jump_span(const unsigned char *ranges, unsigned int voxels, unsigned int *parent,
+                                             unsigned long long first, unsigned long long jump)
 {
-    const unsigned int voxel = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if ((voxel >= voxels) || (ranges[voxel] == 0u))
+    for (unsigned long long voxel = first; voxel < voxels; voxel += jump)
     {
-        return;
+        if (ranges[voxel] != 0u)
+        {
+            parent[voxel] = parent[parent[voxel]];
+        }
     }
-    parent[voxel] = max_tree_cc_root(parent, voxel);
+}
+
+__device__ static void max_tree_cc_flatten_span(const unsigned char *ranges, unsigned int voxels, unsigned int *parent,
+                                                unsigned long long first, unsigned long long jump)
+{
+    for (unsigned long long voxel = first; voxel < voxels; voxel += jump)
+    {
+        if (ranges[voxel] != 0u)
+        {
+            // Explicit cast takes a voxel below the count, which an unsigned int holds
+            parent[voxel] = max_tree_cc_root(parent, (unsigned int)voxel);
+        }
+    }
+}
+
+// The components of the range as one job of the device. Each round clears `moved`, then runs MAX_TREE_TICKS ticks of
+// a hook and MAX_TREE_JUMPS jumps, with a sync of the grid after each step. The grid reads `moved` after the round, and
+// a round that hooked nothing ends the loop. The flatten then points each voxel at its root. The root of a component
+// is its least voxel, whatever the order of the hooks
+__global__ void max_tree_cc_job_kernel(const unsigned char *ranges, unsigned int depth, unsigned int height,
+                                       unsigned int width, unsigned int *parent, unsigned int *moved)
+{
+    cooperative_groups::grid_group grid = cooperative_groups::this_grid();
+    const unsigned long long first = grid.thread_rank();
+    const unsigned long long jump = grid.size();
+    const unsigned int voxels = depth * height * width;
+    int settled = 0;
+    while (settled == 0)
+    {
+        if (first == 0ULL)
+        {
+            moved[0] = 0u;
+        }
+        grid.sync();
+        for (unsigned int tick = 0u; tick < MAX_TREE_TICKS; tick += 1u)
+        {
+            max_tree_cc_hook_span(ranges, depth, height, width, parent, moved, first, jump);
+            grid.sync();
+            for (unsigned int step = 0u; step < MAX_TREE_JUMPS; step += 1u)
+            {
+                max_tree_cc_jump_span(ranges, voxels, parent, first, jump);
+                grid.sync();
+            }
+        }
+        settled = (moved[0] == 0u) ? 1 : 0;
+        // each thread reads the mark before the first thread clears it for the next round
+        grid.sync();
+    }
+    max_tree_cc_flatten_span(ranges, voxels, parent, first, jump);
 }

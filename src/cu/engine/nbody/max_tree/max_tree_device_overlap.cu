@@ -48,7 +48,7 @@ static int max_tree_overlap_step(MaxTreeOverlap *overlap, unsigned int origin, u
                                                              overlap->label[frame]);
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), overlap->label[frame], error) &&
              max_tree_cc(overlap->ranges[frame], overlap->depth, overlap->height, overlap->width, overlap->label[frame],
-                         overlap->moved, overlap->pinned_moved, overlap->blocks_done, error) &&
+                         overlap->moved, error) &&
              MAX_TREE_STATUS_CHECK(cudaMemset(overlap->partners[frame], 0, (size_t)count * sizeof(unsigned int)),
                                    overlap->partners[frame], error) &&
              MAX_TREE_STATUS_CHECK(cudaMemset(overlap->backs[frame], 0, (size_t)count * sizeof(unsigned int)),
@@ -66,7 +66,7 @@ static int max_tree_overlap_step(MaxTreeOverlap *overlap, unsigned int origin, u
             overlap->ranges[0], overlap->label[0], overlap->ranges[1], overlap->label[1], overlap->depth,
             overlap->height, overlap->width, overlap->lag[0], overlap->lag[1], overlap->lag[2], overlap->pairs[0]);
         size_t bytes = overlap->scratch_bytes;
-        // the voxel count was bounded below 2^32 when the frame was cut, and the sort takes it as int
+        // The cut of the frame holds the voxel count below 2^32, and the sort takes it as int
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), overlap->pairs[0], error) &&
              MAX_TREE_STATUS_CHECK(cub::DeviceRadixSort::SortKeys(overlap->scratch, bytes, overlap->pairs[0],
                                                                   overlap->pairs[1], (int)count),
@@ -234,7 +234,7 @@ extern "C" long max_tree_overlap(const MaxTreeOverlapRequest *request)
                  MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&overlap.links_present, request->link_count),
                                        &overlap.links_present, error)));
     overlap.probe_links = device_links;
-    // the voxel count was bounded below 2^32 when the frame was cut, and the sort takes it as int
+    // The cut of the frame holds the voxel count below 2^32, and the sort takes it as int
     ok = ok &&
          MAX_TREE_STATUS_CHECK(cub::DeviceRadixSort::SortKeys(NULL, overlap.scratch_bytes,
                                                               (const unsigned long long *)NULL,
