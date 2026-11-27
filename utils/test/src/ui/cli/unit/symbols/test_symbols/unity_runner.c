@@ -28,6 +28,7 @@ extern void test_a_file_is_cut_into_the_slices_of_its_windows_in_one_walk(void);
 extern void test_a_token_names_roles_come_off_its_segments(void);
 extern void test_the_declarations_a_query_names_are_ranked_and_a_calls_signature_read(void);
 extern void test_a_branchs_copy_gives_its_path_and_declarations_and_a_moved_stamp_is_reported(void);
+extern void test_many_branches_are_found_through_the_merges_and_the_ones_let_go_are_not(void);
 extern void test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last(void);
 
 
@@ -109,7 +110,8 @@ int main(void)
   run_test(test_a_token_names_roles_come_off_its_segments, "test_a_token_names_roles_come_off_its_segments", 299);
   run_test(test_the_declarations_a_query_names_are_ranked_and_a_calls_signature_read, "test_the_declarations_a_query_names_are_ranked_and_a_calls_signature_read", 330);
   run_test(test_a_branchs_copy_gives_its_path_and_declarations_and_a_moved_stamp_is_reported, "test_a_branchs_copy_gives_its_path_and_declarations_and_a_moved_stamp_is_reported", 359);
-  run_test(test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last, "test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last", 399);
+  run_test(test_many_branches_are_found_through_the_merges_and_the_ones_let_go_are_not, "test_many_branches_are_found_through_the_merges_and_the_ones_let_go_are_not", 413);
+  run_test(test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last, "test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last", 455);
 
   return UNITY_END();
 }

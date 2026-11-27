@@ -396,6 +396,61 @@ void test_a_branchs_copy_gives_its_path_and_declarations_and_a_moved_stamp_is_re
     CLI_TEST_ASSERT_CONTAINS("src/use.c", s_stamps);
 }
 
+// The path of branch `number` of the many, into `path`
+static void many_path(unsigned int number, char *path, size_t room)
+{
+    VerbaLinea line = {path, room, 0ULL};
+    mmgr_line_put(&line, "many/");
+    mmgr_line_decimal(&line, number % 7u, 1u);
+    mmgr_line_put(&line, "/file_");
+    mmgr_line_decimal(&line, number, 1u);
+    mmgr_line_put(&line, ".c");
+    (void)mmgr_line_finish(&line);
+}
+
+// More branches than a run holds, joined over several merges. Every other one is let go, and each one kept is found
+// at its own place. Each one let go is not found, and a branch joined again after them is found
+void test_many_branches_are_found_through_the_merges_and_the_ones_let_go_are_not(void)
+{
+    tree_begun();
+    enum
+    {
+        MANY = 2000u
+    };
+    static unsigned int s_place[MANY];
+    char path[CLI_PATH_MAX_LEN];
+    for (unsigned int at = 0u; at < MANY; at += 1u)
+    {
+        many_path(at, path, sizeof(path));
+        s_place[at] = EMBED_CALL(cli_symbols_tree_path.branch_exists, CliSymbolsTreePathCfg, .path = path, .folder = 0);
+        TEST_ASSERT_NOT_EQUAL(CLI_BRANCHES_MAX, s_place[at]);
+    }
+    for (unsigned int at = 0u; at < MANY; at += 2u)
+    {
+        EMBED_CALL(cli_symbols_tree_file.branch_leave, CliSymbolsTreeFileCfg, .file = s_place[at]);
+    }
+    for (unsigned int at = 0u; at < MANY; at += 1u)
+    {
+        many_path(at, path, sizeof(path));
+        const unsigned int found = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = path);
+        TEST_ASSERT_EQUAL_UINT(((at % 2u) == 0u) ? CLI_BRANCHES_MAX : s_place[at], found);
+    }
+    many_path(0u, path, sizeof(path));
+    const unsigned int again =
+        EMBED_CALL(cli_symbols_tree_path.branch_exists, CliSymbolsTreePathCfg, .path = path, .folder = 0);
+    TEST_ASSERT_NOT_EQUAL(CLI_BRANCHES_MAX, again);
+    TEST_ASSERT_EQUAL_UINT(again, EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = path));
+    // the many let go, so that the tree is as the tests after this one find it
+    EMBED_CALL(cli_symbols_tree_file.branch_leave, CliSymbolsTreeFileCfg, .file = again);
+    for (unsigned int at = 1u; at < MANY; at += 2u)
+    {
+        EMBED_CALL(cli_symbols_tree_file.branch_leave, CliSymbolsTreeFileCfg, .file = s_place[at]);
+    }
+    many_path(1u, path, sizeof(path));
+    TEST_ASSERT_EQUAL_UINT(CLI_BRANCHES_MAX,
+                           EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = path));
+}
+
 void test_a_branch_is_joined_read_counted_and_let_go_and_the_tree_cleared_last(void)
 {
     tree_begun();

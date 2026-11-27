@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // symbols_table.c: the branches the tree stores, their records in chunks of CLI_BRANCH_CHUNK places, each chunk a
 // movable cell taken as a place in it is first used and given back as its last place is left, the chunks' tokens a
-// static table; each branch found by its path through a static table of bucket heads, the branches of one bucket
-// chained through their records; each knowing its closest parent
+// static table; each branch found by its path through a static order of the branches sorted by the hash of the
+// path, with a run of the newest beside it; each knowing its closest parent
 #include "../command_line/pool.h"
 #include "../text/text.h"
 #include "symbols_tree.h"
@@ -11,14 +11,13 @@
 // every file a table can name, and the one taken while the cell it replaces still is
 _Static_assert(CLI_BRANCHES_MAX < CLI_POOL_MOVABLE, "the movable cells cannot name every symbol file");
 
-// the places of one chunk as a two's power, the chunks, the words of a chunk's bitmap of places in use, and the bucket
-// heads as a two's power
+// the places of one chunk as a two's power, the chunks, the words of a chunk's bitmap of places in use, and the
+// records of the run of the newest branches
 #define CLI_BRANCH_CHUNK_SHIFT 10u
 #define CLI_BRANCH_CHUNK (1u << CLI_BRANCH_CHUNK_SHIFT)
 #define CLI_BRANCH_CHUNKS (CLI_BRANCHES_MAX / CLI_BRANCH_CHUNK)
 #define CLI_BRANCH_CHUNK_WORDS (CLI_BRANCH_CHUNK / 64u)
-#define CLI_BRANCH_HEADS_SHIFT 15u
-#define CLI_BRANCH_HEADS (1u << CLI_BRANCH_HEADS_SHIFT)
+#define CLI_BRANCH_RUN 256u
 _Static_assert((CLI_BRANCH_CHUNKS * CLI_BRANCH_CHUNK) == CLI_BRANCHES_MAX, "the chunks cover every place");
 
 unsigned int g_cli_branch_count;
@@ -27,8 +26,22 @@ static unsigned int s_cell_max;
 static const CarcerMovableEntry *s_chunk[CLI_BRANCH_CHUNKS];
 static unsigned int s_chunk_used[CLI_BRANCH_CHUNKS];
 static unsigned long long s_chunk_bits[CLI_BRANCH_CHUNKS][CLI_BRANCH_CHUNK_WORDS];
-// each bucket's first branch, as its place from 1, 0 for none; the branches of a bucket chain through their records
-static unsigned int s_head[CLI_BRANCH_HEADS];
+// a record of a branch: the hash of its path and its place, CLI_BRANCHES_MAX in the order where the branch left
+typedef struct
+{
+    unsigned long long hash;
+    unsigned int place;
+} CliBranchRecord;
+
+// The order: a record for each branch merged, sorted by the hash, `s_ordered` of them, `s_emptied` of them marked
+// empty. The run: the records of the branches put since the last merge, in the order they were put, `s_run_count` of
+// them. The room: what the sort of a full run writes as it merges
+static CliBranchRecord s_order[CLI_BRANCHES_MAX];
+static unsigned int s_ordered;
+static unsigned int s_emptied;
+static CliBranchRecord s_run[CLI_BRANCH_RUN];
+static unsigned int s_run_count;
+static CliBranchRecord s_run_room[CLI_BRANCH_RUN];
 // the files located and their paths' bytes
 static unsigned int s_files;
 static unsigned long long s_file_bytes;
@@ -52,11 +65,83 @@ EMBED_INLINE unsigned long long cli_hash(const SymbolsTableCtx *args)
     return value;
 }
 
-// the bucket of `path`, below the heads
-EMBED_INLINE unsigned int cli_bucket_of(const SymbolsTableCtx *args)
+// the order of two records, by the hash of the path: below 0, 0 or above 0
+static int cli_record_order(const void *left, const void *right)
 {
-    // Explicit cast retains the hash's low bits, which the mask bounds below the heads
-    return (unsigned int)(cli_hash(args) & (CLI_BRANCH_HEADS - 1u));
+    const CliBranchRecord *const one = (const CliBranchRecord *)left;
+    const CliBranchRecord *const other = (const CliBranchRecord *)right;
+    return (one->hash < other->hash) ? -1 : ((one->hash > other->hash) ? 1 : 0);
+}
+
+// the run sorted once and merged into the order from its end, each record marked empty taken out as it goes
+EMBED_INLINE void cli_run_merged(const SymbolsTableCtx *args)
+{
+    (void)args;
+    (void)memor.sort(&(MemoriaCfg){.dst = s_run,
+                                   .scratch = s_run_room,
+                                   .count = s_run_count,
+                                   .bytes = sizeof(CliBranchRecord),
+                                   .order = cli_record_order});
+    // the records kept from the order, moved down over the empty ones, then the merge from the end of both
+    unsigned int kept = 0u;
+    for (unsigned int at = 0u; at < s_ordered; at += 1u)
+    {
+        if (s_order[at].place != CLI_BRANCHES_MAX)
+        {
+            s_order[kept] = s_order[at];
+            kept += 1u;
+        }
+    }
+    unsigned int from_order = kept;
+    unsigned int from_run = s_run_count;
+    unsigned int to = kept + s_run_count;
+    while (from_run != 0u)
+    {
+        const int order_first = (from_order != 0u) && (s_order[from_order - 1u].hash > s_run[from_run - 1u].hash);
+        to -= 1u;
+        if (order_first)
+        {
+            from_order -= 1u;
+            s_order[to] = s_order[from_order];
+        }
+        else
+        {
+            from_run -= 1u;
+            s_order[to] = s_run[from_run];
+        }
+    }
+    s_ordered = kept + s_run_count;
+    s_emptied = 0u;
+    s_run_count = 0u;
+}
+
+// the first record of the order at or past `hash`, by a binary search: its place in the order, `s_ordered` where none
+EMBED_INLINE unsigned int cli_order_from(unsigned long long hash)
+{
+    unsigned int low = 0u;
+    unsigned int high = s_ordered;
+    while (low < high)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        if (s_order[middle].hash < hash)
+        {
+            low = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    return low;
+}
+
+// 1 where the branch at `place` stores the path `path`, `bytes` of it with its end
+EMBED_INLINE int cli_branch_is(unsigned int place, const char *path, embed_word bytes)
+{
+    CliTreeBranch branch;
+    EMBED_CALL(cli_branch_read, CliSymbolsTreeAtCfg, .file = place, .branch_out = &branch);
+    return g_cli_guard->movable_buf_compare(
+               &(CarcerMovableCfg){.cell = branch.cell, .offset = branch.path, .src = path, .bytes = bytes}) == 0;
 }
 
 void cli_branch_read(const CliSymbolsTreeAtCfg *args)
@@ -124,17 +209,20 @@ unsigned int cli_branch_get(const CliSymbolsTreePathCfg *args)
 {
     // the path with its terminator, so that a stored path it only starts differs from it there
     const embed_word bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_POOL_BYTES}) + 1u;
-    unsigned int place = s_head[EMBED_CALL(cli_bucket_of, SymbolsTableCtx, .path = args->path)];
-    while (place != 0u)
+    const unsigned long long hash = cli_hash(&(SymbolsTableCtx){.path = args->path});
+    for (unsigned int at = 0u; at < s_run_count; at += 1u)
     {
-        CliTreeBranch branch;
-        EMBED_CALL(cli_branch_read, CliSymbolsTreeAtCfg, .file = place - 1u, .branch_out = &branch);
-        if (g_cli_guard->movable_buf_compare(&(CarcerMovableCfg){
-                .cell = branch.cell, .offset = branch.path, .src = args->path, .bytes = bytes}) == 0)
+        if ((s_run[at].hash == hash) && cli_branch_is(s_run[at].place, args->path, bytes))
         {
-            return place - 1u;
+            return s_run[at].place;
         }
-        place = branch.chain;
+    }
+    for (unsigned int at = cli_order_from(hash); (at < s_ordered) && (s_order[at].hash == hash); at += 1u)
+    {
+        if ((s_order[at].place != CLI_BRANCHES_MAX) && cli_branch_is(s_order[at].place, args->path, bytes))
+        {
+            return s_order[at].place;
+        }
     }
     return CLI_BRANCHES_MAX;
 }
@@ -210,29 +298,28 @@ EMBED_INLINE void cli_place_left(const SymbolsTableCtx *args)
     }
 }
 
-// the branch `file` taken out of its bucket's chain, the head or its predecessor's record relinked past it
+// the record of the branch `file`, of the path `path`, taken out: from the run, the run's last record put in its
+// place, or from the order, marked empty there until the next merge
 EMBED_INLINE void cli_bucket_unlinked(const SymbolsTableCtx *args)
 {
-    const unsigned int bucket = EMBED_CALL(cli_bucket_of, SymbolsTableCtx, .path = args->path);
-    CliTreeBranch leaving;
-    EMBED_CALL(cli_branch_read, CliSymbolsTreeAtCfg, .file = args->file, .branch_out = &leaving);
-    if (s_head[bucket] == args->file + 1u)
+    const unsigned long long hash = cli_hash(args);
+    for (unsigned int at = 0u; at < s_run_count; at += 1u)
     {
-        s_head[bucket] = leaving.chain;
-        return;
-    }
-    unsigned int place = s_head[bucket];
-    while (place != 0u)
-    {
-        CliTreeBranch before;
-        EMBED_CALL(cli_branch_read, CliSymbolsTreeAtCfg, .file = place - 1u, .branch_out = &before);
-        if (before.chain == args->file + 1u)
+        if (s_run[at].place == args->file)
         {
-            before.chain = leaving.chain;
-            EMBED_CALL(cli_branch_write, CliSymbolsTreeAtCfg, .file = place - 1u, .branch = &before);
+            s_run_count -= 1u;
+            s_run[at] = s_run[s_run_count];
             return;
         }
-        place = before.chain;
+    }
+    for (unsigned int at = cli_order_from(hash); (at < s_ordered) && (s_order[at].hash == hash); at += 1u)
+    {
+        if (s_order[at].place == args->file)
+        {
+            s_order[at].place = CLI_BRANCHES_MAX;
+            s_emptied += 1u;
+            return;
+        }
     }
 }
 
@@ -253,17 +340,21 @@ EMBED_INLINE unsigned int cli_branch_init(const SymbolsTableCtx *args)
         return CLI_BRANCHES_MAX;
     }
     (void)g_cli_guard->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = args->path, .bytes = bytes});
-    const unsigned int bucket = EMBED_CALL(cli_bucket_of, SymbolsTableCtx, .path = args->path);
-    // a path is below CLI_PATH_MAX_LEN, which an unsigned int counts; the branch heads its bucket's chain
+    // a path is below CLI_PATH_MAX_LEN, which an unsigned int counts
     const CliTreeBranch branch = {.cell = cell,
                                   .bytes = (unsigned int)bytes,
                                   .used = 1,
                                   .folder = args->folder,
                                   .seen = 1,
-                                  .parent = args->parent,
-                                  .chain = s_head[bucket]};
+                                  .parent = args->parent};
     EMBED_CALL(cli_branch_write, CliSymbolsTreeAtCfg, .file = place, .branch = &branch);
-    s_head[bucket] = place + 1u;
+    // the branch's record into the run, the run merged into the order first where it is full
+    if (s_run_count == CLI_BRANCH_RUN)
+    {
+        EMBED_CALL(cli_run_merged, SymbolsTableCtx, .file = 0u);
+    }
+    s_run[s_run_count] = (CliBranchRecord){cli_hash(args), place};
+    s_run_count += 1u;
     EMBED_CALL(cli_symbols_tree.branch_cell_count, CliSymbolsTreeCfg, .bytes = (unsigned int)bytes);
     if (args->parent < CLI_BRANCHES_MAX)
     {
@@ -381,7 +472,9 @@ void cli_tree_clear(void)
     }
     memor.set(&(MemoriaCfg){.dst = s_chunk_used, .val = 0, .bytes = sizeof(s_chunk_used)});
     memor.set(&(MemoriaCfg){.dst = s_chunk_bits, .val = 0, .bytes = sizeof(s_chunk_bits)});
-    memor.set(&(MemoriaCfg){.dst = s_head, .val = 0, .bytes = sizeof(s_head)});
+    s_ordered = 0u;
+    s_emptied = 0u;
+    s_run_count = 0u;
     s_files = 0u;
     s_file_bytes = 0ULL;
 }

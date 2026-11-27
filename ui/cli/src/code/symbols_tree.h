@@ -33,9 +33,8 @@ typedef struct
 // One branch stored, a file or the folder of one: a movable cell of its own containing its declarations, then its path,
 // then their names, reached only through the cells' guard; its bytes, its path's place in the cell, whether it is,
 // whether it is a folder, whether a walk has read what it declares, the stamp of the file as last seen, 0 until then,
-// its count of declarations, whether a listing or a walk saw it, its closest parent, how many branches are under a
-// folder, and the next branch of its path's bucket as its place from 1, 0 for none. A place left is reused, so that a
-// branch's place is for as long as it does
+// its count of declarations, whether a listing or a walk saw it, its closest parent, and how many branches are under a
+// folder. A place left is reused, so that a branch's place is for as long as it does
 typedef struct
 {
     const CarcerMovableEntry *cell;
@@ -49,7 +48,6 @@ typedef struct
     int seen;
     unsigned int parent;
     unsigned int below;
-    unsigned int chain;
 } CliTreeBranch;
 
 // the branches stored, their records in chunks each a movable cell taken as a place in it is first used,
