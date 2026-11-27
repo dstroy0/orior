@@ -153,49 +153,105 @@ void krep_text_row(KrepFile *file, unsigned int number)
                     file->text_length[number - 1u], QRY_ORDINARY);
 }
 
-// the bucket of the text of `length` bytes at `bytes` in the table of `file`: the one that holds it, or the empty one
-// where it goes
-unsigned int krep_text_slot(const KrepFile *file, const char *bytes, unsigned long long length)
+// 1 where the text numbered `number` of `file` is the `length` bytes at `bytes`
+static int krep_text_is(const KrepFile *file, unsigned int number, const char *bytes, unsigned long long length)
 {
-    unsigned int at = (unsigned int)(krep_hash(bytes, length) & (file->text_slots - 1u));
-    while (file->text_slot[at] != 0u)
-    {
-        const unsigned int slot = file->text_slot[at] - 1u;
-        if ((file->text_length[slot] == length) &&
-            (EMBED_CALL(memor.cmp, MemoriaCfg, .src = file->text[slot], .other = bytes, .bytes = (size_t)length) == 0))
-        {
-            return at;
-        }
-        at = (at + 1u) & (file->text_slots - 1u);
-    }
-    return at;
+    // a text is at max the bytes of a file read whole, which a size_t counts
+    return (file->text_length[number - 1u] == length) &&
+           ((length == 0ULL) || (EMBED_CALL(memor.cmp, MemoriaCfg, .src = file->text[number - 1u], .other = bytes,
+                                            .bytes = (size_t)length) == 0));
 }
 
-// `file`'s table of texts grown to contain twice the texts it contains and more: 1, or 0 where there was no memory
-static int krep_text_slots_grown(KrepFile *file)
+// the order of two places, by the hash of the bytes: below 0, 0 or above 0
+static int krep_place_order(const void *left, const void *right)
 {
-    unsigned int slots = (file->text_slots == 0u) ? 1024u : file->text_slots;
-    while (slots <= (2u * (file->texts + 1u)))
+    const KrepTextPlace *const one = (const KrepTextPlace *)left;
+    const KrepTextPlace *const other = (const KrepTextPlace *)right;
+    return (one->hash < other->hash) ? -1 : ((one->hash > other->hash) ? 1 : 0);
+}
+
+// the number of the text of `length` bytes at `bytes` in `file`, 0 where the file has none: the run first, then the
+// order from the first place of the hash, which a binary search finds
+unsigned int krep_text_found(const KrepFile *file, const char *bytes, unsigned long long length)
+{
+    const unsigned long long hash = krep_hash(bytes, length);
+    for (unsigned int each = 0u; each < file->text_run_count; each += 1u)
     {
-        slots *= 2u;
+        if ((file->text_run[each].hash == hash) && krep_text_is(file, file->text_run[each].number, bytes, length))
+        {
+            return file->text_run[each].number;
+        }
     }
-    if (slots == file->text_slots)
+    unsigned int low = 0u;
+    unsigned int high = file->text_ordered;
+    while (low < high)
     {
-        return 1;
+        const unsigned int middle = low + ((high - low) / 2u);
+        if (file->text_order[middle].hash < hash)
+        {
+            low = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
     }
-    unsigned int *const table =
-        (unsigned int *)platform_cell_cleared(slots, sizeof(unsigned int), platform_place_g_program_owner, 0);
-    if (table == NULL)
+    for (unsigned int each = low; (each < file->text_ordered) && (file->text_order[each].hash == hash); each += 1u)
     {
-        return 0;
+        if (krep_text_is(file, file->text_order[each].number, bytes, length))
+        {
+            return file->text_order[each].number;
+        }
     }
-    platform_cell_released(file->text_slot, platform_place_g_program_owner);
-    file->text_slot = table;
-    file->text_slots = slots;
-    for (unsigned int number = 0u; number < file->texts; number += 1u)
+    return 0u;
+}
+
+// the text numbered `number`, of `length` bytes at `bytes`, noted: into the run, the run sorted once and merged into
+// the order from its end first where it is full, the order's cell grown first where it has no room for the run. 1, or
+// 0 where there was no memory
+static int krep_text_noted(KrepFile *file, unsigned int number, const char *bytes, unsigned long long length)
+{
+    if (file->text_run_count == KREP_TEXT_RUN)
     {
-        file->text_slot[krep_text_slot(file, file->text[number], file->text_length[number])] = number + 1u;
+        if ((file->text_ordered + file->text_run_count) > file->text_order_room)
+        {
+            const unsigned int grown = (file->text_order_room == 0u) ? 1024u : (2u * file->text_order_room);
+            KrepTextPlace *const larger = (KrepTextPlace *)platform_cell_grown(
+                file->text_order, (size_t)file->text_order_room * sizeof(KrepTextPlace),
+                (size_t)grown * sizeof(KrepTextPlace), platform_place_g_program_owner, 0);
+            if (larger == NULL)
+            {
+                return 0;
+            }
+            file->text_order = larger;
+            file->text_order_room = grown;
+        }
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = file->text_run, .bytes = sizeof(KrepTextPlace),
+                         .scratch = file->text_run_room, .count = file->text_run_count, .order = krep_place_order);
+        unsigned int from_order = file->text_ordered;
+        unsigned int from_run = file->text_run_count;
+        unsigned int to = file->text_ordered + file->text_run_count;
+        while (from_run != 0u)
+        {
+            const int order_first =
+                (from_order != 0u) && (file->text_order[from_order - 1u].hash > file->text_run[from_run - 1u].hash);
+            to -= 1u;
+            if (order_first)
+            {
+                from_order -= 1u;
+                file->text_order[to] = file->text_order[from_order];
+            }
+            else
+            {
+                from_run -= 1u;
+                file->text_order[to] = file->text_run[from_run];
+            }
+        }
+        file->text_ordered += file->text_run_count;
+        file->text_run_count = 0u;
     }
+    file->text_run[file->text_run_count] = (KrepTextPlace){krep_hash(bytes, length), number};
+    file->text_run_count += 1u;
     return 1;
 }
 
@@ -203,10 +259,6 @@ static int krep_text_slots_grown(KrepFile *file)
 // the number, or 0 where there was no memory for it
 unsigned long long krep_text_taken(KrepFile *file, const char *bytes, unsigned long long length)
 {
-    if (!krep_text_slots_grown(file))
-    {
-        return 0ULL;
-    }
     if (file->texts == file->text_room)
     {
         const unsigned int grown = (file->text_room == 0u) ? 256u : (2u * file->text_room);
@@ -236,13 +288,13 @@ unsigned long long krep_text_taken(KrepFile *file, const char *bytes, unsigned l
     }
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = copy, .src = bytes, .bytes = (size_t)length);
     copy[length] = '\0';
-    const unsigned int slot = krep_text_slot(file, bytes, length);
+    const int given = krep_text_found(file, bytes, length) != 0u;
     file->text[file->texts] = copy;
     file->text_length[file->texts] = length;
     file->texts += 1u;
-    if (file->text_slot[slot] == 0u)
+    if (!given && !krep_text_noted(file, file->texts, bytes, length))
     {
-        file->text_slot[slot] = file->texts;
+        return 0ULL;
     }
     if (file->key != 0ULL)
     {

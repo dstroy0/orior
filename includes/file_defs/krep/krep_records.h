@@ -73,11 +73,22 @@ extern "C"
     } KrepRecord;
 
     // A k-file of records in memory. It holds its type and its records in order. It holds its texts, each by its number
-    // less one, with its length. It holds a table that finds a text by its bytes: a power of two buckets, each the number
-    // of a text or 0.
+    // less one, with its length. It finds a text by its bytes through the texts' places: an order of them sorted by the
+    // hash of the bytes, `text_ordered` of them in a cell of room for `text_order_room`, and a run of the newest,
+    // `text_run_count` of them, with the room that the sort of a full run writes as it merges into the order.
     //
     // Where it is a view of a table of a run, it holds the run and the name of the table. It also holds the key of the
     // file. These are 0 where it is no view. A file starts as zeros
+    // the place of a text: the hash of its bytes, and its number
+    typedef struct
+    {
+        unsigned long long hash;
+        unsigned int number;
+    } KrepTextPlace;
+
+    // the places of the run of the newest texts
+#define KREP_TEXT_RUN 256u
+
     typedef struct
     {
         char type[4];
@@ -88,8 +99,12 @@ extern "C"
         unsigned long long *text_length;
         unsigned int texts;
         unsigned int text_room;
-        unsigned int *text_slot;
-        unsigned int text_slots;
+        KrepTextPlace *text_order;
+        unsigned int text_ordered;
+        unsigned int text_order_room;
+        KrepTextPlace text_run[KREP_TEXT_RUN];
+        unsigned int text_run_count;
+        KrepTextPlace text_run_room[KREP_TEXT_RUN];
         QryShared *run;
         const char *table;
         unsigned long long key;

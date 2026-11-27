@@ -34,7 +34,7 @@ unsigned long long krep_row_passed(KrepFile *file, unsigned long long key, const
 void krep_who_words_at(const KrepFile *file, unsigned int at, unsigned long long *words);
 void krep_record_row(KrepFile *file, unsigned int at, const unsigned long long *who);
 void krep_text_row(KrepFile *file, unsigned int number);
-unsigned int krep_text_slot(const KrepFile *file, const char *bytes, unsigned long long length);
+unsigned int krep_text_found(const KrepFile *file, const char *bytes, unsigned long long length);
 unsigned long long krep_text_taken(KrepFile *file, const char *bytes, unsigned long long length);
 
 #endif

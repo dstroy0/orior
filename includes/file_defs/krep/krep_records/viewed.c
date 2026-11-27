@@ -192,11 +192,8 @@ int krep_viewed_at(const char *path, const char *table, const char *name, KrepFi
 
 unsigned long long krep_text_number(KrepFile *file, const char *bytes, unsigned long long length)
 {
-    if ((file->text_slots != 0u) && (file->text_slot[krep_text_slot(file, bytes, length)] != 0u))
-    {
-        return file->text_slot[krep_text_slot(file, bytes, length)];
-    }
-    return krep_text_taken(file, bytes, length);
+    const unsigned int found = krep_text_found(file, bytes, length);
+    return (found != 0u) ? found : krep_text_taken(file, bytes, length);
 }
 
 const char *krep_text(const KrepFile *file, unsigned long long number, unsigned long long *length)

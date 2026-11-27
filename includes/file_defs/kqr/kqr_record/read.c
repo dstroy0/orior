@@ -104,7 +104,8 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
     static KqrQuery s_query;
     static KqrSample s_sample;
     // the pairs, stored apart and put after every other record
-    KrepFile pairs = {{0}, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, NULL, NULL, 0ULL};
+    KrepFile pairs;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &pairs, .bytes = sizeof(pairs), .val = 0);
     unsigned long long at = 0ULL;
     unsigned int number = 0u;
     const char *stopped = NULL;

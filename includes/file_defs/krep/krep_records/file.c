@@ -190,7 +190,7 @@ void krep_free(KrepFile *file)
     platform_cell_released(file->record, platform_place_g_program_owner);
     platform_cell_released(file->text, platform_place_g_program_owner);
     platform_cell_released(file->text_length, platform_place_g_program_owner);
-    platform_cell_released(file->text_slot, platform_place_g_program_owner);
+    platform_cell_released(file->text_order, platform_place_g_program_owner);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = file, .bytes = sizeof(*file), .val = 0);
 }
 
