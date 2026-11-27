@@ -171,7 +171,8 @@ static void overlap_test_blobs(unsigned int depth, unsigned int height, unsigned
     }
 }
 
-// A case of four axes, each label one of 7, each voxel positive in about 2 of 3, with no lags of its own
+// A case of four axes, each label one of 7, each voxel positive in about 2 of 3. Labels 1, 3, 5 and 7 carry lags of
+// their own. Their 16 steps pass the 12 steps of the four lags of a case of three axes before it
 static void overlap_test_four(OverlapTestCase *one)
 {
     memset(one, 0, sizeof(*one));
@@ -192,6 +193,16 @@ static void overlap_test_four(OverlapTestCase *one)
         one->labels_after[voxel] = 1u + (overlap_test_drawn() % 7u);
         one->positive_before[voxel / 64u] |= ((overlap_test_drawn() % 3u) != 0u) ? (1ULL << (voxel % 64u)) : 0ULL;
         one->positive_after[voxel / 64u] |= ((overlap_test_drawn() % 3u) != 0u) ? (1ULL << (voxel % 64u)) : 0ULL;
+    }
+    one->lag_count = 4u;
+    for (unsigned int at = 0u; at < one->lag_count; at++)
+    {
+        one->lag_peaks[at] = 1u + (2u * at);
+        for (unsigned int axis = 0u; axis < 4u; axis++)
+        {
+            // Explicit cast takes a draw of 3 values as an int
+            one->lag_steps[(at * 4u) + axis] = LAG[axis] + (int)(overlap_test_drawn() % 3u) - 1;
+        }
     }
 }
 
@@ -271,7 +282,7 @@ int program_main(int argc, char **argv)
     (void)argc;
     (void)argv;
     // the first word of the signum of the answers of the device paths over every case
-    static const unsigned long long SIGNUM = 0xa83c868303611532ULL;
+    static const unsigned long long SIGNUM = 0xa1453d9746ca062bULL;
     static const char *const NAMES[OVERLAP_TEST_CASES] = {"three axes, a small frame", "three axes, a larger frame",
                                                           "three axes, the capacity below the pairs", "four axes",
                                                           "three axes, the small frame again"};

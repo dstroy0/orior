@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "../../../../platform/platform.h"
+#include "../../runtime/daemon/tessera_job.h"
 #include "../../runtime/radix_keys/radix_keys.h"
 #include "body_overlap.h"
 #include "memoria_operor/memoria_operor.h"
@@ -150,18 +151,35 @@ struct OverlapResident
 
 static OverlapResident s_overlap_resident;
 
+// the owner that the cells of the overlap in the pool of the device count to
+#define BODY_OVERLAP_PLACE ((unsigned int)platform_place_g_engine_owner)
+
+// A cell of the device that the overlap holds across its calls, a persistent cell of the pool of the device, every
+// byte 0. It goes back through overlap_cell_given or body_overlap_release. 1, or 0 where the pool cannot meet the bytes
+static int overlap_cell_taken(void **cell, unsigned long long bytes)
+{
+    return tessera_job_persistent_taken(bytes, BODY_OVERLAP_PLACE, cell);
+}
+
+// the cell given back to the pool of the device and the address set to NULL. The call passes over a NULL cell
+static void overlap_cell_given(void **cell)
+{
+    tessera_job_given(*cell, BODY_OVERLAP_PLACE);
+    *cell = NULL;
+}
+
 static void release_overlap(OverlapResident *resident)
 {
-    cudaFree(resident->before_words);
-    cudaFree(resident->after_words);
-    cudaFree(resident->before_labels);
-    cudaFree(resident->after_labels);
-    cudaFree(resident->counts);
-    cudaFree(resident->offsets);
-    cudaFree(resident->pairs);
-    cudaFree(resident->lengths);
-    cudaFree(resident->lag_peaks);
-    cudaFree(resident->lag_steps);
+    overlap_cell_given((void **)&resident->lag_steps);
+    overlap_cell_given((void **)&resident->lag_peaks);
+    overlap_cell_given((void **)&resident->lengths);
+    overlap_cell_given((void **)&resident->pairs);
+    overlap_cell_given((void **)&resident->offsets);
+    overlap_cell_given((void **)&resident->counts);
+    overlap_cell_given((void **)&resident->after_labels);
+    overlap_cell_given((void **)&resident->before_labels);
+    overlap_cell_given((void **)&resident->after_words);
+    overlap_cell_given((void **)&resident->before_words);
     platform_cell_released(resident->host_offsets, platform_place_g_program_owner);
     platform_cell_released(resident->host_pairs, platform_place_g_program_owner);
     platform_cell_released(resident->host_lengths, platform_place_g_program_owner);
@@ -199,17 +217,18 @@ static int reserve_overlap(size_t voxels, unsigned int chunks, int uploads, size
     if ((voxels != 0u) && ((resident->voxels != voxels) || (resident->uploads < uploads)))
     {
         release_overlap(resident);
-        const size_t words = (voxels + 63u) / 64u;
+        const unsigned long long words = ((unsigned long long)voxels + 63ULL) / 64ULL;
         if (uploads != 0)
         {
             ok =
-                ok && (cudaMalloc((void **)&resident->before_words, words * sizeof(unsigned long long)) == cudaSuccess);
-            ok = ok && (cudaMalloc((void **)&resident->after_words, words * sizeof(unsigned long long)) == cudaSuccess);
-            ok = ok && (cudaMalloc((void **)&resident->before_labels, voxels * sizeof(unsigned int)) == cudaSuccess);
-            ok = ok && (cudaMalloc((void **)&resident->after_labels, voxels * sizeof(unsigned int)) == cudaSuccess);
+                ok && overlap_cell_taken((void **)&resident->before_words, words * sizeof(unsigned long long)) &&
+                overlap_cell_taken((void **)&resident->after_words, words * sizeof(unsigned long long)) &&
+                overlap_cell_taken((void **)&resident->before_labels,
+                                   (unsigned long long)voxels * sizeof(unsigned int)) &&
+                overlap_cell_taken((void **)&resident->after_labels, (unsigned long long)voxels * sizeof(unsigned int));
         }
-        ok = ok && (cudaMalloc((void **)&resident->counts, (size_t)chunks * sizeof(unsigned int)) == cudaSuccess);
-        ok = ok && (cudaMalloc((void **)&resident->offsets, (size_t)chunks * sizeof(unsigned int)) == cudaSuccess);
+        ok = ok && overlap_cell_taken((void **)&resident->counts, (unsigned long long)chunks * sizeof(unsigned int)) &&
+             overlap_cell_taken((void **)&resident->offsets, (unsigned long long)chunks * sizeof(unsigned int));
         resident->host_offsets = (unsigned int *)platform_cell_taken((size_t)chunks * sizeof(unsigned int),
                                                                      platform_place_g_program_owner, 0);
         ok = ok && (resident->host_offsets != NULL);
@@ -220,14 +239,13 @@ static int reserve_overlap(size_t voxels, unsigned int chunks, int uploads, size
     if ((ok != 0) && (runs + 1u > resident->run_capacity))
     {
         const size_t capacity = (runs + 1u) + (runs + 1u) / 2u;
-        cudaFree(resident->pairs);
-        cudaFree(resident->lengths);
+        overlap_cell_given((void **)&resident->lengths);
+        overlap_cell_given((void **)&resident->pairs);
         platform_cell_released(resident->host_pairs, platform_place_g_program_owner);
         platform_cell_released(resident->host_lengths, platform_place_g_program_owner);
-        resident->pairs = NULL;
-        resident->lengths = NULL;
-        ok = ok && (cudaMalloc((void **)&resident->pairs, capacity * sizeof(unsigned long long)) == cudaSuccess);
-        ok = ok && (cudaMalloc((void **)&resident->lengths, capacity * sizeof(unsigned int)) == cudaSuccess);
+        ok = ok &&
+             overlap_cell_taken((void **)&resident->pairs, (unsigned long long)capacity * sizeof(unsigned long long)) &&
+             overlap_cell_taken((void **)&resident->lengths, (unsigned long long)capacity * sizeof(unsigned int));
         resident->host_pairs = (unsigned long long *)platform_cell_taken(capacity * sizeof(unsigned long long),
                                                                          platform_place_g_program_owner, 0);
         resident->host_lengths =
@@ -287,23 +305,20 @@ static int overlap_lags(const BodyOverlapRequest *args, OverlapView *view)
         return 0;
     }
     int ok = 1;
+    const unsigned long long peak_bytes = (unsigned long long)args->lag_count * sizeof(unsigned int);
+    // The steps hold one lag a peak of the most axes. A later call with more axes thus fits the same cell
+    const unsigned long long step_bytes = (unsigned long long)args->lag_count * BODY_OVERLAP_AXES * sizeof(int);
     if ((size_t)args->lag_count > resident->lag_capacity)
     {
-        cudaFree(resident->lag_peaks);
-        cudaFree(resident->lag_steps);
-        resident->lag_peaks = NULL;
-        resident->lag_steps = NULL;
-        ok = (cudaMalloc((void **)&resident->lag_peaks, (size_t)args->lag_count * sizeof(unsigned int)) ==
-              cudaSuccess) &&
-             (cudaMalloc((void **)&resident->lag_steps, (size_t)args->lag_count * args->axes * sizeof(int)) ==
-              cudaSuccess);
+        overlap_cell_given((void **)&resident->lag_steps);
+        overlap_cell_given((void **)&resident->lag_peaks);
+        ok = overlap_cell_taken((void **)&resident->lag_peaks, peak_bytes) &&
+             overlap_cell_taken((void **)&resident->lag_steps, step_bytes);
         resident->lag_capacity = (ok != 0) ? (size_t)args->lag_count : 0u;
     }
-    ok = ok &&
-         (cudaMemcpy(resident->lag_peaks, args->lag_peaks, (size_t)args->lag_count * sizeof(unsigned int),
-                     cudaMemcpyHostToDevice) == cudaSuccess) &&
-         (cudaMemcpy(resident->lag_steps, args->lag_steps, (size_t)args->lag_count * args->axes * sizeof(int),
-                     cudaMemcpyHostToDevice) == cudaSuccess);
+    ok = ok && tessera_job_crossed_into(resident->lag_peaks, args->lag_peaks, peak_bytes) &&
+         tessera_job_crossed_into(resident->lag_steps, args->lag_steps,
+                                  (unsigned long long)args->lag_count * args->axes * sizeof(int));
     view->lag_peaks = resident->lag_peaks;
     view->lag_steps = resident->lag_steps;
     view->lag_count = (ok != 0) ? args->lag_count : 0u;
@@ -321,8 +336,8 @@ static long overlap_results(const BodyOverlapRequest *args, OverlapView view, co
     overlap_kernel<<<blocks, BODY_OVERLAP_BLOCK>>>(positive_before, positive_after, labels_before, labels_after, view,
                                                    args->voxels, chunks, NULL, resident->counts, NULL, NULL);
     int ok = overlap_launched();
-    ok = ok && (cudaMemcpy(offsets, resident->counts, (size_t)chunks * sizeof(unsigned int), cudaMemcpyDeviceToHost) ==
-                cudaSuccess);
+    const unsigned long long chunk_bytes = (unsigned long long)chunks * sizeof(unsigned int);
+    ok = ok && tessera_job_crossed_out(offsets, resident->counts, chunk_bytes);
 
     size_t total = 0u;
     for (unsigned int chunk = 0u; (ok != 0) && (chunk < chunks); chunk += 1u)
@@ -336,8 +351,7 @@ static long overlap_results(const BodyOverlapRequest *args, OverlapView view, co
         *args->runs = (unsigned long long)total;
     }
     ok = ok && reserve_overlap(0u, chunks, resident->uploads, total);
-    ok = ok && (cudaMemcpy(resident->offsets, offsets, (size_t)chunks * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
-                cudaSuccess);
+    ok = ok && tessera_job_crossed_into(resident->offsets, offsets, chunk_bytes);
     if (ok != 0)
     {
         overlap_kernel<<<blocks, BODY_OVERLAP_BLOCK>>>(positive_before, positive_after, labels_before, labels_after,
@@ -347,10 +361,9 @@ static long overlap_results(const BodyOverlapRequest *args, OverlapView view, co
     }
     unsigned long long *const pairs = resident->host_pairs;
     unsigned int *const lengths = resident->host_lengths;
-    ok = ok && (cudaMemcpy(pairs, resident->pairs, total * sizeof(unsigned long long), cudaMemcpyDeviceToHost) ==
-                cudaSuccess);
     ok = ok &&
-         (cudaMemcpy(lengths, resident->lengths, total * sizeof(unsigned int), cudaMemcpyDeviceToHost) == cudaSuccess);
+         tessera_job_crossed_out(pairs, resident->pairs, (unsigned long long)total * sizeof(unsigned long long)) &&
+         tessera_job_crossed_out(lengths, resident->lengths, (unsigned long long)total * sizeof(unsigned int));
 
     long answer = BODY_OVERLAP_ERROR;
     ok = ok && radix_sort_keyed(pairs, lengths, total);
@@ -396,18 +409,15 @@ extern "C" long body_overlap_run(const BodyOverlapRequest *args)
         return BODY_OVERLAP_ERROR;
     }
     const size_t voxels = (size_t)args->voxels;
-    const size_t words = (voxels + 63u) / 64u;
+    const unsigned long long word_bytes = (((unsigned long long)voxels + 63ULL) / 64ULL) * sizeof(unsigned long long);
+    const unsigned long long label_bytes = (unsigned long long)voxels * sizeof(unsigned int);
     const unsigned int chunks = (args->voxels + BODY_OVERLAP_CHUNK - 1u) / BODY_OVERLAP_CHUNK;
     int ok = reserve_overlap(voxels, chunks, 1, 0u);
     const OverlapResident *const resident = &s_overlap_resident;
-    ok = ok && (cudaMemcpy(resident->before_words, args->positive_before, words * sizeof(unsigned long long),
-                           cudaMemcpyHostToDevice) == cudaSuccess);
-    ok = ok && (cudaMemcpy(resident->after_words, args->positive_after, words * sizeof(unsigned long long),
-                           cudaMemcpyHostToDevice) == cudaSuccess);
-    ok = ok && (cudaMemcpy(resident->before_labels, args->labels_before, voxels * sizeof(unsigned int),
-                           cudaMemcpyHostToDevice) == cudaSuccess);
-    ok = ok && (cudaMemcpy(resident->after_labels, args->labels_after, voxels * sizeof(unsigned int),
-                           cudaMemcpyHostToDevice) == cudaSuccess);
+    ok = ok && tessera_job_crossed_into(resident->before_words, args->positive_before, word_bytes) &&
+         tessera_job_crossed_into(resident->after_words, args->positive_after, word_bytes) &&
+         tessera_job_crossed_into(resident->before_labels, args->labels_before, label_bytes) &&
+         tessera_job_crossed_into(resident->after_labels, args->labels_after, label_bytes);
     ok = ok && overlap_lags(args, &view);
     return (ok != 0) ? overlap_results(args, view, resident->before_words, resident->after_words,
                                        resident->before_labels, resident->after_labels)
