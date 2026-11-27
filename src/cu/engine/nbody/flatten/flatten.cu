@@ -8,6 +8,7 @@
 #include "../../../../../includes/file_defs/krep/krep.h"
 #include "../../analysis/cycle/cycle.h"
 #include "../../engine.h"
+#include "../../runtime/daemon/tessera_job.h"
 #include "../max_tree/max_tree.h"
 
 #include <cuda_runtime.h>
@@ -406,13 +407,19 @@ int flatten_set(const FlattenSetRequest *request)
             // a frame's capacity has room for one body more than it found, and a frame of none still has a place to
             // pack into
             const size_t frame_capacity = ok ? ((size_t)found + 1u) : 0u;
+            // The magnitudes are a temporary cell of the pool of the device. The calls of each frame give their own
+            // cells back before they return. The magnitudes are thus the newest cell at each regrow, and the take of
+            // the larger cell leaves no hole
             if (ok && (frame_capacity > device_capacity))
             {
-                cudaFree(magnitudes);
-                magnitudes = NULL;
-                ok = FLATTEN_STATUS_CHECK(
-                    cudaMalloc((void **)&magnitudes, frame_capacity * layout.limbs * sizeof(unsigned int)), &magnitudes,
-                    error);
+                tessera_job_given(magnitudes, (unsigned int)platform_place_g_engine_owner);
+                void *cell = NULL;
+                ok = FLATTEN_CHECK(
+                    tessera_job_cell_taken((unsigned long long)frame_capacity * layout.limbs * sizeof(unsigned int),
+                                           (unsigned int)platform_place_g_engine_owner, &cell),
+                    &magnitudes, error, ENGINE_ERROR_RESOURCE);
+                // Explicit cast reads the cell as the limbs that it holds
+                magnitudes = (unsigned int *)cell;
                 device_capacity = ok ? frame_capacity : 0u;
             }
             const size_t wanted = (size_t)bodies + (ok ? (size_t)found : 0u);
@@ -430,10 +437,9 @@ int flatten_set(const FlattenSetRequest *request)
             pack.mismatches = &lost;
             ok = ok &&
                  FLATTEN_CHECK(max_tree_pack(&pack) == found, pack.device_magnitudes, error, ENGINE_ERROR_LOGIC) &&
-                 ((found == 0L) || FLATTEN_STATUS_CHECK(cudaMemcpy(&gathered[(size_t)bodies * layout.limbs], magnitudes,
-                                                                   (size_t)found * layout.limbs * sizeof(unsigned int),
-                                                                   cudaMemcpyDeviceToHost),
-                                                        gathered, error));
+                 FLATTEN_CHECK(tessera_job_crossed_out(&gathered[(size_t)bodies * layout.limbs], magnitudes,
+                                                       (unsigned long long)found * layout.limbs * sizeof(unsigned int)),
+                               gathered, error, ENGINE_ERROR_RESOURCE);
             device_us += engine_clock_microseconds() - mark;
             bodies += ok ? (unsigned long long)found : 0ULL;
             lost_bits += lost;
@@ -541,7 +547,7 @@ int flatten_set(const FlattenSetRequest *request)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    cudaFree(magnitudes);
+    tessera_job_given(magnitudes, (unsigned int)platform_place_g_engine_owner);
     platform_cell_released(gathered, platform_place_g_program_owner);
     platform_cell_released(orders, platform_place_g_program_owner);
     return written;
