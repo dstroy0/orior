@@ -5,6 +5,9 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 #include "obsignatio_internal.h"
+#if defined(__CUDACC__)
+#include "../daemon/tessera_job.h"
+#endif
 
 #if (defined(__CUDACC__))
 
@@ -103,17 +106,25 @@ extern "C" long obsignatio_many(const ObsignatioManyRequest *request)
         (request->length == 0ULL) ? 1ULL
                                   : ((request->length + OBSIGNATIO_CHUNK_BYTES - 1ULL) >> OBSIGNATIO_CHUNK_SHIFT);
     const unsigned long long halves = (chunks + 1ULL) / 2ULL;
-    unsigned int *wide = NULL;
-    unsigned int *narrow = NULL;
-    const size_t wide_bytes = (size_t)(request->messages * chunks * OBSIGNATIO_CHAINING_WORDS * sizeof(unsigned int));
-    const size_t narrow_bytes = (size_t)(request->messages * halves * OBSIGNATIO_CHAINING_WORDS * sizeof(unsigned int));
+    const unsigned long long wide_bytes = request->messages * chunks * OBSIGNATIO_CHAINING_WORDS * sizeof(unsigned int);
+    const unsigned long long narrow_bytes =
+        request->messages * halves * OBSIGNATIO_CHAINING_WORDS * sizeof(unsigned int);
+    // The chaining values of each level are temporary cells of the pool of the device. The call gives them back last
+    // first before it returns. A message of one chunk seals with none
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, (unsigned int)platform_place_g_engine_owner);
+    void *wide_cell = NULL;
+    void *narrow_cell = NULL;
     unsigned int grid = 0u;
     unsigned int threads = 0u;
-    int ok =
-        ((chunks == 1ULL) || (OBSIGNATIO_STATUS_CHECK(cudaMalloc((void **)&wide, wide_bytes), &wide, error) &&
-                              OBSIGNATIO_STATUS_CHECK(cudaMalloc((void **)&narrow, narrow_bytes), &narrow, error))) &&
-        obsignatio_launch_config((const void *)obsignatio_chunk_kernel, request->messages * chunks, &grid, &threads,
-                                 error);
+    int ok = ((chunks == 1ULL) || OBSIGNATIO_CHECK(tessera_job_cells_room(&cells, wide_bytes, &wide_cell) &&
+                                                       tessera_job_cells_room(&cells, narrow_bytes, &narrow_cell),
+                                                   &wide_cell, error)) &&
+             obsignatio_launch_config((const void *)obsignatio_chunk_kernel, request->messages * chunks, &grid,
+                                      &threads, error);
+    // Explicit casts read the cells as the chaining words that they hold
+    unsigned int *const wide = (unsigned int *)wide_cell;
+    unsigned int *const narrow = (unsigned int *)narrow_cell;
     if (ok)
     {
         obsignatio_chunk_kernel<<<grid, threads>>>(request->device_bytes, request->messages, request->length,
@@ -138,8 +149,7 @@ extern "C" long obsignatio_many(const ObsignatioManyRequest *request)
         to = swapped;
     }
     ok = ok && OBSIGNATIO_STATUS_CHECK(cudaDeviceSynchronize(), request->device_signa, error);
-    cudaFree(wide);
-    cudaFree(narrow);
+    tessera_job_cells_given(&cells);
     return ok ? 0L : OBSIGNATIO_ERROR;
 }
 
@@ -206,21 +216,25 @@ extern "C" long obsignatio_bits(const ObsignatioBitsRequest *request)
         return 0L;
     }
     const ObsignatioKey key = obsignatio_key_load(request->key);
-    unsigned int *device_broken = NULL;
+    // the mark of a broken offset, a temporary cell of the pool of the device, 0 at the take
+    void *cell = NULL;
     unsigned int broken = 0u;
     unsigned int grid = 0u;
     unsigned int threads = 0u;
     int ok =
-        OBSIGNATIO_STATUS_CHECK(cudaMalloc((void **)&device_broken, sizeof(unsigned int)), &device_broken, error) &&
-        OBSIGNATIO_STATUS_CHECK(cudaMemset(device_broken, 0, sizeof(unsigned int)), device_broken, error) &&
+        OBSIGNATIO_CHECK(
+            tessera_job_cell_taken(sizeof(unsigned int), (unsigned int)platform_place_g_engine_owner, &cell), &cell,
+            error) &&
         obsignatio_launch_config((const void *)obsignatio_bits_check_kernel, request->messages, &grid, &threads, error);
+    // Explicit cast reads the cell as the mark that it holds
+    unsigned int *const device_broken = (unsigned int *)cell;
     if (ok)
     {
         obsignatio_bits_check_kernel<<<grid, threads>>>(request->device_offsets, request->messages, request->bits,
                                                         device_broken);
         ok = OBSIGNATIO_STATUS_CHECK(cudaGetLastError(), request->device_offsets, error) &&
-             OBSIGNATIO_STATUS_CHECK(cudaMemcpy(&broken, device_broken, sizeof(unsigned int), cudaMemcpyDeviceToHost),
-                                     device_broken, error) &&
+             OBSIGNATIO_CHECK(tessera_job_crossed_out(&broken, device_broken, sizeof(unsigned int)), device_broken,
+                              error) &&
              OBSIGNATIO_CHECK(broken == 0u, request->device_offsets, error) &&
              obsignatio_launch_config((const void *)obsignatio_bits_kernel, request->messages, &grid, &threads, error);
     }
@@ -231,7 +245,7 @@ extern "C" long obsignatio_bits(const ObsignatioBitsRequest *request)
         ok = OBSIGNATIO_STATUS_CHECK(cudaGetLastError(), request->device_limbs, error) &&
              OBSIGNATIO_STATUS_CHECK(cudaDeviceSynchronize(), request->device_signa, error);
     }
-    cudaFree(device_broken);
+    tessera_job_given(cell, (unsigned int)platform_place_g_engine_owner);
     return ok ? 0L : OBSIGNATIO_ERROR;
 }
 #endif
