@@ -102,6 +102,29 @@ typedef struct
     float advance[GUI_ASCII_COUNT];
 } GuiAsciiTable;
 
+// A place of a cache's order: the key of an entry or a cell, the face first and 0 for a part the key has not, and the
+// place of the entry or the cell
+typedef struct
+{
+    unsigned int key[4];
+    unsigned int place;
+} GuiGlyphPlace;
+
+// the places of the run of the newest keys of a cache, and no place
+#define GUI_GLYPH_RUN 256u
+#define GUI_GLYPH_NONE 0xffffffffu
+
+// The keys of a cache: an order of them sorted, `ordered` of them, a run of the newest, `run_count` of them, and the
+// room that the sort of a full run writes, each in the block's tables part
+typedef struct
+{
+    GuiGlyphPlace *order;
+    unsigned int ordered;
+    GuiGlyphPlace *run;
+    unsigned int run_count;
+    GuiGlyphPlace *room;
+} GuiGlyphOrder;
+
 // The faces as the caller's system holds them: face `face`'s file measured, 1 with its bytes into `size`, or 0 where
 // the system has no such face. And that file's `size` bytes read whole into `at`, 1 or 0
 typedef struct
@@ -114,8 +137,9 @@ typedef struct
 // read face, whether the read succeeded, and the file of the read. They hold whether the code looked for the symbol
 // face.
 //
-// They hold the outline that draws a glyph. They hold the entries of the cache, one rasterized glyph each, and how many
-// are in use. They hold the cells, one glyph in one color each, and how many are in use. They hold the ASCII tables,
+// They hold the outline that draws a glyph. They hold the entries of the cache, one rasterized glyph each, how many
+// are in use and the order of their keys. They hold the cells, one glyph in one color each, how many are in use and
+// the order of their keys. The entries and the cells are in use from the first place on. They hold the ASCII tables,
 // the last table found and the next table to take. They hold how far the lanes of the cells and the masks of the
 // entries took their rings of the block
 typedef struct
@@ -129,8 +153,10 @@ typedef struct
     FontContours *contours;
     GuiCachedGlyph *entry;
     unsigned int cached;
+    GuiGlyphOrder entry_order;
     GuiGlyphCell *cell;
     unsigned int celled;
+    GuiGlyphOrder cell_order;
     GuiAsciiTable ascii[GUI_ASCII_TABLES];
     unsigned int ascii_last;
     unsigned int ascii_next;

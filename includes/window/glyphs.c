@@ -82,6 +82,8 @@ EMBED_INLINE void glyphs_clear(const GlyphsCtx *args)
         }
     }
     args->glyphs->cached = 0u;
+    args->glyphs->entry_order.ordered = 0u;
+    args->glyphs->entry_order.run_count = 0u;
     args->glyphs->masks_used = 0ULL;
 }
 
@@ -100,6 +102,8 @@ EMBED_INLINE void glyphs_cells_clear(const GlyphsCtx *args)
         }
     }
     args->glyphs->celled = 0u;
+    args->glyphs->cell_order.ordered = 0u;
+    args->glyphs->cell_order.run_count = 0u;
     args->glyphs->cells_used = 0ULL;
     // the ASCII tables point into the cells: they go with them
     memor.set(&(MemoriaCfg){.dst = args->glyphs->ascii, .val = 0, .bytes = sizeof(args->glyphs->ascii)});
@@ -109,12 +113,18 @@ int gui_glyphs_init(const GuiGlyphsCfg *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->glyphs, .val = 0, .bytes = sizeof(*args->glyphs)});
     args->glyphs->faces = args->faces;
-    // the outline, the cache's entries and the cells lie in the block's tables part, one after another on word boundaries
+    // the outline, the cache's entries, the cells and the two orders of their keys lie in the block's tables part, one
+    // after another on word boundaries. An order holds the places of its cache, then its run and the room of its sort
     const unsigned long long contours_bytes = (sizeof(*args->glyphs->contours) + 7ULL) & ~7ULL;
     const unsigned long long entries_bytes = (GUI_GLYPH_CACHE_ENTRIES * sizeof(*args->glyphs->entry) + 7ULL) & ~7ULL;
-    const unsigned long long cells_bytes = GUI_CELL_CACHE_ENTRIES * sizeof(*args->glyphs->cell);
-    unsigned char *const tables = EMBED_CALL(gui_block_part.span, GuiBlockPartCfg, .part = GUI_BLOCK_GLYPH_TABLES,
-                                             .bytes = contours_bytes + entries_bytes + cells_bytes);
+    const unsigned long long cells_bytes = (GUI_CELL_CACHE_ENTRIES * sizeof(*args->glyphs->cell) + 7ULL) & ~7ULL;
+    const unsigned long long entry_order_bytes =
+        ((GUI_GLYPH_CACHE_ENTRIES + (2ULL * GUI_GLYPH_RUN)) * sizeof(GuiGlyphPlace) + 7ULL) & ~7ULL;
+    const unsigned long long cell_order_bytes =
+        (GUI_CELL_CACHE_ENTRIES + (2ULL * GUI_GLYPH_RUN)) * sizeof(GuiGlyphPlace);
+    unsigned char *const tables =
+        EMBED_CALL(gui_block_part.span, GuiBlockPartCfg, .part = GUI_BLOCK_GLYPH_TABLES,
+                   .bytes = contours_bytes + entries_bytes + cells_bytes + entry_order_bytes + cell_order_bytes);
     if ((args->faces == NULL) || (tables == NULL))
     {
         gui_glyphs.free(args);
@@ -124,6 +134,14 @@ int gui_glyphs_init(const GuiGlyphsCfg *args)
     args->glyphs->contours = (FontContours *)(void *)tables;
     args->glyphs->entry = (GuiCachedGlyph *)(void *)(tables + contours_bytes);
     args->glyphs->cell = (GuiGlyphCell *)(void *)(tables + contours_bytes + entries_bytes);
+    GuiGlyphPlace *const entry_places =
+        (GuiGlyphPlace *)(void *)(tables + contours_bytes + entries_bytes + cells_bytes);
+    GuiGlyphPlace *const cell_places =
+        (GuiGlyphPlace *)(void *)(tables + contours_bytes + entries_bytes + cells_bytes + entry_order_bytes);
+    args->glyphs->entry_order = (GuiGlyphOrder){entry_places, 0u, entry_places + GUI_GLYPH_CACHE_ENTRIES, 0u,
+                                                entry_places + GUI_GLYPH_CACHE_ENTRIES + GUI_GLYPH_RUN};
+    args->glyphs->cell_order = (GuiGlyphOrder){cell_places, 0u, cell_places + GUI_CELL_CACHE_ENTRIES, 0u,
+                                               cell_places + GUI_CELL_CACHE_ENTRIES + GUI_GLYPH_RUN};
     memor.set(&(MemoriaCfg){.dst = args->glyphs->contours, .val = 0, .bytes = sizeof(*args->glyphs->contours)});
     memor.set(&(MemoriaCfg){
         .dst = args->glyphs->entry, .val = 0, .bytes = GUI_GLYPH_CACHE_ENTRIES * sizeof(*args->glyphs->entry)});
@@ -211,32 +229,102 @@ unsigned int gui_face_had(const GuiGlyphsFaceCfg *args)
     return ((args->face < GUI_FACES) && args->glyphs_read->has[args->face]) ? args->face : GUI_FACE_CODE;
 }
 
-// the cache entry keyed by `face`, `glyph` and `size`, or an unused entry for it. When three quarters of its entries
-// are in use, the call first empties the cache
+// the order of two places, by their keys, the face first: below 0, 0 or above 0
+static int glyphs_place_order(const void *left, const void *right)
+{
+    const GuiGlyphPlace *const one = (const GuiGlyphPlace *)left;
+    const GuiGlyphPlace *const other = (const GuiGlyphPlace *)right;
+    for (unsigned int part = 0u; part < 4u; part += 1u)
+    {
+        if (one->key[part] != other->key[part])
+        {
+            return (one->key[part] < other->key[part]) ? -1 : 1;
+        }
+    }
+    return 0;
+}
+
+// the place of the key `key` in the cache of `order`, GUI_GLYPH_NONE where the cache holds none: the run first, then
+// the order by a binary search
+static unsigned int glyphs_place_found(const GuiGlyphOrder *order, const GuiGlyphPlace *key)
+{
+    for (unsigned int each = 0u; each < order->run_count; each += 1u)
+    {
+        if (glyphs_place_order(&order->run[each], key) == 0)
+        {
+            return order->run[each].place;
+        }
+    }
+    unsigned int low = 0u;
+    unsigned int high = order->ordered;
+    while (low < high)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        if (glyphs_place_order(&order->order[middle], key) < 0)
+        {
+            low = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    return ((low < order->ordered) && (glyphs_place_order(&order->order[low], key) == 0)) ? order->order[low].place
+                                                                                          : GUI_GLYPH_NONE;
+}
+
+// the key `key` noted in `order`: into the run, the run sorted once and merged into the order from its end first where
+// it is full
+static void glyphs_place_noted(GuiGlyphOrder *order, GuiGlyphPlace key)
+{
+    if (order->run_count == GUI_GLYPH_RUN)
+    {
+        (void)memor.sort(&(MemoriaCfg){.dst = order->run,
+                                       .scratch = order->room,
+                                       .count = order->run_count,
+                                       .bytes = sizeof(GuiGlyphPlace),
+                                       .order = glyphs_place_order});
+        unsigned int from_order = order->ordered;
+        unsigned int from_run = order->run_count;
+        unsigned int to = order->ordered + order->run_count;
+        while (from_run != 0u)
+        {
+            const int order_first = (from_order != 0u) && (glyphs_place_order(&order->order[from_order - 1u],
+                                                                              &order->run[from_run - 1u]) > 0);
+            to -= 1u;
+            if (order_first)
+            {
+                from_order -= 1u;
+                order->order[to] = order->order[from_order];
+            }
+            else
+            {
+                from_run -= 1u;
+                order->order[to] = order->run[from_run];
+            }
+        }
+        order->ordered += order->run_count;
+        order->run_count = 0u;
+    }
+    order->run[order->run_count] = key;
+    order->run_count += 1u;
+}
+
+// the cache entry keyed by `face`, `glyph` and `size`, NULL where the cache holds none. Where it holds none and three
+// quarters of its entries are in use, the call first empties the cache
 EMBED_INLINE GuiCachedGlyph *glyphs_entry(const GlyphsCtx *args)
 {
-    const unsigned int start =
-        ((args->face * 31u) + (args->glyph * 7u) + (args->size * 131u)) % GUI_GLYPH_CACHE_ENTRIES;
-    unsigned int at = start;
-    do
+    const GuiGlyphPlace key = {{args->face, args->glyph, args->size, 0u}, 0u};
+    const unsigned int place = glyphs_place_found(&args->glyphs->entry_order, &key);
+    if (place != GUI_GLYPH_NONE)
     {
-        GuiCachedGlyph *const entry = &args->glyphs->entry[at];
-        if (entry->used && (entry->face == args->face) && (entry->glyph == args->glyph) && (entry->size == args->size))
-        {
-            return entry;
-        }
-        if (!entry->used)
-        {
-            break;
-        }
-        at = (at + 1u) % GUI_GLYPH_CACHE_ENTRIES;
-    } while (at != start);
+        return &args->glyphs->entry[place];
+    }
     if ((args->glyphs->cached * 4u) >= (GUI_GLYPH_CACHE_ENTRIES * 3u))
     {
         glyphs_clear(args);
-        at = start;
     }
-    return &args->glyphs->entry[at];
+    return NULL;
 }
 
 // the stem dark at `size` pixels an em: how far the code pushes out each side of a stroke, in pixels. It is
@@ -418,12 +506,17 @@ const GuiMask *gui_glyph(const GuiGlyphsFaceLetterCfg *args)
     const Font *const font = &args->glyphs->face[had];
     const float scale = (float)size / font->units;
     *advance = EMBED_CALL(font_glyph_table.advance, FontGlyphCfg, .font = font, .glyph = glyph) * scale;
-    GuiCachedGlyph *const entry =
+    GuiCachedGlyph *const found =
         EMBED_CALL(glyphs_entry, GlyphsCtx, .glyphs = args->glyphs, .face = had, .glyph = glyph, .size = size);
-    if (entry->used)
+    if (found != NULL)
     {
-        return &entry->mask_bits;
+        return &found->mask_bits;
     }
+    // the entry is made in this call's own record, and takes the next place of the cache when it is whole. The mask's
+    // ring can empty the cache as it is made
+    GuiCachedGlyph made;
+    memor.set(&(MemoriaCfg){.dst = &made, .val = 0, .bytes = sizeof(made)});
+    GuiCachedGlyph *const entry = &made;
     args->glyphs->contours->points = 0u;
     args->glyphs->contours->contours = 0u;
     const float matrix[6] = {scale, 0.0f, 0.0f, scale, 0.0f, 0.0f};
@@ -441,8 +534,11 @@ const GuiMask *gui_glyph(const GuiGlyphsFaceLetterCfg *args)
     entry->glyph = glyph;
     entry->size = size;
     entry->advance = *advance;
+    const unsigned int place = args->glyphs->cached;
+    args->glyphs->entry[place] = made;
+    glyphs_place_noted(&args->glyphs->entry_order, (GuiGlyphPlace){{had, glyph, size, 0u}, place});
     args->glyphs->cached += 1u;
-    return &entry->mask_bits;
+    return &args->glyphs->entry[place].mask_bits;
 }
 
 embed_u32 gui_glyph_bake(const GuiGlyphsBakeCfg *args)
@@ -535,34 +631,21 @@ float gui_glyphs_cell(const GuiGlyphsFaceLetterCfg *args)
     return advance;
 }
 
-// the cell keyed by `face`, `character`, `size` and `color`, or an unused cell for it. When three quarters of the
-// cells are in use, the call first empties them
+// the cell keyed by `face`, `character`, `size` and `color`, NULL where the cells hold none. Where they hold none and
+// three quarters of the cells are in use, the call first empties them
 EMBED_INLINE GuiGlyphCell *glyphs_cell_entry(const GlyphsCtx *args)
 {
-    const unsigned int start =
-        ((args->face * 31u) + (args->character * 7u) + (args->size * 131u) + (args->color * 2654435761u)) %
-        GUI_CELL_CACHE_ENTRIES;
-    unsigned int at = start;
-    do
+    const GuiGlyphPlace key = {{args->face, args->character, args->size, args->color}, 0u};
+    const unsigned int place = glyphs_place_found(&args->glyphs->cell_order, &key);
+    if (place != GUI_GLYPH_NONE)
     {
-        GuiGlyphCell *const cell = &args->glyphs->cell[at];
-        if (cell->used && (cell->face == args->face) && (cell->character == args->character) && (cell->size == args->size) &&
-            (cell->color == args->color))
-        {
-            return cell;
-        }
-        if (!cell->used)
-        {
-            break;
-        }
-        at = (at + 1u) % GUI_CELL_CACHE_ENTRIES;
-    } while (at != start);
+        return &args->glyphs->cell[place];
+    }
     if ((args->glyphs->celled * 4u) >= (GUI_CELL_CACHE_ENTRIES * 3u))
     {
         glyphs_cells_clear(args);
-        at = start;
     }
-    return &args->glyphs->cell[at];
+    return NULL;
 }
 
 static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
@@ -575,13 +658,18 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
     float *advance = args->advance;
     const unsigned int had =
         EMBED_CALL(gui_glyphs_face.face_had, GuiGlyphsFaceCfg, .glyphs_read = glyphs, .face = face);
-    GuiGlyphCell *const cell = EMBED_CALL(glyphs_cell_entry, GlyphsCtx, .glyphs = glyphs, .face = had, .character = character,
-                                          .size = size, .color = color);
-    if (cell->used)
+    GuiGlyphCell *const found = EMBED_CALL(glyphs_cell_entry, GlyphsCtx, .glyphs = glyphs, .face = had,
+                                           .character = character, .size = size, .color = color);
+    if (found != NULL)
     {
-        *advance = cell->advance;
-        return cell;
+        *advance = found->advance;
+        return found;
     }
+    // the cell is made in this call's own record, and takes the next place of the cells when it is whole. The lanes'
+    // ring can empty the cells as it is made
+    GuiGlyphCell made;
+    memor.set(&(MemoriaCfg){.dst = &made, .val = 0, .bytes = sizeof(made)});
+    GuiGlyphCell *const cell = &made;
     const GuiMask *const mask_bits = EMBED_CALL(gui_glyphs_face_character.glyph, GuiGlyphsFaceLetterCfg, .glyphs = glyphs,
                                                 .face = had, .character = character, .size = size, .advance = advance);
     if (mask_bits == NULL)
@@ -635,8 +723,11 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
         }
     }
     cell->used = 1;
+    const unsigned int place = glyphs->celled;
+    glyphs->cell[place] = made;
+    glyphs_place_noted(&glyphs->cell_order, (GuiGlyphPlace){{had, character, size, color}, place});
     glyphs->celled += 1u;
-    return cell;
+    return &glyphs->cell[place];
 }
 
 // the ASCII table keyed by `face`, `size` and `color`. It is the last table found, where that table has the key. Else
