@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // record_tower_test_ruleset.cu: matches, rulesets, the operation stack, blocks, errors and main
 #include "../../../../../../../src/platform/platform.h"
+#include "../../../../../../../src/platform/platform_device.h"
 #include "record_tower_test_internal.h"
 
 // The pool of the test. The code generator writes the PTX lane of a program of three thousand steps into a text of
@@ -527,7 +528,12 @@ int program_main(int count, char **arguments)
     ok = ok && sim_status_check(&results, cudaMalloc((void **)&device_volume, (size_t)max * sizeof(unsigned short)),
                                 "the kernels' volume");
     // a sweep whose frame passes the stack limit grows it, and the local memory that reserves is reserved until the
-    // limit is set back. Cycle sets it back once each sweep ends. The limit after every block is the limit before them
+    // limit is set back. Cycle sets it back once each sweep ends. The limit after every block is the limit before them.
+    // The pool of the device sets the stack of MMgr one time as it takes its memory. The test opens the pool before it
+    // reads the limit, so that the limit before the blocks holds the stack of the pool
+    const int pooled = (ok != 0) && (platform_device_storage_taken() != 0);
+    sim_check(&results, pooled, "the pool of the device takes its memory");
+    ok = ok && pooled;
     size_t stack_before = 0u;
     ok = ok &&
          sim_status_check(&results, cudaDeviceGetLimit(&stack_before, cudaLimitStackSize), "the stack limit, before");
