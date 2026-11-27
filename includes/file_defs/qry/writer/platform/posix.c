@@ -5,6 +5,9 @@
 #if !defined(_WIN32)
 // shared memory, the monotonic clock and nanosleep are POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
+// the system call that moves a file is outside POSIX, and these show its declaration on glibc and on macOS
+#define _DEFAULT_SOURCE
+#define _DARWIN_C_SOURCE
 #endif
 #include "../../../../../src/platform/platform.h"
 #include "../qry_writer_internal.h"
@@ -18,6 +21,7 @@
 #include <stdint.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -149,7 +153,8 @@ int qry_writer_file_removed(const char *path)
 
 int qry_writer_file_placed(const char *beside, const char *placed)
 {
-    if (platform_file_moved(beside, placed))
+    // the system moves the file itself, as windows.c does, since the CLI and the window link no src/platform
+    if (syscall(SYS_renameat, AT_FDCWD, beside, AT_FDCWD, placed) == 0)
     {
         qry_writer_folder_synced(placed);
         return 1;

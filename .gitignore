@@ -56,7 +56,9 @@ theory/*/*/*/main.pdf
 *.raw
 *.raw.txt
 
-# Editor and OS leavings.
+# Editor and OS leavings. An assistant's .claude folder is a machine's own state at any depth, and no commit
+# carries it.
+.claude/
 .vscode/
 .idea/
 .DS_Store
