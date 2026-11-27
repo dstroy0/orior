@@ -36,10 +36,86 @@ static const char *s_qry;
 #define QRY_WRITER_ACCOUNT "writer"
 static unsigned long long s_account[6];
 
-// the most files that the run writes in their places, and the positions that find which names the run writes, twice as
-// many
+// The most files that the run writes in their places, and the hashes of the names it wrote: an order of them sorted,
+// `s_written_ordered` of them, and a run of the newest, `s_written_run_count` of them, with the room that the sort of a
+// full run writes
 #define QRY_WRITER_FILES (1u << 16u)
-#define QRY_WRITER_FILE_SLOTS (QRY_WRITER_FILES * 2u)
+#define QRY_WRITER_FILE_RUN 256u
+
+static unsigned long long s_written_order[QRY_WRITER_FILES];
+static unsigned int s_written_ordered;
+static unsigned long long s_written_run[QRY_WRITER_FILE_RUN];
+static unsigned int s_written_run_count;
+static unsigned long long s_written_room[QRY_WRITER_FILE_RUN];
+
+// the order of two hashes: below 0, 0 or above 0
+static int qry_writer_hash_order(const void *left, const void *right)
+{
+    const unsigned long long one = *(const unsigned long long *)left;
+    const unsigned long long other = *(const unsigned long long *)right;
+    return (one < other) ? -1 : ((one > other) ? 1 : 0);
+}
+
+// 1 where the run wrote a name of the hash `hash`: the run first, then the order by a binary search
+static int qry_writer_written(unsigned long long hash)
+{
+    for (unsigned int each = 0u; each < s_written_run_count; each += 1u)
+    {
+        if (s_written_run[each] == hash)
+        {
+            return 1;
+        }
+    }
+    unsigned int low = 0u;
+    unsigned int high = s_written_ordered;
+    while (low < high)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        if (s_written_order[middle] < hash)
+        {
+            low = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    return (low < s_written_ordered) && (s_written_order[low] == hash);
+}
+
+// the hash `hash` noted: into the run, the run sorted once and merged into the order from its end first where it is
+// full
+static void qry_writer_noted(unsigned long long hash)
+{
+    if (s_written_run_count == QRY_WRITER_FILE_RUN)
+    {
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = s_written_run, .bytes = sizeof(unsigned long long),
+                         .scratch = s_written_room, .count = s_written_run_count, .order = qry_writer_hash_order);
+        unsigned int from_order = s_written_ordered;
+        unsigned int from_run = s_written_run_count;
+        unsigned int to = s_written_ordered + s_written_run_count;
+        while (from_run != 0u)
+        {
+            const int order_first =
+                (from_order != 0u) && (s_written_order[from_order - 1u] > s_written_run[from_run - 1u]);
+            to -= 1u;
+            if (order_first)
+            {
+                from_order -= 1u;
+                s_written_order[to] = s_written_order[from_order];
+            }
+            else
+            {
+                from_run -= 1u;
+                s_written_order[to] = s_written_run[from_run];
+            }
+        }
+        s_written_ordered += s_written_run_count;
+        s_written_run_count = 0u;
+    }
+    s_written_run[s_written_run_count] = hash;
+    s_written_run_count += 1u;
+}
 
 // The `bytes` bytes of the record at `record`, put at the end of the records of the run, at the next place of the
 // schedule. The call also writes them at the end of the .qry. The result is 1, or 0 where the write was not whole.
@@ -182,7 +258,6 @@ static int qry_writer_next_taken(QryShared *shared, long long file, int *taken)
 // the file (ksg_writing.h). The result is 1, or 0 where one did not go
 static int qry_writer_files_placed(QryShared *shared)
 {
-    static unsigned long long s_written[QRY_WRITER_FILE_SLOTS];
     static char s_placed[QRY_WRITER_TOP_MAX_LEN + QRY_NAME_MAX_LEN + 2u];
     static KsgWriting s_writing;
     _Static_assert(sizeof(s_placed) <= KSG_PATH_MAX_LEN, "a placed file's path fits a sealed writer's");
@@ -199,24 +274,23 @@ static int qry_writer_files_placed(QryShared *shared)
         {
             continue;
         }
-        // the hash of the name, never 0, which marks an empty position. A name that the search finds in its position
-        // came later in the run
+        // the hash of the name, never 0. A name that the order holds came later in the run
         unsigned long long hash = 0xcbf29ce484222325ULL;
         for (unsigned int character = 0u; character < record->name_length; character += 1u)
         {
             hash = (hash ^ (unsigned char)name[character]) * 0x100000001b3ULL;
         }
         hash = (hash == 0ULL) ? 1ULL : hash;
-        unsigned long long slot = hash & (QRY_WRITER_FILE_SLOTS - 1u);
-        while ((s_written[slot] != 0ULL) && (s_written[slot] != hash))
-        {
-            slot = (slot + 1ULL) & (QRY_WRITER_FILE_SLOTS - 1u);
-        }
-        if (s_written[slot] == hash)
+        if (qry_writer_written(hash))
         {
             continue;
         }
-        s_written[slot] = hash;
+        if ((s_written_ordered + s_written_run_count) >= QRY_WRITER_FILES)
+        {
+            whole = 0;
+            continue;
+        }
+        qry_writer_noted(hash);
         EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_placed, .src = shared->top, .bytes = top);
         s_placed[top] = '/';
         EMBED_CALL(memor.cpy, MemoriaCfg, .dst = s_placed + top + 1u, .src = name, .bytes = record->name_length);
