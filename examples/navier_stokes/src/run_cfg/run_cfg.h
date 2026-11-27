@@ -8,9 +8,6 @@
 
 #include "cfg_json.h"
 
-#include <string>
-#include <vector>
-
 // the room of a text member as the cfg reads it, with its end
 #define RUN_CFG_TEXT_ROOM 4096u
 
@@ -37,13 +34,11 @@ int run_cfg_rational(const RunCfg *cfg, const char *path, SimRational *value);
 // the whole number at `path`: 1, or 0 where it is missing or does not read
 int run_cfg_count(const RunCfg *cfg, const char *path, unsigned long long *value);
 
-// the array of decimal strings at `path` read exactly: 1, or 0 where it is missing, empty or an element does not read
-int run_cfg_rationals(const RunCfg *cfg, const char *path, std::vector<SimRational> *values);
+// The array of decimal strings at `path` read exactly into one cell of the persistent tier sized at its count, into
+// `values` and `count`: 1, or 0 where it is missing, empty or an element does not read, and the cell is then given
+// back. The process reads its cfg once and keeps the cell for the run
+int run_cfg_rationals(const RunCfg *cfg, const char *path, SimRational **values, unsigned int *count);
 
-// the array of whole numbers at `path`: 1, or 0 where it is missing, empty or an element does not read
-int run_cfg_counts(const RunCfg *cfg, const char *path, std::vector<unsigned long long> *values);
-
-// the string at `path` as it is written, without escapes read: 1, or 0 where it is missing, empty or not a string
 // the text member at `path` into `value`, which has room for `room` bytes with its end: 1, or 0 where it is absent,
 // empty or longer than the room
 int run_cfg_text(const RunCfg *cfg, const char *path, char *value, size_t room);

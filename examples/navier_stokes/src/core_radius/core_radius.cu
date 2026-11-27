@@ -12,7 +12,11 @@
 #include "core_radius_weights.h"
 #include "../../../../includes/platform/platform.h"
 
-#include <algorithm>
+// the bytes of the pool: four sets of orders to the reach, at 1 KB a rational, and the cells their rule takes
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 31u;
+
+// an empty sequence, with no cell
+#define CORE_RADIUS_NONE {NULL, 0u, 0u}
 
 // The ellipse E_rho is the image of the circle |z| = rho under eta = (z + 1/z) / 2, drawn over the segment
 // [-1, 1] with its feet at eta = -1 and eta = +1, where d = 1 - eta^2 is 0. A field f = sum f_m T_m(eta), its
@@ -73,38 +77,54 @@ static void core_radius_witness(const CoreRadiusScale *scale, SimRational a0, Si
     const SimRational along_c = core_radius_plus(one, core_radius_times(two, scale->h));
     const SimRational pressure_c = core_radius_plus(two, core_radius_times(core_radius_number(4ll, 1ll), scale->h));
     const SimRational d_rho_k3 = core_radius_times(scale->d, core_radius_times(scale->rho, scale->k3));
-    *a = {a0};
-    *u = {u0};
-    *p = {p0};
-    w->clear();
-    for (unsigned int k = 0u; k <= order; k += 1u)
+    // a, u and p to order + 1, w to order, each a cell of the temporary tier that the caller gives back
+    CoreRadiusSequence *const fields[4] = {a, u, p, w};
+    for (unsigned int field = 0u; field < 4u; field += 1u)
+    {
+        core_radius_released(fields[field]);
+        core_radius_taken(fields[field], (field < 3u) ? (order + 2u) : (order + 1u), 1);
+    }
+    core_radius_pushed(a, a0);
+    core_radius_pushed(u, u0);
+    core_radius_pushed(p, p0);
+    for (unsigned int k = 0u; (a->count != 0u) && (k <= order); k += 1u)
     {
         const SimRational order_k = core_radius_number((long long)k, 1ll);
         const SimRational next = core_radius_plus(order_k, one);
         // (k + 1) w_k = l [(2A + 2k) rho0 Delta + E (k + 1)] u_k
-        w->push_back(core_radius_over(core_radius_times(core_radius_turned(scale, core_radius_times(two, scale->a), order_k), (*u)[k]), next));
+        core_radius_pushed(
+            w, core_radius_over(
+                   core_radius_times(core_radius_turned(scale, core_radius_times(two, scale->a), order_k), u->value[k]),
+                   next));
         // L^-1 ((k + 1 + h) F_k + D eta F_k') and L^-1 ((k + A) U_k + D eta U_k')
         SimRational angular = core_radius_times(scale->l, core_radius_plus(core_radius_times(core_radius_plus(next, scale->h), scale->delta), core_radius_times(d_rho_k3, next)));
-        angular = core_radius_times(angular, (*a)[k]);
+        angular = core_radius_times(angular, a->value[k]);
         SimRational along = core_radius_times(scale->l, core_radius_plus(core_radius_times(core_radius_plus(order_k, scale->a), scale->delta), core_radius_times(d_rho_k3, next)));
-        along = core_radius_times(along, (*u)[k]);
+        along = core_radius_times(along, u->value[k]);
         SimRational square = core_radius_number(0ll, 1ll);
         for (unsigned int i = 0u; i <= k; i += 1u)
         {
             const SimRational rest = core_radius_number((long long)(k - i), 1ll);
             // v_i (k - i + 1) F_(k-i) + U_i (Z_{-(A+1/2)} F)_(k-i)
-            angular = core_radius_plus(angular, core_radius_times(core_radius_times(core_radius_plus(rest, one), (*w)[i]), (*a)[k - i]));
-            angular = core_radius_plus(angular, core_radius_times((*u)[i], core_radius_times(core_radius_turned(scale, angular_c, rest), (*a)[k - i])));
+            angular =
+                core_radius_plus(angular, core_radius_times(core_radius_times(core_radius_plus(rest, one), w->value[i]),
+                                                            a->value[k - i]));
+            angular = core_radius_plus(
+                angular, core_radius_times(u->value[i], core_radius_times(core_radius_turned(scale, angular_c, rest),
+                                                                          a->value[k - i])));
             // v_i (k - i) U_(k-i) + U_i (Z_{-A} U)_(k-i)
-            along = core_radius_plus(along, core_radius_times(core_radius_times(rest, (*w)[i]), (*u)[k - i]));
-            along = core_radius_plus(along, core_radius_times((*u)[i], core_radius_times(core_radius_turned(scale, along_c, rest), (*u)[k - i])));
-            square = core_radius_plus(square, core_radius_times((*a)[i], (*a)[k - i]));
+            along = core_radius_plus(along, core_radius_times(core_radius_times(rest, w->value[i]), u->value[k - i]));
+            along = core_radius_plus(
+                along, core_radius_times(u->value[i],
+                                         core_radius_times(core_radius_turned(scale, along_c, rest), u->value[k - i])));
+            square = core_radius_plus(square, core_radius_times(a->value[i], a->value[k - i]));
         }
         // (Z_{-2A} Pi)_k
-        along = core_radius_plus(along, core_radius_times(core_radius_turned(scale, pressure_c, order_k), (*p)[k]));
-        a->push_back(core_radius_over(angular, core_radius_times(core_radius_times(two, next), core_radius_plus(next, one))));
-        u->push_back(core_radius_over(along, core_radius_times(two, core_radius_times(next, next))));
-        p->push_back(core_radius_over(core_radius_times(scale->delta, square), next));
+        along = core_radius_plus(along, core_radius_times(core_radius_turned(scale, pressure_c, order_k), p->value[k]));
+        core_radius_pushed(
+            a, core_radius_over(angular, core_radius_times(core_radius_times(two, next), core_radius_plus(next, one))));
+        core_radius_pushed(u, core_radius_over(along, core_radius_times(two, core_radius_times(next, next))));
+        core_radius_pushed(p, core_radius_over(core_radius_times(scale->delta, square), next));
     }
 }
 
@@ -116,22 +136,26 @@ static void core_radius_weights_witness(const CoreRadiusScale *scale, const Core
                                         CoreRadiusSequence *u, CoreRadiusSequence *p, CoreRadiusSequence *w)
 {
     const SimRational one = core_radius_number(1ll, 1ll);
-    const std::vector<CoreRadiusWeights> &f = orders->f;
-    const std::vector<CoreRadiusWeights> &g = orders->g;
-    const std::vector<CoreRadiusWeights> &q = orders->q;
-    const std::vector<CoreRadiusWeights> &inflow = orders->inflow;
-    a->clear();
-    u->clear();
-    p->clear();
-    w->clear();
+    const CoreRadiusWeights *const f = orders->f;
+    const CoreRadiusWeights *const g = orders->g;
+    const CoreRadiusWeights *const q = orders->q;
+    const CoreRadiusWeights *const inflow = orders->inflow;
+    // a, u, p and w to order, each a cell of the temporary tier that the caller gives back
+    CoreRadiusSequence *const fields[4] = {a, u, p, w};
+    for (unsigned int field = 0u; field < 4u; field += 1u)
+    {
+        core_radius_released(fields[field]);
+        core_radius_taken(fields[field], order + 1u, 1);
+    }
     SimRational power = one;
     const SimRational l_square_delta = core_radius_times(core_radius_times(scale->l, scale->l), scale->delta);
     for (unsigned int k = 0u; k <= order; k += 1u)
     {
-        a->push_back(core_radius_times(power, core_radius_norm(f[k], scale->rho)));
-        u->push_back(core_radius_times(power, core_radius_norm(g[k], scale->rho)));
-        p->push_back(core_radius_times(power, core_radius_norm(q[k], scale->rho)));
-        w->push_back(core_radius_times(core_radius_times(power, l_square_delta), core_radius_norm(inflow[k], scale->rho)));
+        core_radius_pushed(a, core_radius_times(power, core_radius_norm(&f[k], scale->rho)));
+        core_radius_pushed(u, core_radius_times(power, core_radius_norm(&g[k], scale->rho)));
+        core_radius_pushed(p, core_radius_times(power, core_radius_norm(&q[k], scale->rho)));
+        core_radius_pushed(
+            w, core_radius_times(core_radius_times(power, l_square_delta), core_radius_norm(&inflow[k], scale->rho)));
         power = core_radius_times(power, l_square_delta);
     }
 }
@@ -143,7 +167,8 @@ static SimRational core_radius_max_scaled(const CoreRadiusSequence &sequence, Si
     SimRational power = core_radius_number(1ll, 1ll);
     for (unsigned int k = 0u; k <= order; k += 1u)
     {
-        max = core_radius_max(max, core_radius_times(core_radius_times(sequence[k], power), core_radius_number((long long)k + 1ll, 1ll)));
+        max = core_radius_max(max, core_radius_times(core_radius_times(sequence.value[k], power),
+                                                     core_radius_number((long long)k + 1ll, 1ll)));
         power = core_radius_times(power, r);
     }
     return max;
@@ -239,7 +264,7 @@ static SimRational core_radius_low(const CoreRadiusSequence &n, SimRational r, u
     for (unsigned int k = 0u; k < split; k += 1u)
     {
         const SimRational weight = core_radius_plus(alpha, core_radius_times(beta, core_radius_number((long long)k, 1ll)));
-        sum = core_radius_plus(sum, core_radius_times(weight, core_radius_times(n[k], power)));
+        sum = core_radius_plus(sum, core_radius_times(weight, core_radius_times(n.value[k], power)));
         power = core_radius_times(power, r);
     }
     return sum;
@@ -254,7 +279,7 @@ static SimRational core_radius_high(const CoreRadiusSequence &n, SimRational r, 
     {
         if (k >= split)
         {
-            max = core_radius_max(max, core_radius_times(n[k], power));
+            max = core_radius_max(max, core_radius_times(n.value[k], power));
         }
         power = core_radius_times(power, r);
     }
@@ -282,17 +307,26 @@ typedef struct
     SimRational b_w;
 } CoreRadiusProof;
 
-// n_k r^k for k < split
-static CoreRadiusSequence core_radius_scaled(const CoreRadiusSequence &n, SimRational r, unsigned int split)
+// n_k r^k for k < split into `scaled`, its cell before given back and a cell of the temporary tier taken at split
+static void core_radius_below_split(const CoreRadiusSequence &n, SimRational r, unsigned int split,
+                                    CoreRadiusSequence *scaled)
 {
-    CoreRadiusSequence scaled;
+    core_radius_released(scaled);
+    core_radius_taken(scaled, split, 1);
     SimRational power = core_radius_number(1ll, 1ll);
     for (unsigned int k = 0u; k < split; k += 1u)
     {
-        scaled.push_back(core_radius_times(n[k], power));
+        core_radius_pushed(scaled, core_radius_times(n.value[k], power));
         power = core_radius_times(power, r);
     }
-    return scaled;
+}
+
+// the cells of the lists of `proof` given back
+static void core_radius_proof_released(CoreRadiusProof *proof)
+{
+    core_radius_released(&proof->f);
+    core_radius_released(&proof->u);
+    core_radius_released(&proof->w);
 }
 
 // 1 where the proof on one ellipse carries n_k <= B r^-k from N to every order past it, the numbers it reads in proof
@@ -362,9 +396,9 @@ static int core_radius_fixed_proof(const CoreRadiusScale *scale, const CoreRadiu
     proof->alpha_along = fixed->alpha_along;
     proof->alpha_pressure = fixed->alpha_pressure;
     proof->beta = fixed->beta;
-    proof->f = core_radius_scaled(nf, r, split);
-    proof->u = core_radius_scaled(nu, r, split);
-    proof->w = core_radius_scaled(nw, r, split);
+    core_radius_below_split(nf, r, split, &proof->f);
+    core_radius_below_split(nu, r, split, &proof->u);
+    core_radius_below_split(nw, r, split, &proof->w);
     proof->b_f = b_f;
     proof->b_u = b_u;
     proof->b_p = b_p;
@@ -407,10 +441,10 @@ static void core_radius_lean_begun(PlatformText *text)
 static void core_radius_lean_list(VerbaLinea *line, const CoreRadiusSequence &n)
 {
     mmgr_line_ch(line, '[');
-    for (size_t k = 0u; k < n.size(); k += 1u)
+    for (unsigned int k = 0u; k < n.count; k += 1u)
     {
         mmgr_line_put(line, (k == 0u) ? "" : ", ");
-        record_rational(line, n[k]);
+        record_rational(line, n.value[k]);
     }
     mmgr_line_ch(line, ']');
 }
@@ -500,12 +534,15 @@ static SimRational core_radius_place(const CoreRadiusWeights &weights, SimRation
 {
     SimRational moment = core_radius_number(0ll, 1ll);
     SimRational power = core_radius_number(1ll, 1ll);
-    for (size_t m = 0u; m < weights.size(); m += 1u)
+    for (unsigned int m = 0u; m < weights.count; m += 1u)
     {
-        moment = core_radius_plus(moment, core_radius_times(core_radius_number((long long)m, 1ll), core_radius_times(sim_rational_absolute(weights[m]), power)));
+        moment = core_radius_plus(moment,
+                                  core_radius_times(core_radius_number((long long)m, 1ll),
+                                                    core_radius_times(sim_rational_absolute(weights.value[m]), power)));
         power = core_radius_times(power, rho);
     }
-    const SimRational mass = core_radius_times(core_radius_number((long long)length, 1ll), core_radius_norm(weights, rho));
+    const SimRational mass =
+        core_radius_times(core_radius_number((long long)length, 1ll), core_radius_norm(&weights, rho));
     return (sim_rational_sign(mass) > 0) ? core_radius_over(moment, mass) : core_radius_number(0ll, 1ll);
 }
 
@@ -545,18 +582,23 @@ static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const Co
     fixed.alpha_angular = core_radius_plus(core_radius_times(core_radius_plus(two, core_radius_times(two, scale->h)), rho_lambda), core_radius_times(lambda_phi, g));
     fixed.alpha_along = core_radius_plus(core_radius_times(core_radius_times(two, scale->a), rho_lambda), core_radius_times(lambda_phi, g));
     fixed.alpha_pressure = core_radius_plus(core_radius_times(core_radius_times(core_radius_number(4ll, 1ll), scale->a), rho_lambda), core_radius_times(lambda_phi, g));
-    CoreRadiusSequence nf;
-    CoreRadiusSequence nu;
-    CoreRadiusSequence np;
-    CoreRadiusSequence nw;
+    // the norms to order, each a cell of the temporary tier: nf goes to `norms`, and the call gives the rest back
+    CoreRadiusSequence nf = CORE_RADIUS_NONE;
+    CoreRadiusSequence nu = CORE_RADIUS_NONE;
+    CoreRadiusSequence np = CORE_RADIUS_NONE;
+    CoreRadiusSequence nw = CORE_RADIUS_NONE;
+    core_radius_taken(&nf, order + 1u, 1);
+    core_radius_taken(&nu, order + 1u, 1);
+    core_radius_taken(&np, order + 1u, 1);
+    core_radius_taken(&nw, order + 1u, 1);
     for (unsigned int k = 0u; k <= order; k += 1u)
     {
-        nf.push_back(core_radius_norm(orders->f[k], rho));
-        nu.push_back(core_radius_norm(orders->g[k], rho));
-        np.push_back(core_radius_norm(orders->q[k], rho));
-        nw.push_back(core_radius_norm(orders->inflow[k], rho));
+        core_radius_pushed(&nf, core_radius_norm(&orders->f[k], rho));
+        core_radius_pushed(&nu, core_radius_norm(&orders->g[k], rho));
+        core_radius_pushed(&np, core_radius_norm(&orders->q[k], rho));
+        core_radius_pushed(&nw, core_radius_norm(&orders->inflow[k], rho));
     }
-    CoreRadiusProof proof;
+    CoreRadiusProof proof = {};
     unsigned long long low = 0ull;
     unsigned long long high = steps + 1ull;
     while (high - low > 1ull)
@@ -573,13 +615,18 @@ static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const Co
     }
     const SimRational proved = core_radius_times(core_radius_number((long long)low, 1ll), step);
     const SimRational radius = core_radius_over(proved, core_radius_times(scale->l, scale->l));
+    core_radius_proof_released(rate_proof);
     rate_proof->rate = core_radius_number(0ll, 1ll);
-    *norms = nf;
     if ((low > 0ull) && core_radius_fixed_proof(scale, &fixed, g0, nf, nu, np, nw, order, split, proved, &proof))
     {
         core_radius_lean(lean, name, title, split, order, &proof);
+        // the proof's lists go to `rate_proof`, which gives them back
         *rate_proof = proof;
+        proof.f = CoreRadiusSequence CORE_RADIUS_NONE;
+        proof.u = CoreRadiusSequence CORE_RADIUS_NONE;
+        proof.w = CoreRadiusSequence CORE_RADIUS_NONE;
     }
+    core_radius_proof_released(&proof);
     if (record != NULL)
     {
         PlatformText line;
@@ -591,7 +638,7 @@ static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const Co
         record_line_ended(record, &line);
         for (unsigned int k = 0u; k <= order; k += 1u)
         {
-            core_radius_four_recorded(record, nf[k], nu[k], np[k], nw[k]);
+            core_radius_four_recorded(record, nf.value[k], nu.value[k], np.value[k], nw.value[k]);
         }
         core_radius_proved_recorded(record, proved, radius);
         // each order's weights read as amplitudes in [0, 1] over a place t = m / G_k in [0, 1]: where the order
@@ -610,6 +657,10 @@ static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const Co
             record_line_ended(record, &line);
         }
     }
+    core_radius_replaced(norms, &nf);
+    core_radius_released(&nu);
+    core_radius_released(&np);
+    core_radius_released(&nw);
     return radius;
 }
 
@@ -625,26 +676,26 @@ static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const Co
 // relaxation time.
 
 // F_low at X, from the data's weights, the norms to their order and the bound B_f past it
-static SimRational core_radius_angular_least(const std::vector<SimRational> &data, const CoreRadiusSequence &norms, SimRational l, const CoreRadiusProof *proof,
-                                             SimRational x)
+static SimRational core_radius_angular_least(const CoreRadiusSequence &data, const CoreRadiusSequence &norms,
+                                             SimRational l, const CoreRadiusProof *proof, SimRational x)
 {
     const SimRational one = core_radius_number(1ll, 1ll);
-    SimRational least = data[0];
-    for (size_t m = 1u; m < data.size(); m += 1u)
+    SimRational least = data.value[0];
+    for (unsigned int m = 1u; m < data.count; m += 1u)
     {
-        least = sim_rational_difference(least, sim_rational_absolute(data[m]));
+        least = sim_rational_difference(least, sim_rational_absolute(data.value[m]));
     }
     const SimRational step = core_radius_times(core_radius_times(l, l), x);
     SimRational power = one;
-    for (size_t k = 1u; k < norms.size(); k += 1u)
+    for (unsigned int k = 1u; k < norms.count; k += 1u)
     {
         power = core_radius_times(power, step);
-        least = sim_rational_difference(least, core_radius_times(norms[k], power));
+        least = sim_rational_difference(least, core_radius_times(norms.value[k], power));
     }
     // B_f q^(N+1) / (1 - q), q = l^2 X / r
     const SimRational q = core_radius_over(step, proof->rate);
     SimRational tail = proof->b_f;
-    for (size_t k = 0u; k < norms.size(); k += 1u)
+    for (unsigned int k = 0u; k < norms.count; k += 1u)
     {
         tail = core_radius_times(tail, q);
     }
@@ -753,12 +804,12 @@ static SimRational core_radius_series_bound(const CoreRadiusSeries *series, unsi
     const SimRational one = core_radius_number(1ll, 1ll);
     SimRational at_low = zero;
     SimRational slope_max = zero;
-    const unsigned int exact_last = (unsigned int)series->exact.size() - 1u;
+    const unsigned int exact_last = series->exact.count - 1u;
     for (unsigned int k = 0u; k <= exact_last; k += 1u)
     {
         // the term a y^e: a = c_k, k c_k or (k + 1) c_k, and e = k, k - 1 or k
         const SimRational multiplier = (type == CORE_RADIUS_VALUE) ? one : core_radius_number((long long)k + ((type == CORE_RADIUS_GROWN_SLOPE) ? 1ll : 0ll), 1ll);
-        const SimRational a = core_radius_times(multiplier, series->exact[k]);
+        const SimRational a = core_radius_times(multiplier, series->exact.value[k]);
         if ((type == CORE_RADIUS_SLOPE) && (k == 0u))
         {
             continue;
@@ -781,9 +832,9 @@ static SimRational core_radius_series_bound(const CoreRadiusSeries *series, unsi
         }
     }
     SimRational rest = zero;
-    for (size_t index = 0u; index < series->magnitudes.size(); index += 1u)
+    for (unsigned int index = 0u; index < series->magnitudes.count; index += 1u)
     {
-        const unsigned int k = exact_last + 1u + (unsigned int)index;
+        const unsigned int k = exact_last + 1u + index;
         const SimRational multiplier = (type == CORE_RADIUS_VALUE) ? one : core_radius_number((long long)k + ((type == CORE_RADIUS_GROWN_SLOPE) ? 1ll : 0ll), 1ll);
         const unsigned int e = (type == CORE_RADIUS_SLOPE) ? k - 1u : k;
         SimRational power = one;
@@ -791,9 +842,10 @@ static SimRational core_radius_series_bound(const CoreRadiusSeries *series, unsi
         {
             power = core_radius_times(power, high);
         }
-        rest = core_radius_plus(rest, core_radius_times(core_radius_times(multiplier, series->magnitudes[index]), power));
+        rest = core_radius_plus(
+            rest, core_radius_times(core_radius_times(multiplier, series->magnitudes.value[index]), power));
     }
-    const unsigned int last = exact_last + (unsigned int)series->magnitudes.size();
+    const unsigned int last = exact_last + series->magnitudes.count;
     rest = core_radius_plus(rest, core_radius_far_tail(type, series->max, series->rate, high, last));
     const SimRational moved = core_radius_plus(core_radius_times(sim_rational_difference(high, low), slope_max), rest);
     return (sign < 0) ? sim_rational_difference(at_low, moved) : core_radius_plus(at_low, moved);
@@ -813,17 +865,25 @@ static int core_radius_principal(const CoreRadiusScale *scale, const CoreRadiusO
     const SimRational eta_square = core_radius_times(*vertex, *vertex);
     const SimRational l_point = sim_rational_difference(one, core_radius_times(core_radius_times(two, scale->h), eta_square));
     const SimRational d_point = sim_rational_difference(one, eta_square);
-    CoreRadiusSeries along;
-    CoreRadiusSeries spin;
+    // each field's exact coefficients to order and its magnitudes past them to reach, cells of the temporary tier that
+    // the call gives back before it returns
+    CoreRadiusSeries along = {CORE_RADIUS_NONE, CORE_RADIUS_NONE, core_radius_number(0ll, 1ll),
+                              core_radius_number(0ll, 1ll)};
+    CoreRadiusSeries spin = {CORE_RADIUS_NONE, CORE_RADIUS_NONE, core_radius_number(0ll, 1ll),
+                             core_radius_number(0ll, 1ll)};
+    core_radius_taken(&along.exact, order + 1u, 1);
+    core_radius_taken(&spin.exact, order + 1u, 1);
+    core_radius_taken(&along.magnitudes, reach - order, 1);
+    core_radius_taken(&spin.magnitudes, reach - order, 1);
     for (unsigned int k = 0u; k <= order; k += 1u)
     {
-        along.exact.push_back(core_radius_value(exact->g[k], xi));
-        spin.exact.push_back(core_radius_value(exact->f[k], xi));
+        core_radius_pushed(&along.exact, core_radius_value(&exact->g[k], xi));
+        core_radius_pushed(&spin.exact, core_radius_value(&exact->f[k], xi));
     }
     for (unsigned int k = order + 1u; k <= reach; k += 1u)
     {
-        along.magnitudes.push_back(core_radius_norm(reached->g[k], scale->rho));
-        spin.magnitudes.push_back(core_radius_norm(reached->f[k], scale->rho));
+        core_radius_pushed(&along.magnitudes, core_radius_norm(&reached->g[k], scale->rho));
+        core_radius_pushed(&spin.magnitudes, core_radius_norm(&reached->f[k], scale->rho));
     }
     along.max = proof->b_u;
     spin.max = proof->b_f;
@@ -833,11 +893,7 @@ static int core_radius_principal(const CoreRadiusScale *scale, const CoreRadiusO
     *grown_least = core_radius_number(0ll, 1ll);
     const int inside = (sim_rational_sign(sim_rational_difference(proof->rate, reach_y)) > 0) && (sim_rational_sign(l_point) > 0) &&
                        (sim_rational_sign(d_point) > 0);
-    if (!inside)
-    {
-        return 0;
-    }
-    for (unsigned long long piece = 0ull; piece < pieces; piece += 1ull)
+    for (unsigned long long piece = 0ull; inside && (piece < pieces); piece += 1ull)
     {
         const SimRational low = core_radius_times(reach_y, core_radius_number((long long)piece, (long long)pieces));
         const SimRational high = core_radius_times(reach_y, core_radius_number((long long)piece + 1ll, (long long)pieces));
@@ -851,7 +907,11 @@ static int core_radius_principal(const CoreRadiusScale *scale, const CoreRadiusO
         *s_least = (piece == 0ull) ? s_eff : (sim_rational_sign(sim_rational_difference(s_eff, *s_least)) < 0 ? s_eff : *s_least);
         *grown_least = (piece == 0ull) ? grown_low : (sim_rational_sign(sim_rational_difference(grown_low, *grown_least)) < 0 ? grown_low : *grown_least);
     }
-    return (sim_rational_sign(*s_least) > 0) && (sim_rational_sign(*grown_least) > 0);
+    core_radius_released(&along.exact);
+    core_radius_released(&spin.exact);
+    core_radius_released(&along.magnitudes);
+    core_radius_released(&spin.magnitudes);
+    return inside && (sim_rational_sign(*s_least) > 0) && (sim_rational_sign(*grown_least) > 0);
 }
 
 // the bytes of a wall's name, its terminator among them: a literal and at most one rational
@@ -880,38 +940,54 @@ static CoreRadiusWall core_radius_wall(const char *before, const SimRational *sh
     return wall;
 }
 
-// the walls of one medium, the first, the one with the max time left, first
-static std::vector<CoreRadiusWall> core_radius_walls(SimRational nu, SimRational x, SimRational least,
-                                                     SimRational sound, SimRational spacing, SimRational relaxation,
-                                                     SimRational mass, SimRational ionization, SimRational light,
-                                                     const std::vector<SimRational> &mach)
+// the order of two walls, the one with more time left first: below 0, 0 or above 0
+static int core_radius_wall_order(const void *left, const void *right)
 {
-    std::vector<CoreRadiusWall> walls;
-    for (size_t index = 0u; index < mach.size(); index += 1u)
+    const CoreRadiusWall *const one = (const CoreRadiusWall *)left;
+    const CoreRadiusWall *const other = (const CoreRadiusWall *)right;
+    return sim_rational_sign(sim_rational_difference(other->tau, one->tau));
+}
+
+// the walls of one medium in `walls`, which has room for the mach shares and 4 more, the one with the max time left
+// first, and the walls of the same time left in the order they come: their count. `room` has the room of `walls`, and
+// the sort writes it
+static unsigned int core_radius_walls(SimRational nu, SimRational x, SimRational least, SimRational sound,
+                                      SimRational spacing, SimRational relaxation, SimRational mass,
+                                      SimRational ionization, SimRational light, const CoreRadiusSequence &mach,
+                                      CoreRadiusWall *walls, CoreRadiusWall *room)
+{
+    unsigned int count = 0u;
+    for (unsigned int index = 0u; index < mach.count; index += 1u)
     {
-        const SimRational speed = core_radius_times(mach[index], sound);
-        walls.push_back(core_radius_wall("speed ", &mach[index], " of sound",
-                                         core_radius_wall_speed(nu, x, least, core_radius_times(speed, speed))));
+        const SimRational speed = core_radius_times(mach.value[index], sound);
+        walls[count] = core_radius_wall("speed ", &mach.value[index], " of sound",
+                                        core_radius_wall_speed(nu, x, least, core_radius_times(speed, speed)));
+        count += 1u;
     }
     if (sim_rational_sign(mass) > 0)
     {
         // V^2 = 2 E / m
-        walls.push_back(core_radius_wall(
+        walls[count] = core_radius_wall(
             "collisions that free an electron", NULL, "",
             core_radius_wall_speed(
-                nu, x, least, core_radius_over(core_radius_times(core_radius_number(2ll, 1ll), ionization), mass))));
+                nu, x, least, core_radius_over(core_radius_times(core_radius_number(2ll, 1ll), ionization), mass)));
+        count += 1u;
     }
-    walls.push_back(core_radius_wall("speed of light", NULL, "",
-                                     core_radius_wall_speed(nu, x, least, core_radius_times(light, light))));
+    walls[count] = core_radius_wall("speed of light", NULL, "",
+                                    core_radius_wall_speed(nu, x, least, core_radius_times(light, light)));
+    count += 1u;
     const SimRational radius_tau = core_radius_over(core_radius_times(spacing, spacing), core_radius_times(core_radius_times(core_radius_number(2ll, 1ll), nu), x));
     const SimRational one = core_radius_number(1ll, 1ll);
-    walls.push_back(core_radius_wall("radius at the spacing", NULL, "", core_radius_least(radius_tau, one)));
+    walls[count] = core_radius_wall("radius at the spacing", NULL, "", core_radius_least(radius_tau, one));
+    count += 1u;
     if (sim_rational_sign(relaxation) > 0)
     {
-        walls.push_back(core_radius_wall("elastic answer", NULL, "", core_radius_least(relaxation, one)));
+        walls[count] = core_radius_wall("elastic answer", NULL, "", core_radius_least(relaxation, one));
+        count += 1u;
     }
-    std::stable_sort(walls.begin(), walls.end(), [](const CoreRadiusWall &left, const CoreRadiusWall &right) { return sim_rational_sign(sim_rational_difference(left.tau, right.tau)) > 0; });
-    return walls;
+    (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = walls, .bytes = sizeof(CoreRadiusWall), .scratch = room,
+                     .count = count, .order = core_radius_wall_order);
+    return count;
 }
 
 // the largest r = j step, j = 1..steps, the proof is valid at over the witness a, u, p, w, 0 where it is valid at none,
@@ -950,7 +1026,7 @@ static SimRational core_radius_rate(const CoreRadiusScale *scale, const CoreRadi
         record_line_ended(record, &line);
         for (unsigned int k = 0u; k <= order; k += 1u)
         {
-            core_radius_four_recorded(record, a[k], u[k], p[k], w[k]);
+            core_radius_four_recorded(record, a.value[k], u.value[k], p.value[k], w.value[k]);
         }
         core_radius_proved_recorded(record, proved, core_radius_times(proved, scale->delta));
     }
@@ -1002,11 +1078,12 @@ int program_main(int count, char **arguments)
     static RunCfg cfg;
     SimRational h;
     SimRational cut;
-    std::vector<SimRational> angular;
-    std::vector<SimRational> axial;
-    std::vector<SimRational> pressure;
-    std::vector<SimRational> outer;
-    std::vector<SimRational> inner;
+    // the cfg's lists, each in a cell of the cfg's (run_cfg_rationals)
+    CoreRadiusSequence angular = CORE_RADIUS_NONE;
+    CoreRadiusSequence axial = CORE_RADIUS_NONE;
+    CoreRadiusSequence pressure = CORE_RADIUS_NONE;
+    CoreRadiusSequence outer = CORE_RADIUS_NONE;
+    CoreRadiusSequence inner = CORE_RADIUS_NONE;
     unsigned long long order = 0ull;
     unsigned long long steps = 0ull;
     unsigned long long split = 0ull;
@@ -1018,21 +1095,23 @@ int program_main(int count, char **arguments)
     SimRational wall_step;
     SimRational light;
     SimRational planck;
-    std::vector<SimRational> mach;
+    CoreRadiusSequence mach = CORE_RADIUS_NONE;
     // the names' text and the 7 bytes past its room that a run of cellul reads at max
     char names_text[RUN_CFG_TEXT_ROOM + 8u] = {0};
-    std::vector<SimRational> viscosity;
-    std::vector<SimRational> sound;
-    std::vector<SimRational> spacing;
-    std::vector<SimRational> relaxation;
-    std::vector<SimRational> mass;
-    std::vector<SimRational> ionization;
+    CoreRadiusSequence viscosity = CORE_RADIUS_NONE;
+    CoreRadiusSequence sound = CORE_RADIUS_NONE;
+    CoreRadiusSequence spacing = CORE_RADIUS_NONE;
+    CoreRadiusSequence relaxation = CORE_RADIUS_NONE;
+    CoreRadiusSequence mass = CORE_RADIUS_NONE;
+    CoreRadiusSequence ionization = CORE_RADIUS_NONE;
     const int read =
         (count == 2) && run_cfg_open(arguments[1], &cfg, &results.line) &&
-        run_cfg_rational(&cfg, "core.anisotropy", &h) && run_cfg_rationals(&cfg, "core.axis.angular", &angular) &&
-        run_cfg_rationals(&cfg, "core.axis.axial", &axial) &&
-        run_cfg_rationals(&cfg, "core.axis.pressure", &pressure) && run_cfg_rationals(&cfg, "ellipse.outer", &outer) &&
-        run_cfg_rationals(&cfg, "ellipse.inner", &inner) && (outer.size() == inner.size()) &&
+        run_cfg_rational(&cfg, "core.anisotropy", &h) &&
+        run_cfg_rationals(&cfg, "core.axis.angular", &angular.value, &angular.count) &&
+        run_cfg_rationals(&cfg, "core.axis.axial", &axial.value, &axial.count) &&
+        run_cfg_rationals(&cfg, "core.axis.pressure", &pressure.value, &pressure.count) &&
+        run_cfg_rationals(&cfg, "ellipse.outer", &outer.value, &outer.count) &&
+        run_cfg_rationals(&cfg, "ellipse.inner", &inner.value, &inner.count) && (outer.count == inner.count) &&
         run_cfg_rational(&cfg, "ellipse.cut", &cut) && run_cfg_count(&cfg, "order", &order) && (order >= 1ull) &&
         run_cfg_rational(&cfg, "rate.step", &step) && (sim_rational_sign(step) > 0) &&
         run_cfg_count(&cfg, "rate.steps", &steps) && (steps >= 1ull) && run_cfg_count(&cfg, "split", &split) &&
@@ -1042,12 +1121,20 @@ int program_main(int count, char **arguments)
         run_cfg_count(&cfg, "bits", &bits) && (bits >= 1ull) && run_cfg_rational(&cfg, "walls.step", &wall_step) &&
         (sim_rational_sign(wall_step) > 0) && run_cfg_rational(&cfg, "walls.light", &light) &&
         run_cfg_rational(&cfg, "walls.planck", &planck) && (sim_rational_sign(planck) > 0) &&
-        run_cfg_rationals(&cfg, "walls.mach", &mach) &&
+        run_cfg_rationals(&cfg, "walls.mach", &mach.value, &mach.count) &&
         run_cfg_text(&cfg, "walls.names", names_text, RUN_CFG_TEXT_ROOM) &&
-        run_cfg_rationals(&cfg, "walls.viscosity", &viscosity) && run_cfg_rationals(&cfg, "walls.sound", &sound) &&
-        run_cfg_rationals(&cfg, "walls.spacing", &spacing) &&
-        run_cfg_rationals(&cfg, "walls.relaxation", &relaxation) && run_cfg_rationals(&cfg, "walls.mass", &mass) &&
-        run_cfg_rationals(&cfg, "walls.ionization", &ionization);
+        run_cfg_rationals(&cfg, "walls.viscosity", &viscosity.value, &viscosity.count) &&
+        run_cfg_rationals(&cfg, "walls.sound", &sound.value, &sound.count) &&
+        run_cfg_rationals(&cfg, "walls.spacing", &spacing.value, &spacing.count) &&
+        run_cfg_rationals(&cfg, "walls.relaxation", &relaxation.value, &relaxation.count) &&
+        run_cfg_rationals(&cfg, "walls.mass", &mass.value, &mass.count) &&
+        run_cfg_rationals(&cfg, "walls.ionization", &ionization.value, &ionization.count);
+    CoreRadiusSequence *const lists[12] = {&angular,   &axial, &pressure, &outer,      &inner, &mach,
+                                           &viscosity, &sound, &spacing,  &relaxation, &mass,  &ionization};
+    for (unsigned int list = 0u; list < 12u; list += 1u)
+    {
+        lists[list]->room = lists[list]->count;
+    }
     // the principal system, read where the cfg contains it
     SimRational principal_reach;
     unsigned long long principal_pieces = 0ull;
@@ -1081,9 +1168,9 @@ int program_main(int count, char **arguments)
             &results.line,
             "  walls.names: more than CORE_RADIUS_MEDIA media, or a name of CORE_RADIUS_MEDIUM_NAME bytes or more\n");
     }
-    const int media_read = read && media_fit && (viscosity.size() == count_media) && (sound.size() == count_media) &&
-                           (spacing.size() == count_media) && (relaxation.size() == count_media) &&
-                           (mass.size() == count_media) && (ionization.size() == count_media);
+    const int media_read = read && media_fit && (viscosity.count == count_media) && (sound.count == count_media) &&
+                           (spacing.count == count_media) && (relaxation.count == count_media) &&
+                           (mass.count == count_media) && (ionization.count == count_media);
     if (!media_read || (count_media == 0u))
     {
         run_cfg_missing(&results.line, "core anisotropy, axis angular, axial and pressure, ellipse outer and inner of one length and a cut, order, rate "
@@ -1106,11 +1193,13 @@ int program_main(int count, char **arguments)
     constants.d = sim_rational_difference(half, h);
     constants.a = core_radius_plus(half, h);
     CoreRadiusOrders orders;
-    core_radius_weights(&constants, angular, axial, pressure, (unsigned int)order, one, &orders);
+    core_radius_weights(&constants, &angular, &axial, &pressure, (unsigned int)order, one, &orders);
     CoreRadiusOrders exact;
-    core_radius_weights(&constants, angular, axial, pressure, (unsigned int)order, core_radius_number(-1ll, 1ll), &exact);
+    core_radius_weights(&constants, &angular, &axial, &pressure, (unsigned int)order, core_radius_number(-1ll, 1ll),
+                        &exact);
     // g0, the data's degree, and every order's weights within the length G_k + 1 the rule fixes, w_k within G_k + 4
-    const unsigned int g0 = (unsigned int)std::max(std::max(angular.size(), axial.size()), pressure.size()) - 1u;
+    const unsigned int widest_data = (angular.count > axial.count) ? angular.count : axial.count;
+    const unsigned int g0 = ((widest_data > pressure.count) ? widest_data : pressure.count) - 1u;
     CoreRadiusOrders continued;
     // the carried magnitudes rounded up to multiples of 2^-bits
     OriorExactInteger unit;
@@ -1127,22 +1216,23 @@ int program_main(int count, char **arguments)
     int same = device.available;
     for (unsigned int k = 0u; same && (k <= (unsigned int)carry); k += 1u)
     {
-        same = core_radius_same(continued.f[k], reached.f[k]) && core_radius_same(continued.g[k], reached.g[k]) &&
-               core_radius_same(continued.q[k], reached.q[k]) && core_radius_same(continued.inflow[k], reached.inflow[k]);
+        same = core_radius_same(&continued.f[k], &reached.f[k]) && core_radius_same(&continued.g[k], &reached.g[k]) &&
+               core_radius_same(&continued.q[k], &reached.q[k]) &&
+               core_radius_same(&continued.inflow[k], &reached.inflow[k]);
     }
     sim_check(&results, same, "the device's carry is the host's to the last bit at every order both reach");
     int fixed_length = 1;
     for (unsigned int k = 0u; k <= (unsigned int)reach; k += 1u)
     {
         const size_t length = (size_t)g0 + (size_t)(g0 + 4u) * k + 1u;
-        fixed_length = fixed_length && (reached.f[k].size() <= length) && (reached.g[k].size() <= length) && (reached.q[k].size() <= length) &&
-                       (reached.inflow[k].size() <= length + 3u);
+        fixed_length = fixed_length && (reached.f[k].count <= length) && (reached.g[k].count <= length) &&
+                       (reached.q[k].count <= length) && (reached.inflow[k].count <= length + 3u);
     }
     for (unsigned int k = 0u; k <= (unsigned int)carry; k += 1u)
     {
         const size_t length = (size_t)g0 + (size_t)(g0 + 4u) * k + 1u;
-        fixed_length = fixed_length && (continued.f[k].size() <= length) && (continued.g[k].size() <= length) && (continued.q[k].size() <= length) &&
-                       (continued.inflow[k].size() <= length + 3u);
+        fixed_length = fixed_length && (continued.f[k].count <= length) && (continued.g[k].count <= length) &&
+                       (continued.q[k].count <= length) && (continued.inflow[k].count <= length + 3u);
     }
     sim_check(&results, fixed_length, "every order's weights within the length the rule fixes");
     // the cfg's name, past the last slash or backslash of its path
@@ -1174,18 +1264,19 @@ int program_main(int count, char **arguments)
     SimRational best_least = core_radius_number(0ll, 1ll);
     SimRational best_value = core_radius_number(0ll, 1ll);
     SimRational best_ellipse = core_radius_number(0ll, 1ll);
-    for (size_t index = 0u; index < outer.size(); index += 1u)
+    for (unsigned int index = 0u; index < outer.count; index += 1u)
     {
-        const SimRational rho_square = core_radius_times(outer[index], outer[index]);
+        const SimRational rho_square = core_radius_times(outer.value[index], outer.value[index]);
         // L = (1 - h a^2) - h a^2 T_2 is at least (1 - h a^2) - h a^2 rho0^2 on E_rho0
         const SimRational h_square = core_radius_times(core_radius_times(h, cut), cut);
         const SimRational l_inverse = sim_rational_difference(sim_rational_difference(one, h_square), core_radius_times(h_square, rho_square));
-        const SimRational inner_square = sim_rational_difference(core_radius_times(inner[index], inner[index]), one);
+        const SimRational inner_square =
+            sim_rational_difference(core_radius_times(inner.value[index], inner.value[index]), one);
         CoreRadiusScale scale;
         scale.h = h;
         scale.cut = cut;
-        scale.rho = outer[index];
-        scale.delta = sim_rational_difference(outer[index], inner[index]);
+        scale.rho = outer.value[index];
+        scale.delta = sim_rational_difference(outer.value[index], inner.value[index]);
         const int conditions_met = (sim_rational_sign(scale.delta) > 0) && (sim_rational_sign(l_inverse) > 0) &&
                                    (sim_rational_sign(inner_square) > 0);
         legal = legal && conditions_met;
@@ -1202,17 +1293,17 @@ int program_main(int count, char **arguments)
             PlatformText line;
             record_line_begun(&line);
             mmgr_line_put(&line.line, "ellipse rho0 ");
-            record_rational(&line.line, outer[index]);
+            record_rational(&line.line, outer.value[index]);
             mmgr_line_put(&line.line, ", rho_min ");
-            record_rational(&line.line, inner[index]);
+            record_rational(&line.line, inner.value[index]);
             record_line_ended(record, &line);
         }
         // E as (1 + rho0^2) / 2 times 3 K, then as the feet's 3 (1 + rho0^2) / 4
         const unsigned int last = (unsigned int)order;
-        CoreRadiusSequence a;
-        CoreRadiusSequence u;
-        CoreRadiusSequence p;
-        CoreRadiusSequence w;
+        CoreRadiusSequence a = CORE_RADIUS_NONE;
+        CoreRadiusSequence u = CORE_RADIUS_NONE;
+        CoreRadiusSequence p = CORE_RADIUS_NONE;
+        CoreRadiusSequence w = CORE_RADIUS_NONE;
         // the four witnesses read on the whole segment alone: their constants bound the feet of d at eta = -1 and +1
         SimRational plain = core_radius_number(0ll, 1ll);
         SimRational feet = core_radius_number(0ll, 1ll);
@@ -1221,10 +1312,12 @@ int program_main(int count, char **arguments)
         if (whole)
         {
             scale.feet = core_radius_times(core_radius_over(core_radius_plus(one, rho_square), core_radius_number(2ll, 1ll)), scale.k3);
-            core_radius_witness(&scale, core_radius_norm(angular, scale.rho), core_radius_norm(axial, scale.rho), core_radius_norm(pressure, scale.rho), last, &a, &u, &p, &w);
+            core_radius_witness(&scale, core_radius_norm(&angular, scale.rho), core_radius_norm(&axial, scale.rho),
+                                core_radius_norm(&pressure, scale.rho), last, &a, &u, &p, &w);
             plain = core_radius_rate(&scale, a, u, p, w, last, step, steps, record, "bounds, d f' by K");
             scale.feet = core_radius_over(core_radius_times(core_radius_number(3ll, 1ll), core_radius_plus(one, rho_square)), core_radius_number(4ll, 1ll));
-            core_radius_witness(&scale, core_radius_norm(angular, scale.rho), core_radius_norm(axial, scale.rho), core_radius_norm(pressure, scale.rho), last, &a, &u, &p, &w);
+            core_radius_witness(&scale, core_radius_norm(&angular, scale.rho), core_radius_norm(&axial, scale.rho),
+                                core_radius_norm(&pressure, scale.rho), last, &a, &u, &p, &w);
             feet = core_radius_rate(&scale, a, u, p, w, last, step, steps, record, "bounds, d f' at the feet");
             core_radius_weights_witness(&scale, &orders, last, &a, &u, &p, &w);
             weights = core_radius_rate(&scale, a, u, p, w, last, step, steps, record, "weights");
@@ -1239,24 +1332,25 @@ int program_main(int count, char **arguments)
         (void)mmgr_line_finish(&ellipse_line);
         static char s_title[CORE_RADIUS_TITLE];
         char witness[CORE_RADIUS_WITNESS_NAME];
-        CoreRadiusProof exact_proof;
-        CoreRadiusSequence exact_norms;
+        CoreRadiusProof exact_proof = {};
+        CoreRadiusSequence exact_norms = CORE_RADIUS_NONE;
         core_radius_witness_name(witness, ellipse, "_exact");
-        core_radius_title(s_title, outer[index], whole, cut, "each weight exact to order ", last);
+        core_radius_title(s_title, outer.value[index], whole, cut, "each weight exact to order ", last);
         const SimRational one_ellipse =
             core_radius_fixed_rate(&scale, &exact, g0, last, (unsigned int)split, step, steps, record, witness, s_title,
                                    &lean, &exact_proof, &exact_norms);
-        CoreRadiusProof carried_proof;
-        CoreRadiusSequence carried_norms;
+        CoreRadiusProof carried_proof = {};
+        CoreRadiusSequence carried_norms = CORE_RADIUS_NONE;
         core_radius_witness_name(witness, ellipse, "_carried");
-        core_radius_title(s_title, outer[index], whole, cut, "the magnitudes carried to order ", carry);
+        core_radius_title(s_title, outer.value[index], whole, cut, "the magnitudes carried to order ", carry);
         const SimRational carried =
             core_radius_fixed_rate(&scale, &continued, g0, (unsigned int)carry, (unsigned int)split, step, steps,
                                    record, witness, s_title, &lean, &carried_proof, &carried_norms);
-        CoreRadiusProof reached_proof;
-        CoreRadiusSequence reached_norms;
+        CoreRadiusProof reached_proof = {};
+        CoreRadiusSequence reached_norms = CORE_RADIUS_NONE;
         core_radius_witness_name(witness, ellipse, "_reached");
-        core_radius_title(s_title, outer[index], whole, cut, "the magnitudes carried on the device to order ", reach);
+        core_radius_title(s_title, outer.value[index], whole, cut, "the magnitudes carried on the device to order ",
+                          reach);
         const SimRational far =
             core_radius_fixed_rate(&scale, &reached, g0, (unsigned int)reach, (unsigned int)reach_split, step, steps,
                                    record, witness, s_title, &lean, &reached_proof, &reached_norms);
@@ -1321,15 +1415,15 @@ int program_main(int count, char **arguments)
                     best_x = x;
                     best_least = least;
                     best_value = value;
-                    best_ellipse = outer[index];
+                    best_ellipse = outer.value[index];
                 }
                 x = core_radius_plus(x, wall_step);
             }
         }
         mmgr_line_put(&results.line, "  rho0 ");
-        sim_rational_print(&results.line, outer[index]);
+        sim_rational_print(&results.line, outer.value[index]);
         mmgr_line_put(&results.line, ", rho_min ");
-        sim_rational_print(&results.line, inner[index]);
+        sim_rational_print(&results.line, inner.value[index]);
         mmgr_line_put(&results.line, ": X < ");
         sim_rational_print(&results.line, core_radius_times(plain, scale.delta));
         mmgr_line_put(&results.line, " with d f' bounded by K, X < ");
@@ -1346,6 +1440,14 @@ int program_main(int count, char **arguments)
         sim_rational_print(&results.line, far);
         mmgr_line_put(&results.line, " with them carried on the device to the cfg's reach and split there\n");
         sim_flush(&results);
+        CoreRadiusSequence *const sequences[7] = {&a, &u, &p, &w, &exact_norms, &carried_norms, &reached_norms};
+        for (unsigned int each = 0u; each < 7u; each += 1u)
+        {
+            core_radius_released(sequences[each]);
+        }
+        core_radius_proof_released(&exact_proof);
+        core_radius_proof_released(&carried_proof);
+        core_radius_proof_released(&reached_proof);
     }
     sim_check(&results, legal, "every ellipse of the cfg one the bounds are valid on");
     if (principal)
@@ -1375,11 +1477,15 @@ int program_main(int count, char **arguments)
         {
             platform_text_ended(&line);
         }
-        for (size_t index = 0u; index < count_media; index += 1u)
+        // the walls of a medium and the room their sort writes, cells of the temporary tier at the walls' max
+        CoreRadiusWall *const walls = (CoreRadiusWall *)platform_cell_taken(
+            2ull * ((unsigned long long)mach.count + 4ull) * sizeof(CoreRadiusWall), platform_place_g_program_owner, 1);
+        for (unsigned int index = 0u; (walls != NULL) && (index < count_media); index += 1u)
         {
-            const std::vector<CoreRadiusWall> walls =
-                core_radius_walls(viscosity[index], best_x, best_least, sound[index], spacing[index], relaxation[index],
-                                  mass[index], ionization[index], light, mach);
+            const unsigned int walls_count =
+                core_radius_walls(viscosity.value[index], best_x, best_least, sound.value[index], spacing.value[index],
+                                  relaxation.value[index], mass.value[index], ionization.value[index], light, mach,
+                                  walls, walls + mach.count + 4u);
             mmgr_line_put(&results.line, "  ");
             mmgr_line_put(&results.line, s_media[index]);
             mmgr_line_put(&results.line, ", the time left before T each wall is passed by:\n");
@@ -1392,8 +1498,9 @@ int program_main(int count, char **arguments)
                                           "the radius to the Planck time");
                 record_line_ended(record, &line);
             }
-            for (const CoreRadiusWall &wall : walls)
+            for (unsigned int at = 0u; at < walls_count; at += 1u)
             {
+                const CoreRadiusWall &wall = walls[at];
                 const unsigned int decade = core_radius_decade(wall.tau);
                 const unsigned int halves = core_radius_halves(wall.tau, planck);
                 mmgr_line_put(&results.line, "    ");
@@ -1421,11 +1528,22 @@ int program_main(int count, char **arguments)
             }
             sim_flush(&results);
         }
+        platform_cell_released(walls, platform_place_g_program_owner);
     }
     mmgr_line_put(&lean.line, "end CoreRadius\n");
     sim_check(&results, core_radius_lean_write(arguments[1], &cfg, "report.lean", &lean), "Lean witness written");
     platform_text_ended(&lean);
-    const int conditions_met = !run_cfg_short() && !record_short() && (g_sim_rational_wide == 0);
+    core_radius_orders_released(&orders);
+    core_radius_orders_released(&exact);
+    core_radius_orders_released(&continued);
+    core_radius_orders_released(&reached);
+    if (core_radius_unmet())
+    {
+        mmgr_line_put(&results.line,
+                      "  the pool did not meet a cell of the weights: run with a larger g_program_pool_bytes\n");
+    }
+    const int conditions_met =
+        !run_cfg_short() && !record_short() && (g_sim_rational_wide == 0) && !core_radius_unmet();
     mmgr_line_put(&results.line, conditions_met
                                       ? "  every bound is exact and stored in the build's width\n"
                                       : "  a bound outgrew the build's width: run with a larger SIM_EXACT_LIMBS\n");
