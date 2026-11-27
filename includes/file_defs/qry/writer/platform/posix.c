@@ -149,7 +149,7 @@ int qry_writer_file_removed(const char *path)
 
 int qry_writer_file_placed(const char *beside, const char *placed)
 {
-    if (rename(beside, placed) == 0)
+    if (platform_file_moved(beside, placed))
     {
         qry_writer_folder_synced(placed);
         return 1;

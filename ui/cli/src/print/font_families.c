@@ -65,8 +65,8 @@ static void cli_walk_each(const CliEachNameIsFolderCfg *args)
     }
 }
 
-// The font file `name` found in the folders: in one of them, or, off Windows, under one to a depth of four, as the
-// fonts of Linux distributions are in folders of their own under the fonts folder
+// The font file `name` found in the folders: in one of them, or under one to a depth of four where the system nests its
+// fonts. A Linux distribution puts each font in a folder of its own under the fonts folder
 EMBED_INLINE int cli_find(const FamiliesCtx *args)
 {
     args->found[0] = '\0';
@@ -86,15 +86,16 @@ EMBED_INLINE int cli_find(const FamiliesCtx *args)
             return 1;
         }
         args->found[0] = '\0';
-#if !defined(_WIN32)
-        CliFontWalk walk = {args->name, args->found, args->folders[at], 4u};
-        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folders[at],
-                   .each = cli_walk_each, .context_bytess = &walk);
-        if (args->found[0] != '\0')
+        if (g_cli_system_facts.fonts_nested)
         {
-            return 1;
+            CliFontWalk walk = {args->name, args->found, args->folders[at], 4u};
+            EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folders[at],
+                       .each = cli_walk_each, .context_bytess = &walk);
+            if (args->found[0] != '\0')
+            {
+                return 1;
+            }
         }
-#endif
     }
     return 0;
 }
@@ -114,42 +115,22 @@ EMBED_INLINE unsigned int cli_font_folders(const FamiliesCtx *args)
 {
     unsigned int count = 0u;
     char named[CLI_PATH_MAX_LEN];
-#if defined(_WIN32)
-    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "WINDIR", .value_out = named,
-                   .capacity = sizeof(named)))
+    for (unsigned int at = 0u; (at < g_cli_system_facts.font_folder_count) && (count < 4u); at += 1u)
     {
-        EMBED_CALL(cli_folder, FamiliesCtx, .folders = args->folders, .count_pointer = &count, .base = named,
-                   .under = "/Fonts");
+        // a folder under a variable's folder, where the system sets the variable, or a folder named whole
+        const CliSystemFolder *const folder = &g_cli_system_facts.font_folders[at];
+        if (folder->variable == NULL)
+        {
+            EMBED_CALL(cli_folder, FamiliesCtx, .folders = args->folders, .count_pointer = &count, .base = folder->path,
+                       .under = "");
+        }
+        else if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = folder->variable,
+                            .value_out = named, .capacity = sizeof(named)))
+        {
+            EMBED_CALL(cli_folder, FamiliesCtx, .folders = args->folders, .count_pointer = &count, .base = named,
+                       .under = folder->path);
+        }
     }
-    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "LOCALAPPDATA",
-                   .value_out = named, .capacity = sizeof(named)))
-    {
-        EMBED_CALL(cli_folder, FamiliesCtx, .folders = args->folders, .count_pointer = &count, .base = named,
-                   .under = "/Microsoft/Windows/Fonts");
-    }
-#elif defined(__APPLE__)
-    EMBED_CALL(cli_folder, FamiliesCtx, .folders = args->folders, .count_pointer = &count,
-               .base = "/System/Library/Fonts", .under = "");
-    EMBED_CALL(cli_folder, FamiliesCtx, .folders = args->folders, .count_pointer = &count, .base = "/Library/Fonts",
-               .under = "");
-    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME", .value_out = named,
-                   .capacity = sizeof(named)))
-    {
-        EMBED_CALL(cli_folder, FamiliesCtx, .folders = args->folders, .count_pointer = &count, .base = named,
-                   .under = "/Library/Fonts");
-    }
-#else
-    EMBED_CALL(cli_folder, FamiliesCtx, .folders = args->folders, .count_pointer = &count, .base = "/usr/share/fonts",
-               .under = "");
-    EMBED_CALL(cli_folder, FamiliesCtx, .folders = args->folders, .count_pointer = &count,
-               .base = "/usr/local/share/fonts", .under = "");
-    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME", .value_out = named,
-                   .capacity = sizeof(named)))
-    {
-        EMBED_CALL(cli_folder, FamiliesCtx, .folders = args->folders, .count_pointer = &count, .base = named,
-                   .under = "/.local/share/fonts");
-    }
-#endif
     return count;
 }
 

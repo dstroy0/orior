@@ -3,7 +3,6 @@
 // runner.c: the programs a job's steps run, a step's command made from its arguments and the values given, with the
 // line the window shows for it, and whether values do for a job
 #include "runner.h"
-#include "../text/text.h"
 #include "../toolchains/toolchains.h"
 
 void cli_command_begin(const CliRunnerCfg *args)
@@ -30,7 +29,6 @@ typedef struct
 {
     CliCommand *command;
     const char *text;
-    const char *under;
     const char *name;
     char *path;
     char character;
@@ -203,21 +201,7 @@ unsigned long long cli_lines_read(const CliRunnerLinesIndexCfg *args)
     return line.length;
 }
 
-#if defined(_WIN32)
-// a file in a folder joined, `under` and `name`, where it is a file: 1, its path into `path`
-EMBED_INLINE int cli_found_in(const RunnerCtx *args)
-{
-    char *path = args->path;
-    VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ULL};
-    mmgr_line_put(&line, args->under);
-    mmgr_line_put(&line, args->name);
-    return (mmgr_line_finish(&line) != 0ULL) &&
-           EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path);
-}
-#endif
-
-// The bash that runs the tree's scripts. On Windows that is Git's, found beside git itself, because the bash System32
-// offers is WSL's and reads none of these paths
+// The bash that runs the tree's scripts: the one ORIOR_BASH or Toolchains names, else the one the system offers
 int cli_runner_bash(const CliRunnerNameCfg *args)
 {
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_BASH",
@@ -226,57 +210,7 @@ int cli_runner_bash(const CliRunnerNameCfg *args)
     {
         return 1;
     }
-#if !defined(_WIN32)
-    memor.cpy(&(MemoriaCfg){.dst = args->path,
-                            .src = "bash",
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "bash", .cap = CLI_POOL_BYTES}) + 1u});
-    return 1;
-#else
-    // the folders of the PATH every step runs with, each read off the cell the process holds them in
-    const CliToolchainsFolders folders = cli_toolchains_run_folders();
-    for (unsigned int at = 0u; at < folders.count; at += 1u)
-    {
-        char folder[CLI_PATH_MAX_LEN];
-        (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell,
-                                                                .offset = (embed_word)at * CLI_PATH_MAX_LEN,
-                                                                .dst = folder,
-                                                                .bytes = CLI_PATH_MAX_LEN});
-        char git[CLI_PATH_MAX_LEN];
-        if (!EMBED_CALL(cli_found_in, RunnerCtx, .under = folder, .name = "\\git.exe", .path = git))
-        {
-            continue;
-        }
-        // the folder above the one git is in: the folder cut at its last slash of either type, found a word at a time
-        const unsigned long long past_slash =
-            EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
-                       .at = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_PATH_MAX_LEN}), .set = "\\/");
-        if (past_slash == 0ULL)
-        {
-            continue;
-        }
-        folder[past_slash - 1ULL] = '\0';
-        if (EMBED_CALL(cli_found_in, RunnerCtx, .under = folder, .name = "\\bin\\bash.exe", .path = args->path) ||
-            EMBED_CALL(cli_found_in, RunnerCtx, .under = folder, .name = "\\usr\\bin\\bash.exe", .path = args->path))
-        {
-            return 1;
-        }
-    }
-    static const char *const s_bases[3] = {"ProgramFiles", "ProgramW6432", "LOCALAPPDATA"};
-    for (unsigned int at = 0u; at < 3u; at += 1u)
-    {
-        char base[CLI_PATH_MAX_LEN];
-        if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = s_bases[at],
-                       .value_out = base, .capacity = sizeof(base)) &&
-            (EMBED_CALL(cli_found_in, RunnerCtx, .under = base, .name = "\\Git\\bin\\bash.exe", .path = args->path) ||
-             EMBED_CALL(cli_found_in, RunnerCtx, .under = base, .name = "\\Programs\\Git\\bin\\bash.exe",
-                        .path = args->path)))
-        {
-            return 1;
-        }
-    }
-    mmgr_line_put(args->err_msg, "no Git bash found: install Git for Windows, or name a bash in ORIOR_BASH");
-    return 0;
-#endif
+    return cli_runner_system.system_bash(args);
 }
 
 void cli_runner_python(const CliRunnerNameCfg *args)
@@ -287,15 +221,9 @@ void cli_runner_python(const CliRunnerNameCfg *args)
     {
         return;
     }
-#if defined(_WIN32)
-    memor.cpy(&(MemoriaCfg){.dst = args->path,
-                            .src = "python",
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "python", .cap = CLI_POOL_BYTES}) + 1u});
-#else
-    memor.cpy(&(MemoriaCfg){.dst = args->path,
-                            .src = "python3",
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "python3", .cap = CLI_POOL_BYTES}) + 1u});
-#endif
+    VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ULL};
+    mmgr_line_put(&line, g_cli_system_facts.python_name);
+    (void)mmgr_line_finish(&line);
 }
 
 int cli_runner_build(const CliRunnerNameCfg *args)
@@ -304,9 +232,7 @@ int cli_runner_build(const CliRunnerNameCfg *args)
     mmgr_line_put(&line, args->root);
     mmgr_line_put(&line, "/build/");
     mmgr_line_put(&line, args->name);
-#if defined(_WIN32)
-    mmgr_line_put(&line, ".exe");
-#endif
+    mmgr_line_put(&line, g_cli_system_facts.program_end);
     if ((mmgr_line_finish(&line) != 0ULL) &&
         EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->path))
     {
@@ -314,9 +240,7 @@ int cli_runner_build(const CliRunnerNameCfg *args)
     }
     mmgr_line_put(args->err_msg, "no ");
     mmgr_line_put(args->err_msg, args->name);
-#if defined(_WIN32)
-    mmgr_line_put(args->err_msg, ".exe");
-#endif
+    mmgr_line_put(args->err_msg, g_cli_system_facts.program_end);
     mmgr_line_put(args->err_msg, " under build/: run its build job first");
     return 0;
 }

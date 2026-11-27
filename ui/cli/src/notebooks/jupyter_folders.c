@@ -30,6 +30,12 @@ EMBED_INLINE unsigned int jupyter_folder_append(const JupyterFoldersCtx *args)
     return args->count + 1u;
 }
 
+unsigned int cli_kernel_folder_append(const CliJupyterSystemCtx *args)
+{
+    return EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = args->folders, .count = args->count,
+                      .folder = args->folder, .name = args->name);
+}
+
 // the path list's entry from `name` up to `end` into the listing's next folder, where one is left: the count after
 EMBED_INLINE unsigned int jupyter_entry_append(const JupyterFoldersCtx *args)
 {
@@ -38,16 +44,16 @@ EMBED_INLINE unsigned int jupyter_entry_append(const JupyterFoldersCtx *args)
         return args->count;
     }
     VerbaLinea line = {args->folders[args->count], CLI_PATH_MAX_LEN, 0ULL};
-    for (const char *character = args->name; character < args->end; character += 1)
+    // each run of the entry up to a quote, where the system takes quotes out of a path list's entries
+    for (const char *from = args->name; from < args->end;)
     {
-#if defined(_WIN32)
-        // Windows takes quotes out of a path list's entries
-        if (*character == '"')
-        {
-            continue;
-        }
-#endif
-        mmgr_line_ch(&line, *character);
+        const char *const quote =
+            g_cli_system_facts.list_quoted
+                ? memor.chr(&(MemoriaCfg){.src = from, .val = '"', .bytes = (embed_word)(args->end - from)})
+                : NULL;
+        const char *const stop = (quote != NULL) ? quote : args->end;
+        mmgr_line_put_n(&line, from, (unsigned long long)(stop - from));
+        from = (quote != NULL) ? (quote + 1) : args->end;
     }
     mmgr_line_finish(&line);
     return args->count + 1u;
@@ -65,20 +71,12 @@ EMBED_INLINE int jupyter_python_prefix(const JupyterFoldersCtx *args)
         return 0;
     }
     const embed_word length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_POOL_BYTES});
-    embed_word start = length;
-    start = (embed_word)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
-                                   .at = start, .set = "/\\");
-    char name[16];
-    const embed_word size = length - start;
-    for (embed_word at = 0u; (at < size) && (at < sizeof(name) - 1u); at += 1u)
-    {
-        const char character = folder[start + at];
-        name[at] = ((character >= 'A') && (character <= 'Z')) ? (char)(character - 'A' + 'a') : character;
-    }
-    name[(size < sizeof(name) - 1u) ? size : sizeof(name) - 1u] = '\0';
-    const int up = (size < sizeof(name) - 1u) &&
-                   ((cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "bin", .cap = CLI_POOL_BYTES})) ||
-                    (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "scripts", .cap = CLI_POOL_BYTES})));
+    const embed_word start = (embed_word)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                                    .text = folder, .at = length, .set = "/\\");
+    // the folder's own name is bin or Scripts, in either case
+    const char *const name = folder + start;
+    const int up = cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "bin", .cap = CLI_POOL_BYTES, .ci = 1}) ||
+                   cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "scripts", .cap = CLI_POOL_BYTES, .ci = 1});
     memor.cpy(&(MemoriaCfg){.dst = args->prefix, .src = up ? above : folder, .bytes = CLI_PATH_MAX_LEN});
     return 1;
 }
@@ -161,61 +159,20 @@ unsigned int cli_kernel_data_folders(const CliJupyterPythonsPythonCountCtx *args
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "JUPYTER_PATH",
                    .value_out = s_paths, .capacity = sizeof(s_paths)))
     {
-#if defined(_WIN32)
-        const char between = ';';
-#else
-        const char between = ':';
-#endif
-        const char *from = s_paths;
-        for (const char *at = s_paths;; at += 1)
+        const char between[2] = {g_cli_system_facts.list_separator, '\0'};
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_paths, .cap = CLI_POOL_BYTES});
+        for (unsigned long long from = 0ULL; from <= size;)
         {
-            if ((*at != between) && (*at != '\0'))
-            {
-                continue;
-            }
+            // each entry of the path list, to the next separator or to the list's end
+            const unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                     .text = s_paths, .at = from, .size = size, .set = between);
             count = EMBED_CALL(jupyter_entry_append, JupyterFoldersCtx, .folders = folders, .count = count,
-                               .name = from, .end = at);
-            if (*at == '\0')
-            {
-                break;
-            }
-            from = at + 1;
+                               .name = s_paths + from, .end = s_paths + at);
+            from = at + 1ULL;
         }
     }
-    char home[CLI_PATH_MAX_LEN];
     char under[CLI_PATH_MAX_LEN];
-#if defined(_WIN32)
-    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "APPDATA", .value_out = home,
-                   .capacity = sizeof(home)))
-    {
-        count = EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = folders, .count = count, .folder = home,
-                           .name = "jupyter");
-    }
-#elif defined(__APPLE__)
-    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME", .value_out = home,
-                   .capacity = sizeof(home)))
-    {
-        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = home, .relative = "Library", .joined = under);
-        count = EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = folders, .count = count,
-                           .folder = under, .name = "Jupyter");
-    }
-#else
-    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "XDG_DATA_HOME",
-                   .value_out = home, .capacity = sizeof(home)))
-    {
-        count = EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = folders, .count = count, .folder = home,
-                           .name = "jupyter");
-    }
-    else if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME",
-                        .value_out = home, .capacity = sizeof(home)))
-    {
-        char local[CLI_PATH_MAX_LEN];
-        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = home, .relative = ".local", .joined = local);
-        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = local, .relative = "share", .joined = under);
-        count = EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = folders, .count = count,
-                           .folder = under, .name = "jupyter");
-    }
-#endif
+    count = EMBED_CALL(cli_jupyter_system.reader_folders, CliJupyterSystemCtx, .folders = folders, .count = count);
     for (unsigned int python = 0u; python < args->python_count; python += 1u)
     {
         char prefix[CLI_PATH_MAX_LEN];
@@ -227,18 +184,5 @@ unsigned int cli_kernel_data_folders(const CliJupyterPythonsPythonCountCtx *args
                                .folder = under, .name = "jupyter");
         }
     }
-#if defined(_WIN32)
-    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PROGRAMDATA",
-                   .value_out = home, .capacity = sizeof(home)))
-    {
-        count = EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = folders, .count = count, .folder = home,
-                           .name = "jupyter");
-    }
-#else
-    count = EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = folders, .count = count,
-                       .folder = "/usr/local/share", .name = "jupyter");
-    count = EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = folders, .count = count,
-                       .folder = "/usr/share", .name = "jupyter");
-#endif
-    return count;
+    return EMBED_CALL(cli_jupyter_system.shared_folders, CliJupyterSystemCtx, .folders = folders, .count = count);
 }

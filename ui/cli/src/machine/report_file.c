@@ -87,13 +87,10 @@ int cli_report_open_page(const CliReportErrMsgCfg *args)
 
 int cli_report_open_url(const CliReportErrMsgCfg *args)
 {
-#if defined(_WIN32)
-    const char *const words[4] = {"rundll32", "url.dll,FileProtocolHandler", args->url, NULL};
-#elif defined(__APPLE__)
-    const char *const words[3] = {"open", args->url, NULL};
-#else
-    const char *const words[3] = {"xdg-open", args->url, NULL};
-#endif
+    // the reader's own opener, its word where it takes one, and the address
+    const char *const word = g_cli_system_facts.opener_word;
+    const char *const words[4] = {g_cli_system_facts.opener, (word != NULL) ? word : args->url,
+                                  (word != NULL) ? args->url : NULL, NULL};
     // the browser is the reader's, and stays as impero ends
     unsigned int id = 0u;
     if (!EMBED_CALL(cli_words_id_internal.started_outside, CliWordsIdCtx, .words = words, .id = &id))

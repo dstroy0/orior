@@ -166,6 +166,9 @@ unsigned long long cli_lines_read(const CliRunnerLinesIndexCfg *args);
 // else the one Toolchains names, else python on Windows and python3 elsewhere
 int cli_runner_bash(const CliRunnerNameCfg *args);
 void cli_runner_python(const CliRunnerNameCfg *args);
+// the bash this system offers, where neither ORIOR_BASH nor Toolchains names one: 1, or 0 with why given
+// (platform/windows_runner.c, platform/posix_runner.c)
+int cli_runner_system_bash(const CliRunnerNameCfg *args);
 // a built program under build/ into `path`: 1, or 0 with why given
 int cli_runner_build(const CliRunnerNameCfg *args);
 // the program and its words an environment variable names into `words`: its text as one word where it is a file, as a
@@ -384,6 +387,15 @@ EMBED_TABLE_STORAGE CliRunnerNameNs cli_runner_name EMBED_UNUSED = {
     .bash = cli_runner_bash,
     .python = cli_runner_python,
     .build = cli_runner_build,
+};
+
+typedef struct
+{
+    int (*system_bash)(const CliRunnerNameCfg *args);
+} CliRunnerSystemNs;
+EMBED_TABLE_LAYOUT(CliRunnerSystemNs, system_bash);
+EMBED_TABLE_STORAGE CliRunnerSystemNs cli_runner_system EMBED_UNUSED = {
+    .system_bash = cli_runner_system_bash,
 };
 
 typedef struct

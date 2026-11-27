@@ -276,4 +276,104 @@ void cli_logon_by_name(const CliCapacityLogonCtx *args)
 }
 #endif
 
+// the names Go gives this system and the processor the build targets, and the name .NET gives both, and whether the
+// system is Linux
+#if defined(__APPLE__)
+#define SYSTEM_GO_SYSTEM "darwin"
+#else
+#define SYSTEM_GO_SYSTEM "linux"
+#endif
+#if defined(__x86_64__) || defined(_M_X64)
+#define SYSTEM_GO_PROCESSOR "amd64"
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#define SYSTEM_GO_PROCESSOR "arm64"
+#elif defined(__i386__) || defined(_M_IX86)
+#define SYSTEM_GO_PROCESSOR "x86"
+#elif defined(__arm__) || defined(_M_ARM)
+#define SYSTEM_GO_PROCESSOR "arm"
+#else
+#define SYSTEM_GO_PROCESSOR "riscv64"
+#endif
+#if defined(__APPLE__) && (defined(__aarch64__) || defined(_M_ARM64))
+#define SYSTEM_DOTNET_RUNTIME "osx-arm64"
+#elif defined(__APPLE__)
+#define SYSTEM_DOTNET_RUNTIME "osx-x64"
+#elif defined(__aarch64__)
+#define SYSTEM_DOTNET_RUNTIME "linux-arm64"
+#else
+#define SYSTEM_DOTNET_RUNTIME "linux-x64"
+#endif
+#if defined(__linux__)
+#define SYSTEM_ON_LINUX 1
+#else
+#define SYSTEM_ON_LINUX 0
+#endif
+#if defined(__APPLE__)
+#define SYSTEM_NAME "macos"
+#define SYSTEM_OPENER "open"
+#define SYSTEM_ZSH_DEFAULT 1
+#else
+#define SYSTEM_NAME "linux"
+#define SYSTEM_OPENER "xdg-open"
+#define SYSTEM_ZSH_DEFAULT 0
+#endif
+#if defined(__x86_64__) || defined(_M_X64)
+#define SYSTEM_RUST_PROCESSOR "x86_64"
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#define SYSTEM_RUST_PROCESSOR "aarch64"
+#elif defined(__i386__) || defined(_M_IX86)
+#define SYSTEM_RUST_PROCESSOR "x86"
+#else
+#define SYSTEM_RUST_PROCESSOR "arm"
+#endif
+
+// the folders the system saves its fonts in, for every reader and for the reader alone
+#if defined(__APPLE__)
+static const CliSystemFolder s_font_folders[3] = {
+    {NULL, "/System/Library/Fonts"}, {NULL, "/Library/Fonts"}, {"HOME", "/Library/Fonts"}};
+#else
+static const CliSystemFolder s_font_folders[3] = {
+    {NULL, "/usr/share/fonts"}, {NULL, "/usr/local/share/fonts"}, {"HOME", "/.local/share/fonts"}};
+#endif
+
+// the ending a name on the PATH answers to: none
+static const char *const s_program_ends[1] = {""};
+
+// the folders that hold the reader's settings, XDG's first
+static const CliSystemFolder s_config_folders[2] = {{"XDG_CONFIG_HOME", ""}, {"HOME", "/.config"}};
+
+// Linux's or macOS's facts
+const CliSystemFacts g_cli_system_facts = {
+    .program_end = "",
+    .program_ends = s_program_ends,
+    .program_end_count = 1u,
+    .list_separator = ':',
+    .list_quoted = 0,
+    .path_separator = '/',
+    .path_separators = "/",
+    .case_folded = 0,
+    .host_variable = "HOSTNAME",
+    .home_variable = "HOME",
+    .system_name = SYSTEM_NAME,
+    .rust_processor = SYSTEM_RUST_PROCESSOR,
+    .env_bin = "bin",
+    .opener = SYSTEM_OPENER,
+    .opener_word = NULL,
+    .font_folders = s_font_folders,
+    .font_folder_count = 3u,
+    .fonts_nested = 1,
+    .path_in_profiles = 1,
+    .zsh_default = SYSTEM_ZSH_DEFAULT,
+    .config_folders = s_config_folders,
+    .config_folder_count = 2u,
+    .file_opener = SYSTEM_OPENER,
+    .python_name = "python3",
+    .signals = 1,
+    .lldb_watch_by_script = 0,
+    .go_system = SYSTEM_GO_SYSTEM,
+    .go_processor = SYSTEM_GO_PROCESSOR,
+    .dotnet_runtime = SYSTEM_DOTNET_RUNTIME,
+    .on_linux = SYSTEM_ON_LINUX,
+};
+
 #endif

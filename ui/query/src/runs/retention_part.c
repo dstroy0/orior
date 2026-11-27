@@ -337,47 +337,14 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
                .under = "src/cu/transpiler/lstar/protocol/qry_crystal.c", .path_out = source);
     EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
                .under = "src/cu/engine/engine.h", .path_out = header);
-    // on Windows the engine's objects, listed one a line in cell_tracking_engine.objects, are linked in
-    // the list's text in a cell of its size, retained until the next build looks at it, the words naming its lines
+    // The engine's objects, where the system links them in. The list's text stays in a cell of its size until the next
+    // build looks at it, and the words name its lines
     static char *s_objects_text;
     static const char *s_objects[QUERY_WORDS_MAX];
     g_cli_guard->persistent_buf_release(s_objects_text, g_query_owner);
     s_objects_text = NULL;
-    unsigned int objects = 0u;
-#if defined(_WIN32)
-    char list_entries[QUERY_PATH_MAX_LEN];
-    VerbaLinea listing_line = {list_entries, sizeof(list_entries), 0ULL};
-    mmgr_line_put(&listing_line, engine);
-    mmgr_line_put(&listing_line, "/cell_tracking_engine.objects");
-    mmgr_line_finish(&listing_line);
-    unsigned long long listed_size = 0ULL;
-    const unsigned char *const list = qry_member_file_mapped(list_entries, &listed_size);
-    s_objects_text = (list != NULL) ? g_cli_guard->persistent_buf_alloc(listed_size + 1ULL, g_query_owner) : NULL;
-    if (s_objects_text != NULL)
-    {
-        // a file mapped whole is counted by a size_t
-        memor.cpy(&(MemoriaCfg){.dst = s_objects_text, .src = list, .bytes = (size_t)listed_size});
-        s_objects_text[listed_size] = '\0';
-        char *line = s_objects_text;
-        while ((*line != '\0') && (objects < QUERY_WORDS_MAX))
-        {
-            char *const end_of = line + EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = line, .set = "\r\n");
-            const char saved_char = *end_of;
-            *end_of = '\0';
-            if (*line != '\0')
-            {
-                s_objects[objects] = line;
-                objects += 1u;
-            }
-            line = end_of + ((saved_char != '\0') ? 1 : 0);
-            line += EMBED_CALL(cli_text_set_table.over, CliTextSetCfg, .text = line, .set = "\r\n");
-        }
-    }
-    if (list != NULL)
-    {
-        qry_member_file_unmapped(list, listed_size);
-    }
-#endif
+    const unsigned int objects =
+        EMBED_CALL(query_engine_objects, QueryNvccCtx, .engine = engine, .objects = s_objects, .text = &s_objects_text);
     unsigned long long built_time = 0ULL;
     unsigned long long changed = 0ULL;
     int stale =
@@ -406,28 +373,7 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
                .word_text = s_nvcc);
-#if defined(_WIN32)
-    char cl[QUERY_PATH_MAX_LEN];
-    if (EMBED_CALL(context->programs->program, QueryEachRolePathCapacityErrMsgCfg,
-                   .context = context->programs->context, .role = QUERY_ROLE_CL, .path = cl, .capacity = sizeof(cl),
-                   .err_msg = &ignored) &&
-        (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = cl,
-                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_POOL_BYTES}),
-                    .byte = '\\') != NULL))
-    {
-        cl[EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = cl,
-                      .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_POOL_BYTES}), .byte = '\\') -
-           cl] = '\0';
-        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word_text = "-ccbin");
-        EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg,
-                   .words_words_pointer = &s_words, .text = cl);
-        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word_text = "-Xcompiler");
-        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word_text = "/std:c11 /O2 /Zc:preprocessor /D_CRT_SECURE_NO_WARNINGS");
-    }
-#endif
+    EMBED_CALL(query_nvcc_host, QueryNvccCtx, .words = &s_words, .programs = context->programs, .msvc = 1);
     char include[QUERY_PATH_MAX_LEN + 2u];
     char engine_folder[QUERY_PATH_MAX_LEN];
     EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context, .under = "src/cu/engine",
@@ -444,31 +390,8 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
                .word_text = binary);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
                .word_text = source);
-#if defined(_WIN32)
-    for (unsigned int at = 0u; at < objects; at += 1u)
-    {
-        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word_text = s_objects[at]);
-    }
-#else
-    char library[QUERY_PATH_MAX_LEN + 2u];
-    VerbaLinea library_line = {library, sizeof(library), 0ULL};
-    mmgr_line_put(&library_line, "-L");
-    mmgr_line_put(&library_line, engine);
-    mmgr_line_finish(&library_line);
-    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word_text = library);
-    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word_text = "-lcell_tracking_engine");
-    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word_text = "-Xlinker");
-    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word_text = "-rpath");
-    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word_text = "-Xlinker");
-    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word_text = engine);
-#endif
+    EMBED_CALL(query_engine_link, QueryNvccCtx, .words = &s_words, .engine = engine, .objects = s_objects,
+               .count = objects);
     QueryProcess linked;
     if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &linked,
                     .words = s_words.word_text, .folder = NULL, .output = QUERY_OUTPUT_NONE) ||

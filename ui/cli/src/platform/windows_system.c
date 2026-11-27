@@ -154,4 +154,74 @@ void cli_logon_by_name(const CliCapacityLogonCtx *args)
     (void)mmgr_line_finish(&named);
 }
 
+// the names Go and .NET give the processor the build targets
+#if defined(__x86_64__) || defined(_M_X64)
+#define SYSTEM_GO_PROCESSOR "amd64"
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#define SYSTEM_GO_PROCESSOR "arm64"
+#elif defined(__i386__) || defined(_M_IX86)
+#define SYSTEM_GO_PROCESSOR "x86"
+#elif defined(__arm__) || defined(_M_ARM)
+#define SYSTEM_GO_PROCESSOR "arm"
+#else
+#define SYSTEM_GO_PROCESSOR "riscv64"
+#endif
+#if defined(__aarch64__) || defined(_M_ARM64)
+#define SYSTEM_DOTNET_RUNTIME "win-arm64"
+#else
+#define SYSTEM_DOTNET_RUNTIME "win-x64"
+#endif
+#if defined(__x86_64__) || defined(_M_X64)
+#define SYSTEM_RUST_PROCESSOR "x86_64"
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#define SYSTEM_RUST_PROCESSOR "aarch64"
+#elif defined(__i386__) || defined(_M_IX86)
+#define SYSTEM_RUST_PROCESSOR "x86"
+#else
+#define SYSTEM_RUST_PROCESSOR "arm"
+#endif
+
+// the folders Windows saves its fonts in, for every reader and for the reader alone
+static const CliSystemFolder s_font_folders[2] = {{"WINDIR", "/Fonts"}, {"LOCALAPPDATA", "/Microsoft/Windows/Fonts"}};
+
+// the endings a name on the PATH answers to
+static const char *const s_program_ends[3] = {".exe", ".cmd", ".bat"};
+
+// the folder that holds the reader's settings
+static const CliSystemFolder s_config_folders[1] = {{"APPDATA", ""}};
+
+// Windows' facts
+const CliSystemFacts g_cli_system_facts = {
+    .program_end = ".exe",
+    .program_ends = s_program_ends,
+    .program_end_count = 3u,
+    .list_separator = ';',
+    .list_quoted = 1,
+    .path_separator = '\\',
+    .path_separators = "/\\",
+    .case_folded = 1,
+    .host_variable = "COMPUTERNAME",
+    .home_variable = "USERPROFILE",
+    .system_name = "windows",
+    .rust_processor = SYSTEM_RUST_PROCESSOR,
+    .env_bin = "Scripts",
+    .opener = "rundll32",
+    .opener_word = "url.dll,FileProtocolHandler",
+    .font_folders = s_font_folders,
+    .font_folder_count = 2u,
+    .fonts_nested = 0,
+    .path_in_profiles = 0,
+    .zsh_default = 0,
+    .config_folders = s_config_folders,
+    .config_folder_count = 1u,
+    .file_opener = "explorer",
+    .python_name = "python",
+    .signals = 0,
+    .lldb_watch_by_script = 1,
+    .go_system = "windows",
+    .go_processor = SYSTEM_GO_PROCESSOR,
+    .dotnet_runtime = SYSTEM_DOTNET_RUNTIME,
+    .on_linux = 0,
+};
+
 #endif

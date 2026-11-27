@@ -343,11 +343,6 @@ static void cli_env_each(const CliEachNameValueCfg *args)
 void cli_executables_run_command(const CliExecutablesValuesCfg *args)
 {
     CliCommand *command = args->command;
-#if defined(_WIN32)
-    static const char s_separator[2] = ";";
-#else
-    static const char s_separator[2] = ":";
-#endif
     EMBED_CALL(cli_runner.command_begin, CliRunnerCfg, .command = command, .program = args->file);
     const char *const folder = EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx,
                                           .values = args->values, .key = "folder", .fallback = "");
@@ -397,10 +392,13 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
         {
             char one[CLI_PATH_MAX_LEN];
             (void)g_cli_guard->movable_buf_read(&(CarcerMovableCfg){.cell = folders.cell,
-                                                                   .offset = (embed_word)at * CLI_PATH_MAX_LEN,
-                                                                   .dst = one,
-                                                                   .bytes = CLI_PATH_MAX_LEN});
-            mmgr_line_put(&joined, (at != 0u) ? s_separator : "");
+                                                                    .offset = (embed_word)at * CLI_PATH_MAX_LEN,
+                                                                    .dst = one,
+                                                                    .bytes = CLI_PATH_MAX_LEN});
+            if (at != 0u)
+            {
+                mmgr_line_ch(&joined, g_cli_system_facts.list_separator);
+            }
             mmgr_line_put(&joined, one);
         }
         (void)mmgr_line_finish(&joined);

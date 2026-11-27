@@ -21,9 +21,7 @@ void cli_program_file(const CliExecutablesNameOutFolderCtx *args)
 {
     VerbaLinea line = {args->out, CLI_NAME_MAX_LEN, 0ULL};
     mmgr_line_put(&line, args->name);
-#if defined(_WIN32)
-    mmgr_line_put(&line, ".exe");
-#endif
+    mmgr_line_put(&line, g_cli_system_facts.program_end);
     mmgr_line_finish(&line);
 }
 
@@ -66,26 +64,8 @@ void cli_build_folder(const CliExecutablesOutCtx *args)
 
 void cli_go_host(const CliExecutablesSystemCtx *args)
 {
-    const char **system = args->system;
-    const char **processor = args->processor;
-#if defined(_WIN32)
-    *system = "windows";
-#elif defined(__APPLE__)
-    *system = "darwin";
-#else
-    *system = "linux";
-#endif
-#if defined(__x86_64__) || defined(_M_X64)
-    *processor = "amd64";
-#elif defined(__aarch64__) || defined(_M_ARM64)
-    *processor = "arm64";
-#elif defined(__i386__) || defined(_M_IX86)
-    *processor = "x86";
-#elif defined(__arm__) || defined(_M_ARM)
-    *processor = "arm";
-#else
-    *processor = "riscv64";
-#endif
+    *args->system = g_cli_system_facts.go_system;
+    *args->processor = g_cli_system_facts.go_processor;
 }
 
 const char *cli_first(const CliExecutablesKeyCtx *args)
@@ -248,11 +228,7 @@ void cli_executables_cross_env(const CliExecutablesTypeCfg *args)
     mmgr_line_finish(&named);
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = rust, .cap = CLI_POOL_BYTES});
     char set[CLI_PATH_MAX_LEN];
-#if defined(__linux__)
-    const int on_linux = 1;
-#else
-    const int on_linux = 0;
-#endif
+    const int on_linux = g_cli_system_facts.on_linux;
     if ((length >= 11ULL) &&
         (cellul.eq(&(CatenaFinitaCfg){.src = rust + length - 11ULL, .other = "-linux-musl", .cap = CLI_POOL_BYTES})) &&
         !on_linux &&

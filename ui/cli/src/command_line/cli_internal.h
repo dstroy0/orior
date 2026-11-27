@@ -159,6 +159,69 @@ unsigned long long cli_clock_milliseconds(void);
 // `logon`, sized for `capacity`, empty where the system names none (platform/windows_system.c, platform/posix_system.c)
 unsigned long long cli_booted_seconds(void);
 void cli_logon_by_name(const CliCapacityLogonCtx *args);
+// What this system is, as programs and tools name it (platform/windows_system.c, platform/posix_system.c).
+// `program_end` ends a program's file name, "" where nothing ends it, and `program_ends` are every ending a name on the
+// PATH answers to, `program_end_count` of them. `list_separator` stands between the folders of a
+// list such as PATH, and `list_quoted` is 1 where the system takes quotes out of the list's entries. `path_separator`
+// is the byte the system writes between a path's parts, and `path_separators`
+// every byte it reads there. `case_folded` is 1 where two paths that differ in case alone name one file.
+//
+// `host_variable` names the variable that names the machine, and `home_variable` the one that names the reader's home.
+// `system_name` is the system's own short name, and `rust_processor` the name Rust gives the processor. `go_system`
+// and `go_processor` are the names Go gives this system and processor, and `dotnet_runtime` the name .NET gives both.
+// `env_bin` is the folder of a Python environment's programs. `opener` opens a file or an address in the reader's own
+// program, with `opener_word` before the address where it is not NULL. `on_linux` is 1 on Linux alone.
+//
+// `font_folders` are the folders the system saves its fonts in, `font_folder_count` of them. `fonts_nested` is 1 where
+// a font can be in a folder of its own under them, to a depth of four. `path_in_profiles` is 1 where the reader's PATH
+// is in their shell profiles, and 0 where it is in the registry. `zsh_default` is 1 where zsh is the reader's shell
+// unless they choose another.
+//
+// `config_folders` are the folders that can hold the reader's settings, `config_folder_count` of them, the first that
+// the system sets first. `file_opener` opens a file or a folder in the reader's own program. `python_name` names
+// Python 3's program. `signals` is 1 where a signal
+// can end a process. `lldb_watch_by_script` is 1 where lldb-dap ends at a watchpoint's stop, and lldb's script sets
+// the watchpoint instead
+typedef struct
+{
+    // the variable that names the folder's base, NULL for a folder that `path` names whole; and the path after the base
+    const char *variable;
+    const char *path;
+} CliSystemFolder;
+typedef struct
+{
+    const char *program_end;
+    const char *const *program_ends;
+    unsigned int program_end_count;
+    char list_separator;
+    int list_quoted;
+    char path_separator;
+    const char *path_separators;
+    int case_folded;
+    const char *host_variable;
+    const char *home_variable;
+    const char *system_name;
+    const char *rust_processor;
+    const char *env_bin;
+    const char *opener;
+    const char *opener_word;
+    const CliSystemFolder *font_folders;
+    unsigned int font_folder_count;
+    int fonts_nested;
+    int path_in_profiles;
+    int zsh_default;
+    const CliSystemFolder *config_folders;
+    unsigned int config_folder_count;
+    const char *file_opener;
+    const char *python_name;
+    int signals;
+    int lldb_watch_by_script;
+    const char *go_system;
+    const char *go_processor;
+    const char *dotnet_runtime;
+    int on_linux;
+} CliSystemFacts;
+extern const CliSystemFacts g_cli_system_facts;
 // A calendar reading in the machine's own zone: the year, the month and the day of the month counted from 1, the hour
 // and the minute
 typedef struct

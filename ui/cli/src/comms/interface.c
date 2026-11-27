@@ -5,13 +5,6 @@
 // describes
 #include "interface_internal.h"
 
-// A transfer as it is in a frame: the region's length, and on Windows the handle made for it
-typedef struct
-{
-    unsigned long long length;
-    unsigned long long handle;
-} CliIpcTransfer;
-
 int cli_ipc_frame_read(const CliIpcErrMsgEndCtx *args)
 {
     unsigned long long *size = args->size_pointer;
@@ -77,41 +70,6 @@ unsigned long long cli_ipc_field_end(const CliIpcFrameCfg *args)
     const unsigned long long length =
         cellul.len(&(CatenaFinitaCfg){.src = args->frame + args->at, .cap = args->size - args->at});
     return ((args->at + length) < args->size) ? (args->at + length + 1ULL) : 0ULL;
-}
-
-int cli_ipc_dispatch(const CliIpcErrMsgRegionCtx *args)
-{
-    CliIpcTransfer transfer = {args->region->length, 0ULL};
-#if defined(_WIN32)
-    transfer.handle = args->region->section;
-    if (args->has_to && !EMBED_CALL(cli_region_free, CliTransferCfg, .region_read = args->region, .process = args->to,
-                                    .theirs = &transfer.handle, .err_msg = args->err_msg))
-    {
-        return 0;
-    }
-#endif
-    mmgr_line_put_n(args->out, (const char *)&transfer, sizeof(transfer));
-    return 1;
-}
-
-int cli_ipc_transferred_over(const CliIpcErrMsgCtx *args)
-{
-#if defined(_WIN32)
-    return args->has_from
-               ? EMBED_CALL(cli_region_alloc, CliTransferRegionCfg, .region = args->region_out, .process = args->from,
-                            .handle = args->handle, .length = args->length, .err_msg = args->err_msg)
-               : EMBED_CALL(cli_transfer_region.region_receive, CliTransferRegionCfg, .region = args->region_out,
-                            .handle = args->handle, .length = args->length, .err_msg = args->err_msg);
-#else
-    const int fd = cli_ipc_err_msg_internal.descriptor(args);
-    if (fd < 0)
-    {
-        mmgr_line_put(args->err_msg, "a transfer came with no region");
-        return 0;
-    }
-    return EMBED_CALL(cli_transfer_region.region_receive, CliTransferRegionCfg, .region = args->region_out,
-                      .handle = (unsigned long long)fd, .length = args->length, .err_msg = args->err_msg);
-#endif
 }
 
 int cli_ipc_transfer(const CliIpcErrMsgSizeCtx *args)

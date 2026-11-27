@@ -12,9 +12,7 @@ void cli_kernel_end(const CliJupyterAtCtx *args)
 {
     if (!args->kernel->ended && (args->kernel->spawned.process != 0ULL))
     {
-#if defined(_WIN32)
-        EMBED_CALL(cli_id_internal.spawn_tree_end, CliIdCtx, .id_u64 = args->kernel->spawned.id);
-#endif
+        EMBED_CALL(cli_jupyter_system.children_end, CliJupyterSystemCtx, .kernel = args->kernel);
         EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &args->kernel->spawned);
         args->kernel->code =
             EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &args->kernel->spawned);
@@ -151,17 +149,8 @@ int cli_jupyter_interrupt(const CliJupyterErrMsgKernelFileCfg *args)
                           .channel = "control", .msg_type = "interrupt_request", .content = "{}", .length = 2ULL,
                           .wait = 5000ULL, .reply = &reply, .err_msg = args->err_msg);
     }
-#if defined(_WIN32)
-    if (!EMBED_CALL(cli_event_internal.event_set, CliEventCtx, .event = args->kernel->interrupt_event))
-    {
-        mmgr_line_put(args->err_msg, "the kernel's interrupt event could not be signaled");
-        return 0;
-    }
-#else
-    // what kill reports of the signal is not read, as the reader is informed of no failure of it
-    (void)EMBED_CALL(cli_cols_internal.spawn_interrupt, CliColsCtx, .spawned_read = &args->kernel->spawned);
-#endif
-    return 1;
+    return EMBED_CALL(cli_jupyter_system.interrupt, CliJupyterSystemCtx, .kernel = args->kernel,
+                      .err_msg = args->err_msg);
 }
 
 int cli_jupyter_alive(const CliJupyterErrMsgCfg *args)

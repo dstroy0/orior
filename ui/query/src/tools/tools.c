@@ -160,9 +160,7 @@ void query_binary_name(const QueryNameCapacityCtx *args)
 {
     VerbaLinea line = {args->binary, args->capacity, 0ULL};
     mmgr_line_put(&line, args->name);
-#if defined(_WIN32)
-    mmgr_line_put(&line, ".exe");
-#endif
+    mmgr_line_put(&line, g_cli_system_facts.program_end);
     mmgr_line_finish(&line);
 }
 

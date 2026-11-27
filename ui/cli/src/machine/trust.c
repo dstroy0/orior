@@ -49,23 +49,26 @@ EMBED_INLINE int cli_trust_file(const TrustCtx *args)
 EMBED_INLINE void cli_key(const TrustCtx *args)
 {
     VerbaLinea line = {args->key, CLI_PATH_MAX_LEN, 0ULL};
-#if defined(_WIN32)
-    static unsigned int s_characters[CLI_PATH_MAX_LEN];
-    const unsigned long long count =
-        EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = args->folder,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES}),
-                   .characters = s_characters, .capacity_u64 = CLI_PATH_MAX_LEN);
-    for (unsigned long long at = 0ULL; at < count; at += 1ULL)
+    if (g_cli_system_facts.case_folded)
     {
-        EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                   .character = (s_characters[at] == '\\') ? '/'
-                                                           : EMBED_CALL(regexp_character.lower, RegexpLetterCfg,
-                                                                        .character = s_characters[at]));
+        static unsigned int s_characters[CLI_PATH_MAX_LEN];
+        const unsigned long long count =
+            EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = args->folder,
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_POOL_BYTES}),
+                       .characters = s_characters, .capacity_u64 = CLI_PATH_MAX_LEN);
+        for (unsigned long long at = 0ULL; at < count; at += 1ULL)
+        {
+            EMBED_CALL(cli_line_character_internal.utf8_append, CliLineLetterCtx, .line = &line,
+                       .character = (s_characters[at] == '\\') ? '/'
+                                                               : EMBED_CALL(regexp_character.lower, RegexpLetterCfg,
+                                                                            .character = s_characters[at]));
+        }
     }
-#else
-    (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = args->folder, .from = '\\',
-                     .to = '/');
-#endif
+    else
+    {
+        (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = args->folder, .from = '\\',
+                         .to = '/');
+    }
     mmgr_line_finish(&line);
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES});
     length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->key, .at = length,

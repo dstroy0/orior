@@ -68,10 +68,11 @@ static void latex_slash(const LatexReadCtx *args)
             .src = args->out_capacity + 2,
             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->out_capacity + 2, .cap = CLI_POOL_BYTES}) + 1u});
     }
-#if defined(_WIN32)
-    EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->out_capacity,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = args->out_capacity, .cap = CLI_POOL_BYTES}));
-#endif
+    if (g_cli_system_facts.case_folded)
+    {
+        EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->out_capacity,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->out_capacity, .cap = CLI_POOL_BYTES}));
+    }
 }
 
 void cli_tex_names_init(const CliLatexNamesRootCtx *args)

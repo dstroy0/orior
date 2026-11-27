@@ -47,14 +47,6 @@ const char *const g_query_mmgr[] = {
 const char *const g_query_mmgr_includes[] = {"includes/mmgr/include", "includes/mmgr/src",
                                              "includes/embedded_types/include", "includes/mmgr/test/support", NULL};
 
-// the words every program's link ends with. On Windows the library the address wait is in, and on Linux and macOS
-// the threads and the loader, which the platform calls
-#if defined(_WIN32)
-const char *const g_query_mmgr_link[] = {"-lsynchronization", NULL};
-#else
-const char *const g_query_mmgr_link[] = {"-lpthread", "-ldl", NULL};
-#endif
-
 const char *const g_query_mmgr_settings[] = {"-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32",
                                              "-DMMGR_CARCER_OWNERS=1024u", NULL};
 

@@ -39,6 +39,8 @@ typedef struct CliExecutablesFoundCtx CliExecutablesFoundCtx;
 typedef struct CliExecutablesSystemCtx CliExecutablesSystemCtx;
 typedef struct CliExecutablesSpecCtx CliExecutablesSpecCtx;
 typedef struct CliExecutablesTextLengthCtx CliExecutablesTextLengthCtx;
+typedef struct CliExecutablesSignCtx CliExecutablesSignCtx;
+typedef struct CliExecutablesSystemPositionsCtx CliExecutablesSystemPositionsCtx;
 typedef struct CliExecutablesCtx CliExecutablesCtx;
 
 // the types of build script read here, and none
@@ -108,6 +110,25 @@ typedef struct
 unsigned int cli_executables_type_get(const CliExecutablesNameOutFolderCtx *args);
 // a name put after the names, with its second text, where the names contain it not already
 void cli_names_append(const CliExecutablesNameNamesCtx *args);
+
+// The setting `signing.<key>` in settings.json in orior's own folder, trimmed, into `out`, sized for CLI_PATH_MAX_LEN.
+// The settings say how the platform files sign the programs that a build makes. The result is 1, or 0 where the file
+// has no value for the key, or an empty one. Then the line `text` printed through `sink` (executables_sign.c).
+//
+// `windows` is a certificate's thumbprint in the reader's store or the path of a .pfx file. The .pfx file's password
+// comes from ORIOR_SIGN_PASSWORD and from no file. `timestamp` is the address of the time stamp server for a Windows
+// signature. `macos` is the identity that codesign signs with, and `notarize` the keychain profile that notarytool
+// sends the program with
+int cli_executables_signing(const CliExecutablesSignCtx *args);
+void cli_executables_sign_print(const CliExecutablesSignCtx *args);
+
+// What each system answers of a build (windows_executables.c, posix_executables.c). First whether Meson sets Visual
+// Studio's environment up itself. It does that where cl is on the PATH and nothing set cl's environment. Then the
+// folders that .NET installs into for every user, written into `positions`, with their count. Then why the program a
+// build made did not start, as its exit code says, or NULL where the code says nothing of a start
+int cli_executables_vsenv(void);
+unsigned int cli_executables_dotnet_installed(const CliExecutablesSystemPositionsCtx *args);
+const char *cli_executables_unstarted(const CliExecutablesRootCfg *args);
 
 // whether a character is ASCII's whitespace; `*length` bytes from `*text` trimmed of whitespace at either end; and
 // `length` bytes of `text` into `out`, sized for `capacity` (executables_scan.c)
@@ -449,6 +470,19 @@ struct CliExecutablesTextLengthCtx
     unsigned long long *length_pointer;
 };
 
+struct CliExecutablesSystemPositionsCtx
+{
+    char (*positions)[CLI_PATH_MAX_LEN];
+};
+
+struct CliExecutablesSignCtx
+{
+    QuerySink sink;
+    const char *text;
+    const char *key;
+    char *out;
+};
+
 struct CliExecutablesCtx
 {
     char character;
@@ -505,6 +539,30 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliExecutablesTextLengthNs, scan_trim);
 EMBED_TABLE_STORAGE CliExecutablesTextLengthNs cli_executables_text_length_internal EMBED_UNUSED = {
     .scan_trim = cli_scan_trim,
+};
+
+typedef struct
+{
+    int (*vsenv)(void);
+    unsigned int (*dotnet_installed)(const CliExecutablesSystemPositionsCtx *args);
+    const char *(*unstarted)(const CliExecutablesRootCfg *args);
+} CliExecutablesHostNs;
+EMBED_TABLE_LAYOUT(CliExecutablesHostNs, vsenv, dotnet_installed, unstarted);
+EMBED_TABLE_STORAGE CliExecutablesHostNs cli_executables_host EMBED_UNUSED = {
+    .vsenv = cli_executables_vsenv,
+    .dotnet_installed = cli_executables_dotnet_installed,
+    .unstarted = cli_executables_unstarted,
+};
+
+typedef struct
+{
+    int (*signing)(const CliExecutablesSignCtx *args);
+    void (*print)(const CliExecutablesSignCtx *args);
+} CliExecutablesSignNs;
+EMBED_TABLE_LAYOUT(CliExecutablesSignNs, signing, print);
+EMBED_TABLE_STORAGE CliExecutablesSignNs cli_executables_sign_internal EMBED_UNUSED = {
+    .signing = cli_executables_signing,
+    .print = cli_executables_sign_print,
 };
 
 typedef struct

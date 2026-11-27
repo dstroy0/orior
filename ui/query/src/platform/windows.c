@@ -5,6 +5,8 @@
 #include "../../../cli/src/command_line/callback_cfg.h"
 #include "../../../cli/src/text/text.h"
 #include "../query_internal.h"
+#include "../query_loops.h"
+#include "../tools/tools_internal.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -502,6 +504,91 @@ void query_terminal_write(const QueryErrorsCtx *args)
             return;
         }
         put += wrote;
+    }
+}
+
+// the words every program's link ends with: the library the address wait is in
+const char *const g_query_mmgr_link[] = {"-lsynchronization", NULL};
+
+void query_nvcc_host(const QueryNvccCtx *args)
+{
+    char cl[QUERY_PATH_MAX_LEN];
+    char ignored_text[QUERY_LINE_MAX_LEN];
+    VerbaLinea ignored = {ignored_text, sizeof(ignored_text), 0ULL};
+    if (!EMBED_CALL(args->programs->program, QueryEachRolePathCapacityErrMsgCfg, .context = args->programs->context,
+                    .role = QUERY_ROLE_CL, .path = cl, .capacity = sizeof(cl), .err_msg = &ignored))
+    {
+        return;
+    }
+    // the folder cl is in, nvcc's host compiler. The byte found is in `cl`, which this call owns and writes
+    char *const slash = (char *)EMBED_CALL(
+        cli_text_byte.last, CliTextByteCfg, .text = cl,
+        .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_POOL_BYTES}), .byte = '\\');
+    if (slash == NULL)
+    {
+        return;
+    }
+    *slash = '\0';
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = args->words,
+               .word_text = "-ccbin");
+    EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg, .words_words_pointer = args->words,
+               .text = cl);
+    if (args->msvc)
+    {
+        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = args->words,
+                   .word_text = "-Xcompiler");
+        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = args->words,
+                   .word_text = "/std:c11 /O2 /Zc:preprocessor /D_CRT_SECURE_NO_WARNINGS");
+    }
+}
+
+// the engine's objects, listed one a line in cell_tracking_engine.objects
+unsigned int query_engine_objects(const QueryNvccCtx *args)
+{
+    unsigned int objects = 0u;
+    char list_entries[QUERY_PATH_MAX_LEN];
+    VerbaLinea listing_line = {list_entries, sizeof(list_entries), 0ULL};
+    mmgr_line_put(&listing_line, args->engine);
+    mmgr_line_put(&listing_line, "/cell_tracking_engine.objects");
+    mmgr_line_finish(&listing_line);
+    unsigned long long listed_size = 0ULL;
+    const unsigned char *const list = qry_member_file_mapped(list_entries, &listed_size);
+    char *const text = (list != NULL) ? g_cli_guard->persistent_buf_alloc(listed_size + 1ULL, g_query_owner) : NULL;
+    *args->text = text;
+    if (text != NULL)
+    {
+        // a size_t counts a file that the system maps whole
+        memor.cpy(&(MemoriaCfg){.dst = text, .src = list, .bytes = (size_t)listed_size});
+        text[listed_size] = '\0';
+        char *line = text;
+        while ((*line != '\0') && (objects < QUERY_WORDS_MAX))
+        {
+            char *const end_of = line + EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = line, .set = "\r\n");
+            const char saved_char = *end_of;
+            *end_of = '\0';
+            if (*line != '\0')
+            {
+                args->objects[objects] = line;
+                objects += 1u;
+            }
+            line = end_of + ((saved_char != '\0') ? 1 : 0);
+            line += EMBED_CALL(cli_text_set_table.over, CliTextSetCfg, .text = line, .set = "\r\n");
+        }
+    }
+    if (list != NULL)
+    {
+        qry_member_file_unmapped(list, listed_size);
+    }
+    return objects;
+}
+
+// the engine's objects linked in
+void query_engine_link(const QueryNvccCtx *args)
+{
+    for (unsigned int at = 0u; at < args->count; at += 1u)
+    {
+        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = args->words,
+                   .word_text = args->objects[at]);
     }
 }
 

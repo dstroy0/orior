@@ -343,11 +343,11 @@ EMBED_INLINE int cli_reads_itself(const PythonPathsCtx *args)
     while (at <= args->value.length)
     {
         unsigned int character = ' ';
-        const unsigned long long step = (at < args->value.length)
-                                            ? EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
-                                                         .text_bytes = (const unsigned char *)args->value.at,
-                                                         .length = args->value.length, .at = at, .character = &character)
-                                            : 1ULL;
+        const unsigned long long step =
+            (at < args->value.length) ? EMBED_CALL(cli_json_tree_length.lossy_character, CliJsonTreeLengthCfg,
+                                                   .text_bytes = (const unsigned char *)args->value.at,
+                                                   .length = args->value.length, .at = at, .character = &character)
+                                      : 1ULL;
         if (!EMBED_CALL(cli_files_character_internal.hit_wordy, CliFilesLetterCtx, .character = character))
         {
             if (((at - start) == args->target.length) &&
@@ -432,11 +432,9 @@ void cli_py_paths_in(const CliPythonPathsSizeCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = g_cli_py.file,
                             .src = args->file,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_POOL_BYTES}) + 1u});
-#if defined(_WIN32)
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = g_cli_py.file,
                .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_py.file, .cap = CLI_POOL_BYTES}), .from = '/',
-               .to = '\\');
-#endif
+               .to = g_cli_system_facts.path_separator);
     EMBED_CALL(cli_logical_lines, PythonPathsCtx, .text = args->text, .size = args->size);
     for (unsigned int index = 0u; index < s_lines.count; index += 1u)
     {

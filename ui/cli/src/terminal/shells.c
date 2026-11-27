@@ -62,11 +62,7 @@ EMBED_INLINE void shells_path(void)
     const unsigned long long path_length =
         cellul.len(&(CatenaFinitaCfg){.src = s_start.path, .cap = sizeof(s_start.path)});
     VerbaLinea line = {s_start.path, sizeof(s_start.path), path_length};
-#if defined(_WIN32)
-    mmgr_line_ch(&line, ';');
-#else
-    mmgr_line_ch(&line, ':');
-#endif
+    mmgr_line_ch(&line, g_cli_system_facts.list_separator);
     mmgr_line_put(&line, s_start.own);
     if ((cut == 0ULL) || (mmgr_line_finish(&line) == 0ULL))
     {
@@ -105,29 +101,8 @@ EMBED_INLINE void shells_reader_shell(void)
     {
         return;
     }
-#if defined(_WIN32)
-    char why[CLI_PATH_MAX_LEN];
-    VerbaLinea unread = {why, sizeof(why), 0ULL};
-    if (EMBED_CALL(cli_runner_name.bash, CliRunnerNameCfg, .path = s_start.program, .err_msg = &unread))
-    {
-        // Git's bash starts a login shell in its home unless told to stay where it is started
-        s_start.words[1] = "--login";
-        s_start.words[2] = "-i";
-        s_start.settings[s_start.setting_count] = (CliSetting){"CHERE_INVOKING", "1"};
-        s_start.setting_count += 1u;
-        return;
-    }
-    if (!EMBED_CALL(shells_environment, ShellsCtx, .name = "ComSpec"))
-    {
-        s_start.words[0] = "cmd.exe";
-    }
-#else
-    if (!EMBED_CALL(shells_environment, ShellsCtx, .name = "SHELL"))
-    {
-        s_start.words[0] = "bash";
-    }
-    s_start.words[1] = "-l";
-#endif
+    EMBED_CALL(cli_terminal_shell_system_table.system, CliTerminalShellSystemCtx, .words = s_start.words,
+               .program = s_start.program, .settings = s_start.settings, .setting_count = &s_start.setting_count);
 }
 
 // `size` bytes of `bytes` written to the shell's input
@@ -253,11 +228,8 @@ EMBED_INLINE void shells_exited(const ShellsCtx *args)
         char text[48];
         VerbaLinea line = {text, sizeof(text), 0ULL};
         mmgr_line_put(&line, "\r\n[exited ");
-#if defined(_WIN32)
-        const int signalled = 0;
-#else
-        const int signalled = args->code < 0LL;
-#endif
+        // a code below 0 is a signal where the system ends a process by one
+        const int signalled = g_cli_system_facts.signals && (args->code < 0LL);
         if (!signalled)
         {
             mmgr_line_put(&line, (args->code < 0LL) ? "-" : "");

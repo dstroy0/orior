@@ -24,13 +24,9 @@ typedef struct
 
 int cli_git_clone_parent(const CliGitErrMsgFolderCfg *args)
 {
-#if defined(_WIN32)
-    static const char s_home[] = "USERPROFILE";
-#else
-    static const char s_home[] = "HOME";
-#endif
-    return EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = s_home,
-                      .value_out = args->folder, .capacity = CLI_PATH_MAX_LEN) ||
+    return EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx,
+                      .name = g_cli_system_facts.home_variable, .value_out = args->folder,
+                      .capacity = CLI_PATH_MAX_LEN) ||
            EMBED_CALL(cli_path_capacity_internal.folder_current, CliPathCapacityCtx, .path_out = args->folder,
                       .capacity_bytes = CLI_PATH_MAX_LEN);
 }
@@ -120,33 +116,25 @@ typedef struct
 EMBED_INLINE int cli_git_on(const GitCloneCtx *args)
 {
     const char *path = args->path;
-#if defined(_WIN32)
-    static const char s_name[] = "/git.exe";
-    const char between = ';';
-#else
-    static const char s_name[] = "/git";
-    const char between = ':';
-#endif
-    const char *folder = path;
-    for (const char *at = path;; at += 1)
+    const char between[2] = {g_cli_system_facts.list_separator, '\0'};
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_POOL_BYTES});
+    for (unsigned long long from = 0ULL; from <= size;)
     {
-        if ((at[0] == between) || (at[0] == '\0'))
+        // each folder of the PATH, to the next separator or to the PATH's end
+        const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                   .text = path, .at = from, .size = size, .set = between);
+        VerbaLinea line = {args->program, CLI_PATH_MAX_LEN, 0ULL};
+        mmgr_line_put_n(&line, path + from, stop - from);
+        mmgr_line_put(&line, "/git");
+        mmgr_line_put(&line, g_cli_system_facts.program_end);
+        if ((stop > from) && (mmgr_line_finish(&line) != 0ULL) &&
+            EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->program))
         {
-            VerbaLinea line = {args->program, CLI_PATH_MAX_LEN, 0ULL};
-            mmgr_line_put_n(&line, folder, (unsigned long long)(at - folder));
-            mmgr_line_put(&line, s_name);
-            if ((at > folder) && (mmgr_line_finish(&line) != 0ULL) &&
-                EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->program))
-            {
-                return 1;
-            }
-            if (at[0] == '\0')
-            {
-                return 0;
-            }
-            folder = at + 1;
+            return 1;
         }
+        from = stop + 1ULL;
     }
+    return 0;
 }
 
 // the line read so far reported, trimmed, with whether it is finished, and let go

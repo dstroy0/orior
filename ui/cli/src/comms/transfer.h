@@ -8,8 +8,8 @@
 // makes its handle in the other process itself, as a broker does: a process of the container's passes over a region by
 // the handle it has, and is passed one by a handle made for it, which reads the region and cannot write it. On Linux a
 // region is a memory file sealed against every change once written, and on macOS a file in the reader's own temporary
-// folder, unlinked as soon as it is made; either goes over the interface's socket with the frame that names it, and a region
-// from another process is read only once its seals are applied, or on macOS copied whole into a region of this
+// folder, unlinked as soon as it is made; either goes over the interface's socket with the frame that names it, and a
+// region from another process is read only once its seals are applied, or on macOS copied whole into a region of this
 // process's own (platform/windows_transfer.c, platform/posix_transfer.c, platform/posix_descriptors.c)
 #ifndef TRANSFER_H
 #define TRANSFER_H
@@ -44,13 +44,12 @@ int cli_region_with(const CliTransferRegionBytesCfg *args);
 int cli_region_receive(const CliTransferRegionCfg *args);
 void cli_region_close(const CliTransferRegionBytesCfg *args);
 
-#if defined(_WIN32)
 // a handle to the region made in the process `process`, which reads the region and cannot write it, its value there
 // into `theirs`; and the region of `length` bytes the process `process` names by its handle `handle` there, taken into
-// this process to be read. Each 1, or 0 with why given
+// this process to be read. Each 1, or 0 with why given. Windows alone has them (platform/windows_transfer.c)
 int cli_region_free(const CliTransferCfg *args);
 int cli_region_alloc(const CliTransferRegionCfg *args);
-#else
+
 // the max descriptors retained that came with bytes read and are not yet taken
 #define CLI_DESCRIPTORS_PENDING_MAX 64u
 
@@ -66,12 +65,11 @@ typedef struct
 // `size` bytes of `frame` written to `socket`, the descriptor `fd` going with the first byte: 1, or 0 where it could
 // not be; what came on `socket` read into `buffer`, sized for `capacity`, each descriptor that came with it stored in
 // `pending`: the count read, 0 at the end, -1 where the read failed; the first descriptor stored taken, -1 where none
-// is; and every descriptor pending closed
+// is; and every descriptor pending closed. Linux and macOS alone have them (platform/posix_descriptors.c)
 int cli_socket_sent_with(const CliTransferSizeCfg *args);
 long long cli_socket_receive(const CliTransferSocketCfg *args);
 int cli_descriptor_alloc(const CliTransferSocketCfg *args);
 void cli_descriptors_close(const CliTransferSocketCfg *args);
-#endif
 
 struct CliTransferRegionCfg
 {
@@ -79,19 +77,15 @@ struct CliTransferRegionCfg
     VerbaLinea *err_msg;
     unsigned long long handle;
     unsigned long long length;
-#if (defined(_WIN32))
     unsigned int process;
-#endif
 };
 
 struct CliTransferCfg
 {
     VerbaLinea *err_msg;
-#if (defined(_WIN32))
     const CliRegion *region_read;
     unsigned int process;
     unsigned long long *theirs;
-#endif
 };
 
 struct CliTransferRegionBytesCfg
@@ -104,22 +98,18 @@ struct CliTransferRegionBytesCfg
 
 struct CliTransferSocketCfg
 {
-#if !((defined(_WIN32)))
     int socket;
     void *buffer;
     unsigned long long capacity;
     CliDescriptors *pending;
-#endif
 };
 
 struct CliTransferSizeCfg
 {
     unsigned long long size;
-#if !((defined(_WIN32)))
     int socket;
     const void *frame;
     int fd;
-#endif
 };
 
 typedef struct

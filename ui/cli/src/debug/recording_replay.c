@@ -11,9 +11,10 @@ void cli_replay_key(const CliRecordingPathCtx *args)
     VerbaLinea out = {args->key, CLI_PATH_MAX_LEN, 0ULL};
     (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &out, .text = args->path, .from = '\\',
                      .to = '/');
-#if defined(_WIN32)
-    EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->key, .size = out.at);
-#endif
+    if (g_cli_system_facts.case_folded)
+    {
+        EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->key, .size = out.at);
+    }
     mmgr_line_finish(&out);
 }
 
@@ -131,7 +132,8 @@ int cli_replay_at_breakpoint(const CliRecordingSerialStepCtx *args)
     EMBED_CALL(cli_recording_path_internal.replay_key, CliRecordingPathCtx, .path = full, .key = key);
     for (unsigned int break_file = 0u; break_file < g_cli_replay->break_file_count; break_file += 1u)
     {
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_replay->break_files[break_file], .other = key, .cap = CLI_POOL_BYTES}))
+        if (!cellul.eq(
+                &(CatenaFinitaCfg){.src = g_cli_replay->break_files[break_file], .other = key, .cap = CLI_POOL_BYTES}))
         {
             continue;
         }

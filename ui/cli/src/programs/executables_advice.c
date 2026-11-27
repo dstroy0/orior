@@ -394,27 +394,7 @@ void cli_executables_run_result_advice(const CliExecutablesRootCfg *args)
     const CliRunLines *lines = args->lines;
     static CliFullest s_fullest;
     char print_buf[CLI_PATH_MAX_LEN * 2u];
-#if defined(_WIN32)
-    // the exit code read as the unsigned number Windows writes it as
-    const unsigned int status = args->has_code ? (unsigned int)args->code : 0u;
-    const char *reason;
-    if (status == 0xC0000135u)
-    {
-        reason = "a DLL it loads was found nowhere (0xC0000135)";
-    }
-    else if (status == 0xC000007Bu)
-    {
-        reason = "a DLL it loads is built for another processor, or is damaged (0xC000007B)";
-    }
-    else if (status == 0xC0000139u)
-    {
-        reason = "a DLL it loads lacks a function it calls, another version than the one it was "
-                 "built with (0xC0000139)";
-    }
-    else
-    {
-        reason = NULL;
-    }
+    const char *const reason = cli_executables_host.unstarted(args);
     if (reason != NULL)
     {
         VerbaLinea line = {print_buf, sizeof(print_buf), 0ULL};
@@ -424,8 +404,6 @@ void cli_executables_run_result_advice(const CliExecutablesRootCfg *args)
         mmgr_line_finish(&line);
         EMBED_CALL(cli_print, ExecutablesAdviceCtx, .sink = args->sink, .text = print_buf);
     }
-#else
-#endif
     char spec[CLI_PATH_MAX_LEN];
     const unsigned long long spec_length =
         (EMBED_CALL(cli_id_parts, ExecutablesAdviceCtx, .id = args->id, .script = spec) != NULL)

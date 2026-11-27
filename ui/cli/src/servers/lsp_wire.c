@@ -455,8 +455,9 @@ int cli_lsp_path_get(const CliLspLengthUriCfg *args)
         if ((args->uri[at] == '%') && (at + 3ULL <= args->length))
         {
             // two hex digits, or a + and one, as Rust's u8 reading in base 16 takes them
-            const unsigned int high =
-                (args->uri[at + 1ULL] == '+') ? 0u : EMBED_CALL(wire_hex, LspWireCtx, .character = args->uri[at + 1ULL]);
+            const unsigned int high = (args->uri[at + 1ULL] == '+')
+                                          ? 0u
+                                          : EMBED_CALL(wire_hex, LspWireCtx, .character = args->uri[at + 1ULL]);
             const unsigned int low = EMBED_CALL(wire_hex, LspWireCtx, .character = args->uri[at + 2ULL]);
             if ((high < 16u) && (low < 16u))
             {
@@ -493,9 +494,10 @@ void cli_lsp_key_get(const CliLspLengthCfg *args)
     const unsigned long long key_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_POOL_BYTES});
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->key, .size = key_size, .from = '\\',
                .to = '/');
-#if defined(_WIN32)
-    EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->key, .size = key_size);
-#endif
+    if (g_cli_system_facts.case_folded)
+    {
+        EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->key, .size = key_size);
+    }
 }
 
 int cli_lsp_string(const CliLspCapacityCfg *args)
@@ -513,7 +515,7 @@ int cli_lsp_string(const CliLspCapacityCfg *args)
                    .text = args->text, .size = args->length, .tokens = token, .tokens_max = 1u, .err_msg = &unread);
     unsigned long long size = 0ULL;
     const char *const characters = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                           .json_read = &json, .node = root, .length_pointer = &size);
+                                              .json_read = &json, .node = root, .length_pointer = &size);
     if ((characters == NULL) || (size >= args->capacity))
     {
         return 0;

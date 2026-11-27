@@ -18,13 +18,6 @@
 #define CLI_SERVERS_FOUND_CAPACITY (1ULL << 20u)
 #define CLI_SERVERS_OPTIONS_CAPACITY (1ULL << 20u)
 
-// what parts the folders of a PATH
-#if defined(_WIN32)
-#define CLI_SERVERS_PATH_PARTS ';'
-#else
-#define CLI_SERVERS_PATH_PARTS ':'
-#endif
-
 // where what each server sends unprompted goes, a place for each server started, taken in turn
 static CliServersSink s_server_sinks[64];
 static unsigned int s_server_sink_next;
@@ -280,7 +273,7 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
             vs_path = g_cli_guard->temporary_buf_alloc(joined_size, g_cli_servers_launch_owner);
             VerbaLinea joined = mmgr_line_over(vs_path, joined_size);
             mmgr_line_put(&joined, vs->value[at]);
-            mmgr_line_ch(&joined, CLI_SERVERS_PATH_PARTS);
+            mmgr_line_ch(&joined, g_cli_system_facts.list_separator);
             mmgr_line_put(&joined, launching->path);
             setting[0].value = (mmgr_line_finish(&joined) != 0ULL) ? vs_path : launching->path;
             continue;

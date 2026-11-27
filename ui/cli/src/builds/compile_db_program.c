@@ -57,9 +57,10 @@ EMBED_INLINE void cli_same(const CompileDbProgramCtx *args)
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->out, .cap = CLI_POOL_BYTES});
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->out, .size = length, .from = '\\',
                .to = '/');
-#if defined(_WIN32)
-    EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->out, .size = length);
-#endif
+    if (g_cli_system_facts.case_folded)
+    {
+        EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->out, .size = length);
+    }
 }
 
 // whether a path is alone, not under a folder

@@ -11,6 +11,8 @@
 #endif
 #include "../../../cli/src/command_line/callback_cfg.h"
 #include "../query_internal.h"
+#include "../query_loops.h"
+#include "../tools/tools_internal.h"
 
 #if !defined(_WIN32)
 #include "../../../cli/src/text/text.h"
@@ -436,6 +438,42 @@ void query_terminal_write(const QueryErrorsCtx *args)
         // a write that put bytes put a positive count
         put += (unsigned long long)wrote;
     }
+}
+
+// the words every program's link ends with: the threads and the loader, which the platform calls
+const char *const g_query_mmgr_link[] = {"-lpthread", "-ldl", NULL};
+
+void query_nvcc_host(const QueryNvccCtx *args)
+{
+    // nvcc takes the system's own host compiler
+    (void)args;
+}
+
+unsigned int query_engine_objects(const QueryNvccCtx *args)
+{
+    // the engine is a library, and its link names no object of its own
+    *args->text = NULL;
+    return 0u;
+}
+
+// the engine's library linked in, which the program finds at run time in the engine's folder
+void query_engine_link(const QueryNvccCtx *args)
+{
+    char library[QUERY_PATH_MAX_LEN + 2u];
+    VerbaLinea library_line = {library, sizeof(library), 0ULL};
+    mmgr_line_put(&library_line, "-L");
+    mmgr_line_put(&library_line, args->engine);
+    mmgr_line_finish(&library_line);
+    static const char *const s_after[5] = {"-lcell_tracking_engine", "-Xlinker", "-rpath", "-Xlinker", NULL};
+    EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg, .words_words_pointer = args->words,
+               .text = library);
+    for (unsigned int at = 0u; s_after[at] != NULL; at += 1u)
+    {
+        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = args->words,
+                   .word_text = s_after[at]);
+    }
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = args->words,
+               .word_text = args->engine);
 }
 
 #endif

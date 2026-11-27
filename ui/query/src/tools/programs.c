@@ -13,13 +13,10 @@ typedef struct
     char found[QUERY_PATH_MAX_LEN];
     unsigned int depth;
 } QueryClWalk;
-#if defined(_WIN32)
-#define QUERY_PATH_SEPARATOR ';'
-#define QUERY_FOLDER_SEPARATOR '\\'
-#else
-#define QUERY_PATH_SEPARATOR ':'
-#define QUERY_FOLDER_SEPARATOR '/'
-#endif
+
+// the byte between the folders of a PATH, and the byte between a path's parts, on this system
+#define QUERY_PATH_SEPARATOR (g_cli_system_facts.list_separator)
+#define QUERY_FOLDER_SEPARATOR (g_cli_system_facts.path_separator)
 
 // the longest PATH the query reads
 #define QUERY_RUN_PATH_MAX_LEN 32768u
@@ -44,7 +41,8 @@ typedef struct
     QueryClWalk *walk;
     unsigned int depth;
 } ProgramsCtx;
-// `name` as a program in `folder`, with `.exe` on Windows, where it is there, written into `path`: 1, or 0
+// `name` as a program in `folder`, as named or with the ending a program's name takes on this system, where it is
+// there, written into `path`: 1, or 0
 EMBED_INLINE int query_in_folder(const ProgramsCtx *args)
 {
     char *path = args->path;
@@ -57,17 +55,17 @@ EMBED_INLINE int query_in_folder(const ProgramsCtx *args)
     {
         return 1;
     }
-#if defined(_WIN32)
+    if (g_cli_system_facts.program_end[0] == '\0')
+    {
+        return 0;
+    }
     line.at = 0ULL;
     mmgr_line_put_n(&line, args->folder, args->folder_length);
     mmgr_line_ch(&line, QUERY_FOLDER_SEPARATOR);
     mmgr_line_put(&line, args->name);
-    mmgr_line_put(&line, ".exe");
+    mmgr_line_put(&line, g_cli_system_facts.program_end);
     return (mmgr_line_finish(&line) != 0ULL) &&
            EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path);
-#else
-    return 0;
-#endif
 }
 
 static const char *query_run_path_read(void *context)
@@ -214,11 +212,10 @@ static int query_on_path_program(const QueryEachRolePathCapacityErrMsgCfg *args)
     size_t capacity = args->capacity;
     static const char *const s_c[3] = {"cc", "gcc", "clang"};
     static const char *const s_cxx[3] = {"c++", "g++", "clang++"};
-#if defined(_WIN32)
-    static const char *const s_python[2] = {"python", "python3"};
-#else
-    static const char *const s_python[2] = {"python3", "python"};
-#endif
+    // Python 3's own name on this system first, then the other
+    const int named_python =
+        cellul.eq(&(CatenaFinitaCfg){.src = g_cli_system_facts.python_name, .other = "python", .cap = CLI_POOL_BYTES});
+    const char *const pythons[2] = {g_cli_system_facts.python_name, named_python ? "python3" : "python"};
     static const char *const s_alone[QUERY_ROLE_COUNT] = {NULL, NULL,         "nvcc",   NULL,   NULL, "cl",
                                                           NULL, "nvidia-smi", "docker", "curl", "tar"};
     int found = 0;
@@ -234,7 +231,7 @@ static int query_on_path_program(const QueryEachRolePathCapacityErrMsgCfg *args)
     }
     else if (role == QUERY_ROLE_PYTHON)
     {
-        found = EMBED_CALL(query_on_path_find, ProgramsCtx, .names = s_python, .count = 2u, .path = path,
+        found = EMBED_CALL(query_on_path_find, ProgramsCtx, .names = pythons, .count = 2u, .path = path,
                            .capacity = capacity);
     }
     else if ((role == QUERY_ROLE_NVDISASM) || (role == QUERY_ROLE_CUOBJDUMP))

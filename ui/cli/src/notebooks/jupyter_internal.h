@@ -20,6 +20,7 @@ typedef struct CliJupyterKernelParentCtx CliJupyterKernelParentCtx;
 typedef struct CliJupyterSpecCtx CliJupyterSpecCtx;
 typedef struct CliJupyterCtx CliJupyterCtx;
 typedef struct CliJupyterKeyCtx CliJupyterKeyCtx;
+typedef struct CliJupyterSystemCtx CliJupyterSystemCtx;
 
 // the max requests that wait on replies at once, the bytes a reader of published messages and a reader of replies
 // each contains, half for the frames read and half for the message written, the longest line a kernel writes of itself,
@@ -133,6 +134,24 @@ const char *cli_kernel_text(const CliJupyterSpecCtx *args);
 unsigned int cli_kernel_pythons(const CliJupyterPythonsCtx *args);
 unsigned int cli_kernel_data_folders(const CliJupyterPythonsPythonCountCtx *args);
 int cli_kernel_has_ipykernel(const CliJupyterCtx *args);
+// `name` joined under `folder` into the next of `folders` from `count`, where the list has room: the count after
+unsigned int cli_kernel_folder_append(const CliJupyterSystemCtx *args);
+
+// What each system answers of a kernel (windows_jupyter.c, posix_jupyter.c). First the folders Jupyter keeps the
+// reader's own data in, then the ones it keeps every reader's data in. Each goes after `folders` from `count`, and
+// the result is the count after. Then how a process that ended reports its `code`, as Rust writes an exit status,
+// after `err_msg`. Then the path of an environment's python from the environment's folder
+unsigned int cli_jupyter_reader_folders(const CliJupyterSystemCtx *args);
+unsigned int cli_jupyter_shared_folders(const CliJupyterSystemCtx *args);
+void cli_jupyter_status(const CliJupyterSystemCtx *args);
+const char *cli_jupyter_env_python(void);
+
+// The event that interrupts the `kernel`, made where the system interrupts a kernel by one. Its setting goes after the
+// kernel's settings from `count`, and the result is the count after. Then the kernel's own children ended before it,
+// where they outlive it. Then the kernel interrupted: 1, or 0 with why (windows_jupyter.c, posix_jupyter.c)
+unsigned int cli_jupyter_interrupt_setting(const CliJupyterSystemCtx *args);
+void cli_jupyter_children_end(const CliJupyterSystemCtx *args);
+int cli_jupyter_kernel_interrupt(const CliJupyterSystemCtx *args);
 
 // the reader `at` of the kernel's started on a thread of its own, counted while it reads (jupyter_readers.c)
 void cli_kernel_reader_start(const CliJupyterAtCtx *args);
@@ -225,6 +244,41 @@ struct CliJupyterCtx
 struct CliJupyterKeyCtx
 {
     char *key;
+};
+
+struct CliJupyterSystemCtx
+{
+    char (*folders)[CLI_PATH_MAX_LEN];
+    unsigned int count;
+    const char *folder;
+    const char *name;
+    VerbaLinea *err_msg;
+    long long code;
+    CliKernel *kernel;
+};
+
+typedef struct
+{
+    unsigned int (*reader_folders)(const CliJupyterSystemCtx *args);
+    unsigned int (*shared_folders)(const CliJupyterSystemCtx *args);
+    void (*status)(const CliJupyterSystemCtx *args);
+    const char *(*env_python)(void);
+    unsigned int (*interrupt_setting)(const CliJupyterSystemCtx *args);
+    void (*children_end)(const CliJupyterSystemCtx *args);
+    int (*interrupt)(const CliJupyterSystemCtx *args);
+    unsigned int (*folder_append)(const CliJupyterSystemCtx *args);
+} CliJupyterSystemNs;
+EMBED_TABLE_LAYOUT(CliJupyterSystemNs, reader_folders, shared_folders, status, env_python, interrupt_setting,
+                   children_end, interrupt, folder_append);
+EMBED_TABLE_STORAGE CliJupyterSystemNs cli_jupyter_system EMBED_UNUSED = {
+    .reader_folders = cli_jupyter_reader_folders,
+    .shared_folders = cli_jupyter_shared_folders,
+    .status = cli_jupyter_status,
+    .env_python = cli_jupyter_env_python,
+    .interrupt_setting = cli_jupyter_interrupt_setting,
+    .children_end = cli_jupyter_children_end,
+    .interrupt = cli_jupyter_kernel_interrupt,
+    .folder_append = cli_kernel_folder_append,
 };
 
 typedef struct

@@ -101,12 +101,11 @@ EMBED_INLINE int profile_line_each(const ToolchainsOwnCtx *args)
         mmgr_line_put(&named, home);
         mmgr_line_put(&named, s_profile_names[at]);
         mmgr_line_finish(&named);
-#if !defined(__APPLE__)
-        if (at == 1u)
+        // ~/.zprofile only where zsh is the reader's shell unless they choose another
+        if ((at == 1u) && !g_cli_system_facts.zsh_default)
         {
             continue;
         }
-#endif
         const int there_file = EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path);
         if ((at >= 2u) && !there_file)
         {
@@ -185,7 +184,6 @@ EMBED_INLINE unsigned long long path_line_made(const ToolchainsOwnCtx *args)
     return mmgr_line_finish(args->out);
 }
 
-#if defined(_WIN32)
 // `folder` taken out of the reader's Path in the registry, each entry compared by its key, and every open program
 // notified it changed; a Path without the folder is left as it is
 EMBED_INLINE int registry_path_folder_cut(const ToolchainsOwnCtx *args)
@@ -201,18 +199,18 @@ EMBED_INLINE int registry_path_folder_cut(const ToolchainsOwnCtx *args)
     EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = args->folder, .key = wanted);
     VerbaLinea next = {s_next, sizeof(s_next), 0ULL};
     int cut = 0;
-    const char *from = s_now;
-    for (const char *place = s_now;; place += 1)
+    const char parting[2] = {g_cli_system_facts.list_separator, '\0'};
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_now, .cap = CLI_POOL_BYTES});
+    for (unsigned long long from = 0ULL; from <= size;)
     {
-        if ((place[0] != ';') && (place[0] != '\0'))
-        {
-            continue;
-        }
+        // each entry of the Path, to the next separator or to the Path's end
+        const unsigned long long place = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                    .text = s_now, .at = from, .size = size, .set = parting);
         char entry[CLI_PATH_MAX_LEN];
-        const unsigned long long length = (unsigned long long)(place - from);
+        const unsigned long long length = place - from;
         if ((length > 0ULL) && (length < sizeof(entry)))
         {
-            memor.cpy(&(MemoriaCfg){.dst = entry, .src = from, .bytes = length});
+            memor.cpy(&(MemoriaCfg){.dst = entry, .src = s_now + from, .bytes = length});
             entry[length] = '\0';
             char key[CLI_PATH_MAX_LEN];
             EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = entry, .key = key);
@@ -224,16 +222,12 @@ EMBED_INLINE int registry_path_folder_cut(const ToolchainsOwnCtx *args)
             {
                 if (next.at != 0ULL)
                 {
-                    mmgr_line_ch(&next, ';');
+                    mmgr_line_ch(&next, g_cli_system_facts.list_separator);
                 }
-                mmgr_line_put_n(&next, from, length);
+                mmgr_line_put_n(&next, s_now + from, length);
             }
         }
-        from = place + 1;
-        if (place[0] == '\0')
-        {
-            break;
-        }
+        from = place + 1ULL;
     }
     (void)mmgr_line_finish(&next);
     if (cut && !EMBED_CALL(cli_err_msg_name_internal.registry_set_user_value, CliErrMsgNameCtx, .name = "Path",
@@ -247,15 +241,22 @@ EMBED_INLINE int registry_path_folder_cut(const ToolchainsOwnCtx *args)
     }
     return 1;
 }
-#endif
 
-// A folder added to the reader's own PATH: on Windows the reader's Path in the registry, stored as text whose variables
-// expand, and every open program notified it changed; elsewhere a line at the end of the reader's shell profiles
+// A folder added to the reader's own PATH. Where the reader's shell profiles hold the PATH, the folder goes in a line
+// at the end of each. Else it goes in the reader's Path in the registry, as text whose variables expand, and every open
+// program learns of the change
 EMBED_INLINE int cli_add_folder(const ToolchainsOwnCtx *args)
 {
     const char *folder = args->folder;
     VerbaLinea *err_msg = args->err_msg;
-#if defined(_WIN32)
+    if (g_cli_system_facts.path_in_profiles)
+    {
+        char line[CLI_PATH_MAX_LEN * 2u];
+        VerbaLinea made = {line, sizeof(line), 0ULL};
+        const unsigned long long length = EMBED_CALL(path_line_made, ToolchainsOwnCtx, .folder = folder, .out = &made);
+        return EMBED_CALL(profile_line_each, ToolchainsOwnCtx, .line = line, .length = length, .remove = 0,
+                          .err_msg = err_msg);
+    }
     static char s_now[CLI_PATH_TEXT];
     static char s_next[CLI_PATH_TEXT];
     if (!EMBED_CALL(cli_out_capacity_internal.registry_user_value, CliOutCapacityCtx, .name = "Path", .out = s_now,
@@ -274,13 +275,6 @@ EMBED_INLINE int cli_add_folder(const ToolchainsOwnCtx *args)
         cli_registry_announce();
     }
     return 1;
-#else
-    char line[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea made = {line, sizeof(line), 0ULL};
-    const unsigned long long length = EMBED_CALL(path_line_made, ToolchainsOwnCtx, .folder = folder, .out = &made);
-    return EMBED_CALL(profile_line_each, ToolchainsOwnCtx, .line = line, .length = length, .remove = 0,
-                      .err_msg = err_msg);
-#endif
 }
 
 int cli_toolchains_add_to_path(const CliToolchainsErrMsgFolderCfg *args)
@@ -340,16 +334,16 @@ int cli_toolchains_path_folder_add(const CliToolchainsErrMsgFolderCfg *args)
 
 int cli_toolchains_path_folder_remove(const CliToolchainsErrMsgFolderCfg *args)
 {
-#if defined(_WIN32)
-    return EMBED_CALL(registry_path_folder_cut, ToolchainsOwnCtx, .folder = args->folder, .err_msg = args->err_msg);
-#else
+    if (!g_cli_system_facts.path_in_profiles)
+    {
+        return EMBED_CALL(registry_path_folder_cut, ToolchainsOwnCtx, .folder = args->folder, .err_msg = args->err_msg);
+    }
     char line[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea made = {line, sizeof(line), 0ULL};
     const unsigned long long length =
         EMBED_CALL(path_line_made, ToolchainsOwnCtx, .folder = args->folder, .out = &made);
     return EMBED_CALL(profile_line_each, ToolchainsOwnCtx, .line = line, .length = length, .remove = 1,
                       .err_msg = args->err_msg);
-#endif
 }
 
 int cli_toolchains_profile_line_add(const CliToolchainsErrMsgFolderCfg *args)

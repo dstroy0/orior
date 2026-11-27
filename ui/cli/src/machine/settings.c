@@ -39,13 +39,7 @@ static const char *const s_systems[3] = {"windows", "linux", "macos"};
 
 const char *cli_settings_system(void)
 {
-#if defined(_WIN32)
-    return "windows";
-#elif defined(__APPLE__)
-    return "macos";
-#else
-    return "linux";
-#endif
+    return g_cli_system_facts.system_name;
 }
 
 int cli_settings_type_get(const CliSettingsKeyCtx *args)
@@ -90,13 +84,8 @@ int cli_settings_tree_scope(const CliSettingsKeyCtx *args)
 
 void cli_settings_home(const CliSettingsCtx *args)
 {
-#if defined(_WIN32)
-    static const char s_home[] = "USERPROFILE";
-#else
-    static const char s_home[] = "HOME";
-#endif
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = s_home,
-                    .value_out = args->out, .capacity = CLI_PATH_MAX_LEN))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx,
+                    .name = g_cli_system_facts.home_variable, .value_out = args->out, .capacity = CLI_PATH_MAX_LEN))
     {
         args->out[0] = '\0';
     }

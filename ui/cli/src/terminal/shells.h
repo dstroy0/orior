@@ -16,6 +16,7 @@
 #include "xterm.h"
 
 typedef struct CliTerminalShellCfg CliTerminalShellCfg;
+typedef struct CliTerminalShellSystemCtx CliTerminalShellSystemCtx;
 
 // how long a shell starting is quiet before the text typed while it started goes to it; how long a shell hung up on
 // goes on before it is killed; how often a running shell's pipe is looked at; how long an ended shell's pipe is quiet
@@ -72,6 +73,18 @@ void cli_terminal_shell_end(const CliTerminalShellCfg *args);
 int cli_terminal_shell_drain(const CliTerminalShellCfg *args);
 // the clock's reading the shell is next drained at, `now_ms` and CLI_TERMINAL_LOOK_MS on while it runs; 0 for none
 unsigned long long cli_terminal_shell_next_ms(const CliTerminalShellCfg *args);
+// The shell this system offers, where ORIOR_SHELL names none (platform/windows_shells.c, platform/posix_shells.c). Its
+// program goes into `program`, sized for CLI_PATH_MAX_LEN, and `words[0]` already names that buffer. The words after
+// the program go into `words` from 1, and any setting it starts with goes after the `*setting_count` settings
+void cli_terminal_shell_system(const CliTerminalShellSystemCtx *args);
+struct CliTerminalShellSystemCtx
+{
+    const char **words;
+    char *program;
+    CliSetting *settings;
+    unsigned int *setting_count;
+};
+
 struct CliTerminalShellCfg
 {
     CliTerminalShell *shell;
@@ -101,6 +114,15 @@ EMBED_TABLE_STORAGE CliTerminalShellNs cli_terminal_shell EMBED_UNUSED = {
     .end = cli_terminal_shell_end,
     .drain = cli_terminal_shell_drain,
     .next_ms = cli_terminal_shell_next_ms,
+};
+
+typedef struct
+{
+    void (*system)(const CliTerminalShellSystemCtx *args);
+} CliTerminalShellSystemNs;
+EMBED_TABLE_LAYOUT(CliTerminalShellSystemNs, system);
+EMBED_TABLE_STORAGE CliTerminalShellSystemNs cli_terminal_shell_system_table EMBED_UNUSED = {
+    .system = cli_terminal_shell_system,
 };
 
 #endif

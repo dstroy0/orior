@@ -1,51 +1,20 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// compile_db_vs.c: Visual Studio's environment, as its vcvars64.bat sets it, read once for a program that runs as cl
-// does
+// windows_compile_db.c: Visual Studio's environment, as its vcvars64.bat sets it, read once for a program that runs as
+// cl does
+#include "../builds/compile_db_internal.h"
 #include "../text/text.h"
-#include "compile_db_internal.h"
-
-typedef struct
-{
-#if (defined(_WIN32))
-    char character;
-    const char *name;
-#endif
-} CompileDbVsCtx;
 
 #if defined(_WIN32)
-// whether a character is whitespace as a line is read
-EMBED_INLINE int cli_white(const CompileDbVsCtx *args)
-{
-    return (args->character == ' ') || ((args->character >= '\t') && (args->character <= '\r'));
-}
 
-// whether a variable's name is INCLUDE, ASCII's case aside
-EMBED_INLINE int cli_name_include(const CompileDbVsCtx *args)
-{
-    static const char s_include[8] = "include";
-    for (unsigned int at = 0u; at < 7u; at += 1u)
-    {
-        const char character =
-            ((args->name[at] >= 'A') && (args->name[at] <= 'Z')) ? (char)(args->name[at] + 32) : args->name[at];
-        if (character != s_include[at])
-        {
-            return 0;
-        }
-    }
-    return args->name[7] == '\0';
-}
-#endif
-
-// Visual Studio's environment once read, and whether it has been
+// Visual Studio's environment as the one read takes it, whether the read ran, and whether it found one
 static CliVsEnvironment s_vs;
 static int s_vs_read;
 static int s_vs_found;
 
-// Visual Studio's environment read from vcvars64.bat: 1, or 0 where none is found
+// Visual Studio's environment read from vcvars64.bat: 1, or 0 where the machine has none
 static int cli_vs_read(void)
 {
-#if defined(_WIN32)
     char base[CLI_PATH_MAX_LEN];
     char vswhere[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ProgramFiles(x86)",
@@ -68,16 +37,14 @@ static int cli_vs_read(void)
         EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
-    unsigned long long from = 0ULL;
-    unsigned long long to = run_result->out_size;
-    while ((from < to) && EMBED_CALL(cli_white, CompileDbVsCtx, .character = run_result->out[from]))
-    {
-        from += 1ULL;
-    }
-    while ((to > from) && EMBED_CALL(cli_white, CompileDbVsCtx, .character = run_result->out[to - 1ULL]))
-    {
-        to -= 1ULL;
-    }
+    // the installation's path, the whitespace at either end left off
+    const unsigned long long from =
+        EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = run_result->out, .at = 0ULL,
+                   .size = run_result->out_size, .set = CLI_TEXT_WHITE);
+    const unsigned long long back =
+        EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = run_result->out,
+                   .at = run_result->out_size, .set = CLI_TEXT_WHITE);
+    const unsigned long long to = (back > from) ? back : from;
     char place[CLI_PATH_MAX_LEN];
     const unsigned long long length = ((to - from) < CLI_PATH_MAX_LEN) ? (to - from) : 0ULL;
     memor.cpy(&(MemoriaCfg){.dst = place, .src = run_result->out + from, .bytes = length});
@@ -139,13 +106,12 @@ static int cli_vs_read(void)
         s_vs.name[s_vs.count] = name;
         s_vs.value[s_vs.count] = value;
         s_vs.count += 1u;
-        include = include || EMBED_CALL(cli_name_include, CompileDbVsCtx, .name = name);
+        // the environment counts where it sets INCLUDE, in either case
+        include =
+            include || cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "include", .cap = CLI_POOL_BYTES, .ci = 1});
     }
     EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     return include;
-#else
-    return 0;
-#endif
 }
 
 const CliVsEnvironment *cli_compile_db_vs_environment(void)
@@ -157,3 +123,4 @@ const CliVsEnvironment *cli_compile_db_vs_environment(void)
     }
     return s_vs_found ? &s_vs : NULL;
 }
+#endif

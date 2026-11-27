@@ -126,25 +126,7 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
     memor.set(&(MemoriaCfg){.dst = &s_compile, .val = 0, .bytes = sizeof(s_compile)});
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_compile,
                .word_text = s_nvcc);
-#if defined(_WIN32)
-    char cl[QUERY_PATH_MAX_LEN];
-    char ignored_text[QUERY_LINE_MAX_LEN];
-    VerbaLinea ignored = {ignored_text, sizeof(ignored_text), 0ULL};
-    if (EMBED_CALL(programs->program, QueryEachRolePathCapacityErrMsgCfg, .context = programs->context,
-                   .role = QUERY_ROLE_CL, .path = cl, .capacity = sizeof(cl), .err_msg = &ignored) &&
-        (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = cl,
-                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_POOL_BYTES}),
-                    .byte = '\\') != NULL))
-    {
-        cl[EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = cl,
-                      .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_POOL_BYTES}), .byte = '\\') -
-           cl] = '\0';
-        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_compile,
-                   .word_text = "-ccbin");
-        EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg,
-                   .words_words_pointer = &s_compile, .text = cl);
-    }
-#endif
+    EMBED_CALL(query_nvcc_host, QueryNvccCtx, .words = &s_compile, .programs = programs);
     char arch[64];
     VerbaLinea arch_line = {arch, sizeof(arch), 0ULL};
     mmgr_line_put(&arch_line, "-arch=");
@@ -203,8 +185,8 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
                                 .architecture = reader, .folder = engine_out, .err_msg = err_msg);
     const char *const sliced[4] = {"slice", sass, tsv, engine_out};
     whole = whole && EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                                .context = context, .run = &s_run, .identity = args->identity, .words_characters = sliced,
-                                .count = 4u, .code = &code, .err_msg = err_msg);
+                                .context = context, .run = &s_run, .identity = args->identity,
+                                .words_characters = sliced, .count = 4u, .code = &code, .err_msg = err_msg);
     if (whole && (code != 0LL))
     {
         mmgr_line_put(err_msg, "the sides were not sliced");

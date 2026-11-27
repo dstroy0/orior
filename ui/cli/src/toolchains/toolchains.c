@@ -12,13 +12,7 @@
 
 const char *cli_toolchains_system(void)
 {
-#if defined(_WIN32)
-    return "windows";
-#elif defined(__APPLE__)
-    return "macos";
-#else
-    return "linux";
-#endif
+    return g_cli_system_facts.system_name;
 }
 
 typedef struct
@@ -175,22 +169,15 @@ unsigned int cli_toolchains_for_system(const CliToolchainsJsonMapCfg *args)
 
 int cli_toolchains_program_in(const CliToolchainsDirCfg *args)
 {
-#if defined(_WIN32)
-    static const char *const s_extensions[3] = {".exe", ".cmd", ".bat"};
-    const unsigned int forms = 3u;
-#else
-    static const char *const s_extensions[1] = {""};
-    const unsigned int forms = 1u;
-#endif
     for (unsigned int name = 0u; name < args->count; name += 1u)
     {
-        for (unsigned int form = 0u; form < forms; form += 1u)
+        for (unsigned int form = 0u; form < g_cli_system_facts.program_end_count; form += 1u)
         {
             VerbaLinea line = {args->path, CLI_PATH_MAX_LEN, 0ULL};
             mmgr_line_put(&line, args->dir);
             mmgr_line_ch(&line, '/');
             mmgr_line_put(&line, args->names[name]);
-            mmgr_line_put(&line, s_extensions[form]);
+            mmgr_line_put(&line, g_cli_system_facts.program_ends[form]);
             if ((mmgr_line_finish(&line) != 0ULL) &&
                 EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->path))
             {
@@ -297,12 +284,13 @@ int cli_toolchains_matches(const CliToolchainsPatternCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = right,
                             .src = args->name,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_POOL_BYTES}) + 1u});
-#if defined(_WIN32)
-    EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = left,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = left, .cap = CLI_POOL_BYTES}));
-    EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = right,
-               .size = cellul.len(&(CatenaFinitaCfg){.src = right, .cap = CLI_POOL_BYTES}));
-#endif
+    if (g_cli_system_facts.case_folded)
+    {
+        EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = left,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = left, .cap = CLI_POOL_BYTES}));
+        EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = right,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = right, .cap = CLI_POOL_BYTES}));
+    }
     if (cellul.chr(&(CatenaFinitaCfg){.src = left, .cap = CLI_POOL_BYTES, .byte = '*'}) == NULL)
     {
         return cellul.eq(&(CatenaFinitaCfg){.src = left, .other = right, .cap = CLI_POOL_BYTES});
@@ -664,7 +652,10 @@ void cli_toolchains_key_get(const CliToolchainsDirKeyCfg *args)
     length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->key, .at = length,
                         .set = "\\/");
     args->key[length] = '\0';
-#if defined(_WIN32)
+    if (!g_cli_system_facts.case_folded)
+    {
+        return;
+    }
     unsigned int characters[CLI_PATH_MAX_LEN];
     const unsigned long long count =
         EMBED_CALL(regexp_text.characters, RegexpTextCfg, .text = args->key, .size = length, .characters = characters,
@@ -676,5 +667,4 @@ void cli_toolchains_key_get(const CliToolchainsDirKeyCfg *args)
                    .character = EMBED_CALL(regexp_character.lower, RegexpLetterCfg, .character = characters[at]));
     }
     mmgr_line_finish(&line);
-#endif
 }
