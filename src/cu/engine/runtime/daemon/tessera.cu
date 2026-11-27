@@ -6,9 +6,13 @@
 #include "../../../../platform/platform.h"
 #include "memoria_operor/memoria_operor.h"
 #include "tessera_device.h"
+#include "tessera_job.h"
 #include "tessera_ledger_core.h"
 
 #include <cuda_runtime.h>
+
+// the owner that the cells of the device's ledger in the pool of the device count to
+#define TESSERA_DEVICE_PLACE ((unsigned int)platform_place_g_engine_owner)
 
 // the calls from `first` made in order by one thread, each answered, until one the ledger's arrays cannot take:
 // `stopped` is that call, or `count` where every call was made
@@ -42,17 +46,18 @@ static int tessera_device_grow(void **items, unsigned long long *capacity, unsig
     {
         grown_capacity *= 2ULL;
     }
+    // the grown array, a persistent cell of the pool of the device that the device holds until it closes
     void *grown = NULL;
-    if (cudaMalloc(&grown, (size_t)grown_capacity * size) != cudaSuccess)
+    if (!tessera_job_persistent_taken(grown_capacity * size, TESSERA_DEVICE_PLACE, &grown))
     {
         return 0;
     }
-    if ((count != 0ULL) && (cudaMemcpy(grown, *items, (size_t)count * size, cudaMemcpyDeviceToDevice) != cudaSuccess))
+    if (!tessera_job_copied(grown, *items, count * size))
     {
-        cudaFree(grown);
+        tessera_job_given(grown, TESSERA_DEVICE_PLACE);
         return 0;
     }
-    cudaFree(*items);
+    tessera_job_given(*items, TESSERA_DEVICE_PLACE);
     *items = grown;
     *capacity = grown_capacity;
     return 1;
@@ -83,8 +88,8 @@ int tessera_device_open(TesseraDevice *device, unsigned long long capacity)
                             sizeof(TesseraHistory)) &&
         tessera_device_grow((void **)&host_ledger->heap, &host_ledger->heap_capacity, 0ULL, first_capacity,
                             sizeof(TesseraDeadline)) &&
-        (cudaMalloc((void **)&device->ledger, sizeof(TesseraLedger)) == cudaSuccess) &&
-        (cudaMemcpy(device->ledger, host_ledger, sizeof(TesseraLedger), cudaMemcpyHostToDevice) == cudaSuccess);
+        tessera_job_persistent_taken(sizeof(TesseraLedger), TESSERA_DEVICE_PLACE, (void **)&device->ledger) &&
+        tessera_job_crossed_into(device->ledger, host_ledger, sizeof(TesseraLedger));
     if (!ok)
     {
         tessera_device_close(device);
@@ -94,10 +99,10 @@ int tessera_device_open(TesseraDevice *device, unsigned long long capacity)
 
 void tessera_device_close(TesseraDevice *device)
 {
-    cudaFree(device->host_ledger.jobs);
-    cudaFree(device->host_ledger.history);
-    cudaFree(device->host_ledger.heap);
-    cudaFree(device->ledger);
+    tessera_job_given(device->ledger, TESSERA_DEVICE_PLACE);
+    tessera_job_given(device->host_ledger.heap, TESSERA_DEVICE_PLACE);
+    tessera_job_given(device->host_ledger.history, TESSERA_DEVICE_PLACE);
+    tessera_job_given(device->host_ledger.jobs, TESSERA_DEVICE_PLACE);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = device, .bytes = sizeof(*device), .val = 0);
 }
 
@@ -108,45 +113,43 @@ int tessera_device_calls(TesseraDevice *device, const TesseraCall *calls, unsign
     {
         return 1;
     }
-    TesseraCall *device_calls = NULL;
-    TesseraAnswer *device_answers = NULL;
-    unsigned long long *stopped = NULL;
-    int ok =
-        (cudaMalloc((void **)&device_calls, (size_t)count * sizeof(TesseraCall)) == cudaSuccess) &&
-        (cudaMalloc((void **)&device_answers, (size_t)count * sizeof(TesseraAnswer)) == cudaSuccess) &&
-        (cudaMalloc((void **)&stopped, sizeof(unsigned long long)) == cudaSuccess) &&
-        (cudaMemcpy(device_calls, calls, (size_t)count * sizeof(TesseraCall), cudaMemcpyHostToDevice) == cudaSuccess);
+    // The calls cross in. The answers and the call that stopped are temporary cells of the pool of the device. The call
+    // gives them back last first before it returns
+    TesseraJobCells cells;
+    tessera_job_cells_begun(&cells, TESSERA_DEVICE_PLACE);
+    void *cell[3] = {NULL, NULL, NULL};
+    int ok = tessera_job_cells_in(&cells, calls, count * sizeof(TesseraCall), &cell[0]) &&
+             tessera_job_cells_room(&cells, count * sizeof(TesseraAnswer), &cell[1]) &&
+             tessera_job_cells_room(&cells, sizeof(unsigned long long), &cell[2]);
+    // Explicit casts read each cell as the records that it holds
+    const TesseraCall *const device_calls = (const TesseraCall *)cell[0];
+    TesseraAnswer *const device_answers = (TesseraAnswer *)cell[1];
+    unsigned long long *const stopped = (unsigned long long *)cell[2];
     unsigned long long first = 0ULL;
     while (ok && (first < count))
     {
         tessera_device_run<<<1, 1>>>(device->ledger, device_calls, first, count, device_answers, stopped);
         unsigned long long reached = count;
-        ok = (cudaGetLastError() == cudaSuccess) &&
-             (cudaMemcpy(&reached, stopped, sizeof(reached), cudaMemcpyDeviceToHost) == cudaSuccess) &&
-             (cudaMemcpy(&device->host_ledger, device->ledger, sizeof(TesseraLedger), cudaMemcpyDeviceToHost) ==
-              cudaSuccess);
+        ok = (cudaGetLastError() == cudaSuccess) && tessera_job_crossed_out(&reached, stopped, sizeof(reached)) &&
+             tessera_job_crossed_out(&device->host_ledger, device->ledger, sizeof(TesseraLedger));
         if (ok && (reached < count))
         {
             // the call at `reached` could add more than the ledger's arrays contain: each is grown to the max it can
             // add, and the run goes on from that call, which the ledger then takes
             ok = tessera_device_reserve(&device->host_ledger, calls[reached].type) &&
-                 (cudaMemcpy(device->ledger, &device->host_ledger, sizeof(TesseraLedger), cudaMemcpyHostToDevice) ==
-                  cudaSuccess);
+                 tessera_job_crossed_into(device->ledger, &device->host_ledger, sizeof(TesseraLedger));
         }
         first = reached;
     }
-    ok = ok && (cudaMemcpy(answers, device_answers, (size_t)count * sizeof(TesseraAnswer), cudaMemcpyDeviceToHost) ==
-                cudaSuccess);
-    cudaFree(device_calls);
-    cudaFree(device_answers);
-    cudaFree(stopped);
+    ok = ok && tessera_job_crossed_out(answers, device_answers, count * sizeof(TesseraAnswer));
+    tessera_job_cells_given(&cells);
     return ok;
 }
 
 int tessera_device_read(const TesseraDevice *device, TesseraLedger *copy)
 {
     TesseraLedger host_ledger;
-    if (cudaMemcpy(&host_ledger, device->ledger, sizeof(host_ledger), cudaMemcpyDeviceToHost) != cudaSuccess)
+    if (!tessera_job_crossed_out(&host_ledger, device->ledger, sizeof(host_ledger)))
     {
         EMBED_CALL(memor.set, MemoriaCfg, .dst = copy, .bytes = sizeof(*copy), .val = 0);
         return 0;
@@ -164,12 +167,10 @@ int tessera_device_read(const TesseraDevice *device, TesseraLedger *copy)
                                                         platform_place_g_program_owner, 0);
     const int read =
         (copy->jobs != NULL) && (copy->history != NULL) && (copy->heap != NULL) &&
-        (cudaMemcpy(copy->jobs, host_ledger.jobs, (size_t)host_ledger.job_count * sizeof(TesseraJob),
-                    cudaMemcpyDeviceToHost) == cudaSuccess) &&
-        (cudaMemcpy(copy->history, host_ledger.history, (size_t)host_ledger.history_count * sizeof(TesseraHistory),
-                    cudaMemcpyDeviceToHost) == cudaSuccess) &&
-        (cudaMemcpy(copy->heap, host_ledger.heap, (size_t)host_ledger.heap_count * sizeof(TesseraDeadline),
-                    cudaMemcpyDeviceToHost) == cudaSuccess);
+        tessera_job_crossed_out(copy->jobs, host_ledger.jobs, host_ledger.job_count * sizeof(TesseraJob)) &&
+        tessera_job_crossed_out(copy->history, host_ledger.history,
+                                host_ledger.history_count * sizeof(TesseraHistory)) &&
+        tessera_job_crossed_out(copy->heap, host_ledger.heap, host_ledger.heap_count * sizeof(TesseraDeadline));
     if (!read)
     {
         platform_cell_released(copy->jobs, platform_place_g_program_owner);
