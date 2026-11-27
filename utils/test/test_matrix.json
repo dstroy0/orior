@@ -1085,6 +1085,18 @@
         "src/cu/engine/nbody/box_history"
       ]
     },
+    "raster_device": {
+      "desc": "The device arm of the renderer against the host arm. A seeded corpus with a period, a needle and two probes render each layout, channel and reduce rule as a sheet and as a volume of two sizes, on the device and on the host. The device answers each case as the host does, its bytes equal the bytes of the host, and all its bytes equal the signum of the device path.",
+      "script": "utils/test/src/cu/engine/render/raster_device_test.sh",
+      "src": [
+        "+<cu/engine/render/*>",
+        "+<cu/engine/runtime/daemon/tessera_job.*>",
+        "+<platform/platform_device.*>"
+      ],
+      "tests": [
+        "src/cu/engine/render"
+      ]
+    },
     "marginal_paths": {
       "desc": "The path of the marginals on the device, with the engine linked into the program. Seeded questions of sources and options run through marginal_run and through marginal_run_host. The sums of the device equal the sums of the host, are not 0, and equal the signum of the device path.",
       "script": "utils/test/src/cu/engine/nbody/marginal/marginal_paths_test.sh",
