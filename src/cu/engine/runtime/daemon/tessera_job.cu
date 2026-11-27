@@ -16,17 +16,17 @@
 // the cell that the last take on the device gave, which the host reads back after the kernel of the take ends
 static __device__ void *s_job_cell;
 
-// One thread: the pool placed, and a cell of `count` bytes taken, cleared where `cleared` is not 0. The cell is on the
-// temporary tier where `ephemeral` is not 0, and else on the persistent tier
-__global__ void tessera_job_taken_kernel(unsigned long long count, unsigned int place, int cleared, int ephemeral)
+// One thread: the pool placed, and a cell of `count` bytes taken. The cell is on the temporary tier where `ephemeral`
+// is not 0, and else on the persistent tier. The grid of tessera_job_cleared clears a cell that the take asks clear,
+// as one thread clears its bytes too slowly
+__global__ void tessera_job_taken_kernel(unsigned long long count, unsigned int place, int ephemeral)
 {
     if (platform_device_open() == 0)
     {
         s_job_cell = NULL;
         return;
     }
-    s_job_cell = (cleared != 0) ? platform_device_cell_cleared(count, place, ephemeral)
-                                : platform_device_cell_taken(count, place, ephemeral);
+    s_job_cell = platform_device_cell_taken(count, place, ephemeral);
 }
 
 // The grid: each of the `count` bytes of `from` copied into `into`
@@ -55,8 +55,8 @@ __global__ void tessera_job_given_kernel(void *cell, unsigned int place)
     platform_device_cell_released(cell, place);
 }
 
-// A cell of `count` bytes taken on the device, its address read back into `*cell`. 1, or 0 where the pool refuses the
-// bytes or the kernel errors
+// A cell of `count` bytes taken on the device, its address read back into `*cell`, and every byte cleared where
+// `cleared` is not 0. 1, or 0 where the pool refuses the bytes or a kernel errors
 static int tessera_job_taken(unsigned long long count, unsigned int place, int cleared, int ephemeral, void **cell)
 {
     *cell = NULL;
@@ -64,14 +64,15 @@ static int tessera_job_taken(unsigned long long count, unsigned int place, int c
     {
         return 0;
     }
-    tessera_job_taken_kernel<<<1, 1>>>(count, place, cleared, ephemeral);
+    tessera_job_taken_kernel<<<1, 1>>>(count, place, ephemeral);
     if ((cudaGetLastError() != cudaSuccess) || (cudaDeviceSynchronize() != cudaSuccess) ||
         (cudaMemcpyFromSymbol(cell, s_job_cell, sizeof(*cell)) != cudaSuccess))
     {
         *cell = NULL;
         return 0;
     }
-    return (*cell != NULL) || (count == 0ULL);
+    const int taken = (*cell != NULL) || (count == 0ULL);
+    return taken && ((cleared == 0) || (*cell == NULL) || tessera_job_cleared(*cell, count));
 }
 
 extern "C" int tessera_job_crossed_in(const void *bytes, unsigned long long count, unsigned int place, void **cell)
