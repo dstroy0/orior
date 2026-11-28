@@ -479,7 +479,6 @@ src/cu/transpiler/lstar/protocol/table_text.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/class.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/elf64_nvidia.tsv	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/mnemonic_nvidia.tsv	1
-src/cu/transpiler/vendor_bin_layouts/nvidia/sass_listing_seeds.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.h	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/tokens.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c	1
