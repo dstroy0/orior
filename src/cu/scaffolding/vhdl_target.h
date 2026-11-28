@@ -3,10 +3,12 @@
 #ifndef VHDL_TARGET_H
 #define VHDL_TARGET_H
 
-// The lane as VHDL-2008, a language of the register lane (code_generator.h): its ruleset is vhdl.krs, GHDL analyzes and
-// runs it, and its opening lines are the ruleset's own lane_open; the header it is given is empty. The lane is a
-// clocked process, and its text is always split into states: program() splits it only where the lane itself must be
-// split, at each error and each return, and scheduled() splits it by a target's construction set as well
+// The lane as VHDL-2008, a language of the register lane (code_generator.h). Its ruleset is vhdl.krs, and GHDL analyzes
+// and runs it. Its opening lines are the own lane_open of the ruleset, and the header that it gets is empty.
+//
+// The lane is a clocked process, and its text always splits into states. The call program() splits it only where the
+// lane itself needs a split, at each error and each return. The call scheduled() also splits it by the construction set
+// of a target
 
 #include "../engine/rmc/code_generator.h"
 
