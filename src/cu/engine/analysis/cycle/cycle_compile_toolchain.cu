@@ -61,7 +61,7 @@ int cycle_compiler_ready(void)
         mmgr_line_put(&buffer_line, "0_0.dll");
         (void)mmgr_line_finish(&buffer_line);
     }
-    // a module handle is stored as a plain pointer beside the Linux one
+    // the call stores a module handle as a plain pointer, beside the Linux one
     void *const library = (void *)LoadLibraryA(name);
 #else
     {
@@ -131,7 +131,7 @@ int cycle_linker_ready(void)
         mmgr_line_put(&buffer_line, "0_0.dll");
         (void)mmgr_line_finish(&buffer_line);
     }
-    // a module handle is stored as a plain pointer beside the Linux one
+    // the call stores a module handle as a plain pointer, beside the Linux one
     void *const library = (void *)LoadLibraryA(name);
 #else
     {
@@ -189,7 +189,8 @@ static int cycle_folder_joined(char *folder, size_t bytes, const char *const *pa
     return (mmgr_line_finish(&line) != 0u) && (mmgr_line_ok(&line) != 0);
 }
 
-// the folder compiled programs are cached in across processes: $CYCLE_CACHE, else the user's cache, then cycle
+// the folder that holds the cache of compiled programs across processes: $CYCLE_CACHE, else the cache of the user,
+// then cycle
 int cycle_cache_folder(char *folder, size_t bytes)
 {
     char named[PLATFORM_ENVIRONMENT_BYTES];
@@ -234,15 +235,15 @@ unsigned long long cycle_source_hash(const char *source, unsigned long long leng
     unsigned long long hash = 0xCBF29CE484222325ULL;
     for (unsigned long long at = 0ULL; at < length; at += 1ULL)
     {
-        // a source byte is read as its unsigned value
+        // the call reads a source byte as its unsigned value
         hash = (hash ^ (unsigned long long)(unsigned char)source[at]) * 0x100000001B3ULL;
     }
     return hash;
 }
 
-// a source's file in the cache, the image built from it (a program's linked cubin, or an answer requested from NVRTC):
-// its source's FNV-1a in hex. The name need not be unique: a file is used only where the source it contains is this
-// source, byte for byte
+// the file of a source in the cache, the image built from it (the linked cubin of a program, or an answer requested
+// from NVRTC). Its name is the FNV-1a of its source in hex. The name need not be unique. The cache uses a file only
+// where the source that it holds is this source, byte for byte
 void cycle_cache_path(const char *folder, const char *source, unsigned long long length, char *path, size_t bytes)
 {
     VerbaLinea line = mmgr_line_over(path, bytes);
