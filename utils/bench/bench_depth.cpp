@@ -34,16 +34,15 @@
  *       size. A depth whose reading does not exceed that column is a sample, and not a measurement.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
+#include "bench_bound.h"
 #include "bench_load_limit.h"
 #include "bench_seed.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <vector>
 
 namespace
 {
@@ -65,14 +64,14 @@ const unsigned DEEPEST = 20u;
  * @note Rejection, and not a shuffle. The counts here are at most sixteen out of 256. Thus a repeat
  *       is rare, and the loop is cheaper than a permutation of the whole index set.
  */
-void flip_distinct_bits(Sha256State *state, std::mt19937 *generator, unsigned wanted)
+void flip_distinct_bits(Sha256State *state, TableDraw *generator, unsigned wanted)
 {
     unsigned chosen[256];
     unsigned placed = 0u;
 
     while (placed < wanted)
     {
-        const unsigned at = (*generator)() % 256u;
+        const unsigned at = table_draw_next(generator) % 256u;
         int already = 0;
         for (unsigned seen = 0u; seen < placed; seen += 1u)
         {
@@ -295,10 +294,10 @@ int main(int argc, char **argv)
     printf("  attempt here used independent arms and was guaranteed to null.\n");
     printf("\n  Pairs per depth: %u.\n", pairs);
 
-    printf("\n  %6s %10s %10s %10s %12s %12s %10s %10s\n", "rounds", "arm A", "arm B", "A with B", "joint R",
-                "bits", "per round", "control");
+    printf("\n  %6s %10s %10s %10s %12s %12s %10s %10s\n", "rounds", "arm A", "arm B", "A with B", "joint R", "bits",
+           "per round", "control");
     printf("  %6s %10s %10s %10s %12s %12s %10s %10s\n", "------", "----------", "----------", "----------",
-                "------------", "------------", "----------", "----------");
+           "------------", "------------", "----------", "----------");
 
     double best_efficiency = 0.0;
     unsigned best_depth = 0u;
@@ -310,7 +309,8 @@ int main(int argc, char **argv)
         Correlation a_with_b = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         Correlation control = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
-        std::mt19937 generator(bench_seed(20260908u) + rounds);
+        TableDraw generator;
+        table_draw_seeded(&generator, bench_seed(20260908u) + rounds);
 
         for (unsigned trial = 0u; trial < pairs; trial += 1u)
         {
@@ -320,11 +320,11 @@ int main(int argc, char **argv)
 
             for (unsigned slot = 0u; slot < SHA256_BLOCK_WORDS; slot += 1u)
             {
-                message[slot] = generator();
+                message[slot] = table_draw_next(&generator);
             }
             for (unsigned slot = 0u; slot < SHA256_STATE_WORDS; slot += 1u)
             {
-                left.word[slot] = generator();
+                left.word[slot] = table_draw_next(&generator);
                 right.word[slot] = left.word[slot];
             }
 
@@ -332,7 +332,7 @@ int main(int argc, char **argv)
             // word with the nonce does not reach the state until four rounds run. A difference there
             // would measure absence at every shallower depth. H34 exists to prevent that defect, and
             // the code avoids it here.
-            const unsigned flips = 1u + (generator() % 16u);
+            const unsigned flips = 1u + (table_draw_next(&generator) % 16u);
             flip_distinct_bits(&right, &generator, flips);
 
             unsigned input_distance = 0u;
@@ -344,8 +344,7 @@ int main(int argc, char **argv)
             {
                 // Distinct positions make this exact, a mismatch is a defect in the mutation
                 // instead of a pair to skip. Said out loud instead of silently dropped.
-                printf("  [!] asked for %u differing bits and got %u, the mutation is wrong\n", flips,
-                            input_distance);
+                printf("  [!] asked for %u differing bits and got %u, the mutation is wrong\n", flips, input_distance);
                 return 1;
             }
 
@@ -361,7 +360,7 @@ int main(int argc, char **argv)
             observe(&with_b, (double)input_distance, arm_b);
             observe(&a_with_b, arm_a, arm_b);
 
-            uint64_t state = ((uint64_t)input_distance << 32) ^ (uint64_t)generator();
+            uint64_t state = ((uint64_t)input_distance << 32) ^ (uint64_t)table_draw_next(&generator);
             state += 0x9e3779b97f4a7c15ull;
             uint64_t mixed = state;
             mixed = (mixed ^ (mixed >> 30)) * 0xbf58476d1ce4e5b9ull;
@@ -393,8 +392,8 @@ int main(int argc, char **argv)
             best_depth = rounds;
         }
 
-        printf("  %6u %10.4f %10.4f %10.4f %12.4f %12.6f %10.6f %10.4f\n", rounds, reading_a, reading_b, between,
-                    joint, bits, efficiency, reading_control);
+        printf("  %6u %10.4f %10.4f %10.4f %12.4f %12.6f %10.6f %10.4f\n", rounds, reading_a, reading_b, between, joint,
+               bits, efficiency, reading_control);
     }
 
     printf("\n  most efficient depth : %u rounds, at %.6f bits per round\n", best_depth, best_efficiency);
@@ -423,9 +422,9 @@ int main(int argc, char **argv)
     printf("  sixteen. Pooling them reports neither, and if any weight survives deeper than\n");
     printf("  the pooled curve says, the pooled curve was hiding it.\n");
     printf("\n  %10s %8s %8s %8s %8s %8s %8s %10s\n", "bits differ", "r=1", "r=2", "r=3", "r=4", "r=5", "r=6",
-                "dies at");
+           "dies at");
     printf("  %10s %8s %8s %8s %8s %8s %8s %10s\n", "-----------", "--------", "--------", "--------", "--------",
-                "--------", "--------", "----------");
+           "--------", "--------", "----------");
 
     for (unsigned band = 0u; band < STRATA; band += 1u)
     {
@@ -438,7 +437,8 @@ int main(int argc, char **argv)
         for (unsigned rounds = 1u; rounds <= STRATUM_DEEPEST; rounds += 1u)
         {
             Correlation joint_arm = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-            std::mt19937 generator(bench_seed(20260908u) + (rounds * 97u) + band);
+            TableDraw generator;
+            table_draw_seeded(&generator, bench_seed(20260908u) + (rounds * 97u) + band);
 
             for (unsigned trial = 0u; trial < pairs; trial += 1u)
             {
@@ -448,16 +448,16 @@ int main(int argc, char **argv)
 
                 for (unsigned slot = 0u; slot < SHA256_BLOCK_WORDS; slot += 1u)
                 {
-                    message[slot] = generator();
+                    message[slot] = table_draw_next(&generator);
                 }
                 for (unsigned slot = 0u; slot < SHA256_STATE_WORDS; slot += 1u)
                 {
-                    left.word[slot] = generator();
+                    left.word[slot] = table_draw_next(&generator);
                     right.word[slot] = left.word[slot];
                 }
 
                 const unsigned span = stratum_high[band] - stratum_low[band] + 1u;
-                const unsigned flips = stratum_low[band] + (generator() % span);
+                const unsigned flips = stratum_low[band] + (table_draw_next(&generator) % span);
                 flip_distinct_bits(&right, &generator, flips);
 
                 unsigned input_distance = 0u;
@@ -526,7 +526,7 @@ int main(int argc, char **argv)
         }
 
         printf("  %10s %8.1f %8.1f %8.1f %8.1f %8.1f %8.1f %10s\n", band_label, reading[1], reading[2], reading[3],
-                    reading[4], reading[5], reading[6], dies_label);
+               reading[4], reading[5], reading[6], dies_label);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -548,7 +548,8 @@ int main(int argc, char **argv)
     printf("================================================================\n");
 
     {
-        std::mt19937 generator(bench_seed(20260908u) + 5000u);
+        TableDraw generator;
+        table_draw_seeded(&generator, bench_seed(20260908u) + 5000u);
         unsigned round_trips = 0u;
         unsigned round_trip_failures = 0u;
 
@@ -558,11 +559,11 @@ int main(int argc, char **argv)
             uint32_t kept[8];
             for (unsigned slot = 0u; slot < 8u; slot += 1u)
             {
-                state[slot] = generator();
+                state[slot] = table_draw_next(&generator);
                 kept[slot] = state[slot];
             }
-            const uint32_t word = generator();
-            const unsigned round = generator() % 64u;
+            const uint32_t word = table_draw_next(&generator);
+            const unsigned round = table_draw_next(&generator) % 64u;
 
             step_round(state, round, word);
             unstep_round(state, round, word);
@@ -596,14 +597,15 @@ int main(int argc, char **argv)
         Correlation backward_arm = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         Correlation forward_cheap = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         Correlation backward_cheap = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-        std::mt19937 generator(bench_seed(20260908u) + (rounds * 31u) + 900u);
+        TableDraw generator;
+        table_draw_seeded(&generator, bench_seed(20260908u) + (rounds * 31u) + 900u);
 
         for (unsigned trial = 0u; trial < pairs; trial += 1u)
         {
             uint32_t words[64];
             for (unsigned slot = 0u; slot < 64u; slot += 1u)
             {
-                words[slot] = generator();
+                words[slot] = table_draw_next(&generator);
             }
 
             uint32_t left[8];
@@ -612,18 +614,18 @@ int main(int argc, char **argv)
             uint32_t back_right[8];
             for (unsigned slot = 0u; slot < 8u; slot += 1u)
             {
-                left[slot] = generator();
+                left[slot] = table_draw_next(&generator);
                 right[slot] = left[slot];
                 back_left[slot] = left[slot];
                 back_right[slot] = left[slot];
             }
 
-            const unsigned flips = 1u + (generator() % 4u);
+            const unsigned flips = 1u + (table_draw_next(&generator) % 4u);
             unsigned chosen[4];
             unsigned placed = 0u;
             while (placed < flips)
             {
-                const unsigned at = generator() % 256u;
+                const unsigned at = table_draw_next(&generator) % 256u;
                 int already = 0;
                 for (unsigned seen = 0u; seen < placed; seen += 1u)
                 {
@@ -665,8 +667,8 @@ int main(int argc, char **argv)
         const double standard_error = (sqrt(32.0) / 2.0) / sqrt(forward_arm.count);
 
         printf("  %10u %10.1f %10.1f %10.1f %10.1f\n", rounds, (forward_mean - 16.0) / standard_error,
-                    (backward_mean - 16.0) / standard_error, (forward_cheap_mean - 16.0) / standard_error,
-                    (backward_cheap_mean - 16.0) / standard_error);
+               (backward_mean - 16.0) / standard_error, (forward_cheap_mean - 16.0) / standard_error,
+               (backward_cheap_mean - 16.0) / standard_error);
     }
 
     printf("\n  Columns are the distance of the mean output distance from 16, in standard\n");
@@ -688,9 +690,9 @@ int main(int argc, char **argv)
     printf("  The same strata inverted, to see whether scarcity still wins\n");
     printf("================================================================\n");
     printf("\n  %10s %8s %8s %8s %8s %8s %8s %10s\n", "bits differ", "r=1", "r=2", "r=3", "r=4", "r=6", "r=8",
-                "dies at");
+           "dies at");
     printf("  %10s %8s %8s %8s %8s %8s %8s %10s\n", "----------", "--------", "--------", "--------", "--------",
-                "--------", "--------", "----------");
+           "--------", "--------", "----------");
 
     for (unsigned band = 0u; band < STRATA; band += 1u)
     {
@@ -701,26 +703,27 @@ int main(int argc, char **argv)
         for (unsigned rounds = 1u; rounds <= BACK_DEEPEST; rounds += 1u)
         {
             Correlation arm = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-            std::mt19937 generator(bench_seed(20260908u) + (rounds * 53u) + band + 300u);
+            TableDraw generator;
+            table_draw_seeded(&generator, bench_seed(20260908u) + (rounds * 53u) + band + 300u);
 
             for (unsigned trial = 0u; trial < pairs; trial += 1u)
             {
                 uint32_t words[16];
                 for (unsigned slot = 0u; slot < 16u; slot += 1u)
                 {
-                    words[slot] = generator();
+                    words[slot] = table_draw_next(&generator);
                 }
 
                 Sha256State left;
                 Sha256State right;
                 for (unsigned slot = 0u; slot < SHA256_STATE_WORDS; slot += 1u)
                 {
-                    left.word[slot] = generator();
+                    left.word[slot] = table_draw_next(&generator);
                     right.word[slot] = left.word[slot];
                 }
 
                 const unsigned span = stratum_high[band] - stratum_low[band] + 1u;
-                const unsigned flips = stratum_low[band] + (generator() % span);
+                const unsigned flips = stratum_low[band] + (table_draw_next(&generator) % span);
                 flip_distinct_bits(&right, &generator, flips);
 
                 for (unsigned step = 0u; step < rounds; step += 1u)
@@ -767,7 +770,7 @@ int main(int argc, char **argv)
         }
 
         printf("  %10s %8.1f %8.1f %8.1f %8.1f %8.1f %8.1f %10s\n", band_label, reading[1], reading[2], reading[3],
-                    reading[4], reading[6], reading[8], dies_label);
+               reading[4], reading[6], reading[8], dies_label);
     }
 
     printf("\n  If the ordering here matches the forward one, scarcity is optimal over the\n");
@@ -787,8 +790,7 @@ int main(int argc, char **argv)
     printf("  The same asymmetry with no word chosen, weight one only\n");
     printf("================================================================\n");
     printf("\n  %10s %10s %10s %12s %12s\n", "rounds", "forward", "backward", "fwd word", "back word");
-    printf("  %10s %10s %10s %12s %12s\n", "----------", "----------", "----------", "------------",
-                "------------");
+    printf("  %10s %10s %10s %12s %12s\n", "----------", "----------", "----------", "------------", "------------");
 
     for (unsigned rounds = 4u; rounds <= 12u; rounds += 1u)
     {
@@ -801,20 +803,21 @@ int main(int argc, char **argv)
         {
             Correlation ahead = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
             Correlation behind = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-            std::mt19937 generator(bench_seed(20260908u) + (rounds * 17u) + word + 7000u);
+            TableDraw generator;
+            table_draw_seeded(&generator, bench_seed(20260908u) + (rounds * 17u) + word + 7000u);
 
             for (unsigned trial = 0u; trial < pairs; trial += 1u)
             {
                 uint32_t words[16];
                 for (unsigned slot = 0u; slot < 16u; slot += 1u)
                 {
-                    words[slot] = generator();
+                    words[slot] = table_draw_next(&generator);
                 }
 
                 Sha256State base;
                 for (unsigned slot = 0u; slot < SHA256_STATE_WORDS; slot += 1u)
                 {
-                    base.word[slot] = generator();
+                    base.word[slot] = table_draw_next(&generator);
                 }
                 Sha256State altered = base;
                 flip_distinct_bits(&altered, &generator, 1u);
@@ -853,8 +856,7 @@ int main(int argc, char **argv)
             }
         }
 
-        printf("  %10u %10.1f %10.1f %12u %12u\n", rounds, best_forward, best_backward, forward_word,
-                    backward_word);
+        printf("  %10u %10.1f %10.1f %12u %12u\n", rounds, best_forward, best_backward, forward_word, backward_word);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -886,23 +888,24 @@ int main(int argc, char **argv)
             {
                 Correlation ahead = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
                 Correlation behind = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-                std::mt19937 generator(bench_seed(20260908u) + (rounds * 11u) + (word * 3u) + band + 40000u);
+                TableDraw generator;
+                table_draw_seeded(&generator, bench_seed(20260908u) + (rounds * 11u) + (word * 3u) + band + 40000u);
 
                 for (unsigned trial = 0u; trial < (pairs / 4u); trial += 1u)
                 {
                     uint32_t words[20];
                     for (unsigned slot = 0u; slot < 20u; slot += 1u)
                     {
-                        words[slot] = generator();
+                        words[slot] = table_draw_next(&generator);
                     }
 
                     Sha256State base;
                     for (unsigned slot = 0u; slot < SHA256_STATE_WORDS; slot += 1u)
                     {
-                        base.word[slot] = generator();
+                        base.word[slot] = table_draw_next(&generator);
                     }
                     const unsigned span = stratum_high[band] - stratum_low[band] + 1u;
-                    const unsigned flips = stratum_low[band] + (generator() % span);
+                    const unsigned flips = stratum_low[band] + (table_draw_next(&generator) % span);
                     Sha256State altered = base;
                     flip_distinct_bits(&altered, &generator, flips);
 
@@ -925,8 +928,8 @@ int main(int argc, char **argv)
                 }
 
                 const double error = (sqrt(32.0) / 2.0) / sqrt(ahead.count);
-                best_forward = std::max(best_forward, fabs(((ahead.sum_right / ahead.count) - 16.0) / error));
-                best_backward = std::max(best_backward, fabs(((behind.sum_right / behind.count) - 16.0) / error));
+                best_forward = bench_max(best_forward, fabs(((ahead.sum_right / ahead.count) - 16.0) / error));
+                best_backward = bench_max(best_backward, fabs(((behind.sum_right / behind.count) - 16.0) / error));
             }
 
             if ((forward_dies == 0u) && (best_forward < 4.0))
@@ -964,9 +967,9 @@ int main(int argc, char **argv)
         char forward_label[12];
         char backward_label[12];
         snprintf(forward_label, sizeof(forward_label), "%s%u", (forward_dies == 0u) ? "past " : "",
-                      (forward_dies == 0u) ? 16u : forward_dies);
+                 (forward_dies == 0u) ? 16u : forward_dies);
         snprintf(backward_label, sizeof(backward_label), "%s%u", (backward_dies == 0u) ? "past " : "",
-                      (backward_dies == 0u) ? 16u : backward_dies);
+                 (backward_dies == 0u) ? 16u : backward_dies);
 
         printf("  %12s %14.3g %16s %16s\n", band_label, (double)population_here, forward_label, backward_label);
     }

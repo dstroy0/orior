@@ -22,18 +22,15 @@
  * @note Pull three decides it. The bench measures it, and does not reason about it.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
+#include "bench_tally.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 namespace
 {
@@ -125,6 +122,49 @@ struct Candidate
     uint32_t word;
 };
 
+/** @brief The candidates of the population at max. */
+const size_t POPULATION_MAX = 200000u;
+
+/** @brief The candidates alive in a round and the survivors of it. Each round turns the two around. */
+Candidate g_living[POPULATION_MAX];
+Candidate g_next[POPULATION_MAX];
+
+/** @brief The trials of the run of the delta at max. */
+const size_t TRIALS_MAX = 4000000u;
+
+/** @brief The output deltas of the trials, and the room that their sort takes. */
+uint32_t g_deltas[TRIALS_MAX];
+uint32_t g_deltas_scratch[TRIALS_MAX];
+
+/** @brief The score of one input bit, and its place. */
+struct Ranked
+{
+    double score;
+    unsigned index;
+};
+
+/**
+ * @brief Returns the order of two scores, highest first, and on a tie by place, highest first.
+ *
+ * @param[in] left  One score [BORROWS].
+ * @param[in] right The other score [BORROWS].
+ * @return          -1 where the first comes before the second, 1 where it comes after, and 0 where they are equal.
+ */
+int ranked_order(const void *left, const void *right)
+{
+    const Ranked *const one = (const Ranked *)left;
+    const Ranked *const other = (const Ranked *)right;
+    if (other->score < one->score)
+    {
+        return -1;
+    }
+    if (one->score < other->score)
+    {
+        return 1;
+    }
+    return (one->index > other->index) ? -1 : ((one->index < other->index) ? 1 : 0);
+}
+
 /**
  * @brief Pull one: conditional survival by a condition, and not by a wait.
  */
@@ -137,20 +177,23 @@ void measure_conditional_survival()
     printf("  the survivors of round n and measure round n+1 on them directly. That gives\n");
     printf("  every depth the same statistical weight instead of exponentially less.\n");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned population = 200000u;
 
-    std::vector<Candidate> living;
-    living.reserve(population);
+    Candidate *living = g_living;
+    Candidate *next = g_next;
+    size_t living_count = 0u;
     for (unsigned trial = 0u; trial < population; trial += 1u)
     {
         Candidate candidate;
         for (unsigned slot = 0u; slot < 8u; slot += 1u)
         {
-            candidate.state[slot] = generator();
+            candidate.state[slot] = table_draw_next(&generator);
         }
-        candidate.word = generator();
-        living.push_back(candidate);
+        candidate.word = table_draw_next(&generator);
+        living[living_count] = candidate;
+        living_count += 1u;
     }
 
     printf("\n  %8s %14s %16s %18s\n", "round", "survivors", "conditional", "vs base rate");
@@ -160,11 +203,12 @@ void measure_conditional_survival()
 
     for (unsigned round = 1u; round <= 12u; round += 1u)
     {
-        std::vector<Candidate> next;
-        const size_t before = living.size();
+        size_t next_count = 0u;
+        const size_t before = living_count;
 
-        for (const Candidate &candidate : living)
+        for (size_t at = 0u; at < living_count; at += 1u)
         {
+            const Candidate &candidate = living[at];
             uint32_t plain[8];
             uint32_t turned[8];
             EMBED_CALL(memor.cpy, MemoriaCfg, .dst = plain, .src = candidate.state, .bytes = sizeof(plain));
@@ -180,22 +224,26 @@ void measure_conditional_survival()
             {
                 Candidate survivor;
                 EMBED_CALL(memor.cpy, MemoriaCfg, .dst = survivor.state, .src = plain, .bytes = sizeof(plain));
-                survivor.word = generator();
-                next.push_back(survivor);
+                survivor.word = table_draw_next(&generator);
+                next[next_count] = survivor;
+                next_count += 1u;
             }
         }
 
-        const double conditional = (before > 0u) ? ((double)next.size() / (double)before) : 0.0;
+        const double conditional = (before > 0u) ? ((double)next_count / (double)before) : 0.0;
         if (round == 1u)
         {
             base_rate = conditional;
         }
 
-        printf("  %8u %14zu %15.6f%% %17.3fx\n", round, next.size(), conditional * 100.0,
-                    (base_rate > 0.0) ? (conditional / base_rate) : 0.0);
+        printf("  %8u %14zu %15.6f%% %17.3fx\n", round, next_count, conditional * 100.0,
+               (base_rate > 0.0) ? (conditional / base_rate) : 0.0);
 
-        living.swap(next);
-        if (living.empty())
+        Candidate *const turned_around = living;
+        living = next;
+        next = turned_around;
+        living_count = next_count;
+        if (living_count == 0u)
         {
             printf("\n  Nothing survived to this depth.\n");
             break;
@@ -204,14 +252,15 @@ void measure_conditional_survival()
         // Replenish: sample survivor states again with fresh message words. The state carries the
         // condition. The bench draws a new message word every round regardless. Without this, the
         // population dies by round three, and the recursion question has no data.
-        if (living.size() < population)
+        if (living_count < population)
         {
-            const size_t seed_count = living.size();
-            while (living.size() < population)
+            const size_t seed_count = living_count;
+            while (living_count < population)
             {
-                Candidate copy = living[generator() % seed_count];
-                copy.word = generator();
-                living.push_back(copy);
+                Candidate copy = living[table_draw_next(&generator) % seed_count];
+                copy.word = table_draw_next(&generator);
+                living[living_count] = copy;
+                living_count += 1u;
             }
         }
     }
@@ -233,10 +282,11 @@ void measure_survivor_signature()
     printf("  among survivors of one round against the population they came from. A bit that\n");
     printf("  is set far more often in survivors is a predictor.\n");
 
-    std::mt19937 generator(777u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 777u);
     const unsigned population = 4000000u;
-    std::vector<uint64_t> survivor_bits(288u, 0u);
-    std::vector<uint64_t> all_bits(288u, 0u);
+    uint64_t survivor_bits[288] = {0u};
+    uint64_t all_bits[288] = {0u};
     uint64_t survivors = 0u;
 
     for (unsigned trial = 0u; trial < population; trial += 1u)
@@ -246,11 +296,11 @@ void measure_survivor_signature()
         uint32_t turned[8];
         for (unsigned slot = 0u; slot < 8u; slot += 1u)
         {
-            original[slot] = generator();
+            original[slot] = table_draw_next(&generator);
             plain[slot] = original[slot];
             turned[slot] = rotate_right(original[slot], FRAME);
         }
-        const uint32_t word = generator();
+        const uint32_t word = table_draw_next(&generator);
 
         for (unsigned slot = 0u; slot < 8u; slot += 1u)
         {
@@ -285,18 +335,21 @@ void measure_survivor_signature()
     }
 
     printf("\n  %llu survivors of %u, base rate %.4f%%\n", (unsigned long long)survivors, population,
-                100.0 * (double)survivors / (double)population);
+           100.0 * (double)survivors / (double)population);
 
     // A predictor shows as a survivor rate far from one half at some input bit.
     const double standard_error = 0.5 / sqrt((double)survivors);
-    std::vector<std::pair<double, unsigned>> ranked;
+    Ranked ranked[288];
+    Ranked ranked_scratch[288];
 
     for (unsigned index = 0u; index < 288u; index += 1u)
     {
         const double rate = (double)survivor_bits[index] / (double)survivors;
-        ranked.push_back({fabs(rate - 0.5) / standard_error, index});
+        ranked[index].score = fabs(rate - 0.5) / standard_error;
+        ranked[index].index = index;
     }
-    std::sort(ranked.rbegin(), ranked.rend());
+    (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = ranked, .bytes = sizeof(Ranked), .scratch = ranked_scratch,
+                     .count = 288u, .order = ranked_order);
 
     printf("\n  strongest predictors among 288 input bits:\n");
     printf("  %28s %14s %12s\n", "bit", "set in survivors", "sigma");
@@ -304,7 +357,7 @@ void measure_survivor_signature()
 
     for (unsigned rank = 0u; rank < 8u; rank += 1u)
     {
-        const unsigned index = ranked[rank].second;
+        const unsigned index = ranked[rank].index;
         const double rate = (double)survivor_bits[index] / (double)survivors;
         char label[32];
 
@@ -316,7 +369,7 @@ void measure_survivor_signature()
         {
             snprintf(label, sizeof(label), "message bit %u", index - 256u);
         }
-        printf("  %28s %13.4f%% %+12.1f\n", label, rate * 100.0, ranked[rank].first);
+        printf("  %28s %13.4f%% %+12.1f\n", label, rate * 100.0, ranked[rank].score);
     }
 
     printf("\n  Expected largest over 288 tests under no structure is near 3.3 sigma. Any\n");
@@ -338,7 +391,8 @@ void measure_steering()
     printf("  bit that wraps. Construct states whose wrapping bits are set to cooperate and\n");
     printf("  measure the survival rate against unconstrained states.\n");
 
-    std::mt19937 generator(31337u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 31337u);
     const unsigned trials = 2000000u;
 
     // Frame 31 is a rotation right by 31, which is a rotation left by one. The wrap concerns the
@@ -374,13 +428,13 @@ void measure_steering()
             uint32_t turned[8];
             for (unsigned slot = 0u; slot < 8u; slot += 1u)
             {
-                uint32_t word = generator();
+                uint32_t word = table_draw_next(&generator);
                 word &= ~strategy.clear_mask;
                 word |= strategy.set_mask;
                 plain[slot] = word;
                 turned[slot] = rotate_right(word, FRAME);
             }
-            uint32_t message = generator();
+            uint32_t message = table_draw_next(&generator);
             message &= ~strategy.clear_mask;
             message |= strategy.set_mask;
 
@@ -399,7 +453,7 @@ void measure_steering()
             control_rate = rate;
         }
         printf("  %34s %15.6f%% %11.3fx\n", strategy.name, rate * 100.0,
-                    (control_rate > 0.0) ? (rate / control_rate) : 0.0);
+               (control_rate > 0.0) ? (rate / control_rate) : 0.0);
     }
 
     printf("\n  Steering works, and the signature in section 2 says why: every predictor is\n");
@@ -438,13 +492,13 @@ void measure_steering()
             uint32_t turned[8];
             for (unsigned slot = 0u; slot < 8u; slot += 1u)
             {
-                uint32_t word = generator();
+                uint32_t word = table_draw_next(&generator);
                 word &= ~strategy.clear_mask;
                 word |= strategy.set_mask;
                 plain[slot] = word;
                 turned[slot] = rotate_right(word, FRAME);
             }
-            uint32_t message = generator();
+            uint32_t message = table_draw_next(&generator);
             message &= ~strategy.clear_mask;
             message |= strategy.set_mask;
 
@@ -499,15 +553,13 @@ void measure_rotational_xor()
     printf("  If delta concentrates on a few values, those are characteristics. If it spreads\n");
     printf("  over 2^32, the delta carries nothing that a guess does not.\n");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 4000000u;
 
     // The offset the theory predicts a constant contributes to the delta.
     const uint32_t constant = 0x428a2f98u;
     const uint32_t predicted_offset = constant ^ rotate_right(constant, FRAME);
-
-    std::unordered_map<uint32_t, uint32_t> delta_counts;
-    delta_counts.reserve(trials / 4u);
 
     for (unsigned trial = 0u; trial < trials; trial += 1u)
     {
@@ -515,11 +567,11 @@ void measure_rotational_xor()
         uint32_t turned[8];
         for (unsigned slot = 0u; slot < 8u; slot += 1u)
         {
-            const uint32_t word = generator();
+            const uint32_t word = table_draw_next(&generator);
             plain[slot] = word;
             turned[slot] = rotate_right(word, FRAME);
         }
-        const uint32_t message = generator();
+        const uint32_t message = table_draw_next(&generator);
 
         plain[7] += constant;
         turned[7] += constant;
@@ -527,24 +579,28 @@ void measure_rotational_xor()
         run_round(turned, rotate_right(message, FRAME));
 
         // The output rotational-XOR difference on the word that the round writes first.
-        delta_counts[turned[0] ^ rotate_right(plain[0], FRAME)] += 1u;
+        g_deltas[trial] = turned[0] ^ rotate_right(plain[0], FRAME);
     }
+    bench_tally_sorted(g_deltas, g_deltas_scratch, trials);
 
     uint32_t best_delta = 0u;
     uint32_t best_count = 0u;
-    for (const auto &entry : delta_counts)
+    size_t distinct = 0u;
+    for (size_t at = 0u; at < trials;)
     {
-        if (entry.second > best_count)
+        const BenchTallyRun entry = bench_tally_run(g_deltas, trials, &at);
+        distinct += 1u;
+        if (entry.count > best_count)
         {
-            best_count = entry.second;
-            best_delta = entry.first;
+            best_count = entry.count;
+            best_delta = entry.value;
         }
     }
 
     const double best_rate = (double)best_count / (double)trials;
     const double uniform_rate = 1.0 / 4294967296.0;
 
-    printf("\n  distinct deltas seen      : %zu of %u trials\n", delta_counts.size(), trials);
+    printf("\n  distinct deltas seen      : %zu of %u trials\n", distinct, trials);
     printf("  most common delta         : 0x%08x\n", best_delta);
     printf("  its probability           : %.6f%%  (%u occurrences)\n", best_rate * 100.0, best_count);
     printf("  uniform would give        : %.3e%%\n", uniform_rate * 100.0);

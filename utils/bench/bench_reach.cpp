@@ -35,13 +35,11 @@
  *       reachability everywhere would pass the first test trivially. Thus the bench needs both halves.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
 #include "sha256_core.h"
 
-#include <bitset>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <vector>
 
 namespace
 {
@@ -61,8 +59,54 @@ const unsigned ROUNDS = 64u;
 /** @brief The word that holds the nonce in the second block of a Bitcoin header. */
 const unsigned NONCE_WORD = 3u;
 
-/** @brief Which input bits can reach one bit of the circuit. */
-typedef std::bitset<INPUT_BITS> Cone;
+/** @brief The 64-bit words of a cone: one bit for each input bit. */
+const unsigned CONE_WORDS = (INPUT_BITS + 63u) / 64u;
+
+/** @brief Which input bits can reach one bit of the circuit, one bit each, empty at its start. */
+struct Cone
+{
+    uint64_t word[CONE_WORDS] = {};
+
+    /** @brief Puts input bit `at` in the cone. */
+    void set(unsigned at)
+    {
+        word[at / 64u] |= 1ull << (at % 64u);
+    }
+
+    /** @brief Returns whether input bit `at` is in the cone. */
+    bool test(unsigned at) const
+    {
+        return ((word[at / 64u] >> (at % 64u)) & 1ull) != 0u;
+    }
+
+    /** @brief Returns the count of input bits in the cone. */
+    size_t count() const
+    {
+        size_t total = 0u;
+        for (unsigned at = 0u; at < CONE_WORDS; at += 1u)
+        {
+            total += (size_t)__builtin_popcountll(word[at]);
+        }
+        return total;
+    }
+
+    /** @brief Puts each input bit of `other` in the cone. */
+    Cone &operator|=(const Cone &other)
+    {
+        for (unsigned at = 0u; at < CONE_WORDS; at += 1u)
+        {
+            word[at] |= other.word[at];
+        }
+        return *this;
+    }
+};
+
+/** @brief Returns the input bits of either cone. */
+Cone operator|(Cone left, const Cone &right)
+{
+    left |= right;
+    return left;
+}
 
 /** @brief A 32-bit word, one dependency set per bit, least significant bit first. */
 struct WordCone
@@ -183,9 +227,12 @@ WordCone expand_high(const WordCone &value)
  * @param[out] schedule Sixty-four words of dependency sets [BORROWS].
  * @note Words 0 through 15 depend on themselves alone, which seeds everything after them.
  */
-void build_schedule(std::vector<WordCone> &schedule)
+void build_schedule(WordCone *schedule)
 {
-    schedule.assign(ROUNDS, WordCone());
+    for (unsigned word = 0u; word < ROUNDS; word += 1u)
+    {
+        schedule[word] = WordCone();
+    }
 
     for (unsigned word = 0u; word < 16u; word += 1u)
     {
@@ -210,9 +257,9 @@ void build_schedule(std::vector<WordCone> &schedule)
  * @param[in]  schedule Schedule dependency sets [BORROWS].
  * @param[out] history  State dependency sets after every round, 65 entries with entry 0 the input.
  */
-void run_rounds(const std::vector<WordCone> &schedule, std::vector<std::vector<WordCone>> &history)
+void run_rounds(const WordCone *schedule, WordCone (*history)[8])
 {
-    std::vector<WordCone> state(8u);
+    WordCone state[8];
     for (unsigned word = 0u; word < 8u; word += 1u)
     {
         for (unsigned position = 0u; position < 32u; position += 1u)
@@ -221,8 +268,10 @@ void run_rounds(const std::vector<WordCone> &schedule, std::vector<std::vector<W
         }
     }
 
-    history.clear();
-    history.push_back(state);
+    for (unsigned word = 0u; word < 8u; word += 1u)
+    {
+        history[0][word] = state[word];
+    }
 
     for (unsigned round = 0u; round < ROUNDS; round += 1u)
     {
@@ -234,7 +283,7 @@ void run_rounds(const std::vector<WordCone> &schedule, std::vector<std::vector<W
         const WordCone majority = combine_bitwise(state[0], combine_bitwise(state[1], state[2]));
         const WordCone carry_two = combine_addition(mix_low(state[0]), majority);
 
-        std::vector<WordCone> next(8u);
+        WordCone next[8];
         next[7] = state[6];
         next[6] = state[5];
         next[5] = state[4];
@@ -244,8 +293,11 @@ void run_rounds(const std::vector<WordCone> &schedule, std::vector<std::vector<W
         next[1] = state[0];
         next[0] = combine_addition(carry_one, carry_two);
 
-        state = next;
-        history.push_back(state);
+        for (unsigned word = 0u; word < 8u; word += 1u)
+        {
+            state[word] = next[word];
+            history[round + 1u][word] = next[word];
+        }
     }
 }
 
@@ -368,8 +420,9 @@ int main()
     printf("  through the carry, a path here may carry no influence but the absence of a\n");
     printf("  path is exact. That is the right side to err on for a precondition.\n");
 
-    std::vector<WordCone> schedule;
-    std::vector<std::vector<WordCone>> history;
+    // the schedule and the state after each round, static for their size
+    static WordCone schedule[ROUNDS];
+    static WordCone history[ROUNDS + 1u][8];
     build_schedule(schedule);
     run_rounds(schedule, history);
 
@@ -383,8 +436,7 @@ int main()
     printf("  can carry it is the one reading 4. The two conventions name the same round and\n");
     printf("  confusing them is how this was got wrong before.\n");
     printf("\n  %14s %18s %18s %14s\n", "rounds done", "bits of state[0]", "bits of state[4]", "verdict");
-    printf("  %14s %18s %18s %14s\n", "--------------", "------------------", "------------------",
-                "--------------");
+    printf("  %14s %18s %18s %14s\n", "--------------", "------------------", "------------------", "--------------");
 
     unsigned first_arrival = ROUNDS + 1u;
     for (unsigned round = 1u; round <= 12u; round += 1u)
@@ -450,11 +502,10 @@ int main()
         if ((round <= 12u) || (complete != 0 && saturated_at == round))
         {
             printf("  %6u %22u %22.4f%%\n", round, widest,
-                        100.0 * (double)total / (double)((size_t)8u * 32u * INPUT_BITS));
+                   100.0 * (double)total / (double)((size_t)8u * 32u * INPUT_BITS));
         }
     }
-    printf("\n  Every one of the 256 state bits reads all %u input bits from round %u on.\n", INPUT_BITS,
-                saturated_at);
+    printf("\n  Every one of the 256 state bits reads all %u input bits from round %u on.\n", INPUT_BITS, saturated_at);
 
     // -------------------------------------------------------------------------------------
     // The backward cone.
@@ -481,7 +532,7 @@ int main()
     printf("  %8s %20s %20s %14s\n", "--------", "--------------------", "--------------------", "--------------");
 
     {
-        std::vector<WordCone> backward(8u);
+        WordCone backward[8];
         for (unsigned word = 0u; word < 8u; word += 1u)
         {
             for (unsigned position = 0u; position < 32u; position += 1u)
@@ -538,7 +589,7 @@ int main()
             if ((round <= 12u) || ((round % 4u) == 0u))
             {
                 printf("  %8u %20zu %20zu %14.3f\n", round, forward_widest, backward_widest,
-                            (backward_widest > 0u) ? ((double)forward_widest / (double)backward_widest) : 0.0);
+                       (backward_widest > 0u) ? ((double)forward_widest / (double)backward_widest) : 0.0);
             }
         }
     }
@@ -560,12 +611,13 @@ int main()
     printf("\n  Established by running the real rounds and asking which output words are\n");
     printf("  bit-identical to an input word on every one of many random inputs.\n");
     printf("\n  %14s %14s %14s %28s\n", "rounds done", "words written", "words carried",
-                "fraction of a read that is free");
+           "fraction of a read that is free");
     printf("  %14s %14s %14s %28s\n", "--------------", "--------------", "--------------",
-                "----------------------------");
+           "----------------------------");
 
     {
-        std::mt19937 mask_generator(20260908u);
+        TableDraw mask_generator;
+        table_draw_seeded(&mask_generator, 20260908u);
         const unsigned mask_trials = 2000u;
 
         for (unsigned depth = 1u; depth <= 6u; depth += 1u)
@@ -589,11 +641,11 @@ int main()
                 uint32_t output[8];
                 for (unsigned word = 0u; word < 16u; word += 1u)
                 {
-                    message[word] = mask_generator();
+                    message[word] = table_draw_next(&mask_generator);
                 }
                 for (unsigned word = 0u; word < 8u; word += 1u)
                 {
-                    input[word] = mask_generator();
+                    input[word] = table_draw_next(&mask_generator);
                 }
                 compress_to(message, input, depth, output);
 
@@ -622,8 +674,7 @@ int main()
                 }
             }
 
-            printf("  %14u %14u %14u %27.1f%%\n", depth, 8u - free_words, free_words,
-                        100.0 * (double)free_words / 8.0);
+            printf("  %14u %14u %14u %27.1f%%\n", depth, 8u - free_words, free_words, 100.0 * (double)free_words / 8.0);
         }
     }
 
@@ -638,7 +689,8 @@ int main()
     printf("  flipping the input bit must never change the output bit. Where it says a path\n");
     printf("  exists, some flips must land.\n");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 4000u;
     unsigned absent_checked = 0u;
     unsigned absent_violated = 0u;
@@ -653,17 +705,17 @@ int main()
             uint32_t input[8];
             for (unsigned word = 0u; word < 16u; word += 1u)
             {
-                message[word] = generator();
+                message[word] = table_draw_next(&generator);
             }
             for (unsigned word = 0u; word < 8u; word += 1u)
             {
-                input[word] = generator();
+                input[word] = table_draw_next(&generator);
             }
 
-            const unsigned flip_word = generator() % 16u;
-            const unsigned flip_bit = generator() % 32u;
-            const unsigned read_word = generator() % 8u;
-            const unsigned read_bit = generator() % 32u;
+            const unsigned flip_word = table_draw_next(&generator) % 16u;
+            const unsigned flip_bit = table_draw_next(&generator) % 32u;
+            const unsigned read_word = table_draw_next(&generator) % 8u;
+            const unsigned read_bit = table_draw_next(&generator) % 32u;
 
             uint32_t plain[8];
             uint32_t altered[8];
@@ -692,7 +744,7 @@ int main()
     printf("  %-40s %12u\n", "of those, a flip that changed the bit", absent_violated);
     printf("  %-40s %12u\n", "pairs the analysis called reachable", present_checked);
     printf("  %-40s %11.4f%%\n", "of those, a flip that landed",
-                (present_checked > 0u) ? (100.0 * (double)present_landed / (double)present_checked) : 0.0);
+           (present_checked > 0u) ? (100.0 * (double)present_landed / (double)present_checked) : 0.0);
 
     printf("\n  A single violation in the first count would falsify the analysis outright,\n");
     printf("  since it claims no path exists. The second count must sit well below one\n");

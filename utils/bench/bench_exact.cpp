@@ -20,16 +20,13 @@
  *       formula at large ones. A closed form without a check is a guess with better typography.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
+#include "bench_bound.h"
 #include "sha256_core.h"
 
-#include <algorithm>
-#include <chrono>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <string>
-#include <vector>
 
 namespace
 {
@@ -44,20 +41,20 @@ int g_checks_failed = 0;
  * @param[in] passed Whether the check passed.
  * @param[in] detail The observed result, printed on failure.
  */
-void check(const std::string &name, bool passed, const std::string &detail = "")
+void check(const char *name, bool passed, const char *detail = "")
 {
     g_checks_run += 1;
     if (passed)
     {
-        printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name);
     }
     else
     {
         g_checks_failed += 1;
-        printf("  [FAIL] %s\n", name.c_str());
-        if (!detail.empty())
+        printf("  [FAIL] %s\n", name);
+        if (detail[0] != '\0')
         {
-            printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail);
         }
     }
 }
@@ -161,7 +158,8 @@ int main()
     printf("\n  Checked before it is trusted. Every triple at width 6 and 8, counted by\n");
     printf("  brute force and compared against the formula.\n");
 
-    for (unsigned width : {4u, 6u, 8u})
+    const unsigned listed_width[] = {4u, 6u, 8u};
+    for (unsigned width : listed_width)
     {
         const uint32_t span = 1u << width;
         bool matched = true;
@@ -176,7 +174,7 @@ int main()
                     const double formula = addition_differential(alpha, beta, gamma, width);
                     const double counted = addition_differential_counted(alpha, beta, gamma, width);
 
-                    worst = std::max(worst, fabs(formula - counted));
+                    worst = bench_max(worst, fabs(formula - counted));
                     if (fabs(formula - counted) > 1e-12)
                     {
                         matched = false;
@@ -184,8 +182,11 @@ int main()
                 }
             }
         }
-        check("closed form equals enumeration at width " + std::to_string(width), matched,
-              "worst difference " + std::to_string(worst));
+        char name[64];
+        char detail[64];
+        snprintf(name, sizeof(name), "closed form equals enumeration at width %u", width);
+        snprintf(detail, sizeof(detail), "worst difference %f", worst);
+        check(name, matched, detail);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -196,8 +197,8 @@ int main()
     printf("  values in that range and far below it, at the full 32-bit width.\n");
 
     printf("\n  %12s %12s %12s %22s %10s\n", "alpha", "beta", "gamma", "exact probability", "log2");
-    printf("  %12s %12s %12s %22s %10s\n", "------------", "------------", "------------",
-                "----------------------", "----------");
+    printf("  %12s %12s %12s %22s %10s\n", "------------", "------------", "------------", "----------------------",
+           "----------");
 
     const struct
     {
@@ -216,7 +217,7 @@ int main()
     {
         const double probability = addition_differential(entry.alpha, entry.beta, entry.gamma, 32u);
         printf("  0x%010x 0x%010x 0x%010x %22.10e %10.2f\n", entry.alpha, entry.beta, entry.gamma, probability,
-                    (probability > 0.0) ? log2(probability) : -1000.0);
+               (probability > 0.0) ? log2(probability) : -1000.0);
     }
 
     printf("\n  The row at 2^-30 is a probability no sample of four hundred thousand could\n");
@@ -234,11 +235,12 @@ int main()
     printf("\n  %14s %14s %22s %10s\n", "alpha", "beta", "best gamma probability", "log2");
     printf("  %14s %14s %22s %10s\n", "--------------", "--------------", "----------------------", "----------");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     for (unsigned trial = 0u; trial < 8u; trial += 1u)
     {
-        const uint32_t alpha = (trial == 0u) ? 1u : (generator() & 0x0000FFFFu);
-        const uint32_t beta = (trial == 0u) ? 0u : (generator() & 0x0000FFFFu);
+        const uint32_t alpha = (trial == 0u) ? 1u : (table_draw_next(&generator) & 0x0000FFFFu);
+        const uint32_t beta = (trial == 0u) ? 0u : (table_draw_next(&generator) & 0x0000FFFFu);
 
         // The optimal output difference for addition is alpha xor beta, which the formula prices
         // exactly. The bench checks candidates around it. Thus the claim is a measurement, and not an
@@ -276,20 +278,20 @@ int main()
         const uint32_t span = 1u << width;
         const uint32_t mask = span - 1u;
 
-        printf("\n  %10s %10s %10s %10s %16s %16s %10s\n", "da", "db", "dw", "dz", "product", "enumerated",
-                    "ratio");
+        printf("\n  %10s %10s %10s %10s %16s %16s %10s\n", "da", "db", "dw", "dz", "product", "enumerated", "ratio");
         printf("  %10s %10s %10s %10s %16s %16s %10s\n", "----------", "----------", "----------", "----------",
-                    "----------------", "----------------", "----------");
+               "----------------", "----------------", "----------");
 
-        std::mt19937 chain_generator(4242u);
+        TableDraw chain_generator;
+        table_draw_seeded(&chain_generator, 4242u);
         double worst_ratio_low = 1e9;
         double worst_ratio_high = 0.0;
 
         for (unsigned trial = 0u; trial < 10u; trial += 1u)
         {
-            const uint32_t da = (trial == 0u) ? 1u : (chain_generator() & mask);
-            const uint32_t db = (trial == 0u) ? 0u : (chain_generator() & mask);
-            const uint32_t dw = (trial == 0u) ? 1u : (chain_generator() & mask);
+            const uint32_t da = (trial == 0u) ? 1u : (table_draw_next(&chain_generator) & mask);
+            const uint32_t db = (trial == 0u) ? 0u : (table_draw_next(&chain_generator) & mask);
+            const uint32_t dw = (trial == 0u) ? 1u : (table_draw_next(&chain_generator) & mask);
 
             // The intermediate difference the chain passes through, and the final one.
             const uint32_t intermediate = (da ^ db);
@@ -324,17 +326,18 @@ int main()
 
             if (predicted > 0.0)
             {
-                worst_ratio_low = std::min(worst_ratio_low, ratio);
-                worst_ratio_high = std::max(worst_ratio_high, ratio);
+                worst_ratio_low = bench_min(worst_ratio_low, ratio);
+                worst_ratio_high = bench_max(worst_ratio_high, ratio);
             }
             printf("  0x%08x 0x%08x 0x%08x 0x%08x %16.8e %16.8e %10.4f\n", da, db, dw, dz, predicted, enumerated,
-                        ratio);
+                   ratio);
         }
 
         printf("\n  ratio range across these cases: %.4f to %.4f\n", worst_ratio_low, worst_ratio_high);
+        char detail[96];
+        snprintf(detail, sizeof(detail), "ratio ranged %f to %f", worst_ratio_low, worst_ratio_high);
         check("composing exact single-addition probabilities predicts the chain",
-              (worst_ratio_low > 0.9) && (worst_ratio_high < 1.1),
-              "ratio ranged " + std::to_string(worst_ratio_low) + " to " + std::to_string(worst_ratio_high));
+              (worst_ratio_low > 0.9) && (worst_ratio_high < 1.1), detail);
 
         printf("\n  A ratio away from one is the modeling floor, and no amount of precision in\n");
         printf("  the factors moves it. It is the independence assumption failing, which is a\n");

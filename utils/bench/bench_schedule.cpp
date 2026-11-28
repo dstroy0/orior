@@ -19,16 +19,14 @@
  *       of sixteen input words are literal constants. How much of the expansion is then free?
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
+#include "bench_bound.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <string>
-#include <vector>
 
 namespace
 {
@@ -43,20 +41,20 @@ int g_checks_failed = 0;
  * @param[in] passed Whether the check passed.
  * @param[in] detail The observed result, printed on failure.
  */
-void check(const std::string &name, bool passed, const std::string &detail = "")
+void check(const char *name, bool passed, const char *detail = "")
 {
     g_checks_run += 1;
     if (passed)
     {
-        printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name);
     }
     else
     {
         g_checks_failed += 1;
-        printf("  [FAIL] %s\n", name.c_str());
-        if (!detail.empty())
+        printf("  [FAIL] %s\n", name);
+        if (detail[0] != '\0')
         {
-            printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail);
         }
     }
 }
@@ -152,15 +150,16 @@ void check_linearity()
     printf("  0. Control. Are sigma0 and sigma1 really GF(2)-linear?\n");
     printf("================================================================\n");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     bool low_linear = true;
     bool high_linear = true;
     bool expansion_linear = true;
 
     for (unsigned trial = 0u; trial < 200000u; trial += 1u)
     {
-        const uint32_t left = generator();
-        const uint32_t right = generator();
+        const uint32_t left = table_draw_next(&generator);
+        const uint32_t right = table_draw_next(&generator);
 
         if (spread_low(left ^ right) != (spread_low(left) ^ spread_low(right)))
         {
@@ -181,8 +180,8 @@ void check_linearity()
 
         for (unsigned slot = 0u; slot < 16u; slot += 1u)
         {
-            left_block[slot] = generator();
-            right_block[slot] = generator();
+            left_block[slot] = table_draw_next(&generator);
+            right_block[slot] = table_draw_next(&generator);
             sum_block[slot] = left_block[slot] ^ right_block[slot];
         }
 
@@ -220,9 +219,10 @@ void measure_carry_cost()
     printf("\n  Real expansion against the xor-linearised one, same input. Agreement per\n");
     printf("  expanded word, and the Hamming distance between the two full expansions.\n");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 100000u;
-    std::vector<uint64_t> word_matches(64u, 0u);
+    uint64_t word_matches[64] = {0u};
     uint64_t distance_total = 0u;
 
     for (unsigned trial = 0u; trial < trials; trial += 1u)
@@ -230,7 +230,7 @@ void measure_carry_cost()
         uint32_t block[16];
         for (unsigned slot = 0u; slot < 16u; slot += 1u)
         {
-            block[slot] = generator();
+            block[slot] = table_draw_next(&generator);
         }
 
         uint32_t real_schedule[64];
@@ -250,14 +250,15 @@ void measure_carry_cost()
 
     printf("\n  %8s %18s\n", "word", "exact agreement");
     printf("  %8s %18s\n", "--------", "------------------");
-    for (unsigned slot : {16u, 17u, 18u, 20u, 24u, 32u, 48u, 63u})
+    const unsigned listed_slot[] = {16u, 17u, 18u, 20u, 24u, 32u, 48u, 63u};
+    for (unsigned slot : listed_slot)
     {
         printf("  %8u %17.4f%%\n", slot, 100.0 * (double)word_matches[slot] / (double)trials);
     }
 
     const double mean_distance = (double)distance_total / (double)trials;
     printf("\n  mean Hamming distance over words 16-63 : %.1f of 1536 bits (%.1f%%)\n", mean_distance,
-                100.0 * mean_distance / 1536.0);
+           100.0 * mean_distance / 1536.0);
     printf("\n  Agreement is zero from the very first expanded word, and the mean distance\n");
     printf("  is 50%% of the bits, which is what two unrelated values give. W[16] already\n");
     printf("  sums four dense random words, and four random addends almost never sum\n");
@@ -287,7 +288,8 @@ void measure_differential_fidelity()
     printf("  the real expansion's difference equal the linear code's prediction, exactly,\n");
     printf("  across the expanded words? This is the probability a characteristic holds.\n");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 200000u;
 
     printf("\n  Measured from W[18], which is the first expanded word the nonce reaches.\n");
@@ -309,7 +311,7 @@ void measure_differential_fidelity()
 
     for (unsigned weight = 1u; weight <= 4u; weight += 1u)
     {
-        std::vector<unsigned> held_at(25u, 0u);
+        unsigned held_at[25] = {0u};
         unsigned held_short = 0u;
         unsigned held_long = 0u;
 
@@ -319,7 +321,7 @@ void measure_differential_fidelity()
             unsigned placed = 0u;
             while (placed < weight)
             {
-                const uint32_t bit = (1u << (generator() % 32u));
+                const uint32_t bit = (1u << (table_draw_next(&generator) % 32u));
                 if ((difference & bit) == 0u)
                 {
                     difference |= bit;
@@ -331,7 +333,7 @@ void measure_differential_fidelity()
             uint32_t block_two[16];
             for (unsigned slot = 0u; slot < 16u; slot += 1u)
             {
-                block_one[slot] = generator();
+                block_one[slot] = table_draw_next(&generator);
                 block_two[slot] = block_one[slot];
             }
             block_two[3] ^= difference;
@@ -415,7 +417,7 @@ void measure_weight_profile()
                 lowest_word = word;
                 lowest_bit = bit;
             }
-            highest = std::max(highest, weight);
+            highest = bench_max(highest, weight);
         }
     }
 
@@ -484,17 +486,18 @@ void measure_mining_schedule()
     printf("  total schedule work saved per candidate      : %.1f%%\n", 100.0 * (double)independent / 48.0);
 
     // Confirm the dependency trace against the real function. Do not trust the recursion alone.
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     bool trace_correct = true;
 
     for (unsigned trial = 0u; trial < 4096u; trial += 1u)
     {
         uint32_t block_one[16];
         uint32_t block_two[16];
-        block_one[0] = generator();
-        block_one[1] = generator();
-        block_one[2] = generator();
-        block_one[3] = generator();
+        block_one[0] = table_draw_next(&generator);
+        block_one[1] = table_draw_next(&generator);
+        block_one[2] = table_draw_next(&generator);
+        block_one[3] = table_draw_next(&generator);
         block_one[4] = 0x80000000u;
         for (unsigned slot = 5u; slot < 15u; slot += 1u)
         {
@@ -502,7 +505,7 @@ void measure_mining_schedule()
         }
         block_one[15] = 0x00000280u;
         EMBED_CALL(memor.cpy, MemoriaCfg, .dst = block_two, .src = block_one, .bytes = sizeof(block_one));
-        block_two[3] = generator();
+        block_two[3] = table_draw_next(&generator);
 
         uint32_t schedule_one[64];
         uint32_t schedule_two[64];
@@ -583,11 +586,11 @@ void measure_engine_value()
     const double hoisted_seconds = ((double)(finished - started) / 1.0e9);
 
     printf("\n  full expansion per candidate   : %.0f per second\n",
-                (full_seconds > 0.0) ? ((double)trials / full_seconds) : 0.0);
+           (full_seconds > 0.0) ? ((double)trials / full_seconds) : 0.0);
     printf("  with the free prefix hoisted   : %.0f per second\n",
-                (hoisted_seconds > 0.0) ? ((double)trials / hoisted_seconds) : 0.0);
+           (hoisted_seconds > 0.0) ? ((double)trials / hoisted_seconds) : 0.0);
     printf("  speedup on the expansion alone : %.3fx\n",
-                (hoisted_seconds > 0.0) ? (full_seconds / hoisted_seconds) : 0.0);
+           (hoisted_seconds > 0.0) ? (full_seconds / hoisted_seconds) : 0.0);
     printf("\n  The expansion is roughly half of one compression, and a candidate costs two\n");
     printf("  compressions, so this is worth about a quarter of that speedup end to end.\n");
     printf("  Small, real, and already partly taken by the midstate. It is reported here\n");

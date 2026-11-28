@@ -20,18 +20,15 @@
  *       leading indicator must lead.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
+#include "bench_bound.h"
 #include "bench_seed.h"
+#include "bench_tally.h"
 #include "sha256_core.h"
 
-#include <algorithm>
-#include <chrono>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 namespace
 {
@@ -110,6 +107,35 @@ void run_round(uint32_t *state, unsigned round, uint32_t schedule_word)
     state[0] = carry_one + carry_two;
 }
 
+/** @brief The pairs of one step at max. */
+const size_t DRAWS_MAX = 400000u;
+
+/** @brief The output deltas of a step, and the room that their sort takes. One step fills them at a time. */
+uint32_t g_deltas[DRAWS_MAX];
+uint32_t g_deltas_scratch[DRAWS_MAX];
+
+/** @brief The distinct deltas of a step with their counts, and the room that their sort takes. */
+BenchTallyRun g_ranked[DRAWS_MAX];
+BenchTallyRun g_ranked_scratch[DRAWS_MAX];
+
+/**
+ * @brief Returns the order of two runs by count, highest first, and on a tie by value, highest first.
+ *
+ * @param[in] left  One run [BORROWS].
+ * @param[in] right The other run [BORROWS].
+ * @return          -1 where the first comes before the second, 1 where it comes after, and 0 where they are equal.
+ */
+int rank_order(const void *left, const void *right)
+{
+    const BenchTallyRun *const one = (const BenchTallyRun *)left;
+    const BenchTallyRun *const other = (const BenchTallyRun *)right;
+    if (one->count != other->count)
+    {
+        return (one->count > other->count) ? -1 : 1;
+    }
+    return (one->value > other->value) ? -1 : ((one->value < other->value) ? 1 : 0);
+}
+
 /** @brief What one step through delta space reports back. */
 struct Step
 {
@@ -132,72 +158,73 @@ struct Step
  *       that leaves the *next* distribution with the least unseen mass. That look-ahead makes it a
  *       different walk, and not a new label on the same one.
  */
-Step take_step(std::mt19937 &generator, uint32_t input_delta, unsigned round, unsigned draws)
+Step take_step(TableDraw &generator, uint32_t input_delta, unsigned round, unsigned draws)
 {
-    std::unordered_map<uint32_t, uint32_t> counts;
-    counts.reserve(draws / 2u);
-
     for (unsigned draw = 0u; draw < draws; draw += 1u)
     {
         uint32_t plain[8];
         uint32_t turned[8];
         for (unsigned slot = 0u; slot < 8u; slot += 1u)
         {
-            const uint32_t value = generator();
+            const uint32_t value = table_draw_next(&generator);
             plain[slot] = value;
             turned[slot] = rotate_right(value, FRAME) ^ input_delta;
         }
-        const uint32_t message = generator();
+        const uint32_t message = table_draw_next(&generator);
 
         run_round(plain, round, message);
         run_round(turned, round, rotate_right(message, FRAME));
 
-        counts[turned[0] ^ rotate_right(plain[0], FRAME)] += 1u;
+        g_deltas[draw] = turned[0] ^ rotate_right(plain[0], FRAME);
     }
+    bench_tally_sorted(g_deltas, g_deltas_scratch, draws);
 
     Step step = {0.0, 0.0, 0u, 0u, 0u};
     size_t singletons = 0u;
-    std::vector<std::pair<uint32_t, uint32_t>> ranked;
+    size_t ranked_count = 0u;
 
-    for (const auto &entry : counts)
+    for (size_t at = 0u; at < draws;)
     {
-        if (entry.second == 1u)
+        const BenchTallyRun entry = bench_tally_run(g_deltas, draws, &at);
+        if (entry.count == 1u)
         {
             singletons += 1u;
         }
-        ranked.push_back({entry.second, entry.first});
+        g_ranked[ranked_count] = entry;
+        ranked_count += 1u;
     }
-    std::sort(ranked.rbegin(), ranked.rend());
+    (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = g_ranked, .bytes = sizeof(BenchTallyRun),
+                     .scratch = g_ranked_scratch, .count = ranked_count, .order = rank_order);
+    const BenchTallyRun *const ranked = g_ranked;
 
     // How many deltas share the top count. At this sparsity, the maximum is two or three
     // occurrences, and a great many deltas reach it. Thus the data do not identify "the most
     // common output delta". The tiebreak of the sort then chooses the delta to follow. That
     // tiebreak is the numeric value of the delta, and measures nothing. A walk that follows an
     // argmax over a tied set follows its tiebreak.
-    for (size_t rank = 0u; rank < ranked.size(); rank += 1u)
+    for (size_t rank = 0u; rank < ranked_count; rank += 1u)
     {
-        if (ranked[rank].first != ranked[0].first)
+        if (ranked[rank].count != ranked[0].count)
         {
             break;
         }
         step.tied += 1u;
     }
 
-    step.peak = (double)ranked[0].first / (double)draws;
-    step.best_peak = ranked[0].second;
+    step.peak = (double)ranked[0].count / (double)draws;
+    step.best_peak = ranked[0].value;
     // Good-Turing unseen mass. The code keeps it as the sensitive part, and does not discard it as noise.
     step.tail_error = (double)singletons / (double)draws;
-    step.best_tail = ranked[0].second;
+    step.best_tail = ranked[0].value;
 
     // Look ahead over the top candidates and let the tail objective choose differently.
-    const size_t considered = std::min<size_t>(6u, ranked.size());
+    const size_t considered = bench_min<size_t>(6u, ranked_count);
     double least_tail = 1.0;
 
     for (size_t candidate = 0u; candidate < considered; candidate += 1u)
     {
-        std::unordered_map<uint32_t, uint32_t> ahead;
+        // the deltas of the probe take the table of the step's own, which the ranked runs no longer read
         const unsigned probe = draws / 8u;
-        ahead.reserve(probe / 2u);
 
         for (unsigned draw = 0u; draw < probe; draw += 1u)
         {
@@ -205,22 +232,23 @@ Step take_step(std::mt19937 &generator, uint32_t input_delta, unsigned round, un
             uint32_t turned[8];
             for (unsigned slot = 0u; slot < 8u; slot += 1u)
             {
-                const uint32_t value = generator();
+                const uint32_t value = table_draw_next(&generator);
                 plain[slot] = value;
-                turned[slot] = rotate_right(value, FRAME) ^ ranked[candidate].second;
+                turned[slot] = rotate_right(value, FRAME) ^ ranked[candidate].value;
             }
-            const uint32_t message = generator();
+            const uint32_t message = table_draw_next(&generator);
 
             run_round(plain, (round + 1u) & 63u, message);
             run_round(turned, (round + 1u) & 63u, rotate_right(message, FRAME));
 
-            ahead[turned[0] ^ rotate_right(plain[0], FRAME)] += 1u;
+            g_deltas[draw] = turned[0] ^ rotate_right(plain[0], FRAME);
         }
+        bench_tally_sorted(g_deltas, g_deltas_scratch, probe);
 
         size_t ahead_singletons = 0u;
-        for (const auto &entry : ahead)
+        for (size_t at = 0u; at < probe;)
         {
-            if (entry.second == 1u)
+            if (bench_tally_run(g_deltas, probe, &at).count == 1u)
             {
                 ahead_singletons += 1u;
             }
@@ -230,7 +258,7 @@ Step take_step(std::mt19937 &generator, uint32_t input_delta, unsigned round, un
         if (ahead_tail < least_tail)
         {
             least_tail = ahead_tail;
-            step.best_tail = ranked[candidate].second;
+            step.best_tail = ranked[candidate].value;
         }
     }
     return step;
@@ -260,10 +288,11 @@ int main()
         printf("  Walk steered by %s\n", by_tail ? "tail error" : "the peak");
         printf("================================================================\n");
         printf("\n  %6s %16s %18s %18s %14s\n", "round", "peak", "tail error", "compound", "tied at peak");
-        printf("  %6s %16s %18s %18s %14s\n", "------", "----------------", "------------------",
-                    "------------------", "--------------");
+        printf("  %6s %16s %18s %18s %14s\n", "------", "----------------", "------------------", "------------------",
+               "--------------");
 
-        std::mt19937 generator(bench_seed(20260908u));
+        TableDraw generator;
+        table_draw_seeded(&generator, bench_seed(20260908u));
         uint32_t carried = 0u;
         double compound = 1.0;
 
@@ -279,7 +308,7 @@ int main()
 
         printf("\n  compound over %u rounds : %.6e\n", depth, compound);
         printf("  geometric mean per round: %.8f  (2^%.2f)\n", pow(compound, 1.0 / (double)depth),
-                    log2(pow(compound, 1.0 / (double)depth)));
+               log2(pow(compound, 1.0 / (double)depth)));
     }
 
     printf("\n================================================================\n");

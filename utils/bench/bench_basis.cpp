@@ -18,16 +18,14 @@
  *       measures the actual carry bias, and does not assume it.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
+#include "bench_bound.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <string>
-#include <vector>
 
 namespace
 {
@@ -48,20 +46,20 @@ const unsigned STATE_WORDS = 8u;
  * @param[in] passed Whether the check passed.
  * @param[in] detail The observed result, printed on failure.
  */
-void check(const std::string &name, bool passed, const std::string &detail = "")
+void check(const char *name, bool passed, const char *detail = "")
 {
     g_checks_run += 1;
     if (passed)
     {
-        printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name);
     }
     else
     {
         g_checks_failed += 1;
-        printf("  [FAIL] %s\n", name.c_str());
-        if (!detail.empty())
+        printf("  [FAIL] %s\n", name);
+        if (detail[0] != '\0')
         {
-            printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail);
         }
     }
 }
@@ -94,7 +92,8 @@ void measure_basis_linearity()
     printf("\n  For each operation, the fraction of random pairs satisfying linearity in\n");
     printf("  each of the two structures. 100%% means linear, near 0%% means not.\n");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 100000u;
 
     unsigned rotate_xor_linear = 0u;
@@ -108,8 +107,8 @@ void measure_basis_linearity()
 
     for (unsigned trial = 0u; trial < trials; trial += 1u)
     {
-        const uint32_t left = generator();
-        const uint32_t right = generator();
+        const uint32_t left = table_draw_next(&generator);
+        const uint32_t right = table_draw_next(&generator);
 
         // Rotation by seven, the schedule's own.
         if (rotate_right(left ^ right, 7u) == (rotate_right(left, 7u) ^ rotate_right(right, 7u)))
@@ -146,11 +145,11 @@ void measure_basis_linearity()
     printf("\n  %-24s %22s %20s\n", "operation", "GF(2)^32 (xor basis)", "Z/2^32 (add basis)");
     printf("  %-24s %22s %20s\n", "------------------------", "----------------------", "--------------------");
     printf("  %-24s %21.2f%% %19.2f%%\n", "rotate right by 7", (double)rotate_xor_linear * scale,
-                (double)rotate_add_linear * scale);
+           (double)rotate_add_linear * scale);
     printf("  %-24s %21.2f%% %19.2f%%\n", "xor a constant", (double)xor_xor_linear * scale,
-                (double)xor_add_linear * scale);
+           (double)xor_add_linear * scale);
     printf("  %-24s %21.2f%% %19.2f%%\n", "add a constant", (double)add_xor_linear * scale,
-                (double)add_add_linear * scale);
+           (double)add_add_linear * scale);
 
     check("rotation is linear over GF(2)^32", rotate_xor_linear == trials);
     check("rotation is not linear over Z/2^32", rotate_add_linear < (trials / 2u));
@@ -178,14 +177,15 @@ void measure_carry_structure()
     printf("\n  %10s %14s %14s %12s\n", "position", "measured", "exact", "bias from 1/2");
     printf("  %10s %14s %14s %12s\n", "----------", "--------------", "--------------", "------------");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 4000000u;
-    std::vector<uint64_t> carry_set(WORD_BITS + 1u, 0u);
+    uint64_t carry_set[WORD_BITS + 1u] = {0u};
 
     for (unsigned trial = 0u; trial < trials; trial += 1u)
     {
-        const uint32_t left = generator();
-        const uint32_t right = generator();
+        const uint32_t left = table_draw_next(&generator);
+        const uint32_t right = table_draw_next(&generator);
         unsigned carry = 0u;
 
         for (unsigned position = 0u; position < WORD_BITS; position += 1u)
@@ -217,7 +217,7 @@ void measure_carry_structure()
     }
     printf("  %10s %14s %14s %12s\n", "...", "", "", "");
     printf("  %10u %14.6f %14.6f %+12.6f\n", 31u, (double)carry_set[31] / (double)trials, 0.5,
-                ((double)carry_set[31] / (double)trials) - 0.5);
+           ((double)carry_set[31] / (double)trials) - 0.5);
 
     check("carry probability follows p_{i+1} = p_i/2 + 1/4", all_close);
 
@@ -267,27 +267,29 @@ void measure_difference_survival()
     printf("\n  %8s %22s %22s\n", "rounds", "xor difference", "modular difference");
     printf("  %8s %22s %22s\n", "--------", "----------------------", "----------------------");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 8192u;
     const uint32_t difference = 1u;
 
     unsigned xor_last_alive = 0u;
     unsigned add_last_alive = 0u;
 
-    for (unsigned rounds : {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u, 10u, 12u, 16u, 24u, 64u})
+    const unsigned listed_rounds[] = {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u, 10u, 12u, 16u, 24u, 64u};
+    for (unsigned rounds : listed_rounds)
     {
-        std::vector<uint64_t> xor_ones(256u, 0u);
-        std::vector<uint64_t> add_ones(256u, 0u);
+        uint64_t xor_ones[256] = {0u};
+        uint64_t add_ones[256] = {0u};
 
         for (unsigned trial = 0u; trial < trials; trial += 1u)
         {
             uint32_t block[SHA256_BLOCK_WORDS];
-            fill_tail_block(block, generator());
+            fill_tail_block(block, table_draw_next(&generator));
 
             Sha256State base_state;
             for (unsigned slot = 0u; slot < STATE_WORDS; slot += 1u)
             {
-                base_state.word[slot] = generator();
+                base_state.word[slot] = table_draw_next(&generator);
             }
 
             Sha256State plain = base_state;
@@ -319,8 +321,8 @@ void measure_difference_survival()
 
         for (unsigned position = 0u; position < 256u; position += 1u)
         {
-            xor_worst = std::max(xor_worst, fabs(((double)xor_ones[position] / (double)trials) - 0.5));
-            add_worst = std::max(add_worst, fabs(((double)add_ones[position] / (double)trials) - 0.5));
+            xor_worst = bench_max(xor_worst, fabs(((double)xor_ones[position] / (double)trials) - 0.5));
+            add_worst = bench_max(add_worst, fabs(((double)add_ones[position] / (double)trials) - 0.5));
         }
 
         const double xor_score = xor_worst / standard_error;
@@ -382,10 +384,12 @@ void measure_walsh_flatness()
     printf("\n  %8s %20s %14s\n", "rounds", "sequency flatness", "peak / mean");
     printf("  %8s %20s %14s\n", "--------", "--------------------", "--------------");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 4096u;
 
-    for (unsigned rounds : {0u, 1u, 2u, 4u, 8u, 16u, 32u, 64u})
+    const unsigned listed_rounds[] = {0u, 1u, 2u, 4u, 8u, 16u, 32u, 64u};
+    for (unsigned rounds : listed_rounds)
     {
         double power[WORD_BITS];
         for (unsigned frequency = 0u; frequency < WORD_BITS; frequency += 1u)
@@ -396,7 +400,7 @@ void measure_walsh_flatness()
         for (unsigned trial = 0u; trial < trials; trial += 1u)
         {
             uint32_t block[SHA256_BLOCK_WORDS];
-            fill_tail_block(block, generator());
+            fill_tail_block(block, table_draw_next(&generator));
 
             Sha256State state;
             sha256_state_init(&state);
@@ -424,16 +428,16 @@ void measure_walsh_flatness()
         for (unsigned frequency = 1u; frequency < WORD_BITS; frequency += 1u)
         {
             const double value = power[frequency];
-            log_sum += log(std::max(value, 1e-300));
+            log_sum += log(bench_max(value, 1e-300));
             linear_sum += value;
-            peak = std::max(peak, value);
+            peak = bench_max(peak, value);
         }
         const double count = (double)(WORD_BITS - 1u);
         const double geometric = exp(log_sum / count);
         const double arithmetic = linear_sum / count;
 
         printf("  %8u %19.6f %14.4f\n", rounds, (arithmetic > 0.0) ? (geometric / arithmetic) : 0.0,
-                    (arithmetic > 0.0) ? (peak / arithmetic) : 0.0);
+               (arithmetic > 0.0) ? (peak / arithmetic) : 0.0);
     }
 
     printf("\n  Same shape as the Fourier result in bench_transform. Neither projection\n");
