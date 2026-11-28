@@ -48,16 +48,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <string>
-#include <vector>
-
+// The program: its steps, `count` of them, and its fields' bits and offsets, `field_count` of them. The first build
+// takes no cell and counts them. The second fills the cells of the persistent tier at those counts. `full` is 1 where
+// the second build passed a count of the first
 typedef struct
 {
-    std::vector<EngineRecordStep> steps;
-    std::vector<unsigned int> field_bits;
-    std::vector<unsigned int> field_offset;
+    EngineRecordStep *steps;
+    unsigned int count;
+    unsigned int room;
+    unsigned int *field_bits;
+    unsigned int *field_offset;
+    unsigned int field_count;
+    unsigned int field_room;
     unsigned int shared_bits;
+    int full;
 } LobesProgram;
+
+// the bytes of the text of a check
+#define LOBES_CHECK_BYTES 128u
 
 // a value: the register storing its mantissa and the binary exponent the program stores for it
 typedef struct
@@ -66,28 +74,77 @@ typedef struct
     long long exponent;
 } LobesReal;
 
-// a program, the outputs it lists with their names and exponents, its shared record, and what the device made of it
+// the name of an output and its binary exponent. The name is `name`, and `index` follows it where `index` is 0 or more
+typedef struct
+{
+    const char *name;
+    long long index;
+    long long exponent;
+} LobesName;
+
+// a mantissa of the input: its magnitude's limbs, `limbs` of them in a cell of the persistent tier, its sign, and the
+// signed width that holds it
+typedef struct
+{
+    unsigned int *magnitude;
+    unsigned int limbs;
+    long long sign;
+    unsigned int bits;
+} LobesMantissa;
+
+// A program, the outputs it lists with their names and exponents, its shared record, and what the device made of it.
+// The outputs and their names are cells of the persistent tier at the count of the first build, `output_count` of
+// them. The shared record and the records are cells of the temporary tier, `shared_count` and `record_count` words
 typedef struct
 {
     const char *name;
     LobesProgram program;
-    std::vector<unsigned int> outputs;
-    std::vector<std::string> names;
-    std::vector<long long> exponents;
-    std::vector<unsigned int> shared;
+    unsigned int *outputs;
+    LobesName *names;
+    unsigned int output_count;
+    unsigned int output_room;
+    unsigned int *shared;
+    unsigned int shared_count;
     EngineRecordKey key;
     EngineRecordLayout layout;
     CycleRecord *record;
-    std::vector<unsigned int> records;
+    unsigned int *records;
+    unsigned long long record_count;
     int same;
 } LobesStage;
+
+// a cell of `count` elements of `size` bytes, cleared, on the temporary tier where `ephemeral` is 1. NULL where the
+// pool cannot meet it
+static void *lobes_cleared(unsigned long long count, unsigned long long size, int ephemeral)
+{
+    return platform_cell_cleared((count != 0ull) ? count : 1ull, size, platform_place_g_program_owner, ephemeral);
+}
+
+// a check whose text is `front`, the stage's name and `back`, in a line of a fixed bound
+static void lobes_check(SimResults *job, int passed, const char *front, const char *name, const char *back)
+{
+    char text[LOBES_CHECK_BYTES];
+    VerbaLinea line = mmgr_line_over(text, sizeof(text));
+    mmgr_line_put(&line, front);
+    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, back);
+    sim_check(job, passed, text);
+}
 
 static unsigned int lobes_step(LobesProgram *program, EngineRecordOperation operation, unsigned int left,
                                unsigned int right, unsigned int member)
 {
-    EngineRecordStep step = {operation, left, right, member};
-    program->steps.push_back(step);
-    return (unsigned int)program->steps.size() - 1u;
+    if (program->steps != NULL)
+    {
+        if (program->count >= program->room)
+        {
+            program->full = 1;
+            return 0u;
+        }
+        program->steps[program->count] = EngineRecordStep{operation, left, right, member};
+    }
+    program->count += 1u;
+    return program->count - 1u;
 }
 
 static unsigned int lobes_constant(LobesProgram *program, unsigned long long value)
@@ -100,9 +157,18 @@ static unsigned int lobes_constant(LobesProgram *program, unsigned long long val
 // written where it is read, and the register is live only from there to its reader
 static unsigned int lobes_field(LobesProgram *program, unsigned int bits)
 {
-    const unsigned int field = (unsigned int)program->field_bits.size();
-    program->field_bits.push_back(bits);
-    program->field_offset.push_back(program->shared_bits);
+    const unsigned int field = program->field_count;
+    if (program->field_bits != NULL)
+    {
+        if (field >= program->field_room)
+        {
+            program->full = 1;
+            return 0u;
+        }
+        program->field_bits[field] = bits;
+        program->field_offset[field] = program->shared_bits;
+    }
+    program->field_count += 1u;
     program->shared_bits += bits;
     return field;
 }
@@ -112,11 +178,42 @@ static unsigned int lobes_read(LobesProgram *program, unsigned int field)
     return lobes_step(program, ENGINE_RECORD_FIELD_SIGNED, field, 0u, 0u);
 }
 
-static void lobes_output(LobesStage *stage, const std::string &name, unsigned int step, long long exponent)
+// the output `step`, its name `name` and `index`, and its exponent, put at the end of the stage's outputs
+static void lobes_output(LobesStage *stage, const char *name, long long index, unsigned int step, long long exponent)
 {
-    stage->outputs.push_back(step);
-    stage->names.push_back(name);
-    stage->exponents.push_back(exponent);
+    if (stage->outputs != NULL)
+    {
+        if (stage->output_count >= stage->output_room)
+        {
+            stage->program.full = 1;
+            return;
+        }
+        stage->outputs[stage->output_count] = step;
+        stage->names[stage->output_count] = LobesName{name, index, exponent};
+    }
+    stage->output_count += 1u;
+}
+
+// The cells of a stage at the counts of its first build, and its counts set back to 0 for the second build to fill
+// them. 1, or 0 where the pool cannot meet a cell, and then the program is full
+static int lobes_stage_taken(LobesStage *stage)
+{
+    LobesProgram *const program = &stage->program;
+    program->room = program->count;
+    program->field_room = program->field_count;
+    stage->output_room = stage->output_count;
+    program->steps = (EngineRecordStep *)lobes_cleared(program->room, sizeof(EngineRecordStep), 0);
+    program->field_bits = (unsigned int *)lobes_cleared(program->field_room, sizeof(unsigned int), 0);
+    program->field_offset = (unsigned int *)lobes_cleared(program->field_room, sizeof(unsigned int), 0);
+    stage->outputs = (unsigned int *)lobes_cleared(stage->output_room, sizeof(unsigned int), 0);
+    stage->names = (LobesName *)lobes_cleared(stage->output_room, sizeof(LobesName), 0);
+    program->count = 0u;
+    program->field_count = 0u;
+    stage->output_count = 0u;
+    const int taken = (program->steps != NULL) && (program->field_bits != NULL) && (program->field_offset != NULL) &&
+                      (stage->outputs != NULL) && (stage->names != NULL);
+    program->full = program->full || !taken;
+    return taken;
 }
 
 // the lane, at max 2^b, and the and with 2^(b + 1) - 1 gives its register that width and preserves its value
@@ -126,22 +223,23 @@ static unsigned int lobes_lane(LobesProgram *program, unsigned int b)
     return lobes_step(program, ENGINE_RECORD_AND, counted, lobes_constant(program, (2ull << b) - 1ull), 0u);
 }
 
-// the curves: T_n for n from 0 to K over the denominator X^K, from the mantissas' widths gamma_bits[n][j]
-static void lobes_build(LobesStage *stage, unsigned int b, long long big_e,
-                        const std::vector<std::vector<unsigned int>> &gamma_bits)
+// The curves: T_n for n from 0 to K over the denominator X^K. The mantissas of curve n are mantissas[starts[n]] up to
+// mantissas[starts[n + 1]], and their fields follow each other in that order
+static void lobes_build(LobesStage *stage, unsigned int b, long long big_e, const LobesMantissa *mantissas,
+                        const unsigned long long *starts, unsigned int curves)
 {
     LobesProgram *const program = &stage->program;
     program->shared_bits = 0u;
     const unsigned int sign_field = lobes_field(program, 2u);
     // nu 2^b, read from the record at a width b alone sets: one program serves every cell up to nu = 127
     const unsigned int floor_field = lobes_field(program, b + 8u);
-    std::vector<std::vector<unsigned int>> gamma(gamma_bits.size());
-    for (size_t n = 0u; n < gamma_bits.size(); n += 1u)
+    const unsigned int gamma_first = program->field_count;
+    for (unsigned int n = 0u; n < curves; n += 1u)
     {
-        const unsigned int count = (unsigned int)gamma_bits[n].size();
+        const unsigned int count = (unsigned int)(starts[n + 1u] - starts[n]);
         for (unsigned int j = 0u; j < count; j += 1u)
         {
-            gamma[n].push_back(lobes_field(program, gamma_bits[n][j] + b * (count - 1u - j)));
+            lobes_field(program, mantissas[starts[n] + j].bits + b * (count - 1u - j));
         }
     }
     const unsigned int lane = lobes_lane(program, b);
@@ -149,9 +247,14 @@ static void lobes_build(LobesStage *stage, unsigned int b, long long big_e,
     const unsigned int doubled = lobes_step(program, ENGINE_RECORD_SUM, lane, lane, 0u);
     const unsigned int zt = lobes_step(program, ENGINE_RECORD_DIFFERENCE, lobes_constant(program, 1ull << b), doubled, 0u);
     const LobesReal z = {zt, -(long long)b};
-    const unsigned int curves = (unsigned int)gamma.size();
     const unsigned int top = curves - 1u;
-    std::vector<unsigned int> x_power(curves);
+    // the powers of X, a cell of the temporary tier that the call gives back
+    unsigned int *const x_power = (unsigned int *)lobes_cleared(curves, sizeof(unsigned int), 1);
+    if (x_power == NULL)
+    {
+        program->full = 1;
+        return;
+    }
     x_power[0] = lobes_constant(program, 1ull);
     for (unsigned int n = 1u; n < curves; n += 1u)
     {
@@ -159,37 +262,39 @@ static void lobes_build(LobesStage *stage, unsigned int b, long long big_e,
     }
     for (unsigned int n = 0u; n < curves; n += 1u)
     {
-        const unsigned int count = (unsigned int)gamma[n].size();
-        unsigned int acc = lobes_read(program, gamma[n][count - 1u]);
+        const unsigned int count = (unsigned int)(starts[n + 1u] - starts[n]);
+        const unsigned int gamma = gamma_first + (unsigned int)starts[n];
+        unsigned int acc = lobes_read(program, gamma + count - 1u);
         for (unsigned int j = count - 1u; j > 0u; j -= 1u)
         {
             const unsigned int turned = lobes_step(program, ENGINE_RECORD_PRODUCT, acc, z.reg, 0u);
-            acc = lobes_step(program, ENGINE_RECORD_SUM, turned, lobes_read(program, gamma[n][j - 1u]), 0u);
+            acc = lobes_step(program, ENGINE_RECORD_SUM, turned, lobes_read(program, gamma + j - 1u), 0u);
         }
         const LobesReal lobe = {acc, -big_e - (long long)b * (long long)(count - 1u)};
         // s H_n 2^(b n) X^(K - n): the 2^(b n) is the exponent's, the rest the mantissa's
         const unsigned int sign = lobes_read(program, sign_field);
         const unsigned int signed_h = lobes_step(program, ENGINE_RECORD_PRODUCT, lobe.reg, sign, 0u);
-        lobes_output(stage, "curve" + std::to_string(n),
+        lobes_output(stage, "curve", (long long)n,
                      lobes_step(program, ENGINE_RECORD_PRODUCT, signed_h, x_power[top - n], 0u),
                      lobe.exponent + (long long)b * n);
     }
-    lobes_output(stage, "denominator", x_power[top], 0);
+    lobes_output(stage, "denominator", -1, x_power[top], 0);
+    platform_cell_released(x_power, platform_place_g_program_owner);
 }
 
-// the logarithm: l S, D^(2L - 1), l^(2L + 1) and D^2 - l^2, from the widths of the constants c_k. Every power of D
+// The logarithm: l S, D^(2L - 1), l^(2L + 1) and D^2 - l^2, from the widths of the constants c_k. Every power of D
 // is as wide as the field nu 2^b is read at. The field is as wide as nu's own bits set, and one program serves every
-// nu of that many bits
-static void lobes_log_build(LobesStage *stage, unsigned int b, unsigned int nu_bits, const std::vector<unsigned int> &c_bits)
+// nu of that many bits. The fields of c_k follow each other in the order of k
+static void lobes_log_build(LobesStage *stage, unsigned int b, unsigned int nu_bits, const LobesMantissa *c_mantissas,
+                            unsigned int terms)
 {
     LobesProgram *const program = &stage->program;
     program->shared_bits = 0u;
     const unsigned int floor_field = lobes_field(program, b + nu_bits + 1u);
-    const unsigned int terms = (unsigned int)c_bits.size();
-    std::vector<unsigned int> c(terms);
+    const unsigned int c = program->field_count;
     for (unsigned int k = 0u; k < terms; k += 1u)
     {
-        c[k] = lobes_field(program, c_bits[k]);
+        lobes_field(program, c_mantissas[k].bits);
     }
     const unsigned int lane = lobes_lane(program, b);
     const unsigned int big_x = lobes_step(program, ENGINE_RECORD_SUM, lane, lobes_read(program, floor_field), 0u);
@@ -197,27 +302,28 @@ static void lobes_log_build(LobesStage *stage, unsigned int b, unsigned int nu_b
     const unsigned int u = lobes_step(program, ENGINE_RECORD_PRODUCT, lane, lane, 0u);
     const unsigned int v = lobes_step(program, ENGINE_RECORD_PRODUCT, big_d, big_d, 0u);
     // Horner's rule from c_(L-1) down: the step that adds c_(k-1) turns the sum by l^2 and positions c_(k-1) at D^(2(L - k))
-    unsigned int acc = lobes_read(program, c[terms - 1u]);
+    unsigned int acc = lobes_read(program, c + terms - 1u);
     unsigned int v_power = v;
     for (unsigned int k = terms - 1u; k > 0u; k -= 1u)
     {
         const unsigned int turned = lobes_step(program, ENGINE_RECORD_PRODUCT, acc, u, 0u);
-        const unsigned int positioned = lobes_step(program, ENGINE_RECORD_PRODUCT, lobes_read(program, c[k - 1u]), v_power, 0u);
+        const unsigned int positioned =
+            lobes_step(program, ENGINE_RECORD_PRODUCT, lobes_read(program, c + k - 1u), v_power, 0u);
         acc = lobes_step(program, ENGINE_RECORD_SUM, turned, positioned, 0u);
         if (k > 1u)
         {
             v_power = lobes_step(program, ENGINE_RECORD_PRODUCT, v_power, v, 0u);
         }
     }
-    lobes_output(stage, "numerator", lobes_step(program, ENGINE_RECORD_PRODUCT, lane, acc, 0u), 0);
-    lobes_output(stage, "power", lobes_step(program, ENGINE_RECORD_PRODUCT, big_d, v_power, 0u), 0);
+    lobes_output(stage, "numerator", -1, lobes_step(program, ENGINE_RECORD_PRODUCT, lane, acc, 0u), 0);
+    lobes_output(stage, "power", -1, lobes_step(program, ENGINE_RECORD_PRODUCT, big_d, v_power, 0u), 0);
     unsigned int tail = lane;
     for (unsigned int k = 0u; k < terms; k += 1u)
     {
         tail = lobes_step(program, ENGINE_RECORD_PRODUCT, tail, u, 0u);
     }
-    lobes_output(stage, "tail", tail, 0);
-    lobes_output(stage, "gap", lobes_step(program, ENGINE_RECORD_DIFFERENCE, v, u, 0u), 0);
+    lobes_output(stage, "tail", -1, tail, 0);
+    lobes_output(stage, "gap", -1, lobes_step(program, ENGINE_RECORD_DIFFERENCE, v, u, 0u), 0);
 }
 
 static int lobes_word(FILE *in, long long *value)
@@ -226,48 +332,56 @@ static int lobes_word(FILE *in, long long *value)
 }
 
 // a mantissa of the input: its magnitude's limbs, its sign, and the signed width that represents it
-static int lobes_mantissa(FILE *in, std::vector<unsigned int> *magnitude, long long *sign, unsigned int *bits)
+static int lobes_mantissa(FILE *in, LobesMantissa *mantissa)
 {
     long long limbs = 0;
     int read = lobes_word(in, &limbs) && (limbs >= 0) && (limbs < (1 << 20));
-    magnitude->assign(read ? (size_t)limbs : 0u, 0u);
-    read = read && (fread(magnitude->data(), sizeof(unsigned int), magnitude->size(), in) == magnitude->size());
-    read = read && lobes_word(in, sign);
-    unsigned int width = 32u * (unsigned int)magnitude->size();
-    while ((width > 0u) && ((((*magnitude)[(width - 1u) / 32u] >> ((width - 1u) % 32u)) & 1u) == 0u))
+    // the magnitude, a cell of the persistent tier at the count the input gives: the program reads it once and keeps it
+    mantissa->limbs = read ? (unsigned int)limbs : 0u;
+    mantissa->magnitude = (unsigned int *)lobes_cleared(mantissa->limbs, sizeof(unsigned int), 0);
+    read = read && (mantissa->magnitude != NULL) &&
+           (fread(mantissa->magnitude, sizeof(unsigned int), mantissa->limbs, in) == mantissa->limbs);
+    read = read && lobes_word(in, &mantissa->sign);
+    unsigned int width = read ? (32u * mantissa->limbs) : 0u;
+    while ((width > 0u) && (((mantissa->magnitude[(width - 1u) / 32u] >> ((width - 1u) % 32u)) & 1u) == 0u))
     {
         width -= 1u;
     }
-    *bits = width + 1u;
+    mantissa->bits = width + 1u;
     return read;
 }
 
-// a magnitude's limbs moved `shift` bits up, zeros below
-static std::vector<unsigned int> lobes_shifted(const std::vector<unsigned int> &limbs, unsigned int shift)
+// a magnitude's `count` limbs moved `shift` bits up, zeros below, into `out`. `out` holds count + shift / 32 + 1
+// words, each 0 before the call
+static void lobes_shifted(const unsigned int *limbs, unsigned int count, unsigned int shift, unsigned int *out)
 {
-    std::vector<unsigned int> out(limbs.size() + shift / 32u + 1u, 0u);
-    for (size_t at = 0u; at < limbs.size(); at += 1u)
+    for (unsigned int at = 0u; at < count; at += 1u)
     {
         const unsigned long long moved = (unsigned long long)limbs[at] << (shift % 32u);
         out[at + shift / 32u] |= (unsigned int)moved;
         out[at + shift / 32u + 1u] |= (unsigned int)(moved >> 32u);
     }
-    return out;
 }
 
-// `bits` of a two's complement value, its magnitude's limbs given, positioned into the record at `offset`
-static void lobes_put(unsigned int *record, unsigned int offset, unsigned int bits, const std::vector<unsigned int> &limbs,
-                      long long sign)
+// `bits` of a two's complement value, its magnitude's `limb_count` limbs given, positioned into the record at `offset`
+static void lobes_put(unsigned int *record, unsigned int offset, unsigned int bits, const unsigned int *limbs,
+                      unsigned int limb_count, long long sign)
 {
-    std::vector<unsigned int> word((bits + 31u) / 32u + 1u, 0u);
-    for (size_t at = 0u; at < limbs.size() && at < word.size(); at += 1u)
+    // the value's words, a cell of the temporary tier at the width the field takes, that the call gives back
+    const unsigned int words = (bits + 31u) / 32u + 1u;
+    unsigned int *const word = (unsigned int *)lobes_cleared(words, sizeof(unsigned int), 1);
+    if (word == NULL)
+    {
+        return;
+    }
+    for (unsigned int at = 0u; (at < limb_count) && (at < words); at += 1u)
     {
         word[at] = limbs[at];
     }
     if (sign < 0)
     {
         unsigned long long carry = 1ull;
-        for (size_t at = 0u; at < word.size(); at += 1u)
+        for (unsigned int at = 0u; at < words; at += 1u)
         {
             const unsigned int flipped = ~word[at];
             carry += (unsigned long long)flipped;
@@ -281,62 +395,57 @@ static void lobes_put(unsigned int *record, unsigned int offset, unsigned int bi
         const unsigned int value = (word[bit / 32u] >> (bit % 32u)) & 1u;
         record[to / 32u] = (record[to / 32u] & ~(1u << (to % 32u))) | (value << (to % 32u));
     }
+    platform_cell_released(word, platform_place_g_program_owner);
 }
 
-// the record a stage's fields are positioned into, sized to them
+// the record a stage's fields are positioned into, sized to them, a cell of the temporary tier, 0 before it fills
 static void lobes_open_shared(LobesStage *stage)
 {
-    stage->shared.assign((stage->program.shared_bits + 31u) / 32u + 1u, 0u);
+    stage->shared_count = (stage->program.shared_bits + 31u) / 32u + 1u;
+    stage->shared = (unsigned int *)lobes_cleared(stage->shared_count, sizeof(unsigned int), 1);
+    stage->program.full = stage->program.full || (stage->shared == NULL);
 }
 
 // nu 2^b into the stage's field `field`
 static void lobes_put_floor(LobesStage *stage, unsigned int field, unsigned long long nu, unsigned int b)
 {
     const unsigned long long floor_value = nu << b;
-    const std::vector<unsigned int> floor_limbs = {(unsigned int)floor_value, (unsigned int)(floor_value >> 32u)};
-    lobes_put(stage->shared.data(), stage->program.field_offset[field], stage->program.field_bits[field], floor_limbs, 1);
+    const unsigned int floor_limbs[2] = {(unsigned int)floor_value, (unsigned int)(floor_value >> 32u)};
+    lobes_put(stage->shared, stage->program.field_offset[field], stage->program.field_bits[field], floor_limbs, 2u, 1);
 }
 
 static void lobes_open_stage(LobesStage *stage, const char *name)
 {
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = stage, .bytes = sizeof(*stage), .val = 0);
     stage->name = name;
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage->key, .bytes = sizeof(stage->key), .val = 0);
-    EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage->layout, .bytes = sizeof(stage->layout), .val = 0);
     stage->record = NULL;
-    stage->same = 0;
 }
 
 // imprints and arranges a stage's program, and reports where the imprint stops when it does
 static int lobes_position(SimResults *job, LobesStage *stage, EngineError *error)
 {
     LobesProgram *const program = &stage->program;
-    const unsigned int fields = (unsigned int)program->field_bits.size();
-    const KeymathRecordRequest encode = {program->steps.data(), (unsigned int)program->steps.size(),
-                                         program->field_bits.data(),
-                                         fields,
-                                         1u,
-                                         stage->outputs.data(),
-                                         (unsigned int)stage->outputs.size(),
-                                         NULL,
-                                         0u,
-                                         &stage->key,
-                                         error};
-    int ok = keymath_record_encode(&encode) != KEYMATH_ERROR;
-    if (!ok)
+    const unsigned int fields = program->field_count;
+    const KeymathRecordRequest encode = {
+        program->steps, program->count, program->field_bits, fields, 1u, stage->outputs, stage->output_count, NULL, 0u,
+        &stage->key,    error};
+    int ok = !program->full && (keymath_record_encode(&encode) != KEYMATH_ERROR);
+    if (!ok && !program->full)
     {
-        const EngineRecordStep *const first = program->steps.data();
-        const EngineRecordStep *const last = first + program->steps.size();
+        const EngineRecordStep *const first = program->steps;
+        const EngineRecordStep *const last = first + program->count;
         const EngineRecordStep *const at = (const EngineRecordStep *)error->evacaddr;
         const long long step = ((at >= first) && (at < last)) ? (long long)(at - first) : -1;
-        fprintf(stderr,
-                "  exact_zeta_lobes: the %s imprint errors, site %u, at step %lld of %zu, operation %d left %u right %u\n",
-                stage->name, error->site, step, program->steps.size(), (step >= 0) ? (int)at->operation : -1,
-                (step >= 0) ? at->left : 0u, (step >= 0) ? at->right : 0u);
+        fprintf(
+            stderr,
+            "  exact_zeta_lobes: the %s imprint errors, site %u, at step %lld of %u, operation %d left %u right %u\n",
+            stage->name, error->site, step, program->count, (step >= 0) ? (int)at->operation : -1,
+            (step >= 0) ? at->left : 0u, (step >= 0) ? at->right : 0u);
     }
-    sim_check(job, ok, (std::string("keymath imprints the ") + stage->name + " program").c_str());
+    lobes_check(job, ok, "keymath imprints the ", stage->name, " program");
     unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {(program->shared_bits + 31u) / 32u, 0u, 0u};
-    const KeyScheduleRecordRequest position = {&stage->key, program->field_offset.data(), fields, in_limbs, 1, &stage->layout,
-                                          error};
+    const KeyScheduleRecordRequest position = {&stage->key, program->field_offset, fields, in_limbs,
+                                               1,           &stage->layout,        error};
     const int positioned = ok && (key_schedule_record_layout(&position) != KEY_SCHEDULE_ERROR);
     if (ok && !positioned)
     {
@@ -345,19 +454,19 @@ static int lobes_position(SimResults *job, LobesStage *stage, EngineError *error
                                                                                         : "a step";
         const long long step = (end[0] == 'a') ? (long long)((const EngineRecordTerm *)error->evacaddr - stage->key.term)
                                                : -1;
-        fprintf(stderr, "  exact_zeta_lobes: the %s layout ends at %s, step %lld of %zu\n", stage->name, end, step,
-                program->steps.size());
+        fprintf(stderr, "  exact_zeta_lobes: the %s layout ends at %s, step %lld of %u\n", stage->name, end, step,
+                program->count);
     }
     ok = positioned;
-    sim_check(job, ok, (std::string("the scheduler positions the ") + stage->name + " program out").c_str());
-    stage->shared.resize((program->shared_bits + 31u) / 32u);
+    lobes_check(job, ok, "the scheduler positions the ", stage->name, " program out");
+    stage->shared_count = (program->shared_bits + 31u) / 32u;
     return ok;
 }
 
 // the bytes a stage occupies on the device over `lanes` lanes
 static unsigned long long lobes_declared(const LobesStage *stage, unsigned long long lanes)
 {
-    return lanes * stage->layout.out_limbs * sizeof(unsigned int) + stage->shared.size() * sizeof(unsigned int) +
+    return lanes * stage->layout.out_limbs * sizeof(unsigned int) + stage->shared_count * sizeof(unsigned int) +
            (unsigned long long)stage->layout.steps * sizeof(DeviceRecordStep);
 }
 
@@ -365,30 +474,34 @@ static unsigned long long lobes_declared(const LobesStage *stage, unsigned long 
 static int lobes_sweep(SimResults *job, LobesStage *stage, unsigned long long lanes, unsigned long long checked,
                        EngineError *error)
 {
-    const std::string name(stage->name);
+    const char *const name = stage->name;
     int ok = cycle_record_load(&stage->layout, &stage->record, error) != CYCLE_ERROR;
-    sim_check(job, ok, ("the " + name + " program loads onto the device").c_str());
+    lobes_check(job, ok, "the ", name, " program loads onto the device");
     const unsigned int out_limbs = stage->layout.out_limbs;
     unsigned int *device_shared = NULL;
     unsigned int *device_out = NULL;
-    ok = ok && (cudaMalloc((void **)&device_shared, stage->shared.size() * sizeof(unsigned int)) == cudaSuccess) &&
+    ok = ok && (cudaMalloc((void **)&device_shared, stage->shared_count * sizeof(unsigned int)) == cudaSuccess) &&
          (cudaMalloc((void **)&device_out, lanes * out_limbs * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMemcpy(device_shared, stage->shared.data(), stage->shared.size() * sizeof(unsigned int),
+         (cudaMemcpy(device_shared, stage->shared, stage->shared_count * sizeof(unsigned int),
                      cudaMemcpyHostToDevice) == cudaSuccess);
     const CycleRecordRunRequest run = {stage->record, {device_shared, NULL, NULL}, {1ull, 0ull, 0ull}, NULL, lanes,
                                        device_out, error};
     ok = ok && (cycle_record_run(&run) == (long)lanes);
-    sim_check(job, ok, ("every lane of the cell runs the " + name + " program on the device").c_str());
-    stage->records.assign((size_t)(ok ? lanes * out_limbs : 0ull), 0u);
-    ok = ok && (cudaMemcpy(stage->records.data(), device_out, stage->records.size() * sizeof(unsigned int),
-                           cudaMemcpyDeviceToHost) == cudaSuccess);
-    std::vector<unsigned int> host_out((size_t)(checked * out_limbs));
-    const CycleRecordHostRequest host = {&stage->layout, {stage->shared.data(), NULL, NULL}, {1ull, 0ull, 0ull}, NULL,
-                                         checked,        host_out.data(),                     error};
+    lobes_check(job, ok, "every lane of the cell runs the ", name, " program on the device");
+    // the records and the host's records, cells of the temporary tier, each 0 before it fills
+    stage->record_count = ok ? (lanes * out_limbs) : 0ull;
+    stage->records = (unsigned int *)lobes_cleared(stage->record_count, sizeof(unsigned int), 1);
+    unsigned int *const host_out = (unsigned int *)lobes_cleared(checked * out_limbs, sizeof(unsigned int), 1);
+    ok = ok && (stage->records != NULL) && (host_out != NULL) &&
+         (cudaMemcpy(stage->records, device_out, stage->record_count * sizeof(unsigned int), cudaMemcpyDeviceToHost) ==
+          cudaSuccess);
+    const CycleRecordHostRequest host = {
+        &stage->layout, {stage->shared, NULL, NULL}, {1ull, 0ull, 0ull}, NULL, checked, host_out, error};
     stage->same = ok && (cycle_record_run_host(&host) == (long)checked) &&
-                  (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out.data(), .other = stage->records.data(),
-                              .bytes = host_out.size() * sizeof(unsigned int)) == 0);
-    sim_check(job, stage->same, ("the host's " + name + " records equal the device's word for word").c_str());
+                  (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = stage->records,
+                              .bytes = checked * out_limbs * sizeof(unsigned int)) == 0);
+    lobes_check(job, stage->same, "the host's ", name, " records equal the device's word for word");
+    platform_cell_released(host_out, platform_place_g_program_owner);
     cudaFree(device_shared);
     cudaFree(device_out);
     return ok;
@@ -398,11 +511,16 @@ static void lobes_write(FILE *out, const LobesStage *stage, unsigned long long l
 {
     const unsigned int out_limbs = stage->layout.out_limbs;
     fprintf(out, "stage %s out_limbs %u\n", stage->name, out_limbs);
-    for (size_t at = 0u; at < stage->outputs.size(); at += 1u)
+    for (unsigned int at = 0u; at < stage->output_count; at += 1u)
     {
         const DeviceRecordStep *const step = &stage->layout.step_table[stage->outputs[at]];
-        fprintf(out, "output %s %u %u %lld\n", stage->names[at].c_str(), step->out_offset, step->out_bits,
-                stage->exponents[at]);
+        const LobesName *const name = &stage->names[at];
+        fprintf(out, "output %s", name->name);
+        if (name->index >= 0)
+        {
+            fprintf(out, "%lld", name->index);
+        }
+        fprintf(out, " %u %u %lld\n", step->out_offset, step->out_bits, name->exponent);
     }
     for (unsigned long long lane = 0ull; lane < lanes; lane += 1ull)
     {
@@ -424,6 +542,13 @@ static void lobes_release(LobesStage *stage)
     }
     key_schedule_record_release(&stage->layout);
     keymath_record_release(&stage->key);
+    void *const cells[7] = {
+        stage->records, stage->shared, stage->program.steps, stage->program.field_bits, stage->program.field_offset,
+        stage->outputs, stage->names};
+    for (unsigned int each = 0u; each < 7u; each += 1u)
+    {
+        platform_cell_released(cells[each], platform_place_g_program_owner);
+    }
 }
 
 int program_main(int count, char **arguments)
@@ -453,33 +578,28 @@ int program_main(int count, char **arguments)
     const unsigned int curves = read ? (unsigned int)header[4] + 1u : 0u;
     const long long big_e = read ? header[5] : 0;
     const unsigned int log_terms = read ? (unsigned int)header[6] : 0u;
-    std::vector<long long> terms(curves, 0);
+    // The input, cells of the persistent tier at the counts the input gives: the program reads it once and keeps it to
+    // its end. The mantissas of curve n are mantissas[starts[n]] up to mantissas[starts[n + 1]]
+    unsigned long long *const starts =
+        (unsigned long long *)lobes_cleared(curves + 1ull, sizeof(unsigned long long), 0);
+    read = read && (starts != NULL);
     for (unsigned int n = 0u; read && (n < curves); n += 1u)
     {
-        read = lobes_word(in, &terms[n]) && (terms[n] > 0);
+        long long terms = 0;
+        read = lobes_word(in, &terms) && (terms > 0);
+        starts[n + 1u] = starts[n] + (read ? (unsigned long long)terms : 0ull);
     }
-    std::vector<std::vector<std::vector<unsigned int>>> magnitudes(curves);
-    std::vector<std::vector<long long>> signs(curves);
-    std::vector<std::vector<unsigned int>> gamma_bits(curves);
-    for (unsigned int n = 0u; read && (n < curves); n += 1u)
+    const unsigned long long mantissa_count = read ? starts[curves] : 0ull;
+    LobesMantissa *const mantissas = (LobesMantissa *)lobes_cleared(mantissa_count, sizeof(LobesMantissa), 0);
+    LobesMantissa *const c_mantissas = (LobesMantissa *)lobes_cleared(log_terms, sizeof(LobesMantissa), 0);
+    read = read && (mantissas != NULL) && (c_mantissas != NULL);
+    for (unsigned long long at = 0ull; read && (at < mantissa_count); at += 1ull)
     {
-        for (long long j = 0; read && (j < terms[n]); j += 1)
-        {
-            std::vector<unsigned int> magnitude;
-            long long sign = 0;
-            unsigned int bits = 0u;
-            read = lobes_mantissa(in, &magnitude, &sign, &bits);
-            magnitudes[n].push_back(magnitude);
-            signs[n].push_back(sign);
-            gamma_bits[n].push_back(bits);
-        }
+        read = lobes_mantissa(in, &mantissas[at]);
     }
-    std::vector<std::vector<unsigned int>> c_magnitudes(log_terms);
-    std::vector<long long> c_signs(log_terms, 0);
-    std::vector<unsigned int> c_bits(log_terms, 0u);
     for (unsigned int k = 0u; read && (k < log_terms); k += 1u)
     {
-        read = lobes_mantissa(in, &c_magnitudes[k], &c_signs[k], &c_bits[k]);
+        read = lobes_mantissa(in, &c_mantissas[k]);
     }
     if (in != NULL)
     {
@@ -491,25 +611,44 @@ int program_main(int count, char **arguments)
         return 2;
     }
 
+    // each program has two builds: the first counts its steps, fields and outputs, and the second fills cells at those
+    // counts
     EngineError error;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     LobesStage curve_stage;
     lobes_open_stage(&curve_stage, "curves");
-    lobes_build(&curve_stage, b, big_e, gamma_bits);
-    lobes_open_shared(&curve_stage);
-    std::vector<unsigned int> one_limb(1u, 1u);
-    lobes_put(curve_stage.shared.data(), curve_stage.program.field_offset[0], curve_stage.program.field_bits[0], one_limb,
-              ((nu - 1ull) % 2ull) ? -1 : 1);
-    lobes_put_floor(&curve_stage, 1u, nu, b);
-    unsigned int field = 2u;
-    for (unsigned int n = 0u; n < curves; n += 1u)
+    lobes_build(&curve_stage, b, big_e, mantissas, starts, curves);
+    if (lobes_stage_taken(&curve_stage))
     {
-        const unsigned int magnitude_count = (unsigned int)magnitudes[n].size();
-        for (unsigned int j = 0u; j < magnitude_count; j += 1u, field += 1u)
+        lobes_build(&curve_stage, b, big_e, mantissas, starts, curves);
+    }
+    lobes_open_shared(&curve_stage);
+    if (!curve_stage.program.full)
+    {
+        const unsigned int one_limb[1] = {1u};
+        lobes_put(curve_stage.shared, curve_stage.program.field_offset[0], curve_stage.program.field_bits[0], one_limb,
+                  1u, ((nu - 1ull) % 2ull) ? -1 : 1);
+        lobes_put_floor(&curve_stage, 1u, nu, b);
+        unsigned int field = 2u;
+        for (unsigned int n = 0u; n < curves; n += 1u)
         {
-            const std::vector<unsigned int> positioned = lobes_shifted(magnitudes[n][j], b * (magnitude_count - 1u - j));
-            lobes_put(curve_stage.shared.data(), curve_stage.program.field_offset[field],
-                      curve_stage.program.field_bits[field], positioned, signs[n][j]);
+            const unsigned int magnitude_count = (unsigned int)(starts[n + 1u] - starts[n]);
+            for (unsigned int j = 0u; j < magnitude_count; j += 1u, field += 1u)
+            {
+                // the magnitude moved up, a cell of the temporary tier that the step gives back
+                const LobesMantissa *const mantissa = &mantissas[starts[n] + j];
+                const unsigned int shift = b * (magnitude_count - 1u - j);
+                const unsigned int shifted_count = mantissa->limbs + shift / 32u + 1u;
+                unsigned int *const positioned = (unsigned int *)lobes_cleared(shifted_count, sizeof(unsigned int), 1);
+                curve_stage.program.full = curve_stage.program.full || (positioned == NULL);
+                if (positioned != NULL)
+                {
+                    lobes_shifted(mantissa->magnitude, mantissa->limbs, shift, positioned);
+                    lobes_put(curve_stage.shared, curve_stage.program.field_offset[field],
+                              curve_stage.program.field_bits[field], positioned, shifted_count, mantissa->sign);
+                }
+                platform_cell_released(positioned, platform_place_g_program_owner);
+            }
         }
     }
 
@@ -520,13 +659,20 @@ int program_main(int count, char **arguments)
     {
         nu_bits += 1u;
     }
-    lobes_log_build(&log_stage, b, nu_bits, c_bits);
-    lobes_open_shared(&log_stage);
-    lobes_put_floor(&log_stage, 0u, nu, b);
-    for (unsigned int k = 0u; k < log_terms; k += 1u)
+    lobes_log_build(&log_stage, b, nu_bits, c_mantissas, log_terms);
+    if (lobes_stage_taken(&log_stage))
     {
-        lobes_put(log_stage.shared.data(), log_stage.program.field_offset[1u + k], log_stage.program.field_bits[1u + k],
-                  c_magnitudes[k], c_signs[k]);
+        lobes_log_build(&log_stage, b, nu_bits, c_mantissas, log_terms);
+    }
+    lobes_open_shared(&log_stage);
+    if (!log_stage.program.full)
+    {
+        lobes_put_floor(&log_stage, 0u, nu, b);
+        for (unsigned int k = 0u; k < log_terms; k += 1u)
+        {
+            lobes_put(log_stage.shared, log_stage.program.field_offset[1u + k], log_stage.program.field_bits[1u + k],
+                      c_mantissas[k].magnitude, c_mantissas[k].limbs, c_mantissas[k].sign);
+        }
     }
 
     int ok = lobes_position(&job, &curve_stage, &error);
@@ -548,5 +694,18 @@ int program_main(int count, char **arguments)
 
     lobes_release(&curve_stage);
     lobes_release(&log_stage);
+    for (unsigned long long at = 0ull; at < mantissa_count; at += 1ull)
+    {
+        platform_cell_released(mantissas[at].magnitude, platform_place_g_program_owner);
+    }
+    for (unsigned int k = 0u; k < log_terms; k += 1u)
+    {
+        platform_cell_released(c_mantissas[k].magnitude, platform_place_g_program_owner);
+    }
+    void *const cells[3] = {starts, mantissas, c_mantissas};
+    for (unsigned int each = 0u; each < 3u; each += 1u)
+    {
+        platform_cell_released(cells[each], platform_place_g_program_owner);
+    }
     return sim_close(&job, "exact_zeta_lobes");
 }
