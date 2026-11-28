@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// monolith_run.c: the monolith's cubin (monolith.cu) loaded as it was built and run on the part. Nothing is compiled
-// here: the driver is passed the cubin and queried for its entries.
+// monolith_run.c: the cubin of the monolith (monolith.cu), loaded as the build made it and run on the part. This file
+// compiles nothing: it passes the cubin to the driver, and queries the driver for its entries.
 //
-// The first entry answers every precept for each case, checked against precept_applied on the host, and the part's
-// clock across it is read on every run. The second runs every costed precept as a chain of `turns` turns of
-// MONOLITH_BLOCK steps, alone and then interleaved with every other, and the mean of `cost runs` runs is read a step.
-// Every chain's last word is checked against the same chain run through precept_applied on the host, which confirms
-// every step ran.
+// The first entry answers every precept for each case, checked against precept_applied on the host. The program reads
+// the clock of the part across it on every run. The second entry runs every costed precept as a chain of `turns`
+// turns of MONOLITH_BLOCK steps, alone and then interleaved with every other. The program reads the mean of `cost
+// runs` runs for each step. It checks the last word of every chain against the same chain run through precept_applied
+// on the host, which confirms that every step ran.
 //
 //     monolith_run <cubin> [runs] [turns] [cost runs]
 #include "../../../../engine/rmc/precept_value.h"
@@ -23,13 +23,13 @@
 // the words it writes: every precept's answer, then the clock's two words
 #define MONOLITH_OUT_WORDS (PRECEPT_COUNT + 2u)
 
-// the words every costed chain is run with. The right word's low five bits, 25, are a shift's count, and the left
-// word's, 15, are the count of a pair's second chain
+// the words that every costed chain runs with. The low five bits of the right word, 25, are the count of a shift. Those
+// of the left word, 15, are the count of the second chain of a pair
 #define MONOLITH_COST_LEFT 0xdeadbeefu
 #define MONOLITH_COST_RIGHT 0x9e3779b9u
 
 // a pair costs about the dearer of its two alone, past this share of the cheaper, where the part runs them side by
-// side, and about both together, past the share below it, where the part runs them one after the other
+// side. It costs about both together, past the share below it, where the part runs them one after the other
 #define MONOLITH_SIDE_BY_SIDE 0.25
 #define MONOLITH_ONE_AFTER 0.75
 
@@ -85,8 +85,8 @@ static unsigned char *monolith_file(const char *path)
     return bytes;
 }
 
-// the word precept `precept` must answer for `left` and `right` with the flag 0: the host's precept_applied, except
-// JCC, whose jump is not taken and whose last store is the left word
+// the word that precept `precept` must answer for `left` and `right` with the flag 0: the precept_applied of the host.
+// The one exception is JCC, which does not take its jump, and whose last store is the left word
 static unsigned int monolith_expected(unsigned int precept, unsigned int left, unsigned int right)
 {
     return (precept == PRECEPT_JCC) ? left : precept_applied((unsigned char)precept, left, right);
@@ -236,8 +236,8 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
     cuMemFree(cycles);
     cuMemFree(sink);
 
-    // every chain run on the host: each costed precept from the left word on the right word, which a single and a
-    // pair's first chain run, and from the right word on the left word, which a pair's second chain runs
+    // every chain run on the host. First each costed precept from the left word on the right word, which a single and
+    // the first chain of a pair run. Then from the right word on the left word, which the second chain of a pair runs
     const unsigned long long steps = (unsigned long long)turns * (unsigned long long)MONOLITH_BLOCK;
     unsigned int forward[MONOLITH_COSTED_COUNT];
     unsigned int backward[MONOLITH_COSTED_COUNT];
@@ -257,8 +257,8 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
         }
     }
 
-    // every section read a step, past NOP's turns read the same way: its mean, its least m, and its spread s, the max
-    // less the least, over the runs (P6 in query_protocol_table.md)
+    // every section read for each step, past the turns of NOP read the same way. That is its mean, its least m, and its
+    // spread s, the max less the least, over the runs (P6 in query_protocol_table.md)
     const double chain = (double)steps;
     const double bare_mean = (s_spent[0] / (double)cost_runs) / chain;
     const double bare_least = (double)s_least[0] / chain;
@@ -437,7 +437,7 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
             }
             const double dearer = (alone[first] > alone[second]) ? alone[first] : alone[second];
             const double cheaper = (alone[first] > alone[second]) ? alone[second] : alone[first];
-            // a pair is read only where both its precepts cost a cycle a step or more alone
+            // the program reads a pair only where both its precepts cost one cycle or more for each step alone
             if (cheaper >= 1.0)
             {
                 const double share = (paired - dearer) / cheaper;

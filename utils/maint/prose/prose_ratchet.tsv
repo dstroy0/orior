@@ -637,7 +637,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_writings/
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read.h	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read_check.c	1
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_run.c	12
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_scheduler.c	11
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_scheduler/instructions.c	4
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_scheduler/schedule.c	5
