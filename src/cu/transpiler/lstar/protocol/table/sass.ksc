@@ -1,8 +1,8 @@
 ksc sass
 who 01ed0b4f01ed000018df3388cfbe08d8
-# How this system is queried, and what came back. A probe is not a thing of its own: it is a
-# question put on one of the channels below and the answer read back. Written by the interface's
-# SASS probe; every line here is something the system reported, and nothing here was assumed.
+# How the program queried this system, and what came back. A probe is not a thing of its own: it
+# is a question put on one of the channels below, and the answer read back. The SASS probe of the
+# interface wrote it. The system reported every line here, and nothing here is an assumption.
 
 # the channels this system answers on
 channel run      the system takes the question as its own code, runs it, and a word comes back
@@ -34,9 +34,9 @@ count clock    nothing  0
 count clock    illegal  0
 count clock    folds    0
 
-# every question the system was queried in its own code, one a line: the channel, what came
-# back, the word it answered, and the question. These are the ones the system answered for
-# itself, with no compiler and no disassembler located between.
+# every question that the program put to the system in its own code, one to a line. Each line has
+# the channel, what came back, the word that it answered, and the question. These are the ones that
+# the system answered for itself, with no compiler and no disassembler between.
 
-# writings the system answers alike: an operation written where the ruleset contains the other, each
-# giving the same machine code. A reading in one is the ruleset's form in the other.
+# writings that the system answers alike: an operation written where the ruleset has the other.
+# Each gives the same machine code. A reading in one is the form of the ruleset in the other.

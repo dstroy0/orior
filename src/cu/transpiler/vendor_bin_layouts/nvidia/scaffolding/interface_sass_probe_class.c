@@ -35,8 +35,8 @@ static inline int interface_sass_probe_class_text_order(const char *left, const 
     return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
 }
 
-// the max questions stored whole. The decode channel puts one for every bit of every form, far past this, and is
-// counted in place of being stored
+// the max questions stored whole. The decode channel puts one for every bit of every form, far past this. The program
+// counts those, and does not store them
 #define SASS_CLASSED 512u
 
 static const char *const s_channel_text[SASS_CHANNEL_COUNT] = {
@@ -89,16 +89,17 @@ typedef struct
 static SassPipe s_pipe[SASS_PIPES];
 static unsigned int s_pipe_count;
 
-// The forms the file contains as a ruleset reads them, each line with its newline: what the system folds into one
-// instruction, which the ruleset beside the file reads after its own lines. A rewrite writes them back as they was,
-// since nothing here finds them
+// The forms that the file holds, as a ruleset reads them, each line with its newline. They are what the system folds
+// into one instruction, which the ruleset beside the file reads after its own lines. A rewrite writes them back as
+// they were, because nothing here finds them
 #define SASS_FORMS_MAX_LEN 16384u
 static char s_forms[SASS_FORMS_MAX_LEN];
 static size_t s_forms_length;
 
-// The field and container rows the file contains, each line with its newline: the fields of an instruction a question
-// on the run channel turns, and the container the system accepted, which every such question is put in (cubin_write.h).
-// A rewrite writes them back as they was, since nothing here finds them
+// The field and container rows that the file holds, each line with its newline. They are the fields of an instruction
+// that a question on the run channel turns, and the container that the system accepted. The program puts every such
+// question in that container (cubin_write.h). A rewrite writes them back as they were, because nothing here finds
+// them
 static char s_containers[SASS_FORMS_MAX_LEN];
 static size_t s_containers_length;
 
@@ -193,7 +194,8 @@ void sass_class_take(unsigned int channel, unsigned int answered, const char *qu
     one->channel = (unsigned char)channel;
     one->answered = (unsigned char)answered;
     one->word = word;
-    // a question of more than one instruction is stored on one line, its instructions joined by a semicolon
+    // the program stores a question of more than one instruction on one line, with its instructions joined by a
+    // semicolon
     unsigned int at = 0u;
     for (const char *walk = question; (*walk != '\0') && (at < (SASS_TEXT - 1u)); walk += 1)
     {
@@ -269,15 +271,15 @@ int sass_class_read(const char *machines, const char *part)
         ksc_free(&s_file);
         return 0;
     }
-    // the file is the classification: what was contained before it is read is its own, and the equal writings a pass
-    // has already taken are retained beside those the file contains
+    // the file is the classification. What the program held before it reads the file is its own. The call keeps the
+    // equal writings that a pass already took beside those that the file holds
     s_classed_count = 0u;
     s_forms_length = 0u;
     s_containers_length = 0u;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = s_tally, .bytes = sizeof(s_tally), .val = 0);
     char line[SASS_TEXT * 8u];
-    // the forms are the text of the file's block of the ruleset's language (klang.h), the lines between its opener and
-    // its closer, which the ruleset beside the file reads after its own
+    // the forms are the text of the block of the file in the language of the ruleset (klang.h). They are the lines
+    // between its opener and its closer, which the ruleset beside the file reads after its own
     unsigned int block = s_file.lines;
     unsigned int block_past = s_file.lines;
     if (!kfile_lines_block_lines(&s_file, "krs", 0u, &block, &block_past))
@@ -302,8 +304,8 @@ int sass_class_read(const char *machines, const char *part)
     }
     for (unsigned int at = 0u; at < s_file.lines; at += 1u)
     {
-        // each line with its end, as the classification retains the lines it carries whole; a who line is the file's
-        // and none of the classification's, and the block and its opener and closer were read above
+        // each line with its end, as the classification keeps the lines that it carries whole. A who line belongs to
+        // the file and not to the classification. The call read the block, its opener and its closer above
         {
             VerbaLinea buffer_line = mmgr_line_over(line, sizeof(line));
             mmgr_line_put(&buffer_line, s_file.line[at]);
@@ -351,7 +353,7 @@ int sass_class_read(const char *machines, const char *part)
         {
             const unsigned int channel = sass_channel_of(channel_text);
             const unsigned int answered = sass_class_of(class_text);
-            // a fold is counted as its line is read back, each line one
+            // the call counts a fold as it reads its line back, one for each line
             if ((channel < SASS_CHANNEL_COUNT) && (answered < SASS_CLASS_COUNT) && (answered != SASS_CLASS_FOLDS))
             {
                 s_tally[channel][answered] = tally;
@@ -367,7 +369,7 @@ int sass_class_read(const char *machines, const char *part)
         {
             read += 1;
         }
-        // the word read is bounded inside 32 bits by the test above
+        // the test above bounds the word read inside 32 bits
         word = (unsigned int)word_read;
         if (answered_line && line_until(&read, '\n', question, sizeof(question)))
         {
@@ -392,8 +394,8 @@ int sass_class_read(const char *machines, const char *part)
     return 1;
 }
 
-// the lines a file's text is put together as in memory, each ended by a newline, `s_lines_at` bytes of them so far, the
-// room once a write did not fit
+// the lines in memory that the call builds the text of a file from, each ended by a newline, `s_lines_at` bytes of
+// them so far. Then the room, after a write did not fit
 static char s_lines_bytes[QRY_WRITER_RING_BYTES / 2ULL];
 static size_t s_lines_at;
 
@@ -437,8 +439,8 @@ static void lines_hex(unsigned long long value, unsigned int digits)
         .out = s_lines_bytes, .cap = sizeof(s_lines_bytes), .at = s_lines_at, .val = value, .min = (uint8_t)digits});
 }
 
-// the lines written put by `who` into `file` after every line it contains (kfile_lines.h): 1, or 0 where they did not
-// fit or there was no memory for them
+// the written lines, put by `who` into `file` after every line that it holds (kfile_lines.h). The return is 1, or 0
+// where they did not fit or there was no memory for them
 static int sass_class_lines_put(KscFile *file, Who who)
 {
     const char **lines = NULL;
@@ -461,12 +463,12 @@ int sass_class_write_by(const char *machines, const char *part, Who who)
         mmgr_line_put(&buffer_line, ".ksc");
         (void)mmgr_line_finish(&buffer_line);
     }
-    // the classification put together in memory, its first line, and then every line after it under a who line of
-    // `who`, passed whole to the run's writer (ksc.h)
+    // the classification, built in memory: its first line, and then every line after it under a who line of `who`. The
+    // call passes it whole to the writer of the run (ksc.h)
     s_lines_at = 0u;
-    lines_text("# How this system is queried, and what came back. A probe is not a thing of its own: it is a\n");
-    lines_text("# question put on one of the channels below and the answer read back. Written by the interface's\n");
-    lines_text("# SASS probe; every line here is something the system reported, and nothing here was assumed.\n\n");
+    lines_text("# How the program queried this system, and what came back. A probe is not a thing of its own: it\n");
+    lines_text("# is a question put on one of the channels below, and the answer read back. The SASS probe of the\n");
+    lines_text("# interface wrote it. The system reported every line here, and nothing here is an assumption.\n\n");
     lines_text("# the channels this system answers on\n");
     for (unsigned int channel = 0u; channel < SASS_CHANNEL_COUNT; channel += 1u)
     {
@@ -499,9 +501,9 @@ int sass_class_write_by(const char *machines, const char *part, Who who)
             lines_text("\n");
         }
     }
-    lines_text("\n# every question the system was queried in its own code, one a line: the channel, what came\n");
-    lines_text("# back, the word it answered, and the question. These are the ones the system answered for\n");
-    lines_text("# itself, with no compiler and no disassembler located between.\n");
+    lines_text("\n# every question that the program put to the system in its own code, one to a line. Each line has\n");
+    lines_text("# the channel, what came back, the word that it answered, and the question. These are the ones that\n");
+    lines_text("# the system answered for itself, with no compiler and no disassembler between.\n");
     for (unsigned int number = 0u; number < s_classed_count; number += 1u)
     {
         const SassClassed *const one = &s_classed[number];
@@ -514,9 +516,8 @@ int sass_class_write_by(const char *machines, const char *part, Who who)
         lines_text(one->question);
         lines_text("\n");
     }
-    lines_text(
-        "\n# writings the system answers alike: an operation written where the ruleset contains the other, each\n");
-    lines_text("# giving the same machine code. A reading in one is the ruleset's form in the other.\n");
+    lines_text("\n# writings that the system answers alike: an operation written where the ruleset has the other.\n");
+    lines_text("# Each gives the same machine code. A reading in one is the form of the ruleset in the other.\n");
     for (unsigned int number = 0u; number < s_equal_count; number += 1u)
     {
         lines_text("equal ");
@@ -528,21 +529,19 @@ int sass_class_write_by(const char *machines, const char *part, Who who)
     if (s_forms_length != 0u)
     {
         lines_text(
-            "\n# forms the system folds into one instruction of its own, as the ruleset beside this file reads\n");
-        lines_text("# them after its own lines and its part's.\n");
+            "\n# forms that the system folds into one instruction of its own, as the ruleset beside this file\n");
+        lines_text("# reads them after its own lines and those of its part.\n");
         lines_text("__krs__(\n");
         lines_counted((const char *)s_forms, s_forms_length);
         lines_text(")__krs__\n");
     }
     if (s_containers_length != 0u)
     {
-        lines_text("\n# the fields of an instruction a question on the run channel turns, each its first bit and its "
-                   "bits, a\n");
-        lines_text(
-            "# barrier containing every bit setting none; then the container the system accepted, which every such\n");
-        lines_text("# question is put in: the kernel it enters at, then its bytes in hex, sixty-four a row. A "
-                   "question's code,\n");
-        lines_text("# registers and exits replace the code's.\n");
+        lines_text("\n# the fields of an instruction that a question on the run channel turns, each its first bit\n");
+        lines_text("# and its bits. A barrier field with all bits set sets none. Then the container that the\n");
+        lines_text("# system accepted, which every such question goes in: the kernel where it enters, then its\n");
+        lines_text("# bytes in hex, sixty-four to a row. The code, registers and exits of a question replace\n");
+        lines_text("# those of the container.\n");
         lines_counted((const char *)s_containers, s_containers_length);
     }
     static KscFile s_file;

@@ -598,7 +598,6 @@ src/cu/transpiler/lstar/protocol/table/c.krs	5
 src/cu/transpiler/lstar/protocol/table/cu.krs	3
 src/cu/transpiler/lstar/protocol/table/pcie.krs	5
 src/cu/transpiler/lstar/protocol/table/ptx.krs	9
-src/cu/transpiler/lstar/protocol/table/sass.ksc	4
 src/cu/transpiler/lstar/protocol/table/sm_86.kdm	9
 src/cu/transpiler/lstar/protocol/table/sm_86.khw	2
 src/cu/transpiler/lstar/protocol/table/vhdl.krs	20
@@ -654,7 +653,7 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_probe_ques
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_probe_runs.cu	14
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_test.c	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_check.c	5
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c	21
+src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_cubin.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_fields.c	14
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_fields/cubin.c	11
