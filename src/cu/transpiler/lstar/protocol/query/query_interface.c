@@ -13,8 +13,8 @@
     engine_error_check((condition_), (type_), ENGINE_MODULE_INTERFACE, (unsigned int)__LINE__,                         \
                        (const void *)(evacaddr_), (error_))
 
-// one line is an address and two numbers, at max 16 + 1 + 10 + 1 + 10 + 1 characters; this fits every line of
-// the max addresses a probe is given
+// one line is an address and two numbers, at max `16 + 1 + 10 + 1 + 10 + 1` characters. This fits every line of the
+// max addresses that a probe gets
 #define QUERY_INTERFACE_LINE 48ULL
 static char s_query_interface_lines[(QUERY_INTERFACE_MAX * QUERY_INTERFACE_LINE) + 1ULL];
 
@@ -26,8 +26,9 @@ static void query_interface_hex(char *text, unsigned long long value)
     mmgr_line_finish(&line);
 }
 
-// The lines the walk's probe passed the run (QUERY_WALK_RECORD) after the place `began` of the run's schedule, once
-// every ring is taken, joined into s_query_interface_lines in the order the writer took them and ended by a zero byte
+// The lines that the probe of the walk passed to the run (QUERY_WALK_RECORD) after the place `began` of its schedule.
+// The call reads them after the writer takes every ring. The call joins them into s_query_interface_lines in the order
+// that the writer took them, and ends them with a zero byte
 static void query_interface_lines_gathered(unsigned long long began)
 {
     qry_member_rings_settled();
@@ -89,28 +90,29 @@ int query_interface_run(const QueryWalk *walk, const QueryInterfaceDriver *drive
         next += read;
         if ((answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL))
         {
-            // a probe that exited clean answered every address it was given, or it wrote something else
+            // a probe that exited clean answered every address that it got, or it wrote something else
             if (!QUERY_INTERFACE_CHECK(read == given, walk, error, ENGINE_ERROR_LOGIC))
             {
                 return 0;
             }
             continue;
         }
-        // a probe that wrote a line for every address it was given and then ended answered them all, and its
-        // ending is no address's answer
+        // a probe that wrote a line for every address that it got, and then ended, answered them all. Its ending is
+        // the answer of no address
         if (read == given)
         {
             continue;
         }
-        // the probe ended at the address after its last line: that address is answered by the ending
+        // the probe ended at the address after its last line, and the ending is the answer of that address
         driver->ended(walk, next, answer.fault, driver->answers);
         next += 1ULL;
     }
     return 1;
 }
 
-// The lines query_walk wrote, read into the queries `answers` contains from `next` on. How many it answered in order; a
-// line out of order, past the addresses it was given, or not three numbers ends the read where it is
+// The lines that query_walk wrote, read into the queries that `answers` holds from `next` on. The return is how many
+// it answered in order. A line out of order, past the addresses that it got, or not three numbers ends the read where
+// it is
 static unsigned long long query_interface_read(const QueryWalk *walk, const char *lines, unsigned long long next,
                                                unsigned long long given, void *answers)
 {
