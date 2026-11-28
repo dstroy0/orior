@@ -1,23 +1,28 @@
-# The pieces NVIDIA's names for SASS are made of, read by whatever names a form of the part's .khw. Nothing here is
-# compiled in. Every piece is spelled as NVIDIA's compiler spells it, so that what we write is held against what it
-# writes word for word.
+# The pieces that the names of NVIDIA for SASS hold, read by whatever names a form of the .khw of the part. The build
+# compiles nothing here in. Every piece is as the compiler of NVIDIA spells it. Thus what we write can go against
+# what it writes, word for word.
 #
-# A form is named by what the part answered of it, never by a listing: the type of value its cases hold, the relation
-# it answers, how many sources its fields hold, then each qualifier the part's answers read it into, each after a
-# dot, in the order the rows of each type are below. IADD3 is an integer add of three sources; IADD3.X takes the
-# carry an earlier one left; ISETP.GE.U32.AND compares as unsigned words and joins its flag to another. The type is
-# the row whose reads hold the relation, and a relation no type row reads takes none: S2R, not IS2R.
+# A form takes its name from what the part answered of it, never from a listing. The name is the type of value that its
+# cases hold, the relation that it answers, and how many sources its fields hold. Then each qualifier that the
+# answers of the part read it into, each after a dot, in the order of the rows below.
 #
-# type	<piece>	<reads>	<gloss>           the type of value the form's cases hold
-# operation	<piece>	<reads>	<gloss>      the relation it answers, a ladder relation or a word of the high order language
-# count	<piece>	<reads>	<gloss>          how many sources its fields hold, where NVIDIA writes the count
-# qualifier	<piece>	<reads>	<gloss>      what its answers read it into, a coherence category or a word of the high order language
-# mark	<piece>	<reads>	<gloss>           the mark NVIDIA writes before the operand at the relation's second word, where
-#                                        the relation is one it writes as another with that operand marked
-# test	<piece>	<reads>	<gloss>           the test a comparison makes, after the operation and before the qualifier
-# join	<piece>	<reads>	<gloss>           how a comparison's flag joins the predicate it reads, written last
+# IADD3 is an integer add of three sources, and IADD3.X takes the carry that an earlier one left. ISETP.GE.U32.AND
+# compares as unsigned words, and joins its flag to another. The type is the row whose reads hold the relation. A
+# relation that no type row reads takes none: S2R, not IS2R.
 #
-# <reads> names what puts the piece in the name: ladder.<relation> (ladder.h), hol.<word> (gnascor_hol_lng.tsv), or
+# Each row is a kind, then `<piece>`, `<reads>` and `<gloss>`, with a tab between each two. The kinds:
+#
+# - `type`: the type of value that the cases of the form hold.
+# - `operation`: the relation that it answers, a ladder relation or a word of the high order language.
+# - `count`: how many sources its fields hold, where NVIDIA writes the count.
+# - `qualifier`: what its answers read it into, a coherence category or a word of the high order language.
+# - `mark`: the mark that NVIDIA writes before the operand at the second word of the relation. That is where it writes
+#   the relation as another one, with that operand marked.
+# - `test`: the test that a comparison makes, after the operation and before the qualifier.
+# - `join`: how the flag of a comparison joins the predicate that it reads, written last.
+# - `order`: the order of the operands of a comparison in its text, one character for each operand.
+#
+# `<reads>` names what puts the piece in the name: ladder.<relation> (ladder.h), hol.<word> (gnascor_hol_lng.tsv), or
 # <set> (the coherence sets of the query protocol table, P13)
 
 # the type of value
@@ -61,8 +66,8 @@ test	GE	ladder.at_least	the first word at least the second
 # how a comparison's flag joins the predicate it reads, written last
 join	AND	ladder.same ladder.apart ladder.less ladder.at_max ladder.more ladder.at_least	the flag and the predicate read, both
 
-# the order a comparison's operands are written in, a character an operand: the predicate written, the second predicate
-# written, the two words, and the predicate read
+# the order of the operands of a comparison in its text, one character for each operand. It is the predicate written,
+# the second predicate written, the two words, and the predicate read
 order	PPRRP	ladder.same ladder.apart ladder.less ladder.at_max ladder.more ladder.at_least	the predicates written are before the words, the predicate read after them
 
 # the marks
