@@ -25,12 +25,25 @@
 
 #include "../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
-#include <algorithm>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <vector>
+#include "memoria_operor/memoria_operor.h"
+#include <math.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+// the order of two gaps: below 0, 0 or above 0
+static int pack_gap_order(const void *left, const void *right)
+{
+    const float one = *(const float *)left;
+    const float other = *(const float *)right;
+    return (one < other) ? -1 : ((one > other) ? 1 : 0);
+}
+
+// a cell of the temporary tier of `count` elements of `size` bytes, NULL where the pool cannot meet it
+static void *pack_cell(unsigned long long count, unsigned long long size)
+{
+    return platform_cell_taken(count * size, platform_place_g_program_owner, 1);
+}
 
 #define SPHERE 0
 #define CUBE 1
@@ -331,10 +344,17 @@ int program_main(int argc, char **argv)
         fprintf(stderr, "placing the candidates failed\n");
         return 1;
     }
-    std::vector<float> some((size_t)batch * dims);
-    cudaMemcpy(some.data(), scratch, some.size() * sizeof(float), cudaMemcpyDeviceToHost);
-    std::vector<float> gaps;
-    gaps.reserve(2000);
+    // the batch's points and the gaps of 2000 pairs of them, cells of the temporary tier that this measure gives back
+    float *const some = (float *)pack_cell((unsigned long long)batch * dims, sizeof(float));
+    float *const gaps = (float *)pack_cell(2000ull, sizeof(float));
+    float *const gaps_room = (float *)pack_cell(2000ull, sizeof(float));
+    if ((some == NULL) || (gaps == NULL) || (gaps_room == NULL))
+    {
+        fprintf(stderr, "the pool could not meet the cells of the measure\n");
+        return 1;
+    }
+    cudaMemcpy(some, scratch, (size_t)batch * dims * sizeof(float), cudaMemcpyDeviceToHost);
+    unsigned int gap_count = 0u;
     for (int pair = 0; pair < 2000; pair++)
     {
         int one = (pair * 7919) % batch;
@@ -343,10 +363,15 @@ int program_main(int argc, char **argv)
         {
             continue;
         }
-        gaps.push_back(sqrtf(apart(&some[(size_t)one * dims], &some[(size_t)two * dims], dims)));
+        gaps[gap_count] = sqrtf(apart(&some[(size_t)one * dims], &some[(size_t)two * dims], dims));
+        gap_count += 1u;
     }
-    std::sort(gaps.begin(), gaps.end());
-    float typical = gaps.empty() ? 1.0f : gaps[gaps.size() / 2];
+    (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = gaps, .bytes = sizeof(float), .scratch = gaps_room,
+                     .count = gap_count, .order = pack_gap_order);
+    float typical = (gap_count == 0u) ? 1.0f : gaps[gap_count / 2u];
+    platform_cell_released(gaps_room, platform_place_g_program_owner);
+    platform_cell_released(gaps, platform_place_g_program_owner);
+    platform_cell_released(some, platform_place_g_program_owner);
     float gap = fraction * typical;
     float limit = gap * gap;
 
@@ -357,10 +382,16 @@ int program_main(int argc, char **argv)
         return 1;
     }
 
-    std::vector<float> here((size_t)batch * dims);
-    std::vector<int> clear((size_t)batch);
-    std::vector<float> mine;
-    mine.reserve((size_t)capacity * dims);
+    // a batch's points, which of them clear the set, and the accepted set itself on the host, cells of the temporary
+    // tier at their counts that the run gives back as it ends
+    float *const here = (float *)pack_cell((unsigned long long)batch * dims, sizeof(float));
+    int *const clear = (int *)pack_cell((unsigned long long)batch, sizeof(int));
+    float *const mine = (float *)pack_cell((unsigned long long)capacity * dims, sizeof(float));
+    if ((here == NULL) || (clear == NULL) || (mine == NULL))
+    {
+        fprintf(stderr, "the pool could not meet the cells of the accepted set\n");
+        return 1;
+    }
     int count = 0;
     int tried = 0;
     int quiet = 0;
@@ -382,8 +413,8 @@ int program_main(int argc, char **argv)
         {
             clear_of_placed<<<(wide + block - 1) / block, block>>>(placed, count, scratch, wide, dims, limit, flags);
         }
-        cudaMemcpy(clear.data(), flags, (size_t)wide * sizeof(int), cudaMemcpyDeviceToHost);
-        cudaMemcpy(here.data(), scratch, (size_t)wide * dims * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(clear, flags, (size_t)wide * sizeof(int), cudaMemcpyDeviceToHost);
+        cudaMemcpy(here, scratch, (size_t)wide * dims * sizeof(float), cudaMemcpyDeviceToHost);
         tried += wide;
 
         /* The device reported which candidates clear everything accepted before this batch began. What it
@@ -417,7 +448,8 @@ int program_main(int argc, char **argv)
                 capped = 1;
                 break;
             }
-            mine.insert(mine.end(), candidate, candidate + dims);
+            EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &mine[(size_t)count * dims], .src = candidate,
+                       .bytes = (size_t)dims * sizeof(float));
             count++;
             added++;
         }
@@ -469,6 +501,9 @@ int program_main(int argc, char **argv)
         platform_line_out_ended();
     }
 
+    platform_cell_released(mine, platform_place_g_program_owner);
+    platform_cell_released(clear, platform_place_g_program_owner);
+    platform_cell_released(here, platform_place_g_program_owner);
     cudaFree(scratch);
     cudaFree(placed);
     cudaFree(flags);
