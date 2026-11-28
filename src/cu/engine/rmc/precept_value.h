@@ -3,27 +3,27 @@
 #ifndef PRECEPT_VALUE_H
 #define PRECEPT_VALUE_H
 
-// A tree over the alphabet applied to words. This is a tree specifying what a target should answer.
+// A tree over the alphabet, applied to words. This is a tree that tells what a target must answer.
 //
-// Nothing here knows a language. A word of the web is a tree of precepts (word_web.h), and a precept is a gate, a
-// wire or a shift whose meaning is fixed everywhere. Walking the tree over a case of operands gives the word the
-// target must produce if it supports that word at all. The target is then queried and the two are compared. Where they
-// agree the target has a word for that tree, and where they differ it does not. No person states the answer.
+// Nothing here knows a language. A word of the web is a tree of precepts (word_web.h). A precept is a gate, a wire or a
+// shift that means the same everywhere. A walk of the tree over a case of operands gives the word that the target must
+// make, if it supports that word at all. The program then queries the target and compares the two: where they agree,
+// the target has a word for that tree. No person states the answer.
 //
-// This is the half of the derivation that needs no target. A form carries an operation's name and the type of each
-// operand and states nothing about what the operation means. A name therefore cannot be matched to a word. Running
-// can: where an operand of a form is a truth table of eight bits, sweep its 256 values and retain whichever answers
-// as the tree does, and the target's word for that tree is found with nobody naming the value.
+// This is the half of the derivation that needs no target. A form carries the name of an operation and the type of each
+// operand, and states nothing about what the operation means. Thus a name cannot match a word, but a run can. Where an
+// operand of a form is a truth table of eight bits, sweep its 256 values. Keep the one that answers as the tree does.
+// That finds the word of the target for that tree, with nobody who names the value.
 
 #include "precepts.h"
 
-// the widths a case is run at. A word is 32 bits here, as every ruleset's word bank is
+// the widths that a case runs at. A word is 32 bits here, as the word bank of every ruleset is
 #define PRECEPT_WORD_BITS 32u
 #define PRECEPT_WORD_MASK 0xffffffffu
 // the max operands a case carries
 #define PRECEPT_OPERANDS 8u
 
-// one case: the operands a tree is applied to, by their place
+// one case: the operands that the call applies a tree to, by their place
 typedef struct
 {
     unsigned int operand[PRECEPT_OPERANDS];
@@ -46,7 +46,7 @@ static unsigned int precept_leaf(unsigned char leaf, const PreceptCase *given)
 }
 
 // `precept` applied to two words. A shift takes its count from the low five bits of the right word, as every part
-// this has been requested of does: the count wraps at the width, and a count of 32 answers the word unshifted
+// that the program asked does. The count wraps at the width, and a count of 32 answers the word with no shift
 static unsigned int precept_applied(unsigned char precept, unsigned int left, unsigned int right)
 {
     const unsigned int count = right & (PRECEPT_WORD_BITS - 1u);
@@ -90,7 +90,7 @@ static unsigned int precept_applied(unsigned char precept, unsigned int left, un
     case PRECEPT_MUL:
         return (left * right) & PRECEPT_WORD_MASK;
     default:
-        // ERR, BRA and JCC carry no word: a tree containing one answers nothing and is never matched by running
+        // ERR, BRA and JCC carry no word. A tree that holds one answers nothing, and no run ever matches it
         return 0u;
     }
 }
@@ -120,7 +120,7 @@ static int precept_value(const PreceptNode *node, unsigned int nodes, const Prec
                 side[which] = (child[which] == PRECEPT_NONE) ? 0u : precept_leaf(child[which], given);
                 continue;
             }
-            // a child below the argument mark is a node, and a tree is written with every node before its parent
+            // a child below the argument mark is a node, and a tree has every node written before its parent
             if (child[which] >= at)
             {
                 return 0;
