@@ -1609,7 +1609,6 @@ utils/test/harness_cdp.py	10
 utils/test/harness_cli.py	17
 utils/test/harness_container.py	16
 utils/test/harness_cu.py	11
-utils/test/harness_docs.py	3
 utils/test/harness_evidence.py	2
 utils/test/harness_frames.py	7
 utils/test/harness_input.py	27

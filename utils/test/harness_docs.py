@@ -9,8 +9,8 @@
 utils/maint/prose/ste_check.py is the checker and its docstring names the rules. The harness gives it each Markdown
 file of the tree by name. The walk of the checker reads only docs/ and the READMEs, and the checker must stay the
 same file in the three repositories. The tool docs_check in utils/maint/prose checks the comments in the code, and
-it reads the whole tree. The pre-commit hook runs `docs ste`, and the check is part of every commit. Vocabulary is the docs
-check's banned words and voice to hold, and this check reads no word list."""
+it reads the whole tree. The pre-commit hook runs `docs ste`, and the check is part of every commit. Vocabulary is
+the banned words and voice of the docs check, and this check reads no word list."""
 
 import os
 import subprocess
