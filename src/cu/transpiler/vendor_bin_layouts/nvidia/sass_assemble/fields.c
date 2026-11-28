@@ -327,8 +327,8 @@ static void sass_high_write(unsigned long long *high, unsigned int first, unsign
 }
 
 // the bits of the scheduler, set so that every instruction waits for all the instructions before it. The bits set a
-// stall of the soonest read of the result of its operation, no reuse, and a wait on every barrier. A fixed result is back
-// after that many cycles, and an operation with no measured count stalls the longest.
+// stall of the soonest read of the result of its operation, no reuse, and a wait on every barrier. A fixed result is
+// back after that many cycles, and an operation with no measured count stalls the longest.
 //
 // An instruction whose result comes back late must set a barrier, so that the wait has a thing to wait on. A store must
 // set one for the next writer of its operands. The schedule of the operation tells which instructions those are

@@ -126,8 +126,10 @@ size_t orior_steer_truthy_after_avx512(const uint8_t *corpus, size_t alignments,
 
         const __mmask64 agrees = _mm512_cmpeq_epi8_mask(window, broadcast);
 
-        /* An alive flag is zero or not zero. The mask of the alignments that are still truthy is the lanes whose byte ANDs with itself to a value that is not zero. That is every lane that is not zero. A test in this way, and not against one, keeps it correct if a caller stores a
-         * flag other than one. */
+        /* An alive flag is zero or not zero. The mask of the alignments that are still truthy is
+         * the lanes whose byte ANDs with itself to a value that is not zero. That is every lane
+         * that is not zero. A test in this way, and not against one, keeps it correct if a caller
+         * stores a flag other than one. */
         const __mmask64 alive_mask = _mm512_test_epi8_mask(located_bytes, located_bytes);
 
         located += steer_popcount64((uint64_t)(agrees & alive_mask));

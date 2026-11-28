@@ -48,7 +48,8 @@ static size_t steer_sweep_probes(OriorProbe *probes, size_t wanted, const uint8_
 
     // THREE BOUNDED LOOPS INSIDE A BOUNDED DESCENT. Origins run to needle_len, steps run to
     // needle_len, lengths run to max_length, and the descent runs to `wanted`. Every bound is an
-    // argument or a compile time constant, and the call reads none of them from the corpus. This search has its full extent before the call examines the first byte.
+    // argument or a compile time constant, and the call reads none of them from the corpus. This
+    // search has its full extent before the call examines the first byte.
     while (placed < wanted)
     {
         OriorProbe best = {0u, 1u, 1u};
@@ -140,10 +141,11 @@ size_t orior_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, c
 
     // Every probe reads within the needle, or the whole call gives an error. A probe whose origin
     // plus its stepped reach lands at or past needle_len would read `needle[offset]`, and
-    // `corpus[at + offset]`, out of bounds. The test orior_steer_probe_fits is the one that the sweep
-    // applies before it emits a probe. The call checks it here once, before the alignment loop,
-    // because a caller can give this public entry a probe that the sweep never made. A probe that
-    // does not fit gets 0, the error that a null probe array with a count that is not zero gets above.
+    // `corpus[at + offset]`, out of bounds. The test orior_steer_probe_fits is the one that the
+    // sweep applies before it emits a probe. The call checks it here once, before the alignment
+    // loop, because a caller can give this public entry a probe that the sweep never made. A probe
+    // that does not fit gets 0, the error that a null probe array with a count that is not zero
+    // gets above.
     for (size_t index = 0u; index < count; index += 1u)
     {
         if (orior_steer_probe_fits(&probes[index], needle_len) == 0)
@@ -204,8 +206,8 @@ size_t orior_steer_count(const uint8_t *corpus, size_t corpus_len, const uint8_t
     }
 
     size_t offsets[ORIOR_STEER_ANCHORS];
-    // the placement that the search uses. The steered route probes where the engines that it compares with
-    // do, and only the order of evaluation belongs to this file
+    // the placement that the search uses. The steered route probes where the engines that it
+    // compares with do, and only the order of evaluation belongs to this file
     choose_offsets(offsets, ORIOR_STEER_ANCHORS, needle_len);
 
     if (steered != 0)
