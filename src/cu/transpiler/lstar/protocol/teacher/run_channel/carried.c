@@ -70,8 +70,8 @@ int run_channel_carried(RunQuestion *question)
         run_channel_refused(question, "the question could not be passed to the run");
         return 0;
     }
-    // the round, this one question, checked before the part and fixed where a count of registers fixes it, then its
-    // line passed critical before the carrier starts
+    // the round, this one question, checked before the part, and fixed where a count of registers fixes it. Then the
+    // call passes its line as critical before the carrier starts
     RunQuestion *const one[1] = {question};
     const int listed = run_channel_relisted(one, 0u, 1u, 1);
     const unsigned long long airlock_began = run_channel_now();
@@ -82,7 +82,7 @@ int run_channel_carried(RunQuestion *question)
         question->outcome = RUN_NO_CHANNEL;
         return 0;
     }
-    // the count of registers the check left the question, which the carrier is passed
+    // the count of registers that the check left the question, which the call passes to the carrier
     run_channel_list_line(0u, line);
     run_channel_counted(registers, sizeof(registers), question->registers);
     const unsigned long long after = listed ? run_channel_round_passed() : 0ULL;
@@ -105,8 +105,9 @@ int run_channel_carried(RunQuestion *question)
     command[words + 3u] = answers_name;
     command[words + 4u] = place_text;
     words += 5u;
-    // an untimed question of no shape of its own is carried with the words it always was; a timed one with its count
-    // of launches after, and one with a shape with its count of launches, 0 where it is untimed, and its shape
+    // an untimed question with no shape of its own goes to the carrier with the words that it always had. A timed one
+    // also has its count of launches after. One with a shape has its count of launches, 0 where the question times no
+    // launches, and its shape
     const int shaped = (question->threads != 0u) || (question->blocks != 0u);
     if ((question->launches != 0u) || shaped)
     {
@@ -120,7 +121,7 @@ int run_channel_carried(RunQuestion *question)
         words += 2u;
     }
     command[words] = NULL;
-    // the carrier's output comes back through a pipe, and no file is made
+    // the output of the carrier comes back through a pipe, and the call makes no file
     const InterfaceProbe probe = {command, NULL, s_channel.limit_microseconds};
     InterfaceAnswer answer = {0};
     answer.output = s_carrier_output;
@@ -143,8 +144,8 @@ int run_channel_carried(RunQuestion *question)
     }
     if ((answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ULL))
     {
-        // a carrier that did not end clean wrote no answer worth reading: its ending is the answer, and where it was
-        // ended, or a panic is on the line, it ended carrying this question, which calls a conference
+        // a carrier that did not end clean wrote no answer worth a read, and its ending is the answer. Where it did not
+        // end by itself, or a panic is on the line, it ended while it carried this question, which calls a conference
         question->outcome =
             (answer.ending == INTERFACE_ENDING_EXITED) ? (unsigned int)RUN_NO_CHANNEL : (unsigned int)RUN_NOTHING;
         run_channel_ending_refused(question, &answer);
@@ -166,7 +167,8 @@ static unsigned int run_channel_put_some(RunQuestion *const *questions, unsigned
     // the questions R answers taken first, and only the rest carried, each stored in R once it comes back
     static RunQuestion *s_left[RUN_QUESTIONS_MAX];
     RunQuestion **const left = s_left;
-    // a stopped run carries nothing and answers nothing from R: every question is blocked with the stop's reason
+    // a stopped run carries nothing and answers nothing from R. The call blocks every question with the reason of the
+    // stop
     if (run_channel_panic_ruled())
     {
         run_channel_halted(questions, 0u, count);
@@ -221,14 +223,15 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
         return 0u;
     }
     char list_name[] = "questions.txt";
-    // each process carries the questions from `first` on, and the next carries those after the first it left
-    // unanswered. The airlock reads the whole round once, before the first process: the gated list it passes covers
-    // every process after, each carrying questions it read
+    // each process carries the questions from `first` on, and the next carries those after the first that it left
+    // unanswered. The airlock reads the whole round once, before the first process. The gated list that it passes
+    // covers every process after, each with questions that it read
     unsigned int first = 0u;
     int airlocked = 0;
     while (first < count)
     {
-        // a panic on the line, or one ruled on inside this round: the questions left are blocked, and no process after
+        // a panic on the line, or one ruled on inside this round. The call blocks the questions that remain, and starts
+        // no process after
         if ((run_channel_on_line() != 0ULL) || run_channel_panic_ruled())
         {
             run_channel_halted(questions, first, count);
@@ -245,8 +248,8 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
             written = run_channel_write(questions[at], code_name, cases_name);
         }
         written = written && run_channel_relisted(questions, first, count, 0);
-        // the round checked before the part and fixed where a count of registers fixes it, where no process of it has
-        // passed the check yet: one it does not pass is not carried
+        // the round, checked before the part and fixed where a count of registers fixes it, where no process of it
+        // passed the check yet. The call does not carry a question that does not pass
         if (written && !airlocked)
         {
             char refused[sizeof(questions[first]->refused)];
@@ -296,8 +299,8 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
         command[words] = (char *)"--list";
         command[words + 1u] = list_name;
         command[words + 2u] = NULL;
-        // the process is given each question's limit for every question it carries, and its output comes back
-        // through a pipe
+        // the call gives the process the limit of each question for every question that it carries, and its output
+        // comes back through a pipe
         const InterfaceProbe probe = {command, NULL, s_channel.limit_microseconds * (count - first)};
         InterfaceAnswer answer = {0};
         answer.output = s_carrier_output;
@@ -340,9 +343,9 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
             run_channel_read(questions[at], answers_name, after);
             answered += (questions[at]->outcome == RUN_ANSWERED) ? 1u : 0u;
         }
-        // the first question left unanswered by a process that did not end clean ended it, and its ending is its
-        // answer; one left by a process that ended clean was left for a refusal before it, and is
-        // carried again
+        // where a process did not end clean, the first question that it left unanswered ended it, and its ending is
+        // its answer. Where a process ended clean, a question that it left waited on a refusal before it, and the call
+        // carries it again
         const int clean = (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ULL);
         const unsigned int unanswered = at;
         if ((at < count) && !clean)
@@ -350,16 +353,17 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
             questions[at]->outcome =
                 (answer.ending == INTERFACE_ENDING_EXITED) ? (unsigned int)RUN_NO_CHANNEL : (unsigned int)RUN_NOTHING;
             run_channel_ending_refused(questions[at], &answer);
-            // a carrier ended, or one that left a panic on the line, ended carrying this question: a conference
+            // a carrier that something ended, or one that left a panic on the line, ended while it carried this
+            // question: a conference
             if ((answer.ending != INTERFACE_ENDING_EXITED) || (run_channel_on_line() != 0ULL))
             {
                 run_channel_conference_called(questions[at], questions[at]->refused, NULL, 0ULL);
             }
             at += 1u;
         }
-        // a panic on the line, or one ruled on as the answers were read: the teacher's account passed where the line is
-        // open, the question the carrier was carrying the one its ending answered or, where it ended clean, the last
-        // it answered, its refusal; and no question is put after it
+        // a panic on the line, or one ruled on as the call read the answers. The call passes the account of the
+        // teacher where the line is open. The question that the carrier carried is the one that its ending answered.
+        // Where it ended clean, it is the last that it answered, with its refusal. The call puts no question after it
         if ((run_channel_on_line() != 0ULL) || run_channel_panic_ruled())
         {
             const unsigned int carrying = (!clean || (unanswered == first)) ? unanswered : (unanswered - 1u);
@@ -371,8 +375,8 @@ unsigned int run_channel_carried_many(RunQuestion *const *questions, unsigned in
         }
         if (at == first)
         {
-            // a process that answered nothing and ended clean carried nothing, and the questions after are not carried
-            // again
+            // a process that answered nothing and ended clean carried nothing, and the call does not carry the
+            // questions after it again
             for (; at < count; at += 1u)
             {
                 questions[at]->outcome = RUN_NO_CHANNEL;

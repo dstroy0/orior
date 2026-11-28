@@ -7,16 +7,17 @@
 #include "khw_learn_internal.h"
 #include "memoria_operor/memoria_operor.h"
 
-// the code of a costs question: the kernel's places before the position, `copies` of the form `low` and `high` from the
-// position on, and the kernel's places after the position after them; the kernel as the part accepted it where `copies`
-// is 0
+// the code of a costs question. It has the kernel places before the position, then `copies` of the form `low` and
+// `high` from the position on. Then come the kernel places after the position. Where `copies` is 0, it is the kernel as
+// the part accepted it
 static unsigned char s_cost_code[(KHW_PLACES + KHW_COST_COPIES) * KHW_INSTRUCTION];
 
-// A form timed on the timer register: the costs question of `copies` copies put over `count` cases from `word`
-// at the position, KHW_LAUNCHES launches, the least and the max launch's advance of the clock into `least` and `max`,
-// and `clock_address` the timer register's address where the launches were timed on it, 0 where on the driver's event
-// timer. 1 where the
-// part answered, 0 where it refused, the gate stopped it or nothing carried it
+// A form timed on the timer register. The call puts the costs question of `copies` copies over `count` cases from
+// `word` at the position, for KHW_LAUNCHES launches. The advance of the clock in the least launch and in the max launch
+// goes into `least` and `max`. `clock_address` is the address of the timer register where the call timed the launches
+// on it. It is 0 where the call used the event timer of the driver.
+//
+// The return is 1 where the part answered. It is 0 where the part refused, the gate stopped it, or nothing carried it
 static int khw_cost_timed(unsigned int copies, unsigned long long low, unsigned long long high,
                           const unsigned int word[][2], unsigned int count, unsigned long long *least,
                           unsigned long long *max, unsigned int *clock_address)
@@ -60,15 +61,20 @@ static int khw_cost_timed(unsigned int copies, unsigned long long low, unsigned 
     return answered && (s_cost_question.max != 0ULL);
 }
 
-// The cost of every form the machine file names, queried (P6): each classified form whose runs carry every place of its
-// relation and which the machine file as the run carried it in names, one an operation and operand shape, is written
-// KHW_COST_COPIES times over from the position on in a question of its own, over its relation's cases, and timed over
-// KHW_LAUNCHES launches on the timer register, read through the BAR0 driver around each launch (the carrier's clock.c);
-// the kernel alone is timed the same way first, the reference every form is read against. A form's cost is the
-// least launch's advance less the kernel's own, in the clock's count over the copies, and its spread the max launch's
-// advance less the least. Each is a row of the part's .ksc at `path`, every cost row the file retained before let go to
-// the .krf beside it, since one reading is for every form. Where the launches were timed on the driver's clock,
-// the part having named no clock, nothing is stored: the clock is queried first (learn clock). The count timed
+// The cost of every form that the machine file names, queried (P6). The call takes each classified form whose runs
+// carry every place of its relation, and which the carried-in machine file names. It takes one form for each operation
+// and operand shape. It writes the form KHW_COST_COPIES times from the position on, in a question of its own, over the
+// cases of its relation. It times the question over KHW_LAUNCHES launches on the timer register, read through the BAR0
+// driver around each launch (clock.c of the carrier).
+//
+// The call first times the kernel alone in the same way, the reference that it reads every form against. The cost of a
+// form is the advance of its least launch less that of the kernel, in clock counts over the copies. Its spread is the
+// advance of the max launch less that of the least.
+//
+// Each is a row of the .ksc of the part at `path`. The call lets go every cost row that the file kept before to the
+// .krf beside it, because one reading is for every form. Where the call timed the launches on the clock of the
+// driver, because the part named no clock, it stores nothing. The program queries the clock first (learn clock). The
+// return is the count timed
 unsigned int khw_costs_queried(const char *path)
 {
     static unsigned long long s_low[KHW_FORMS];
@@ -80,9 +86,9 @@ unsigned int khw_costs_queried(const char *path)
     static unsigned int s_signed[RUN_CASES_MAX];
     static unsigned int s_to_time[KHW_FORMS];
     unsigned int timed = 0u;
-    // the machine file as the run carried it in, the first blob of its name: the file as the run stores it now is
-    // the gate's for the costs questions, the kernel's places arranged as forms before the forms the part answered
-    // for, and the forms a word is written by are the carried-in file's alone
+    // the machine file as the run carried it in, the first blob of its name. The gate uses the file as the run stores
+    // it now for the costs questions. In it, the kernel places are forms before the forms that the part answered for.
+    // The forms that write a word come from the carried-in file alone
     const unsigned char *machine = NULL;
     unsigned long long machine_size = 0ULL;
     const char *const machine_name = qry_member_file_name(s_path);
@@ -202,8 +208,9 @@ unsigned int khw_costs_queried(const char *path)
         }
         timed += 1u;
     }
-    // the .ksc as the run stores it, every cost row before let go and the rows timed now put, passed to the run's
-    // writer whole (ksc.h); the rows let go recorded in the part's .krf beside it (krf.h)
+    // the .ksc as the run stores it, with every earlier cost row let go and the rows timed now put in. The call passes
+    // it whole to the writer of the run (ksc.h). It records the rows that it let go in the .krf of the part beside it
+    // (krf.h)
     static KscFile s_file;
     static KfileLines s_removed;
     static char s_rows[KHW_FORMS][128];
@@ -261,11 +268,11 @@ unsigned int khw_costs_queried(const char *path)
     return timed;
 }
 
-// The part's operand fields written to the part's .ksc at `path` as `field <name> <first> <bits>`, where the register
-// walk and the predicate walk read them (orior_klq_identity): every field row of the instruction word's layout table
-// `s_fields` (sass_nvidia.tsv, container_layout.h), the places the assembler fills. Every `field` line the file
-// contained is let go, the rest retained, and the file passed to the run's writer whole (ksc.h). A table that does not
-// read leaves the file as it is
+// The operand fields of the part, written to the .ksc of the part at `path` as `field <name> <first> <bits>`. The
+// register walk and the predicate walk read them there (orior_klq_identity). They are every field row of the layout
+// table `s_fields` of the instruction word (sass_nvidia.tsv, container_layout.h), the places that the assembler fills.
+// The call lets go every `field` line that the file held, and keeps the rest. It passes the file whole to the writer
+// of the run (ksc.h). A table that does not read leaves the file as it is
 void khw_fields_written(const char *path)
 {
     static ContainerLayout s_table;
@@ -326,9 +333,10 @@ void khw_fields_written(const char *path)
     ksc_free(&s_stored);
 }
 
-// The register-run probes of `form` emitted: each run set to the number of each of the two registers the kernel left
-// a case word in, a question of the position, and the round carried. These are the questions khw_fields_queried puts
-// after its turns, the ones a single bit's turn never makes, for the vendor's disassembler to read before the part does
+// The register-run probes of `form`, emitted. Each run goes to the number of each of the two registers that the kernel
+// left a case word in. That is a question of the position, and the round goes to the carrier. These are the questions
+// that khw_fields_queried puts after its turns, which the turn of a single bit never makes. The disassembler of the
+// vendor reads them before the part does
 static void khw_enumerate_runs(const KhwAnswered *form, const unsigned int word[1][2])
 {
     if (form->runs == 0u)
@@ -350,13 +358,18 @@ static void khw_enumerate_runs(const KhwAnswered *form, const unsigned int word[
     khw_round_carried();
 }
 
-// The position's questions emitted off the part for the vendor's disassembler to read back: each known form's fields
-// and register-runs, none carried, a dry run handing them to the run (`orior protocol cross`). Where `forms` names a
-// blob of the run containing forms a prior run learned, every form it contains is read and each one's bits turned one
-// at a time (its fields and, with them, every bit a widening would turn) and its runs set to the two registers; where
-// it names none, the kernel's own position form alone, its bits turned. The position and the forms are the protocol's
-// own, read from a part before. The vendor names none of the questions and no byte of its knowledge enters a form. It
-// is how the process is tuned against questions the part has not yet answered, off the part
+// The questions of the position, emitted with no part, for the disassembler of the vendor to read back. They are the
+// fields and register-runs of each known form, and the call carries none. A dry run gives them to the run (`orior
+// protocol cross`).
+//
+// Where `forms` names a blob of the run that holds forms that an earlier run learned, the call reads every form in it.
+// It turns the bits of each one at a time: its fields, and with them every bit that a widen step would turn. It sets
+// its runs to the two registers. Where `forms` names none, the call turns the bits of the own position form of the
+// kernel alone.
+//
+// The position and the forms belong to the protocol, read from a part before. The vendor names none of the questions,
+// and no byte of its knowledge enters a form. This is how the program tunes the process against questions that the
+// part did not answer yet, with no part
 void khw_enumerate(unsigned int place, const char *forms)
 {
     s_probe_place = place;

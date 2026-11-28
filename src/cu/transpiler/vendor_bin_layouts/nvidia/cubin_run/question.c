@@ -15,11 +15,6 @@ typedef struct
     const char *cause;
 } CubinRunCauseName;
 
-// One question carried: its code at `code_path` put in the container of `pattern_size` bytes in s_pattern, its kernel
-// `kernel`, declaring `registers`, over the cases at `cases_path`, launched as `shape` specifies where `shaped`, timed
-// over `launches` where that is not 0, and its line written to `answers_path`. 0 where a line was written, 1 where the
-// line is the driver's or the part's refusal of a launch, after which the context answers no other question, and 2
-// where the inputs, the machine or the driver were not reached
 // one word of an instruction in `code` at `byte`, read and written back
 static unsigned long long cubin_run_word(const unsigned char *code, unsigned int byte)
 {
@@ -51,11 +46,10 @@ static void cubin_run_bits_set(unsigned long long *low, unsigned long long *high
     }
 }
 
-// The safety word applied to `code` before the part sees it (P9): every instruction made to wait on all six barriers,
-// and the probe at `kernel_place`, where the code contains one, made to stall the longest and use no barrier; a form
-// the part has not named then waits on everything, and a barrier nothing releases leaves the wait after it located.
-// The protocol sends the code as the part accepted it and names the probe; the scheduler's own word is the carrier's to
-// set
+// The safety word, applied to `code` before the part sees it (P9). Every instruction waits on all six barriers. The
+// probe at `probe_place`, where the code holds one, stalls the longest and uses no barrier. A form that the part did
+// not name then waits on all, and the wait after a barrier that nothing releases never ends. The protocol sends the
+// code as the part accepted it, and names the probe. The carrier sets the own word of the scheduler
 static void cubin_run_safe_word(unsigned char *code, unsigned long long code_size, unsigned int probe_place)
 {
     const unsigned int places = (unsigned int)(code_size / 16ULL);
@@ -75,9 +69,9 @@ static void cubin_run_safe_word(unsigned char *code, unsigned long long code_siz
     }
 }
 
-// The driver's errors by the cause each reads as: the instruction's own encoding where the part would not take the
-// code or run it, an address the code reached, a register past what the kernel allots, a launch that did not return,
-// and an exception that names none of those
+// The errors of the driver, by the cause that each reads as. The cause is the own encoding of the instruction where
+// the part did not take the code or run it. It is an address that the code reached, or a register past what the kernel
+// allots. It is a launch that did not return, or an exception that names none of those
 static const CubinRunCauseName s_cause_names[] = {{"ILLEGAL_INSTRUCTION", "instruction"},
                                                   {"INVALID_PC", "instruction"},
                                                   {"INVALID_IMAGE", "instruction"},
@@ -106,12 +100,14 @@ static const char *cubin_run_cause_named(const char *name)
     return NULL;
 }
 
-// The cause the Xid critical errors the part stamped read as. The driver's own text of one first, where the system's
-// log records it: a register out of range a register, an illegal instruction the instruction, and an address out of
-// range or a fault of the memory map an address. Then its number: a fault of the part's memory map (31) an address, a
-// channel that stopped (8) or a context switch past its time (109) a launch that did not return, and an exception of
-// the graphics engine (13) or of its class (69) an exception. The first of those, in that order, that the errors
-// carry; NULL where they carry none
+// The cause that the Xid critical errors that the part stamped read as. First comes the own text of the driver for
+// one, where the log of the system records it. A register out of range reads as a register, and an illegal
+// instruction as the instruction. An address out of range, or a fault of the memory map, reads as an address.
+//
+// Then comes its number. A fault of the memory map of the part (31) reads as an address. A channel that stopped (8),
+// or a context switch past its time (109), reads as a launch that did not return. An exception of the graphics engine
+// (13) or of its class (69) reads as an exception. The return is the first of those, in that order, that the errors
+// carry, or NULL where they carry none
 static const char *cubin_run_listener_cause(void)
 {
     static const char *const s_driver_messages[] = {"Out Of Range Register", "Illegal Instruction",
@@ -144,9 +140,9 @@ static const char *cubin_run_listener_cause(void)
     return NULL;
 }
 
-// The probe instruction `low` `high` of a launch that faulted the part added to the run's CUBIN_RUN_FAULTS with the
-// cause the BAR0 driver received, passed critical so that it is on disk before the carrier goes on, and blocked from
-// the part in this process at once
+// The probe instruction `low` `high` of a launch that faulted the part, added to CUBIN_RUN_FAULTS of the run with the
+// cause that the BAR0 driver received. The call passes it as critical, so that it is on disk before the carrier goes
+// on. It also blocks it from the part in this process at once
 static void cubin_run_faulted_stored(unsigned long long low, unsigned long long high, const char *cause)
 {
     const unsigned char *bytes = NULL;
@@ -193,13 +189,19 @@ static void cubin_run_account_given(VerbaLinea *answers, VerbaLinea *call, int p
     call->at = 0u;
 }
 
-// A launch the part refused, its accounts written in its answer `answers` after the refusal, where the conference the
-// refusal calls reads them (overseer.h): the proctor's, the carrier's own, of the launch it carried; the BAR0 driver's,
-// the part's fault telemetry's, of the Xid critical errors the part stamped against it; and the gate's, of the code it
-// passed, its verdict, the gated list and the probe instruction against it. The proctor and the BAR0 driver each end in
-// the cause it reads, where it reads one. Where the carrier lost its mind, a launch that faulted the part or hung past
-// its bound, each account is also passed as a panic of the call (QRY_PANIC_CALL) to the run, opening the line every
-// party of the run sees. Nothing waits on the disk: the carrier goes straight on off the part
+// A launch that the part refused. The call writes its accounts in its answer `answers` after the refusal, where the
+// conference that the refusal calls reads them (overseer.h). The accounts are these:
+//
+// - the account of the proctor, the own account of the carrier, of the launch that it carried
+// - the account of the BAR0 driver, the fault telemetry of the part, of the Xid critical errors that the part stamped
+//   against it
+// - the account of the gate, of the code that it passed, its verdict, the gated list and the probe instruction against
+//   it
+//
+// The proctor and the BAR0 driver each end in the cause that they read, where they read one. The carrier can lose its
+// mind: a launch faulted the part, or hung past its bound. Then the call also passes each account as a panic of the
+// call (QRY_PANIC_CALL) to the run. That opens the line that every party of the run sees. Nothing waits on the disk,
+// and the carrier goes on from the part at once
 void cubin_run_refusal_written(VerbaLinea *answers, int panicked, const char *code_path, unsigned long long code_size,
                                unsigned int registers, unsigned int probe_place, unsigned int launches,
                                const CubinRunShape *shape, const char *status_name, CubinRunStatus status,
@@ -304,6 +306,13 @@ void cubin_run_refusal_written(VerbaLinea *answers, int panicked, const char *co
     }
 }
 
+// One question carried. Its code at `code_path` goes in the container of `pattern_size` bytes in s_pattern. Its kernel
+// is `kernel`, which declares `registers`, over the cases at `cases_path`. The launch is as `shape` specifies where
+// `shaped` is not 0, and the call times it over `launches` where that is not 0. Its line goes to `answers_path`.
+//
+// The return is 0 where the call wrote a line. It is 1 where the line is the refusal of a launch by the driver or the
+// part, and the context then answers no other question. It is 2 where the call did not reach the inputs, the machine
+// or the driver
 int cubin_run_question(const char *kernel, unsigned long long pattern_size, const char *code_path,
                        unsigned int registers, const char *cases_path, const char *answers_path,
                        unsigned int probe_place, unsigned int launches, CubinRunShape shape, int shaped)
@@ -327,8 +336,8 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
         }
         return 2;
     }
-    // a question that names no shape is given blocks of CUBIN_RUN_THREADS, as many as give every case a thread. A
-    // launch gives every case a thread, and gives a case each to no more threads than it sizes them for
+    // a question that names no shape gets blocks of CUBIN_RUN_THREADS, enough to give every case a thread. A launch
+    // gives every case a thread, and gives a case each to no more threads than it sizes them for
     shape.blocks = shaped ? shape.blocks : ((s_case_count + CUBIN_RUN_THREADS - 1u) / CUBIN_RUN_THREADS);
     const unsigned long long threads = (unsigned long long)shape.threads * shape.blocks;
     if ((threads < s_case_count) || (threads > CUBIN_RUN_THREADS_MAX))
@@ -342,8 +351,8 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
         mmgr_line_put(answers, " cases\n");
         return cubin_run_member_written(answers, answers_path, QRY_ORDINARY, 0);
     }
-    // the scheduler's own word set here, before the gate and the part: the protocol sent the code as the part
-    // accepted it and named the probe
+    // the call sets the own word of the scheduler here, before the gate and the part. The protocol sent the code as
+    // the part accepted it, and named the probe
     const unsigned long long gate_began = cubin_run_host_now();
     cubin_run_safe_word(s_code, code_size, probe_place);
     CubinWrite written;
@@ -362,8 +371,8 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
         mmgr_line_put(answers, "skipped not written\n");
         return cubin_run_member_written(answers, answers_path, QRY_ORDINARY, 0);
     }
-    // read on the host before the driver sees it: code that breaks a rule of cubin_safe is answered without the part,
-    // its register fields bound by the count this question's kernel allots (rule 6)
+    // the host reads the code before the driver sees it. The call answers code that breaks a rule of cubin_safe
+    // without the part. The count that the kernel of this question allots bounds its register fields (rule 6)
     unsigned long long at = 0ULL;
     const unsigned int verdict = cubin_safe_image(&s_machine, s_container, size, registers, &at);
     const unsigned long long row_began = cubin_run_host_now();
@@ -389,22 +398,23 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
         mmgr_line_put(answers, "\n");
         return cubin_run_member_written(answers, answers_path, QRY_ORDINARY, 0);
     }
-    // a dry run stops here, before the driver: the question is answered as one blocked from the part
+    // a dry run stops here, before the driver. The call answers the question as one that the gate blocked from the
+    // part
     if (s_dry)
     {
         mmgr_line_put(answers, "skipped dry, the part taken out\n");
         return cubin_run_member_written(answers, answers_path, QRY_ORDINARY, 0);
     }
-    // the safety airlock: a live run reaches the part only with the vendor's verdict in hand (--gated). Without it this
-    // code was never read for a fault, and an unread encoding can fault the part and crash the machine: it is blocked
-    // from the part here, the cross must read it first
+    // the safety airlock: a live run reaches the part only with the verdict of the vendor in hand (--gated). Without
+    // it, nothing read this code for a fault, and an unread encoding can fault the part and crash the machine. The call
+    // blocks it from the part here, and the cross must read it first
     if (!cubin_safe_verdict_ready())
     {
         mmgr_line_put(answers, "skipped no vendor verdict, the cross must read this code before the part\n");
         return cubin_run_member_written(answers, answers_path, QRY_ORDINARY, 0);
     }
-    // a probe instruction the vendor's reader blocked from the part was already caught by cubin_safe_image above, where
-    // the verdict is loaded (cubin_safe_verdict_gated): the gate blocks the whole code, not the probe alone
+    // cubin_safe_image above already caught a probe instruction that the reader of the vendor blocked from the part,
+    // where the gate has the verdict (cubin_safe_verdict_gated). The gate blocks the whole code, not the probe alone
     if (!s_driver_opened)
     {
         EMBED_CALL(memor.set, MemoriaCfg, .dst = &s_driver, .bytes = sizeof(s_driver), .val = 0);
@@ -419,8 +429,8 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
             }
             return 2;
         }
-        // the part's fault telemetry opened beside the driver, for rule 8 to read after each launch; a run goes on
-        // under rule 7 alone where it is not there, the warning printed
+        // the fault telemetry of the part, opened beside the driver, for rule 8 to read after each launch. Where it is
+        // not there, a run goes on under rule 7 alone, and prints the warning
         cubin_run_telemetry_open();
         s_driver_opened = 1;
     }
@@ -444,10 +454,10 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
                                      : s_launch_faulted ? CUBIN_RUN_FAULTED
                                                         : CUBIN_RUN_REFUSED;
         cubin_run_launch_row(query_key, outcome, launches, 0ULL, 0ULL, 0ULL, refused);
-        // the carrier losing its mind, a launch that faulted the part or hung past its bound, is a panic: the call
-        // opened with every party's account and the answer passed with them, nothing waiting on the disk. A refusal
-        // that left the part whole is an answer like any other. Either way the accounts are written in the answer, for
-        // the conference the refusal calls
+        // the carrier can lose its mind: a launch faulted the part, or hung past its bound. That is a panic. The
+        // program opens the call with the account of every party, and passes the answer with them. Nothing waits on
+        // the disk. A refusal that left the part whole is an answer as any other. In both cases the call writes the
+        // accounts in the answer, for the conference that the refusal calls
         const int panicked = s_launch_faulted || s_launch_timed_out;
         cubin_run_refusal_written(answers, panicked, code_path, code_size, registers, probe_place, launches, &shape,
                                   name, status, verdict, at);
@@ -461,8 +471,8 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
                       (unsigned long long)(((unsigned long long)s_answers[place][1] << 32u) | s_answers[place][0]), 0u);
     }
     mmgr_line_put(answers, "\n");
-    // the part's own count of the kernel's registers, beside the count the question declared: read off the part, the
-    // register boundary in hand without a query that walks up to it
+    // the own count of the registers of the kernel from the part, beside the count that the question declared. The
+    // call reads it from the part, and has the register boundary in hand with no query that walks up to it
     if (s_part_registers != CUBIN_RUN_REGISTERS_UNREAD)
     {
         mmgr_line_put(answers, "registers ");
@@ -497,8 +507,9 @@ int cubin_run_question(const char *kernel, unsigned long long pattern_size, cons
     return filed;
 }
 
-// the gated list named `name` loaded into the gate, the blob of it in the run, and with it every encoding that
-// faulted the part, the run's CUBIN_RUN_FAULTS where it contains one. 1, or 0 where either did not read
+// the gated list named `name`, loaded into the gate from its blob in the run. With it comes every encoding that
+// faulted the part, from CUBIN_RUN_FAULTS of the run where the run holds one. The return is 1, or 0 where either did
+// not read
 int cubin_run_verdict_load(const char *name)
 {
     const unsigned char *bytes = NULL;

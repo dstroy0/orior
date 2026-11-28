@@ -1,46 +1,51 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // monolith.cu: one program that contains every base primitive (precepts.h), each in its own block between two tags.
-// NVIDIA's compiler builds it once, and its listing is the answer key: the instructions between tag n and tag n + 1
-// are NVIDIA's writing of precept n, and our compiler's SASS for the same precept is compared against them. A chain to
-// a larger operator is built from these blocks per the plan.
+// NVIDIA's compiler builds it once, and its listing is the answer key. The instructions between tag n and tag n + 1
+// are the NVIDIA form of precept n. The program compares the SASS of our compiler for the same precept against them.
+// The plan builds a chain to a larger operator from these blocks.
 //
-// A tag is a performance-monitor event whose mask is the precept's number plus one, written in the listing as PMTRIG.
-// It changes no word and the compiler leaves it in place. Every block loads its operands and stores its answer with
-// volatile accesses, and a tag clobbers memory: nothing a block does is moved across a tag. A precept's answer
-// follows precept_applied (precept_value.h): a shift takes its count from the low five bits of the right word.
+// A tag is a performance-monitor event whose mask is the number of the precept plus one, written in the listing as
+// PMTRIG. It changes no word, and the compiler leaves it in place. Every block loads its operands and stores its answer
+// with volatile accesses, and a tag clobbers memory. Thus the compiler moves nothing that a block does across a tag.
+// The answer of a precept follows precept_applied (precept_value.h): a shift takes its count from the low five bits of
+// the right word.
 //
-//     in[0]   the left word
-//     in[1]   the right word
-//     in[2]   a flag, 0 on every run: JCC is taken on it and ERR raised on it, and neither is taken where it is 0
-//     out[n]  precept n's answer, PRECEPT_COUNT words
-//     out[PRECEPT_COUNT], out[PRECEPT_COUNT + 1]  the part's clock across the program, low word then high
+//     `in[0]`   the left word.
+//     `in[1]`   the right word.
+//     `in[2]`   a flag, 0 on every run. JCC branches on it and ERR raises on it, and neither occurs where it is 0.
+//     `out[n]`  the answer of precept n, PRECEPT_COUNT words.
+//     `out[PRECEPT_COUNT]`, `out[PRECEPT_COUNT + 1]`  the clock of the part across the program, low word then high.
 //
-// The second entry, monolith_cost, reads what each precept costs. A precept is run as a chain, every step taking the
-// last one's answer, MONOLITH_BLOCK steps to a turn and `turns` turns, and the part's clock is read before and after.
-// The longer the run, the nearer its mean is to what the part does. Every pair of precepts is then run interleaved, two
-// chains apart from each other, one step of each in turn: a pair that costs about the dearer of the two alone is one
-// the part runs side by side, and one that costs about both together is one it runs one after the other. The words
-// come in as the entry's own parameters, and nothing between the two clock reads touches memory.
+// The second entry, monolith_cost, reads what each precept costs. It runs a precept as a chain, in which every step
+// takes the answer of the step before, MONOLITH_BLOCK steps to a turn and `turns` turns. It reads the clock of the part
+// before and after. The longer the run, the nearer its mean is to what the part does.
 //
-// A step is one PTX instruction put under a predicate read from `flag`, which is 1 on every run. The compiler cannot
-// know the predicate, and it folds no chain of the same instruction into fewer: a chain written plainly, even with an
-// empty fence after each step, comes out of the assembler as one instruction a turn. A predicated instruction costs
-// what the bare one does. A step answers what precept_applied answers, and the runner checks every chain's last word
-// against the host's. NOP is no instruction, and MOV a copy of a word onto itself, which the assembler drops: both read
-// what the turns cost with nothing in them.
+// Then it runs every pair of precepts interleaved, as two chains apart from each other, one step of each in turn. A
+// pair that costs about the dearer of the two alone is one that the part runs side by side. One that costs about both
+// together is one that it runs one after the other. The words come in as the own parameters of the entry, and nothing
+// between the two clock reads touches memory.
 //
-//     left, right  the two words; turns  the turns a section runs; flag  1, the predicate every step is put under
-//     cycles[s]  section s's clock count, singles first in MONOLITH_COSTED order, then each pair i <= j
-//     sink[s]    section s's last word, retained so no chain is dead
+// A step is one PTX instruction under a predicate read from `flag`, which is 1 on every run. The compiler cannot know
+// the predicate, and it folds no chain of the same instruction into fewer. A chain written plainly, even with an empty
+// fence after each step, comes out of the assembler as one instruction to a turn. A predicated instruction costs what
+// the bare one does.
+//
+// A step answers what precept_applied answers, and the runner checks the last word of every chain against the word of
+// the host. NOP is no instruction, and MOV is a copy of a word onto itself, which the assembler drops. Both read what
+// the turns cost with nothing in them.
+//
+//     `left`, `right`  the two words. `turns`  the turns that a section runs. `flag`  1, the predicate of every step.
+//     `cycles[s]`  the clock count of section s, singles first in MONOLITH_COSTED order, then each pair i <= j.
+//     `sink[s]`    the last word of section s, kept so that no chain is dead.
 #include "monolith.h"
 
 static_assert((PRECEPT_NOP == 0) && (PRECEPT_ERR == 1) && (PRECEPT_NOT == 2) &&
                   (PRECEPT_MUL == (int)MONOLITH_COSTED_COUNT),
               "monolith: the costed run is NOP, then NOT through MUL, with ERR alone left out");
 
-// the tags are in the program where MONOLITH_TAGGED is 1, its default, and out of it where 0. The two builds are
-// compared against each other for what the tags cost: cycles, and the instructions the compiler places apart across a
+// the tags are in the program where MONOLITH_TAGGED is 1, its default, and out of it where it is 0. The program
+// compares the two builds for what the tags cost: cycles, and the instructions that the compiler puts apart across a
 // tag
 #ifndef MONOLITH_TAGGED
 #define MONOLITH_TAGGED 1
@@ -66,7 +71,7 @@ static __device__ __forceinline__ void monolith_write(unsigned int *out, unsigne
     *(volatile unsigned int *)&out[place] = word;
 }
 
-// the part's clock, read where it is: it clobbers memory, and no access is moved across the read
+// the clock of the part, read where it is. It clobbers memory, and the compiler moves no access across the read
 static __device__ __forceinline__ unsigned long long monolith_clock(void)
 {
     unsigned long long counted = 0ULL;
@@ -82,7 +87,7 @@ extern "C" __global__ void monolith(const unsigned int *in, unsigned int *out)
     monolith_write(out, PRECEPT_NOP, monolith_read(in, 0u));
 
     MONOLITH_TAG(PRECEPT_ERR);
-    // raised only where the flag is set: the trap is in the program and no run takes it
+    // raised only where the flag is not zero. The trap is in the program, and no run takes it
     if (monolith_read(in, 2u) != 0u)
     {
         asm volatile("trap;" ::: "memory");
@@ -128,7 +133,7 @@ extern "C" __global__ void monolith(const unsigned int *in, unsigned int *out)
     {
         const unsigned int left = monolith_read(in, 0u);
         const unsigned int count = monolith_read(in, 1u) & 31u;
-        // ASR: the word read as signed carries its sign in from the top; the bits are unchanged
+        // ASR: the word, read as signed, carries its sign in from the top. The bits do not change
         monolith_write(out, PRECEPT_ASR, (count == 0u) ? left : (unsigned int)((int)left >> count));
     }
 
@@ -156,9 +161,9 @@ extern "C" __global__ void monolith(const unsigned int *in, unsigned int *out)
     monolith_write(out, PRECEPT_MUL, monolith_read(in, 0u) * monolith_read(in, 1u));
 
     MONOLITH_TAG(PRECEPT_BRA);
-    // An unconditional jump stays in the program only where something jumps around it: the arm taken on the flag ends
-    // in a jump over the other. Each arm contains four stores, more than the compiler writes as predicated stores in
-    // place of a branch. With the flag 0 the second arm runs and its last store is the answer, 0
+    // An unconditional jump stays in the program only where a branch jumps around it. The arm that the flag takes ends
+    // in a jump over the other. Each arm holds four stores, more than the compiler writes as predicated stores in place
+    // of a branch. With the flag 0, the second arm runs, and its last store is the answer, 0
     if (monolith_read(in, 2u) != 0u)
     {
         monolith_write(out, PRECEPT_BRA, 1u);
@@ -193,16 +198,16 @@ extern "C" __global__ void monolith(const unsigned int *in, unsigned int *out)
     monolith_write(out, PRECEPT_COUNT + 1u, (unsigned int)(spent >> 32u));
 }
 
-// a step's instruction put under the predicate the flag names: %0 the word, %1 the right word, %2 the flag, %3 the
-// shift count, the right word's low five bits
+// the instruction of a step, under the predicate that the flag names. `%0` is the word, `%1` the right word, `%2` the
+// flag, and `%3` the shift count, the low five bits of the right word
 #define MONOLITH_PREDICATED(instruction_)                                                                              \
     asm volatile("{\n\t.reg .pred taken;\n\tsetp.ne.u32 taken, %2, 0;\n\t" instruction_ "\n\t}"                        \
                  : "+r"(word)                                                                                          \
                  : "r"(right), "r"(flag), "r"(count))
 
-// one step of precept `precept_` on `word`, its answer left in `word`, with `right` the right word and `count` its low
-// five bits. A shift's count is masked before it is put, as precept_applied masks it, and a funnel shift of a word with
-// itself is a rotate
+// one step of precept `precept_` on `word`, with its answer left in `word`. `right` is the right word, and `count` its
+// low five bits. The step masks the count of a shift before it puts it, as precept_applied masks it. A funnel shift of
+// a word with itself is a rotate
 template <unsigned int precept_>
 static __device__ __forceinline__ void monolith_step(unsigned int &word, unsigned int right, unsigned int count,
                                                      unsigned int flag)
@@ -260,8 +265,8 @@ static __device__ __forceinline__ void monolith_step(unsigned int &word, unsigne
     }
 }
 
-// what every costed section is run with: the two words, the turns, the flag the steps are predicated on, and where
-// each section's count and last word are written
+// what the program runs every costed section with. That is the two words, the turns, the flag of the step predicates,
+// and where each section writes its count and last word
 typedef struct
 {
     unsigned int left;

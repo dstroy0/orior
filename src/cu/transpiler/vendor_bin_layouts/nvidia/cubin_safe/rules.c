@@ -6,8 +6,8 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "cubin_safe_internal.h"
 
-// the register the operand whose run begins at `run_first` names, its whole fixed eight-bit field read: the number in
-// the field that contains the bit, or RZ where the run lies in none of them, which is then left unbounded
+// the register that the operand whose run starts at `run_first` names, read from its whole fixed eight-bit field. It
+// is the number in the field that holds the bit. It is RZ where the run lies in none of them, and then has no bound
 static unsigned int cubin_register_of(unsigned long long low, unsigned long long high, unsigned int run_first)
 {
     static const unsigned int field[CUBIN_REGISTER_FIELDS] = {16u, 24u, 32u, 64u};
@@ -28,10 +28,11 @@ static unsigned int cubin_register_of(unsigned long long low, unsigned long long
     return CUBIN_REGISTER_ZERO;
 }
 
-// 1 where an operand of `form` names a register the kernel never allotted: where `registers` is known, one past
-// R(registers - register_past), the part's answer of how far a container's code reaches, and every one where the part
-// has not answered it; or one past the part's ceiling register_last; RZ always excepted. The form specifies which
-// operands are registers and where they sit (sass_machine.h); the instruction `low` and `high` encodes their numbers
+// 1 where an operand of `form` names a register that the kernel never allotted, RZ always excepted. Where the call
+// knows `registers`, that is one past `R(registers - register_past)`, the answer of the part to how far the code of a
+// container reaches. Where the part did not answer it, it is every one. It is also one past the ceiling of the part,
+// register_last. The form tells which operands are registers and where they sit (sass_machine.h). The instruction
+// `low` and `high` encodes their numbers
 static int cubin_register_out_of_range(const SassMachine *machine, const SassForm *form, unsigned long long low,
                                        unsigned long long high, unsigned int registers)
 {
@@ -47,8 +48,9 @@ static int cubin_register_out_of_range(const SassMachine *machine, const SassFor
         {
             continue;
         }
-        // a register past the reach answered faults the part with a register out of range, and one where the reach is
-        // not answered may; a container declaring d reaches no further than R(d - 1), whatever a machine contains
+        // a register past the answered reach faults the part with a register out of range. One can fault the part
+        // where the part did not answer the reach. A container that declares d reaches no further than `R(d - 1)`,
+        // whatever a machine holds
         const unsigned int past = (machine->register_past == 0u) ? 1u : machine->register_past;
         if ((registers != 0u) && ((machine->register_past == SASS_MACHINE_UNANSWERED) || ((value + past) > registers)))
         {
@@ -62,8 +64,8 @@ static int cubin_register_out_of_range(const SassMachine *machine, const SassFor
     return 0;
 }
 
-// a form of `machine` under the operation key of `low`, for an instruction no form matches whole: the first found,
-// whose register fields are the key's own, NULL where the key has none
+// a form of `machine` under the operation key of `low`, for an instruction that no form matches whole. It is the first
+// that the call finds, whose register fields are the own fields of the key, or NULL where the key has none
 static const SassForm *cubin_key_form(const SassMachine *machine, unsigned long long low)
 {
     const unsigned long long key = low & SASS_OPERATION_MASK;
@@ -116,8 +118,9 @@ static int cubin_exit(const SassInstructionParts *parts)
            ((parts->operation[4] == '\0') || (parts->operation[4] == '.'));
 }
 
-// 1 where the EXIT `parts` is taken by every thread that reaches it: no guard, and every operand it prints PT with
-// no mark, the predicate always true. `EXIT !PT` is never taken and `EXIT P6` only where P6 is true
+// 1 where every thread that reaches the EXIT `parts` takes it. It has no guard, and every operand that it prints is PT
+// with no mark, the predicate that is always true. No thread takes `EXIT !PT`, and a thread takes `EXIT P6` only where
+// P6 is true
 static int cubin_exit_ends(const SassInstructionParts *parts)
 {
     if (parts->guard[0] != '\0')
@@ -136,8 +139,9 @@ static int cubin_exit_ends(const SassInstructionParts *parts)
     return 1;
 }
 
-// the size of the constant bank's section beside the code section under the gate, 0 where it is not known: set
-// by cubin_safe_image for each code section from the container's constant sections, in their order
+// the size of the section of the constant bank beside the code section under the gate, or 0 where the gate does not
+// know it. The call cubin_safe_image sets it for each code section from the constant sections of the container, in
+// their order
 static unsigned long long s_bank_size;
 
 unsigned int cubin_safe(const SassMachine *machine, const unsigned char *code, unsigned long long code_size,
@@ -155,8 +159,8 @@ unsigned int cubin_safe(const SassMachine *machine, const unsigned char *code, u
         const unsigned long long low = cubin_word(&code[place]);
         const unsigned long long high = cubin_word(&code[place + 8u]);
         const unsigned long long stall = (high >> CUBIN_STALL_SHIFT) & 0xfULL;
-        // the vendor's verdict, where one is loaded (a launch, never a dry read): an encoding its reader called illegal
-        // is blocked from the part, whatever our own gate reads it as
+        // the verdict of the vendor, where the gate has one (a launch, never a dry read). The gate blocks an encoding
+        // that its reader called illegal from the part, whatever our own gate reads it as
         if (cubin_safe_verdict_ready() && cubin_safe_verdict_gated(low, high))
         {
             return CUBIN_SAFE_GATED;
@@ -165,20 +169,20 @@ unsigned int cubin_safe(const SassMachine *machine, const unsigned char *code, u
         {
             return CUBIN_SAFE_WAIT;
         }
-        // a read of the constant bank the part would fault on, read through the vendor's own instruction set where
-        // the part's tables are pulled (rule 13)
+        // a read of the constant bank that the part would fault on. The gate reads it through the own instruction set
+        // of the vendor, where the program pulled the tables of the part (rule 13)
         if (cubin_safe_tables_ready() && cubin_constant_out_of_bank(cubin_safe_tables(), low, high, s_bank_size))
         {
             return CUBIN_SAFE_CONSTANT;
         }
-        // an operation the vendor's instruction set names as a control transfer or a wait is blocked whatever name the
-        // machine file's form gives its encoding (rules 2 and 3)
+        // the gate blocks an operation that the vendor instruction set names as a control transfer or a wait. It does
+        // so whatever name the form of the machine file gives its encoding (rules 2 and 3)
         if (cubin_safe_tables_ready() && cubin_class_control_or_wait(cubin_safe_tables(), low, high))
         {
             return CUBIN_SAFE_CONTROL;
         }
-        // an encoding its class's own conditions name illegal, a register out of range or misaligned for its width,
-        // is blocked before the part faults on it (rule 14)
+        // the gate blocks an encoding that the own conditions of its class name illegal before the part faults on it
+        // (rule 14). Such an encoding has a register out of range, or one misaligned for its width
         if (cubin_safe_tables_ready() && cubin_class_illegal(cubin_safe_tables(), low, high))
         {
             return CUBIN_SAFE_ILLEGAL;
@@ -186,13 +190,14 @@ unsigned int cubin_safe(const SassMachine *machine, const unsigned char *code, u
         char text[256];
         if (!sass_encoding_read(machine, low, high, place, text, sizeof(text)))
         {
-            // an instruction no form matches names no operation whose soonest read is measured, and stalls the longest
+            // an instruction that no form matches names no operation with a measured soonest read, and stalls the
+            // longest
             if (stall != SASS_STALL_MAX_LEN)
             {
                 return CUBIN_SAFE_STALL;
             }
-            // an encoding a conference admitted is put past the key alone, exactly as the lesson gives it, and
-            // counts as one a form matches: the cross read it, and the airlock's own word is for a form's
+            // the gate puts an encoding that a conference admitted past the key alone, as the lesson gives it. It
+            // counts as one that a form matches. The cross read it, and the own word of the airlock is for a form
             const int admitted = cubin_safe_admitted(low, high);
             if (!cubin_key_straight(machine, low) && !admitted)
             {
@@ -216,9 +221,9 @@ unsigned int cubin_safe(const SassMachine *machine, const unsigned char *code, u
         sass_instruction_read(text, &parts);
         unsigned int soonest = SASS_STALL_MAX_LEN;
         const unsigned int schedule = sass_operation_schedule(machine, parts.operation, &soonest);
-        // A barrier set by an operation whose result is back in a fixed count of cycles is never released, and the
-        // next wait on all six never ends. An operation releases one where its schedule is late or a store, or where
-        // the encoding the system wrote its form with sets one
+        // Nothing releases a barrier that an operation sets where its result is back in a fixed count of cycles. Then
+        // the next wait on all six never ends. An operation releases one where its schedule is late or a store. It also
+        // releases one where the encoding that the system wrote its form with sets one
         const SassForm *const form = sass_machine_form(machine, &parts);
         const int releases = (schedule != SASS_SCHEDULE_FIXED) ||
                              ((form != NULL) && (sass_barrier_set(form->high, SASS_WRITE_BARRIER_FIRST) ||
@@ -259,8 +264,8 @@ unsigned int cubin_safe_image(const SassMachine *machine, const unsigned char *i
     unsigned long long bank_offsets[CUBIN_SAFE_SECTIONS];
     unsigned long long bank_sizes[CUBIN_SAFE_SECTIONS];
     const unsigned int sections = cubin_code_sections(image, size, offsets, sizes, CUBIN_SAFE_SECTIONS);
-    // the constant bank's sections are in the code sections' order, one a kernel; a container with fewer leaves the
-    // bank's size unknown for the code sections past them
+    // the sections of the constant bank are in the order of the code sections, one for each kernel. A container with
+    // fewer leaves the size of the bank unknown for the code sections past them
     const unsigned int banks = cubin_constant_sections(image, size, bank_offsets, bank_sizes, CUBIN_SAFE_SECTIONS);
     *at = 0ULL;
     if (sections == 0u)
@@ -292,8 +297,8 @@ unsigned int cubin_safe_launch(int status, unsigned long long waited)
                                                                                            : CUBIN_SAFE;
 }
 
-// 1 where `status` is a driver fault that corrupts the context: the part faulted on the launch, the error is sticky,
-// and every launch after it in the process is invalid
+// 1 where `status` is a driver fault that corrupts the context. The part faulted on the launch, and the error is
+// sticky. Every launch after it in the process is invalid
 static int cubin_safe_status_fault(int status)
 {
     switch (status)

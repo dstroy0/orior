@@ -53,8 +53,9 @@ void orior_steer_probe_order(size_t *offsets, size_t count, const OriorFieldCens
     }
 
     // Insertion sort, descending by magnitude, and STABLE. The strict greater-than in the shift
-    // test retains it stable: an equal magnitude does not displace the entry already placed, and
-    // anchors testing equally rare symbols retain the spatial spread choose_offsets gave them.
+    // test keeps it stable: an equal magnitude does not move the entry that the sort already
+    // placed. Anchors that test equally rare symbols keep the spatial spread that choose_offsets
+    // gave them.
     for (size_t placed = 1u; placed < count; placed += 1u)
     {
         const size_t moving_offset = offsets[placed];
@@ -88,12 +89,12 @@ void orior_steer_probe_order(size_t *offsets, size_t count, const OriorFieldCens
 /**
  * @brief Loads a 64 bit value into the fixed width limb form.
  *
- * @param[out] value Where the limbs are written [BORROWS].
+ * @param[out] value Where the call writes the limbs [BORROWS].
  * @param[in]  from  The value to carry.
- * @note Base 2^32 least significant limb first, the layout exact_integer.h declares.
- *       Writing the two limbs directly reads that declaration instead of reaching around it;
- *       there is no decimal text here to route through orior_exact_from_decimal and converting a
- *       counter to text to parse it back would be slower and just as exact.
+ * @note Base 2^32, least significant limb first, the layout that exact_integer.h declares.
+ *       A direct write of the two limbs reads that declaration, and does not reach around it.
+ *       There is no decimal text here to route through orior_exact_from_decimal. A conversion
+ *       of a counter to text, to parse it back, would be slower and just as exact.
  * @note limb[1] exists because the assert at the top of this file limits the engine to 8 limbs or
  *       more.
  */
@@ -138,8 +139,8 @@ int orior_steer_prefers_free(const OriorFieldCensus *census)
     }
 
     // right = sum over symbols of count^2, accumulated in the limb form and not in a 64 bit
-    // counter. A single count squares to at max total^2, which already passes 2^64 on a four
-    // gigabyte corpus, and 256 of them are summed on top of that.
+    // counter. A single count squares to at max `total^2`, which already passes `2^64` on a four
+    // gigabyte corpus. The call sums 256 of them on top of that.
     orior_exact_zero(&right);
     for (unsigned int symbol = 0u; symbol < ORIOR_STEER_SYMBOLS; symbol += 1u)
     {
@@ -176,37 +177,37 @@ int orior_steer_prefers_free(const OriorFieldCensus *census)
 }
 
 /* ------------------------------------------------------------------------------------------------
- * Truthy and falsy steering. The signal is the survivor vector instead of the symbol histogram.
+ * The truthy and falsy steer. The signal is the survivor vector, not the symbol histogram.
  *
  * EACH PERMUTATION OF THE ANCHORS IS A NULL, AND EACH NULL IS A STEER. An alignment survives only
  * when every anchor agrees, and a conjunction does not depend on the order of its terms. Every
- * ordering of a given anchor set returns the same count. The orderings therefore form a group of
- * moves that CANNOT change the answer, called a null in this tree. Steering is choosing
- * which element of that group to apply.
+ * order of a given anchor set returns the same count. Thus the orders form a group of moves that
+ * CANNOT change the answer, and this tree calls such a group a null. A steer is the choice of the
+ * element of that group to apply.
  *
- * The safety argument for everything below rests on this alone, and it is structural and not
- * defensive. A planner that samples badly, ranks wrongly, or is outright broken still lands on some
- * element of the null group, and every element yields the same count. The planner moves inside the
- * null and the null has one value. Correctness is therefore not something the planner can spend,
- * and speed is the only currency it uses.
+ * The safety argument for all below rests on this alone, and it is structural, not defensive. A
+ * planner that samples badly, ranks wrongly, or is broken still lands on some element of the null
+ * group. Every element gives the same count. The planner moves inside the null, and the null
+ * has one value. Thus the planner cannot spend correctness, and speed is the only currency that
+ * it uses.
  * ---------------------------------------------------------------------------------------------- */
 
 /**
- * @brief How many currently truthy alignments stay truthy when `offset` is tested.
+ * @brief How many truthy alignments stay truthy when the call tests `offset`.
  *
- * @param[in] alive  One flag per alignment, non-zero for truthy [BORROWS].
- * @param[in] stride Sample every Nth alignment. The ranking is a comparison between candidates.
- *                   A consistent sample ranks them consistently without reading them all.
+ * @param[in] alive  One flag for each alignment, not zero for truthy [BORROWS].
+ * @param[in] stride Sample every Nth alignment. The rank is a comparison between candidates.
+ *                   A consistent sample ranks them consistently, with no read of them all.
  * @return           Count of survivors, in the sampled population.
  */
 size_t steer_truthy_after(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,
                           const uint8_t *alive, size_t offset, size_t stride, const OriorField *any)
 {
-    // ANY SYMBOL TYPE TAKES THE SCALAR LOOP AND CANNOT TAKE A WIDE ONE. A vectorized scan compares
+    // ANY SYMBOL TYPE TAKES THE SCALAR LOOP AND CANNOT TAKE A WIDE ONE. A vector scan compares
     // bytes against a broadcast byte, which is a statement about the representation. The oracle is
-    // a statement about equality and the engine never learns what it is comparing. There is
-    // nothing to broadcast. This path is slower, and the theory describes it; the byte
-    // path below is the specialization that can be made wide.
+    // a statement about equality, and the engine never learns what it compares. There is nothing
+    // to broadcast. This path is slower, and the theory describes it. The byte path below is the
+    // special case that can go wide.
     if (any != NULL)
     {
         size_t located_any = 0u;
@@ -228,20 +229,20 @@ size_t steer_truthy_after(const uint8_t *corpus, size_t corpus_len, const uint8_
     const size_t alignments = (corpus_len - needle_len) + 1u;
     const uint8_t wanted = needle[offset];
 
-    // THE WIDEST ENGINE THIS MACHINE CARRIES, QUERIED ONCE. The scan is where a planner spends its
-    // time, and an engine graded against the portable one but never called is a measurement instead
-    // of a speedup. The engine is resolved once and cached, because querying the processor on every
-    // candidate would cost more than the candidates do.
+    // THE WIDEST ENGINE THAT THIS MACHINE CARRIES, QUERIED ONCE. The scan is where a planner spends
+    // its time. An engine graded against the portable one but never called is a measurement, not a
+    // speedup. The call resolves the engine once and caches it, because a query of the processor on
+    // every candidate would cost more than the candidates do.
     //
-    // Only at stride one. A sampled scan walks every Nth alignment and the engines count every one.
-    // Handing a sampled sweep to one would change what is being counted. Sampling falls through
-    // to the loop below, the same code the portable engine runs.
+    // Only at stride one. A sampled scan walks every Nth alignment, and the engines count every one.
+    // A sampled sweep given to one would change what the scan counts. A sampled scan falls through
+    // to the loop below, the same code that the portable engine runs.
     if (stride == 1u)
     {
-        // Resolved through orior_steer_best_engine, which contains the one dispatch every arm is added
-        // to. Reproducing the #if ladder here would be a second copy that a new arm could miss, and a
-        // scan that continues running the old widest arm while a wider one reports itself present has
-        // the unused-implementation defect the scan counters exist to catch.
+        // orior_steer_best_engine resolves it, and holds the one dispatch that every new arm goes
+        // into. A copy of the #if ladder here would be a second copy that a new arm could miss. A
+        // scan can run the old widest arm while a wider one reports itself present. That is the
+        // defect of an unused implementation, which the scan counters exist to catch.
         static const OriorSteerEngine *chosen = NULL;
         static int resolved = 0;
         if (resolved == 0)
@@ -271,11 +272,12 @@ size_t steer_truthy_after(const uint8_t *corpus, size_t corpus_len, const uint8_
 }
 
 /**
- * @brief How many alignments are truthy right now, in the sampled population.
+ * @brief How many alignments are truthy now, in the sampled population.
  *
- * @note Sampled at the same stride the candidate scores use. The comparison between "survivors
- *       after this probe" and "survivors before it" is between two counts of the same population.
- *       Mixing a full count with a sampled one would make every probe look like it pruned.
+ * @note The call samples at the same stride that the candidate scores use. The comparison between
+ *       "survivors after this probe" and "survivors before it" is between two counts of the same
+ *       population. A mix of a full count with a sampled one would make every probe look as if it
+ *       pruned.
  */
 size_t steer_truthy_total(const uint8_t *alive, size_t alignments, size_t stride)
 {
@@ -294,9 +296,9 @@ size_t steer_truthy_total(const uint8_t *alive, size_t alignments, size_t stride
 /**
  * @brief Turns falsy every alignment that disagrees at `offset`, over the whole population.
  *
- * @note Applied at stride one even where the ranking was sampled. The ranking is allowed to be
- *       approximate because it only picks between nulls. The survivor set is not, because the next
- *       level ranks against it and an approximate survivor set would compound.
+ * @note The call works at stride one, even where the rank used a sample. The rank can be
+ *       approximate, because it only picks between nulls. The survivor set cannot, because the next
+ *       level ranks against it, and an approximate survivor set would compound.
  */
 void steer_make_falsy(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,
                       uint8_t *alive, size_t offset, const OriorField *any)

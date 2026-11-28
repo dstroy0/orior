@@ -5,22 +5,27 @@
 //
 //     interface_sass_run [--gated <file>] <machine file> <list> <first> <answers> [<cases> [<max>]]
 //
-// It joins the gate's safety airlock like the carrier: --gated reads the vendor's verdict (cubin_safe_verdict_*), and a
-// line reaches the part only with a verdict in hand, an encoding the verdict blocks never reaching it. Given no verdict
-// a line is blocked from the part, since code the vendor's reader never read for a fault can be the one that crashes
-// the host.
+// It joins the safety airlock of the gate, as the carrier does. --gated reads the verdict of the vendor
+// (cubin_safe_verdict_*). A line reaches the part only with a verdict in hand, and an encoding that the verdict blocks
+// never reaches it. With no verdict, the program blocks a line from the part. Code that the reader of the vendor never
+// read for a fault can be the code that crashes the host.
 //
-// The list contains one cubin a line, as `<path> <kernel>`. Each from line `first` on is read on the host first and
-// checked by cubin_safe against the machine file. One that breaks a rule is never passed to the driver and adds
-// `<number> skipped cubin_safe_<verdict>`. Every other is loaded, its kernel run over the probe's case, and a line
-// `<number> answered <w0> <w1> <w2> <w3>` added to the answers file. Given a cases file, one case a line as up to eight
-// words in hex, the kernel is run once over every case, a thread a case, and the line contains the first word of each
-// case's answer in the file's order. Given `max`, a pass runs that many lines at max and ends with exit 4 where lines
-// are left, making a pass short enough for a cap on its time to bound one cubin. A cubin the part refuses kills
-// the context past recovery: resetting the part's primary context in place leaves the next launch failing. A refusal
-// adds `<number> refused <error>` and ends the process with exit 3, and the caller starts it again past that line. A
-// pause after each launch prevents a run of launches from flooding the part and taking the display down with it. Exit 0
-// where every line ran, 2 where the list or the device was not reached.
+// The list holds one cubin to a line, as `<path> <kernel>`. From line `first` on, the program reads each cubin on the
+// host first, and cubin_safe checks it against the machine file. The program never passes a cubin that breaks a rule
+// to the driver, and adds `<number> skipped cubin_safe_<verdict>`. The program loads each other cubin and runs its
+// kernel over the case of the probe. Then it adds a line `<number> answered <w0> <w1> <w2> <w3>` to the answers file.
+//
+// A cases file has one case to a line, as up to eight words in hex. With a cases file, the program runs the kernel
+// once over every case, one thread to a case. The line then holds the first word of the answer of each case, in the
+// order of the file. With `max`, a pass runs that many lines at max, and ends with exit 4 where lines remain. That
+// makes a pass short enough for a cap on its time to bound one cubin.
+//
+// A cubin that the part refuses kills the context past recovery. A reset of the primary context of the part in place
+// makes the next launch fail. A refusal adds `<number> refused <error>` and ends the process with exit 3, and the
+// caller starts it again past that line. A pause after each launch spaces the work of the part. Without it, a run of
+// launches can flood the part and take the display down with it.
+//
+// Exit 0 where every line ran, 2 where the program did not reach the list or the device.
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../../includes/parsers/line_read.h"
 #include "../../../../../../includes/platform/platform.h"
@@ -35,24 +40,26 @@
 // the max bytes a cubin takes, and the longest line of the list
 #define SASS_RUN_CUBIN 262144u
 #define SASS_RUN_LINE 1024u
-// the words of the case and of an answer, and the threads a launch gives the kernel, which leaves every thread past
-// the case count at once
+// the words of the case and of an answer, and the threads that a launch gives the kernel. Each thread past the case
+// count leaves at once
 #define SASS_RUN_IN_WORDS 8u
 #define SASS_RUN_OUT_WORDS 4u
 #define SASS_RUN_THREADS 256u
-// the wait after a launch, in milliseconds, which spaces the part's work and prevents a run of launches from flooding
+// the wait after a launch, in milliseconds. It spaces the work of the part, so that a run of launches does not flood
 // it
 #define SASS_RUN_PAUSE_MS 25u
 
 static unsigned char s_image[SASS_RUN_CUBIN];
 static SassMachine s_machine;
-// the cases every cubin is run over, the probe's one case where no cases file is given, and the answers they give
+// the cases that the program runs every cubin over, and the answers that they give. Where the caller gives no cases
+// file, this is the one case of the probe
 static unsigned int s_cases[SASS_RUN_THREADS][SASS_RUN_IN_WORDS] = {{0xbu, 0x7u, 0x3u, 0x5u, 0x2u, 0x9u, 0x1u, 0x4u}};
 static unsigned int s_case_count = 1u;
 static unsigned int s_answers[SASS_RUN_THREADS][SASS_RUN_OUT_WORDS];
 
-// the cases file at `path` read into s_cases, one case a line as up to eight words in hex, the words a line leaves out
-// zero: 1, or 0 where it does not read, contains no case or contains more than a launch's threads
+// the cases file at `path`, read into s_cases, one case to a line as up to eight words in hex. The words that a line
+// leaves out are zero. The return is 1, or 0 where it does not read, holds no case, or holds more cases than a launch
+// has threads
 static int sass_run_cases(const char *path)
 {
     // the cases as the run stores them, a descent's written through the run's writer, or the disk where it stores none
@@ -93,7 +100,7 @@ static int sass_run_cases(const char *path)
     return fits && (count != 0u);
 }
 
-// `path` read whole into s_image: the bytes read, or 0 where it was not read or does not fit
+// `path` read whole into s_image: the bytes read, or 0 where the read failed or the file does not fit
 static size_t sass_run_image(const char *path)
 {
     PlatformFile *const file = platform_file_open(path, "rb");
@@ -106,8 +113,8 @@ static size_t sass_run_image(const char *path)
     return (read < sizeof(s_image)) ? read : 0u;
 }
 
-// the cubin already read into s_image loaded and its kernel run over every case, a thread a case, each case's four
-// words into s_answers: CUDA_SUCCESS, or the error the driver gave
+// the cubin in s_image, loaded, with its kernel run over every case, one thread to a case. The four words of each
+// case go into s_answers. The return is CUDA_SUCCESS, or the error that the driver gave
 static CUresult sass_run_one(const char *kernel)
 {
     CUmodule module = NULL;
@@ -140,7 +147,8 @@ static CUresult sass_run_one(const char *kernel)
 
 int program_main(int count, char **words)
 {
-    // the safety airlock: the vendor's verdict read into the gate where it is given, and retained for the part
+    // the safety airlock: the gate reads the verdict of the vendor where the caller gives it, and keeps it for the
+    // part
     if ((count >= 3) && (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = words[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
                                     .other = "--gated", .ci = EMBED_FALSE)))
     {
@@ -244,8 +252,8 @@ int program_main(int count, char **words)
             platform_file_close(list);
             return 4;
         }
-        // a line the writer blocked from the part: its turned operation key contains a control transfer, a wait or no
-        // form, and running it could loop or stall the part. It is answered without the device
+        // a line that the writer blocked from the part. Its turned operation key holds a control transfer, a wait or
+        // no form, and a run of it could loop or stall the part. The program answers it without the device
         if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = path, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "skip",
                        .ci = EMBED_FALSE))
         {
@@ -258,8 +266,8 @@ int program_main(int count, char **words)
             number += 1UL;
             continue;
         }
-        // read on the host before the driver sees it: a cubin that does not read, or breaks a rule of cubin_safe, is
-        // answered without the device
+        // the host reads the cubin before the driver sees it. The program answers a cubin that does not read, or
+        // that breaks a rule of cubin_safe, without the device
         const size_t size = sass_run_image(path);
         unsigned long long at = 0ULL;
         const unsigned int verdict =
@@ -346,7 +354,7 @@ int program_main(int count, char **words)
             mmgr_line_hex(platform_file_line(answers), s_answers[0][3], 8u);
             mmgr_line_put(platform_file_line(answers), "\n");
         }
-        // the pause spaces the launches and prevents a run of them from flooding the part
+        // the pause spaces the launches, so that a run of them does not flood the part
         platform_paused(SASS_RUN_PAUSE_MS);
         number += 1UL;
     }

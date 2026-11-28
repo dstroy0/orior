@@ -6,9 +6,9 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "probe_machine_internal.h"
 
-// one form's fields found: each of its 128 bits turned over and decoded, and each run of bits that changes one
-// printed operand retained as that operand's, then the run of an operand it carries and does not print. 1, or 0 where
-// the disassembler failed
+// the fields of one form. The call turns over each of its 128 bits and decodes it. It keeps each run of bits that
+// changes one printed operand as the run of that operand. Then it keeps the run of an operand that the form carries and
+// does not print. The return is 1, or 0 where the disassembler failed
 static int sass_form_fields(SassForm *form, const char *architecture, const char *folder, unsigned int number)
 {
     sass_form_turned(form);
@@ -41,7 +41,7 @@ static int sass_form_fields(SassForm *form, const char *architecture, const char
             form->run[form->runs].last = bit - 1u;
             form->run[form->runs].place = SASS_RUN_NO_PLACE;
             form->runs += 1u;
-            // an operand that prints the same field is given the same run
+            // an operand that prints the same field gets the same run
             const unsigned int twin = sass_operand_twin(&base, s_texts[1u + first], running);
             if ((twin != base.operands) && (form->runs < SASS_MACHINE_RUNS))
             {
@@ -59,10 +59,10 @@ static int sass_form_fields(SassForm *form, const char *architecture, const char
     return sass_form_unprinted(form, &base, architecture, folder, number);
 }
 
-// 1 where the disassembler named every modifier of `operation`. It has three ways of reporting it could not: it prints
-// INVALID<n>, it prints ???<n>, or it leaves the trailing dot with nothing after it. An encoding whose meaning the
-// disassembler will not state is not a form, because assembling from it would write bits nothing can confirm the part
-// reads. The three are one refusal wearing three definitions, and a form stored under any of them is a false branch
+// 1 where the disassembler named every modifier of `operation`. It reports that it could not in three ways. It prints
+// INVALID<n> or ???<n>, or it leaves the last dot with nothing after it. An encoding that the disassembler does not
+// define is not a form. An assembly from it would write bits that nothing can show the part reads. The three are one
+// refusal with three definitions, and a form stored under any of them is a false branch
 static int sass_operation_named(const char *operation)
 {
     const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = operation, .cap = PLATFORM_TEXT_TO_TERMINATOR);
@@ -73,14 +73,15 @@ static int sass_operation_named(const char *operation)
                        .other = "???", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE) == NULL);
 }
 
-// 1 where `text` is an instruction a form can be stored from: the disassembler took it, it names an operation it could
-// define whole, and every operand it prints is a type the assembler knows where to put.
+// 1 where `text` is an instruction that the machine can store a form from. The disassembler took it, and it names an
+// operation that the disassembler could define whole. The assembler knows where to put each operand type that it
+// prints.
 //
-// The operation's name alone does not determine which form this is. A form is keyed by its operation and the type of
-// each operand together, because those are what decide where the assembler puts a number: SHF.L.U32 with a register in
-// the shift field and SHF.L.U32 with a number there read the same name and are two forms. So nothing here is turned
-// away for naming the operation it was turned from, and what is genuinely the form already in hand -- its registers
-// moved, or its control bits -- is turned away by sass_machine_take, which finds the operation and the types
+// The name of the operation alone does not set which form this is. The key of a form is its operation and the type of
+// each operand together, because those decide where the assembler puts a number. SHF.L.U32 with a register in the shift
+// field and SHF.L.U32 with a number there are two forms with one name. Thus the call turns nothing away here because it
+// names the operation that the turn came from. The call sass_machine_take finds the operation and the types. It turns
+// away what is truly the form already in hand, such as one with its registers or control bits moved
 static int sass_widened_matches(const char *text, SassInstructionParts *parts)
 {
     if ((EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "illegal",
@@ -107,24 +108,27 @@ static int sass_widened_matches(const char *text, SassInstructionParts *parts)
 
 unsigned int sass_machine_widen(SassMachine *machine, const char *architecture, const char *folder)
 {
-    // the forms the listings gave, before any this pass adds: a form is widened from an instruction the part ran
+    // the forms that the listings gave, before the forms that this pass adds. The widen step starts a form from an
+    // instruction that the part ran
     const unsigned int listed = machine->forms;
     unsigned int failed = 0u;
     unsigned int rounds = 0u;
-    // A form one bit from a listed one is a form the next round can be a bit from in turn. Widening only the
-    // listings reaches whatever is one bit out and stops, which leaves a form two bits out unreached even where the
-    // bit between them is a form the part takes. The type of a field is such a field, and the lane is short of it:
-    // the low word picks a register, a number or a constant for the second and the third operand, and on sm_86 those
-    // read 0x2 for a register in both, 0xa and 0x8 for a constant and a number in the second, 0x6 and 0x4 for a
-    // constant and a number in the third. A register to a number is two bits either way, through the constant that
-    // lies between. One round reaches the constant and the round after reaches the number.
+    // A form one bit from a listed form is a form that the next round can start one bit from. A widen step over the
+    // listings alone reaches what is one bit out and stops. A form two bits out stays out of reach, even where the bit
+    // between them is a form that the part takes. The type of a field is such a field, and the lane is short of it.
     //
-    // SASS_WIDEN_ROUNDS is that reach. Letting the walk run to its own end does not close: it continues finding more,
-    // because the component reachable a bit at a time is the majority of what the part decodes. Two things are wrong
-    // with taking all of it. It does not close anywhere near the 16384 a machine contains: the run ends in `refused`
-    // and reports nothing. And a form reached far out carries the operand bits of a chain of forms it has nothing to do
-    // with, the PLOP3.LUT reading written down below -- a form that decodes and that no operation can be written from.
-    // The bound is the field the lane is short of, measured, in place of a guess at how far is far enough
+    // The low word picks a register, a number or a constant for the second and the third operand. On sm_86 those read
+    // 0x2 for a register in both, and 0xa and 0x8 for a constant and a number in the second. They read 0x6 and 0x4 for
+    // a constant and a number in the third. A register to a number is two bits either way, through the constant that
+    // lies between. One round reaches the constant, and the round after it reaches the number.
+    //
+    // SASS_WIDEN_ROUNDS is that reach. A walk that runs to its own end does not close, and finds more and more. The set
+    // of encodings that a walk can reach one bit at a time is most of what the part decodes.
+    //
+    // Two things are wrong with a walk over all of it. First, it does not close near the 16384 forms that a machine
+    // holds: the run ends in `refused` and reports nothing. Second, a form far out carries the operand bits of a chain
+    // of unrelated forms. The PLOP3.LUT reading below is such a form: it decodes, and no operation can come from it.
+    // The bound is the measured field that the lane is short of. It is not a guess at how far is far enough
     unsigned int done = 0u;
     while ((done < machine->forms) && (rounds < SASS_WIDEN_ROUNDS))
     {
@@ -150,9 +154,9 @@ unsigned int sass_machine_widen(SassMachine *machine, const char *architecture, 
                 SassInstructionParts parts;
                 SassForm *found_form = NULL;
                 const char *const text = s_texts[1u + bit];
-                // what the decoder reported about this one bit, for the .ksc: it refused the encoding, it took it and
-                // printed no line, or it named it. Every bit of every form goes through here: they are counted and
-                // not stored whole
+                // what the decoder reported about this one bit, for the .ksc. It refused the encoding, took it and
+                // printed no line, or named it. Every bit of every form goes through here. The call counts them, and
+                // does not store them whole
                 sass_class_count(
                     SASS_CHANNEL_DECODE,
                     (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR,
@@ -243,13 +247,13 @@ int sass_machine_fields(SassMachine *machine, const char *architecture, const ch
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    // a machine that filled up is a machine missing forms nobody named: a truncation, not a reading
+    // a machine that filled up does not have forms that nothing named. That is a truncation, not a reading
     return (written != 0) && (failed == 0u) && (differed == 0u) && (machine->refused == 0u);
 }
 
-// The carriers picked out of the forms already stored: the first form, then each later one whose operands are shaped
-// unlike every carrier taken so far. A shape is the count of operands and the type of each, and it decides
-// where the bits outside the key sit. How many were taken
+// The carriers that the call picks from the forms in the machine. It takes the first form, then each later form whose
+// operands have a new shape. A shape is the count of operands and the type of each. It sets where the bits outside the
+// key sit. The return is how many the call took
 static unsigned int sass_sweep_carriers(const SassMachine *machine, unsigned int *carrier)
 {
     unsigned int taken = 0u;
@@ -289,8 +293,8 @@ unsigned int sass_machine_sweep(SassMachine *machine, const char *architecture, 
     unsigned int named = 0u;
     for (unsigned int which = 0u; which < carriers; which += 1u)
     {
-        // a carrier the part is known to take, with its operation cut away. Every question below is this encoding
-        // with one of the 4096 keys put back, leaving every bit outside the key as a real instruction carried it
+        // a carrier that the part takes, with its operation cut away. Every question below is this encoding with one
+        // of the 4096 keys put back. Each bit outside the key stays as a real instruction carried it
         const unsigned long long low = machine->form[carrier[which]].low & ~SASS_OPERATION_MASK;
         const unsigned long long high = machine->form[carrier[which]].high;
         for (unsigned int first = 0u; first <= SASS_OPERATION_MASK; first += SASS_BITS)
@@ -338,8 +342,8 @@ unsigned int sass_machine_sweep(SassMachine *machine, const char *architecture, 
                              : 0u;
                 SassInstructionParts parts;
                 SassForm *found_form = NULL;
-                // a swept encoding came from no form, and is read the same way a widened one is: every operation the
-                // decoder names, with every operand a type the assembler can place, is one to retain
+                // a swept encoding came from no form, and the call reads it as it reads a widened one. The call keeps
+                // each operation that the decoder names whose operands are all types that the assembler can put
                 if (sass_widened_matches(text, &parts))
                 {
                     sass_machine_take(machine, text, s_low[at], s_high[at], &found_form);

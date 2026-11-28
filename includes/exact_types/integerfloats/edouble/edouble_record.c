@@ -349,8 +349,8 @@ EdoubleRecordBall edouble_record_ball_times_two_to(ExactRecordProgram *program, 
 }
 
 // a mantissa at exponent e, read at the constant exponent `exponent`. The call lifts it exact where e is the larger.
-// Else it takes its quotient toward zero, or its ceiling where `ceiling` is 1. `cut` is 1 where the call divided it,
-// in a register
+// Else it takes its quotient toward zero, or its ceiling where `ceiling` is not zero. `cut` is 1 where the call divided
+// it, in a register
 static unsigned int edouble_record_read_at(ExactRecordProgram *program, EdoubleRecord value, long long exponent,
                                            unsigned int range_bits, int ceiling, unsigned int *cut)
 {

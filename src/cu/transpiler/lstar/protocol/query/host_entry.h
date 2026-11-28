@@ -3,46 +3,46 @@
 #ifndef HOST_ENTRY_H
 #define HOST_ENTRY_H
 
-// How a host is reached. Two relations.
+// How the program reaches a host. Two relations.
 //
 //   put   a word at an address
 //   read  a word at an address
 //
-// A store and a load. There is nothing under them and nothing between them and the part: no system is queried for
-// permission, no library is called, and no header of anybody's is included. This file includes nothing at all. A
-// compiler that has to be given an address and a word can be given them anywhere.
+// A store and a load. Nothing is under them, and nothing is between them and the part. The program asks no system for
+// permission, calls no library, and includes no header of another party. This file includes nothing at all. A
+// compiler that must get an address and a word can get them anywhere.
 //
-// A bus is any bus because a bus is these two. A window at an address is one writing of them, a serial line
-// clocking bits is another, a fabric's aperture a third. Each is a few stores and loads at the addresses that drive
-// it, and each is found the same way as anything else here.
+// A bus is any bus because a bus is these two. A window at an address is one way to write them, and a serial line that
+// clocks bits is another. The aperture of a fabric is a third. Each is a few stores and loads at the addresses that
+// drive it, and the program finds each as it finds all else here.
 //
-// What is on the bus is not a third relation. It is these two put to the bus's own addresses: read the word a part
-// answers with, and read nothing where no part answers. Querying a system what it carries gets that system's opinion
-// of what it carries, which puts a third party in the loop, and its opinion is not the part's answer. The bus reports
-// what is on it because the bus is queried.
+// What is on the bus is not a third relation. It is these two, put to the own addresses of the bus. The program reads
+// the word that a part answers with, and reads nothing where no part answers. A query to a system about what it
+// carries gets the opinion of that system. That puts a third party in the loop, and its opinion is not the answer of
+// the part. The bus reports what is on it because the program queries the bus.
 //
-// What an entry is not is a translator. A thing that turns a source into a coding is the part of the loop being
-// derived, and a word that went through one is that translator's answer and not the host's.
+// An entry is not a translator. A thing that turns a source into a coding is the part of the loop that the program
+// derives. A word that went through one is the answer of that translator, and not the answer of the host.
 
-// how wide a word is here. Every address is a word's worth apart, and how many places a word actually contains is a
-// thing the part is queried and not a thing this decides
+// how wide a word is here. Every address is one word apart from the next. How many places a word truly holds is a
+// thing that the program asks the part, and not a thing that this file decides
 #define HOST_WORD 4u
 
 // A read that comes back all ones is what a line gives a reader when nothing drove it: every wire floats and reads
 // high. It is not a word a part reported
 #define HOST_NO_ANSWER 0xffffffffu
 
-// the two words an address is put. They share no bits: an address fixed at either is then distinguished from one that
-// retains
+// the two words that the program puts to an address. They share no bits. Thus an address that always reads one of
+// them shows apart from an address that keeps what it gets
 #define HOST_PATTERN_FIRST 0xa5a5a5a5u
 #define HOST_PATTERN_THEN 0x5a5a5a5au
 
 // what an address turned out to be, once put words and read back
 typedef enum
 {
-    // gave back every word it was given
+    // gave back every word that it got
     HOST_RETAINS,
-    // gave back the same word whatever it was given
+    // gave back the same word, whatever it got
     HOST_FIXED,
     // gave back something else: something behind it decided the answer
     HOST_LIVE,
@@ -62,8 +62,9 @@ static inline unsigned int host_read(unsigned long long at)
     return *(volatile unsigned int *)(unsigned long long)at;
 }
 
-// the type two read-backs name: `first` read after HOST_PATTERN_FIRST was put, `then` after HOST_PATTERN_THEN. This
-// reads no address; it takes the two words already read. A sizing register's own values can be put to it with no bus
+// the type that two read-backs name: `first`, read after the put of HOST_PATTERN_FIRST, and `then`, after the put of
+// HOST_PATTERN_THEN. This call reads no address, and takes the two words that the caller already read. A caller can
+// give it the own values of a sizing register with no bus
 static inline unsigned int host_address_classify(unsigned int first, unsigned int then)
 {
     if ((first == HOST_PATTERN_FIRST) && (then == HOST_PATTERN_THEN))
@@ -78,12 +79,12 @@ static inline unsigned int host_address_classify(unsigned int first, unsigned in
     {
         return HOST_FIXED;
     }
-    // it moved, and not to what it was given: something behind the address decided the answer
+    // it moved, and not to what it got: a thing behind the address decided the answer
     return HOST_LIVE;
 }
 
-// What the address at `at` turns out to be, through `read_back` containing what came back last. What was there first is
-// put back before this returns, since an address that retains may be something the part is using
+// What the address at `at` is, through `read_back`, which holds what came back last. The call puts back what was there
+// first before it returns. An address that keeps a value can be a thing that the part uses
 static inline unsigned int host_address_probe(unsigned long long at, unsigned int *read_back)
 {
     const unsigned int saved = host_read(at);
@@ -96,9 +97,10 @@ static inline unsigned int host_address_probe(unsigned long long at, unsigned in
     return host_address_classify(first, then);
 }
 
-// the address bits a sizing register decodes, from the word it gives back when all ones are put to it: it contains the
-// high bits it owns and forces the low bits it decodes to zero. The count of those low zero bits is the region's
-// width. A readback of all ones decodes nothing and is width 0; a readback of zero decodes every bit
+// the address bits that a sizing register decodes, from the word that it gives back after a put of all ones. That word
+// holds the high bits that the register owns, and the register forces the low bits that it decodes to zero. The count
+// of those low zero bits is the width of the region. A readback of all ones decodes nothing and has width 0. A
+// readback of zero decodes every bit
 static inline unsigned int host_width(unsigned int readback)
 {
     unsigned int width = 0u;
@@ -109,8 +111,9 @@ static inline unsigned int host_width(unsigned int readback)
     return width;
 }
 
-// the width the sizing register at `at` names: all ones put to it, the word it gives back read, what was there put
-// back. Memory reads 0 here, since memory gives back the ones it was put; a sizing register reads the region's width
+// the width that the sizing register at `at` names. The call puts all ones to it, reads the word that it gives back,
+// and puts back what was there. Memory reads 0 here, because memory gives back the ones that it got. A sizing register
+// reads the width of the region
 static inline unsigned int host_width_probe(unsigned long long at)
 {
     const unsigned int saved = host_read(at);
