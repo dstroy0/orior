@@ -272,9 +272,10 @@ static void psi_point_print(VerbaLinea *line, unsigned int index, unsigned long 
     mmgr_line_ch(line, ')');
 }
 
-// Lemmas 3.4, 3.7 and 3.8: xi(d) = sum_p alpha_p psi(d_p) over every d in D_k^n, sorted, its least neighboring gap
-// exact up to the alpha tails, which are bounded; the gap is weighed against the margin the paper proves, the width of
-// the image intervals T_k, and the width the supports U_k of the outer function's bumps need
+// Lemmas 3.4, 3.7 and 3.8: `xi(d) = sum_p alpha_p psi(d_p)` over every d in `D_k^n`, sorted. Its least gap between
+// neighbors is exact up to the alpha tails, which have a bound. The sim weighs the gap against the margin that the
+// paper proves, and the width of the image intervals T_k. It also weighs it against the width that the supports U_k of
+// the bumps of the outer function need
 void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *scale, unsigned int level)
 {
     VerbaLinea *const line = &results->line;
@@ -346,7 +347,7 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
             least_at = at;
         }
     }
-    // the dropped alpha tails move each image up by less than sum_p 2 gamma^-beyond_p, psi being at max 1
+    // the dropped alpha tails move each image up by less than `sum_p 2 gamma^-beyond_p`, as psi is at max 1
     unsigned long long tail = 0ULL;
     for (unsigned int coordinate = 1u; coordinate < dimension; coordinate += 1u)
     {
@@ -391,8 +392,8 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
         }
     }
     alphas_high = sim_rational_sum(alphas_high, alphas_low);
-    // the image width (gamma - 2) b_k, b_k = (sum over r > k of gamma^-beta(r)) (sum_p alpha_p)
-    // the base is a small integer, far inside a word
+    // the image width `(gamma - 2) b_k`, with `b_k = (sum over r > k of gamma^-beta(r)) (sum_p alpha_p)`. The base is a
+    // small integer, far inside a word
     const SimRational tilt = sim_rational((long long)base - 2LL, 1LL);
     const SimRational width_low = sim_rational_product(tilt, sim_rational_product(remainder_low, alphas_low));
     const SimRational width_high = sim_rational_product(tilt, sim_rational_product(remainder_high, alphas_high));

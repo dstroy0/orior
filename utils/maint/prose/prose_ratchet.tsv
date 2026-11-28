@@ -613,7 +613,6 @@ src/sims/cu/transpiler/povm_state/povm_state_internal.h	4
 src/sims/cu/transpiler/povm_state/povm_state_main.cu	2
 src/sims/cu/transpiler/povm_state/povm_state_number.cu	2
 src/sims/cu/types/integers/ka_psi/ka_psi_main.cu	5
-src/sims/cu/types/integers/ka_psi/ka_psi_separate.cu	6
 src/sims/cu/types/integers/ka_psi/ka_psi_sprecher.cu	4
 src/sims/cu/types/integers/ka_psi/ka_psi_value.cu	1
 theory/lng/Lng/any.lean	3
