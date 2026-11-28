@@ -22,8 +22,9 @@ __device__ static void noise_neighbors_flush(unsigned long long *cells, unsigned
     }
 }
 
-// One thread a voxel. At each radius whose voxel is inside the view, every frame pair's difference is multiplied by
-// that voxel's, the product's sign preserved by summing the raised and lowered products apart.
+// One thread for each voxel. At each radius whose voxel is inside the view, the kernel multiplies the difference of
+// every frame pair by that of that voxel. It keeps the sign of the product by a sum of the raised and lowered products
+// apart.
 __global__ static void noise_neighbors_kernel(const unsigned short *lanes, unsigned long long frames,
                                               unsigned long long depth, unsigned long long height,
                                               unsigned long long width, unsigned long long *sums)
@@ -126,8 +127,9 @@ long noise_neighbors_sample(const unsigned short *volume, const unsigned long lo
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 
-// sum d d' against the mean of sum d^2 and sum d'^2, in signed thousandths rounded toward zero: 2000 (raised - lowered)
-// / (squares + other squares). For equal spreads it is the correlation. 0 where nothing was summed.
+// `sum d d'` against the mean of `sum d^2` and `sum d'^2`, in signed thousandths rounded toward zero:
+// `2000 (raised - lowered) / (squares + other squares)`. For equal spreads it is the correlation. The return is 0
+// where the call summed nothing.
 int noise_neighbors_per_mille(const unsigned long long cell[NOISE_NEIGHBORS_SUMS], long long *per_mille)
 {
     if ((cell[NOISE_NEIGHBORS_SQUARES] == 0ULL) && (cell[NOISE_NEIGHBORS_OTHER_SQUARES] == 0ULL))
@@ -152,7 +154,7 @@ int noise_neighbors_per_mille(const unsigned long long cell[NOISE_NEIGHBORS_SUMS
     {
         ok = quotient.limb[limb] == 0u;
     }
-    // the magnitude is at max 2000, one limb; the sign is stored apart
+    // the magnitude is at max 2000, one limb, and the call stores the sign apart
     *per_mille = ok ? ((long long)quotient.limb[0] * (long long)quotient.sign) : 0LL;
     return ok;
 }
