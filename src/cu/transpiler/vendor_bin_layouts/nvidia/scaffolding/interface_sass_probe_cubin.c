@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// interface_sass_probe_cubin.c: a cubin written from text. The probe learns what the part contains by reading its
-// tools; this is the other direction, putting instructions of the interface's own into a cubin the part will load and
-// run, with a cubin the toolchain built located as the pattern for everything an ELF carries that no instruction
-// states
+// interface_sass_probe_cubin.c: a cubin written from text. The probe learns what the part holds by a read of its
+// tools. This is the other direction: it puts own instructions of the interface into a cubin that the part will load
+// and run. A cubin that the toolchain built serves as the pattern for everything that an ELF carries and no
+// instruction states
 #include "../../../../../../includes/platform/platform.h"
 #include "../cubin_write.h"
 #include "../sass_assemble.h"
@@ -22,7 +22,8 @@ static unsigned char s_code[SASS_CODE_BYTES];
 static char s_text[SASS_TEXT_BYTES];
 static unsigned int s_exits[SASS_EXITS];
 
-// `path` read whole into `bytes`, which has room for `room` of them: how many were read, 0 where the file was not read
+// `path` read whole into `bytes`, which has room for `room` of them. The return is how many the call read, 0 where the
+// read failed
 static unsigned long long sass_file_read(const char *path, unsigned char *bytes, unsigned long long room)
 {
     PlatformFile *const file = platform_file_open(path, "rb");
@@ -79,7 +80,7 @@ unsigned int sass_cubin_text(const char *folder, const char *name, char *text, u
     }
     s_listing[listing_size] = '\0';
     const unsigned int text_size = sass_text_read((const char *)s_listing, "interface_probe", text, room);
-    // the text the listing was turned back into, stored beside it for a reader
+    // the text that the listing turned back into, stored beside it for a reader
     {
         VerbaLinea buffer_line = mmgr_line_over(path, sizeof(path));
         mmgr_line_put(&buffer_line, folder);
