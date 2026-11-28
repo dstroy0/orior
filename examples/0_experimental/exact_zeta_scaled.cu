@@ -96,9 +96,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <string>
-#include <vector>
-
 // the bytes of the text of a check at max
 #define SCALED_CHECK_BYTES 128u
 
@@ -392,21 +389,24 @@ static unsigned int scaled_bits_of(unsigned long long value);
 // The record holds s, U_0 and each g_(n,j) at its width gamma_bits[n][j], at 2^-E. `Zt = 4^b - 2V`, with
 // `V = U^2 - nu 4^b`, the remainder of U^2 by 4^b where `nu 4^b <= U^2 < (nu + 1) 4^b`.
 // The outputs: s T at its lower end, the denominator U^(2K + 1), U^2, and s T at its upper end, each end at
-// 2^(b - X)
+// 2^(b - X).
+//
+// The widths of the g_(n,j) are flat: those of curve n are `gamma_count[n]` from place `gamma_first[n]`, in the order
+// of the curves. The fields of the g take the same places from the field after U_0, one after another
 static void scaled_curves_build(ScaledStage *stage, unsigned int b, unsigned int x, unsigned int big_e,
-                                unsigned int first_bits, const std::vector<std::vector<unsigned int>> &gamma_bits)
+                                unsigned int first_bits, const unsigned int *gamma_bits,
+                                const unsigned int *gamma_first, const unsigned int *gamma_count, unsigned int curves)
 {
     ScaledProgram *const program = &stage->program;
     program->shared_bits = 0u;
     const unsigned int sign_field = scaled_field(program, 2u);
     const unsigned int first_field = scaled_field(program, first_bits);
-    const unsigned int curves = (unsigned int)gamma_bits.size();
-    std::vector<std::vector<unsigned int>> gamma(curves);
+    const unsigned int gamma_field = first_field + 1u;
     for (unsigned int n = 0u; n < curves; n += 1u)
     {
-        for (size_t j = 0u; j < gamma_bits[n].size(); j += 1u)
+        for (unsigned int j = 0u; j < gamma_count[n]; j += 1u)
         {
-            gamma[n].push_back(scaled_field(program, gamma_bits[n][j]));
+            (void)scaled_field(program, gamma_bits[gamma_first[n] + j]);
         }
     }
     const unsigned int lane = scaled_lane(program, b);
@@ -422,17 +422,19 @@ static void scaled_curves_build(ScaledStage *stage, unsigned int b, unsigned int
     unsigned int high = 0u;
     for (unsigned int n = 0u; n < curves; n += 1u)
     {
-        const unsigned int count = (unsigned int)gamma[n].size();
+        const unsigned int count = gamma_count[n];
+        const unsigned int *const bits = &gamma_bits[gamma_first[n]];
+        const unsigned int field = gamma_field + gamma_first[n];
         // |z| <= 1: every partial sum is at max the sum of the |g_j|, below 2^(widest + bits of the count) at 2^-E,
         // and its reads with it, one a step
         unsigned int widest = 0u;
         for (unsigned int j = 0u; j < count; j += 1u)
         {
-            widest = (gamma_bits[n][j] > widest) ? gamma_bits[n][j] : widest;
+            widest = (bits[j] > widest) ? bits[j] : widest;
         }
         const unsigned int wide = widest + (x - big_e) + scaled_bits_of(count) + 2u;
         const unsigned int top =
-            scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, gamma[n][count - 1u]), lift, 0u);
+            scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, field + count - 1u), lift, 0u);
         unsigned int c_low = top;
         unsigned int c_high = top;
         for (unsigned int j = count - 1u; j > 0u; j -= 1u)
@@ -443,7 +445,7 @@ static void scaled_curves_build(ScaledStage *stage, unsigned int b, unsigned int
                 scaled_step(program, ENGINE_RECORD_PRODUCT, turned,
                             scaled_step(program, ENGINE_RECORD_DIFFERENCE, by_high, by_low, 0u), 0u);
             const unsigned int g =
-                scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, gamma[n][j - 1u]), lift, 0u);
+                scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, field + j - 1u), lift, 0u);
             c_low = scaled_wrap(
                 program,
                 scaled_step(program, ENGINE_RECORD_SUM,
@@ -498,18 +500,19 @@ static void scaled_curves_build(ScaledStage *stage, unsigned int b, unsigned int
 // the logarithm `A = ln(U / U_0) = 2 artanh(l / D)`, with `D = U + U_0`, below and above at 2^-Y.
 // `2 l S / (Lambda D^(2L - 1))` reads below. Above, the rest past the last term, below
 // `2 l^(2L + 1) / ((2L + 1) D^(2L - 1) (D^2 - l^2))`, adds in before the read.
-// The record holds U_0, `first_bits` wide, the c_k at their widths, Lambda and 2L + 1
+// The record holds U_0, `first_bits` wide, the `terms` c_k at their widths, Lambda and 2L + 1. c_k takes the field k
+// places after that of c_0
 static void scaled_log_build(ScaledStage *stage, unsigned int b, unsigned int y, unsigned int first_bits,
-                             const std::vector<unsigned int> &c_bits, unsigned int lambda_bits, unsigned int odd_bits)
+                             const unsigned int *c_bits, unsigned int terms, unsigned int lambda_bits,
+                             unsigned int odd_bits)
 {
     ScaledProgram *const program = &stage->program;
     program->shared_bits = 0u;
     const unsigned int first_field = scaled_field(program, first_bits);
-    const unsigned int terms = (unsigned int)c_bits.size();
-    std::vector<unsigned int> c(terms);
+    const unsigned int c = first_field + 1u;
     for (unsigned int k = 0u; k < terms; k += 1u)
     {
-        c[k] = scaled_field(program, c_bits[k]);
+        (void)scaled_field(program, c_bits[k]);
     }
     const unsigned int lambda_field = scaled_field(program, lambda_bits);
     const unsigned int odd_field = scaled_field(program, odd_bits);
@@ -520,13 +523,13 @@ static void scaled_log_build(ScaledStage *stage, unsigned int b, unsigned int y,
     const unsigned int v = scaled_step(program, ENGINE_RECORD_PRODUCT, big_d, big_d, 0u);
     // Horner's rule from c_(L-1) down: the step that adds c_(k-1) turns the sum by l^2 and positions c_(k-1) at D^(2(L
     // - k))
-    unsigned int acc = scaled_read(program, c[terms - 1u]);
+    unsigned int acc = scaled_read(program, c + terms - 1u);
     unsigned int v_power = v;
     for (unsigned int k = terms - 1u; k > 0u; k -= 1u)
     {
         const unsigned int turned = scaled_step(program, ENGINE_RECORD_PRODUCT, acc, u, 0u);
         const unsigned int positioned =
-            scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, c[k - 1u]), v_power, 0u);
+            scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, c + k - 1u), v_power, 0u);
         acc = scaled_step(program, ENGINE_RECORD_SUM, turned, positioned, 0u);
         if (k > 1u)
         {
@@ -567,12 +570,12 @@ static void scaled_log_build(ScaledStage *stage, unsigned int b, unsigned int y,
 // The terms are `u^4 (4 ln u - 1)`, the 1/8 of the cell, the three powers of 1 / u^4, and the bound past them. Each
 // is a quotient by a power of two or a power of U^4
 static void scaled_theta_build(ScaledStage *stage, unsigned int b, unsigned int w, unsigned int y,
-                               unsigned int first_bits, const std::vector<unsigned int> &widths, const ScaledStage *log)
+                               unsigned int first_bits, const unsigned int *widths, const ScaledStage *log)
 {
     ScaledProgram *const program = &stage->program;
     program->shared_bits = 0u;
     const unsigned int first_field = scaled_field(program, first_bits);
-    std::vector<unsigned int> constant(9u);
+    unsigned int constant[9];
     for (unsigned int k = 0u; k < 9u; k += 1u)
     {
         constant[k] = scaled_field(program, widths[k]);
@@ -652,15 +655,14 @@ enum
     SCALED_POLE_FIELDS
 };
 
-static std::vector<unsigned int> scaled_pole_fields(ScaledProgram *program, const std::vector<unsigned int> &widths)
+static void scaled_pole_fields(ScaledProgram *program, const unsigned int *widths,
+                               unsigned int fields[SCALED_POLE_FIELDS])
 {
     program->shared_bits = 0u;
-    std::vector<unsigned int> fields(SCALED_POLE_FIELDS);
     for (unsigned int k = 0u; k < SCALED_POLE_FIELDS; k += 1u)
     {
         fields[k] = scaled_field(program, widths[k]);
     }
-    return fields;
 }
 
 // the phase `phi_n = theta / pi - 2 u^4 ln n` at lane (point, n), point nu + n - 1, read at 2^-W below and above,
@@ -679,11 +681,12 @@ static std::vector<unsigned int> scaled_pole_fields(ScaledProgram *program, cons
 // With `fixed`, the lower end of theta / pi serves for both, an exact value. The phase is then
 // `theta~ / pi - 2 u^4 ln n`, with theta~ that end times pi
 static void scaled_phase_build(ScaledStage *stage, unsigned int b, unsigned int w, unsigned long long nu,
-                               unsigned int lane_bits, const std::vector<unsigned int> &pole_widths,
-                               const ScaledStage *theta, int fixed)
+                               unsigned int lane_bits, const unsigned int *pole_widths, const ScaledStage *theta,
+                               int fixed)
 {
     ScaledProgram *const program = &stage->program;
-    const std::vector<unsigned int> pole = scaled_pole_fields(program, pole_widths);
+    unsigned int pole[SCALED_POLE_FIELDS];
+    scaled_pole_fields(program, pole_widths, pole);
     const unsigned int low_field = scaled_output_field(program, theta, 0u);
     const unsigned int high_field = scaled_output_field(program, theta, fixed ? 0u : 1u);
     const unsigned int y = (unsigned int)(-theta->exponents[0]);
@@ -750,17 +753,18 @@ static void scaled_phase_build(ScaledStage *stage, unsigned int b, unsigned int 
 // at 2^-X, with `X = W + 16`.
 // The value y is never negative, and each step reads its quotient by 4^W outward.
 // The rest past J terms and the reads of the k_j, with `y 2^-2W` at max 1/4, together lie within `B 2^-W`, with B
-// that of the pole record. The sign s of the phase turns the two ends, s v below and above, and its spread passes on
-static void scaled_cos_build(ScaledStage *stage, const std::vector<unsigned int> &k_bits, unsigned int w,
+// that of the pole record. The sign s of the phase turns the two ends, s v below and above, and its spread passes on.
+//
+// k_j takes the field j places after that of k_0, the first field of the program
+static void scaled_cos_build(ScaledStage *stage, const unsigned int *k_bits, unsigned int terms, unsigned int w,
                              const ScaledStage *phase)
 {
     ScaledProgram *const program = &stage->program;
     program->shared_bits = 0u;
-    const unsigned int terms = (unsigned int)k_bits.size();
-    std::vector<unsigned int> k(terms);
+    const unsigned int k = program->field_count;
     for (unsigned int j = 0u; j < terms; j += 1u)
     {
-        k[j] = scaled_field(program, k_bits[j]);
+        (void)scaled_field(program, k_bits[j]);
     }
     const unsigned int y_field = scaled_output_field(program, phase, 0u);
     const unsigned int sign_field = scaled_output_field(program, phase, 1u);
@@ -772,7 +776,7 @@ static void scaled_cos_build(ScaledStage *stage, const std::vector<unsigned int>
     // the coefficient of y^j at 2^-X, its sign (-1)^j
     auto coefficient = [&](unsigned int j) -> unsigned int {
         const unsigned int positioned =
-            scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, k[j]), lift, 0u);
+            scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, k + j), lift, 0u);
         return (j % 2u == 0u) ? positioned : scaled_step(program, ENGINE_RECORD_DIFFERENCE, zero, positioned, 0u);
     };
     // every partial sum is at max cosh(pi / 2) < 4 in magnitude, and its reads with it below 2^(X + 3)
@@ -817,11 +821,12 @@ static void scaled_cos_build(ScaledStage *stage, const std::vector<unsigned int>
 // stage.
 // The product with [r_lo, r_hi] takes r_hi at a lower end below zero, and r_lo at one above. At an upper end, it is
 // the other way
-static void scaled_term_build(ScaledStage *stage, unsigned int side, unsigned int w,
-                              const std::vector<unsigned int> &pole_widths, const ScaledStage *cos)
+static void scaled_term_build(ScaledStage *stage, unsigned int side, unsigned int w, const unsigned int *pole_widths,
+                              const ScaledStage *cos)
 {
     ScaledProgram *const program = &stage->program;
-    const std::vector<unsigned int> pole = scaled_pole_fields(program, pole_widths);
+    unsigned int pole[SCALED_POLE_FIELDS];
+    scaled_pole_fields(program, pole_widths, pole);
     const unsigned int cos_field = scaled_output_field(program, cos, (side == 0u) ? 0u : 1u);
     const unsigned int spread_field = scaled_output_field(program, cos, 2u);
     const long long x = -cos->exponents[0];
@@ -1095,11 +1100,11 @@ typedef struct
 // the records of the poles, one a body, laid out as scaled_pole_fields lays them out in the program of the stage.
 // They hold U_0, four values a pole, and B
 static void scaled_pole_records(ScaledStage *stage, const ScaledWide &first, const ScaledWide &bound,
-                                const std::vector<ScaledWide> &values)
+                                const ScaledWide *values, unsigned long long value_count)
 {
     const ScaledProgram *const program = &stage->program;
     const unsigned int limbs = stage->shared_limbs;
-    const size_t poles = values.size() / 4u;
+    const unsigned long long poles = value_count / 4ull;
     scaled_words_taken(&stage->shared, &stage->shared_count, poles * limbs);
     // a pool that cannot meet the records leaves the stage with none, and its sweep fails
     if (stage->shared_count != (unsigned long long)poles * limbs)
@@ -1233,8 +1238,10 @@ static int scaled_position(SimResults *job, ScaledStage *stage, EngineError *err
                 program->count);
         // the limbs live at each step, a register live from its step to its last reader and an output to the end
         const unsigned int steps = stage->key.steps;
-        std::vector<unsigned int> last(steps, 0u);
-        for (unsigned int at = 0u; at < steps; at += 1u)
+        // the last reader of each step, in a cell of the temporary tier that the report gives back. A pool that
+        // cannot meet it gives a report of the step alone
+        unsigned int *const last = (unsigned int *)scaled_cleared(steps, sizeof(unsigned int), 1);
+        for (unsigned int at = 0u; (last != NULL) && (at < steps); at += 1u)
         {
             last[at] = at;
             const EngineRecordTerm *const term = &stage->key.term[at];
@@ -1247,13 +1254,13 @@ static int scaled_position(SimResults *job, ScaledStage *stage, EngineError *err
                 last[term->right] = (term->operation == ENGINE_RECORD_ABSOLUTE) ? last[term->right] : at;
             }
         }
-        for (unsigned int at = 0u; at < stage->key.outputs; at += 1u)
+        for (unsigned int at = 0u; (last != NULL) && (at < stage->key.outputs); at += 1u)
         {
             last[stage->key.output[at]] = steps;
         }
         unsigned long long peak = 0ull;
         unsigned int peak_at = 0u;
-        for (unsigned int at = 0u; at < steps; at += 1u)
+        for (unsigned int at = 0u; (last != NULL) && (at < steps); at += 1u)
         {
             unsigned long long live = 0ull;
             for (unsigned int from = 0u; from <= at; from += 1u)
@@ -1264,7 +1271,7 @@ static int scaled_position(SimResults *job, ScaledStage *stage, EngineError *err
             peak = (live > peak) ? live : peak;
         }
         fprintf(stderr, "  exact_zeta_scaled: %llu limbs live at step %u, the widest:", peak, peak_at);
-        for (unsigned int from = 0u; from <= peak_at; from += 1u)
+        for (unsigned int from = 0u; (last != NULL) && (from <= peak_at); from += 1u)
         {
             if ((last[from] >= peak_at) && (stage->key.term[from].bits > 256u))
             {
@@ -1273,6 +1280,7 @@ static int scaled_position(SimResults *job, ScaledStage *stage, EngineError *err
             }
         }
         fprintf(stderr, "\n");
+        scaled_released(last);
     }
     ok = positioned;
     scaled_check(job, ok, "the scheduler positions the ", stage->name, " program out");
@@ -1547,48 +1555,93 @@ static long long scaled_wide_word(const ScaledWide &value)
     return (value.sign < 0) ? -(long long)low : (long long)low;
 }
 
-// rows of values positioned as records, one row a body, each column as wide as its widest value
+// Rows of values positioned as records, one row a body, each column as wide as its widest value. The words, `limbs` a
+// row, and the offset and width of each of the `columns` columns are in cells. The caller gives them back with
+// scaled_table_released
 typedef struct ScaledTableTag
 {
-    std::vector<unsigned int> words;
+    unsigned int *words;
+    unsigned long long word_count;
     unsigned int limbs;
-    std::vector<unsigned int> offset;
-    std::vector<unsigned int> bits;
+    unsigned int *offset;
+    unsigned int *bits;
+    unsigned int columns;
 } ScaledTable;
 
-static ScaledTable scaled_table(const std::vector<std::vector<ScaledWide>> &rows,
-                                const std::vector<unsigned int> &floor_bits)
+// A table of `rows` rows of `columns` values, row after row, each column at least `floor_bits` wide, or 0 wide where
+// `floor_bits` is NULL. Its cells are on the temporary tier where `ephemeral` is 1. A pool that cannot meet them stops
+// the program
+static ScaledTable scaled_table(const ScaledWide *values, unsigned long long rows, unsigned int columns,
+                                const unsigned int *floor_bits, int ephemeral)
 {
     ScaledTable table;
-    const size_t columns = floor_bits.size();
-    unsigned int at = 0u;
-    for (size_t column = 0u; column < columns; column += 1u)
+    table.columns = columns;
+    table.offset = (unsigned int *)scaled_cleared(columns, sizeof(unsigned int), ephemeral);
+    table.bits = (unsigned int *)scaled_cleared(columns, sizeof(unsigned int), ephemeral);
+    if ((table.offset == NULL) || (table.bits == NULL))
     {
-        unsigned int widest = floor_bits[column];
-        for (size_t row = 0u; row < rows.size(); row += 1u)
+        fprintf(stderr, "  exact_zeta_scaled: the pool cannot meet a table of %u columns\n", columns);
+        exit(1);
+    }
+    unsigned int at = 0u;
+    for (unsigned int column = 0u; column < columns; column += 1u)
+    {
+        unsigned int widest = (floor_bits != NULL) ? floor_bits[column] : 0u;
+        for (unsigned long long row = 0ull; row < rows; row += 1ull)
         {
-            const unsigned int width = scaled_wide_width(rows[row][column]);
+            const unsigned int width = scaled_wide_width(values[row * columns + column]);
             widest = (width > widest) ? width : widest;
         }
-        table.offset.push_back(at);
-        table.bits.push_back(widest);
+        table.offset[column] = at;
+        table.bits[column] = widest;
         at += widest;
     }
     table.limbs = (at + 31u) / 32u;
     table.limbs = (table.limbs == 0u) ? 1u : table.limbs;
-    table.words.assign(rows.size() * table.limbs, 0u);
-    for (size_t row = 0u; row < rows.size(); row += 1u)
+    table.word_count = rows * table.limbs;
+    table.words = (unsigned int *)scaled_cleared(table.word_count, sizeof(unsigned int), ephemeral);
+    if (table.words == NULL)
     {
-        std::vector<unsigned int> record(table.limbs + 1u, 0u);
-        for (size_t column = 0u; column < columns; column += 1u)
-        {
-            const ScaledWide *const value = &rows[row][column];
-            scaled_put(record.data(), table.offset[column], table.bits[column], value->limbs, value->count,
-                       value->sign);
-        }
-        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &table.words[row * table.limbs], .src = record.data(),
-                   .bytes = table.limbs * sizeof(unsigned int));
+        fprintf(stderr, "  exact_zeta_scaled: the pool cannot meet a table of %llu words\n", table.word_count);
+        exit(1);
     }
+    for (unsigned long long row = 0ull; row < rows; row += 1ull)
+    {
+        // each column ends inside the `limbs` limbs of its row. The code writes it in place
+        unsigned int *const record = &table.words[row * table.limbs];
+        for (unsigned int column = 0u; column < columns; column += 1u)
+        {
+            const ScaledWide *const value = &values[row * columns + column];
+            scaled_put(record, table.offset[column], table.bits[column], value->limbs, value->count, value->sign);
+        }
+    }
+    return table;
+}
+
+// the cells of a table given back, and the table at rest with none
+static void scaled_table_released(ScaledTable *table)
+{
+    scaled_released(table->words);
+    scaled_released(table->offset);
+    scaled_released(table->bits);
+    table->words = NULL;
+    table->word_count = 0ull;
+    table->offset = NULL;
+    table->bits = NULL;
+    table->columns = 0u;
+    table->limbs = 0u;
+}
+
+// a table at rest, with no cell
+static ScaledTable scaled_table_none(void)
+{
+    ScaledTable table;
+    table.words = NULL;
+    table.word_count = 0ull;
+    table.limbs = 0u;
+    table.offset = NULL;
+    table.bits = NULL;
+    table.columns = 0u;
     return table;
 }
 
@@ -1602,13 +1655,13 @@ static unsigned int scaled_table_field(ScaledProgram *program, const ScaledTable
 static void scaled_shared_table(ScaledStage *stage, const ScaledTable &table)
 {
     stage->program.shared_bits = 32u * table.limbs;
-    scaled_shared_copied(stage, table.words.data(), table.words.size());
+    scaled_shared_copied(stage, table.words, table.word_count);
 }
 
 static const unsigned int *scaled_table_words(const struct ScaledTableTag *table, unsigned long long *count)
 {
-    *count = table->words.size();
-    return table->words.data();
+    *count = table->word_count;
+    return table->words;
 }
 
 // a stage with no member 0 of its own: one unread bit
@@ -1794,7 +1847,7 @@ static void scaled_machin_build(ScaledStage *stage, unsigned long long k, unsign
 static void scaled_pi_build(ScaledStage *stage, const ScaledTable &sums, unsigned int precision)
 {
     ScaledProgram *const program = &stage->program;
-    std::vector<unsigned int> field(4u);
+    unsigned int field[4];
     for (unsigned int k = 0u; k < 4u; k += 1u)
     {
         field[k] = scaled_table_field(program, sums, k);
@@ -1866,10 +1919,11 @@ static void scaled_ln_build(ScaledStage *stage, unsigned int precision, const Sc
     const unsigned int m_field = scaled_table_field(program, values, 2u);
     scaled_shared_table(stage, values);
     const unsigned int lambda_field = scaled_table_field(program, constants, 0u);
-    std::vector<unsigned int> c(terms);
+    // c_k takes the field k places after that of c_0, the field after Lambda's
+    const unsigned int c = lambda_field + 1u;
     for (unsigned int k = 0u; k < terms; k += 1u)
     {
-        c[k] = scaled_table_field(program, constants, 1u + k);
+        (void)scaled_table_field(program, constants, 1u + k);
     }
     const unsigned int two_low_field = scaled_table_field(program, constants, 1u + terms);
     const unsigned int two_high_field = scaled_table_field(program, constants, 2u + terms);
@@ -1877,13 +1931,13 @@ static void scaled_ln_build(ScaledStage *stage, unsigned int precision, const Sc
     const unsigned int big_c = scaled_read(program, c_field);
     const unsigned int u = scaled_step(program, ENGINE_RECORD_PRODUCT, a, a, 0u);
     const unsigned int v = scaled_step(program, ENGINE_RECORD_PRODUCT, big_c, big_c, 0u);
-    unsigned int acc = scaled_read_before(program, c[terms - 1u]);
+    unsigned int acc = scaled_read_before(program, c + terms - 1u);
     unsigned int v_power = v;
     for (unsigned int k = terms - 1u; k > 0u; k -= 1u)
     {
         acc = scaled_step(
             program, ENGINE_RECORD_SUM, scaled_step(program, ENGINE_RECORD_PRODUCT, acc, u, 0u),
-            scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read_before(program, c[k - 1u]), v_power, 0u), 0u);
+            scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read_before(program, c + k - 1u), v_power, 0u), 0u);
         if (k > 1u)
         {
             v_power = scaled_step(program, ENGINE_RECORD_PRODUCT, v_power, v, 0u);
@@ -1934,7 +1988,7 @@ static void scaled_ln_build(ScaledStage *stage, unsigned int precision, const Sc
 static void scaled_half_build(ScaledStage *stage, const ScaledTable &record, unsigned int precision, unsigned int w)
 {
     ScaledProgram *const program = &stage->program;
-    std::vector<unsigned int> field(4u);
+    unsigned int field[4];
     for (unsigned int k = 0u; k < 4u; k += 1u)
     {
         field[k] = scaled_table_field(program, record, k);
@@ -2286,7 +2340,7 @@ static void scaled_d_build(ScaledStage *stage, const ScaledTable &row_constants,
                            unsigned int top)
 {
     ScaledProgram *const program = &stage->program;
-    std::vector<unsigned int> field(5u);
+    unsigned int field[5];
     for (unsigned int k = 0u; k < 5u; k += 1u)
     {
         field[k] = scaled_table_field(program, row_constants, k);
@@ -2440,7 +2494,7 @@ static void scaled_pi_eighth_build(ScaledStage *stage, const ScaledStage *powers
     const unsigned int power_low = scaled_output_field(program, powers, 0u);
     const unsigned int power_high = scaled_output_field(program, powers, 1u);
     program->shared_bits = 32u * powers->layout.out_limbs;
-    std::vector<unsigned int> r(4u);
+    unsigned int r[4];
     for (unsigned int k = 0u; k < 4u; k += 1u)
     {
         r[k] = scaled_table_field(program, eighth, k);
@@ -2642,10 +2696,11 @@ static void scaled_bound_build(ScaledStage *stage, const ScaledTable &record, un
 {
     ScaledProgram *const program = &stage->program;
     const unsigned int pi_field = scaled_table_field(program, record, 0u);
-    std::vector<unsigned int> s(top + 1u);
+    // s_n takes the field n places after that of s_0, the field after pi's
+    const unsigned int s = pi_field + 1u;
     for (unsigned int n = 0u; n <= top; n += 1u)
     {
-        s[n] = scaled_table_field(program, record, 1u + n);
+        (void)scaled_table_field(program, record, 1u + n);
     }
     const unsigned int nu_field = scaled_table_field(program, record, 2u + top);
     scaled_shared_table(stage, record);
@@ -2690,7 +2745,7 @@ static void scaled_bound_build(ScaledStage *stage, const ScaledTable &record, un
     {
         reads =
             scaled_step(program, ENGINE_RECORD_SUM, reads,
-                        scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, s[n - 1u]), power, 0u), 0u);
+                        scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, s + n - 1u), power, 0u), 0u);
         power = scaled_step(program, ENGINE_RECORD_PRODUCT, power, nu, 0u);
     }
     const unsigned int root_nu = scaled_root(program, nu, SCALED_NU_BITS + 1u);
@@ -2726,13 +2781,13 @@ static void scaled_count_build(ScaledStage *stage, const ScaledTable &record, un
                                unsigned int precision)
 {
     ScaledProgram *const program = &stage->program;
-    std::vector<unsigned int> field(13u);
+    unsigned int field[13];
     for (unsigned int k = 0u; k < 13u; k += 1u)
     {
         field[k] = scaled_table_field(program, record, k);
     }
     scaled_shared_table(stage, record);
-    std::vector<unsigned int> v(13u);
+    unsigned int v[13];
     for (unsigned int k = 0u; k < 13u; k += 1u)
     {
         v[k] = scaled_read(program, field[k]);
@@ -2890,7 +2945,7 @@ static void scaled_em_n_build(ScaledStage *stage, const ScaledTable &record, uns
 //
 // The one record of member 0: U_0, pi below and above at 2^-P, N, D, then I_2k and (2k)! for k to M
 static void scaled_em_c_build(ScaledStage *stage, unsigned int b, unsigned int x, unsigned int precision,
-                              unsigned int first_bits, const std::vector<unsigned int> &widths)
+                              unsigned int first_bits, const unsigned int *widths, unsigned int width_count)
 {
     ScaledProgram *const program = &stage->program;
     program->shared_bits = 0u;
@@ -2899,13 +2954,12 @@ static void scaled_em_c_build(ScaledStage *stage, unsigned int b, unsigned int x
     const unsigned int pi_high_field = scaled_field(program, widths[1]);
     const unsigned int n_field = scaled_field(program, SCALED_NU_BITS + 1u);
     const unsigned int d_field = scaled_field(program, widths[2]);
-    const unsigned int terms = (unsigned int)(widths.size() - 3u) / 2u;
-    std::vector<unsigned int> number(terms);
-    std::vector<unsigned int> factorial(terms);
+    const unsigned int terms = (width_count - 3u) / 2u;
+    // the fields of I_2k and (2k)! alternate after D's: I_2k is the field 2k + 1 after it, and (2k)! the field 2k + 2
     for (unsigned int k = 0u; k < terms; k += 1u)
     {
-        number[k] = scaled_field(program, widths[3u + 2u * k]);
-        factorial[k] = scaled_field(program, widths[4u + 2u * k]);
+        (void)scaled_field(program, widths[3u + 2u * k]);
+        (void)scaled_field(program, widths[4u + 2u * k]);
     }
     const unsigned int zero = scaled_constant(program, 0ull);
     const unsigned int lane = scaled_lane(program, b);
@@ -3005,10 +3059,10 @@ static void scaled_em_c_build(ScaledStage *stage, unsigned int b, unsigned int x
             factor(2ull * k);
         }
         // I_2k times P_k's bracket: the ends as they are where I_2k is positive, swapped where it is negative
-        const unsigned int i = scaled_read(program, number[k]);
+        const unsigned int i = scaled_read(program, d_field + 2u * k + 1u);
         const unsigned int turned = scaled_above(program, zero, i);
         const unsigned int over =
-            scaled_step(program, ENGINE_RECORD_PRODUCT, d, scaled_read(program, factorial[k]), 0u);
+            scaled_step(program, ENGINE_RECORD_PRODUCT, d, scaled_read(program, d_field + 2u * k + 2u), 0u);
         auto add = [&](unsigned int *low, unsigned int *high, unsigned int p_low, unsigned int p_high) {
             const unsigned int at_low = scaled_step(program, ENGINE_RECORD_PRODUCT, i, p_low, 0u);
             const unsigned int at_high = scaled_step(program, ENGINE_RECORD_PRODUCT, i, p_high, 0u);
@@ -3048,24 +3102,24 @@ static void scaled_em_c_build(ScaledStage *stage, unsigned int b, unsigned int x
 // The outputs: T below, the denominator 1, [the bracket of theta is narrower than 1/2 at 2^-Y], and T above.
 // The one record of member 0: U_0, ln N below and above and N^(-1/2) below and above at 2^-W, B, and the magnitudes
 // of the k_j
-static void scaled_em_tail_build(ScaledStage *stage, unsigned int b, unsigned int w,
-                                 const std::vector<unsigned int> &widths, const std::vector<unsigned int> &k_bits,
-                                 const ScaledStage *c_stage, const ScaledStage *theta)
+static void scaled_em_tail_build(ScaledStage *stage, unsigned int b, unsigned int w, const unsigned int *widths,
+                                 const unsigned int *k_bits, unsigned int terms, const ScaledStage *c_stage,
+                                 const ScaledStage *theta)
 {
     ScaledProgram *const program = &stage->program;
     program->shared_bits = 0u;
-    std::vector<unsigned int> field(6u);
+    unsigned int field[6];
     for (unsigned int k = 0u; k < 6u; k += 1u)
     {
         field[k] = scaled_field(program, widths[k]);
     }
-    const unsigned int terms = (unsigned int)k_bits.size();
-    std::vector<unsigned int> coefficient_field(terms);
+    // k_j takes the field j places after that of k_0, the field after the six before it
+    const unsigned int coefficient_field = field[5] + 1u;
     for (unsigned int j = 0u; j < terms; j += 1u)
     {
-        coefficient_field[j] = scaled_field(program, k_bits[j]);
+        (void)scaled_field(program, k_bits[j]);
     }
-    std::vector<unsigned int> c_field(4u);
+    unsigned int c_field[4];
     for (unsigned int k = 0u; k < 4u; k += 1u)
     {
         c_field[k] = scaled_output_field(program, c_stage, k);
@@ -3148,7 +3202,7 @@ static void scaled_em_tail_build(ScaledStage *stage, unsigned int b, unsigned in
         const unsigned int v = scaled_step(program, ENGINE_RECORD_PRODUCT, m2, m2, 0u);
         auto coefficient = [&](unsigned int j) -> unsigned int {
             const unsigned int positioned =
-                scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, coefficient_field[j]), lift, 0u);
+                scaled_step(program, ENGINE_RECORD_PRODUCT, scaled_read(program, coefficient_field + j), lift, 0u);
             return (j % 2u == 0u) ? positioned : scaled_step(program, ENGINE_RECORD_DIFFERENCE, zero, positioned, 0u);
         };
         const unsigned int wide = cos_x + 4u;
@@ -3274,32 +3328,52 @@ static const unsigned long long SCALED_GABCKE_D = 25966000ull;
 static const unsigned long long SCALED_EM_BELOW = 10ull;
 static const unsigned int SCALED_EM_TERMS = 20u;
 
+// the constants of theta that the cell reads: the two of ln(U_0 / 2^b), the seven of the run, and Lambda and 2L + 1
+#define SCALED_CELL_THETA 11u
+
+// the constants of theta that the run gives each cell
+#define SCALED_THETA_CONSTANTS 7u
+
+// the I_2k and (2k)! of Euler-Maclaurin, and D before them
+#define SCALED_BERNOULLI (2u * SCALED_EM_TERMS + 1u)
+
 // the inputs of one cell, each a value that the programs of the constants gave:
 //   - the lattice, the coefficients of Gabcke, the c_k of the log series, and the eleven constants of theta.
 //   - the bound and coefficients of cos, and the ln n and n^(-1/2) of each pole, below and above.
 //   - the bound of the verdict, and pi below and above and ln 2 above at 2^-P, for the count of Turing.
 //   - by Euler-Maclaurin, the N - 1 poles of the head, N, ln N and N^(-1/2) below and above, and D, the I_2k and
 //     (2k)!.
+//
+// The cell holds its c_k, `c_count` of them, in a cell of the temporary tier. It holds its poles in another, four
+// values to a pole and `pole_count` values. scaled_inputs takes the two, and scaled_inputs_released gives them back.
+// The rest it reads from the constants
 typedef struct
 {
     unsigned long long nu;
     int em;
     unsigned long long heads;
     ScaledWide n;
-    std::vector<ScaledWide> tail;
-    const std::vector<ScaledWide> *bernoulli;
+    ScaledWide tail[4];
+    const ScaledWide *bernoulli;
+    unsigned int bernoulli_count;
     unsigned int b;
     unsigned long long lanes;
     unsigned int big_e;
     unsigned int w;
     unsigned int precision;
     ScaledWide first;
-    const std::vector<std::vector<ScaledWide>> *gammas;
-    std::vector<ScaledWide> c;
-    std::vector<ScaledWide> theta;
+    const ScaledWide *gammas;
+    const unsigned int *gamma_first;
+    const unsigned int *gamma_count;
+    unsigned int curves;
+    ScaledWide *c;
+    unsigned int c_count;
+    ScaledWide theta[SCALED_CELL_THETA];
     const ScaledWide *cos_bound;
-    const std::vector<ScaledWide> *k_low;
-    std::vector<ScaledWide> poles;
+    const ScaledWide *k_low;
+    unsigned int k_count;
+    ScaledWide *poles;
+    unsigned long long pole_count;
     ScaledWide verdict;
     const ScaledWide *pi_low;
     const ScaledWide *pi_high;
@@ -3330,6 +3404,10 @@ typedef struct
 //   - the seven constants of theta, and its bound from `t = 2 pi`.
 //   - the bound and coefficients of cos, the coefficients of Gabcke, and the spread of each curve.
 //   - where cells below 10 run, D and the I_2k and (2k)! of Euler-Maclaurin.
+//
+// The constants live for the run, in one cell of the persistent tier that program_main takes. The k_j, `k_count` of
+// them, and the coefficients of Gabcke are in cells of the persistent tier too. The coefficients of curve n are
+// `gamma_count[n]` from place `gamma_first[n]`
 typedef struct
 {
     unsigned int precision;
@@ -3341,13 +3419,19 @@ typedef struct
     ScaledWide two_high;
     ScaledTable logs;
     unsigned int log_terms;
-    std::vector<ScaledWide> theta;
+    ScaledWide theta[SCALED_THETA_CONSTANTS];
     ScaledWide theta_brent;
     ScaledWide cos_bound;
-    std::vector<ScaledWide> k_low;
-    std::vector<std::vector<ScaledWide>> gammas;
-    std::vector<ScaledWide> spreads;
-    std::vector<ScaledWide> bernoulli;
+    ScaledWide *k_low;
+    unsigned int k_count;
+    ScaledWide *gammas;
+    unsigned int gamma_first[SCALED_TOP + 1u];
+    unsigned int gamma_count[SCALED_TOP + 1u];
+    unsigned int curves;
+    ScaledWide spreads[SCALED_TOP + 1u];
+    unsigned int spread_count;
+    ScaledWide bernoulli[SCALED_BERNOULLI];
+    unsigned int bernoulli_count;
 } ScaledConstants;
 
 static void scaled_put_wide(ScaledStage *stage, unsigned int field, const ScaledWide &value)
@@ -3365,43 +3449,49 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     const unsigned long long heads = cell.heads;
     const int em = cell.em;
     const unsigned int b = cell.b;
-    const std::vector<std::vector<ScaledWide>> &gammas = *cell.gammas;
-    const unsigned int curves = (unsigned int)gammas.size();
+    const ScaledWide *const gammas = cell.gammas;
+    const unsigned int curves = cell.curves;
     const long long big_e = (long long)cell.big_e;
     const unsigned int w = cell.w;
-    const unsigned int log_terms = (unsigned int)cell.c.size();
-    const unsigned int cos_terms = (unsigned int)cell.k_low->size();
+    const unsigned int log_terms = cell.c_count;
+    const unsigned int cos_terms = cell.k_count;
     // the field of U_0 contains its value with room to spare
     const unsigned int first_bits = scaled_wide_width(cell.first) + 2u;
-    std::vector<std::vector<unsigned int>> gamma_bits(curves);
-    for (unsigned int n = 0u; n < curves; n += 1u)
+    // the widths of the coefficients of Gabcke, the c_k and the k_j, in cells of the temporary tier that the cell gives
+    // back
+    const unsigned int coefficients =
+        (curves != 0u) ? cell.gamma_first[curves - 1u] + cell.gamma_count[curves - 1u] : 0u;
+    unsigned int *const gamma_bits = (unsigned int *)scaled_cleared(coefficients, sizeof(unsigned int), 1);
+    unsigned int *const c_bits = (unsigned int *)scaled_cleared(log_terms, sizeof(unsigned int), 1);
+    unsigned int *const k_widths = (unsigned int *)scaled_cleared(cos_terms, sizeof(unsigned int), 1);
+    if ((gamma_bits == NULL) || (c_bits == NULL) || (k_widths == NULL))
     {
-        for (size_t j = 0u; j < gammas[n].size(); j += 1u)
-        {
-            gamma_bits[n].push_back(scaled_wide_width(gammas[n][j]));
-        }
+        fprintf(stderr, "  exact_zeta_scaled: the pool cannot meet the widths of the cell's constants\n");
+        exit(1);
     }
-    std::vector<unsigned int> c_bits(log_terms);
+    for (unsigned int j = 0u; j < coefficients; j += 1u)
+    {
+        gamma_bits[j] = scaled_wide_width(gammas[j]);
+    }
     for (unsigned int k = 0u; k < log_terms; k += 1u)
     {
         c_bits[k] = scaled_wide_width(cell.c[k]);
     }
-    std::vector<unsigned int> theta_bits(cell.theta.size());
-    for (size_t k = 0u; k < cell.theta.size(); k += 1u)
+    unsigned int theta_bits[SCALED_CELL_THETA];
+    for (unsigned int k = 0u; k < SCALED_CELL_THETA; k += 1u)
     {
         theta_bits[k] = scaled_wide_width(cell.theta[k]);
     }
-    std::vector<unsigned int> k_widths(cos_terms);
     for (unsigned int j = 0u; j < cos_terms; j += 1u)
     {
-        k_widths[j] = scaled_wide_width((*cell.k_low)[j]);
+        k_widths[j] = scaled_wide_width(cell.k_low[j]);
     }
-    std::vector<unsigned int> pole_widths(SCALED_POLE_FIELDS, 0u);
+    unsigned int pole_widths[SCALED_POLE_FIELDS] = {0u, 0u, 0u, 0u, 0u, 0u};
     pole_widths[SCALED_POLE_FIRST] = first_bits;
     pole_widths[SCALED_POLE_BOUND] = scaled_wide_width(*cell.cos_bound);
-    for (size_t at = 0u; at < cell.poles.size(); at += 1u)
+    for (unsigned long long at = 0ull; at < cell.pole_count; at += 1ull)
     {
-        const unsigned int field = SCALED_POLE_LN_LOW + (unsigned int)(at % 4u);
+        const unsigned int field = SCALED_POLE_LN_LOW + (unsigned int)(at % 4ull);
         const unsigned int bits = scaled_wide_width(cell.poles[at]);
         pole_widths[field] = (bits > pole_widths[field]) ? bits : pole_widths[field];
     }
@@ -3421,42 +3511,41 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     if (!em)
     {
         (void)scaled_built(&curve_stage, [&]() {
-            scaled_curves_build(&curve_stage, b, (unsigned int)big_e + 16u, (unsigned int)big_e, first_bits,
-                                gamma_bits);
+            scaled_curves_build(&curve_stage, b, (unsigned int)big_e + 16u, (unsigned int)big_e, first_bits, gamma_bits,
+                                cell.gamma_first, cell.gamma_count, curves);
         });
         scaled_open_shared(&curve_stage);
         scaled_put(curve_stage.shared, curve_stage.program.field_offset[0], curve_stage.program.field_bits[0], one_limb,
                    1u, ((nu - 1ull) % 2ull) ? -1 : 1);
         scaled_put_wide(&curve_stage, 1u, cell.first);
-        unsigned int field = 2u;
-        for (unsigned int n = 0u; n < curves; n += 1u)
+        for (unsigned int j = 0u; j < coefficients; j += 1u)
         {
-            for (size_t j = 0u; j < gammas[n].size(); j += 1u)
-            {
-                scaled_put_wide(&curve_stage, field, gammas[n][j]);
-                field += 1u;
-            }
+            scaled_put_wide(&curve_stage, 2u + j, gammas[j]);
         }
         ok = scaled_position(job, &curve_stage, error);
     }
     else
     {
-        const std::vector<ScaledWide> &numbers = *cell.bernoulli;
-        std::vector<unsigned int> widths = {scaled_wide_width(*cell.pi_low), scaled_wide_width(*cell.pi_high)};
-        for (size_t at = 0u; at < numbers.size(); at += 1u)
+        const ScaledWide *const numbers = cell.bernoulli;
+        const unsigned int number_count = cell.bernoulli_count;
+        unsigned int widths[2u + SCALED_BERNOULLI];
+        widths[0] = scaled_wide_width(*cell.pi_low);
+        widths[1] = scaled_wide_width(*cell.pi_high);
+        for (unsigned int at = 0u; at < number_count; at += 1u)
         {
-            widths.push_back(scaled_wide_width(numbers[at]));
+            widths[2u + at] = scaled_wide_width(numbers[at]);
         }
-        (void)scaled_built(&em_c_stage,
-                           [&]() { scaled_em_c_build(&em_c_stage, b, w + 16u, cell.precision, first_bits, widths); });
+        (void)scaled_built(&em_c_stage, [&]() {
+            scaled_em_c_build(&em_c_stage, b, w + 16u, cell.precision, first_bits, widths, 2u + number_count);
+        });
         scaled_open_shared(&em_c_stage);
         scaled_put_wide(&em_c_stage, 0u, cell.first);
         scaled_put_wide(&em_c_stage, 1u, *cell.pi_low);
         scaled_put_wide(&em_c_stage, 2u, *cell.pi_high);
         scaled_put_wide(&em_c_stage, 3u, cell.n);
-        for (size_t at = 0u; at < numbers.size(); at += 1u)
+        for (unsigned int at = 0u; at < number_count; at += 1u)
         {
-            scaled_put_wide(&em_c_stage, 4u + (unsigned int)at, numbers[at]);
+            scaled_put_wide(&em_c_stage, 4u + at, numbers[at]);
         }
         ok = scaled_position(job, &em_c_stage, error);
     }
@@ -3468,7 +3557,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     if (ok)
     {
         (void)scaled_built(&log_stage, [&]() {
-            scaled_log_build(&log_stage, b, y, first_bits, c_bits, theta_bits[9], theta_bits[10]);
+            scaled_log_build(&log_stage, b, y, first_bits, c_bits, log_terms, theta_bits[9], theta_bits[10]);
         });
         scaled_open_shared(&log_stage);
         scaled_put_wide(&log_stage, 0u, cell.first);
@@ -3498,14 +3587,14 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     }
     if (ok && em)
     {
-        const std::vector<unsigned int> widths = {first_bits,
-                                                  scaled_wide_width(cell.tail[0]),
-                                                  scaled_wide_width(cell.tail[1]),
-                                                  scaled_wide_width(cell.tail[2]),
-                                                  scaled_wide_width(cell.tail[3]),
-                                                  scaled_wide_width(*cell.cos_bound)};
+        const unsigned int widths[6] = {first_bits,
+                                        scaled_wide_width(cell.tail[0]),
+                                        scaled_wide_width(cell.tail[1]),
+                                        scaled_wide_width(cell.tail[2]),
+                                        scaled_wide_width(cell.tail[3]),
+                                        scaled_wide_width(*cell.cos_bound)};
         (void)scaled_built(&tail_stage, [&]() {
-            scaled_em_tail_build(&tail_stage, b, w, widths, k_widths, &em_c_stage, &theta_stage);
+            scaled_em_tail_build(&tail_stage, b, w, widths, k_widths, cos_terms, &em_c_stage, &theta_stage);
         });
         tail_stage.before_stage = &em_c_stage;
         tail_stage.before_limbs = em_c_stage.layout.out_limbs;
@@ -3520,7 +3609,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         scaled_put_wide(&tail_stage, 5u, *cell.cos_bound);
         for (unsigned int j = 0u; j < cos_terms; j += 1u)
         {
-            scaled_put_wide(&tail_stage, 6u + j, (*cell.k_low)[j]);
+            scaled_put_wide(&tail_stage, 6u + j, cell.k_low[j]);
         }
         ok = scaled_position(job, &tail_stage, error);
         tail_stage.group = lanes;
@@ -3552,13 +3641,13 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     scaled_open_stage(&cos_stage, "cos");
     if (ok)
     {
-        (void)scaled_built(&cos_stage, [&]() { scaled_cos_build(&cos_stage, k_widths, w, &phase_stage); });
+        (void)scaled_built(&cos_stage, [&]() { scaled_cos_build(&cos_stage, k_widths, cos_terms, w, &phase_stage); });
         cos_stage.before_stage = &phase_stage;
         cos_stage.before_limbs = phase_stage.layout.out_limbs;
         scaled_open_shared(&cos_stage);
         for (unsigned int j = 0u; j < cos_terms; j += 1u)
         {
-            scaled_put_wide(&cos_stage, j, (*cell.k_low)[j]);
+            scaled_put_wide(&cos_stage, j, cell.k_low[j]);
         }
         ok = scaled_position(job, &cos_stage, error);
     }
@@ -3578,7 +3667,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         ok = scaled_position(job, stage, error);
         if (ok)
         {
-            scaled_pole_records(stage, cell.first, *cell.cos_bound, cell.poles);
+            scaled_pole_records(stage, cell.first, *cell.cos_bound, cell.poles, cell.pole_count);
         }
         stage->group = heads;
         {
@@ -3739,7 +3828,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         const unsigned long long pairs = points * heads;
         const unsigned long long pairs_checked = (pairs < 3ull * checked) ? pairs : 3ull * checked;
         scaled_pole_records(&phase_stage, scaled_wide_small(scaled_wide_word(cell.first) + (long long)start),
-                            *cell.cos_bound, cell.poles);
+                            *cell.cos_bound, cell.poles, cell.pole_count);
         scaled_index_taken(&phase_stage, 3ull * pairs);
         for (unsigned int side = 0u; side < 2u; side += 1u)
         {
@@ -3797,23 +3886,23 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     scaled_open_stage(&count_stage, "count");
     if (ok && !em)
     {
-        std::vector<ScaledWide> row;
+        // the six sums, U^4 at the four points, pi below and above and ln 2 above, one row of a table
+        ScaledWide row[13];
         for (unsigned int k = 0u; k < 6u; k += 1u)
         {
-            row.push_back(scaled_wide_sum(&turing_stage, k, 0ull));
+            row[k] = scaled_wide_sum(&turing_stage, k, 0ull);
         }
         const unsigned long long points[4] = {0ull, window_low, window_high, lanes - 1ull};
         for (unsigned int k = 0u; k < 4u; k += 1u)
         {
-            row.push_back(scaled_wide_out(&clock_stage, points[k], 2u));
+            row[6u + k] = scaled_wide_out(&clock_stage, points[k], 2u);
         }
-        row.push_back(*cell.pi_low);
-        row.push_back(*cell.pi_high);
-        row.push_back(*cell.two_high);
-        (void)scaled_built(&count_stage, [&]() {
-            scaled_count_build(&count_stage, scaled_table({row}, std::vector<unsigned int>(row.size(), 0u)), b, w,
-                               cell.precision);
-        });
+        row[10] = *cell.pi_low;
+        row[11] = *cell.pi_high;
+        row[12] = *cell.two_high;
+        ScaledTable record = scaled_table(row, 1ull, 13u, NULL, 1);
+        (void)scaled_built(&count_stage, [&]() { scaled_count_build(&count_stage, record, b, w, cell.precision); });
+        scaled_table_released(&record);
         ok = scaled_run(job, &count_stage, 1ull, error);
     }
 
@@ -3967,6 +4056,9 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     scaled_release(&clock_stage);
     scaled_release(&turing_stage);
     scaled_release(&count_stage);
+    scaled_released(gamma_bits);
+    scaled_released(c_bits);
+    scaled_released(k_widths);
     return ok;
 }
 
@@ -3983,20 +4075,23 @@ static int scaled_pi(SimResults *job, unsigned int precision, ScaledWide *low, S
     scaled_open_stage(&arctan[1], "arctan_239");
     scaled_open_stage(&pi, "pi");
     int ok = 1;
-    std::vector<ScaledWide> row;
+    // the two sums of each arctangent, one row of a table
+    ScaledWide row[4];
     for (unsigned int at = 0u; ok && (at < 2u); at += 1u)
     {
         (void)scaled_built(&arctan[at], [&]() { scaled_machin_build(&arctan[at], ks[at], precision, counts[at]); });
         ok = scaled_run(job, &arctan[at], counts[at] + 1u, error);
         if (ok)
         {
-            row.push_back(scaled_wide_sum(&arctan[at], 0u, 0ull));
-            row.push_back(scaled_wide_sum(&arctan[at], 1u, 0ull));
+            row[2u * at] = scaled_wide_sum(&arctan[at], 0u, 0ull);
+            row[2u * at + 1u] = scaled_wide_sum(&arctan[at], 1u, 0ull);
         }
     }
     if (ok)
     {
-        (void)scaled_built(&pi, [&]() { scaled_pi_build(&pi, scaled_table({row}, {0u, 0u, 0u, 0u}), precision); });
+        ScaledTable sums = scaled_table(row, 1ull, 4u, NULL, 1);
+        (void)scaled_built(&pi, [&]() { scaled_pi_build(&pi, sums, precision); });
+        scaled_table_released(&sums);
         ok = scaled_run(job, &pi, 1ull, error);
     }
     const long long lead = 0x243F6A8885A308D3ll;
@@ -4014,20 +4109,32 @@ static int scaled_pi(SimResults *job, unsigned int precision, ScaledWide *low, S
     return ok && led;
 }
 
-// Lambda and c_0 to c_(L - 1) for a series of L terms
-static int scaled_lambda_row(SimResults *job, unsigned int terms, std::vector<ScaledWide> *row, EngineError *error)
+// Lambda and c_0 to c_(L - 1) for a series of L terms, into `row`, which holds L + 1 values at least
+static int scaled_lambda_row(SimResults *job, unsigned int terms, ScaledWide *row, EngineError *error)
 {
     ScaledStage stage;
     scaled_open_stage(&stage, "lambda");
     (void)scaled_built(&stage, [&]() { scaled_lambda_build(&stage, terms); });
     const int ok = scaled_run(job, &stage, 1ull, error);
-    row->clear();
     for (unsigned int k = 0u; ok && (k <= terms); k += 1u)
     {
-        row->push_back(scaled_wide_out(&stage, 0ull, k));
+        row[k] = scaled_wide_out(&stage, 0ull, k);
     }
     scaled_release(&stage);
     return ok;
+}
+
+// a cell of `count` whole numbers on the temporary tier where `ephemeral` is 1. A pool that cannot meet it stops the
+// program
+static ScaledWide *scaled_wides(unsigned long long count, int ephemeral)
+{
+    ScaledWide *const out = (ScaledWide *)scaled_cleared(count, sizeof(ScaledWide), ephemeral);
+    if (out == NULL)
+    {
+        fprintf(stderr, "  exact_zeta_scaled: the pool cannot meet %llu whole numbers\n", count);
+        exit(1);
+    }
+    return out;
 }
 
 // the lane of C(a, b) among the binomials, row a of the triangle from a (a + 1) / 2
@@ -4037,18 +4144,21 @@ static unsigned int scaled_triangle(unsigned int a, unsigned int b)
 }
 
 // a table whose columns match the layout of the program that reads it
-static int scaled_fixed(SimResults *job, const ScaledTable &table, const std::vector<unsigned int> &bits,
+static int scaled_fixed(SimResults *job, const ScaledTable &table, const unsigned int *bits, unsigned int columns,
                         const char *what)
 {
-    const int fits = (table.bits == bits);
+    const int fits = (table.columns == columns) && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = table.bits, .other = bits,
+                                                               .bytes = columns * sizeof(unsigned int)) == 0);
     sim_check(job, fits, what);
     return fits;
 }
 
 // `D = (2M + 1)!`, then `I_2k = D B_2k` and (2k)! for k from 1 to M, by the recurrence for the I_m on the device. For
 // each I_m, the sum is one sweep of the Euler term program over j < m, and the quotient by m + 1 is exact.
-// `|B_m| <= m!`, and each I_m is below D^2 in size
-static int scaled_bernoulli(SimResults *job, unsigned int terms, std::vector<ScaledWide> *out, EngineError *error)
+// `|B_m| <= m!`, and each I_m is below D^2 in size.
+// The results go to `out`: D, then I_2k and (2k)! for k from 1 to M, 2M + 1 values, which SCALED_BERNOULLI bounds
+static int scaled_bernoulli(SimResults *job, unsigned int terms, ScaledWide *out, unsigned int *out_count,
+                            EngineError *error)
 {
     const unsigned int top = 2u * terms + 1u;
     ScaledStage factorials, binomials, sum, divide;
@@ -4082,20 +4192,24 @@ static int scaled_bernoulli(SimResults *job, unsigned int terms, std::vector<Sca
         ok = scaled_run(job, &binomials, scaled_triangle(top + 1u, 0u), error);
     }
     const unsigned int value_bits = ok ? 2u * factorials.layout.step_table[factorials.outputs[0]].out_bits + 2u : 0u;
-    std::vector<std::vector<ScaledWide>> rows;
+    // D and the I_m to I_(top - 1), one a row, in a cell of the temporary tier that the call gives back
+    ScaledWide *const rows = scaled_wides(top, 1);
+    unsigned int row_count = 0u;
     if (ok)
     {
-        rows.push_back(std::vector<ScaledWide>(1u, scaled_wide_out(&factorials, top, 0u)));
+        rows[0] = scaled_wide_out(&factorials, top, 0u);
+        row_count = 1u;
         (void)scaled_built(&sum, [&]() { scaled_euler_build(&sum, &binomials, value_bits); });
         scaled_shared_copied(&sum, binomials.records, binomials.record_count);
     }
-    ScaledTable table;
+    ScaledTable table = scaled_table_none();
     sum.before_table = &table;
     sum.before_limbs = (value_bits + 31u) / 32u;
     for (unsigned int m = 1u; ok && (m < top); m += 1u)
     {
-        table = scaled_table(rows, {value_bits});
-        ok = scaled_fixed(job, table, {value_bits}, "every I_m fits its table");
+        scaled_table_released(&table);
+        table = scaled_table(rows, row_count, 1u, &value_bits, 1);
+        ok = scaled_fixed(job, table, &value_bits, 1u, "every I_m fits its table");
         scaled_index_taken(&sum, 2ull * m);
         for (unsigned int j = 0u; j < m; j += 1u)
         {
@@ -4106,32 +4220,37 @@ static int scaled_bernoulli(SimResults *job, unsigned int terms, std::vector<Sca
         ok = ok && scaled_run(job, &sum, m, error);
         if (ok)
         {
-            const std::vector<unsigned int> pair_bits = {value_bits + 8u, 16u};
-            const ScaledTable pair =
-                scaled_table({{scaled_wide_sum(&sum, 0u, 0ull), scaled_wide_small(m + 1u)}}, pair_bits);
-            ok = scaled_fixed(job, pair, pair_bits, "each I_m's sum fits its table");
+            const unsigned int pair_bits[2] = {value_bits + 8u, 16u};
+            const ScaledWide pair_values[2] = {scaled_wide_sum(&sum, 0u, 0ull), scaled_wide_small(m + 1u)};
+            ScaledTable pair = scaled_table(pair_values, 1ull, 2u, pair_bits, 1);
+            ok = scaled_fixed(job, pair, pair_bits, 2u, "each I_m's sum fits its table");
             if (ok && (divide.layout.steps == 0u))
             {
                 (void)scaled_built(&divide, [&]() { scaled_divide_build(&divide, pair); });
             }
-            scaled_shared_copied(&divide, pair.words.data(), pair.words.size());
+            scaled_shared_copied(&divide, pair.words, pair.word_count);
+            scaled_table_released(&pair);
             ok = ok && scaled_run(job, &divide, 1ull, error);
         }
         if (ok)
         {
-            rows.push_back(std::vector<ScaledWide>(1u, scaled_wide_out(&divide, 0ull, 0u)));
+            rows[row_count] = scaled_wide_out(&divide, 0ull, 0u);
+            row_count += 1u;
         }
     }
-    out->clear();
+    *out_count = 0u;
     if (ok)
     {
-        out->push_back(rows[0][0]);
+        out[0] = rows[0];
         for (unsigned int k = 1u; k <= terms; k += 1u)
         {
-            out->push_back(rows[2u * k][0]);
-            out->push_back(scaled_wide_out(&factorials, 2u * k, 0u));
+            out[2u * k - 1u] = rows[2u * k];
+            out[2u * k] = scaled_wide_out(&factorials, 2u * k, 0u);
         }
+        *out_count = 2u * terms + 1u;
     }
+    scaled_table_released(&table);
+    scaled_released(rows);
     scaled_release(&factorials);
     scaled_release(&binomials);
     scaled_release(&sum);
@@ -4205,8 +4324,11 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
         }
         // E_0 to E_2jmax, each |E_2n| at max 2 (2n)!, and one width serves the table
         const unsigned int value_bits = ok ? factorials.layout.step_table[factorials.outputs[0]].out_bits + 2u : 0u;
-        std::vector<std::vector<ScaledWide>> e_rows(1u, std::vector<ScaledWide>(1u, scaled_wide_small(1)));
-        ScaledTable e_table;
+        // E_0 to E_2jmax, one a row, in a cell of the temporary tier that the round gives back
+        ScaledWide *const e_rows = scaled_wides(jmax + 1u, 1);
+        e_rows[0] = scaled_wide_small(1);
+        unsigned int e_count = 1u;
+        ScaledTable e_table = scaled_table_none();
         if (ok)
         {
             (void)scaled_built(&euler, [&]() { scaled_euler_build(&euler, &binomials, value_bits); });
@@ -4216,8 +4338,9 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
         }
         for (unsigned int n = 1u; ok && (n <= jmax); n += 1u)
         {
-            e_table = scaled_table(e_rows, {value_bits});
-            ok = scaled_fixed(job, e_table, {value_bits}, "every Euler number fits its table");
+            scaled_table_released(&e_table);
+            e_table = scaled_table(e_rows, e_count, 1u, &value_bits, 1);
+            ok = scaled_fixed(job, e_table, &value_bits, 1u, "every Euler number fits its table");
             scaled_index_taken(&euler, 2ull * n);
             for (unsigned int j = 0u; j < n; j += 1u)
             {
@@ -4228,27 +4351,32 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
             ok = ok && scaled_run(job, &euler, n, error);
             if (ok)
             {
-                e_rows.push_back(std::vector<ScaledWide>(1u, scaled_wide_sum(&euler, 0u, 0ull)));
+                e_rows[e_count] = scaled_wide_sum(&euler, 0u, 0ull);
+                e_count += 1u;
             }
         }
-        // lambda_0 to lambda_((K + 1) / 4)
+        // lambda_0 to lambda_((K + 1) / 4), one a row, in a cell of the temporary tier that the round gives back
         const unsigned int lambda_top = (top + 1u) / 4u;
         const unsigned int lambda_bits = 2u + lambda_top * (4u * lambda_top + 3u + value_bits);
-        std::vector<std::vector<ScaledWide>> lambda_rows(1u, std::vector<ScaledWide>(1u, scaled_wide_small(1)));
-        const ScaledTable e_only = scaled_table(e_rows, {value_bits});
-        ScaledTable lambda_table;
+        ScaledWide *const lambda_rows = scaled_wides(lambda_top + 1u, 1);
+        lambda_rows[0] = scaled_wide_small(1);
+        unsigned int lambda_count = 1u;
+        ScaledTable e_only = scaled_table(e_rows, e_count, 1u, &value_bits, 1);
+        ScaledTable lambda_table = scaled_table_none();
         if (ok && (lambda_top > 0u))
         {
             (void)scaled_built(&lambda_term,
                                [&]() { scaled_lambda_term_build(&lambda_term, value_bits, lambda_bits, lambda_top); });
-            scaled_shared_copied(&lambda_term, e_only.words.data(), e_only.words.size());
+            scaled_shared_copied(&lambda_term, e_only.words, e_only.word_count);
             lambda_term.before_table = &lambda_table;
             lambda_term.before_limbs = (lambda_bits + 31u) / 32u;
         }
+        scaled_table_released(&e_only);
         for (unsigned int l = 0u; ok && (l < lambda_top); l += 1u)
         {
-            lambda_table = scaled_table(lambda_rows, {lambda_bits});
-            ok = scaled_fixed(job, lambda_table, {lambda_bits}, "every lambda fits its table");
+            scaled_table_released(&lambda_table);
+            lambda_table = scaled_table(lambda_rows, lambda_count, 1u, &lambda_bits, 1);
+            ok = scaled_fixed(job, lambda_table, &lambda_bits, 1u, "every lambda fits its table");
             scaled_index_taken(&lambda_term, 2ull * (l + 1u));
             for (unsigned int k = 0u; k <= l; k += 1u)
             {
@@ -4259,20 +4387,22 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
             ok = ok && scaled_run(job, &lambda_term, l + 1u, error);
             if (ok)
             {
-                const std::vector<unsigned int> pair_bits = {lambda_bits + 8u, 16u};
-                const ScaledTable pair =
-                    scaled_table({{scaled_wide_sum(&lambda_term, 0u, 0ull), scaled_wide_small(l + 1u)}}, pair_bits);
-                ok = scaled_fixed(job, pair, pair_bits, "each lambda's sum fits its table");
+                const unsigned int pair_bits[2] = {lambda_bits + 8u, 16u};
+                const ScaledWide pair_values[2] = {scaled_wide_sum(&lambda_term, 0u, 0ull), scaled_wide_small(l + 1u)};
+                ScaledTable pair = scaled_table(pair_values, 1ull, 2u, pair_bits, 1);
+                ok = scaled_fixed(job, pair, pair_bits, 2u, "each lambda's sum fits its table");
                 if (ok && (divide.layout.steps == 0u))
                 {
                     (void)scaled_built(&divide, [&]() { scaled_divide_build(&divide, pair); });
                 }
-                scaled_shared_copied(&divide, pair.words.data(), pair.words.size());
+                scaled_shared_copied(&divide, pair.words, pair.word_count);
+                scaled_table_released(&pair);
                 ok = ok && scaled_run(job, &divide, 1ull, error);
             }
             if (ok)
             {
-                lambda_rows.push_back(std::vector<ScaledWide>(1u, scaled_wide_out(&divide, 0ull, 0u)));
+                lambda_rows[lambda_count] = scaled_wide_out(&divide, 0ull, 0u);
+                lambda_count += 1u;
             }
         }
         // the rows of d to row K, each entry at max (3n + 2)^2 + 1 times the row before's largest, or a lambda
@@ -4281,26 +4411,38 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
         {
             d_bits += 2u * scaled_bits_of(3ull * n + 2ull) + 1u;
         }
-        std::vector<std::vector<ScaledWide>> d_rows(top + 1u);
-        d_rows[0].push_back(scaled_wide_small(1));
-        ScaledTable d_row_table;
-        const std::vector<unsigned int> d_constant_bits = {lambda_bits, 16u, 16u, 16u, 16u};
+        // Row n of d holds 3n / 4 + 1 entries at max. The rows are flat, row n from place d_first[n], with d_count[n]
+        // entries, in cells of the temporary tier that the round gives back
+        unsigned int *const d_first = (unsigned int *)scaled_cleared(top + 1u, sizeof(unsigned int), 1);
+        unsigned int *const d_count = (unsigned int *)scaled_cleared(top + 1u, sizeof(unsigned int), 1);
+        if ((d_first == NULL) || (d_count == NULL))
+        {
+            fprintf(stderr, "  exact_zeta_scaled: the pool cannot meet the rows of d\n");
+            exit(1);
+        }
+        unsigned int d_total = 0u;
+        for (unsigned int n = 0u; n <= top; n += 1u)
+        {
+            d_first[n] = d_total;
+            d_total += 3u * n / 4u + 1u;
+        }
+        ScaledWide *const d_rows = scaled_wides(d_total, 1);
+        d_rows[0] = scaled_wide_small(1);
+        d_count[0] = 1u;
+        ScaledTable d_row_table = scaled_table_none();
+        const unsigned int d_constant_bits[5] = {lambda_bits, 16u, 16u, 16u, 16u};
         for (unsigned int n = 0u; ok && (n < top); n += 1u)
         {
             const unsigned int length = 3u * n / 4u + 1u;
             const unsigned int next = 3u * (n + 1u) / 4u + 1u;
-            std::vector<std::vector<ScaledWide>> rows;
-            for (size_t k = 0u; k < d_rows[n].size(); k += 1u)
-            {
-                rows.push_back(std::vector<ScaledWide>(1u, d_rows[n][k]));
-            }
-            d_row_table = scaled_table(rows, {d_bits});
-            const ScaledTable constants = scaled_table(
-                {{lambda_rows[(n + 1u) / 4u][0], scaled_wide_small(3ll * n + 1ll), scaled_wide_small(3ll * n + 2ll),
-                  scaled_wide_small(3ll * n + 3ll), scaled_wide_small(length)}},
-                d_constant_bits);
-            ok = scaled_fixed(job, d_row_table, {d_bits}, "every d fits its table") &&
-                 scaled_fixed(job, constants, d_constant_bits, "each row's constants fit their table");
+            scaled_table_released(&d_row_table);
+            d_row_table = scaled_table(&d_rows[d_first[n]], d_count[n], 1u, &d_bits, 1);
+            const ScaledWide constant_values[5] = {lambda_rows[(n + 1u) / 4u], scaled_wide_small(3ll * n + 1ll),
+                                                   scaled_wide_small(3ll * n + 2ll), scaled_wide_small(3ll * n + 3ll),
+                                                   scaled_wide_small(length)};
+            ScaledTable constants = scaled_table(constant_values, 1ull, 5u, d_constant_bits, 1);
+            ok = scaled_fixed(job, d_row_table, &d_bits, 1u, "every d fits its table") &&
+                 scaled_fixed(job, constants, d_constant_bits, 5u, "each row's constants fit their table");
             if (ok && (d_stage.layout.steps == 0u))
             {
                 (void)scaled_built(&d_stage,
@@ -4310,7 +4452,8 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
                 d_stage.also_table = &d_row_table;
                 d_stage.also_limbs = d_row_table.limbs;
             }
-            scaled_shared_copied(&d_stage, constants.words.data(), constants.words.size());
+            scaled_shared_copied(&d_stage, constants.words, constants.word_count);
+            scaled_table_released(&constants);
             scaled_index_taken(&d_stage, 3ull * next);
             for (unsigned int k = 0u; k < next; k += 1u)
             {
@@ -4321,33 +4464,38 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
             ok = ok && scaled_run(job, &d_stage, next, error);
             for (unsigned int k = 0u; ok && (k < next); k += 1u)
             {
-                d_rows[n + 1u].push_back(scaled_wide_out(&d_stage, k, 0u));
+                d_rows[d_first[n + 1u] + k] = scaled_wide_out(&d_stage, k, 0u);
             }
+            d_count[n + 1u] = ok ? next : 0u;
         }
+        scaled_table_released(&d_row_table);
         // pi^e for e from -2K to 2 jmax, then pi^e sin(pi / 8) and pi^e cos(pi / 8) for e from 0
         if (ok)
         {
-            (void)scaled_built(&powers, [&]() {
-                scaled_pi_power_build(&powers, scaled_table({{pi_low, pi_high}}, {0u, 0u}), precision, 2u * top,
-                                      2u * jmax);
-            });
+            const ScaledWide pi_values[2] = {pi_low, pi_high};
+            ScaledTable pi = scaled_table(pi_values, 1ull, 2u, NULL, 1);
+            (void)scaled_built(&powers, [&]() { scaled_pi_power_build(&powers, pi, precision, 2u * top, 2u * jmax); });
+            scaled_table_released(&pi);
             ok = scaled_run(job, &powers, 2u * top + 2u * jmax + 1u, error);
         }
-        ScaledTable eighth_table;
+        ScaledTable eighth_table = scaled_table_none();
         if (ok)
         {
             (void)scaled_built(&eighth, [&]() { scaled_eighth_build(&eighth, precision); });
             ok = scaled_run(job, &eighth, 4ull, error);
             int roots_valid = ok;
-            std::vector<ScaledWide> ends;
+            ScaledWide ends[4];
             for (unsigned long long lane = 0ull; ok && (lane < 4ull); lane += 1ull)
             {
                 roots_valid = roots_valid && (scaled_wide_word(scaled_wide_out(&eighth, lane, 1u)) == 1);
-                ends.push_back(scaled_wide_out(&eighth, lane, 0u));
+                ends[lane] = scaled_wide_out(&eighth, lane, 0u);
             }
             sim_check(job, roots_valid, "the roots of sin(pi / 8) and cos(pi / 8) satisfy their definitions");
             ok = ok && roots_valid;
-            eighth_table = scaled_table({ends}, {0u, 0u, 0u, 0u});
+            if (ok)
+            {
+                eighth_table = scaled_table(ends, 1ull, 4u, NULL, 1);
+            }
         }
         const unsigned int eighths = 2u * (2u * jmax + 1u);
         if (ok)
@@ -4368,21 +4516,25 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
             ok = scaled_run(job, &pi_eighths, eighths, error);
         }
         // phi_0 to phi_jmax
-        ScaledTable phi_table;
+        ScaledTable phi_table = scaled_table_none();
         if (ok)
         {
-            std::vector<std::vector<ScaledWide>> rows;
+            // E_2x and (2x)!, a row each x, in a cell of the temporary tier that the build gives back
+            ScaledWide *const rows = scaled_wides(2ull * (jmax + 1u), 1);
             for (unsigned int x = 0u; x <= jmax; x += 1u)
             {
-                rows.push_back({e_rows[x][0], scaled_wide_out(&factorials, 2ull * x, 0u)});
+                rows[2u * x] = e_rows[x];
+                rows[2u * x + 1u] = scaled_wide_out(&factorials, 2ull * x, 0u);
             }
+            ScaledTable phi_rows = scaled_table(rows, jmax + 1u, 2u, NULL, 1);
+            scaled_released(rows);
             phi.before_stage = &factorials;
             phi.before_limbs = factorials.layout.out_limbs;
             phi.also_stage = &pi_eighths;
             phi.also_limbs = pi_eighths.layout.out_limbs;
-            (void)scaled_built(&phi, [&]() {
-                scaled_phi_build(&phi, scaled_table(rows, {0u, 0u}), &factorials, &pi_eighths, jmax, precision);
-            });
+            (void)scaled_built(&phi,
+                               [&]() { scaled_phi_build(&phi, phi_rows, &factorials, &pi_eighths, jmax, precision); });
+            scaled_table_released(&phi_rows);
             scaled_index_taken(&phi, 3ull * row * row);
             unsigned long long filled = 0ull;
             for (unsigned int j = 0u; j < row; j += 1u)
@@ -4400,34 +4552,44 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
         }
         if (ok)
         {
-            std::vector<std::vector<ScaledWide>> rows;
+            // phi_j below and above, a row each j, in a cell of the temporary tier that the table copies
+            ScaledWide *const rows = scaled_wides(2ull * row, 1);
             for (unsigned int j = 0u; j < row; j += 1u)
             {
-                rows.push_back({scaled_wide_sum(&phi, 0u, j), scaled_wide_sum(&phi, 1u, j)});
+                rows[2u * j] = scaled_wide_sum(&phi, 0u, j);
+                rows[2u * j + 1u] = scaled_wide_sum(&phi, 1u, j);
             }
-            phi_table = scaled_table(rows, {0u, 0u});
+            phi_table = scaled_table(rows, row, 2u, NULL, 1);
+            scaled_released(rows);
         }
         // gamma_(n,i) below and above, lane (n count + i) 8 + k
         if (ok)
         {
-            std::vector<std::vector<ScaledWide>> rows;
+            // d_(n,k) and pi^(2k + 2K - 2n) below and above, a row each n and k. They are in a cell of the temporary
+            // tier that the table copies
+            ScaledWide *const rows = scaled_wides(3ull * (top + 1u) * 8u, 1);
+            unsigned long long at = 0ull;
             for (unsigned int n = 0u; n <= top; n += 1u)
             {
                 for (unsigned int k = 0u; k < 8u; k += 1u)
                 {
                     const unsigned int power = 2u * k + 2u * top - 2u * n;
-                    rows.push_back({(k < d_rows[n].size()) ? d_rows[n][k] : scaled_wide_small(0),
-                                    scaled_wide_out(&powers, power, 0u), scaled_wide_out(&powers, power, 1u)});
+                    rows[at] = (k < d_count[n]) ? d_rows[d_first[n] + k] : scaled_wide_small(0);
+                    rows[at + 1ull] = scaled_wide_out(&powers, power, 0u);
+                    rows[at + 2ull] = scaled_wide_out(&powers, power, 1u);
+                    at += 3ull;
                 }
             }
+            ScaledTable gamma_rows = scaled_table(rows, (top + 1ull) * 8ull, 3u, NULL, 1);
+            scaled_released(rows);
             gamma.before_stage = &binomials;
             gamma.before_limbs = binomials.layout.out_limbs;
             gamma.also_table = &phi_table;
             gamma.also_limbs = phi_table.limbs;
             (void)scaled_built(&gamma, [&]() {
-                scaled_gamma_build(&gamma, scaled_table(rows, {0u, 0u, 0u}), &binomials, phi_table, top, count,
-                                   precision, big_e);
+                scaled_gamma_build(&gamma, gamma_rows, &binomials, phi_table, top, count, precision, big_e);
             });
+            scaled_table_released(&gamma_rows);
             scaled_index_taken(&gamma, 3ull * (top + 1u) * count * 8ull);
             unsigned long long filled = 0ull;
             for (unsigned int n = 0u; n <= top; n += 1u)
@@ -4448,21 +4610,19 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
             gamma.group = 8u;
             ok = scaled_run(job, &gamma, (unsigned long long)(top + 1u) * count * 8ull, error);
         }
-        std::vector<std::vector<ScaledWide>> lows(top + 1u);
-        std::vector<std::vector<ScaledWide>> highs(top + 1u);
+        // gamma_(n,i) below and above, a row each n and i, in a cell of the temporary tier that the round gives back.
+        // The lower end of row n count + i is value 2 (n count + i), and the upper the value after it
+        ScaledWide *const ends = scaled_wides(2ull * (top + 1u) * count, 1);
         if (ok)
         {
-            std::vector<std::vector<ScaledWide>> rows;
-            for (unsigned int n = 0u; n <= top; n += 1u)
+            for (unsigned long long at = 0ull; at < (unsigned long long)(top + 1u) * count; at += 1ull)
             {
-                for (unsigned int i = 0u; i < count; i += 1u)
-                {
-                    lows[n].push_back(scaled_wide_sum(&gamma, 0u, (unsigned long long)n * count + i));
-                    highs[n].push_back(scaled_wide_sum(&gamma, 1u, (unsigned long long)n * count + i));
-                    rows.push_back({lows[n][i], highs[n][i]});
-                }
+                ends[2ull * at] = scaled_wide_sum(&gamma, 0u, at);
+                ends[2ull * at + 1ull] = scaled_wide_sum(&gamma, 1u, at);
             }
-            (void)scaled_built(&spread, [&]() { scaled_spread_build(&spread, scaled_table(rows, {0u, 0u}), count); });
+            ScaledTable spread_rows = scaled_table(ends, (top + 1ull) * count, 2u, NULL, 1);
+            (void)scaled_built(&spread, [&]() { scaled_spread_build(&spread, spread_rows, count); });
+            scaled_table_released(&spread_rows);
             ok = scaled_run(job, &spread, (unsigned long long)(top + 1u) * count, error);
         }
         // the last eight of each curve contain 0 between their ends, or the count doubles
@@ -4471,22 +4631,44 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
         {
             for (unsigned int i = count - 8u; i < count; i += 1u)
             {
-                closes = closes && (lows[n][i].sign <= 0) && (highs[n][i].sign >= 0);
+                const unsigned long long at = 2ull * ((unsigned long long)n * count + i);
+                closes = closes && (ends[at].sign <= 0) && (ends[at + 1ull].sign >= 0);
             }
         }
+        // the curves fit the constants' arrays of SCALED_TOP + 1 curves
+        closes = closes && (top <= SCALED_TOP);
         if (ok && closes)
         {
-            out->gammas.assign(top + 1u, std::vector<ScaledWide>());
-            out->spreads.clear();
+            // each curve to its last coefficient that does not hold 0. The curves are one after another in a cell of
+            // the persistent tier, which the constants hold for the run
+            unsigned int lasts[SCALED_TOP + 1u];
+            unsigned int kept = 0u;
             for (unsigned int n = 0u; n <= top; n += 1u)
             {
                 unsigned int last = 0u;
                 for (unsigned int i = 0u; i < count; i += 1u)
                 {
-                    last = ((lows[n][i].sign > 0) || (highs[n][i].sign < 0)) ? i : last;
+                    const unsigned long long at = 2ull * ((unsigned long long)n * count + i);
+                    last = ((ends[at].sign > 0) || (ends[at + 1ull].sign < 0)) ? i : last;
                 }
-                out->gammas[n].assign(lows[n].begin(), lows[n].begin() + last + 1u);
-                out->spreads.push_back(scaled_wide_sum(&spread, 0u, n));
+                lasts[n] = last;
+                kept += last + 1u;
+            }
+            scaled_released(out->gammas);
+            out->gammas = scaled_wides(kept, 0);
+            out->curves = top + 1u;
+            out->spread_count = top + 1u;
+            unsigned int place = 0u;
+            for (unsigned int n = 0u; n <= top; n += 1u)
+            {
+                out->gamma_first[n] = place;
+                out->gamma_count[n] = lasts[n] + 1u;
+                for (unsigned int i = 0u; i <= lasts[n]; i += 1u)
+                {
+                    out->gammas[place] = ends[2ull * ((unsigned long long)n * count + i)];
+                    place += 1u;
+                }
+                out->spreads[n] = scaled_wide_sum(&spread, 0u, n);
             }
             {
                 VerbaLinea *const output_line = platform_line_out();
@@ -4505,7 +4687,7 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
             {
                 VerbaLinea *const output_line = platform_line_out();
                 mmgr_line_put(output_line, " ");
-                mmgr_line_decimal(output_line, out->gammas[n].size(), 1u);
+                mmgr_line_decimal(output_line, out->gamma_count[n], 1u);
                 platform_line_out_ended();
             }
             {
@@ -4516,6 +4698,16 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
             platform_line_flushed();
             done = 1;
         }
+        scaled_table_released(&e_table);
+        scaled_table_released(&lambda_table);
+        scaled_table_released(&eighth_table);
+        scaled_table_released(&phi_table);
+        scaled_released(e_rows);
+        scaled_released(lambda_rows);
+        scaled_released(d_first);
+        scaled_released(d_count);
+        scaled_released(d_rows);
+        scaled_released(ends);
         scaled_release(&factorials);
         scaled_release(&binomials);
         scaled_release(&euler);
@@ -4539,8 +4731,13 @@ static int scaled_constants(SimResults *job, ScaledConstants *k, EngineError *er
     int ok = scaled_pi(job, k->precision, &k->pi_low, &k->pi_high, error);
     // Lambda and the c_k for each logarithm, a / c at max 1/3 and 9^-L below 2^-P, and ln 2 = 2 artanh(1/3)
     k->log_terms = k->precision / 3u + 4u;
-    std::vector<ScaledWide> row;
-    ok = ok && scaled_lambda_row(job, k->log_terms, &row, error);
+    // Lambda, the c_k and ln 2 below and above, one row, in a cell of the temporary tier that the call gives back. The
+    // two values of ln 2 are 0 until the ln_2 stage gives them
+    const unsigned int columns = k->log_terms + 3u;
+    ScaledWide *const row = scaled_wides(columns, 1);
+    ok = ok && scaled_lambda_row(job, k->log_terms, row, error);
+    row[k->log_terms + 1u] = scaled_wide_small(0);
+    row[k->log_terms + 2u] = scaled_wide_small(0);
     ScaledStage two;
     ScaledStage cosine;
     ScaledStage theta;
@@ -4549,28 +4746,29 @@ static int scaled_constants(SimResults *job, ScaledConstants *k, EngineError *er
     scaled_open_stage(&theta, "theta_constants");
     if (ok)
     {
-        std::vector<ScaledWide> bare = row;
-        bare.push_back(scaled_wide_small(0));
-        bare.push_back(scaled_wide_small(0));
-        const ScaledTable constants = scaled_table({bare}, std::vector<unsigned int>(bare.size(), 0u));
+        ScaledTable constants = scaled_table(row, 1ull, columns, NULL, 1);
+        const ScaledWide third[3] = {scaled_wide_small(1), scaled_wide_small(3), scaled_wide_small(0)};
+        ScaledTable value = scaled_table(third, 1ull, 3u, NULL, 1);
         two.before_table = &constants;
         two.before_limbs = constants.limbs;
-        (void)scaled_built(&two, [&]() {
-            scaled_ln_build(
-                &two, k->precision,
-                scaled_table({{scaled_wide_small(1), scaled_wide_small(3), scaled_wide_small(0)}}, {0u, 0u, 0u}),
-                constants, k->log_terms, k->precision);
-        });
+        (void)scaled_built(
+            &two, [&]() { scaled_ln_build(&two, k->precision, value, constants, k->log_terms, k->precision); });
+        scaled_table_released(&value);
         ok = scaled_run(job, &two, 1ull, error);
+        two.before_table = NULL;
+        scaled_table_released(&constants);
     }
     if (ok)
     {
-        row.push_back(scaled_wide_out(&two, 0ull, 0u));
-        row.push_back(scaled_wide_out(&two, 0ull, 1u));
+        row[k->log_terms + 1u] = scaled_wide_out(&two, 0ull, 0u);
+        row[k->log_terms + 2u] = scaled_wide_out(&two, 0ull, 1u);
         k->two_high = scaled_wide_out(&two, 0ull, 1u);
-        k->logs = scaled_table({row}, std::vector<unsigned int>(row.size(), 0u));
+        // the logs' constants, which each cell reads, in cells of the persistent tier for the run
+        k->logs = scaled_table(row, 1ull, columns, NULL, 0);
     }
-    const ScaledTable pi = scaled_table({{k->pi_low, k->pi_high}}, {0u, 0u});
+    scaled_released(row);
+    const ScaledWide pi_values[2] = {k->pi_low, k->pi_high};
+    ScaledTable pi = scaled_table(pi_values, 1ull, 2u, NULL, 1);
     const unsigned int cos_top = k->w / 4u + 8u;
     if (ok)
     {
@@ -4587,16 +4785,20 @@ static int scaled_constants(SimResults *job, ScaledConstants *k, EngineError *er
     if (ok)
     {
         k->cos_bound = scaled_wide_out(&cosine, 0ull, 4u * terms + 2u);
+        // the k_j, which each cell reads, in a cell of the persistent tier for the run
+        k->k_low = scaled_wides(terms, 0);
+        k->k_count = terms;
         for (unsigned int j = 0u; j < terms; j += 1u)
         {
-            k->k_low.push_back(scaled_wide_out(&cosine, 0ull, 4u * j));
+            k->k_low[j] = scaled_wide_out(&cosine, 0ull, 4u * j);
         }
         (void)scaled_built(&theta, [&]() { scaled_theta_constants_build(&theta, pi, k->w, k->precision); });
         ok = scaled_run(job, &theta, 1ull, error);
     }
-    for (unsigned int at = 0u; ok && (at < 7u); at += 1u)
+    scaled_table_released(&pi);
+    for (unsigned int at = 0u; ok && (at < SCALED_THETA_CONSTANTS); at += 1u)
     {
-        k->theta.push_back(scaled_wide_out(&theta, 0ull, at));
+        k->theta[at] = scaled_wide_out(&theta, 0ull, at);
     }
     k->theta_brent = ok ? scaled_wide_out(&theta, 0ull, 7u) : scaled_wide_small(0);
     scaled_release(&two);
@@ -4619,7 +4821,7 @@ static int scaled_constants(SimResults *job, ScaledConstants *k, EngineError *er
     }
     if (ok && k->em)
     {
-        ok = scaled_bernoulli(job, SCALED_EM_TERMS, &k->bernoulli, error);
+        ok = scaled_bernoulli(job, SCALED_EM_TERMS, k->bernoulli, &k->bernoulli_count, error);
         if (ok)
         {
             {
@@ -4669,10 +4871,11 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
     unsigned long long count = nu + 1ull;
     if (ok && em)
     {
-        (void)scaled_built(&em_n, [&]() {
-            scaled_em_n_build(&em_n, scaled_table({{k.pi_low, k.pi_high, nu_wide}}, {0u, 0u, SCALED_NU_BITS + 1u}),
-                              precision, w, SCALED_EM_TERMS);
-        });
+        const ScaledWide record_values[3] = {k.pi_low, k.pi_high, nu_wide};
+        const unsigned int record_floors[3] = {0u, 0u, SCALED_NU_BITS + 1u};
+        ScaledTable record = scaled_table(record_values, 1ull, 3u, record_floors, 1);
+        (void)scaled_built(&em_n, [&]() { scaled_em_n_build(&em_n, record, precision, w, SCALED_EM_TERMS); });
+        scaled_table_released(&record);
         ok = scaled_run(job, &em_n, 1ull, error);
         const int rooted = ok && (scaled_wide_word(scaled_wide_out(&em_n, 0ull, 2u)) == 1);
         sim_check(job, rooted, "Euler-Maclaurin's N and its root satisfy their definitions");
@@ -4685,33 +4888,35 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
     (void)scaled_built(&poles, [&]() { scaled_poles_build(&poles, w, count); });
     ok = ok && scaled_run(job, &poles, count, error);
     int roots_valid = ok;
-    std::vector<std::vector<ScaledWide>> rows;
+    // a, c and m of each pole, a row each, in a cell of the temporary tier that the table copies
+    ScaledWide *const rows = scaled_wides(3ull * count, 1);
     for (unsigned long long n = 0ull; ok && (n < count); n += 1ull)
     {
-        rows.push_back(
-            {scaled_wide_out(&poles, n, 0u), scaled_wide_out(&poles, n, 1u), scaled_wide_out(&poles, n, 2u)});
+        rows[3ull * n] = scaled_wide_out(&poles, n, 0u);
+        rows[3ull * n + 1ull] = scaled_wide_out(&poles, n, 1u);
+        rows[3ull * n + 2ull] = scaled_wide_out(&poles, n, 2u);
         roots_valid = roots_valid && (scaled_wide_word(scaled_wide_out(&poles, n, 5u)) == 1);
     }
     sim_check(job, roots_valid, "each pole's root satisfies its definition");
     ok = ok && roots_valid;
     if (ok)
     {
+        ScaledTable values = scaled_table(rows, count, 3u, NULL, 1);
         logs.before_table = &k.logs;
         logs.before_limbs = k.logs.limbs;
-        (void)scaled_built(&logs, [&]() {
-            scaled_ln_build(&logs, precision, scaled_table(rows, {0u, 0u, 0u}), k.logs, k.log_terms, w);
-        });
+        (void)scaled_built(&logs, [&]() { scaled_ln_build(&logs, precision, values, k.logs, k.log_terms, w); });
+        scaled_table_released(&values);
         ok = scaled_run(job, &logs, count, error);
     }
+    scaled_released(rows);
     if (ok)
     {
-        (void)scaled_built(&lattice, [&]() {
-            scaled_rate_build(&lattice,
-                              scaled_table({{scaled_wide_out(&logs, nu - 1ull, 0u), scaled_wide_out(&logs, nu, 1u),
-                                             nu_wide, scaled_wide_small((long long)rate)}},
-                                           {0u, 0u, SCALED_NU_BITS + 1u, 64u}),
-                              precision);
-        });
+        const ScaledWide rate_values[4] = {scaled_wide_out(&logs, nu - 1ull, 0u), scaled_wide_out(&logs, nu, 1u),
+                                           nu_wide, scaled_wide_small((long long)rate)};
+        const unsigned int rate_floors[4] = {0u, 0u, SCALED_NU_BITS + 1u, 64u};
+        ScaledTable record = scaled_table(rate_values, 1ull, 4u, rate_floors, 1);
+        (void)scaled_built(&lattice, [&]() { scaled_rate_build(&lattice, record, precision); });
+        scaled_table_released(&record);
         ok = scaled_run(job, &lattice, 1ull, error);
     }
     const unsigned int b = ok ? (unsigned int)scaled_wide_word(scaled_wide_out(&lattice, 0ull, 0u)) : 0u;
@@ -4719,8 +4924,10 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
     ok = ok && (b >= 4u) && (b <= 40u);
     if (ok)
     {
-        (void)scaled_built(&setup,
-                           [&]() { scaled_setup_build(&setup, scaled_table({{nu_wide}}, {SCALED_NU_BITS + 1u}), b); });
+        const unsigned int nu_floor = SCALED_NU_BITS + 1u;
+        ScaledTable record = scaled_table(&nu_wide, 1ull, 1u, &nu_floor, 1);
+        (void)scaled_built(&setup, [&]() { scaled_setup_build(&setup, record, b); });
+        scaled_table_released(&record);
         ok = scaled_run(job, &setup, 1ull, error);
         const int rooted = ok && (scaled_wide_word(scaled_wide_out(&setup, 0ull, 5u)) == 1);
         sim_check(job, rooted, "the cell's roots satisfy their definitions");
@@ -4728,42 +4935,43 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
     }
     // ln(U_0 / 2^b) = (ln nu + 2 artanh(a / c)) / 2, a = U_0^2 - nu 4^b and c = U_0^2 + nu 4^b, a / c below 2^-(b - 1)
     const unsigned int small_terms = ok ? precision / (2u * (b - 1u)) + 2u : 2u;
-    std::vector<ScaledWide> small_row;
-    ok = ok && scaled_lambda_row(job, small_terms, &small_row, error);
+    // Lambda, the c_k and two zeros, one row, in a cell of the temporary tier that the call gives back
+    ScaledWide *const small_row = scaled_wides(small_terms + 3u, 1);
+    ok = ok && scaled_lambda_row(job, small_terms, small_row, error);
     if (ok)
     {
-        small_row.push_back(scaled_wide_small(0));
-        small_row.push_back(scaled_wide_small(0));
-        const ScaledTable constants = scaled_table({small_row}, std::vector<unsigned int>(small_row.size(), 0u));
+        small_row[small_terms + 1u] = scaled_wide_small(0);
+        small_row[small_terms + 2u] = scaled_wide_small(0);
+        ScaledTable constants = scaled_table(small_row, 1ull, small_terms + 3u, NULL, 1);
+        const ScaledWide value_values[3] = {scaled_wide_out(&setup, 0ull, 2u), scaled_wide_out(&setup, 0ull, 3u),
+                                            scaled_wide_small(0)};
+        ScaledTable value = scaled_table(value_values, 1ull, 3u, NULL, 1);
         small_log.before_table = &constants;
         small_log.before_limbs = constants.limbs;
-        (void)scaled_built(&small_log, [&]() {
-            scaled_ln_build(&small_log, precision,
-                            scaled_table({{scaled_wide_out(&setup, 0ull, 2u), scaled_wide_out(&setup, 0ull, 3u),
-                                           scaled_wide_small(0)}},
-                                         {0u, 0u, 0u}),
-                            constants, small_terms, w);
-        });
+        (void)scaled_built(&small_log,
+                           [&]() { scaled_ln_build(&small_log, precision, value, constants, small_terms, w); });
+        scaled_table_released(&value);
         ok = scaled_run(job, &small_log, 1ull, error);
+        small_log.before_table = NULL;
+        scaled_table_released(&constants);
     }
+    scaled_released(small_row);
     if (ok)
     {
-        (void)scaled_built(&half, [&]() {
-            scaled_half_build(
-                &half,
-                scaled_table({{scaled_wide_out(&logs, nu - 1ull, 0u), scaled_wide_out(&logs, nu - 1ull, 1u),
-                               scaled_wide_out(&small_log, 0ull, 0u), scaled_wide_out(&small_log, 0ull, 1u)}},
-                             {0u, 0u, 0u, 0u}),
-                precision, w);
-        });
+        const ScaledWide half_values[4] = {scaled_wide_out(&logs, nu - 1ull, 0u), scaled_wide_out(&logs, nu - 1ull, 1u),
+                                           scaled_wide_out(&small_log, 0ull, 0u),
+                                           scaled_wide_out(&small_log, 0ull, 1u)};
+        ScaledTable record = scaled_table(half_values, 1ull, 4u, NULL, 1);
+        (void)scaled_built(&half, [&]() { scaled_half_build(&half, record, precision, w); });
+        scaled_table_released(&record);
         ok = scaled_run(job, &half, 1ull, error);
     }
     cell->nu = nu;
     cell->em = em;
     cell->heads = em ? count - 1ull : nu;
     cell->n = scaled_wide_small((long long)count);
-    cell->bernoulli = &k.bernoulli;
-    cell->tail.clear();
+    cell->bernoulli = k.bernoulli;
+    cell->bernoulli_count = k.bernoulli_count;
     cell->b = b;
     cell->lanes = ok ? (unsigned long long)scaled_wide_word(scaled_wide_out(&setup, 0ull, 1u)) : 0ull;
     cell->first = ok ? scaled_wide_out(&setup, 0ull, 0u) : scaled_wide_small(0);
@@ -4780,46 +4988,84 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
     {
         terms += 1u;
     }
-    std::vector<ScaledWide> row;
-    ok = ok && scaled_lambda_row(job, terms, &row, error);
-    cell->c.clear();
-    cell->theta.clear();
-    cell->poles.clear();
+    // Lambda and the c_k of the cell's series. The c_k stay in the cell, and the cell's caller gives them back
+    ScaledWide *const row = scaled_wides(terms + 1u, 1);
+    ok = ok && scaled_lambda_row(job, terms, row, error);
+    cell->c = NULL;
+    cell->c_count = 0u;
+    cell->poles = NULL;
+    cell->pole_count = 0ull;
+    for (unsigned int at = 0u; at < SCALED_CELL_THETA; at += 1u)
+    {
+        cell->theta[at] = scaled_wide_small(0);
+    }
     if (ok)
     {
-        cell->c.assign(row.begin() + 1, row.end());
-        cell->theta.push_back(scaled_wide_out(&half, 0ull, 0u));
-        cell->theta.push_back(scaled_wide_out(&half, 0ull, 1u));
-        cell->theta.insert(cell->theta.end(), k.theta.begin(), k.theta.end());
-        cell->theta.push_back(row[0]);
-        cell->theta.push_back(scaled_wide_small(2ll * terms + 1ll));
+        cell->c = scaled_wides(terms, 1);
+        cell->c_count = terms;
+        for (unsigned int at = 0u; at < terms; at += 1u)
+        {
+            cell->c[at] = row[1u + at];
+        }
+        cell->theta[0] = scaled_wide_out(&half, 0ull, 0u);
+        cell->theta[1] = scaled_wide_out(&half, 0ull, 1u);
+        for (unsigned int at = 0u; at < SCALED_THETA_CONSTANTS; at += 1u)
+        {
+            cell->theta[2u + at] = k.theta[at];
+        }
+        cell->theta[9] = row[0];
+        cell->theta[10] = scaled_wide_small(2ll * terms + 1ll);
+        // four values a pole, ln n and n^(-1/2) each below and above, and the cell's caller gives them back
+        cell->pole_count = 4ull * cell->heads;
+        cell->poles = scaled_wides(cell->pole_count, 1);
         for (unsigned long long n = 0ull; n < cell->heads; n += 1ull)
         {
-            cell->poles.push_back(scaled_wide_out(&logs, n, 2u));
-            cell->poles.push_back(scaled_wide_out(&logs, n, 3u));
-            cell->poles.push_back(scaled_wide_out(&poles, n, 3u));
-            cell->poles.push_back(scaled_wide_out(&poles, n, 4u));
+            cell->poles[4ull * n] = scaled_wide_out(&logs, n, 2u);
+            cell->poles[4ull * n + 1ull] = scaled_wide_out(&logs, n, 3u);
+            cell->poles[4ull * n + 2ull] = scaled_wide_out(&poles, n, 3u);
+            cell->poles[4ull * n + 3ull] = scaled_wide_out(&poles, n, 4u);
         }
+    }
+    scaled_released(row);
+    for (unsigned int at = 0u; at < 4u; at += 1u)
+    {
+        cell->tail[at] = scaled_wide_small(0);
     }
     if (ok && em)
     {
         // theta's bound from t = 2 pi, and the tail's pole N
         cell->theta[8] = k.theta_brent;
-        cell->tail = {scaled_wide_out(&logs, count - 1ull, 2u), scaled_wide_out(&logs, count - 1ull, 3u),
-                      scaled_wide_out(&poles, count - 1ull, 3u), scaled_wide_out(&poles, count - 1ull, 4u)};
+        cell->tail[0] = scaled_wide_out(&logs, count - 1ull, 2u);
+        cell->tail[1] = scaled_wide_out(&logs, count - 1ull, 3u);
+        cell->tail[2] = scaled_wide_out(&poles, count - 1ull, 3u);
+        cell->tail[3] = scaled_wide_out(&poles, count - 1ull, 4u);
         cell->verdict = scaled_wide_out(&em_n, 0ull, 1u);
     }
     if (ok && !em)
     {
-        std::vector<ScaledWide> record(1u, k.pi_low);
-        record.insert(record.end(), k.spreads.begin(), k.spreads.end());
-        record.push_back(nu_wide);
-        std::vector<unsigned int> floors(record.size(), 0u);
-        floors.back() = SCALED_NU_BITS + 1u;
+        // pi below, then s_0 to s_K, then nu, one row, in a cell of the temporary tier that the table copies
+        const unsigned int columns = k.spread_count + 2u;
+        ScaledWide *const record_values = scaled_wides(columns, 1);
+        unsigned int *const floors = (unsigned int *)scaled_cleared(columns, sizeof(unsigned int), 1);
+        if (floors == NULL)
+        {
+            fprintf(stderr, "  exact_zeta_scaled: the pool cannot meet the widths of the verdict's record\n");
+            exit(1);
+        }
+        record_values[0] = k.pi_low;
+        for (unsigned int at = 0u; at < k.spread_count; at += 1u)
+        {
+            record_values[1u + at] = k.spreads[at];
+        }
+        record_values[columns - 1u] = nu_wide;
+        floors[columns - 1u] = SCALED_NU_BITS + 1u;
+        ScaledTable record = scaled_table(record_values, 1ull, columns, floors, 1);
+        scaled_released(record_values);
+        scaled_released(floors);
         (void)scaled_built(&bound, [&]() {
-            scaled_bound_build(&bound, scaled_table({record}, floors), (unsigned int)k.spreads.size() - 1u, w,
-                               precision, k.big_e, SCALED_GABCKE_D);
+            scaled_bound_build(&bound, record, k.spread_count - 1u, w, precision, k.big_e, SCALED_GABCKE_D);
         });
+        scaled_table_released(&record);
         ok = scaled_run(job, &bound, 1ull, error);
         const int bounded = ok && (scaled_wide_word(scaled_wide_out(&bound, 0ull, 3u)) == 1);
         sim_check(job, bounded, "the verdict's roots satisfy their definitions");
@@ -4830,9 +5076,13 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
     cell->big_e = k.big_e;
     cell->w = w;
     cell->precision = precision;
-    cell->gammas = &k.gammas;
+    cell->gammas = k.gammas;
+    cell->gamma_first = k.gamma_first;
+    cell->gamma_count = k.gamma_count;
+    cell->curves = k.curves;
     cell->cos_bound = &k.cos_bound;
-    cell->k_low = &k.k_low;
+    cell->k_low = k.k_low;
+    cell->k_count = k.k_count;
     cell->pi_low = &k.pi_low;
     cell->pi_high = &k.pi_high;
     cell->two_high = &k.two_high;
@@ -4845,6 +5095,17 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
     scaled_release(&half);
     scaled_release(&bound);
     return ok;
+}
+
+// the cell's c_k and poles given back, which scaled_inputs took
+static void scaled_inputs_released(ScaledCell *cell)
+{
+    scaled_released(cell->c);
+    scaled_released(cell->poles);
+    cell->c = NULL;
+    cell->c_count = 0u;
+    cell->poles = NULL;
+    cell->pole_count = 0ull;
 }
 
 // The pool of the program, in banks of MMgr. It holds the steps and fields of each stage's program on the persistent
@@ -4885,7 +5146,14 @@ int program_main(int count, char **arguments)
     const unsigned long long first_cell = given[0];
     const unsigned long long last_cell = given[1];
     const unsigned long long rate = given[4];
-    ScaledConstants constants;
+    // the constants, which every cell reads, in one cell of the persistent tier for the run, zeros at rest
+    ScaledConstants *const held = (ScaledConstants *)scaled_cleared(1ull, sizeof(ScaledConstants), 0);
+    if (held == NULL)
+    {
+        fprintf(stderr, "  exact_zeta_scaled: the pool cannot meet the constants of the run\n");
+        return 2;
+    }
+    ScaledConstants &constants = *held;
     constants.big_e = (unsigned int)given[2];
     constants.w = (unsigned int)given[3];
     constants.precision = ((constants.w > constants.big_e) ? constants.w : constants.big_e) + 64u;
@@ -4894,9 +5162,17 @@ int program_main(int count, char **arguments)
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     int ok = sim_job_submit(&job, "exact_zeta_scaled", count, arguments, SCALED_DECLARED);
     ok = ok && scaled_constants(&job, &constants, &error);
-    // a cell whose count does not close runs again at four times the rate, to round 3 at max
-    std::vector<ScaledCount> cells;
-    std::vector<unsigned int> rounds;
+    // a cell whose count does not close runs again at four times the rate, to round 3 at max. The count and the round
+    // of each cell, `cell_count` of them, are in cells of the persistent tier for the run
+    const unsigned long long cell_room = last_cell - first_cell + 1ull;
+    ScaledCount *const cells = (ScaledCount *)scaled_cleared(cell_room, sizeof(ScaledCount), 0);
+    unsigned int *const rounds = (unsigned int *)scaled_cleared(cell_room, sizeof(unsigned int), 0);
+    if ((cells == NULL) || (rounds == NULL))
+    {
+        fprintf(stderr, "  exact_zeta_scaled: the pool cannot meet the counts of %llu cells\n", cell_room);
+        return 2;
+    }
+    size_t cell_count = 0u;
     unsigned long long refined = 0ull;
     auto run_cell = [&](unsigned long long nu, unsigned int from) -> unsigned int {
         ScaledCount got = {};
@@ -4908,20 +5184,14 @@ int program_main(int count, char **arguments)
             ok = scaled_inputs(&job, constants, nu, rate << (2u * round), &cell, &error);
             got = ScaledCount();
             ok = ok && scaled_cell(&job, cell, &got, &error);
+            scaled_inputs_released(&cell);
             closes = got.checked && (got.em || (got.between == got.high - got.low));
             refined += (round > 0u) ? 1ull : 0ull;
         }
         const size_t at = (size_t)(nu - first_cell);
-        if (at < cells.size())
-        {
-            cells[at] = got;
-            rounds[at] = round - 1u;
-        }
-        else
-        {
-            cells.push_back(got);
-            rounds.push_back(round - 1u);
-        }
+        cells[at] = got;
+        rounds[at] = round - 1u;
+        cell_count = (at + 1u > cell_count) ? at + 1u : cell_count;
         return round - 1u;
     };
     for (unsigned long long nu = first_cell; ok && (nu <= last_cell); nu += 1ull)
@@ -4945,33 +5215,38 @@ int program_main(int count, char **arguments)
         return got.em ? (before + across_of(at) == ahead.low) : (across_of(at) == ahead.low - got.high);
     };
     // a seam whose changes fall short holds a close pair past the point e of one cell, or before the point a of the
-    // next. Both cells run again a round finer, to round 3 at max
+    // next. Both cells run again a round finer, to round 3 at max.
+    //
+    // the cells to run again, both cells of each short seam, in a cell of the temporary tier that each pass gives back
     for (unsigned int pass = 0u; ok && (pass < SCALED_ROUNDS); pass += 1u)
     {
-        std::vector<size_t> short_seams;
+        int *const again = (int *)scaled_cleared(cell_count, sizeof(int), 1);
+        if (again == NULL)
+        {
+            fprintf(stderr, "  exact_zeta_scaled: the pool cannot meet the marks of %zu cells\n", cell_count);
+            return 2;
+        }
+        size_t short_seams = 0u;
         long long before = 0;
-        for (size_t at = 0u; at + 1u < cells.size(); at += 1u)
+        for (size_t at = 0u; at + 1u < cell_count; at += 1u)
         {
             before += cells[at].between + ((cells[at].em && cells[at + 1u].em) ? across_of(at) : 0);
             if (!meets_at(at, before))
             {
-                short_seams.push_back(at);
+                again[at] = 1;
+                again[at + 1u] = 1;
+                short_seams += 1u;
             }
         }
-        std::vector<int> again(cells.size(), 0);
-        for (size_t k = 0u; k < short_seams.size(); k += 1u)
-        {
-            again[short_seams[k]] = 1;
-            again[short_seams[k] + 1u] = 1;
-        }
-        for (size_t at = 0u; ok && (at < cells.size()); at += 1u)
+        for (size_t at = 0u; ok && (at < cell_count); at += 1u)
         {
             if (again[at] && (rounds[at] < SCALED_ROUNDS))
             {
                 run_cell(first_cell + at, rounds[at] + 1u);
             }
         }
-        if (short_seams.empty())
+        scaled_released(again);
+        if (short_seams == 0u)
         {
             break;
         }
@@ -4982,12 +5257,12 @@ int program_main(int count, char **arguments)
     // N there. Then no zero lies below 2 pi, and each one to point a is on the line and simple
     int closed = ok;
     long long total = 0;
-    for (size_t at = 0u; ok && (at < cells.size()); at += 1u)
+    for (size_t at = 0u; ok && (at < cell_count); at += 1u)
     {
         const ScaledCount &got = cells[at];
         closed = closed && got.checked && (got.em || (got.between == got.high - got.low));
         total += got.between;
-        if (at + 1u < cells.size())
+        if (at + 1u < cell_count)
         {
             const ScaledCount &ahead = cells[at + 1u];
             const long long flip = (got.last_sign * ahead.first_sign < 0) ? 1 : 0;
@@ -5046,8 +5321,8 @@ int program_main(int count, char **arguments)
     }
     if (ok)
     {
-        const long long low = cells.front().em ? 0 : cells.front().low;
-        const long long high = cells.back().high;
+        const long long low = cells[0].em ? 0 : cells[0].low;
+        const long long high = cells[cell_count - 1u].high;
         closed = closed && (total == high - low);
         {
             VerbaLinea *const output_line = platform_line_out();
@@ -5061,7 +5336,7 @@ int program_main(int count, char **arguments)
             mmgr_line_decimal_signed(output_line, total);
             mmgr_line_put(output_line, " sign changes from N = ");
             mmgr_line_decimal_signed(output_line, low);
-            mmgr_line_put(output_line, cells.front().em ? " at t = 2 pi" : "");
+            mmgr_line_put(output_line, cells[0].em ? " at t = 2 pi" : "");
             mmgr_line_put(output_line, " to N = ");
             mmgr_line_decimal_signed(output_line, high);
             mmgr_line_put(output_line, ": ");
@@ -5072,5 +5347,11 @@ int program_main(int count, char **arguments)
         }
     }
     sim_check(&job, ok && closed, "every cell closes, every seam meets, and the sign changes number N's rise");
+    scaled_table_released(&constants.logs);
+    scaled_released(constants.k_low);
+    scaled_released(constants.gammas);
+    scaled_released(held);
+    scaled_released(cells);
+    scaled_released(rounds);
     return sim_close(&job, "exact_zeta_scaled");
 }
