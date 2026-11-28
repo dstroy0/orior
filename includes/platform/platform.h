@@ -244,8 +244,8 @@ int platform_file_read(const char *path, void *out, unsigned long long capacity,
 // `count` bytes of `data` written to the file at `path`, which the call makes or replaces: 1 where every byte went
 int platform_file_written(const char *path, const void *data, unsigned long long count);
 
-// `count` bytes of `data` written after the end of the file at `path`, which is there already: 1 where every byte went,
-// and 0 where no file is there or a write failed
+// `count` bytes of `data` written after the end of the file at `path`, which is there already. The return is 1 where
+// every byte went, and 0 where no file is there or a write failed
 int platform_file_appended(const char *path, const void *data, unsigned long long count);
 
 // the answers of platform_file_relocated: the file moved, the system refused, and the two paths on two volumes
@@ -253,9 +253,9 @@ int platform_file_appended(const char *path, const void *data, unsigned long lon
 #define PLATFORM_MOVE_DONE 1
 #define PLATFORM_MOVE_ACROSS 2
 
-// The file or the folder at `from` moved to `to`, in place of any file there. The answer is PLATFORM_MOVE_DONE, or
-// PLATFORM_MOVE_ACROSS where the two paths are on two volumes and the system moves no file between them, or
-// PLATFORM_MOVE_FAILED where the system refused for any other reason
+// The file or the folder at `from` moved to `to`, in place of any file there. The answer is PLATFORM_MOVE_DONE where
+// the move succeeds. It is PLATFORM_MOVE_ACROSS where the two paths are on two volumes and the system moves no file
+// between them. Where the system refused for any other reason, PLATFORM_MOVE_FAILED is the answer
 int platform_file_relocated(const char *from, const char *to);
 
 // ---- a file as a stream ----
@@ -440,9 +440,9 @@ long platform_program_run_in(const char *const *arguments, const char *folder, c
 
 // ---- a program started and held ----
 
-// the levels that a thread or a program runs at: the default level of work, the level of a run that the reader waits
-// on, the level of a guest that runs below the reader's work, and the level of work that runs only where nothing else
-// asks to
+// the levels that a thread or a program runs at. WORK is the default level. RUN is the level of a run that the reader
+// waits on. GUEST is the level of a guest that runs below the work of the reader. IDLE is the level of work that runs
+// only where nothing else asks to run
 #define PLATFORM_PRIORITY_WORK 0u
 #define PLATFORM_PRIORITY_RUN 1u
 #define PLATFORM_PRIORITY_GUEST 2u
@@ -455,10 +455,10 @@ typedef struct
     const char *value; // Its value, or NULL to take it out [BORROWS].
 } PlatformSetting;
 
-// A program started and held. `process` is the handle of its process that the system gives, and `id` its number. `out`,
-// `err` and `in` are its output, its errors and its input, each a pipe end of this process. `group` is the group that
-// it heads: a job on Windows, or the pseudo-console of a terminal. Each is 0 for none. `waited` is 1 once a wait read
-// its end. `held` holds a suspended program until platform_program_resumed: its first thread on Windows, and the pipe
+// A program started and held. `process` is the handle of its process that the system gives, and `id` its number.
+// `out`, `err` and `in` are its output, its errors and its input, each a pipe end of this process, or 0 for none.
+// `group` is the group that it heads, or 0: a job on Windows, or the pseudo-console of a terminal. `waited` is 1 once
+// a wait read its end. `held` holds a suspended program until platform_program_resumed: its first thread on Windows, and the pipe
 // that it waits on elsewhere
 typedef struct
 {
@@ -472,10 +472,13 @@ typedef struct
     unsigned long long held;
 } PlatformProgram;
 
-// Where the output and the errors of a program started go. Apart: each on a pipe of its own, `out` and `err`. Joined:
-// both on the one pipe `out`. Alone: the output on `out`, and the errors to nothing. None: both to nothing. Own: both
-// to the output and the errors of this process. File: both to the file at `output_path`, which the start makes or
-// replaces
+// Where the output and the errors of a program started go:
+// - APART: each on a pipe of its own, `out` and `err`.
+// - JOINED: both on the one pipe `out`.
+// - ALONE: the output on `out`, and the errors to nothing.
+// - NONE: both to nothing.
+// - OWN: both to the output and the errors of this process.
+// - FILE: both to the file at `output_path`, which the start makes or replaces.
 #define PLATFORM_OUTPUT_APART 0u
 #define PLATFORM_OUTPUT_JOINED 1u
 #define PLATFORM_OUTPUT_ALONE 2u
@@ -483,8 +486,8 @@ typedef struct
 #define PLATFORM_OUTPUT_OWN 4u
 #define PLATFORM_OUTPUT_FILE 5u
 
-// Why a start failed. The stage is PLATFORM_REFUSED_ENDS where a pipe, the null device or the output file could not be
-// made, and PLATFORM_REFUSED_START where the system refused the program. `code` is the code that the system gave: an
+// Why a start failed. The stage is PLATFORM_REFUSED_ENDS where the start could not make a pipe, the null device or the
+// output file. It is PLATFORM_REFUSED_START where the system refused the program. `code` is the code that the system gave: an
 // error of Windows, or an errno
 #define PLATFORM_REFUSED_ENDS 1u
 #define PLATFORM_REFUSED_START 2u
@@ -509,7 +512,7 @@ typedef struct
     int windowless;                      // No console of its own on Windows, as a detached program has none.
     int outlives;                        // It outlives this process: out of every job, or in a group of its own.
     int input_piped;                     // Its input a pipe that `in` feeds, else nothing.
-    int input_own;                       // Its input the input of this process, where it is not piped.
+    int input_own;                       // Its input the input of this process, where `input_piped` is 0.
     int suspended;                       // It waits before it runs until platform_program_resumed.
     int found_on_path;                   // Its program found along PATH first on Windows, as a shell finds it.
     int fault_silent;                    // A fault ends it with no dialog of Windows to wait on.
@@ -519,13 +522,14 @@ typedef struct
     PlatformRefusal *refusal;            // Why a start failed, as the system gave it, or NULL.
 } PlatformStart;
 
-// The program of `start` started, its output and its errors where `output` sends them. Where `detached`, it has no
-// console of its own and heads a job of its own on Windows, which ends every process in it as this process ends. On
-// the other systems it heads a process group of its own. Where `outlives`, it breaks away from the job of this process
-// on Windows and heads no job, and on the other systems it heads a process group of its own. A processor mask puts the
-// program on those processors, and on Windows in a job of its own that counts its processor time. Where `refusal` is
-// given and the start is not suspended, a program that the system cannot run is a failed start on every system. 1, or
-// 0 with why given
+// The program of `start` started, its output and its errors where `output` sends them. Where `detached`, it heads a job
+// of its own on Windows with no console, and a process group of its own elsewhere. The job ends every process in it as
+// this process ends. Where `outlives`, it leaves the job of this process on Windows and heads no job, and elsewhere it
+// heads a process group of its own. A processor mask puts the program on those processors, and on Windows in a job of
+// its own that counts its processor time. Where the caller gives `refusal` and `suspended` is 0, a program that the
+// system cannot run is a failed start on every system.
+//
+// The return is 1, or 0 with the reason given
 int platform_program_started(const PlatformStart *start, PlatformProgram *program);
 
 // a suspended program let run, and `held` let go
@@ -542,22 +546,23 @@ typedef struct
 // the wait of platform_program_ended_within that has no bound
 #define PLATFORM_WAIT_FOREVER (~0ULL)
 
-// 1 once `program` has ended, within `microseconds` at most, and 0 where it runs on after them. Its end stays for
-// platform_program_ending to read, and so a reading of its processor time still counts it
+// 1 when `program` ends within `microseconds` at most, and 0 where it runs on after them. Its end stays for
+// platform_program_ending to read. Thus a read of its processor time still counts it
 int platform_program_ended_within(const PlatformProgram *program, unsigned long long microseconds);
 
-// the end of `program` waited for and read into `ending`: 1, or 0 where it could not be waited for
+// the end of `program`, waited for and read into `ending`: 1, or 0 where the wait failed
 int platform_program_ending(PlatformProgram *program, PlatformEnding *ending);
 
 // every process of the job or the group of `program` ended at once, and the program with them
 void platform_program_group_killed(const PlatformProgram *program);
 
-// Every process of the tree of `program` asked to end, and each that is left after `grace` microseconds ended by force.
+// Every process of the tree of `program` asked to end, and each that remains after `grace` microseconds ended by force.
 // Windows has no request that a console program heeds, and there the job, or the process where it heads none, ends at
 // once with `code`. The count ended by force
 unsigned long long platform_program_tree_stopped(PlatformProgram *program, unsigned long long grace, unsigned int code);
 
-// The processor time that `program` and every process under it used, in microseconds: 1, or 0 where it cannot be read.
+// The processor time that `program` and every process under it used, in microseconds: 1, or 0 where the system cannot
+// give it.
 // Windows reads the job of the program, and Linux reads /proc
 int platform_program_processor_time(const PlatformProgram *program, unsigned long long *microseconds);
 
@@ -578,8 +583,9 @@ int platform_program_terminal_sized(const PlatformProgram *program, unsigned int
 void platform_program_terminal_hung_up(const PlatformProgram *program);
 void platform_program_terminal_closed(PlatformProgram *program);
 
-// The program of `start` run on the console of this process, its input, output and errors those of this process, and
-// waited for: its exit code in `code`, -1 where a signal ended it. 1, or 0 with why it did not start given
+// The program of `start` run on the console of this process, with the input, output and errors of this process. The
+// call waits for it and puts its exit code in `code`, -1 where a signal ended it. The return is 1, or 0 with the reason
+// that it did not start
 int platform_program_shared(const PlatformStart *start, long long *code);
 
 // `size` bytes of `bytes` written whole to the pipe end `handle`: 1, or 0 where the program stopped reading
@@ -592,19 +598,20 @@ void platform_program_input_closed(PlatformProgram *program);
 unsigned long long platform_program_read(unsigned long long handle, void *piece, unsigned long long capacity);
 
 // The bytes that wait in the pipe end `handle`, which a read takes with no wait. On macOS a pseudo-terminal counts no
-// waiting bytes, and the call answers a large count where a read returns at once
+// bytes that wait, and the call answers a large count where a read returns at once
 unsigned long long platform_program_waiting(unsigned long long handle);
 
 // the end of `program` waited for: its exit code, or -1 where a signal ended it
 long long platform_program_waited(PlatformProgram *program);
 
-// 1 with the exit code of `program` in `code` where it has ended, -1 where a signal ended it, and 0 where it runs on
+// 1 with the exit code of `program` in `code` where it ended, -1 where a signal ended it, and 0 where it runs on
 int platform_program_polled(PlatformProgram *program, long long *code);
 
 // every process of the group `group` ended, on a system with groups that a handle holds
 void platform_program_group_ended(unsigned long long group);
 
-// every handle of `program` let go and the record emptied. A program not yet waited for is waited for once it ends
+// every handle of `program` let go and the record emptied. The call waits for a program that it did not wait for yet,
+// once that program ends
 void platform_program_closed(PlatformProgram *program);
 
 // `program` ended at once
