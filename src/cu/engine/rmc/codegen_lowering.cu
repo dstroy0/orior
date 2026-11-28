@@ -43,8 +43,8 @@ void codegen_device_launched(DeviceArena *memory)
     memory->ok = (memory->ok != 0) && (cudaGetLastError() == cudaSuccess);
 }
 
-// the assembly printer arranged by the device from what a build retained of it, into `text_layout`, which the caller
-// gives back by key_schedule_record_release: 1 where it is arranged, else 0 and why
+// the assembly printer, arranged by the device from what a build kept of it, into `text_layout`. The caller gives it
+// back by key_schedule_record_release. The return is 1 where the device arranged it, else 0 and the reason
 int asm_printer_program_device(const AsmPrinterProgram *program, EngineRecordLayout *text_layout, VerbaLinea *error)
 {
     const AsmPrinterProgram &host_program = *program;
@@ -76,9 +76,9 @@ int asm_printer_program_device(const AsmPrinterProgram *program, EngineRecordLay
     return 1;
 }
 
-// the assembly printer arranged by the device from what asm_printer_ruleset_build retained of it, into `text_layout`,
-// which the caller gives back by key_schedule_record_release: 1 where it is arranged and is the host's word for word,
-// else 0 and why
+// the assembly printer, arranged by the device from what asm_printer_ruleset_build kept of it, into `text_layout`. The
+// caller gives it back by key_schedule_record_release. The return is 1 where the device arranged it and it matches
+// that of the host word for word, else 0 and the reason
 int asm_printer_program_placed(const AsmPrinterRuleset *text_rules, EngineRecordLayout *text_layout, VerbaLinea *error)
 {
     if (asm_printer_program_device(&text_rules->program, text_layout, error) == 0)
@@ -104,15 +104,22 @@ static void codegen_device_move(DeviceArena *memory, MachineInstr *to, const Mac
     }
 }
 
-// The lane's forms decided on the device, in `device_arena`, which the caller frees, from the step table at
-// `device_steps`, in device memory, and the rest of `layout`'s sizes, whose own step table is not read, each form's
-// construct taking its scratch from `scratch`, `scratch_count` words (ruleset_scratch): in the text's order at
-// `*text_items`, `*item_count` of them. Where `costs` is given, the body is split into states by it and `report`
-// informed how, as CodeGenerator::decided splits it. The forms are decided in three phases, each counted and then
-// written, the lane going on from one to the next in device memory: the steps' forms and the lane's own through its
-// close; the schedule; the body's opening and the end. Every count that sizes the device's memory comes back to the
-// host once: the step forms' total and the summary after the steps are counted, each phase's parts after they are
-// counted, and the schedule's forms
+// The forms of the lane, decided on the device in `device_arena`, which the caller frees. They come from the step table
+// at `device_steps`, in device memory, and the rest of the sizes of `layout`. The call does not read the own step table
+// of `layout`. The construct of each form takes its scratch from `scratch`, `scratch_count` words (ruleset_scratch).
+// The forms are in the order of the text at `*text_items`, `*item_count` of them. Where the caller gives `costs`, the
+// call splits the body into states by it, and tells `report` how, as CodeGenerator::decided splits it.
+//
+// The call decides the forms in three phases. It counts each, then writes it, and the lane goes on from one to the
+// next in device memory. The phases are these:
+//
+// - the forms of the steps, and the own forms of the lane through its close
+// - the schedule
+// - the opening of the body, and the end
+//
+// Every count that sizes the memory of the device comes back to the host once. They are the total of the step forms
+// and the summary after the call counts the steps. Then the parts of each phase after the call counts them, and the
+// forms of the schedule
 int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *layout,
                           const DeviceRecordStep *device_steps, const unsigned int *scratch,
                           unsigned long long scratch_count, unsigned int places, const ScheduleCosts *costs,
@@ -206,9 +213,9 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
         codegen_device_left<<<1u, 1u>>>(device_summary, loop_count, lane_out);
         codegen_device_launched(&memory);
     }
-    // phase one: the lane's own forms through its close counted, then arranged with the header's item and the steps'
-    // forms in the order they are decided, the note, the header, the lane's first form, the declarations, then the body
-    // as it runs, its opening, the steps and its close
+    // phase one. The call counts the own forms of the lane through its close. It then arranges them with the item of
+    // the header and the step forms, in the order that it decides them. That order is the note, the header, the first
+    // form of the lane and the declarations. Then comes the body as it runs: its opening, the steps and its close
     if (memory.ok != 0)
     {
         codegen_prologue_epilogue<<<1u, 1u>>>(program, errors, device_summary, lane_out, atoms, places, 0u, 5u, 0, 0u,
@@ -313,8 +320,8 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
                                               is_scheduled, states, device_parts, closing);
         codegen_device_launched(&memory);
     }
-    // the text's order: the note, the header, the lane's first form and the declarations, the body's opening, the body,
-    // split or as it runs, and the end
+    // the order of the text: the note, the header, the first form of the lane and the declarations. Then the opening of
+    // the body, the body, split or as it runs, and the end
     const unsigned long long head = parts.count[CODEGEN_NOTE] + parts.count[CODEGEN_HEADER] +
                                     parts.count[CODEGEN_LANE_OPEN] + parts.count[CODEGEN_DECLARATIONS];
     const unsigned long long body_written = (costs != NULL) ? scheduled_count : body_count;
