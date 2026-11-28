@@ -4,14 +4,14 @@
 //
 //     sass_lane_needs
 //
-// sass.krs leaves 33 of its forms empty, and filling all 33 is not the work: the work is the lane emitted to SASS.
-// So the record programs the host oracle runs are arranged and decided for the SASS generator, and every form the
-// core decides is counted. A form the lane never decides is not a blocker whatever the ruleset specifies about it, and
-// a form it decides that the ruleset leaves empty is between here and a lane. No device, no toolchain, and nothing
-// is written: decide() only reports which forms a lane is made of.
+// The file sass.krs leaves 33 of its forms empty, and to fill all 33 is not the work: the work is the lane emitted to
+// SASS. Thus the program arranges and decides the record programs of the host oracle for the SASS generator. It counts
+// every form that the core decides. A form that the lane never decides is not a blocker, whatever the ruleset tells
+// about it. A form that it decides and the ruleset leaves empty is between here and a lane. There is no device and no
+// toolchain, and the program writes nothing: the call decide() only reports which forms make a lane.
 #include "../../../../../../utils/test/src/cu/engine/analysis/cycle/record_programs.h"
 
-// the cubin writer is C and its headers carry no guard of their own: the linkage is named here
+// the cubin writer is C, and its headers carry no guard of their own. This file names the linkage here
 extern "C"
 {
 #include "../sass_assemble.h"
@@ -26,9 +26,9 @@ extern "C"
 #include "sass_target.h"
 #include "target.h"
 
-// ENGINE_IMAGE_BASE reads the ELF header the linker marks with __ehdr_start (engine_config_platform.h), and this
-// tool is linked as a PE, where there is none. Nothing here requests for the image base: it is named so the link
-// resolves
+// ENGINE_IMAGE_BASE reads the ELF header that the linker marks with __ehdr_start (engine_config_platform.h). The
+// build links this tool as a PE, where there is none. Nothing here asks for the image base. The file names it so that
+// the link resolves
 #if defined(__GNUC__) && !defined(__ELF__)
 extern "C" const char __ehdr_start = 0;
 #endif
@@ -42,15 +42,15 @@ static const struct
     unsigned int parameters;
 } s_forms[OPCODE_COUNT] = {OPCODES(LANE_FORM_TEXT)};
 
-// 1 where the ruleset gives the form at `place` as an error or leaves it open, and that blocks a lane: a nop writes
-// nothing and the lane goes on without it, and an err or an open form refuses (P10). A nop and an err read the same
-// from the outside, both writing an empty text, and the ruleset specifies which it means
+// 1 where the ruleset gives the form at `place` as an error or leaves it open, and that blocks a lane. A nop writes
+// nothing, and the lane goes on without it. An err or an open form refuses (P10). A nop and an err read the same from
+// the outside, as both write an empty text, and the ruleset tells which it means
 static int lane_form_errors(const Ruleset *rules, unsigned int place)
 {
     return (rules->form_given[place] == (unsigned char)RULESET_CORE_GIVEN_ERR) || (rules->form_given[place] == 0u);
 }
 
-// the part's machine file, read once, against which a written lane is assembled
+// the machine file of the part, read once, that the program assembles a written lane against
 static SassMachine s_machine;
 static int s_machine_read;
 
@@ -155,7 +155,8 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
     }
     const unsigned long long item_count = items.count;
     platform_array_ended(&items);
-    // and the lane as the generator writes it, to determine whether an empty form stops it or is passed over in silence
+    // and the lane as the generator writes it, to find whether an empty form stops it, or the generator passes over it
+    // in silence
     const TargetInfo target = {0ULL, 8, 6, 12, 0, ""};
     unsigned int lane_places = 0u;
     unsigned int live = 0u;
@@ -195,7 +196,7 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *que
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    // the first lane written out whole: what a form that writes nothing leaves behind can be read
+    // the first lane, written out whole, so that a reader can see what a form that writes nothing leaves behind
     static int dumped;
     if ((dumped == 0) && (lane != NULL))
     {
@@ -265,10 +266,10 @@ int program_main(int argc, char **argv)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    // A form the code generator leaves out is never requested from the ruleset, whatever the lane's items contain. SASS
-    // answers 0 to program_unit_written: its resident reaches it already built in the part's own compiler's cubin,
-    // and the lane is written into that. Counting such a form as blocking reads the lane's item list where the
-    // question is what program() puts to the ruleset
+    // The code generator never asks the ruleset for a form that it leaves out, whatever the items of the lane hold.
+    // SASS answers 0 to program_unit_written. Its resident reaches it already built, in the cubin of the own compiler
+    // of the part, and the program writes the lane into that. A count of such a form as a blocker reads the item list
+    // of the lane. The question is what program() puts to the ruleset
     const int writes_unit = sass_target().program_unit_written();
     {
         VerbaLinea *const output_line = platform_line_out();
