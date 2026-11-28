@@ -10,32 +10,39 @@
 //     orior_kdecode [--raw] [--from <key>] [--to <key>] [--count <rows>] --table <table> <run.qry>...
 //     orior_kdecode [--latest] --blob <name> <run.qry>...
 //
-// What orior_kdecode writes for a person to read it passes the run it is a member of as the record `orior_kdecode`
-// (KDECODE_DISPLAYED), its failures among it; a member of no run writes it to its standard output, and its failures to
-// its standard error.
+// orior_kdecode passes what it writes for a person to read to the run that it is a member of. It is the record
+// `orior_kdecode` (KDECODE_DISPLAYED), with its failures among it. A member of no run writes it to its standard output,
+// and its failures to its standard error.
 //
-// A blob of the run by its name is printed whole, every blob of that name in sequence or the latest alone with
-// --latest, each after a line of its sequence, its name and its size, a NUL byte displayed as a space: a console's
-// blob, a trace, a kernel listing or a file the run stores, as the run stores it.
+// The program prints a blob of the run by its name whole: every blob of that name in sequence, or the latest alone
+// with --latest. Each comes after a line of its sequence, its name and its size, with a NUL byte shown as a space. It
+// is a blob of a console, a trace, a kernel listing or a file that the run stores, as the run stores it.
 //
-// A reader that shows a file grows it a slice at a time, from the record it is at, a slice after it or before it
-// as it scrolls and on both sides as it is stationary. Where it moves fast it requests --raw, each record a line of its
-// code and its numbers in hex as the file stores them, a text by its number and a who by its code: the fewest
-// characters to draw, so that the max records fit what it shows. Where it is stationary it requests without, each
-// record decoded. The records are counted from 0, as the file stores them, the texts apart, and a raw line and a
-// decoded line are for the same record. Each file is read as the run stores it where a run's writer runs, and from the
-// disk where none does.
+// A reader that shows a file grows it one slice at a time, from the record that it is at. It adds a slice after it or
+// before it as it scrolls, and on both sides while it is stationary. Where it moves fast, it requests --raw.
 //
-// A table's rows are its blobs in the run (qry_member.h), a row's key its blob's sequence. --from and --to give the
-// least key and the max, and --count the max rows, each counted from the first row at or past --from. Raw, each row
-// is a line of its key and every word of it in hex, as the run stores them. Decoded, a table whose oracle is beside
-// qry_member.h (<table>.oracle.tsv) is a line of its key, the row's type and each column as the oracle gives it, the
-// who named last: a key with the name of its blob, a text by its number and its bytes, a code by its name in the
-// oracle or the oracle its gloss names, one of two words by the word, a hash in hex and any other number in decimal.
-// The table of texts is a line of its key and its text. Any other table is a k-file's (krep_tabled_by), each row
-// its change as krep_records.oracle.tsv names it, the file's key and the numbers the change gives, a put record's
-// code named through its format's oracle and the texts of the file a record names given after it. Exit 0 where every
-// file was read, 1 where one was not
+// Then each record is a line of its code and its numbers in hex as the file stores them. A text goes by its number, and
+// a who by its code. That is the fewest characters to draw, so that the most records fit what it shows. Where it is
+// stationary, it requests no --raw, with each record decoded.
+//
+// The program counts the records from 0, as the file stores them, with the texts apart. A raw line and a decoded line
+// are for the same record. The program reads each file as the run stores it where a writer of the run runs, and from
+// the disk where none does.
+//
+// The rows of a table are its blobs in the run (qry_member.h), and the key of a row is the sequence of its blob. The
+// options --from and --to give the least key and the max. The option --count gives the max rows, counted from the first
+// row at or past --from. Raw, each row is a line of its key and every word of it in hex, as the run stores them.
+//
+// Decoded, a table whose oracle is beside qry_member.h (<table>.oracle.tsv) is a line of its key and the type of the
+// row. Then each column as the oracle gives it, with the who named last. A key goes with the name of its blob, and a
+// text by its number and its bytes. A code goes by its name in the oracle, or in the oracle that its gloss names. One
+// of two words goes by the word, a hash in hex, and any other number in decimal.
+//
+// The table of texts is a line of its key and its text. Any other table belongs to a k-file (krep_tabled_by). Each row
+// is its change as krep_records.oracle.tsv names it, the key of the file, and the numbers that the change gives. The
+// oracle of its format names the code of a put record, and the texts of the file that a record names follow it.
+//
+// Exit 0 where the program read every file, and 1 where it did not read one
 #include "../../../../../../includes/parsers/who.h"
 #include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -116,7 +123,7 @@ int program_main(int count, char **words)
         qry_member_settled();
         return 2;
     }
-    // a k-file's records are counted by an unsigned int, and a record past what it counts is past every record
+    // an unsigned int counts the records of a k-file, and a record past what it counts is past every record
     const unsigned int record_from = (from > 0xffffffffULL) ? 0xffffffffu : (unsigned int)from;
     const unsigned int record_slice = (slice > 0xffffffffULL) ? 0u : (unsigned int)slice;
     int read = 1;
