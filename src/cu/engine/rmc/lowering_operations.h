@@ -7,11 +7,13 @@
 
 #include "lowering_primitives.h"
 
-// the product truncated to the step's limbs, the operands' signs multiplied as the interpreter takes it: unrolled up
-// to CODEGEN_PRODUCT_MAX limb products, and past it a loop of one row a pass. The loop retains the running sum's
-// limbs from the row's own limb up. Each pass adds the left's lowest limb left times the right at the same
-// registers, then shifts the sum and the left down a limb, the sum's lowest limb, which no later row reaches, going
-// to the top of the product's low limbs as they shift down too
+// the product truncated to the limbs of the step, with the signs of the operands multiplied as the interpreter takes
+// it. The step unrolls it up to CODEGEN_PRODUCT_MAX limb products. Past that, it is a loop of one row for each pass.
+// The loop keeps the limbs of the moving sum from the own limb of the row up.
+//
+// Each pass adds the lowest limb that remains of the left, times the right, at the same registers. It then shifts the
+// sum and the left down a limb. The lowest limb of the sum, which no later row reaches, goes to the top of the low
+// product limbs as they shift down too
 CODEGEN_CORE void codegen_product(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
@@ -73,8 +75,8 @@ CODEGEN_CORE void codegen_product(MachineFunction *lane, const IrStep *at)
                    codegen_sign(at->right_place));
 }
 
-// a table's row: the source's low index_bits select it, and its limbs are loaded from the program's tables at
-// table_offset + index . limbs, reckoned in 32 bits as the interpreter reckons it
+// a row of a table. The low index_bits of the source select it. The step loads its limbs from the tables of the
+// program at `table_offset + index . limbs`, counted in 32 bits as the interpreter counts it
 CODEGEN_CORE void codegen_table(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
@@ -104,9 +106,10 @@ CODEGEN_CORE void codegen_table(MachineFunction *lane, const IrStep *at)
     codegen_signed(lane, at, codegen_number(1u));
 }
 
-// the xor or the and of two registers' two's complements, each taken over the step's limbs by negating where its sign
-// is negative, then read back as a magnitude: negated again where the result's sign is negative, the xor's where
-// exactly one operand is and the and's where both are
+// the xor or the and of the two's complements of two registers. The step takes each over the limbs of the step, with a
+// negate where its sign is negative. It then reads the result back as a magnitude, with a negate again where the sign
+// of the result is negative. For the xor, that is where exactly one operand is negative, and for the and, where both
+// are
 CODEGEN_CORE void codegen_bitwise(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
@@ -139,9 +142,9 @@ CODEGEN_CORE void codegen_bitwise(MachineFunction *lane, const IrStep *at)
     codegen_signed_negative(lane, at, negative);
 }
 
-// the left register wrapped to wrap_bits of two's complement and read back signed, as cycle_record_wrap wraps it: a
-// wrap wider than the step's limbs passes the register through, and any other takes its two's complement over the
-// limbs, retains the wrap's bits, and negates within them where the top one is set
+// the left register wrapped to wrap_bits of two's complement and read back signed, as cycle_record_wrap wraps it. A
+// wrap wider than the limbs of the step passes the register through. Any other wrap takes its two's complement over the
+// limbs and keeps the bits of the wrap. It negates within them where the top bit is on
 CODEGEN_CORE void codegen_wrap(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
@@ -174,13 +177,14 @@ CODEGEN_CORE void codegen_wrap(MachineFunction *lane, const IrStep *at)
     codegen_signed_negative(lane, at, negative);
 }
 
-// a division by a divisor of one limb, cycle_record_divide's one-limb long division unrolled from the numerator's top
-// limb down: each limb's quotient word by div, and the carried remainder the limb less the quotient word times the
-// divisor, which is exact in 32 bits since it is below the divisor. The numerator's zero limbs above its used ones
-// divide to zero and carry nothing, as the interpreter's skipping them does. A zero divisor errors on the lane. An
-// exact quotient errors on a remainder and a quotient that outgrows its register, as the inverse's multiply back does.
-// The quotient's words are the step's own limbs where the step retains them, below `top_bits`, and its own temporaries
-// above
+// a division by a divisor of one limb: the one-limb long division of cycle_record_divide, unrolled from the top limb of
+// the numerator down. The quotient word of each limb comes by div. The carried remainder is the limb less the quotient
+// word times the divisor. That is exact in 32 bits, because it is below the divisor.
+//
+// The zero limbs of the numerator above its used limbs divide to zero and carry nothing, as the interpreter skips
+// them. A zero divisor gives an error on the lane. An exact quotient gives an error on a remainder, and on a quotient
+// that outgrows its register, as the multiply back of the inverse does. The words of the quotient are the own limbs of
+// the step where the step keeps them, below `top_bits`, and its own temporaries above
 CODEGEN_CORE void codegen_short_division(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
@@ -208,7 +212,7 @@ CODEGEN_CORE void codegen_short_division(MachineFunction *lane, const IrStep *at
             ((word - 1u) < top_bits) ? codegen_at(value, word - 1u) : codegen_at(above, (word - 1u) - top_bits);
         if (word == left_limbs)
         {
-            // nothing is carried into the top limb, and its word divides alone
+            // no carry goes into the top limb, and its word divides alone
             codegen_instr3(lane, OPCODE_WORD_DIV, quotient_word, numerator, divisor);
         }
         else
@@ -267,12 +271,14 @@ CODEGEN_CORE void codegen_copy_out(MachineFunction *lane, const MachineOperandRa
     }
 }
 
-// a division by a divisor of more than one limb, the magnitudes' long division a bit a pass as a divider in
-// hardware does it: the numerator's limbs, which become the quotient, and a rest one limb wider than the divisor are
-// shifted up a bit together; the divisor is taken from the rest where it does not borrow, and the quotient's new low
-// bit is 1 where it was. After 32 passes a numerator limb, the quotient and the rest are cycle_record_divide's. A zero
-// divisor errors on the lane. An exact quotient errors on a rest and a quotient that outgrows its register, as the
-// inverse's multiply back does
+// a division by a divisor of more than one limb: the long division of the magnitudes, one bit for each pass. A divider
+// in hardware does it so. The step shifts the limbs of the numerator, which become the quotient, up one bit together
+// with a rest one limb wider than the divisor. It takes the divisor from the rest where that does not borrow, and the
+// new low bit of the quotient is 1 where it took it.
+//
+// After 32 passes for each numerator limb, the quotient and the rest are those of cycle_record_divide. A zero divisor
+// gives an error on the lane. An exact quotient gives an error on a rest, and on a quotient that outgrows its
+// register, as the multiply back of the inverse does
 CODEGEN_CORE void codegen_long_division(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
@@ -326,10 +332,12 @@ CODEGEN_CORE void codegen_long_division(MachineFunction *lane, const IrStep *at)
     codegen_signed(lane, at, operand);
 }
 
-// the gcd of the magnitudes, Stein's binary gcd, which is Euclid's gcd since the gcd is one number. While neither is
-// zero, a pass halves each even one, takes the lesser from the greater and halves the difference where both are odd,
-// and counts the twos both shared; the one left not zero is then shifted up by the shared twos, a bit a pass. Each
-// pass is emitted whole and taken only where its predicate is true: a loop the lane leaves at once changes nothing
+// the gcd of the magnitudes: Stein's binary gcd, which is Euclid's gcd, because the gcd is one number. While neither is
+// zero, a pass halves each even one. Where both are odd, it takes the lesser from the greater and halves the
+// difference. It counts the twos that both shared.
+//
+// The step then shifts the one that stays not zero up by the shared twos, one bit for each pass. The step emits each
+// pass whole, and the pass runs only where its predicate is true. A loop that the lane leaves at once changes nothing
 CODEGEN_CORE void codegen_gcd(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
@@ -355,7 +363,7 @@ CODEGEN_CORE void codegen_gcd(MachineFunction *lane, const IrStep *at)
     codegen_instr2(lane, OPCODE_WORD_SET, twos, codegen_number(0u));
     const MachineOperand halving = codegen_loop_open(lane);
     const MachineOperand going = codegen_predicate(lane);
-    // the two tests are taken in the order a call's arguments were, the left's first
+    // the step takes the two tests in the order of the arguments of a call, that of the left first
     const MachineOperand left_going = codegen_nonzero(lane, left, width);
     const MachineOperand right_going = codegen_nonzero(lane, right, width);
     codegen_instr3(lane, OPCODE_PREDICATE_BITAND, going, left_going, right_going);
@@ -410,10 +418,10 @@ CODEGEN_CORE void codegen_gcd(MachineFunction *lane, const IrStep *at)
     codegen_signed(lane, at, codegen_number(1u));
 }
 
-// the golden ladder's band, as cycle_record_ladder counts it: a right that is not positive errors on the lane; else
-// each pass multiplies the right by the next Fibonacci number and counts the rung where the multiple stays at or below
-// the left's magnitude, until one does not or the rungs run out. The pass is taken only while the ladder climbs. The
-// band is the register's low limb, its sign the left's
+// the band of the golden ladder, as cycle_record_ladder counts it. A right that is not positive gives an error on the
+// lane. Else each pass multiplies the right by the next Fibonacci number. It counts the rung where the multiple stays
+// at or below the magnitude of the left, until one does not or the rungs run out. The pass runs only while the ladder
+// climbs. The band is the low limb of the register, and its sign is the sign of the left
 CODEGEN_CORE void codegen_ladder(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
