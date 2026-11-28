@@ -50,8 +50,8 @@ static int scheduler_same_operation(unsigned int one, unsigned int two)
            (schedule_text_order(left, right, (size_t)(length)) == 0);
 }
 
-// 1 where an instruction after `writer` and before `reader`, of the writer's operation, sets a write barrier that an
-// instruction after it and no later than the reader waits on
+// 1 where an instruction after `writer` and before `reader`, of the operation of the writer, sets a write barrier. An
+// instruction after it, and no later than the reader, waits on that barrier
 static int scheduler_behind_later(unsigned int writer, unsigned int reader)
 {
     for (unsigned int at = writer + 1u; at < reader; at += 1u)
@@ -67,9 +67,9 @@ static int scheduler_behind_later(unsigned int writer, unsigned int reader)
     return 0;
 }
 
-// where an instruction before `writer`, of the writer's operation and no farther back than SCHEDULER_REACH, sets a
-// write barrier that an instruction after the writer and no later than `reader` waits on: the cycles between the first
-// such wait and the reader, or UINT_MAX where there is none
+// where an instruction before `writer`, of the operation of the writer and no farther back than SCHEDULER_REACH, sets
+// a write barrier. An instruction after the writer, and no later than `reader`, waits on it. The return is the cycles
+// between the first such wait and the reader, or UINT_MAX where there is none
 static unsigned int scheduler_behind_earlier(unsigned int writer, unsigned int reader)
 {
     const unsigned int reach = (writer > SCHEDULER_REACH) ? (writer - SCHEDULER_REACH) : 0u;
@@ -97,10 +97,11 @@ static unsigned int scheduler_behind_earlier(unsigned int writer, unsigned int r
     return UINT_MAX;
 }
 
-// each instruction of a section that writes a register, followed to the first instruction that reads it: where the
-// writer sets a write barrier, whether a wait on it is between them; where it sets none, whether it is blocked
-// behind a later one's barrier, and otherwise the cycles between them. The look stops at an instruction that leaves the
-// straight line, one that writes the register again, and past SCHEDULER_REACH instructions
+// each instruction of a section that writes a register, followed to the first instruction that reads it. Where the
+// writer sets a write barrier, the call records whether a wait on it is between them. Where it sets none, the call
+// records whether the barrier of a later one blocks it, and else the cycles between them. The look stops at an
+// instruction that leaves the straight line, at one that writes the register again, and past SCHEDULER_REACH
+// instructions
 static void scheduler_follow(unsigned int count)
 {
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -195,7 +196,7 @@ int scheduler_cubin(unsigned long long size)
     return 1;
 }
 
-// the stalls an operation was given, as the least, the max and the one given usually
+// the stalls that an operation got, as the least, the max, and the one given most often
 static void scheduler_stalls(const SchedulerOperation *operation, char *text, size_t room)
 {
     unsigned int least = 16u;
