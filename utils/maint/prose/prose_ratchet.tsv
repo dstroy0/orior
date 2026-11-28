@@ -516,7 +516,6 @@ src/cu/transpiler/vendor_bin_layouts/container_pattern.c	3
 src/cu/transpiler/vendor_bin_layouts/container_write_internal.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing.h	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/class.c	1
-src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/constant.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/elf64_nvidia.tsv	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/mnemonic_nvidia.tsv	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/monolith.h	2
