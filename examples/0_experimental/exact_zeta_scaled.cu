@@ -125,9 +125,12 @@ typedef struct
     long long exponent;
 } ScaledReal;
 
+// the outputs of a stage that the device sums at max: the turing stage sums seven
+#define SCALED_SUMMED 8u
+
 // a program, the outputs it lists with their names and exponents, its shared record, and what the device made of it.
 // The outputs, `output_count` of them, are in cells of the persistent tier that the second build fills, as the steps
-typedef struct
+typedef struct ScaledStageTag
 {
     const char *name;
     ScaledProgram program;
@@ -136,26 +139,38 @@ typedef struct
     long long *exponents;
     unsigned int output_count;
     unsigned int output_room;
-    std::vector<unsigned int> shared;
+    // the shared record, `shared_count` words in a cell of the temporary tier that the stage owns
+    unsigned int *shared;
+    unsigned long long shared_count;
     EngineRecordKey key;
     EngineRecordLayout layout;
     CycleRecord *record;
-    std::vector<unsigned int> records;
+    // the records of the last sweep, `record_count` words in a cell of the temporary tier
+    unsigned int *records;
+    unsigned long long record_count;
     int same;
     // the shared record's width in limbs; `shared` contains one record or one a body, read through the index
     unsigned int shared_limbs;
-    // the records this one reads as member 1 and as member 2, and their widths in limbs, or none
-    const std::vector<unsigned int> *before;
+    // what this one reads as member 1 and as member 2, and their widths in limbs, or none. Each is the records of a
+    // stage or the words of a table, as the sweep finds them
+    const struct ScaledStageTag *before_stage;
+    const struct ScaledTableTag *before_table;
     unsigned int before_limbs;
-    const std::vector<unsigned int> *also;
+    const struct ScaledStageTag *also_stage;
+    const struct ScaledTableTag *also_table;
     unsigned int also_limbs;
-    // the body each lane reads of each member, a lane's members in a row, or empty where a lane reads its own
-    std::vector<unsigned int> index;
-    // the outputs summed over each run of `group` lanes on the device, and the sums, `sum_limbs` limbs each
+    // the body each lane reads of each member, a lane's members in a row, `index_count` words, or none where a lane
+    // reads its own
+    unsigned int *index;
+    unsigned long long index_count;
+    // the outputs summed over each run of `group` lanes on the device, `summed_count` of them, and the sums,
+    // `sum_limbs` limbs each, in cells of the temporary tier
     unsigned long long group;
-    std::vector<unsigned int> summed;
-    std::vector<unsigned int> sum_limbs;
-    std::vector<std::vector<unsigned int>> sums;
+    unsigned int summed[SCALED_SUMMED];
+    unsigned int summed_count;
+    unsigned int sum_limbs[SCALED_SUMMED];
+    unsigned int *sums[SCALED_SUMMED];
+    unsigned long long sum_count[SCALED_SUMMED];
     int sums_same;
 } ScaledStage;
 
@@ -1017,10 +1032,52 @@ static void scaled_put(unsigned int *record, unsigned int offset, unsigned int b
     }
 }
 
+// a cell of `count` words of the temporary tier, cleared, in place of the one at `cell`, and its count. A count of 0
+// takes no cell
+static void scaled_words_taken(unsigned int **cell, unsigned long long *held, unsigned long long count)
+{
+    scaled_released(*cell);
+    *cell = (count != 0ull) ? (unsigned int *)scaled_cleared(count, sizeof(unsigned int), 1) : NULL;
+    *held = (*cell != NULL) ? count : 0ull;
+}
+
+// the shared record a copy of `count` words
+static void scaled_shared_copied(ScaledStage *stage, const unsigned int *words, unsigned long long count)
+{
+    scaled_words_taken(&stage->shared, &stage->shared_count, count);
+    if (stage->shared_count != 0ull)
+    {
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = stage->shared, .src = words,
+                   .bytes = stage->shared_count * sizeof(unsigned int));
+    }
+}
+
+// the index a cell of `count` words, cleared, which the caller fills. A pool that cannot meet it stops the program
+static void scaled_index_taken(ScaledStage *stage, unsigned long long count)
+{
+    scaled_words_taken(&stage->index, &stage->index_count, count);
+    if (stage->index_count != count)
+    {
+        fprintf(stderr, "  exact_zeta_scaled: the pool cannot meet the index of %llu words of the %s stage\n", count,
+                stage->name);
+        exit(1);
+    }
+}
+
+// the outputs that the device sums over each run of `group` lanes, `count` of them, at max SCALED_SUMMED
+static void scaled_summed(ScaledStage *stage, const unsigned int *outputs, unsigned int count)
+{
+    stage->summed_count = (count < SCALED_SUMMED) ? count : SCALED_SUMMED;
+    for (unsigned int at = 0u; at < stage->summed_count; at += 1u)
+    {
+        stage->summed[at] = outputs[at];
+    }
+}
+
 // the record that holds the fields of a stage, sized to them
 static void scaled_open_shared(ScaledStage *stage)
 {
-    stage->shared.assign((stage->program.shared_bits + 31u) / 32u + 1u, 0u);
+    scaled_words_taken(&stage->shared, &stage->shared_count, (stage->program.shared_bits + 31u) / 32u + 1u);
 }
 
 // The limbs of a whole number off the device at max. The widest is a d of the curves at 1024 coefficients a curve,
@@ -1043,22 +1100,26 @@ static void scaled_pole_records(ScaledStage *stage, const ScaledWide &first, con
     const ScaledProgram *const program = &stage->program;
     const unsigned int limbs = stage->shared_limbs;
     const size_t poles = values.size() / 4u;
-    stage->shared.assign(poles * limbs, 0u);
+    scaled_words_taken(&stage->shared, &stage->shared_count, poles * limbs);
+    // a pool that cannot meet the records leaves the stage with none, and its sweep fails
+    if (stage->shared_count != (unsigned long long)poles * limbs)
+    {
+        return;
+    }
     for (size_t n = 0u; n < poles; n += 1u)
     {
-        std::vector<unsigned int> record(limbs + 1u, 0u);
-        scaled_put(record.data(), program->field_offset[SCALED_POLE_FIRST], program->field_bits[SCALED_POLE_FIRST],
+        // each field ends inside the `limbs` limbs of its record. The code writes it in place
+        unsigned int *const record = &stage->shared[n * limbs];
+        scaled_put(record, program->field_offset[SCALED_POLE_FIRST], program->field_bits[SCALED_POLE_FIRST],
                    first.limbs, first.count, first.sign);
         for (unsigned int k = 0u; k < 4u; k += 1u)
         {
             const ScaledWide *const value = &values[4u * n + k];
-            scaled_put(record.data(), program->field_offset[SCALED_POLE_LN_LOW + k],
+            scaled_put(record, program->field_offset[SCALED_POLE_LN_LOW + k],
                        program->field_bits[SCALED_POLE_LN_LOW + k], value->limbs, value->count, value->sign);
         }
-        scaled_put(record.data(), program->field_offset[SCALED_POLE_BOUND], program->field_bits[SCALED_POLE_BOUND],
+        scaled_put(record, program->field_offset[SCALED_POLE_BOUND], program->field_bits[SCALED_POLE_BOUND],
                    bound.limbs, bound.count, bound.sign);
-        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &stage->shared[n * limbs], .src = record.data(),
-                   .bytes = limbs * sizeof(unsigned int));
     }
 }
 
@@ -1075,19 +1136,53 @@ static void scaled_open_stage(ScaledStage *stage, const char *name)
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage->layout, .bytes = sizeof(stage->layout), .val = 0);
     stage->record = NULL;
     stage->same = 0;
+    stage->shared = NULL;
+    stage->shared_count = 0ull;
+    stage->records = NULL;
+    stage->record_count = 0ull;
     stage->shared_limbs = 0u;
-    stage->before = NULL;
+    stage->before_stage = NULL;
+    stage->before_table = NULL;
     stage->before_limbs = 0u;
-    stage->also = NULL;
+    stage->also_stage = NULL;
+    stage->also_table = NULL;
     stage->also_limbs = 0u;
+    stage->index = NULL;
+    stage->index_count = 0ull;
     stage->group = 0ull;
+    stage->summed_count = 0u;
+    for (unsigned int at = 0u; at < SCALED_SUMMED; at += 1u)
+    {
+        stage->sum_limbs[at] = 0u;
+        stage->sums[at] = NULL;
+        stage->sum_count[at] = 0ull;
+    }
     stage->sums_same = 1;
 }
 
 // the members a stage's program reads
 static unsigned int scaled_members(const ScaledStage *stage)
 {
-    return (stage->also != NULL) ? 3u : (stage->before != NULL) ? 2u : 1u;
+    const int also = (stage->also_stage != NULL) || (stage->also_table != NULL);
+    const int before = (stage->before_stage != NULL) || (stage->before_table != NULL);
+    return also ? 3u : before ? 2u : 1u;
+}
+
+// the words of a table, and their count
+static const unsigned int *scaled_table_words(const struct ScaledTableTag *table, unsigned long long *count);
+
+// the words that member 1 or 2 of a stage reads, and their count: the records of a stage, the words of a table, or
+// none
+static const unsigned int *scaled_member_words(const ScaledStage *from, const struct ScaledTableTag *table,
+                                               unsigned long long *count)
+{
+    *count = 0ull;
+    if (from != NULL)
+    {
+        *count = from->record_count;
+        return from->records;
+    }
+    return (table != NULL) ? scaled_table_words(table, count) : NULL;
 }
 
 // imprints and arranges a stage's program, and reports where the imprint stops when it does
@@ -1181,24 +1276,40 @@ static int scaled_position(SimResults *job, ScaledStage *stage, EngineError *err
     }
     ok = positioned;
     scaled_check(job, ok, "the scheduler positions the ", stage->name, " program out");
-    if (stage->shared.size() <= stage->shared_limbs + 1u)
+    // a shared record of one record, or of none, holds exactly one record of `shared_limbs` limbs, zeros past its words
+    if (stage->shared_count <= stage->shared_limbs + 1ull)
     {
-        stage->shared.resize(stage->shared_limbs);
+        if (stage->shared_count >= stage->shared_limbs)
+        {
+            stage->shared_count = stage->shared_limbs;
+        }
+        else
+        {
+            unsigned int *held = stage->shared;
+            const unsigned long long held_count = stage->shared_count;
+            stage->shared = NULL;
+            scaled_words_taken(&stage->shared, &stage->shared_count, stage->shared_limbs);
+            if ((stage->shared_count != 0ull) && (held_count != 0ull))
+            {
+                EMBED_CALL(memor.cpy, MemoriaCfg, .dst = stage->shared, .src = held,
+                           .bytes = held_count * sizeof(unsigned int));
+            }
+            scaled_released(held);
+        }
     }
     return ok;
 }
 
-// a device copy of `values`, or NULL where there are none or the copy fails
-static unsigned int *scaled_upload(const std::vector<unsigned int> *values, int *ok)
+// a device copy of `count` words, or NULL where there are none or the copy fails
+static unsigned int *scaled_upload(const unsigned int *values, unsigned long long count, int *ok)
 {
     unsigned int *out = NULL;
-    if ((values == NULL) || values->empty() || !*ok)
+    if ((values == NULL) || (count == 0ull) || !*ok)
     {
         return NULL;
     }
-    *ok =
-        (cudaMalloc((void **)&out, values->size() * sizeof(unsigned int)) == cudaSuccess) &&
-        (cudaMemcpy(out, values->data(), values->size() * sizeof(unsigned int), cudaMemcpyHostToDevice) == cudaSuccess);
+    *ok = (cudaMalloc((void **)&out, count * sizeof(unsigned int)) == cudaSuccess) &&
+          (cudaMemcpy(out, values, count * sizeof(unsigned int), cudaMemcpyHostToDevice) == cudaSuccess);
     return out;
 }
 
@@ -1221,17 +1332,23 @@ static int scaled_sweep(SimResults *job, ScaledStage *stage, unsigned long long 
     int ok = (stage->record != NULL) || (cycle_record_load(&stage->layout, &stage->record, error) != CYCLE_ERROR);
     scaled_check(job, ok, "the ", name, " program loads onto the device");
     const unsigned int out_limbs = stage->layout.out_limbs;
-    const std::vector<unsigned int> *const in[3] = {&stage->shared, stage->before, stage->also};
+    // each member's words and their count as the sweep finds them: member 0 the shared record, members 1 and 2 what
+    // the stage reads, where it reads them
+    const unsigned int *in[3] = {stage->shared, NULL, NULL};
+    unsigned long long in_count[3] = {stage->shared_count, 0ull, 0ull};
+    in[1] = scaled_member_words(stage->before_stage, stage->before_table, &in_count[1]);
+    in[2] = scaled_member_words(stage->also_stage, stage->also_table, &in_count[2]);
+    const int present[3] = {1, (stage->before_stage != NULL) || (stage->before_table != NULL),
+                            (stage->also_stage != NULL) || (stage->also_table != NULL)};
     const unsigned int in_limbs[3] = {stage->shared_limbs, stage->before_limbs, stage->also_limbs};
     unsigned int *device_in[3] = {NULL, NULL, NULL};
     unsigned long long bodies[3] = {0ull, 0ull, 0ull};
     for (unsigned int member = 0u; member < 3u; member += 1u)
     {
-        device_in[member] = scaled_upload(in[member], &ok);
-        bodies[member] =
-            ((in[member] != NULL) && (in_limbs[member] > 0u)) ? in[member]->size() / in_limbs[member] : 0ull;
+        device_in[member] = scaled_upload(in[member], in_count[member], &ok);
+        bodies[member] = (present[member] && (in_limbs[member] > 0u)) ? in_count[member] / in_limbs[member] : 0ull;
     }
-    unsigned int *const device_index = scaled_upload(&stage->index, &ok);
+    unsigned int *const device_index = scaled_upload(stage->index, stage->index_count, &ok);
     unsigned int *device_out = NULL;
     ok = ok && (cudaMalloc((void **)&device_out, lanes * out_limbs * sizeof(unsigned int)) == cudaSuccess);
     const CycleRecordRunRequest run = {stage->record,
@@ -1254,55 +1371,54 @@ static int scaled_sweep(SimResults *job, ScaledStage *stage, unsigned long long 
     }
     ok = ok && ran;
     scaled_check(job, ok, "every lane runs the ", name, " program on the device");
-    stage->records.assign((size_t)(ok ? lanes * out_limbs : 0ull), 0u);
-    ok = ok && (cudaMemcpy(stage->records.data(), device_out, stage->records.size() * sizeof(unsigned int),
-                           cudaMemcpyDeviceToHost) == cudaSuccess);
-    std::vector<unsigned int> host_out((size_t)(checked * out_limbs));
-    const CycleRecordHostRequest host = {
-        &stage->layout,
-        {in[0]->data(), (in[1] != NULL) ? in[1]->data() : NULL, (in[2] != NULL) ? in[2]->data() : NULL},
-        {bodies[0], bodies[1], bodies[2]},
-        stage->index.empty() ? NULL : stage->index.data(),
-        checked,
-        host_out.data(),
-        error,
-        0ull};
-    stage->same = ok && (cycle_record_run_host(&host) == (long)checked) &&
-                  (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out.data(), .other = stage->records.data(),
-                              .bytes = host_out.size() * sizeof(unsigned int)) == 0);
+    const unsigned long long record_count = ok ? lanes * out_limbs : 0ull;
+    scaled_words_taken(&stage->records, &stage->record_count, record_count);
+    ok = ok && (stage->record_count == record_count) &&
+         (cudaMemcpy(stage->records, device_out, stage->record_count * sizeof(unsigned int), cudaMemcpyDeviceToHost) ==
+          cudaSuccess);
+    // the host's run of the first `checked` lanes, in a cell of the temporary tier that the sweep gives back
+    const unsigned long long host_count = checked * out_limbs;
+    unsigned int *const host_out = (unsigned int *)scaled_cleared(host_count, sizeof(unsigned int), 1);
+    const CycleRecordHostRequest host = {&stage->layout,
+                                         {in[0], in[1], in[2]},
+                                         {bodies[0], bodies[1], bodies[2]},
+                                         stage->index,
+                                         checked,
+                                         host_out,
+                                         error,
+                                         0ull};
+    stage->same = ok && (host_out != NULL) && (cycle_record_run_host(&host) == (long)checked) &&
+                  (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = stage->records,
+                              .bytes = host_count * sizeof(unsigned int)) == 0);
+    scaled_released(host_out);
     scaled_check(job, stage->same, "the host's ", name, " records equal the device's word for word");
     // each summed output over each run of `group` lanes, on the device, and the same sums over the host's copy
-    stage->sums.assign(stage->summed.size(), std::vector<unsigned int>());
-    stage->sum_limbs.assign(stage->summed.size(), 0u);
-    for (size_t at = 0u; ok && (at < stage->summed.size()); at += 1u)
+    for (unsigned int at = 0u; at < SCALED_SUMMED; at += 1u)
+    {
+        scaled_words_taken(&stage->sums[at], &stage->sum_count[at], 0ull);
+        stage->sum_limbs[at] = 0u;
+    }
+    for (unsigned int at = 0u; ok && (at < stage->summed_count); at += 1u)
     {
         const DeviceRecordStep *const place = &stage->layout.step_table[stage->outputs[stage->summed[at]]];
         stage->sum_limbs[at] = scaled_sum_limbs(stage, stage->summed[at]);
-        const size_t size = (size_t)((lanes / stage->group) * stage->sum_limbs[at]);
-        stage->sums[at].assign(size, 0u);
-        std::vector<unsigned int> host_sums(size, 0u);
-        const CycleRecordSumRequest device_sum = {device_out,
-                                                  lanes,
-                                                  stage->group,
-                                                  out_limbs,
-                                                  place->out_offset,
-                                                  place->out_bits,
-                                                  stage->sum_limbs[at],
-                                                  stage->sums[at].data(),
-                                                  error};
-        const CycleRecordSumRequest host_sum = {stage->records.data(),
-                                                lanes,
-                                                stage->group,
-                                                out_limbs,
-                                                place->out_offset,
-                                                place->out_bits,
-                                                stage->sum_limbs[at],
-                                                host_sums.data(),
-                                                error};
-        ok = (cycle_record_sum(&device_sum) != CYCLE_ERROR) && (cycle_record_sum_host(&host_sum) != CYCLE_ERROR);
-        stage->sums_same = stage->sums_same && ok && (host_sums == stage->sums[at]);
+        const unsigned long long size = (lanes / stage->group) * stage->sum_limbs[at];
+        scaled_words_taken(&stage->sums[at], &stage->sum_count[at], size);
+        unsigned int *const host_sums = (unsigned int *)scaled_cleared(size, sizeof(unsigned int), 1);
+        const CycleRecordSumRequest device_sum = {
+            device_out,           lanes,           stage->group, out_limbs, place->out_offset, place->out_bits,
+            stage->sum_limbs[at], stage->sums[at], error};
+        const CycleRecordSumRequest host_sum = {
+            stage->records,       lanes,     stage->group, out_limbs, place->out_offset, place->out_bits,
+            stage->sum_limbs[at], host_sums, error};
+        ok = (stage->sum_count[at] == size) && (host_sums != NULL) && (cycle_record_sum(&device_sum) != CYCLE_ERROR) &&
+             (cycle_record_sum_host(&host_sum) != CYCLE_ERROR);
+        stage->sums_same = stage->sums_same && ok &&
+                           (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_sums, .other = stage->sums[at],
+                                       .bytes = size * sizeof(unsigned int)) == 0);
+        scaled_released(host_sums);
     }
-    if (!stage->summed.empty())
+    if (stage->summed_count != 0u)
     {
         scaled_check(job, ok && stage->sums_same, "the device's sums of the ", name,
                      " records over each point equal the host's");
@@ -1325,6 +1441,13 @@ static void scaled_release(ScaledStage *stage)
     key_schedule_record_release(&stage->layout);
     keymath_record_release(&stage->key);
     scaled_program_released(stage);
+    scaled_words_taken(&stage->shared, &stage->shared_count, 0ull);
+    scaled_words_taken(&stage->records, &stage->record_count, 0ull);
+    scaled_words_taken(&stage->index, &stage->index_count, 0ull);
+    for (unsigned int at = 0u; at < SCALED_SUMMED; at += 1u)
+    {
+        scaled_words_taken(&stage->sums[at], &stage->sum_count[at], 0ull);
+    }
 }
 
 // THE CONSTANTS, ON THE DEVICE
@@ -1425,7 +1548,7 @@ static long long scaled_wide_word(const ScaledWide &value)
 }
 
 // rows of values positioned as records, one row a body, each column as wide as its widest value
-typedef struct
+typedef struct ScaledTableTag
 {
     std::vector<unsigned int> words;
     unsigned int limbs;
@@ -1479,7 +1602,13 @@ static unsigned int scaled_table_field(ScaledProgram *program, const ScaledTable
 static void scaled_shared_table(ScaledStage *stage, const ScaledTable &table)
 {
     stage->program.shared_bits = 32u * table.limbs;
-    stage->shared = table.words;
+    scaled_shared_copied(stage, table.words.data(), table.words.size());
+}
+
+static const unsigned int *scaled_table_words(const struct ScaledTableTag *table, unsigned long long *count)
+{
+    *count = table->words.size();
+    return table->words.data();
 }
 
 // a stage with no member 0 of its own: one unread bit
@@ -1654,7 +1783,10 @@ static void scaled_machin_build(ScaledStage *stage, unsigned long long k, unsign
                   -(long long)precision);
     scaled_output(stage, "high", high, -(long long)precision);
     stage->group = count + 1u;
-    stage->summed = {0u, 1u};
+    {
+        const unsigned int summed[2] = {0u, 1u};
+        scaled_summed(stage, summed, 2u);
+    }
 }
 
 // pi = 16 arctan(1/5) - 4 arctan(1/239) below and above at 2^-P from the four sums, member 0's one record, and the 64
@@ -2103,7 +2235,10 @@ static void scaled_euler_build(ScaledStage *stage, const ScaledStage *binomials,
                                           scaled_read_before(program, e), 0u),
                               0u),
                   0);
-    stage->summed = {0u};
+    {
+        const unsigned int summed[1] = {0u};
+        scaled_summed(stage, summed, 1u);
+    }
 }
 
 // one term of lambda's recurrence, lane k: 2^(4k + 1) |E_(2k + 2)| lambda_(l - k), the table of E as member 0 and that
@@ -2126,7 +2261,10 @@ static void scaled_lambda_term_build(ScaledStage *stage, unsigned int value_bits
                                 scaled_step(program, ENGINE_RECORD_ABSOLUTE, scaled_read(program, e), 0u, 0u), 0u),
                     scaled_read_before(program, lambda), 0u),
         0);
-    stage->summed = {0u};
+    {
+        const unsigned int summed[1] = {0u};
+        scaled_summed(stage, summed, 1u);
+    }
 }
 
 // an exact quotient of the two values of member 0's one record
@@ -2393,7 +2531,10 @@ static void scaled_phi_build(ScaledStage *stage, const ScaledTable &euler, const
     scaled_output(stage, "low", scaled_step(program, ENGINE_RECORD_PRODUCT, valid, low, 0u), 0);
     scaled_output(stage, "high", scaled_step(program, ENGINE_RECORD_PRODUCT, valid, high, 0u), 0);
     stage->group = row;
-    stage->summed = {0u, 1u};
+    {
+        const unsigned int summed[2] = {0u, 1u};
+        scaled_summed(stage, summed, 2u);
+    }
 }
 
 // gamma_(n,i) below and above at 2^-E, lane `(n count + i) 8 + k`:
@@ -2464,7 +2605,10 @@ static void scaled_gamma_build(ScaledStage *stage, const ScaledTable &d, const S
                   scaled_step(program, ENGINE_RECORD_PRODUCT, valid, scaled_up(program, high, divisor), 0u),
                   -(long long)big_e);
     stage->group = 8u;
-    stage->summed = {0u, 1u};
+    {
+        const unsigned int summed[2] = {0u, 1u};
+        scaled_summed(stage, summed, 2u);
+    }
 }
 
 // the spread of each gamma, above less below, member 0's table at the lane, summed over each curve
@@ -2478,7 +2622,10 @@ static void scaled_spread_build(ScaledStage *stage, const ScaledTable &gammas, u
         stage, "spread",
         scaled_step(program, ENGINE_RECORD_DIFFERENCE, scaled_read(program, high), scaled_read(program, low), 0u), 0);
     stage->group = count;
-    stage->summed = {0u};
+    {
+        const unsigned int summed[1] = {0u};
+        scaled_summed(stage, summed, 1u);
+    }
 }
 
 // the bound B of the verdict at 2^-W for cell nu:
@@ -3205,7 +3352,7 @@ typedef struct
 
 static void scaled_put_wide(ScaledStage *stage, unsigned int field, const ScaledWide &value)
 {
-    scaled_put(stage->shared.data(), stage->program.field_offset[field], stage->program.field_bits[field], value.limbs,
+    scaled_put(stage->shared, stage->program.field_offset[field], stage->program.field_bits[field], value.limbs,
                value.count, value.sign);
 }
 
@@ -3278,8 +3425,8 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
                                 gamma_bits);
         });
         scaled_open_shared(&curve_stage);
-        scaled_put(curve_stage.shared.data(), curve_stage.program.field_offset[0], curve_stage.program.field_bits[0],
-                   one_limb, 1u, ((nu - 1ull) % 2ull) ? -1 : 1);
+        scaled_put(curve_stage.shared, curve_stage.program.field_offset[0], curve_stage.program.field_bits[0], one_limb,
+                   1u, ((nu - 1ull) % 2ull) ? -1 : 1);
         scaled_put_wide(&curve_stage, 1u, cell.first);
         unsigned int field = 2u;
         for (unsigned int n = 0u; n < curves; n += 1u)
@@ -3339,7 +3486,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     {
         (void)scaled_built(&theta_stage,
                            [&]() { scaled_theta_build(&theta_stage, b, w, y, first_bits, theta_bits, &log_stage); });
-        theta_stage.before = &log_stage.records;
+        theta_stage.before_stage = &log_stage;
         theta_stage.before_limbs = log_stage.layout.out_limbs;
         scaled_open_shared(&theta_stage);
         scaled_put_wide(&theta_stage, 0u, cell.first);
@@ -3360,9 +3507,9 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         (void)scaled_built(&tail_stage, [&]() {
             scaled_em_tail_build(&tail_stage, b, w, widths, k_widths, &em_c_stage, &theta_stage);
         });
-        tail_stage.before = &em_c_stage.records;
+        tail_stage.before_stage = &em_c_stage;
         tail_stage.before_limbs = em_c_stage.layout.out_limbs;
-        tail_stage.also = &theta_stage.records;
+        tail_stage.also_stage = &theta_stage;
         tail_stage.also_limbs = theta_stage.layout.out_limbs;
         scaled_open_shared(&tail_stage);
         scaled_put_wide(&tail_stage, 0u, cell.first);
@@ -3377,7 +3524,10 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         }
         ok = scaled_position(job, &tail_stage, error);
         tail_stage.group = lanes;
-        tail_stage.summed = {2u};
+        {
+            const unsigned int summed[1] = {2u};
+            scaled_summed(&tail_stage, summed, 1u);
+        }
     }
 
     // the pairs, a run of points at a time: lane `point heads + n - 1`, over the points of the run and each n to heads.
@@ -3392,9 +3542,9 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         (void)scaled_built(&phase_stage, [&]() {
             scaled_phase_build(&phase_stage, b, w, heads, lane_bits, pole_widths, &theta_stage, em);
         });
-        phase_stage.before = &theta_stage.records;
+        phase_stage.before_stage = &theta_stage;
         phase_stage.before_limbs = theta_stage.layout.out_limbs;
-        phase_stage.also = &theta_stage.records;
+        phase_stage.also_stage = &theta_stage;
         phase_stage.also_limbs = theta_stage.layout.out_limbs;
         ok = scaled_position(job, &phase_stage, error);
     }
@@ -3403,7 +3553,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     if (ok)
     {
         (void)scaled_built(&cos_stage, [&]() { scaled_cos_build(&cos_stage, k_widths, w, &phase_stage); });
-        cos_stage.before = &phase_stage.records;
+        cos_stage.before_stage = &phase_stage;
         cos_stage.before_limbs = phase_stage.layout.out_limbs;
         scaled_open_shared(&cos_stage);
         for (unsigned int j = 0u; j < cos_terms; j += 1u)
@@ -3423,7 +3573,7 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
             continue;
         }
         (void)scaled_built(stage, [&]() { scaled_term_build(stage, side, w, pole_widths, &cos_stage); });
-        stage->before = &cos_stage.records;
+        stage->before_stage = &cos_stage;
         stage->before_limbs = cos_stage.layout.out_limbs;
         ok = scaled_position(job, stage, error);
         if (ok)
@@ -3431,7 +3581,10 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
             scaled_pole_records(stage, cell.first, *cell.cos_bound, cell.poles);
         }
         stage->group = heads;
-        stage->summed = {0u};
+        {
+            const unsigned int summed[1] = {0u};
+            scaled_summed(stage, summed, 1u);
+        }
     }
 
     // the verdict at every point, its sums record positioned by the host from the term sums, each sign-extended to the
@@ -3469,13 +3622,15 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
             scaled_tolerance_build(stage, side, verdict_bits, remainder, least_to - common_shift,
                                    bound_to - common_shift);
         });
-        stage->before = &remainder->records;
+        stage->before_stage = remainder;
         stage->before_limbs = remainder->layout.out_limbs;
         scaled_open_shared(stage);
         scaled_put_wide(stage, 0u, cell.verdict);
         ok = scaled_position(job, stage, error);
     }
-    std::vector<unsigned int> sum_records;
+    // the verdict's sums record, a cell of the temporary tier that the cell gives back after the verdict copies it
+    unsigned int *sum_records = NULL;
+    unsigned long long sum_record_count = 0ull;
     ScaledStage verdict_stages[2];
     const char *const verdict_names[2] = {"above", "verdict"};
     for (unsigned int side = 0u; side < 2u; side += 1u)
@@ -3490,9 +3645,9 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
             scaled_verdict_build(stage, side, sum_bits, 32u * sum_limbs, sum_exponent - lowest, common_shift,
                                  &tolerance_stages[side], &verdict_stages[0]);
         });
-        stage->before = &tolerance_stages[side].records;
+        stage->before_stage = &tolerance_stages[side];
         stage->before_limbs = tolerance_stages[side].layout.out_limbs;
-        stage->also = (side == 1u) ? &verdict_stages[0].records : NULL;
+        stage->also_stage = (side == 1u) ? &verdict_stages[0] : NULL;
         stage->also_limbs = (side == 1u) ? verdict_stages[0].layout.out_limbs : 0u;
         ok = scaled_position(job, stage, error);
     }
@@ -3504,20 +3659,23 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     if (ok)
     {
         (void)scaled_built(&change_stage, [&]() { scaled_change_build(&change_stage, &verdict_stage); });
-        change_stage.before = &verdict_stage.records;
+        change_stage.before_stage = &verdict_stage;
         change_stage.before_limbs = verdict_stage.layout.out_limbs;
-        change_stage.also = &verdict_stage.records;
+        change_stage.also_stage = &verdict_stage;
         change_stage.also_limbs = verdict_stage.layout.out_limbs;
         scaled_open_shared(&change_stage);
         ok = scaled_position(job, &change_stage, error);
-        change_stage.index.assign((size_t)(3ull * steps_between), 0u);
+        scaled_index_taken(&change_stage, 3ull * steps_between);
         for (unsigned long long lane = 0ull; lane < steps_between; lane += 1ull)
         {
             change_stage.index[(size_t)(3ull * lane + 1ull)] = (unsigned int)lane;
             change_stage.index[(size_t)(3ull * lane + 2ull)] = (unsigned int)(lane + 1ull);
         }
         change_stage.group = steps_between;
-        change_stage.summed = {0u};
+        {
+            const unsigned int summed[1] = {0u};
+            scaled_summed(&change_stage, summed, 1u);
+        }
     }
     // the clock at every point, and Turing's sums over the windows below point a = P / 4 and past point e = 3P / 4
     ScaledStage clock_stage;
@@ -3525,9 +3683,9 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     if (ok && !em)
     {
         (void)scaled_built(&clock_stage, [&]() { scaled_clock_build(&clock_stage, b, w, first_bits, &theta_stage); });
-        clock_stage.before = &theta_stage.records;
+        clock_stage.before_stage = &theta_stage;
         clock_stage.before_limbs = theta_stage.layout.out_limbs;
-        clock_stage.also = &theta_stage.records;
+        clock_stage.also_stage = &theta_stage;
         clock_stage.also_limbs = theta_stage.layout.out_limbs;
         scaled_open_shared(&clock_stage);
         scaled_put_wide(&clock_stage, 0u, cell.first);
@@ -3543,18 +3701,23 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
             scaled_turing_build(&turing_stage, scaled_bits_of(steps_between) + 1u, window_low, window_high,
                                 &change_stage, &clock_stage);
         });
-        turing_stage.before = &clock_stage.records;
+        turing_stage.before_stage = &clock_stage;
         turing_stage.before_limbs = clock_stage.layout.out_limbs;
-        turing_stage.also = &clock_stage.records;
+        turing_stage.also_stage = &clock_stage;
         turing_stage.also_limbs = clock_stage.layout.out_limbs;
         ok = scaled_position(job, &turing_stage, error);
-        turing_stage.index = change_stage.index;
+        scaled_index_taken(&turing_stage, change_stage.index_count);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = turing_stage.index, .src = change_stage.index,
+                   .bytes = change_stage.index_count * sizeof(unsigned int));
         for (unsigned long long lane = 0ull; lane < steps_between; lane += 1ull)
         {
             turing_stage.index[(size_t)(3ull * lane)] = (unsigned int)lane;
         }
         turing_stage.group = steps_between;
-        turing_stage.summed = {0u, 1u, 2u, 3u, 4u, 5u, 6u};
+        {
+            const unsigned int summed[7] = {0u, 1u, 2u, 3u, 4u, 5u, 6u};
+            scaled_summed(&turing_stage, summed, 7u);
+        }
     }
     ok = ok && scaled_sweep(job, em ? &em_c_stage : &curve_stage, lanes, checked, error);
     ok = ok && scaled_sweep(job, &log_stage, lanes, checked, error);
@@ -3567,7 +3730,8 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
     int pairs_same = ok;
     if (ok)
     {
-        sum_records.assign((size_t)(lanes * 2ull * sum_limbs), 0u);
+        scaled_words_taken(&sum_records, &sum_record_count, lanes * 2ull * sum_limbs);
+        ok = sum_record_count == lanes * 2ull * sum_limbs;
     }
     for (unsigned long long start = 0ull; ok && (start < lanes); start += run_points)
     {
@@ -3576,10 +3740,10 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
         const unsigned long long pairs_checked = (pairs < 3ull * checked) ? pairs : 3ull * checked;
         scaled_pole_records(&phase_stage, scaled_wide_small(scaled_wide_word(cell.first) + (long long)start),
                             *cell.cos_bound, cell.poles);
-        phase_stage.index.assign((size_t)(3ull * pairs), 0u);
+        scaled_index_taken(&phase_stage, 3ull * pairs);
         for (unsigned int side = 0u; side < 2u; side += 1u)
         {
-            term_stages[side].index.assign((size_t)(2ull * pairs), 0u);
+            scaled_index_taken(&term_stages[side], 2ull * pairs);
         }
         for (unsigned long long lane = 0ull; lane < pairs; lane += 1ull)
         {
@@ -3613,18 +3777,19 @@ static int scaled_cell(SimResults *job, const ScaledCell &cell, ScaledCount *cou
             }
         }
     }
-    phase_stage.records.clear();
-    cos_stage.records.clear();
+    scaled_words_taken(&phase_stage.records, &phase_stage.record_count, 0ull);
+    scaled_words_taken(&cos_stage.records, &cos_stage.record_count, 0ull);
     ok = ok && scaled_sweep(job, &tolerance_stages[0], lanes, checked, error);
     ok = ok && scaled_sweep(job, &tolerance_stages[1], lanes, checked, error);
-    verdict_stages[0].shared = sum_records;
-    verdict_stages[1].shared = sum_records;
+    scaled_shared_copied(&verdict_stages[0], sum_records, sum_record_count);
+    scaled_shared_copied(&verdict_stages[1], sum_records, sum_record_count);
+    scaled_words_taken(&sum_records, &sum_record_count, 0ull);
     ok = ok && scaled_sweep(job, &verdict_stages[0], lanes, checked, error);
     ok = ok && scaled_sweep(job, &verdict_stages[1], lanes, checked, error);
     const unsigned long long steps_checked = (steps_between < checked) ? steps_between : checked;
     ok = ok && scaled_sweep(job, &change_stage, steps_between, steps_checked, error);
     ok = ok && (em || scaled_sweep(job, &clock_stage, lanes, checked, error));
-    turing_stage.shared = change_stage.records;
+    scaled_shared_copied(&turing_stage, change_stage.records, change_stage.record_count);
     ok = ok && (em || scaled_sweep(job, &turing_stage, steps_between, steps_checked, error));
 
     // N at points a and e from the device's sums, U^4 at points 0, a, e and the last, pi and ln 2
@@ -3895,19 +4060,23 @@ static int scaled_bernoulli(SimResults *job, unsigned int terms, std::vector<Sca
     int ok = scaled_run(job, &factorials, top + 1u, error);
     if (ok)
     {
-        binomials.before = &factorials.records;
+        binomials.before_stage = &factorials;
         binomials.before_limbs = factorials.layout.out_limbs;
-        binomials.also = &factorials.records;
+        binomials.also_stage = &factorials;
         binomials.also_limbs = factorials.layout.out_limbs;
         (void)scaled_built(&binomials, [&]() { scaled_binomial_build(&binomials, &factorials, top); });
-        binomials.shared = factorials.records;
+        scaled_shared_copied(&binomials, factorials.records, factorials.record_count);
+        // three words a lane, one lane to each C(a, b) with b <= a <= top
+        scaled_index_taken(&binomials, 3ull * scaled_triangle(top + 1u, 0u));
+        unsigned long long filled = 0ull;
         for (unsigned int a = 0u; a <= top; a += 1u)
         {
             for (unsigned int b = 0u; b <= a; b += 1u)
             {
-                binomials.index.push_back(a);
-                binomials.index.push_back(b);
-                binomials.index.push_back(a - b);
+                binomials.index[filled] = a;
+                binomials.index[filled + 1ull] = b;
+                binomials.index[filled + 2ull] = a - b;
+                filled += 3ull;
             }
         }
         ok = scaled_run(job, &binomials, scaled_triangle(top + 1u, 0u), error);
@@ -3918,20 +4087,20 @@ static int scaled_bernoulli(SimResults *job, unsigned int terms, std::vector<Sca
     {
         rows.push_back(std::vector<ScaledWide>(1u, scaled_wide_out(&factorials, top, 0u)));
         (void)scaled_built(&sum, [&]() { scaled_euler_build(&sum, &binomials, value_bits); });
-        sum.shared = binomials.records;
+        scaled_shared_copied(&sum, binomials.records, binomials.record_count);
     }
     ScaledTable table;
-    sum.before = &table.words;
+    sum.before_table = &table;
     sum.before_limbs = (value_bits + 31u) / 32u;
     for (unsigned int m = 1u; ok && (m < top); m += 1u)
     {
         table = scaled_table(rows, {value_bits});
         ok = scaled_fixed(job, table, {value_bits}, "every I_m fits its table");
-        sum.index.clear();
+        scaled_index_taken(&sum, 2ull * m);
         for (unsigned int j = 0u; j < m; j += 1u)
         {
-            sum.index.push_back(scaled_triangle(m + 1u, j));
-            sum.index.push_back(j);
+            sum.index[2u * j] = scaled_triangle(m + 1u, j);
+            sum.index[2u * j + 1u] = j;
         }
         sum.group = m;
         ok = ok && scaled_run(job, &sum, m, error);
@@ -3945,7 +4114,7 @@ static int scaled_bernoulli(SimResults *job, unsigned int terms, std::vector<Sca
             {
                 (void)scaled_built(&divide, [&]() { scaled_divide_build(&divide, pair); });
             }
-            divide.shared = pair.words;
+            scaled_shared_copied(&divide, pair.words.data(), pair.words.size());
             ok = ok && scaled_run(job, &divide, 1ull, error);
         }
         if (ok)
@@ -4013,19 +4182,23 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
         }
         if (ok)
         {
-            binomials.before = &factorials.records;
+            binomials.before_stage = &factorials;
             binomials.before_limbs = factorials.layout.out_limbs;
-            binomials.also = &factorials.records;
+            binomials.also_stage = &factorials;
             binomials.also_limbs = factorials.layout.out_limbs;
             (void)scaled_built(&binomials, [&]() { scaled_binomial_build(&binomials, &factorials, factorial_top); });
-            binomials.shared = factorials.records;
+            scaled_shared_copied(&binomials, factorials.records, factorials.record_count);
+            // three words a lane, one lane to each C(a, b) with b <= a <= factorial_top
+            scaled_index_taken(&binomials, 3ull * scaled_triangle(factorial_top + 1u, 0u));
+            unsigned long long filled = 0ull;
             for (unsigned int a = 0u; a <= factorial_top; a += 1u)
             {
                 for (unsigned int b = 0u; b <= a; b += 1u)
                 {
-                    binomials.index.push_back(a);
-                    binomials.index.push_back(b);
-                    binomials.index.push_back(a - b);
+                    binomials.index[filled] = a;
+                    binomials.index[filled + 1ull] = b;
+                    binomials.index[filled + 2ull] = a - b;
+                    filled += 3ull;
                 }
             }
             ok = scaled_run(job, &binomials, scaled_triangle(factorial_top + 1u, 0u), error);
@@ -4037,19 +4210,19 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
         if (ok)
         {
             (void)scaled_built(&euler, [&]() { scaled_euler_build(&euler, &binomials, value_bits); });
-            euler.shared = binomials.records;
-            euler.before = &e_table.words;
+            scaled_shared_copied(&euler, binomials.records, binomials.record_count);
+            euler.before_table = &e_table;
             euler.before_limbs = (value_bits + 31u) / 32u;
         }
         for (unsigned int n = 1u; ok && (n <= jmax); n += 1u)
         {
             e_table = scaled_table(e_rows, {value_bits});
             ok = scaled_fixed(job, e_table, {value_bits}, "every Euler number fits its table");
-            euler.index.clear();
+            scaled_index_taken(&euler, 2ull * n);
             for (unsigned int j = 0u; j < n; j += 1u)
             {
-                euler.index.push_back(scaled_triangle(2u * n, 2u * j));
-                euler.index.push_back(j);
+                euler.index[2u * j] = scaled_triangle(2u * n, 2u * j);
+                euler.index[2u * j + 1u] = j;
             }
             euler.group = n;
             ok = ok && scaled_run(job, &euler, n, error);
@@ -4068,19 +4241,19 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
         {
             (void)scaled_built(&lambda_term,
                                [&]() { scaled_lambda_term_build(&lambda_term, value_bits, lambda_bits, lambda_top); });
-            lambda_term.shared = e_only.words;
-            lambda_term.before = &lambda_table.words;
+            scaled_shared_copied(&lambda_term, e_only.words.data(), e_only.words.size());
+            lambda_term.before_table = &lambda_table;
             lambda_term.before_limbs = (lambda_bits + 31u) / 32u;
         }
         for (unsigned int l = 0u; ok && (l < lambda_top); l += 1u)
         {
             lambda_table = scaled_table(lambda_rows, {lambda_bits});
             ok = scaled_fixed(job, lambda_table, {lambda_bits}, "every lambda fits its table");
-            lambda_term.index.clear();
+            scaled_index_taken(&lambda_term, 2ull * (l + 1u));
             for (unsigned int k = 0u; k <= l; k += 1u)
             {
-                lambda_term.index.push_back(k + 1u);
-                lambda_term.index.push_back(l - k);
+                lambda_term.index[2u * k] = k + 1u;
+                lambda_term.index[2u * k + 1u] = l - k;
             }
             lambda_term.group = l + 1u;
             ok = ok && scaled_run(job, &lambda_term, l + 1u, error);
@@ -4094,7 +4267,7 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
                 {
                     (void)scaled_built(&divide, [&]() { scaled_divide_build(&divide, pair); });
                 }
-                divide.shared = pair.words;
+                scaled_shared_copied(&divide, pair.words.data(), pair.words.size());
                 ok = ok && scaled_run(job, &divide, 1ull, error);
             }
             if (ok)
@@ -4132,18 +4305,18 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
             {
                 (void)scaled_built(&d_stage,
                                    [&]() { scaled_d_build(&d_stage, constants, d_bits, 3u * top / 4u + 1u); });
-                d_stage.before = &d_row_table.words;
+                d_stage.before_table = &d_row_table;
                 d_stage.before_limbs = d_row_table.limbs;
-                d_stage.also = &d_row_table.words;
+                d_stage.also_table = &d_row_table;
                 d_stage.also_limbs = d_row_table.limbs;
             }
-            d_stage.shared = constants.words;
-            d_stage.index.clear();
+            scaled_shared_copied(&d_stage, constants.words.data(), constants.words.size());
+            scaled_index_taken(&d_stage, 3ull * next);
             for (unsigned int k = 0u; k < next; k += 1u)
             {
-                d_stage.index.push_back(0u);
-                d_stage.index.push_back((k < length) ? k : length - 1u);
-                d_stage.index.push_back((k > 0u) ? k - 1u : 0u);
+                d_stage.index[3u * k] = 0u;
+                d_stage.index[3u * k + 1u] = (k < length) ? k : length - 1u;
+                d_stage.index[3u * k + 2u] = (k > 0u) ? k - 1u : 0u;
             }
             ok = ok && scaled_run(job, &d_stage, next, error);
             for (unsigned int k = 0u; ok && (k < next); k += 1u)
@@ -4179,17 +4352,18 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
         const unsigned int eighths = 2u * (2u * jmax + 1u);
         if (ok)
         {
-            pi_eighths.before = &eighth_table.words;
+            pi_eighths.before_table = &eighth_table;
             pi_eighths.before_limbs = eighth_table.limbs;
             (void)scaled_built(&pi_eighths, [&]() {
                 scaled_pi_eighth_build(&pi_eighths, &powers, eighth_table, precision, scaled_bits_of(eighths) + 1u,
                                        2u * jmax);
             });
-            pi_eighths.shared = powers.records;
+            scaled_shared_copied(&pi_eighths, powers.records, powers.record_count);
+            scaled_index_taken(&pi_eighths, 2ull * eighths);
             for (unsigned int lane = 0u; lane < eighths; lane += 1u)
             {
-                pi_eighths.index.push_back(lane / 2u + 2u * top);
-                pi_eighths.index.push_back(0u);
+                pi_eighths.index[2u * lane] = lane / 2u + 2u * top;
+                pi_eighths.index[2u * lane + 1u] = 0u;
             }
             ok = scaled_run(job, &pi_eighths, eighths, error);
         }
@@ -4202,21 +4376,24 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
             {
                 rows.push_back({e_rows[x][0], scaled_wide_out(&factorials, 2ull * x, 0u)});
             }
-            phi.before = &factorials.records;
+            phi.before_stage = &factorials;
             phi.before_limbs = factorials.layout.out_limbs;
-            phi.also = &pi_eighths.records;
+            phi.also_stage = &pi_eighths;
             phi.also_limbs = pi_eighths.layout.out_limbs;
             (void)scaled_built(&phi, [&]() {
                 scaled_phi_build(&phi, scaled_table(rows, {0u, 0u}), &factorials, &pi_eighths, jmax, precision);
             });
+            scaled_index_taken(&phi, 3ull * row * row);
+            unsigned long long filled = 0ull;
             for (unsigned int j = 0u; j < row; j += 1u)
             {
                 for (unsigned int m = 0u; m < row; m += 1u)
                 {
                     const int valid = (m <= j);
-                    phi.index.push_back(valid ? j - m : 0u);
-                    phi.index.push_back(m);
-                    phi.index.push_back(valid ? 2u * (2u * j - m) + (m % 2u) : 0u);
+                    phi.index[filled] = valid ? j - m : 0u;
+                    phi.index[filled + 1ull] = m;
+                    phi.index[filled + 2ull] = valid ? 2u * (2u * j - m) + (m % 2u) : 0u;
+                    filled += 3ull;
                 }
             }
             ok = scaled_run(job, &phi, (unsigned long long)row * row, error);
@@ -4243,14 +4420,16 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
                                     scaled_wide_out(&powers, power, 0u), scaled_wide_out(&powers, power, 1u)});
                 }
             }
-            gamma.before = &binomials.records;
+            gamma.before_stage = &binomials;
             gamma.before_limbs = binomials.layout.out_limbs;
-            gamma.also = &phi_table.words;
+            gamma.also_table = &phi_table;
             gamma.also_limbs = phi_table.limbs;
             (void)scaled_built(&gamma, [&]() {
                 scaled_gamma_build(&gamma, scaled_table(rows, {0u, 0u, 0u}), &binomials, phi_table, top, count,
                                    precision, big_e);
             });
+            scaled_index_taken(&gamma, 3ull * (top + 1u) * count * 8ull);
+            unsigned long long filled = 0ull;
             for (unsigned int n = 0u; n <= top; n += 1u)
             {
                 for (unsigned int i = 0u; i < count; i += 1u)
@@ -4259,9 +4438,10 @@ static int scaled_curves(SimResults *job, unsigned int top, unsigned int big_e, 
                     {
                         const int valid = (4u * k <= 3u * n) && ((i + n) % 2u == 0u);
                         const unsigned int m = valid ? 3u * n - 4u * k : 0u;
-                        gamma.index.push_back(n * 8u + k);
-                        gamma.index.push_back(valid ? scaled_triangle(i + m, m) : 0u);
-                        gamma.index.push_back(valid ? (i + m) / 2u : 0u);
+                        gamma.index[filled] = n * 8u + k;
+                        gamma.index[filled + 1ull] = valid ? scaled_triangle(i + m, m) : 0u;
+                        gamma.index[filled + 2ull] = valid ? (i + m) / 2u : 0u;
+                        filled += 3ull;
                     }
                 }
             }
@@ -4373,7 +4553,7 @@ static int scaled_constants(SimResults *job, ScaledConstants *k, EngineError *er
         bare.push_back(scaled_wide_small(0));
         bare.push_back(scaled_wide_small(0));
         const ScaledTable constants = scaled_table({bare}, std::vector<unsigned int>(bare.size(), 0u));
-        two.before = &constants.words;
+        two.before_table = &constants;
         two.before_limbs = constants.limbs;
         (void)scaled_built(&two, [&]() {
             scaled_ln_build(
@@ -4516,7 +4696,7 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
     ok = ok && roots_valid;
     if (ok)
     {
-        logs.before = &k.logs.words;
+        logs.before_table = &k.logs;
         logs.before_limbs = k.logs.limbs;
         (void)scaled_built(&logs, [&]() {
             scaled_ln_build(&logs, precision, scaled_table(rows, {0u, 0u, 0u}), k.logs, k.log_terms, w);
@@ -4555,7 +4735,7 @@ static int scaled_inputs(SimResults *job, const ScaledConstants &k, unsigned lon
         small_row.push_back(scaled_wide_small(0));
         small_row.push_back(scaled_wide_small(0));
         const ScaledTable constants = scaled_table({small_row}, std::vector<unsigned int>(small_row.size(), 0u));
-        small_log.before = &constants.words;
+        small_log.before_table = &constants;
         small_log.before_limbs = constants.limbs;
         (void)scaled_built(&small_log, [&]() {
             scaled_ln_build(&small_log, precision,
