@@ -465,7 +465,6 @@ src/cu/engine/nbody/max_tree/max_tree_device_overlap_kernels.cu	1
 src/cu/engine/nbody/max_tree/max_tree_nodes.c	2
 src/cu/engine/nbody/orior/orior_field.c	2
 src/cu/engine/nbody/orior/orior_steer.c	3
-src/cu/engine/render/raster.cu	2
 src/cu/engine/rmc/asm_printer_internal.h	1
 src/cu/engine/rmc/codegen_device.h	1
 src/cu/engine/rmc/precepts.h	1
