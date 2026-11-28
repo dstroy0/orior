@@ -1,37 +1,38 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// bar0_driver.c: a read-only kernel driver that maps the GPU's BAR0 register aperture and passes its 32-bit registers
-// back to the userspace reader by IOCTL (mmio.h, mmio_read.c). It is the kernel half of the max direct listen the run
-// channel has on the part: where NVML's Xid stamp and the System log report a fault second-hand and late, BAR0 records
-// the part's own state first, the PGRAPH exception registers an out-of-range register warp exception among them.
+// bar0_driver.c: a read-only kernel driver that maps the BAR0 register aperture of the GPU. It passes its 32-bit
+// registers back to the userspace reader by IOCTL (mmio.h, mmio_read.c). It is the kernel half of the most direct
+// listen that the run channel has on the part. The Xid stamp of NVML and the System log report a fault second-hand and
+// late. BAR0 records the own state of the part first, with the PGRAPH exception registers of an out-of-range register
+// warp exception among them.
 //
-// The physical base and size of the aperture are read at load from the driver's own service key, Bar0Base and Bar0Size
-// under its Parameters (install_bar0.ps1 writes them from the range Windows assigned the card). The aperture is mapped
-// PAGE_READONLY | PAGE_NOCACHE: the mapping itself refuses a write, the driver unable to write the part whatever an
-// IOCTL requests, matching the run channel's rule that the part is listened to and never written. Only reads are
-// exposed, each bounded to the mapped aperture.
+// The driver reads the physical base and size of the aperture at load from its own service key: Bar0Base and Bar0Size
+// under its Parameters. The script install_bar0.ps1 writes them from the range that Windows gave the card. The driver
+// maps the aperture PAGE_READONLY | PAGE_NOCACHE. The map itself refuses a write, so that the driver cannot write the
+// part, whatever an IOCTL requests. That matches the rule of the run channel: the program listens to the part and
+// never writes it. The driver exposes only reads, each bounded to the mapped aperture.
 //
-// The driver is a software driver, bound to no device: it maps a fixed physical range and does not attach to the PCI
-// stack; it does not contend with the vendor's own driver for the part. It is loaded on demand and unloaded when its
-// service stops, the aperture unmapped with it.
+// The driver is a software driver, bound to no device. It maps a fixed physical range, and does not attach to the PCI
+// stack. It does not contend with the own driver of the vendor for the part. The system loads it on demand and
+// unloads it when its service stops, and the aperture unmaps with it.
 #include <ntddk.h>
 
 #include "mmio.h"
 
-// the aperture mapped at load: its physical base and size as the service key gave them, and the virtual address
-// MmMapIoSpaceEx returned, NULL until it is mapped
+// the aperture mapped at load: its physical base and size as the service key gave them. Then the virtual address that
+// MmMapIoSpaceEx returned, NULL before the map
 static PDEVICE_OBJECT s_device = NULL;
 static PVOID s_bar0 = NULL;
 static ULONG64 s_base = 0ULL;
 static ULONG64 s_size = 0ULL;
 
-// the max the aperture may be, a wrong service value mapping nothing absurd: BAR0 is 16 MiB on this part, and no
+// the max size of the aperture, so that a wrong service value maps nothing absurd. BAR0 is 16 MiB on this part, and no
 // register aperture of the family is near this
 #define BAR0_SIZE_MAX 0x10000000ULL
 #define BAR0_POOL_TAG '0RAB'
 
-// One named value under the opened `key` read as an unsigned number into `out`, a 32-bit or a 64-bit value taken as
-// written: its status, STATUS_INVALID_PARAMETER where it is neither width
+// One named value under the opened `key`, read as an unsigned number into `out`. The call takes a 32-bit or a 64-bit
+// value as written. The return is its status, STATUS_INVALID_PARAMETER where it is neither width
 static NTSTATUS bar0_param(HANDLE key, PCWSTR name, ULONG64 *out)
 {
     UNICODE_STRING value_name;
@@ -62,8 +63,8 @@ static NTSTATUS bar0_param(HANDLE key, PCWSTR name, ULONG64 *out)
     return STATUS_SUCCESS;
 }
 
-// The aperture's base and size read from the service key `registry_path`, under its Parameters: its status. s_base and
-// s_size are set where it succeeds
+// The base and size of the aperture, read from the service key `registry_path`, under its Parameters. The return is
+// its status. The call sets s_base and s_size where it succeeds
 static NTSTATUS bar0_extent_read(PUNICODE_STRING registry_path)
 {
     UNICODE_STRING suffix;
@@ -96,8 +97,8 @@ static NTSTATUS bar0_extent_read(PUNICODE_STRING registry_path)
     return status;
 }
 
-// A create or a close of the device answered: the reader opens the device to read it and closes it when it is done,
-// and neither carries work
+// A create or a close of the device, answered. The reader opens the device to read it, and closes it at the end.
+// Neither carries work
 static NTSTATUS bar0_open(PDEVICE_OBJECT device, PIRP irp)
 {
     UNREFERENCED_PARAMETER(device);
@@ -107,9 +108,9 @@ static NTSTATUS bar0_open(PDEVICE_OBJECT device, PIRP irp)
     return STATUS_SUCCESS;
 }
 
-// One control request answered: the extent of the mapped aperture, or a read of 32-bit registers from it, bounded to
-// the aperture and refused where it would reach past it. METHOD_BUFFERED: the system buffer stores the request on entry
-// and the reply on exit, the request copied out before the reply overwrites it
+// One control request, answered: the extent of the mapped aperture, or a read of 32-bit registers from it. The aperture
+// bounds the read, and the call refuses it where it would reach past it. METHOD_BUFFERED: the system buffer stores the
+// request on entry and the reply on exit. The call copies the request out before the reply overwrites it
 static NTSTATUS bar0_control(PDEVICE_OBJECT device, PIRP irp)
 {
     UNREFERENCED_PARAMETER(device);
@@ -185,8 +186,8 @@ static NTSTATUS bar0_control(PDEVICE_OBJECT device, PIRP irp)
     return status;
 }
 
-// The driver unloaded: the DOS name let go, the aperture unmapped, and the device deleted. The service stopping brings
-// this, and the part is left exactly as it was, nothing of it ever written
+// The driver unloaded: the DOS name let go, the aperture unmapped, and the device deleted. A stop of the service
+// brings this. The part stays as it was, and nothing ever wrote to it
 static VOID bar0_unload(PDRIVER_OBJECT driver)
 {
     UNREFERENCED_PARAMETER(driver);
@@ -205,8 +206,9 @@ static VOID bar0_unload(PDRIVER_OBJECT driver)
     }
 }
 
-// The driver loaded: the aperture read from the service key and mapped read-only, the device and its DOS name made,
-// and the create, close and control requests wired. Its status; where any step fails nothing is left mapped or made
+// The driver loaded: the aperture read from the service key and mapped read-only, and the device and its DOS name
+// made. The create, close and control requests go to their handlers. The return is its status. Where any step fails,
+// the call leaves nothing mapped or made
 NTSTATUS DriverEntry(PDRIVER_OBJECT driver, PUNICODE_STRING registry_path)
 {
     NTSTATUS status = bar0_extent_read(registry_path);
