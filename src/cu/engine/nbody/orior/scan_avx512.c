@@ -10,27 +10,30 @@
  * @brief The steering scan under AVX-512, sixty-four alignments per compare.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * THE SAME QUESTION AVX2 ANSWERS, TWICE THE WIDTH. Fixed at one needle offset, does
- * `corpus[at + offset]` equal `needle[offset]` for consecutive `at`. The needle byte broadcasts
- * once, the corpus side is a sliding window at unit stride, and the survivor mask enters as the
- * alignments still located. AVX-512 answers sixty-four of those in one compare.
+ * THE SAME QUESTION THAT AVX2 ANSWERS, AT TWICE THE WIDTH. At one fixed needle offset, does
+ * `corpus[at + offset]` equal `needle[offset]` for consecutive `at`? The needle byte broadcasts
+ * once, and the corpus side is a window that moves at unit stride. The survivor mask enters as the
+ * alignments that are still truthy. AVX-512 answers sixty-four of those in one compare.
  *
- * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. The
- * value is an integer count of alignments and the two arms agree exactly or one is wrong. That is
- * the contract OriorSteerEngine carries, the same one the exact arms carry in includes/exact_types/integers/arm.h.
+ * WHAT THIS ARM MUST NOT DO. It returns the count of the portable arm, or it has a defect. The
+ * value is an integer count of alignments, and the two arms agree exactly or one is wrong. That
+ * is the contract that OriorSteerEngine carries, the same one that the exact arms carry in
+ * includes/exact_types/integers/arm.h.
  *
- * @note No machine in this project has AVX-512. This arm has never been run. It is compiled for
- *       the target and its emitted instructions are read by utils/maint/engine/verify_arm_asm.sh, which
- *       confirms zmm registers and vpcmpeqb against a mask. That rules out a silent fallback to
- *       scalar code. It states nothing about behavior, and the name reads avx512-unrun for that reason.
- * @note AVX-512 comparison writes a mask register, one bit per lane. The count is a population
- *       count over the AND of two masks: where the corpus agrees, and where the alignment is.
- *       That is a different instruction shape from the AVX2 movemask and not a widening of it.
- * @note Detection requests for AVX-512F and AVX-512BW together. The byte compare and the byte test are
+ * @note No machine in this project has AVX-512, and this arm never ran. The build compiles it for
+ *       the target, and utils/maint/engine/verify_arm_asm.sh reads its emitted instructions. That
+ *       script confirms zmm registers and vpcmpeqb against a mask, which rules out a silent
+ *       fallback to scalar code. It states nothing about behavior, thus the name reads
+ *       avx512-unrun.
+ * @note An AVX-512 comparison writes a mask register, one bit for each lane. The count is a
+ *       population count over the AND of two masks: where the corpus agrees, and where the
+ *       alignment is. That is a different instruction shape from the AVX2 movemask, and not a
+ *       wider form of it.
+ * @note The test asks for AVX-512F and AVX-512BW together. The byte compare and the byte test are
  *       BW instructions, and a part with F alone would fault on them.
- * @note The tail below sixty-four is finished scalar, the same code the portable arm runs. A masked
- *       tail is cheap on this instruction set, and the scalar one is chosen to retain every scan arm
- *       the same shape, since an unrun arm is for correctness and not for the tail's cost.
+ * @note The tail below sixty-four ends scalar, in the same code that the portable arm runs. A
+ *       masked tail is cheap on this instruction set. The scalar one keeps every scan arm the same
+ *       shape, because an unrun arm is for correctness and not for the cost of the tail.
  */
 
 #include "orior.h"
@@ -70,9 +73,9 @@ static size_t steer_popcount64(uint64_t bits)
 /**
  * @brief Whether this processor carries the AVX-512 subsets this arm issues.
  *
- * @return 1 where AVX-512F and AVX-512BW are both present, 0 otherwise.
+ * @return 1 where AVX-512F and AVX-512BW are both present, 0 where they are not.
  * @note Leaf 7 subleaf 0, EBX: bit 16 is AVX-512F and bit 30 is AVX-512BW. The leaf exists only
- *       where leaf 0 reports a max of at least 7, which is checked before it is read.
+ *       where leaf 0 reports a max of at least 7. The call checks that before it reads the leaf.
  */
 static int steer_avx512_present(void)
 {
@@ -99,8 +102,9 @@ static int steer_avx512_present(void)
 size_t orior_steer_truthy_after_avx512(const uint8_t *corpus, size_t alignments, const uint8_t *alive, uint8_t wanted,
                                         size_t offset)
 {
-    /* Counted before the argument check. A caller passing nothing still records that this arm
-     * was the one requested. The claim the counters carry is which arm RAN and not what it returned. */
+    /* Counted before the argument check. A caller that passes nothing still records that this arm
+     * was the one requested. The claim that the counters carry is which arm RAN, and not what it
+     * returned. */
     orior_steer_scan_calls += 1u;
     orior_steer_wide_calls += 1u;
 
@@ -115,17 +119,15 @@ size_t orior_steer_truthy_after_avx512(const uint8_t *corpus, size_t alignments,
 
     for (; (at + ORIOR_STEER_LANES) <= alignments; at += ORIOR_STEER_LANES)
     {
-        /* Unaligned loads. The corpus window starts at an arbitrary offset and forcing
-         * alignment would mean copying, which costs more than the load does. */
+        /* Unaligned loads. The corpus window starts at an arbitrary offset, and a forced
+         * alignment would need a copy, which costs more than the load does. */
         const __m512i window = _mm512_loadu_si512((const void *)(corpus + at + offset));
         const __m512i located_bytes = _mm512_loadu_si512((const void *)(alive + at));
 
         const __mmask64 agrees = _mm512_cmpeq_epi8_mask(window, broadcast);
 
-        /* An alive flag is zero or non-zero. The mask of alignments still located is the lanes
-         * whose byte ANDs with itself to a non-zero, which is every lane that is not zero. Testing
-         * this way and not against one retains it correct if a caller stores a flag other than
-         * one. */
+        /* An alive flag is zero or not zero. The mask of the alignments that are still truthy is the lanes whose byte ANDs with itself to a value that is not zero. That is every lane that is not zero. A test in this way, and not against one, keeps it correct if a caller stores a
+         * flag other than one. */
         const __mmask64 alive_mask = _mm512_test_epi8_mask(located_bytes, located_bytes);
 
         located += steer_popcount64((uint64_t)(agrees & alive_mask));
