@@ -500,7 +500,6 @@ src/cu/transpiler/vendor_bin_layouts/container_write_internal.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/class.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/elf64_nvidia.tsv	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/mnemonic_nvidia.tsv	1
-src/cu/transpiler/vendor_bin_layouts/nvidia/monolith.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_listing_seeds.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.h	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/tokens.c	1
