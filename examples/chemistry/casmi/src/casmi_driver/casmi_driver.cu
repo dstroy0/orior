@@ -11,9 +11,9 @@
 #include "verba_scribo/verba_linea.h"
 #include <stdio.h>
 
-// The pool of the host, the most bytes that one cellblock of MMgr holds. The ranker keeps the whole set in it. The m/z
-// and the intensities of the full train file take 6.4 GB, and so that file does not fit
-extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 31u;
+// The pool of the host, over the banks of MMgr. The ranker keeps the whole set in it, and the m/z and the intensities
+// of the full train file take 6.4 GB of it
+extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 34u;
 
 int program_main(int count, char **arguments)
 {
