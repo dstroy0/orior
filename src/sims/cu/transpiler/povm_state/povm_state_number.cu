@@ -27,7 +27,7 @@ PovmNumber povm_number_difference(PovmNumber left, PovmNumber right)
                        sim_rational_difference(left.root, right.root));
 }
 
-// (a + b sqrt 3)(c + d sqrt 3) = (ac + 3bd) + (ad + bc) sqrt 3: the square root's defining relation
+// `(a + b sqrt 3)(c + d sqrt 3) = (ac + 3bd) + (ad + bc) sqrt 3`, from the relation that defines the square root
 PovmNumber povm_number_product(PovmNumber left, PovmNumber right)
 {
     const SimRational roots = sim_rational_product(left.root, right.root);
@@ -38,8 +38,8 @@ PovmNumber povm_number_product(PovmNumber left, PovmNumber right)
     return povm_number(rational, root);
 }
 
-// the sign of a + b sqrt 3, exactly: with opposite signs the larger of a^2 and 3 b^2 decides, and they are never
-// equal unless both are 0, since sqrt 3 is irrational
+// the sign of `a + b sqrt 3`, exactly. With opposite signs, the larger of `a^2` and `3 b^2` decides. They are never
+// equal unless both are 0, because `sqrt 3` is irrational
 int povm_number_sign(PovmNumber value)
 {
     const int rational = sim_rational_sign(value.rational);
