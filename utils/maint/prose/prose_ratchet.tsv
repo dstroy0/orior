@@ -506,7 +506,7 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.h	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/tokens.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_test.c	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c	1
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_machine/probe_machine_internal.h	2
+src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_machine/probe_machine_internal.h	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_machine/widened.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_main/probe_main_internal.h	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_main/queries.c	2

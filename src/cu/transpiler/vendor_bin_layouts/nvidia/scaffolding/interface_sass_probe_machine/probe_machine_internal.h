@@ -12,9 +12,9 @@
 
 #include <stdio.h>
 
-// the carriers the sweep runs from, at max. Each is a form the part ran whose operands are shaped unlike the ones
-// before it, since an operation that reads an address decodes as nothing from a carrier whose operand bits contained
-// two registers. More carriers reach more operations and cost a batch of decodes apiece
+// the carriers that the sweep runs from, at max. Each is a form that the part ran, whose operands have a shape unlike
+// those before it. The reason is that an operation that reads an address decodes as nothing from a carrier whose
+// operand bits held two registers. More carriers reach more operations, and cost a batch of decodes each
 #define SASS_CARRIERS 8u
 
 extern unsigned long long s_low[SASS_ENCODINGS];
