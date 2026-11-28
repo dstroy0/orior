@@ -234,8 +234,8 @@ void sass_parts_read(const char *text, SassParts *parts)
     }
 }
 
-// the encodings at `chosen` written to `path`, the low word then the high, each byte by byte from the lowest: 1, or 0
-// where the file could not be written
+// the encodings at `chosen`, written to `path`, the low word then the high, each byte by byte from the lowest. The
+// return is 1, or 0 where the write of the file failed
 static int sass_binary_write(const char *path, const unsigned long long *low, const unsigned long long *high,
                              const unsigned int *chosen, unsigned int count)
 {
@@ -279,10 +279,10 @@ static int sass_operation_relative(const char *operation)
     return branch || call || sync;
 }
 
-// A relative target in `text`, which the disassembler prints as the address it lands on, written as its distance from
-// the instruction after the one at `address`, where the encoding counts it from. One encoding decoded at two addresses
-// prints two targets and encodes one distance: read as an address, every bit turned would move the target, since each
-// turned encoding lies at an address of its own
+// A relative target in `text`, which the disassembler prints as the address where it lands. The call writes it as its
+// distance from the instruction after that at `address`, where the encoding counts it from. One encoding decoded at
+// two addresses prints two targets, and encodes one distance. Read as an address, every turned bit would move the
+// target, because each turned encoding lies at an address of its own
 static void sass_target_relative(char *text, unsigned long long address)
 {
     const char *operation = text;
@@ -320,7 +320,8 @@ static void sass_target_relative(char *text, unsigned long long address)
     }
     const unsigned long long magnitude =
         EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = target + (negative ? 1 : 0), .end = NULL, .base = 16);
-    // the address and the distance are both two's complement words of 64 bits, and their difference is taken as one
+    // the address and the distance are both two's complement words of 64 bits, and the call takes their difference as
+    // one
     const long long distance = (long long)((negative ? (0ULL - magnitude) : magnitude) - (address + 16ULL));
     const size_t room = SASS_TEXT - (size_t)(target - text);
     {
@@ -332,8 +333,8 @@ static void sass_target_relative(char *text, unsigned long long address)
     }
 }
 
-// the encodings at `chosen` decoded, their texts into `texts` at the same places: the disassembler's exit status, or
-// -1 where it did not exit or printed a line at an address past them
+// the encodings at `chosen`, decoded, with their texts into `texts` at the same places. The return is the exit status
+// of the disassembler, or -1 where it did not exit, or printed a line at an address past them
 static int sass_decode_pass(const char *architecture, const char *path, const unsigned long long *low,
                             const unsigned long long *high, const unsigned int *chosen, unsigned int count,
                             char (*texts)[SASS_TEXT])
