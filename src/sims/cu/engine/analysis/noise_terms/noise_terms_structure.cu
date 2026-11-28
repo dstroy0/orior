@@ -5,23 +5,28 @@
 #include "memoria_operor/memoria_operor.h"
 #include "noise_terms_internal.h"
 
-// C17 read back (build plan item 38). The scale moves a pair's d_k - d_{k,x} by (eps_{t+k} - eps_t) g (S - S_x), and
-// L - L_x = g (S - S_x)(1 + mean eps). D_a(k) reads the scale path's mean squared step over (1 + mean eps)^2, from the
-// path the camera drew: 10^6 T^2 sum_t (e_{t+k} - e_t)^2 / ((T - k)(2^b T + sum_t e_t)^2) in millionths. The intercept
-// reads the pairs' own noise, the mean over the pairs in 40 to 199 and their frame pairs of g^2 times the four
-// lights plus 4 R^2. The rounded scale adds to it the roundings' own mean square, about 1/3: with rho a light's
-// rounding in units of 2^-b, the rounded light times 2^b less the light before the scale times the scale applied,
-// g^2 (rho(x, t + k) - rho(x, t) - rho(x + 1, t + k) + rho(x + 1, t))^2 / 2^(2b) over the same pairs and frame pairs,
-// and the expected value includes that sum exactly. The cross term, 2 g^2 (S - S_x)(e_{t+k} - e_t) times that rounding
-// step over 2^(2b), averages to about 0 over the pairs, the roundings spread evenly over their range and unrelated to
-// the step they multiply (Derived), and is not retained. The slope's standard error, estimated from the plant, is under
-// 100 millionths at every lag. The slope's tolerance of 500 millionths is at least 5 of them. The intercept's is about
-// 0.2, and the tolerance of 1 covers its full width, about 5 of them.
+// C17 read back (build plan item 38). The scale moves the `d_k - d_{k,x}` of a pair by
+// `(eps_{t+k} - eps_t) g (S - S_x)`, and `L - L_x = g (S - S_x)(1 + mean eps)`. `D_a(k)` reads the mean squared step
+// of the scale path over `(1 + mean eps)^2`, from the path that the camera drew. That is
+// `10^6 T^2 sum_t (e_{t+k} - e_t)^2 / ((T - k)(2^b T + sum_t e_t)^2)` in millionths.
+//
+// The intercept reads the own noise of the pairs. That is the mean, over the pairs in 40 to 199 and their frame pairs,
+// of `g^2` times the four lights plus `4 R^2`. The rounded scale adds to it the own mean square of the roundings, about
+// 1/3. Let rho be the rounding of a light in units of `2^-b`: the rounded light times `2^b`, less the light before the
+// scale times the applied scale. The added term is
+// `g^2 (rho(x, t + k) - rho(x, t) - rho(x + 1, t + k) + rho(x + 1, t))^2 / 2^(2b)` over the same pairs and frame pairs,
+// and the expected value includes that sum exactly.
+//
+// The cross term, `2 g^2 (S - S_x)(e_{t+k} - e_t)` times that rounding step over `2^(2b)`, averages to about 0 over the
+// pairs. The roundings spread evenly over their range, unrelated to the step that they multiply (Derived), and the sim
+// does not keep the term. The standard error of the slope, estimated from the plant, is under 100 millionths at every
+// lag. The tolerance of the slope, 500 millionths, is at least 5 of them. That of the intercept is about 0.2, and the
+// tolerance of 1 covers its full width, about 5 of them.
 void terms_structure(SimResults *results, const unsigned short *lanes, const SimScene *scene, const SimCamera *camera)
 {
     EngineError error;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
-    // the measurement's 28 exact integers are stored off the stack
+    // the sim stores the 28 exact integers of the measurement off the stack
     NoiseStructureMeasurement *const measurement = (NoiseStructureMeasurement *)platform_cell_taken(
         (unsigned long long)(sizeof(NoiseStructureMeasurement)), (unsigned int)platform_place_g_program_owner, 0);
     const int ok = (measurement != NULL) && (noise_structure_volume(lanes, TERMS_EXTENT, measurement, &error) == 0L);
@@ -64,8 +69,9 @@ void terms_structure(SimResults *results, const unsigned short *lanes, const Sim
         max = ((frame == 0ULL) || (path[frame] > max)) ? path[frame] : max;
     }
     const long long unit = (camera->scale_bits != 0u) ? (1LL << camera->scale_bits) : 1LL;
-    // each light's rounding in units of 1 / unit: the rounded light times the unit less the light before the scale
-    // times the scale applied, as sim_light applies it, an integer of at max unit / 2 in size and 0 without a scale
+    // the rounding of each light in units of `1 / unit`, as sim_light applies it. It is the rounded light times the
+    // unit, less the light before the scale times the applied scale. It is an integer of at max `unit / 2` in size, and
+    // 0 with no scale
     SimCamera unscaled = *camera;
     unscaled.scale_bits = 0u;
     for (unsigned long long x = 0ULL; x < TERMS_WIDTH; x += 1ULL)
@@ -170,13 +176,20 @@ void terms_structure(SimResults *results, const unsigned short *lanes, const Sim
     platform_cell_released(rounding, (unsigned int)platform_place_g_program_owner);
 }
 
-// Rows 18 and 19 read back. Under a flat light S a pixel reads f = o + p g S / 2^b in both halves, its offset o and
-// its gain's departure p, and the halves' covariance is var(f) over the pixels' drawn f,
-// (P sum F^2 - (sum F)^2) / (P^2 2^(2b)) with F = o 2^b + p g S: the fixed pattern is drawn per voxel. No two planes
-// share it, and the null reads 0. The pattern and the draws, independent between the halves with variance h^2 in a
-// half's mean, spread the measurement by sqrt((2 var(f) h^2 + h^4) / P): about 1/70, 1/33 and 1/15 lane units squared
-// at the three lights with the gain pattern, 1/260 to 1/190 in the null, about 1/35 to 1/30 with the offset pattern
-// alone (var(o) about 14), and about 1/32, 1/24 and 1/14 with both. Each tolerance is at least 6 of them.
+// Rows 18 and 19 read back. Under a flat light S, a pixel reads `f = o + p g S / 2^b` in both halves, with its offset o
+// and the departure p of its gain. The covariance of the halves is `var(f)` over the drawn f of the pixels:
+// `(P sum F^2 - (sum F)^2) / (P^2 2^(2b))` with `F = o 2^b + p g S`. The sim draws the fixed pattern for each voxel. No
+// two planes share it, and the null reads 0.
+//
+// The pattern and the draws are independent between the halves, with variance `h^2` in the mean of a half. They spread
+// the measurement by `sqrt((2 var(f) h^2 + h^4) / P)`, in lane units squared:
+//
+// - about 1/70, 1/33 and 1/15 at the three lights with the gain pattern
+// - 1/260 to 1/190 in the null
+// - about 1/35 to 1/30 with the offset pattern alone (`var(o)` about 14)
+// - about 1/32, 1/24 and 1/14 with both
+//
+// Each tolerance is at least 6 of them.
 int terms_halves(SimResults *results, const unsigned short *lanes, const SimCamera *camera, unsigned long long light,
                  unsigned long long range_numerator, unsigned long long range_denominator,
                  NoiseHalvesMeasurement *measurement)
@@ -214,11 +227,14 @@ int terms_halves(SimResults *results, const unsigned short *lanes, const SimCame
     return 1;
 }
 
-// Row 18's intercept and row 19's slope, read as the kcr set is read: the halves' covariance C over the level squared,
-// through the two lights S1 and S2, is a line of slope (C2 - C1) / (S2^2 - S1^2) and intercept
-// (C1 S2^2 - C2 S1^2) / (S2^2 - S1^2). The plant predicts var(o) and var(p) g^2 / 2^(2b) over the drawn o and p. The
-// intercept is 16/15 C1 less 1/15 C2 at lights of 100 and 400, spread about 1/30 with both patterns. Its tolerance of
-// 1/5 is 6 of that; the slope's spread is about 5/10^7. Its tolerance of 1/300000 is 6 of that.
+// The intercept of row 18 and the slope of row 19, read as the sim reads the kcr set. The covariance C of the halves
+// over the level squared, through the two lights S1 and S2, is a line. Its slope is `(C2 - C1) / (S2^2 - S1^2)`, and
+// its intercept is `(C1 S2^2 - C2 S1^2) / (S2^2 - S1^2)`. The plant predicts `var(o)` and `var(p) g^2 / 2^(2b)` over
+// the drawn o and p.
+//
+// The intercept is `16/15 C1` less `1/15 C2` at lights of 100 and 400, with a spread of about 1/30 with both patterns.
+// Its tolerance of 1/5 is 6 of that. The spread of the slope is about `5/10^7`, and its tolerance of 1/300000 is 6 of
+// that.
 void terms_halves_line(SimResults *results, const SimCamera *camera, const NoiseHalvesMeasurement *low,
                        unsigned long long low_light, const NoiseHalvesMeasurement *high, unsigned long long high_light)
 {
@@ -266,7 +282,7 @@ void terms_halves_line(SimResults *results, const SimCamera *camera, const Noise
     }
     terms_ratio_within(results, "  the halves' intercept, var(o)", &intercept, &denominator, offset_varied,
                        pixels * pixels, 1ULL, 5ULL);
-    // the slope is printed in millionths, where four places show it; its tolerance of 1/300000 is 10/3 millionths
+    // the sim prints the slope in millionths, where four places show it. Its tolerance of 1/300000 is 10/3 millionths
     ok = sim_exact_scaled(&slope, TERMS_MILLION, &slope);
     sim_check(results, ok, "the halves' slope in millionths");
     terms_ratio_within(results, "  the halves' slope in millionths, var(p) g^2 / 2^2b", &slope, &denominator,
