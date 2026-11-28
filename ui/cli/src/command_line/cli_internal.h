@@ -99,14 +99,15 @@ typedef struct CliTreeCtx CliTreeCtx;
 
 #define CLI_NAME_MAX_LEN 256u
 
-// A folder or file mounted beside the tree, under its name; and the mounts, records in a movable cell the process
-// holds, handed to readers as the cell's token and the records' count
+// A folder or file mounted beside the tree, under its name
 typedef struct
 {
     char name[CLI_NAME_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
 } CliMount;
 
+// the mounts: records in a movable cell that the process holds. Readers get them as the token of the cell and the count
+// of the records
 typedef struct
 {
     const CarcerMovableEntry *cell;
@@ -120,19 +121,22 @@ typedef struct
     unsigned int parent;
 } CliProcess;
 
-// the command line's platform calls: this process put at the head of its container, the job on Windows; a process
-// started outside the container, its id; every process in the container but this one, by id; every process the system
-// lists with its parent; every process in the container but this one ended; a process group's members signaled on
-// POSIX; this process's id; the program this process runs, its path
+// the platform calls of the command line. This one puts this process at the head of its container, the job on Windows
 int cli_container_init(void);
+// a process started outside the container, with its id
 int cli_started_outside(const CliWordsIdCtx *args);
 // the ids of the processes started outside the container, which the container leaves out with every process under
-// them: their count, and the ids in `ids` (programs.c)
+// them. The return is their count, with the ids in `ids` (programs.c)
 unsigned int cli_started_outside_listed(const unsigned int **ids);
+// every process in the container but this one, by id
 unsigned int cli_container_members(const CliIdsCtx *args);
+// every process that the system lists, with its parent
 unsigned int cli_processes_list(const CliCapacityProcessesCtx *args);
+// every process in the container but this one, ended
 void cli_container_members_end(void);
+// the id of this process
 unsigned int cli_process_own(void);
+// the path of the program that this process runs
 int cli_program_own(const CliPathCapacityCtx *args);
 // the folder this process is in, into `path`
 int cli_folder_current(const CliPathCapacityCtx *args);
@@ -146,9 +150,9 @@ unsigned long long cli_standard_output(void);
 // this machine's name, as the system names it, put on `out`: 1, or 0 where the system gives none (platform/windows.c,
 // platform/posix.c)
 int cli_machine_name(VerbaLinea *out);
-// the words this program was given after its name, at max `capacity` of them, into `words`, each UTF-8: on Windows as
-// the system stores them, wide, and elsewhere the `count` words of `supplied`, or as the system saves them where
-// `supplied` is NULL: their count
+// the words that this program got after its name, at max `capacity` of them, into `words`, each UTF-8. On Windows they
+// are as the system stores them, wide. Elsewhere they are the `count` words of `supplied`, or as the system saves them
+// where `supplied` is NULL. The return is their count
 unsigned int cli_arguments(const CliCapacityCountCtx *args);
 // the file at `path` made one its owner runs, on POSIX
 int cli_file_runnable(const CliPathFileCtx *args);
@@ -158,10 +162,11 @@ int cli_file_runs(const CliPathFileCtx *args);
 int cli_is_link(const CliPathFileCtx *args);
 // the milliseconds a clock that only goes forward reads
 unsigned long long cli_clock_milliseconds(void);
-// the seconds since 1970 the machine started at, as this reading makes it, a few either way from one reading to the
-// next, 0 where the system does not say; and the reader's log in as the system names it, every log in a new name, into
-// `logon`, sized for `capacity`, empty where the system names none (platform/windows_system.c, platform/posix_system.c)
+// the seconds since 1970 that the machine started at, as this reading makes it, a few either way from one reading to
+// the next. The return is 0 where the system does not say (platform/windows_system.c, platform/posix_system.c)
 unsigned long long cli_booted_seconds(void);
+// the log in of the reader as the system names it, every log in a new name, into `logon`, sized for `capacity`. It is
+// empty where the system names none (platform/windows_system.c, platform/posix_system.c)
 void cli_logon_by_name(const CliCapacityLogonCtx *args);
 // What this system is, as programs and tools name it (platform/windows_system.c, platform/posix_system.c).
 // `program_end` ends a program's file name, "" where nothing ends it, and `program_ends` are every ending a name on the
@@ -236,29 +241,30 @@ typedef struct
     unsigned int hour;
     unsigned int minute;
 } CliCivil;
-// the calendar reading of `seconds` since 1970 in the machine's own zone into `civil_out`, 1970's first moment where
-// the system does not read it (platform/windows_system.c, platform/posix_system.c)
+// the calendar reading of `seconds` since 1970 in the own zone of the machine, into `civil_out`. It is the first moment
+// of 1970 where the system does not read it (platform/windows_system.c, platform/posix_system.c)
 void cli_clock_civil(const CliClockCivilCtx *args);
-// the size of the file at `path` into `size`: 1, or 0 where it is not there (system_calls.c, through the platform); and
-// the milliseconds since 1970 the wall clock reads (windows_files.c, posix_files.c)
+// the size of the file at `path`, into `size`. The return is 1, or 0 where it is not there (system_calls.c, through
+// the platform)
 int cli_file_size(const CliPathSizeCtx *args);
 // the size of the file at `path` and the milliseconds since 1970 it last changed at: 1, or 0 where it is not there
 int cli_file_stamp(const CliPathSizeCtx *args);
-// `count` bytes of the file at `path` from its byte `from` read into `bytes`, their count into `got`, fewer where the
-// file ends first: 1, or 0 where the file could not be opened or read
+// `count` bytes of the file at `path` from its byte `from`, read into `bytes`, with their count into `got`. They are
+// fewer where the file ends first. The return is 1, or 0 where the call could not open or read the file
 int cli_file_read_at(const CliPathFromCtx *args);
-// the bytes past a file's stored in its cell, zero: a word a walk loads over a text's last bytes, and the terminator
+// the bytes past those of a file stored in its cell, zero. They are a word that a walk loads over the last bytes of a
+// text, and the terminator
 #define CLI_FILE_SLACK 64ULL
-// The bytes of a file in one temporary cell of their size and the slack, counted to `owner`: the file at `path` read
-// whole, its size into `*size`; the same where its bytes read as UTF-8 whole; or `count` bytes of it from `from`, their
-// count into `*size`, fewer where the file ends first. NULL where the file could not be read or the cells cannot meet
-// it; a file of no bytes is bytes of none. And a cell of a file's bytes given back to `owner`, NULL being none
-// (machine/file_cell.c)
+// The bytes of a file in one temporary cell of their size and the slack, counted to `owner` (machine/file_cell.c). This
+// one reads the file at `path` whole, with its size into `*size`. The return is NULL where the call could not read the
+// file, or the cells cannot meet it. A file of no bytes gives bytes of none
 unsigned char *cli_file_alloc(const CliPathCtx *args);
+// the same, where the bytes of the file read as UTF-8 whole
 unsigned char *cli_file_alloc_utf8(const CliPathCtx *args);
+// `count` bytes of the file from `from`, with their count into `*size`, fewer where the file ends first
 unsigned char *cli_file_piece_alloc(const CliPathCtx *args);
-// the bytes of every file under `root`, the folders of version control and of cargo's build passed over: the request a
-// tree's pool is made for (machine/file_cell.c)
+// the bytes of every file under `root`, with the folders of version control and of the build of cargo passed over. It
+// is the request that sizes the pool of a tree (machine/file_cell.c)
 unsigned long long cli_tree_bytes(const CliPathRootCtx *args);
 // The bytes of the top of `path`, where a whole path starts. On Windows the top is a drive, `C:` and the separator
 // after it, or one separator. Elsewhere it is one `/`. 0 where `path` is no whole path (platform/windows_files.c,
@@ -272,23 +278,27 @@ int cli_path_absolute(const CliPathCtx *args);
 // path with a drive or a share stands alone, and a path from a separator takes the drive of `root`. Elsewhere a path
 // from `/` stands alone (platform/windows_files.c, platform/posix_files.c)
 void cli_path_onto(const CliPathJoinCtx *args);
-// the system's number for why the call just made failed, read before any other call; and its reason written after
-// `err_msg`, as ": Access is denied. (os error 5)" (platform/windows_files.c, platform/posix_files.c)
+// the number of the system for why the last call failed, read before any other call (platform/windows_files.c,
+// platform/posix_files.c)
 unsigned int cli_system_error(void);
+// the reason for that failure, written after `err_msg`, as `": Access is denied. (os error 5)"`
 void cli_system_reason(const CliErrorCtx *args);
-// `secret` stored for `account` of `service`, such as "database" or "plugin sonarqube", in the system's keychain, on
-// this machine alone, under the service's name "orior " and `service`; the secret stored for `account` of `service`
-// into `out`, sized for `capacity`: 1, or 0 where none is stored; and the secret taken out
-// (platform/windows_keychain.c, platform/posix_keychain.c)
+// `secret` stored for `account` of `service`, such as "database" or "plugin sonarqube", in the keychain of the system,
+// on this machine alone. It goes under the service name "orior " and `service` (platform/windows_keychain.c,
+// platform/posix_keychain.c)
 int cli_keychain_store(const CliErrMsgServiceCtx *args);
+// the secret stored for `account` of `service`, into `out`, sized for `capacity`. The return is 1, or 0 where the
+// keychain holds none
 int cli_keychain_read(const CliServiceCtx *args);
+// the secret, taken out of the keychain
 int cli_keychain_forget(const CliErrMsgServiceCtx *args);
+// the milliseconds since 1970 that the wall clock reads (windows_files.c, posix_files.c)
 unsigned long long cli_wall_milliseconds(void);
 // one character written in UTF-8 (words.c)
 void cli_utf8_append(const CliLineLetterCtx *args);
-// the staged file `from` copied over `to` with the rights the system requires of the reader: on Windows orior's own
-// program run again as `imp write-raised`, raised; on Linux cp through pkexec; on macOS cp with the system's
-// authorization. 1, or 0 with why given
+// the staged file `from`, copied over `to` with the rights that the system requires of the reader. On Windows, the own
+// program of orior runs again as `imp write-raised`, raised. On Linux, cp runs through pkexec, and on macOS, cp runs
+// with the authorization of the system. The return is 1, or 0 with the reason
 int cli_raised_platform(const CliErrMsgFromCtx *args);
 
 // the max words of one command a program is run with, and the max bytes they take
