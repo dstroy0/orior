@@ -4,48 +4,50 @@
 //
 //     orior_khw_learn <part> <path.khw> <layout> <mnemonics> <fields> <machine writer> [<rounds>] -- <carrier word>...
 //
-// Every form in the file this writes is there because the part answered for it (P8). Nothing reads a listing, a
-// disassembler or a vendor's table of operations: the part is passed code and cases over the run channel
-// (run_channel.h), the host computes the same cases off the ladder's relations (ladder.h), and a form enters the file
-// where the part's answer and the host's agree on every case of one relation.
+// Every form in the file that this writes is there because the part answered for it (P8). Nothing reads a listing, a
+// disassembler or a table of operations of the vendor. The part gets code and cases over the run channel
+// (run_channel.h). The host computes the same cases from the relations of the ladder (ladder.h). A form enters the
+// file where the answer of the part and the answer of the host agree on every case of one relation.
 //
-// The kernel is the code the container the system accepted already contains (the layout's container rows, `layout`
-// above). It loads a case's first two words into two registers, computes one instruction, and stores the result as
-// the case's answer. That one instruction is the position, and which place of the kernel it is at is queried: the
-// kernel is put with each place containing the encoding its unreached places contain, and the place whose answer comes
-// back as the case's second word is the position, because nothing then wrote the register the kernel stores.
+// The kernel is the code that the container already holds, the one that the system accepted (the container rows of
+// the layout, `layout` above). It loads the first two words of a case into two registers, computes one instruction,
+// and stores the result as the answer of the case. That one instruction is the position, and the program queries
+// which place of the kernel it is at. It puts the kernel with the encoding of its unreached places in each place.
+// The place whose answer comes back as the second word of the case is the position. Nothing then wrote the register
+// that the kernel stores.
 //
-// The first question is the kernel's own relation: the kernel the system accepted, every instruction of it waiting on
-// all six barriers and otherwise unchanged, over every case of each relation of the ladder, and the launches of
-// the one that answers timed, the time the part takes to run it. Every question after is put from what that one
-// answered.
+// The first question is the own relation of the kernel. It puts the kernel that the system accepted over every case of
+// each relation of the ladder. Every instruction of the kernel waits on all six barriers, and nothing else changes. It
+// also times the launches of the one that answers, which gives the time that the part takes to run it. Every later
+// question comes from what that one answered.
 //
-// What is queried of a form, in order:
+// What the program queries of a form, in order:
 //
-//   the relation   the form put over every case of each relation of the ladder, both orders of the case's two words.
-//                  The relation every case answers is the form's, and the order that answered is the order its
-//                  operands are read in. A form that answers no relation on every case is excluded from the file.
-//   the fields     each bit from 12 to 104 turned one at a time, the key and the scheduler's own word left alone
-//                  (P9), and the runs of adjacent bits whose turning changes the answer recorded. A run set to the
-//                  number of each of the two registers the kernel left a case word in answers two different words where
-//                  it carries a register, and one word where it does not: an operand's run answers two words and a
-//                  modifier's run one. The run whose setting leaves the answer at the case's second word is where the
-//                  form writes its result. A run that answers the relation at one register and the relation over that
-//                  register's word twice at the other reads that word. Each run retains its place in the relation's
-//                  tuple, the words in their order and then the answer, as 1,1 -> 2 represents them, and a run neither
-//                  test reads retains none.
-//   the name       no name is composed here: the protocol records the relation answered, how many sources the fields
-//                  found, and whether the answers read the form signed, and the vendor's writer (`machine writer`
-//                  above, run through the interface) names it from its own table (mnemonic_nvidia.tsv) and writes it.
+//   - the relation: the form put over every case of each relation of the ladder, with both orders of the two words of
+//     the case. The relation that every case answers is the relation of the form. The order that answered is the order
+//     in which it reads its operands. A form that answers no relation on every case stays out of the file.
+//   - the fields: each bit from 12 to 104 turned one at a time, with the key and the own word of the scheduler left
+//     alone (P9). The program records the runs of adjacent bits whose turn changes the answer. The program sets a run
+//     to the number of each of the two registers that hold a case word. It answers two different words where it
+//     carries a register, and one word where it does not. Thus the run of an operand answers two words, and the run of
+//     a modifier answers one.
+//   - the places of the runs: the destination is the run whose value leaves the answer at the second word of the
+//     case. A run that answers the relation at one register, and the relation over the word of that
+//     register twice at the other, reads that word. Each run keeps its place in the tuple of the relation: the words in
+//     their order and then the answer, as 1,1 -> 2 shows them. A run that neither test reads keeps none.
+//   - the name: the program makes no name. The protocol records the relation answered, how many sources the fields
+//     found, and whether the answers read the form as signed. The writer of the vendor (`machine writer` above, run
+//     through the interface) names it from its own table (mnemonic_nvidia.tsv) and writes it.
 //
-// Then the forms found are widened: each bit outside every run, the key and the scheduler's word is turned, and the
-// turned encoding is queried its relation from the top. A turn that answers a relation is a form of its own. Widening
-// repeats over what it finds for `rounds` rounds, 1 where none is given.
+// Then the program widens the forms found. It turns each bit outside every run, the key and the word of the scheduler.
+// Then it queries the relation of the turned encoding from the top. A turn that answers a relation is a form of its own.
+// The widening repeats over what it finds for `rounds` rounds, 1 where the caller gives none.
 //
-// The gate on the host (cubin_safe.h) reads every question against the .khw the vendor's writer arranges, so that
-// file is written before querying and the carrier is passed that same path. The vendor's writer runs in a gate mode,
-// which stores every place of the kernel whole under its own encoding so the gate reads a question against what the
-// part has already run, and a final mode, which at the end stores only the forms the part named.
+// The gate on the host (cubin_safe.h) reads every question against the .khw that the writer of the vendor arranges.
+// Thus the program writes that file before it queries, and passes the same path to the carrier. The writer of the
+// vendor runs in a gate mode or a final mode. The gate mode stores every place of the kernel whole under its own
+// encoding. Thus the gate reads a question against what the part already ran. The final mode stores at the end
+// only the forms that the part named.
 #include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "khw_learn_internal.h"
@@ -76,21 +78,25 @@ int program_main(int count, char **word)
     s_mnemonics = word[4];
     s_fields = word[5];
     s_machine_writer = word[6];
-    // [<rounds>] and, for a dry run tuned off the part, [--position <n>] and [--forms <name>]: the position whose
-    // questions are emitted for the vendor's disassembler, and the blob of the run containing the forms a prior run
-    // learned to seed them from, in place of the learn loop (khw_enumerate). The split's passes over the working set:
-    // [--discover] widens it a round and retains what it finds with its fields unqueried; [--turns] queries the turns
-    // of what a discover left; [--registers] queries the register-runs the turns found; [--costs] times every form the
-    // machine file names on the timer register (P6) and stores its cost and spread in the part's .ksc. A cross-check
-    // reads each round's questions before it is carried (run_channel.h), and no form's turns or register-runs reach the
-    // part before the vendor read them
+    // [<rounds>]. Two options serve a dry run away from the part:
+    //   - [--position <n>] gives the position whose questions go to the disassembler of the vendor;
+    //   - [--forms <name>] gives the blob of the run that holds the forms that a prior run learned. The program starts
+    //     from them in place of the learn loop (khw_enumerate).
+    // The passes of the split over the working set:
+    //   - [--discover] widens it a round and keeps what it finds, with its fields not queried;
+    //   - [--turns] queries the turns of what a discover left;
+    //   - [--registers] queries the register-runs that the turns found;
+    //   - [--costs] times every form that the machine file names on the timer register (P6). It stores the cost and
+    //     spread of each in the .ksc of the part.
+    // A cross-check reads the questions of each round before the carry (run_channel.h). The turns or register-runs of
+    // a form reach the part only after the vendor read them
     unsigned int rounds = 1u;
     unsigned int enumerate = 0xffffffffu;
     const char *forms = NULL;
-    // [--seeds <name>] with --discover: the blob of the run containing encodings to query their relation of, a line
-    // `<low> <high>` in hex each, as a vendor's reader of a listing writes them (orior_sass_listing_seeds): the
-    // question Q17 names and the part answers, each a discovered form where it answers a ladder relation and passed
-    // over where not
+    // [--seeds <name>] with --discover: the blob of the run that holds encodings to query the relation of. Each is a
+    // line `<low> <high>` in hex, as a reader of a listing of the vendor writes them (orior_sass_listing_seeds). Q17
+    // names the question, and the part answers it. Each encoding that answers a ladder relation is a discovered form,
+    // and the program skips the others
     const char *seeds = NULL;
     int discover = 0;
     int turns = 0;
@@ -150,8 +156,8 @@ int program_main(int count, char **word)
     {
         return 1;
     }
-    // the gate's file written before querying: the vendor's writer positions the kernel's places out, and the carrier
-    // reads the questions of every round against them
+    // the file of the gate, written before the queries. The writer of the vendor sets out the places of the kernel, and
+    // the carrier reads the questions of every round against them
     if (!khw_vendor_run("gate", KHW_FORMS_NAME))
     {
         return 1;
@@ -168,7 +174,7 @@ int program_main(int count, char **word)
     {
         return 1;
     }
-    // R beside the machine file, its .kqr, so that no question the part has answered is put to it again
+    // R beside the machine file, its .kqr. Thus the program puts no question to the part again that the part answered
     char record[1024];
     const size_t stem =
         EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = s_path, .cap = PLATFORM_TEXT_TO_TERMINATOR) -
@@ -229,8 +235,8 @@ int program_main(int count, char **word)
         run_channel_close();
         return 1;
     }
-    // tuned off the part: the position's first field-finding round emitted for the vendor's disassembler, the learn
-    // loop left for a run that reaches the part
+    // away from the part: the first round of the position that finds fields goes to the disassembler of the vendor.
+    // The learn loop waits for a run that reaches the part
     if (enumerate != 0xffffffffu)
     {
         if (enumerate >= s_kernel_places)
@@ -264,11 +270,11 @@ int program_main(int count, char **word)
         }
         return 0;
     }
-    // the split: a discover pass widens the working set a round and retains what it finds unqueried, a turns pass
-    // queries the turns of what a discover left, a register pass queries the register-runs the turns found. A
-    // cross-check reads each round's questions before it is carried, and neither a form's turns nor its register-runs
-    // reach the part before the vendor read them. The working set is the run's blob KHW_WORK_NAME, which the passes
-    // hand each other; the position is found afresh each pass, off the kernel's code
+    // the split: a discover pass widens the working set a round and keeps what it finds, not queried. A turns pass
+    // queries the turns of what a discover left, and a register pass queries the register-runs that the turns found.
+    // A cross-check reads the questions of each round before the carry. The turns and register-runs of a form reach the
+    // part only after the vendor read them. The working set is the blob KHW_WORK_NAME of the run, which the passes
+    // hand each other. Each pass finds the position again, from the code of the kernel
     if ((discover != 0) || (turns != 0) || (registers != 0) || (costs != 0))
     {
         KhwAnswered kernel;
@@ -287,8 +293,8 @@ int program_main(int count, char **word)
             return 1;
         }
         s_probe_place = probe_place;
-        // the working set read contains one form for each answer: a form an older one is for is let go
-        // (khw_form_is_for), so that the turns of a form's bits outside its operands do not fill the set
+        // the working set read holds one form for each answer. The program lets go a form that an older one is for
+        // (khw_form_is_for). Thus the turns of the bits of a form outside its operands do not fill the set
         const unsigned int read = khw_forms_read(KHW_WORK_NAME);
         s_names = khw_forms_folded(s_named, read);
         if (read != s_names)
@@ -309,9 +315,10 @@ int program_main(int count, char **word)
             const unsigned long long probe_high = khw_word_read(&s_kernel_text[s_probe_place * KHW_INSTRUCTION], 8u);
             if (s_names == 0u)
             {
-                // the working set empty: the kernel's own position form seeded as a discovered form, its relation
-                // queried but its fields left for the turns and register passes to query once a cross read them, as
-                // of any form. The relation is the real instruction the part already ran, safe to query without a cross
+                // the working set is empty. The own position form of the kernel goes in as a discovered form. The
+                // program queries its relation, but leaves its fields to the turns and register passes, after a cross
+                // reads them, as for any form. The relation is the real instruction that the part already ran, safe to
+                // query without a cross
                 KhwAnswered form;
                 EMBED_CALL(memor.set, MemoriaCfg, .dst = &form, .bytes = sizeof(form), .val = 0);
                 if (khw_relation_queried(probe_low, probe_high, &form))
@@ -386,9 +393,9 @@ int program_main(int count, char **word)
         }
         if (turns != 0)
         {
-            // every discovered form turned at once, in shared rounds, its register-runs left for the cross-check
-            // after: a discover set its relation and the order its words read, which the turns need and read back
-            // from the working set
+            // every discovered form turned at once, in shared rounds, with its register-runs left for the cross-check
+            // after. A discover set its relation and the order in which it reads its words. The turns need these, and
+            // read them back from the working set
             static KhwAnswered *s_forms[KHW_FORMS];
             const unsigned int count = khw_comparisons_void(s_forms, khw_forms_in_phase(KHW_PHASE_DISCOVERED, s_forms));
             unsigned long long stages = 0ULL;
@@ -417,12 +424,12 @@ int program_main(int count, char **word)
         }
         if (costs != 0)
         {
-            // every form the machine file names timed on the timer register, its cost and spread stored in the
-            // part's .ksc beside the machine file. A costs question writes a form many times over from the position,
-            // and the gate contains a second instruction no form contains: so the gate's file is written again before
-            // querying, the kernel's places and the forms the part answered for together (the vendor's writer,
-            // `costs`). After, the machine file is arranged by the vendor once more from the forms the part answered
-            // for, as the registers pass leaves it
+            // every form that the machine file names, timed on the timer register. Its cost and spread go in the .ksc
+            // of the part, beside the machine file. A costs question writes a form many times over from the position,
+            // and the gate then holds a second instruction that no form holds. Thus the writer of the vendor writes the file
+            // of the gate again before the queries (`costs`). The file holds the places of the kernel and the forms that
+            // the part answered for. After, the vendor arranges the machine file again from the forms that the part
+            // answered for, as the registers pass leaves it
             char ksc_path[1024];
             {
                 VerbaLinea buffer_line = mmgr_line_over(ksc_path, sizeof(ksc_path));
@@ -458,11 +465,12 @@ int program_main(int count, char **word)
             }
             return 0;
         }
-        // every turned form's register-runs queried at once, in shared rounds, its operand runs recorded and its phase
-        // classified; what the part answered for whole then arranged by the vendor
+        // the register-runs of every turned form, queried at once in shared rounds. The program records its operand runs
+        // and classifies its phase. Then the vendor arranges what the part answered for whole
         static KhwAnswered *s_forms[KHW_FORMS];
         const unsigned int turned = khw_forms_in_phase(KHW_PHASE_TURNED, s_forms);
-        // a classified form two of whose runs carry one place is queried again, over a turning case that reads apart
+        // the program queries again a classified form with two runs that carry one place, over a turn case that reads
+        // apart
         const unsigned int count = khw_forms_placed_twice(s_forms, turned);
         if (count != turned)
         {
@@ -528,8 +536,8 @@ int program_main(int count, char **word)
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
-    // a dry channel carries every question by nothing: the kernel answers no relation, and the pass goes on with the
-    // position the .ksc names, every round put through the airlock as on a live channel and nothing launched
+    // a dry channel carries every question by nothing. The kernel answers no relation, and the pass continues with the
+    // position that the .ksc names. Every round goes through the airlock as on a live channel, and nothing launches
     const int dry = !related && (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = s_pool[0].refused,
                                             .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "dry:", .ci = EMBED_FALSE));
     if (!related && !dry)
