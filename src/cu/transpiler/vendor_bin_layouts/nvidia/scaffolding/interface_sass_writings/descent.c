@@ -26,11 +26,13 @@ static inline int descent_text_order(const char *left, const char *right, size_t
     return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
 }
 
-// The arrangements a descent ran over, written by `chains` into each `into` with its verdict, read back against the
-// cases the descent placed for that relation, each `cases` file a case a line as the two words and the word the
-// relation gives them. An arrangement is on the part where it gives every placed case its word, and the part's
-// verdict is checked against the descent's, written to `record`: 0 where every verdict agrees, 1 where one does not, 2
-// where nothing could be read
+// The arrangements that a descent ran over, which `chains` wrote into each `into` with its verdict. The call reads them
+// back against the cases that the descent placed for that relation. Each `cases` file has one case on each line, as
+// the two words and the word that the relation gives them.
+//
+// An arrangement is on the part where it gives every placed case its word. The call checks the verdict of the part
+// against that of the descent, and writes it to `record`. The return is 0 where every verdict agrees, 1 where one does
+// not, and 2 where the call could not read anything
 int writings_descent_read(const char *record, unsigned int pairs, char **folders)
 {
     static char s_chain[WRITINGS_CHAINS_MAX][512];
@@ -76,7 +78,7 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         char line[WRITINGS_LINE];
         unsigned int placed[WRITINGS_CASES][3];
         unsigned int placed_count = 0u;
-        // the descent's cases as the run stores them, the descent's run having written them through its writer
+        // the cases of the descent as the run stores them, which the run of the descent wrote through its writer
         const unsigned char *cases = NULL;
         unsigned long long cases_size = 0ULL;
         unsigned long long cases_at = 0ULL;
@@ -272,8 +274,9 @@ static int writings_fill(const char *text, const char *name, const char *put, ch
     return 1;
 }
 
-// `text`, a form's text as a ruleset writes it, written to `out` as one instruction the way the search prints one: each
-// written tab and space run one space, the closing `;` and written newline dropped, and nothing at either end
+// `text`, the text of a form as a ruleset writes it, written to `out` as one instruction, as the search prints one.
+// Each written tab and space run becomes one space. The call drops the closing `;` and the written newline, and leaves
+// nothing at either end
 static void writings_flat(const char *text, char *out, size_t room)
 {
     size_t at = 0u;
@@ -303,11 +306,13 @@ static void writings_flat(const char *text, char *out, size_t room)
     out[at] = '\0';
 }
 
-// The words of the word web that are one precept over their operands, each checked against the writings the part gave:
-// the ruleset's form for the word, its result put in WRITINGS_RESULT and its operands by place in WRITINGS_LEFT and
-// WRITINGS_RIGHT, looked for among the forms the search ran. Where it ran, it either gives every case the precept's
-// word or does not; where the search never ran that text, the record reports it. Written to `record`: 0 where every
-// form found matches, 1 where one does not, 2 where nothing could be read
+// The words of the word web that are one precept over their operands, each checked against the writings that the
+// part gave. The call takes the form of the ruleset for the word, with its result in WRITINGS_RESULT and its operands
+// by place in WRITINGS_LEFT and WRITINGS_RIGHT. It looks for it among the forms that the search ran.
+//
+// Where it ran, it gives every case the word of the precept, or it does not. Where the search never ran that text,
+// the record reports it. The call writes to `record`. The return is 0 where every form found matches, 1 where one
+// does not, and 2 where the call could not read anything
 int writings_krs_read(const char *folder, const char *ruleset, const char *record)
 {
     // the ruleset as the run stores it, or the disk where the run stores none (qry_member_file)
