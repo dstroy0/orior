@@ -128,8 +128,8 @@ static void interface_ptx_alive(InterfacePtxTest *test, const char *after)
                         what);
 }
 
-// an illegal operation the device errors: the probe exits 3 having printed the CUDA error, which `error` names where
-// it is given
+// an illegal operation, on which the device gives an error. The probe prints the CUDA error and exits 3. `error` names
+// that error, where the caller gives it
 static void interface_ptx_error(InterfacePtxTest *test, const char *question, const char *error, const char *what)
 {
     InterfaceAnswer answer;
