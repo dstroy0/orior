@@ -34,8 +34,8 @@ extern "C"
 
     long unit_sweep_residual(const UnitSweepRequest *request);
 
-    // the bits that represent the request's residual, its sign with them: the input's, 1 for each unit order, 2 for
-    // each spaced pair, and a comb's bit_length(n - 1)
+    // the bits that hold the residual of the request, with its sign. They are those of the input, 1 for each unit
+    // order, 2 for each spaced pair, and the `bit_length(n - 1)` of a comb
     unsigned long long unit_sweep_bits(const UnitSweepRequest *request);
 
     // the device bytes unit_sweep_residual allocates for the request: its two planes, narrow and wide, and its two

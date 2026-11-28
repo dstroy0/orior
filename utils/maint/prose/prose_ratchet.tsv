@@ -447,14 +447,7 @@ includes/window/top_menu.c	1
 mkdocs.yml	2
 repotools.toml	4
 sonar-project.properties	7
-src/cu/engine/analysis/cycle/cycle_prelude.cu	1
-src/cu/engine/analysis/noise_detector/noise_detector_flicker.cu	1
-src/cu/engine/analysis/noise_detector/noise_detector_halves.cu	1
-src/cu/engine/analysis/noise_detector/noise_detector_ladder.cu	1
-src/cu/engine/analysis/unit_sweep/unit_sweep.h	1
 src/cu/engine/engine_config_requests.h	1
-src/cu/engine/nbody/body_overlap/body_overlap.cu	1
-src/cu/engine/nbody/max_tree/max_tree_device_overlap_kernels.cu	1
 src/cu/engine/nbody/orior/orior_field.c	2
 src/cu/engine/nbody/orior/orior_steer.c	3
 src/cu/engine/rmc/codegen_device.h	1
