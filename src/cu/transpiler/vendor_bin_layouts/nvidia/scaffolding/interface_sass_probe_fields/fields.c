@@ -28,10 +28,11 @@ static inline int fields_text_order(const char *left, const char *right, size_t 
     return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
 }
 
-// the answers interface_sass_run wrote for the write pass's cubins, read against the form the first instruction
-// contains and labeled a bit a row to `record`. A bit the part refused, one it read inside a run the machine file
-// records for an operand, one it read outside every recorded run, and one it left the answer unchanged are
-// distinguished
+// the answers that interface_sass_run wrote for the cubins of the write pass, read against the form of the first
+// instruction. The call labels one bit to a row into `record`. The labels tell apart four bits.
+//
+// One is a bit that the part refused. One is a bit that it read inside a run that the machine file records for an
+// operand. One is a bit that it read outside every recorded run. One is a bit where it left the answer as it was
 int fields_read(const char *machine_path, const char *instructions, const char *answers, const char *record)
 {
     if (!sass_machine_read(&s_machine, machine_path))
@@ -163,8 +164,8 @@ int fields_read(const char *machine_path, const char *instructions, const char *
             (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = type, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "skipped",
                         .ci = EMBED_FALSE)))
         {
-            // a bit the part refused, one it ran too long on, and one blocked from the part as unsafe to run are each
-            // no operand field; they share the first column and the row specifies which
+            // a bit that the part refused, ran too long on, or the gate blocked as unsafe is no operand field. They
+            // share the first column, and the row tells which
             refused += 1u;
             part = (type[0] == 'h') ? "hung" : ((type[0] == 's') ? "skipped" : "refused");
         }
@@ -220,8 +221,8 @@ int fields_read(const char *machine_path, const char *instructions, const char *
     }
     platform_file_close(in);
     platform_file_close(out);
-    // a tab-delimited line the gathering script turns into one row: the form, its counts, and the bits it reads that
-    // the machine file records for no operand
+    // a tab-delimited line that the gather script turns into one row. It has the form, its counts, and the bits that it
+    // reads that the machine file records for no operand
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "FORMFIELDS\t");
@@ -242,9 +243,9 @@ int fields_read(const char *machine_path, const char *instructions, const char *
     return 0;
 }
 
-// 1 where the operation writes its first register operand, which the redirect may move to the observed register. A
-// return, a register branch or a call reads its first register instead and leaves it where it is; a store, a branch
-// to a label and a predicate setter carry no register first operand and never reach here
+// 1 where the operation writes its first register operand, which the redirect can move to the observed register. A
+// return, a register branch or a call reads its first register, and leaves it where it is. A store, a branch to a
+// label and a predicate setter carry no register first operand, and never reach here
 static int fields_writes_first(const char *operation)
 {
     static const char *const reads[] = {"RET", "BRX", "JMX", "CALL", "BRA", "JMP", "EXIT", "BAR", "NOP"};
@@ -260,8 +261,8 @@ static int fields_writes_first(const char *operation)
     return 1;
 }
 
-// the sign an operand carries back as its text, since the parts reader cuts it off: the negate, the bitwise not and the
-// predicate not, or nothing
+// the sign that an operand carries back as its text, because the parts reader cuts it off. It is the negate, the
+// bitwise not, the predicate not, or nothing
 static const char *fields_mark(unsigned int mark)
 {
     if (mark == SASS_MARK_NEGATE)
@@ -279,9 +280,9 @@ static const char *fields_mark(unsigned int mark)
     return "";
 }
 
-// `operand`, which begins with a register token (R then digits, or RZ), written to `out` with that token replaced by
-// `put`. A .hi names the second register of a pair and leaves the operand a register of the same form: it is dropped,
-// and `put` itself is the register read or written. Any other suffix is retained
+// `operand`, which starts with a register token (R then digits, or RZ), written to `out` with `put` in place of that
+// token. A .hi names the second register of a pair, and leaves the operand a register of the same form. The call drops
+// it, and `put` itself is the register read or written. The call keeps any other suffix
 static void fields_swap(const char *operand, const char *put, char *out, size_t room)
 {
     size_t length = 0u;
@@ -303,9 +304,9 @@ static void fields_swap(const char *operand, const char *put, char *out, size_t 
     }
 }
 
-// `operand`, an address, written to `out` with the register its address is read from replaced by `put`: the register
-// after the last `[`. A descriptor's uniform register before it is retained, and an address whose last `[` contains no
-// register is copied as it is. 1, or 0 where `out` will not contain it
+// `operand`, an address, written to `out` with `put` in place of the register that the address reads from. That is the
+// register after the last `[`. The call keeps the uniform register of a descriptor before it. It copies an address
+// whose last `[` holds no register as it is. The return is 1, or 0 where `out` cannot hold it
 static int fields_address_swap(const char *operand, const char *put, char *out, size_t room)
 {
     const char *const open =
@@ -328,14 +329,15 @@ static int fields_address_swap(const char *operand, const char *put, char *out, 
     return (int)formed_line_2.at < (int)room;
 }
 
-// `instruction` written to `redirected`, rebuilt from its parts, with its first operand moved where the kernel reads it
-// and each source register operand moved to the next of the head's set registers, where the form's result and its
-// source fields reach the answer. A global load's address is moved onto the case's, where the load reads the case's
-// words and not memory no thread uses. A first operand that is a register moves to R8, the register the kernel stores
-// as the answer. A first operand that is a predicate moves to P0, and `observe` takes the line that turns P0 into a
-// value in R8; it is left empty otherwise. A form whose first operand is neither, or is one the operation reads, is
-// copied as it is, since nothing of it would be observed through R8. 1, or 0 where `redirected` or `observe` will
-// not contain it
+// `instruction` written to `redirected`, built again from its parts. Its first operand moves where the kernel reads it,
+// and each source register operand moves to the next of the set registers of the head. There, the result and the source
+// fields of the form reach the answer. The address of a global load moves onto the address of the case. There, the load
+// reads the words of the case, and not memory that no thread uses.
+//
+// A first operand that is a register moves to R8, the register that the kernel stores as the answer. A first operand
+// that is a predicate moves to P0, and `observe` takes the line that turns P0 into a value in R8. Else `observe` stays
+// empty. The call copies a form whose first operand is neither, or is one that the operation reads, as it is. Nothing
+// of it would show through R8. The return is 1, or 0 where `redirected` or `observe` cannot hold it
 int fields_redirect(const char *instruction, char *redirected, size_t room, char *observe, size_t observe_room)
 {
     static const char *const sources[FIELDS_SOURCES] = {"R10", "R12", "R14", "R16", "R18", "R20"};
@@ -423,12 +425,15 @@ int fields_redirect(const char *instruction, char *redirected, size_t room, char
     return at < room;
 }
 
-// the first instruction of `instructions`, moved where the kernel reads it and assembled alone, with each operation bit
-// turned and read back through the machine file, nothing run. The untouched encoding is printed first, under `base`,
-// with what it reads back as. Each bit is printed with what its turned encoding reads
-// back as: `no form` where no form matches it, `same text` where it reads back as the instruction itself, which no
-// field of the machine file matches, and the text it reads back as otherwise. Lines begin `NAMES`, for a script to
-// gather. 0, or 2 where nothing was read
+// the first instruction of `instructions`, moved where the kernel reads it and assembled alone. The call turns each
+// operation bit and reads it back through the machine file, and runs nothing. It prints the encoding with no change
+// first, under `base`, with what it reads back as. It prints each bit with what its turned encoding reads back as:
+//
+// - `no form` where no form matches it
+// - `same text` where it reads back as the instruction itself, which no field of the machine file matches
+// - the text that it reads back as, in all other cases
+//
+// Lines start with `NAMES`, for a script to gather. The return is 0, or 2 where the call read nothing
 int fields_names(const char *machine_path, const char *instructions)
 {
     if (!sass_machine_read(&s_machine, machine_path))
