@@ -27,7 +27,7 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <chrono>
+#include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -273,7 +273,7 @@ int main()
 
     const uint32_t span = 1u << 24;
     std::mt19937 generator(bench_seed(20260908u));
-    const auto started = std::chrono::steady_clock::now();
+    const auto started = embed_clock_ns();
 
     const struct
     {
@@ -306,7 +306,7 @@ int main()
         }
     }
 
-    const auto finished = std::chrono::steady_clock::now();
+    const auto finished = embed_clock_ns();
 
     printf("\n================================================================\n");
     printf("  Reading it\n");
@@ -318,7 +318,7 @@ int main()
     printf("\n  The nested row is the control. It must scale, because k=16 implies k=8 there,\n");
     printf("  and it would scale on an orbit too. That is precisely why H1 could not answer\n");
     printf("  this question and why the other three rows exist.\n");
-    printf("\n  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("\n  elapsed %.1f s\n", ((double)(finished - started) / 1.0e9));
     printf("================================================================\n");
     return 0;
 }

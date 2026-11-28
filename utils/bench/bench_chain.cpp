@@ -20,7 +20,7 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <chrono>
+#include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -391,17 +391,17 @@ int main(int argument_count, char **arguments)
     }
     printf("\nloaded %zu blocks, heights %u to %u\n", blocks.size(), blocks.back().height, blocks.front().height);
 
-    const auto started = std::chrono::steady_clock::now();
+    const auto started = embed_clock_ns();
 
     test_every_block_hashes(blocks);
     test_chain_links(blocks);
     analyse_winning_nonces(blocks);
     report_work(blocks);
 
-    const auto finished = std::chrono::steady_clock::now();
+    const auto finished = embed_clock_ns();
     printf("\n================================================================\n");
     printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
-    printf("  elapsed %.2f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("  elapsed %.2f s\n", ((double)(finished - started) / 1.0e9));
     printf("================================================================\n");
     return (g_checks_failed == 0) ? 0 : 1;
 }

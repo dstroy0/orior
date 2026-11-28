@@ -20,7 +20,7 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <chrono>
+#include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -341,13 +341,13 @@ void compare_dimension_cost()
     const unsigned samples = 20000u;
 
     g_coinbase_hashes = 0u;
-    auto started = std::chrono::steady_clock::now();
+    auto started = embed_clock_ns();
     for (unsigned trial = 0u; trial < samples; trial += 1u)
     {
         (void)fitness((uint64_t)trial, 0u);
     }
-    auto finished = std::chrono::steady_clock::now();
-    const double extranonce_seconds = std::chrono::duration<double>(finished - started).count();
+    auto finished = embed_clock_ns();
+    const double extranonce_seconds = ((double)(finished - started) / 1.0e9);
     const uint64_t extranonce_side_hashes = g_coinbase_hashes;
 
     // The nonce arm must use the path that a miner actually uses: that is the purpose of the
@@ -367,13 +367,13 @@ void compare_dimension_cost()
                     (uint32_t)header[75];
     EMBED_CALL(memor.set, MemoriaCfg, .dst = request.share_target, .bytes = sizeof(request.share_target), .val = 0);
 
-    started = std::chrono::steady_clock::now();
+    started = embed_clock_ns();
     request.nonce_start = 0u;
     request.nonce_count = samples;
     Sha256ScanResult scan_result;
     sha256_scan_scalar(&request, &scan_result);
-    finished = std::chrono::steady_clock::now();
-    const double nonce_seconds = std::chrono::duration<double>(finished - started).count();
+    finished = embed_clock_ns();
+    const double nonce_seconds = ((double)(finished - started) / 1.0e9);
 
     printf("\n  %-40s %16s\n", "dimension", "candidates/s");
     printf("  %-40s %16s\n", "----------------------------------------", "----------------");
@@ -410,16 +410,16 @@ int main()
     g_nbits = (uint32_t)std::stoul(JOB_NBITS, nullptr, 16);
     g_ntime = (uint32_t)std::stoul(JOB_NTIME, nullptr, 16);
 
-    const auto started = std::chrono::steady_clock::now();
+    const auto started = embed_clock_ns();
 
     check_path_is_live();
     measure_extranonce_landscape();
     compare_dimension_cost();
 
-    const auto finished = std::chrono::steady_clock::now();
+    const auto finished = embed_clock_ns();
     printf("\n================================================================\n");
     printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
-    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("  elapsed %.1f s\n", ((double)(finished - started) / 1.0e9));
     printf("================================================================\n");
     return (g_checks_failed == 0) ? 0 : 1;
 }

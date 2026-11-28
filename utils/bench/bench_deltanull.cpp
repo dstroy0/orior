@@ -29,7 +29,7 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <chrono>
+#include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -184,7 +184,7 @@ int main()
         order[at] = at;
     }
 
-    const auto started = std::chrono::steady_clock::now();
+    const auto started = embed_clock_ns();
     const double measured = concentration(left, right, order);
 
     printf("\n  M(x), the real pairing : %.8f%%\n", measured * 100.0);
@@ -211,7 +211,7 @@ int main()
 
     const double null_mean = null_total / (double)draws;
     const double residual = measured - null_mean;
-    const auto finished = std::chrono::steady_clock::now();
+    const auto finished = embed_clock_ns();
 
     printf("\n================================================================\n");
     printf("  The residual\n");
@@ -392,7 +392,7 @@ int main()
         printf("  Those two rows are sampling artifacts and should not be read as coverage.\n");
     }
 
-    printf("\n  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("\n  elapsed %.1f s\n", ((double)(finished - started) / 1.0e9));
     printf("================================================================\n");
     return 0;
 }

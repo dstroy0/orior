@@ -21,7 +21,7 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <chrono>
+#include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -449,17 +449,17 @@ int main()
     printf("  What a mod does dimensionally, and how far the lift carries\n");
     printf("================================================================\n");
 
-    const auto started = std::chrono::steady_clock::now();
+    const auto started = embed_clock_ns();
 
     measure_basis_linearity();
     measure_carry_structure();
     measure_difference_survival();
     measure_walsh_flatness();
 
-    const auto finished = std::chrono::steady_clock::now();
+    const auto finished = embed_clock_ns();
     printf("\n================================================================\n");
     printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
-    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("  elapsed %.1f s\n", ((double)(finished - started) / 1.0e9));
     printf("================================================================\n");
     return (g_checks_failed == 0) ? 0 : 1;
 }

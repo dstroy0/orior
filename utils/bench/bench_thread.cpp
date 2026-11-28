@@ -26,7 +26,7 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <chrono>
+#include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -566,16 +566,16 @@ int main()
     printf("  Pulling the thread: the frame-31 round correlation\n");
     printf("================================================================\n");
 
-    const auto started = std::chrono::steady_clock::now();
+    const auto started = embed_clock_ns();
 
     measure_conditional_survival();
     measure_survivor_signature();
     measure_steering();
     measure_rotational_xor();
 
-    const auto finished = std::chrono::steady_clock::now();
+    const auto finished = embed_clock_ns();
     printf("\n================================================================\n");
-    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("  elapsed %.1f s\n", ((double)(finished - started) / 1.0e9));
     printf("================================================================\n");
     return 0;
 }

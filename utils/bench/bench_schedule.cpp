@@ -23,7 +23,7 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <chrono>
+#include "embed_turnstile.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <random>
@@ -549,15 +549,15 @@ void measure_engine_value()
     uint32_t schedule[64];
     volatile uint32_t sink = 0u;
 
-    auto started = std::chrono::steady_clock::now();
+    auto started = embed_clock_ns();
     for (unsigned trial = 0u; trial < trials; trial += 1u)
     {
         block[3] = trial;
         expand_real(block, schedule);
         sink ^= schedule[63];
     }
-    auto finished = std::chrono::steady_clock::now();
-    const double full_seconds = std::chrono::duration<double>(finished - started).count();
+    auto finished = embed_clock_ns();
+    const double full_seconds = ((double)(finished - started) / 1.0e9);
 
     // Now the same work with the nonce-independent prefix hoisted out of the loop.
     block[3] = 0u;
@@ -565,7 +565,7 @@ void measure_engine_value()
     uint32_t cached[64];
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = cached, .src = schedule, .bytes = sizeof(cached));
 
-    started = std::chrono::steady_clock::now();
+    started = embed_clock_ns();
     for (unsigned trial = 0u; trial < trials; trial += 1u)
     {
         uint32_t working[64];
@@ -579,8 +579,8 @@ void measure_engine_value()
         }
         sink ^= working[63];
     }
-    finished = std::chrono::steady_clock::now();
-    const double hoisted_seconds = std::chrono::duration<double>(finished - started).count();
+    finished = embed_clock_ns();
+    const double hoisted_seconds = ((double)(finished - started) / 1.0e9);
 
     printf("\n  full expansion per candidate   : %.0f per second\n",
                 (full_seconds > 0.0) ? ((double)trials / full_seconds) : 0.0);

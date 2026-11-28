@@ -18,7 +18,7 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <chrono>
+#include "embed_turnstile.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string>
@@ -320,7 +320,7 @@ double time_arm_round(CudaMinerContext *context, const BenchArm &arm, double *ha
     uint32_t found_nonces[16];
     uint32_t found_count = 0u;
 
-    const auto started = std::chrono::steady_clock::now();
+    const auto started = embed_clock_ns();
     for (int index = 0; index < batches; index += 1)
     {
         if (arm.scan(context, &parameters, (uint32_t)index * batch, batch, found_nonces,
@@ -329,10 +329,10 @@ double time_arm_round(CudaMinerContext *context, const BenchArm &arm, double *ha
             return -1.0;
         }
     }
-    const auto finished = std::chrono::steady_clock::now();
+    const auto finished = embed_clock_ns();
 
     *hashes = (double)batch * (double)batches;
-    return std::chrono::duration<double>(finished - started).count();
+    return ((double)(finished - started) / 1.0e9);
 }
 
 /**

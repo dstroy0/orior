@@ -23,7 +23,7 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <chrono>
+#include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -204,13 +204,13 @@ void measure_verify_against_search()
     uint8_t digest[32];
     const unsigned repeats = 1000000u;
 
-    const auto started = std::chrono::steady_clock::now();
+    const auto started = embed_clock_ns();
     for (unsigned trial = 0u; trial < repeats; trial += 1u)
     {
         sha256_double_hash(header_bytes, sizeof(header_bytes), digest);
     }
-    const auto finished = std::chrono::steady_clock::now();
-    const double seconds = std::chrono::duration<double>(finished - started).count();
+    const auto finished = embed_clock_ns();
+    const double seconds = ((double)(finished - started) / 1.0e9);
     const double one_hash = seconds / (double)repeats;
 
     uint32_t target[SHA256_STATE_WORDS];

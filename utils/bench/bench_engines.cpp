@@ -19,7 +19,7 @@
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <chrono>
+#include "embed_turnstile.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <immintrin.h>
@@ -331,7 +331,7 @@ double measure_threaded_rate(const uint8_t *header, unsigned thread_count)
     std::vector<std::thread> workers;
     std::vector<uint64_t> counts(thread_count, 0u);
 
-    const auto started = std::chrono::steady_clock::now();
+    const auto started = embed_clock_ns();
     for (unsigned index = 0u; index < thread_count; index += 1u)
     {
         workers.emplace_back([&shared, &counts, index, per_thread]() {
@@ -348,14 +348,14 @@ double measure_threaded_rate(const uint8_t *header, unsigned thread_count)
     {
         worker.join();
     }
-    const auto finished = std::chrono::steady_clock::now();
+    const auto finished = embed_clock_ns();
 
     uint64_t total = 0u;
     for (uint64_t count : counts)
     {
         total += count;
     }
-    const double seconds = std::chrono::duration<double>(finished - started).count();
+    const double seconds = ((double)(finished - started) / 1.0e9);
     return (seconds > 0.0) ? ((double)total / seconds) : 0.0;
 }
 
@@ -387,14 +387,14 @@ int main()
     // --- Legacy arm -----------------------------------------------------------------------
     {
         LegacyResult legacy;
-        const auto started = std::chrono::steady_clock::now();
+        const auto started = embed_clock_ns();
         run_legacy_engine(midstate.word, merkle_tail, ntime_word, nbits_numeric, window_start,
                           window_start + BENCH_NONCES, &legacy);
-        const auto finished = std::chrono::steady_clock::now();
+        const auto finished = embed_clock_ns();
 
         ArmMeasurement measurement;
         measurement.name = "legacy topological arm (commit 6e4747c, verbatim)";
-        measurement.seconds = std::chrono::duration<double>(finished - started).count();
+        measurement.seconds = ((double)(finished - started) / 1.0e9);
         measurement.evaluations = legacy.evaluations;
         measurement.evaluations_per_second =
             (measurement.seconds > 0.0) ? ((double)legacy.evaluations / measurement.seconds) : 0.0;
@@ -440,13 +440,13 @@ int main()
         sha256_target_from_nbits(request.share_target, nbits_numeric);
 
         Sha256ScanResult result;
-        const auto started = std::chrono::steady_clock::now();
+        const auto started = embed_clock_ns();
         sha256_scan_avx2(&request, &result);
-        const auto finished = std::chrono::steady_clock::now();
+        const auto finished = embed_clock_ns();
 
         ArmMeasurement measurement;
         measurement.name = "SHA-256 eight-lane arm with anchor early exit";
-        measurement.seconds = std::chrono::duration<double>(finished - started).count();
+        measurement.seconds = ((double)(finished - started) / 1.0e9);
         measurement.evaluations = result.nonces_evaluated;
         measurement.evaluations_per_second =
             (measurement.seconds > 0.0) ? ((double)result.nonces_evaluated / measurement.seconds) : 0.0;

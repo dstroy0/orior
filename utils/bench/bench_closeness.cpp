@@ -25,7 +25,7 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <chrono>
+#include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -214,7 +214,7 @@ int main()
     printf("\n  %8s %16s %18s %18s\n", "rounds", "correlation", "mean out distance", "premise holds");
     printf("  %8s %16s %18s %18s\n", "--------", "----------------", "------------------", "------------------");
 
-    const auto started = std::chrono::steady_clock::now();
+    const auto started = embed_clock_ns();
     unsigned last_holding = 0u;
 
     for (unsigned rounds : {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u, 10u, 12u, 16u, 32u, 64u})
@@ -280,7 +280,7 @@ int main()
                     arrived ? (holds ? "yes" : "no") : "input absent");
     }
 
-    const auto finished = std::chrono::steady_clock::now();
+    const auto finished = embed_clock_ns();
 
     printf("\n================================================================\n");
     printf("  Reading it\n");
@@ -297,7 +297,7 @@ int main()
     printf("  applies. The domains it was built for, language and crystal boundaries and\n");
     printf("  protein constructs, all carry the premise. This one had it removed on purpose,\n");
     printf("  and the avalanche criterion is the name of the removal.\n");
-    printf("\n  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("\n  elapsed %.1f s\n", ((double)(finished - started) / 1.0e9));
     printf("================================================================\n");
     return 0;
 }

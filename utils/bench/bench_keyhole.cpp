@@ -21,7 +21,7 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <chrono>
+#include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -155,7 +155,7 @@ int main(int argument_count, char **arguments)
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &survey, .bytes = sizeof(survey), .val = 0);
 
     const uint32_t chunk = 1u << 28;
-    auto started = std::chrono::steady_clock::now();
+    auto started = embed_clock_ns();
     unsigned long long done = 0u;
 
     while (done < wanted)
@@ -173,8 +173,8 @@ int main(int argument_count, char **arguments)
         printf("\r  %llu of %llu ...", done, wanted);
         fflush(stdout);
     }
-    auto finished = std::chrono::steady_clock::now();
-    const double survey_seconds = std::chrono::duration<double>(finished - started).count();
+    auto finished = embed_clock_ns();
+    const double survey_seconds = ((double)(finished - started) / 1.0e9);
 
     const double samples = (double)survey.nonces_evaluated;
     const WorstBit worst = worst_departure(survey.bit_one_count, samples);
@@ -325,7 +325,7 @@ int main(int argument_count, char **arguments)
 
     cuda_miner_destroy(context);
 
-    finished = std::chrono::steady_clock::now();
+    finished = embed_clock_ns();
     printf("\n================================================================\n");
     printf("  There is no noise floor under any of these numbers. They are\n");
     printf("  sampling limits, and they move with more samples.\n");

@@ -26,7 +26,7 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <chrono>
+#include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -148,7 +148,7 @@ int main()
     printf("  %10s %14s %14s %14s %14s\n", "----------", "--------------", "--------------", "--------------",
                 "--------------");
 
-    const auto started = std::chrono::steady_clock::now();
+    const auto started = embed_clock_ns();
 
     for (unsigned magnitude = 10u; magnitude <= 15u; magnitude += 1u)
     {
@@ -183,7 +183,7 @@ int main()
                     (unsigned long long)below, predicted_below);
     }
 
-    const auto finished = std::chrono::steady_clock::now();
+    const auto finished = embed_clock_ns();
 
     printf("\n  The pair column tracks N squared and the target column tracks N, and the\n");
     printf("  prediction columns are stated before the counts instead of fitted after.\n");
@@ -218,7 +218,7 @@ int main()
     printf("  of hardware Bitcoin's absolute target rewards. Bitcoin chose the other side.\n");
 
     printf("\n================================================================\n");
-    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("  elapsed %.1f s\n", ((double)(finished - started) / 1.0e9));
     printf("================================================================\n");
     return 0;
 }

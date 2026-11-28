@@ -23,7 +23,7 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <chrono>
+#include "embed_turnstile.h"
 #include <math.h>
 #include <complex>
 #include <stdint.h>
@@ -512,7 +512,7 @@ int main()
     printf("  Rotation is a phase ramp. How far does the phase travel?\n");
     printf("================================================================\n");
 
-    const auto started = std::chrono::steady_clock::now();
+    const auto started = embed_clock_ns();
 
     check_instrument();
     check_rotation_identity();
@@ -520,11 +520,11 @@ int main()
     measure_avalanche();
     measure_spectral_flatness();
 
-    const auto finished = std::chrono::steady_clock::now();
+    const auto finished = embed_clock_ns();
 
     printf("\n================================================================\n");
     printf("  %d checks run, %d failed\n", g_checks_run, g_checks_failed);
-    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("  elapsed %.1f s\n", ((double)(finished - started) / 1.0e9));
     printf("================================================================\n");
     return (g_checks_failed == 0) ? 0 : 1;
 }

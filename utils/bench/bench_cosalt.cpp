@@ -20,7 +20,7 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <chrono>
+#include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -224,7 +224,7 @@ int main(int argument_count, char **arguments)
     std::vector<std::thread> workers;
     const uint32_t share = total / available;
 
-    const auto started = std::chrono::steady_clock::now();
+    const auto started = embed_clock_ns();
     for (unsigned index = 0u; index < available; index += 1u)
     {
         workers.emplace_back([index, share, &tallies]() { run_share(index * share, share, tallies[index]); });
@@ -233,7 +233,7 @@ int main(int argument_count, char **arguments)
     {
         worker.join();
     }
-    const auto finished = std::chrono::steady_clock::now();
+    const auto finished = embed_clock_ns();
 
     Tally combined;
     for (const Tally &partial : tallies)
@@ -255,7 +255,7 @@ int main(int argument_count, char **arguments)
 
     const double samples = (double)combined.evaluated;
     printf("\n  %llu candidates in %.1f s\n", (unsigned long long)combined.evaluated,
-                std::chrono::duration<double>(finished - started).count());
+                ((double)(finished - started) / 1.0e9));
 
     // --- The cascade tail -------------------------------------------------------------------
     printf("\n================================================================\n");

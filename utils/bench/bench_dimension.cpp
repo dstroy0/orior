@@ -24,7 +24,7 @@
 #include "sha256_core.h"
 
 #include <algorithm>
-#include <chrono>
+#include "embed_turnstile.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <random>
@@ -185,7 +185,7 @@ int main()
     }
     printf("   ------------------\n");
 
-    const auto started = std::chrono::steady_clock::now();
+    const auto started = embed_clock_ns();
 
     for (unsigned rounds = 1u; rounds <= 10u; rounds += 1u)
     {
@@ -245,7 +245,7 @@ int main()
         }
     }
 
-    const auto finished = std::chrono::steady_clock::now();
+    const auto finished = embed_clock_ns();
 
     printf("\n  Reading the table. A V means the differential was exactly zero at every base\n");
     printf("  point, which for a genuine degree bound is what the algebra requires and is\n");
@@ -264,7 +264,7 @@ int main()
     printf("  of rounds, out of the 128 a header hash runs.\n");
 
     printf("\n================================================================\n");
-    printf("  elapsed %.1f s\n", std::chrono::duration<double>(finished - started).count());
+    printf("  elapsed %.1f s\n", ((double)(finished - started) / 1.0e9));
     printf("================================================================\n");
     return 0;
 }

@@ -18,7 +18,7 @@
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <chrono>
+#include "embed_turnstile.h"
 #include <stdio.h>
 #include <string>
 
@@ -158,16 +158,16 @@ int main(int argc, char **argv)
 
     for (unsigned trial = 0u; trial < TRIALS; trial += 1u)
     {
-        const auto plain_start = std::chrono::steady_clock::now();
+        const auto plain_start = embed_clock_ns();
         sha256_scan_scalar(&request, &plain);
-        const auto plain_end = std::chrono::steady_clock::now();
-        const double took = std::chrono::duration<double>(plain_end - plain_start).count();
+        const auto plain_end = embed_clock_ns();
+        const double took = ((double)(plain_end - plain_start) / 1.0e9);
         plain_seconds = (took < plain_seconds) ? took : plain_seconds;
 
-        const auto early_start = std::chrono::steady_clock::now();
+        const auto early_start = embed_clock_ns();
         sha256_scan_scalar_early(&request, &early);
-        const auto early_end = std::chrono::steady_clock::now();
-        const double early_took = std::chrono::duration<double>(early_end - early_start).count();
+        const auto early_end = embed_clock_ns();
+        const double early_took = ((double)(early_end - early_start) / 1.0e9);
         early_seconds = (early_took < early_seconds) ? early_took : early_seconds;
     }
 
@@ -226,10 +226,10 @@ int main(int argc, char **argv)
         double wide_seconds = 1.0e30;
         for (unsigned trial = 0u; trial < TRIALS; trial += 1u)
         {
-            const auto wide_start = std::chrono::steady_clock::now();
+            const auto wide_start = embed_clock_ns();
             sha256_scan_avx2(&request, &wide);
-            const auto wide_end = std::chrono::steady_clock::now();
-            const double took = std::chrono::duration<double>(wide_end - wide_start).count();
+            const auto wide_end = embed_clock_ns();
+            const double took = ((double)(wide_end - wide_start) / 1.0e9);
             wide_seconds = (took < wide_seconds) ? took : wide_seconds;
         }
 
