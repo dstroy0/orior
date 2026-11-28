@@ -502,7 +502,6 @@ src/sims/cu/engine/analysis/period_power/period_power.cu	1
 src/sims/cu/engine/analysis/root_universal/root_universal_internal.h	1
 src/sims/cu/engine/analysis/root_universal/root_universal_program.cu	1
 src/sims/cu/sim_camera_scene.h	1
-src/sims/cu/sim_rational.h	1
 theory/lng/Lng/any.lean	3
 theory/lng/Lng/g_lng.lean	2
 theory/lng/Lng/legend.lean	3

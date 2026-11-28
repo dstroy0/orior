@@ -236,7 +236,7 @@ static inline unsigned long long sim_exact_bits(const OriorExactInteger *value)
     return 0ULL;
 }
 
-// base^power exactly, by repeated squaring
+// `base^power` exactly, by squares again and again
 static inline int sim_exact_power(unsigned long long base, unsigned long long power, OriorExactInteger *result)
 {
     OriorExactInteger square;
