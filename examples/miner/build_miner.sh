@@ -4,13 +4,13 @@
 #
 # Builds the stratum client with the device arm compiled in, into build/miner. It builds and runs nothing else.
 #
-#     bash examples/miner/build_miner.sh [v1|v2|harness]
+#     bash examples/miner/build_miner.sh [v1|v2|harness|kat]
 #
 # v1 builds btc_miner.exe from the v1 sources, and v2 builds btc_miner2.exe from the v2 sources. harness builds
-# harness.exe, the CPU harness on a real header, with no device arm. The client is a
-# program of the platform. It defines program_main, writes its text through the line of MMgr and searches its bytes
-# through MMgr. It links the platform and the line of MMgr (exact_types_platform_link) and ws2_32 for the stratum
-# socket.
+# harness.exe, the CPU harness on a real header, and kat builds kat_validation.exe, the known answer tests, both with
+# no device arm. The client is a program of the platform. It defines program_main, writes its text through the line of
+# MMgr and searches its bytes through MMgr. It links the platform and the line of MMgr (exact_types_platform_link) and
+# ws2_32 for the stratum socket.
 #
 # The client serves sm_86, an RTX 3070. A different card needs its own arch. The arch stays explicit, and the script
 # does not take it from the device present. The AVX2 flag still matters. Worker zero drives the device, and every
@@ -34,6 +34,11 @@ harness)
     DEVICE="$HERE/device"
     HOST_SOURCE="$HERE/host/harness.cpp"
     NAME=harness
+    ;;
+kat)
+    DEVICE="$HERE/device"
+    HOST_SOURCE="$HERE/test/kat_validation.cpp"
+    NAME=kat_validation
     ;;
 *)
     echo "  unknown version '$VERSION'. Use v1 or v2."
@@ -79,9 +84,9 @@ EXACT_TYPES_EXTRA=()
 exact_types_platform_link || exit 1
 BINARY="$OUT/$NAME$SUFFIX"
 rm -f "$BINARY"
-# the harness mines on the CPU alone, and so it links no device arm
+# the harness and the known answer tests run on the CPU alone, and so they link no device arm
 DEVICE_SOURCES=("$DEVICE/cuda_miner.cu")
-[ "$VERSION" = harness ] && DEVICE_SOURCES=()
+{ [ "$VERSION" = harness ] || [ "$VERSION" = kat ]; } && DEVICE_SOURCES=()
 nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -O3 -arch=sm_86 -std=c++20 "${VECTOR_FLAGS[@]}" \
     "${EXACT_TYPES_FLAGS[@]}" -I "$HERE/core" -I "$DEVICE" -I "$HERE/format" -o "$BINARY" "$HOST_SOURCE" \
     "${DEVICE_SOURCES[@]}" "${CORE_OBJECTS[@]}" "${PLATFORM_LINK[@]}" "${SOCKET[@]}"

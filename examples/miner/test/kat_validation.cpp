@@ -18,11 +18,9 @@
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <chrono>
-#include <cstdint>
-#include <cstdio>
-#include <string>
-#include <vector>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 namespace
 {
@@ -30,52 +28,58 @@ namespace
 int g_tests_run = 0;
 int g_tests_failed = 0;
 
+/** @brief The bytes of a header, of a digest as hex, and of a report's text, each text terminated. */
+#define KAT_HEADER_BYTES 80u
+#define KAT_HEX_BYTES 65u
+#define KAT_TEXT_BYTES 512u
+
 /**
  * @brief Converts a hex string to bytes.
  *
- * @param[in] hex Characters to convert, an even count.
- * @return        The bytes that they encode.
+ * @param[in]  hex      Characters to convert, an even count [BORROWS].
+ * @param[out] bytes    Where the bytes go [BORROWS].
+ * @param[in]  capacity Bytes at bytes.
+ * @return              The bytes that they encode, at max capacity.
  */
-std::vector<uint8_t> bytes_from_hex(const std::string &hex)
+size_t bytes_from_hex(const char *hex, uint8_t *bytes, size_t capacity)
 {
-    std::vector<uint8_t> bytes;
-
-    bytes.reserve(hex.size() / 2u);
-    for (size_t at = 0u; (at + 1u) < hex.size(); at += 2u)
+    const size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = hex, .cap = PLATFORM_TEXT_TO_TERMINATOR);
+    size_t count = 0u;
+    for (size_t at = 0u; ((at + 1u) < length) && (count < capacity); at += 2u)
     {
-        bytes.push_back((uint8_t)std::stoul(hex.substr(at, 2u), nullptr, 16));
+        const char pair[3] = {hex[at], hex[at + 1u], '\0'};
+        // strtoul returns at most 0xFF for two hex digits. The cast narrows that to one byte and loses nothing.
+        bytes[count] = (uint8_t)strtoul(pair, nullptr, 16);
+        count += 1u;
     }
-    return bytes;
+    return count;
 }
 
 /**
  * @brief Renders bytes as hex in the order they sit in memory.
  *
- * @param[in] bytes Bytes to render [BORROWS].
- * @param[in] count How many.
- * @return          The hex string.
+ * @param[in]  bytes    Bytes to render [BORROWS].
+ * @param[in]  count    How many.
+ * @param[out] rendered 2 count + 1 bytes for the hex, terminated [BORROWS].
  */
-std::string hex_from_bytes(const uint8_t *bytes, size_t count)
+void hex_from_bytes(const uint8_t *bytes, size_t count, char *rendered)
 {
     static const char digits[] = "0123456789abcdef";
-    std::string rendered;
-
-    rendered.reserve(count * 2u);
     for (size_t at = 0u; at < count; at += 1u)
     {
-        rendered.push_back(digits[bytes[at] >> 4]);
-        rendered.push_back(digits[bytes[at] & 0x0Fu]);
+        rendered[2u * at] = digits[bytes[at] >> 4];
+        rendered[(2u * at) + 1u] = digits[bytes[at] & 0x0Fu];
     }
-    return rendered;
+    rendered[2u * count] = '\0';
 }
 
 /**
  * @brief Renders a digest the way a block explorer prints it, most significant byte first.
  *
- * @param[in] digest Thirty-two bytes as SHA-256 emitted them [BORROWS].
- * @return           The reversed hex string.
+ * @param[in]  digest   Thirty-two bytes as SHA-256 emitted them [BORROWS].
+ * @param[out] rendered KAT_HEX_BYTES bytes for the reversed hex [BORROWS].
  */
-std::string block_hash_from_digest(const uint8_t *digest)
+void block_hash_from_digest(const uint8_t *digest, char *rendered)
 {
     uint8_t reversed[32];
 
@@ -83,24 +87,68 @@ std::string block_hash_from_digest(const uint8_t *digest)
     {
         reversed[at] = digest[31u - at];
     }
-    return hex_from_bytes(reversed, sizeof(reversed));
+    hex_from_bytes(reversed, sizeof(reversed), rendered);
+}
+
+/** @brief True where two terminated texts are equal. */
+bool text_same(const char *one, const char *other)
+{
+    return EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = one, .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = other,
+                      .ci = EMBED_FALSE);
+}
+
+/** @brief A text of a report, built piece by piece in a fixed buffer. */
+struct KatText
+{
+    char bytes[KAT_TEXT_BYTES];
+    VerbaLinea line;
+};
+
+/** @brief A text begun empty. */
+void text_begun(KatText *text)
+{
+    text->line = mmgr_line_over(text->bytes, sizeof(text->bytes));
+    text->bytes[0] = '\0';
+}
+
+/** @brief Up to three pieces of text put at the end of a text, NULL for none. */
+KatText *text_put(KatText *text, const char *first, const char *second = nullptr, const char *third = nullptr)
+{
+    const char *const pieces[3] = {first, second, third};
+    for (unsigned int at = 0u; at < 3u; at += 1u)
+    {
+        if (pieces[at] != nullptr)
+        {
+            mmgr_line_put(&text->line, pieces[at]);
+        }
+    }
+    (void)mmgr_line_finish(&text->line);
+    return text;
+}
+
+/** @brief A number put at the end of a text in decimal. */
+KatText *text_number(KatText *text, unsigned long long value)
+{
+    mmgr_line_decimal(&text->line, value, 1u);
+    (void)mmgr_line_finish(&text->line);
+    return text;
 }
 
 /**
  * @brief Records one test outcome and prints it.
  *
- * @param[in] name     The name of the test.
+ * @param[in] name     The name of the test [BORROWS].
  * @param[in] passed   Nonzero where the test passed.
- * @param[in] detail   The observed result, printed on failure.
+ * @param[in] detail   The observed result, printed on failure [BORROWS].
  */
-void report(const std::string &name, bool passed, const std::string &detail = "")
+void report(const char *name, bool passed, const char *detail = "")
 {
     g_tests_run += 1;
     if (passed)
     {
         VerbaLinea *const output_line = platform_line_out();
         mmgr_line_put(output_line, "  [PASS] ");
-        mmgr_line_put(output_line, name.c_str());
+        mmgr_line_put(output_line, name);
         mmgr_line_ch(output_line, '\n');
         platform_line_out_ended();
     }
@@ -110,15 +158,15 @@ void report(const std::string &name, bool passed, const std::string &detail = ""
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "  [FAIL] ");
-            mmgr_line_put(output_line, name.c_str());
+            mmgr_line_put(output_line, name);
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
-        if (!detail.empty())
+        if (detail[0] != '\0')
         {
             VerbaLinea *const output_line = platform_line_out();
             mmgr_line_put(output_line, "         ");
-            mmgr_line_put(output_line, detail.c_str());
+            mmgr_line_put(output_line, detail);
             mmgr_line_ch(output_line, '\n');
             platform_line_out_ended();
         }
@@ -153,6 +201,9 @@ void test_published_digests()
         platform_line_out_ended();
     }
 
+    KatText name;
+    KatText detail;
+    char produced[KAT_HEX_BYTES];
     for (const DigestVector &vector : DIGEST_VECTORS)
     {
         uint8_t digest[32];
@@ -160,19 +211,24 @@ void test_published_digests()
                     EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = vector.message, .cap = PLATFORM_TEXT_TO_TERMINATOR),
                     digest);
 
-        const std::string produced = hex_from_bytes(digest, sizeof(digest));
-        report(std::string("sha256 ") + vector.source, produced == vector.expected_digest,
-               "got " + produced + ", expected " + vector.expected_digest);
+        hex_from_bytes(digest, sizeof(digest), produced);
+        text_begun(&name);
+        text_begun(&detail);
+        report(text_put(&name, "sha256 ", vector.source)->bytes, text_same(produced, vector.expected_digest),
+               text_put(text_put(&detail, "got ", produced, ", expected "), vector.expected_digest)->bytes);
     }
 
     // A message of exactly fifty-six bytes forces the length field into a second padding block. That
     // is the boundary a padding bug hides behind.
-    const std::string boundary(56u, 'a');
+    uint8_t boundary[56];
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = boundary, .bytes = sizeof(boundary), .val = 'a');
     uint8_t digest[32];
-    sha256_hash((const uint8_t *)boundary.data(), boundary.size(), digest);
-    const std::string produced = hex_from_bytes(digest, sizeof(digest));
+    sha256_hash(boundary, sizeof(boundary), digest);
+    hex_from_bytes(digest, sizeof(digest), produced);
+    text_begun(&detail);
     report("sha256 fifty-six byte padding boundary",
-           produced == "b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a", "got " + produced);
+           text_same(produced, "b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a"),
+           text_put(&detail, "got ", produced)->bytes);
 }
 
 /** @brief A block whose header, hash and nonce the chain already recorded. */
@@ -207,28 +263,38 @@ void test_published_headers()
         platform_line_out_ended();
     }
 
+    KatText name;
+    KatText detail;
     for (const HeaderVector &vector : HEADER_VECTORS)
     {
-        const std::vector<uint8_t> header = bytes_from_hex(vector.header_hex);
-        if (header.size() != BITCOIN_HEADER_BYTES)
+        uint8_t header[KAT_HEADER_BYTES + 1u];
+        const size_t header_size = bytes_from_hex(vector.header_hex, header, sizeof(header));
+        if (header_size != BITCOIN_HEADER_BYTES)
         {
-            report(std::string("header length for ") + vector.source, false,
-                   "got " + std::to_string(header.size()) + " bytes, expected 80");
+            text_begun(&name);
+            text_begun(&detail);
+            report(text_put(&name, "header length for ", vector.source)->bytes, false,
+                   text_put(text_number(text_put(&detail, "got "), header_size), " bytes, expected 80")->bytes);
             continue;
         }
 
         uint8_t digest[32];
-        sha256_double_hash(header.data(), header.size(), digest);
+        sha256_double_hash(header, header_size, digest);
 
-        const std::string produced = block_hash_from_digest(digest);
-        report(std::string("hash of ") + vector.source, produced == vector.expected_hash,
-               "got " + produced + ", expected " + vector.expected_hash);
+        char produced[KAT_HEX_BYTES];
+        block_hash_from_digest(digest, produced);
+        text_begun(&name);
+        text_begun(&detail);
+        report(text_put(&name, "hash of ", vector.source)->bytes, text_same(produced, vector.expected_hash),
+               text_put(text_put(&detail, "got ", produced, ", expected "), vector.expected_hash)->bytes);
 
         // The nonce sits at header bytes seventy-six through seventy-nine, little-endian.
         const uint32_t header_nonce = (uint32_t)header[76] | ((uint32_t)header[77] << 8) |
                                       ((uint32_t)header[78] << 16) | ((uint32_t)header[79] << 24);
-        report(std::string("nonce field of ") + vector.source, header_nonce == vector.expected_nonce,
-               "got " + std::to_string(header_nonce));
+        text_begun(&name);
+        text_begun(&detail);
+        report(text_put(&name, "nonce field of ", vector.source)->bytes, header_nonce == vector.expected_nonce,
+               text_number(text_put(&detail, "got "), header_nonce)->bytes);
 
         // The block's own hash must satisfy the block's own nbits. If it does not, either the target
         // expansion or the ordering is wrong, and both feed the share check.
@@ -236,7 +302,8 @@ void test_published_headers()
                                ((uint32_t)header[75] << 24);
         uint32_t block_target[SHA256_STATE_WORDS];
         sha256_target_from_nbits(block_target, nbits);
-        report(std::string("nbits ordering for ") + vector.source,
+        text_begun(&name);
+        report(text_put(&name, "nbits ordering for ", vector.source)->bytes,
                sha256_digest_within_target(digest, block_target) != 0, "block hash did not satisfy its own nbits");
     }
 }
@@ -289,31 +356,38 @@ void test_scan_recovers_real_nonce()
         platform_line_out_ended();
     }
 
+    KatText name;
+    KatText detail;
     for (const HeaderVector &vector : HEADER_VECTORS)
     {
-        const std::vector<uint8_t> header = bytes_from_hex(vector.header_hex);
+        uint8_t header[KAT_HEADER_BYTES];
+        (void)bytes_from_hex(vector.header_hex, header, sizeof(header));
         Sha256ScanRequest request;
-        scan_request_from_header(&request, header.data());
+        scan_request_from_header(&request, header);
 
         // Start the window below the real nonce so the arm has to search instead of land on it. The
         // window is the smallest that still proves the arm walks forward into the answer.
         const uint32_t window = 4096u;
         request.nonce_start = vector.expected_nonce - (window / 2u);
         request.nonce_count = window;
-        sha256_target_from_nbits(request.share_target, header_field_value(header.data(), 72u));
+        sha256_target_from_nbits(request.share_target, header_field_value(header, 72u));
 
         Sha256ScanResult scalar_result;
         sha256_scan_scalar(&request, &scalar_result);
-        report(std::string("scalar arm finds nonce of ") + vector.source,
+        text_begun(&name);
+        text_begun(&detail);
+        report(text_put(&name, "scalar arm finds nonce of ", vector.source)->bytes,
                (scalar_result.found != 0) && (scalar_result.winning_nonce == vector.expected_nonce),
-               scalar_result.found ? ("got " + std::to_string(scalar_result.winning_nonce))
+               scalar_result.found ? text_number(text_put(&detail, "got "), scalar_result.winning_nonce)->bytes
                                    : "FALSE NEGATIVE: no nonce found in a window containing one");
 
         Sha256ScanResult vector_result;
         sha256_scan_avx2(&request, &vector_result);
-        report(std::string("eight-lane arm finds nonce of ") + vector.source,
+        text_begun(&name);
+        text_begun(&detail);
+        report(text_put(&name, "eight-lane arm finds nonce of ", vector.source)->bytes,
                (vector_result.found != 0) && (vector_result.winning_nonce == vector.expected_nonce),
-               vector_result.found ? ("got " + std::to_string(vector_result.winning_nonce))
+               vector_result.found ? text_number(text_put(&detail, "got "), vector_result.winning_nonce)->bytes
                                    : "FALSE NEGATIVE: no nonce found in a window containing one");
     }
 }
@@ -333,9 +407,10 @@ void test_arms_agree()
         platform_line_out_ended();
     }
 
-    const std::vector<uint8_t> header = bytes_from_hex(HEADER_VECTORS[1].header_hex);
+    uint8_t header[KAT_HEADER_BYTES];
+    (void)bytes_from_hex(HEADER_VECTORS[1].header_hex, header, sizeof(header));
     Sha256ScanRequest request;
-    scan_request_from_header(&request, header.data());
+    scan_request_from_header(&request, header);
 
     // A window well away from the real nonce, at the block's own difficulty. Nothing here wins.
     request.nonce_start = 1000000u;
@@ -347,21 +422,30 @@ void test_arms_agree()
     sha256_scan_scalar(&request, &scalar_result);
     sha256_scan_avx2(&request, &vector_result);
 
-    report("neither arm invents a winner", (scalar_result.found == 0) && (vector_result.found == 0),
-           "scalar found=" + std::to_string(scalar_result.found) +
-               " vector found=" + std::to_string(vector_result.found));
+    KatText detail;
+    text_begun(&detail);
+    report(
+        "neither arm invents a winner", (scalar_result.found == 0) && (vector_result.found == 0),
+        text_number(text_put(text_number(text_put(&detail, "scalar found="), (unsigned long long)scalar_result.found),
+                             " vector found="),
+                    (unsigned long long)vector_result.found)
+            ->bytes);
+    text_begun(&detail);
     report("both arms evaluated every nonce",
            (scalar_result.nonces_evaluated == request.nonce_count) &&
                (vector_result.nonces_evaluated == request.nonce_count),
-           "scalar " + std::to_string(scalar_result.nonces_evaluated) + " vector " +
-               std::to_string(vector_result.nonces_evaluated));
+           text_number(text_put(text_number(text_put(&detail, "scalar "), scalar_result.nonces_evaluated), " vector "),
+                       vector_result.nonces_evaluated)
+               ->bytes);
 
     // The anchor passes at a rate of two to the minus thirty-two. A nonce window of sixty-five
     // thousand should almost never produce a survivor. The test checks that the arms agree, and
     // only reports the count.
+    text_begun(&detail);
     report("arms agree on anchor survivors", scalar_result.anchors_survived == vector_result.anchors_survived,
-           "scalar " + std::to_string(scalar_result.anchors_survived) + " vector " +
-               std::to_string(vector_result.anchors_survived));
+           text_number(text_put(text_number(text_put(&detail, "scalar "), scalar_result.anchors_survived), " vector "),
+                       vector_result.anchors_survived)
+               ->bytes);
 }
 
 /**
@@ -379,9 +463,10 @@ void test_arms_agree_on_easy_target()
         platform_line_out_ended();
     }
 
-    const std::vector<uint8_t> header = bytes_from_hex(HEADER_VECTORS[1].header_hex);
+    uint8_t header[KAT_HEADER_BYTES];
+    (void)bytes_from_hex(HEADER_VECTORS[1].header_hex, header, sizeof(header));
     Sha256ScanRequest request;
-    scan_request_from_header(&request, header.data());
+    scan_request_from_header(&request, header);
 
     // Sixteen leading zero bits: the top word at or below 0x0000FFFF and every lower word
     // unconstrained. Roughly one nonce in sixty-five thousand clears it. A window of a million nonces
@@ -400,17 +485,25 @@ void test_arms_agree_on_easy_target()
     sha256_scan_scalar(&request, &scalar_result);
     sha256_scan_avx2(&request, &vector_result);
 
-    report("both arms find a winner at an easy target", (scalar_result.found != 0) && (vector_result.found != 0),
-           "scalar found=" + std::to_string(scalar_result.found) +
-               " vector found=" + std::to_string(vector_result.found));
+    KatText detail;
+    text_begun(&detail);
+    report(
+        "both arms find a winner at an easy target", (scalar_result.found != 0) && (vector_result.found != 0),
+        text_number(text_put(text_number(text_put(&detail, "scalar found="), (unsigned long long)scalar_result.found),
+                             " vector found="),
+                    (unsigned long long)vector_result.found)
+            ->bytes);
+    text_begun(&detail);
     report("both arms report the same lowest nonce", scalar_result.winning_nonce == vector_result.winning_nonce,
-           "scalar " + std::to_string(scalar_result.winning_nonce) + " vector " +
-               std::to_string(vector_result.winning_nonce));
+           text_number(text_put(text_number(text_put(&detail, "scalar "), scalar_result.winning_nonce), " vector "),
+                       vector_result.winning_nonce)
+               ->bytes);
 
     // The winner has to survive an independent check that never touches the scan path.
     if (scalar_result.found != 0)
     {
-        std::vector<uint8_t> candidate = bytes_from_hex(HEADER_VECTORS[1].header_hex);
+        uint8_t candidate[KAT_HEADER_BYTES];
+        (void)bytes_from_hex(HEADER_VECTORS[1].header_hex, candidate, sizeof(candidate));
         const uint32_t nonce = scalar_result.winning_nonce;
         candidate[76] = (uint8_t)nonce;
         candidate[77] = (uint8_t)(nonce >> 8);
@@ -418,10 +511,13 @@ void test_arms_agree_on_easy_target()
         candidate[79] = (uint8_t)(nonce >> 24);
 
         uint8_t digest[32];
-        sha256_double_hash(candidate.data(), candidate.size(), digest);
+        sha256_double_hash(candidate, sizeof(candidate), digest);
+        char hash[KAT_HEX_BYTES];
+        block_hash_from_digest(digest, hash);
+        text_begun(&detail);
         report("winner verified by an independent double hash",
                sha256_digest_within_target(digest, request.share_target) != 0,
-               "hash " + block_hash_from_digest(digest) + " is not within the target");
+               text_put(&detail, "hash ", hash, " is not within the target")->bytes);
     }
 }
 
@@ -438,31 +534,38 @@ void test_difficulty_conversion()
     }
 
     uint32_t target[SHA256_STATE_WORDS];
+    KatText detail;
 
     // Difficulty one is 0xFFFF times two to the two hundred eighth. Those bits land at positions 208
     // through 223: the upper half of word one. Thus word one reads 0xFFFF0000, and not 0x0000FFFF.
     sha256_share_target_from_difficulty(target, 1.0);
-    report("difficulty one is 0x00000000FFFF0000...",
-           (target[0] == 0x00000000u) && (target[1] == 0xFFFF0000u) && (target[2] == 0u) && (target[7] == 0u),
-           "word zero " + std::to_string(target[0]) + " word one " + std::to_string(target[1]));
+    text_begun(&detail);
+    report(
+        "difficulty one is 0x00000000FFFF0000...",
+        (target[0] == 0x00000000u) && (target[1] == 0xFFFF0000u) && (target[2] == 0u) && (target[7] == 0u),
+        text_number(text_put(text_number(text_put(&detail, "word zero "), target[0]), " word one "), target[1])->bytes);
 
     sha256_share_target_from_difficulty(target, 2.0);
+    text_begun(&detail);
     report("difficulty two halves the threshold", (target[0] == 0x00000000u) && (target[1] == 0x7FFF8000u),
-           "word one is " + std::to_string(target[1]));
+           text_number(text_put(&detail, "word one is "), target[1])->bytes);
 
     // nbits 0x1d00ffff is difficulty one in the form that a header uses. Thus the two paths must
     // give the same threshold.
     uint32_t from_nbits[SHA256_STATE_WORDS];
     sha256_target_from_nbits(from_nbits, 0x1d00ffffu);
     sha256_share_target_from_difficulty(target, 1.0);
+    text_begun(&detail);
     report("nbits 0x1d00ffff agrees with difficulty one",
            EMBED_CALL(memor.cmp, MemoriaCfg, .src = from_nbits, .other = target, .bytes = sizeof(target)) == 0,
-           "nbits path word one is " + std::to_string(from_nbits[1]));
+           text_number(text_put(&detail, "nbits path word one is "), from_nbits[1])->bytes);
 
     // Every target the pool can set must leave the anchor sound. Section 2.2 is only satisfied where
     // the most significant word is zero, and the engine falls back where it is not.
     sha256_share_target_from_difficulty(target, 1.0);
-    report("difficulty one leaves the anchor sound", target[0] == 0u, "top word is " + std::to_string(target[0]));
+    text_begun(&detail);
+    report("difficulty one leaves the anchor sound", target[0] == 0u,
+           text_number(text_put(&detail, "top word is "), target[0])->bytes);
 }
 
 /**
@@ -477,20 +580,21 @@ void measure_scan_rate()
         platform_line_out_ended();
     }
 
-    const std::vector<uint8_t> header = bytes_from_hex(HEADER_VECTORS[1].header_hex);
+    uint8_t header[KAT_HEADER_BYTES];
+    (void)bytes_from_hex(HEADER_VECTORS[1].header_hex, header, sizeof(header));
     Sha256ScanRequest request;
-    scan_request_from_header(&request, header.data());
+    scan_request_from_header(&request, header);
 
     request.nonce_start = 0u;
     request.nonce_count = 2000000u;
     sha256_target_from_nbits(request.share_target, request.nbits);
 
-    const auto started = std::chrono::steady_clock::now();
+    const unsigned long long started = platform_clock_ns();
     Sha256ScanResult result;
     sha256_scan_avx2(&request, &result);
-    const auto finished = std::chrono::steady_clock::now();
+    const unsigned long long finished = platform_clock_ns();
 
-    const double seconds = std::chrono::duration<double>(finished - started).count();
+    const double seconds = (double)(finished - started) / 1.0e9;
     const double rate = (seconds > 0.0) ? ((double)result.nonces_evaluated / seconds) : 0.0;
 
     {
