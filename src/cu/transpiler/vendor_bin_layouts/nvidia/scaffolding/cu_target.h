@@ -3,10 +3,10 @@
 #ifndef CU_TARGET_H
 #define CU_TARGET_H
 
-// The lane as CUDA C++, a language of the register lane (code_generator.h): its ruleset is cu.krs, nvcc compiles it,
-// and its header is the prelude, whose launch its opening and its resident read. Each form is written in the language
-// itself: a .cu file read against cu.krs is read form by form, and each form written at once in another ruleset of the
-// same schema
+// The lane as CUDA C++, a language of the register lane (code_generator.h). Its ruleset is cu.krs, nvcc compiles it,
+// and its header is the prelude, whose launch its opening and its resident read. Each form is in the language itself.
+// The reader reads a .cu file against cu.krs form by form, and writes each form at once in another ruleset of the same
+// schema
 
 #include "../../../../engine/rmc/code_generator.h"
 
