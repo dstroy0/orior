@@ -21,8 +21,8 @@
 
 #include <stdlib.h>
 
-// the max words that start a carrier, its pop or its cross, room for the carrier's own, its gated list, its lessons,
-// its dry flags, the machine file and the layout; and the longest of them
+// the max words that start a carrier, its pop or its cross. There is room for the own words of the carrier, its gated
+// list, its lessons, its dry flags, the machine file and the layout. Then the longest of them
 #define RUN_CARRIER_WORDS 12u
 
 #define RUN_PATH_MAX_LEN 1024u
@@ -40,14 +40,15 @@
 
 #define RUN_CARRIER_ENDING 192u
 
-// the room the teacher's trace is gathered in before it is passed to the run
+// the room that the trace of the teacher gathers in before the call passes it to the run
 #define RUN_TRACE_ROOM (1u << 20u)
 
 // a question's cases as the carrier reads them: a case a line, its eight words in hex, each at max eight digits
 #define RUN_CASES_TEXT (RUN_CASES_MAX * ((RUN_IN_WORDS * 9u) + 1u))
 
-// the round's list as the airlock reads it, each question's answers named after the prefix, and the refusals its cross
-// passes the teacher, a line a refusal, `<answers stem> <registers> <why>` (measuring_stick_query.c)
+// the list of the round as the airlock reads it, with the answers of each question named after the prefix. Then the
+// refusals that its cross passes the teacher, one line for each, `<answers stem> <registers> <why>`
+// (measuring_stick_query.c)
 #define RUN_AIRLOCK_LIST "airlock.txt"
 
 #define RUN_AIRLOCK_ANSWERS "airlock_"
@@ -61,10 +62,10 @@ typedef struct
 {
     char word[RUN_CARRIER_WORDS][RUN_PATH_MAX_LEN];
     unsigned int words;
-    // the airlock: the words that start the carrier with the part taken out, which pops each question's container
-    // (`--list <list>` put after them), and those that start the vendor's reader over the containers (the list put
-    // after its first word); the gated list the carrier reads, named by its `--gated`, and 1 where the carrier is
-    // passed one at all
+    // the airlock. It has the words that start the carrier with the part taken out, which pops the container of each
+    // question (`--list <list>` put after them). It has those that start the reader of the vendor over the containers
+    // (the list put after its first word). Then the gated list that the carrier reads, named by its `--gated`, and 1
+    // where the carrier gets one at all
     char pop[RUN_CARRIER_WORDS][RUN_PATH_MAX_LEN];
     unsigned int pop_words;
     char cross[RUN_CARRIER_WORDS][RUN_PATH_MAX_LEN];
@@ -73,8 +74,8 @@ typedef struct
     int gated_given;
     // the sequence of the list the airlock last read: what its cross passes comes after it
     unsigned long long airlock_began;
-    // the nanoseconds the airlock, its pop and its cross within it, and the carrier have taken since the channel
-    // opened (run_channel_clocks)
+    // the nanoseconds that the airlock, its pop and its cross within it, and the carrier took since the channel opened
+    // (run_channel_clocks)
     unsigned long long airlock_nanoseconds;
     unsigned long long pop_nanoseconds;
     unsigned long long cross_nanoseconds;
@@ -84,13 +85,13 @@ typedef struct
     // 1 where the carrier's only word is `dry`, and the count of questions written so far
     int dry;
     unsigned int dry_written;
-    // 1 where the carrier's own words include --dry. It stops before the driver, every round through the airlock as a
-    // live one, and nothing it answers is stored in R
+    // 1 where the own words of the carrier include --dry. It stops before the driver, with every round through the
+    // airlock as a live one, and R stores nothing that it answers
     int stopped;
-    // 1 where the carrier whose answers are being read ended clean, exited with code 0: a refusal it wrote is the
-    // part's own word, read where a conference rules on it (run_channel_line_ruled)
+    // 1 where the carrier whose answers the call now reads ended clean, with exit code 0. A refusal that it wrote is
+    // the own word of the part, read where a conference decides on it (run_channel_line_ruled)
     int carrier_clean;
-    // the run every blob of the channel is passed to
+    // the run that the call passes every blob of the channel to
     QryShared *buffer;
     // the bytes of the list of a round in s_channel_list
     size_t list_size;
@@ -99,8 +100,8 @@ typedef struct
 // the room of the list of a round, a record at max half a ring
 #define RUN_LIST_ROOM (QRY_WRITER_RING_BYTES / 2ULL)
 
-// how many registers past the highest its code names a container declares, as the part answered it, and the mark of
-// no answer: no refusal of a register past a kernel's count is then cleared
+// how many registers past the highest that its code names a container declares, as the part answered it. Then the
+// mark of no answer, under which the call clears no refusal of a register past the count of a kernel
 #define RUN_REGISTERS_UNANSWERED 0xffffffffu
 
 // the max registers a kernel allots a thread, R254 the highest a field names short of RZ

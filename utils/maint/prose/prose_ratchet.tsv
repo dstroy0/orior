@@ -590,7 +590,6 @@ src/cu/transpiler/lstar/protocol/table_text.c	1
 src/cu/transpiler/lstar/protocol/table_text.h	3
 src/cu/transpiler/lstar/protocol/teacher/run_channel/carried.c	1
 src/cu/transpiler/lstar/protocol/teacher/run_channel/carrier.c	9
-src/cu/transpiler/lstar/protocol/teacher/run_channel/run_channel_internal.h	15
 src/cu/transpiler/vendor_bin_layouts/container_layout.c	1
 src/cu/transpiler/vendor_bin_layouts/container_layout.h	3
 src/cu/transpiler/vendor_bin_layouts/container_pattern.c	3
