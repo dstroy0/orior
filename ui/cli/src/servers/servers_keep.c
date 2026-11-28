@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_save.c: a server given the tree's slices verifies what is written and does nothing else: it is given slices
+// servers_keep.c: a server given the tree's slices verifies what is written and does nothing else: it is given slices
 // and publishes their problems, and no request reaches it. It runs only while it is asked: each slice it is given is an
 // ask, and a file the tree's check slices waits on it until the check lets the file go. A watcher lets it go once
 // nothing waits on it, no slice owes its diagnostics, the tree's check is not running and it has been quiet for as long

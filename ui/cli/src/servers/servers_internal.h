@@ -280,12 +280,18 @@ typedef struct
     embed_atomic_u32 taken;
 } CliServersCheckRing;
 
-// The tree's check: whether it is on, its tree, where what it reports goes; the tree's files in one movable cell sized
-// from them, positioned as `file_at_max` starts of eight bytes, then a byte a file, 1 while it waits, then the paths'
-// texts each with its 0, `files_max` bytes of them and `files_used` written; the two rings of files waiting, the tree's
-// files and the files a change puts first, their slots the check's part of the rings block; the generation, moved on as
-// the check is let go so that a checker drops the files queued before; how many it was given and how many are done,
-// whether its threads started and whether its rings are positioned
+// The check of the tree:
+//
+// - `on`, `root`, `sink` and `has_sink`: whether it is on, its tree, and where what it reports goes
+// - `files_cell`: the files of the tree in one movable cell, sized from them. The cell holds `file_at_max` starts of
+//   eight bytes, then a byte for each file, 1 while it waits, then the texts of the paths, each with its 0.
+// - `files_max` and `files_used`: the bytes of those texts, and the bytes written
+// - `file_count`: the count of the files recorded
+// - `waiting` and `first`: the two rings of files that wait, the files of the tree and the files that a change puts
+//   first. Their slots are the part of the check in the rings block.
+// - `generation`: moves on as the check lets go, thus a checker drops the files that went into the queue before
+// - `total` and `done`: how many files it got, and how many it finished
+// - `started` and `positioned`: whether its threads started, and whether its rings have their places
 typedef struct
 {
     int on;
@@ -306,86 +312,105 @@ typedef struct
     int positioned;
 } CliServersQueue;
 
-// the places in the check's files cell of the start of the file `at_`, of the waiting byte of the file `at_`, and of
-// the text at `offset_` of the paths' bytes
+// the places in the files cell of the check:
+//
+// - CLI_SERVERS_FILE_AT: the start of the file `at_`
+// - CLI_SERVERS_QUEUED_AT: the byte of the file `at_` that tells whether it waits
+// - CLI_SERVERS_FILES_TEXT_AT: the text at `offset_` of the bytes of the paths
 #define CLI_SERVERS_FILE_AT(at_) ((unsigned long long)(at_) * sizeof(unsigned long long))
 #define CLI_SERVERS_QUEUED_AT(queue_, at_) (CLI_SERVERS_FILE_AT((queue_)->file_at_max) + (unsigned long long)(at_))
 #define CLI_SERVERS_FILES_TEXT_AT(queue_, offset_) (CLI_SERVERS_QUEUED_AT((queue_), (queue_)->file_at_max) + (offset_))
 
-// the check's cell for the tree's files given back where it is too small and taken sized from the tree's files, the
-// rings positioned once: 1, or 0 where the cells cannot meet it; every file's waiting byte written 0; a file pushed on
-// the ring its `front` names, under a ticket of its own: 1, or 0 where the ring is full or its cell is refused; the
-// files waiting, pushed and not yet taken; and the tree's files recorded, those of `files` and those recorded before.
-// Each with the queue's lock acquired (servers_check_room.c)
+// the cell of the check for the files of the tree. Where it is too small, the call gives it back and takes it again at
+// their size. The rings get their places once. The return is 1, or 0 where the cells cannot meet it. This call and each
+// call below, down to cli_servers_check_files_append, takes the lock of the queue (servers_check_room.c)
 int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args);
+// the byte that tells whether a file waits, written 0 for every file
 void cli_servers_check_queued_cleared(const CliServersQueueFilesCtx *args);
+// a file pushed on the ring that its `front` names, under a ticket of its own. The return is 1, or 0 where the ring is
+// full or refuses its cell
 int cli_servers_check_queue_append(const CliServersQueueCtx *args);
+// the queue that a call reads
 typedef struct
 {
     const CliServersQueue *queue;
 } CliServersQueueCfg;
+// the files that wait: pushed, and not yet taken
 unsigned int cli_servers_check_waiting(const CliServersQueueCfg *args);
+// the files of the tree recorded: those of `files`, and those recorded before
 void cli_servers_check_files_append(const CliServersQueueFilesCtx *args);
 
-// the texts of the files the editor has open, by their keys with their paths, and the parses as last read, by their
-// keys with their texts' hashes, under the texts' lock (servers_files.c)
+// the texts of the files that the editor has open, by their keys with their paths, under the lock of the texts
+// (servers_files.c)
 extern CliKeyed g_cli_servers_texts;
+// the parses as last read, by their keys with the hashes of their texts, under the same lock
 extern CliKeyed g_cli_servers_parses;
 
-// each file's diagnostics as its server last gave them, a JSON array by its key with its URI, under their own lock;
-// and, by the file's key under the checks' lock, the checkers' findings, a JSON object of each checker's array by its
-// id, its ids in order, with the URI; the names a build tool gives the file, one to a line; and what each Python
-// class's family sets, `class attribute` one to a line (servers_emit.c)
+// the diagnostics of each file as its server last gave them, under their own lock (servers_emit.c). Each is a JSON
+// array by its key with its URI
 extern CliKeyed g_cli_servers_published;
+// the findings of the checkers, by the key of the file, under the lock of the checks. Each is a JSON object of the
+// array of each checker by its id, its ids in order, with the URI
 extern CliKeyed g_cli_servers_checked;
+// the names that a build tool gives the file, by its key, one to a line, under the lock of the checks
 extern CliKeyed g_cli_servers_input;
+// what the family of each Python class sets, `class attribute` one to a line, by the key of the file, under the lock of
+// the checks
 extern CliKeyed g_cli_servers_supplied;
 
-// the max bytes of a job of the servers: a file's text and what is reported of it
+// the max bytes of a job of the servers: the text of a file and the report on it
 #define CLI_SERVERS_JOB_CAPACITY (CLI_SERVERS_LARGEST + (64ULL << 10u))
 
-// A job of the servers done on one of their threads, from `size` bytes of it, its own copy of what it was passed
+// A job of the servers that runs on one of their threads, from `size` bytes of it: its own copy of what the caller
+// gave
 typedef void (*CliServersJob)(const CliServersJobCfg *args);
-// `size` bytes of a job copied into a persistent cell of their size and pushed on the jobs' ticket ring under a ticket
-// of the caller's, waiting where the ring holds a lap of jobs in flight: 1, or 0 where the cell could not be taken;
-// and a job's cell, positioned by the caller, pushed under a ticket, popped by the thread that runs it and given back
-// by it: 1, or 0 where `cell` is NULL (servers_jobs.c)
+// `size` bytes of a job, copied into a persistent cell of their size. The call pushes them on the ticket ring of the
+// jobs, under a ticket of the caller. The call waits where the ring holds a lap of jobs in flight. The return is 1, or
+// 0 where the call could not take the cell (servers_jobs.c)
 int cli_servers_later(const CliServersRunCtx *args);
+// the cell of a job, which the caller positions, pushed under a ticket. The thread that runs it pops it and gives it
+// back. The return is 1, or 0 where `cell` is NULL
 int cli_servers_later_dispatch(const CliServersRunSizeCtx *args);
 
-// the spec of the server that serves `language`: 1, or 0 where none does; the server of `language` for the tree at
-// `root`, started where it is not running, referenced for the caller, NULL with why given where none could start or
-// none serves it, which is reported as nothing; the server that has `path` open, referenced for the caller, NULL where
-// none does; whether `server` is given the tree's slices in place of files, as its spec says; and the protocol's name
-// for the language of `path` by its extension (servers_start.c)
+// the spec of the server that serves `language`. The return is 1, or 0 where none does (servers_start.c)
 int cli_servers_spec_for(const CliServersLanguageCtx *args);
+// the server of `language` for the tree at `root`, started where it does not run, and referenced for the caller. The
+// return is NULL with the reason where none could start, or where none serves it, which the call reports as nothing
 CliLsp *cli_servers_server(const CliServersLanguageCtx *args);
+// the server that has `path` open, referenced for the caller. The return is NULL where none does
 CliLsp *cli_servers_owner_get(const CliServersPathLspCtx *args);
+// whether `server` gets the slices of the tree in place of files, as its spec says
 int cli_servers_slicing(const CliServersCtx *args);
-// the server of the file at `path` a slice of it is given to, started again where it is given the tree's slices and was
-// let go, the file opened in it with its stored slice and the editor's text: the server, referenced for the caller, or
-// NULL where none has the file open and none starts; and the server a request about the file at `path` is asked of,
-// referenced for the caller: NULL where none has it open or it is given its server as slices, as such a server is
-// asked for nothing but the problems it publishes (servers_save.c)
+// the server that gets a slice of the file at `path`, referenced for the caller (servers_keep.c). Where it gets the
+// slices of the tree and the watcher let it go, it starts again. The file opens in it with its stored slice and the
+// text of the editor. The return is NULL where none has the file open and none starts
 CliLsp *cli_servers_owner_start(const CliServersPathLspCtx *args);
+// the server to ask a request about the file at `path`, referenced for the caller. The return is NULL where none has it
+// open, or where its server gets it as slices. The call asks such a server for no more than the problems it publishes
 CliLsp *cli_servers_owner_answering(const CliServersPathLspCtx *args);
-// an ask of `server` begun and ended, a server given the tree's slices waited on between them; an ask of it noted that
-// waits on nothing; and the servers given the tree's slices let go once nothing waits on them, no slice owes its
-// diagnostics, the tree's check is not running and each has been quiet for as long as its asks of the last minute
-// earn it, watched on a thread of their own started with the first; the language a file given its server as a slice
-// opened as stored, for it to be opened again in the server started after it, and let go as it closes (servers_save.c)
+// an ask of `server` begun. Between it and its end, a server that gets the slices of the tree waits (servers_keep.c).
+//
+// A watcher lets those servers go once nothing waits on them, no slice owes its diagnostics, and the check of the tree
+// does not run. Each must also be quiet for as long as its asks of the last minute earn it. The watcher runs on a
+// thread of its own, which the first ask starts
 void cli_servers_request_begin(const CliServersCtx *args);
+// the ask ended
 void cli_servers_request_end(const CliServersCtx *args);
+// an ask of `server` noted that waits on nothing
 void cli_servers_request_note(const CliServersCtx *args);
+// the language that a file opened as, stored where its server gets it as a slice. Thus it opens again in the server
+// that starts after it
 void cli_servers_language_note(const CliServersPathLanguageCtx *args);
+// that language let go as the file closes
 void cli_servers_language_forgotten(const CliServersPathLspCtx *args);
+// the name in the protocol of the language of `path`, by its extension (servers_start.c)
 void cli_servers_id_get(const CliServersPathLanguageCtx *args);
 
-// the server of `spec` started for the tree at `root`, with the options and the environment it takes, referenced once
-// for the servers running: it, or NULL with why given (servers_launch.c)
+// the server of `spec`, started for the tree at `root` with the options and the environment that it takes, and
+// referenced once for the servers that run. The return is the server, or NULL with the reason (servers_launch.c)
 CliLsp *cli_servers_launch(const CliServersRootCtx *args);
-// what a server sends unprompted, its context where it goes: a file's diagnostics, an edit to make, the settings it
-// requests, and the hints and tokens to request again (servers_recv.c)
+// what a server sends with no request, with its context where it goes (servers_recv.c). That is the diagnostics of a
+// file, an edit to make, the settings that it requests, and the hints and tokens to request again
 void cli_servers_recv(const CliLspRecvCfg *args);
 // The methods that cli_servers_recv takes, CLI_SERVERS_METHODS of them. They are the five that it acts on and the two
 // of the capability window.workDoneProgress. The last two are the notifications of the window that the protocol grants
