@@ -8,7 +8,7 @@
 // Nothing here knows a language. A word of the web is a tree of precepts (word_web.h). A precept is a gate, a wire or a
 // shift that means the same everywhere. A walk of the tree over a case of operands gives the word that the target must
 // make, if it supports that word at all. The program then queries the target and compares the two: where they agree,
-// the target has a word for that tree. No person states the answer.
+// the target has a word for that tree. Where they differ, it has none, and no person states the answer.
 //
 // This is the half of the derivation that needs no target. A form carries the name of an operation and the type of each
 // operand, and states nothing about what the operation means. Thus a name cannot match a word, but a run can. Where an
