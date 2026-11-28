@@ -1,7 +1,8 @@
-# Build the read-only BAR0 driver (bar0_driver.c) to a .sys under the repo's build directory, compiling and linking
-# directly with the MSVC toolchain against the Windows Driver Kit's kernel headers and libraries. This needs the WDK
-# installed (the kernel libraries and headers under Windows Kits\10), and MSVC from Visual Studio or the Build Tools.
-# It does not need the WDK's Visual Studio extension. Build products only; nothing is loaded or signed here.
+# Build the read-only BAR0 driver (bar0_driver.c) to a .sys under the build folder of the repository. The script
+# compiles and links directly with the MSVC toolchain, against the kernel headers and libraries of the Windows Driver
+# Kit. This needs the WDK installed (the kernel libraries and headers under `Windows Kits\10`), and MSVC from Visual
+# Studio or the Build Tools. It does not need the Visual Studio extension of the WDK. The script makes build products
+# only, and loads or signs nothing.
 $ErrorActionPreference = 'Stop'
 
 $here = $PSScriptRoot
