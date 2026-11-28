@@ -19,8 +19,8 @@ static unsigned long long rounded(unsigned long long at, unsigned long long alig
     return ((align > 1ULL) && ((at % align) != 0ULL)) ? (at + (align - (at % align))) : at;
 }
 
-// The attributes of the part, written with the ends that this code carries, into `written`. The return is its size,
-// or 0 where the section carries no end attribute and the call wrote nothing
+// The attributes of the part, written with the exits that this code carries, into `written`. The return is its size, or
+// 0 where the section carries no exit attribute (`attribute_exits`) and the call wrote nothing
 static unsigned long long attributes_written(const Places *places, const unsigned char *bytes, unsigned long long size,
                                              const unsigned int *exits, unsigned int exit_count, unsigned char *written,
                                              unsigned long long room)
@@ -30,7 +30,7 @@ static unsigned long long attributes_written(const Places *places, const unsigne
         container_attribute_of(places, bytes, size, places->attribute_exits, &value_size);
     if (found == NULL)
     {
-        // A section with no end attribute belongs to something that the target calls and returns from, not to
+        // A section with no exit attribute belongs to something that the target calls and returns from, not to
         // something that it enters. An entry ends where the container says it ends, and the other ends on its own. To
         // carry the section over untouched is right for that case alone
         if (exit_count != 0u)
