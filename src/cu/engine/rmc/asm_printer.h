@@ -3,24 +3,27 @@
 #ifndef ASM_PRINTER_H
 #define ASM_PRINTER_H
 
-// The code generator's text as a record program, the code generator's work where the programs run (engine_table.md item
-// 11(a), the code generator on the device). The core decides the forms of the language's ruleset a lane is written
-// in (codegen_core.h, MachineInstr). The assembly printer writes their text from the ruleset's own written forms
-// positioned out as tables, a lane a byte. Each lane reads one form, by the index, finds which of the form's pieces
-// contains its byte, and writes that byte: a character of a piece of the form's text, of a bank's written form around a
-// register's number, of a word the ruleset contains whole, or a decimal digit of a number. A lane past its form's end
-// writes 0, which no text contains: the text is the lanes' bytes in lane order with the zeros left out. The host
-// arranges once what is the ruleset's, the target's and the header's alone (asm_printer_ruleset_build); the forms'
-// records are positioned out from the items by the functions below, which the device runs (codegen_device.h) and the
-// host oracle runs (asm_printer_host): the two arrange them from one source
+// The text of the code generator as a record program, the work of the code generator where the programs run. See
+// engine_table.md item 11(a), the code generator on the device. The core decides the forms of the ruleset of the
+// language that a lane uses (codegen_core.h, MachineInstr). The assembly printer writes their text from the own written
+// forms of the ruleset, arranged as tables, one lane to a byte.
+//
+// Each lane reads one form, by the index, finds which piece of the form holds its byte, and writes that byte. The byte
+// is a character of a piece of the form text, or of the written form of a bank around a register number. Else it is a
+// character of a word that the ruleset holds whole, or a decimal digit of a number. A lane past the end of its form
+// writes 0, which no text holds. The text is the bytes of the lanes in lane order, with the zeros left out.
+//
+// The host arranges once what belongs to the ruleset, the target and the header alone (asm_printer_ruleset_build). The
+// functions below arrange the records of the forms from the items. The device runs them (codegen_device.h), and the
+// host oracle runs them (asm_printer_host), so the two arrange them from one source
 
 #include "../../../../includes/file_defs/krs/ruleset_core_words.h"
 #include "codegen_core.h"
 #include "target.h"
 
-// the arguments one record of the assembly printer contains, each a word the ruleset contains whole or a number between
-// two words (a bank's written form around a register's number); a form with more placeholders takes a record for each
-// four
+// the arguments that one record of the assembly printer holds. Each is a word that the ruleset holds whole, or a number
+// between two words. Those are the written form of a bank around a register number. A form with more placeholders takes
+// a record for each four
 #define ASM_PRINTER_PLACEHOLDERS 4u
 
 // the fields of a record: the part, the first lane, then four for each placeholder
@@ -32,12 +35,14 @@
 // the numbers the program writes are 32-bit words, ten digits at max
 #define ASM_PRINTER_DIGITS 10u
 
-// A record of the assembly printer is one form, or four placeholders of one, as a part: the part's number, the first
-// lane of the lanes that write it, and each placeholder's argument as the word before its number, the word after it,
-// the number, and whether it has one. A part is the form's pieces around its placeholders: the piece before each of its
-// placeholders, then the piece after its last where the form ends there, empty where it goes on in the next part. Its
-// bytes are seventeen atoms in order: a piece, then a placeholder's word before, its number's digits and its word
-// after, four times, then the last piece
+// A record of the assembly printer is one form, or four placeholders of one, as a part. It has the number of the part,
+// and the first lane of the lanes that write it. It has the argument of each placeholder as the word before its
+// number, the word after it, the number, and whether it has one.
+//
+// A part is the pieces of the form around its placeholders: the piece before each of its placeholders, then the piece
+// after its last. That last piece is empty where the form goes on in the next part. Its bytes are seventeen atoms in
+// order. They are a piece, then the word before of a placeholder, its number digits and its word after, four times,
+// then the last piece
 #define ASM_PRINTER_PIECES (ASM_PRINTER_PLACEHOLDERS + 1u)
 
 #define ASM_PRINTER_ATOMS ((4u * ASM_PRINTER_PLACEHOLDERS) + 1u)
@@ -56,9 +61,10 @@
 // the max lanes and records the assembly printer runs: a first lane and a record's number are 32-bit fields
 #define ASM_PRINTER_LANES_MAX 0x80000000ULL
 
-// the assembly printer: its key and layout, as keymath and key_schedule leave them, and what they took, retained so the
-// device positions it out again (layout_device, codegen_device.h): its steps, the fields' widths and offsets, its
-// tables, each pointing at its values, and the step it outputs a list of words in one cell of the pool, and their count
+// the assembly printer: its key and layout, as keymath and key_schedule leave them, and what they took. The program
+// keeps these so that the device arranges it again (layout_device, codegen_device.h). They are its steps, the widths
+// and offsets of the fields, and its tables, each with a pointer at its values. Then the step that it outputs, a list
+// of words in one cell of the pool, and their count
 struct AsmPrinterWords
 {
     unsigned int *words;
@@ -78,8 +84,8 @@ struct AsmPrinterProgram
     unsigned int output;
 };
 
-// a placeholder's argument as the program writes it: the word before its number and the word after, by their numbers
-// among the words, and its number where it has one
+// the argument of a placeholder as the program writes it. It has the word before its number and the word after, by
+// their numbers among the words, and its number where it has one
 struct AsmPrinterArgument
 {
     unsigned int before;
@@ -88,14 +94,19 @@ struct AsmPrinterArgument
     unsigned int numbered;
 };
 
-// what a ruleset writes, arranged once for a target and a header: the assembly printer and the scratch each form's
-// construct takes (ruleset_scratch; none, since the assembly printer errors on a ruleset of constructs); each word's
-// length; each part's lanes, the lengths of its pieces; each form's parts, in its order, from form_part_first[form] to
-// form_part_first[form + 1] of form_parts, and the parameter each of its placeholders takes, from
-// form_placeholder_first[form] to form_placeholder_first[form + 1] of placeholder_parameters; the words around each
-// bank's register number, each fixed register's word, the word "-" before a negative number's digits, the target's hash
-// as the note writes it, and the header's part; and the target's compute capability and NVRTC's version as the note
-// writes them
+// what a ruleset writes, arranged once for a target and a header:
+//
+// - the assembly printer, and the scratch that the construct of each form takes (ruleset_scratch). That is none,
+//   because the assembly printer gives an error on a ruleset of constructs.
+// - the length of each word
+// - the lanes of each part, and the lengths of its pieces
+// - the parts of each form in its order, from `form_part_first[form]` to `form_part_first[form + 1]` of form_parts
+// - the parameter that each of its placeholders takes, from `form_placeholder_first[form]` to
+//   `form_placeholder_first[form + 1]` of placeholder_parameters
+// - the words around the register number of each bank, and the word of each fixed register
+// - the word "-" before the digits of a negative number, the hash of the target as the note writes it, and the part
+//   of the header
+// - the compute capability of the target and the version of NVRTC, as the note writes them
 struct AsmPrinterRuleset
 {
     AsmPrinterProgram program;
@@ -115,8 +126,8 @@ struct AsmPrinterRuleset
     unsigned int target_numbers[4];
 };
 
-// the same as the records' layout reads it, its lists where the layout runs: in host memory for the host oracle, in
-// device memory for the device
+// the same, as the layout of the records reads it, with its lists where the layout runs. They are in host memory for
+// the host oracle, and in device memory for the device
 struct AsmPrinterLists
 {
     const unsigned int *word_lengths;
@@ -144,8 +155,8 @@ CODEGEN_CORE void asm_printer_bits(unsigned int *record, unsigned int at, unsign
     }
 }
 
-// 1 where an item is one the assembly printer writes: the header, or a form given as many arguments as it takes, as the
-// host's writing it requests
+// 1 where an item is one that the assembly printer writes: the header, or a form with as many arguments as it takes.
+// That is as the write of the host requests it
 CODEGEN_CORE int asm_printer_formed(const MachineInstr *item)
 {
     return (item->form == ASM_PRINTER_ALL_ONES) ||
@@ -168,9 +179,9 @@ CODEGEN_CORE unsigned int asm_printer_record_count(const AsmPrinterLists *forms,
 }
 
 // argument `parameter` of a formed item as the program writes it, as the host code generator writes it
-// (code_generator_text, code_generator.cu): a register as its bank's words around its number, a fixed register as its
-// word, a number as its digits, a negative one after the minus; the note's from its step count and the target, and the
-// resident's from the launch's layout
+// (code_generator_text, code_generator.cu). A register is the words of its bank around its number, and a fixed register
+// is its word. A number is its digits, and a negative one comes after the minus. The note comes from its step count and
+// the target, and the resident from the layout of the launch
 CODEGEN_CORE AsmPrinterArgument asm_printer_argument(const AsmPrinterLists *forms, const MachineInstr *item,
                                                      unsigned int parameter)
 {
@@ -216,10 +227,10 @@ CODEGEN_CORE AsmPrinterArgument asm_printer_argument(const AsmPrinterLists *form
     return argument;
 }
 
-// a formed item's records arranged from `record` on, as many as asm_printer_record_count gives, into `records` cleared
-// clear: each record's part and its placeholders' arguments, the first lane left for asm_printer_first to arrange; and
-// the lanes each record takes into `record_lanes`, its pieces' characters and each placeholder's words and ten digits a
-// number, which the lanes past its text write as 0
+// the records of a formed item, arranged from `record` on, as many as asm_printer_record_count gives, into the cleared
+// `records`. Each record has its part and the arguments of its placeholders, and asm_printer_first arranges the first
+// lane. The lanes that each record takes go into `record_lanes`: the characters of its pieces, the words of each
+// placeholder, and ten digits for a number. The lanes past its text write those as 0
 CODEGEN_CORE void asm_printer_records(const AsmPrinterLists *forms, const MachineInstr *item, unsigned long long record,
                                       unsigned int *records, unsigned long long *record_lanes)
 {
@@ -248,8 +259,9 @@ CODEGEN_CORE void asm_printer_records(const AsmPrinterLists *forms, const Machin
             AsmPrinterArgument argument = asm_printer_argument(forms, item, parameter);
             if (RULESET_CORE_IS_SCRATCH(parameter))
             {
-                // a scratch register, as the host's writer takes it (ruleset_opcode_text): the item's own from where
-                // the core left its bank, the k-th distinct one of the bank the form's text names
+                // a scratch register, as the writer of the host takes it (ruleset_opcode_text). It is the own register
+                // of the item from where the core left its bank. That is the k-th distinct one of the bank that the
+                // text of the form names
                 const unsigned int bank = RULESET_CORE_SCRATCH_BANK(parameter);
                 const unsigned int bank_index =
                     (bank == REGCLASS_TEMPORARY)
@@ -312,10 +324,10 @@ CODEGEN_CORE unsigned int asm_printer_byte(const unsigned int *record, unsigned 
     return (unsigned int)((pair >> (offset % 32u)) & 0xFFULL);
 }
 
-// The assembly printer and its tables for any lane the core decides in `rules` for `target` under `header`. 1 where it
-// is arranged, else 0 and why on `error`. A ruleset that gives a form as a construct errors, since a construct's
-// scratch is the code generator's to take. So does a bank that writes its register with other than one number, and
-// more words or characters than the tables contain
+// The assembly printer and its tables for any lane that the core decides in `rules` for `target` under `header`. The
+// return is 1 where the call arranged it, else 0 with the reason on `error`. A ruleset that gives a form as a construct
+// gives an error, because the code generator takes the scratch of a construct. So does a bank that writes its register
+// with other than one number, and more words or characters than the tables hold
 int asm_printer_ruleset_build(const Ruleset *rules, const TargetInfo *target, const char *header,
                               AsmPrinterRuleset *text_rules, VerbaLinea *error);
 
@@ -333,9 +345,9 @@ int asm_printer_words_same(const AsmPrinterWords *left, const AsmPrinterWords *r
 // the rules as the records' layout reads them in host memory, their lists `text_rules`' own
 AsmPrinterLists asm_printer_lists(const AsmPrinterRuleset *text_rules);
 
-// the host oracle: the lane's items (CodeGenerator::decided) arranged as records by the functions above and written by
-// the assembly printer on the host (cycle_record_run_host), from the `count` items at `items`. 1 where it ran, its text
-// on `text`, else 0 and why on `error_message`
+// the host oracle. The functions above arrange the items of the lane (CodeGenerator::decided) as records, from the
+// `count` items at `items`. The assembly printer writes them on the host (cycle_record_run_host). The return is 1 where
+// it ran, with its text on `text`, else 0 with the reason on `error_message`
 int asm_printer_host(const AsmPrinterRuleset *text_rules, const MachineInstr *items, unsigned long long count,
                      PlatformText *text, VerbaLinea *error_message);
 

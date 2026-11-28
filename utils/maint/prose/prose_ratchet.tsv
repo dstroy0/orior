@@ -500,7 +500,7 @@ src/cu/engine/render/orior_raster_output.c	19
 src/cu/engine/render/raster.cu	2
 src/cu/engine/render/raster_cuda_internal.h	14
 src/cu/engine/render/raster_entry.cu	3
-src/cu/engine/rmc/asm_printer.h	20
+src/cu/engine/rmc/asm_printer.h	1
 src/cu/engine/rmc/asm_printer_core_program.h	6
 src/cu/engine/rmc/asm_printer_core_words.h	12
 src/cu/engine/rmc/asm_printer_internal.h	1
