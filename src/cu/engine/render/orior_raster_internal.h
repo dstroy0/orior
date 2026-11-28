@@ -17,8 +17,8 @@
  * WHY THIS IS FAST, AND IT IS THE SAME REASON THE SEARCH IS. A pixel costs what the alignment under it
  * costs, and a steered probe set rejects most alignments on the first read. The renderer gets the same
  * gain. To bring the reads for each alignment toward one brings the cost of a frame toward one read for
- * each alignment. Nothing here has a tune apart from the search, and there is no second code path to
- * keep in agreement with it.
+ * each alignment. No code here gets an optimization of its own, apart from the search. There is no
+ * second code path to keep in agreement with it.
  */
 
 #include "orior_raster.h"
