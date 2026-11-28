@@ -66,6 +66,18 @@ if [ -z "$REPO" ]; then
     exit 1
 fi
 
+# The interpreter that runs the checks. Python for Windows gives python. Debian and Ubuntu give python3, and they
+# give python only with the python-is-python3 package. When the machine has neither, the commit stops. A check that
+# cannot start does not pass.
+PYTHON=python
+if ! command -v python > /dev/null 2>&1; then
+    PYTHON=python3
+fi
+if ! command -v "$PYTHON" > /dev/null 2>&1; then
+    echo "  commit stopped: the machine has no python or python3 to run the checks."
+    exit 1
+fi
+
 # The tools directory is named once, in repotools.toml, and asked for by type and not by
 # directory. Hardcoding utils/maint/ here makes a tools move a hook edit instead of a config line, and a
 # hook that is edited by hand during a move is a hook that gets it wrong. A missing key stops the
@@ -88,12 +100,11 @@ if [ ! -f "$CHECK/__main__.py" ]; then
     exit 1
 fi
 
-# No root argument. The checker uses its own roots, all inside this repository: docs, src, examples,
-# maint, theory and test. Naming only docs here leaves the READMEs beside the code unchecked, and a README
-# can carry a paragraph inside a table. The checker raises on a root that does not exist, the other
-# half of the same fault: the checker reads only part of the tree and exits 0.
+# No root argument. The root of the checker is the whole repository, and the hook gives it no other.
+# A root given here can leave a part of the tree out, and the check then passes with no error.
+# The checker holds only the staged files to their ceilings.
 RATCHET="$REPO/$TOOLS/prose/prose_ratchet.tsv"
-python "$CHECK" --staged --ratchet="$RATCHET"
+"$PYTHON" "$CHECK" --staged --ratchet="$RATCHET"
 status=$?
 
 # A lowered ceiling is written by the checker and goes into this commit with the files that lowered
@@ -114,7 +125,7 @@ if [ -z "$TESTS" ] || [ ! -f "$REPO/$TESTS/harness.py" ]; then
     echo "  commit stopped: no test harness under the [layout] tests key of $REPO/repotools.toml"
     exit 1
 fi
-python "$REPO/$TESTS/harness.py" docs ste
+"$PYTHON" "$REPO/$TESTS/harness.py" docs ste
 ste=$?
 if ! git -C "$REPO" diff --quiet -- "$REPO/$TOOLS/prose/ste_ratchet.tsv"; then
     git -C "$REPO" add -- "$REPO/$TOOLS/prose/ste_ratchet.tsv"
@@ -131,7 +142,7 @@ if git -C "$REPO" diff --cached --name-only | grep -qE "^(README\.md|docs/|theor
         echo "  commit stopped: no claim check at $CLAIMS"
         exit 1
     fi
-    report=$(python "$CLAIMS")
+    report=$("$PYTHON" "$CLAIMS")
     claims=$?
     if [ "$claims" -eq 0 ]; then
         echo "$report" | tail -1

@@ -865,8 +865,8 @@ static int core_radius_principal(const CoreRadiusScale *scale, const CoreRadiusO
     const SimRational eta_square = core_radius_times(*vertex, *vertex);
     const SimRational l_point = sim_rational_difference(one, core_radius_times(core_radius_times(two, scale->h), eta_square));
     const SimRational d_point = sim_rational_difference(one, eta_square);
-    // each field's exact coefficients to order and its magnitudes past them to reach, cells of the temporary tier that
-    // the call gives back before it returns
+    // each field's exact coefficients to order and its magnitudes past them to reach. They are cells of the temporary
+    // tier, and the call gives them back before it returns
     CoreRadiusSeries along = {CORE_RADIUS_NONE, CORE_RADIUS_NONE, core_radius_number(0ll, 1ll),
                               core_radius_number(0ll, 1ll)};
     CoreRadiusSeries spin = {CORE_RADIUS_NONE, CORE_RADIUS_NONE, core_radius_number(0ll, 1ll),
@@ -948,9 +948,9 @@ static int core_radius_wall_order(const void *left, const void *right)
     return sim_rational_sign(sim_rational_difference(other->tau, one->tau));
 }
 
-// the walls of one medium in `walls`, which has room for the mach shares and 4 more, the one with the max time left
-// first, and the walls of the same time left in the order they come: their count. `room` has the room of `walls`, and
-// the sort writes it
+// the walls of one medium in `walls`, and their count. The buffer `walls` has room for the mach shares and 4 more. The
+// wall with the max time left comes first, and walls of the same time left keep the order they come in. `room` has
+// the room of `walls`, and the sort writes it
 static unsigned int core_radius_walls(SimRational nu, SimRational x, SimRational least, SimRational sound,
                                       SimRational spacing, SimRational relaxation, SimRational mass,
                                       SimRational ionization, SimRational light, const CoreRadiusSequence &mach,
@@ -1050,8 +1050,8 @@ static void core_radius_witness_name(char *name, const char *ellipse, const char
 // the bytes of a witness's title, its terminator among them: literals and at most two rationals
 #define CORE_RADIUS_TITLE ((2u * RECORD_RATIONAL_ROOM) + 256u)
 
-// the title "On E_rho0, rho0 = <rho0>[ in xi = eta / <cut>], <kind><order>." into `title`, which has room for
-// CORE_RADIUS_TITLE, the cut written where the ellipse is not whole
+// the title "On E_rho0, rho0 = <rho0>[ in xi = eta / <cut>], <kind><order>." into `title`. The buffer `title` has
+// room for CORE_RADIUS_TITLE. The title names the cut where the ellipse is not whole
 static void core_radius_title(char *title, SimRational rho0, int whole, SimRational cut, const char *kind,
                               unsigned long long order)
 {

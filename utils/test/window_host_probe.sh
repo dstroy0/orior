@@ -4,15 +4,17 @@
 # window_host_probe.sh: a Linux host read for the window's checks, run there by harness.py window check --on through the
 # host's own login shell, so the host's own PATH resolves each program. One line a fact, tab-separated:
 #   system <tab> uname -s <tab> uname -m
-#   manager <tab> apt|dnf|pacman|apk|zypper|none
+#   manager <tab> apt|dnf|pacman|apk|zypper|brew|winget|none
 #   program <tab> name <tab> path or - <tab> the first line of its version, or -
 #   header <tab> X11/Xlib.h, X11/extensions/shape.h or X11/extensions/XInput2.h <tab> yes|no
 #   home <tab> the home folder
 # The programs read are the words after the script's name.
+# ui/cli/build_needs.sh also runs this script on the machine that builds. On macOS and Windows, the manager is brew or
+# winget.
 set -u
 echo "system	$(uname -s)	$(uname -m)"
 manager=none
-for one in apt-get dnf pacman apk zypper; do
+for one in apt-get dnf pacman apk zypper brew winget; do
     if command -v "$one" > /dev/null 2>&1; then
         manager="$one"
         break

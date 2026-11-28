@@ -3,11 +3,12 @@
 # The compilation database clangd reads, written to build/compile_commands.json; .clangd at the repository's root
 # points clangd at it. The engine, its sims and its tests build through nvcc, whose command lines clangd cannot read,
 # so each source is given here as clang parses it: a .cu as CUDA for this machine's GPU, a .c as C11, and a header as
-# C where some .c file reaches it through its includes and as CUDA where only .cu files do. Every directory under the
-# trees below that holds a header is on the include path, a superset of what run.sh and CMakeLists.txt name, and an
-# example's own directories come before them for its sources; no two headers of the trees, or of one example, share a
-# name, which is checked, so the union resolves each include the one way the builds do. Run it again after a source or
-# header is added or moved.
+# C where some .c file reaches it through its includes and as CUDA where only .cu files do.
+# Every folder of the trees below that holds a header is on the include path. This path holds more than run.sh and
+# CMakeLists.txt name. For a source of an example, the folders of the example come first. For a source in a version
+# folder of an example, such as v2, the folders of that version come before them. The script checks that no two
+# headers in one program have the same name. Thus the union finds each include as the builds find it. Run the script
+# again after you add or move a source or a header.
 #
 # The scanner of the sonarcloud workflow reads the same entries. It gives --under src and --under includes, so that only
 # the sources of those folders get an entry. A folder in --under does not give an entry to MMgr or embedded_types,
@@ -82,16 +83,38 @@ def included(path):
         return [os.path.basename(name) for name in INCLUDE.findall(source.read())]
 
 
-# the program a source builds into: an example's own folder under examples, whose builds see no other example's
-# headers, or "" for every other tree
+# A folder with this name under an example holds one version of its program. The script examples/miner/build_miner.sh
+# builds v1 from device and host, and v2 from device/v2 and host/v2.
+VERSION_FOLDER = re.compile(r"^v[0-9]+$")
+
+
+# The program that a source builds into. An example's own folder under examples is a program, and its builds see no
+# header of another example. A version folder under the example is a program of its own, for example
+# examples/miner/v2. For every other tree, the program is "".
 def scope_of(path):
     parts = os.path.relpath(path, ROOT).replace("\\", "/").split("/")
-    return "/".join(parts[:2]) if (len(parts) > 2) and (parts[0] == "examples") else ""
+    if (len(parts) <= 2) or (parts[0] != "examples"):
+        return ""
+    versions = [part for part in parts[2:-1] if VERSION_FOLDER.match(part)]
+    return "/".join(parts[:2] + versions[:1])
 
 
-# the header an include of `name` in a source of `scope` reaches: its program's own first, then the trees'
+# The programs whose headers a source of `scope` reads, the nearest first: its version, its example, then the trees.
+def scopes_of(scope):
+    chain = []
+    while scope:
+        chain.append(scope)
+        scope = scope.rsplit("/", 1)[0] if scope.count("/") > 1 else ""
+    return chain + [""]
+
+
+# The header that an include of `name` in a source of `scope` reaches: the first in the order of scopes_of.
 def header_of(by_name, scope, name):
-    return by_name.get(scope, {}).get(name) or by_name[""].get(name)
+    for each in scopes_of(scope):
+        header = by_name.get(each, {}).get(name)
+        if header is not None:
+            return header
+    return None
 
 
 # the headers some .c file reaches through its includes, followed by name through the repository's own headers
@@ -203,7 +226,8 @@ def main():
         else:
             type = "cuda"
         counts[type] += 1
-        scoped = folders.get(scope_of(path), []) if scope_of(path) else []
+        # The folders of the version come before the folders of the example. Then clang finds the header of the version.
+        scoped = [flag for each in scopes_of(scope_of(path))[:-1] for flag in folders.get(each, [])]
         entries.append({"directory": slashed(ROOT), "file": path,
                         "arguments": flags_of[type] + host + scoped + includes + ["-c", path]})
     print("  %d entries (%d as CUDA for %s, %d as C11, %d as C++17), %d include directories, CUDA at %s"

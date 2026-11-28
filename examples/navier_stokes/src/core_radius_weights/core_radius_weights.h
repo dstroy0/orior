@@ -10,8 +10,9 @@
 #include <stdint.h>
 
 // A sequence of rationals in one cell of the pool: `count` of them, the cell taken with room for `room`. A sequence
-// starts as zeros, the empty sequence with no cell. A call that gives a sequence takes its cell on the temporary tier
-// at the room it computes before it fills, and the caller gives the cell back with core_radius_released. A sequence
+// starts as zeros, the empty sequence with no cell. A call that gives a sequence takes its cell on the temporary tier.
+// The cell has the room that the call computes before it fills the cell, and the caller gives it back with
+// core_radius_released. A sequence
 // that lasts past the call that made it is a copy on the persistent tier, which core_radius_kept makes. Where the pool
 // cannot meet a cell, the sequence stays empty and core_radius_unmet gives 1.
 typedef struct
@@ -142,8 +143,8 @@ void core_radius_turned_weights(const CoreRadiusWeights *g, SimRational c, unsig
 // j = k - i. ||L^-1||_rho <= l bounds each order on E_rho, and |F_k|_k <= ||F_k||_rho0 Delta^k, ||.||_rho rising with
 // rho, gives the scalars the proof reads.
 //
-// The orders in cells of the persistent tier, each order's weights a copy there: `count` orders of f, g and q, the
-// inflow one fewer once the orders are carried, each cell of room for `room` orders. The orders last the run of the
+// The orders in cells of the persistent tier, each order's weights a copy there: `count` orders of f, g and q. The
+// inflow has one order fewer after the carry. Each cell has room for `room` orders. The orders last the run of the
 // program that reads them, and so the persistent tier holds them.
 typedef struct
 {
@@ -197,9 +198,9 @@ enum
 
 #define CORE_RADIUS_THREADS 128u
 
-// The device's carry. The primes, the inverses and the host's lengths are cells of the persistent tier, each sized at
-// its count when the device opens, and given back when it closes: inverse[t * primes_count + s] = p_s^-1 mod p_t for
-// s < t, and lengths[type * orders + k] the count of the weights of `type` at order k
+// The device's carry. The primes, the inverses and the host's lengths are cells of the persistent tier. The device
+// takes each cell at its count when it opens, and gives it back when it closes. The entry inverse[t * primes_count + s]
+// is p_s^-1 mod p_t for s < t. The entry lengths[type * orders + k] is the count of the weights of `type` at order k
 typedef struct
 {
     unsigned int primes_count;
@@ -226,14 +227,14 @@ void core_radius_device_close(CoreRadiusDevice *device);
 void core_radius_device_put(CoreRadiusDevice *device, unsigned int type, unsigned int k,
                             const CoreRadiusWeights *weights, const OriorExactInteger *unit);
 
-// order k's three sums, spin, along and square, each over 2^(2 bits + 1), read back whole, each its trailing zeros
-// dropped, on the temporary tier; each empty where the device is not available
+// order k's three sums, spin, along and square, each over 2^(2 bits + 1). The call reads each back whole onto the
+// temporary tier, and drops the zeros at its end. Each is empty where the device is not available
 void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const OriorExactInteger *unit, CoreRadiusWeights sums[CORE_RADIUS_SUMS]);
 
-// The orders of `orders` carried to `order`: for every k <= order the inflow and the Z parts are taken from f_k and
-// u_k, and every order past those `orders` contains is built from the rule. Exact at s = -1, magnitudes at s = +1: with
-// s = +1 and the orders it is given at their magnitudes, each new order bounds the magnitudes of the exact one mode by
-// mode. With a device and a unit the Cauchy sums are the device's, every weight they read a multiple of 1 / unit. The
+// The orders of `orders` carried to `order`, exact at s = -1 and magnitudes at s = +1. For every k <= order, the call
+// takes the inflow and the Z parts from f_k and u_k. It builds every order past those that `orders` contains from the
+// rule. With s = +1 and the orders at their magnitudes, each new order bounds the magnitudes of the
+// exact one mode by mode. With a device and a unit the Cauchy sums are the device's, every weight they read a multiple of 1 / unit. The
 // orders have room for order + 2 orders
 void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsigned int order, const OriorExactInteger *unit,
                         CoreRadiusDevice *device, CoreRadiusOrders *orders);

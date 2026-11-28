@@ -48,8 +48,8 @@ extern "C" const unsigned long long g_program_pool_bytes = 1ULL << 31u;
 // an empty sequence, with no cell
 #define CORE_TANGENT_NONE {NULL, 0u, 0u}
 
-// One field of one order: entry n the weights of mu^n, `count` of them, in a cell of the temporary tier that the
-// caller gives back with core_tangent_powers_released, each entry's weights a cell of that tier too
+// One field of one order: entry n the weights of mu^n, `count` of them, in a cell of the temporary tier. The weights
+// of each entry are a cell of that tier too. The caller gives the cells back with core_tangent_powers_released
 typedef struct
 {
     CoreRadiusWeights *power;
@@ -101,7 +101,7 @@ static void core_tangent_sum_into(CoreRadiusWeights *into, CoreRadiusWeights *ad
     core_radius_released(add);
 }
 
-// left + right at each power, a missing power empty; into `out`, which may be either
+// left + right at each power, a power that is absent read as empty; into `out`, which may be either
 static void core_tangent_sum(const CoreTangentPowers *left, const CoreTangentPowers *right, CoreTangentPowers *out)
 {
     const CoreRadiusWeights none = CORE_TANGENT_NONE;
@@ -329,7 +329,7 @@ static void core_tangent_turned_at(const CoreRadiusWeights *g, SimRational c, un
     }
 }
 
-// the product of `left` and `right`, times `factor` where `scaled` is 1, summed into `into`
+// the product of `left` and `right`, times `factor` where `scaled` is 1, which the call adds into `into`
 static void core_tangent_product_into(CoreRadiusWeights *into, const CoreRadiusWeights *left,
                                       const CoreRadiusWeights *right, int scaled, SimRational factor)
 {

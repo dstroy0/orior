@@ -25,18 +25,14 @@ while (REPOSITORY != os.path.dirname(REPOSITORY)) and not os.path.isfile(
 ):
     REPOSITORY = os.path.dirname(REPOSITORY)
 
-# Every directory holding writing of this project's own.
+# The one root is the top of the repository. Every file of the project is in the check: the code, the comments,
+# the pages and the hooks.
 #
-# A ROOT THAT MOVES IS THE FAILURE THIS LIST RETAINS HAVING, and it is silent: a stale name reads
-# fewer files and still exits 0. The guard below turns a root that no longer exists into an error.
-#
-# IT CANNOT CATCH A ROOT THAT EMPTIED. A directory that still exists because one file stayed in it
-# passes the guard while everything under it moves elsewhere and goes unread. The file count at the
-# foot of the report is the only thing that shows that, so watch the count after anything moves.
-DEFAULT_ROOTS = tuple(
-    os.path.join(REPOSITORY, one)
-    for one in ("docs", "src", "includes", "examples", os.path.join("utils", "maint"), "theory", os.path.join("utils", "test"), ".githooks")
-)
+# A list of folders missed each new folder, and it missed it with no error. The list did not have ui/, evidence/
+# or most of utils/, and the gate did not read them. The walk keeps out what is not the writing of this project:
+# build output, fetched files, caches and fixtures (SKIP_DIRS in files.py). It also keeps out each folder that holds
+# its own .git, such as a submodule. That repository has its own check.
+DEFAULT_ROOTS = (REPOSITORY,)
 
 for one in DEFAULT_ROOTS:
     if not os.path.isdir(one):

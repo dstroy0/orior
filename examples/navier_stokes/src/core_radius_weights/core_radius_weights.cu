@@ -832,8 +832,8 @@ static void core_radius_kept_from(CoreRadiusWeights *weights, CoreRadiusWeights 
     core_radius_released(weights);
 }
 
-// `weights` times L, its slope's eta times L times d, and its eta^2 times 8 h k D: the plain part of an order's spin
-// and along, `first` the factor of `weights` times L
+// the plain part of the spin and the along of an order. It is `weights` times L, its slope's eta times L times d, and
+// its eta^2 times 8 h k D. `first` is the factor of `weights` times L
 static void core_radius_plain_part(const CoreRadiusWeights *weights, SimRational first, SimRational d_eight,
                                    const CoreRadiusScale *scale, SimRational s, CoreRadiusWeights *out)
 {
@@ -861,7 +861,7 @@ static void core_radius_plain_part(const CoreRadiusWeights *weights, SimRational
     core_radius_released(&eta_square);
 }
 
-// the product of `left` and `right`, times `factor` where `scaled` is 1, summed into `into`
+// the product of `left` and `right`, times `factor` where `scaled` is 1, which the call adds into `into`
 static void core_radius_product_into(CoreRadiusWeights *into, const CoreRadiusWeights *left,
                                      const CoreRadiusWeights *right, int scaled, SimRational factor)
 {

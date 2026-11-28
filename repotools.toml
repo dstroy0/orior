@@ -27,10 +27,9 @@ extensions = [".c", ".h", ".cu", ".py"]
 skip_files = []
 
 [prose]
-# theory/ is where the research lives and it is the longest continuous prose here. docs/ is four
-# pointer pages. utils/maint/ carries file headers that make the same type of claim a page does, and
-# docs_check reads .tex as well. The research papers are in scope.
-roots = ["README.md", "CONTRIBUTING.md", "docs", "theory", "src", "examples", "utils/maint"]
+# The root is the whole tree. Every page, research paper and code comment of the project is in scope.
+# The walk of docs_check keeps out build output, fetched files and each submodule, which has its own check.
+roots = ["."]
 # Empty, and it stays empty: nothing outside this tree is read.
 extra_roots = []
 
@@ -42,4 +41,4 @@ gates = ["docs_check"]
 [hooks.docs_check]
 # Named, so the gate errors where the checker is not at this path.
 tool = "utils/maint/prose/docs_check"
-roots = ["README.md", "CONTRIBUTING.md", "docs", "theory", "src", "examples", "utils/maint"]
+roots = ["."]

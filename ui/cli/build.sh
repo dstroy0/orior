@@ -30,8 +30,8 @@ BUNDLE_NAME="$(bin_named plugins_bundle)"
 CC="${CC:-clang}"
 # the archiver: LLVM's where the machine has it, else the system's ar, which takes the same words
 AR="${AR:-$(command -v llvm-ar > /dev/null 2>&1 && echo llvm-ar || echo ar)}"
-# the copier of objects that splits a program's debug information off: LLVM's where the machine has it, else the
-# system's objcopy, which takes the same words
+# the copier of objects that splits off the debug information of a program. It is LLVM's where the machine has it.
+# Else it is the objcopy of the system, which takes the same words
 OBJCOPY="${OBJCOPY:-$(command -v llvm-objcopy > /dev/null 2>&1 && echo llvm-objcopy || echo objcopy)}"
 # two compiles at once: this host faults under more clang processes than that
 JOBS="${JOBS:-2}"
@@ -127,6 +127,11 @@ fi
 TARGET="${1:-$HOST}"
 GUI_NAME="$(bin_named gui)"
 
+# The check stops the build before the first compile when the machine does not have a program, a header or a
+# submodule. It tells the developer what to install.
+source "$HERE/build_needs.sh"
+build_needs_met "$WINDOW" "$TARGET" || exit 1
+
 SOURCES=()
 while IFS= read -r source; do
     # the program's own source is compiled apart, for the program alone, not into the library
@@ -136,8 +141,8 @@ while IFS= read -r source; do
     esac
 done < <(find "$TOP/ui/cli/src" "$TOP/ui/query/src" "$TOP/includes/arith" "$TOP/includes/regexp" "$TOP/includes/utf8" "$TOP/includes/coverage" "$TOP/includes/font" "$TOP/includes/raster" "$TOP/includes/frame_buffer" \
               "$TOP/includes/glass" "$TOP/includes/window" "$TOP/includes/compositor" -name '*.c' -not -path '*/bundle/*' -not -path '*/regexp/platform/*' | sort)
-# the command line's calls into the system, from the folders of the platform: each system's files but the probe's,
-# tessera_run's and the window's, which other programs link
+# the calls of the command line into the system, from the folders of the platform. They are the files of each
+# system, but not those of the probe, tessera_run and the window, which other programs link
 while IFS= read -r source; do
     SOURCES+=("$source")
 done < <(find "$TOP/includes/platform/windows" "$TOP/includes/platform/posix" -name '*.c' -not -name '*_probe.c' \
@@ -274,7 +279,7 @@ archived() {
 # The debug information of the program `program` kept in a file next to it, as the linker writes a PDB next to a
 # program on Windows. On Linux the file is `<program>.debug`, and the program keeps a link to it by name and checksum,
 # which a debugger follows. On macOS the file is the bundle `<program>.dSYM`. The program itself then holds its code
-# and data alone. On Windows the PDB is there already, and nothing is done
+# and data alone. On Windows the PDB is there already, and the function does nothing
 debug_kept() {
     local program="$1"
     case "$TARGET" in

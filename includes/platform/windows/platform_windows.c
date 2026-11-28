@@ -43,6 +43,14 @@ void platform_pages_released(void *at, unsigned long long bytes)
     (void)VirtualFree(at, 0u, MEM_RELEASE);
 }
 
+unsigned long long platform_page_bytes(void)
+{
+    SYSTEM_INFO system;
+    GetSystemInfo(&system);
+    // Explicit cast widens the page size that the system gives
+    return (unsigned long long)system.dwPageSize;
+}
+
 void *platform_pages_reserved(unsigned long long bytes)
 {
     return VirtualAlloc(NULL, (SIZE_T)bytes, MEM_RESERVE, PAGE_NOACCESS);

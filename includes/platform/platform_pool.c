@@ -280,8 +280,7 @@ const SeriesCellularum *platform_pool_series(void)
     return &platform_site_platform_pool_ctx;
 }
 
-// the bytes of a page, and the least that an idle span holds in whole pages before its pages go back
-#define PLATFORM_PAGE_BYTES 4096ULL
+// the least that an idle span holds in whole pages before its pages go back
 #define PLATFORM_IDLE_RELEASED (64ULL << 10u)
 
 // The record of the idle walk: whether the walk passed the gap between the tiers yet. The gap comes first
@@ -294,8 +293,11 @@ typedef struct
 // PLATFORM_IDLE_RELEASED bytes or more
 static void platform_idle_pages_released(unsigned long long from, unsigned long long to)
 {
-    const unsigned long long first = (from + PLATFORM_PAGE_BYTES - 1ULL) & ~(PLATFORM_PAGE_BYTES - 1ULL);
-    const unsigned long long end = to & ~(PLATFORM_PAGE_BYTES - 1ULL);
+    // The cut uses the system's page. madvise moves the length up to whole pages of the system. A cut to a smaller
+    // page lets madvise clear the bytes after the span, and the live cells of the next tier are there.
+    const unsigned long long page = platform_page_bytes();
+    const unsigned long long first = (from + page - 1ULL) & ~(page - 1ULL);
+    const unsigned long long end = to & ~(page - 1ULL);
     if ((end > first) && ((end - first) >= PLATFORM_IDLE_RELEASED))
     {
         // Explicit cast takes the first page back as its address

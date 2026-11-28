@@ -26,7 +26,7 @@ enum
 #define JET_RULE_PLACES 256u
 #define JET_RULE_FUNCTIONS 64u
 
-// the terms an added term spreads to at max as eta^2 is written as 1 - d, which the room of a result counts
+// the terms an added term spreads to at max as the rule writes eta^2 as 1 - d, which the room of a result counts
 #define JET_RULE_SPREAD 4u
 
 // a named place: a constant, or a derivative of a stored function
@@ -39,7 +39,7 @@ typedef struct
     unsigned int b;
 } JetRulePlace;
 
-// a stored function: its name, and the relation of its derivative of order `order` in X where it is related
+// a stored function: its name, and the relation of its derivative of order `order` in X where it has one
 typedef struct
 {
     char name[JET_RULE_NAME];
@@ -48,7 +48,7 @@ typedef struct
     JetRule value;
 } JetRuleFunction;
 
-// The named places and the stored functions, each a table at a bound with a count, in the order they are named
+// The named places and the stored functions, each a table at a bound with a count, in the order of their names
 static JetRulePlace s_jet_rule_places[JET_RULE_PLACES];
 static unsigned int s_jet_rule_place_count;
 static JetRuleFunction s_jet_rule_functions[JET_RULE_FUNCTIONS];
@@ -178,8 +178,8 @@ static void jet_rule_work_of(const JetRuleMonomial *monomial, JetRuleWork *work)
     }
 }
 
-// the work's factors at one place each, in the order of their places, each place's exponents added in the order they
-// came, exponent 0 removed; whole powers of 2 moved into `coefficient`
+// the work's factors at one place each, in the order of their places. The exponents of each place add in the order
+// they came, and exponent 0 goes out. Whole powers of 2 move into `coefficient`
 static void jet_rule_tidy(JetRuleWork *work, JetRuleMonomial *tidy, SimRational *coefficient)
 {
     JetRuleFactor room[(2u * JET_RULE_FACTORS) + 4u];
@@ -752,7 +752,7 @@ void jet_rule_slope_eta(const JetRule *rule, JetRule *out)
     jet_rule_derivative(rule, 0, out);
 }
 
-// w'' = w' - 4 d X^-1 w' + 2 (1 + h) d X^-1 w, from z w'' + (2 - z) w' - (1 + h) w = 0 and 1 / z = 2 d / X; past it,
+// w'' = w' - 4 d X^-1 w' + 2 (1 + h) d X^-1 w, from z w'' + (2 - z) w' - (1 + h) w = 0 and 1 / z = 2 d / X. Past it,
 // d/dz = 2 d d/dX at fixed eta
 void jet_rule_w(unsigned int n, JetRule *out)
 {

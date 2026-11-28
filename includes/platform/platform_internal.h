@@ -16,6 +16,10 @@ void *platform_pages_mapped(unsigned long long bytes);
 // the pages at `at` given back to the system, all `bytes` of them
 void platform_pages_released(void *at, unsigned long long bytes);
 
+// the bytes in one page of the system's memory, as the system reports them. A page is 4096 bytes on most machines
+// and 16384 bytes on a Raspberry Pi 5
+unsigned long long platform_page_bytes(void);
+
 // `bytes` of addresses reserved, with no page of them readable or writable until a commit, or NULL where the system
 // gives none
 void *platform_pages_reserved(unsigned long long bytes);

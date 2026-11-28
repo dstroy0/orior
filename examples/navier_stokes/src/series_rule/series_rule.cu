@@ -330,8 +330,8 @@ static int series_rule_part_order(const void *left, const void *right)
 }
 
 // The part of `key` and a copy of `numerator` over L^power put at the end of `rule`, which has room for it. Where
-// `normal` is 1 the part takes the normal form first: a Cauchy product's pair stored in its order, and a pair of one
-// entry stored even under i -> k + c - i
+// `normal` is 1, the part takes the normal form first. The pair of a Cauchy product goes in its order, and a pair of
+// one entry goes even under i -> k + c - i
 static void series_rule_part_pushed(SeriesRule *rule, SeriesRuleKey key, const SeriesRulePolynomial *numerator,
                                     unsigned int power, int normal)
 {
@@ -382,8 +382,8 @@ static void series_rule_part_pushed(SeriesRule *rule, SeriesRuleKey key, const S
 }
 
 // `made`, its parts in any order, sorted once by their keys into `out`. The parts of one key add in the order they
-// came: an empty part adds nothing, the first one that is not empty stands, and each after it adds over the higher
-// power of L, a sum of 0 leaving no part until the next one
+// came. An empty part adds nothing, and the first one that is not empty stands. Each part after it adds over the
+// higher power of L. A sum of 0 leaves no part until the next one
 static void series_rule_settled(SeriesRule *made, SeriesRule *out)
 {
     if (made->count > 1u)

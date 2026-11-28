@@ -49,8 +49,8 @@ enum
     CORE_RULE_SECOND = 5
 };
 
-// Each call below writes its polynomial or its expression into `out`, which may be one of its operands, and gives back
-// every cell it takes for itself before it returns (series_rule.h).
+// Each call below writes its polynomial or its expression into `out`, which may be one of its operands. It gives back
+// every cell that it takes for itself before it returns (series_rule.h).
 
 static void core_rule_number(long long numerator, long long denominator, SeriesRulePolynomial *out)
 {

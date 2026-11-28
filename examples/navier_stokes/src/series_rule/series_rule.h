@@ -17,11 +17,13 @@
 // k that is 0 at every order past a bound, or in i and k at every point of a sum, is the polynomial 0.
 // Every operand of a product is an expression the operations build from entries at k, 0 at every negative order.
 //
-// A polynomial and an expression are each one cell of the temporary tier: a polynomial its terms sorted by their
-// powers, an expression its parts sorted by their keys, each part's polynomial a cell of its own. A call that gives one
-// writes it into `out`, which may be one of its operands: it gives back the cells that `out` held, and the caller gives
-// back the result with series_rule_polynomial_released or series_rule_released. A call fills its result unsorted at a
-// count that its operands bound, sorts it once and adds the terms or the parts of one key in the order they came.
+// A polynomial and an expression are each one cell of the temporary tier. A polynomial has its terms sorted by their
+// powers. An expression has its parts sorted by their keys, and the polynomial of each part is a cell of its own. A
+// call that gives one writes it into `out`, which may be one of its operands, and gives back the cells that were in
+// `out`. The caller gives back the result with series_rule_polynomial_released or series_rule_released.
+//
+// A call fills its result unsorted at a count that its operands bound. Then it sorts the result once, and adds the
+// terms or the parts of one key in the order they came.
 
 #include "sim_rational.h"
 #include "verba_scribo/verba_linea.h"

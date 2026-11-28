@@ -379,11 +379,15 @@ class BuildFilesAreReadAtAll(unittest.TestCase):
     """
 
     def test_a_cmakelists_is_selected_by_its_name(self):
-        # The one selection rule an extension list can never express. CMakeLists.txt has an
-        # extension and it is .txt, which this tool does not read and should not start reading.
+        # An extension list cannot select a file by its name. CMakeLists.txt has the extension .txt,
+        # and its name makes it a build file, which the tool reads whole. Any other .txt is data or a
+        # license. The tool reads only its lines that start with `#`, which are header comments.
         self.assertTrue(docs_check.build_file("some/where/CMakeLists.txt"))
         self.assertTrue(docs_check.checked_file("some/where/CMakeLists.txt"))
-        self.assertFalse(docs_check.checked_file("some/where/NOTES.txt"))
+        self.assertTrue(docs_check.checked_file("some/where/NOTES.txt"))
+        self.assertFalse(docs_check.build_file("some/where/NOTES.txt"))
+        lines = ["# why the list holds these names", "name_one", "a license sentence # with a mark"]
+        self.assertEqual(docs_check.prose_only("some/where/NOTES.txt", lines), [lines[0], "", ""])
 
     def test_a_git_hook_is_selected_although_it_has_no_extension(self):
         # A hook has no extension, and a sweep by extension drops it and the gate with it. HOOK_NAMES

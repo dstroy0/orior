@@ -11,7 +11,7 @@ An IDE, a transpiler and a search engine, written in C and CUDA. Every number in
 ### 1. IDE (C)
 
 - **impero** ([`ui/cli/`](ui/cli)) is the command-line IDE and the library the GUI links. It is standalone and vectorized, and targets Windows, macOS, Linux and other POSIX systems, including AArch64 with NEON. Memory and CPU use: measurement pending.
-- **tabvla** ([`ui/gui/src/`](ui/gui/src)) is the GUI: a native window in C on Windows and on Linux under X11, with impero built in. It is standalone and is driven by the same commands as impero, which it also shows the user as menu actions. impero holds every command, all state and all memory and draws each frame on a thread of its own ([`ui/cli/src/view/`](ui/cli/src/view)). The editor is the center of the window. The Rust and JavaScript under [`ui/gui/`](ui/gui) stay until tabvla matches them 1:1.
+- **tabvla** ([`ui/gui/src/`](ui/gui/src)) is the GUI: a native window in C on Windows and on Linux under X11, with impero built in. It is standalone, the commands of impero drive it, and it shows them to the user as menu actions. The command line, impero, holds every command, all state and all memory. It draws each frame on a thread of its own ([`ui/cli/src/editor/view.c`](ui/cli/src/editor/view.c)). The editor is the center of the window. The Rust and JavaScript under [`ui/gui/`](ui/gui) stay until tabvla matches them 1:1.
 
 Build and verification:
 
@@ -70,7 +70,7 @@ What the work claims, what it does not claim, and the results are on the [home p
 
 ## Build
 
-You need CMake and Ninja, a C11 compiler for the engine, and Clang for the CLI and tabvla, with `llvm-rc` on Windows and the X11 headers on Linux. [Setup](docs/setup.md) has the details.
+You need CMake, Ninja and a C11 compiler for the engine. The CLI and tabvla need Clang, with `llvm-rc` on Windows and the X11 headers on Linux. [Setup](docs/setup.md) gives the details of the engine. The build of the CLI and tabvla checks what it needs before it starts, and [the app's own page](ui/README.md#running-it) lists each part.
 
 ```sh
 git clone --recurse-submodules https://github.com/dstroy0/orior.git && cd orior

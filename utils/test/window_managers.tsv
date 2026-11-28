@@ -1,0 +1,8 @@
+manager	install	each	note
+apt	sudo apt-get update && sudo apt-get install -y --no-install-recommends %s	no	-
+dnf	sudo dnf install -y %s	no	-
+pacman	sudo pacman -S --needed --noconfirm %s	no	-
+apk	sudo apk add %s	no	-
+zypper	sudo zypper install -y %s	no	-
+brew	brew install %s	no	The Xcode command line tools give clang and ar. To install them, run xcode-select --install.
+winget	winget install --exact --id %s	yes	-

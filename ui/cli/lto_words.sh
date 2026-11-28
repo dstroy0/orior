@@ -31,3 +31,7 @@ case "$CC" in
        esac ;;
 esac
 mkdir -p "$LTO_CACHE"
+# A power loss can leave a cache entry with its name and no bytes. The linker reads an empty entry as a module with no
+# symbols, and every link that takes it fails with undefined symbols. Thus the build deletes each empty entry before a
+# link, and the linker writes the entry again.
+find "$LTO_CACHE" -type f -size 0 -delete

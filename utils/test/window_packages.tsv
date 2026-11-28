@@ -1,17 +1,22 @@
-program	apt	dnf	pacman	apk	zypper
-bash	bash	bash	bash	bash	bash
-clang	clang	clang	clang	clang	clang
-cmake	cmake	cmake	cmake	cmake	cmake
-ninja	ninja-build	ninja-build	ninja	ninja	ninja
-python	python3	python3	python	python3	python3
-git	git	git	git	git	git
-rsync	rsync	rsync	rsync	rsync	rsync
-xvfb-run	xvfb	xorg-x11-server-Xvfb	xorg-server-xvfb	xvfb-run	xvfb-run
-clangd	clangd	clang-tools-extra	clang	clang-extra-tools	clang-tools
-pdflatex	texlive-latex-base	texlive-latex	texlive-core	texlive	texlive-latex
-pdftocairo	poppler-utils	poppler-utils	poppler	poppler-utils	poppler-tools
-gdb	gdb	gdb	gdb	gdb	gdb
-lldb-dap	lldb	lldb	lldb	lldb	lldb
-X11/Xlib.h	libx11-dev	libX11-devel	libx11	libx11-dev	libX11-devel
-X11/extensions/shape.h	libxext-dev	libXext-devel	libxext	libxext-dev	libXext-devel
-X11/extensions/XInput2.h	libxi-dev	libXi-devel	libxi	libxi-dev	libXi-devel
+program	apt	dnf	pacman	apk	zypper	brew	winget
+bash	bash	bash	bash	bash	bash	bash	Git.Git
+clang	clang	clang	clang	clang	clang	-	LLVM.LLVM
+cmake	cmake	cmake	cmake	cmake	cmake	cmake	Kitware.CMake
+ninja	ninja-build	ninja-build	ninja	ninja	ninja	ninja	Ninja-build.Ninja
+ar	binutils	binutils	binutils	binutils	binutils	-	LLVM.LLVM
+objcopy	binutils	binutils	binutils	binutils	binutils	-	-
+lld	lld	lld	lld	lld	lld	lld	LLVM.LLVM
+lld-link	-	-	-	-	-	-	LLVM.LLVM
+llvm-rc	-	-	-	-	-	-	LLVM.LLVM
+python	python3	python3	python	python3	python3	python@3.13	Python.Python.3.13
+git	git	git	git	git	git	git	Git.Git
+rsync	rsync	rsync	rsync	rsync	rsync	-	-
+xvfb-run	xvfb	xorg-x11-server-Xvfb	xorg-server-xvfb	xvfb-run	xvfb-run	-	-
+clangd	clangd	clang-tools-extra	clang	clang-extra-tools	clang-tools	-	-
+pdflatex	texlive-latex-base	texlive-latex	texlive-core	texlive	texlive-latex	-	-
+pdftocairo	poppler-utils	poppler-utils	poppler	poppler-utils	poppler-tools	-	-
+gdb	gdb	gdb	gdb	gdb	gdb	-	-
+lldb-dap	lldb	lldb	lldb	lldb	lldb	-	-
+X11/Xlib.h	libx11-dev	libX11-devel	libx11	libx11-dev	libX11-devel	-	-
+X11/extensions/shape.h	libxext-dev	libXext-devel	libxext	libxext-dev	libXext-devel	-	-
+X11/extensions/XInput2.h	libxi-dev	libXi-devel	libxi	libxi-dev	libXi-devel	-	-

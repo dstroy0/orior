@@ -68,9 +68,39 @@ def build_file(path):
     return name in BUILD_NAMES or name in HOOK_NAMES or path.endswith(BUILD_SUFFIXES)
 
 
+# The other files of the tree that carry comments of this project. They are not in CHECKED, because
+# submission_check.py and prose_distance.py read CHECKED as their own list. Each group names the
+# reader that prose_only gives it.
+#
+# The `#` reader of the build files reads the config files and the R scripts.
+HASH_SUFFIXES = (".toml", ".cfg", ".R", ".properties", ".service", ".socket", ".cff")
+HASH_NAMES = (".gitignore", ".gitattributes", ".gitmodules", ".clang-format", ".clangd")
+# The C reader reads JavaScript, CSS, OpenQASM, Java and the resource script of the window, which
+# write `//` and `/* */` comments. CSS writes only the second form.
+C_STYLE_SUFFIXES = (".js", ".css", ".qasm", ".java", ".rc")
+# Lean and VHDL write a `--` comment, and Lean also writes nested `/- -/` blocks. MATLAB writes `%`
+# and `%{ %}` blocks. A module definition file writes `;`. Each form has a reader of its own.
+DASH_SUFFIXES = (".lean", ".vhd")
+MATLAB_SUFFIXES = (".m",)
+SEMICOLON_SUFFIXES = (".def",)
+# The tables, the word lists and the text record formats of the project are data. The reader takes
+# only a line that starts with `#`, which is a comment in each of them. A cell of data and the text of
+# a license are never prose of this project. The signed and the binary records (.ksg, .kqr) are not
+# text, and the walk does not read them.
+HEADER_SUFFIXES = (".tsv", ".txt", ".krs", ".ksc", ".kdm", ".khw", ".klm", ".klq", ".gsm", ".krf")
+COMMENTED = (
+    HASH_SUFFIXES + C_STYLE_SUFFIXES + DASH_SUFFIXES + MATLAB_SUFFIXES + SEMICOLON_SUFFIXES + HEADER_SUFFIXES
+)
+
+
+def hash_file(path):
+    """Whether this path is a config file or an R script that the `#` reader takes."""
+    return os.path.basename(path) in HASH_NAMES or path.endswith(HASH_SUFFIXES)
+
+
 def checked_file(path):
     """Whether this tool reads this path at all."""
-    return path.endswith(CHECKED) or build_file(path)
+    return path.endswith(CHECKED) or build_file(path) or hash_file(path) or path.endswith(COMMENTED)
 
 # Fetched or generated, and none of it authored here. target is what cargo writes for ui.
 # fixtures holds the positive control for machine_distance.py, written deliberately in the register
@@ -179,31 +209,11 @@ def walk_markdown(roots, ledger=None):
                 for name in names
                 if checked_file(os.path.join(here, name))
             )
-    # This package writes down every phrase it bans and matches itself on nearly all of them.
-    # Quieting them one pair at a time with the markers below buries the table under its own
-    # pragmas, and a reader scrolling past a hundred of them stops reading them. The whole
-    # directory is skipped instead.
-    mine = os.path.dirname(os.path.abspath(__file__))
-    my_dir = os.path.dirname(mine)
+    # The walk reads this package and its tests as it reads every other file. Their comments are
+    # prose of the project, and a check that skips its own comments cannot hold them. The ratchet
+    # holds the banned phrases in them, as it holds the findings of every other file.
     retained = []
     for one in found:
-        if os.path.dirname(os.path.abspath(one)) == mine:
-            continue
-        # This tool's own test files carry banned prose on purpose, to prove the gate flags it.
-        # Repairing them would break the tests. They sit in the directory holding this package and
-        # are excluded here, the exclusion recorded like every other. A fixtures/ directory is
-        # already skipped by SKIP_DIRS; these are the tests that live next to the gate.
-        one_name = os.path.basename(one)
-        if (os.path.dirname(os.path.abspath(one)) == my_dir) and one_name.startswith(
-            "test_docs_check"
-        ):
-            if ledger is not None:
-                ledger.note(
-                    "gate self-test",
-                    "carries banned prose to prove the gate flags it",
-                    one.replace("\\", "/"),
-                )
-            continue
         held = verbatim_root(one)
         if held:
             if ledger is not None:

@@ -31,6 +31,7 @@ ROOT = findroot.root()
 RUNS = findroot.at("build", "ui_test", "runs")
 PROGRAMS_TABLE = findroot.at("utils", "test", "window_programs.tsv")
 PACKAGES_TABLE = findroot.at("utils", "test", "window_packages.tsv")
+MANAGERS_TABLE = findroot.at("utils", "test", "window_managers.tsv")
 TOOLCHAINS = findroot.at("ui", "cli", "toolchains.json")
 PROBE = findroot.at("utils", "test", "window_host_probe.sh")
 # the parts of the tree the window's build reads, as the Linux image copies them in
@@ -200,19 +201,17 @@ def packages_for(manager, names):
     rows = {row["program"]: row for row in table(PACKAGES_TABLE)}
     packages = []
     for name in names:
-        package = rows.get(name, {}).get(manager, "") or name
+        package = rows.get(name, {}).get(manager, "")
+        # A "-" cell tells that the manager has no package for the name.
+        if package in ("", "-"):
+            package = name
         if package not in packages:
             packages.append(package)
     return packages
 
 
-INSTALL_LINE = {
-    "apt": "sudo apt-get update && sudo apt-get install -y --no-install-recommends %s",
-    "dnf": "sudo dnf install -y %s",
-    "pacman": "sudo pacman -S --needed --noconfirm %s",
-    "apk": "sudo apk add %s",
-    "zypper": "sudo zypper install -y %s",
-}
+# ui/cli/build_needs.sh reads the same table. Thus the build and the host check give the same install command.
+INSTALL_LINE = {row["manager"]: row["install"] for row in table(MANAGERS_TABLE)}
 
 
 def answered(read, is_image):

@@ -20,8 +20,8 @@
 // exponents are independent.
 //
 // An expression is one cell of the temporary tier, its terms sorted by their products. A call that gives one writes it
-// into `out`, which may be one of its operands: it gives back the cell that `out` held, and the caller gives back the
-// result with jet_rule_released. A call fills its result unsorted at a count that its operands bound, sorts it once and
+// into `out`, which may be one of its operands. The call gives back the cell that was in `out`. The caller gives back
+// the result with jet_rule_released. A call fills its result unsorted at a count that its operands bound, sorts it once and
 // adds the terms of one product. A product is a fixed record of at max JET_RULE_FACTORS factors, and a product past it
 // is a refusal that jet_rule_short reports.
 
@@ -98,7 +98,7 @@ void jet_rule_slope(unsigned int function, unsigned int a, unsigned int b, JetRu
 // Kummer's w of z = X / (2 d), its derivative of order n in z
 void jet_rule_w(unsigned int n, JetRule *out);
 
-// d^order f / dX^order = `value` for the stored function, `value` containing only derivatives of lower order in X of
+// d^order f / dX^order = `value` for the stored function, where `value` has only derivatives of lower order in X of
 // it. The function keeps a copy of `value` on the persistent tier for the run, which reads the relation to its end
 void jet_rule_relate(unsigned int function, unsigned int order, const JetRule *value);
 
@@ -120,8 +120,8 @@ void jet_rule_text(const JetRule *rule, VerbaLinea *line);
 // the products the expression contains
 unsigned int jet_rule_terms(const JetRule *rule);
 
-// 1 where a value in this module outgrew the build's width, an exponent passed a word, a product passed its factors, a
-// table passed its bound, or the pool did not meet a cell of an expression
+// 1 where a value in this module outgrew the build's width or an exponent passed a word. Also 1 where a product passed
+// its factors, a table passed its bound, or the pool did not meet a cell of an expression
 int jet_rule_short(void);
 
 #endif

@@ -11,7 +11,6 @@
 #include "verba_scribo/verba_scribo.h"
 #include <stdlib.h>
 
-// the buckets of the table a query is found by its identity in, a power of two past every query a record contains
 // the queries a record holds at max, and no record
 #define KQR_QUERIES_MAX 524288u
 #define KQR_QUERY_NONE 0xffffffffu
