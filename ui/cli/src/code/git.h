@@ -421,34 +421,48 @@ EMBED_TABLE_STORAGE CliChangesNs cli_changes EMBED_UNUSED = {
     .rollback = cli_changes_rollback,
 };
 
-// The Git pane as the window reads it (git_log.c): the repository chosen among the tree's, the one the tree is in
-// until another is chosen, the branch it is on, every branch's commits as a graph, or those the query typed over the
-// graph finds in the whole history, and under a commit opened the files it changed. The rows: the branch's row with the
-// commits counted, a row a commit, and under one opened a row each file it changed, or the notice that none under the
-// tree did. The query rests CLI_GIT_LOG_REST_MS after a change before the graph is read again, the watch marks the
-// graph stale from its thread, and the authors setting, saved under `git.authors`, has each commit's author displayed
-// and searched. The rows point into the lists read from git, the repositories, the graph and each opened commit's
-// files, which are until the next read
+// The Git pane as the window reads it (git_log.c). It shows the repository chosen among those of the tree, and the
+// branch that it is on. Until the reader chooses another, it is the repository that the tree is in. Then it shows the
+// commits of every branch as a graph, or those that the query typed over the graph finds in the whole history. Under a
+// commit opened come the files that it changed.
+//
+// The rows are the row of the branch with the commits counted, and a row for each commit. Under one opened is a row for
+// each file that it changed. Where none under the tree changed, a notice row says so.
+//
+// After a change, the query rests CLI_GIT_LOG_REST_MS before the next read of the graph. The watch marks the graph
+// stale from its thread. The authors setting, saved under `git.authors`, makes the pane show and search the author of
+// each commit. The rows point into the lists read from git: the repositories, the graph and the files of each opened
+// commit. Those stay valid until the next read
 #define CLI_GIT_LOG_QUERY_MAX 256u
 #define CLI_GIT_LOG_REST_MS 250ULL
 #define CLI_GIT_LOG_DAY 11u
-// the rows' types; and the head's actions: the field, which takes the keys, and the repository choice, which moves on
-// to the next repository
+// the types of the rows. Then the actions of the head: the field, which takes the keys, and the choice of repository,
+// which moves on to the next repository
 #define CLI_GIT_LOG_ROW_BRANCH 0u
 #define CLI_GIT_LOG_ROW_COMMIT 1u
 #define CLI_GIT_LOG_ROW_FILE 2u
 #define CLI_GIT_LOG_ROW_NONE 3u
 #define CLI_GIT_LOG_FIELD 1u
 #define CLI_GIT_LOG_REPO 2u
-// A row: its type; its text, the branch's name, the commit's subject, the file's name or the notice, and its bytes; a
-// second text, the commits counted, the commit's author where authors show or the file's folder, and its bytes; a
-// file's path from the tree's top and its state character; and a commit's id, its day as YYYY-MM-DD, whether its files
-// show, whether it merges, the column its dot is in and the number of its line, how many columns its strokes
-// cross, its strokes, each [from, to, half, line] as the graph positions them, and how many branches and tags are at
-// it. The text, the second text, the id and the day read off the pane's cells are copied into the row's own
-// `text_copied`, `second_copied`, `id_copied` and `day_copied`, which their pointers then name; a file's path is in
-// `text_copied` with its name after its folder; the strokes are copied into `stroke_copied`, CLI_GIT_LOG_ROW_STROKES at
-// max
+// A row:
+//
+// - `type`: its type
+// - `text` and `text_length`: its text, and its bytes. The text is the name of the branch, the subject of the commit,
+//   the name of the file, or the notice.
+// - `second` and `second_length`: a second text, and its bytes. That is the commits counted, the author of the commit
+//   where authors show, or the folder of the file.
+// - `path` and `state`: the path of a file from the top of the tree, and its state character
+// - `id` and `day`: the id of a commit, and its day as YYYY-MM-DD
+// - `open` and `merge`: whether its files show, and whether it merges
+// - `lane_at` and `color`: the column that its dot is in, and the number of its line
+// - `across`: how many columns its strokes cross
+// - `stroke` and `strokes`: its strokes, each [from, to, half, line] as the graph places them
+// - `refs`: how many branches and tags are at it
+//
+// The call copies the text, the second text, the id and the day off the cells of the pane into the row. They go into
+// its own `text_copied`, `second_copied`, `id_copied` and `day_copied`, which their pointers then name. The path of a
+// file is in `text_copied`, with its name after its folder. The strokes go into `stroke_copied`,
+// CLI_GIT_LOG_ROW_STROKES at max
 #define CLI_GIT_LOG_TEXT (1u << 14u)
 #define CLI_GIT_LOG_ID 48u
 #define CLI_GIT_LOG_ROW_STROKES 64u
@@ -477,8 +491,12 @@ typedef struct
     unsigned int refs;
     unsigned int stroke_copied[CLI_GIT_LOG_ROW_STROKES][4];
 } CliGitLogRow;
-// A name at a commit: the branch's or the tag's text, which points into `copied`, the name as git writes it copied out
-// of the graph's texts, and its bytes, whether HEAD is at it, and whether it is a tag
+// A name at a commit:
+//
+// - `name` and `length`: the text of the branch or the tag, and its bytes. It points into `copied`, the name as git
+//   writes it, copied out of the texts of the graph.
+// - `head`: whether HEAD is at it
+// - `tag`: whether it is a tag
 typedef struct
 {
     const char *name;
@@ -488,43 +506,49 @@ typedef struct
     char copied[CLI_NAME_MAX_LEN];
 } CliGitLogRef;
 typedef struct CliGitLogCfg CliGitLogCfg;
-// the pane begun: `woken` wakes the view's thread as the watch marks the graph stale, and `entries` restore the
+// the pane begun. `woken` wakes the thread of the view as the watch marks the graph stale, and `entries` restore the
 // authors setting
 void cli_git_log_begin(const CliGitLogCfg *args);
-// `size` bytes of `text` typed into the query at `now_ms`; and the key `name` pressed: Backspace erases the query's
-// last character and Enter ends the rest, each 1, any other key 0
+// `size` bytes of `text`, typed into the query at `now_ms`
 void cli_git_log_type(const CliGitLogCfg *args);
+// the key `name`, pressed. Backspace erases the last character of the query, and Enter ends the rest. The return is 1
+// for each of them, and 0 for any other key
 int cli_git_log_key(const CliGitLogCfg *args);
-// the head's action `which` taken at `now_ms` for the tree at `root`: the repository choice moves on to the next
-// repository and the graph is read again
+// the action `which` of the head, taken at `now_ms` for the tree at `root`. The choice of repository moves on to the
+// next repository, and the call reads the graph again
 void cli_git_log_option(const CliGitLogCfg *args);
-// the authors setting turned `on` or off at `now_ms`, saved, the graph read again; and whether it is on
+// the authors setting turned `on` or off at `now_ms`, and saved. The call reads the graph again
 void cli_git_log_authors_set(const CliGitLogCfg *args);
+// whether the authors setting is on
 int cli_git_log_authors(const CliGitLogCfg *args);
-// the query copied with its end into `text_out`, sized for CLI_GIT_LOG_QUERY_MAX: its bytes; and the repository chosen
-// as `name: branch`, how many the tree has into `count_out`
+// the query, copied with its end into `text_out`, sized for CLI_GIT_LOG_QUERY_MAX. The return is its bytes
 unsigned long long cli_git_log_query(const CliGitLogCfg *args);
+// the repository chosen, as `name: branch`, with how many the tree has into `count_out`
 const char *cli_git_log_repo(const CliGitLogCfg *args);
-// the repositories, the branch and the graph of the tree at `root` read now, as the pane shows; the step at `now_ms`
-// while the pane is `on`: the graph read again where the query's rest has passed or the watch marked it stale, 1 where
-// it was; when the rest passes, 0 where no change waits; and the graph marked stale from any thread
+// the repositories, the branch and the graph of the tree at `root`, read now, as the pane shows
 void cli_git_log_relist(const CliGitLogCfg *args);
+// the step at `now_ms` while the pane is `on`. The call reads the graph again where the rest of the query passed, or
+// the watch marked it stale. The return is 1 where it did
 int cli_git_log_step(const CliGitLogCfg *args);
+// when the rest passes. The return is 0 where no change waits
 unsigned long long cli_git_log_deadline_ms(const CliGitLogCfg *args);
+// the graph marked stale, from any thread
 void cli_git_log_stale(const CliGitLogCfg *args);
-// how many rows the pane has; the row `at` into `row`: 1, or 0 past the last; the branch or tag `which` at the commit
-// of the row `at` into `ref`: 1, or 0 past its last; the commit of the row `at` opened or closed, its files read from
-// the tree at `root` as it first opens, and the commit whose id is `name` the same: 1, or 0 where the graph has none;
-// the message of the commit whose id is `name` into `out`, read from the tree at `root`: 1, or 0 where git has none;
-// and the menu of the row `at`
-// built as the menus' own rows, a commit's Open Files or Close Files, Copy Commit ID and Copy Commit Message, a file's
-// Copy Path: 1, or 0 where the row has none
+// how many rows the pane has
 unsigned int cli_git_log_rows(const CliGitLogCfg *args);
+// the row `at`, into `row`. The return is 1, or 0 past the last
 int cli_git_log_row(const CliGitLogCfg *args);
+// the branch or tag `which` at the commit of the row `at`, into `ref`. The return is 1, or 0 past its last
 int cli_git_log_ref(const CliGitLogCfg *args);
+// the commit of the row `at`, opened or closed. The call reads its files from the tree at `root` as it first opens
 void cli_git_log_toggle(const CliGitLogCfg *args);
+// the commit whose id is `name`, opened or closed in the same way. The return is 1, or 0 where the graph has none
 int cli_git_log_toggle_id(const CliGitLogCfg *args);
+// the message of the commit whose id is `name`, read from the tree at `root`, into `out`. The return is 1, or 0 where
+// git has none
 int cli_git_log_message(const CliGitLogCfg *args);
+// the menu of the row `at`, built as the own rows of the menus. For a commit, that is Open Files or Close Files, Copy
+// Commit ID and Copy Commit Message. For a file, it is Copy Path. The return is 1, or 0 where the row has none
 int cli_git_log_menu(const CliGitLogCfg *args);
 struct CliGitLogCfg
 {
