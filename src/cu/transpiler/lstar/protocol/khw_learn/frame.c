@@ -112,8 +112,8 @@ unsigned int khw_fields_listed(unsigned int *first, unsigned int *bits, unsigned
     return count;
 }
 
-// 1 where the instruction `low` and `high` contains `value` in some run of its bits, `value` not 0: a number a form
-// writes is in the instruction, and a constant it computes does not
+// 1 where the instruction `low` and `high` holds `value` in some run of its bits, with `value` not 0. A number that a
+// form writes is in the instruction, and a constant that it computes is not
 static int khw_encoding_matches(unsigned long long low, unsigned long long high, unsigned long long value)
 {
     if ((value == 0ULL) || (value > 0xffffffffULL))
@@ -166,9 +166,9 @@ const unsigned int (*khw_frame_cases(unsigned int *count))[2]
     return s_frame_word;
 }
 
-// `low` and `high` stalled the longest with the yield bit after the stall clear, the one scheduling the gate lets an
-// instruction no form encodes through and the vendor's reader takes; the stall field as the part's .ksc gives it, read
-// once
+// `low` and `high`, stalled the longest, with the yield bit after the stall clear. That is the one schedule with which
+// the gate lets through an instruction that no form encodes, and that the reader of the vendor takes. The call reads
+// the stall field once, as the .ksc of the part gives it
 void khw_frame_stalled(unsigned long long *low, unsigned long long *high)
 {
     static int s_read = 0;
@@ -188,10 +188,11 @@ void khw_frame_stalled(unsigned long long *low, unsigned long long *high)
     khw_run_write(low, high, s_first + s_bits, s_first + s_bits, 0ULL);
 }
 
-// The question of the frame added to the round being written: the kernel with `low` and `high` at the probe point,
-// the changed place stalled the longest, named at the probe point as every question is, read by the cross and the
-// gate as every question is, and a fault it causes recorded as every fault is. Over `count` cases from `word`. Its
-// place in the round, or SCHEDULER_ROUND_MAX where the round is full
+// The question of the frame, added to the round that the call now writes: the kernel with `low` and `high` at the probe
+// point. The changed place stalls the longest, and the call names it at the probe point, as with every question. The
+// cross and the gate read it as they read every question. The program records a fault that it causes as it records
+// every fault. It goes over `count` cases from `word`. The return is its place in the round, or SCHEDULER_ROUND_MAX
+// where the round is full
 unsigned int khw_frame_pooled(unsigned long long low, unsigned long long high, const unsigned int word[][2],
                               unsigned int count)
 {
@@ -201,17 +202,18 @@ unsigned int khw_frame_pooled(unsigned long long low, unsigned long long high, c
     return khw_pooled(s_probe_place, stalled_low, stalled_high, word, count);
 }
 
-// the thread of the frame's cases the gate reads as its case `read`: the first half of the gate's cases from the
-// first block and the second half from the second, so that both blocks are read within the gate's room
+// the thread of the frame cases that the gate reads as its case `read`. The first half of the gate cases come from the
+// first block, and the second half from the second. Thus the gate reads both blocks within its room
 static unsigned int khw_frame_thread(unsigned int read)
 {
     const unsigned int half = GATE_CASES / 2u;
     return (read < half) ? read : (RUN_THREADS_A_BLOCK + (read - half));
 }
 
-// nothing's answer: what the record shows with the unreached encoding at the probe place, over the frame's cases, each
-// of the gate's cases read at its thread, known once the frame round carried that question. A candidate alike with it
-// on every case is not read: a place that leaves the stored register alone answers as it does
+// the answer of nothing: what the record shows with the unreached encoding at the probe place, over the frame cases.
+// The call reads each case of the gate at its thread, after the frame round carried that question. The call does not
+// read a candidate that is alike with it on every case. A place that does not change the stored register answers as
+// nothing does
 static unsigned long long s_nothing[GATE_CASES];
 
 static int s_nothing_answered[GATE_CASES];
@@ -232,14 +234,21 @@ void khw_frame_nothing_read(const RunQuestion *question)
 // the frame relations' candidates: each relation once, and the load twice, of the case's first word and its second
 #define KHW_FRAME_CANDIDATES (FRAME_RELATION_COUNT + 1u)
 
-// The frame relation `question` answered, read by the gate as the ladder's is (khw_relation_of): each candidate's
-// answer to each case the host's (frame_answer), a candidate failing a case it does not read alike, a candidate whose
-// answers are nothing's on every case failing every one, and the first survivor retained in `form` with its reading and
-// the count of survivors. The candidates in their order: lane, block, the load of the first word and of the second,
-// the store of the second, exit, number where every case answers one constant, the first case's, and the
-// instruction `form` contains that constant in its immediate field, dim where every case answers the block size and the
-// immediate field does not contain it, and parameter where every case answers the count the launch passes the kernel,
-// read at the count's place among the parameters. 1 where one survived
+// The frame relation that `question` answered, read by the gate as it reads that of the ladder (khw_relation_of). The
+// call compares the answer of each candidate to each case with that of the host (frame_answer). A candidate fails a
+// case that it does not read alike. A candidate whose answers are those of nothing on every case fails every one. The
+// call keeps the first survivor in `form`, with its reading and the count of survivors.
+//
+// The candidates, in their order:
+//
+// - lane, block, the load of the first word, the load of the second, the store of the second, and exit
+// - number, where every case answers one constant, that of the first case, and the instruction `form` holds that
+//   constant in its immediate field
+// - dim, where every case answers the block size, and the immediate field does not hold it
+// - parameter, where every case answers the count that the launch passes the kernel, read at the place of the count
+//   among the parameters
+//
+// The return is 1 where one survived
 int khw_frame_of(const RunQuestion *question, KhwAnswered *form)
 {
     static unsigned char s_fails[GATE_CANDIDATES][GATE_CASES];
@@ -249,12 +258,14 @@ int khw_frame_of(const RunQuestion *question, KhwAnswered *form)
     const unsigned long long reading[KHW_FRAME_CANDIDATES] = {
         0ULL, 0ULL, 0ULL, 1ULL, 1ULL, 0ULL, question->answered[0], 0ULL, (unsigned long long)RUN_COUNT_PLACE};
     khw_frame_cases_written();
-    // a number is in the field the .ksc names `immediate`, where a number operand lies: a place containing its
-    // constant there is a number, and one containing the block size there is a number and names no dim. A bit run
-    // anywhere else reads one set bit over eight clear ones as the block size, which nearly every encoding contains,
-    // and shows nothing. Where the .ksc names no immediate field, a number is read as any bit run of the instruction. A
-    // constant of 0 is represented by nothing: every field of a form the number is not in contains 0, and the zero
-    // register is the part's 0
+    // a number is in the field that the .ksc names `immediate`, where a number operand lies. A place that holds its
+    // constant there is a number. One that holds the block size there is a number, and names no dim. A bit run anywhere
+    // else reads one bit that is on over eight that are off as the block size. Nearly every encoding holds that, and it
+    // shows nothing.
+    //
+    // Where the .ksc names no immediate field, the call reads a number as any bit run of the instruction. Nothing
+    // stands for a constant of 0. Every field of a form that the number is not in holds 0, and the zero register is the
+    // 0 of the part
     unsigned int immediate_first = 0u;
     unsigned int immediate_bits = 0u;
     const int immediate = khw_field_read("immediate", &immediate_first, &immediate_bits);
