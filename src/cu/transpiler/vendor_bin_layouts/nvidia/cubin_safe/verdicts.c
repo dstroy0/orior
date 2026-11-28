@@ -14,8 +14,8 @@ static unsigned int s_gated_count = 0u;
 static unsigned int s_gated_room = 0u;
 static int s_verdict_ready = 0;
 
-// the gated list let go and the verdict put back to not ready: the airlock blocks every code from the part until a list
-// loads whole
+// the gated list let go, and the verdict put back to not ready. The airlock blocks every code from the part until a
+// list loads whole
 static void cubin_safe_verdict_clear(void)
 {
     platform_cell_released(s_gated_low, platform_place_g_program_owner);
@@ -59,7 +59,7 @@ static int cubin_safe_verdict_lines(const char *bytes, unsigned long long size)
             unsigned long long *const high_room = (unsigned long long *)platform_cell_grown(
                 s_gated_high, (size_t)s_gated_room * sizeof(*s_gated_high), (size_t)room * sizeof(*s_gated_high),
                 platform_place_g_program_owner, 0);
-            // whichever grew is retained so the clear below frees it; the list grows only where both did
+            // the call keeps whichever grew, so that the clear below frees it. The list grows only where both did
             s_gated_low = (low_room != NULL) ? low_room : s_gated_low;
             s_gated_high = (high_room != NULL) ? high_room : s_gated_high;
             grown = (low_room != NULL) && (high_room != NULL);
@@ -161,9 +161,9 @@ int cubin_safe_verdict_gated(unsigned long long low, unsigned long long high)
     return 0;
 }
 
-// the encodings a conference admitted past rule 3, the lessons of the cause admitted the carrier loads (orior_cubin_run
-// --lessons): each its low word and the bits retained of its high word, as the gated list stores them, and as many as
-// the lessons name
+// the encodings that a conference admitted past rule 3: the lessons of the admitted cause that the carrier loads
+// (`orior_cubin_run --lessons`). Each is its low word and the bits kept of its high word, as the gated list stores
+// them. There are as many as the lessons name
 static unsigned long long *s_admitted_low = NULL;
 
 static unsigned long long *s_admitted_high = NULL;
