@@ -32,7 +32,7 @@ static int sim_job_daemon(char *path, size_t capacity)
         mmgr_line_put(&formed_line_1, named);
         (void)mmgr_line_finish(&formed_line_1);
         const int written = (int)formed_line_1.at;
-        // a non-negative length is compared whole against the capacity
+        // the call compares a length that is not negative whole against the capacity
         return (written > 0) && ((size_t)written < capacity);
     }
 #if defined(_WIN32)
@@ -41,7 +41,7 @@ static int sim_job_daemon(char *path, size_t capacity)
     const char *const daemon = "tessera_daemon.exe";
 #else
     const ssize_t read = readlink("/proc/self/exe", path, capacity - 1u);
-    // a failed read is -1 and is treated as no length at all
+    // a failed read is -1, which the call takes as no length at all
     const size_t length = (read > 0) ? (size_t)read : 0u;
     const char *const daemon = "tessera_daemon";
 #endif
@@ -82,8 +82,8 @@ int sim_job_submit(SimResults *results, const char *name, int count, char *const
     }
     unsigned char *const request = (unsigned char *)platform_cell_taken(
         (unsigned long long)((size_t)bytes), (unsigned int)platform_place_g_program_owner, 0);
-    // the context is made before the job requests: the daemon measures it with the process and counts it beside the
-    // declaration
+    // the call makes the context before the job requests. The daemon measures it with the process, and counts it beside
+    // the declaration
     int ok = (request != NULL) && (declared != 0ULL) && sim_job_daemon(daemon, sizeof(daemon)) &&
              (cudaGetDevice(&device) == cudaSuccess) && (cudaGetDeviceProperties(&properties, device) == cudaSuccess) &&
              (cudaFree(0) == cudaSuccess);
