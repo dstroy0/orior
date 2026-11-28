@@ -542,7 +542,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/elf64_nvidia.tsv	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/accumulated.c	5
 src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/slot.c	5
-src/cu/transpiler/vendor_bin_layouts/nvidia/measuring_stick_query/vendor.c	5
 src/cu/transpiler/vendor_bin_layouts/nvidia/mnemonic_nvidia.tsv	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/monolith.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_listing_seeds.c	1
@@ -553,7 +552,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/sass_nvidia.tsv	4
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/build_bar0.ps1	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/cu_target.h	4
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_ptx_test.c	2
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_check.c	5
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_cubin.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_machine/probe_machine_internal.h	2
@@ -568,7 +566,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read.h	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/mmio_read_check.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_scheduler/instructions.c	4
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_scheduler/schedule.c	5
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_scheduler/scheduler_internal.h	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/ptx_target.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/ruleset_read_one.cpp	1
@@ -589,7 +586,6 @@ src/sims/cu/engine/analysis/knf_identity/knf_identity_internal.h	1
 src/sims/cu/engine/analysis/knf_identity/knf_identity_sections.cu	1
 src/sims/cu/engine/analysis/noise_floor/noise_floor_internal.h	2
 src/sims/cu/engine/analysis/noise_root/noise_root.cu	1
-src/sims/cu/engine/analysis/noise_terms/noise_terms_camera.cu	5
 src/sims/cu/engine/analysis/period_power/period_power.cu	1
 src/sims/cu/engine/analysis/root_universal/root_universal_internal.h	1
 src/sims/cu/engine/analysis/root_universal/root_universal_main.cu	3
