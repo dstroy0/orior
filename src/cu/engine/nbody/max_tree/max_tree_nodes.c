@@ -254,8 +254,9 @@ void max_tree_nodes_release(MaxTreeNodes *nodes)
     EMBED_CALL(memor.set, MemoriaCfg, .dst = nodes, .bytes = sizeof(*nodes), .val = 0);
 }
 
-// the node arrays numbered in DFS order from the canonical voxels: `node_of` names each canonical voxel's place among
-// them in voxel order, `rank` each admitted voxel's dense rank; returns 0 where a voxel's parent is not canonical
+// the node arrays, numbered in DFS order from the canonical voxels. `node_of` names the place of each canonical voxel
+// among them in voxel order, and `rank` the dense rank of each admitted voxel. The return is 0 where the parent of a
+// voxel is not canonical
 static int max_tree_nodes_build(const MaxTree *tree, const unsigned int *node_of, const unsigned int *rank,
                                 unsigned int count, MaxTreeNodes *nodes, EngineError *error)
 {
@@ -514,7 +515,7 @@ long max_tree_probe_levels(const MaxTreeProbeRequest *request)
     {
         const unsigned int own = nodes->own[request->probe_voxels[probe]];
         request->own_level[probe] = (own == MAX_TREE_ABSENT) ? 0u : nodes->level[own];
-        // MAX_TREE_ABSENT in the high word sorts a probe that is not admitted after every node
+        // MAX_TREE_ABSENT in the high word puts a probe that the tree did not admit after every node in the sort
         keys[probe] = ((unsigned long long)own << 32u) | probe;
     }
     {
