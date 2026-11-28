@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// relation_turns.c: the relation: the turning case, and the turns queried
+// relation_turns.c: the relation: the turn case, and the turns queried
 #include "khw_learn_internal.h"
 #include "memoria_operor/memoria_operor.h"
 
-// The turning case of `form` into `stage`: for a ladder form, the first case of its relation whose readings in the
-// register pass are apart (khw_turning_words), in the order the form reads its words, so that a changed answer is a
-// changed answer and not a coincidence; for a frame form, the words 3 and 5 over the frame's shape, a parameter's over
-// the frame's every case. 1, or 0 where the relation contains no such case
+// The turn case of `form` into `stage`. For a ladder form, it is the first case of its relation that the register
+// pass reads apart (khw_turning_words). The words go in the order that the form reads them. Thus a changed answer is
+// a real change and not a coincidence. For a frame form, it is the words 3 and 5 over the shape of the frame, and for a
+// parameter over every case of the frame. The return is 1, or 0 where the relation holds no such case
 int khw_turning_case(KhwAnswered *form, KhwStaged *stage)
 {
     stage->form = form;
@@ -27,9 +27,9 @@ int khw_turning_case(KhwAnswered *form, KhwStaged *stage)
     unsigned int gave = 0u;
     if (ladder_predicate(form->anchor))
     {
-        // a predicate form's case: the stage's turning case of its relation, one where the relation is true for the
-        // form's reading of the words and the words differ, so that the guarded store writes the second word and a
-        // turn that stops the predicate, or moves a word, leaves the fill word or writes it where the relation fails
+        // the case of a predicate form: the turn case of the stage for its relation. In it, the relation is true for
+        // the reading of the words by the form, and the words differ. Thus the guarded store writes the second word. A
+        // turn that stops the predicate, or moves a word, leaves the fill word, or writes it where the relation fails
         if (!khw_predicate_words(form->anchor, form->swapped, form->signed_read, stage->turning, stage->word[0]))
         {
             return 0;
@@ -42,8 +42,8 @@ int khw_turning_case(KhwAnswered *form, KhwStaged *stage)
     return found;
 }
 
-// `low` and `high` pooled as a question of `stage`'s shape: a ladder form's at the probe place over its one case, a
-// frame form's whole over its cases, each case the stage's words
+// `low` and `high` pooled as a question of the shape of `stage`. A ladder form goes at the probe place over its one
+// case, and a frame form goes whole over its cases. Each case has the words of the stage
 unsigned int khw_staged_pooled(const KhwStaged *stage, unsigned long long low, unsigned long long high)
 {
     static unsigned int s_words[RUN_CASES_MAX][2];
@@ -56,18 +56,19 @@ unsigned int khw_staged_pooled(const KhwStaged *stage, unsigned long long low, u
     {
         return khw_frame_pooled(low, high, s_words, stage->count);
     }
-    // a predicate form's questions are put with the store guarded by the predicate it writes
+    // the call puts the questions of a predicate form with the predicate that the form writes as the guard of the store
     khw_store_guarded(ladder_predicate(stage->form->anchor));
     const unsigned int at = khw_pooled(s_probe_place, low, high, s_words, stage->count);
     khw_store_guarded(0);
     return at;
 }
 
-// The turns of `stage`'s form: each bit from KHW_TURN_FIRST to KHW_TURN_LAST turned one at a time over its case, each a
-// question of the stage's shape, pooled into the round being written. The code a turned bit carries is the form's with
-// that one bit over, and no answer is needed to put it: the carrier, with every one of them, waits on the vendor's
-// reader before the part sees them. The pooled question of the first turn is at `at` in s_pool, and the rest follow
-// it in their order
+// The turns of the form of `stage`. Each bit from KHW_TURN_FIRST to KHW_TURN_LAST turns one at a time over its case.
+// Each turn is a question of the shape of the stage, pooled into the round that the call now writes. The code of a
+// turned bit is the code of the form with that one bit turned over.
+//
+// The call needs no answer to put it. The carrier, with all of them, waits on the reader of the vendor before the part
+// sees them. The pooled question of the first turn is at `at` in s_pool, and the rest follow it in their order
 static void khw_turns_pooled(const KhwStaged *stage)
 {
     for (unsigned int bit = KHW_TURN_FIRST; bit <= KHW_TURN_LAST; bit += 1u)
@@ -79,11 +80,14 @@ static void khw_turns_pooled(const KhwStaged *stage)
     }
 }
 
-// The turns of `form` read off the round carried, its turns at `at` in s_pool and after, each read at the case
-// `read_at`: a bit whose turning changed the answer `base` gathered into the runs the operands might sit in, cut
-// where the fields the part's .ksc names end (khw_runs_gathered), none yet queried whether it carries a register. The
-// runs are the candidates a register pass reads, and the phase turned. A predicate form's turns over a turning case
-// after its first, `turning` above 0, join the bits of the runs its earlier cases turned
+// The turns of `form`, read from the carried round. Its turns are at `at` in s_pool and after, and the call reads each
+// at the case `read_at`. A bit whose turn changed the answer `base` goes into the runs that the operands can sit in.
+// The call cuts the runs where the fields that the .ksc of the part names end (khw_runs_gathered). It does not yet
+// query whether a run carries a register. The runs are the candidates that a register pass reads, and the phase
+// becomes turned.
+//
+// For a predicate form, the turns over a turn case after its first (`turning` above 0) join the
+// bits of the runs that its earlier cases turned
 static void khw_turns_read(KhwAnswered *form, unsigned int at, unsigned long long base, unsigned int read_at,
                            unsigned int turning)
 {
@@ -108,8 +112,8 @@ static void khw_turns_read(KhwAnswered *form, unsigned int at, unsigned long lon
     form->phase = KHW_PHASE_TURNED;
 }
 
-// The turns of `form` over `word` put and carried as a round of their own, what came back left in s_pool, a question
-// a turned bit in its order, in the shape the form's relation takes
+// The turns of `form` over `word`, put and carried as a round of their own. What came back stays in s_pool, one
+// question for each turned bit in its order, in the shape that the relation of the form takes
 void khw_turns_queried(KhwAnswered *form, const unsigned int word[1][2])
 {
     KhwStaged stage;
@@ -139,10 +143,10 @@ unsigned int khw_forms_in_phase(unsigned int phase, KhwAnswered **forms)
     return count;
 }
 
-// The void comparison forms of the working set, added to `forms` after its `count`: a comparison form's runs are what
-// its turns found, and a turning case shows the move of one word and not the other: a void one is turned again over
-// every turning case of its relation (khw_predicate_words) and its runs read as the part answers them. The count with
-// them
+// The void comparison forms of the working set, added to `forms` after its `count`. The runs of a comparison form are
+// what its turns found, and a turn case shows the move of one word and not the other. Thus the call turns a void
+// form again over every turn case of its relation (khw_predicate_words), and reads its runs as the part answers
+// them. The return is the count with them
 unsigned int khw_comparisons_void(KhwAnswered **forms, unsigned int count)
 {
     for (unsigned int at = 0u; (at < s_names) && (count < KHW_FORMS); at += 1u)
@@ -158,10 +162,10 @@ unsigned int khw_comparisons_void(KhwAnswered **forms, unsigned int count)
     return count;
 }
 
-// The classified ladder forms of the working set two of whose runs carry one place of the relation's tuple, added to
-// `forms` after its `count`: a place a relation's word takes once is covered by two runs only where the turning case
-// read a run by a coincidence, and the form is queried its register pass again over a case whose readings are apart
-// (khw_turning_words). The count with them
+// The classified ladder forms of the working set where two runs carry one place of the tuple of the relation, added to
+// `forms` after its `count`. Two runs cover a place that a word of a relation takes once only where the turn case
+// read a run by a coincidence. The call then queries the register pass of the form again over a case whose readings
+// are apart (khw_turning_words). The return is the count with them
 unsigned int khw_forms_placed_twice(KhwAnswered **forms, unsigned int count)
 {
     for (unsigned int at = 0u; (at < s_names) && (count < KHW_FORMS); at += 1u)
@@ -188,9 +192,9 @@ unsigned int khw_forms_placed_twice(KhwAnswered **forms, unsigned int count)
     return count;
 }
 
-// the forms of `staged` from `first` to `count` whose turning cases the round carried answered as the host expected:
-// each retains the part's answer as its base and goes on, and one the part answered otherwise or not at all is left
-// where it is. The count that go on
+// the forms of `staged` from `first` to `count` whose turn cases the carried round answered as the host expected.
+// Each keeps the answer of the part as its base and goes on. The call leaves a form that the part answered otherwise,
+// or not at all, where it is. The return is the count that go on
 static unsigned int khw_turning_read(KhwStaged *staged, unsigned int first, unsigned int count)
 {
     unsigned int on = 0u;
@@ -206,18 +210,20 @@ static unsigned int khw_turning_read(KhwStaged *staged, unsigned int first, unsi
     return on;
 }
 
-// The first field-finding pass over every discovered form of `forms`, `count` of them, in shared rounds, stage by
-// stage. The turning cases first, one question a form, as many forms a round as the pool contains: a form the part
-// answers as the host expects goes on, and one it does not is left where it is. Then the turns: each form's bits from
-// 12 to 104 turned one at a time over its case, as many forms a round as the pool contains, and what came back read
-// into each form's candidate runs. A predicate form is staged once for each of its turning cases, and the bits any of
-// them turned are its runs. The count of forms turned
+// The first field pass over every discovered form of `forms`, `count` of them, in shared rounds, stage by stage. First
+// come the turn cases, one question for each form, as many forms to a round as the pool holds. A form that the part
+// answers as the host expects goes on. The call leaves each other form where it is.
+//
+// Then come the turns. The call turns the bits 12 to 104 of each form one at a time over its case. A round takes as
+// many forms as the pool holds. It reads what came back into the candidate runs of each form. The call stages a
+// predicate form once for each of its turn cases, and the bits that any of them turned are its runs. The return is the
+// count of forms turned
 unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count)
 {
     static KhwStaged s_staged[KHW_FORMS];
     unsigned int staged = 0u;
     unsigned int on = 0u;
-    // the turning cases, a round at a time; a round carried leaves the forms that go on packed at the front
+    // the turn cases, a round at a time. A carried round leaves the forms that go on packed at the front
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const int predicate =
@@ -249,7 +255,8 @@ unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count)
         on = khw_turning_read(s_staged, on, staged);
         s_pooled = 0u;
     }
-    // the turns, as many stages a round as the pool contains, a form's stages read in the order they were staged
+    // the turns, as many stages to a round as the pool holds. The call reads the stages of a form in the order that it
+    // staged them
     unsigned int first = 0u;
     for (unsigned int at = 0u; at < on; at += 1u)
     {
@@ -299,5 +306,3 @@ unsigned int khw_turning_cases(const KhwAnswered *form)
     }
     return cases;
 }
-
-// The settings `run` of `form` is probed with in `stage` of the register pass, into `settings`, which has room for

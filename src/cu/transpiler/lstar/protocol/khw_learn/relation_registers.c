@@ -5,17 +5,21 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "khw_learn_internal.h"
 
-// KHW_SETTINGS: the count, 0 where the stage queries the run nothing. A ladder form's runs take the two registers the
-// kernel leaves the case's words in, in the first stage alone. A frame form's runs take first the index's and the
-// record's registers the part's .ksc names, two that contain addresses, so that no run is read as an address through a
-// register containing none; then, the address runs apart, a run inside the field the .ksc names `immediate` takes 0 and
-// KHW_OFFSET_WORD, the aligned offset of the record's second word, which a load and a store answer apart and a number
-// answers as itself, and every other run 0 and the register the kernel stores
+// the aligned offset of the second word of a record. A load and a store answer it apart, and a number answers as
+// itself
 #define KHW_OFFSET_WORD 4u
 
+// The settings that the call probes `run` of `form` with in `stage` of the register pass, into `settings`, which has
+// room for KHW_SETTINGS. The return is the count, or 0 where the stage queries the run with nothing.
+//
+// The runs of a ladder form take the two registers that the kernel leaves the words of the case in, in the first stage
+// alone. The runs of a frame form first take the index and record registers that the .ksc of the part names. Both hold
+// addresses, so that the call reads no run as an address through a register that holds none. Then, with the address
+// runs apart, a run inside the field that the .ksc names `immediate` takes 0 and KHW_OFFSET_WORD. Every other run takes
+// 0 and the register that the kernel stores
 unsigned int khw_run_settings(const KhwAnswered *form, unsigned int stage, unsigned int run, unsigned int *settings)
 {
-    // a predicate form's runs are read off its own encoding, and no setting is queried
+    // the call reads the runs of a predicate form from its own encoding, and queries no setting
     if ((form->frame == (unsigned int)FRAME_RELATION_COUNT) && ladder_predicate(form->anchor))
     {
         return 0u;
@@ -59,10 +63,10 @@ static const KhwAnswered *khw_probe_form(void)
     return NULL;
 }
 
-// The fields of the instruction word, as the part's .ksc gives them, that contain the probe place's own form's operand
-// runs, the register fields a frame form's address is looked for in, each once: into `first` and `bits`, KHW_RUNS of
-// each. The count, 0 where the probe place's form is not yet classified or the .ksc names no index or record register
-// to probe with
+// The fields of the instruction word, as the .ksc of the part gives them, that hold the operand runs of the probe-place
+// form. They are the register fields where the call looks for the address of a frame form, each once, into `first` and
+// `bits`, KHW_RUNS of each. The return is the count. It is 0 where the probe-place form has no class yet, or the .ksc
+// names no index or record register to probe with
 unsigned int khw_probe_fields(unsigned int *first, unsigned int *bits)
 {
     const KhwAnswered *const probed_form = khw_probe_form();
@@ -98,11 +102,14 @@ unsigned int khw_probe_fields(unsigned int *first, unsigned int *bits)
     return count;
 }
 
-// The register-runs of a ladder form read off the round carried, its questions at `at` in s_pool and after, two a
-// run, each read at the stage's case: each run whose two register questions the part answered, in the same case, as
-// two different words with the same answer carries a register and is an operand's; retained. A run that answers one as
-// the form writes its result, and another as the form reads a word, is placed by which. The operand runs retained, each
-// with its place in the relation's tuple, and the phase classified
+// The register-runs of a ladder form, read from the carried round. Its questions are at `at` in s_pool and after, two
+// for each run, and the call reads each at the case of the stage. The call keeps a run that carries a register of an
+// operand. For such a run, the part answered its two register questions as two different words with one answer, in
+// one case.
+//
+// A run can answer one as the form writes its result, and another as the form reads a word. Its place comes from which
+// of the two it is. The return is the operand runs kept, each with its place in the tuple of the relation, and the
+// phase becomes classified
 void khw_ladder_registers_read(KhwAnswered *ladder_form, unsigned int at, const KhwStaged *stage)
 {
     const unsigned int runs = ladder_form->runs;
@@ -124,16 +131,16 @@ void khw_ladder_registers_read(KhwAnswered *ladder_form, unsigned int at, const 
         if (first_answered && second_answered && (first_answer != second_answer) && (ladder_form->runs < KHW_RUNS))
         {
             unsigned int place = KHW_PLACE_NONE;
-            // the run that leaves the answer at the word the kernel's own register still contains wrote nothing: that
-            // is where this form writes its result, the answer's place, past the words
+            // the run that leaves the answer at the word that the own register of the kernel still holds wrote
+            // nothing. That is where this form writes its result, the place of the answer, past the words
             if ((first_answer == (unsigned long long)stage->word[0][1]) ||
                 (second_answer == (unsigned long long)stage->word[0][1]))
             {
                 place = s_ladder_words[ladder_form->anchor];
             }
-            // a run that answers the case at the first register and the second word twice at the second reads the
-            // first word the host put, and the other way round; the host put the relation's words swapped where the
-            // form reads them so
+            // a run that answers the case at the first register, and the second word twice at the second, reads the
+            // first word from the host. The reverse is also true. The host put the words of the relation swapped where
+            // the form reads them so
             else if ((first_answer == answer) && (second_answer == second_twice_answer))
             {
                 place = (ladder_form->swapped != 0) ? 1u : 0u;
@@ -152,14 +159,18 @@ void khw_ladder_registers_read(KhwAnswered *ladder_form, unsigned int at, const 
     ladder_form->phase = KHW_PHASE_CLASSIFIED;
 }
 
-// The address of a frame form read off the first stage's round, two questions a field of the probe place's form
-// (khw_probe_fields), the field set whole to the index's register then to the record's, each read at the stage's case.
-// A field is the address where the two answer apart and one of them answers the relation: a load reads the case's word
-// through the index's register and the record's own through the record's, and a store writes the record through the
-// record's register and the case through the index's. A load's is a place of its tuple, and a store's an operand the
-// form contains with no place, since the record is where a store writes. The runs the turns found inside such a field
-// give way to one run, the field, marked an address. Every other run is left for the second stage. The turns alone
-// cannot find an address field, since each bit of it turned reads through a register that contains no address
+// The address of a frame form, read from the round of the first stage. There are two questions for each field of the
+// form of the probe place (khw_probe_fields). The field goes whole to the index register, then to the record register,
+// and the call reads each at the case of the stage.
+//
+// A field is the address where the two answer apart and one of them answers the relation. A load reads the word of the
+// case through the index register, and the own word of the record through the record register. A store writes the
+// record through the record register, and the case through the index register.
+//
+// The address of a load is a place of its tuple. The address of a store is an operand of the form with no place,
+// because the record is where a store writes. The runs that the turns found inside such a field give way to one run,
+// the field, marked as an address. Every other run stays for the second stage. The turns alone cannot find an address
+// field, because each turned bit of it reads through a register that holds no address
 void khw_frame_addresses_read(KhwAnswered *form, unsigned int at, const KhwStaged *stage)
 {
     const unsigned long long expected = stage->expected;
@@ -215,8 +226,8 @@ void khw_frame_addresses_read(KhwAnswered *form, unsigned int at, const KhwStage
     }
 }
 
-// 1 where a run of `form` is at every place of its relation's tuple, exit's guard apart, since an exit with no
-// guard contains no run; a frame form containing no run at a place answered no relation it contains a field of
+// 1 where a run of `form` is at every place of the tuple of its relation, except the guard of exit. An exit with no
+// guard holds no run. A frame form with no run at a place answered no relation that it holds a field of
 static int khw_frame_whole(const KhwAnswered *form)
 {
     const unsigned int places[4] = {frame_place_destination(form->frame), frame_place_address(form->frame),
@@ -236,17 +247,25 @@ static int khw_frame_whole(const KhwAnswered *form)
     return 1;
 }
 
-// The register-runs of a frame form read off the second stage's round, its settings a run (khw_run_settings) in
-// their order, each read at the stage's case; an address run is retained as the first stage marked it. The answer where
-// the probe place writes nothing is the case's second word, `nothing`, and the relation's answer is `expected`. A run
-// inside the immediate field is a number where the relation is number and the answers are the settings themselves, and
-// the offset where the relation contains a number place and the two settings answer apart, a parameter's the constant
-// bank's operand's offset. Any other run is the destination where 0 leaves `nothing` and the register the kernel stores
-// answers the relation, or the guard where the relation is exit or the run lies inside the field the .ksc names the
-// guard, since P0 is false at the probe place and PT is every lane, exit's guard a place of its tuple and any other
-// relation's a predicate with none; the register a store stores where the relation is store and that register answers
-// the relation; and an operand with no place where the two answer apart, its bits retained as seen. Each retained with
-// its type, and the phase classified, or void where a place of the tuple contains no run
+// The register-runs of a frame form, read from the round of the second stage. The settings of each run
+// (khw_run_settings) come in their order, and the call reads each at the case of the stage. The call keeps an address
+// run as the first stage marked it. Where the probe place writes nothing, the answer is the second word of the case,
+// `nothing`. The answer of the relation is `expected`. The call types each other run as follows:
+//
+// - A run inside the immediate field is a number where the relation is number and the answers are the settings.
+// - A run inside the immediate field is the offset where the relation holds a number place and the two settings answer
+//   apart. For a parameter, it is the offset of the operand of the constant bank.
+// - Any other run is the destination where 0 leaves `nothing` and the register that the kernel stores answers the
+//   relation.
+// - Such a run is the guard where the relation is exit, or where the run lies inside the field that the .ksc names the
+//   guard. P0 is false at the probe place, and PT is every lane. The guard of exit is a place of its tuple, and the
+//   guard of each other relation is a predicate with no place.
+// - A run is the register that a store stores where the relation is store and that register answers the relation.
+// - A run is an operand with no place where the two settings answer apart. The call keeps its bits as the probe saw
+//   them.
+//
+// The call keeps each run with its type. The phase becomes classified, or void where a place of the tuple holds no
+// run
 void khw_frame_registers_read(KhwAnswered *form, unsigned int at, const KhwStaged *stage)
 {
     const unsigned int runs = form->runs;
@@ -291,15 +310,15 @@ void khw_frame_registers_read(KhwAnswered *form, unsigned int at, const KhwStage
             }
             else if (immediate && (form->frame == FRAME_DIM) && both && (answer[0] != answer[1]))
             {
-                // the constant bank's operand: its offset read from the bank answers the block size at 0 and the
-                // bank's next word past it, a run the form contains and no parameter takes
+                // the operand of the constant bank. Its offset, read from the bank, answers the block size at 0 and
+                // the next word of the bank past it. It is a run that the form holds and that no parameter takes
                 type = KHW_TYPE_CONSTANT;
             }
             else if (!immediate && both && (answer[0] == nothing) && (answer[1] == expected))
             {
-                // a run inside the field the .ksc names the guard answers so too, P0 false at the probe place and PT
-                // every lane: it is the guard, exit's place where the relation is exit and a predicate with no place
-                // elsewhere, never the destination
+                // a run inside the field that the .ksc names the guard also answers so. P0 is false at the probe place,
+                // and PT is every lane. It is the guard: the place of exit where the relation is exit, and a predicate
+                // with no place elsewhere. It is never the destination
                 unsigned int guard_first = 0u;
                 unsigned int guard_bits = 0u;
                 const int in_guard = khw_field_read("guard", &guard_first, &guard_bits) &&
@@ -319,9 +338,9 @@ void khw_frame_registers_read(KhwAnswered *form, unsigned int at, const KhwStage
             {
                 continue;
             }
-            // an operand with no place that reaches into the field the .ksc names the guard is a predicate, which the
-            // vendor writes before the operation, as nothing at every predicate, and with the bit past the field's
-            // for a predicate read the other way
+            // an operand with no place that reaches into the field that the .ksc names the guard is a predicate. The
+            // vendor writes it before the operation, and writes the predicate of every lane as nothing. The bit past
+            // the field marks a predicate that reads the other way
             unsigned int guard_first = 0u;
             unsigned int guard_bits = 0u;
             type = ((place == KHW_PLACE_NONE) && khw_field_read("guard", &guard_first, &guard_bits) &&
@@ -342,5 +361,6 @@ void khw_frame_registers_read(KhwAnswered *form, unsigned int at, const KhwStage
     form->phase = khw_frame_whole(form) ? KHW_PHASE_CLASSIFIED : KHW_PHASE_VOID;
 }
 
-// the register-runs of `form` read off the round `stage_number` carried, as its relation's type reads them: a ladder
-// form's in the first stage, a frame form's addresses in the first and the rest in the second
+// the register-runs of `form`, read from the round that `stage_number` carried, as the type of its relation reads them.
+// For a ladder form, they come in the first stage. For a frame form, the addresses come in the first stage and the rest
+// in the second

@@ -9,13 +9,15 @@
 
 unsigned int s_kernel_probe_place;
 
-// The kernel the vendor's writer reads out of the container, got through the interface and read where it appends it
-// in the run (orior_khw_machine_write, kernel mode; kernel_blob.h): the run read to its end before the writer runs; the
-// kernel read is therefore that appended after. The places it contains from the one the least opening begins at go into
-// s_kernel_places, the places before it into s_opening_places, the registers a thread uses into s_registers, each
-// retained place's encoding into s_kernel_text, and the position's place among the retained ones into
-// s_kernel_probe_place where the head names one from the opening on, s_kernel_places where it names none. 1, or 0 where
-// the run contains no kernel this reads
+// The kernel that the writer of the vendor reads from the container. The call gets it through the interface, and reads
+// it where the writer appends it in the run (orior_khw_machine_write, kernel mode; kernel_blob.h). The call reads the
+// run to its end before the writer runs. Thus the kernel that it reads is the one that the writer appends after.
+//
+// The call puts the places that the kernel holds into s_kernel_places, from the place where the least opening starts.
+// It puts the places before that one into s_opening_places, and the registers that a thread uses into s_registers. It
+// puts the encoding of each kept place into s_kernel_text. The place of the position among the kept places goes into
+// s_kernel_probe_place, where the head names one from the opening on. Where the head names none, s_kernel_places goes
+// there. The return is 1, or 0 where the run holds no kernel that this call reads
 int khw_kernel_read(void)
 {
     if (qry_member_run() == NULL)
@@ -75,9 +77,10 @@ int khw_named_already(unsigned long long low, unsigned long long high)
     return 0;
 }
 
-// `low` and `high` queried its relation and its fields, and recorded among the forms the part answered for where it
-// answered one, whether the vendor's table names it: what the part answered is the protocol's, and only the
-// file written at the end takes a name (P14). 1 where it was recorded
+// The call queries the relation and the fields of `low` and `high`. Where the part answers a relation, the call records
+// the encoding among the forms that the part answered for. It does so whether the table of the vendor names it or not.
+// What the part answered belongs to the protocol, and only the file that the program writes at the end takes a name
+// (P14). The return is 1 where the call recorded it
 int khw_form_queried(unsigned long long low, unsigned long long high)
 {
     if (khw_named_already(low, high) || (s_names == KHW_FORMS))
@@ -113,9 +116,9 @@ int khw_form_queried(unsigned long long low, unsigned long long high)
     return 1;
 }
 
-// the bits a register's number takes, from the last register the part answers a question's code can name, stored in
-// the .ksc at `ksc` by the register walk as `run answers <last> register last` (orior_klq_identity): the bits of that
-// number; 0 where the part has not answered it
+// the bits that the number of a register takes. They come from the last register that, as the part answers, the code
+// of a question can name. The register walk stores it in the .ksc at `ksc` as `run answers <last> register last`
+// (orior_klq_identity). The return is the bits of that number, or 0 where the part did not answer it
 static unsigned int khw_register_bits(const char *ksc)
 {
     static KscFile s_file;
@@ -163,21 +166,13 @@ static void khw_seed_added(unsigned long long *seed_low, unsigned long long *see
     *count += 1u;
 }
 
-// Every seed of the run's blob `name` queried its relation from the top in the position, each a line `<low> <high>` in
-// hex as a vendor's reader of a listing writes it (orior_sass_listing_seeds): one that answers a ladder relation enters
-// the working set as a discovered form, its fields left for the turns and register passes once a cross read them,
-// and one that answers none, or is a form the part answered for already, is passed over. A seed is put with the
-// position's own registers: a listing's instruction names the compiler's registers, and the position's case words lie
-// in the kernel's. The words the kernel's own classified form contains at its register fields are written into the seed
-// at the same fields, every other register field is set in turn to the zero register the part answered, and the part
-// reports whether the relation is true there. The seeds are the question Q17 names and the part answers; no byte of the
-// listing enters a form. They go through the airlock in rounds as any question: the cross reads each, and the gate
-// checks its key unknown until a conference admits it (overseer.h). The count that entered The forms of the round
-// carried that answered a relation, into `related`: the pool's `count` questions in their order, each put at the
-// position with the encoding `lows` and `highs` give, a frame candidate where `frame` marks it read for its frame
-// relation and every other read against the register relations. A candidate that answered none and left the second word
-// located on every case, as a form that writes a predicate does, is put again in a round of its own with the store
-// guarded by P0 and read against the predicate relations. The count related
+// The forms of the round that answered a relation, carried into `related`. The round has the `count` questions of the
+// pool in their order, each put at the position with the encoding that `lows` and `highs` give.
+//
+// The call reads a frame candidate, where `frame` marks it, for its frame relation, and every other candidate against
+// the register relations. A candidate can answer none and leave the second word as it was on every case, as a form that
+// writes a predicate does. Such a candidate goes again in a round of its own. In that round, P0 guards the store, and
+// the call reads the candidate against the predicate relations. The return is the count related
 static unsigned int khw_round_related(const unsigned long long *lows, const unsigned long long *highs, const int *frame,
                                       unsigned int count, KhwAnswered *related)
 {
@@ -254,6 +249,21 @@ static unsigned int khw_round_related(const unsigned long long *lows, const unsi
     return found;
 }
 
+// Every seed of the blob `name` of the run, with its relation queried from the top in the position. Each seed is a line
+// `<low> <high>` in hex, as the reader of a listing of a vendor writes it (orior_sass_listing_seeds). A seed that
+// answers a ladder relation enters the working set as a discovered form. Its fields stay for the turns and register
+// passes, after a cross reads them. The call passes over a seed that answers none, or that is a form the part answered
+// for.
+//
+// A seed goes with the own registers of the position, because the instruction of a listing names the registers of the
+// compiler. The case words of the position lie in the registers of the kernel. The call writes into the seed the words
+// that the own classified form of the kernel holds at its register fields, at the same fields. It sets each other
+// register field in turn to the zero register that the part answered. The part reports whether the relation is true
+// there.
+//
+// The seeds are the question that Q17 names, and the part answers it. No byte of the listing enters a form. The seeds
+// go through the airlock in rounds, as any question does. The cross reads each, and the gate keeps its key unknown
+// until a conference admits it (overseer.h). The return is the count that entered
 unsigned int khw_seeds_queried(const char *name)
 {
     const unsigned char *bytes = NULL;
@@ -272,10 +282,10 @@ unsigned int khw_seeds_queried(const char *name)
     // the kernel's own form, the position's encoding as classified, else the first classified form with operand runs
     const unsigned long long probe_low = khw_word_read(&s_kernel_text[s_probe_place * KHW_INSTRUCTION], 0u);
     const unsigned long long probe_high = khw_word_read(&s_kernel_text[s_probe_place * KHW_INSTRUCTION], 8u);
-    // the register fields of the instruction word's layout: every field as wide as the last register the part
-    // answers the code can name, the walk's answer in the .ksc (`register last`); none where the part has not answered
-    // it, and the kernel's operand runs are in, which the turns found over two registers and reach only the bits
-    // that distinguished them
+    // the register fields of the layout of the instruction word. Each field is as wide as the last register that, as
+    // the part answers, the code can name. That is the answer of the walk in the .ksc (`register last`). Where the part
+    // did not answer it, there are none, and the call uses the operand runs of the kernel. The turns found those runs
+    // over two registers, and they reach only the bits that told the two apart
     static ContainerLayout s_layout;
     const unsigned int register_bits = khw_register_bits(s_ksc_path);
     const int fields_read = (register_bits != 0u) && container_layout_read(&s_layout, s_fields);
@@ -305,11 +315,13 @@ unsigned int khw_seeds_queried(const char *name)
         }
         return 0u;
     }
-    // The seeds queried: each of the listing's as it is, the position's registers in the register fields the
-    // kernel's form covers, and for each register field it does not cover the same with that field set to the zero
-    // register the part answered (fixed zero, Open 6.2), so that a source the position's form does not contain adds
-    // nothing; which of these is a form the part decides. A field containing no register, set so, the vendor's reader
-    // reads before the part
+    // The seeds to query. Each seed of the listing goes in with the registers of the position in the register fields
+    // that the form of the kernel covers. For each register field that the form does not cover, a copy goes in. The
+    // copy has that field set to the zero register that the part answered (fixed zero, Open 6.2). Thus a source that
+    // the form of the position does not hold adds nothing.
+    //
+    // The part decides which of these is a form. Where such a field holds no register, the reader of the vendor reads
+    // the seed before the part
     static unsigned long long s_seed_low[KHW_SEEDS_MAX];
     static unsigned long long s_seed_high[KHW_SEEDS_MAX];
     unsigned int seeds = 0u;
@@ -372,8 +384,8 @@ unsigned int khw_seeds_queried(const char *name)
             khw_seed_added(s_seed_low, s_seed_high, &seeds, zeroed_low, zeroed_high);
         }
     }
-    // the seeds queried in rounds, as many a round as the pool contains, over the union's cases at the position, and
-    // each read for its relation; one that answers a relation enters the working set discovered
+    // the seeds queried in rounds, as many to a round as the pool holds, over the cases of the union at the position.
+    // The call reads each for its relation, and one that answers a relation enters the working set as discovered
     khw_union_written();
     unsigned int entered = 0u;
     khw_plan_passed("seed", (unsigned long long)seeds);
@@ -430,25 +442,29 @@ unsigned int khw_seeds_queried(const char *name)
     return entered;
 }
 
-// Every form the part answered for widened: each bit outside its operands' runs, its key and the scheduler's word
-// turned, and the turned encoding queried its relation from the top. An operand's run is one with a place in the
-// relation's tuple; a run that carries no word of the tuple is no operand of the relation, and its bits are turned as
-// any other's. A pass turns at max KHW_FORMS encodings, the newest form's first: a form the set gained last is the
-// frontier of the widening, and an older form's turns, which R answers already, fill what is left of the pass. Every
-// turned encoding's relation waits on no other answer, and they are put SCHEDULER_ROUND_MAX to a round. A turned
-// encoding that answers as the form it was turned off does is that form (khw_form_is_for) and enters the set
-// nowhere: only one answering another relation, the negate bits' take off an add, is a form of its own. Where
-// `discover` is 0 each that answered a relation is then queried its
-// fields; where it is not 0 it is retained with its fields unqueried, for a cross-check to read its turns before a
-// later pass queries them off a part that would hang on an encoding the vendor calls illegal. Only a classified form is
-// a source of a widening: a form still short of its operand runs would widen on bits its register-runs have not yet
-// sorted from the operands. The count found this round
+// Every form that the part answered for, widened. The call turns each bit outside the runs of its operands, its key and
+// the word of the scheduler. It queries the relation of the turned encoding from the top. The run of an operand is one
+// with a place in the tuple of the relation. A run that carries no word of the tuple is no operand of the relation, and
+// the call turns its bits as any other bits.
+//
+// A pass turns at max KHW_FORMS encodings, those of the newest form first. A form that the set gained last is the
+// frontier of the widen step. The turns of an older form, which R already answers, fill the rest of the pass. The
+// relation of each turned encoding waits on no other answer, and the call puts them SCHEDULER_ROUND_MAX to a round.
+//
+// A turned encoding that answers as the form that it came from is that form (khw_form_is_for), and enters the set
+// nowhere. Only one that answers another relation is a form of its own, such as an add with its negate bits turned.
+// Where `discover` is 0, the call then queries the fields of each one that answered a relation. Where it is not 0, the
+// call keeps it with its fields not queried. A cross-check can then read its turns before a later pass queries them
+// from the part. The part could hang on an encoding that the vendor calls illegal.
+//
+// Only a classified form is a source of a widen step. A form still short of its operand runs would widen on bits that
+// its register-runs did not yet sort from the operands. The return is the count found this round
 unsigned int khw_widened(unsigned int from, int discover)
 {
     const unsigned int until = s_names;
     unsigned int found = 0u;
-    // every turned encoding not yet answered for, each once, and whether it was turned off a frame form, whose
-    // encodings are put whole over the frame's cases and read against the frame's relations
+    // every turned encoding that has no answer yet, each once, and whether it came from a frame form. The call puts the
+    // encodings of a frame form whole over the cases of the frame, and reads them against the relations of the frame
     static unsigned long long s_turned_low[KHW_FORMS];
     static unsigned long long s_turned_high[KHW_FORMS];
     static int s_turned_frame[KHW_FORMS];

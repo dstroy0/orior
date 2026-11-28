@@ -571,7 +571,7 @@ src/cu/transpiler/lstar/protocol/kdecode/kdecode/kdecode_internal.h	10
 src/cu/transpiler/lstar/protocol/kdecode/kdecode/printed.c	7
 src/cu/transpiler/lstar/protocol/kdecode/kdecode/read.c	7
 src/cu/transpiler/lstar/protocol/khw_learn/costs.c	26
-src/cu/transpiler/lstar/protocol/khw_learn/discover.c	37
+src/cu/transpiler/lstar/protocol/khw_learn/discover.c	2
 src/cu/transpiler/lstar/protocol/khw_learn/frame.c	19
 src/cu/transpiler/lstar/protocol/khw_learn/frame_relation.h	7
 src/cu/transpiler/lstar/protocol/khw_learn/frame_round.c	20
@@ -580,8 +580,6 @@ src/cu/transpiler/lstar/protocol/khw_learn/khw_learn_internal.h	29
 src/cu/transpiler/lstar/protocol/khw_learn/queries.c	25
 src/cu/transpiler/lstar/protocol/khw_learn/relation.c	17
 src/cu/transpiler/lstar/protocol/khw_learn/relation_fields.c	8
-src/cu/transpiler/lstar/protocol/khw_learn/relation_registers.c	25
-src/cu/transpiler/lstar/protocol/khw_learn/relation_turns.c	36
 src/cu/transpiler/lstar/protocol/khw_learn/standing.c	5
 src/cu/transpiler/lstar/protocol/khw_learn/turning.c	11
 src/cu/transpiler/lstar/protocol/order/hadamard_order.c	6
@@ -660,7 +658,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/monolith.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.h	28
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/assemble.c	14
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/encoding.c	13
-src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/fields.c	36
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/sass_assemble_internal.h	7
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_listing_seeds.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine.h	1
