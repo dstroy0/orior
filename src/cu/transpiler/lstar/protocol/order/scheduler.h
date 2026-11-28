@@ -3,24 +3,25 @@
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
 
-// The scheduler (P13). The gray entries of every set are its queue, and each turn the query that settles the max of
-// them is chosen, put through the asker of its answerer, and its answer written to R and to every entry it settles.
+// The scheduler (P13). The gray entries of every set are its queue. At each turn, the scheduler chooses the query that
+// settles the most of them, and puts it through the asker of its answerer. It writes its answer to R and to every entry
+// that it settles.
 //
-// The queries are put in rounds. Each question that waits on no answer but the round's before it is written before any
-// is put, and a round is one tier: its questions are carried together, through the run channel's many (run_channel.h),
-// and no question of a round waits on another's answer. Within a round the question that settles the max entries is
-// put first, in the order passed where two settle as many. A round is carried SCHEDULER_ROUND_MAX questions to a
-// process at max, for the memory each uses while it is put.
+// The scheduler puts the queries in rounds. It writes each question that waits on no answer but that of the round
+// before it, before it puts any. A round is one tier: the carrier carries its questions together, through the many of
+// the run channel (run_channel.h). No question of a round waits on the answer of another. Within a round, the question
+// that settles the most entries goes first, in the order passed where two settle as many. A round goes at max
+// SCHEDULER_ROUND_MAX questions to a process, for the memory that each uses while the scheduler puts it.
 
 #include "../teacher/run_channel.h"
 
-// the max questions one round carries to a process: the airlock reads a round in waves of the vendor's readings, each
-// a whole start of the vendor whatever it contains, and a larger round spreads those waves over more questions
+// the max questions that one round carries to a process. The airlock reads a round in waves of the readings of the
+// vendor, each a whole start of the vendor, whatever it holds. A larger round spreads those waves over more questions
 #define SCHEDULER_ROUND_MAX 8192u
 
-// The `count` questions of `question`, each settling `settles` entries, carried as one round: the max settling first,
-// stable where two settle as many, SCHEDULER_ROUND_MAX to a process. Each question's outcome and answers its own. The
-// count of those answered
+// The `count` questions of `question`, each of which settles `settles` entries, carried as one round. The one that
+// settles the most goes first, stable where two settle as many, SCHEDULER_ROUND_MAX to a process. Each question gets
+// its own outcome and answers. The return is the count of those answered
 unsigned int scheduler_round(RunQuestion *const *question, const unsigned int *settles, unsigned int count);
 
 #endif

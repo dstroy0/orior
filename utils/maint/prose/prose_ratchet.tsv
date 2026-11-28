@@ -558,7 +558,6 @@ src/cu/transpiler/lstar/protocol/khw_learn/turning.c	11
 src/cu/transpiler/lstar/protocol/order/hadamard_order.c	6
 src/cu/transpiler/lstar/protocol/order/query_order.c	10
 src/cu/transpiler/lstar/protocol/order/scheduler.c	1
-src/cu/transpiler/lstar/protocol/order/scheduler.h	13
 src/cu/transpiler/lstar/protocol/overseer/accounts.c	6
 src/cu/transpiler/lstar/protocol/overseer/overseer_internal.h	2
 src/cu/transpiler/lstar/protocol/overseer/ruling.c	5
