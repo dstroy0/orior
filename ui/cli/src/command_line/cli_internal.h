@@ -535,99 +535,116 @@ int cli_move(const CliErrMsgFromCtx *args);
 // again, empty. Where it is 0, the file must be there already. The return is 1, or 0 where the write failed
 int cli_file_append(const CliPathBytesCtx *args);
 
-// A file of this process's own that the system deletes as it is let go or the process ends, so that a crash leaves
-// nothing behind: the system's handle to it
+// An own file of this process that the system deletes as the process lets it go or ends. Thus a crash leaves nothing
+// behind. It is the handle of the system to it
 typedef struct
 {
     unsigned long long handle;
 } CliTemporaryFile;
 
-// a temporary file made, empty, in the folder the system passes files in: 1, or 0 where it could not be; `size` bytes
-// of `bytes` written at its byte `at`: 1, or 0 where they could not all be; `size` bytes from its byte `at` read into
-// `bytes`: 1, or 0 where they could not all be; and the file let go, which deletes it (platform/windows_files.c,
-// platform/posix_files.c)
+// a temporary file, made empty, in the folder that the system passes files in. The return is 1, or 0 where the call
+// could not make it (platform/windows_files.c, platform/posix_files.c)
 int cli_temporary_file_init(const CliFileTemporaryFileCtx *args);
+// `size` bytes of `bytes`, written at its byte `at`. The return is 1, or 0 where the call could not write all of them
 int cli_temporary_file_write(const CliBytesCtx *args);
+// `size` bytes from its byte `at`, read into `bytes`. The return is 1, or 0 where the call could not read all of them
 int cli_temporary_file_read(const CliSizeCtx *args);
+// the file let go, which deletes it
 void cli_temporary_file_let_go(const CliFileTemporaryFileCtx *args);
 
-// the system's clipboard: its text written into `text` as UTF-8, nothing where it holds none: 1, or 0 where it could
-// not be read; `size` bytes of UTF-8 `text` put on it: 1, or 0 where it did not take them; the files `paths`, `count`
-// of them, put on it as the file manager puts them, to be moved where they are pasted where `cut` and copied otherwise:
-// 1, or 0 where it did not take them; each file it holds passed to `each`, 1 in `cut` where they were cut, 0 where they
-// were copied and -1 where the clipboard does not say: their count; and the clipboard emptied
-// (platform/windows_clipboard.c, platform/posix_clipboard.c)
-// what the system's picker picks: a file to open, a folder, or a file to save
+// what the picker of the system picks: a file to open, a folder, or a file to save
 #define CLI_PICK_FILE 0u
 #define CLI_PICK_FOLDER 1u
 #define CLI_PICK_SAVE 2u
 
-// the system's picker displayed for the reader to pick `type`, waited on: the path chosen into `path`, sized for
-// `capacity`, 1, or 0 where none was chosen (platform/windows_picker.c, platform/posix_picker.c)
+// the picker of the system, shown for the reader to pick `type`, and waited on. The call puts the path chosen into
+// `path`, sized for `capacity`. The return is 1, or 0 where the reader chose none (platform/windows_picker.c,
+// platform/posix_picker.c)
 int cli_file_pick(const CliPathCapacityCtx *args);
 
+// the text of the clipboard of the system, written into `text` as UTF-8, nothing where it holds none
+// (platform/windows_clipboard.c, platform/posix_clipboard.c). The return is 1, or 0 where the read failed
 int cli_clipboard_text_read(const CliCtx *args);
+// `size` bytes of UTF-8 `text`, put on the clipboard. The return is 1, or 0 where it did not take them
 int cli_clipboard_text_write(const CliSizeTextCtx *args);
+// the files `paths`, `count` of them, put on the clipboard as the file manager puts them. A paste moves them where
+// `cut`, and copies them otherwise. The return is 1, or 0 where it did not take them
 int cli_clipboard_files_append(const CliCountCtx *args);
+// each file that the clipboard holds, passed to `each`. `cut` is 1 for a cut, 0 for a copy, and -1 where the clipboard
+// does not say. The return is their count
 unsigned int cli_clipboard_files_read(const CliEachCtx *args);
+// the clipboard emptied
 void cli_clipboard_clear(void);
-// The system's clipboard text as UTF-16 units in the system's own memory. units_take takes memory for `count` units and
-// `breaks` line ends. units_append reads `bytes` of a movable cell's units at `offset` into that memory after what it
-// holds. units_break appends the system's own line end. units_put puts what the memory holds on the clipboard. Each
-// gives 1, or 0 where the system or the cell refuses. units_open gives the units the clipboard holds and their count
-// into `count_out`, or NULL where it holds none; they stay readable until units_close. Only Windows has these calls;
-// the window does not use the system's clipboard as units on X11 or macOS, and there each call refuses
-// (platform/windows_clipboard.c, platform/posix_clipboard.c)
+// The clipboard text of the system as UTF-16 units, in the own memory of the system (platform/windows_clipboard.c,
+// platform/posix_clipboard.c):
+//
+// - units_take takes memory for `count` units and `breaks` line ends.
+// - units_append reads `bytes` of the units of a movable cell at `offset` into that memory, after what it holds.
+// - units_break adds the own line end of the system.
+// - units_put puts what the memory holds on the clipboard.
+// - units_open gives the units that the clipboard holds, and their count into `count_out`, or NULL where it holds none.
+//   They stay readable until units_close.
+//
+// Each of the first four gives 1, or 0 where the system or the cell refuses. Only Windows has these calls. The window
+// does not use the clipboard of the system as units on X11 or macOS, and there each call refuses
 int cli_clipboard_units_take(const CliClipboardUnitsCtx *args);
 int cli_clipboard_units_append(const CarcerMovableCfg *args);
-// The `size` bytes of UTF-8 at `text` go after the units of the take as UTF-16. A byte that starts no character is one
-// unit. Returns 1, or 0 where no take is out or the units do not fit (windows_clipboard.c, posix_clipboard.c)
+// The `size` bytes of UTF-8 at `text` go after the units of the take, as UTF-16. A byte that starts no character is one
+// unit. The return is 1, or 0 where no take is out or the units do not fit (windows_clipboard.c, posix_clipboard.c)
 int cli_clipboard_units_append_text(const CliSizeTextCtx *args);
 int cli_clipboard_units_break(const CliClipboardUnitsCtx *args);
 int cli_clipboard_units_put(const CliClipboardUnitsCtx *args);
 const unsigned short *cli_clipboard_units_open(const CliClipboardUnitsCtx *args);
 void cli_clipboard_units_close(const CliClipboardUnitsCtx *args);
-// a piece of a started process's output or errors read, 0 at its end; the process waited on, its exit code, or -1
-// where a signal ended it; its job ended; its job and pipes let go; and the process group `leader` leads ended,
-// requested first, or on Windows the process `id` and every process under it
+// a piece of the output or errors of a started process, read. The return is 0 at its end
 unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args);
-// the bytes waiting to be read from `pipe_handle`, which a read of no more than that many takes without waiting; 0
-// where none wait or the pipe has ended
+// the bytes that wait for a read from `pipe_handle`, which a read of no more than that many takes with no wait. The
+// return is 0 where none wait or the pipe ended
 unsigned long long cli_spawn_waiting(const CliCapacityPipeHandleCtx *args);
-// what `pipe_handle` writes read until it ends, line by line into `line`, sized for `capacity`, each line passed to
-// `each` with `context` and its bytes, its end left off, a line longer than the capacity passed in pieces of the
-// capacity's length, and what is after the last end passed as it ends (spawn_lines.c)
+// what `pipe_handle` writes, read until it ends, line by line into `line`, sized for `capacity` (spawn_lines.c). The
+// call passes each line to `each` with `context` and its bytes, with its end left off. It passes a line longer than the
+// capacity in pieces of the length of the capacity. It passes what is after the last end as it ends
 void cli_spawn_lines_read(const CliSpawnLinesCtx *args);
+// the started process, waited on. The return is its exit code, or -1 where a signal ended it
 long long cli_spawn_wait(const CliSpawnedCtx *args);
-// whether a started process has ended, without waiting: 1 with its exit code into `code`, -1 where a signal ended it,
-// or 0 where it goes on
+// whether a started process ended, with no wait. The return is 1 with its exit code into `code`, -1 where a signal
+// ended it, or 0 where it goes on
 int cli_spawn_poll(const CliSpawnedCtx *args);
-// the system's PATH and the reader's as the registry stores them now, each into `out`, sized for `capacity`; a variable
-// of the reader's own read, and set as text whose %NAME% parts expand; every open program notified the environment
-// changed; and a text's %NAME% parts expanded. Each 1, or 0 where there is none or off Windows
-// (platform/windows_registry.c, platform/posix_registry.c)
+// the PATH of the system as the registry stores it now, into `out`, sized for `capacity` (platform/windows_registry.c,
+// platform/posix_registry.c). The return is 1, or 0 where there is none, or off Windows. The calls below give the same
 int cli_registry_machine_path(const CliOutCtx *args);
+// an own variable of the reader, read as the registry stores it now, into `out`, sized for `capacity`. The PATH of the
+// reader is one of them
 int cli_registry_user_value(const CliOutCapacityCtx *args);
+// an own variable of the reader, set as text whose %NAME% parts expand
 int cli_registry_set_user_value(const CliErrMsgNameCtx *args);
+// every open program, told that the environment changed
 void cli_registry_announce(void);
+// the %NAME% parts of a text, expanded
 void cli_registry_expand(const CliOutCtx *args);
+// the job of a started process, ended
 void cli_spawn_group_end(const CliGroupCtx *args);
+// the job and pipes of a started process, let go
 void cli_spawn_close(const CliSpawnedCtx *args);
+// the process group that `leader` leads, ended, with a request first. On Windows, it is the process `id` and every
+// process under it
 void cli_spawn_tree_end(const CliIdCtx *args);
-// a started process ended at once, by SIGKILL on POSIX; and interrupted by SIGINT: 1, or 0 where it could not be, as
-// on Windows, where no signal interrupts a process
+// a started process, ended at once, by SIGKILL on POSIX
 void cli_spawn_kill(const CliColsCtx *args);
+// a started process, interrupted by SIGINT. The return is 1, or 0 where it could not be, as on Windows, where no signal
+// interrupts a process
 int cli_spawn_interrupt(const CliColsCtx *args);
 // a started process that heads a job or a group of its own ended at once, with every process in that job or group
 void cli_spawn_group_kill(const CliColsCtx *args);
-// the folders of the PATH this process runs with, each into `folders`, sized for `capacity`: their count; and the PATH
-// those folders, `count` of them, make, into `path`, sized for `size` (programs.c)
+// the folders of the PATH that this process runs with, each into `folders`, sized for `capacity`. The return is their
+// count (programs.c)
 unsigned int cli_path_folders(const CliCapacityFoldersCtx *args);
+// the PATH that those folders make, `count` of them, into `path`, sized for `size`
 void cli_path_join(const CliPathCountSizeCtx *args);
 
-// What a thread runs: the function and its context, retained by its starter for as long as the thread lives, and the
-// priority it runs at, one of PLATFORM_PRIORITY_WORK and the rest, work where none is set. `started` is the record that
-// the platform starts the thread on (platform_internal.h)
+// What a thread runs: the function and its context, kept by its starter for as long as the thread lives. Then the
+// priority that it runs at, one of PLATFORM_PRIORITY_WORK and the rest, work where the starter sets none. `started` is
+// the record that the platform starts the thread on (platform_internal.h)
 typedef struct
 {
     void (*run)(void *context);
