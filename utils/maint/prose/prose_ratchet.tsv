@@ -544,7 +544,7 @@ src/cu/scaffolding/yosys_script.h	2
 src/cu/transpiler/lstar/interface/platform/interface_internal.h	7
 src/cu/transpiler/lstar/interface/platform/posix.c	16
 src/cu/transpiler/lstar/interface/platform/windows.c	20
-src/cu/transpiler/lstar/protocol/gate/chain_build.h	16
+src/cu/transpiler/lstar/protocol/gate/chain_build.h	1
 src/cu/transpiler/lstar/protocol/gate/survivors.h	7
 src/cu/transpiler/lstar/protocol/kdecode/kdecode.c	13
 src/cu/transpiler/lstar/protocol/kdecode/kdecode/blobs.c	4
