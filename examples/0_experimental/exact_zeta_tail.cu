@@ -41,19 +41,40 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <vector>
-
+// the program's steps in one cell of the persistent tier at the count its build fixes, `count` of them; `full` 1 where
+// a step passed the room
 typedef struct
 {
-    std::vector<EngineRecordStep> steps;
+    EngineRecordStep *steps;
+    unsigned int count;
+    unsigned int room;
+    int full;
 } TailProgram;
+
+// the steps the build of N terms takes: 6 before the terms, 35 for each term past the first, and 13 after them
+static unsigned int tail_steps(unsigned int terms)
+{
+    return 19u + (35u * (terms - 1u));
+}
 
 static unsigned int tail_step(TailProgram *program, EngineRecordOperation operation, unsigned int left,
                               unsigned int right, unsigned int member)
 {
-    EngineRecordStep step = {operation, left, right, member};
-    program->steps.push_back(step);
-    return (unsigned int)program->steps.size() - 1u;
+    if (program->count >= program->room)
+    {
+        program->full = 1;
+        return 0u;
+    }
+    program->steps[program->count] = EngineRecordStep{operation, left, right, member};
+    program->count += 1u;
+    return program->count - 1u;
+}
+
+// a cell of `count` words, on the temporary tier where `ephemeral` is 1, NULL where the pool cannot meet it
+static unsigned int *tail_words_taken(unsigned long long count, int ephemeral)
+{
+    return (unsigned int *)platform_cell_taken(((count != 0ull) ? count : 1ull) * sizeof(unsigned int),
+                                               platform_place_g_program_owner, ephemeral);
 }
 
 // (re, im) times (c + i t), each product divided by S and wrapped to W bits
@@ -150,8 +171,11 @@ int program_main(int count, char **arguments)
     unsigned int width = 0u;
     unsigned int fields = 0u;
     int read = (fscanf(in, "%u %u fields %u", &terms, &width, &fields) == 3) && (terms > 0u) && (fields == terms + 2u);
-    std::vector<unsigned int> field_bits(fields);
-    std::vector<unsigned int> field_offset(fields);
+    // the input's fields, its points' records and the shared record, cells of the persistent tier: the program reads
+    // its input once and keeps it to its end
+    unsigned int *const field_bits = tail_words_taken(fields, 0);
+    unsigned int *const field_offset = tail_words_taken(fields, 0);
+    read = read && (field_bits != NULL) && (field_offset != NULL);
     for (unsigned int at = 0u; read && (at < fields); at += 1u)
     {
         read = fscanf(in, "%u %u", &field_bits[at], &field_offset[at]) == 2;
@@ -160,13 +184,16 @@ int program_main(int count, char **arguments)
     unsigned long long points = 0ull;
     read = read && (fscanf(in, " in_limbs %u %u points %llu", &in_limbs[0], &in_limbs[1], &points) == 3) &&
            (points > 0ull);
-    std::vector<unsigned int> point_records(read ? (size_t)(points * in_limbs[0]) : 0u);
-    std::vector<unsigned int> shared(read ? in_limbs[1] : 0u);
+    const unsigned long long point_words = read ? (points * in_limbs[0]) : 0ull;
+    const unsigned long long shared_words = read ? in_limbs[1] : 0ull;
+    unsigned int *const point_records = tail_words_taken(point_words, 0);
+    unsigned int *const shared = tail_words_taken(shared_words, 0);
+    read = read && (point_records != NULL) && (shared != NULL);
     for (unsigned long long at = 0ull; read && (at < points); at += 1ull)
     {
         read = tail_words(in, &point_records[(size_t)(at * in_limbs[0])], in_limbs[0]);
     }
-    read = read && tail_words(in, shared.data(), in_limbs[1]);
+    read = read && tail_words(in, shared, in_limbs[1]);
     fclose(in);
     if (!read)
     {
@@ -174,20 +201,23 @@ int program_main(int count, char **arguments)
         return 2;
     }
 
-    TailProgram program;
+    TailProgram program = {NULL, 0u, tail_steps(terms), 0};
+    program.steps = (EngineRecordStep *)platform_cell_taken((unsigned long long)program.room * sizeof(EngineRecordStep),
+                                                            platform_place_g_program_owner, 0);
+    program.room = (program.steps != NULL) ? program.room : 0u;
     unsigned int outputs[2];
     tail_build(&program, terms, width, outputs);
     EngineError error;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &error, .bytes = sizeof(error), .val = 0);
     EngineRecordKey key;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &key, .bytes = sizeof(key), .val = 0);
-    const KeymathRecordRequest encode = {program.steps.data(), (unsigned int)program.steps.size(), field_bits.data(),
-                                         fields, 2u, outputs, 2u, NULL, 0u, &key, &error};
-    int ok = keymath_record_encode(&encode) != KEYMATH_ERROR;
+    const KeymathRecordRequest encode = {program.steps, program.count, field_bits, fields, 2u, outputs, 2u, NULL, 0u,
+                                         &key,          &error};
+    int ok = !program.full && (program.steps != NULL) && (keymath_record_encode(&encode) != KEYMATH_ERROR);
     sim_check(&job, ok, "keymath imprints the tail program");
     EngineRecordLayout layout;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &layout, .bytes = sizeof(layout), .val = 0);
-    const KeyScheduleRecordRequest position = {&key, field_offset.data(), fields, in_limbs, 1, &layout, &error};
+    const KeyScheduleRecordRequest position = {&key, field_offset, fields, in_limbs, 1, &layout, &error};
     ok = ok && (key_schedule_record_layout(&position) != KEY_SCHEDULE_ERROR);
     sim_check(&job, ok, "the scheduler positions the tail program out");
     const unsigned int out_limbs = ok ? layout.out_limbs : 0u;
@@ -199,42 +229,44 @@ int program_main(int count, char **arguments)
     ok = ok && (cycle_record_load(&layout, &record, &error) != CYCLE_ERROR);
     sim_check(&job, ok, "the tail program loads onto the device");
 
-    std::vector<unsigned int> index((size_t)(points * 2ull));
-    for (unsigned long long lane = 0ull; lane < points; lane += 1ull)
+    // the sweep's index and the device's and the host's records, cells of the temporary tier that the run gives back
+    const unsigned long long out_words = points * out_limbs;
+    unsigned int *const index = tail_words_taken(points * 2ull, 1);
+    unsigned int *const device_out = tail_words_taken(out_words, 1);
+    unsigned int *const host_out = tail_words_taken(out_words, 1);
+    ok = ok && (index != NULL) && (device_out != NULL) && (host_out != NULL);
+    for (unsigned long long lane = 0ull; ok && (lane < points); lane += 1ull)
     {
         index[(size_t)(2ull * lane)] = (unsigned int)lane;
         index[(size_t)(2ull * lane + 1ull)] = 0u;
     }
-    std::vector<unsigned int> device_out((size_t)(points * out_limbs));
-    std::vector<unsigned int> host_out((size_t)(points * out_limbs));
     unsigned int *device_points = NULL;
     unsigned int *device_shared = NULL;
     unsigned int *device_index = NULL;
     unsigned int *device_record = NULL;
-    ok = ok && (cudaMalloc((void **)&device_points, point_records.size() * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMalloc((void **)&device_shared, shared.size() * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMalloc((void **)&device_index, index.size() * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMalloc((void **)&device_record, device_out.size() * sizeof(unsigned int)) == cudaSuccess) &&
-         (cudaMemcpy(device_points, point_records.data(), point_records.size() * sizeof(unsigned int),
-                     cudaMemcpyHostToDevice) == cudaSuccess) &&
-         (cudaMemcpy(device_shared, shared.data(), shared.size() * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
+    ok = ok && (cudaMalloc((void **)&device_points, point_words * sizeof(unsigned int)) == cudaSuccess) &&
+         (cudaMalloc((void **)&device_shared, shared_words * sizeof(unsigned int)) == cudaSuccess) &&
+         (cudaMalloc((void **)&device_index, points * 2ull * sizeof(unsigned int)) == cudaSuccess) &&
+         (cudaMalloc((void **)&device_record, out_words * sizeof(unsigned int)) == cudaSuccess) &&
+         (cudaMemcpy(device_points, point_records, point_words * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
           cudaSuccess) &&
-         (cudaMemcpy(device_index, index.data(), index.size() * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
-          cudaSuccess);
+         (cudaMemcpy(device_shared, shared, shared_words * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
+          cudaSuccess) &&
+         (cudaMemcpy(device_index, index, points * 2ull * sizeof(unsigned int), cudaMemcpyHostToDevice) == cudaSuccess);
     if (ok)
     {
         const CycleRecordRunRequest run = {record, {device_points, device_shared, NULL}, {points, 1ull, 0ull},
                                            device_index, points, device_record, &error};
         ok = (cycle_record_run(&run) == (long)points) &&
-             (cudaMemcpy(device_out.data(), device_record, device_out.size() * sizeof(unsigned int),
-                         cudaMemcpyDeviceToHost) == cudaSuccess);
+             (cudaMemcpy(device_out, device_record, out_words * sizeof(unsigned int), cudaMemcpyDeviceToHost) ==
+              cudaSuccess);
     }
     sim_check(&job, ok, "the tail program sweeps every point on the device");
-    const CycleRecordHostRequest host = {&layout, {point_records.data(), shared.data(), NULL}, {points, 1ull, 0ull},
-                                         index.data(), points, host_out.data(), &error};
+    const CycleRecordHostRequest host = {
+        &layout, {point_records, shared, NULL}, {points, 1ull, 0ull}, index, points, host_out, &error};
     const int host_ran = ok && (cycle_record_run_host(&host) == (long)points);
-    const int same = host_ran && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out.data(), .other = device_out.data(),
-                                             .bytes = device_out.size() * sizeof(unsigned int)) == 0);
+    const int same = host_ran && (EMBED_CALL(memor.cmp, MemoriaCfg, .src = host_out, .other = device_out,
+                                             .bytes = out_words * sizeof(unsigned int)) == 0);
     sim_check(&job, same, "the device's records equal the host's word for word");
 
     FILE *out = ok ? fopen(arguments[2], "w") : NULL;
@@ -268,5 +300,11 @@ int program_main(int count, char **arguments)
     }
     key_schedule_record_release(&layout);
     keymath_record_release(&key);
+    void *const cells[8] = {index,  device_out, host_out,     point_records,
+                            shared, field_bits, field_offset, program.steps};
+    for (unsigned int each = 0u; each < 8u; each += 1u)
+    {
+        platform_cell_released(cells[each], platform_place_g_program_owner);
+    }
     return sim_close(&job, "exact_zeta_tail");
 }
