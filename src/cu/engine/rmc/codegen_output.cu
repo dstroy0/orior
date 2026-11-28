@@ -216,8 +216,8 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
     }
     const unsigned int count = request->count;
     // the values of each table in device memory, one after another, with its descriptor as a pointer to them there. A
-    // table indexed by more bits than a table supports, or with no values, gives an error on the whole. Then keymath
-    // could not arrange the values of the key
+    // table indexed by more bits than a table supports, or with no values, gives an error on the whole. That matches
+    // keymath, which could not arrange the values of the key either
     unsigned long long words = 0ULL;
     for (unsigned int table = 0u; table < request->table_count; table += 1u)
     {
