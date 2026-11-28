@@ -501,7 +501,6 @@ src/cu/scaffolding/yosys_script.h	2
 src/cu/transpiler/lstar/interface/platform/interface_internal.h	7
 src/cu/transpiler/lstar/interface/platform/posix.c	16
 src/cu/transpiler/lstar/interface/platform/windows.c	20
-src/cu/transpiler/lstar/protocol/kdecode/kdecode/blobs.c	4
 src/cu/transpiler/lstar/protocol/khw_learn/costs.c	1
 src/cu/transpiler/lstar/protocol/khw_learn/discover.c	1
 src/cu/transpiler/lstar/protocol/khw_learn/khw_learn.c	1
