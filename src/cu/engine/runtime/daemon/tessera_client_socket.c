@@ -194,7 +194,7 @@ int tessera_send(TesseraClient *client, const TesseraFrame *frame)
     }
     unsigned int sent = 0u;
 #if !defined(_WIN32)
-    // the measuring thread and the caller share the socket, and each frame goes out whole under the lock
+    // the thread that measures and the caller share the socket, and each frame goes out whole under the lock
     pthread_mutex_lock(&client->sending);
 #endif
     int ok = 1;
@@ -277,7 +277,7 @@ int tessera_readable(TesseraClient *client, unsigned long long deadline)
         {
             return 0;
         }
-        // a synchronous pipe has no timed read: the bytes waiting are looked at every few milliseconds
+        // a synchronous pipe has no timed read, thus the call looks at the bytes that wait every few milliseconds
         Sleep(TESSERA_CLIENT_LOOK_MILLISECONDS);
 #else
         if (now >= deadline)
@@ -286,7 +286,7 @@ int tessera_readable(TesseraClient *client, unsigned long long deadline)
         }
         const unsigned long long left = ((deadline - now) + 999ULL) / 1000ULL;
         struct pollfd watched = {client->socket_descriptor, POLLIN, 0};
-        // the milliseconds left are bounded below 2^31 here, and narrow to int exactly
+        // the milliseconds left have a bound below `2^31` here, and narrow to int exactly
         const int ready = poll(&watched, 1u, (int)((left < 0x7FFFFFFFULL) ? left : 0x7FFFFFFFULL));
         if ((ready < 0) && (errno == EINTR))
         {
