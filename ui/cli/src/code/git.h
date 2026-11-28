@@ -616,81 +616,99 @@ EMBED_TABLE_STORAGE CliGitLogNs cli_git_log EMBED_UNUSED = {
     .menu = cli_git_log_menu,
 };
 
-// the commit the tree at `root` is at into `commit`, sized for CLI_NAME_MAX_LEN, its time in seconds since 1970,
-// and whether the tree has no change past it: 1, or 0 where the tree is in no repository or has no commit
+// the commit that the tree at `root` is at, into `commit`, sized for CLI_NAME_MAX_LEN. With it come its time in seconds
+// since 1970, and whether the tree has no change past it. The return is 1, or 0 where the tree is in no repository or
+// has no commit
 int cli_git_head(const CliGitRootCommitCfg *args);
-// the branch the tree is on, or the short id of the commit it is at where it is on none, into `name`, sized for
-// CLI_NAME_MAX_LEN: 1, or 0 where git cannot determine
+// the branch that the tree is on, into `name`, sized for CLI_NAME_MAX_LEN. Where it is on none, it is the short id of
+// the commit that it is at. The return is 1, or 0 where git cannot find it
 int cli_git_branch(const CliGitCfg *args);
-// the name of the repository at `root` into `name`, sized for CLI_NAME_MAX_LEN: the last part of its `origin`
-// remote's address, without a `.git` ending, the folder's name where it has no `origin`
+// the name of the repository at `root`, into `name`, sized for CLI_NAME_MAX_LEN. That is the last part of the address
+// of its `origin` remote, with no `.git` ending, or the name of the folder where it has no `origin`
 void cli_git_name(const CliGitCfg *args);
-// the repositories of the tree: the one the tree is in, where it is in one, then each folder under it, four deep at
-// max, that contains a repository of its own, a submodule among them, by path; hidden folders and those a build or a
-// package manager fills are not searched
+// the repositories of the tree, by path. First comes the repository that the tree is in, where it is in one. Then come
+// the folders under it, four deep at max, that hold a repository of their own, with submodules among them. The call
+// does not search hidden folders, or those that a build or a package manager fills
 void cli_git_repositories(const CliGitRootFoundRepositoriesCfg *args);
-// the text of a file a merge left in conflict, as one of its stages stores it: 1 the base, 2 the branch merged into, 3
-// the branch merged, into `out`: 1, or 0 where git has none
+// the text of a file that a merge left in conflict, as one of its stages stores it, into `out`. Stage 1 is the base, 2
+// the branch merged into, and 3 the branch merged. The return is 1, or 0 where git has none
 int cli_git_stage_text(const CliGitRootFileStageCfg *args);
-// every file under the tree that differs from the last commit of the repository that contains it, by its path in the
-// tree, for the `count` repositories at `repos` where `named`, or every one of the tree where not
+// every file under the tree that differs from the last commit of the repository that holds it, by its path in the
+// tree. Where `named`, that is for the `count` repositories at `repos`, else for every one of the tree
 void cli_git_change(const CliGitRootReposCfg *args);
-// the files at `paths` committed with `message`, each as it is, in the repository that contains it, a commit to
-// each repository that contains some, each repository committed to pushed where `push`; and the files of `whole` as
-// each is and the files of `parts` with the text each is to carry, the same way and pushed the same way: git's
-// line for each commit into `out`, 1, or 0 with why in `err_msg`
+// the files at `paths`, committed with `message`, each as it is, in the repository that holds it. There is a commit to
+// each repository that holds some. Where `push`, the call pushes each repository that it committed to. The line of git
+// for each commit goes into `out`. The return is 1, or 0 with the reason in `err_msg`
 int cli_git_commit(const CliGitRootOutCountCfg *args);
+// the files of `whole` as each is, and the files of `parts` with the text that each must carry. The call commits and
+// pushes them in the same way, with the same return
 int cli_git_commit_parts(const CliGitRootCfg *args);
-// git run at `root` with nothing to answer a prompt with, `args`, `count` of them: what it wrote into `out`, 1, or 0
-// with what it reported went wrong
+// git, run at `root` with `args`, `count` of them, and with nothing to answer a prompt. What it wrote goes into `out`.
+// The return is 1, or 0 with what it reported as wrong
 int cli_git_run(const CliGitRootOutCountErrMsgCfg *args);
-// every local and remote branch, the one with the newest commit first, less each remote's HEAD
+// every local and remote branch, the one with the newest commit first, less the HEAD of each remote
 void cli_git_branches(const CliGitRootFoundBranchesCfg *args);
-// what the branches list requests done to a branch: `create` makes one from the branch open and goes on it, `switch`
-// goes on one, a remote one made a local branch that follows it, `rename` names it `to`, `delete` takes it out where
-// its commits are merged and `delete-unmerged` where they are not, `merge` merges it into the branch open, and `rebase`
-// sets the branch open's own commits on it: git's words into `out`, 1, or 0 with why given
+// what the branches list asks for a branch:
+//
+// - `create` makes one from the branch open, and goes on it.
+// - `switch` goes on one. A remote one becomes a local branch that follows it.
+// - `rename` names it `to`.
+// - `delete` takes it out where another branch merged its commits, and `delete-unmerged` where none did.
+// - `merge` merges it into the branch open.
+// - `rebase` puts the own commits of the branch open on it.
+//
+// The words of git go into `out`. The return is 1, or 0 with the reason
 int cli_git_branch_act(const CliGitRootOutCfg *args);
 // every stash, the newest first
 void cli_git_stashes(const CliGitRootFoundStashesCfg *args);
-// what is requested done to the stashes: `push` puts every change aside, new files with them, under `message` where one
-// is given; `apply` brings stash `name` back and retains it; `pop` brings it back and drops it where it comes back
-// whole; `drop` throws it away: git's words into `out`, 1, or 0 with why given
+// what the stashes list asks:
+//
+// - `push` puts every change aside, new files with them, under `message` where the reader gives one.
+// - `apply` brings stash `name` back, and keeps it.
+// - `pop` brings it back, and drops it where it comes back whole.
+// - `drop` throws it away.
+//
+// The words of git go into `out`. The return is 1, or 0 with the reason
 int cli_git_stash_act(const CliGitRootOutMessageCfg *args);
-// the commits of other branches, local and remote, that the branch the tree is on does not contain, merges aside, the
-// newest first; a commit already applied to it under another id is not one
+// the commits of other branches, local and remote, that the branch the tree is on does not hold, with merges aside, the
+// newest first. A commit already applied to it under another id is not one of them
 void cli_git_elsewhere(const CliGitRootFileErrMsgCfg *args);
-// commit `id` applied to the branch the tree is on as a commit of its own: git's words into `out`, 1, or 0 with why
-// given, where the change does not fit leaving the files in conflict for the merge window
+// commit `id`, applied to the branch that the tree is on as a commit of its own. The words of git go into `out`. The
+// return is 1, or 0 with the reason. Where the change does not fit, the files stay in conflict for the merge window
 int cli_git_cherry_pick(const CliGitRootFileCfg *args);
-// a file a merge left in conflict marked resolved, as it now is, by staging it: 1, or 0 with why given
+// a file that a merge left in conflict, marked resolved as it now is, by a stage of it. The return is 1, or 0 with the
+// reason
 int cli_git_resolve(const CliGitRootErrMsgPathCfg *args);
-// the branch pushed to the remote it follows, or to origin under its own name where it follows none; and the commits of
-// the remote branch it follows brought in, only where its own commits are all among them: git's words into `out`, 1,
-// or 0 with why given
+// the branch, pushed to the remote that it follows, or to origin under its own name where it follows none. The words
+// of git go into `out`. The return is 1, or 0 with the reason
 int cli_git_push(const CliGitRootOutCountErrMsgCfg *args);
+// the commits of the remote branch that it follows, brought in only where its own commits are all among them, with the
+// same return
 int cli_git_pull(const CliGitRootOutCountErrMsgCfg *args);
-// how many commits the branch has that its remote does not, and the other way: 1, or 0 where it follows no remote
+// how many commits the branch has that its remote does not, and the other way. The return is 1, or 0 where it follows
+// no remote
 int cli_git_ahead_behind(const CliGitRootAheadCfg *args);
-// the file at `path` put back as the last commit left it, its changes in the tree and in what is staged taken back; a
-// file the last commit does not contain is refused: 1, or 0 with why given
+// the file at `path`, put back as the last commit left it, with its changes in the tree and in the stage taken back.
+// The call refuses a file that the last commit does not hold. The return is 1, or 0 with the reason
 int cli_git_rollback(const CliGitRootErrMsgPathCfg *args);
-// the commits that touched `file`, the newest first, following it through renames: 1, or 0 with why given
+// the commits that touched `file`, the newest first, through its renames. The return is 1, or 0 with the reason
 int cli_git_commits(const CliGitRootFileErrMsgCfg *args);
-// the text of `file` as commit `id` left it into `out`: 1, or 0 with why given; as the first parent of `id` left it: 1,
-// or 0 where the commit has no parent or the parent does not contain the file; as the last commit left it: 1, or 0
-// where the tree is not git's or the last commit does not contain the file
+// the text of `file` as commit `id` left it, into `out`. The return is 1, or 0 with the reason
 int cli_git_text_at(const CliGitRootFileCfg *args);
+// the same, as the first parent of `id` left it. The return is 1, or 0 where the commit has no parent or the parent
+// does not hold the file
 int cli_git_text_before(const CliGitRootFileCfg *args);
+// the same, as the last commit left it. The return is 1, or 0 where git does not keep the tree or the last commit does
+// not hold the file
 int cli_git_head_text(const CliGitRootFileStageCfg *args);
-// the file at `path` of the tree at `root` as the last commit has it read on a worker and stored beside the text under
-// `key` in the document store, none where the last commit does not contain it; the call returns at once
+// the file at `path` of the tree at `root` as the last commit has it, read on a worker. The call stores it beside the
+// text under `key` in the document store, or none where the last commit does not hold it. The call returns at once
 void cli_git_head_later(const CliGitRootPathKeyCfg *args);
-// who made commit `id` into `name`, and its subject into `subject`: 1, or 0 where git cannot determine
+// who made commit `id`, into `name`, and its subject, into `subject`. The return is 1, or 0 where git cannot find it
 int cli_git_new_by(const CliGitRootIdCfg *args);
 
-// the max commits the graph draws, and the max a search over them finds; the max parents and names of a commit
-// stored; and the max strokes of every row
+// the max commits that the graph draws, which is also the max that a search over them finds. Then the max parents and
+// names of a commit stored, and the max strokes of every row
 #define CLI_GIT_GRAPH 2000u
 
 #define CLI_GIT_PARENTS 16u
@@ -699,11 +717,18 @@ int cli_git_new_by(const CliGitRootIdCfg *args);
 
 #define CLI_GIT_STROKES (1u << 17u)
 
-// One commit of the graph: its id, its parents, its author, when its author made it in seconds since 1970, the
-// branches and tags that are at it, and its subject. `lane` is the column its dot is in and `color` the number of
-// the line it is on. Its strokes are `stroke_count` from `first_stroke` of the graph's, each `[from, to, half, color]`:
-// from column `from` at the row's top to column `to` at its middle where `half` is 0, from `from` at the middle to `to`
-// at the bottom where it is 1. `across` is how many columns the row crosses, the dot's and every stroke's ends
+// One commit of the graph:
+//
+// - `id`, `parent` and `author`: its id, its parents, and its author
+// - `when`: when its author made it, in seconds since 1970
+// - `ref`: the branches and tags that are at it
+// - `subject`: its subject
+// - `lane_at` and `color`: the column that its dot is in, and the number of the line that it is on
+// - `first_stroke` and `stroke_count`: its strokes, `stroke_count` from `first_stroke` of those of the graph
+// - `across`: how many columns the row crosses, at the dot and at the ends of every stroke
+//
+// Each stroke is `[from, to, half, color]`. Where `half` is 0, it goes from column `from` at the top of the row to
+// column `to` at its middle. Where it is 1, it goes from `from` at the middle to `to` at the bottom.
 typedef struct
 {
     unsigned int id;
@@ -730,16 +755,19 @@ typedef struct
     CliGitText text;
 } CliGraph;
 
-// the commits of every branch, the newest first and none before its children, arranged as a graph; with a `query`, the
-// commits whose subject, id or branches contain each of its words, in any case, and their author where `authors`, from
-// the whole history, each on a line of its own (git_graph.c)
+// the commits of every branch as a graph, the newest first and none before its children, each on a line of its own
+// (git_graph.c). With a `query`, the call takes the commits from the whole history whose subject, id or branches hold
+// each of its words, in any case. Where `authors`, their author counts too
 void cli_git_graph(const CliGitRootQueryCfg *args);
 
-// the max files a commit is reported to have changed
+// the max files that the report of a commit names as changed
 #define CLI_GIT_TOUCHED 16384u
 
-// A file a commit changed from its first parent, or from nothing where it has none: its path under the tree, its state
-// character (M changed, A added, D gone, R renamed), and the path it had before where it was renamed
+// A file that a commit changed from its first parent, or from nothing where it has none:
+//
+// - `path`: its path under the tree
+// - `state`: its state character. M for changed, A for added, D for gone, and R for renamed.
+// - `was` and `has_was`: the path that it had before a rename
 typedef struct
 {
     unsigned int path;
