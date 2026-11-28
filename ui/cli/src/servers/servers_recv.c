@@ -244,6 +244,18 @@ EMBED_INLINE void recv_configuration(const ServersRecvCtx *args)
                .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
 }
 
+const char *const g_cli_servers_methods[CLI_SERVERS_METHODS] = {
+    "textDocument/publishDiagnostics",
+    "workspace/applyEdit",
+    "workspace/configuration",
+    "workspace/inlayHint/refresh",
+    "workspace/semanticTokens/refresh",
+    "window/workDoneProgress/create",
+    "$/progress",
+    "window/logMessage",
+    "window/showMessage",
+};
+
 void cli_servers_recv(const CliLspRecvCfg *args)
 {
     const char *params = args->params;

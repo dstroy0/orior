@@ -306,6 +306,13 @@ static int platform_exec_reported(pid_t child, int report, int *code)
 int platform_program_started(const PlatformStart *start, PlatformProgram *program)
 {
     EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .val = 0, .bytes = sizeof(*program));
+    if (start->confined)
+    {
+        // a confined start needs the glue that hands each start of a child to this process, and none runs yet
+        platform_refusal_given(start, PLATFORM_REFUSED_START, (unsigned long long)ENOSYS);
+        mmgr_line_put(start->err_msg, "this system cannot confine the program's starts");
+        return 0;
+    }
     if (start->input_piped)
     {
         // a write to a pipe whose reader ended fails, and does not end this process

@@ -15,6 +15,8 @@ extern void test_the_kept_state_comes_back_after_a_stop(void);
 extern void test_a_read_of_a_file_that_reads_does_not_list_is_refused(void);
 extern void test_a_read_that_the_reader_refused_is_refused(void);
 extern void test_a_read_that_the_reader_allowed_reads_the_file(void);
+extern void test_a_program_that_starts_lists_runs_with_each_byte_through_orior(void);
+extern void test_a_program_that_starts_does_not_list_is_refused(void);
 extern void test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_it(void);
 extern void test_the_files_of_the_tree_are_those_that_reads_names_from_its_top(void);
 extern void test_the_files_of_the_tree_that_the_reader_refused_are_refused(void);
@@ -88,23 +90,25 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/scripts/test_scripts/test_scripts.c");
-  run_test(test_an_ask_starts_the_host_and_answers, "test_an_ask_starts_the_host_and_answers", 143);
-  run_test(test_the_kept_state_comes_back_after_a_stop, "test_the_kept_state_comes_back_after_a_stop", 150);
-  run_test(test_a_read_of_a_file_that_reads_does_not_list_is_refused, "test_a_read_of_a_file_that_reads_does_not_list_is_refused", 159);
-  run_test(test_a_read_that_the_reader_refused_is_refused, "test_a_read_that_the_reader_refused_is_refused", 166);
-  run_test(test_a_read_that_the_reader_allowed_reads_the_file, "test_a_read_that_the_reader_allowed_reads_the_file", 173);
-  run_test(test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_it, "test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_it", 180);
-  run_test(test_the_files_of_the_tree_are_those_that_reads_names_from_its_top, "test_the_files_of_the_tree_are_those_that_reads_names_from_its_top", 193);
-  run_test(test_the_files_of_the_tree_that_the_reader_refused_are_refused, "test_the_files_of_the_tree_that_the_reader_refused_are_refused", 200);
-  run_test(test_a_whole_path_in_the_tree_gives_its_path_from_the_top, "test_a_whole_path_in_the_tree_gives_its_path_from_the_top", 206);
-  run_test(test_a_path_outside_the_tree_gives_null, "test_a_path_outside_the_tree_gives_null", 220);
-  run_test(test_a_secret_that_the_plugin_keeps_reads_back, "test_a_secret_that_the_plugin_keeps_reads_back", 240);
-  run_test(test_a_secret_that_the_plugin_forgets_reads_null, "test_a_secret_that_the_plugin_forgets_reads_null", 248);
-  run_test(test_a_secret_of_a_key_that_secrets_does_not_list_is_refused, "test_a_secret_of_a_key_that_secrets_does_not_list_is_refused", 257);
-  run_test(test_a_write_that_the_reader_allowed_writes_the_file, "test_a_write_that_the_reader_allowed_writes_the_file", 264);
-  run_test(test_an_unknown_command_fails, "test_an_unknown_command_fails", 280);
-  run_test(test_a_host_past_its_memory_ends_and_the_next_ask_starts_it_again, "test_a_host_past_its_memory_ends_and_the_next_ask_starts_it_again", 285);
-  run_test(test_a_quiet_stops_the_host, "test_a_quiet_stops_the_host", 292);
+  run_test(test_an_ask_starts_the_host_and_answers, "test_an_ask_starts_the_host_and_answers", 154);
+  run_test(test_the_kept_state_comes_back_after_a_stop, "test_the_kept_state_comes_back_after_a_stop", 161);
+  run_test(test_a_read_of_a_file_that_reads_does_not_list_is_refused, "test_a_read_of_a_file_that_reads_does_not_list_is_refused", 170);
+  run_test(test_a_read_that_the_reader_refused_is_refused, "test_a_read_that_the_reader_refused_is_refused", 177);
+  run_test(test_a_read_that_the_reader_allowed_reads_the_file, "test_a_read_that_the_reader_allowed_reads_the_file", 184);
+  run_test(test_a_program_that_starts_lists_runs_with_each_byte_through_orior, "test_a_program_that_starts_lists_runs_with_each_byte_through_orior", 191);
+  run_test(test_a_program_that_starts_does_not_list_is_refused, "test_a_program_that_starts_does_not_list_is_refused", 198);
+  run_test(test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_it, "test_a_read_waits_on_the_question_and_gets_the_file_once_the_reader_allows_it", 205);
+  run_test(test_the_files_of_the_tree_are_those_that_reads_names_from_its_top, "test_the_files_of_the_tree_are_those_that_reads_names_from_its_top", 218);
+  run_test(test_the_files_of_the_tree_that_the_reader_refused_are_refused, "test_the_files_of_the_tree_that_the_reader_refused_are_refused", 225);
+  run_test(test_a_whole_path_in_the_tree_gives_its_path_from_the_top, "test_a_whole_path_in_the_tree_gives_its_path_from_the_top", 231);
+  run_test(test_a_path_outside_the_tree_gives_null, "test_a_path_outside_the_tree_gives_null", 245);
+  run_test(test_a_secret_that_the_plugin_keeps_reads_back, "test_a_secret_that_the_plugin_keeps_reads_back", 265);
+  run_test(test_a_secret_that_the_plugin_forgets_reads_null, "test_a_secret_that_the_plugin_forgets_reads_null", 273);
+  run_test(test_a_secret_of_a_key_that_secrets_does_not_list_is_refused, "test_a_secret_of_a_key_that_secrets_does_not_list_is_refused", 282);
+  run_test(test_a_write_that_the_reader_allowed_writes_the_file, "test_a_write_that_the_reader_allowed_writes_the_file", 289);
+  run_test(test_an_unknown_command_fails, "test_an_unknown_command_fails", 305);
+  run_test(test_a_host_past_its_memory_ends_and_the_next_ask_starts_it_again, "test_a_host_past_its_memory_ends_and_the_next_ask_starts_it_again", 310);
+  run_test(test_a_quiet_stops_the_host, "test_a_quiet_stops_the_host", 317);
 
   return UNITY_END();
 }

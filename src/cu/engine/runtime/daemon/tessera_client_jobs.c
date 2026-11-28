@@ -5,6 +5,7 @@
 #include "tessera_client_internal.h"
 
 #include "../../../../../includes/platform/platform.h"
+#include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
 #if !defined(_WIN32)
@@ -117,6 +118,7 @@ static long tessera_decided(TesseraClient *client, TesseraTicket *ticket, unsign
     for (;;)
     {
         TesseraFrame frame;
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = &frame, .bytes = sizeof(frame), .val = 0);
         if (!TESSERA_CHECK((tessera_readable(client, deadline) == 1) && tessera_receive(client, &frame), client, error,
                            ENGINE_ERROR_RESOURCE))
         {
@@ -187,7 +189,7 @@ long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client, 
     made->declared = submit->declared;
     made->sweep_microseconds = submit->sweep_microseconds;
     _Alignas(8) char endpoint[ENGINE_PATH_CAPACITY];
-    if (!TESSERA_CHECK(tessera_path_endpoint(submit->device, endpoint, ENGINE_PATH_CAPACITY), submit, submit->error,
+    if (!TESSERA_CHECK(tessera_path_endpoint(endpoint, ENGINE_PATH_CAPACITY), submit, submit->error,
                        ENGINE_ERROR_REQUEST))
     {
         tessera_client_end(made);
@@ -204,6 +206,13 @@ long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client, 
     }
     TesseraFrame frame;
     tessera_frame_start(made, &frame, TESSERA_REQUEST_SUBMIT);
+    // a submit's identity names the job that this process runs inside, which tessera_run passes down, 0 for none
+    char parent_text[PLATFORM_ENVIRONMENT_BYTES];
+    const char *parent_end = NULL;
+    frame.identity = (platform_environment(TESSERA_JOB_VARIABLE, parent_text, sizeof(parent_text)) != 0ULL)
+                         ? EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = parent_text, .end = &parent_end,
+                                      .base = 10)
+                         : 0ULL;
     frame.override_budget = submit->override_budget;
     frame.declared = submit->declared;
     frame.grace_microseconds = submit->grace_microseconds;

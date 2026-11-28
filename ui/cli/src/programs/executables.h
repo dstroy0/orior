@@ -18,10 +18,14 @@ typedef struct CliExecutablesErrMsgCfg CliExecutablesErrMsgCfg;
 typedef struct CliExecutablesCfg CliExecutablesCfg;
 typedef struct CliExecutablesTypeCfg CliExecutablesTypeCfg;
 typedef struct CliExecutablesToolCfg CliExecutablesToolCfg;
+typedef struct CliExecutablesVersionCfg CliExecutablesVersionCfg;
 
 // the program `name` of the toolchain `tool`, found where the toolchains window finds it, into `path`, sized for
 // CLI_PATH_MAX_LEN: 1, or 0 with why given
 int cli_executables_program(const CliExecutablesToolCfg *args);
+// the version that `program --version` reports, as `v24.17.0` or `24.17.0`, its three numbers into `major`, `minor`
+// and `patch`, where `patch` is not NULL: 1, or 0 with why given
+int cli_executables_version_read(const CliExecutablesVersionCfg *args);
 // the C compiler and linker for the system and processor the job's params choose, each variable and its value passed
 // to `each`, where they are another machine's, for a build of the type named, "go" or "rust"
 void cli_executables_cross_env(const CliExecutablesTypeCfg *args);
@@ -108,6 +112,15 @@ struct CliExecutablesToolCfg
     VerbaLinea *err_msg;
 };
 
+struct CliExecutablesVersionCfg
+{
+    const char *program;
+    unsigned long long *major;
+    unsigned long long *minor;
+    VerbaLinea *err_msg;
+    unsigned long long *patch;
+};
+
 typedef struct
 {
     int (*program)(const CliExecutablesToolCfg *args);
@@ -115,6 +128,15 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliExecutablesToolNs, program);
 EMBED_TABLE_STORAGE CliExecutablesToolNs cli_executables_tool EMBED_UNUSED = {
     .program = cli_executables_program,
+};
+
+typedef struct
+{
+    int (*read)(const CliExecutablesVersionCfg *args);
+} CliExecutablesVersionNs;
+EMBED_TABLE_LAYOUT(CliExecutablesVersionNs, read);
+EMBED_TABLE_STORAGE CliExecutablesVersionNs cli_executables_version EMBED_UNUSED = {
+    .read = cli_executables_version_read,
 };
 
 typedef struct

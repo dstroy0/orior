@@ -4,7 +4,7 @@
 // file at an address the reader names, on the web or on this machine:
 //
 //   { "orior": "plugin catalog", "plugins": [ { "id", "name", "version", "about", "package",
-//     "sha256", "reads", "writes", "reaches", "secrets" }, ... ] }
+//     "sha256", "reads", "writes", "reaches", "secrets", "starts" }, ... ] }
 //
 // and each plugin's package a JSON file, at `package`, an address of its own or one from the catalog's, containing the
 // plugin's files by name:
@@ -29,7 +29,7 @@ static CliCatalogWorkState s_catalog_work_state;
 
 // an entry's fields that are texts, and those that are lists of texts, in the order serde writes them
 static const char *const s_texts[6] = {"id", "name", "version", "about", "package", "sha256"};
-static const char *const s_lists[4] = {"reads", "writes", "reaches", "secrets"};
+static const char *const s_lists[5] = {"reads", "writes", "reaches", "secrets", "starts"};
 
 int cli_plugin_catalog_lock(const CliPluginCatalogCtx *args)
 {

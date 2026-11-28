@@ -96,46 +96,28 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/files/test_files/test_files.c");
-  run_test(test_a_file_written_where_a_folder_exists_is_refused_with_the_systems_reason,
-           "test_a_file_written_where_a_folder_exists_is_refused_with_the_systems_reason", 143);
-  run_test(test_a_search_finds_every_line_in_cells_grown_end_their_first_capacity_each_released,
-           "test_a_search_finds_every_line_in_cells_grown_end_their_first_capacity_each_released", 157);
-  run_test(test_workers_searching_many_files_lose_no_line_and_return_them_in_the_order_of_the_files,
-           "test_workers_searching_many_files_lose_no_line_and_return_them_in_the_order_of_the_files", 233);
-  run_test(test_a_search_finding_more_lines_than_it_returns_returns_the_first_in_the_order_of_the_files,
-           "test_a_search_finding_more_lines_than_it_returns_returns_the_first_in_the_order_of_the_files", 245);
-  run_test(test_a_tree_its_repository_ignores_lists_its_files_from_the_disk,
-           "test_a_tree_its_repository_ignores_lists_its_files_from_the_disk", 257);
-  run_test(test_the_files_go_to_the_callback_once_and_their_cell_goes_back_before_the_return,
-           "test_the_files_go_to_the_callback_once_and_their_cell_goes_back_before_the_return", 290);
-  run_test(test_the_types_view_records_each_files_name_and_ending_once,
-           "test_the_types_view_records_each_files_name_and_ending_once", 305);
-  run_test(test_a_file_git_would_track_is_tracked, "test_a_file_git_would_track_is_tracked", 319);
-  run_test(test_a_file_in_a_folder_created_since_is_tracked, "test_a_file_in_a_folder_created_since_is_tracked", 325);
-  run_test(test_a_file_a_folder_further_down_is_tracked, "test_a_file_a_folder_further_down_is_tracked", 332);
-  run_test(test_a_file_under_a_folder_git_ignores_is_not_tracked,
-           "test_a_file_under_a_folder_git_ignores_is_not_tracked", 339);
-  run_test(test_the_files_report_what_the_views_and_their_lists_use_of_the_series_cellularum,
-           "test_the_files_report_what_the_views_and_their_lists_use_of_the_series_cellularum", 346);
-  run_test(test_a_folder_and_a_file_are_created_with_the_folders_above_them,
-           "test_a_folder_and_a_file_are_created_with_the_folders_above_them", 361);
-  run_test(test_the_repository_names_the_paths_it_ignores, "test_the_repository_names_the_paths_it_ignores", 393);
-  run_test(test_a_path_through_the_repositorys_folder_or_a_target_folder_is_skipped,
-           "test_a_path_through_the_repositorys_folder_or_a_target_folder_is_skipped", 412);
-  run_test(test_a_search_asked_to_locate_leaves_its_lines_located_by_file,
-           "test_a_search_asked_to_locate_leaves_its_lines_located_by_file", 421);
-  run_test(test_a_folders_entries_are_listed_in_a_cell_and_a_folder_listed_by_the_same_means,
-           "test_a_folders_entries_are_listed_in_a_cell_and_a_folder_listed_by_the_same_means", 464);
-  run_test(test_a_free_name_is_numbered_a_file_is_written_in_parts_and_a_save_goes_beside_the_file,
-           "test_a_free_name_is_numbered_a_file_is_written_in_parts_and_a_save_goes_beside_the_file", 485);
-  run_test(test_a_fuzzy_match_scores_the_querys_characters_found_in_their_order,
-           "test_a_fuzzy_match_scores_the_querys_characters_found_in_their_order", 517);
-  run_test(test_the_explorer_lists_the_tree_builds_a_rows_menu_and_reports_a_stale_mark_once,
-           "test_the_explorer_lists_the_tree_builds_a_rows_menu_and_reports_a_stale_mark_once", 548);
-  run_test(test_a_tree_unread_is_read_behind_the_window_until_it_is_listed,
-           "test_a_tree_unread_is_read_behind_the_window_until_it_is_listed", 574);
-  run_test(test_a_workers_lines_are_stored_and_read_back_in_the_order_of_the_files,
-           "test_a_workers_lines_are_stored_and_read_back_in_the_order_of_the_files", 594);
+  run_test(test_a_file_written_where_a_folder_exists_is_refused_with_the_systems_reason, "test_a_file_written_where_a_folder_exists_is_refused_with_the_systems_reason", 145);
+  run_test(test_a_search_finds_every_line_in_cells_grown_end_their_first_capacity_each_released, "test_a_search_finds_every_line_in_cells_grown_end_their_first_capacity_each_released", 159);
+  run_test(test_workers_searching_many_files_lose_no_line_and_return_them_in_the_order_of_the_files, "test_workers_searching_many_files_lose_no_line_and_return_them_in_the_order_of_the_files", 235);
+  run_test(test_a_search_finding_more_lines_than_it_returns_returns_the_first_in_the_order_of_the_files, "test_a_search_finding_more_lines_than_it_returns_returns_the_first_in_the_order_of_the_files", 247);
+  run_test(test_a_tree_its_repository_ignores_lists_its_files_from_the_disk, "test_a_tree_its_repository_ignores_lists_its_files_from_the_disk", 259);
+  run_test(test_the_files_go_to_the_callback_once_and_their_cell_goes_back_before_the_return, "test_the_files_go_to_the_callback_once_and_their_cell_goes_back_before_the_return", 292);
+  run_test(test_the_types_view_records_each_files_name_and_ending_once, "test_the_types_view_records_each_files_name_and_ending_once", 307);
+  run_test(test_a_file_git_would_track_is_tracked, "test_a_file_git_would_track_is_tracked", 321);
+  run_test(test_a_file_in_a_folder_created_since_is_tracked, "test_a_file_in_a_folder_created_since_is_tracked", 327);
+  run_test(test_a_file_a_folder_further_down_is_tracked, "test_a_file_a_folder_further_down_is_tracked", 334);
+  run_test(test_a_file_under_a_folder_git_ignores_is_not_tracked, "test_a_file_under_a_folder_git_ignores_is_not_tracked", 341);
+  run_test(test_the_files_report_what_the_views_and_their_lists_use_of_the_series_cellularum, "test_the_files_report_what_the_views_and_their_lists_use_of_the_series_cellularum", 348);
+  run_test(test_a_folder_and_a_file_are_created_with_the_folders_above_them, "test_a_folder_and_a_file_are_created_with_the_folders_above_them", 363);
+  run_test(test_the_repository_names_the_paths_it_ignores, "test_the_repository_names_the_paths_it_ignores", 395);
+  run_test(test_a_path_through_the_repositorys_folder_or_a_target_folder_is_skipped, "test_a_path_through_the_repositorys_folder_or_a_target_folder_is_skipped", 414);
+  run_test(test_a_search_asked_to_locate_leaves_its_lines_located_by_file, "test_a_search_asked_to_locate_leaves_its_lines_located_by_file", 423);
+  run_test(test_a_folders_entries_are_listed_in_a_cell_and_a_folder_listed_by_the_same_means, "test_a_folders_entries_are_listed_in_a_cell_and_a_folder_listed_by_the_same_means", 466);
+  run_test(test_a_free_name_is_numbered_a_file_is_written_in_parts_and_a_save_goes_beside_the_file, "test_a_free_name_is_numbered_a_file_is_written_in_parts_and_a_save_goes_beside_the_file", 487);
+  run_test(test_a_fuzzy_match_scores_the_querys_characters_found_in_their_order, "test_a_fuzzy_match_scores_the_querys_characters_found_in_their_order", 519);
+  run_test(test_the_explorer_lists_the_tree_builds_a_rows_menu_and_reports_a_stale_mark_once, "test_the_explorer_lists_the_tree_builds_a_rows_menu_and_reports_a_stale_mark_once", 550);
+  run_test(test_a_tree_unread_is_read_behind_the_window_until_it_is_listed, "test_a_tree_unread_is_read_behind_the_window_until_it_is_listed", 576);
+  run_test(test_a_workers_lines_are_stored_and_read_back_in_the_order_of_the_files, "test_a_workers_lines_are_stored_and_read_back_in_the_order_of_the_files", 596);
 
   return UNITY_END();
 }

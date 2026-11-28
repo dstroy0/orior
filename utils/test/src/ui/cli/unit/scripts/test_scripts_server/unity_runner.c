@@ -10,8 +10,8 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_a_request_to_the_plugins_server_answers_with_its_result(void);
-extern void test_the_plugin_answers_a_request_of_its_server(void);
+extern void test_a_request_to_the_plugins_server_gets_a_response_with_its_result(void);
+extern void test_the_plugin_sends_the_response_to_a_request_of_its_server(void);
 extern void test_a_stop_ends_the_plugins_server(void);
 
 
@@ -74,9 +74,9 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/scripts/test_scripts_server/test_scripts_server.c");
-  run_test(test_a_request_to_the_plugins_server_answers_with_its_result, "test_a_request_to_the_plugins_server_answers_with_its_result", 131);
-  run_test(test_the_plugin_answers_a_request_of_its_server, "test_the_plugin_answers_a_request_of_its_server", 139);
-  run_test(test_a_stop_ends_the_plugins_server, "test_a_stop_ends_the_plugins_server", 156);
+  run_test(test_a_request_to_the_plugins_server_gets_a_response_with_its_result, "test_a_request_to_the_plugins_server_gets_a_response_with_its_result", 136);
+  run_test(test_the_plugin_sends_the_response_to_a_request_of_its_server, "test_the_plugin_sends_the_response_to_a_request_of_its_server", 144);
+  run_test(test_a_stop_ends_the_plugins_server, "test_a_stop_ends_the_plugins_server", 161);
 
   return UNITY_END();
 }

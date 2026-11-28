@@ -589,6 +589,8 @@ void cli_spawn_tree_end(const CliIdCtx *args);
 // on Windows, where no signal interrupts a process
 void cli_spawn_kill(const CliColsCtx *args);
 int cli_spawn_interrupt(const CliColsCtx *args);
+// a started process that heads a job or a group of its own ended at once, with every process in that job or group
+void cli_spawn_group_kill(const CliColsCtx *args);
 // the folders of the PATH this process runs with, each into `folders`, sized for `capacity`: their count; and the PATH
 // those folders, `count` of them, make, into `path`, sized for `size` (programs.c)
 unsigned int cli_path_folders(const CliCapacityFoldersCtx *args);
@@ -783,6 +785,11 @@ struct CliWordsErrMsgCtx
     unsigned int priority;
     // a handle the child inherits beside its pipe ends, 0 for none. Only Windows reads it
     unsigned long long inherited_handle;
+    // Where `confined`, each program that the child runs past its own waits on `child_decided` with `label`
+    // (platform.h)
+    int confined;
+    int (*child_decided)(const char *label, const char *program);
+    const char *label;
 };
 
 struct CliWordsErrMsgSpawnedCtx
@@ -1520,13 +1527,16 @@ typedef struct
     void (*spawn_terminal_hung_up)(const CliColsCtx *args);
     void (*spawn_kill)(const CliColsCtx *args);
     int (*spawn_interrupt)(const CliColsCtx *args);
+    void (*spawn_group_kill)(const CliColsCtx *args);
 } CliColsNs;
-EMBED_TABLE_LAYOUT(CliColsNs, spawn_terminal_resize, spawn_terminal_hung_up, spawn_kill, spawn_interrupt);
+EMBED_TABLE_LAYOUT(CliColsNs, spawn_terminal_resize, spawn_terminal_hung_up, spawn_kill, spawn_interrupt,
+                   spawn_group_kill);
 EMBED_TABLE_STORAGE CliColsNs cli_cols_internal EMBED_UNUSED = {
     .spawn_terminal_resize = cli_spawn_terminal_resize,
     .spawn_terminal_hung_up = cli_spawn_terminal_hung_up,
     .spawn_kill = cli_spawn_kill,
     .spawn_interrupt = cli_spawn_interrupt,
+    .spawn_group_kill = cli_spawn_group_kill,
 };
 
 typedef struct

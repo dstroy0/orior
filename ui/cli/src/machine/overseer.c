@@ -4,6 +4,7 @@
 // process and holds each record to its limits (overseer.h)
 #include "overseer.h"
 #include "../command_line/command_line.h"
+#include "../text/json_tree.h"
 
 // the records that the cell grows by at once
 #define OVERSEER_GROWTH 8u
@@ -457,6 +458,70 @@ unsigned long long cli_overseer_due_ms(const CliOverseerCfg *args)
     const unsigned long long tick = (s_next_tick_ms > args->now_ms) ? s_next_tick_ms : args->now_ms + 1ULL;
     const unsigned long long blink = ((args->now_ms / CLI_OVERSEER_BLINK_MS) + 1ULL) * CLI_OVERSEER_BLINK_MS;
     return (blinking && (blink < tick)) ? blink : tick;
+}
+
+// the max bytes of the log of the confinement, past which the file becomes its kept copy, and the max bytes of one line
+#define CLI_OVERSEER_LOG_MAX (4ULL << 20u)
+#define CLI_OVERSEER_LOG_LINE 2048u
+
+// the log's own lock, apart from the records', since a thread of any process's reader appends to it
+static CliGate s_log_gate = CLI_GATE_INIT;
+
+void cli_overseer_logged(const CliOverseerCfg *args)
+{
+    char folder[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    char kept[CLI_PATH_MAX_LEN];
+    if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder))
+    {
+        return;
+    }
+    VerbaLinea named = {path, sizeof(path), 0ULL};
+    mmgr_line_put(&named, folder);
+    mmgr_line_put(&named, "/confinement.jsonl");
+    VerbaLinea copy = {kept, sizeof(kept), 0ULL};
+    mmgr_line_put(&copy, folder);
+    mmgr_line_put(&copy, "/confinement.jsonl.1");
+    if ((mmgr_line_finish(&named) == 0ULL) || (mmgr_line_finish(&copy) == 0ULL))
+    {
+        return;
+    }
+    const char *const name = (args->name != NULL) ? args->name : "";
+    const char *const kind = (args->kind != NULL) ? args->kind : "";
+    const char *const detail = (args->detail != NULL) ? args->detail : "";
+    char text[CLI_OVERSEER_LOG_LINE];
+    VerbaLinea line = {text, sizeof(text), 0ULL};
+    mmgr_line_put(&line, "{\"at\":");
+    mmgr_line_decimal(&line, cli_wall_milliseconds(), 1u);
+    mmgr_line_put(&line, ",\"process\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line, .text = name,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_NAME_MAX_LEN}));
+    mmgr_line_put(&line, ",\"event\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line, .text = kind,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_NAME_MAX_LEN}));
+    mmgr_line_put(&line, ",\"detail\":");
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line, .text = detail,
+               .length = cellul.len(&(CatenaFinitaCfg){.src = detail, .cap = CLI_OVERSEER_LOG_LINE}));
+    mmgr_line_put(&line, "}\n");
+    if (!mmgr_line_ok(&line))
+    {
+        return;
+    }
+    cli_gate_shut(&s_log_gate);
+    EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder);
+    // The append opens only a file that is there. A log that is not there, or that became its kept copy, starts fresh
+    unsigned long long size = 0ULL;
+    int fresh = !EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &size);
+    if (!fresh && ((size + line.at) > CLI_OVERSEER_LOG_MAX))
+    {
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea unmoved = {why, sizeof(why), 0ULL};
+        fresh = EMBED_CALL(cli_err_msg_from_internal.move, CliErrMsgFromCtx, .err_msg = &unmoved, .from_text = path,
+                           .to = kept);
+    }
+    (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = path, .bytes = text,
+                     .size = line.at, .fresh = fresh);
+    cli_gate_opened(&s_log_gate);
 }
 
 void cli_overseer_end(void)

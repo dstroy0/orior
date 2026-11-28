@@ -21,12 +21,18 @@ extern "C"
 #define TESSERA_ERROR (-1L)
 #define TESSERA_FRAME_BYTES 128u
 #define TESSERA_MAGIC 0x41525353u
-#define TESSERA_VERSION 1u
+// the frames of the system's one daemon; a daemon or a client of another version refuses each frame of this one
+#define TESSERA_VERSION 2u
 #define TESSERA_DEVICE_BYTES 16u
 
 // a device of sixteen zero bytes names the host's processors, which a job declares and reports in thousandths of one
 // logical processor
 #define TESSERA_HOST_PROCESSOR 1000ULL
+
+// The variable that tessera_run sets for its command: its own job's identity, in decimal. Every process under the
+// command inherits it, through any shell. A job that one of them submits names that job as its parent in the submit
+// frame's identity, and draws on its room first
+#define TESSERA_JOB_VARIABLE "TESSERA_JOB"
 
     typedef enum
     {
@@ -71,8 +77,13 @@ _Static_assert(sizeof(TesseraFrame) == TESSERA_FRAME_BYTES, "tessera: a frame is
 
     int tessera_frame_unpack(const unsigned char bytes[TESSERA_FRAME_BYTES], TesseraFrame *frame);
 
-    int tessera_path_endpoint(const unsigned char device[TESSERA_DEVICE_BYTES], char *path, unsigned int capacity);
+    // the one endpoint of the system's daemon, which gates the host's processors and every GPU
+    int tessera_path_endpoint(char *path, unsigned int capacity);
 
+    // the folder of the system's daemon: its lock, and a folder of each device's history and tickets
+    int tessera_path_root(char *path, unsigned int capacity);
+
+    // the folder of one device's history and tickets, under the root
     int tessera_path_state(const unsigned char device[TESSERA_DEVICE_BYTES], char *path, unsigned int capacity);
 
     int tessera_path_lost(const unsigned char device[TESSERA_DEVICE_BYTES], unsigned long long identity,

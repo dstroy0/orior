@@ -518,12 +518,14 @@ static void platform_refusal_given(const PlatformStart *start, unsigned int stag
     }
 }
 
-// The job of a start. A detached program heads a job that lets nothing break away. The job ends every process in it
-// as its last handle closes, which the end of this process closes. A processor mask is a limit of the job, which counts
-// the processor time of every process in it. The job, or NULL where the start asks for none or the system refuses one
+// The job of a start. A detached program heads a job that lets nothing break away. A program that ends with its
+// starter heads a job that lets a program that outlives break away, as the system's tessera daemon does. Either job
+// ends every process in it as its last handle closes, which the end of this process closes. A processor mask is a
+// limit of the job, which counts the processor time of every process in it. The job, or NULL where the start asks for
+// none or the system refuses one
 static HANDLE platform_job_made(const PlatformStart *start)
 {
-    const int killed = start->detached && !start->outlives;
+    const int killed = (start->detached || start->ends_with_starter) && !start->outlives;
     if (start->outlives || (!killed && (start->processor_mask == 0ULL)))
     {
         return NULL;
@@ -536,6 +538,7 @@ static HANDLE platform_job_made(const PlatformStart *start)
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &limits, .val = 0, .bytes = sizeof(limits));
     limits.BasicLimitInformation.LimitFlags = (killed ? (DWORD)JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE : 0u) |
+                                              (start->ends_with_starter ? (DWORD)JOB_OBJECT_LIMIT_BREAKAWAY_OK : 0u) |
                                               ((start->processor_mask != 0ULL) ? (DWORD)JOB_OBJECT_LIMIT_AFFINITY : 0u);
     // the mask covers the first 64 processors, which the machine word holds whole
     limits.BasicLimitInformation.Affinity = (ULONG_PTR)start->processor_mask;
@@ -581,6 +584,13 @@ static int platform_process_created(PlatformStartCell *cell, const PlatformStart
 int platform_program_started(const PlatformStart *start, PlatformProgram *program)
 {
     EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .val = 0, .bytes = sizeof(*program));
+    if (start->confined)
+    {
+        // a confined start needs the glue that hands each start of a child to this process, and none runs yet
+        platform_refusal_given(start, PLATFORM_REFUSED_START, ERROR_NOT_SUPPORTED);
+        mmgr_line_put(start->err_msg, "this system cannot confine the program's starts");
+        return 0;
+    }
     PlatformStartCell *const cell = platform_start_prepared(start);
     if (cell == NULL)
     {

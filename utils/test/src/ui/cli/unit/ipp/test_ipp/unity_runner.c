@@ -2,6 +2,7 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
+#include "ascii_persona_bitorum/ascii_persona_bitorum.h"
 #include "ui/cli/src/print/ipp.h"
 #include "ui/cli/src/text/text.h"
 
@@ -84,21 +85,21 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/ipp/test_ipp/test_ipp.c");
-  run_test(test_a_message_begins_with_its_version_code_and_id, "test_a_message_begins_with_its_version_code_and_id", 162);
-  run_test(test_a_message_reads_its_code_id_and_counts_back, "test_a_message_reads_its_code_id_and_counts_back", 170);
-  run_test(test_a_message_reads_its_groups_back, "test_a_message_reads_its_groups_back", 180);
-  run_test(test_a_message_reads_its_attributes_back, "test_a_message_reads_its_attributes_back", 190);
-  run_test(test_a_message_reads_its_values_back, "test_a_message_reads_its_values_back", 203);
-  run_test(test_a_messages_document_follows_it, "test_a_messages_document_follows_it", 222);
-  run_test(test_a_messages_memory_is_released_once_it_is_done, "test_a_messages_memory_is_released_once_it_is_done", 228);
-  run_test(test_an_address_with_no_port_uses_ipps, "test_an_address_with_no_port_uses_ipps", 241);
-  run_test(test_an_address_releases_its_port, "test_an_address_releases_its_port", 246);
-  run_test(test_an_ipv6_host_is_read_from_its_brackets, "test_an_ipv6_host_is_read_from_its_brackets", 251);
-  run_test(test_an_encrypted_address_is_refused, "test_an_encrypted_address_is_refused", 256);
-  run_test(test_a_job_is_accepted_and_its_state_reported, "test_a_job_is_accepted_and_its_state_reported", 266);
-  run_test(test_a_canceled_job_ended, "test_a_canceled_job_ended", 282);
-  run_test(test_a_group_is_found_by_its_tag_a_number_is_read_first_and_a_truth_is_put, "test_a_group_is_found_by_its_tag_a_number_is_read_first_and_a_truth_is_put", 297);
-  run_test(test_a_format_the_printer_does_not_accept_is_refused, "test_a_format_the_printer_does_not_accept_is_refused", 319);
+  run_test(test_a_message_begins_with_its_version_code_and_id, "test_a_message_begins_with_its_version_code_and_id", 165);
+  run_test(test_a_message_reads_its_code_id_and_counts_back, "test_a_message_reads_its_code_id_and_counts_back", 173);
+  run_test(test_a_message_reads_its_groups_back, "test_a_message_reads_its_groups_back", 183);
+  run_test(test_a_message_reads_its_attributes_back, "test_a_message_reads_its_attributes_back", 193);
+  run_test(test_a_message_reads_its_values_back, "test_a_message_reads_its_values_back", 206);
+  run_test(test_a_messages_document_follows_it, "test_a_messages_document_follows_it", 225);
+  run_test(test_a_messages_memory_is_released_once_it_is_done, "test_a_messages_memory_is_released_once_it_is_done", 231);
+  run_test(test_an_address_with_no_port_uses_ipps, "test_an_address_with_no_port_uses_ipps", 244);
+  run_test(test_an_address_releases_its_port, "test_an_address_releases_its_port", 249);
+  run_test(test_an_ipv6_host_is_read_from_its_brackets, "test_an_ipv6_host_is_read_from_its_brackets", 254);
+  run_test(test_an_encrypted_address_is_refused, "test_an_encrypted_address_is_refused", 259);
+  run_test(test_a_job_is_accepted_and_its_state_reported, "test_a_job_is_accepted_and_its_state_reported", 269);
+  run_test(test_a_canceled_job_ended, "test_a_canceled_job_ended", 285);
+  run_test(test_a_group_is_found_by_its_tag_a_number_is_read_first_and_a_truth_is_put, "test_a_group_is_found_by_its_tag_a_number_is_read_first_and_a_truth_is_put", 300);
+  run_test(test_a_format_the_printer_does_not_accept_is_refused, "test_a_format_the_printer_does_not_accept_is_refused", 322);
 
   return UNITY_END();
 }

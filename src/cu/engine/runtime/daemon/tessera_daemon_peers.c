@@ -58,7 +58,7 @@ static int daemon_deliver(TesseraPeer *peer)
     const int has_grew = peer->has_grew;
     const int has_decisive = peer->has_decisive;
     TesseraFrame grew;
-    daemon_frame_start(&grew, TESSERA_NOTICE_GREW, peer->identity);
+    daemon_frame_start(&grew, peer->device, TESSERA_NOTICE_GREW, peer->identity);
     grew.signum = peer->signum;
     grew.bytes = peer->declared;
     grew.measured = peer->grew_to;
@@ -259,65 +259,16 @@ int daemon_peer_start(TesseraPeer *peer, unsigned long long pid)
 #endif
 }
 
-static int daemon_hex(const char *text, unsigned char *bytes, unsigned int count)
+int daemon_arguments(int count, char **arguments, unsigned long long *idle)
 {
-    if (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = text, .cap = PLATFORM_TEXT_TO_TERMINATOR) != (2u * count))
+    const char *end = NULL;
+    if ((count != 3) || !EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[1], .cap = PLATFORM_TEXT_TO_TERMINATOR,
+                                    .other = "--idle", .ci = EMBED_FALSE))
     {
         return 0;
     }
-    for (unsigned int byte = 0u; byte < count; byte += 1u)
-    {
-        unsigned int value = 0u;
-        for (unsigned int half = 0u; half < 2u; half += 1u)
-        {
-            const char digit = text[(2u * byte) + half];
-            const int decimal = (digit >= '0') && (digit <= '9');
-            const int lower = (digit >= 'a') && (digit <= 'f');
-            if (!decimal && !lower)
-            {
-                return 0;
-            }
-            // a hexadecimal digit's value is below sixteen
-            value = (value << 4u) | (decimal ? (unsigned int)(digit - '0') : (unsigned int)(digit - 'a' + 10));
-        }
-        // two hexadecimal digits make one byte
-        bytes[byte] = (unsigned char)value;
-    }
-    return 1;
-}
-
-int daemon_arguments(int count, char **arguments, unsigned long long *idle)
-{
-    int have_device = 0;
-    int have_luid = 0;
-    int have_idle = 0;
-    for (int at = 1; (at + 1) < count; at += 2)
-    {
-        const char *end = NULL;
-        if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
-                       .other = "--device", .ci = EMBED_FALSE))
-        {
-            have_device = daemon_hex(arguments[at + 1], g_daemon.device, TESSERA_DEVICE_BYTES);
-        }
-        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
-                            .other = "--luid", .ci = EMBED_FALSE))
-        {
-            g_daemon.luid =
-                EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = arguments[at + 1], .end = &end, .base = 16);
-            have_luid = (end != arguments[at + 1]) && (*end == '\0');
-        }
-        else if (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = arguments[at], .cap = PLATFORM_TEXT_TO_TERMINATOR,
-                            .other = "--idle", .ci = EMBED_FALSE))
-        {
-            *idle = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = arguments[at + 1], .end = &end, .base = 10);
-            have_idle = (end != arguments[at + 1]) && (*end == '\0');
-        }
-        else
-        {
-            return 0;
-        }
-    }
-    return have_device && have_luid && have_idle;
+    *idle = EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = arguments[2], .end = &end, .base = 10);
+    return (end != arguments[2]) && (*end == '\0');
 }
 
 int daemon_socket_passed(void)

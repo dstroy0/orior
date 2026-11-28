@@ -59,8 +59,8 @@ TESSERA_CORE int tessera_core_start(TesseraLedger *ledger, TesseraJob *job, unsi
     }
     job->state = TESSERA_JOB_RUNNING;
     job->reservation = tessera_core_wants(ledger, job);
-    // until its first sweep the job uses what its process allocated as it requested, which the device's measure already
-    // counts: the headroom owes the device only the bytes it has yet to find
+    // Until its first sweep the job uses what its process allocated as it requested. The device's measure already
+    // counts those bytes, and the headroom owes the device only the bytes that the sweep does not find yet
     job->used = job->request.located;
     job->peak = 0ULL;
     job->measures = 0ULL;
@@ -72,8 +72,10 @@ TESSERA_CORE int tessera_core_start(TesseraLedger *ledger, TesseraJob *job, unsi
     return 1;
 }
 
-TESSERA_CORE int tessera_core_shadow(const TesseraLedger *ledger, unsigned long long wanted, long long headroom,
-                                     unsigned long long *shadow, unsigned long long *spare)
+// The time at which the running jobs of `device` that end free `wanted` past `headroom`, into `shadow`, and what stays
+// over then, into `spare`. 0 where the jobs that run there never free it
+TESSERA_CORE int tessera_core_shadow(const TesseraLedger *ledger, unsigned int device, unsigned long long wanted,
+                                     long long headroom, unsigned long long *shadow, unsigned long long *spare)
 {
     *shadow = 0ULL;
     *spare = 0ULL;
@@ -85,7 +87,8 @@ TESSERA_CORE int tessera_core_shadow(const TesseraLedger *ledger, unsigned long 
         for (unsigned long long at = 0ULL; at < ledger->job_count; at += 1ULL)
         {
             const TesseraJob *const job = &ledger->jobs[at];
-            if ((job->state == TESSERA_JOB_RUNNING) && (job->expected_end > after) && (job->expected_end < soonest))
+            if ((job->state == TESSERA_JOB_RUNNING) && (job->request.device == device) && (job->expected_end > after) &&
+                (job->expected_end < soonest))
             {
                 soonest = job->expected_end;
             }
@@ -97,7 +100,7 @@ TESSERA_CORE int tessera_core_shadow(const TesseraLedger *ledger, unsigned long 
         for (unsigned long long at = 0ULL; at < ledger->job_count; at += 1ULL)
         {
             const TesseraJob *const job = &ledger->jobs[at];
-            if ((job->state == TESSERA_JOB_RUNNING) && (job->expected_end == soonest))
+            if ((job->state == TESSERA_JOB_RUNNING) && (job->request.device == device) && (job->expected_end == soonest))
             {
                 // a job's blocked bytes are a device's bytes, below two to the sixty-third
                 available += (long long)tessera_core_blocked(job);
@@ -115,65 +118,93 @@ TESSERA_CORE int tessera_core_shadow(const TesseraLedger *ledger, unsigned long 
     }
 }
 
+// What a job that waits may draw on the room of its parent, at max `needs`. 0 where it names no parent, or its parent
+// runs on no device of its own
+TESSERA_CORE unsigned long long tessera_core_lendable(const TesseraLedger *ledger, const TesseraJob *job,
+                                                      unsigned long long needs)
+{
+    const TesseraJob *const parent =
+        (job->request.parent != 0ULL) ? tessera_core_find(ledger, job->request.parent) : NULL;
+    if ((parent == NULL) || (parent->state != TESSERA_JOB_RUNNING) || (parent->request.device != job->request.device))
+    {
+        return 0ULL;
+    }
+    const unsigned long long room = tessera_core_room(ledger, parent);
+    return (room < needs) ? room : needs;
+}
+
+// the place of a device in one pass of admission
+#define TESSERA_CORE_OPEN 0u
+#define TESSERA_CORE_HELD 1u
+#define TESSERA_CORE_SHUT 2u
+
+// One pass over the system's one queue, in order. A job draws on its parent's room first, and the rest of what it needs
+// is what must fit the device's headroom. On an open device each job that waits and fits starts. The first job that
+// does not fit holds its device. Behind it, only a job with a tracked run starts, where it ends before the first job's
+// room frees or fits in what is spare then. A device whose running jobs never free that room shuts for the pass. A job
+// that holds one device holds back no job of another device
 TESSERA_CORE unsigned long long tessera_core_admit(TesseraLedger *ledger, unsigned long long now, TesseraEvent *events,
                                                    unsigned long long start_limit)
 {
+    unsigned int place[TESSERA_LEDGER_DEVICES];
+    unsigned long long shadow[TESSERA_LEDGER_DEVICES];
+    unsigned long long spare[TESSERA_LEDGER_DEVICES];
+    for (unsigned int device = 0u; device < TESSERA_LEDGER_DEVICES; device += 1u)
+    {
+        place[device] = TESSERA_CORE_OPEN;
+        shadow[device] = 0ULL;
+        spare[device] = 0ULL;
+    }
     unsigned long long made = 0ULL;
-    TesseraJob *head = NULL;
     for (unsigned long long at = 0ULL; (made < start_limit) && (at < ledger->job_count); at += 1ULL)
     {
         TesseraJob *const job = &ledger->jobs[at];
-        if (job->state != TESSERA_JOB_WAITING)
+        const unsigned int device = job->request.device;
+        if ((job->state != TESSERA_JOB_WAITING) || (device >= TESSERA_LEDGER_DEVICES) ||
+            (place[device] == TESSERA_CORE_SHUT))
         {
             continue;
         }
-        // the needed bytes are a device's bytes, below two to the sixty-third
-        if ((long long)tessera_core_needs(ledger, job) <= tessera_core_headroom(ledger))
-        {
-            if (!tessera_core_start(ledger, job, now, &events[made]))
-            {
-                return made;
-            }
-            made += 1ULL;
-            continue;
-        }
-        head = job;
-        break;
-    }
-    if ((head == NULL) || (made >= start_limit))
-    {
-        return made;
-    }
-    unsigned long long shadow = 0ULL;
-    unsigned long long spare = 0ULL;
-    if (!tessera_core_shadow(ledger, tessera_core_needs(ledger, head), tessera_core_headroom(ledger), &shadow, &spare))
-    {
-        return made;
-    }
-    // the head points into the array, and its distance from the start is its index
-    const unsigned long long head_at = (unsigned long long)(head - ledger->jobs);
-    for (unsigned long long at = head_at + 1ULL; (made < start_limit) && (at < ledger->job_count); at += 1ULL)
-    {
-        TesseraJob *const job = &ledger->jobs[at];
-        const TesseraHistory *const previous = tessera_core_history(ledger, &job->request.signum);
         const unsigned long long needs = tessera_core_needs(ledger, job);
+        const unsigned long long lent = tessera_core_lendable(ledger, job, needs);
+        const unsigned long long rest = needs - lent;
+        const long long headroom = tessera_core_headroom(ledger, device);
         // the needed bytes are a device's bytes, below two to the sixty-third
-        const int fits = (long long)needs <= tessera_core_headroom(ledger);
-        if ((job->state != TESSERA_JOB_WAITING) || (previous == NULL) || !fits)
+        const int fits = (long long)rest <= headroom;
+        if (place[device] == TESSERA_CORE_OPEN)
+        {
+            if (fits)
+            {
+                if (!tessera_core_start(ledger, job, now, &events[made]))
+                {
+                    return made;
+                }
+                job->lent = lent;
+                made += 1ULL;
+                continue;
+            }
+            place[device] = tessera_core_shadow(ledger, device, rest, headroom, &shadow[device], &spare[device])
+                                ? TESSERA_CORE_HELD
+                                : TESSERA_CORE_SHUT;
+            continue;
+        }
+        const TesseraHistory *const previous = tessera_core_history(ledger, &job->request.signum);
+        if ((previous == NULL) || !fits)
         {
             continue;
         }
-        const int before_shadow = tessera_core_sum(now, previous->duration) <= shadow;
-        const int in_spare = needs <= spare;
+        const int before_shadow = tessera_core_sum(now, previous->duration) <= shadow[device];
+        const int in_spare = rest <= spare[device];
         if (!before_shadow && !in_spare)
         {
             continue;
         }
-        spare -= (!before_shadow) ? needs : 0ULL;
+        spare[device] -= (!before_shadow) ? rest : 0ULL;
         if (!tessera_core_start(ledger, job, now, &events[made]))
         {
             return made;
         }
+        job->lent = lent;
         made += 1ULL;
     }
     return made;
@@ -229,8 +260,8 @@ TESSERA_CORE int tessera_core_fire(TesseraLedger *ledger, unsigned long long now
     return 0;
 }
 
-// one call made of the ledger and answered: errored on whole, with nothing changed, where the ledger lacks room for the
-// max the call could add, and otherwise the decision the call names, with the headroom after it
+// One call of the ledger and its answer. Where the ledger lacks room for the max that the call could add, the answer is
+// an error with nothing changed. Otherwise it is the decision that the call names, with the headroom after it
 TESSERA_CORE void tessera_core_call(TesseraLedger *ledger, const TesseraCall *call, TesseraAnswer *answer)
 {
     answer->result = 0ULL;
@@ -247,14 +278,14 @@ TESSERA_CORE void tessera_core_call(TesseraLedger *ledger, const TesseraCall *ca
     if (!tessera_core_fits(ledger, &needed))
     {
         answer->full = 1;
-        answer->headroom = tessera_core_headroom(ledger);
+        answer->headroom = tessera_core_headroom(ledger, call->device);
         return;
     }
-    // each decision's 1 or 0 is widened to the answer's word, where an admit's count of jobs started converts exactly
+    // the answer's word widens each decision's 1 or 0, and an admit's count of jobs started converts exactly
     switch (call->type)
     {
     case TESSERA_CALL_DEVICE:
-        tessera_core_device(ledger, call->capacity, call->in_use);
+        tessera_core_device(ledger, call->device, call->capacity, call->in_use);
         answer->result = 1ULL;
         break;
     case TESSERA_CALL_SUBMIT:
@@ -291,7 +322,7 @@ TESSERA_CORE void tessera_core_call(TesseraLedger *ledger, const TesseraCall *ca
     default:
         break;
     }
-    answer->headroom = tessera_core_headroom(ledger);
+    answer->headroom = tessera_core_headroom(ledger, call->device);
 }
 
 #endif

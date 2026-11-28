@@ -10,21 +10,56 @@
 #include "memoria_operor/memoria_operor.h"
 
 _Alignas(8) static const char s_daemon_lock_file[] = "daemon.lock";
-_Alignas(8) static const char s_daemon_usage[] = "  tessera daemon: --device <32 hex digits, all zero for the host's "
-                                                 "processors> --luid <hex> --idle <microseconds>\n";
-_Alignas(8) static const
-    char s_daemon_no_state[] = "  tessera daemon: no state directory could be made for this device\n";
+_Alignas(8) static const char s_daemon_usage[] = "  tessera daemon: --idle <microseconds>\n";
+_Alignas(8) static const char s_daemon_no_state[] = "  tessera daemon: no state directory could be made\n";
+_Alignas(8) static const char s_daemon_gpu_unmeasured[] = "  tessera daemon: this GPU could not be measured, and is not "
+                                                          "gated: ";
 _Alignas(8) static const
     char s_daemon_long_socket[] = "  tessera daemon: the socket path is longer than a Unix socket allows: ";
 _Alignas(8) static const char s_daemon_unbound[] = "  tessera daemon: this socket could not be bound: ";
 _Alignas(8) static const char s_daemon_answered[] = "  tessera daemon: another daemon already answers at this socket: ";
-_Alignas(8) static const char s_daemon_unmeasured[] = "  tessera daemon: the device's memory could not be measured by "
-                                                      "process (NVML, and under WDDM the GPU Process Memory counter)\n";
 _Alignas(8) static const char s_daemon_no_cores[] =
     "  tessera daemon: the host's cores could not be read, and no processor could be given to jobs\n";
 #if defined(_WIN32)
 _Alignas(8) static const char s_daemon_no_pipe[] = "  tessera daemon: the next pipe instance could not be made\n";
 #endif
+
+// The devices of the system opened at their index in the ledger: the host's processors at index 0, then every GPU that
+// NVML lists. The call notes a GPU whose memory does not measure and leaves it out. 0 where the host's cores do not
+// read
+static int daemon_devices_open(void)
+{
+    TesseraDaemonDevice *const host = &g_daemon.devices[0];
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = host, .bytes = sizeof(*host), .val = 0);
+    host->luid_known = 1;
+    host->measure = tessera_measure_open(host->device, 0ULL);
+    if (host->measure == NULL)
+    {
+        return 0;
+    }
+    g_daemon.device_count = 1u;
+    unsigned char listed[TESSERA_LEDGER_DEVICES - 1u][TESSERA_DEVICE_BYTES];
+    const unsigned int gpus = tessera_measure_devices(listed, TESSERA_LEDGER_DEVICES - 1u);
+    for (unsigned int at = 0u; at < gpus; at += 1u)
+    {
+        TesseraDaemonDevice *const gpu = &g_daemon.devices[g_daemon.device_count];
+        EMBED_CALL(memor.set, MemoriaCfg, .dst = gpu, .bytes = sizeof(*gpu), .val = 0);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = gpu->device, .src = listed[at], .bytes = TESSERA_DEVICE_BYTES);
+        gpu->measure = tessera_measure_open(gpu->device, 0ULL);
+        if (gpu->measure == NULL)
+        {
+            EngineNote engine_note;
+            engine_note_begun(&engine_note);
+            mmgr_line_put(&engine_note.line, s_daemon_gpu_unmeasured);
+            tessera_bytes_hex(&engine_note.line, gpu->device, TESSERA_DEVICE_BYTES);
+            mmgr_line_ch(&engine_note.line, '\n');
+            engine_note_written(&engine_note);
+            continue;
+        }
+        g_daemon.device_count += 1u;
+    }
+    return 1;
+}
 
 int program_main(int count, char **arguments)
 {
@@ -39,9 +74,9 @@ int program_main(int count, char **arguments)
         }
         return 2;
     }
-    if (!tessera_path_state(g_daemon.device, g_daemon.state, ENGINE_PATH_CAPACITY) ||
-        !platform_folders_made(g_daemon.state, TESSERA_DAEMON_FOLDER_MODE) ||
-        !tessera_path_endpoint(g_daemon.device, g_daemon.endpoint, ENGINE_PATH_CAPACITY))
+    if (!tessera_path_root(g_daemon.root, ENGINE_PATH_CAPACITY) ||
+        !platform_folders_made(g_daemon.root, TESSERA_DAEMON_FOLDER_MODE) ||
+        !tessera_path_endpoint(g_daemon.endpoint, ENGINE_PATH_CAPACITY))
     {
         {
             const char *const error_text = s_daemon_no_state;
@@ -51,7 +86,7 @@ int program_main(int count, char **arguments)
         }
         return daemon_error();
     }
-    // the history is read before the endpoint exists: no client reaches a daemon that then errors on its history
+    // the daemon reads its history before the endpoint exists: no client reaches a daemon that then errors on it
     if (!tessera_ledger_open(&g_daemon.ledger))
     {
         {
@@ -70,7 +105,7 @@ int program_main(int count, char **arguments)
             EngineNote engine_note;
             engine_note_begun(&engine_note);
             mmgr_line_put(&engine_note.line, "  tessera daemon: the history in ");
-            mmgr_line_put(&engine_note.line, g_daemon.state);
+            mmgr_line_put(&engine_note.line, g_daemon.root);
             mmgr_line_put(&engine_note.line, " could not be read");
             mmgr_line_ch(&engine_note.line, '\n');
             engine_note_written(&engine_note);
@@ -121,8 +156,7 @@ int program_main(int count, char **arguments)
                    .bytes = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = g_daemon.endpoint,
                                        .cap = PLATFORM_TEXT_TO_TERMINATOR) +
                             1u);
-        // the path names the device instead of the state: a daemon with another state, or systemd's socket, may occupy
-        // it
+        // a daemon that answers at the system's socket, or systemd's socket, may occupy the path
         const int probe = socket(AF_UNIX, SOCK_STREAM, 0);
         const int answered = (probe >= 0) && (connect(probe, (const struct sockaddr *)&address, sizeof(address)) == 0);
         if (probe >= 0)
@@ -161,19 +195,17 @@ int program_main(int count, char **arguments)
         g_daemon.endpoint_inode = endpoint.st_ino;
     }
 #endif
-    g_daemon.measure = tessera_measure_open(g_daemon.device, g_daemon.luid);
-    if (g_daemon.measure == NULL)
+    if (!daemon_devices_open())
     {
         {
-            const char *const error_text =
-                tessera_device_names_host(g_daemon.device) ? s_daemon_no_cores : s_daemon_unmeasured;
+            const char *const error_text = s_daemon_no_cores;
             platform_terminal_write(1, error_text,
                                     (unsigned long long)EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = error_text,
                                                                    .cap = PLATFORM_TEXT_TO_TERMINATOR));
         }
         return daemon_error();
     }
-    daemon_device_read();
+    daemon_devices_read();
     g_daemon.living = 1;
 #if defined(_WIN32)
     const HANDLE timer = CreateThread(NULL, 0u, daemon_timer, NULL, 0u, NULL);

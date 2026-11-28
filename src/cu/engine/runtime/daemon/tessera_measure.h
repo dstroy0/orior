@@ -14,11 +14,18 @@ extern "C"
 
     typedef struct TesseraProcess TesseraProcess;
 
+    // Every GPU that NVML lists on the system, each its UUID's sixteen bytes into `devices`, `capacity` of them at max.
+    // The answer is their count, 0 where NVML lists none or does not load
+    unsigned int tessera_measure_devices(unsigned char (*devices)[TESSERA_DEVICE_BYTES], unsigned int capacity);
+
     TesseraMeasure *tessera_measure_open(const unsigned char device[TESSERA_DEVICE_BYTES], unsigned long long luid);
+
+    // the adapter's LUID that the process counters of Windows name the device by, which the first job on it reports
+    void tessera_measure_luid_set(TesseraMeasure *measure, unsigned long long luid);
 
     void tessera_measure_close(TesseraMeasure *measure);
 
-    // 1 where no pid is measured from outside (WSL): each job's process reports its own bytes instead
+    // 1 where the daemon measures no pid from outside (WSL): each job's process reports its own bytes instead
     int tessera_measure_reported(const TesseraMeasure *measure);
 
     // 1 for the host's processors: the capacity is the processors jobs are given, and the daemon counts their use from

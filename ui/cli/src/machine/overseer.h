@@ -87,6 +87,10 @@ extern "C"
     int cli_overseer_blinking(void);
     // every record given back as the program ends
     void cli_overseer_end(void);
+    // One event of the confinement of the process `name`, of `kind` such as "dropped", with `detail`, appended as a
+    // line of confinement.jsonl in orior's own folder. The call takes a lock of its own and no record. A thread of any
+    // process's reader makes the call. Past CLI_OVERSEER_LOG_MAX bytes the file becomes confinement.jsonl.1
+    void cli_overseer_logged(const CliOverseerCfg *args);
 
     struct CliOverseerCfg
     {
@@ -104,6 +108,8 @@ extern "C"
         unsigned int state;
         CliOverseerSeen *seen_out;
         unsigned int max;
+        const char *kind;
+        const char *detail;
     };
 
     typedef struct
@@ -115,8 +121,9 @@ extern "C"
         unsigned int (*worst)(const CliOverseerCfg *args);
         int (*lit)(const CliOverseerCfg *args);
         unsigned long long (*due_ms)(const CliOverseerCfg *args);
+        void (*logged)(const CliOverseerCfg *args);
     } CliOverseerNs;
-    EMBED_TABLE_LAYOUT(CliOverseerNs, report, limits, tick, seen, worst, lit, due_ms);
+    EMBED_TABLE_LAYOUT(CliOverseerNs, report, limits, tick, seen, worst, lit, due_ms, logged);
     EMBED_TABLE_STORAGE CliOverseerNs cli_overseer EMBED_UNUSED = {
         .report = cli_overseer_report,
         .limits = cli_overseer_limits,
@@ -125,6 +132,7 @@ extern "C"
         .worst = cli_overseer_worst,
         .lit = cli_overseer_lit,
         .due_ms = cli_overseer_due_ms,
+        .logged = cli_overseer_logged,
     };
 
 #ifdef __cplusplus

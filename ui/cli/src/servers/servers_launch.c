@@ -299,7 +299,7 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
                          .count = words->count, .root = root, .options = options.cell,
                          .length = platform_text_size(&options), .settings = setting, .setting_count = settings,
                          .recv = cli_servers_recv, .context = server_sink, .overseen = args->spec_read->tool,
-                         .err_msg = &reason)
+                         .methods = g_cli_servers_methods, .method_count = CLI_SERVERS_METHODS, .err_msg = &reason)
             : NULL;
     g_platform_guard->persistent_buf_release(vs_path, g_cli_servers_launch_owner);
     g_platform_guard->persistent_buf_release(setting, g_cli_servers_launch_owner);

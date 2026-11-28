@@ -418,52 +418,43 @@ it says so and exits. It removes the socket file at idle only if that file is st
 
 ## Service files
 
-**Windows needs none.** The first client starts the daemon, `FILE_FLAG_FIRST_PIPE_INSTANCE` retains it to one per
-device, and it ends once it has been idle.
+The system has one daemon. It gates the host's processors and every GPU that NVML lists, in one ledger of every job,
+and answers at one endpoint: the pipe `\\.\pipe\tessera` on Windows, and `$XDG_RUNTIME_DIR/tessera.sock` (or
+`/tmp/tessera.sock`) elsewhere. Its lock, its history and each device's lost and found are under one root:
+`%LOCALAPPDATA%\tessera`, or `$XDG_STATE_HOME/tessera`, or `~/.local/state/tessera`.
 
-**Linux, systemd user units** in `service/`. The instance is the device's UUID as 32 lowercase hex digits:
+**Windows needs no unit.** The first client starts the daemon, `FILE_FLAG_FIRST_PIPE_INSTANCE` keeps it to one for
+the system, and it ends once it has been idle.
+
+**Linux, systemd user units** in `service/`:
 
 ```bash
 cp tessera_daemon ~/.local/bin/
-cp engine/runtime/daemon/service/tessera@.socket engine/runtime/daemon/service/tessera@.service ~/.config/systemd/user/
+cp engine/runtime/daemon/service/tessera.socket engine/runtime/daemon/service/tessera.service ~/.config/systemd/user/
 systemctl --user daemon-reload
-systemctl --user enable --now tessera@<uuid>.socket
+systemctl --user enable --now tessera.socket
 ```
 
-- `tessera@.socket` listens on `%t/tessera-%i.sock` (`$XDG_RUNTIME_DIR`), the path the client already looks for.
-- On the first connection systemd starts `tessera@.service`, which passes the socket over as fd 3 (`LISTEN_FDS=1`).
-  The daemon takes that socket instead of binding its own. When idle it exits without removing the socket, and the
-  next connection starts it again.
-- A daemon that errors instead of starting (its history's seal fails, or the device can't be measured) accepts and closes
-  every connection waiting on the socket before it exits. The client that started it errors and systemd has
-  nothing queued to start it for again. `StartLimitIntervalSec=0` stops systemd's start limit from turning away the
-  next real client.
+- `tessera.socket` listens on `%t/tessera.sock` (`$XDG_RUNTIME_DIR`), the path the client looks for.
+- On the first connection systemd starts `tessera.service`, which passes the socket over as fd 3 (`LISTEN_FDS=1`).
+  The daemon takes that socket in place of one of its own. When idle it exits and leaves the socket, and the next
+  connection starts it again.
+- A daemon that errors in place of a start (its history's seal fails, or the host's cores do not read) accepts and
+  closes every connection that waits on the socket before it exits. The client that started it errors, and systemd
+  has nothing queued to start it for again. `StartLimitIntervalSec=0` keeps systemd's start limit from turning away
+  the next real client.
 
-Run in WSL 2 (systemd 255), with the socket at
-`/run/user/1000/tessera-70fc945bd257269d3ffdb316ae03ace1.sock`. The whole job test ran with a daemon path that
-doesn't exist, and systemd started every daemon, in a scratch `TESSERA_STATE` set through `systemctl --user
-set-environment`. It passed 24 checks, 0 failed, on three runs in a row, each straight after the suite. Every
-errored history made one failed start and one errored client, and the restored history started a daemon that asked
-over the retained peak.
-
-**Docker.** Mount the host's socket into the container and name its folder with `TESSERA_RUNTIME`:
+**Docker.** Mount the host's socket into the container and point the container's `XDG_RUNTIME_DIR` at its folder:
 
 ```bash
-docker run --gpus all -v "$XDG_RUNTIME_DIR/tessera-<uuid>.sock:/run/tessera/tessera-<uuid>.sock" \
-    -e TESSERA_RUNTIME=/run/tessera ...
+docker run --gpus all -v "$XDG_RUNTIME_DIR/tessera.sock:/run/tessera/tessera.sock" \
+    -e XDG_RUNTIME_DIR=/run/tessera ...
 ```
 
 The daemon reads a client's pid with `SO_PEERCRED`, which the kernel gives in the daemon's pid namespace, the
-host's, and that is the pid NVML reports.
-
-Run with Docker Engine 29.1.3 in WSL 2. `utils/test/src/cu/engine/runtime/daemon/tessera_socket_probe.c` is a client with no device of
-its own. It submits one 1-byte job for a named device, with no daemon path. Only a listening socket can answer.
-Built static and run in a container with the socket mounted and `TESSERA_RUNTIME=/run/tessera`:
-
-- It connected to `/run/tessera/tessera-70fc945bd257269d3ffdb316ae03ace1.sock`.
-- systemd started `tessera@70fc945bd257269d3ffdb316ae03ace1.service` on the container's connection.
-- The daemon admitted the job and it released. The container had no GPU mounted, and its client had no bytes to
-  report. The history it left contained no record, just the seal (32 bytes).
+host's, and that is the pid NVML reports. `utils/test/src/cu/engine/runtime/daemon/tessera_socket_probe.c` is a client
+with no device of its own. It submits one 1-byte job for a named device, with no daemon path, and only a listening
+socket can answer.
 
 ## Not built yet
 

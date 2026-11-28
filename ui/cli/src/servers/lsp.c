@@ -39,6 +39,7 @@ typedef struct
     unsigned long long method_size;
     char *body_out;
     const char *line;
+    int *waited;
 } LspCtx;
 // whether `length` bytes are a whole number as serde reads a u64, into `value`
 EMBED_INLINE int lsp_id(const LspCtx *args)
@@ -60,16 +61,18 @@ EMBED_INLINE int lsp_id(const LspCtx *args)
     return args->length > 0ULL;
 }
 
-// an answer passed to the request of `id` that waits on it: `message` with its result in it, or its error: 1 where the
-// message went to the request, which gives it back
+// An answer passed to the request of `id` that waits on it: `message` with its result in it, or its error. 1 where the
+// message went to the request, which gives it back. `waited` reads 1 where a request waited on `id`, else 0
 EMBED_INLINE int lsp_answer(const LspCtx *args)
 {
     int transferred = 0;
+    *args->waited = 0;
     for (unsigned int at = 0u; at < CLI_LSP_WAITERS; at += 1u)
     {
         CliLspWaiter *const waiter = &args->lsp->waiters[at];
         if (waiter->waiting && (waiter->id == args->id))
         {
+            *args->waited = 1;
             if (args->error != NULL)
             {
                 memor.cpy(&(MemoriaCfg){
@@ -91,7 +94,61 @@ EMBED_INLINE int lsp_answer(const LspCtx *args)
     return transferred;
 }
 
-// what the server sends unprompted received, and a request of its answered with what its receiver writes
+// a message of the server's that orior drops, logged under the server's name for the overseer with `line` as its
+// detail
+EMBED_INLINE void lsp_dropped(const LspCtx *args)
+{
+    cli_overseer_logged(&(CliOverseerCfg){.name = args->lsp->overseen, .kind = "dropped", .detail = args->line});
+}
+
+// whether the method `text` is in the server's table, by a binary search over the names zero-filled to their width
+EMBED_INLINE int lsp_method_taken(const LspCtx *args)
+{
+    char name[CLI_LSP_METHOD_LEN];
+    if (cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_LSP_METHOD_LEN}) >= CLI_LSP_METHOD_LEN)
+    {
+        return 0;
+    }
+    memor.set(&(MemoriaCfg){.dst = name, .bytes = sizeof(name), .val = 0u});
+    (void)cellul.copy(&(CatenaFinitaCfg){.dst = name, .src = args->text, .cap = CLI_LSP_METHOD_LEN});
+    unsigned int low = 0u;
+    unsigned int high = args->lsp->methods;
+    while (low < high)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        const embed_iword order =
+            memor.cmp(&(MemoriaCfg){.src = args->lsp->method[middle], .other = name, .bytes = CLI_LSP_METHOD_LEN});
+        if (order == 0)
+        {
+            return 1;
+        }
+        if (order < 0)
+        {
+            low = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    return 0;
+}
+
+// A request of the server's for a method outside its table answered with the error Method not found of JSON-RPC, code
+// -32601
+EMBED_INLINE void lsp_method_refused(const LspCtx *args)
+{
+    const CliLspPart parts[3] = {CLI_LSP_RAW("{\"jsonrpc\":\"2.0\",\"id\":"),
+                                 {args->body + args->id, args->size, 0},
+                                 CLI_LSP_RAW(",\"error\":{\"code\":-32601,\"message\":\"Method not found\"}}")};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea unsent = {why, sizeof(why), 0ULL};
+    (void)EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->lsp->input, .parts = parts,
+                     .count = 3u, .err_msg = &unsent);
+}
+
+// What the server sends unprompted received. A request of its gets what its receiver writes. The reader drops and
+// logs a method outside the server's table. A request for that method gets Method not found
 EMBED_INLINE void lsp_server_message(const LspCtx *args)
 {
     const char *body = args->body;
@@ -100,6 +157,20 @@ EMBED_INLINE void lsp_server_message(const LspCtx *args)
     if (!EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = body + args->method,
                     .length = args->method_size, .out_capacity = name, .capacity = sizeof(name)))
     {
+        EMBED_CALL(lsp_dropped, LspCtx, .lsp = args->lsp, .line = "a method past the max of its name");
+        return;
+    }
+    if (!EMBED_CALL(lsp_method_taken, LspCtx, .lsp = args->lsp, .text = name))
+    {
+        EMBED_CALL(lsp_dropped, LspCtx, .lsp = args->lsp, .line = name);
+        unsigned long long refused_id = 0ULL;
+        unsigned long long refused_size = 0ULL;
+        if (EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = body, .size_value = size, .name = "id",
+                       .start = &refused_id, .length_pointer = &refused_size))
+        {
+            EMBED_CALL(lsp_method_refused, LspCtx, .lsp = args->lsp, .body = body, .id = refused_id,
+                       .size = refused_size);
+        }
         return;
     }
     unsigned long long params = 0ULL;
@@ -137,10 +208,12 @@ EMBED_INLINE void lsp_server_message(const LspCtx *args)
     platform_text_ended(&answer);
 }
 
-// a message the server sent, `size` bytes of `body`, ended by a 0: what it sends unprompted received, an answer passed
-// to its request: 1 where `body` went with the answer
+// A message the server sent, `size` bytes of `body`, ended by a 0: what it sends unprompted received, an answer passed
+// to its request. 1 where `body` went with the answer. The reader drops and logs a message with no method and no id
+// of orior's. It also drops and logs an answer that no request waits on
 EMBED_INLINE int lsp_message(const LspCtx *args)
 {
+    int waited = 0;
     char *body = args->body_out;
     unsigned long long size = args->size;
     unsigned long long method = 0ULL;
@@ -160,6 +233,7 @@ EMBED_INLINE int lsp_message(const LspCtx *args)
                     .length_pointer = &id_size) ||
         !EMBED_CALL(lsp_id, LspCtx, .text = body + id_at, .length = id_size, .value = &id))
     {
+        EMBED_CALL(lsp_dropped, LspCtx, .lsp = args->lsp, .line = "a message with no method and no id of orior's");
         return 0;
     }
     unsigned long long at = 0ULL;
@@ -180,8 +254,13 @@ EMBED_INLINE int lsp_message(const LspCtx *args)
                 .src = "the server refused",
                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = "the server refused", .cap = CLI_POOL_BYTES}) + 1u});
         }
-        return EMBED_CALL(lsp_answer, LspCtx, .lsp = args->lsp, .id = id, .message = NULL, .result = NULL,
-                          .length = 0ULL, .error = error);
+        (void)EMBED_CALL(lsp_answer, LspCtx, .lsp = args->lsp, .id = id, .message = NULL, .result = NULL,
+                         .length = 0ULL, .error = error, .waited = &waited);
+        if (!waited)
+        {
+            EMBED_CALL(lsp_dropped, LspCtx, .lsp = args->lsp, .line = "an error that no request waits on");
+        }
+        return 0;
     }
     const int has_result = EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = body, .size_value = size,
                                       .name = "result", .start = &at, .length_pointer = &length);
@@ -190,44 +269,60 @@ EMBED_INLINE int lsp_message(const LspCtx *args)
         // the result ended by a 0 where it is: the byte after it is the message's own, read no more
         body[at + length] = '\0';
     }
-    return EMBED_CALL(lsp_answer, LspCtx, .lsp = args->lsp, .id = id, .message = body,
-                      .result = has_result ? body + at : "null", .length = has_result ? length : 4ULL, .error = NULL);
+    const int transferred =
+        EMBED_CALL(lsp_answer, LspCtx, .lsp = args->lsp, .id = id, .message = body,
+                   .result = has_result ? body + at : "null", .length = has_result ? length : 4ULL, .error = NULL,
+                   .waited = &waited);
+    if (!waited)
+    {
+        EMBED_CALL(lsp_dropped, LspCtx, .lsp = args->lsp, .line = "an answer that no request waits on");
+    }
+    return transferred;
 }
 
-// what the server writes read until it ends: each message passed on, and every request still waiting notified the
-// server stopped
+// What the server writes read until it ends or the reader refuses a message: each message passed on. A refused message
+// ends the server's whole group at once, and its reason goes to every request that still waits and to the overseer.
+// Else every request that still waits reads that the server stopped
 static void lsp_read(void *context)
 {
     CliLsp *const lsp = (CliLsp *)context;
     unsigned long long size = 0ULL;
     char *body = NULL;
+    char refusal[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea refused = {refusal, sizeof(refusal), 0ULL};
     // each message read into a cell of its length, given back here unless it went with an answer
     while ((body = EMBED_CALL(cli_lsp_reader_size.message_alloc, CliLspReaderSizeCfg, .reader = &lsp->reader,
-                              .size = &size, .owner = g_cli_servers_owner)) != NULL)
+                              .size = &size, .owner = g_cli_servers_owner, .err_msg = &refused)) != NULL)
     {
         if (!EMBED_CALL(lsp_message, LspCtx, .lsp = lsp, .body_out = body, .size = size))
         {
             g_platform_guard->persistent_buf_release(body, g_cli_servers_owner);
         }
     }
+    (void)mmgr_line_finish(&refused);
+    const int was_refused = refused.at != 0ULL;
+    if (was_refused && !lsp->ended && (lsp->spawned.process != 0ULL))
+    {
+        EMBED_CALL(cli_cols_internal.spawn_group_kill, CliColsCtx, .spawned_read = &lsp->spawned);
+    }
     for (unsigned int at = 0u; at < CLI_LSP_WAITERS; at += 1u)
     {
         if (lsp->waiters[at].waiting)
         {
-            memor.cpy(&(MemoriaCfg){
-                .dst = lsp->waiters[at].error,
-                .src = "the server stopped",
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "the server stopped", .cap = CLI_POOL_BYTES}) + 1u});
+            (void)cellul.copy(&(CatenaFinitaCfg){.dst = lsp->waiters[at].error,
+                                                 .src = was_refused ? refusal : "the server stopped",
+                                                 .cap = sizeof(lsp->waiters[at].error)});
             lsp->waiters[at].answered = 1;
             lsp->waiters[at].waiting = 0;
         }
     }
     // the output's end with no stop under way is an end that the server did not ask for. The error stands on the dot
-    // until a new start: the let-go after it reports no stop
+    // until a new start: the let-go after it reports no stop. A refused message fails the server for good
     if (!lsp->stopping)
     {
         lsp->stopping = 1;
-        EMBED_CALL(cli_lsp_internal.overseen, CliLspCtx, .lsp = lsp, .event = CLI_OVERSEER_ENDED);
+        EMBED_CALL(cli_lsp_internal.overseen, CliLspCtx, .lsp = lsp,
+                   .event = was_refused ? CLI_OVERSEER_FAILED : CLI_OVERSEER_ENDED);
     }
     lsp->read_state -= 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &lsp->wake);
@@ -487,7 +582,8 @@ void cli_lsp_end(const CliLspCtx *args)
 {
     if (!args->lsp->ended && (args->lsp->spawned.process != 0ULL))
     {
-        EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &args->lsp->spawned);
+        // the server heads a group of its own, and the whole group ends, with every process that the server started
+        EMBED_CALL(cli_cols_internal.spawn_group_kill, CliColsCtx, .spawned_read = &args->lsp->spawned);
         (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &args->lsp->spawned);
         args->lsp->ended = 1;
     }
@@ -495,11 +591,11 @@ void cli_lsp_end(const CliLspCtx *args)
 
 void cli_lsp_kill(const CliLspContextCfg *args)
 {
-    // the process ends at once, and the reader then reads the end of its output, as for an end it did not ask for. The
-    // last let-go waits for the process
+    // the server's whole group ends at once. The reader then reads the end of its output, as for an end it did not ask
+    // for. The last let-go waits for the process
     if (!args->lsp->ended && (args->lsp->spawned.process != 0ULL))
     {
-        EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &args->lsp->spawned);
+        EMBED_CALL(cli_cols_internal.spawn_group_kill, CliColsCtx, .spawned_read = &args->lsp->spawned);
     }
 }
 

@@ -58,14 +58,15 @@ void tessera_ledger_close(TesseraLedger *ledger)
     EMBED_CALL(memor.set, MemoriaCfg, .dst = ledger, .bytes = sizeof(*ledger), .val = 0);
 }
 
-void tessera_ledger_device(TesseraLedger *ledger, unsigned long long capacity, unsigned long long in_use)
+void tessera_ledger_device(TesseraLedger *ledger, unsigned int device, unsigned long long capacity,
+                           unsigned long long in_use)
 {
-    tessera_core_device(ledger, capacity, in_use);
+    tessera_core_device(ledger, device, capacity, in_use);
 }
 
-long long tessera_ledger_headroom(const TesseraLedger *ledger)
+long long tessera_ledger_headroom(const TesseraLedger *ledger, unsigned int device)
 {
-    return tessera_core_headroom(ledger);
+    return tessera_core_headroom(ledger, device);
 }
 
 const TesseraJob *tessera_ledger_job(const TesseraLedger *ledger, unsigned long long identity)

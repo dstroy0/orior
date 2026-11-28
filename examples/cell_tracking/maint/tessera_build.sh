@@ -63,6 +63,11 @@ tessera_build()
         "$daemon_directory"/tessera_daemon_{state,admission,peers,main}.c || return 1
     TESSERA_OBJECTS=("${SHARED_OBJECTS[@]:0:5}")
     daemon_objects=("${SHARED_OBJECTS[@]:2}")
+    local listed=("${SHARED_OBJECTS[@]}")
+    # the client starts the system's daemon through the programs of the platform, which it links
+    shared_objects_built words "${PLATFORM_PROGRAMS[@]}" || return 1
+    TESSERA_OBJECTS+=("${SHARED_OBJECTS[@]}")
+    SHARED_OBJECTS=("${listed[@]}")
     # the ledger and the measure of the daemon, which a test of either links by itself
     TESSERA_LEDGER="${SHARED_OBJECTS[5]}"
     TESSERA_MEASURE="${SHARED_OBJECTS[6]}"
@@ -102,8 +107,8 @@ tessera_run_build()
     rm -f "$run"
     local words
     tessera_words words
-    shared_objects_built words "$ENGINE/runtime/daemon"/tessera_run_{common,child,main}.c "${PLATFORM_TESSERA_RUN[@]}" \
-        || return 1
+    shared_objects_built words "$ENGINE/runtime/daemon"/tessera_run_{common,child,main}.c \
+        "${PLATFORM_TESSERA_RUN_OWN[@]}" || return 1
     nvcc "${HOST_FLAGS[@]}" "${FILE_DEFS_LTO_NVCC_LINK[@]}" -rdc=true "${GENCODE[@]}" "${long_paths[@]}" -o "$run" "${SHARED_OBJECTS[@]}" "${TESSERA_OBJECTS[@]}" \
         "${linea_objects[@]}" "${TESSERA_PLATFORM[@]}" "${TESSERA_SEAL[@]}" "${run_libraries[@]}" \
         "${EXACT_TYPES_LIBRARIES[@]}"

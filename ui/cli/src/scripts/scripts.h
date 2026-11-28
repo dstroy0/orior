@@ -35,13 +35,14 @@ extern "C"
 #define CLI_SCRIPTS_SERVER 2u
 
 // The rights of a plugin.json, in the order of the store. The plugin reads the tree's files, writes them, reaches
-// hosts on the network, and keeps secrets in the system's keychain. Then the reader's answer for one right. The window
-// did not ask yet, the reader refused the right, or the reader allowed it
+// hosts on the network, and keeps secrets in the system's keychain. It also asks orior to start programs. Then the
+// reader's answer for one right. The window did not ask yet, the reader refused the right, or the reader allowed it
 #define CLI_SCRIPTS_READS 0u
 #define CLI_SCRIPTS_WRITES 1u
 #define CLI_SCRIPTS_REACHES 2u
 #define CLI_SCRIPTS_SECRETS 3u
-#define CLI_SCRIPTS_RIGHTS 4u
+#define CLI_SCRIPTS_STARTS 4u
+#define CLI_SCRIPTS_RIGHTS 5u
 #define CLI_SCRIPTS_UNASKED 0u
 #define CLI_SCRIPTS_REFUSED 1u
 #define CLI_SCRIPTS_ALLOWED 2u

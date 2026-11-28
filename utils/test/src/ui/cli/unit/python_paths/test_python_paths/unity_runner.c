@@ -87,7 +87,7 @@ int main(void)
   run_test(test_a_tuple_parses_with_its_two_items, "test_a_tuple_parses_with_its_two_items", 125);
   run_test(test_the_parent_of_a_windows_path, "test_the_parent_of_a_windows_path", 136);
   run_test(test_the_parent_of_a_folder_on_a_windows_drive_is_the_drive, "test_the_parent_of_a_folder_on_a_windows_drive_is_the_drive", 141);
-  run_test(test_the_parent_of_a_posix_path, "test_the_parent_of_a_posix_path", 146);
+  run_test(test_the_parent_of_a_posix_path, "test_the_parent_of_a_posix_path", 151);
 
   return UNITY_END();
 }

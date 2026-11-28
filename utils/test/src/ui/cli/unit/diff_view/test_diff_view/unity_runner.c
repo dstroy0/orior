@@ -77,16 +77,12 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("utils/test/src/ui/cli/unit/diff_view/test_diff_view/test_diff_view.c");
-  run_test(test_the_file_against_the_last_commit_positions_a_row_each_line,
-           "test_the_file_against_the_last_commit_positions_a_row_each_line", 161);
+  run_test(test_the_file_against_the_last_commit_positions_a_row_each_line, "test_the_file_against_the_last_commit_positions_a_row_each_line", 161);
   run_test(test_the_steps_wrap_and_follow_the_row_in_view, "test_the_steps_wrap_and_follow_the_row_in_view", 187);
-  run_test(test_a_file_the_last_commit_lacks_puts_every_line_in, "test_a_file_the_last_commit_lacks_puts_every_line_in",
-           204);
+  run_test(test_a_file_the_last_commit_lacks_puts_every_line_in, "test_a_file_the_last_commit_lacks_puts_every_line_in", 204);
   run_test(test_a_file_that_does_not_differ_positions_no_row, "test_a_file_that_does_not_differ_positions_no_row", 216);
-  run_test(test_commits_parents_the_clipboard_and_files_pair_their_texts,
-           "test_commits_parents_the_clipboard_and_files_pair_their_texts", 226);
-  run_test(test_white_space_set_aside_positions_lines_level_and_saves_its_setting,
-           "test_white_space_set_aside_positions_lines_level_and_saves_its_setting", 276);
+  run_test(test_commits_parents_the_clipboard_and_files_pair_their_texts, "test_commits_parents_the_clipboard_and_files_pair_their_texts", 226);
+  run_test(test_white_space_set_aside_positions_lines_level_and_saves_its_setting, "test_white_space_set_aside_positions_lines_level_and_saves_its_setting", 276);
   run_test(test_texts_too_far_apart_answer_their_sentence, "test_texts_too_far_apart_answer_their_sentence", 317);
   run_test(test_no_file_is_refused, "test_no_file_is_refused", 339);
 

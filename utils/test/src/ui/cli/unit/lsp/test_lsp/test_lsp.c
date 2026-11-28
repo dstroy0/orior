@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_lsp.c: a path and its URI name each other, a server that ends is known to have ended with what it had open and why, a request the server sends
 // is answered later while it is received on meanwhile, a request's answer is its message returned, and a message is read by its length into a cell of
-// the owner named. The cases on a live server are ignored on a machine with no Python
+// the owner named. A method outside the server's table does not reach its receiver, its request gets Method not found, and the log holds the drop. The
+// cases on a live server are ignored on a machine with no Python
 #include "ui/cli/src/command_line/pool.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/servers/lsp.h"
@@ -44,6 +45,12 @@ static const char s_are_in[] = "import json, sys\n"
                                  "        send({\"jsonrpc\": \"2.0\", \"method\": \"orior/meanwhile\", \"params\": {}})\n"
                                  "    elif method is None and message.get(\"id\") == 7:\n"
                                  "        sys.stderr.write(\"answered \" + json.dumps(message.get(\"result\")) + \"\\n\")\n"
+                                 "        sys.stderr.flush()\n"
+                                 "    elif method == \"orior/stray\":\n"
+                                 "        send({\"jsonrpc\": \"2.0\", \"id\": 9, \"method\": \"orior/unlisted\", \"params\": {}})\n"
+                                 "        send({\"jsonrpc\": \"2.0\", \"method\": \"orior/listed\", \"params\": {}})\n"
+                                 "    elif method is None and message.get(\"id\") == 9:\n"
+                                 "        sys.stderr.write(\"refused \" + str(message.get(\"error\", {}).get(\"code\")) + \"\\n\")\n"
                                  "        sys.stderr.flush()\n"
                                  "    elif method == \"orior/echo\":\n"
                                  "        send({\"jsonrpc\": \"2.0\", \"id\": message[\"id\"], \"result\": message[\"params\"]})\n"
@@ -102,6 +109,27 @@ static void open_recorded(const CliEachPathTextLengthCfg *args)
     mmgr_line_put_n(out, args->text, args->length);
 }
 
+// the methods that the stand-in server's receiver takes
+static const char *const s_taken[1] = {"orior/listed"};
+
+// the methods that the receiver of the stray case received, each with "|" after it
+static char s_received[256];
+static embed_atomic_usize s_received_size;
+
+// a method that the server sent appended to what the stray case received
+static void method_recorded(const CliLspRecvCfg *args)
+{
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->method, .cap = CLI_LSP_METHOD_LEN});
+    const unsigned long long at = (unsigned long long)EMBED_CALL(embed_atomic_usize_table.load, EmbedAtomicUsizeLoadCfg, .word = &s_received_size);
+    if (at + length + 1ull < sizeof(s_received))
+    {
+        memor.cpy(&(MemoriaCfg){.dst = s_received + at, .src = args->method, .bytes = length});
+        s_received[at + length] = '|';
+        // the size, below the bound of s_received, widened into the atomic word
+        EMBED_CALL(embed_atomic_usize_table.store, EmbedAtomicUsizeStoreCfg, .word = &s_received_size, .value = (embed_atomic_usize_value)(at + length + 1ull));
+    }
+}
+
 // the stand-in server started in a folder of its own, its request callback `on_request`: NULL where it did not start; the case ignored with no Python
 static CliLsp *server_started(const char *name, void (*on_request)(const CliLspRecvCfg *args), void *context, char *dir)
 {
@@ -117,7 +145,7 @@ static CliLsp *server_started(const char *name, void (*on_request)(const CliLspR
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = dir, .relative = "are_in.py", .joined = script);
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = script, .bytes = s_are_in, .size = sizeof(s_are_in) - 1u));
     const char *const args[1] = {script};
-    return EMBED_CALL(cli_lsp_err_msg.start, CliLspErrMsgCfg, .program = python, .request = args, .count = 1u, .root = dir, .options = "null", .length = 4ull, .settings = NULL, .setting_count = 0u, .recv = on_request, .context = context, .err_msg = &err_msg);
+    return EMBED_CALL(cli_lsp_err_msg.start, CliLspErrMsgCfg, .program = python, .request = args, .count = 1u, .root = dir, .options = "null", .length = 4ull, .settings = NULL, .setting_count = 0u, .recv = on_request, .context = context, .methods = s_taken, .method_count = 1u, .err_msg = &err_msg);
 }
 
 // a server opened a file and was requested to end, and what it left recorded, once for the process
@@ -302,17 +330,96 @@ void test_a_message_is_read_by_its_length_and_the_next_after_it(void)
     static CliLspReader s_reader;
     char body[256];
     unsigned long long size = 0ull;
+    char why[256];
+    VerbaLinea refusal = {why, sizeof(why), 0ull};
     s_reader.read = source_read;
     s_reader.source = &s_source;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_lsp_reader.read_message, CliLspReaderCfg, .reader = &s_reader, .body_out = body, .capacity = sizeof(body), .size = &size));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_lsp_reader.read_message, CliLspReaderCfg, .reader = &s_reader, .body_out = body, .capacity = sizeof(body), .size = &size, .err_msg = &refusal));
     unsigned int root = CLI_JSON_NONE;
     const CliJson *const json = cli_unity_parsed(body, size, &root);
     const unsigned int number = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = root, .name = "result"), .name = "x");
     TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_type.json_is, CliJsonTreeNodeTypeCfg, .json_read = json, .node = number, .type = CFG_JSON_NUMBER));
     TEST_ASSERT_EQUAL_CHAR('1', json->text[json->node[number].text]);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_lsp_reader.read_message, CliLspReaderCfg, .reader = &s_reader, .body_out = body, .capacity = sizeof(body), .size = &size));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_lsp_reader.read_message, CliLspReaderCfg, .reader = &s_reader, .body_out = body, .capacity = sizeof(body), .size = &size, .err_msg = &refusal));
     CLI_TEST_ASSERT_TEXT("{}", body, size);
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_lsp_reader.read_message, CliLspReaderCfg, .reader = &s_reader, .body_out = body, .capacity = sizeof(body), .size = &size));
+    // the source's end is no refusal, and gives no reason
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_lsp_reader.read_message, CliLspReaderCfg, .reader = &s_reader, .body_out = body, .capacity = sizeof(body), .size = &size, .err_msg = &refusal));
+    TEST_ASSERT_EQUAL_UINT64(0ull, refusal.at);
+}
+
+// The read of one framed message from `framed`: 0 and the reason that the read gives, into `why`
+static int message_refused(const char *framed, unsigned long long capacity, char *why, unsigned long long why_size)
+{
+    static LspSource s_source;
+    static CliLspReader s_reader;
+    s_source = (LspSource){framed, cellul.len(&(CatenaFinitaCfg){.src = framed, .cap = CLI_POOL_BYTES}), 0ull};
+    s_reader = (CliLspReader){0};
+    s_reader.read = source_read;
+    s_reader.source = &s_source;
+    char body[256];
+    unsigned long long size = 0ull;
+    VerbaLinea refusal = {why, why_size, 0ull};
+    const int read = EMBED_CALL(cli_lsp_reader.read_message, CliLspReaderCfg, .reader = &s_reader, .body_out = body, .capacity = capacity, .size = &size, .err_msg = &refusal);
+    (void)mmgr_line_finish(&refusal);
+    return !read && (refusal.at != 0ull);
+}
+
+void test_a_message_past_its_bound_is_refused_with_its_size_before_a_byte_of_it_is_read(void)
+{
+    char why[256];
+    TEST_ASSERT_TRUE(message_refused("Content-Length: 300\r\n\r\n{}", 256ull, why, sizeof(why)));
+    CLI_TEST_ASSERT_CONTAINS("300 bytes", why);
+    TEST_ASSERT_TRUE(message_refused("Content-Length: 99999999999\r\n\r\n{}", 256ull, why, sizeof(why)));
+    CLI_TEST_ASSERT_CONTAINS("99999999999 bytes", why);
+}
+
+void test_a_head_with_no_length_or_a_body_that_is_not_json_is_refused(void)
+{
+    char why[256];
+    TEST_ASSERT_TRUE(message_refused("Content-Type: application/json\r\n\r\n{}", 256ull, why, sizeof(why)));
+    CLI_TEST_ASSERT_CONTAINS("no Content-Length", why);
+    TEST_ASSERT_TRUE(message_refused("Content-Length: 3\r\n\r\n{x}", 256ull, why, sizeof(why)));
+    CLI_TEST_ASSERT_CONTAINS("not JSON whole", why);
+}
+
+void test_a_method_outside_the_servers_table_is_dropped_logged_and_refused_as_method_not_found(void)
+{
+    char home[CLI_PATH_MAX_LEN];
+    char dir[CLI_PATH_MAX_LEN];
+    char log_path[CLI_PATH_MAX_LEN];
+    char why[1024];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_unity_folder("lsp_stray_home", home);
+    TEST_ASSERT_TRUE(EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home));
+    EMBED_CALL(embed_atomic_usize_table.store, EmbedAtomicUsizeStoreCfg, .word = &s_received_size, .value = 0u);
+    CliLsp *const server = server_started("lsp_stray", method_recorded, NULL, dir);
+    TEST_ASSERT_NOT_NULL(server);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_lsp_err_msg_length.notify, CliLspErrMsgLengthCfg, .lsp = server, .method = "orior/stray", .params = "null", .length = 4ull, .err_msg = &err_msg));
+    char complaint_text[CLI_LSP_COMPLAINT * 2u];
+    VerbaLinea complaint = {complaint_text, sizeof(complaint_text), 0ull};
+    const unsigned long long until = cli_clock_milliseconds() + 5000ull;
+    int refused = 0;
+    int listed = 0;
+    while ((!refused || !listed) && (cli_clock_milliseconds() < until))
+    {
+        EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 20u);
+        complaint.at = 0ull;
+        EMBED_CALL(cli_lsp_path_out.complaint, CliLspPathOutCfg, .lsp = server, .out = &complaint);
+        (void)mmgr_line_finish(&complaint);
+        refused = cellul.find(&(CatenaFinitaCfg){.src = complaint_text, .cap = complaint.at, .other = "refused", .other_cap = CLI_POOL_BYTES}) != NULL;
+        listed = EMBED_CALL(embed_atomic_usize_table.load, EmbedAtomicUsizeLoadCfg, .word = &s_received_size) != 0u;
+    }
+    EMBED_CALL(cli_lsp_context.stop, CliLspContextCfg, .lsp = server);
+    EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
+    CLI_TEST_ASSERT_CONTAINS("refused -32601", complaint_text);
+    CLI_TEST_ASSERT_TEXT("orior/listed|", s_received, EMBED_CALL(embed_atomic_usize_table.load, EmbedAtomicUsizeLoadCfg, .word = &s_received_size));
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = home, .relative = "confinement.jsonl", .joined = log_path);
+    char logged[1024];
+    const unsigned long long size = qry_member_file_read(log_path, (unsigned char *)logged, sizeof(logged) - 1u);
+    TEST_ASSERT_TRUE(size != QRY_MEMBER_UNREAD);
+    logged[size] = '\0';
+    CLI_TEST_ASSERT_CONTAINS("\"event\":\"dropped\"", logged);
+    CLI_TEST_ASSERT_CONTAINS("\"detail\":\"orior/unlisted\"", logged);
 }
 
 void test_a_message_read_into_a_cell_counts_to_the_owner_named_and_no_other(void)
@@ -325,7 +432,9 @@ void test_a_message_read_into_a_cell_counts_to_the_owner_named_and_no_other(void
     const unsigned long long debug_before = mmgr_owner_in_use(g_cli_debug_owner);
     const unsigned long long servers_before = mmgr_owner_in_use(g_cli_servers_owner);
     unsigned long long size = 0ull;
-    char *const message = EMBED_CALL(cli_lsp_reader_size.message_alloc, CliLspReaderSizeCfg, .reader = &s_reader, .size = &size, .owner = g_cli_debug_owner);
+    char why[256];
+    VerbaLinea refusal = {why, sizeof(why), 0ull};
+    char *const message = EMBED_CALL(cli_lsp_reader_size.message_alloc, CliLspReaderSizeCfg, .reader = &s_reader, .size = &size, .owner = g_cli_debug_owner, .err_msg = &refusal);
     TEST_ASSERT_NOT_NULL(message);
     CLI_TEST_ASSERT_TEXT("{}", message, size);
     TEST_ASSERT_EQUAL_CHAR('\0', message[size]);

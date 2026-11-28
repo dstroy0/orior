@@ -207,9 +207,11 @@ static void dap_read(void *context)
     unsigned long long refused = CLI_DAP_REFUSED;
     unsigned long long size = 0ULL;
     char *message = NULL;
+    char refusal[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea refusal_line = {refusal, sizeof(refusal), 0ULL};
     // each message read into a cell of its length, given back here unless it went with an answer
     while ((message = EMBED_CALL(cli_lsp_reader_size.message_alloc, CliLspReaderSizeCfg, .reader = &dap->reader,
-                                 .size = &size, .owner = g_cli_debug_owner)) != NULL)
+                                 .size = &size, .owner = g_cli_debug_owner, .err_msg = &refusal_line)) != NULL)
     {
         int transferred = 0;
         char type[32];
@@ -246,14 +248,20 @@ static void dap_read(void *context)
             g_platform_guard->persistent_buf_release(message, g_cli_debug_owner);
         }
     }
+    // a refused message ends the adapter's whole group at once, and its reason goes to every request that still waits
+    (void)mmgr_line_finish(&refusal_line);
+    const int was_refused = refusal_line.at != 0ULL;
+    if (was_refused && (dap->spawned.process != 0ULL))
+    {
+        EMBED_CALL(cli_cols_internal.spawn_group_kill, CliColsCtx, .spawned_read = &dap->spawned);
+    }
     for (unsigned int at = 0u; at < CLI_DAP_WAITERS; at += 1u)
     {
         if (dap->waiters[at].waiting && !dap->waiters[at].answered)
         {
-            memor.cpy(&(MemoriaCfg){
-                .dst = dap->waiters[at].error,
-                .src = "the adapter stopped",
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = "the adapter stopped", .cap = CLI_POOL_BYTES}) + 1u});
+            (void)cellul.copy(&(CatenaFinitaCfg){.dst = dap->waiters[at].error,
+                                                 .src = was_refused ? refusal : "the adapter stopped",
+                                                 .cap = sizeof(dap->waiters[at].error)});
             dap->waiters[at].answered = 1;
         }
     }
@@ -460,7 +468,7 @@ void cli_dap_end(const CliDapCtx *args)
     }
     if ((args->dap->type == CLI_DAP_PROGRAM) && !args->dap->ended && (args->dap->spawned.process != 0ULL))
     {
-        EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &args->dap->spawned);
+        EMBED_CALL(cli_cols_internal.spawn_group_kill, CliColsCtx, .spawned_read = &args->dap->spawned);
         (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &args->dap->spawned);
         args->dap->ended = 1;
     }

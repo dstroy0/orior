@@ -351,6 +351,11 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args);
 // what a server sends unprompted, its context where it goes: a file's diagnostics, an edit to make, the settings it
 // requests, and the hints and tokens to request again (servers_recv.c)
 void cli_servers_recv(const CliLspRecvCfg *args);
+// The methods that cli_servers_recv takes, CLI_SERVERS_METHODS of them. They are the five that it acts on and the two
+// of the capability window.workDoneProgress. The last two are the notifications of the window that the protocol grants
+// each server
+#define CLI_SERVERS_METHODS 9u
+extern const char *const g_cli_servers_methods[CLI_SERVERS_METHODS];
 // a server stopped on a thread of its own, its reference given back, or here where no thread is free
 // (servers_running.c)
 void cli_servers_stop_later(const CliServersPathLspCtx *args);

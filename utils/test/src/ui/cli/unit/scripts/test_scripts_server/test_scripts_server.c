@@ -1,17 +1,19 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_scripts_server.c: the language server of a script plugin, with a plugin and a server of the test's own in a
-// fresh ORIOR_HOME. The server is a short Node program that answers its requests with their params. A ping makes it
-// ask the client a question, and it then reports the answer that it got. The plugin starts the server and sends it a
-// request, and the request's answer comes back. The plugin's handler answers the server's question, and the server
-// reports that answer to the plugin
+// fresh ORIOR_HOME. The server is a short Node program. Its echo/params request has its params as its result. Its
+// echo/request_client notification makes it send the client the request echo/client_request, and it then sends the
+// result that it got in the notification echo/result. The plugin starts the server and sends it a request, and the
+// request's result comes back. The plugin's handler gives echo/client_request its result, and the plugin keeps what
+// echo/result carries
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/plugins/plugins.h"
 #include "ui/cli/src/programs/executables.h"
 #include "ui/cli/src/scripts/scripts.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the server: the protocol's frames read from its input, and each message answered as the head of this file says
+// the server: it reads the protocol's frames from its input, and it sends each response and notification that the head
+// of this file gives
 static const char s_server[] =
     "let held = Buffer.alloc(0); let next = 1000;\n"
     "const send = (m) => { const b = Buffer.from(JSON.stringify(m));\n"
@@ -20,11 +22,11 @@ static const char s_server[] =
     "  if (m.method === 'initialize') { send({ jsonrpc: '2.0', id: m.id, result: { capabilities: {} } }); }\n"
     "  else if (m.method === 'shutdown') { send({ jsonrpc: '2.0', id: m.id, result: null }); }\n"
     "  else if (m.method === 'exit') { process.exit(0); }\n"
-    "  else if (m.method === 'echo/ask') { send({ jsonrpc: '2.0', id: m.id, result: m.params }); }\n"
-    "  else if (m.method === 'echo/ping') {\n"
-    "    send({ jsonrpc: '2.0', id: next++, method: 'echo/question', params: { asked: m.params } }); }\n"
+    "  else if (m.method === 'echo/params') { send({ jsonrpc: '2.0', id: m.id, result: m.params }); }\n"
+    "  else if (m.method === 'echo/request_client') {\n"
+    "    send({ jsonrpc: '2.0', id: next++, method: 'echo/client_request', params: { value: m.params } }); }\n"
     "  else if ((m.id !== undefined) && (m.method === undefined)) {\n"
-    "    send({ jsonrpc: '2.0', method: 'echo/told', params: m.result }); }\n"
+    "    send({ jsonrpc: '2.0', method: 'echo/result', params: m.result }); }\n"
     "};\n"
     "process.stdin.on('data', (piece) => { held = Buffer.concat([held, piece]);\n"
     "  for (;;) { const head = held.indexOf('\\r\\n\\r\\n'); if (head < 0) { return; }\n"
@@ -32,15 +34,17 @@ static const char s_server[] =
     "    if (held.length < head + 4 + length) { return; }\n"
     "    const body = held.slice(head + 4, head + 4 + length).toString(); held = held.slice(head + 4 + length);\n"
     "    got(JSON.parse(body)); } });\n";
-// the plugin: its server started, a request, a ping, the answer that the server reported, and the server stopped
+// the plugin: its server started, a request, a notification, the result that echo/result carried, and the server
+// stopped
 static const char s_code[] =
-    "let told = null;\n"
-    "orior.server.on('echo/question', (params) => ({ answered: params.asked }));\n"
-    "orior.server.on('echo/told', (params) => { told = params; return null; });\n"
+    "let result = null;\n"
+    "orior.server.on('echo/client_request', (params) => ({ value: params.value }));\n"
+    "orior.server.on('echo/result', (params) => { result = params; return null; });\n"
     "orior.commands.on('start', async () => { await orior.server.start({ option: 1 }, []); return 'started'; });\n"
-    "orior.commands.on('ask', (value) => orior.server.request('echo/ask', value));\n"
-    "orior.commands.on('ping', async (value) => { await orior.server.notify('echo/ping', value); return 'sent'; });\n"
-    "orior.commands.on('told', () => told);\n"
+    "orior.commands.on('params', (value) => orior.server.request('echo/params', value));\n"
+    "orior.commands.on('request_client', async (value) => {\n"
+    "  await orior.server.notify('echo/request_client', value); return 'notified'; });\n"
+    "orior.commands.on('result', () => result);\n"
     "orior.commands.on('stop', async () => { await orior.server.stop(); return 'stopped'; });\n";
 static int s_written;
 static char s_answer[4096];
@@ -95,28 +99,29 @@ static void echoer_written(void)
     mmgr_line_put(&manifest, ", \"args\": [");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &manifest,
                .text_bytes = (const unsigned char *)server, .length = CLI_UNITY_LENGTH(server));
-    mmgr_line_put(&manifest, "], \"languages\": [\"plaintext\"]}}");
+    mmgr_line_put(&manifest,
+                  "], \"languages\": [\"plaintext\"], \"methods\": [\"echo/client_request\", \"echo/result\"]}}");
     TEST_ASSERT_TRUE(mmgr_line_finish(&manifest) != 0ULL);
     file_written(home, "plugins/echoer/plugin.json", s_manifest);
     file_written(home, "plugins/echoer/plugin.js", s_code);
-    // the test tells the plugins module of the change, as the folder watch tells it in the window
+    // the test calls the plugins module's change handler, as the folder watch calls it in the window
     cli_plugins_languages_changed();
     EMBED_CALL(cli_scripts_tree.set_tree, CliScriptsTreeCfg, .root = tree);
     s_written = 1;
 }
 
-// the command `name` asked of the plugin with the JSON `value`: 1 with its answer in s_answer, or 0 with why in s_why
-static int echoer_asked(const char *name, const char *value)
+// the plugin's command `name` run with the JSON `value`: 1 with its result in s_answer, or 0 with the error in s_why
+static int echoer_command_run(const char *name, const char *value)
 {
     echoer_written();
     VerbaLinea answer = {s_answer, sizeof(s_answer), 0ULL};
     VerbaLinea why = {s_why, sizeof(s_why), 0ULL};
-    const int asked =
+    const int ran =
         EMBED_CALL(cli_scripts.ask, CliScriptsCfg, .id = "echoer", .source = CLI_SCRIPTS_COMMAND, .name = name,
                    .value = value, .length = CLI_UNITY_LENGTH(value), .answer = &answer, .err_msg = &why);
     (void)mmgr_line_finish(&answer);
     (void)mmgr_line_finish(&why);
-    return asked;
+    return ran;
 }
 
 void setUp(void)
@@ -128,35 +133,35 @@ void tearDown(void)
 {
 }
 
-void test_a_request_to_the_plugins_server_answers_with_its_result(void)
+void test_a_request_to_the_plugins_server_gets_a_response_with_its_result(void)
 {
-    TEST_ASSERT_TRUE_MESSAGE(echoer_asked("start", "null"), s_why);
+    TEST_ASSERT_TRUE_MESSAGE(echoer_command_run("start", "null"), s_why);
     TEST_ASSERT_EQUAL_STRING("\"started\"", s_answer);
-    TEST_ASSERT_TRUE_MESSAGE(echoer_asked("ask", "{\"x\":1}"), s_why);
+    TEST_ASSERT_TRUE_MESSAGE(echoer_command_run("params", "{\"x\":1}"), s_why);
     TEST_ASSERT_EQUAL_STRING("{\"x\":1}", s_answer);
 }
 
-void test_the_plugin_answers_a_request_of_its_server(void)
+void test_the_plugin_sends_the_response_to_a_request_of_its_server(void)
 {
-    TEST_ASSERT_TRUE_MESSAGE(echoer_asked("start", "null"), s_why);
-    TEST_ASSERT_TRUE_MESSAGE(echoer_asked("ping", "7"), s_why);
-    TEST_ASSERT_EQUAL_STRING("\"sent\"", s_answer);
+    TEST_ASSERT_TRUE_MESSAGE(echoer_command_run("start", "null"), s_why);
+    TEST_ASSERT_TRUE_MESSAGE(echoer_command_run("request_client", "7"), s_why);
+    TEST_ASSERT_EQUAL_STRING("\"notified\"", s_answer);
     unsigned int tries = 0u;
-    int told = 0;
-    while (!told && (tries < 100u))
+    int received = 0;
+    while (!received && (tries < 100u))
     {
-        TEST_ASSERT_TRUE_MESSAGE(echoer_asked("told", "null"), s_why);
-        told = cellul.eq(&(CatenaFinitaCfg){.src = s_answer, .other = "{\"answered\":7}", .cap = sizeof(s_answer)});
-        EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = told ? 0u : 50u);
+        TEST_ASSERT_TRUE_MESSAGE(echoer_command_run("result", "null"), s_why);
+        received = cellul.eq(&(CatenaFinitaCfg){.src = s_answer, .other = "{\"value\":7}", .cap = sizeof(s_answer)});
+        EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = received ? 0u : 50u);
         tries += 1u;
     }
-    TEST_ASSERT_EQUAL_STRING("{\"answered\":7}", s_answer);
+    TEST_ASSERT_EQUAL_STRING("{\"value\":7}", s_answer);
 }
 
 void test_a_stop_ends_the_plugins_server(void)
 {
-    TEST_ASSERT_TRUE_MESSAGE(echoer_asked("start", "null"), s_why);
-    TEST_ASSERT_TRUE_MESSAGE(echoer_asked("stop", "null"), s_why);
+    TEST_ASSERT_TRUE_MESSAGE(echoer_command_run("start", "null"), s_why);
+    TEST_ASSERT_TRUE_MESSAGE(echoer_command_run("stop", "null"), s_why);
     TEST_ASSERT_EQUAL_STRING("\"stopped\"", s_answer);
-    TEST_ASSERT_FALSE(echoer_asked("ask", "{\"x\":2}"));
+    TEST_ASSERT_FALSE(echoer_command_run("params", "{\"x\":2}"));
 }

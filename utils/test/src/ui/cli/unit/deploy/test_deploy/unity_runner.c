@@ -102,13 +102,13 @@ int main(void)
   run_test(test_a_position_on_a_machine_is_not_local, "test_a_position_on_a_machine_is_not_local", 148);
   run_test(test_a_position_in_a_container_is_not_local, "test_a_position_in_a_container_is_not_local", 153);
   run_test(test_a_folder_is_a_local_position, "test_a_folder_is_a_local_position", 158);
-  run_test(test_a_folder_under_the_tree_is_a_local_position, "test_a_folder_under_the_tree_is_a_local_position", 163);
-  run_test(test_a_files_header_names_it_and_its_mode, "test_a_files_header_names_it_and_its_mode", 168);
-  run_test(test_a_files_bytes_follow_its_header, "test_a_files_bytes_follow_its_header", 175);
-  run_test(test_a_long_name_goes_in_a_pax_header, "test_a_long_name_goes_in_a_pax_header", 181);
-  run_test(test_a_tar_stream_is_complete_blocks, "test_a_tar_stream_is_complete_blocks", 198);
-  run_test(test_a_difference_shows_the_removed_and_added_lines, "test_a_difference_shows_the_removed_and_added_lines", 203);
-  run_test(test_a_jobs_do_names_its_act_and_an_unknown_word_names_none, "test_a_jobs_do_names_its_act_and_an_unknown_word_names_none", 212);
+  run_test(test_a_folder_under_the_tree_is_a_local_position, "test_a_folder_under_the_tree_is_a_local_position", 168);
+  run_test(test_a_files_header_names_it_and_its_mode, "test_a_files_header_names_it_and_its_mode", 173);
+  run_test(test_a_files_bytes_follow_its_header, "test_a_files_bytes_follow_its_header", 180);
+  run_test(test_a_long_name_goes_in_a_pax_header, "test_a_long_name_goes_in_a_pax_header", 186);
+  run_test(test_a_tar_stream_is_complete_blocks, "test_a_tar_stream_is_complete_blocks", 203);
+  run_test(test_a_difference_shows_the_removed_and_added_lines, "test_a_difference_shows_the_removed_and_added_lines", 208);
+  run_test(test_a_jobs_do_names_its_act_and_an_unknown_word_names_none, "test_a_jobs_do_names_its_act_and_an_unknown_word_names_none", 217);
 
   return UNITY_END();
 }
