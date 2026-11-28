@@ -43,7 +43,7 @@ static_assert((NOISE_FLICKER_CELLS * sizeof(unsigned long long)) <= 49152u,
 // the widest squared difference less its neighbor's: each frame difference lies in [-65535, 65535]
 #define NOISE_WIDEST_SQUARE (131070ULL * 131070ULL)
 
-// the lane's top: a value past it was clamped there
+// the top of the lane. The program clamped a value past it to it
 #define NOISE_LANE_TOP 65535u
 
 #define NOISE_VALUES 65536u
@@ -97,9 +97,10 @@ typedef struct
 
 #define NOISE_LINE_CELLS (NOISE_LINE_TYPES * NOISE_LEVEL_BINS)
 
-// One frame pair's z plane: its frame differences summed and their squares summed, the squares of its row sums (along
-// x) and of its column sums (along y) each summed, and its values summed, which is its level; then its static voxels'
-// count, their frame differences summed and squared, and their values summed, which is their level
+// The z plane of one frame pair. It has its frame differences summed, and their squares summed. It has the squares of
+// its row sums (along x) and of its column sums (along y), each summed. It has its values summed, which is its level.
+// Then it has the count of its static voxels, their frame differences summed and squared, and their values summed,
+// which is their level
 typedef struct
 {
     long long summed;
@@ -113,11 +114,12 @@ typedef struct
     unsigned long long static_level;
 } NoisePlane;
 
-// A sample's planes pooled as the two-way layout each plane is, rows by columns (noise_vector_integration_table.md,
-// rows 8 to 10). With N voxels a plane, H rows and W columns, a plane's sum P, its squares summed Q, and its row and
-// column sums squared and summed A and B, each plane adds N Q - P^2 to spread, H A - P^2 to rows, W B - P^2 to columns
-// and P^2 to plane_squares. Independent noise summing to sums over a plane gives spread - rows - columns its
-// expectation (H - 1)(W - 1) sums, whatever the rows, the columns and the plane share.
+// The planes of a sample, pooled as the two-way layout that each plane is, rows by columns
+// (noise_vector_integration_table.md, rows 8 to 10). A plane has N voxels, H rows and W columns. Its sum is P, its
+// squares summed are Q, and its row and column sums, squared and summed, are A and B. Each plane adds `N Q - P^2` to
+// spread, `H A - P^2` to rows, `W B - P^2` to columns, and `P^2` to plane_squares. Independent noise that sums to sums
+// over a plane gives `spread - rows - columns` its expectation, `(H - 1)(W - 1)` sums. That is true whatever the rows,
+// the columns and the plane share.
 typedef struct
 {
     unsigned long long planes;
@@ -129,12 +131,14 @@ typedef struct
     OriorExactInteger plane_squares;
 } NoisePlanePool;
 
-// A sample's static voxels as an unbalanced layout, each line containing only its static members. For a line of n of
-// them with frame differences summed to R and squared to S, E[R^2 - S] = (n^2 - n)(var_row + var_plane) along a row
-// and (n^2 - n)(var_column + var_plane) along a column. A plane's static sum P over N members, squared to Q, gives
-// E[P^2 - Q] = K_row var_row + K_column var_column + (N^2 - N) var_plane, K summing n^2 - n over its rows or columns.
-// Pooled here: the ceiling (the highest voxel mean retained), the members M and their squares T, each type's n^2 - n
-// summed, and each type's squared sums summed.
+// The static voxels of a sample as an unbalanced layout, each line with only its static members. Take a line of n of
+// them, with frame differences summed to R and squared to S. Then `E[R^2 - S] = (n^2 - n)(var_row + var_plane)` along
+// a row, and `(n^2 - n)(var_column + var_plane)` along a column. The static sum P of a plane over N members, squared to
+// Q, gives `E[P^2 - Q] = K_row var_row + K_column var_column + (N^2 - N) var_plane`. K sums `n^2 - n` over its rows or
+// columns.
+//
+// Pooled here are the ceiling (the highest voxel mean kept), and the members M and their squares T. Then the `n^2 - n`
+// of each type summed, and its squared sums summed.
 typedef struct
 {
     unsigned long long ceiling;
@@ -157,11 +161,12 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
 
 void noise_exact_wide(OriorExactInteger *value, const NoiseWide *wide);
 
-// The pooled planes as three ratios against the independent part s, the variance of one voxel's frame difference
-// that nothing shares: rows 1 + W var_row / s, columns 1 + H var_col / s and the plane 1 + N var_plane / s, per mille,
-// each 1000 where nothing is shared; then s itself in lane units squared, rounded toward zero. With D = spread - rows -
-// columns, the row ratio is rows (W - 1) / D, the column ratio columns (H - 1) / D, and the plane ratio
-// (plane_squares (H - 1)(W - 1) - rows (W - 1) - columns (H - 1) + 2 D) / D.
+// The pooled planes as three ratios against the independent part s, the variance of the frame difference of one voxel
+// that nothing shares. They are rows `1 + W var_row / s`, columns `1 + H var_col / s` and the plane
+// `1 + N var_plane / s`, per mille, each 1000 where nothing shares. Then comes s itself in lane units squared, rounded
+// toward zero. With `D = spread - rows - columns`, the row ratio is `rows (W - 1) / D`, and the column ratio is
+// `columns (H - 1) / D`. The plane ratio is
+// `(plane_squares (H - 1)(W - 1) - rows (W - 1) - columns (H - 1) + 2 D) / D`.
 #define NOISE_TWO_WAY_READINGS 4u
 
 static_assert(
@@ -198,7 +203,8 @@ int noise_neighbors_per_mille(const unsigned long long cell[NOISE_NEIGHBORS_SUMS
 
 #define NOISE_SPIKE_CELLS (NOISE_LEVEL_BINS * NOISE_SPIKE_SUMS)
 
-// values below this are counted in the block's shared memory first; the rest go to the sample's counts directly
+// the program counts values below this in the shared memory of the block first. The rest go to the counts of the
+// sample directly
 #define NOISE_SHARED_VALUES 8192u
 
 static_assert(((NOISE_SPIKE_CELLS * sizeof(unsigned long long)) + (NOISE_SHARED_VALUES * sizeof(unsigned int))) <=
@@ -238,27 +244,29 @@ int noise_clips_rows(PlatformFile *const tables[NOISE_CLIPS_TABLES], const char 
 int noise_table_open(const char *set, const char *file, const char *header, char path[ENGINE_PATH_CAPACITY],
                      PlatformFile **table, EngineError *error);
 
-// The moment pass reads each voxel's frames in blocks of this many, each block about its own mean rounded. A level
-// that moves over the frames then adds to a block only what it moves within one: the set's static level moves at max
-// about one lane unit a frame, which adds about 2 lane units squared to a block's variance, under 2% of the shot's
-// there, and nothing to its third cumulant.
+// The moment pass reads the frames of each voxel in blocks of this many, each block about its own mean rounded. A
+// level that moves over the frames then adds to a block only what it moves within one. The static level of the set
+// moves at max about one lane unit for each frame. That adds about 2 lane units squared to the variance of a block,
+// under 2% of that of the shot there, and nothing to its third cumulant.
 #define NOISE_MOMENT_BLOCK 5ULL
 
-// a block's values stay within this many lane units of its rounded mean, or the block is left out and counted
+// the values of a block stay within this many lane units of its rounded mean. Else the program leaves the block out,
+// and counts it
 #define NOISE_MOMENT_RANGE 255ULL
 
 #define NOISE_MOMENT_POWERS 4u
 
 #define NOISE_SIGNED_TOP 0x7FFFFFFFFFFFFFFFULL
 
-// One level bin of the moment pass, over its blocks: their count, their values summed, and S1, S1^2, S1^3, S1^4, S2,
-// S1 S2, S1^2 S2, S3, S1 S3 and S4 summed, S2^2 summed 128 bits wide, S1 to S4 being a block's values less its mean
-// rounded raised to the powers 1 to 4 and summed. With n frames a block and V blocks the k-statistics, each the mean
-// over the blocks of that block's unbiased estimate, are
-//   k2 = (n sumS2 - sumS1^2) / (V n (n - 1))
-//   k3 = (2 sumS1^3 - 3 n sumS1 S2 + n^2 sumS3) / (V n (n - 1)(n - 2))
-//   k4 = (n^2 (n + 1) sumS4 - 4 n (n + 1) sumS1 S3 - 3 n (n - 1) sumS2^2 + 12 n sumS1^2 S2 - 6 sumS1^4)
-//        / (V n (n - 1)(n - 2)(n - 3))
+// One level bin of the moment pass, over its blocks. It has their count, their values summed, and these sums: S1,
+// `S1^2`, `S1^3`, `S1^4`, S2, `S1 S2`, `S1^2 S2`, S3, `S1 S3` and S4. It has `S2^2` summed 128 bits wide. S1 to S4 are
+// the values of a block less its rounded mean, raised to the powers 1 to 4 and summed. Take n frames to a block and V
+// blocks. Then the k-statistics, each the mean over the blocks of the unbiased estimate of that block, are
+//
+//     `k2 = (n sumS2 - sumS1^2) / (V n (n - 1))`
+//     `k3 = (2 sumS1^3 - 3 n sumS1 S2 + n^2 sumS3) / (V n (n - 1)(n - 2))`
+//     `k4 = (n^2 (n + 1) sumS4 - 4 n (n + 1) sumS1 S3 - 3 n (n - 1) sumS2^2 + 12 n sumS1^2 S2 - 6 sumS1^4)`
+//          `/ (V n (n - 1)(n - 2)(n - 3))`
 typedef struct
 {
     unsigned long long blocks;
@@ -294,11 +302,11 @@ void noise_signed_wide_add(NoiseSignedWide *sum, unsigned long long place, long 
 
 int noise_exact_signed_wide(OriorExactInteger *value, const NoiseSignedWide *wide);
 
-// The ladder's sums over the retained blocks: a block's place x is its voxel's frames summed over the voxel's other
-// whole blocks, and its measurements e2, e3 and e4 are its k-statistics' numerators, each k_j being e_j over n (n - 1)
-// down to n - j + 1 (the formulas at NoiseMomentCell, with V = 1). By the bounds noise_ladder_sample enforces, x is
-// below 2^32, every |e_j| below 2^46 and the blocks below 2^31. Sum x^2 stays below 2^95 and every sum x e_j below
-// 2^109.
+// The sums of the ladder over the kept blocks. The place x of a block is the frames of its voxel, summed over the other
+// whole blocks of the voxel. Its measurements e2, e3 and e4 are the numerators of its k-statistics. Each `k_j` is `e_j`
+// over `n (n - 1)` down to `n - j + 1` (the formulas at NoiseMomentCell, with `V = 1`). By the bounds that
+// noise_ladder_sample enforces, x is below `2^32`, every `|e_j|` below `2^46`, and the blocks below `2^31`. The sum of
+// `x^2` stays below `2^95`, and every sum of `x e_j` below `2^109`.
 typedef struct
 {
     unsigned long long blocks;
@@ -316,8 +324,8 @@ typedef struct
 // the structure pass's level bins: the pair's mean level over the frames, in bins of 8, over the summary's 40 to 199
 #define NOISE_STRUCTURE_BINS (NOISE_SUMMARY_LAST_BIN - NOISE_SUMMARY_FIRST_BIN + 1u)
 
-// the words each lag and bin contains: the pairs, then the sums of M, M^2, q, q^2, M q, y, M y and q y, each 128 bits
-// as its low word then its high word
+// the words that each lag and bin holds: the pairs, then the sums of M, `M^2`, q, `q^2`, `M q`, y, `M y` and `q y`.
+// Each is 128 bits, as its low word then its high word
 #define NOISE_STRUCTURE_PAIRS 0u
 
 #define NOISE_STRUCTURE_LEVEL 1u
@@ -346,8 +354,9 @@ typedef struct
 static_assert((NOISE_STRUCTURE_CELLS * sizeof(unsigned long long)) <= 49152u,
               "noise_detector: the structure sums fit one block's shared memory");
 
-// A 128 bit sum stored at cell[0] (its low word) and cell[1] (its high word) gains high 2^64 + low. The low word's
-// carry is read from the value the atomic add found there. Each carry is counted once, whatever the order.
+// A 128 bit sum stored at `cell[0]` (its low word) and `cell[1]` (its high word) gains `high 2^64 + low`. The call
+// reads the carry of the low word from the value that the atomic add found there. It counts each carry once, whatever
+// the order.
 __device__ static inline void noise_wide_atomic_add(unsigned long long *cell, unsigned long long low,
                                                     unsigned long long high)
 {
