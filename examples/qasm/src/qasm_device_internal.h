@@ -15,7 +15,6 @@
 
 #include <cuda_runtime.h>
 
-#include <chrono>
 #include <stdio.h>
 #include <stdlib.h>
 

@@ -34,7 +34,6 @@
 
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
-#include <chrono>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -97,10 +96,7 @@ static int s_confirming = 0;
 
 static unsigned long long knee_now_microseconds(void)
 {
-    // a steady clock's count is non-negative and re-signs exactly
-    return (unsigned long long)std::chrono::duration_cast<std::chrono::microseconds>(
-               std::chrono::steady_clock::now().time_since_epoch())
-        .count();
+    return platform_clock_ns() / 1000ull;
 }
 
 static int knee_text_add(KneeText *text, const char *format, ...)
