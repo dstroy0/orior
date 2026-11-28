@@ -692,7 +692,6 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_scheduler/sched
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_scheduler/scheduler_internal.h	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/ptx_target.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/ruleset_read_one.cpp	1
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/sass_krs_assemble.cpp	21
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/sass_lane_needs.cpp	14
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/sass_target.cu	12
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/sass_target.h	4

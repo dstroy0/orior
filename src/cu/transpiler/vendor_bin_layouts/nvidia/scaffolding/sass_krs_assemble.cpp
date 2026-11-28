@@ -4,22 +4,24 @@
 //
 //     sass_krs_assemble [ruleset] [machine file] [writings]
 //
-// Given a third argument, the text of every form that assembled is written to that file, a form after another.
+// With a third argument, the program writes the text of every form that assembled to that file, one form after
+// another.
 //
-// The ruleset read against its schema and each form's text checked against the listing it came from indicate nothing
-// about whether the assembler can turn that text into the sixteen bytes the part runs. A form this refuses is a form
-// the lane cannot be emitted through, whatever the ruleset specifies.
+// A read of the ruleset against its schema tells nothing about one thing. Nor does a check of the text of each form
+// against its listing. They do not tell whether the assembler can turn that text into the sixteen bytes that the part
+// runs. The lane cannot go through a form that this refuses, whatever the ruleset tells.
 //
-// A parameter's type is not guessed from its name, because one name is two things in two forms: `left` is a register
-// in word_bitand and a predicate in predicate_bitxor, `value` a register in test_word_nonzero and a number in word_set.
-// Each form is written instead with every assignment of types to its parameters, register first, and passes where any
-// one of them assembles. A form that assembles under no assignment is the gap, and the assignment that worked is what
-// the form's parameters are.
+// The program does not guess the type of a parameter from its name, because one name is two things in two forms.
+// `left` is a register in word_bitand and a predicate in predicate_bitxor. `value` is a register in test_word_nonzero
+// and a number in word_set. The program writes each form with every assignment of types to its parameters, register
+// first. The form passes where any one of them assembles. A form that assembles under no assignment is the gap, and
+// the assignment that worked is what the parameters of the form are.
 //
-// The forms and their parameters are read from the ruleset's own lines, since the schema records only how many
-// parameters a form takes. A form the ruleset leaves empty, and a form whose text is a label or a note and carries
-// no instruction, are each counted apart: neither is a failure here.
-// the cubin writer is C and its headers carry no guard of their own: the linkage is named here
+// The program reads the forms and their parameters from the own lines of the ruleset. The schema records only how many
+// parameters a form takes. It counts apart a form that the ruleset leaves empty, and a form whose text is a label or a
+// note and carries no instruction. Neither is a failure here.
+
+// the cubin writer is C, and its headers carry no guard of their own. This file names the linkage here
 extern "C"
 {
 #include "../sass_assemble.h"
@@ -35,18 +37,19 @@ extern "C"
 
 #include <stddef.h>
 
-// the max parameters a form is written every way of: past this it is written with registers alone, since three to
-// the power of the parameters is the assignments tried and the resident's form takes twenty-four
+// the max parameters for which the program writes a form in every way. Past this, it writes the form with registers
+// alone. The assignments tried are three to the power of the parameters, and the form of the resident takes
+// twenty-four
 #define KRS_PARAMETERS_SEARCHED 6u
 
-// the parameters a form takes at max, the bytes of a form's name and of an argument, each terminator among them, and
-// the bytes of a writing at max
+// the parameters that a form takes at max, and the bytes of the name of a form and of an argument, each terminator
+// among them. Then the bytes of a writing at max
 #define KRS_PARAMETERS_MAX 32u
 #define KRS_NAME_BYTES 128u
 #define KRS_ARGUMENT_BYTES 16u
 #define KRS_TEXT_BYTES (1ULL << 24u)
 
-// what one parameter is given, in the order they are tried
+// what one parameter gets, in the order that the program tries them
 enum KrsType
 {
     KRS_REGISTER = 0,
@@ -90,8 +93,8 @@ static int krs_scratch(void *context, const char *bank, VerbaLinea *name)
     return 0;
 }
 
-// The argument at `place`, of the type `type`, into `text`. A 64-bit form takes registers of an even number, since
-// sass.krs writes the pair's second as .hi and a pair begins on an even register
+// The argument at `place`, of the type `type`, into `text`. A 64-bit form takes registers of an even number. The file
+// sass.krs writes the second of the pair as .hi, and a pair starts on an even register
 static const char *krs_argument(unsigned int type, unsigned int place, int wide, char *text)
 {
     VerbaLinea line = mmgr_line_over(text, KRS_ARGUMENT_BYTES);
@@ -122,8 +125,8 @@ struct KrsForm
     int empty;
 };
 
-// the next word of the `length` bytes at `line` from `*at`, its start into `word` and its length the answer, `*at`
-// after it. 0 where no word is left
+// the next word of the `length` bytes at `line` from `*at`, with its start into `word` and `*at` after it. The return
+// is its length, or 0 where no word remains
 static size_t krs_word(const char *line, size_t length, size_t *at, const char **word)
 {
     while ((*at < length) && ((line[*at] == ' ') || (line[*at] == '\t') || (line[*at] == '\r')))
@@ -242,10 +245,10 @@ static int krs_written(const Ruleset *rules, const char *name, const char *const
     return ruleset_form_written(rules, name, given, count, &scratch, &text->line);
 }
 
-// Every label the ruleset's forms define, as one preamble onto `preamble`. A branch names a label another form writes
-// (error_open_unless branches to the one label_error_open writes). The assembler resolves a label from the lines of the
-// text it is given, and a form written alone has none. Each form that carries no instruction is written with every
-// number a branch here is given: whatever a branch names is in front of it
+// Every label that the forms of the ruleset define, as one preamble onto `preamble`. A branch names a label that
+// another form writes (error_open_unless branches to the one that label_error_open writes). The assembler resolves a
+// label from the lines of the text that it gets, and a form written alone has none. The call writes each form that
+// carries no instruction with every number that a branch here gets. Thus whatever a branch names is in front of it
 static void krs_labels(const Ruleset *rules, const KrsForm *forms, unsigned int count, PlatformText *preamble,
                        PlatformText *text)
 {
@@ -288,8 +291,8 @@ enum KrsOutcome
     KRS_NOT_WRITTEN = 3
 };
 
-// Form `form` written every way its parameters can be given and assembled behind `labels`, `wrote` the text of the
-// assignment that passed or of the last one tried. `whole` takes the labels and the writing for the assembler
+// Form `form`, written in every way that its parameters can go, and assembled behind `labels`. `wrote` gets the text
+// of the assignment that passed, or of the last one tried. `whole` takes the labels and the writing for the assembler
 static unsigned int krs_form_assembles(const Ruleset *rules, const SassMachine *machine, const KrsForm *form,
                                        PlatformText *labels, PlatformText *wrote, PlatformText *whole)
 {
