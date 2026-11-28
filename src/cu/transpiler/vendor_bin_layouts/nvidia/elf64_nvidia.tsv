@@ -1,17 +1,17 @@
-# A container's layout, read by the emitter. Nothing here is compiled in.
+# The layout of a container, read by the emitter. The build compiles nothing here in.
 #
-# The emitter knows the shape of the work: read a pattern's tables, put the code and the attributes in, position the
-# sections out again. It knows no offset, no width, no tag and no name. Those are here, and a container of another
-# shape is another file of these rows.
+# The emitter knows the shape of the work. It reads the tables of a pattern, puts the code and the attributes in, and
+# arranges the sections again. It knows no offset, no width, no tag and no name. Those are here, and a container of
+# another shape is another file of these rows, with a tab between each two fields:
 #
-# field	<name>	<offset>	<width>     a place in a header, in bytes
-# size	<name>	<bytes>                 how long a thing is
-# tag	<name>	<value>                 a number the format gives a meaning
-# name	<name>	<text>                  a name the format defines, with {part} located for the part's own
-# container kernel <name>               the kernel the container the system accepted enters at
-# container pattern <hex>               that container's bytes, sixty-four a row
+# - `field <name> <offset> <width>`: a place in a header, in bytes.
+# - `size <name> <bytes>`: how long a thing is.
+# - `tag <name> <value>`: a number to which the format gives a sense.
+# - `name <name> <text>`: a name that the format defines, with `{part}` in place of the own name of the part.
+# - `container kernel <name>`: the kernel that the container that the system accepted enters at.
+# - `container pattern <hex>`: the bytes of that container, sixty-four to a row.
 #
-# this one is the ELF64 a CUDA toolchain writes, read off cubins it built
+# This file is the ELF64 that a CUDA toolchain writes, read from cubins that it built.
 #
 # the file header
 field	header.segment_table	32	8
@@ -31,7 +31,8 @@ field	section.size	32	8
 field	section.info	44	4
 field	section.align	48	8
 #
-# a section of this type takes no bytes in the file: it is arranged at no length and retains the size its header gives
+# a section of this type takes no bytes in the file. The emitter arranges it at no length, and it keeps the size that
+# its header gives
 tag	section.type_nobits	8
 #
 # one program header
@@ -62,7 +63,7 @@ name	section.part_info	.nv.info.{part}
 name	section.program_info	.nv.info
 name	section.symbols	.symtab
 #
-# how long one instruction is, which the emitter counts endings in, and how wide a table's entries are written
+# how long one instruction is, which the emitter counts ends in, and how wide the emitter writes the entries of a table
 size	instruction	16
 size	table.align	8
 size	table.entry	8
@@ -71,8 +72,9 @@ size	table.entry	8
 size	sections.max	64
 size	attributes.room	4096
 
-# the container the system accepted, which every question is put in: the kernel it enters at, then its bytes
-# in hex, sixty-four a row. A question's code, registers and exits replace the code's (cubin_pattern_read)
+# the container that the system accepted, which every question goes in. That is the kernel that it enters at, then its
+# bytes in hex, sixty-four to a row. The code, registers and exits of a question replace those of the code
+# (cubin_pattern_read)
 container kernel interface_ask
 container pattern 7f454c460201014108000000000000000200be00010000000000000000000000800d000000000000000a0000000000000456000640003800030040000e000100
 container pattern 002e7368737472746162002e737472746162002e73796d746162002e73796d7461625f73686e6478002e6e6f74652e6e762e746b696e666f002e6e6f74652e6e
