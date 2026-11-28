@@ -21,21 +21,26 @@
  *       report its own coverage is a claim, and not a measurement.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
+#include "bench_bound.h"
 #include "bench_seed.h"
+#include "bench_tally.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 namespace
 {
+
+/** @brief The pairs of one sample at max. */
+const size_t TRIALS_MAX = 300000u;
+
+/** @brief The output deltas of a sample, and the room that their sort takes. One sample fills them at a time. */
+uint32_t g_deltas[TRIALS_MAX];
+uint32_t g_deltas_scratch[TRIALS_MAX];
 
 /** @brief The standard's round constants. */
 const uint32_t ROUND_CONSTANT[64] = {
@@ -130,10 +135,8 @@ struct Best
  * @return                 Probability and value of the most common output delta.
  */
 Best strongest_delta(unsigned frame, unsigned word, unsigned round, uint32_t input_delta, unsigned trials,
-                     std::mt19937 &generator)
+                     TableDraw &generator)
 {
-    std::unordered_map<uint32_t, uint32_t> counts;
-    counts.reserve(trials / 2u);
 
     for (unsigned trial = 0u; trial < trials; trial += 1u)
     {
@@ -141,26 +144,28 @@ Best strongest_delta(unsigned frame, unsigned word, unsigned round, uint32_t inp
         uint32_t turned[8];
         for (unsigned slot = 0u; slot < 8u; slot += 1u)
         {
-            const uint32_t value = generator();
+            const uint32_t value = table_draw_next(&generator);
             plain[slot] = value;
             turned[slot] = rotate_right(value, frame) ^ input_delta;
         }
-        const uint32_t message = generator();
+        const uint32_t message = table_draw_next(&generator);
 
         run_round(plain, round, message);
         run_round(turned, round, rotate_right(message, frame));
 
-        counts[turned[word] ^ rotate_right(plain[word], frame)] += 1u;
+        g_deltas[trial] = turned[word] ^ rotate_right(plain[word], frame);
     }
 
+    bench_tally_sorted(g_deltas, g_deltas_scratch, trials);
     Best best = {0.0, 0u, frame, word, round};
-    for (const auto &entry : counts)
+    for (size_t at = 0u; at < trials;)
     {
-        const double rate = (double)entry.second / (double)trials;
+        const BenchTallyRun entry = bench_tally_run(g_deltas, trials, &at);
+        const double rate = (double)entry.count / (double)trials;
         if (rate > best.probability)
         {
             best.probability = rate;
-            best.delta = entry.first;
+            best.delta = entry.value;
         }
     }
     return best;
@@ -174,7 +179,8 @@ int main()
     printf("  Rigorous sweep: every frame, every word, every constant\n");
     printf("================================================================\n");
 
-    std::mt19937 generator(bench_seed(20260908u));
+    TableDraw generator;
+    table_draw_seeded(&generator, bench_seed(20260908u));
     const auto started = embed_clock_ns();
 
     // ---------------------------------------------------------------------------------------
@@ -191,14 +197,15 @@ int main()
     printf("\n  62 combinations, 300,000 pairs each. Uniform would be 2.3e-10.\n");
 
     Best global = {0.0, 0u, 0u, 0u, 0u};
-    std::vector<double> frame_best(32u, 0.0);
+    double frame_best[32] = {0.0};
 
     for (unsigned frame = 1u; frame < 32u; frame += 1u)
     {
-        for (unsigned word : {0u, 4u})
+        const unsigned listed_word[] = {0u, 4u};
+        for (unsigned word : listed_word)
         {
             const Best found = strongest_delta(frame, word, 0u, 0u, 300000u, generator);
-            frame_best[frame] = std::max(frame_best[frame], found.probability);
+            frame_best[frame] = bench_max(frame_best[frame], found.probability);
             if (found.probability > global.probability)
             {
                 global = found;
@@ -219,7 +226,7 @@ int main()
     }
 
     printf("\n  strongest overall: frame %u, word %u, P = %.8f, delta 0x%08x\n", global.frame, global.word,
-                global.probability, global.delta);
+           global.probability, global.delta);
 
     // ---------------------------------------------------------------------------------------
     printf("\n================================================================\n");
@@ -235,8 +242,8 @@ int main()
     for (unsigned round = 0u; round < 64u; round += 1u)
     {
         const Best found = strongest_delta(global.frame, global.word, round, 0u, 120000u, generator);
-        constant_low = std::min(constant_low, found.probability);
-        constant_high = std::max(constant_high, found.probability);
+        constant_low = bench_min(constant_low, found.probability);
+        constant_high = bench_max(constant_high, found.probability);
         constant_total += found.probability;
     }
 

@@ -17,16 +17,14 @@
  *       does not assert it.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <string>
-#include <vector>
 
 namespace
 {
@@ -52,20 +50,20 @@ const uint32_t ROUND_CONSTANT[64] = {
  * @param[in] passed Whether the check passed.
  * @param[in] detail The observed result, printed on failure.
  */
-void check(const std::string &name, bool passed, const std::string &detail = "")
+void check(const char *name, bool passed, const char *detail = "")
 {
     g_checks_run += 1;
     if (passed)
     {
-        printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name);
     }
     else
     {
         g_checks_failed += 1;
-        printf("  [FAIL] %s\n", name.c_str());
-        if (!detail.empty())
+        printf("  [FAIL] %s\n", name);
+        if (detail[0] != '\0')
         {
-            printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail);
         }
     }
 }
@@ -205,7 +203,8 @@ void demonstrate_bijection()
     printf("  1. The round is a bijection. Nothing is lost.\n");
     printf("================================================================\n");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     bool round_trip_holds = true;
     bool matches_core = true;
 
@@ -215,14 +214,14 @@ void demonstrate_bijection()
         uint32_t schedule[64];
         for (unsigned slot = 0u; slot < 16u; slot += 1u)
         {
-            block[slot] = generator();
+            block[slot] = table_draw_next(&generator);
         }
         expand_schedule(block, schedule);
 
         Working start;
         for (unsigned slot = 0u; slot < 8u; slot += 1u)
         {
-            start.word[slot] = generator();
+            start.word[slot] = table_draw_next(&generator);
         }
 
         // Forward through all 64, then backward through all 64, and compare with where it began.
@@ -289,10 +288,12 @@ void map_ceiling_construction()
     printf("\n  %8s %14s %28s\n", "rounds", "state moved", "ceiling");
     printf("  %8s %14s %28s\n", "--------", "--------------", "----------------------------");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 4096u;
 
-    for (unsigned rounds : {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u, 10u, 12u, 16u, 32u, 64u})
+    const unsigned listed_rounds[] = {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u, 10u, 12u, 16u, 32u, 64u};
+    for (unsigned rounds : listed_rounds)
     {
         uint64_t moved = 0u;
 
@@ -301,7 +302,7 @@ void map_ceiling_construction()
             uint32_t block[16];
             for (unsigned slot = 0u; slot < 16u; slot += 1u)
             {
-                block[slot] = generator();
+                block[slot] = table_draw_next(&generator);
             }
 
             Sha256State plain;
@@ -311,7 +312,7 @@ void map_ceiling_construction()
 
             uint32_t flipped_block[16];
             EMBED_CALL(memor.cpy, MemoriaCfg, .dst = flipped_block, .src = block, .bytes = sizeof(block));
-            flipped_block[3] ^= (1u << (generator() % 32u));
+            flipped_block[3] ^= (1u << (table_draw_next(&generator) % 32u));
 
             sha256_block_compress_partial(&plain, block, rounds);
             sha256_block_compress_partial(&flipped, flipped_block, rounds);
@@ -397,27 +398,27 @@ void measure_propagation_speed()
     printf("  positions, P(this bit differs) after r rounds. Reached means the position\n");
     printf("  has moved at all; saturated means it has reached a fair coin.\n");
     printf("\n  %6s %10s %12s %14s %14s\n", "rounds", "reached", "saturated", "mean P", "front width");
-    printf("  %6s %10s %12s %14s %14s\n", "------", "----------", "------------", "--------------",
-                "--------------");
+    printf("  %6s %10s %12s %14s %14s\n", "------", "----------", "------------", "--------------", "--------------");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 8192u;
     unsigned previous_reached = 0u;
 
     for (unsigned rounds = 1u; rounds <= 16u; rounds += 1u)
     {
-        std::vector<uint64_t> differing(256u, 0u);
+        uint64_t differing[256] = {0u};
 
         for (unsigned trial = 0u; trial < trials; trial += 1u)
         {
             uint32_t block[16];
             for (unsigned slot = 0u; slot < 16u; slot += 1u)
             {
-                block[slot] = generator();
+                block[slot] = table_draw_next(&generator);
             }
             uint32_t flipped_block[16];
             EMBED_CALL(memor.cpy, MemoriaCfg, .dst = flipped_block, .src = block, .bytes = sizeof(block));
-            flipped_block[3] ^= (1u << (generator() % 32u));
+            flipped_block[3] ^= (1u << (table_draw_next(&generator) % 32u));
 
             Sha256State plain;
             Sha256State flipped;

@@ -17,16 +17,12 @@
  *       sweep picks, and not in a frame chosen by hand.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
 #include "sha256_core.h"
 
-#include <algorithm>
-#include <chrono>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <string>
-#include <vector>
 
 namespace
 {
@@ -118,21 +114,22 @@ double sweep_addition_frames(unsigned *best_frame)
     printf("\n  In a frame turning by r, does a sum still look like a sum? Measured for all\n");
     printf("  thirty-one non-trivial frames, 2,000,000 pairs each. Nothing assumed.\n");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 2000000u;
     double best = 0.0;
 
     printf("\n  %6s %14s   %6s %14s\n", "frame", "holds", "frame", "holds");
     printf("  %6s %14s   %6s %14s\n", "------", "--------------", "------", "--------------");
 
-    std::vector<double> rates(32u, 0.0);
+    double rates[32] = {0.0};
     for (unsigned frame = 1u; frame < 32u; frame += 1u)
     {
         unsigned held = 0u;
         for (unsigned trial = 0u; trial < trials; trial += 1u)
         {
-            const uint32_t left = generator();
-            const uint32_t right = generator();
+            const uint32_t left = table_draw_next(&generator);
+            const uint32_t right = table_draw_next(&generator);
 
             if (rotate_right(left + right, frame) == (uint32_t)(rotate_right(left, frame) + rotate_right(right, frame)))
             {
@@ -158,8 +155,14 @@ double sweep_addition_frames(unsigned *best_frame)
     }
 
     printf("\n  strongest frame: %u at %.6f\n", *best_frame, best);
-    printf("  weakest        : %.6f\n", *std::min_element(rates.begin() + 1, rates.end()));
-    printf("  ratio          : %.4f\n", best / *std::min_element(rates.begin() + 1, rates.end()));
+    // the weakest rate past frame 0, the first of the smallest
+    double weakest = rates[1];
+    for (unsigned frame = 2u; frame < 32u; frame += 1u)
+    {
+        weakest = (rates[frame] < weakest) ? rates[frame] : weakest;
+    }
+    printf("  weakest        : %.6f\n", weakest);
+    printf("  ratio          : %.4f\n", best / weakest);
     return best;
 }
 
@@ -174,12 +177,13 @@ double sweep_round_frames(bool use_constant, unsigned *best_frame)
 {
     printf("\n  %s\n", use_constant ? "with the round constants present:" : "with the round constants removed:");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 400000u;
     double best = 0.0;
     *best_frame = 0u;
 
-    std::vector<double> rates(32u, 0.0);
+    double rates[32] = {0.0};
     for (unsigned frame = 1u; frame < 32u; frame += 1u)
     {
         unsigned held = 0u;
@@ -189,11 +193,11 @@ double sweep_round_frames(bool use_constant, unsigned *best_frame)
             uint32_t turned[8];
             for (unsigned slot = 0u; slot < 8u; slot += 1u)
             {
-                const uint32_t word = generator();
+                const uint32_t word = table_draw_next(&generator);
                 plain[slot] = word;
                 turned[slot] = rotate_right(word, frame);
             }
-            const uint32_t word = generator();
+            const uint32_t word = table_draw_next(&generator);
 
             run_round(plain, 0u, word, use_constant);
             run_round(turned, 0u, rotate_right(word, frame), use_constant);
@@ -269,13 +273,15 @@ int main()
         printf("  how far the relation holds, constants removed so the ride is given every\n");
         printf("  advantage the construction allows.\n");
 
-        std::mt19937 generator(4242u);
+        TableDraw generator;
+        table_draw_seeded(&generator, 4242u);
         const unsigned trials = 2000000u;
 
         printf("\n  %8s %16s %18s\n", "rounds", "holds", "predicted p^n");
         printf("  %8s %16s %18s\n", "--------", "----------------", "------------------");
 
-        for (unsigned rounds : {1u, 2u, 3u, 4u, 5u, 6u})
+        const unsigned listed_rounds[] = {1u, 2u, 3u, 4u, 5u, 6u};
+        for (unsigned rounds : listed_rounds)
         {
             unsigned held = 0u;
             for (unsigned trial = 0u; trial < trials; trial += 1u)
@@ -284,7 +290,7 @@ int main()
                 uint32_t turned[8];
                 for (unsigned slot = 0u; slot < 8u; slot += 1u)
                 {
-                    const uint32_t word = generator();
+                    const uint32_t word = table_draw_next(&generator);
                     plain[slot] = word;
                     turned[slot] = rotate_right(word, best_open_frame);
                 }
@@ -292,7 +298,7 @@ int main()
                 bool matches = true;
                 for (unsigned round = 0u; round < rounds; round += 1u)
                 {
-                    const uint32_t word = generator();
+                    const uint32_t word = table_draw_next(&generator);
                     run_round(plain, round, word, false);
                     run_round(turned, round, rotate_right(word, best_open_frame), false);
                 }
@@ -307,7 +313,7 @@ int main()
             }
 
             printf("  %8u %15.6f%% %17.6f%%\n", rounds, 100.0 * (double)held / (double)trials,
-                        100.0 * pow(best_open, (double)rounds));
+                   100.0 * pow(best_open, (double)rounds));
         }
 
         printf("\n  Extrapolating the measured per-round rate to the depth a header hash\n");
@@ -321,7 +327,7 @@ int main()
     }
 
     printf("\n  best addition frame %u at %.6f, best round frame %u\n", best_addition_frame, best_addition,
-                best_open_frame);
+           best_open_frame);
     printf("\n================================================================\n");
     return 0;
 }

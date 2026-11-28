@@ -26,15 +26,15 @@
  *       reported the same thing for both would measure neither.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
 #include "bench_load_limit.h"
 #include "bench_seed.h"
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <vector>
 
 namespace
 {
@@ -192,12 +192,14 @@ const char *machine_name(Machine machine)
  *       sum of squared frequencies has an upward bias at this sparsity, and would report grip that
  *       is not there.
  */
-double grip_bits(Machine machine, Language language, unsigned rounds, unsigned draws, std::mt19937 *generator)
+double grip_bits(Machine machine, Language language, unsigned rounds, unsigned draws, TableDraw *generator)
 {
-    std::vector<uint32_t> counts(BINS, 0u);
+    // the count of each bin. The table is static for its size, and each call clears it. One call runs at a time
+    static uint32_t counts[BINS];
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = counts, .bytes = sizeof(counts), .val = 0);
 
     // One fixed input difference for the whole run, placed on the word a round reads first.
-    const uint32_t difference = (*generator)() | 1u;
+    const uint32_t difference = table_draw_next(generator) | 1u;
 
     for (unsigned draw = 0u; draw < draws; draw += 1u)
     {
@@ -207,12 +209,12 @@ double grip_bits(Machine machine, Language language, unsigned rounds, unsigned d
 
         for (unsigned slot = 0u; slot < 8u; slot += 1u)
         {
-            left[slot] = (*generator)();
+            left[slot] = table_draw_next(generator);
             right[slot] = left[slot];
         }
         for (unsigned slot = 0u; slot < DEEPEST; slot += 1u)
         {
-            words[slot] = (*generator)();
+            words[slot] = table_draw_next(generator);
         }
 
         if (language == LANGUAGE_XOR)
@@ -282,8 +284,10 @@ int main(int argc, char **argv)
 
         for (unsigned rounds = 1u; rounds <= DEEPEST; rounds += 1u)
         {
-            std::mt19937 xor_generator(bench_seed(20260908u) + rounds);
-            std::mt19937 add_generator(bench_seed(20260908u) + rounds);
+            TableDraw xor_generator;
+            table_draw_seeded(&xor_generator, bench_seed(20260908u) + rounds);
+            TableDraw add_generator;
+            table_draw_seeded(&add_generator, bench_seed(20260908u) + rounds);
 
             const double by_xor = grip_bits(machines[which], LANGUAGE_XOR, rounds, draws, &xor_generator);
             const double by_add = grip_bits(machines[which], LANGUAGE_ADD, rounds, draws, &add_generator);

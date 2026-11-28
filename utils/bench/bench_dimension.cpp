@@ -20,16 +20,14 @@
  *          where it stops for that reason, and not because of a finding there.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
+#include "bench_hex.h"
 #include "bench_seed.h"
 #include "sha256_core.h"
 
 #include "embed_turnstile.h"
-#include <algorithm>
-#include <random>
 #include <stdint.h>
 #include <stdio.h>
-#include <string>
-#include <vector>
 
 namespace
 {
@@ -43,24 +41,6 @@ Sha256State g_midstate;
 uint32_t g_merkle_tail = 0u;
 uint32_t g_ntime = 0u;
 uint32_t g_nbits = 0u;
-
-/**
- * @brief Converts a hex string to bytes.
- *
- * @param[in] hex Characters to convert.
- * @return        The bytes that they encode.
- */
-std::vector<uint8_t> bytes_from_hex(const std::string &hex)
-{
-    std::vector<uint8_t> bytes;
-
-    bytes.reserve(hex.size() / 2u);
-    for (size_t at = 0u; (at + 1u) < hex.size(); at += 2u)
-    {
-        bytes.push_back((uint8_t)std::stoul(hex.substr(at, 2u), nullptr, 16));
-    }
-    return bytes;
-}
 
 /**
  * @brief Reads four header bytes as the big-endian word SHA-256 schedules.
@@ -153,11 +133,11 @@ int main()
     printf("  The degree of reduced-round SHA-256 as a map from the nonce\n");
     printf("================================================================\n");
 
-    const std::vector<uint8_t> header = bytes_from_hex(HEADER_HEX);
-    sha256_header_midstate(&g_midstate, header.data());
-    g_merkle_tail = schedule_word_from_header(header.data() + 64u);
-    g_ntime = schedule_word_from_header(header.data() + 68u);
-    g_nbits = schedule_word_from_header(header.data() + 72u);
+    const BenchHexBytes header = bench_hex_bytes(HEADER_HEX);
+    sha256_header_midstate(&g_midstate, header.at);
+    g_merkle_tail = schedule_word_from_header(header.at + 64u);
+    g_ntime = schedule_word_from_header(header.at + 68u);
+    g_nbits = schedule_word_from_header(header.at + 72u);
 
     printf("\n  A k-th order differential sums f over all 2^k corners of a k-dimensional\n");
     printf("  cube of input differences. If the algebraic degree over GF(2) is below k it\n");
@@ -166,7 +146,8 @@ int main()
     printf("\n  Directions are distinct single bits of the nonce, so the cube spans k of the\n");
     printf("  32 input dimensions and every one of its intersections is visited.\n");
 
-    std::mt19937 generator(bench_seed(20260908u));
+    TableDraw generator;
+    table_draw_seeded(&generator, bench_seed(20260908u));
     const unsigned base_points = 24u;
     const unsigned max_order = 12u;
 
@@ -204,7 +185,7 @@ int main()
 
                 while (chosen < order)
                 {
-                    const unsigned position = generator() % 32u;
+                    const unsigned position = table_draw_next(&generator) % 32u;
                     if (((used >> position) & 1u) == 0u)
                     {
                         used |= (1u << position);
@@ -213,7 +194,7 @@ int main()
                     }
                 }
 
-                if (!differential_vanishes(generator(), directions, order, rounds))
+                if (!differential_vanishes(table_draw_next(&generator), directions, order, rounds))
                 {
                     always_vanishes = false;
                     break;

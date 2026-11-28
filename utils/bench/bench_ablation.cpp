@@ -21,16 +21,12 @@
  *          They exist to break.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
 #include "sha256_core.h"
 
-#include <algorithm>
-#include <chrono>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <string>
-#include <vector>
 
 namespace
 {
@@ -136,7 +132,8 @@ const unsigned PAIR_SHIFT = 4u;
  */
 double rotational_survival(const Variant &variant, unsigned rounds)
 {
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 4096u;
     unsigned survived = 0u;
 
@@ -149,13 +146,13 @@ double rotational_survival(const Variant &variant, unsigned rounds)
 
         for (unsigned slot = 0u; slot < 8u; slot += 1u)
         {
-            const uint32_t word = generator();
+            const uint32_t word = table_draw_next(&generator);
             plain_state[slot] = word;
             rotated_state[slot] = rotate_right(word, PAIR_SHIFT);
         }
         for (unsigned slot = 0u; slot < 64u; slot += 1u)
         {
-            const uint32_t word = generator();
+            const uint32_t word = table_draw_next(&generator);
             plain_schedule[slot] = word;
             rotated_schedule[slot] = rotate_right(word, PAIR_SHIFT);
         }
@@ -212,12 +209,13 @@ int main()
 
     printf("\n  %-32s %7s %7s %7s %7s %7s\n", "variant", "r=1", "r=2", "r=4", "r=8", "r=16");
     printf("  %-32s %7s %7s %7s %7s %7s\n", "--------------------------------", "-------", "-------", "-------",
-                "-------", "-------");
+           "-------", "-------");
 
     for (const Variant &variant : variants)
     {
         printf("  %-32s", variant.name);
-        for (unsigned rounds : {1u, 2u, 4u, 8u, 16u})
+        const unsigned listed_rounds[] = {1u, 2u, 4u, 8u, 16u};
+        for (unsigned rounds : listed_rounds)
         {
             printf(" %6.2f%%", rotational_survival(variant, rounds) * 100.0);
         }
@@ -244,14 +242,15 @@ int main()
     printf("\n      P = (1/4) * (1 + 2^(r-n) + 2^(-r) + 2^(-n))\n");
 
     {
-        std::mt19937 generator(4242u);
+        TableDraw generator;
+        table_draw_seeded(&generator, 4242u);
         const unsigned trials = 4000000u;
         unsigned held = 0u;
 
         for (unsigned trial = 0u; trial < trials; trial += 1u)
         {
-            const uint32_t left = generator();
-            const uint32_t right = generator();
+            const uint32_t left = table_draw_next(&generator);
+            const uint32_t right = table_draw_next(&generator);
 
             if (rotate_right(left + right, PAIR_SHIFT) ==
                 (uint32_t)(rotate_right(left, PAIR_SHIFT) + rotate_right(right, PAIR_SHIFT)))
@@ -261,8 +260,8 @@ int main()
         }
 
         const double measured = (double)held / (double)trials;
-        const double predicted = 0.25 * (1.0 + pow(2.0, (double)PAIR_SHIFT - 32.0) +
-                                         pow(2.0, -(double)PAIR_SHIFT) + pow(2.0, -32.0));
+        const double predicted =
+            0.25 * (1.0 + pow(2.0, (double)PAIR_SHIFT - 32.0) + pow(2.0, -(double)PAIR_SHIFT) + pow(2.0, -32.0));
 
         printf("\n  one modular addition, rotation by %u, %u trials:\n", PAIR_SHIFT, trials);
         printf("    measured  : %.6f\n", measured);

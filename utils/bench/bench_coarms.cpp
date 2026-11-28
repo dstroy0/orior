@@ -22,17 +22,14 @@
  *       fixes. An agreement between two of your candidates is not a fact about that target.
  */
 
+#include "bench_hex.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 namespace
 {
@@ -44,22 +41,25 @@ const char *const HEADER_HEX =
 
 Sha256ScanRequest g_base;
 
-/**
- * @brief Converts a hex string to bytes.
- *
- * @param[in] hex Characters to convert.
- * @return        The bytes that they encode.
- */
-std::vector<uint8_t> bytes_from_hex(const std::string &hex)
-{
-    std::vector<uint8_t> bytes;
+/** @brief The arms of a run at max, 2^15. */
+const uint32_t ARMS_MAX = 1u << 15u;
 
-    bytes.reserve(hex.size() / 2u);
-    for (size_t at = 0u; (at + 1u) < hex.size(); at += 2u)
-    {
-        bytes.push_back((uint8_t)std::stoul(hex.substr(at, 2u), nullptr, 16));
-    }
-    return bytes;
+/** @brief The key of each arm of a run, and the room that the sort of the keys takes. */
+uint32_t g_keys[ARMS_MAX];
+uint32_t g_keys_scratch[ARMS_MAX];
+
+/**
+ * @brief Returns the order of two keys, for memor.sort.
+ *
+ * @param[in] left  One key [BORROWS].
+ * @param[in] right The other key [BORROWS].
+ * @return          -1, 0 or 1 as the first is below, equal to or above the second.
+ */
+int key_order(const void *left, const void *right)
+{
+    const uint32_t one = *(const uint32_t *)left;
+    const uint32_t other = *(const uint32_t *)right;
+    return (one < other) ? -1 : ((one > other) ? 1 : 0);
 }
 
 /**
@@ -124,12 +124,12 @@ int main()
     printf("  Co-arms across the field: relational against absolute\n");
     printf("================================================================\n");
 
-    const std::vector<uint8_t> header = bytes_from_hex(HEADER_HEX);
+    const BenchHexBytes header = bench_hex_bytes(HEADER_HEX);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &g_base, .bytes = sizeof(g_base), .val = 0);
-    sha256_header_midstate(&g_base.midstate, header.data());
-    g_base.merkle_root_tail = schedule_word_from_header(header.data() + 64u);
-    g_base.ntime = schedule_word_from_header(header.data() + 68u);
-    g_base.nbits = schedule_word_from_header(header.data() + 72u);
+    sha256_header_midstate(&g_base.midstate, header.at);
+    g_base.merkle_root_tail = schedule_word_from_header(header.at + 64u);
+    g_base.ntime = schedule_word_from_header(header.at + 68u);
+    g_base.nbits = schedule_word_from_header(header.at + 72u);
 
     printf("\n  Two win conditions on exactly the same digests.\n");
     printf("\n    relational : some pair of arms agrees on their leading k bits\n");
@@ -146,7 +146,7 @@ int main()
 
     printf("\n  %10s %14s %14s %14s %14s\n", "arms N", "pairs found", "birthday N^2", "below target", "linear N");
     printf("  %10s %14s %14s %14s %14s\n", "----------", "--------------", "--------------", "--------------",
-                "--------------");
+           "--------------");
 
     const auto started = embed_clock_ns();
 
@@ -154,9 +154,8 @@ int main()
     {
         const uint32_t arms = 1u << magnitude;
 
-        // Relational: bucket the arms by their leading bits, and count the pairs that collide.
-        std::unordered_map<uint32_t, uint32_t> buckets;
-        buckets.reserve(arms * 2u);
+        // Relational: the key of each arm, its leading bits, sorted once. Each run of one key of k arms gives
+        // k (k - 1) / 2 pairs.
         uint64_t pairs = 0u;
         uint64_t below = 0u;
 
@@ -164,10 +163,7 @@ int main()
         {
             const uint32_t value = leading_word(index);
             const uint32_t key = value >> (32u - match_bits);
-
-            // Every earlier arm with this key forms a pair with this one.
-            pairs += buckets[key];
-            buckets[key] += 1u;
+            g_keys[index] = key;
 
             // Absolute: this single arm clears the threshold on its own.
             if (key == 0u)
@@ -175,12 +171,25 @@ int main()
                 below += 1u;
             }
         }
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = g_keys, .bytes = sizeof(uint32_t), .scratch = g_keys_scratch,
+                         .count = arms, .order = key_order);
+        for (uint32_t at = 0u; at < arms;)
+        {
+            uint32_t end = at + 1u;
+            while ((end < arms) && (g_keys[end] == g_keys[at]))
+            {
+                end += 1u;
+            }
+            const uint64_t run = end - at;
+            pairs += (run * (run - 1u)) / 2u;
+            at = end;
+        }
 
         const double predicted_pairs = ((double)arms * ((double)arms - 1.0)) / (2.0 * space);
         const double predicted_below = (double)arms / space;
 
         printf("  %10u %14llu %14.3f %14llu %14.5f\n", arms, (unsigned long long)pairs, predicted_pairs,
-                    (unsigned long long)below, predicted_below);
+               (unsigned long long)below, predicted_below);
     }
 
     const auto finished = embed_clock_ns();

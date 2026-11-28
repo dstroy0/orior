@@ -20,18 +20,15 @@
  *       the boundary of the engine's applicability on this domain, expressed as a number.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
 #include "bench_seed.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <string>
-#include <vector>
 
 namespace
 {
@@ -95,7 +92,8 @@ int main()
     printf("  each round count. Pairs are drawn at every input distance from 1 to 32 so the\n");
     printf("  correlation has a range to work with.\n");
 
-    std::mt19937 generator(bench_seed(20260908u));
+    TableDraw generator;
+    table_draw_seeded(&generator, bench_seed(20260908u));
     const unsigned pairs = 200000u;
 
     // -------------------------------------------------------------------------------------
@@ -139,19 +137,19 @@ int main()
             // Vary the whole header, and not only one field. Any of the 640 bits may move.
             for (unsigned scatter = 0u; scatter < 8u; scatter += 1u)
             {
-                left_header[generator() % 80u] = (uint8_t)generator();
+                left_header[table_draw_next(&generator) % 80u] = (uint8_t)table_draw_next(&generator);
             }
             EMBED_CALL(memor.cpy, MemoriaCfg, .dst = right_header, .src = left_header, .bytes = sizeof(right_header));
 
             // Distinct positions. A draw with replacement can hit the same bit twice and flip it
             // back. That produces an identical pair, and an output distance of zero that reads as
             // a collision.
-            const unsigned wanted = 1u + (generator() % 64u);
+            const unsigned wanted = 1u + (table_draw_next(&generator) % 64u);
             uint8_t touched[80] = {0};
             unsigned placed = 0u;
             while (placed < wanted)
             {
-                const unsigned position = generator() % 640u;
+                const unsigned position = table_draw_next(&generator) % 640u;
                 const uint8_t bit = (uint8_t)(1u << (position % 8u));
 
                 if ((touched[position / 8u] & bit) == 0u)
@@ -178,7 +176,7 @@ int main()
             {
                 out_distance += (unsigned)__builtin_popcount((unsigned)(left_digest[at] ^ right_digest[at]));
             }
-            lowest_out = std::min(lowest_out, out_distance);
+            lowest_out = (out_distance < lowest_out) ? out_distance : lowest_out;
 
             sum_in += (double)in_distance;
             sum_out += (double)out_distance;
@@ -217,7 +215,8 @@ int main()
     const auto started = embed_clock_ns();
     unsigned last_holding = 0u;
 
-    for (unsigned rounds : {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u, 10u, 12u, 16u, 32u, 64u})
+    const unsigned listed_rounds[] = {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u, 10u, 12u, 16u, 32u, 64u};
+    for (unsigned rounds : listed_rounds)
     {
         double sum_in = 0.0;
         double sum_out = 0.0;
@@ -227,14 +226,14 @@ int main()
 
         for (unsigned trial = 0u; trial < pairs; trial += 1u)
         {
-            const uint32_t base = generator();
+            const uint32_t base = table_draw_next(&generator);
             // Draw an input distance uniformly. Thus the correlation covers more than one distance.
-            const unsigned wanted = 1u + (generator() % 32u);
+            const unsigned wanted = 1u + (table_draw_next(&generator) % 32u);
             uint32_t moved = base;
             unsigned placed = 0u;
             while (placed < wanted)
             {
-                const uint32_t bit = 1u << (generator() % 32u);
+                const uint32_t bit = 1u << (table_draw_next(&generator) % 32u);
                 if ((moved & bit) == (base & bit))
                 {
                     moved ^= bit;
@@ -277,7 +276,7 @@ int main()
         }
 
         printf("  %8u %16.6f %18.2f %18s\n", rounds, correlation, sum_out / count,
-                    arrived ? (holds ? "yes" : "no") : "input absent");
+               arrived ? (holds ? "yes" : "no") : "input absent");
     }
 
     const auto finished = embed_clock_ns();

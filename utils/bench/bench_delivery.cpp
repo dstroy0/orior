@@ -22,13 +22,10 @@
 
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string>
-#include <vector>
 
 namespace
 {
@@ -43,20 +40,20 @@ int g_checks_failed = 0;
  * @param[in] passed Whether the check passed.
  * @param[in] detail The observed result, printed on failure.
  */
-void check(const std::string &name, bool passed, const std::string &detail = "")
+void check(const char *name, bool passed, const char *detail = "")
 {
     g_checks_run += 1;
     if (passed)
     {
-        printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name);
     }
     else
     {
         g_checks_failed += 1;
-        printf("  [FAIL] %s\n", name.c_str());
-        if (!detail.empty())
+        printf("  [FAIL] %s\n", name);
+        if (detail[0] != '\0')
         {
-            printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail);
         }
     }
 }
@@ -161,16 +158,16 @@ void derive_the_constants()
     for (unsigned index = 0u; index < 8u; index += 1u)
     {
         printf("    cbrt(%2u) -> 0x%08x   published 0x%08x   %s\n", primes[index],
-                    fractional_word(cbrt((long double)primes[index])), PUBLISHED_ROUND_CONSTANT[index],
-                    (fractional_word(cbrt((long double)primes[index])) == PUBLISHED_ROUND_CONSTANT[index])
-                        ? "match"
-                        : "MISMATCH");
+               fractional_word(cbrt((long double)primes[index])), PUBLISHED_ROUND_CONSTANT[index],
+               (fractional_word(cbrt((long double)primes[index])) == PUBLISHED_ROUND_CONSTANT[index]) ? "match"
+                                                                                                      : "MISMATCH");
     }
 
-    check("all 64 round constants derive from cube roots of the first 64 primes", constants_matched == 64u,
-          std::to_string(constants_matched) + " of 64");
-    check("all 8 initial values derive from square roots of the first 8 primes", initials_matched == 8u,
-          std::to_string(initials_matched) + " of 8");
+    char detail[32];
+    snprintf(detail, sizeof(detail), "%u of 64", (unsigned)constants_matched);
+    check("all 64 round constants derive from cube roots of the first 64 primes", constants_matched == 64u, detail);
+    snprintf(detail, sizeof(detail), "%u of 8", (unsigned)initials_matched);
+    check("all 8 initial values derive from square roots of the first 8 primes", initials_matched == 8u, detail);
 
     printf("\n  So the designer's fingerprint is complete and it is this: the first 64\n");
     printf("  primes, two root functions, and a truncation. Nothing else is in there.\n");
@@ -225,7 +222,7 @@ void measure_verify_against_search()
 
     printf("  finding one, this device   : %.3e hashes at %.3e per second\n", expected_hashes, device_rate);
     printf("                             : %.2e seconds, or %.2e years\n", expected_hashes / device_rate,
-                expected_hashes / device_rate / 31557600.0);
+           expected_hashes / device_rate / 31557600.0);
     printf("\n  ratio, search over verify  : %.2e\n", (expected_hashes / device_rate) / one_hash);
 
     printf("\n  That ratio is not an obstacle to the design. It is the design. A proof of\n");

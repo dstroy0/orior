@@ -25,18 +25,15 @@
  *       If neither beats none, the claim does not hold here.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
 #include "bench_seed.h"
+#include "bench_tally.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 namespace
 {
@@ -113,18 +110,18 @@ void run_round(uint32_t *state, uint32_t schedule_word)
  * @param[in]     disturbance Applied to the turned member's message word, zero for none.
  * @return                   The output delta on word zero.
  */
-uint32_t draw_delta(std::mt19937 &generator, uint32_t disturbance)
+uint32_t draw_delta(TableDraw &generator, uint32_t disturbance)
 {
     uint32_t plain[8];
     uint32_t turned[8];
 
     for (unsigned slot = 0u; slot < 8u; slot += 1u)
     {
-        const uint32_t value = generator();
+        const uint32_t value = table_draw_next(&generator);
         plain[slot] = value;
         turned[slot] = rotate_right(value, FRAME);
     }
-    const uint32_t message = generator();
+    const uint32_t message = table_draw_next(&generator);
 
     run_round(plain, message);
     run_round(turned, rotate_right(message, FRAME) ^ disturbance);
@@ -132,22 +129,38 @@ uint32_t draw_delta(std::mt19937 &generator, uint32_t disturbance)
     return turned[0] ^ rotate_right(plain[0], FRAME);
 }
 
+/** @brief The draws of one run at max: the reference run's. */
+const size_t DRAWS_MAX = 8000000u;
+
+/** @brief The deltas of a run, and the room that their sort takes. One run fills them at a time. */
+uint32_t g_deltas[DRAWS_MAX];
+uint32_t g_deltas_scratch[DRAWS_MAX];
+
+/**
+ * @brief Sorts the first `drawn` deltas of g_deltas, and so groups each delta with its repeats.
+ *
+ * @param[in] drawn How many draws g_deltas holds.
+ */
+void deltas_sorted(size_t drawn)
+{
+    bench_tally_sorted(g_deltas, g_deltas_scratch, drawn);
+}
+
 /**
  * @brief The quantity under estimate: the collision probability of the delta distribution.
  *
- * @param[in] counts How often each delta appeared [BORROWS].
- * @param[in] drawn  How many draws produced them.
- * @return           The unbiased collision probability.
+ * @param[in] drawn How many draws g_deltas holds, sorted.
+ * @return          The unbiased collision probability.
  * @note Unbiased form, because the naive sum of squared frequencies runs high at this sparsity and
  *       would report structure that is not there.
  */
-double collision_probability(const std::unordered_map<uint32_t, uint32_t> &counts, uint64_t drawn)
+double collision_probability(uint64_t drawn)
 {
     long double colliding = 0.0L;
 
-    for (const auto &entry : counts)
+    for (size_t at = 0u; at < drawn;)
     {
-        const long double count = (long double)entry.second;
+        const long double count = (long double)bench_tally_run(g_deltas, drawn, &at).count;
         colliding += count * (count - 1.0L);
     }
     const long double total = (long double)drawn * ((long double)drawn - 1.0L);
@@ -173,16 +186,13 @@ enum class Disturbance
  * @param[in]     magnitude The disturbance value.
  * @return                  The joint estimate: the mean across arms.
  */
-double joint_estimate(std::mt19937 &generator, unsigned arms, unsigned per_arm, Disturbance type, unsigned period,
+double joint_estimate(TableDraw &generator, unsigned arms, unsigned per_arm, Disturbance type, unsigned period,
                       uint32_t magnitude)
 {
     double total = 0.0;
 
     for (unsigned arm = 0u; arm < arms; arm += 1u)
     {
-        std::unordered_map<uint32_t, uint32_t> counts;
-        counts.reserve(per_arm / 2u);
-
         for (unsigned draw = 0u; draw < per_arm; draw += 1u)
         {
             uint32_t disturbance = 0u;
@@ -198,12 +208,13 @@ double joint_estimate(std::mt19937 &generator, unsigned arms, unsigned per_arm, 
                 else if (type == Disturbance::Random)
                 {
                     // Same expected rate as the periodic case. Thus magnitude is not the variable.
-                    disturbance = ((generator() % period) == 0u) ? magnitude : 0u;
+                    disturbance = ((table_draw_next(&generator) % period) == 0u) ? magnitude : 0u;
                 }
             }
-            counts[draw_delta(generator, disturbance)] += 1u;
+            g_deltas[draw] = draw_delta(generator, disturbance);
         }
-        total += collision_probability(counts, per_arm);
+        deltas_sorted(per_arm);
+        total += collision_probability(per_arm);
     }
     return total / (double)arms;
 }
@@ -216,7 +227,8 @@ int main()
     printf("  The tail as error, and periodic disturbance on a co-arm\n");
     printf("================================================================\n");
 
-    std::mt19937 generator(bench_seed(20260908u));
+    TableDraw generator;
+    table_draw_seeded(&generator, bench_seed(20260908u));
     const auto started = embed_clock_ns();
 
     // -------------------------------------------------------------------------------------
@@ -228,46 +240,47 @@ int main()
 
     {
         const unsigned drawn = 4000000u;
-        std::unordered_map<uint32_t, uint32_t> counts;
-        counts.reserve(drawn / 2u);
         for (unsigned draw = 0u; draw < drawn; draw += 1u)
         {
-            counts[draw_delta(generator, 0u)] += 1u;
+            g_deltas[draw] = draw_delta(generator, 0u);
         }
+        deltas_sorted(drawn);
 
         uint64_t singleton_mass = 0u;
         uint64_t head_mass = 0u;
         size_t singletons = 0u;
         size_t doubletons = 0u;
         size_t head = 0u;
+        size_t distinct = 0u;
 
-        for (const auto &entry : counts)
+        for (size_t at = 0u; at < drawn;)
         {
-            if (entry.second == 1u)
+            const BenchTallyRun entry = bench_tally_run(g_deltas, drawn, &at);
+            distinct += 1u;
+            if (entry.count == 1u)
             {
                 singletons += 1u;
             }
-            if (entry.second == 2u)
+            if (entry.count == 2u)
             {
                 doubletons += 1u;
             }
-            if (entry.second <= 2u)
+            if (entry.count <= 2u)
             {
-                singleton_mass += entry.second;
+                singleton_mass += entry.count;
             }
             else
             {
-                head_mass += entry.second;
+                head_mass += entry.count;
                 head += 1u;
             }
         }
 
         printf("\n  %-34s %14s %14s\n", "", "deltas", "mass");
         printf("  %-34s %14s %14s\n", "----------------------------------", "--------------", "--------------");
-        printf("  %-34s %14zu %13.4f%%\n", "head, count above two", head,
-                    100.0 * (double)head_mass / (double)drawn);
+        printf("  %-34s %14zu %13.4f%%\n", "head, count above two", head, 100.0 * (double)head_mass / (double)drawn);
         printf("  %-34s %14zu %13.4f%%\n", "tail, count at or below two", singletons + doubletons,
-                    100.0 * (double)singleton_mass / (double)drawn);
+               100.0 * (double)singleton_mass / (double)drawn);
 
         // The code keeps the tail here, and must keep it. The unbiased collision estimator below
         // weights a delta by c(c-1), which is exactly zero for a singleton. Thus that estimator
@@ -277,7 +290,7 @@ int main()
         const double coverage = 1.0 - ((double)singletons / (double)drawn); // Good-Turing coverage.
         const double unseen_mass = (double)singletons / (double)drawn;
         const double chao_total =
-            (double)counts.size() +
+            (double)distinct +
             ((doubletons > 0u) ? (((double)singletons * (double)singletons) / (2.0 * (double)doubletons)) : 0.0);
 
         printf("\n  Read through the tail instead of past it:\n");
@@ -285,9 +298,9 @@ int main()
         printf("    doubletons f2              : %zu\n", doubletons);
         printf("    Good-Turing coverage       : %.8f\n", coverage);
         printf("    unseen mass, f1/N          : %.8e\n", unseen_mass);
-        printf("    distinct deltas observed   : %zu\n", counts.size());
+        printf("    distinct deltas observed   : %zu\n", distinct);
         printf("    Chao1 estimate of the total: %.0f\n", chao_total);
-        printf("    never observed             : %.0f\n", chao_total - (double)counts.size());
+        printf("    never observed             : %.0f\n", chao_total - (double)distinct);
 
         printf("\n  Those last four lines exist only because the tail was kept. f1 and f2 are\n");
         printf("  the sole part of a sample that says anything about what the sample missed,\n");
@@ -310,13 +323,12 @@ int main()
     double reference = 0.0;
     {
         const unsigned drawn = 8000000u;
-        std::unordered_map<uint32_t, uint32_t> counts;
-        counts.reserve(drawn / 2u);
         for (unsigned draw = 0u; draw < drawn; draw += 1u)
         {
-            counts[draw_delta(generator, 0u)] += 1u;
+            g_deltas[draw] = draw_delta(generator, 0u);
         }
-        reference = collision_probability(counts, drawn);
+        deltas_sorted(drawn);
+        reference = collision_probability(drawn);
     }
     printf("\n  reference collision probability : %.8e   (8,000,000 draws)\n", reference);
 
