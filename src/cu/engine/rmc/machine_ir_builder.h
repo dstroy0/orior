@@ -13,8 +13,8 @@ CODEGEN_CORE MachineOperand codegen_register(unsigned int bank, unsigned int num
     return argument;
 }
 
-// a word's value written into a form, as the ruleset's bank `immediate` writes a number: a language whose bare numbers
-// are narrower than a word writes it as a word
+// the value of a word written into a form, as the bank `immediate` of the ruleset writes a number. A language whose
+// bare numbers are narrower than a word writes it as a word
 CODEGEN_CORE MachineOperand codegen_immediate(unsigned int value)
 {
     return codegen_register(REGCLASS_IMMEDIATE, value);
@@ -32,7 +32,7 @@ CODEGEN_CORE MachineOperand codegen_number(unsigned int value)
     return argument;
 }
 
-// -1, the one negative number a form is written with, as its two's complement word
+// -1, the one negative number that a form uses, as its two's complement word
 CODEGEN_CORE MachineOperand codegen_minus_one(void)
 {
     const MachineOperand argument = {OPERAND_SIGNED, 0u, 0xFFFFFFFFu};
@@ -93,9 +93,10 @@ CODEGEN_CORE MachineOperandRange codegen_limbs(unsigned int place, unsigned int 
     return codegen_range(codegen_file(place), count, width);
 }
 
-// a form decided into the lane's sink, or counted where the sink has room for none. A form the ruleset gives as a
-// construct takes its scratch as the step's own temporaries, 64-bit temporaries and predicates, fresh for it, from
-// where each bank is, and declared with them; a construct that takes scratch of another bank breaks the lane
+// a form decided into the sink of the lane, or counted where the sink has room for none. A form that the ruleset gives
+// as a construct takes its scratch as the own temporaries, 64-bit temporaries and predicates of the step. They are new
+// for it, from where each bank is, and declared with them. A construct that takes scratch of another bank breaks the
+// lane
 CODEGEN_CORE void codegen_instr(MachineFunction *lane, unsigned int form, unsigned int count, MachineOperand first,
                                 MachineOperand second, MachineOperand third, MachineOperand fourth)
 {
@@ -153,7 +154,7 @@ CODEGEN_CORE void codegen_instr4(MachineFunction *lane, unsigned int form, Machi
     codegen_instr(lane, form, 4u, first, second, third, fourth);
 }
 
-// a form decided before into the lane's sink as it was, its scratch where it was taken
+// a form decided before, into the sink of the lane as it was, with its scratch where it took it
 CODEGEN_CORE void codegen_take(MachineFunction *lane, const MachineInstr *item)
 {
     if ((lane->items != NULL) && (lane->count < lane->capacity))
@@ -220,10 +221,10 @@ CODEGEN_CORE int codegen_reads_left(unsigned int operation)
            (operation != ENGINE_RECORD_CONSTANT) && (operation != ENGINE_RECORD_LANE);
 }
 
-// 1 where a compiled program supports the step as it is arranged: its operands are earlier steps, each read whole (a
-// table reads its source's low limb alone, and key_schedule leaves its left_limbs 0), its own limbs lie inside the
-// file, and a field reads a member the program has, a signed field's top bit inside its limbs. A step that fails this
-// leaves the whole program on the interpreter
+// 1 where a compiled program supports the step as arranged. Its operands are earlier steps, each read whole. A table
+// reads the low limb of its source alone, and key_schedule leaves its left_limbs 0. Its own limbs lie inside the file.
+// A field reads a member that the program has, with the top bit of a signed field inside its limbs. A step that fails
+// this leaves the whole program on the interpreter
 CODEGEN_CORE int codegen_step_valid(const IrProgram *program, unsigned int at)
 {
     const DeviceRecordStep *const step = &program->steps[at];
@@ -240,8 +241,9 @@ CODEGEN_CORE int codegen_step_valid(const IrProgram *program, unsigned int at)
             ((step->right != 0u) && (((step->right - 1u) / 32u) < step->limbs)));
 }
 
-// the atom words a field step reads, [*low, *high) of its member's: each limb's word and, where the field is shifted
-// within a word, the word after it, below the member's limbs; none for any other step or one the lane does not support
+// the atom words that a field step reads, `[*low, *high)` of those of its member. They are the word of each limb, and
+// the word after it where the field shifts within a word, below the limbs of the member. There are none for any other
+// step, or for one that the lane does not support
 CODEGEN_CORE void codegen_atom_words(const IrProgram *program, unsigned int at, unsigned int *low, unsigned int *high)
 {
     const DeviceRecordStep *const step = &program->steps[at];
@@ -260,8 +262,9 @@ CODEGEN_CORE void codegen_atom_words(const IrProgram *program, unsigned int at, 
     *high = (unsigned int)((end < limbs) ? end : limbs);
 }
 
-// the record words a step's put writes, [*low, *high): its out_bits' words from out_offset / 32, one more where the put
-// is shifted within a word, and none at or past the record's limbs; empty for a step that puts nothing
+// the record words that the put of a step writes, `[*low, *high)`. They are the words of its out_bits from
+// `out_offset / 32`, and one more where the put shifts within a word. None is at or past the limbs of the record. They
+// are empty for a step that puts nothing
 CODEGEN_CORE void codegen_put_words(const IrProgram *program, const DeviceRecordStep *step, unsigned int *low,
                                     unsigned int *high)
 {
@@ -275,8 +278,8 @@ CODEGEN_CORE void codegen_put_words(const IrProgram *program, const DeviceRecord
     *high = (step->out_bits == 0u) ? 0u : end;
 }
 
-// the loops step `at` writes, which the loop numbers each step begins at are the running sum of: the gcd's two, and one
-// for the ladder, a division by more than one limb and a product too wide to unroll
+// the loops that step `at` writes. The loop number that each step starts at is the moving sum of these. The gcd writes
+// two, and the ladder, a division by more than one limb and a product too wide to unroll each write one
 CODEGEN_CORE unsigned int codegen_loops(const IrProgram *program, unsigned int at)
 {
     const DeviceRecordStep *const step = &program->steps[at];
@@ -291,10 +294,13 @@ CODEGEN_CORE unsigned int codegen_loops(const IrProgram *program, unsigned int a
                                                                                                                  : 0u);
 }
 
-// the resident's arguments in its parameters' order: the launch's size, and by their byte offsets its count, hot words,
-// block, number, time to live and check-in, the hot words' next lane, start, thread blocks finished and check-ins, and
-// the block's owner, command, state, offset, step, launch time, running time, check-in and check-in time; then the
-// commands and states it reads and writes
+// the arguments of the resident, in the order of its parameters:
+//
+// - the size of the launch
+// - by their byte offsets, its count, hot words, block, number, time to live and check-in
+// - the next lane, start, thread blocks finished and check-ins of the hot words
+// - the owner, command, state, offset, step, launch time, run time, check-in and check-in time of the block
+// - the commands and states that it reads and writes
 CODEGEN_CORE unsigned long long codegen_unit(unsigned int at)
 {
     const unsigned long long values[PROGRAM_UNIT_PARAMETERS] = {sizeof(CycleCompiledLaunch),
@@ -325,10 +331,13 @@ CODEGEN_CORE unsigned long long codegen_unit(unsigned int at)
     return (at < PROGRAM_UNIT_PARAMETERS) ? values[at] : 0ULL;
 }
 
-// one register a lane uses: its bank, or REGCLASS_COUNT with the fixed register's place for a fixed register; its
-// number in the bank; the step it is the step's own in, CODEGEN_NO_ITEM for a register the lane uses throughout; the
-// item that claims it, the first that names it, and the item that releases it, the last; and the item whose scratch it
-// is, CODEGEN_NO_ITEM where it is no item's
+// one register that a lane uses:
+//
+// - its bank, or REGCLASS_COUNT with the place of the fixed register for a fixed register
+// - its number in the bank
+// - the step whose own register it is, CODEGEN_NO_ITEM for a register that the lane uses throughout
+// - the item that claims it, the first that names it, and the item that releases it, the last
+// - the item whose scratch it is, CODEGEN_NO_ITEM where it is the scratch of no item
 struct CodegenClaim
 {
     unsigned int bank;
@@ -341,10 +350,10 @@ struct CodegenClaim
 
 #define CODEGEN_NO_ITEM 0xFFFFFFFFFFFFFFFFULL
 
-// register `bank` `number` of step `step` named by item `at`, claimed there where nothing named it before and released
-// there however often it is named after; `scratch_of` the item whose scratch it is, CODEGEN_NO_ITEM where it is no
-// item's. An item naming another item's scratch sets `*collided` to itself the first time. The count recorded, past
-// `capacity` never
+// register `bank` `number` of step `step`, named by item `at`. The item claims it there where nothing named it before,
+// and releases it there, however often a later item names it. `scratch_of` is the item whose scratch it is,
+// CODEGEN_NO_ITEM where it is the scratch of no item. An item that names the scratch of another item sets `*collided`
+// to itself the first time. The return is the count recorded, never past `capacity`
 CODEGEN_CORE unsigned int codegen_claim_named(CodegenClaim *claims, unsigned int count, unsigned int capacity,
                                               unsigned int bank, unsigned int number, unsigned long long step,
                                               unsigned long long at, unsigned long long scratch_of,
@@ -373,12 +382,14 @@ CODEGEN_CORE unsigned int codegen_claim_named(CodegenClaim *claims, unsigned int
     return count;
 }
 
-// Every register `items` name, each claimed by the first item naming it and released by the last, and each scratch
-// register an item takes, the scratch `scratch` arranges four words a form (ruleset_scratch) in the banks
-// `scratch_banks`, used by that item alone. A temporary, a 64-bit temporary and a predicate are the step's own, a new
-// one at each step's note, and every other register the lane's throughout, a fixed register by its place past the
-// banks. The count recorded, at max `capacity`, and in `*collided` the first item naming a register another item uses
-// as its scratch, CODEGEN_NO_ITEM where none does
+// Every register that `items` name. The first item that names each claims it, and the last releases it. Then each
+// scratch register that an item takes, in the scratch that `scratch` arranges, four words for each form
+// (ruleset_scratch), in the banks `scratch_banks`. Only that item uses it.
+//
+// A temporary, a 64-bit temporary and a predicate belong to the step, a new one at the note of each step. Every other
+// register belongs to the lane throughout, and a fixed register goes by its place past the banks. The return is the
+// count recorded, at max `capacity`. `*collided` gets the first item that names a register that another item uses as
+// its scratch, CODEGEN_NO_ITEM where none does
 CODEGEN_CORE unsigned int codegen_claims(const MachineInstr *items, unsigned long long item_count,
                                          const unsigned int *scratch, const unsigned int *scratch_banks,
                                          CodegenClaim *claims, unsigned int capacity, unsigned long long *collided)
