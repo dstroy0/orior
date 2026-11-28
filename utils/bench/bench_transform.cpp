@@ -19,18 +19,15 @@
  *       argument about it. Where the signal dies, the bench reports the round.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
+#include "bench_bound.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
 #include <math.h>
-#include <complex>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <string>
-#include <vector>
 
 namespace
 {
@@ -45,26 +42,32 @@ const unsigned BOUNDARY_WIDTH = 32u;
 const unsigned BOUNDARY_HEIGHT = 8u;
 
 /**
+ * @brief A complex value as the compiler holds one. It is the type inside the complex of the C++ library, with its
+ *        division, its magnitude and its angle.
+ */
+typedef __complex__ double Complex;
+
+/**
  * @brief Records one check and prints it.
  *
  * @param[in] name   The name of the check.
  * @param[in] passed Whether the check passed.
  * @param[in] detail The observed result, printed on failure.
  */
-void check(const std::string &name, bool passed, const std::string &detail = "")
+void check(const char *name, bool passed, const char *detail = "")
 {
     g_checks_run += 1;
     if (passed)
     {
-        printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name);
     }
     else
     {
         g_checks_failed += 1;
-        printf("  [FAIL] %s\n", name.c_str());
-        if (!detail.empty())
+        printf("  [FAIL] %s\n", name);
+        if (detail[0] != '\0')
         {
-            printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail);
         }
     }
 }
@@ -105,19 +108,22 @@ void project_word(uint32_t value, double *boundary)
  * @note Naive and exact. Thirty-two points do not need a fast transform. An exact transform cannot
  *       hide a signal in its own approximation.
  */
-void transform_row(const double *boundary, std::complex<double> *spectrum)
+void transform_row(const double *boundary, Complex *spectrum)
 {
     for (unsigned frequency = 0u; frequency < BOUNDARY_WIDTH; frequency += 1u)
     {
-        std::complex<double> total(0.0, 0.0);
+        double total_real = 0.0;
+        double total_imaginary = 0.0;
 
         for (unsigned position = 0u; position < BOUNDARY_WIDTH; position += 1u)
         {
             const double angle =
                 -2.0 * 3.14159265358979323846 * (double)frequency * (double)position / (double)BOUNDARY_WIDTH;
-            total += boundary[position] * std::complex<double>(cos(angle), sin(angle));
+            total_real += boundary[position] * cos(angle);
+            total_imaginary += boundary[position] * sin(angle);
         }
-        spectrum[frequency] = total;
+        __real__ spectrum[frequency] = total_real;
+        __imag__ spectrum[frequency] = total_imaginary;
     }
 }
 
@@ -133,20 +139,21 @@ void check_rotation_identity()
     printf("  0. Control. Does the boundary see a rotation at all?\n");
     printf("================================================================\n");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     double worst_magnitude_drift = 0.0;
     double worst_phase_error = 0.0;
 
     for (unsigned trial = 0u; trial < 256u; trial += 1u)
     {
-        const uint32_t value = generator();
-        const unsigned shift = 1u + (generator() % 31u);
+        const uint32_t value = table_draw_next(&generator);
+        const unsigned shift = 1u + (table_draw_next(&generator) % 31u);
         const uint32_t rotated = rotate_right(value, shift);
 
         double plain_boundary[BOUNDARY_WIDTH];
         double rotated_boundary[BOUNDARY_WIDTH];
-        std::complex<double> plain_spectrum[BOUNDARY_WIDTH];
-        std::complex<double> rotated_spectrum[BOUNDARY_WIDTH];
+        Complex plain_spectrum[BOUNDARY_WIDTH];
+        Complex rotated_spectrum[BOUNDARY_WIDTH];
 
         project_word(value, plain_boundary);
         project_word(rotated, rotated_boundary);
@@ -155,16 +162,17 @@ void check_rotation_identity()
 
         for (unsigned frequency = 1u; frequency < BOUNDARY_WIDTH; frequency += 1u)
         {
-            const double drift = fabs(std::abs(plain_spectrum[frequency]) - std::abs(rotated_spectrum[frequency]));
-            worst_magnitude_drift = std::max(worst_magnitude_drift, drift);
+            const double drift =
+                fabs(__builtin_cabs(plain_spectrum[frequency]) - __builtin_cabs(rotated_spectrum[frequency]));
+            worst_magnitude_drift = bench_max(worst_magnitude_drift, drift);
 
-            if (std::abs(plain_spectrum[frequency]) > 1e-6)
+            if (__builtin_cabs(plain_spectrum[frequency]) > 1e-6)
             {
                 // A right rotation by s advances the phase by +2 pi k s / 32.
-                const std::complex<double> ratio = rotated_spectrum[frequency] / plain_spectrum[frequency];
+                const Complex ratio = rotated_spectrum[frequency] / plain_spectrum[frequency];
                 const double predicted =
                     2.0 * 3.14159265358979323846 * (double)frequency * (double)shift / (double)BOUNDARY_WIDTH;
-                double error = std::arg(ratio) - predicted;
+                double error = __builtin_carg(ratio) - predicted;
 
                 while (error > 3.14159265358979323846)
                 {
@@ -174,7 +182,7 @@ void check_rotation_identity()
                 {
                     error += 2.0 * 3.14159265358979323846;
                 }
-                worst_phase_error = std::max(worst_phase_error, fabs(error));
+                worst_phase_error = bench_max(worst_phase_error, fabs(error));
             }
         }
     }
@@ -269,27 +277,29 @@ void measure_rotation_memory()
     printf("\n  %8s %14s %12s\n", "rounds", "recovered", "vs chance");
     printf("  %8s %14s %12s\n", "--------", "--------------", "------------");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 4096u;
     unsigned last_informative_round = 0u;
     bool ever_informative = false;
 
-    for (unsigned rounds : {0u, 1u, 2u, 3u, 4u, 5u, 6u, 8u, 10u, 12u, 16u, 20u, 24u, 32u, 48u, 64u})
+    const unsigned listed_rounds[] = {0u, 1u, 2u, 3u, 4u, 5u, 6u, 8u, 10u, 12u, 16u, 20u, 24u, 32u, 48u, 64u};
+    for (unsigned rounds : listed_rounds)
     {
         unsigned recovered = 0u;
 
         for (unsigned trial = 0u; trial < trials; trial += 1u)
         {
-            const unsigned shift = 1u + (generator() % 31u);
+            const unsigned shift = 1u + (table_draw_next(&generator) % 31u);
 
             uint32_t block[SHA256_BLOCK_WORDS];
-            fill_tail_block(block, generator());
+            fill_tail_block(block, table_draw_next(&generator));
 
             Sha256State plain_state;
             Sha256State rotated_state;
             for (unsigned slot = 0u; slot < BOUNDARY_HEIGHT; slot += 1u)
             {
-                const uint32_t word = generator();
+                const uint32_t word = table_draw_next(&generator);
                 plain_state.word[slot] = word;
                 rotated_state.word[slot] = word;
             }
@@ -344,19 +354,21 @@ void measure_avalanche()
     printf("\n  %8s %14s\n", "rounds", "bits moved");
     printf("  %8s %14s\n", "--------", "--------------");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 2048u;
     unsigned saturation_round = 0u;
     bool saturated = false;
 
-    for (unsigned rounds : {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 10u, 12u, 14u, 16u, 20u, 24u, 32u, 64u})
+    const unsigned listed_rounds[] = {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 10u, 12u, 14u, 16u, 20u, 24u, 32u, 64u};
+    for (unsigned rounds : listed_rounds)
     {
         uint64_t moved_total = 0u;
 
         for (unsigned trial = 0u; trial < trials; trial += 1u)
         {
-            const uint32_t nonce = generator();
-            const unsigned bit = generator() % 32u;
+            const uint32_t nonce = table_draw_next(&generator);
+            const unsigned bit = table_draw_next(&generator) % 32u;
 
             uint32_t plain_block[SHA256_BLOCK_WORDS];
             uint32_t flipped_block[SHA256_BLOCK_WORDS];
@@ -402,10 +414,12 @@ void measure_spectral_flatness()
     printf("\n  %8s %18s %14s\n", "rounds", "spectral flatness", "peak / mean");
     printf("  %8s %18s %14s\n", "--------", "------------------", "--------------");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned trials = 4096u;
 
-    for (unsigned rounds : {0u, 1u, 2u, 4u, 8u, 16u, 32u, 64u})
+    const unsigned listed_rounds[] = {0u, 1u, 2u, 4u, 8u, 16u, 32u, 64u};
+    for (unsigned rounds : listed_rounds)
     {
         double power[BOUNDARY_WIDTH];
         for (unsigned frequency = 0u; frequency < BOUNDARY_WIDTH; frequency += 1u)
@@ -416,7 +430,7 @@ void measure_spectral_flatness()
         for (unsigned trial = 0u; trial < trials; trial += 1u)
         {
             uint32_t block[SHA256_BLOCK_WORDS];
-            fill_tail_block(block, generator());
+            fill_tail_block(block, table_draw_next(&generator));
 
             Sha256State state;
             sha256_state_init(&state);
@@ -425,13 +439,15 @@ void measure_spectral_flatness()
             for (unsigned row = 0u; row < BOUNDARY_HEIGHT; row += 1u)
             {
                 double boundary[BOUNDARY_WIDTH];
-                std::complex<double> spectrum[BOUNDARY_WIDTH];
+                Complex spectrum[BOUNDARY_WIDTH];
 
                 project_word(state.word[row], boundary);
                 transform_row(boundary, spectrum);
                 for (unsigned frequency = 0u; frequency < BOUNDARY_WIDTH; frequency += 1u)
                 {
-                    power[frequency] += std::norm(spectrum[frequency]);
+                    const double real = __real__ spectrum[frequency];
+                    const double imaginary = __imag__ spectrum[frequency];
+                    power[frequency] += (real * real) + (imaginary * imaginary);
                 }
             }
         }
@@ -444,9 +460,9 @@ void measure_spectral_flatness()
         for (unsigned frequency = 1u; frequency < BOUNDARY_WIDTH; frequency += 1u)
         {
             const double value = power[frequency];
-            log_sum += log(std::max(value, 1e-300));
+            log_sum += log(bench_max(value, 1e-300));
             linear_sum += value;
-            peak = std::max(peak, value);
+            peak = bench_max(peak, value);
         }
         const double count = (double)(BOUNDARY_WIDTH - 1u);
         const double geometric = exp(log_sum / count);
@@ -470,7 +486,8 @@ void check_instrument()
     printf("  Instrument check\n");
     printf("================================================================\n");
 
-    std::mt19937 generator(1u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 1u);
     bool all_matched = true;
 
     for (unsigned trial = 0u; trial < 512u; trial += 1u)
@@ -478,7 +495,7 @@ void check_instrument()
         uint32_t block[SHA256_BLOCK_WORDS];
         for (unsigned slot = 0u; slot < SHA256_BLOCK_WORDS; slot += 1u)
         {
-            block[slot] = generator();
+            block[slot] = table_draw_next(&generator);
         }
 
         Sha256State full;

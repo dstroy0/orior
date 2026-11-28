@@ -17,17 +17,16 @@
  *       that, and the anchor filters exactly on it. Nothing here is a proxy for the real objective.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
+#include "bench_bound.h"
+#include "bench_hex.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <string>
-#include <vector>
 
 namespace
 {
@@ -42,24 +41,6 @@ const unsigned STEP_COUNT = 32u;
 
 Sha256ScanRequest g_base;
 uint64_t g_hashes_spent = 0u;
-
-/**
- * @brief Converts a hex string to bytes.
- *
- * @param[in] hex Characters to convert.
- * @return        The bytes that they encode.
- */
-std::vector<uint8_t> bytes_from_hex(const std::string &hex)
-{
-    std::vector<uint8_t> bytes;
-
-    bytes.reserve(hex.size() / 2u);
-    for (size_t at = 0u; (at + 1u) < hex.size(); at += 2u)
-    {
-        bytes.push_back((uint8_t)std::stoul(hex.substr(at, 2u), nullptr, 16));
-    }
-    return bytes;
-}
 
 /**
  * @brief Reads four header bytes as the big-endian word SHA-256 schedules.
@@ -153,7 +134,8 @@ void measure_landscape_correlation()
     printf("\n  %-28s %14s %12s\n", "step", "correlation", "z");
     printf("  %-28s %14s %12s\n", "----------------------------", "--------------", "------------");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned pairs = 200000u;
 
     for (int mode = 0; mode < 3; mode += 1)
@@ -166,7 +148,7 @@ void measure_landscape_correlation()
 
         for (unsigned trial = 0u; trial < pairs; trial += 1u)
         {
-            const uint32_t here = generator();
+            const uint32_t here = table_draw_next(&generator);
             uint32_t there = here;
 
             if (mode == 0)
@@ -175,11 +157,11 @@ void measure_landscape_correlation()
             }
             else if (mode == 1)
             {
-                there = here ^ (1u << (generator() % 32u));
+                there = here ^ (1u << (table_draw_next(&generator) % 32u));
             }
             else
             {
-                there = generator();
+                there = table_draw_next(&generator);
             }
 
             const double left = (double)fitness(here);
@@ -195,8 +177,7 @@ void measure_landscape_correlation()
         const double count = (double)pairs;
         const double covariance = (sum_product / count) - ((sum_here / count) * (sum_there / count));
         const double spread_here = sqrt((sum_here_squared / count) - ((sum_here / count) * (sum_here / count)));
-        const double spread_there =
-            sqrt((sum_there_squared / count) - ((sum_there / count) * (sum_there / count)));
+        const double spread_there = sqrt((sum_there_squared / count) - ((sum_there / count) * (sum_there / count)));
         const double correlation = covariance / (spread_here * spread_there);
         const double score = correlation * sqrt(count);
 
@@ -223,7 +204,8 @@ void measure_step_magnitude()
     printf("  the best step stands out from its 31 siblings by more than 32 unrelated\n");
     printf("  candidates would. Both distributions measured over 20000 positions.\n");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
     const unsigned positions = 20000u;
     double neighbour_best_total = 0.0;
     double neighbour_gap_total = 0.0;
@@ -232,19 +214,22 @@ void measure_step_magnitude()
 
     for (unsigned trial = 0u; trial < positions; trial += 1u)
     {
-        const uint32_t here = generator();
-        std::vector<unsigned> neighbour_scores;
-        std::vector<unsigned> random_scores;
+        const uint32_t here = table_draw_next(&generator);
+        // the largest score of each kind and the next below it, a score equal to the largest among them
+        unsigned neighbour_scores[2] = {0u, 0u};
+        unsigned random_scores[2] = {0u, 0u};
 
-        neighbour_scores.reserve(STEP_COUNT);
-        random_scores.reserve(STEP_COUNT);
         for (unsigned step = 0u; step < STEP_COUNT; step += 1u)
         {
-            neighbour_scores.push_back(fitness(here ^ (1u << step)));
-            random_scores.push_back(fitness(generator()));
+            const unsigned neighbour = fitness(here ^ (1u << step));
+            const unsigned unrelated = fitness(table_draw_next(&generator));
+            neighbour_scores[1] =
+                (neighbour > neighbour_scores[0]) ? neighbour_scores[0] : bench_max(neighbour_scores[1], neighbour);
+            neighbour_scores[0] = bench_max(neighbour_scores[0], neighbour);
+            random_scores[1] =
+                (unrelated > random_scores[0]) ? random_scores[0] : bench_max(random_scores[1], unrelated);
+            random_scores[0] = bench_max(random_scores[0], unrelated);
         }
-        std::sort(neighbour_scores.rbegin(), neighbour_scores.rend());
-        std::sort(random_scores.rbegin(), random_scores.rend());
 
         neighbour_best_total += (double)neighbour_scores[0];
         neighbour_gap_total += (double)(neighbour_scores[0] - neighbour_scores[1]);
@@ -257,7 +242,7 @@ void measure_step_magnitude()
     printf("  %-34s %14s %14s\n", "----------------------------------", "--------------", "--------------");
     printf("  %-34s %14.4f %14.4f\n", "mean best score", neighbour_best_total / count, random_best_total / count);
     printf("  %-34s %14.4f %14.4f\n", "mean gap, best to second", neighbour_gap_total / count,
-                random_gap_total / count);
+           random_gap_total / count);
 
     printf("\n  Matching columns mean the best of 32 neighbors is exactly the best of 32\n");
     printf("  unrelated draws, so choosing a step by score is choosing at random.\n");
@@ -278,7 +263,8 @@ void measure_walk_against_enumeration()
 
     const uint64_t budget = 1u << 20;
     const unsigned runs = 24u;
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
 
     double walk_total = 0.0;
     double enumerate_total = 0.0;
@@ -294,7 +280,7 @@ void measure_walk_against_enumeration()
         // Arm one: a steepest-ascent hill climb with restarts.
         g_hashes_spent = 0u;
         unsigned walk_best = 0u;
-        uint32_t position = generator();
+        uint32_t position = table_draw_next(&generator);
         unsigned position_score = fitness(position);
 
         while (g_hashes_spent < budget)
@@ -317,8 +303,8 @@ void measure_walk_against_enumeration()
                     best_step = candidate;
                 }
             }
-            walk_best = std::max(walk_best, best_step_score);
-            walk_best = std::max(walk_best, position_score);
+            walk_best = bench_max(walk_best, best_step_score);
+            walk_best = bench_max(walk_best, position_score);
 
             if (best_step_score > position_score)
             {
@@ -328,20 +314,20 @@ void measure_walk_against_enumeration()
             else
             {
                 // Stuck at a local maximum. Restart: the strongest version of the method.
-                position = generator();
+                position = table_draw_next(&generator);
                 position_score = fitness(position);
-                walk_best = std::max(walk_best, position_score);
+                walk_best = bench_max(walk_best, position_score);
             }
         }
 
         // Arm two: plain enumeration from a random start, same budget.
         g_hashes_spent = 0u;
         unsigned enumerate_best = 0u;
-        uint32_t cursor = generator();
+        uint32_t cursor = table_draw_next(&generator);
 
         while (g_hashes_spent < budget)
         {
-            enumerate_best = std::max(enumerate_best, fitness(cursor));
+            enumerate_best = bench_max(enumerate_best, fitness(cursor));
             cursor += 1u;
         }
 
@@ -436,9 +422,9 @@ void measure_injection_floor()
     printf("\n  alpha is the injected gradient in leading-zero bits per single-bit step.\n");
     printf("  alpha = 0 is the un-injected bench, which is the result being calibrated.\n");
     printf("\n  %10s %14s %12s %14s %12s %10s\n", "alpha", "flip corr", "flip z", "control corr", "control z",
-                "verdict");
+           "verdict");
     printf("  %10s %14s %12s %14s %12s %10s\n", "----------", "--------------", "------------", "--------------",
-                "------------", "----------");
+           "------------", "----------");
 
     double floor_found = 0.0;
     for (unsigned rung = 0u; rung < rungs; rung += 1u)
@@ -450,7 +436,8 @@ void measure_injection_floor()
         {
             // The generator gets a new seed per arm. Thus the flip arm and the control see the same
             // nonces. A difference between the columns is then the step alone.
-            std::mt19937 generator(20260908u);
+            TableDraw generator;
+            table_draw_seeded(&generator, 20260908u);
             double sum_here = 0.0;
             double sum_there = 0.0;
             double sum_here_squared = 0.0;
@@ -459,8 +446,9 @@ void measure_injection_floor()
 
             for (unsigned trial = 0u; trial < pairs; trial += 1u)
             {
-                const uint32_t here = generator();
-                const uint32_t there = (mode == 0u) ? (here ^ (1u << (generator() % 32u))) : generator();
+                const uint32_t here = table_draw_next(&generator);
+                const uint32_t there =
+                    (mode == 0u) ? (here ^ (1u << (table_draw_next(&generator) % 32u))) : table_draw_next(&generator);
 
                 const double left = (double)fitness(here) + alpha * (double)set_bits(here);
                 const double right = (double)fitness(there) + alpha * (double)set_bits(there);
@@ -474,10 +462,8 @@ void measure_injection_floor()
 
             const double count = (double)pairs;
             const double covariance = (sum_product / count) - ((sum_here / count) * (sum_there / count));
-            const double spread_here =
-                sqrt((sum_here_squared / count) - ((sum_here / count) * (sum_here / count)));
-            const double spread_there =
-                sqrt((sum_there_squared / count) - ((sum_there / count) * (sum_there / count)));
+            const double spread_here = sqrt((sum_here_squared / count) - ((sum_here / count) * (sum_here / count)));
+            const double spread_there = sqrt((sum_there_squared / count) - ((sum_there / count) * (sum_there / count)));
             score[mode] = (covariance / (spread_here * spread_there)) * sqrt(count);
         }
 
@@ -489,7 +475,7 @@ void measure_injection_floor()
             floor_found = alpha;
         }
         printf("  %10.6f %14.6f %12.2f %14.6f %12.2f %10s\n", alpha, score[0] / sqrt((double)pairs), score[0],
-                    score[1] / sqrt((double)pairs), score[1], seen ? "SEEN" : "lost");
+               score[1] / sqrt((double)pairs), score[1], seen ? "SEEN" : "lost");
     }
 
     printf("\n  The smallest alpha still marked SEEN is this bench's detection floor.\n");
@@ -532,32 +518,37 @@ void measure_pin_retention()
     printf("  whether the zeros survive. Chance is 2^-k. Anything above chance is a pin\n");
     printf("  that stays set, which is what a rake exploits.\n");
 
-    std::mt19937 generator(20260908u);
+    TableDraw generator;
+    table_draw_seeded(&generator, 20260908u);
 
     printf("\n  %6s %12s %14s %14s %14s %10s\n", "k", "chance", "flip 1 bit", "nonce + 1", "unrelated", "verdict");
     printf("  %6s %12s %14s %14s %14s %10s\n", "------", "------------", "--------------", "--------------",
-                "--------------", "----------");
+           "--------------", "----------");
 
     // The k values serve statistical power alone. A test at k=16 with a few hundred set states
     // expects 0.006 retained hits under chance. Thus a column of zeros there says nothing. These
     // three put the expected count under chance at roughly 300, 80 and 20. Those counts can
     // actually detect a factor of two.
-    for (unsigned zeros : {4u, 6u, 8u})
+    const unsigned listed_zeros[] = {4u, 6u, 8u};
+    for (unsigned zeros : listed_zeros)
     {
         // Collect nonces that already clear k zeros. These are the "pins already set" states.
-        std::vector<uint32_t> set_states;
+        // the states that clear the zeros, at most `wanted` of them
+        uint32_t set_states[5000];
+        size_t set_count = 0u;
         const unsigned wanted = 5000u;
-        uint32_t cursor = generator();
+        uint32_t cursor = table_draw_next(&generator);
 
-        while ((set_states.size() < wanted) && (cursor < 0xFFFFFF00u))
+        while ((set_count < wanted) && (cursor < 0xFFFFFF00u))
         {
             if (fitness(cursor) >= zeros)
             {
-                set_states.push_back(cursor);
+                set_states[set_count] = cursor;
+                set_count += 1u;
             }
             cursor += 1u;
         }
-        if (set_states.empty())
+        if (set_count == 0u)
         {
             continue;
         }
@@ -566,9 +557,10 @@ void measure_pin_retention()
         unsigned held_step = 0u;
         unsigned held_free = 0u;
 
-        for (uint32_t state : set_states)
+        for (size_t at = 0u; at < set_count; at += 1u)
         {
-            if (fitness(state ^ (1u << (generator() % 32u))) >= zeros)
+            const uint32_t state = set_states[at];
+            if (fitness(state ^ (1u << (table_draw_next(&generator) % 32u))) >= zeros)
             {
                 held_flip += 1u;
             }
@@ -576,13 +568,13 @@ void measure_pin_retention()
             {
                 held_step += 1u;
             }
-            if (fitness(generator()) >= zeros)
+            if (fitness(table_draw_next(&generator)) >= zeros)
             {
                 held_free += 1u;
             }
         }
 
-        const double count = (double)set_states.size();
+        const double count = (double)set_count;
         const double chance = pow(0.5, (double)zeros);
         const double flip_rate = (double)held_flip / count;
         const double step_rate = (double)held_step / count;
@@ -594,10 +586,10 @@ void measure_pin_retention()
             ((flip_rate - chance) > (5.0 * standard_error)) || ((step_rate - chance) > (5.0 * standard_error));
 
         printf("  %6u %11.4f%% %13.4f%% %13.4f%% %13.4f%% %10s\n", zeros, chance * 100.0, flip_rate * 100.0,
-                    step_rate * 100.0, free_rate * 100.0, retained ? "RETAINED" : "none");
+               step_rate * 100.0, free_rate * 100.0, retained ? "RETAINED" : "none");
         printf("  %6s %11s  (%zu set states, %.0f expected under chance, detects a %.1fx "
-                    "effect at 5 sigma)\n",
-                    "", "", set_states.size(), chance * count, 1.0 + ((5.0 * standard_error) / chance));
+               "effect at 5 sigma)\n",
+               "", "", set_count, chance * count, 1.0 + ((5.0 * standard_error) / chance));
     }
 
     printf("\n  Every perturbation column sits on the chance column, and on the unrelated\n");
@@ -623,12 +615,12 @@ int main()
     printf("  Does this domain have the neighbourhoods a walk needs?\n");
     printf("================================================================\n");
 
-    const std::vector<uint8_t> header = bytes_from_hex(WALK_HEADER_HEX);
+    const BenchHexBytes header = bench_hex_bytes(WALK_HEADER_HEX);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &g_base, .bytes = sizeof(g_base), .val = 0);
-    sha256_header_midstate(&g_base.midstate, header.data());
-    g_base.merkle_root_tail = schedule_word_from_header(header.data() + 64u);
-    g_base.ntime = schedule_word_from_header(header.data() + 68u);
-    g_base.nbits = schedule_word_from_header(header.data() + 72u);
+    sha256_header_midstate(&g_base.midstate, header.at);
+    g_base.merkle_root_tail = schedule_word_from_header(header.at + 64u);
+    g_base.ntime = schedule_word_from_header(header.at + 68u);
+    g_base.nbits = schedule_word_from_header(header.at + 72u);
 
     const auto started = embed_clock_ns();
 

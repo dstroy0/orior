@@ -22,18 +22,16 @@
  *       of them and not the others.
  */
 
+#include "../../src/cu/transpiler/lstar/protocol/table/table_draw.h"
+#include "bench_hex.h"
 #include "bench_seed.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include "embed_turnstile.h"
-#include <algorithm>
 #include <math.h>
-#include <random>
 #include <stdint.h>
 #include <stdio.h>
-#include <string>
-#include <vector>
 
 #include "bench_job_ring.h"
 #include "bench_load_limit.h"
@@ -47,24 +45,6 @@ const char *const HEADER_HEX =
     "db8b1eb942ae710e951ed797f7affc8892b0f1fc122bc7f5d74df2b9441a42a14695";
 
 Sha256ScanRequest g_base;
-
-/**
- * @brief Converts a hex string to bytes.
- *
- * @param[in] hex Characters to convert.
- * @return        The bytes that they encode.
- */
-std::vector<uint8_t> bytes_from_hex(const std::string &hex)
-{
-    std::vector<uint8_t> bytes;
-
-    bytes.reserve(hex.size() / 2u);
-    for (size_t at = 0u; (at + 1u) < hex.size(); at += 2u)
-    {
-        bytes.push_back((uint8_t)std::stoul(hex.substr(at, 2u), nullptr, 16));
-    }
-    return bytes;
-}
 
 /**
  * @brief Reads four header bytes as the big-endian word SHA-256 schedules.
@@ -132,6 +112,13 @@ enum class Placement
     Nested     /**< Leading-zero prefix, the control that scales trivially. */
 };
 
+/** @brief Anchor positions, `count` of them, each in [0,256). */
+struct Positions
+{
+    unsigned at[256];
+    unsigned count;
+};
+
 /**
  * @brief Chooses k anchor positions under one placement rule.
  *
@@ -140,31 +127,34 @@ enum class Placement
  * @param[in,out] generator Random source [BORROWS].
  * @return                  The chosen bit positions, each in [0,256).
  */
-std::vector<unsigned> choose_positions(unsigned count, Placement placement, std::mt19937 &generator)
+Positions choose_positions(unsigned count, Placement placement, TableDraw &generator)
 {
-    std::vector<unsigned> positions;
+    Positions positions;
+    positions.count = 0u;
 
     if (placement == Placement::Nested)
     {
         for (unsigned at = 0u; at < count; at += 1u)
         {
-            positions.push_back(at);
+            positions.at[positions.count] = at;
+            positions.count += 1u;
         }
         return positions;
     }
     if (placement == Placement::SameWord)
     {
         // One word carries 32 bits. Thus this rule caps at 32 anchors.
-        const unsigned word = generator() % 8u;
-        std::vector<unsigned> bits(32u);
+        const unsigned word = table_draw_next(&generator) % 8u;
+        unsigned bits[32];
         for (unsigned bit = 0u; bit < 32u; bit += 1u)
         {
             bits[bit] = bit;
         }
-        std::shuffle(bits.begin(), bits.end(), generator);
+        table_shuffled(bits, 32u, &generator);
         for (unsigned at = 0u; at < count; at += 1u)
         {
-            positions.push_back((word * 32u) + bits[at]);
+            positions.at[positions.count] = (word * 32u) + bits[at];
+            positions.count += 1u;
         }
         return positions;
     }
@@ -172,29 +162,31 @@ std::vector<unsigned> choose_positions(unsigned count, Placement placement, std:
     {
         // Eight words. Thus this rule caps at 8 anchors. If the digest were an orbit under word
         // rotation, these would all test one condition, exactly as the offsets of periodic16 do.
-        const unsigned bit = generator() % 32u;
-        std::vector<unsigned> words(8u);
+        const unsigned bit = table_draw_next(&generator) % 32u;
+        unsigned words[8];
         for (unsigned word = 0u; word < 8u; word += 1u)
         {
             words[word] = word;
         }
-        std::shuffle(words.begin(), words.end(), generator);
+        table_shuffled(words, 8u, &generator);
         for (unsigned at = 0u; at < count; at += 1u)
         {
-            positions.push_back((words[at] * 32u) + bit);
+            positions.at[positions.count] = (words[at] * 32u) + bit;
+            positions.count += 1u;
         }
         return positions;
     }
 
-    std::vector<unsigned> all(256u);
+    unsigned all[256];
     for (unsigned at = 0u; at < 256u; at += 1u)
     {
         all[at] = at;
     }
-    std::shuffle(all.begin(), all.end(), generator);
+    table_shuffled(all, 256u, &generator);
     for (unsigned at = 0u; at < count; at += 1u)
     {
-        positions.push_back(all[at]);
+        positions.at[positions.count] = all[at];
+        positions.count += 1u;
     }
     return positions;
 }
@@ -202,9 +194,9 @@ std::vector<unsigned> choose_positions(unsigned count, Placement placement, std:
 /** @brief The shares of the seats of count_survivors: the anchors, a tally for each seat, and the nonces of each. */
 struct SurvivorShares
 {
-    const std::vector<unsigned> *positions; /**< Where the anchors sit [BORROWS]. */
-    uint64_t *tallies;                      /**< A tally for each seat [BORROWS]. */
-    uint32_t share;                         /**< The nonces of each seat. */
+    const Positions *positions; /**< Where the anchors sit [BORROWS]. */
+    uint64_t *tallies;          /**< A tally for each seat [BORROWS]. */
+    uint32_t share;             /**< The nonces of each seat. */
 };
 
 /**
@@ -214,11 +206,17 @@ struct SurvivorShares
  * @param[in] span      How many nonces to test.
  * @return              How many survived every anchor.
  */
-uint64_t count_survivors(const std::vector<unsigned> &positions, uint32_t span)
+uint64_t count_survivors(const Positions &positions, uint32_t span)
 {
     const unsigned workers = (bench_processors() > 1u) ? (bench_processors() - 1u) : 1u;
-    std::vector<uint64_t> tallies(workers, 0u);
-    SurvivorShares shares = {&positions, tallies.data(), span / workers};
+    // a tally for each seat, at most BENCH_JOBS_MAX of them
+    uint64_t tallies[BENCH_JOBS_MAX] = {0u};
+    if (workers > BENCH_JOBS_MAX)
+    {
+        fprintf(stderr, "bench_orbit: %u seats, past the %u the ring holds\n", workers, BENCH_JOBS_MAX);
+        exit(1);
+    }
+    SurvivorShares shares = {&positions, tallies, span / workers};
 
     bench_jobs_run(
         [](void *context, unsigned seat) {
@@ -231,8 +229,9 @@ uint64_t count_survivors(const std::vector<unsigned> &positions, uint32_t span)
                 digest_for_nonce((seat * share) + step, ordered);
 
                 bool held = true;
-                for (unsigned position : *seat_shares->positions)
+                for (unsigned at = 0u; at < seat_shares->positions->count; at += 1u)
                 {
+                    const unsigned position = seat_shares->positions->at[at];
                     // Position zero is the most significant bit of the number the target reads.
                     const uint32_t word = ordered[position / 32u];
                     if (((word >> (31u - (position % 32u))) & 1u) != 0u)
@@ -248,9 +247,9 @@ uint64_t count_survivors(const std::vector<unsigned> &positions, uint32_t span)
         &shares, workers, workers);
 
     uint64_t total = 0u;
-    for (uint64_t tally : tallies)
+    for (unsigned seat = 0u; seat < workers; seat += 1u)
     {
-        total += tally;
+        total += tallies[seat];
     }
     return total;
 }
@@ -269,15 +268,16 @@ int main()
     printf("  asked directly. k anchors, each demanding a zero bit. Independent anchors leave\n");
     printf("  2^-k survivors. Anchors collapsed onto one orbit leave far more.\n");
 
-    const std::vector<uint8_t> header = bytes_from_hex(HEADER_HEX);
+    const BenchHexBytes header = bench_hex_bytes(HEADER_HEX);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &g_base, .bytes = sizeof(g_base), .val = 0);
-    sha256_header_midstate(&g_base.midstate, header.data());
-    g_base.merkle_root_tail = schedule_word_from_header(header.data() + 64u);
-    g_base.ntime = schedule_word_from_header(header.data() + 68u);
-    g_base.nbits = schedule_word_from_header(header.data() + 72u);
+    sha256_header_midstate(&g_base.midstate, header.at);
+    g_base.merkle_root_tail = schedule_word_from_header(header.at + 64u);
+    g_base.ntime = schedule_word_from_header(header.at + 68u);
+    g_base.nbits = schedule_word_from_header(header.at + 72u);
 
     const uint32_t span = 1u << 24;
-    std::mt19937 generator(bench_seed(20260908u));
+    TableDraw generator;
+    table_draw_seeded(&generator, bench_seed(20260908u));
     const auto started = embed_clock_ns();
 
     const struct
@@ -302,12 +302,12 @@ int main()
 
         for (unsigned count = 1u; count <= rule.ceiling; count += (count < 4u) ? 1u : 4u)
         {
-            const std::vector<unsigned> positions = choose_positions(count, rule.placement, generator);
+            const Positions positions = choose_positions(count, rule.placement, generator);
             const uint64_t survivors = count_survivors(positions, span);
             const double predicted = (double)span * pow(0.5, (double)count);
 
             printf("  %8u %16.1f %16llu %12.4f\n", count, predicted, (unsigned long long)survivors,
-                        (predicted > 0.0) ? ((double)survivors / predicted) : 0.0);
+                   (predicted > 0.0) ? ((double)survivors / predicted) : 0.0);
         }
     }
 

@@ -16,16 +16,14 @@
  *       than predicted is a finding. Every table below states the prediction before the measurement.
  */
 
+#include "bench_hex.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include "embed_turnstile.h"
-#include <algorithm>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string>
-#include <vector>
 
 #include "bench_job_ring.h"
 #include "bench_load_limit.h"
@@ -49,25 +47,10 @@ const uint32_t CO_SALTS[] = {
 };
 const unsigned SALT_COUNT = (unsigned)(sizeof(CO_SALTS) / sizeof(CO_SALTS[0]));
 
+/** @brief The cells of the joint response pattern, 2^SALT_COUNT. */
+const size_t JOINT_CELLS = (size_t)1u << SALT_COUNT;
+
 Sha256ScanRequest g_base;
-
-/**
- * @brief Converts a hex string to bytes.
- *
- * @param[in] hex Characters to convert.
- * @return        The bytes that they encode.
- */
-std::vector<uint8_t> bytes_from_hex(const std::string &hex)
-{
-    std::vector<uint8_t> bytes;
-
-    bytes.reserve(hex.size() / 2u);
-    for (size_t at = 0u; (at + 1u) < hex.size(); at += 2u)
-    {
-        bytes.push_back((uint8_t)std::stoul(hex.substr(at, 2u), nullptr, 16));
-    }
-    return bytes;
-}
 
 /**
  * @brief Reads four header bytes as the big-endian word SHA-256 schedules.
@@ -130,18 +113,12 @@ void digest_for_nonce(uint32_t nonce, uint32_t *ordered)
 struct Tally
 {
     // Joint occupancy of the k-salt response pattern at the leading bit, 2^SALT_COUNT cells.
-    std::vector<uint64_t> joint;
+    uint64_t joint[JOINT_CELLS] = {};
     // Pairwise agreement between salt i and salt j at the leading bit.
-    std::vector<uint64_t> pair_agree;
+    uint64_t pair_agree[SALT_COUNT * SALT_COUNT] = {};
     // How many candidates survived a cascade of the first k salts, where all differences must clear.
-    std::vector<uint64_t> cascade;
-    uint64_t evaluated;
-
-    Tally()
-        : joint((size_t)1u << SALT_COUNT, 0u), pair_agree(SALT_COUNT * SALT_COUNT, 0u), cascade(SALT_COUNT + 1u, 0u),
-          evaluated(0u)
-    {
-    }
+    uint64_t cascade[SALT_COUNT + 1u] = {};
+    uint64_t evaluated = 0u;
 };
 
 /**
@@ -211,25 +188,31 @@ struct SeatShares
 
 int main(int argument_count, char **arguments)
 {
-    uint32_t total = (argument_count > 1) ? (uint32_t)std::stoul(arguments[1]) : (1u << 21);
+    uint32_t total = (argument_count > 1) ? (uint32_t)strtoul(arguments[1], nullptr, 10) : (1u << 21);
 
     printf("================================================================\n");
     printf("  Co-arm salts: do they combine independently?\n");
     printf("================================================================\n");
     printf("\n  %u salts, most read off the algorithm's own rotation sets.\n", SALT_COUNT);
     printf("  Each candidate costs %u hashes, so %u candidates is %u hashes.\n", SALT_COUNT + 1u, total,
-                total * (SALT_COUNT + 1u));
+           total * (SALT_COUNT + 1u));
 
-    const std::vector<uint8_t> header = bytes_from_hex(HEADER_HEX);
+    const BenchHexBytes header = bench_hex_bytes(HEADER_HEX);
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &g_base, .bytes = sizeof(g_base), .val = 0);
-    sha256_header_midstate(&g_base.midstate, header.data());
-    g_base.merkle_root_tail = schedule_word_from_header(header.data() + 64u);
-    g_base.ntime = schedule_word_from_header(header.data() + 68u);
-    g_base.nbits = schedule_word_from_header(header.data() + 72u);
+    sha256_header_midstate(&g_base.midstate, header.at);
+    g_base.merkle_root_tail = schedule_word_from_header(header.at + 64u);
+    g_base.ntime = schedule_word_from_header(header.at + 68u);
+    g_base.nbits = schedule_word_from_header(header.at + 72u);
 
     const unsigned available = (bench_processors() > 1u) ? (bench_processors() - 1u) : 1u;
-    std::vector<Tally> tallies(available);
-    SeatShares seat_shares = {tallies.data(), total / available};
+    // a tally for each seat, at most BENCH_JOBS_MAX of them, static for its size
+    static Tally tallies[BENCH_JOBS_MAX];
+    if (available > BENCH_JOBS_MAX)
+    {
+        fprintf(stderr, "bench_cosalt: %u seats, past the %u the ring holds\n", available, BENCH_JOBS_MAX);
+        return 1;
+    }
+    SeatShares seat_shares = {tallies, total / available};
 
     const auto started = embed_clock_ns();
     bench_jobs_run(
@@ -241,18 +224,19 @@ int main(int argument_count, char **arguments)
     const auto finished = embed_clock_ns();
 
     Tally combined;
-    for (const Tally &partial : tallies)
+    for (unsigned seat = 0u; seat < available; seat += 1u)
     {
+        const Tally &partial = tallies[seat];
         combined.evaluated += partial.evaluated;
-        for (size_t at = 0u; at < combined.joint.size(); at += 1u)
+        for (size_t at = 0u; at < JOINT_CELLS; at += 1u)
         {
             combined.joint[at] += partial.joint[at];
         }
-        for (size_t at = 0u; at < combined.pair_agree.size(); at += 1u)
+        for (size_t at = 0u; at < (size_t)(SALT_COUNT * SALT_COUNT); at += 1u)
         {
             combined.pair_agree[at] += partial.pair_agree[at];
         }
-        for (size_t at = 0u; at < combined.cascade.size(); at += 1u)
+        for (size_t at = 0u; at < (size_t)(SALT_COUNT + 1u); at += 1u)
         {
             combined.cascade[at] += partial.cascade[at];
         }
@@ -260,7 +244,7 @@ int main(int argument_count, char **arguments)
 
     const double samples = (double)combined.evaluated;
     printf("\n  %llu candidates in %.1f s\n", (unsigned long long)combined.evaluated,
-                ((double)(finished - started) / 1.0e9));
+           ((double)(finished - started) / 1.0e9));
 
     // --- The cascade tail -------------------------------------------------------------------
     printf("\n================================================================\n");
@@ -269,8 +253,7 @@ int main(int argument_count, char **arguments)
     printf("\n  Requiring the first k salt responses all clear. Independent arms halve the\n");
     printf("  survivor count per arm, so the prediction is stated before the measurement.\n");
     printf("\n  %6s %16s %16s %10s %10s\n", "arms", "predicted", "measured", "ratio", "sigma");
-    printf("  %6s %16s %16s %10s %10s\n", "------", "----------------", "----------------", "----------",
-                "----------");
+    printf("  %6s %16s %16s %10s %10s\n", "------", "----------------", "----------------", "----------", "----------");
 
     for (unsigned width = 0u; width <= SALT_COUNT; width += 1u)
     {
@@ -281,7 +264,7 @@ int main(int argument_count, char **arguments)
         const double score = (standard_error > 0.0) ? ((measured - predicted) / standard_error) : 0.0;
 
         printf("  %6u %16.1f %16.0f %10.5f %+10.2f\n", width, predicted, measured,
-                    (predicted > 0.0) ? (measured / predicted) : 0.0, score);
+               (predicted > 0.0) ? (measured / predicted) : 0.0, score);
     }
     printf("\n  The tail does fall to zero, and that is arithmetic instead of a finding.\n");
     printf("  What would be a finding is a ratio away from one, meaning the arms are not\n");
@@ -315,31 +298,29 @@ int main(int argument_count, char **arguments)
     }
     printf("\n  largest departure: salts %u and %u at %+.2f sigma\n", worst_left, worst_right, worst_pair);
     printf("  pairs tested     : %u, so the expected worst by chance is near %.1f sigma\n",
-                (SALT_COUNT * (SALT_COUNT - 1u)) / 2u,
-                sqrt(2.0 * log((double)((SALT_COUNT * (SALT_COUNT - 1u)) / 2u))));
+           (SALT_COUNT * (SALT_COUNT - 1u)) / 2u, sqrt(2.0 * log((double)((SALT_COUNT * (SALT_COUNT - 1u)) / 2u))));
     printf("  verdict          : %s\n",
-                (fabs(worst_pair) < 5.0) ? "arms are independent" : "ARMS ARE COUPLED, worth investigating");
+           (fabs(worst_pair) < 5.0) ? "arms are independent" : "ARMS ARE COUPLED, worth investigating");
 
     // --- Joint occupancy --------------------------------------------------------------------
     printf("\n================================================================\n");
     printf("  3. Joint occupancy of the response pattern\n");
     printf("================================================================\n");
-    printf("\n  All %zu response patterns should be equally likely. Chi-square against that.\n",
-                combined.joint.size());
+    printf("\n  All %zu response patterns should be equally likely. Chi-square against that.\n", JOINT_CELLS);
 
-    const double expected = samples / (double)combined.joint.size();
+    const double expected = samples / (double)JOINT_CELLS;
     double chi_square = 0.0;
-    for (size_t cell = 0u; cell < combined.joint.size(); cell += 1u)
+    for (size_t cell = 0u; cell < JOINT_CELLS; cell += 1u)
     {
         const double residual = (double)combined.joint[cell] - expected;
         chi_square += (residual * residual) / expected;
     }
-    const double degrees = (double)combined.joint.size() - 1.0;
+    const double degrees = (double)JOINT_CELLS - 1.0;
     const double chi_score = (chi_square - degrees) / sqrt(2.0 * degrees);
 
     printf("\n  chi-square %.1f on %.0f df (expected %.0f), z = %+.2f\n", chi_square, degrees, degrees, chi_score);
     printf("  verdict   : %s\n", (fabs(chi_score) < 5.0) ? "no response pattern is preferred"
-                                                                   : "A PATTERN IS PREFERRED, worth investigating");
+                                                         : "A PATTERN IS PREFERRED, worth investigating");
 
     // --- Does the sieve keep the winners? ---------------------------------------------------
     printf("\n================================================================\n");
@@ -357,8 +338,8 @@ int main(int argument_count, char **arguments)
 
     // An easy target so winners are common enough to count: 12 leading zero bits, about 1 in 4096.
     const unsigned target_bits = 12u;
-    std::vector<uint64_t> survivors(SALT_COUNT + 1u, 0u);
-    std::vector<uint64_t> winners(SALT_COUNT + 1u, 0u);
+    uint64_t survivors[SALT_COUNT + 1u] = {0u};
+    uint64_t winners[SALT_COUNT + 1u] = {0u};
     const uint32_t audit = total;
 
     for (uint32_t step = 0u; step < audit; step += 1u)
@@ -405,10 +386,9 @@ int main(int argument_count, char **arguments)
     }
 
     printf("\n  Target is %u leading zero bits, about one candidate in %.0f.\n", target_bits,
-                pow(2.0, (double)target_bits));
+           pow(2.0, (double)target_bits));
     printf("\n  %6s %14s %12s %16s %10s\n", "arms", "survivors", "winners", "winner rate", "enriched");
-    printf("  %6s %14s %12s %16s %10s\n", "------", "--------------", "------------", "----------------",
-                "----------");
+    printf("  %6s %14s %12s %16s %10s\n", "------", "--------------", "------------", "----------------", "----------");
 
     const double base_rate = (survivors[0] > 0u) ? ((double)winners[0] / (double)survivors[0]) : 0.0;
 
@@ -416,7 +396,7 @@ int main(int argument_count, char **arguments)
     {
         const double rate = (survivors[width] > 0u) ? ((double)winners[width] / (double)survivors[width]) : 0.0;
         printf("  %6u %14llu %12llu %16.8f %10.4f\n", width, (unsigned long long)survivors[width],
-                    (unsigned long long)winners[width], rate, (base_rate > 0.0) ? (rate / base_rate) : 0.0);
+               (unsigned long long)winners[width], rate, (base_rate > 0.0) ? (rate / base_rate) : 0.0);
     }
 
     printf("\n  Enrichment near 1.0 at every depth means the cascade threw away winners at\n");

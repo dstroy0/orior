@@ -19,16 +19,15 @@
  *       invisible. The bench prints the floor beside every verdict.
  */
 
+#include "bench_hex.h"
+#include "bench_tally.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include "embed_turnstile.h"
-#include <algorithm>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string>
-#include <vector>
 
 #include "bench_job_ring.h"
 #include "bench_load_limit.h"
@@ -40,24 +39,6 @@ namespace
 const char *const CORPUS_HEADER_HEX =
     "0100000081cd02ab7e569e8bcd9317e2fe99f2de44d49ab2b8851ba4a308000000000000e320b6c2fffc8d750423"
     "db8b1eb942ae710e951ed797f7affc8892b0f1fc122bc7f5d74df2b9441a42a14695";
-
-/**
- * @brief Converts a hex string to bytes.
- *
- * @param[in] hex Characters to convert.
- * @return        The bytes that they encode.
- */
-std::vector<uint8_t> bytes_from_hex(const std::string &hex)
-{
-    std::vector<uint8_t> bytes;
-
-    bytes.reserve(hex.size() / 2u);
-    for (size_t at = 0u; (at + 1u) < hex.size(); at += 2u)
-    {
-        bytes.push_back((uint8_t)std::stoul(hex.substr(at, 2u), nullptr, 16));
-    }
-    return bytes;
-}
 
 /**
  * @brief Reads four header bytes as the big-endian word SHA-256 schedules.
@@ -130,8 +111,14 @@ struct SurveyShares
 void survey_threaded(const Sha256ScanRequest &base, uint32_t count, Sha256Survey &survey)
 {
     const unsigned threads = (bench_processors() > 0u) ? bench_processors() : 8u;
-    std::vector<Sha256Survey> partials(threads);
-    SurveyShares shares = {&base, partials.data(), (count / threads) & ~7u};
+    // a survey for each seat, at most BENCH_JOBS_MAX of them. bench_jobs_run refuses more seats
+    static Sha256Survey partials[BENCH_JOBS_MAX];
+    if (threads > BENCH_JOBS_MAX)
+    {
+        fprintf(stderr, "bench_corpus: %u seats, past the %u the ring holds\n", threads, BENCH_JOBS_MAX);
+        exit(1);
+    }
+    SurveyShares shares = {&base, partials, (count / threads) & ~7u};
 
     for (unsigned index = 0u; index < threads; index += 1u)
     {
@@ -146,9 +133,9 @@ void survey_threaded(const Sha256ScanRequest &base, uint32_t count, Sha256Survey
             sha256_survey_avx2(&request, &seat_shares->partials[seat]);
         },
         &shares, threads, threads);
-    for (const Sha256Survey &partial : partials)
+    for (unsigned index = 0u; index < threads; index += 1u)
     {
-        merge_survey(survey, partial);
+        merge_survey(survey, partials[index]);
     }
 }
 
@@ -165,8 +152,7 @@ void test_corpus_size(const Sha256ScanRequest &base)
     printf("\n  Section 2.5 prices an anchor at q = 2^-H2 per symbol. For a flat digest a\n");
     printf("  k-bit anchor has q = 2^-k, a range of N should leave N*2^-k survivors.\n");
     printf("\n  %10s %6s %14s %14s %10s\n", "N", "k bits", "predicted", "measured", "ratio");
-    printf("  %10s %6s %14s %14s %10s\n", "----------", "------", "--------------", "--------------",
-                "----------");
+    printf("  %10s %6s %14s %14s %10s\n", "----------", "------", "--------------", "--------------", "----------");
 
     for (unsigned magnitude = 20u; magnitude <= 26u; magnitude += 2u)
     {
@@ -175,14 +161,15 @@ void test_corpus_size(const Sha256ScanRequest &base)
         EMBED_CALL(memor.set, MemoriaCfg, .dst = &survey, .bytes = sizeof(survey), .val = 0);
         survey_threaded(base, count, survey);
 
-        for (unsigned width : {8u, 12u, 16u, 20u})
+        const unsigned listed_width[] = {8u, 12u, 16u, 20u};
+        for (unsigned width : listed_width)
         {
             const double predicted = (double)survey.nonces_evaluated / pow(2.0, (double)width);
             const double measured = (double)survey.leading_zero_count[width];
             const double ratio = (predicted > 0.0) ? (measured / predicted) : 0.0;
 
-            printf("  %10llu %6u %14.1f %14.0f %10.4f\n", (unsigned long long)survey.nonces_evaluated, width,
-                        predicted, measured, ratio);
+            printf("  %10llu %6u %14.1f %14.0f %10.4f\n", (unsigned long long)survey.nonces_evaluated, width, predicted,
+                   measured, ratio);
         }
         printf("\n");
     }
@@ -203,7 +190,7 @@ void test_entropy_eddies(const Sha256Survey &survey)
 
     const double samples = (double)survey.nonces_evaluated;
     printf("\n  Sample size: %llu digests, %llu bits per position.\n", (unsigned long long)survey.nonces_evaluated,
-                (unsigned long long)survey.nonces_evaluated);
+           (unsigned long long)survey.nonces_evaluated);
 
     // Bit bias. Under a flat model, each position is a fair coin. Thus the count of ones has standard
     // error sqrt(N)/2, and the z score below is directly comparable across positions.
@@ -228,9 +215,8 @@ void test_entropy_eddies(const Sha256Survey &survey)
     printf("    largest deviation : bit %u, z = %+.2f\n", worst_bit_position, worst_bit_z);
     printf("    detection floor   : a bias of %.2e would show at 4 sigma\n", 4.0 / (2.0 * sqrt(samples)));
     printf("    expected worst |z| over 256 fair coins is about 3.0\n");
-    printf("    verdict           : %s\n", (fabs(worst_bit_z) < 5.0)
-                                                    ? "no bit position departs from flat"
-                                                    : "A BIT POSITION IS BIASED, worth investigating");
+    printf("    verdict           : %s\n", (fabs(worst_bit_z) < 5.0) ? "no bit position departs from flat"
+                                                                     : "A BIT POSITION IS BIASED, worth investigating");
 
     // Byte distribution per position, by chi-square against uniform over 256 values.
     double worst_chi = 0.0;
@@ -264,8 +250,8 @@ void test_entropy_eddies(const Sha256Survey &survey)
     printf("\n  Per-byte-position distribution, chi-square against uniform (255 df):\n");
     printf("    largest           : position %u, X2 = %.1f (z = %+.2f)\n", worst_chi_position, worst_chi, chi_z);
     printf("    expected under flat: X2 near 255\n");
-    printf("    verdict           : %s\n", (chi_z < 5.0) ? "no byte position departs from flat"
-                                                              : "A BYTE POSITION IS SKEWED, worth investigating");
+    printf("    verdict           : %s\n",
+           (chi_z < 5.0) ? "no byte position departs from flat" : "A BYTE POSITION IS SKEWED, worth investigating");
 
     // Global collision entropy, the quantity section 2.5 prices anchors with.
     double total_bytes = 0.0;
@@ -314,11 +300,12 @@ void test_repeating_curve(const Sha256ScanRequest &base)
     printf("  some nonce lag would agree on more than half their bits.\n");
 
     const uint32_t sample_count = 1u << 22;
-    std::vector<uint64_t> digest_prefix(sample_count);
+    // the leading 64 bits of each sample, static for its size
+    static uint64_t digest_prefix[1u << 22];
 
     // Take the leading 64 bits of each digest. Those bits decide a share anyway.
     const unsigned threads = (bench_processors() > 0u) ? bench_processors() : 8u;
-    PrefixShares shares = {&base, digest_prefix.data(), sample_count / threads};
+    PrefixShares shares = {&base, digest_prefix, sample_count / threads};
 
     bench_jobs_run(
         [](void *context, unsigned seat) {
@@ -368,7 +355,7 @@ void test_repeating_curve(const Sha256ScanRequest &base)
 
     printf("\n  Bit agreement between digest(n) and digest(n+lag), over %u pairs.\n", sample_count / 2u);
     printf("  Under independence this is 0.5 with standard error %.2e.\n",
-                0.5 / sqrt((double)(sample_count / 2u) * 64.0));
+           0.5 / sqrt((double)(sample_count / 2u) * 64.0));
     printf("\n  %8s %14s %10s\n", "lag", "agreement", "z");
     printf("  %8s %14s %10s\n", "--------", "--------------", "----------");
 
@@ -408,7 +395,7 @@ void test_repeating_curve(const Sha256ScanRequest &base)
 
     printf("\n  largest deviation: lag %u at z = %+.2f\n", worst_lag, worst_z);
     printf("  verdict          : %s\n",
-                (fabs(worst_z) < 5.0) ? "no lag shows a repeating curve" : "A LAG REPEATS, worth investigating");
+           (fabs(worst_z) < 5.0) ? "no lag shows a repeating curve" : "A LAG REPEATS, worth investigating");
     printf("\n  Why the rotations do not survive. Each round mixes rotation with addition\n");
     printf("  mod 2^32, whose carries do not commute with rotation, and adds a round\n");
     printf("  constant that differs every round. A period would have to survive 64 such\n");
@@ -429,8 +416,9 @@ void test_hitting_time(const Sha256ScanRequest &base)
     printf("  set of measure q. Here q = 2^-16, so first success should average 65536.\n");
 
     const unsigned trials = 512u;
-    std::vector<uint32_t> first_success;
-    first_success.reserve(trials);
+    // the first success of each trial that succeeds, at most one a trial
+    uint32_t first_success[512];
+    size_t succeeded = 0u;
 
     // Each trial uses a different ntime. That gives an independent digest stream from the same
     // header, as a different corpus does in the byte corpus experiments of the anchor sift.
@@ -448,36 +436,39 @@ void test_hitting_time(const Sha256ScanRequest &base)
         sha256_scan_avx2(&request, &result);
         if (result.found != 0)
         {
-            first_success.push_back(result.winning_nonce);
+            first_success[succeeded] = result.winning_nonce;
+            succeeded += 1u;
         }
     }
 
-    if (first_success.empty())
+    if (succeeded == 0u)
     {
         printf("\n  No trial succeeded, which itself contradicts the model.\n");
         return;
     }
 
     double sum = 0.0;
-    for (uint32_t value : first_success)
+    for (size_t at = 0u; at < succeeded; at += 1u)
     {
-        sum += (double)value;
+        sum += (double)first_success[at];
     }
-    const double mean = sum / (double)first_success.size();
+    const double mean = sum / (double)succeeded;
 
     double variance_sum = 0.0;
-    for (uint32_t value : first_success)
+    for (size_t at = 0u; at < succeeded; at += 1u)
     {
-        const double deviation = (double)value - mean;
+        const double deviation = (double)first_success[at] - mean;
         variance_sum += deviation * deviation;
     }
-    const double standard_deviation = sqrt(variance_sum / (double)first_success.size());
+    const double standard_deviation = sqrt(variance_sum / (double)succeeded);
 
-    std::vector<uint32_t> sorted = first_success;
-    std::sort(sorted.begin(), sorted.end());
-    const double median = (double)sorted[sorted.size() / 2u];
+    uint32_t sorted[512];
+    uint32_t sorted_scratch[512];
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = sorted, .src = first_success, .bytes = succeeded * sizeof(uint32_t));
+    bench_tally_sorted(sorted, sorted_scratch, succeeded);
+    const double median = (double)sorted[succeeded / 2u];
 
-    printf("\n  trials succeeding : %zu of %u\n", first_success.size(), trials);
+    printf("\n  trials succeeding : %zu of %u\n", succeeded, trials);
     printf("  mean first success: %.0f   (predicted 65536)\n", mean);
     printf("  ratio to predicted: %.4f\n", mean / 65536.0);
     printf("  std deviation     : %.0f   (geometric predicts ~mean, 65536)\n", standard_deviation);
@@ -497,9 +488,9 @@ int main()
     printf("  Testing four hypotheses about structure in SHA256d over nonces\n");
     printf("================================================================\n");
 
-    const std::vector<uint8_t> header = bytes_from_hex(CORPUS_HEADER_HEX);
+    const BenchHexBytes header = bench_hex_bytes(CORPUS_HEADER_HEX);
     Sha256ScanRequest base;
-    request_from_header(&base, header.data());
+    request_from_header(&base, header.at);
     base.nonce_start = 0u;
 
     const auto started = embed_clock_ns();

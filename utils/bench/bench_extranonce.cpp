@@ -16,17 +16,15 @@
  *       the coinbase layout and the branch length match what a pool actually sends.
  */
 
+#include "bench_draw64.h"
+#include "bench_hex.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
-#include <algorithm>
 #include "embed_turnstile.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <random>
-#include <string>
-#include <vector>
 
 namespace
 {
@@ -68,53 +66,35 @@ const size_t JOB_BRANCH_COUNT = sizeof(JOB_MERKLE_BRANCH) / sizeof(JOB_MERKLE_BR
 uint64_t g_coinbase_hashes = 0u;
 
 /**
- * @brief Converts a hex string to bytes.
- *
- * @param[in] hex Characters to convert.
- * @return        The bytes that they encode.
- */
-std::vector<uint8_t> bytes_from_hex(const std::string &hex)
-{
-    std::vector<uint8_t> bytes;
-
-    bytes.reserve(hex.size() / 2u);
-    for (size_t at = 0u; (at + 1u) < hex.size(); at += 2u)
-    {
-        bytes.push_back((uint8_t)std::stoul(hex.substr(at, 2u), nullptr, 16));
-    }
-    return bytes;
-}
-
-/**
  * @brief Records one check and prints it.
  *
  * @param[in] name   The name of the check.
  * @param[in] passed Whether the check passed.
  * @param[in] detail The observed result, printed on failure.
  */
-void check(const std::string &name, bool passed, const std::string &detail = "")
+void check(const char *name, bool passed, const char *detail = "")
 {
     g_checks_run += 1;
     if (passed)
     {
-        printf("  [PASS] %s\n", name.c_str());
+        printf("  [PASS] %s\n", name);
     }
     else
     {
         g_checks_failed += 1;
-        printf("  [FAIL] %s\n", name.c_str());
-        if (!detail.empty())
+        printf("  [FAIL] %s\n", name);
+        if (detail[0] != '\0')
         {
-            printf("         %s\n", detail.c_str());
+            printf("         %s\n", detail);
         }
     }
 }
 
-std::vector<uint8_t> g_coinbase_head;
-std::vector<uint8_t> g_coinbase_tail;
-std::vector<uint8_t> g_extranonce1;
-std::vector<uint8_t> g_prevhash;
-std::vector<std::vector<uint8_t>> g_branch;
+BenchHexBytes g_coinbase_head;
+BenchHexBytes g_coinbase_tail;
+BenchHexBytes g_extranonce1;
+BenchHexBytes g_prevhash;
+BenchHexBytes g_branch[JOB_BRANCH_COUNT];
 uint32_t g_version = 0u;
 uint32_t g_nbits = 0u;
 uint32_t g_ntime = 0u;
@@ -132,27 +112,36 @@ uint32_t g_ntime = 0u;
  */
 void build_header(uint64_t extranonce2, uint32_t nonce, uint8_t *header)
 {
-    std::vector<uint8_t> coinbase;
+    // the head, extranonce1, extranonce2 and the tail, one after another
+    uint8_t coinbase[(3u * BENCH_HEX_BYTES_MAX) + JOB_EXTRANONCE2_BYTES];
+    size_t coinbase_bytes = 0u;
 
-    coinbase.insert(coinbase.end(), g_coinbase_head.begin(), g_coinbase_head.end());
-    coinbase.insert(coinbase.end(), g_extranonce1.begin(), g_extranonce1.end());
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = coinbase, .src = g_coinbase_head.at, .bytes = g_coinbase_head.count);
+    coinbase_bytes += g_coinbase_head.count;
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = coinbase + coinbase_bytes, .src = g_extranonce1.at,
+               .bytes = g_extranonce1.count);
+    coinbase_bytes += g_extranonce1.count;
     for (size_t byte = 0u; byte < JOB_EXTRANONCE2_BYTES; byte += 1u)
     {
         // Big-endian, matching how the client renders its counter into the field.
         const unsigned shift = (unsigned)((JOB_EXTRANONCE2_BYTES - 1u - byte) * 8u);
-        coinbase.push_back((uint8_t)((shift < 64u) ? (extranonce2 >> shift) : 0u));
+        coinbase[coinbase_bytes] = (uint8_t)((shift < 64u) ? (extranonce2 >> shift) : 0u);
+        coinbase_bytes += 1u;
     }
-    coinbase.insert(coinbase.end(), g_coinbase_tail.begin(), g_coinbase_tail.end());
+    EMBED_CALL(memor.cpy, MemoriaCfg, .dst = coinbase + coinbase_bytes, .src = g_coinbase_tail.at,
+               .bytes = g_coinbase_tail.count);
+    coinbase_bytes += g_coinbase_tail.count;
 
     uint8_t merkle_root[32];
-    sha256_double_hash(coinbase.data(), coinbase.size(), merkle_root);
+    sha256_double_hash(coinbase, coinbase_bytes, merkle_root);
     g_coinbase_hashes += 1u;
 
-    for (const std::vector<uint8_t> &entry : g_branch)
+    for (size_t branch = 0u; branch < JOB_BRANCH_COUNT; branch += 1u)
     {
+        const BenchHexBytes &entry = g_branch[branch];
         uint8_t joined[64];
         EMBED_CALL(memor.cpy, MemoriaCfg, .dst = joined, .src = merkle_root, .bytes = 32u);
-        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = joined + 32u, .src = entry.data(), .bytes = 32u);
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = joined + 32u, .src = entry.at, .bytes = 32u);
         sha256_double_hash(joined, sizeof(joined), merkle_root);
         g_coinbase_hashes += 1u;
     }
@@ -165,7 +154,7 @@ void build_header(uint64_t extranonce2, uint32_t nonce, uint8_t *header)
     {
         for (size_t byte = 0u; byte < 4u; byte += 1u)
         {
-            header[4u + (word * 4u) + byte] = g_prevhash[(word * 4u) + (3u - byte)];
+            header[4u + (word * 4u) + byte] = g_prevhash.at[(word * 4u) + (3u - byte)];
         }
     }
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = header + 36u, .src = merkle_root, .bytes = 32u);
@@ -268,7 +257,8 @@ void measure_extranonce_landscape()
     printf("\n  %-34s %14s %12s\n", "step", "correlation", "z");
     printf("  %-34s %14s %12s\n", "----------------------------------", "--------------", "------------");
 
-    std::mt19937_64 generator(20260908u);
+    BenchDraw64 generator;
+    bench_draw64_seeded(&generator, 20260908u);
     const unsigned pairs = 40000u;
 
     for (int mode = 0; mode < 4; mode += 1)
@@ -281,7 +271,7 @@ void measure_extranonce_landscape()
 
         for (unsigned trial = 0u; trial < pairs; trial += 1u)
         {
-            const uint64_t here = generator();
+            const uint64_t here = bench_draw64_next(&generator);
             uint64_t there = here;
 
             if (mode == 0)
@@ -290,7 +280,7 @@ void measure_extranonce_landscape()
             }
             else if (mode == 1)
             {
-                there = here ^ (1ull << (generator() % 64u));
+                there = here ^ (1ull << (bench_draw64_next(&generator) % 64u));
             }
             else if (mode == 2)
             {
@@ -298,7 +288,7 @@ void measure_extranonce_landscape()
             }
             else
             {
-                there = generator();
+                there = bench_draw64_next(&generator);
             }
 
             const double left = (double)fitness(here, 0u);
@@ -314,8 +304,7 @@ void measure_extranonce_landscape()
         const double count = (double)pairs;
         const double covariance = (sum_product / count) - ((sum_here / count) * (sum_there / count));
         const double spread_here = sqrt((sum_here_squared / count) - ((sum_here / count) * (sum_here / count)));
-        const double spread_there =
-            sqrt((sum_there_squared / count) - ((sum_there / count) * (sum_there / count)));
+        const double spread_there = sqrt((sum_there_squared / count) - ((sum_there / count) * (sum_there / count)));
         const double correlation = covariance / (spread_here * spread_there);
 
         const char *name = (mode == 0)   ? "extranonce2 + 1"
@@ -378,12 +367,12 @@ void compare_dimension_cost()
     printf("\n  %-40s %16s\n", "dimension", "candidates/s");
     printf("  %-40s %16s\n", "----------------------------------------", "----------------");
     printf("  %-40s %16.0f\n", "nonce, midstate reused",
-                (nonce_seconds > 0.0) ? ((double)samples / nonce_seconds) : 0.0);
+           (nonce_seconds > 0.0) ? ((double)samples / nonce_seconds) : 0.0);
     printf("  %-40s %16.0f\n", "extranonce2, coinbase and merkle rebuilt",
-                (extranonce_seconds > 0.0) ? ((double)samples / extranonce_seconds) : 0.0);
+           (extranonce_seconds > 0.0) ? ((double)samples / extranonce_seconds) : 0.0);
     printf("\n  extranonce2 costs %.1fx a nonce step, and spends %llu extra double hashes\n",
-                (nonce_seconds > 0.0) ? (extranonce_seconds / nonce_seconds) : 0.0,
-                (unsigned long long)(extranonce_side_hashes / samples));
+           (nonce_seconds > 0.0) ? (extranonce_seconds / nonce_seconds) : 0.0,
+           (unsigned long long)(extranonce_side_hashes / samples));
     printf("  per candidate on the coinbase and merkle path alone.\n");
     printf("\n  So even if this dimension carried a landscape, a search would want to spend\n");
     printf("  its budget on the cheap dimension unless the landscape paid for the cost.\n");
@@ -398,17 +387,17 @@ int main()
     printf("  Measuring what the workbook had only asserted\n");
     printf("================================================================\n");
 
-    g_coinbase_head = bytes_from_hex(JOB_COINBASE_HEAD);
-    g_coinbase_tail = bytes_from_hex(JOB_COINBASE_TAIL);
-    g_extranonce1 = bytes_from_hex(JOB_EXTRANONCE1);
-    g_prevhash = bytes_from_hex(JOB_PREVHASH);
+    g_coinbase_head = bench_hex_bytes(JOB_COINBASE_HEAD);
+    g_coinbase_tail = bench_hex_bytes(JOB_COINBASE_TAIL);
+    g_extranonce1 = bench_hex_bytes(JOB_EXTRANONCE1);
+    g_prevhash = bench_hex_bytes(JOB_PREVHASH);
     for (size_t at = 0u; at < JOB_BRANCH_COUNT; at += 1u)
     {
-        g_branch.push_back(bytes_from_hex(JOB_MERKLE_BRANCH[at]));
+        g_branch[at] = bench_hex_bytes(JOB_MERKLE_BRANCH[at]);
     }
-    g_version = (uint32_t)std::stoul(JOB_VERSION, nullptr, 16);
-    g_nbits = (uint32_t)std::stoul(JOB_NBITS, nullptr, 16);
-    g_ntime = (uint32_t)std::stoul(JOB_NTIME, nullptr, 16);
+    g_version = (uint32_t)strtoul(JOB_VERSION, nullptr, 16);
+    g_nbits = (uint32_t)strtoul(JOB_NBITS, nullptr, 16);
+    g_ntime = (uint32_t)strtoul(JOB_NTIME, nullptr, 16);
 
     const auto started = embed_clock_ns();
 

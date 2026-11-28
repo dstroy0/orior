@@ -31,18 +31,15 @@
  *          output.
  */
 
+#include "../../includes/platform/platform.h"
 #include "bench_load_limit.h"
 #include "bench_seed.h"
+#include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <filesystem>
-#include <random>
-#include <string>
-#include <system_error>
-#include <vector>
 
 namespace
 {
@@ -197,22 +194,24 @@ void digest_for_nonce(const Job &job, Source source, uint32_t nonce, unsigned ch
 /**
  * @brief Root mean square deviation from the midpoint per block, spread back over a byte.
  *
- * @param[in] samples Sample-scale signal [BORROWS].
- * @param[in] block   Samples per envelope symbol.
- * @return            The envelope.
+ * @param[in]  samples Sample-scale signal [BORROWS].
+ * @param[in]  count   Samples of the signal.
+ * @param[in]  block   Samples per envelope symbol.
+ * @param[out] out     The envelope, room for `count / block` symbols [BORROWS].
+ * @return             The symbols of the envelope, 0 where the signal is shorter than a block.
  * @note This is the envelope of the anchor sift sound representation, transcribed and not
  *       rewritten. It includes the spread over the range that the signal actually uses. Without the
  *       spread, a quiet signal falls into a few levels, and meets a loud one that does not.
  */
-std::vector<unsigned char> envelope(const std::vector<unsigned char> &samples, size_t block)
+size_t envelope(const unsigned char *samples, size_t count, size_t block, unsigned char *out)
 {
-    std::vector<unsigned char> out;
-    if (samples.size() < block)
+    size_t made = 0u;
+    if (count < block)
     {
-        return out;
+        return made;
     }
 
-    for (size_t start = 0u; (start + block) <= samples.size(); start += block)
+    for (size_t start = 0u; (start + block) <= count; start += block)
     {
         double total = 0.0;
         for (size_t at = start; at < (start + block); at += 1u)
@@ -220,40 +219,40 @@ std::vector<unsigned char> envelope(const std::vector<unsigned char> &samples, s
             const double offset = (double)samples[at] - (double)MIDPOINT;
             total += offset * offset;
         }
-        out.push_back((unsigned char)(int)sqrt(total / (double)block));
+        out[made] = (unsigned char)(int)sqrt(total / (double)block);
+        made += 1u;
     }
 
     unsigned char low = 255u;
     unsigned char high = 0u;
-    for (size_t at = 0u; at < out.size(); at += 1u)
+    for (size_t at = 0u; at < made; at += 1u)
     {
         low = (out[at] < low) ? out[at] : low;
         high = (out[at] > high) ? out[at] : high;
     }
     if (high <= low)
     {
-        return out;
+        return made;
     }
-    for (size_t at = 0u; at < out.size(); at += 1u)
+    for (size_t at = 0u; at < made; at += 1u)
     {
         out[at] = (unsigned char)(1 + (int)(254.0 * ((double)out[at] - (double)low) / ((double)high - (double)low)));
     }
-    return out;
+    return made;
 }
 
 /**
  * @brief Transforms a real signal in place, radix two, decimation in time.
  *
- * @param[in,out] real      Real parts, a power of two long [BORROWS].
+ * @param[in,out] real      Real parts, `length` of them [BORROWS].
  * @param[in,out] imaginary Imaginary parts, the same length [BORROWS].
+ * @param[in]     length    The parts, a power of two.
  * @note Written out, and not pulled in. The only alternatives on this machine would drag a
  *       dependency into a tree that has none, and the transform is forty lines. The bench checks it
  *       against a signal with a known answer, and does not trust it.
  */
-void fourier_transform(std::vector<double> &real, std::vector<double> &imaginary)
+void fourier_transform(double *real, double *imaginary, size_t length)
 {
-    const size_t length = real.size();
-
     for (size_t index = 1u, position = 0u; index < length; index += 1u)
     {
         size_t bit = length >> 1;
@@ -315,23 +314,25 @@ struct Peak
 /**
  * @brief Reads the power spectrum of a byte signal and returns its largest peak.
  *
- * @param[in] samples The signal [BORROWS].
- * @return            The largest peak, relative to the mean power.
+ * @param[in]  samples   The signal [BORROWS].
+ * @param[in]  count     Samples of the signal.
+ * @param[out] real      Room for `count` real parts, which the transform writes [BORROWS].
+ * @param[out] imaginary Room for `count` imaginary parts, which the transform writes [BORROWS].
+ * @return               The largest peak, relative to the mean power.
  * @note The function centers the signal first. Thus bin zero carries no weight, and cannot look like
  *       structure. For a white signal, every other bin has an exponential distribution about the mean
  *       power. Thus the largest of n of them sits near ln(n) times the mean. The height reads against
  *       that reference, and not against a threshold that anybody picked.
  */
-Peak spectrum_peak(const std::vector<unsigned char> &samples)
+Peak spectrum_peak(const unsigned char *samples, size_t count, double *real, double *imaginary)
 {
     size_t length = 1u;
-    while ((length * 2u) <= samples.size())
+    while ((length * 2u) <= count)
     {
         length *= 2u;
     }
 
-    std::vector<double> real(length, 0.0);
-    std::vector<double> imaginary(length, 0.0);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = imaginary, .bytes = length * sizeof(double), .val = 0);
 
     double mean = 0.0;
     for (size_t at = 0u; at < length; at += 1u)
@@ -345,7 +346,7 @@ Peak spectrum_peak(const std::vector<unsigned char> &samples)
         real[at] = (double)samples[at] - mean;
     }
 
-    fourier_transform(real, imaginary);
+    fourier_transform(real, imaginary, length);
 
     // Only the first half is independent, and bin zero is zero by construction after the center step.
     const size_t usable = length / 2u;
@@ -375,18 +376,19 @@ Peak spectrum_peak(const std::vector<unsigned char> &samples)
  *
  * @param[in] path    Where to write [BORROWS].
  * @param[in] samples The signal [BORROWS].
+ * @param[in] count   Samples of the signal.
  * @param[in] rate    Samples per second to claim.
  * @return            Nonzero on success.
  */
-int write_wav(const char *path, const std::vector<unsigned char> &samples, uint32_t rate)
+int write_wav(const char *path, const unsigned char *samples, size_t count, uint32_t rate)
 {
-    std::FILE *const handle = fopen(path, "wb");
+    FILE *const handle = fopen(path, "wb");
     if (handle == nullptr)
     {
         return 0;
     }
 
-    const uint32_t data_bytes = (uint32_t)samples.size();
+    const uint32_t data_bytes = (uint32_t)count;
     const uint32_t riff_bytes = 36u + data_bytes;
     const uint32_t format_bytes = 16u;
     const uint16_t format_tag = 1u;
@@ -407,7 +409,7 @@ int write_wav(const char *path, const std::vector<unsigned char> &samples, uint3
     fwrite(&bits, 2u, 1u, handle);
     fwrite("data", 1u, 4u, handle);
     fwrite(&data_bytes, 4u, 1u, handle);
-    fwrite(samples.data(), 1u, samples.size(), handle);
+    fwrite(samples, 1u, count, handle);
     fclose(handle);
     return 1;
 }
@@ -422,7 +424,10 @@ const char *source_name(Source source)
 
 } // namespace
 
-int main(int argc, char **argv)
+/** @brief The pool of the program: room for the tracks, the envelope and the transform of 2^22 samples, and more. */
+extern "C" const unsigned long long g_program_pool_bytes = 1ull << 29u;
+
+int program_main(int argc, char **argv)
 {
     bench_lower_priority();
 
@@ -474,22 +479,34 @@ int main(int argc, char **argv)
     printf("  which is 384 readings per signal instead of the 3 a fixed grid would give.\n");
 
     printf("\n  %-28s %8s %8s %14s %12s %12s\n", "signal", "byte", "block", "largest peak", "expected", "period");
-    printf("  %-28s %8s %8s %14s %12s %12s\n", "----------------------------", "--------", "--------",
-                "--------------", "------------", "------------");
+    printf("  %-28s %8s %8s %14s %12s %12s\n", "----------------------------", "--------", "--------", "--------------",
+           "------------", "------------");
+
+    // The track of each digest byte, `length` samples each, one after another. Then the envelope of a track and the
+    // parts of its transform. Each cell is on the temporary tier, and the program gives it back before it returns
+    unsigned char *const tracks =
+        (unsigned char *)platform_cell_taken(32ull * length, platform_place_g_program_owner, 1);
+    unsigned char *const shaped_room = (unsigned char *)platform_cell_taken(length, platform_place_g_program_owner, 1);
+    double *const real = (double *)platform_cell_taken(length * sizeof(double), platform_place_g_program_owner, 1);
+    double *const imaginary = (double *)platform_cell_taken(length * sizeof(double), platform_place_g_program_owner, 1);
+    if ((tracks == nullptr) || (shaped_room == nullptr) || (real == nullptr) || (imaginary == nullptr))
+    {
+        fprintf(stderr, "bench_sound: the pool cannot meet the tracks of 2^%u samples\n", length_bits);
+        return 1;
+    }
 
     for (unsigned which = 0u; which < 3u; which += 1u)
     {
         const Source source = sources[which];
 
         // All thirty-two bytes come from one hash. Thus a sweep of the unit costs memory, and not work.
-        std::vector<std::vector<unsigned char>> tracks(32u, std::vector<unsigned char>(length, 0u));
         for (size_t at = 0u; at < length; at += 1u)
         {
             unsigned char digest[32];
             digest_for_nonce(job, source, (uint32_t)at, digest);
             for (unsigned byte = 0u; byte < 32u; byte += 1u)
             {
-                tracks[byte][at] = digest[byte];
+                tracks[(byte * length) + at] = digest[byte];
             }
         }
 
@@ -503,13 +520,15 @@ int main(int argc, char **argv)
         {
             for (unsigned rung = 0u; rung < 12u; rung += 1u)
             {
-                const std::vector<unsigned char> shaped =
-                    (ladder[rung] == 1u) ? tracks[byte] : envelope(tracks[byte], ladder[rung]);
-                if (shaped.size() < 256u)
+                const unsigned char *const track = &tracks[byte * length];
+                const unsigned char *const shaped = (ladder[rung] == 1u) ? track : shaped_room;
+                const size_t shaped_count =
+                    (ladder[rung] == 1u) ? length : envelope(track, length, ladder[rung], shaped_room);
+                if (shaped_count < 256u)
                 {
                     continue;
                 }
-                const Peak peak = spectrum_peak(shaped);
+                const Peak peak = spectrum_peak(shaped, shaped_count, real, imaginary);
                 bins_examined += (double)peak.counted;
                 if (peak.height > best_height)
                 {
@@ -522,25 +541,27 @@ int main(int argc, char **argv)
         }
 
         printf("  %-28s %8u %8zu %14.3f %12.3f %12.1f\n", source_name(source), best_byte, best_block, best_height,
-                    log(bins_examined), best_period);
+               log(bins_examined), best_period);
 
         // Five seconds of the byte that the sweep settles on. Thus anyone can listen to the report.
         const size_t heard = (size_t)SAMPLE_RATE * 5u;
-        if (tracks[best_byte].size() >= heard)
+        if (length >= heard)
         {
-            std::vector<unsigned char> clip(tracks[best_byte].begin(), tracks[best_byte].begin() + (long)heard);
             // The bench runs from the root of the tree. Thus the wav files go to build/bench, and not to
             // the root.
-            std::error_code ignored;
-            std::filesystem::create_directories("build/bench", ignored);
+            (void)platform_folders_made("build/bench", 0777u);
             char path[64];
             snprintf(path, sizeof(path), "build/bench/sound_%u.wav", which);
-            if (write_wav(path, clip, SAMPLE_RATE) == 0)
+            if (write_wav(path, &tracks[best_byte * length], heard, SAMPLE_RATE) == 0)
             {
                 printf("  could not write %s\n", path);
             }
         }
     }
+    platform_cell_released(imaginary, platform_place_g_program_owner);
+    platform_cell_released(real, platform_place_g_program_owner);
+    platform_cell_released(shaped_room, platform_place_g_program_owner);
+    platform_cell_released(tracks, platform_place_g_program_owner);
 
     printf("\n================================================================\n");
     printf("  Reading it\n");

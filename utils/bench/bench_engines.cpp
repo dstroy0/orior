@@ -16,6 +16,7 @@
  *          round. Thus its useful hash rate is exactly zero, however fast it iterates.
  */
 
+#include "bench_hex.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sha256_core.h"
 
@@ -23,8 +24,6 @@
 #include <immintrin.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string>
-#include <vector>
 
 #include "bench_job_ring.h"
 #include "bench_load_limit.h"
@@ -233,24 +232,6 @@ void probe_legacy_dependence(const uint32_t *midstate, uint32_t remaining_merkle
 // ---------------------------------------------------------------------------------------------
 
 /**
- * @brief Converts a hex string to bytes.
- *
- * @param[in] hex Characters to convert.
- * @return        The bytes that they encode.
- */
-std::vector<uint8_t> bytes_from_hex(const std::string &hex)
-{
-    std::vector<uint8_t> bytes;
-
-    bytes.reserve(hex.size() / 2u);
-    for (size_t at = 0u; (at + 1u) < hex.size(); at += 2u)
-    {
-        bytes.push_back((uint8_t)std::stoul(hex.substr(at, 2u), nullptr, 16));
-    }
-    return bytes;
-}
-
-/**
  * @brief Reads a header field as the number it encodes, little-endian on the wire.
  *
  * @param[in] header Header bytes [BORROWS].
@@ -277,7 +258,7 @@ uint32_t schedule_word_from_header(const uint8_t *bytes)
 /** @brief The measured outcome of one arm, in terms that apply to both arms. */
 struct ArmMeasurement
 {
-    std::string name;
+    const char *name;
     double seconds;
     uint64_t evaluations;
     double evaluations_per_second;
@@ -286,7 +267,7 @@ struct ArmMeasurement
     bool claims_a_win;
     uint32_t claimed_nonce;
     bool claim_verifies;
-    std::string verdict;
+    const char *verdict;
 };
 
 /**
@@ -296,7 +277,7 @@ struct ArmMeasurement
  */
 void print_measurement(const ArmMeasurement &measurement)
 {
-    printf("\n  %s\n", measurement.name.c_str());
+    printf("\n  %s\n", measurement.name);
     printf("    elapsed                   : %.3f s\n", measurement.seconds);
     printf("    evaluations               : %llu\n", (unsigned long long)measurement.evaluations);
     printf("    evaluations per second    : %.2f M/s\n", measurement.evaluations_per_second / 1.0e6);
@@ -305,11 +286,10 @@ void print_measurement(const ArmMeasurement &measurement)
     printf("    claims a winning nonce    : %s\n", measurement.claims_a_win ? "yes" : "no");
     if (measurement.claims_a_win)
     {
-        printf("    claimed nonce             : %u (0x%08x)\n", measurement.claimed_nonce,
-                    measurement.claimed_nonce);
+        printf("    claimed nonce             : %u (0x%08x)\n", measurement.claimed_nonce, measurement.claimed_nonce);
         printf("    claim survives verification: %s\n", measurement.claim_verifies ? "yes" : "NO");
     }
-    printf("    verdict                   : %s\n", measurement.verdict.c_str());
+    printf("    verdict                   : %s\n", measurement.verdict);
 }
 
 /** @brief The shares of the seats of measure_threaded_rate: the request, a count for each seat, and its nonces. */
@@ -337,8 +317,15 @@ double measure_threaded_rate(const uint8_t *header, unsigned thread_count)
     shared.nbits = schedule_word_from_header(header + 72u);
     sha256_target_from_nbits(shared.share_target, header_field_value(header, 72u));
 
-    std::vector<uint64_t> counts(thread_count, 0u);
-    ScanShares shares = {&shared, counts.data(), BENCH_NONCES / thread_count};
+    // the nonces of each seat, at most BENCH_JOBS_MAX of them
+    uint64_t counts[BENCH_JOBS_MAX] = {0u};
+    if (thread_count > BENCH_JOBS_MAX)
+    {
+        fprintf(stderr, "bench_engines: %u seats, past the %u the ring holds\n", (unsigned)thread_count,
+                BENCH_JOBS_MAX);
+        exit(1);
+    }
+    ScanShares shares = {&shared, counts, BENCH_NONCES / thread_count};
 
     const auto started = embed_clock_ns();
     bench_jobs_run(
@@ -356,9 +343,9 @@ double measure_threaded_rate(const uint8_t *header, unsigned thread_count)
     const auto finished = embed_clock_ns();
 
     uint64_t total = 0u;
-    for (uint64_t count : counts)
+    for (unsigned seat = 0u; seat < thread_count; seat += 1u)
     {
-        total += count;
+        total += counts[seat];
     }
     const double seconds = ((double)(finished - started) / 1.0e9);
     return (seconds > 0.0) ? ((double)total / seconds) : 0.0;
@@ -374,20 +361,21 @@ int main()
     printf("  Header: block 125552, nonce 0x%08x on the record.\n", BENCH_EXPECTED_NONCE);
     printf("================================================================\n");
 
-    const std::vector<uint8_t> header = bytes_from_hex(BENCH_HEADER_HEX);
+    const BenchHexBytes header = bench_hex_bytes(BENCH_HEADER_HEX);
     Sha256State midstate;
-    sha256_header_midstate(&midstate, header.data());
+    sha256_header_midstate(&midstate, header.at);
 
-    const uint32_t merkle_tail = schedule_word_from_header(header.data() + 64u);
-    const uint32_t ntime_word = schedule_word_from_header(header.data() + 68u);
-    const uint32_t nbits_numeric = header_field_value(header.data(), 72u);
+    const uint32_t merkle_tail = schedule_word_from_header(header.at + 64u);
+    const uint32_t ntime_word = schedule_word_from_header(header.at + 68u);
+    const uint32_t nbits_numeric = header_field_value(header.at, 72u);
 
     // The window straddles the recorded nonce, an engine that finds it is finding it.
     const uint32_t window_start = BENCH_EXPECTED_NONCE - (BENCH_NONCES / 2u);
 
     probe_legacy_dependence(midstate.word, merkle_tail, ntime_word);
 
-    std::vector<ArmMeasurement> measurements;
+    ArmMeasurement measurements[2];
+    unsigned measured = 0u;
 
     // --- Legacy arm -----------------------------------------------------------------------
     {
@@ -397,7 +385,7 @@ int main()
                           window_start + BENCH_NONCES, &legacy);
         const auto finished = embed_clock_ns();
 
-        ArmMeasurement measurement;
+        ArmMeasurement measurement = {};
         measurement.name = "legacy topological arm (commit 6e4747c, verbatim)";
         measurement.seconds = ((double)(finished - started) / 1.0e9);
         measurement.evaluations = legacy.evaluations;
@@ -412,15 +400,15 @@ int main()
         measurement.claim_verifies = false;
         if (legacy.block_found != 0)
         {
-            std::vector<uint8_t> candidate = header;
-            candidate[76] = (uint8_t)legacy.winning_nonce;
-            candidate[77] = (uint8_t)(legacy.winning_nonce >> 8);
-            candidate[78] = (uint8_t)(legacy.winning_nonce >> 16);
-            candidate[79] = (uint8_t)(legacy.winning_nonce >> 24);
+            BenchHexBytes candidate = header;
+            candidate.at[76] = (uint8_t)legacy.winning_nonce;
+            candidate.at[77] = (uint8_t)(legacy.winning_nonce >> 8);
+            candidate.at[78] = (uint8_t)(legacy.winning_nonce >> 16);
+            candidate.at[79] = (uint8_t)(legacy.winning_nonce >> 24);
 
             uint8_t digest[32];
             uint32_t block_target[SHA256_STATE_WORDS];
-            sha256_double_hash(candidate.data(), candidate.size(), digest);
+            sha256_double_hash(candidate.at, candidate.count, digest);
             sha256_target_from_nbits(block_target, nbits_numeric);
             measurement.claim_verifies = (sha256_digest_within_target(digest, block_target) != 0);
         }
@@ -428,7 +416,8 @@ int main()
             measurement.claims_a_win
                 ? (measurement.claim_verifies ? "found a real nonce" : "claimed a nonce that is not a share")
                 : "no claim";
-        measurements.push_back(measurement);
+        measurements[measured] = measurement;
+        measured += 1u;
         printf("\n  (legacy checksum %08x, printed so the loop cannot be optimized away)\n", legacy.checksum);
     }
 
@@ -439,7 +428,7 @@ int main()
         request.midstate = midstate;
         request.merkle_root_tail = merkle_tail;
         request.ntime = ntime_word;
-        request.nbits = schedule_word_from_header(header.data() + 72u);
+        request.nbits = schedule_word_from_header(header.at + 72u);
         request.nonce_start = window_start;
         request.nonce_count = BENCH_NONCES;
         sha256_target_from_nbits(request.share_target, nbits_numeric);
@@ -449,7 +438,7 @@ int main()
         sha256_scan_avx2(&request, &result);
         const auto finished = embed_clock_ns();
 
-        ArmMeasurement measurement;
+        ArmMeasurement measurement = {};
         measurement.name = "SHA-256 eight-lane arm with anchor early exit";
         measurement.seconds = ((double)(finished - started) / 1.0e9);
         measurement.evaluations = result.nonces_evaluated;
@@ -464,15 +453,15 @@ int main()
         measurement.claim_verifies = false;
         if (result.found != 0)
         {
-            std::vector<uint8_t> candidate = header;
-            candidate[76] = (uint8_t)result.winning_nonce;
-            candidate[77] = (uint8_t)(result.winning_nonce >> 8);
-            candidate[78] = (uint8_t)(result.winning_nonce >> 16);
-            candidate[79] = (uint8_t)(result.winning_nonce >> 24);
+            BenchHexBytes candidate = header;
+            candidate.at[76] = (uint8_t)result.winning_nonce;
+            candidate.at[77] = (uint8_t)(result.winning_nonce >> 8);
+            candidate.at[78] = (uint8_t)(result.winning_nonce >> 16);
+            candidate.at[79] = (uint8_t)(result.winning_nonce >> 24);
 
             uint8_t digest[32];
             uint32_t block_target[SHA256_STATE_WORDS];
-            sha256_double_hash(candidate.data(), candidate.size(), digest);
+            sha256_double_hash(candidate.at, candidate.count, digest);
             sha256_target_from_nbits(block_target, nbits_numeric);
             measurement.claim_verifies = (sha256_digest_within_target(digest, block_target) != 0);
         }
@@ -480,15 +469,16 @@ int main()
                                   ? (measurement.claim_verifies ? "found the recorded nonce and it verifies"
                                                                 : "claimed a nonce that is not a share")
                                   : "no claim";
-        measurements.push_back(measurement);
+        measurements[measured] = measurement;
+        measured += 1u;
     }
 
     printf("\n----------------------------------------------------------------\n");
     printf("  Per-core measurements\n");
     printf("----------------------------------------------------------------\n");
-    for (const ArmMeasurement &measurement : measurements)
+    for (unsigned at = 0u; at < measured; at += 1u)
     {
-        print_measurement(measurement);
+        print_measurement(measurements[at]);
     }
 
     const double legacy_rate = measurements[0].evaluations_per_second;
@@ -498,7 +488,7 @@ int main()
     printf("  Reading the numbers\n");
     printf("----------------------------------------------------------------\n");
     printf("\n  Raw iteration rate  : legacy is %.1fx the SHA-256 arm.\n",
-                (real_rate > 0.0) ? (legacy_rate / real_rate) : 0.0);
+           (real_rate > 0.0) ? (legacy_rate / real_rate) : 0.0);
     printf("  Work per iteration  : legacy 0 SHA-256 compressions, new arm 2.\n");
     printf("  Useful hash rate    : legacy %.2f MH/s, new arm %.2f MH/s.\n", 0.0, real_rate / 1.0e6);
     printf("\n  The legacy arm is faster per iteration because it skips the hash. It\n");
@@ -507,13 +497,13 @@ int main()
     printf("  iteration rate is therefore not a hash rate and does not convert to one.\n");
 
     printf("\n  Share correctness, which is the axis that decides earnings:\n");
-    printf("    legacy : %s\n", measurements[0].verdict.c_str());
-    printf("    new arm: %s\n", measurements[1].verdict.c_str());
+    printf("    legacy : %s\n", measurements[0].verdict);
+    printf("    new arm: %s\n", measurements[1].verdict);
 
     if (measurements[0].claims_a_win && !measurements[0].claim_verifies)
     {
         printf("\n  The legacy arm claimed nonce %u on the first iteration of the window.\n",
-                    measurements[0].claimed_nonce);
+               measurements[0].claimed_nonce);
         printf("  Its test is distance < compact_target where distance is masked to 16 bits\n");
         printf("  (at most 65535) and compact_target is nbits (%u). That comparison is\n", nbits_numeric);
         printf("  true for every nonce, so it reports a win immediately, every time.\n");
@@ -531,7 +521,7 @@ int main()
         {
             continue;
         }
-        const double rate = measure_threaded_rate(header.data(), thread_count);
+        const double rate = measure_threaded_rate(header.at, thread_count);
         printf("    %2u thread(s): %8.2f MH/s\n", thread_count, rate / 1.0e6);
     }
 
