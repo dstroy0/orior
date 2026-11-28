@@ -152,7 +152,6 @@
 #include <stdlib.h>
 
 #include <algorithm>
-#include <map>
 #include <string>
 #include <vector>
 
@@ -220,19 +219,39 @@ static unsigned int turing_bits_of(unsigned long long v)
 // register file stores the array beside the steps that read it
 #define TURING_LIVE_BITS 64u
 
+// the bytes of the text of a check at max
+#define TURING_CHECK_BYTES 128u
+
+// the bytes of a line of the input of serve at max, its terminator with it. A path and the name of the job take as many
+#define TURING_LINE_BYTES 4096u
+
+// The program: its steps, `count` of them, and its fields' bits and offsets, `field_count` of them. The first build
+// takes no cell and counts them. The second fills the cells of the persistent tier taken at those counts. `full` is 1
+// where the second build passed a count of the first
 typedef struct
 {
-    std::vector<EngineRecordStep> steps;
-    std::vector<unsigned int> field_bits;
-    std::vector<unsigned int> field_offset;
+    EngineRecordStep *steps;
+    unsigned int count;
+    unsigned int room;
+    unsigned int *field_bits;
+    unsigned int *field_offset;
+    unsigned int field_count;
+    unsigned int field_room;
     unsigned int shared_bits;
+    int full;
 } TuringProgram;
 
+struct TuringConstantTag;
+
+// A stage. Its outputs, its parameter fields and its constant fields are in cells of the persistent tier. The second
+// build fills them, as it fills the program's steps, and turing_release gives them back
 typedef struct
 {
     const char *name;
     TuringProgram program;
-    std::vector<unsigned int> outputs;
+    unsigned int *outputs;
+    unsigned int output_count;
+    unsigned int output_room;
     std::vector<unsigned int> shared;
     unsigned int members;
     unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX];
@@ -240,11 +259,14 @@ typedef struct
     EngineRecordLayout layout;
     CycleRecord *record;
     // the shared fields of the run's parameters, in the order the build positions them, filled before each run
-    std::vector<unsigned int> params;
-    // the shared fields still to fill, each with its constant
-    std::vector<unsigned int> put_field;
-    std::vector<std::vector<unsigned int>> put_limbs;
-    std::vector<long long> put_sign;
+    unsigned int *params;
+    unsigned int param_count;
+    unsigned int param_room;
+    // the shared fields still to fill, each with its constant, which the job holds past the stage [BORROWS]
+    unsigned int *put_field;
+    const struct TuringConstantTag **put_constant;
+    unsigned int put_count;
+    unsigned int put_room;
     // a shared field TURING_EXP_BITS wide that holds 0, added to each expansion value before its wrap. A field is as
     // wide as its place. That gives the outputs of each expansion one width, whatever bound the imprint finds
     int anchored;
@@ -258,20 +280,32 @@ typedef struct
 } TuringStage;
 
 // a program imprinted, arranged and loaded once for the process, under its steps, fields, members and outputs. Those
-// are all that the imprint and the layout read
+// are all that the imprint and the layout read. Its content, `content_bytes` of them, is in a cell of the persistent
+// tier, which the process holds to its end
 typedef struct
 {
+    unsigned char *content;
+    unsigned long long content_bytes;
     EngineRecordKey key;
     EngineRecordLayout layout;
     CycleRecord *record;
 } TuringLoaded;
 
-static std::map<std::string, TuringLoaded *> turing_loaded;
+// The programs the process holds at max. A program past them stops the process with the count
+#define TURING_PROGRAMS_MAX 4096u
+
+// The programs the process holds, `turing_loaded_count` of them, in the order of their loads. `turing_loaded_order`
+// holds their places in the order of their content, which a search reads by halves. A load puts its place last, and
+// memor.sort orders the places again
+static TuringLoaded turing_loaded[TURING_PROGRAMS_MAX];
+static unsigned int turing_loaded_order[TURING_PROGRAMS_MAX];
+static unsigned int turing_loaded_scratch[TURING_PROGRAMS_MAX];
+static unsigned int turing_loaded_count = 0u;
 // the programs a run loads onto the device, and those it finds loaded
 static unsigned int turing_loads = 0u;
 static unsigned int turing_reuses = 0u;
 
-typedef struct
+typedef struct TuringConstantTag
 {
     std::vector<unsigned int> magnitude;
     long long sign;
@@ -294,9 +328,17 @@ typedef struct
 static unsigned int turing_step(TuringProgram *program, EngineRecordOperation operation, unsigned int left,
                                 unsigned int right, unsigned int member)
 {
-    EngineRecordStep step = {operation, left, right, member};
-    program->steps.push_back(step);
-    return (unsigned int)program->steps.size() - 1u;
+    if (program->steps != NULL)
+    {
+        if (program->count >= program->room)
+        {
+            program->full = 1;
+            return 0u;
+        }
+        program->steps[program->count] = EngineRecordStep{operation, left, right, member};
+    }
+    program->count += 1u;
+    return program->count - 1u;
 }
 
 static unsigned int turing_op(TuringProgram *program, EngineRecordOperation operation, unsigned int left,
@@ -322,22 +364,28 @@ static unsigned int turing_power(TuringProgram *program, unsigned int bits)
                      turing_constant(program, 1ull << (bits - 63u)));
 }
 
-// a field positioned at the shared record's next bit
-static unsigned int turing_field(TuringProgram *program, unsigned int bits)
-{
-    const unsigned int field = (unsigned int)program->field_bits.size();
-    program->field_bits.push_back(bits);
-    program->field_offset.push_back(program->shared_bits);
-    program->shared_bits += bits;
-    return field;
-}
-
 // a field at a given place in another member's records
 static unsigned int turing_member_field(TuringProgram *program, unsigned int bits, unsigned int offset)
 {
-    const unsigned int field = (unsigned int)program->field_bits.size();
-    program->field_bits.push_back(bits);
-    program->field_offset.push_back(offset);
+    if (program->field_bits != NULL)
+    {
+        if (program->field_count >= program->field_room)
+        {
+            program->full = 1;
+            return 0u;
+        }
+        program->field_bits[program->field_count] = bits;
+        program->field_offset[program->field_count] = offset;
+    }
+    program->field_count += 1u;
+    return program->field_count - 1u;
+}
+
+// a field positioned at the shared record's next bit
+static unsigned int turing_field(TuringProgram *program, unsigned int bits)
+{
+    const unsigned int field = turing_member_field(program, bits, program->shared_bits);
+    program->shared_bits += bits;
     return field;
 }
 
@@ -392,13 +440,46 @@ static unsigned int turing_wrap(TuringProgram *program, unsigned int value, unsi
     return turing_op(program, ENGINE_RECORD_WRAP, value, bits);
 }
 
-// a shared field that holds a constant, filled when the stage seals
+// an output of the stage, the step that gives it
+static void turing_output_added(TuringStage *stage, unsigned int step)
+{
+    if (stage->outputs != NULL)
+    {
+        if (stage->output_count >= stage->output_room)
+        {
+            stage->program.full = 1;
+            return;
+        }
+        stage->outputs[stage->output_count] = step;
+    }
+    stage->output_count += 1u;
+}
+
+// the outputs of the stage set to the `count` steps at `listed`, in place of any before them
+static void turing_outputs_set(TuringStage *stage, const unsigned int *listed, unsigned int count)
+{
+    stage->output_count = 0u;
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        turing_output_added(stage, listed[at]);
+    }
+}
+
+// a shared field that holds a constant, filled when the stage seals. The job holds the constant past the seal
 static unsigned int turing_const_field(TuringStage *stage, const TuringConstant &constant)
 {
     const unsigned int field = turing_field(&stage->program, constant.bits);
-    stage->put_field.push_back(field);
-    stage->put_limbs.push_back(constant.magnitude);
-    stage->put_sign.push_back(constant.sign);
+    if (stage->put_field != NULL)
+    {
+        if (stage->put_count >= stage->put_room)
+        {
+            stage->program.full = 1;
+            return field;
+        }
+        stage->put_field[stage->put_count] = field;
+        stage->put_constant[stage->put_count] = &constant;
+    }
+    stage->put_count += 1u;
     return field;
 }
 
@@ -406,8 +487,112 @@ static unsigned int turing_const_field(TuringStage *stage, const TuringConstant 
 static unsigned int turing_param_field(TuringStage *stage, unsigned int bits)
 {
     const unsigned int field = turing_field(&stage->program, bits);
-    stage->params.push_back(field);
+    if (stage->params != NULL)
+    {
+        if (stage->param_count >= stage->param_room)
+        {
+            stage->program.full = 1;
+            return field;
+        }
+        stage->params[stage->param_count] = field;
+    }
+    stage->param_count += 1u;
     return field;
+}
+
+// a cell of `count` elements of `size` bytes, cleared, on the temporary tier where `ephemeral` is 1. NULL where the
+// pool cannot meet it
+static void *turing_cleared(unsigned long long count, unsigned long long size, int ephemeral)
+{
+    return platform_cell_cleared((count != 0ull) ? count : 1ull, size, platform_place_g_program_owner, ephemeral);
+}
+
+// a cell given back, where there is one
+static void turing_released(void *cell)
+{
+    if (cell != NULL)
+    {
+        platform_cell_released(cell, platform_place_g_program_owner);
+    }
+}
+
+// a check whose text is `front`, the stage's name and `back`, in a line of a fixed bound
+static void turing_check(SimResults *job, int passed, const char *front, const char *name, const char *back)
+{
+    char text[TURING_CHECK_BYTES];
+    VerbaLinea line = mmgr_line_over(text, sizeof(text));
+    mmgr_line_put(&line, front);
+    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, back);
+    sim_check(job, passed, text);
+}
+
+// the program of a stage, its outputs, its parameters and its constant fields given back, and each at rest
+static void turing_program_released(TuringStage *stage)
+{
+    TuringProgram *const program = &stage->program;
+    turing_released(program->steps);
+    turing_released(program->field_bits);
+    turing_released(program->field_offset);
+    turing_released(stage->outputs);
+    turing_released(stage->params);
+    turing_released(stage->put_field);
+    turing_released((void *)stage->put_constant);
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = program, .bytes = sizeof(*program), .val = 0);
+    stage->outputs = NULL;
+    stage->output_count = 0u;
+    stage->output_room = 0u;
+    stage->params = NULL;
+    stage->param_count = 0u;
+    stage->param_room = 0u;
+    stage->put_field = NULL;
+    stage->put_constant = NULL;
+    stage->put_count = 0u;
+    stage->put_room = 0u;
+    // the anchor is a field of the program. Each build sets it again
+    stage->anchored = 0;
+}
+
+// A stage's program built by `build`, twice. The first build counts the steps, the fields, the outputs, the
+// parameters and the constant fields. This call takes the cells at those counts on the persistent tier, and the second
+// build fills them. The result is 1 where the second build fits the counts of the first. The cells live with the stage
+// to turing_release
+template <typename Build> static int turing_built(TuringStage *stage, Build build)
+{
+    TuringProgram *const program = &stage->program;
+    turing_program_released(stage);
+    build();
+    program->room = program->count;
+    program->field_room = program->field_count;
+    stage->output_room = stage->output_count;
+    stage->param_room = stage->param_count;
+    stage->put_room = stage->put_count;
+    program->steps = (EngineRecordStep *)turing_cleared(program->room, sizeof(EngineRecordStep), 0);
+    program->field_bits = (unsigned int *)turing_cleared(program->field_room, sizeof(unsigned int), 0);
+    program->field_offset = (unsigned int *)turing_cleared(program->field_room, sizeof(unsigned int), 0);
+    stage->outputs = (unsigned int *)turing_cleared(stage->output_room, sizeof(unsigned int), 0);
+    stage->params = (unsigned int *)turing_cleared(stage->param_room, sizeof(unsigned int), 0);
+    stage->put_field = (unsigned int *)turing_cleared(stage->put_room, sizeof(unsigned int), 0);
+    stage->put_constant =
+        (const struct TuringConstantTag **)turing_cleared(stage->put_room, sizeof(const TuringConstant *), 0);
+    const int taken = (program->steps != NULL) && (program->field_bits != NULL) && (program->field_offset != NULL) &&
+                      (stage->outputs != NULL) && (stage->params != NULL) && (stage->put_field != NULL) &&
+                      (stage->put_constant != NULL);
+    program->count = 0u;
+    program->field_count = 0u;
+    program->shared_bits = 0u;
+    stage->output_count = 0u;
+    stage->param_count = 0u;
+    stage->put_count = 0u;
+    if (taken)
+    {
+        build();
+    }
+    else
+    {
+        program->full = 1;
+    }
+    return !program->full;
 }
 
 static std::vector<unsigned int> turing_const_fields(TuringStage *stage, const std::vector<TuringConstant> &constants)
@@ -666,8 +851,8 @@ static void turing_pole_build(TuringStage *stage, unsigned int newton, const Tur
                                      turing_constant(program, 1ull));
     const unsigned int log = turing_log(program, k, 0u, turing_nu_bits, &fields);
     const unsigned int root = turing_root(program, k, 0u, turing_nu_bits / 2u, newton);
-    stage->outputs.push_back(log);
-    stage->outputs.push_back(root);
+    turing_output_added(stage, log);
+    turing_output_added(stage, root);
     if (os == NULL)
     {
         return;
@@ -707,11 +892,11 @@ static void turing_pole_build(TuringStage *stage, unsigned int newton, const Tur
         charge.im = turing_negate(program, gq.re);
     }
     const unsigned int big_p = turing_power(program, p);
-    stage->outputs.push_back(pos);
-    stage->outputs.push_back(accumulated.re);
-    stage->outputs.push_back(accumulated.im);
-    stage->outputs.push_back(turing_op(program, ENGINE_RECORD_QUOTIENT, turing_negate(program, charge.re), big_p));
-    stage->outputs.push_back(turing_op(program, ENGINE_RECORD_QUOTIENT, turing_negate(program, charge.im), big_p));
+    turing_output_added(stage, pos);
+    turing_output_added(stage, accumulated.re);
+    turing_output_added(stage, accumulated.im);
+    turing_output_added(stage, turing_op(program, ENGINE_RECORD_QUOTIENT, turing_negate(program, charge.re), big_p));
+    turing_output_added(stage, turing_op(program, ENGINE_RECORD_QUOTIENT, turing_negate(program, charge.im), big_p));
 }
 
 // the point stage: shared fields sign, `nu^2 2^p`, `2 nu + 1` and nu. Then those of the logarithm, `1 / (96 pi^2)`,
@@ -804,26 +989,26 @@ static void turing_point_build(TuringStage *stage, unsigned int p, unsigned int 
         total = (n == curves) ? acc : turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, total, over_x), acc);
     }
     const unsigned int scaled_total = turing_scaled(program, total, root);
-    stage->outputs.push_back(
-        turing_op(program, ENGINE_RECORD_PRODUCT, scaled_total, turing_read(program, sign_field, 0u)));
-    stage->outputs.push_back(theta);
+    turing_output_added(stage,
+                        turing_op(program, ENGINE_RECORD_PRODUCT, scaled_total, turing_read(program, sign_field, 0u)));
+    turing_output_added(stage, theta);
     if (os != NULL)
     {
         // cos theta and sin theta, for Z = 2 Re(exp(i theta) F) + R
         TuringOsFields of;
         turing_os_fields(stage, &of, 0u, *os);
         const TuringComplex turn = turing_cis(program, turing_wrap(program, theta, TURING_SCALE_BITS + 1u), &of);
-        stage->outputs.push_back(turn.re);
-        stage->outputs.push_back(turn.im);
+        turing_output_added(stage, turn.re);
+        turing_output_added(stage, turn.im);
     }
     // ln s, twice theta' to within 1 / (24 t^2), for the slope of Z
     if ((os != NULL) || sloped)
     {
-        stage->outputs.push_back(log);
+        turing_output_added(stage, log);
     }
     if (listed)
     {
-        stage->outputs.push_back(big_s);
+        turing_output_added(stage, big_s);
     }
 }
 
@@ -881,7 +1066,7 @@ static void turing_pair_build(TuringStage *stage, unsigned int p, const TuringSt
         c = turing_op(program, ENGINE_RECORD_SUM, turing_scaled(program, c, u),
                       turing_read(program, cos_field[k - 1u], 2u));
     }
-    stage->outputs.push_back(turing_scaled(program, c, turing_read(program, root_field, 0u)));
+    turing_output_added(stage, turing_scaled(program, c, turing_read(program, root_field, 0u)));
     if (sloped)
     {
         const unsigned int shifted = turing_wrap(
@@ -896,8 +1081,8 @@ static void turing_pair_build(TuringStage *stage, unsigned int p, const TuringSt
                              turing_read(program, cos_field[k - 1u], 2u));
         }
         const unsigned int term = turing_scaled(program, sine, turing_read(program, root_field, 0u));
-        stage->outputs.push_back(term);
-        stage->outputs.push_back(turing_scaled(program, term, turing_read(program, log_field, 0u)));
+        turing_output_added(stage, term);
+        turing_output_added(stage, turing_scaled(program, term, turing_read(program, log_field, 0u)));
     }
     stage->shared.assign((program->shared_bits + 31u) / 32u, 0u);
 }
@@ -986,8 +1171,8 @@ static void turing_em_build(TuringStage *stage, unsigned int p, const TuringStag
     }
     const unsigned int rotated = turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_scaled(program, turn.re, c.re),
                                            turing_scaled(program, turn.im, c.im));
-    stage->outputs.push_back(turing_scaled(program, rotated, turing_read(program, root_field, 0u)));
-    stage->outputs.push_back(turing_read(program, theta_field, 1u));
+    turing_output_added(stage, turing_scaled(program, rotated, turing_read(program, root_field, 0u)));
+    turing_output_added(stage, turing_read(program, theta_field, 1u));
 }
 
 // THE MULTIPLE EVALUATION
@@ -1023,7 +1208,7 @@ typedef struct
 static TuringExpansion turing_expansion_of(const TuringStage *stage)
 {
     TuringExpansion layout;
-    for (size_t at = 0u; at < stage->outputs.size(); at += 1u)
+    for (size_t at = 0u; at < stage->output_count; at += 1u)
     {
         layout.offset.push_back(turing_place(stage, (unsigned int)at)->out_offset);
         layout.bits.push_back(turing_place(stage, (unsigned int)at)->out_bits);
@@ -1101,8 +1286,8 @@ static void turing_put_value(TuringStage *stage, TuringComplex value)
                              turing_read(program, stage->anchor_field, stage->anchor_member));
     }
     const TuringComplex wrapped = turing_cwrap(&stage->program, value, TURING_EXP_BITS);
-    stage->outputs.push_back(wrapped.re);
-    stage->outputs.push_back(wrapped.im);
+    turing_output_added(stage, wrapped.re);
+    turing_output_added(stage, wrapped.im);
 }
 
 // binom(n, k), below 2^63 for the orders the stages run
@@ -1167,7 +1352,7 @@ static void turing_below_build(TuringStage *stage, unsigned int beta, const Turi
         turing_op(program, ENGINE_RECORD_PRODUCT,
                   turing_op(program, ENGINE_RECORD_QUOTIENT, lane, turing_read(program, nu_field, 1u)),
                   turing_power(program, beta + TURING_SCALE_BITS));
-    stage->outputs.push_back(turing_above(program, boundary, pos));
+    turing_output_added(stage, turing_above(program, boundary, pos));
 }
 
 // the terms of the leaf multipoles. Lane (leaf, position) reads its pole through the index, and finds its leaf from
@@ -1498,8 +1683,8 @@ static void turing_near_build(TuringStage *stage, unsigned int p, const TuringSt
         turing_wrap(program, turing_op(program, ENGINE_RECORD_DIFFERENCE, d, small), TURING_SCALE_BITS + 1u);
     const TuringComplex turn = turing_cis(program, phase, &of);
     const TuringComplex value = turing_cmul(program, a, turing_cscale(program, turn, ratio));
-    stage->outputs.push_back(value.re);
-    stage->outputs.push_back(value.im);
+    turing_output_added(stage, value.re);
+    turing_output_added(stage, value.im);
 }
 
 // u_h / P at each point. Lane o, with `h = o - P/2`, reads the local expansion of its leaf and its near sum through the
@@ -1532,8 +1717,8 @@ static void turing_eval_build(TuringStage *stage, unsigned int p, unsigned int b
         acc = turing_cadd(program, turing_cmul(program, acc, zeta), turing_read_at(program, local, n - 1u));
     }
     const TuringComplex value = turing_cwrap(program, turing_cadd(program, acc, near), TURING_EXP_BITS);
-    stage->outputs.push_back(value.re);
-    stage->outputs.push_back(value.im);
+    turing_output_added(stage, value.re);
+    turing_output_added(stage, value.im);
 }
 
 // the transform's twiddles exp(-2 pi i t / P), lane t
@@ -1548,8 +1733,8 @@ static void turing_twiddle_build(TuringStage *stage, unsigned int p, const Turin
                                          turing_power(program, TURING_SCALE_BITS + 1u - p))),
         TURING_SCALE_BITS + 1u);
     const TuringComplex turn = turing_cis(program, angle, &of);
-    stage->outputs.push_back(turn.re);
-    stage->outputs.push_back(turn.im);
+    turing_output_added(stage, turn.re);
+    turing_output_added(stage, turn.im);
 }
 
 // one stage of the transform of Stockham. Lane o reads x[j], x[j + P/2] and the twiddle t through the index, and gives
@@ -1566,8 +1751,8 @@ static void turing_fft_build(TuringStage *stage, const TuringExpansion &values, 
     w.im = turing_read(program, turing_member_field(program, im_place->out_bits, im_place->out_offset), 2u);
     const TuringComplex value =
         turing_cwrap(program, turing_cadd(program, v0, turing_cmul(program, w, v1)), TURING_EXP_BITS);
-    stage->outputs.push_back(value.re);
-    stage->outputs.push_back(value.im);
+    turing_output_added(stage, value.re);
+    turing_output_added(stage, value.im);
 }
 
 // the verdict stage over the transform. Member 0 is F at each point, member 1 the point records, and member 2 the
@@ -1596,8 +1781,8 @@ static void turing_twist_build(TuringStage *stage, const TuringExpansion &values
 {
     TuringProgram *const program = &stage->program;
     const TuringComplex turned = turing_main_from_transform(program, values, point);
-    stage->outputs.push_back(turned.re);
-    stage->outputs.push_back(turned.im);
+    turing_output_added(stage, turned.re);
+    turing_output_added(stage, turned.im);
 }
 
 // the slope stage. Member 0 is the twist records, member 1 the verdict records, and member 2 the point records. With
@@ -1627,7 +1812,7 @@ static void turing_slope_build(TuringStage *stage, const TuringStage *twist, con
                                         turing_op(program, ENGINE_RECORD_PRODUCT, turned, turing_power(program, shift)),
                                         turing_scaled(program, clock, im));
     const unsigned int listed[3] = {sign, z, turing_op(program, ENGINE_RECORD_SUM, half, half)};
-    stage->outputs.assign(listed, listed + 3);
+    turing_outputs_set(stage, listed, 3u);
 }
 
 // the slope stage by pairs. Member 0 is the sums of each point of `k^(-1/2) sin(phi)` and `k^(-1/2) ln k sin(phi)`,
@@ -1654,7 +1839,7 @@ static void turing_slope_pairs_build(TuringStage *stage, const TuringStage *verd
     const unsigned int half =
         turing_op(program, ENGINE_RECORD_DIFFERENCE, weighted, turing_scaled(program, clock, sine));
     const unsigned int listed[3] = {sign, z, turing_op(program, ENGINE_RECORD_SUM, half, half)};
-    stage->outputs.assign(listed, listed + 3);
+    turing_outputs_set(stage, listed, 3u);
 }
 
 // the margin stage, with lane q the step from point q - 1 to point q. Members 0 and 1 are the slope records at q and
@@ -1721,7 +1906,7 @@ static void turing_margin_build(TuringStage *stage, const TuringStage *slope, un
         turing_op(program, ENGINE_RECORD_DIFFERENCE,
                   turing_op(program, ENGINE_RECORD_DIFFERENCE, turing_constant(program, 1ull), clean), single);
     const unsigned int listed[3] = {clean, flag, single};
-    stage->outputs.assign(listed, listed + 3);
+    turing_outputs_set(stage, listed, 3u);
 }
 
 // the verdict stage: member 0 the sums, member 1 the point records, and member 2 the shared record of `nu^2 2^p`,
@@ -1778,7 +1963,7 @@ static void turing_verdict_build(TuringStage *stage, unsigned int p, unsigned in
     const unsigned int low_step = turing_op(program, ENGINE_RECORD_PRODUCT, step, low);
     const unsigned int high_step = turing_op(program, ENGINE_RECORD_PRODUCT, step, high);
     const unsigned int listed[9] = {sign, big_s, low, high, low_step, high_step, z, w.re, w.im};
-    stage->outputs.assign(listed, listed + 9);
+    turing_outputs_set(stage, listed, 9u);
 }
 
 // the count stage: members 0, 1 and 2 the verdict records at q, q - 1 and q - 2
@@ -1815,7 +2000,7 @@ static void turing_count_build(TuringStage *stage, unsigned int p, const TuringS
         turing_op(program, ENGINE_RECORD_PRODUCT, turing_op(program, ENGINE_RECORD_PRODUCT, grown, certified),
                   turing_op(program, ENGINE_RECORD_PRODUCT, gap, second_gap));
     const unsigned int listed[4] = {zero, at_q, at_p, loose};
-    stage->outputs.assign(listed, listed + 4);
+    turing_outputs_set(stage, listed, 4u);
 }
 
 static int turing_word(FILE *in, long long *value)
@@ -1884,9 +2069,10 @@ static void turing_put_small(TuringStage *stage, unsigned int field, unsigned lo
 static void turing_seal(TuringStage *stage)
 {
     stage->shared.assign((stage->program.shared_bits + 31u) / 32u + 1u, 0u);
-    for (size_t at = 0u; at < stage->put_field.size(); at += 1u)
+    for (unsigned int at = 0u; at < stage->put_count; at += 1u)
     {
-        turing_put_field(stage, stage->put_field[at], stage->put_limbs[at], stage->put_sign[at]);
+        turing_put_field(stage, stage->put_field[at], stage->put_constant[at]->magnitude,
+                         stage->put_constant[at]->sign);
     }
 }
 
@@ -1894,7 +2080,17 @@ static void turing_open_stage(TuringStage *stage, const char *name, unsigned int
 {
     stage->name = name;
     stage->members = members;
-    stage->program.shared_bits = 0u;
+    EMBED_CALL(memor.set, MemoriaCfg, .dst = &stage->program, .bytes = sizeof(stage->program), .val = 0);
+    stage->outputs = NULL;
+    stage->output_count = 0u;
+    stage->output_room = 0u;
+    stage->params = NULL;
+    stage->param_count = 0u;
+    stage->param_room = 0u;
+    stage->put_field = NULL;
+    stage->put_constant = NULL;
+    stage->put_count = 0u;
+    stage->put_room = 0u;
     stage->anchored = 0;
     stage->swept = 0u;
     stage->cached = 0;
@@ -1915,98 +2111,164 @@ static int turing_load(SimResults *job, TuringStage *stage, EngineError *error)
     return ok;
 }
 
-static void turing_content_add(std::string *content, const void *bytes, size_t count)
+// `count` bytes added to the content at `at`, and the place after them
+static unsigned long long turing_content_add(unsigned char *content, unsigned long long at, const void *bytes,
+                                             unsigned long long count)
 {
-    content->append((const char *)bytes, count);
+    if (count != 0ull)
+    {
+        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = content + at, .src = bytes, .bytes = count);
+    }
+    return at + count;
 }
 
-// the program of the stage as the imprint and the layout read it. That is its steps, the widths and places of its
-// fields, its members with their widths, and its outputs
-static std::string turing_content(const TuringStage *stage)
+// The program of the stage as the imprint and the layout read it, in a cell of the persistent tier that the caller
+// owns. That is its steps, the widths and places of its fields, its members with their widths, and its outputs. The
+// bytes are four counts, four words a step, two words a field, a word a member and a word an output. A pool that
+// cannot meet the cell stops the process
+static unsigned char *turing_content(const TuringStage *stage, unsigned long long *bytes)
 {
     const TuringProgram *const program = &stage->program;
-    std::string content;
-    const unsigned int counts[4] = {(unsigned int)program->steps.size(), (unsigned int)program->field_bits.size(),
-                                    stage->members, (unsigned int)stage->outputs.size()};
-    turing_content_add(&content, counts, sizeof(counts));
-    for (size_t at = 0u; at < program->steps.size(); at += 1u)
+    *bytes = 16ull + 16ull * program->count + 8ull * program->field_count + 4ull * stage->members +
+             4ull * stage->output_count;
+    unsigned char *const content = (unsigned char *)turing_cleared(*bytes, 1u, 0);
+    if (content == NULL)
     {
-        const EngineRecordStep &step = program->steps[at];
-        const unsigned int words[4] = {(unsigned int)step.operation, step.left, step.right, step.member};
-        turing_content_add(&content, words, sizeof(words));
+        fprintf(stderr, "  exact_zeta_turing: the pool cannot meet the content of the %s program\n", stage->name);
+        exit(1);
     }
-    turing_content_add(&content, program->field_bits.data(), program->field_bits.size() * sizeof(unsigned int));
-    turing_content_add(&content, program->field_offset.data(), program->field_offset.size() * sizeof(unsigned int));
-    turing_content_add(&content, stage->in_limbs, stage->members * sizeof(unsigned int));
-    turing_content_add(&content, stage->outputs.data(), stage->outputs.size() * sizeof(unsigned int));
+    const unsigned int counts[4] = {program->count, program->field_count, stage->members, stage->output_count};
+    unsigned long long at = turing_content_add(content, 0ull, counts, sizeof(counts));
+    for (unsigned int step = 0u; step < program->count; step += 1u)
+    {
+        const EngineRecordStep *const each = &program->steps[step];
+        const unsigned int words[4] = {(unsigned int)each->operation, each->left, each->right, each->member};
+        at = turing_content_add(content, at, words, sizeof(words));
+    }
+    at = turing_content_add(content, at, program->field_bits, program->field_count * sizeof(unsigned int));
+    at = turing_content_add(content, at, program->field_offset, program->field_count * sizeof(unsigned int));
+    at = turing_content_add(content, at, stage->in_limbs, stage->members * sizeof(unsigned int));
+    (void)turing_content_add(content, at, stage->outputs, stage->output_count * sizeof(unsigned int));
     return content;
+}
+
+// the order of two contents: the shorter first, and two of one length by their bytes
+static int turing_content_order(const unsigned char *left, unsigned long long left_bytes, const unsigned char *right,
+                                unsigned long long right_bytes)
+{
+    if (left_bytes != right_bytes)
+    {
+        return (left_bytes < right_bytes) ? -1 : 1;
+    }
+    const embed_iword compared =
+        EMBED_CALL(memor.cmp, MemoriaCfg, .src = left, .other = right, .bytes = (size_t)left_bytes);
+    return (compared < 0) ? -1 : ((compared > 0) ? 1 : 0);
+}
+
+// the order of two places of the programs the process holds, by their content, for memor.sort
+static int turing_loaded_place_order(const void *left, const void *right)
+{
+    const TuringLoaded *const one = &turing_loaded[*(const unsigned int *)left];
+    const TuringLoaded *const other = &turing_loaded[*(const unsigned int *)right];
+    return turing_content_order(one->content, one->content_bytes, other->content, other->content_bytes);
+}
+
+// the program the process holds under a content, found by halves of the order, or NULL where it holds none
+static TuringLoaded *turing_loaded_found(const unsigned char *content, unsigned long long bytes)
+{
+    unsigned int low = 0u;
+    unsigned int high = turing_loaded_count;
+    while (low < high)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        const TuringLoaded *const at = &turing_loaded[turing_loaded_order[middle]];
+        const int order = turing_content_order(at->content, at->content_bytes, content, bytes);
+        low = (order < 0) ? (middle + 1u) : low;
+        high = (order < 0) ? high : middle;
+    }
+    if (low < turing_loaded_count)
+    {
+        TuringLoaded *const at = &turing_loaded[turing_loaded_order[low]];
+        if (turing_content_order(at->content, at->content_bytes, content, bytes) == 0)
+        {
+            return at;
+        }
+    }
+    return NULL;
 }
 
 // the programs the process stores, each released once at its end
 static void turing_forget(void)
 {
-    for (std::map<std::string, TuringLoaded *>::iterator at = turing_loaded.begin(); at != turing_loaded.end(); ++at)
+    for (unsigned int at = 0u; at < turing_loaded_count; at += 1u)
     {
-        if (at->second->record != NULL)
+        TuringLoaded *const loaded = &turing_loaded[at];
+        if (loaded->record != NULL)
         {
-            cycle_record_release(at->second->record);
+            cycle_record_release(loaded->record);
         }
-        key_schedule_record_release(&at->second->layout);
-        keymath_record_release(&at->second->key);
-        delete at->second;
+        key_schedule_record_release(&loaded->layout);
+        keymath_record_release(&loaded->key);
+        turing_released(loaded->content);
+        loaded->content = NULL;
+        loaded->content_bytes = 0ull;
     }
-    turing_loaded.clear();
+    turing_loaded_count = 0u;
 }
 
 // imprints, arranges and loads the program of a stage, and reports where it stops when it does. The code reads a
-// program that the process already stores from it, and caches one that it loads
+// program that the process already stores from it, and stores one that it loads
 static int turing_load_once(SimResults *job, TuringStage *stage, EngineError *error)
 {
     TuringProgram *const program = &stage->program;
-    const unsigned int fields = (unsigned int)program->field_bits.size();
-    const std::string content = turing_content(stage);
-    const std::map<std::string, TuringLoaded *>::const_iterator found = turing_loaded.find(content);
-    if (found != turing_loaded.end())
+    const unsigned int fields = program->field_count;
+    unsigned long long content_bytes = 0ull;
+    unsigned char *const content = turing_content(stage, &content_bytes);
+    const TuringLoaded *const found = turing_loaded_found(content, content_bytes);
+    if (found != NULL)
     {
-        stage->key = found->second->key;
-        stage->layout = found->second->layout;
-        stage->record = found->second->record;
+        turing_released(content);
+        stage->key = found->key;
+        stage->layout = found->layout;
+        stage->record = found->record;
         stage->cached = 1;
         turing_reuses += 1u;
-        sim_check(job, 1, (std::string("keymath imprints the ") + stage->name + " program").c_str());
-        sim_check(job, 1, (std::string("the scheduler positions the ") + stage->name + " program out").c_str());
-        sim_check(job, 1, (std::string("the ") + stage->name + " program loads onto the device").c_str());
+        turing_check(job, 1, "keymath imprints the ", stage->name, " program");
+        turing_check(job, 1, "the scheduler positions the ", stage->name, " program out");
+        turing_check(job, 1, "the ", stage->name, " program loads onto the device");
         return 1;
     }
-    const KeymathRecordRequest encode = {program->steps.data(),
-                                         (unsigned int)program->steps.size(),
-                                         program->field_bits.data(),
+    // a program whose cells do not hold its steps, fields and outputs fails the imprint
+    const int built = (program->steps != NULL) && !program->full;
+    const KeymathRecordRequest encode = {program->steps,
+                                         program->count,
+                                         program->field_bits,
                                          fields,
                                          stage->members,
-                                         stage->outputs.data(),
-                                         (unsigned int)stage->outputs.size(),
+                                         stage->outputs,
+                                         stage->output_count,
                                          NULL,
                                          0u,
                                          &stage->key,
                                          error};
     const double began = turing_now();
-    int ok = keymath_record_encode(&encode) != KEYMATH_ERROR;
+    int ok = built && (keymath_record_encode(&encode) != KEYMATH_ERROR);
     turing_imprint_seconds += turing_now() - began;
-    if (!ok)
+    if (built && !ok)
     {
-        const EngineRecordStep *const first = program->steps.data();
-        const EngineRecordStep *const last = first + program->steps.size();
+        const EngineRecordStep *const first = program->steps;
+        const EngineRecordStep *const last = first + program->count;
         const EngineRecordStep *const at = (const EngineRecordStep *)error->evacaddr;
         const long long step = ((at >= first) && (at < last)) ? (long long)(at - first) : -1;
         fprintf(
             stderr,
-            "  exact_zeta_turing: the %s imprint errors, site %u, at step %lld of %zu, operation %d left %u right %u\n",
-            stage->name, error->site, step, program->steps.size(), (step >= 0) ? (int)at->operation : -1,
+            "  exact_zeta_turing: the %s imprint errors, site %u, at step %lld of %u, operation %d left %u right %u\n",
+            stage->name, error->site, step, program->count, (step >= 0) ? (int)at->operation : -1,
             (step >= 0) ? at->left : 0u, (step >= 0) ? at->right : 0u);
     }
-    sim_check(job, ok, (std::string("keymath imprints the ") + stage->name + " program").c_str());
-    const KeyScheduleRecordRequest position = {
-        &stage->key, program->field_offset.data(), fields, stage->in_limbs, 1, &stage->layout, error};
+    turing_check(job, ok, "keymath imprints the ", stage->name, " program");
+    const KeyScheduleRecordRequest position = {&stage->key, program->field_offset, fields, stage->in_limbs,
+                                               1,           &stage->layout,        error};
     const double imprinted = turing_now();
     const int positioned = ok && (key_schedule_record_layout(&position) != KEY_SCHEDULE_ERROR);
     turing_layout_seconds += turing_now() - imprinted;
@@ -2018,18 +2280,34 @@ static int turing_load_once(SimResults *job, TuringStage *stage, EngineError *er
         fprintf(stderr, "  exact_zeta_turing: the %s layout ends at %s\n", stage->name, end);
     }
     ok = positioned;
-    sim_check(job, ok, (std::string("the scheduler positions the ") + stage->name + " program out").c_str());
+    turing_check(job, ok, "the scheduler positions the ", stage->name, " program out");
     ok = ok && (cycle_record_load(&stage->layout, &stage->record, error) != CYCLE_ERROR);
-    sim_check(job, ok, (std::string("the ") + stage->name + " program loads onto the device").c_str());
+    turing_check(job, ok, "the ", stage->name, " program loads onto the device");
+    if (ok && (turing_loaded_count >= TURING_PROGRAMS_MAX))
+    {
+        fprintf(stderr, "  exact_zeta_turing: the process holds %u programs, the most it holds\n", TURING_PROGRAMS_MAX);
+        exit(1);
+    }
     if (ok)
     {
-        TuringLoaded *const loaded = new TuringLoaded;
+        // the program goes last, and the order of the contents takes its place
+        TuringLoaded *const loaded = &turing_loaded[turing_loaded_count];
+        loaded->content = content;
+        loaded->content_bytes = content_bytes;
         loaded->key = stage->key;
         loaded->layout = stage->layout;
         loaded->record = stage->record;
-        turing_loaded[content] = loaded;
+        turing_loaded_order[turing_loaded_count] = turing_loaded_count;
+        turing_loaded_count += 1u;
+        (void)EMBED_CALL(memor.sort, MemoriaCfg, .dst = turing_loaded_order, .bytes = sizeof(unsigned int),
+                         .scratch = turing_loaded_scratch, .count = turing_loaded_count,
+                         .order = turing_loaded_place_order);
         stage->cached = 1;
         turing_loads += 1u;
+    }
+    else
+    {
+        turing_released(content);
     }
     return ok;
 }
@@ -2294,20 +2572,32 @@ static void turing_dispatch(TuringCheck *check, unsigned long long from, unsigne
     }
 }
 
-// a check of the run that reads the flag of a host check, taken once each host check ran
+// a check of the run that reads the flag of a host check, taken once each host check ran. Its text is a literal
 typedef struct
 {
     int ok;
     int *flag;
-    std::string what;
+    const char *what;
 } TuringDeferred;
 
-static std::vector<TuringDeferred> turing_deferred;
+// the deferred checks of a job at max: a job defers one to each stage that the host checks beside the device
+#define TURING_DEFERRED_MAX 64u
+
+// the deferred checks of the job, `turing_deferred_count` of them
+static TuringDeferred turing_deferred[TURING_DEFERRED_MAX];
+static unsigned int turing_deferred_count = 0u;
 
 static void turing_defer(int ok, int *flag, const char *what)
 {
-    TuringDeferred deferred = {ok, flag, what};
-    turing_deferred.push_back(deferred);
+    if (turing_deferred_count >= TURING_DEFERRED_MAX)
+    {
+        fprintf(stderr, "  exact_zeta_turing: a job defers more than %u checks\n", TURING_DEFERRED_MAX);
+        exit(1);
+    }
+    turing_deferred[turing_deferred_count].ok = ok;
+    turing_deferred[turing_deferred_count].flag = flag;
+    turing_deferred[turing_deferred_count].what = what;
+    turing_deferred_count += 1u;
 }
 
 // every host check run out and its flag settled, then each deferred check taken
@@ -2323,11 +2613,11 @@ static void turing_settle(SimResults *job)
         turing_workers_stopped();
     }
     turing_check_seconds += turing_now() - began;
-    for (size_t at = 0u; at < turing_deferred.size(); at += 1u)
+    for (unsigned int at = 0u; at < turing_deferred_count; at += 1u)
     {
-        sim_check(job, turing_deferred[at].ok && *turing_deferred[at].flag, turing_deferred[at].what.c_str());
+        sim_check(job, turing_deferred[at].ok && *turing_deferred[at].flag, turing_deferred[at].what);
     }
-    turing_deferred.clear();
+    turing_deferred_count = 0u;
 }
 
 static std::vector<unsigned int> turing_copy_back(const unsigned int *device, size_t words)
@@ -2464,6 +2754,7 @@ static int turing_range(FILE *out, const char *key, const TuringStage *stage, co
 // a stage's program, where the process does not cache it
 static void turing_release(TuringStage *stage)
 {
+    turing_program_released(stage);
     if (stage->cached)
     {
         return;
@@ -2615,7 +2906,7 @@ static int turing_sweep(TuringStage *stage, unsigned int *const members[3], cons
 static unsigned int *turing_shared(std::vector<unsigned int *> *owned, TuringStage *stage,
                                    const std::vector<long long> &params)
 {
-    for (size_t at = 0u; (at < params.size()) && (at < stage->params.size()); at += 1u)
+    for (size_t at = 0u; (at < params.size()) && (at < stage->param_count); at += 1u)
     {
         const unsigned long long magnitude =
             (params[at] < 0) ? (unsigned long long)(-params[at]) : (unsigned long long)params[at];
@@ -2632,7 +2923,7 @@ static unsigned int *turing_shared_records(std::vector<unsigned int *> *owned, T
     std::vector<unsigned int> records;
     for (size_t record = 0u; record < params.size(); record += 1u)
     {
-        for (size_t at = 0u; (at < params[record].size()) && (at < stage->params.size()); at += 1u)
+        for (size_t at = 0u; (at < params[record].size()) && (at < stage->param_count); at += 1u)
         {
             const long long value = params[record][at];
             turing_put_small(stage, stage->params[at],
@@ -2813,7 +3104,7 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
     unsigned int near_limbs = 0u;
     if (ok)
     {
-        turing_below_build(&below, beta, pole);
+        (void)turing_built(&below, [&]() { turing_below_build(&below, beta, pole); });
         turing_seal(&below);
         below.in_limbs[0] = pole->layout.out_limbs;
         below.in_limbs[1] = (unsigned int)below.shared.size();
@@ -2821,7 +3112,7 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
     }
     if (ok)
     {
-        turing_p2m_build(&p2m, p, beta, order, pole, os);
+        (void)turing_built(&p2m, [&]() { turing_p2m_build(&p2m, p, beta, order, pole, os); });
         turing_seal(&p2m);
         p2m.in_limbs[0] = pole->layout.out_limbs;
         p2m.in_limbs[1] = (unsigned int)p2m.shared.size();
@@ -2830,13 +3121,13 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
     }
     if (ok)
     {
-        turing_fold_build(&fold, expansion);
+        (void)turing_built(&fold, [&]() { turing_fold_build(&fold, expansion); });
         fold.in_limbs[0] = fold.in_limbs[1] = fold.in_limbs[2] = expansion.out_limbs;
         ok = turing_load(job, &fold, error) && turing_same_expansion(turing_expansion_of(&fold), expansion);
     }
     if (ok)
     {
-        turing_m2m_build(&m2m, expansion, os);
+        (void)turing_built(&m2m, [&]() { turing_m2m_build(&m2m, expansion, os); });
         turing_seal(&m2m);
         m2m.in_limbs[0] = expansion.out_limbs;
         m2m.in_limbs[1] = (unsigned int)m2m.shared.size();
@@ -2844,7 +3135,7 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
     }
     if (ok)
     {
-        turing_m2l_build(&m2l, expansion, os);
+        (void)turing_built(&m2l, [&]() { turing_m2l_build(&m2l, expansion, os); });
         turing_seal(&m2l);
         m2l.in_limbs[0] = expansion.out_limbs;
         m2l.in_limbs[1] = (unsigned int)m2l.shared.size();
@@ -2852,7 +3143,7 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
     }
     if (ok)
     {
-        turing_l2l_build(&l2l, expansion, os);
+        (void)turing_built(&l2l, [&]() { turing_l2l_build(&l2l, expansion, os); });
         turing_seal(&l2l);
         l2l.in_limbs[0] = l2l.in_limbs[1] = expansion.out_limbs;
         l2l.in_limbs[2] = (unsigned int)l2l.shared.size();
@@ -2860,7 +3151,7 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
     }
     if (ok)
     {
-        turing_near_build(&near, p, pole, os);
+        (void)turing_built(&near, [&]() { turing_near_build(&near, p, pole, os); });
         turing_seal(&near);
         near.in_limbs[0] = pole->layout.out_limbs;
         near.in_limbs[1] = (unsigned int)near.shared.size();
@@ -2872,7 +3163,7 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
                                         ? turing_place(&near, 0u)->out_bits
                                         : turing_place(&near, 1u)->out_bits;
         near_limbs = (widest + 24u + 31u) / 32u + 1u;
-        turing_eval_build(&eval, p, beta, expansion, 32u * near_limbs, os);
+        (void)turing_built(&eval, [&]() { turing_eval_build(&eval, p, beta, expansion, 32u * near_limbs, os); });
         turing_seal(&eval);
         eval.in_limbs[0] = expansion.out_limbs;
         eval.in_limbs[1] = 2u * near_limbs;
@@ -2882,14 +3173,14 @@ static unsigned int *turing_os(SimResults *job, std::vector<unsigned int *> *own
     }
     if (ok)
     {
-        turing_twiddle_build(&twiddle, p, os);
+        (void)turing_built(&twiddle, [&]() { turing_twiddle_build(&twiddle, p, os); });
         turing_seal(&twiddle);
         twiddle.in_limbs[0] = (unsigned int)twiddle.shared.size();
         ok = turing_load(job, &twiddle, error);
     }
     if (ok)
     {
-        turing_fft_build(&fft, *values, &twiddle);
+        (void)turing_built(&fft, [&]() { turing_fft_build(&fft, *values, &twiddle); });
         fft.in_limbs[0] = fft.in_limbs[1] = values->out_limbs;
         fft.in_limbs[2] = twiddle.layout.out_limbs;
         ok = turing_load(job, &fft, error) && turing_same_expansion(turing_expansion_of(&fft), *values);
@@ -3560,7 +3851,8 @@ static int turing_job(const char *input, const char *output)
     for (unsigned int weighted = 0u; weighted < (twisted ? 2u : 1u); weighted += 1u)
     {
         TuringStage *const stage = pole_stages[weighted];
-        turing_pole_build(stage, newton, ln2, artanh, p, with_os, (int)weighted, shift);
+        (void)turing_built(stage,
+                           [&]() { turing_pole_build(stage, newton, ln2, artanh, p, with_os, (int)weighted, shift); });
         turing_seal(stage);
         if (transform_run)
         {
@@ -3577,7 +3869,10 @@ static int turing_job(const char *input, const char *output)
     }
     unsigned int field = 0u;
 
-    turing_point_build(&point, p, newton, ln2, artanh, c96, c3, c5, gamma, curves, with_os, listed_run, pairs_sloped);
+    (void)turing_built(&point, [&]() {
+        turing_point_build(&point, p, newton, ln2, artanh, c96, c3, c5, gamma, curves, with_os, listed_run,
+                           pairs_sloped);
+    });
     turing_seal(&point);
     point.in_limbs[0] = (unsigned int)point.shared.size();
     point.in_limbs[1] = listed_run ? j_limbs : 0u;
@@ -3603,10 +3898,10 @@ static int turing_job(const char *input, const char *output)
              (!twisted || turing_load(&job, &pole_twist, &error));
     // with the listed points, S as the point stage gives it, its last output
     const DeviceRecordStep *const s_place =
-        (ok && listed_run) ? turing_place(&point, (unsigned int)point.outputs.size() - 1u) : NULL;
+        (ok && listed_run) ? turing_place(&point, (unsigned int)point.output_count - 1u) : NULL;
     if (ok && pairs_run)
     {
-        turing_pair_build(&pair, p, &pole, &point, cosine, s_place, pairs_sloped);
+        (void)turing_built(&pair, [&]() { turing_pair_build(&pair, p, &pole, &point, cosine, s_place, pairs_sloped); });
         pair.in_limbs[0] = pole.layout.out_limbs;
         pair.in_limbs[1] = point.layout.out_limbs;
         pair.in_limbs[2] = (unsigned int)pair.shared.size();
@@ -3623,7 +3918,7 @@ static int turing_job(const char *input, const char *output)
         (ok && pairs_run) ? (turing_place(&pair, 0u)->out_bits + turing_nu_bits + 31u) / 32u + 1u : 1u;
     if (ok && em_run)
     {
-        turing_em_build(&em, p, &pole, &point, os, ratio);
+        (void)turing_built(&em, [&]() { turing_em_build(&em, p, &pole, &point, os, ratio); });
         turing_seal(&em);
         em.in_limbs[0] = pole.layout.out_limbs;
         em.in_limbs[1] = point.layout.out_limbs;
@@ -3648,8 +3943,17 @@ static int turing_job(const char *input, const char *output)
                                          (em_run && ok ? points * em.layout.out_limbs : 0ull) + transform_words) *
                                             sizeof(unsigned int) +
                                         (64ull << 20u);
-    std::string named[3] = {"exact_zeta_turing", input, output};
-    char *const arguments[3] = {&named[0][0], &named[1][0], &named[2][0]};
+    // the job's name and its two paths, each copied into a line of a fixed bound for the submission
+    char named[3][TURING_LINE_BYTES];
+    const char *const named_from[3] = {"exact_zeta_turing", input, output};
+    for (unsigned int at = 0u; at < 3u; at += 1u)
+    {
+        VerbaLinea named_line = mmgr_line_over(named[at], sizeof(named[at]));
+        mmgr_line_put(&named_line, named_from[at]);
+        ok = ok && mmgr_line_ok(&named_line);
+        (void)mmgr_line_finish(&named_line);
+    }
+    char *const arguments[3] = {named[0], named[1], named[2]};
     ok = ok && sim_job_submit(&job, "exact_zeta_turing", 3, arguments, declared);
 
     // the pole and point stages. The pole records end in a zero record, the empty record that each link points at
@@ -3824,8 +4128,8 @@ static int turing_job(const char *input, const char *output)
         // the evaluation reads the poles of each set at the places of the outputs of the poles. The weighted poles join
         // them where each output has the same place and width
         int joined = twisted && (pole_twist.layout.out_limbs == pole.layout.out_limbs) &&
-                     (pole_twist.outputs.size() == pole.outputs.size());
-        for (unsigned int at = 0u; joined && (at < (unsigned int)pole.outputs.size()); at += 1u)
+                     (pole_twist.output_count == pole.output_count);
+        for (unsigned int at = 0u; joined && (at < (unsigned int)pole.output_count); at += 1u)
         {
             joined = (turing_place(&pole, at)->out_offset == turing_place(&pole_twist, at)->out_offset) &&
                      (turing_place(&pole, at)->out_bits == turing_place(&pole_twist, at)->out_bits);
@@ -3865,7 +4169,7 @@ static int turing_job(const char *input, const char *output)
         ok = (device_transform_twist != NULL);
         if (ok)
         {
-            turing_twist_build(&twist, values_twist, &point);
+            (void)turing_built(&twist, [&]() { turing_twist_build(&twist, values_twist, &point); });
             twist.in_limbs[0] = values_twist.out_limbs;
             twist.in_limbs[1] = point.layout.out_limbs;
             ok = turing_load(&job, &twist, &error);
@@ -3907,8 +4211,10 @@ static int turing_job(const char *input, const char *output)
     const TuringStage *const measured_stage = em_run ? &em : &point;
     if (ok)
     {
-        turing_verdict_build(&verdict, p, sum_limbs, measured_stage, bound.bits, theta_bound.bits,
-                             transform_run ? &values : NULL, !em_run, s_place);
+        (void)turing_built(&verdict, [&]() {
+            turing_verdict_build(&verdict, p, sum_limbs, measured_stage, bound.bits, theta_bound.bits,
+                                 transform_run ? &values : NULL, !em_run, s_place);
+        });
         verdict.in_limbs[0] = transform_run ? values.out_limbs : sum_limbs;
         verdict.in_limbs[1] = measured_stage->layout.out_limbs;
         verdict.in_limbs[2] = (unsigned int)verdict.shared.size();
@@ -3941,7 +4247,9 @@ static int turing_job(const char *input, const char *output)
     std::vector<unsigned int> apart;
     if (ok && pairs_run && transform_run)
     {
-        turing_verdict_build(&verdict_pairs, p, sum_limbs, &point, bound.bits, theta_bound.bits, NULL, 1, s_place);
+        (void)turing_built(&verdict_pairs, [&]() {
+            turing_verdict_build(&verdict_pairs, p, sum_limbs, &point, bound.bits, theta_bound.bits, NULL, 1, s_place);
+        });
         verdict_pairs.in_limbs[0] = sum_limbs;
         verdict_pairs.in_limbs[1] = point.layout.out_limbs;
         verdict_pairs.in_limbs[2] = (unsigned int)verdict_pairs.shared.size();
@@ -3969,7 +4277,7 @@ static int turing_job(const char *input, const char *output)
     // the count stage, over the verdict records at q, q - 1 and q - 2
     if (ok)
     {
-        turing_count_build(&counted, p, &verdict);
+        (void)turing_built(&counted, [&]() { turing_count_build(&counted, p, &verdict); });
         for (unsigned int member = 0u; member < 3u; member += 1u)
         {
             counted.in_limbs[member] = verdict.layout.out_limbs;
@@ -4017,12 +4325,13 @@ static int turing_job(const char *input, const char *output)
         }
         if (twisted)
         {
-            turing_slope_build(&slope, &twist, &verdict, &point, shift);
+            (void)turing_built(&slope, [&]() { turing_slope_build(&slope, &twist, &verdict, &point, shift); });
             slope.in_limbs[0] = twist.layout.out_limbs;
         }
         else
         {
-            turing_slope_pairs_build(&slope, &verdict, &point, log_output, sum_limbs);
+            (void)turing_built(&slope,
+                               [&]() { turing_slope_pairs_build(&slope, &verdict, &point, log_output, sum_limbs); });
             slope.in_limbs[0] = 2u * sum_limbs;
         }
         slope.in_limbs[1] = verdict.layout.out_limbs;
@@ -4041,7 +4350,9 @@ static int turing_job(const char *input, const char *output)
         // with both methods, Z' by the pairs beside Z' by the twist, and the max the two differ by
         if (ok && twisted && pairs_sloped)
         {
-            turing_slope_pairs_build(&slope_pairs, &verdict, &point, log_output, sum_limbs);
+            (void)turing_built(&slope_pairs, [&]() {
+                turing_slope_pairs_build(&slope_pairs, &verdict, &point, log_output, sum_limbs);
+            });
             slope_pairs.in_limbs[0] = 2u * sum_limbs;
             slope_pairs.in_limbs[1] = verdict.layout.out_limbs;
             slope_pairs.in_limbs[2] = point.layout.out_limbs;
@@ -4066,7 +4377,8 @@ static int turing_job(const char *input, const char *output)
         }
         if (ok)
         {
-            turing_margin_build(&margined, &slope, third.bits, margin.bits, steep.bits);
+            (void)turing_built(&margined,
+                               [&]() { turing_margin_build(&margined, &slope, third.bits, margin.bits, steep.bits); });
             margined.in_limbs[0] = slope_limbs;
             margined.in_limbs[1] = slope_limbs;
             margined.in_limbs[2] = (unsigned int)margined.shared.size();
@@ -4246,23 +4558,25 @@ static int turing_job(const char *input, const char *output)
     return sim_close(&job, "exact_zeta_turing");
 }
 
-// a line of `in` without its end, 0 at the end of the input
-static int turing_line(FILE *in, std::string *line)
+// A line of `in` without its end, in `line` of TURING_LINE_BYTES bytes. The result is 0 at the end of the input. A line
+// past the bound stops the process with its bound
+static int turing_line(FILE *in, char *line)
 {
-    line->clear();
-    int c = fgetc(in);
-    if (c == EOF)
+    if (fgets(line, (int)TURING_LINE_BYTES, in) == NULL)
     {
         return 0;
     }
-    while ((c != EOF) && (c != '\n'))
+    size_t length = EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line, .cap = TURING_LINE_BYTES);
+    const int ended = (length > 0u) && (line[length - 1u] == '\n');
+    if (!ended && !feof(in))
     {
-        if (c != '\r')
-        {
-            line->push_back((char)c);
-        }
-        c = fgetc(in);
+        fprintf(stderr, "  exact_zeta_turing: a line of the input passes %u bytes\n", TURING_LINE_BYTES);
+        exit(1);
     }
+    // the end of the line, a newline and a carriage return before it, cut from the line
+    length -= ended ? 1u : 0u;
+    length -= ((length > 0u) && (line[length - 1u] == '\r')) ? 1u : 0u;
+    line[length] = '\0';
     return 1;
 }
 
@@ -4282,10 +4596,12 @@ int program_main(int count, char **arguments)
         // a run for each two read lines, the path of its input and that of its output. The code answers each with the
         // line "done" and its code, once it writes its output
         code = 0;
-        std::string input, output;
-        while (turing_line(stdin, &input) && turing_line(stdin, &output))
+        // the two paths of a run, each a line of a fixed bound
+        static char input[TURING_LINE_BYTES];
+        static char output[TURING_LINE_BYTES];
+        while (turing_line(stdin, input) && turing_line(stdin, output))
         {
-            const int done = turing_job(input.c_str(), output.c_str());
+            const int done = turing_job(input, output);
             {
                 VerbaLinea *const output_line = platform_line_out();
                 mmgr_line_put(output_line, "done ");
