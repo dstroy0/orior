@@ -51,21 +51,32 @@ typedef struct
     unsigned int word;
 } BranchWordPlace;
 
-// A walker: a thread of its own walking one text at a time, what it runs, the line its steps' colors are written into,
-// taken once and emptied for each step, and whether it walks, under the lock
+// A walker:
+//
+// - `thread`: a thread of its own, which walks one text at a time
+// - `walking`: whether it walks, under the lock
 typedef struct
 {
     CliThread thread;
     int walking;
 } CliBranchWalker;
-// The runs of runs of lines passed on as they are written: whether a `{"from", "runs"}` is begun, how many lines' runs
-// it holds, whether a run of lines passed on with it was written before it, where they are written, the columns of
-// each line whose runs are passed on, 0 for every one, how many names the grammar's tokens take, the place of the
-// first a run that counts depth takes by its depth, 0 for a grammar that names none, the bytes of lines it colors yet,
-// CLI_DOC_ALL_BYTES where it colors every line asked, and the line after the last whose runs were written; whether the
-// text moved while it colored, and it colors no more; whether the lines whose runs are passed on are those it asks,
-// from `hand_from` to before `hand_to`, else those the page holds as each is put in; and the line it colors no further
-// than as it goes on past the lines asked. Its columns read as the text's as each line is put in, where it names them
+// The runs of runs of lines, passed on as the walk writes them:
+//
+// - `begun`: whether a `{"from", "runs"}` started
+// - `written`: how many runs of lines it holds
+// - `any`: whether the walk wrote a run of lines passed on with it before it
+// - `out`: where the walk writes them
+// - `columns`: the columns of each line whose runs go on, 0 for every one
+// - `names`: how many names the tokens of the grammar take. That is also the place of the first name that a run which
+//   counts depth takes by its depth. It is 0 for a grammar that names none.
+// - `bytes`: the bytes of lines that it still colors, CLI_DOC_ALL_BYTES where it colors every line asked
+// - `next`: the line after the last whose runs the walk wrote
+// - `stale`: whether the text moved while it colored, and then it colors no more
+// - `requested`: whether the lines whose runs go on are those that it asks, from `hand_from` to before `hand_to`. Else
+//   they are those that the page holds as each goes in.
+// - `high`: the line that it colors no further than, as it goes on past the lines asked
+//
+// Its columns read as those of the text as each line goes in, where it names them
 typedef struct
 {
     int begun;
@@ -84,11 +95,17 @@ typedef struct
 } CliBranchRange;
 #define CLI_DOC_SCOPE_NAMES 128u
 #define CLI_DOC_SCOPE_TEXT 4096u
-// The scope a line is in as the walk reads it: the depth of the regions open, the depth of the pairs open that
-// count it, and the names declared in the regions that a use of the name is named as, each its text's place among the
-// texts and its bytes, the name its declaration's run takes, the depth of the region it belongs to, and whether it
-// waits for that region to open, as a function's parameter waits for its body; how many, and the texts' bytes used; and
-// its place among the text's states, found again only where it moved since, CLI_DOC_NONE where it was not found
+// The scope that a line is in, as the walk reads it:
+//
+// - `depth`: the depth of the regions open
+// - `pairs`: the depth of the pairs open that count it
+// - `count`: how many names the regions declare that a use of the name takes its name from
+// - for each name: `text_at`, the place of its text among the texts, and `size`, its bytes. `named` is the name that
+//   the run of its declaration takes, and `belongs` the depth of the region that it belongs to. `waits` is whether it
+//   waits for that region to open, as the parameter of a function waits for its body.
+// - `used` and `text`: the bytes of the texts that it uses, and the texts
+// - `place`: its place among the states of the text, CLI_DOC_NONE where the walk did not find it
+// - `moved`: whether it moved since then, the only case where the walk finds it again
 typedef struct
 {
     unsigned int depth;
@@ -104,14 +121,23 @@ typedef struct
     unsigned int place;
     int moved;
 } CliBranchScope;
-// A bundle of lines as it is colored with no lock taken: the work it is written into; the scope the line colored next
-// is in, and whether the place among the text's states of the scope the line before it ended in is known; the names
-// the grammar's tokens take, and the roles of each, read as the lines were claimed, `roles_count` of them; the words of
-// what it found written; and whether the cells refused the capacity for them. What it finds on each line is a record of
-// words: how many runs, the line's regions, the bytes of the colorer's state the line ends in, and the bytes of the
-// scope it ends in, CLI_DOC_NONE for a scope with no depth, pairs or names, CLI_DOC_SCOPE_SAME for the one the line
-// before it ended in; then the runs' columns, their names as the walk names them, the colorer's state and the scope,
-// each of the two from a word of its own
+// A bundle of lines as the walk colors it, with no lock taken:
+//
+// - `named`, `found` and their capacities: the work that the walk writes it into
+// - `filled`: whether the work is full. The lines past the capacity go to the next bundle.
+// - `scope`: the scope that the line colored next is in
+// - `positioned`: whether the walk knows the place, among the states of the text, of the scope that the line before it
+//   ended in
+// - `names`, `roles` and `roles_count`: the names that the tokens of the grammar take, and the roles of each, read as
+//   the walk claimed the lines
+// - `used`: the words of what it found, written
+// - `refused`: whether the cells refused the capacity for them
+//
+// What it finds on each line is a record of words. It is how many runs, and the regions of the line. Then the bytes of
+// the state of the colorer that the line ends in, and the bytes of the scope that it ends in. The scope is CLI_DOC_NONE
+// for a scope with no depth, pairs or names, and CLI_DOC_SCOPE_SAME for the one that the line before it ended in. Then
+// come the columns of the runs, and their names as the walk names them. Last come the state of the colorer and the
+// scope, each of the two from a word of its own
 typedef struct
 {
     unsigned int *named;
