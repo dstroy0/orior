@@ -288,8 +288,18 @@ static int rank_double_load(const char *path, unsigned int group, const char *le
     const int fits = ((base + column.values) <= out->values_room) && ((out->rows + column.rows) <= out->rows_room);
     if (fits)
     {
-        EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &out->bits[base], .src = column.value_bytes,
-                   .bytes = (size_t)(column.values * 8ull));
+        // the values put block by block, each copy up to the end of the block it starts in
+        unsigned long long copied = 0ull;
+        while (copied < column.values)
+        {
+            const unsigned long long at = base + copied;
+            const unsigned long long room = RANK_BLOCK_VALUES - (at & (RANK_BLOCK_VALUES - 1ull));
+            const unsigned long long piece = ((column.values - copied) < room) ? (column.values - copied) : room;
+            EMBED_CALL(memor.cpy, MemoriaCfg,
+                       .dst = &out->block[at >> RANK_BLOCK_SHIFT][at & (RANK_BLOCK_VALUES - 1ull)],
+                       .src = column.value_bytes + (copied * 8ull), .bytes = (size_t)(piece * 8ull));
+            copied += piece;
+        }
         for (unsigned long long row = 0ull; row < column.rows; row += 1ull)
         {
             out->row_start[out->rows + row + 1ull] = base + column.row_start[row + 1ull];
@@ -492,7 +502,22 @@ int rank_set_load(SimResults *results, const char *const *paths, unsigned int fi
     {
         column[each]->values_room = bounds.values[each];
         column[each]->rows_room = bounds.rows;
-        column[each]->bits = (unsigned long long *)rank_cell(bounds.values[each], sizeof(unsigned long long), 0);
+        // the blocks, each RANK_BLOCK_VALUES values but the last, which holds the rest
+        const unsigned long long blocks = (bounds.values[each] + RANK_BLOCK_VALUES - 1ull) >> RANK_BLOCK_SHIFT;
+        if (blocks > RANK_BLOCKS_MAX)
+        {
+            rank_line_decimal(results, "  a double column holds more than its blocks can: values ",
+                              bounds.values[each]);
+            rank_line_end(results);
+            return 0;
+        }
+        column[each]->blocks = (unsigned int)blocks;
+        for (unsigned long long block = 0ull; block < blocks; block += 1ull)
+        {
+            const unsigned long long left = bounds.values[each] - (block << RANK_BLOCK_SHIFT);
+            column[each]->block[block] = (unsigned long long *)rank_cell(
+                (left < RANK_BLOCK_VALUES) ? left : RANK_BLOCK_VALUES, sizeof(unsigned long long), 0);
+        }
         column[each]->row_start = (unsigned long long *)rank_cell(bounds.rows + 1ull, sizeof(unsigned long long), 0);
     }
     RankLoad load;

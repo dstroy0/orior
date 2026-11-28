@@ -728,13 +728,13 @@ int rank_run(SimResults *results, int count, char **arguments)
     for (int column = 0; column < 2; column += 1)
     {
         const RankColumn *const stored = (column == 0) ? &set.precursor : &set.mz;
-        const unsigned long long *const bits = stored->bits;
         for (unsigned long long value = 0ull; value < stored->values; value += 1ull)
         {
             unsigned long long mantissa = 0ull;
             unsigned int exponent = 0u;
-            rank_double(bits[value], &mantissa, &exponent);
-            signs_agree = signs_agree && ((bits[value] >> RANK_SIGN_BIT) == 0ull) && (exponent <= RANK_UNIT_EXPONENT);
+            const unsigned long long bits = rank_value(stored, value);
+            rank_double(bits, &mantissa, &exponent);
+            signs_agree = signs_agree && ((bits >> RANK_SIGN_BIT) == 0ull) && (exponent <= RANK_UNIT_EXPONENT);
             two_max = rank_larger(two_max, RANK_UNIT_EXPONENT - rank_smaller(exponent, RANK_UNIT_EXPONENT));
         }
     }
@@ -756,8 +756,9 @@ int rank_run(SimResults *results, int count, char **arguments)
         {
             unsigned long long mantissa = 0ull;
             unsigned int exponent = 0u;
-            rank_double(set.intensity.bits[value], &mantissa, &exponent);
-            signs_agree = signs_agree && ((set.intensity.bits[value] >> RANK_SIGN_BIT) == 0ull);
+            const unsigned long long bits = rank_value(&set.intensity, value);
+            rank_double(bits, &mantissa, &exponent);
+            signs_agree = signs_agree && ((bits >> RANK_SIGN_BIT) == 0ull);
             if (mantissa != 0ull)
             {
                 intensity_floor[spectrum] = rank_smaller(intensity_floor[spectrum], exponent);
@@ -1280,7 +1281,7 @@ int rank_run(SimResults *results, int count, char **arguments)
                     const unsigned long long spectrum = query[each];
                     unsigned long long mantissa = 0ull;
                     unsigned int exponent = 0u;
-                    rank_double(set.precursor.bits[set.precursor.row_start[spectrum]], &mantissa, &exponent);
+                    rank_double(rank_value(&set.precursor, set.precursor.row_start[spectrum]), &mantissa, &exponent);
                     unsigned int *const atom = &window_atoms[taken * precursor_limbs];
                     EMBED_CALL(memor.set, MemoriaCfg, .dst = atom, .bytes = precursor_limbs * sizeof(unsigned int),
                                .val = 0);
@@ -1389,10 +1390,10 @@ int rank_run(SimResults *results, int count, char **arguments)
             unsigned int *const atom = &atoms[(value - first) * peak_layout.limbs];
             unsigned long long mantissa = 0ull;
             unsigned int exponent = 0u;
-            rank_double(set.mz.bits[value], &mantissa, &exponent);
+            rank_double(rank_value(&set.mz, value), &mantissa, &exponent);
             rank_put_unsigned(atom, 0u, RANK_MANTISSA_FIELD_BITS, mantissa);
             rank_put_unsigned(atom, peak_layout.exponent_offset, RANK_EXPONENT_BITS, exponent);
-            rank_double(set.intensity.bits[intensity_first + (value - first)], &mantissa, &exponent);
+            rank_double(rank_value(&set.intensity, intensity_first + (value - first)), &mantissa, &exponent);
             rank_put_unsigned(atom, peak_layout.intensity_offset, RANK_MANTISSA_FIELD_BITS, mantissa);
             rank_put_unsigned(atom, peak_layout.shift_offset, peak_layout.shift_bits,
                               (mantissa != 0ull) ? (exponent - intensity_floor[spectrum]) : 0u);

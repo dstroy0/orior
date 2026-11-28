@@ -36,12 +36,20 @@
 // the outputs a loaded program lists at max
 #define RANK_OUTPUTS_MAX 4u
 
-// One double column as the files store it: each value's 64 bits, `values` of them, and row r's values from
-// row_start[r] up to row_start[r + 1], `rows` rows. The cells are on the persistent tier, at the bounds of the files'
-// footers, `values_room` and `rows_room` + 1
+// the values of a block of a double column: 2^27 of them, 1 GB, inside the bytes that one cell of the pool holds
+#define RANK_BLOCK_SHIFT 27u
+#define RANK_BLOCK_VALUES (1ull << RANK_BLOCK_SHIFT)
+
+// the blocks a double column holds at max, 2^33 values
+#define RANK_BLOCKS_MAX 64u
+
+// One double column as the files store it: each value's 64 bits, `values` of them, value v at bit v % RANK_BLOCK_VALUES
+// of block v / RANK_BLOCK_VALUES, and row r's values from row_start[r] up to row_start[r + 1], `rows` rows. The cells
+// are on the persistent tier, at the bounds of the files' footers, `values_room` and `rows_room` + 1
 typedef struct
 {
-    unsigned long long *bits;
+    unsigned long long *block[RANK_BLOCKS_MAX];
+    unsigned int blocks;
     unsigned long long values;
     unsigned long long values_room;
     unsigned long long *row_start;
@@ -59,6 +67,12 @@ typedef struct
     unsigned int *order;
     unsigned int count;
 } RankStrings;
+
+// value `at` of a double column, its stored 64 bits
+static inline unsigned long long rank_value(const RankColumn *column, unsigned long long at)
+{
+    return column->block[at >> RANK_BLOCK_SHIFT][at & (RANK_BLOCK_VALUES - 1ull)];
+}
 
 // The spectra of every file read: each spectrum's text ids, one a text column and RANK_ABSENT where the row has none,
 // and the three double columns; each text column's distinct strings over every row group of every file. The spectra
