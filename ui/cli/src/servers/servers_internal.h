@@ -121,13 +121,13 @@ typedef struct CliServersRootTypeCtx CliServersRootTypeCtx;
 #define CLI_SERVERS_PARAMS (CLI_PATH_MAX_LEN * 4u)
 
 // A read of the answer of a server. `json` is the tree that it reads to, taken for the text that it reads. It goes back
-// as the next read starts, and as the lock goes back
+// as the next read starts
 typedef struct
 {
     CliJson json;
 } CliServersReadState;
 
-// the lock of a reading taken, and its tree given back with the lock (servers_shapes.c)
+// the tree of a reading made empty, with no nodes and no text, before the read starts (servers_shapes.c)
 void cli_servers_read_state_lock(const CliServersReadStateAnswerCtx *args);
 
 // The server of a toolchain:
@@ -192,7 +192,7 @@ typedef struct
     unsigned long long quiet_from;
 } CliServerRunning;
 
-// The servers, under their lock:
+// The servers:
 //
 // - `root`: the tree that they serve
 // - `running`: those that run
@@ -323,7 +323,7 @@ typedef struct
 
 // the cell of the check for the files of the tree. Where it is too small, the call gives it back and takes it again at
 // their size. The rings get their places once. The return is 1, or 0 where the cells cannot meet it. This call and each
-// call below, down to cli_servers_check_files_append, takes the lock of the queue (servers_check_room.c)
+// call below, down to cli_servers_check_files_append, are in servers_check_room.c
 int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args);
 // the byte that tells whether a file waits, written 0 for every file
 void cli_servers_check_queued_cleared(const CliServersQueueFilesCtx *args);
@@ -340,22 +340,20 @@ unsigned int cli_servers_check_waiting(const CliServersQueueCfg *args);
 // the files of the tree recorded: those of `files`, and those recorded before
 void cli_servers_check_files_append(const CliServersQueueFilesCtx *args);
 
-// the texts of the files that the editor has open, by their keys with their paths, under the lock of the texts
-// (servers_files.c)
+// the texts of the files that the editor has open, by their keys with their paths (servers_files.c)
 extern CliKeyed g_cli_servers_texts;
-// the parses as last read, by their keys with the hashes of their texts, under the same lock
+// the parses as last read, by their keys with the hashes of their texts
 extern CliKeyed g_cli_servers_parses;
 
-// the diagnostics of each file as its server last gave them, under their own lock (servers_emit.c). Each is a JSON
+// the diagnostics of each file as its server last gave them (servers_emit.c). Each is a JSON
 // array by its key with its URI
 extern CliKeyed g_cli_servers_published;
-// the findings of the checkers, by the key of the file, under the lock of the checks. Each is a JSON object of the
+// the findings of the checkers, by the key of the file. Each is a JSON object of the
 // array of each checker by its id, its ids in order, with the URI
 extern CliKeyed g_cli_servers_checked;
-// the names that a build tool gives the file, by its key, one to a line, under the lock of the checks
+// the names that a build tool gives the file, by its key, one to a line
 extern CliKeyed g_cli_servers_input;
-// what the family of each Python class sets, `class attribute` one to a line, by the key of the file, under the lock of
-// the checks
+// what the family of each Python class sets, `class attribute` one to a line, by the key of the file
 extern CliKeyed g_cli_servers_supplied;
 
 // the max bytes of a job of the servers: the text of a file and the report on it
