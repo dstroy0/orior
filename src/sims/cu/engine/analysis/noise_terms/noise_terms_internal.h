@@ -44,7 +44,7 @@
 
 #define TERMS_SPIKE_ELECTRONS 256ULL
 
-// z mixing: each plane but the first takes 1/8 of the plane before it, the way an interpolation along z would
+// the z mix: each plane but the first takes 1/8 of the plane before it, as an interpolation along z would
 #define TERMS_MIX_EIGHTHS 1ULL
 
 // the constant boxes: one fixed at 0 and one at the lane's top
@@ -53,15 +53,15 @@
 #define TERMS_TOP_BOX_VOXELS (1ULL * 4ULL * 4ULL)
 
 // the tolerances: the whole-plane ratios within 2.5% (rows, columns) and 15% (the plane) of what the plant predicts.
-// Each frame difference shares a frame with the next. A ratio read over K lines spreads by about sqrt(3/K) of itself:
-// the rows and columns at about 9.6 standard errors planted and 12.6 in the null, the plane at 5.7 in the null and
-// 4.8 planted, over its 3040 planes
+// Each frame difference shares a frame with the next. A ratio read over K lines spreads by about `sqrt(3/K)` of
+// itself. The rows and columns sit at about 9.6 standard errors planted and 12.6 in the null. The plane sits at 5.7 in
+// the null and 4.8 planted, over its 3040 planes
 #define TERMS_LINE_PARTS 25LL
 
 #define TERMS_PLANE_PARTS 150LL
 
-// the shot laws are read at 16 electrons, where the moment pass resolves a block's fourth cumulant to about 1.4 lane
-// units to the fourth over the static blocks, and third to about 0.1
+// the sim reads the shot laws at 16 electrons. There, the moment pass resolves the fourth cumulant of a block to about
+// 1.4 lane units to the fourth, over the static blocks. It resolves the third to about 0.1
 #define TERMS_SHOT_BACKGROUND 16ULL
 
 // the ladder's scene: 1 electron plus 1 a column along x, read at gain 2
@@ -71,9 +71,9 @@
 
 #define TERMS_LADDER_GAIN 2LL
 
-// the noise detector's static mask, copied to count its voxels by column: the quiet test's slope and floor
-// (noise_detector_lines.cu:159-161), the dimmest share (:24), the lane's top (noise_detector_internal.h:42) and
-// values (:44), and the moment pass's block of frames (:232)
+// the static mask of the noise detector, copied to count its voxels by column. It is the slope and floor of the quiet
+// test (noise_detector_lines.cu:159-161), and the dimmest share (:24). Then the top of the lane
+// (noise_detector_internal.h:42) and its values (:44), and the block of frames of the moment pass (:232)
 #define TERMS_QUIET_SLOPE 4ULL
 
 #define TERMS_QUIET_FLOOR 32ULL
@@ -89,8 +89,8 @@
 // crosstalk along x: 1/8 of each neighbor's value after the draw
 #define TERMS_CROSSTALK_EIGHTHS 1ULL
 
-// charge before the gain: no light, gain 2, a reset variance of 4 beside the read's 4, and 16 dark electrons a frame
-// at the first exposure, 32 at the second, twice as long
+// the charge before the gain: no light, gain 2, and a reset variance of 4 beside the 4 of the read. Then 16 dark
+// electrons for each frame at the first exposure, and 32 at the second, twice as long
 #define TERMS_CHARGE_GAIN 2ULL
 
 #define TERMS_RESET_SQUARE 4ULL
@@ -115,8 +115,8 @@
 
 #define TERMS_BLUR_KEY 0x424C5552ULL
 
-// the structure function against the shared scale: a plant along x over the whole width, 60 to 180 electrons, and a
-// scale of 4 octaves of variance 1024 over 2^10, about 1 +- 6%
+// the structure function against the shared scale: a plant along x over the whole width, 60 to 180 electrons. Then a
+// scale of 4 octaves of variance 1024 over `2^10`, about `1 +- 6%`
 #define TERMS_STRUCTURE_BACKGROUND 60ULL
 
 #define TERMS_STRUCTURE_AMPLITUDE 120ULL
