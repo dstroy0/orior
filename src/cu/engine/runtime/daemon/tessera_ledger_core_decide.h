@@ -59,8 +59,8 @@ TESSERA_CORE int tessera_core_start(TesseraLedger *ledger, TesseraJob *job, unsi
     }
     job->state = TESSERA_JOB_RUNNING;
     job->reservation = tessera_core_wants(ledger, job);
-    // until its first sweep the job uses what its process allocated as it requested, which the device's measure already
-    // counts: the headroom owes the device only the bytes it has yet to find
+    // until its first sweep, the job uses what its process allocated as it requested, which the measure of the device
+    // already counts. Thus the headroom owes the device only the bytes that the job must still find
     job->used = job->request.located;
     job->peak = 0ULL;
     job->measures = 0ULL;
@@ -229,8 +229,9 @@ TESSERA_CORE int tessera_core_fire(TesseraLedger *ledger, unsigned long long now
     return 0;
 }
 
-// one call made of the ledger and answered: errored on whole, with nothing changed, where the ledger lacks room for the
-// max the call could add, and otherwise the decision the call names, with the headroom after it
+// one call made of the ledger, and answered. It gives an error on the whole, with nothing changed, where the ledger has
+// no room for the max that the call could add. Else it is the decision that the call names, with the headroom after
+// it
 TESSERA_CORE void tessera_core_call(TesseraLedger *ledger, const TesseraCall *call, TesseraAnswer *answer)
 {
     answer->result = 0ULL;
@@ -250,7 +251,8 @@ TESSERA_CORE void tessera_core_call(TesseraLedger *ledger, const TesseraCall *ca
         answer->headroom = tessera_core_headroom(ledger);
         return;
     }
-    // each decision's 1 or 0 is widened to the answer's word, where an admit's count of jobs started converts exactly
+    // the call widens the 1 or 0 of each decision to the word of the answer, where the count of jobs that an admit
+    // started converts exactly
     switch (call->type)
     {
     case TESSERA_CALL_DEVICE:
