@@ -5,8 +5,8 @@
 
 #include "prologue_epilogue.h"
 
-// The schedule: the lane's body, its opening, steps and close in the order they run, split into states, a clock each,
-// then the dispatch state, which sends an errored lane to its error's first state
+// The schedule: the body of the lane, its opening, steps and close in the order that they run, split into states of
+// one clock each. Then the dispatch state, which sends a lane that errored to the first state of its error
 
 // 1 where the form names a memory address to read, which a clocked target reads by the next state, and the memory
 // writes the form makes
@@ -32,10 +32,10 @@ CODEGEN_CORE void codegen_state_open(MachineFunction *lane, Schedule *schedule)
     schedule->left = 0u;
 }
 
-// The next state begun. Before the first error's label, the state before goes on to it unless the lane errored in it,
-// and an errored lane goes to the dispatch state. In an error's states the lane errored already, and the state before
-// goes on to it in every case. Else the dispatch state sends the lane back to the error's first state, and the lane
-// never ends
+// The next state begun. Before the label of the first error, the state before goes on to it unless the lane errored in
+// it. A lane that errored goes to the dispatch state. In the states of an error, the lane errored already, and the
+// state before goes on to it in every case. Else the dispatch state sends the lane back to the first state of the
+// error, and the lane never ends
 CODEGEN_CORE void codegen_state_next(MachineFunction *lane, Schedule *schedule)
 {
     schedule->state += 1u;
@@ -63,12 +63,18 @@ CODEGEN_CORE void codegen_schedule_open(MachineFunction *lane, Schedule *schedul
     codegen_state_open(lane, schedule);
 }
 
-// one of the body's forms arranged into the schedule. An error's label begins a state of its own, which the dispatch
-// state sends the lane to, and a loop's label begins one the loop's branch back goes back to; a form that would take
-// the state past its budget or its writes, or follows one that ends a state, begins the next state, which the state
-// before goes on to unless the lane errored in it. An error's test and a memory read's address end their state, a
-// loop's branch back ends its state going back or on by its predicate, and a return leaves the lane. A form after a
-// return other than an error's label, or a branch back to a loop not begun, is a lane the pass cannot split
+// one of the forms of the body, arranged into the schedule:
+//
+// - the label of an error starts a state of its own, which the dispatch state sends the lane to.
+// - the label of a loop starts a state that the branch back of the loop goes back to.
+// - a form that would take the state past its budget or its writes, or that follows one that ends a state, starts the
+//   next state. The state before goes on to it unless the lane errored in it.
+// - the test of an error and the address of a memory read end their state.
+// - the branch back of a loop ends its state, and goes back or on by its predicate.
+// - a return leaves the lane.
+//
+// A form after a return, other than the label of an error, is a lane that the pass cannot split. So is a branch back
+// to a loop that did not start
 CODEGEN_CORE void codegen_schedule_instr(MachineFunction *lane, Schedule *schedule, const MachineInstr *item)
 {
     const unsigned int form = item->form;
@@ -119,7 +125,7 @@ CODEGEN_CORE void codegen_schedule_instr(MachineFunction *lane, Schedule *schedu
     }
     schedule->over += (cost > schedule->budget) ? 1u : 0u;
     codegen_take(lane, item);
-    // a form alone past the budget is counted over and stays alone in its state, and the sum stays under 2^32 as well
+    // a form alone past the budget counts as over, and stays alone in its state. The sum also stays under `2^32`
     schedule->chained = (cost > (schedule->budget - schedule->chained)) ? schedule->budget : (schedule->chained + cost);
     schedule->writes += writes;
     schedule->filled = 1u;
