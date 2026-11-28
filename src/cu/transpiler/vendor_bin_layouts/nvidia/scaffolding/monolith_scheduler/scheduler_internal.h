@@ -12,8 +12,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// the max bytes a cubin takes, the max instructions a section contains, the max operations tracked apart, the max
-// registers an instruction reads, and the farthest a reader is looked for past the instruction it reads from
+// the max bytes that a cubin takes, the max instructions that a section holds, and the max operations tracked apart.
+// Then the max registers that an instruction reads, and the farthest that the scheduler looks for a reader past the
+// instruction that it reads from
 #define SCHEDULER_CUBIN_BYTES 4194304u
 
 #define SCHEDULER_SECTION_INSTRUCTIONS 65536u
@@ -41,7 +42,7 @@ typedef struct
     unsigned int read[SCHEDULER_READS];
 } SchedulerInstruction;
 
-// one operation as NVIDIA wrote it, everything gathered over every place it was written
+// one operation as NVIDIA wrote it, with everything gathered over every place where NVIDIA wrote it
 typedef struct
 {
     char name[SASS_MACHINE_TOKEN];
