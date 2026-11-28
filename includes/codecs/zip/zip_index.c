@@ -224,8 +224,8 @@ int zip_member_data(const EngineIngestTools *tools, const char *path, const ZipA
     return 1;
 }
 
-// a member's stored bytes into `out`: copied where it is stored, inflated where it is deflated, then checked against
-// its CRC
+// the stored bytes of a member into `out`. The call copies a stored member and inflates a deflated one. Then it checks
+// the bytes against the CRC
 static int zip_member_unpack(const EngineIngestTools *tools, const unsigned char *packed, const ZipEntry *entry,
                              unsigned char *out, EngineError *error)
 {

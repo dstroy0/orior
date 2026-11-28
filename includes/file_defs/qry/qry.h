@@ -13,7 +13,8 @@
 #define QRY_CRITICAL 1u
 #define QRY_ORDINARY 2u
 
-// a record's head: the time on the one clock as it was appended, the blob's bytes, the name's bytes and the priority
+// a record head: the time on the one clock when the writer added it, and the bytes of the blob and the name. Then the
+// priority
 typedef struct
 {
     unsigned long long time;
@@ -32,8 +33,8 @@ _Static_assert(sizeof(QryRecord) == 24u, "QryRecord must be the 24 bytes a recor
 #define QRY_RECORD_NAME(record_) ((const char *)((record_) + 1))
 #define QRY_RECORD_BLOB(record_) ((const unsigned char *)((record_) + 1) + (record_)->name_length)
 
-// the bytes a record of a name of `name_length_` bytes and a blob of `blob_length_` takes: its head, the name and the
-// blob to a whole word, and the CRC
+// the bytes that a record takes with a name of `name_length_` bytes and a blob of `blob_length_`. That is its head,
+// the name and the blob to a whole word, and the CRC
 #define QRY_RECORD_BYTES(name_length_, blob_length_)                                                                   \
     ((((unsigned long long)sizeof(QryRecord) + (unsigned long long)(name_length_) +                                    \
        (unsigned long long)(blob_length_) + 7ULL) &                                                                    \

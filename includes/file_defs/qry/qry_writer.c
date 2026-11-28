@@ -36,9 +36,9 @@ static const char *s_qry;
 #define QRY_WRITER_ACCOUNT "writer"
 static unsigned long long s_account[6];
 
-// The most files that the run writes in their places, and the hashes of the names it wrote: an order of them sorted,
-// `s_written_ordered` of them, and a run of the newest, `s_written_run_count` of them, with the room that the sort of a
-// full run writes
+// The most files that the run writes in their places, and the hashes of the names that it wrote. The hashes are a
+// sorted order, `s_written_ordered` of them, and a run of the newest, `s_written_run_count` of them. Then the room
+// that the sort of a full run writes
 #define QRY_WRITER_FILES (1u << 16u)
 #define QRY_WRITER_FILE_RUN 256u
 

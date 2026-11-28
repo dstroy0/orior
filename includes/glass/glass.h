@@ -1,8 +1,8 @@
-// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
-// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// glass.h: a pane of glass over the lattice, as the page positions the bar, the side_menu, the status bar and the controls'
-// pane: the ink's tint, as thick as the bar opacity, with a fine grain over it, the grain's tile anchored to the
-// window as the page's fixed attachment anchors it, and the pane's corners rounded (glass.c)
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com> SPDX-License-Identifier: AGPL-3.0-or-later
+// OR LicenseRef-Commercial OR LicenseRef-Educational glass.h: a pane of glass over the lattice, as the page positions
+// the bar, the side_menu, the status bar and the controls' pane: the ink's tint, as thick as the bar opacity, with a
+// fine grain over it, the grain's tile anchored to the window as the page's fixed attachment anchors it, and the pane's
+// corners rounded (glass.c)
 #ifndef GUI_GLASS_H
 #define GUI_GLASS_H
 #include "../raster/raster.h"
@@ -20,24 +20,24 @@ typedef struct GuiGlassButtonCfg GuiGlassButtonCfg;
 #define GUI_GRAIN_SEED 4099u
 #define GUI_GRAIN_ALPHA 0.07
 
-// the share of the glass's tint a pane that slides in over the glass positions: the bar, the side_menu, the status bar and
-// the controls' pane each read a little thinner than the sheet about the work
+// the share of the tint of the glass that a pane positions when it slides in over the glass. The bar, the side_menu,
+// the status bar and the pane of the controls each read a little thinner than the sheet about the work
 #define GUI_PANE_SHARE 0.82f
 
-// the grain: each pixel of the tile the alpha of white positioned there, 0 to GUI_GRAIN_ALPHA of 255, row after row, made
-// once from the seeded noise, the same every time
+// the grain: each pixel of the tile is the alpha of white there, 0 to GUI_GRAIN_ALPHA of 255, row after row. The call
+// makes it once from the seeded noise, the same every time
 const unsigned char *gui_grain(void);
 // the glass's tint as a pane positions it: the same ink at GUI_PANE_SHARE of the tint's alpha
 GuiColor gui_glass_pane_tint(const GuiGlassCfg *args);
-// the table every frame lies on: the lattice's `background_fill` raster, or `color` where none is the window's size,
-// the glass's tint over it and the grain over that
+// the table that every frame lies on: the `background_fill` raster of the lattice, or `color` where no raster has the
+// size of the window. The tint of the glass goes over it, and the grain over that
 GuiUnder gui_glass_table(const GuiGlassCfg *args);
-// a pane drawn over `rect`, its corners rounded by `radius`: `tint` blended over what is, then the grain
-// blended over it inside the corners, the tile's pixel for each of the raster's
+// a pane drawn over `rect`, with its corners rounded by `radius`. The tint `tint` goes over what is there. Then the
+// grain goes over it inside the corners, one pixel of the tile for each pixel of the raster
 void gui_glass_draw(const GuiGlassRasterCfg *args);
-// A button as a pane of glass: `rect` rounded by `radius` with `tint` blended over what is, the grain over the
-// tint, and its lip, a line `lip_width` pixels wide of `lip` round it inside its edge. A button at rest takes the
-// palette's button glass and its line; a button pointed, pressed or on takes the colors its part names
+// A button as a pane of glass: `rect` rounded by `radius`, with `tint` over what is there and the grain over the tint.
+// Its lip is a line of `lip`, `lip_width` pixels wide, round it inside its edge. A button at rest takes the button
+// glass of the palette and its line. A button pointed, pressed or on takes the colors that its part names
 void gui_glass_button_draw(const GuiGlassButtonCfg *args);
 struct GuiGlassButtonCfg
 {

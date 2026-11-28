@@ -306,9 +306,9 @@ static int dicom_gather_slice(void *context, unsigned long long item)
            dicom_parse(slice, error);
 }
 
-// The series' slices: their entries named in order, their bytes read in one fetch as the span they lie in, then each
-// unpacked, checked against its CRC and parsed on the workers the tools hand over (`each`), or one at a time where they
-// hand none. The first slice in order that failed gives the error
+// The slices of the series. The call names their entries in order and reads their bytes in one fetch, as the span
+// that they lie in. Then it unpacks each, checks it against its CRC and parses it on the workers that the tools hand
+// over (`each`). Where they hand none, it does one at a time. The first slice in order that failed gives the error
 int dicom_gather(const EngineIngestTools *tools, const char *path, const ZipArchive *archive, unsigned long long first,
                  unsigned long long count, EngineError *error)
 {

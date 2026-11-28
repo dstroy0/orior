@@ -36,7 +36,7 @@ static char s_command[CLI_PROCESS_TEXT];
 
 static char s_line[CLI_PROCESS_TEXT];
 
-// the file at `path` read into `out`, sized for `capacity`: the bytes read, -1 where it cannot be opened
+// the file at `path` read into `out`, which has room for `capacity`: the bytes read, -1 where the call cannot open it
 EMBED_INLINE long long processes_read(const PosixProcessesCtx *args)
 {
     const int file = open(args->path, O_RDONLY | O_CLOEXEC);
@@ -58,7 +58,7 @@ EMBED_INLINE long long processes_read(const PosixProcessesCtx *args)
     return (long long)used;
 }
 
-// The list being read: where each process goes
+// The list that the call reads: where each process goes
 typedef struct
 {
     void (*each)(const CliEachPidNameCommandCfg *args);
@@ -152,8 +152,8 @@ EMBED_INLINE unsigned long long processes_kilobytes(const PosixProcessesCtx *arg
     return kilobytes * 1024ULL;
 }
 
-// the file `file` of the process `pid`'s folder in /proc read into `out`, sized for CLI_PROCESS_TEXT, a 0 after what
-// was read: 1, or 0 where it cannot be read
+// the file `file` of the folder of the process `pid` in /proc, read into `out`, which has room for CLI_PROCESS_TEXT.
+// A 0 goes after the bytes read. The return is 1, or 0 where the call cannot read it
 EMBED_INLINE int processes_proc_read(const PosixProcessesCtx *args)
 {
     char path[64];

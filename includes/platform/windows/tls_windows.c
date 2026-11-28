@@ -33,9 +33,9 @@ struct CliTls
     int ended;
 };
 #endif
-// the bytes of what came and is not yet opened a session buffers through its handshake, whose tokens have no bound the
-// protocol sets; once the handshake gives the session's largest record, what came, what is opened and what is sealed
-// to go are each stored in a cell of one record
+// the bytes that a session buffers through its handshake, of what came and the session did not open yet. The
+// protocol sets no bound on the tokens of the handshake. After the handshake gives the largest record of the session,
+// one record stores three cells. They hold what came, what the session opened, and what it sealed to send
 #define CLI_SEALED_BYTES (1u << 17u)
 
 static CliTls s_sessions[CLI_TLS_MAX];
@@ -53,7 +53,7 @@ typedef struct
 // What a status Schannel gives means, in words where it is one a reader meets
 EMBED_INLINE void cli_status_err_write(const TlsWindowsCtx *args)
 {
-    // a status is read as its bit pattern
+    // the call reads a status as its bit pattern
     const unsigned long code = (unsigned long)args->status;
     mmgr_line_put(args->err_msg, "TLS: ");
     const char *reason = "Schannel reported 0x";

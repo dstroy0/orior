@@ -3,9 +3,9 @@
 // lights.c: the window's lights placed from the frame
 #include "lights.h"
 
-// The key light's height above the glass as a share of the window's larger side: near enough that the reflection
-// sits elsewhere on each button, as one light over the pane does. The fill light's place past the bottom right
-// corner as shares of the width and height, its height, and its strength
+// The height of the key light above the glass, as a share of the larger side of the window. It is near enough that
+// the reflection sits elsewhere on each button, as one light over the pane does. The place of the fill light past the
+// bottom right corner as shares of the width and height, its height, and its strength
 #define LIGHTS_KEY_Z 0.5
 #define LIGHTS_FILL_X 1.2
 #define LIGHTS_FILL_Y 1.2

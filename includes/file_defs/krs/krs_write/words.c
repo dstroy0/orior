@@ -57,8 +57,8 @@ unsigned int krs_parameters_named(const char *path, const char *name, char param
     return count;
 }
 
-// 1 where `word`, its leaf k reading the relation's word order[k], answers `anchor` on every case of it the ladder
-// satisfies, the relation read signed where `signed_read` specifies, and the ladder satisfies at least one
+// 1 where `word` answers `anchor` on every case of it that the ladder satisfies, with its leaf k on the word order[k]
+// of the relation. The relation reads signed where `signed_read` says so, and the ladder satisfies at least one case
 static int krs_word_answers(const Word *word, unsigned int anchor, int signed_read, const unsigned int *order)
 {
     unsigned int cases = 0u;
@@ -89,9 +89,10 @@ static int krs_word_answers(const Word *word, unsigned int anchor, int signed_re
     return (cases != 0u) ? 1 : 0;
 }
 
-// The order the leaves of `word` read the relation's words in for `form` to write it, into `order`: the first, counted
-// as the orders of the words are counted, under which the word's tree answers the form's relation on every case. 1, or
-// 0 where the word reads another count of words than the relation has or no order answers
+// The order in which the leaves of `word` read the words of the relation, for `form` to write it, into `order`. It is
+// the first order, in the count of orders of the words, that answers. Under it, the tree of the word answers the
+// relation of the form on every case. The return is 1, or 0 where the word reads another count of words than the
+// relation has or no order answers
 int krs_word_written(const Word *word, const KrsForm *form, unsigned int *order)
 {
     const unsigned int words = s_ladder_words[form->anchor];
@@ -124,9 +125,10 @@ int krs_word_written(const Word *word, const KrsForm *form, unsigned int *order)
     return 0;
 }
 
-// The text of `form` with each place named, into `written`, which has room for `room`: the answer's place as the first
-// parameter and the relation's word order[k] as parameter k + 1, each as {<name>}. 1, or 0 where the text contains a
-// place no parameter names, leaves a place the word reads unwritten, or does not fit
+// The text of `form` with each place named, into `written`, which has room for `room`. The place of the answer is the
+// first parameter, and the word order[k] of the relation is parameter k + 1, each as {<name>}. The return is 1, or 0
+// where the text does not fit or has a place that no parameter names. It is 0 where the text leaves a place that the
+// word reads unwritten
 int krs_text_named(const KrsForm *form, const unsigned int *order, char parameter[][KRS_NAME], unsigned int parameters,
                    char *written, size_t room)
 {

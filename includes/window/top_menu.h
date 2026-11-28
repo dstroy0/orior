@@ -19,9 +19,9 @@ typedef struct GuiTopMenuCfg GuiTopMenuCfg;
 // the interface text's size in the page's pixels
 #define GUI_HEAD_SIZE 13u
 
-// the top menu's tools, left to right, and none; and their sizes in the page's pixels: a tool's icon's side, the
-// icon's line width in the icon's units, a character icon's size, the unread mark's side and how far in from the
-// button's corner the mark is
+// the tools of the top menu, left to right, and none. Then their sizes in page pixels: the side of a tool icon, and
+// the line width of the icon in its units. Then the size of a character icon and the side of the unread mark. Last,
+// how far in from the corner of the button the mark is
 #define GUI_TOP_MENU_TOOL_PREFERENCES 0u
 #define GUI_TOP_MENU_TOOL_NOTIFICATIONS 1u
 #define GUI_TOP_MENU_TOOL_TOOLCHAINS 2u
@@ -33,8 +33,8 @@ typedef struct GuiTopMenuCfg GuiTopMenuCfg;
 #define GUI_TOP_MENU_TOOL_MARK 6
 #define GUI_TOP_MENU_TOOL_MARK_IN 5
 
-// A tool of the top menu: the command it runs, its icon's name, a character where the name is one character, its label
-// and its keys, empty where it has none
+// A tool of the top menu: the command that it runs, and its icon name, or a character where the name is one
+// character. Then its label and its keys, empty where it has none
 typedef struct
 {
     const char *name;
@@ -46,10 +46,11 @@ typedef struct
 // the top menu's tools, left to right (top_menu.c)
 extern const GuiTopMenuTool g_gui_top_menu_tools[GUI_TOP_MENU_TOOLS];
 
-// The top menu drawn at `time_ms` on its pane, which the frame's base positions: `title`, the tree's name, in the
-// interface face at its right before the tools; the tools, each its icon on the glass, the one `pointed` in the
-// bright color, the notifications tool marked while `unread` is 1, and each tool's bead over its icon, the beads'
-// atlas arranged at the tools' rest places and each tool's frames baked the first time it is drawn
+// The top menu drawn at `time_ms` on its pane, which the base of the frame positions. `title`, the name of the tree,
+// goes in the interface face at its right, before the tools. Each tool shows its icon on the glass, and the tool
+// `pointed` shows it in the bright color. The notifications tool has a mark while `unread` is 1, and each tool has its
+// bead over its icon. The atlas of the beads sits at the rest places of the tools. The call bakes the frames of a tool
+// the first time that it draws the tool
 void gui_top_menu_draw(const GuiTopMenuRasterCfg *args);
 // the rectangle of the tool `which`; and the tool the pointer at x, y is on, GUI_TOP_MENU_TOOL_NONE off them all
 GuiRect gui_top_menu_tool_rect(const GuiTopMenuCfg *args);

@@ -40,8 +40,9 @@ EMBED_INLINE double grain_ease(const GlassCtx *args)
     return args->part * args->part * (3.0 - 2.0 * args->part);
 }
 
-// the noise of `octave` at the tile's pixel x, y, 0 to 1: the pixel's cell on a grid of `cells` across the tile,
-// its four corners blended by where the pixel is in the cell, the grid wrapping at the tile's edges
+// the noise of `octave` at the pixel x, y of the tile, 0 to 1. The pixel has a cell on a grid of `cells` across the
+// tile. The call blends the four corners of the cell by the place of the pixel in it. The grid wraps at the
+// edges of the tile
 EMBED_INLINE double grain_noise(const GlassCtx *args)
 {
     const double across = ((double)args->x + 0.5) * (double)args->cells / (double)GUI_GRAIN_TILE;

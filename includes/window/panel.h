@@ -14,9 +14,9 @@ typedef struct GuiPanelRasterCfg GuiPanelRasterCfg;
 typedef struct GuiPanelWidthCfg GuiPanelWidthCfg;
 typedef struct GuiPanelCfg GuiPanelCfg;
 
-// the sizes in the page's pixels: a panel's corner radius, --radius; the text face's size and its line's height in a
-// hover, 13.5px over 1.5; the code face's size and its line's height, 12.5px over 1.45; a paragraph's margin; a rule's
-// margin; and how far a box is off the cell it answers for
+// the sizes in the pixels of the page. First the corner radius of a panel, --radius. Then the size of the text face
+// and the height of its line in a hover, 13.5px over 1.5. Then the size of the code face and the height of its line,
+// 12.5px over 1.45. Last, the margin of a paragraph, the margin of a rule, and how far a box is off its cell
 #define GUI_PANEL_RADIUS 6
 #define GUI_PANEL_TEXT_SIZE 13u
 #define GUI_PANEL_TEXT_LINE 20
@@ -25,18 +25,21 @@ typedef struct GuiPanelCfg GuiPanelCfg;
 #define GUI_PANEL_PARAGRAPH 5
 #define GUI_PANEL_RULE 7
 #define GUI_PANEL_OFF 2
-// the max bytes a run of a line takes as it is measured
+// the max bytes that a run of a line takes when the layout measures it
 #define GUI_PANEL_RUN 1024u
 
 // the box drawn: `rect` filled with the widget's ground inside a one pixel line of the widget's line color, the
 // corners rounded
 void gui_panel_box_draw(const GuiPanelCfg *args);
-// `length` bytes of Markdown `text` arranged `pixel_width` pixels wide at `scale` from the top left x, y and drawn on
-// `raster`, no further than `clip`, or measured alone where `raster` is NULL: the height the text takes in pixels. A
-// line of three backticks opens and closes a fenced block, each line of which is drawn in the code face in the editor's
-// text color, broken by characters where it is wider than the width; a line of three dashes alone is a rule; a blank line
-// ends a paragraph; every other run of lines is one paragraph, its words positioned in the text face and wrapped at blanks,
-// the text between single backticks in the code face in the type's color
+// `length` bytes of Markdown `text`, arranged `pixel_width` pixels wide at `scale` from the top left x, y. The call
+// draws them on `raster`, no further than `clip`, or measures them alone where `raster` is NULL. The return is the
+// height of the text in pixels.
+//
+// A line of three backticks opens and closes a fenced block. The call draws each line of it in the code face in the
+// text color of the editor. It breaks a line by characters where the line is wider than the width. A line of three
+// dashes alone is a rule, and a blank line ends a paragraph. Every other run of lines is one paragraph, with its words
+// in the text face, wrapped at blanks. The text between single backticks goes in the code face, in the color of the
+// type
 int gui_panel_markdown(const GuiPanelRasterCfg *args);
 // a box `pixel_width` by `pixel_height` placed for the cell `anchor`: below the cell's row, off by GUI_PANEL_OFF, where
 // `bounds` has the capacity, else above it. Its left at the anchor's less `back`, saved inside the bounds; `above` 1

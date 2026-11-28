@@ -30,8 +30,8 @@ typedef struct
     unsigned int milliseconds;
 #endif
 } PosixConnectCtx;
-// a connection made to one address within `milliseconds`, nonblocking for the wait alone: the descriptor, or -1
-// where it was refused or took too long
+// a connection made to one address within `milliseconds`, with the descriptor in no-wait mode for the wait alone. The
+// return is the descriptor, or -1 where the address refused it or it took too long
 EMBED_INLINE int cli_connect_one(const PosixConnectCtx *args)
 {
     const int made = socket(args->address->ai_family, args->address->ai_socktype, args->address->ai_protocol);

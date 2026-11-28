@@ -32,7 +32,7 @@ double arith_whole(double value);
 double arith_floor(double value);
 double arith_ceil(double value);
 
-// the whole value nearest `value`, a half going away from zero, and the same as an integer
+// the whole value nearest `value`, with a half away from zero, and the same as an integer
 double arith_round(double value);
 long long arith_round_whole(double value);
 
@@ -40,7 +40,7 @@ long long arith_round_whole(double value);
 double arith_min(double one, double other);
 double arith_max(double one, double other);
 
-// what is left of `value` after the whole multiples of `by` below it: between 0 and `by` for a positive `by`
+// what remains of `value` after the whole multiples of `by` below it: between 0 and `by` for a positive `by`
 double arith_remainder(double value, double by);
 
 // the square root of `value`: 0 for a value at or below 0

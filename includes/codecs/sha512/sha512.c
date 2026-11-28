@@ -132,7 +132,7 @@ void sha512_taken(Sha512 *sha, const void *data, size_t bytes)
 
 void sha512_ended(Sha512 *sha, unsigned char digest[SHA512_BYTES])
 {
-    // the message is padded with a one bit, zeros, and its length in bits as 128 bits (section 5.1.2)
+    // the call pads the message with a one bit, zeros, and its length in bits as 128 bits (section 5.1.2)
     const unsigned long long low_bits = sha->taken << 3u;
     const unsigned long long high_bits = sha->taken >> 61u;
     sha->block[sha->buffered] = 0x80u;

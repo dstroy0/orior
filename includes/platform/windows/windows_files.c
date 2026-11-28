@@ -216,7 +216,7 @@ int cli_temporary_file_init(const CliFileTemporaryFileCtx *args)
     {
         return 0;
     }
-    // shared so that the system deletes it as it is let go, or as the process ends however it ends
+    // shared, and thus the system deletes it when the last handle goes, or when the process ends however it ends
     const HANDLE made =
         CreateFileA(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
                     CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, NULL);

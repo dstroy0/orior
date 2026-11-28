@@ -1,9 +1,9 @@
-// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
-// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// glyphs.h: the window's text: its faces read through the tree's own TrueType reader from the files the caller's
-// system holds, the code face in its four styles, the interface's sans and the reading serif; a glyph drawn once at a pixel size and saved in
-// a cache of coverage masks, keyed by face, glyph and size; a text's width measured and the text drawn on a raster;
-// and the code face's cell, its glyphs' advance (glyphs.c)
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com> SPDX-License-Identifier: AGPL-3.0-or-later
+// OR LicenseRef-Commercial OR LicenseRef-Educational glyphs.h: the window's text: its faces read through the tree's own
+// TrueType reader from the files the caller's system holds, the code face in its four styles, the interface's sans and
+// the reading serif; a glyph drawn once at a pixel size and saved in a cache of coverage masks, keyed by face, glyph
+// and size; a text's width measured and the text drawn on a raster; and the code face's cell, its glyphs' advance
+// (glyphs.c)
 #ifndef GUI_GLYPHS_H
 #define GUI_GLYPHS_H
 #include "../compositor/compositor.h"
@@ -19,9 +19,9 @@ typedef struct GuiGlyphsFaceCfg GuiGlyphsFaceCfg;
 typedef struct GuiGlyphsCfg GuiGlyphsCfg;
 typedef struct GuiGlyphsBakeCfg GuiGlyphsBakeCfg;
 
-// the faces. They are the code face regular, bold, italic and bold italic, and the interface face. Then come the reading
-// face, the bold interface face and the face of the large name. The last is the symbol face, which draws a character that its own
-// face does not hold
+// the faces. They are the code face regular, bold, italic and bold italic, and the interface face. Then come the
+// reading face, the bold interface face and the face of the large name. The last is the symbol face, which draws a
+// character that its own face does not hold
 #define GUI_FACE_CODE 0u
 #define GUI_FACE_CODE_BOLD 1u
 #define GUI_FACE_CODE_ITALIC 2u
@@ -102,8 +102,8 @@ typedef struct
     float advance[GUI_ASCII_COUNT];
 } GuiAsciiTable;
 
-// A place of a cache's order: the key of an entry or a cell, the face first and 0 for a part the key has not, and the
-// place of the entry or the cell
+// A place of the order of a cache. It holds the key of an entry or a cell, with the face first and 0 for a part that
+// the key does not have. Then the place of the entry or the cell
 typedef struct
 {
     unsigned int key[4];
@@ -114,8 +114,8 @@ typedef struct
 #define GUI_GLYPH_RUN 256u
 #define GUI_GLYPH_NONE 0xffffffffu
 
-// The keys of a cache: an order of them sorted, `ordered` of them, a run of the newest, `run_count` of them, and the
-// room that the sort of a full run writes, each in the block's tables part
+// The keys of a cache: a sorted order of them, `ordered` of them, and a run of the newest, `run_count` of them. Then
+// the room that the sort of a full run writes. Each is in the tables part of the block
 typedef struct
 {
     GuiGlyphPlace *order;

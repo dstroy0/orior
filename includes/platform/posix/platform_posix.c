@@ -310,8 +310,9 @@ int platform_file_read(const char *path, void *out, unsigned long long capacity,
     return ok;
 }
 
-// `count` bytes of `data` written to the file at `path`, made new in place of any file there where `fresh` is 1, and
-// after the end of the file there where `fresh` is 0: 1 where every byte went
+// `count` bytes of `data` written to the file at `path`. Where `fresh` is 1, the call makes the file new in place of
+// any file there. Where `fresh` is 0, it writes after the end of the file there. The return is 1 where every byte
+// went
 static int platform_file_put(const char *path, const void *data, unsigned long long count, int fresh)
 {
     // a file made new is the reader's to read and write, and its group's to read
@@ -410,8 +411,8 @@ int platform_file_removed(const char *path)
     return unlink(path) == 0;
 }
 
-// the separators of a path on the POSIX systems, the one that they write, and no mark of a drive's name, which they
-// have none of
+// the separators of a path on the POSIX systems, and the one that they write. They have no mark for the name of a
+// drive, because they have no drives
 const char g_platform_separators[] = "/";
 const char g_platform_separator[] = "/";
 const char g_platform_drive_mark = '\0';

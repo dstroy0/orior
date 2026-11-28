@@ -43,15 +43,15 @@ int zip_fetch(const EngineIngestTools *tools, const char *path, unsigned long lo
     return ((got >= 0LL) && ((unsigned long long)got == bytes)) ? 1 : 0;
 }
 
-// eight bytes a step through the precomputed tables (zip_crc_tables.h), each byte read through the row of the bytes
-// after it, then the bytes short of eight one at a time through row 0
+// eight bytes a step through the precomputed tables (zip_crc_tables.h). The call reads each byte through the row of
+// the bytes after it. Then it reads the bytes short of eight one at a time through row 0
 unsigned long long zip_crc32(const unsigned char *bytes, unsigned long long length)
 {
     unsigned int crc = 0xFFFFFFFFu;
     unsigned long long at = 0ULL;
     for (; (length - at) >= 8ULL; at += 8ULL)
     {
-        // the eight bytes as two little-endian words, assembled byte by byte so no alignment is required of `bytes`
+        // the eight bytes as two little-endian words, assembled byte by byte. Thus `bytes` needs no alignment
         const unsigned int low =
             crc ^ ((unsigned int)bytes[at] | ((unsigned int)bytes[at + 1ULL] << 8u) |
                    ((unsigned int)bytes[at + 2ULL] << 16u) | ((unsigned int)bytes[at + 3ULL] << 24u));

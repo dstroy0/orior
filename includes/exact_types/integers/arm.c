@@ -7,10 +7,10 @@
  */
 /**
  * @file arm.c
- * @brief Presents the portable C11 operations as an arm, letting a driver store it in one table.
+ * @brief Presents the portable C11 operations as an arm, which a driver can store in one table.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * @note The functions are the ones in exact_integer_*.c and are not reimplemented here. This file is a
+ * @note The functions are the ones in exact_integer_*.c, and this file does not implement them again. This file is a
  *       table of pointers to them. The reference arm and the reference implementation can never
  *       become two different things that way.
  */

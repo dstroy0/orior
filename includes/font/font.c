@@ -40,7 +40,7 @@ EMBED_INLINE unsigned long long font_u32(const FontCtx *args)
                : 0ULL;
 }
 
-// the place of the table `tag`, 1 where it is found
+// the place of the table `tag`, 1 where the call finds it
 EMBED_INLINE int font_table_find(const FontCtx *args)
 {
     unsigned long long *at = args->at_pointer;

@@ -29,12 +29,12 @@ struct QueryTrace
     unsigned int count;
 };
 
-// the table at includes/file_defs/klq/query_trace.tsv in the tree this file was built from, into `path`, `bytes` of
+// the path of the table includes/file_defs/klq/query_trace.tsv in the tree of this build, into `path`, `bytes` of
 // it: 1 where the whole path fit
 int query_trace_path(char *path, size_t bytes);
 
-// the table at `path` read into `trace`: 1, or 0 and why on `error` where it could not be read, or a line of it gives
-// no flag of one bit, one two names share, or a name or gloss past its bytes
+// the table at `path` read into `trace`. The return is 1, or 0 with the reason on `error` where the call could not
+// read it. It is also 0 where a line gives no one-bit flag, a shared flag, or a name or gloss past its bytes
 int query_trace_read(const char *path, QueryTrace *trace, VerbaLinea *error);
 
 // the word of the flag `name`, 0 where the table gives no such flag

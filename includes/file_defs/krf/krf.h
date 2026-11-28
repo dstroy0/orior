@@ -36,12 +36,12 @@ extern "C"
         char row[KRF_ROW];
     } KrfRow;
 
-    // the .krf at `path` read into `file` as the run stores it (kfile_lines_read): 1, and none of its lines where there
-    // is no such file; 0 where there was no memory for a line
+    // the .krf at `path` read into `file` as the run stores it (kfile_lines_read). The return is 1, with no lines where
+    // there is no such file, or 0 where there was no memory for a line
     int krf_read(KrfFile *file, const char *path);
 
-    // `file` passed to the run's writer as the file at `path`, written by `who` (kfile_lines_write_by): 1, or 0 where it
-    // could not be written
+    // `file` passed to the writer of the run as the file at `path`, written by `who` (kfile_lines_write_by): 1, or 0
+    // where the writer could not write it
     int krf_write_by(const KrfFile *file, const char *path, Who who);
 
     // every line `file` contains let go, and the file zeros again
@@ -60,10 +60,11 @@ extern "C"
     // the .krf beside the k-file at `path`, the same path with its last extension .krf, into `krf` of `room` bytes
     void krf_path_beside(const char *path, char *krf, size_t room);
 
-    // `rows`, `count` of them, each let go from a k-file of type `type` for `reason` by this run, stored in the .krf at
-    // `path` as the run stores it: the file started with `krf <part>` where there is none, the part the path's own
-    // name; the rows put after its last line under a who line of `who` (kfile_lines_put_by); and the file passed to
-    // the run's writer (kfile_lines_write_by). 1, or 0 where it could not be written
+    // `rows`, `count` of them, each let go from a k-file of type `type` for `reason` by this run. The call stores them
+    // in the .krf at `path` as the run stores it. It starts the file with `krf <part>` where there is none, with the
+    // own name of the path as the part. It puts the rows after its last line under a who line of `who`
+    // (kfile_lines_put_by). Then it passes the file to the writer of the run (kfile_lines_write_by). The return is 1,
+    // or 0 where the writer could not write it
     int krf_removed_by(const char *path, const char *type, const char *reason, const char *const *rows,
                        unsigned int count, Who who);
 

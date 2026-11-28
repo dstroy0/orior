@@ -31,7 +31,7 @@ static inline int who_text_order(const char *left, const char *right, size_t cap
     return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
 }
 
-// the sources whose numbers were requested, each looked up in the table once
+// the sources whose numbers a caller asked for, each looked up in the table once
 #define WHO_LOOKUPS 64u
 
 // the longest path a who names
@@ -94,7 +94,7 @@ static int who_table(const unsigned char **table, unsigned long long *size)
 }
 
 // the next row of the table at `*at` into `number` and `source`, which has room for WHO_PATH_MAX_LEN: 1, or 0 where no
-// row is left; a line that is no row gives number 0
+// row remains. A line that is no row gives number 0
 static int who_row(const unsigned char *table, unsigned long long size, unsigned long long *at, unsigned int *number,
                    char *source)
 {
@@ -134,8 +134,8 @@ static int who_same_characters(const char *one, const char *other, size_t length
                : 0;
 }
 
-// the number the table gives the source `file`, as __FILE__ gives it, its path from the top of the tree: 0 where it
-// gives none or the path is outside the top
+// the number that the table gives the source `file`, as __FILE__ gives it, with its path from the top of the tree.
+// The return is 0 where the table gives none or the path is outside the top
 static unsigned int who_source_number(const char *file)
 {
     char plain[WHO_PATH_MAX_LEN];
@@ -179,9 +179,9 @@ static unsigned int who_source_number(const char *file)
     return 0u;
 }
 
-// the number of the program's own source: the last source the table gives whose name without its type is the
-// program's, a header after every other; 0 where none is. The table only grows: a source given a new path is
-// after the row its old path retains
+// the number of the own source of the program. It is the last source in the table whose name without its type is
+// the name of the program. A header comes after every other. The return is 0 where none is. The table only grows: a
+// source with a new path comes after the row that its old path keeps
 static unsigned int who_program_number(void)
 {
     char path[WHO_PATH_MAX_LEN];

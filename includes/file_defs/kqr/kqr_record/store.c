@@ -65,8 +65,8 @@ void kqr_store_by(KqrRecord *record, const KqrQuery *query, Who who)
     {
         return;
     }
-    // the answer that resolves it, or the part's own word where the gate gated it, takes its place, after a who
-    // record of `who` and before the who in force there again, where that one is another's
+    // the answer that resolves it takes its place, or the own word of the part where the gate gated it. It goes after a
+    // who record of `who`, and before the who in force there again where that one belongs to another
     Who there;
     const int there_has_who = krep_who_at(&record->file, at, &there);
     if (!there_has_who || !krep_who_same(there, who))

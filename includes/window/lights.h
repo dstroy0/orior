@@ -10,9 +10,10 @@
 
 typedef struct GuiLightsCfg GuiLightsCfg;
 
-// The window's lights, into `lights`, GUI_LIGHTS_MAX of them: how many. The key light hangs over the wordmark's eye,
-// half the window's larger side above the glass, so every reflection points to that corner and a bead pressed sinks
-// away from it. The fill light is beyond the window's bottom right corner, so the far rims are not black. The
+// The lights of the window, into `lights`, GUI_LIGHTS_MAX of them: how many. The key light hangs over the eye of the
+// wordmark, half the larger side of the window above the glass. Thus every reflection points to that corner, and a
+// pressed bead sinks away from it. The fill light is beyond the bottom right corner of the window, and thus the far
+// rims are not black. The
 // placed lights are the same over a window `width` by `height` with the key light over `key_x`, `key_y`, for a
 // window of its own with no frame
 unsigned int gui_lights(const GuiLightsCfg *args);

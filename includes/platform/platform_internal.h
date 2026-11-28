@@ -53,7 +53,7 @@ embed_word platform_thread_id(void);
 void platform_thread_yield(void);
 
 // The thread that calls put at `level`, one of PLATFORM_PRIORITY_WORK and the rest. On Linux and macOS a thread of the
-// run level keeps the level it started at, since a rise takes a right that the program does not ask for
+// run level keeps the level that it started at. A rise takes a right that the program does not ask for
 void platform_thread_priority(unsigned int level);
 
 // the place that MMgr knows the thread that calls by, given back for the next thread. A thread's entry calls this as
@@ -83,13 +83,13 @@ int platform_stream_shut(unsigned long long handle);
 #define PLATFORM_STACK_FRAMES 12u
 void platform_stack_put(VerbaLinea *line);
 
-// the bytes that separate the folders of a path on this system, terminated, and the byte that ends a drive's name,
-// 0 on a system with no drives
+// the bytes that separate the folders of a path on this system, with a terminator. Then the byte that ends the name
+// of a drive, 0 on a system with no drives
 extern const char g_platform_separators[];
 extern const char g_platform_drive_mark;
 
-// the folder at `path` made with the permission bits `mode` of POSIX, which Windows takes no note of: 1 where it is
-// there after the call, made now or before
+// the folder at `path` made with the permission bits `mode` of POSIX, which Windows does not read. The return is 1
+// where the folder is there after the call, made now or before
 int platform_folder_made_as(const char *path, unsigned int mode);
 
 // the bytes of the longest command line that Windows starts a program with, its terminator among them

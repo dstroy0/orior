@@ -1,9 +1,9 @@
-// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
-// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// utf8.h: a text of UTF-8 read character by character, and walked by a set of bytes: the character at a place and the character
-// before a place, each with the bytes it takes, a byte that starts no character or a character cut short read as one character
-// of its own byte; and the first place from a place whose byte a set holds, or does not hold, and the place past the
-// last such byte before a place, each the widest lane the build has, then a word at a time (utf8.c)
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com> SPDX-License-Identifier: AGPL-3.0-or-later
+// OR LicenseRef-Commercial OR LicenseRef-Educational utf8.h: a text of UTF-8 read character by character, and walked by
+// a set of bytes: the character at a place and the character before a place, each with the bytes it takes, a byte that
+// starts no character or a character cut short read as one character of its own byte; and the first place from a place
+// whose byte a set holds, or does not hold, and the place past the last such byte before a place, each the widest lane
+// the build has, then a word at a time (utf8.c)
 #ifndef UTF8_H
 #define UTF8_H
 #include "embed_dispatch_layout.h"
@@ -26,13 +26,13 @@ typedef struct
     embed_lane lane_at[UTF8_SET_MAX];
 } Utf8Set;
 
-// the character at `at` of `size` bytes of `text` and the bytes it takes into `length`; and the character that ends before
-// `end` and the bytes it takes
+// the character at `at` of `size` bytes of `text` and the bytes it takes into `length`; and the character that ends
+// before `end` and the bytes it takes
 unsigned int utf8_character(const Utf8AtCfg *args);
 unsigned int utf8_character_before(const Utf8EndCfg *args);
 // the first place from `at` below `size` whose byte the set `set` holds, `size` where none is; the first whose byte it
 // does not hold. The place past the last byte before `at` the set holds, and the place past the last it does not hold,
-// 0 where none is. A set is at max UTF8_SET_MAX bytes, and no walk reads a byte past the bounds it is given
+// 0 where none is. A set is at max UTF8_SET_MAX bytes, and no walk reads a byte past the bounds that the caller gives
 unsigned long long utf8_to_any(const Utf8SetCfg *args);
 unsigned long long utf8_end_any(const Utf8SetCfg *args);
 unsigned long long utf8_back_any(const Utf8SetCfg *args);

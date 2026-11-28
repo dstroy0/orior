@@ -7,8 +7,8 @@
 
 #include "ruleset_core_relation_walk.h"
 
-// 1 where the names `one` and `other` are one word apart: as many words with one different, or one with a word more
-// and the rest the same, words being the parts at underscores
+// 1 where the names `one` and `other` are one word apart. They have as many words with one different, or one name
+// has a word more and the rest are the same. The words are the parts between underscores
 CODEGEN_CORE int ruleset_core_relation_one_word(const unsigned char *text, RulesetCoreSpan one, RulesetCoreSpan other)
 {
     const unsigned int count = ruleset_core_relation_parts(text, one, (unsigned char)'_');
@@ -93,7 +93,8 @@ CODEGEN_CORE int ruleset_core_relation_operand(const RulesetCoreRelations *relat
     const unsigned int length = fixed->text.length;
     for (unsigned int at = 0u; (length != 0u) && ((at + length) <= entry->text.length); at += 1u)
     {
-        // a tab or a line's end written as an escape ends the word before it, though its second character is a character
+        // a tab or a line's end written as an escape ends the word before it, though its second character is a
+        // character
         const int escaped = (at >= 2u) && (text[entry->text.first + at - 2u] == '\\');
         const unsigned char before = ((at == 0u) || escaped) ? (unsigned char)' ' : text[entry->text.first + at - 1u];
         const unsigned char past =
@@ -172,8 +173,8 @@ CODEGEN_CORE void ruleset_core_relation_form(RulesetCoreRelations *relations, un
     }
 }
 
-// what each form is to every other form: the first earlier entry of its name and type, the first earlier form of its
-// text, the first earlier form one word and its modifiers apart, and the first form it opens
+// what each form is to every other form. First, the first earlier entry of its name and type, and the first earlier
+// form of its text. Then the first earlier form one word and its modifiers apart, and the first form that it opens
 CODEGEN_CORE void ruleset_core_relation_pairs(RulesetCoreRelations *relations, unsigned int at)
 {
     const unsigned char *const text = relations->text;
@@ -227,8 +228,9 @@ CODEGEN_CORE void ruleset_core_relation_pairs(RulesetCoreRelations *relations, u
     }
 }
 
-// what each construct's lines are: a name no entry gives, another count of arguments than the form takes, the
-// construct one line naming another form under its own parameters, and a walk from it that comes back to it
+// what the lines of each construct are: a name that no entry gives, or another count of arguments than the form
+// takes. Also a construct of one line that names another form under its own parameters, and a walk from it that
+// comes back to it
 CODEGEN_CORE void ruleset_core_relation_construct(RulesetCoreRelations *relations, unsigned int at)
 {
     const unsigned char *const text = relations->text;

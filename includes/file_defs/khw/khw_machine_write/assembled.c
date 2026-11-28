@@ -10,8 +10,8 @@
 
 #include "../../../../src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble.h"
 
-// what goes back to the run, the call's number, the count of texts and each text's count and code, and one text with
-// its end, each sized once
+// what goes back to the run: the number of the call, the count of texts, and the count and code of each text. Then
+// one text with its end. The call sizes each once
 #define KHW_ASSEMBLED_ROOM                                                                                             \
     (sizeof(unsigned long long) + sizeof(unsigned int) +                                                               \
      (KHW_ASSEMBLED_TEXTS * (sizeof(unsigned int) + (KHW_INSTRUCTION * KHW_ASSEMBLED_MAX))))
@@ -19,7 +19,8 @@ static unsigned char s_assembled[KHW_ASSEMBLED_ROOM];
 static char s_text[KHW_ASSEMBLED_TEXT_BYTES + 1u];
 static char s_reason[QRY_NAME_MAX_LEN + 64u];
 
-// `first` and then `second` appended to the run as KHW_ASSEMBLED_REASON, the reason the texts were not assembled: 0
+// `first` and then `second` appended to the run as KHW_ASSEMBLED_REASON, the reason that the call did not assemble
+// the texts: 0
 static int khw_assembled_reason(const char *first, const char *second)
 {
     const size_t first_length =
@@ -35,11 +36,13 @@ static int khw_assembled_reason(const char *first, const char *second)
     return 0;
 }
 
-// The texts of the latest blob of `answers`, read where the run stores it: a first line `call <n>`, then each text
-// ended by a line containing a form feed alone. Each is assembled against the machine file at `path` with every stall
-// safe, and appended to the run as KHW_ASSEMBLED: the call's number and the count of texts, eight bytes and four,
-// then for each text the count of its instructions, four bytes, 0 where a line of it does not assemble, and its code,
-// sixteen bytes an instruction. 1, or 0 with the reason appended as KHW_ASSEMBLED_REASON
+// The texts of the latest blob of `answers`, read where the run stores it. The blob has a first line `call <n>`, then
+// each text, and a line that holds only a form feed ends each text. The call assembles each text against the machine
+// file at `path` with every stall safe. It adds the result to the run as KHW_ASSEMBLED: the number of the call and the
+// count of texts, eight bytes and four. Then for each text, the count of its instructions in four bytes, 0 where a
+// line of it does not assemble. Then its code, sixteen bytes an instruction.
+//
+// The return is 1, or 0 with the reason added as KHW_ASSEMBLED_REASON
 int khw_texts_assembled(const char *path, const char *answers)
 {
     const unsigned char *texts = NULL;

@@ -17,7 +17,7 @@
 #include <shellapi.h>
 #include <shlobj.h>
 
-// how many times the clipboard is asked for while another program holds it, and the milliseconds apart
+// how many times the call asks for the clipboard while another program holds it, and the milliseconds between asks
 #define CLI_CLIPBOARD_TRIES 10u
 #define CLI_CLIPBOARD_APART 5u
 // the largest size the system's text calls count, an int
@@ -33,8 +33,8 @@
 
 // the lock a thread takes as it opens the clipboard and gives back as it closes it
 
-// the clipboard opened for this thread, the lock taken first, asked for again while another program holds it: 1, or
-// 0 with the lock given back where it stays locked
+// the clipboard opened for this thread, with the lock taken first. The call asks again while another program holds
+// it. The return is 1, or 0 with the lock given back where the clipboard stays locked
 static int clipboard_open(void)
 {
     for (unsigned int requested = 0u; requested < CLI_CLIPBOARD_TRIES; requested += 1u)
@@ -80,7 +80,7 @@ int cli_clipboard_text_read(const CliCtx *args)
         for (SIZE_T at = 0u; at < units;)
         {
             SIZE_T count = ((units - at) < CLI_CLIPBOARD_PIECE) ? (units - at) : CLI_CLIPBOARD_PIECE;
-            // a character of two units is not cut between pieces
+            // the call does not cut a character of two units between pieces
             const wchar_t last = pixel_width[at + count - 1u];
             count -= ((at + count < units) && (last >= 0xd800u) && (last <= 0xdbffu)) ? 1u : 0u;
             // a piece is at max CLI_CLIPBOARD_PIECE units, which an int counts
@@ -104,8 +104,8 @@ typedef struct
     HGLOBAL more;
 #endif
 } WindowsClipboardCtx;
-// `memory` put on the clipboard as `format`, and `more` as `more_format` where it is not NULL, the clipboard emptied
-// first: 1, or 0 with each the clipboard did not take given back
+// `memory` put on the clipboard as `format`, and `more` as `more_format` where it is not NULL, after the call empties
+// the clipboard. The return is 1, or 0 with each memory that the clipboard did not take given back
 EMBED_INLINE int clipboard_append(const WindowsClipboardCtx *args)
 {
     if (!clipboard_open())
@@ -159,9 +159,9 @@ int cli_clipboard_text_write(const CliSizeTextCtx *args)
 // A line end on the system's clipboard: a carriage return and a newline
 #define CLI_CLIPBOARD_BREAK_UNITS 2u
 
-// The memory that units_take takes and units_put hands to the system, NULL where none is out: its units locked, how
-// many it holds, and how many are written. The data that units_open locks, NULL where none is locked. One thread at a
-// time uses each
+// The memory that units_take takes and units_put hands to the system, NULL where none is out. It holds its units
+// locked, how many it holds, and how many the writer wrote. The data that units_open locks, NULL where nothing has a
+// lock. One thread at a time uses each
 static HGLOBAL s_units_memory;
 static wchar_t *s_units;
 static unsigned long long s_units_capacity;
@@ -314,7 +314,7 @@ int cli_clipboard_files_append(const CliCountCtx *args)
     SIZE_T left = units;
     for (unsigned int path = 0u; path < args->count; path += 1u)
     {
-        // what is left is at max the units counted above, which an int counts
+        // the units that remain are at max the units counted above, which an int counts
         const int written = MultiByteToWideChar(CP_UTF8, 0u, args->paths[path], -1, at, (int)left);
         // a count the system gave is positive here
         at += (written > 0) ? (SIZE_T)written : 0u;

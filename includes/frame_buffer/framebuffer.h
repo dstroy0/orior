@@ -1,9 +1,9 @@
-// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
-// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// framebuffer.h: a window's rasters: the two framebuffers, passed between drawing and showing by a ring of MMgr's
-// with two segments, and the ground's raster, the one segment of a ring of its own, each `gui_raster_pitch` of the
-// window's width wide. The rings and the capacity of a segment are the caller's: the caller positions the rings over pages
-// it retains, commits them as far as the window draws, and gives them back (framebuffer.c)
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com> SPDX-License-Identifier: AGPL-3.0-or-later
+// OR LicenseRef-Commercial OR LicenseRef-Educational framebuffer.h: a window's rasters: the two framebuffers, passed
+// between drawing and showing by a ring of MMgr's with two segments, and the ground's raster, the one segment of a ring
+// of its own, each `gui_raster_pitch` of the window's width wide. The rings and the capacity of a segment are the
+// caller's: the caller positions the rings over pages it retains, commits them as far as the window draws, and gives
+// them back (framebuffer.c)
 #ifndef GUI_FRAMEBUFFER_H
 #define GUI_FRAMEBUFFER_H
 #include "../raster/raster.h"
@@ -17,8 +17,8 @@ typedef struct GuiFramebufferCfg GuiFramebufferCfg;
 #define GUI_FRAMEBUFFER_RASTERS 3u
 #define GUI_FRAMEBUFFER_BACKGROUND 2u
 
-// The framebuffers' ring and its pages, the ground's ring and its pages, the pixel bytes each raster has capacity for,
-// and the rasters positioned over the rings' segments
+// The ring of the framebuffers and its pages, and the ring of the ground and its pages. Then the pixel bytes that each
+// raster has capacity for, and the rasters over the segments of the rings
 typedef struct
 {
     mmgr_ring *frames;
@@ -31,17 +31,18 @@ typedef struct
 
 // the bytes a window `width` by `height` draws in one raster: the pitch of the width by the height, a word a pixel
 unsigned long long gui_framebuffer_bytes(const GuiFramebufferCfg *args);
-// the rasters made for a window `width` by `height` over the `frames` ring of two segments and the `background` ring
-// of one, each segment `capacity` bytes, the first framebuffer the one drawn: 1, or 0 where there is no size, no ring
-// or the window passes the capacity, nothing retained; and the rasters let go, the rings their caller's to give back. One
-// at a time: the rings are the caller's
+// the rasters made for a window `width` by `height`, over the `frames` ring of two segments and the `background` ring
+// of one. Each segment has `capacity` bytes, and the first framebuffer is the one to draw. The return is 1, or 0 with
+// nothing kept where there is no size or no ring or the window passes the capacity. The second call lets the rasters
+// go, and the caller gives back the rings. One at a time: the rings belong to the caller
 int gui_framebuffer_init(const GuiFramebufferRingsCfg *args);
 void gui_framebuffer_free(const GuiFramebufferRingsCfg *args);
-// whether the rasters have capacity for a window `width` by `height`; and the rasters sized to it, their pixels where
-// they are: 1, or 0 with nothing changed where they have no capacity
+// whether the rasters have capacity for a window `width` by `height`. Then the rasters sized to it, with their pixels
+// where they are: 1, or 0 with nothing changed where they have no capacity
 int gui_framebuffer_fits(const GuiFramebufferCfg *args);
 int gui_framebuffer_fit(const GuiFramebufferRingsCfg *args);
-// the framebuffer just drawn passed over to be displayed, the one displayed before freed, and the raster to draw next
+// the framebuffer just drawn, given over for the display. The one that the display showed before goes free, and the
+// call gives the raster to draw next
 GuiRaster *gui_framebuffer_flip(const GuiFramebufferRingsCfg *args);
 struct GuiFramebufferRingsCfg
 {

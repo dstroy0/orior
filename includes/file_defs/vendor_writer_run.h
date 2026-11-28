@@ -10,10 +10,10 @@ extern "C"
 {
 #endif
 
-    // The vendor's writer run through the interface as `command`, a list of words ended by NULL, the first the
-    // writer's path. Its output comes back over the interface's pipe, is printed, and is passed to the run as the blob
-    // `machine_name`. 1 where it ended clean; else a line is printed naming `program` and, where `mode` is not NULL,
-    // the mode the writer ran in, and 0 is passed back
+    // The writer of the vendor run through the interface as `command`, a list of words with NULL at its end. The first
+    // word is the path of the writer. Its output comes back over the pipe of the interface. The call prints it and
+    // passes it to the run as the blob `machine_name`. The return is 1 where the writer ended clean. Else the call
+    // prints a line that names `program`, and the mode of the writer where `mode` is not NULL, and returns 0
     int vendor_writer_run(char *const *command, const char *machine_name, const char *program, const char *mode);
 
 #ifdef __cplusplus

@@ -6,43 +6,45 @@
 
 #include <stddef.h>
 
-// A form is an operation with its modifiers and, for each printed operand, what type of thing it is and the mark it
-// carries (- or ~ on a register, ! on a predicate). Two instructions of one form differ only in the values their
-// operand fields contain, and the encoding a form was first seen with is the base every instruction of that form is
-// assembled from (sass_assemble.h).
+// A form is an operation with its modifiers. For each printed operand, it also has the type of thing that the operand
+// is and its mark (- or ~ on a register, ! on a predicate). Two instructions of one form differ only in the values that
+// their operand fields hold. The assembler builds every instruction of a form from the encoding that the probe first
+// saw it with (sass_assemble.h).
 //
-// Which bits carry which operand is not guessed. The cell's probe turns each of the form's 128 bits over one at a
-// time, disassembles all 129 encodings, and records the runs of bits that changed a printed operand; those runs are the
-// form's fields. Matching an operand to a field by the value the base happens to contain there is not enough, because a
-// field the operation does not use contains 0 and a register or predicate numbered 0 matches it.
+// The program does not guess which bits carry which operand. The probe of the cell turns each of the 128 bits of the
+// form over one at a time, and disassembles all 129 encodings. It records the runs of bits that changed a printed
+// operand, and those runs are the fields of the form. A match of an operand to a field by the value of the base there
+// is not enough. A field that the operation does not use holds 0, and a register or predicate numbered 0 matches it.
 //
-// A part's own file is <part>.khw beside its rulesets (includes/file_defs/khw). Its first line is `forms 2`,
-// then `part <name>`, then a line a form:
+// The own file of a part is <part>.khw beside its rulesets (includes/file_defs/khw). Its first line is `forms 2`, then
+// `part <name>`, then one line for each form:
 //
 //     form <operation> <type><mark>,... <low> <high> <operand>:<first>-<last>:<place>;... <relation> <signed>
-//          <the instruction it was seen as>
+//          <the instruction as the probe saw it>
 //
-// on one line, where <low> and <high> are the instruction's two 64-bit words in hex, low first, as a listing prints
-// them, and the runs are the bits that change each operand, by the operand's place in the printed text. A run's
-// <place> is where its operand is in the relation's tuple, the words in their order and then the answer, as
-// 1,1 -> 2 satisfies them (ladder.h), and - where the part answered it none. <relation> is the relation every case of
-// the form answered and <signed> 1 where the answers read a word signed, both - where the form was queried no relation.
-// A file at `forms 1` contains no place, relation or signedness, and reads as - in each.
+// all on one line. `<low>` and `<high>` are the two 64-bit words of the instruction in hex, low first, as a listing
+// prints them. The runs are the bits that change each operand, by the place of the operand in the printed text.
+//
+// The `<place>` of a run is where its operand is in the tuple of the relation. The tuple has the words in their order,
+// then the answer, as 1,1 -> 2 satisfies them (ladder.h). It is - where the part answered it none. `<relation>` is the
+// relation that every case of the form answered, and `<signed>` is 1 where the answers read a word as signed. Both are
+// - where the program queried no relation for the form. A file at `forms 1` holds no place, relation or sign, and reads
+// as - in each.
 
 // the longest instruction text stored, the longest operation or operand, and the max operands an instruction carries
 #define SASS_MACHINE_TEXT 192u
 #define SASS_MACHINE_TOKEN 64u
 #define SASS_MACHINE_OPERANDS 8u
-// the max runs of bits one form's operands take between them, and the max forms a machine file contains. The sweep
-// puts every operation key to the disassembler from each of several carriers and found 1001 forms on sm_86 at
-// 1024, close enough to the ceiling that another carrier or another part would have run into it, and a machine
-// that fills up retains the forms it has and counts the rest in `refused`.
+// the max runs of bits that the operands of one form take between them, and the max forms that a machine file holds.
+// The sweep puts every operation key to the disassembler from each of several carriers. It found 1001 forms on sm_86
+// when the ceiling was 1024. That is close enough that another carrier or another part could reach the ceiling. A
+// machine that fills up keeps the forms that it has, and counts the rest in `refused`.
 //
-// Widening repeats over what it finds for a bounded number of rounds. The count then follows how many operations
-// and operand types lie that far from what a compiler wrote, and not how many the compiler wrote. Run to its own end
-// instead it does not close: the count climbs past what a machine contains. A form is 736
-// bytes, which puts this ceiling at 12 MB of a machine, and a run that reaches it reports so in `refused` in place of
-// dropping forms quietly
+// The widen step repeats over what it finds for a bounded count of rounds. The count of forms then follows the
+// operations and operand types that lie that far from what a compiler wrote. It does not follow what the compiler
+// wrote. A run to
+// its own end does not close: the count climbs past what a machine holds. A form is 736 bytes, which puts this ceiling
+// at 12 MB of a machine. A run that reaches it reports that in `refused`, and does not drop forms with no report
 #define SASS_MACHINE_RUNS 32u
 #define SASS_MACHINE_FORMS 16384u
 #define SASS_MACHINE_PART 16u
@@ -50,7 +52,7 @@
 // what one printed operand is
 enum SassOperandType
 {
-    // an operand the parts reader did not know, which no instruction of that form can be assembled
+    // an operand that the parts reader did not know. The assembler can build no instruction of that form
     SASS_OPERAND_UNKNOWN = 0,
     SASS_OPERAND_REGISTER = 1,
     SASS_OPERAND_PREDICATE = 2,
@@ -62,8 +64,9 @@ enum SassOperandType
     SASS_OPERAND_SYSTEM = 8
 };
 
-// the mark an operand carries, which the form carries because the bit that puts it there is the operation's, not the
-// operand's: the encoding a form was seen with already carries the mark every instruction of that form has
+// the mark that an operand carries. The form carries it, because the bit that puts it there belongs to the operation
+// and not to the operand. The encoding that the probe saw the form with already carries the mark of every instruction
+// of that form
 enum SassOperandMark
 {
     SASS_MARK_NONE = 0,
@@ -72,8 +75,8 @@ enum SassOperandMark
     SASS_MARK_NOT = 3
 };
 
-// one instruction's text in its parts: its guard predicate ("@P0", "@!P0" or empty), its operation with its
-// modifiers, and each operand with the mark cut off it and .reuse dropped, since reuse lies in the control bits
+// the text of one instruction in its parts: its guard predicate ("@P0", "@!P0" or empty), and its operation with its
+// modifiers. Each operand has its mark cut off and .reuse dropped, because reuse lies in the control bits
 typedef struct
 {
     char guard[SASS_MACHINE_TOKEN];
@@ -84,12 +87,12 @@ typedef struct
     unsigned int mark[SASS_MACHINE_OPERANDS];
 } SassInstructionParts;
 
-// the place of a run whose operand is nowhere in the relation's tuple, and the text it is written under
+// the place of a run whose operand is nowhere in the tuple of the relation, and the text that the file writes for it
 #define SASS_RUN_NO_PLACE 0xffffffffu
 #define SASS_RUN_NO_PLACE_TEXT "-"
 
-// one run of bits that changes one printed operand, as the probe found it, and its operand's place in the relation's
-// tuple, SASS_RUN_NO_PLACE where the part answered it none
+// one run of bits that changes one printed operand, as the probe found it. Then the place of its operand in the tuple
+// of the relation, SASS_RUN_NO_PLACE where the part answered it none
 typedef struct
 {
     unsigned int operand;
@@ -98,8 +101,9 @@ typedef struct
     unsigned int place;
 } SassRun;
 
-// one form, the encoding it was first seen with, the bits its operands sit in, and the relation every case of it
-// answered with whether the answers read a word signed, `relation` empty where it was queried none
+// one form, the encoding that the probe first saw it with, and the bits that its operands sit in. Then the relation
+// that every case of it answered, and whether the answers read a word as signed. `relation` is empty where the program
+// queried none
 typedef struct
 {
     char operation[SASS_MACHINE_TOKEN];
@@ -118,8 +122,8 @@ typedef struct
 // the max operations the part answered a soonest read for
 #define SASS_MACHINE_SOONEST 256u
 
-// one operation's soonest read as the part answered it: the fewest cycles between it and an instruction that reads
-// its result, the max any reader required of it needed
+// the soonest read of one operation, as the part answered it. It is the fewest cycles between it and an instruction
+// that reads its result, the max that any reader needed
 typedef struct
 {
     char operation[SASS_MACHINE_TOKEN];
@@ -129,11 +133,14 @@ typedef struct
 // the last register a machine uses where the part has not answered which it is: every number is the code's
 #define SASS_MACHINE_UNANSWERED 0xffffffffu
 
-// `register_last` is the last register the part answers a question's code can name, from the .ksc beside the
-// machine file (`run answers <last> register last`), and SASS_MACHINE_UNANSWERED where it contains no answer.
-// `register_past` is how many registers past the highest its code names a container declares, as the part answers:
-// a container declaring d names R0 through R(d - past) and no other, and one past that faults the part with a register
-// out of range (`run answers <past> register past`); SASS_MACHINE_UNANSWERED where the part has not answered it
+// `register_last` is the last register that, as the part answers, the code of a question can name. It comes from the
+// .ksc beside the machine file (`run answers <last> register last`). SASS_MACHINE_UNANSWERED stands for it where that
+// holds no answer.
+//
+// `register_past` is how many registers past the highest that its code names a container declares, as the part
+// answers. A container that declares d names R0 through R(d - past) and no other. One past that faults the part with a
+// register out of range (`run answers <past> register past`). SASS_MACHINE_UNANSWERED stands for it where the part did
+// not answer it
 typedef struct
 {
     char part[SASS_MACHINE_PART];
@@ -144,31 +151,30 @@ typedef struct
     unsigned int soonests;
     unsigned int register_last;
     unsigned int register_past;
-    // where each form's operands sit and the bits it leaves open, stored once by sass_encoding_places_built
-    // (sass_assemble.h) for every encoding read after; NULL where each read finds them again
+    // where the operands of each form sit and the bits that it leaves open. The call sass_encoding_places_built
+    // (sass_assemble.h) stores them once for every later read of an encoding. NULL where each read finds them again
     void *places_built;
 } SassMachine;
 
-// `text` read into its parts, whatever it contains: an operand the reader does not know is stored with the type
-// SASS_OPERAND_UNKNOWN, and the guard is empty where the instruction carries none
+// `text` read into its parts, whatever it holds. The call stores an operand that the reader does not know with the type
+// SASS_OPERAND_UNKNOWN. The guard is empty where the instruction carries none.
 // 1 where `text` ends in the .hi a ruleset writes for the second register of a 64-bit pair (sass.krs)
 int sass_high_half(const char *text);
 
 void sass_instruction_read(const char *text, SassInstructionParts *parts);
 
-// The text of `form` written into `written`, which has room for `room`, each operand a run with a place reads written
-// as
-// {<place>} with its mark retained, and every other operand as the form was seen with it: the form as a ruleset writes
-// it before its parameters are named. 1, or 0 where it does not fit
+// The text of `form` written into `written`, which has room for `room`. Each operand that a run with a place reads goes
+// as {<place>}, with its mark kept. Every other operand goes as the probe saw it with the form. This is the form as a
+// ruleset writes it before it names its parameters. The return is 1, or 0 where it does not fit
 int sass_text_placed(const SassForm *form, char *written, size_t room);
 
 // the encoding of EXIT as `machine` contains it, or 0 where it contains none. A cubin names the offset of every exit in
 // its own section, and whatever writes one finds them by this
 unsigned long long sass_exit_encoding(const SassMachine *machine);
 
-// the scheduler's bits above the operation, which no listing prints: the stall, the yield, a write barrier set where
-// the result comes back late, a read barrier set where an operand is read late, the wait over six barriers and the
-// reuse flags. A barrier field of 7 sets none
+// the bits of the scheduler above the operation, which no listing prints. First the stall, the yield, and a write
+// barrier where the result comes back late. Then a read barrier where the part reads an operand late, the wait over six
+// barriers and the reuse flags. A barrier field of 7 sets none
 #define SASS_STALL_FIRST 105u
 #define SASS_YIELD_FIRST 109u
 #define SASS_WRITE_BARRIER_FIRST 110u
@@ -182,17 +188,19 @@ unsigned long long sass_exit_encoding(const SassMachine *machine);
 // the bits of the low word that name an operation and its operands' types, its operation key
 #define SASS_OPERATION_MASK 0xfffULL
 
-// 1 where `operation` transfers control or waits, which run on the part can loop or stall it: a branch, a call, a
+// 1 where `operation` transfers control or waits. Such an operation can loop or stall the part: a branch, a call, a
 // return, a barrier, a sleep and a trap. A straight instruction falls through to the next and cannot loop by itself
 int sass_operation_control_or_wait(const char *operation);
 
-// how the scheduler tracks an operation's result, a property of the operation and not of one encoding of it: ready
-// after a fixed count of cycles, back late behind a write barrier its readers wait on, or a store whose operands are
-// read late behind a read barrier, which whatever writes those registers next waits on. NVIDIA's compiler gives every
-// late operation a write barrier and every store a read barrier over the tree's CUDA sources (monolith_scheduler.md).
-// A barrier counts its producers and a wait on it waits until all of them are back, and a late result left without a
-// barrier is queued behind another of the same operation out of the same unit, its results back in the order they were
-// put
+// how the scheduler tracks the result of an operation, a property of the operation and not of one encoding of it. The
+// result is ready after a fixed count of cycles, or back late behind a write barrier that its readers wait on. Else it
+// is a store whose operands the part reads late behind a read barrier, and the next writer of those registers waits on
+// it.
+//
+// NVIDIA's compiler gives every late operation a write barrier and every store a read barrier over the CUDA sources of
+// the tree (monolith_scheduler.md). A barrier counts its producers, and a wait on it waits until all of them are back.
+// A late result with no barrier goes into a queue behind another result of the same operation from the same unit. The
+// results come back in their order
 enum SassSchedule
 {
     SASS_SCHEDULE_FIXED = 0,
@@ -200,37 +208,38 @@ enum SassSchedule
     SASS_SCHEDULE_STORE = 2
 };
 
-// 1 where the encoding whose high word is `high` sets the barrier whose field begins at `first`,
-// SASS_WRITE_BARRIER_FIRST or SASS_READ_BARRIER_FIRST: the result or an operand comes back late, and whatever waits on
-// it waits on that barrier
+// 1 where the encoding whose high word is `high` sets the barrier whose field starts at `first`,
+// SASS_WRITE_BARRIER_FIRST or SASS_READ_BARRIER_FIRST. Then the result or an operand comes back late, and the waits on
+// it wait on that barrier
 int sass_barrier_set(unsigned long long high, unsigned int first);
 
-// the schedule of `operation`, its modifiers included, read from its name before the first dot, and through `soonest`
-// the fewest cycles between a fixed result and an instruction that reads it, as the part answered it for that
-// operation on the run channel and `machine` contains it. An operation the part has not answered for, and a late result
-// or a store, leave SASS_STALL_MAX_LEN there
+// the schedule of `operation`, with its modifiers, read from its name before the first dot. Through `soonest` goes the
+// fewest cycles between a fixed result and an instruction that reads it. That is the answer of the part for that
+// operation on the run channel, as `machine` holds it. An operation that the part did not answer for, a late result,
+// and a store leave SASS_STALL_MAX_LEN there
 unsigned int sass_operation_schedule(const SassMachine *machine, const char *operation, unsigned int *soonest);
 
-// an instruction stored in `machine` as a form where it contains none of that form yet, `low` and `high` its encoding
-// and `text` the instruction it was seen as. The form it was stored as, or the one already there, through `taken`,
-// whose runs the caller fills. 1, or 0 where the machine is full, counted in machine->refused
+// an instruction stored in `machine` as a form, where the machine has none of that form yet. `low` and `high` are its
+// encoding, and `text` is the instruction as the probe saw it. The form that it went in as, or the one already there,
+// goes through `taken`, and the caller fills its runs. The return is 1, or 0 where the machine is full, counted in
+// machine->refused
 int sass_machine_take(SassMachine *machine, const char *text, unsigned long long low, unsigned long long high,
                       SassForm **taken);
 
-// an instruction the part answered `relation` for stored in `machine` as a form: the form of its shape that answers no
-// relation yet or answers `relation`, or a form of its own where every form of its shape answers another relation,
-// since two relations of one shape are two forms of the protocol. The form through `taken`, whose runs the caller
-// fills. 1, or 0 where the machine is full, counted in machine->refused
+// an instruction that the part answered `relation` for, stored in `machine` as a form. It goes in the form of its shape
+// that answers no relation yet or answers `relation`. Where every form of its shape answers another relation, it goes
+// in a form of its own. Two relations of one shape are two forms of the protocol. The form goes through `taken`, and
+// the caller fills its runs. The return is 1, or 0 where the machine is full, counted in machine->refused
 int sass_machine_take_related(SassMachine *machine, const char *text, unsigned long long low, unsigned long long high,
                               const char *relation, SassForm **taken);
 
 // the form of `parts`, or NULL where the machine contains none
 const SassForm *sass_machine_form(const SassMachine *machine, const SassInstructionParts *parts);
 
-// The machine written to `path`, and read back from it: 1, or 0 with the reason printed. A read takes too what the
-// part answered on the run channel from the .ksc beside it, `path` with .ksc in place of .khw: each line
-// `run answers <stall> stall <writer> <reader>` is the soonest <reader> reads <writer>'s result, and an operation's
-// soonest read is the largest of its lines. A machine with no .ksc beside it contains none
+// The machine written to `path`, and read back from it: 1, or 0 with the reason printed. A read also takes what the
+// part answered on the run channel, from the .ksc beside it: `path` with .ksc in place of .khw. Each line
+// `run answers <stall> stall <writer> <reader>` is the soonest that `<reader>` reads the result of `<writer>`. The
+// soonest read of an operation is the largest of its lines. A machine with no .ksc beside it holds none
 int sass_machine_write(const SassMachine *machine, const char *path);
 
 int sass_machine_read(SassMachine *machine, const char *path);

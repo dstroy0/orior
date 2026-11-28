@@ -73,13 +73,14 @@ extern "C"
     } KrepRecord;
 
     // A k-file of records in memory. It holds its type and its records in order. It holds its texts, each by its number
-    // less one, with its length. It finds a text by its bytes through the texts' places: an order of them sorted by the
-    // hash of the bytes, `text_ordered` of them in a cell of room for `text_order_room`, and a run of the newest,
-    // `text_run_count` of them, with the room that the sort of a full run writes as it merges into the order.
+    // less one, with its length. It finds a text by its bytes through the places of the texts:
+    //   - an order sorted by the hash of the bytes, `text_ordered` of them in a cell with room for `text_order_room`;
+    //   - a run of the newest, `text_run_count` of them;
+    //   - the room that the sort of a full run writes as it merges into the order.
     //
     // Where it is a view of a table of a run, it holds the run and the name of the table. It also holds the key of the
-    // file. These are 0 where it is no view. A file starts as zeros
-    // the place of a text: the hash of its bytes, and its number
+    // file. These are 0 where it is no view. A file starts as zeros.
+    // The place of a text: the hash of its bytes, and its number
     typedef struct
     {
         unsigned long long hash;
@@ -113,8 +114,8 @@ extern "C"
     // `file` emptied and given the type `type`, four bytes, whatever it contained let go
     void krep_open(KrepFile *file, const char *type);
 
-    // The k-file at `path`, read into `file` as the run stores it (qry_member_file). That is its latest blob, or the file
-    // where the run stores none. The call lets go of the old contents of `file`.
+    // The k-file at `path`, read into `file` as the run stores it (qry_member_file). That is its latest blob, or the
+    // file where the run stores none. The call lets go of the old contents of `file`.
     //
     // The result is 1, with an empty file of `type` where there is neither. It is 2 where the file is there and does
     // not open with the k-file head. The bytes then stay for the format, which reads them as it reads its text form.
@@ -133,26 +134,26 @@ extern "C"
 // krep_write_by, the who the code that calls it
 #define krep_write(file_, path_) krep_write_by((file_), (path_), WHO_HERE)
 
-    // `file`, made a view of the table `table` of the run `buffer`, as the file at `path`, by `who`. The call passes its
-    // head as a critical row of the table, and its sequence is the key of the file. Then comes a row of each text and
-    // each record of the file in their order.
+    // `file`, made a view of the table `table` of the run `buffer`, as the file at `path`, by `who`. The call passes
+    // its head as a critical row of the table, and its sequence is the key of the file. Then comes a row of each text
+    // and each record of the file in their order.
     //
     // From then on, each text that the file takes gets a row. Each record that it puts, gives other words, or lets go
     // gets a row too.
     //
-    // The result is 1, or 0 where the caller gives no run or the path is outside the top of the tree. It is also 0 where
-    // the call cannot pass a row, and the file is then no view.
+    // The result is 1, or 0 where the caller gives no run or the path is outside the top of the tree. It is also 0
+    // where the call cannot pass a row, and the file is then no view.
     //
-    // Where a later row does not pass, the file is no longer a view, and the run writes it as it stores it. `table` must
-    // live as long as the file
+    // Where a later row does not pass, the file is no longer a view, and the run writes it as it stores it. `table`
+    // must live as long as the file
     int krep_tabled_by(KrepFile *file, QryShared *buffer, const char *table, const char *path, Who who);
 
 // krep_tabled_by, the who the code that calls it
 #define krep_tabled(file_, buffer_, table_, path_) krep_tabled_by((file_), (buffer_), (table_), (path_), WHO_HERE)
 
     // the file that the rows of the key of `file` put together, in the order that the run stores them, into `view`.
-    // `view` starts as an empty file of its type. The result is 1, or 0 where `file` is no view, or where the call cannot
-    // read its rows. It is also 0 where a row does not fit the file that it puts together
+    // `view` starts as an empty file of its type. The result is 1, or 0 where `file` is no view, or where the call
+    // cannot read its rows. It is also 0 where a row does not fit the file that it puts together
     int krep_viewed(const KrepFile *file, KrepFile *view);
 
     // the file named `name` in the run, its path from the top of the tree (qry_member_file_name). The call puts it

@@ -21,14 +21,14 @@ extern "C"
 
     // The record of a member. A record starts as zeros, and kqr_read opens it. It holds:
     //   - its records, the record of the member first.
-    //   - the record of the query of each identity, by the hash of the identity: an order of them sorted by the
-    //     hash, `ordered` of them in one cell, and a run of the newest, `run_count` of them, with the room that the
-    //     sort of a full run writes as it merges into the order.
+    //   - the record of the query of each identity, by the hash of the identity. It is an order of them sorted by the
+    //     hash, `ordered` of them in one cell, and a run of the newest, `run_count` of them. The room that the sort
+    //     of a full run writes as it merges into the order goes with them.
     //   - the record of each sample.
     //   - the record where the pairs start, and the who before them where it belongs to them.
     //   - the pending marks, each its code and its two words. The first of a cycle is the text of its mode, numbered
     //     as the code writes it.
-    // the place of a query: the hash of its identity, and its record
+    // The place of a query: the hash of its identity, and its record
     typedef struct
     {
         unsigned long long hash;
@@ -65,8 +65,8 @@ extern "C"
     // the answer the text form writes as `name`, KQR_ANSWER_COUNT where it is none of the five
     unsigned int kqr_answer_of(const char *name);
 
-    // the identity that `text` writes, seven words apart by one space, read into `identity`. The result is 1, or 0 where
-    // it is not seven numbers, the two hashes in hex and the rest in decimal
+    // the identity that `text` writes, seven words apart by one space, read into `identity`. The result is 1, or 0
+    // where it is not seven numbers, the two hashes in hex and the rest in decimal
     int kqr_identity_read(const char *text, KqrIdentity *identity);
 
     // `identity` written as the text form writes it into `text`, which has room for `room`
@@ -90,8 +90,8 @@ extern "C"
                       size_t room);
 
     // `record`, made a view of the table KQR_TABLE of the run `buffer`, as the file at `path`, by `who`
-    // (krep_tabled_by). Each record of it is a row of the table. Each record that the code keeps later gets a row as the
-    // code keeps it. The code writes the record as its rows put it together.
+    // (krep_tabled_by). Each record of it is a row of the table. Each record that the code keeps later gets a row as
+    // the code keeps it. The code writes the record as its rows put it together.
     //
     // The result is 1, or 0 where the record is not open, the caller gives no run, or the call cannot pass a row. The
     // code then writes the record as it stores it
@@ -100,8 +100,8 @@ extern "C"
     // `record`, passed to the writer of the run as the file at `path` (qry_member_filed), written by `who`. Where it is
     // a view of the table of the run (kqr_tabled_by), the call passes the record that its rows put together.
     //
-    // The result is 1, or 0 where no writer of a run runs, or where the path is outside the tree. It is also 0 where the
-    // call cannot write it
+    // The result is 1, or 0 where no writer of a run runs, or where the path is outside the tree. It is also 0 where
+    // the call cannot write it
     int kqr_write_by(const KqrRecord *record, const char *path, Who who);
 
     // everything `record` contains let go, and the record zeros again
@@ -140,13 +140,14 @@ extern "C"
     // `path` stored by `who` after every pair before it
     void kqr_path_add_by(KqrRecord *record, const KqrPath *path, Who who);
 
-    // `record`, written as the text form of the .kqr at `at` into `out`, which has room for `cap`, a line a record. Each
-    // who is a line `who`. Where `named`, the who table names its code, and else the line holds its code alone. The
-    // result is the offset after it, or `cap` where it did not fit (verba_scribo.h)
+    // `record`, written as the text form of the .kqr at `at` into `out`, which has room for `cap`, a line a record.
+    // Each who is a line `who`. Where `named`, the who table names its code, and else the line holds its code alone.
+    // The result is the offset after it, or `cap` where it did not fit (verba_scribo.h)
     size_t kqr_text_rendered(const KqrRecord *record, char *out, size_t cap, size_t at, int named);
 
-    // as kqr_text_rendered, the records from `from` on, `count` of them, or each one past it where `count` is 0. A reader
-    // decodes this slice while it is still, and grows out from it. While it moves, the numbers of its records stay raw
+    // as kqr_text_rendered, the records from `from` on, `count` of them, or each one past it where `count` is 0. A
+    // reader decodes this slice while it is still, and grows out from it. While it moves, the numbers of its records
+    // stay raw
     size_t kqr_text_sliced(const KqrRecord *record, char *out, size_t cap, size_t at, int named, unsigned int from,
                            unsigned int count);
 

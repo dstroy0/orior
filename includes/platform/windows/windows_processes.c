@@ -16,13 +16,13 @@
 
 typedef LONG(NTAPI *CliQueryProcess)(HANDLE process, ULONG type, PVOID info, ULONG length, PULONG returned);
 
-// what NtQueryInformationProcess is queried for: the line a process was started with; the max bytes it is read in; and
-// the access a process is opened with to read it
+// what the call asks NtQueryInformationProcess for: the line that a process started with, and the max bytes of the
+// read. Last, the access that the call opens a process with to read the line
 #define CLI_PROCESS_COMMAND_LINE 60u
 #define CLI_PROCESS_COMMAND_MAX (1u << 20u)
 #define CLI_PROCESS_QUERY_LIMITED 0x1000u
 
-// the text the name is written in, under its lock
+// the text that holds the name, under its lock
 static char s_name[MAX_PATH * 4u];
 
 typedef struct
@@ -46,10 +46,10 @@ EMBED_INLINE void processes_utf8(const WindowsProcessesCtx *args)
     args->out[(written > 0) ? written : 0] = '\0';
 }
 
-// the line process `pid` was started with, a counted string, its length in bytes first and the address of its text
-// after, the text following in the same capacity, read into a cell of the bytes the system reports it takes: the line
-// as UTF-8 in a cell of its own, given back with g_platform_guard->persistent_buf_release, or NULL where it cannot be
-// read
+// the line that process `pid` started with. It is a counted string: its length in bytes first, the address of its
+// text after, and the text after that in the same capacity. The call reads it into a cell of the bytes that the
+// system reports. The return is the line as UTF-8 in a cell of its own, or NULL where the call cannot read it. The
+// caller gives the cell back with g_platform_guard->persistent_buf_release
 EMBED_INLINE char *processes_command_get(const WindowsProcessesCtx *args)
 {
     const HANDLE process = OpenProcess(CLI_PROCESS_QUERY_LIMITED, FALSE, args->pid);
@@ -77,8 +77,8 @@ EMBED_INLINE char *processes_command_get(const WindowsProcessesCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = (void *)&start, .src = base + sizeof(void *), .bytes = sizeof(start)});
         const embed_word length = (embed_word)bytes / 2u;
         const unsigned char *const end = base + capacity;
-        // the text read lies within the capacity, as the system wrote it there, and each of its units is three bytes of
-        // UTF-8 at max, below an int's reach as the capacity is
+        // the text read lies within the capacity, where the system wrote it. Each of its units is three bytes of UTF-8
+        // at max, below the reach of an int, as the capacity is
         if ((start != NULL) && ((const unsigned char *)start >= base) &&
             ((const unsigned char *)(start + length) <= end))
         {
@@ -151,7 +151,8 @@ int cli_process_memory(const CliPidCtx *args)
     PROCESS_MEMORY_COUNTERS_EX2 counters;
     memor.set(&(MemoriaCfg){.dst = &counters, .val = 0, .bytes = sizeof(counters)});
     counters.cb = sizeof(counters);
-    // the counters' first part is the structure the call is declared to fill, and `cb` says how much more it holds
+    // the first part of the counters is the structure that the declaration of the call fills, and `cb` says how much
+    // more it holds
     const BOOL read = K32GetProcessMemoryInfo(process, (PROCESS_MEMORY_COUNTERS *)&counters, counters.cb);
     FILETIME made;
     FILETIME ended;

@@ -9,9 +9,10 @@
 #include "krep_records_internal.h"
 #include "memoria_operor/memoria_operor.h"
 
-// the file the rows among `bytes`, `size` of them, of the key `key` put together into `view`, which is open and
-// empty of its type: the rows joined, each whole words, its opening, the numbers its change gives, then its bytes or
-// its words. 1, or 0 where a row does not fit the file it puts together or the bytes are not whole rows
+// the file that the rows of the key `key` among `bytes`, `size` of them, put together into `view`. The view is open
+// and empty of its type. The call joins the rows, each whole words: its opening, the numbers that its change gives,
+// then its bytes or its words. The return is 1, or 0 where a row does not fit the file that it puts together or the
+// bytes are not whole rows
 static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size, unsigned long long key, KrepFile *view)
 {
     const unsigned long long words = size / sizeof(unsigned long long);
@@ -50,7 +51,7 @@ static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size,
         }
         const unsigned char *const after = bytes + (at * sizeof(unsigned long long));
         at += following;
-        // a head's key is 0 and is no file's; a row of another file's key is passed over
+        // the key of a head is 0 and belongs to no file. The call skips a row with the key of another file
         if (opening[0] != key)
         {
             continue;

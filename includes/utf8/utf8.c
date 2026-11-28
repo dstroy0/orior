@@ -84,7 +84,7 @@ void utf8_set_fill(const Utf8SetFillCfg *args)
     args->filled_out->count = (unsigned int)count;
     for (unsigned int at = 0u; at < args->filled_out->count; at += 1u)
     {
-        // Explicit cast reads the byte as unsigned before it is repeated into every lane
+        // Explicit cast reads the byte as unsigned before the call repeats it into every lane
         const embed_u8 byte = (embed_u8)args->set[at];
         args->filled_out->word_text[at] = MMGR_SWAR_ONES * (embed_word)byte;
         args->filled_out->lane_at[at] = EMBED_CALL(embed_lane_fill_byte, EmbedLaneFillByteCfg, byte);
@@ -101,8 +101,8 @@ embed_word utf8_word_in(const Utf8WordCfg *args)
     return hit;
 }
 
-// the first place from `at` below `size` whose byte the set holds where `in`, or does not hold where not, else `size`,
-// the widest lane first, then a word at a time, and the last bytes loaded into a word of their own
+// the first place from `at` below `size` whose byte the set holds where `in`, or does not hold where not, else `size`.
+// The call reads the widest lane first, then a word at a time, and loads the last bytes into a word of their own
 static unsigned long long utf8_walk(const Utf8Ctx *args)
 {
     unsigned long long at = args->at;
@@ -156,8 +156,8 @@ static unsigned long long utf8_walk(const Utf8Ctx *args)
     return args->size;
 }
 
-// the place past the last byte before `at` whose byte the set holds where `in`, or does not hold where not, else 0, a
-// word at a time from the end, the first bytes loaded into a word of their own
+// the place past the last byte before `at` whose byte the set holds where `in`, or does not hold where not, else 0.
+// The call reads a word at a time from the end, and loads the first bytes into a word of their own
 static unsigned long long utf8_walked_back(const Utf8Ctx *args)
 {
     unsigned long long at = args->at;

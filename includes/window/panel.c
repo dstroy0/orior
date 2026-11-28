@@ -7,8 +7,8 @@
 #include "../utf8/utf8.h"
 #include "frame.h"
 
-// What a layout holds as it runs: where it draws, the width, the scale, the pen's x on the line being positioned, the y of
-// the line's top and the line's height, and the faces' sizes
+// What a layout holds as it runs: where it draws, the width, the scale, and the x of the pen on the current line.
+// Then the y of the top of the line, the height of the line, and the sizes of the faces
 typedef struct
 {
     GuiRaster *raster;
@@ -82,8 +82,8 @@ EMBED_INLINE void layout_run(const PanelCtx *args)
     }
 }
 
-// `text`, `length` bytes, positioned character by character in `face` at `size` on lines `pixel_height` tall, a character that does
-// not fit after the pen beginning the next line
+// `text`, `length` bytes, put character by character in `face` at `size` on lines `pixel_height` tall. A character
+// that does not fit after the pen starts the next line
 EMBED_INLINE void layout_characters(const PanelCtx *args)
 {
     const char *text = args->text;
@@ -109,8 +109,8 @@ EMBED_INLINE void layout_characters(const PanelCtx *args)
     }
 }
 
-// a line of code positioned from `text`, `length` bytes, broken by characters where it is wider than the width: each piece on
-// a line of its own
+// a line of code positioned from `text`, `length` bytes, broken by characters where it is wider than the width: each
+// piece on a line of its own
 EMBED_INLINE void layout_code_line(const PanelCtx *args)
 {
     args->layout->x = (float)args->layout->left;
@@ -120,8 +120,8 @@ EMBED_INLINE void layout_code_line(const PanelCtx *args)
     args->layout->y += args->layout->code_line;
 }
 
-// a word of a paragraph positioned from `text`, `length` bytes, in `face`, wrapped to the next line where it does not fit
-// after the pen, and broken by characters where it is wider than the whole width
+// a word of a paragraph put from `text`, `length` bytes, in `face`. The call wraps it to the next line where it does
+// not fit after the pen. It breaks the word by characters where the word is wider than the whole width
 EMBED_INLINE void layout_word(const PanelCtx *args)
 {
     unsigned int face = args->face;
@@ -147,8 +147,8 @@ EMBED_INLINE void layout_word(const PanelCtx *args)
                .pixel_height = args->layout->text_line, .text = text, .length = length, .color = args->color);
 }
 
-// a paragraph's line positioned from `text`, `length` bytes, word by word, the text between single backticks in the code
-// face in the type's color. The pen left after its last word, a blank's width on, for the next line's words
+// a paragraph's line positioned from `text`, `length` bytes, word by word, the text between single backticks in the
+// code face in the type's color. The pen left after its last word, a blank's width on, for the next line's words
 EMBED_INLINE void layout_paragraph_line(const PanelCtx *args)
 {
     const char *text = args->text;

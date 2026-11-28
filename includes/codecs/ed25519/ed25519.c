@@ -38,7 +38,8 @@ static void ed25519_set(Ed25519Field out, const Ed25519Field in)
     EMBED_CALL(memor.cpy, MemoriaCfg, .dst = out, .src = in, .bytes = sizeof(Ed25519Field));
 }
 
-// each limb carried into the next, the last's carry folded back as 38 times it, 2^256 being 38 mod 2^255 - 19
+// each limb carried into the next, and the carry of the last folded back as 38 times it, because 2^256 is 38 mod
+// 2^255 - 19
 static void ed25519_carried(Ed25519Field field)
 {
     for (unsigned int at = 0u; at < ED25519_LIMBS; at += 1u)

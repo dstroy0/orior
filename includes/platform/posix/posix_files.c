@@ -174,8 +174,8 @@ int cli_resource_add(const CliPathErrMsgCtx *args)
 // the bytes of randomness a temporary file's name carries
 #define CLI_TEMPORARY_NAME_BYTES 8u
 
-// the file loses its name the moment it is made, so the system deletes it once the last descriptor is closed, however
-// the process ends
+// the file loses its name at the moment that the call makes it. Thus the system deletes it after the close of the last
+// descriptor, however the process ends
 int cli_temporary_file_init(const CliFileTemporaryFileCtx *args)
 {
     char path[CLI_PATH_MAX_LEN];
