@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// scheduler.c: a round of questions carried together, the one that settles the max entries first
+// scheduler.c: a round of questions carried together, with the one that settles the most entries first
 #include "scheduler.h"
 
 unsigned int scheduler_round(RunQuestion *const *question, const unsigned int *settles, unsigned int count)
@@ -9,8 +9,8 @@ unsigned int scheduler_round(RunQuestion *const *question, const unsigned int *s
     for (unsigned int first = 0u; first < count; first += SCHEDULER_ROUND_MAX)
     {
         const unsigned int carried = ((count - first) < SCHEDULER_ROUND_MAX) ? (count - first) : SCHEDULER_ROUND_MAX;
-        // the round's order by insertion, the max settling first and the order passed preserved between equals: a
-        // round contains few enough questions for that
+        // the order of the round by insertion, with the one that settles the most first, and the order passed kept
+        // between equals. A round holds few enough questions for that
         RunQuestion *ordered[SCHEDULER_ROUND_MAX];
         unsigned int weight[SCHEDULER_ROUND_MAX];
         for (unsigned int at = 0u; at < carried; at += 1u)
