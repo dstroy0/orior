@@ -51,7 +51,8 @@ int program_main(int count, char **arguments)
         }
         return daemon_error();
     }
-    // the history is read before the endpoint exists: no client reaches a daemon that then errors on its history
+    // the daemon reads the history before the endpoint exists. Thus no client reaches a daemon that then gives an
+    // error on its history
     if (!tessera_ledger_open(&g_daemon.ledger))
     {
         {
