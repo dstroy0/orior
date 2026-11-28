@@ -35,8 +35,8 @@ static long long track_lifted(const long long *from, unsigned long long line, un
     return from[line + (2ULL * along * stride)] + track_floor_shift(before + after + 2LL, 2u);
 }
 
-// the host's floor 2 of one frame: two levels of the 5/3 lifting, each along z, then y, then x over the active
-// corner, every axis pass reading the coefficients as they was before it, as the engine's kernels do
+// the floor 2 of the host for one frame: two levels of the 5/3 lift, each along z, then y, then x over the active
+// corner. Every axis pass reads the coefficients as they were before it, as the kernels of the engine do
 void track_floor_host(const unsigned short *lanes, long long *work, long long *before, long long *floor_values)
 {
     const unsigned long long stride[SIM_AXES] = {TRACK_SIDE * TRACK_SIDE, TRACK_SIDE, 1ULL};
