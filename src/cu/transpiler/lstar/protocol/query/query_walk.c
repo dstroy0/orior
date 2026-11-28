@@ -4,16 +4,17 @@
 //
 //     query_walk <qualifier> <from> <count> <stride> <turns> <word>
 //
-// Every number is read as hexadecimal. The program puts one query at each address from `from`, `stride` bytes apart,
-// `count` of them, and passes the run of the process that started it one line an address as it is answered, the record
-// QUERY_WALK_RECORD:
+// The program reads every number as hexadecimal. It puts one query at each address from `from`, `stride` bytes apart,
+// `count` of them. It passes one line for each address, after its answer, to the run of the process that started it.
+// The record is QUERY_WALK_RECORD:
 //
 //     <address> <bit> <type>
 //
-// A line is passed before the next address is queried. An address that ends the process ends it with every answer
-// before it already passed, and the cell reads where the walk stopped from the last line. `turns` is how
-// many reads ADVANCES puts at an address after its first before the address reads as not advancing: a counter that
-// steps once a clock interrupt reads as still between two reads far more often than not.
+// The program passes a line before it queries the next address. An address that ends the process ends it with every
+// answer before it already passed. The cell reads from the last line where the walk stopped.
+//
+// `turns` is how many reads ADVANCES puts at an address after its first, before the address reads as one that does not
+// advance. A counter that steps once for each clock interrupt is still between two reads far more often than not.
 #include "../../../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../../../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -27,7 +28,7 @@ int program_main(int count_of_words, char **words)
     {
         return 2;
     }
-    // each is read as hexadecimal and stored at the width the query carries
+    // the program reads each as hexadecimal, and stores it at the width that the query carries
     const unsigned int qualifier =
         (unsigned int)EMBED_CALL(cellul.to_ulong_in, TransfiguroCfg, .src = words[1], .end = NULL, .base = 16);
     const unsigned long long from =
