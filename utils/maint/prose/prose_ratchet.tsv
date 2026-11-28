@@ -485,7 +485,6 @@ src/cu/engine/nbody/max_tree/max_tree.h	20
 src/cu/engine/nbody/max_tree/max_tree_device_overlap_kernels.cu	1
 src/cu/engine/nbody/max_tree/max_tree_nodes.c	2
 src/cu/engine/nbody/orior/orior.h	4
-src/cu/engine/nbody/orior/orior_core.c	28
 src/cu/engine/nbody/orior/orior_engines.h	25
 src/cu/engine/nbody/orior/orior_field.c	27
 src/cu/engine/nbody/orior/orior_internal.h	3

@@ -35,16 +35,16 @@ void orior_counters_reset(void)
 /**
  * @brief Chooses anchor offsets, one drawn inside each evenly sized cell of the needle.
  *
- * @param[out] offsets    Where the chosen offsets are written [BORROWS].
+ * @param[out] offsets    Where the call writes the chosen offsets [BORROWS].
  * @param[in]  wanted     How many to choose, at least one.
- * @param[in]  needle_len Length of the needle they index.
- * @note One draw per cell preserves the spread and gives the anchor set no period of its own. An even
- *       comb shares a period with whatever the domain carries, the failure this avoids.
- * @warning A needle of length zero has no in-range offset to choose. The clamp below computes
- *          needle_len - 1u, and on size_t that wraps to SIZE_MAX instead of saturating. Every
- *          offset lands far outside both the corpus and the needle. The engines answer length zero
- *          before reaching here; this bounds it at the declaration as well, because the engines are
- *          exported and the clamp reads exactly like the guard that would have prevented it.
+ * @param[in]  needle_len Length of the needle that they index.
+ * @note One draw for each cell keeps the spread, and gives the anchor set no period of its own.
+ *       An even comb shares a period with what the domain carries, the failure that this avoids.
+ * @warning A needle of length zero has no offset in range to choose. The clamp below computes
+ *          `needle_len - 1u`, and on size_t that wraps to SIZE_MAX, and does not saturate. Every
+ *          offset then lands far outside both the corpus and the needle. The engines answer length
+ *          zero before they reach here. This also bounds it at the declaration, because the library
+ *          exports the engines. The clamp reads just as the guard that would prevent it.
  */
 void choose_offsets(size_t *offsets, size_t wanted, size_t needle_len)
 {
@@ -94,16 +94,16 @@ size_t orior_naive(const uint8_t *corpus, size_t corpus_len, const uint8_t *need
  * @param[in] needle_len How many.
  * @param[in] anchors    How many anchors to place, at least one and at max ORIOR_ANCHORS.
  * @return               How many alignments match exactly.
- * @note Only this engine takes a count. The free order engine's advantage is that its comparisons
- *       are written out and fold into one value with one branch behind them, and a loop over a
- *       runtime count gives that back. A corpus whose count wants reducing is a coherent one, and
- *       a coherent corpus dispatches here anyway.
- * @note A needle of length zero occurs at every alignment, and the naive engine returns
- *       that count. That case is passed to it and not answered a second way here. An anchor
- *       cannot be placed in a needle with no bytes, and bounding the offsets is not enough on its
- *       own: at length zero the alignment loop runs one further than the corpus. The last
+ * @note Only this engine takes a count. The free order engine gains because it writes its
+ *       comparisons out, and they fold into one value with one branch behind them. A loop over a
+ *       runtime count gives that back. A corpus whose count needs a decrease is a coherent one, and
+ *       a coherent corpus dispatches here in all cases.
+ * @note A needle of length zero occurs at every alignment, and the naive engine returns that
+ *       count. The call passes that case to it, and does not answer it a second way here. No
+ *       anchor fits in a needle with no bytes, and a bound on the offsets is not enough on its
+ *       own. At length zero the alignment loop runs one further than the corpus. The last
  *       alignment reads one past its end, and the anchor reads element zero of a needle that has
- *       none. Both are reads outside memory the caller owns.
+ *       none. Both are reads outside memory that the caller owns.
  */
 static size_t sift_inorder_n(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len,
                              size_t anchors)
@@ -149,11 +149,11 @@ size_t orior_inorder(const uint8_t *corpus, size_t corpus_len, const uint8_t *ne
 
 size_t orior_free(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len)
 {
-    // Length zero goes to the naive engine, for the reason recorded on sift_inorder_n. This engine
-    // carries the test separately because it is exported and a caller reaches it without passing
-    // through the dispatcher. It is also the engine where bounding the offsets alone would not have
-    // been enough: the read below happens before the alignment loop. A zeroed offset still
-    // takes element zero of a needle that has none.
+    // Length zero goes to the naive engine, for the reason on sift_inorder_n. This engine carries
+    // the test on its own, because the library exports it, and a caller reaches it with no pass
+    // through the dispatcher. It is also the engine where a bound on the offsets alone is not
+    // enough. The read below occurs before the alignment loop. A zero offset still takes element
+    // zero of a needle that has none.
     if (needle_len == 0u)
     {
         return orior_naive(corpus, corpus_len, needle, needle_len);
@@ -172,7 +172,7 @@ size_t orior_free(const uint8_t *corpus, size_t corpus_len, const uint8_t *needl
     for (size_t at = 0u; (at + needle_len) <= corpus_len; at += 1u)
     {
         // No short circuit. Four loads issue together, the comparisons fold into one value, and the
-        // branch is taken once. This is the dependency depth two arrangement.
+        // branch occurs once. This is the arrangement of dependency depth two.
         ORIOR_PROBED_N(ORIOR_ANCHORS);
         const unsigned agree =
             (unsigned)(corpus[at + offsets[0]] == wanted[0]) & (unsigned)(corpus[at + offsets[1]] == wanted[1]) &
@@ -191,40 +191,40 @@ size_t orior_free(const uint8_t *corpus, size_t corpus_len, const uint8_t *needl
 
 OriorEngine orior_choose(const OriorPlan *plan)
 {
-    // No plan is no statistics, and the engine that needs none is the naive one. BOTH POINTERS ARE
-    // TESTED HERE and neither test is delegated to the callee. orior_steer_prefers_free returns 0
-    // on a null census. Delegating would work and would leave this function reading as though it
-    // dereferences an unchecked pointer. The next person to read it could not determine it is safe
-    // without opening another file.
+    // No plan is no statistics, and the engine that needs none is the naive one. THIS FUNCTION
+    // TESTS BOTH POINTERS HERE, and gives neither test to the callee. orior_steer_prefers_free
+    // returns 0 on a null census. A delegate would work, but this function would then read as if
+    // it dereferences an unchecked pointer. The next reader could not tell that it is safe without
+    // a look at another file.
     if ((plan == NULL) || (plan->census == NULL))
     {
         return orior_naive;
     }
 
-    // A flat corpus refutes almost every alignment on the first probe. Short circuiting reads one
-    // byte where the free order engine reads four. A structured one refutes on the first probe often
-    // enough to make the loop trip count vary, and a varying trip count costs a mispredicted branch
-    // per alignment. The branchless engine exists to avoid that.
+    // A flat corpus refutes almost every alignment on the first probe. A short circuit reads one
+    // byte where the free order engine reads four. A structured one refutes on the first probe
+    // often enough to make the trip count of the loop vary. A trip count that varies costs a
+    // mispredicted branch for each alignment. The branchless engine exists to prevent that.
     //
-    // THE RULE IS AN EXACT INTEGER COMPARISON. It tests whether the effective alphabet 2^H2 reaches
-    // 85/100 of the symbols used: how close it has to sit to the symbols actually used before a
-    // corpus counts as memoryless. Writing 2^H2 as total^2 over the sum of squared counts clears
-    // both denominators and leaves
+    // THE RULE IS AN EXACT INTEGER COMPARISON. It tests whether the effective alphabet `2^H2`
+    // reaches 85/100 of the symbols used. That is how close it must sit to the symbols in use
+    // before a corpus counts as memoryless. The form of `2^H2` as `total^2` over the sum of
+    // squared counts clears both denominators, and leaves
     //
     //     100 * total^2  >=  85 * distinct * sum(count^2)
     //
-    // which is a comparison between two exact integers, carried in the limb form where it outgrows
-    // 64 bits. No logarithm is taken, no series is evaluated, and the threshold is the exact rational
-    // 85/100. Every threshold from 0.34 to 0.96 scores identically on the corpora, which read 0.96,
-    // 0.33 and 1.00 with nothing between. orior_steer_prefers_free contains the comparison, and the
-    // sweep in test_steer grades it.
+    // which is a comparison between two exact integers, carried in the limb form where it grows
+    // past 64 bits. The rule takes no logarithm and evaluates no series, and the threshold is the
+    // exact rational 85/100. Every threshold from 0.34 to 0.96 scores the same on the corpora. They
+    // read 0.96, 0.33 and 1.00, with nothing between. orior_steer_prefers_free holds the
+    // comparison, and the sweep in test_steer grades it.
     return orior_steer_prefers_free(plan->census) ? orior_free : orior_inorder;
 }
 
 size_t orior_anchors_for(const OriorPlan *plan)
 {
-    // No plan is no known period, and an unknown period is the case the full anchor set is for.
-    // Returning the max reads more than a known period would need and can lose nothing.
+    // No plan is no known period, and an unknown period is the case that the full anchor set is
+    // for. A return of the max reads more than a known period would need, and can lose nothing.
     if (plan == NULL)
     {
         return ORIOR_ANCHORS;
@@ -244,9 +244,9 @@ size_t orior_run(const OriorPlan *plan, const uint8_t *corpus, size_t corpus_len
 {
     const OriorEngine chosen = orior_choose(plan);
 
-    // Stored and dispatched and not re-tested, because the choice is three ways and not two.
-    // Reaching the tail on a null plan would run the in order engine with the full anchor set,
-    // the outcome the guard in orior_choose prevents.
+    // The call stores and dispatches the choice, and does not test it again, because the choice is
+    // three ways and not two. A null plan that reached the tail would run the in order engine with
+    // the full anchor set. The guard in orior_choose prevents that outcome.
     if (chosen == orior_naive)
     {
         return orior_naive(corpus, corpus_len, needle, needle_len);
