@@ -14,13 +14,13 @@
  * @param[in]  needle           Bytes to find [BORROWS].
  * @param[in]  needle_len       How many.
  * @param[in]  max_length       Longest eye to consider.
- * @param[out] survivors        Which alignments the probes left located, one byte each [BORROWS].
+ * @param[out] survivors        Which alignments the probes left truthy, one byte each [BORROWS].
  * @param[in]  survivors_length How many. Must reach the alignment count.
- * @param[in]  sample_stride    Plan on every Nth alignment. 0 is treated as 1.
- * @return                      Probes actually placed.
- * @note Static and positional, which is where a long parameter list is allowed to live. The public
- *       surface takes one pointer to a const argument structure. This is the backend it names, and
- *       every check the contract states happens here and not in the entry.
+ * @param[in]  sample_stride    Plan on every Nth alignment. The call reads 0 as 1.
+ * @return                      The probes that the call placed.
+ * @note Static and positional, which is where a long parameter list can live. The public surface
+ *       takes one pointer to a const argument structure. This is the backend that it names, and
+ *       every check that the contract states occurs here and not in the entry.
  */
 static size_t steer_sweep_probes(OriorProbe *probes, size_t wanted, const uint8_t *corpus, size_t corpus_len,
                                  const uint8_t *needle, size_t needle_len, size_t max_length, uint8_t *survivors,
@@ -48,8 +48,7 @@ static size_t steer_sweep_probes(OriorProbe *probes, size_t wanted, const uint8_
 
     // THREE BOUNDED LOOPS INSIDE A BOUNDED DESCENT. Origins run to needle_len, steps run to
     // needle_len, lengths run to max_length, and the descent runs to `wanted`. Every bound is an
-    // argument or a compile time constant and none of them is read from the corpus. The extent of
-    // this search is fixed before the first byte is examined.
+    // argument or a compile time constant, and the call reads none of them from the corpus. This search has its full extent before the call examines the first byte.
     while (placed < wanted)
     {
         OriorProbe best = {0u, 1u, 1u};
@@ -105,9 +104,9 @@ size_t orior_steer_sweep_probes(const OriorSteerSweep *args)
         return 0u;
     }
 
-    // The entry tests only what the backend cannot: whether it was passed arguments at all.
-    // Everything else the contract states is checked in steer_sweep_probes, against the values it
-    // is going to use. No check exists in two places to drift apart.
+    // The entry tests only what the backend cannot: whether it got arguments at all. The call
+    // steer_sweep_probes checks all else that the contract states, against the values that it will
+    // use. No check exists in two places, where the two could drift apart.
     return steer_sweep_probes(args->probes, args->count, args->corpus, args->corpus_len, args->needle, args->needle_len,
                               args->max_length, args->survivors, args->survivors_length, args->sample_stride);
 }
@@ -126,10 +125,10 @@ size_t orior_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, c
     {
         return 0u;
     }
-    // An empty needle occurs at every alignment. orior_naive and orior_steer_count both report
-    // corpus_len + 1 for it, and the reference fixes that answer. This returns the same before the
-    // loop instead of reading needle[offset] off a needle with no positions. Returning 0 here would
-    // disagree with the reference and with the two counting entries beside it.
+    // An empty needle occurs at every alignment. The engines orior_naive and orior_steer_count both
+    // report `corpus_len + 1` for it, and the reference fixes that answer. This returns the same
+    // before the loop, and does not read `needle[offset]` from a needle with no positions. A return
+    // of 0 here would disagree with the reference and with the two count entries beside it.
     if (needle_len == 0u)
     {
         return corpus_len + 1u;
@@ -139,12 +138,12 @@ size_t orior_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, c
         return 0u;
     }
 
-    // Every probe reads within the needle or the whole call errors. A probe whose origin plus its
-    // stepped reach lands at or past needle_len would read needle[offset], and corpus[at + offset],
-    // out of bounds. orior_steer_probe_fits is the same test the sweep applies before it emits a
-    // probe, checked here once before the alignment loop because this is a public entry a caller can
-    // hand a probe the sweep never made. A probe that does not fit gets 0, the error a null probe
-    // array with a nonzero count gets above.
+    // Every probe reads within the needle, or the whole call gives an error. A probe whose origin
+    // plus its stepped reach lands at or past needle_len would read `needle[offset]`, and
+    // `corpus[at + offset]`, out of bounds. The test orior_steer_probe_fits is the one that the sweep
+    // applies before it emits a probe. The call checks it here once, before the alignment loop,
+    // because a caller can give this public entry a probe that the sweep never made. A probe that
+    // does not fit gets 0, the error that a null probe array with a count that is not zero gets above.
     for (size_t index = 0u; index < count; index += 1u)
     {
         if (orior_steer_probe_fits(&probes[index], needle_len) == 0)
@@ -197,22 +196,22 @@ size_t orior_steer_count(const uint8_t *corpus, size_t corpus_len, const uint8_t
 
     size_t found = 0u;
 
-    // An empty needle has no symbol to probe. The reference engine reports it at every alignment
-    // and this one answers the same, instead of inventing a different answer to one question.
+    // An empty needle has no symbol to probe. The reference engine reports it at every alignment,
+    // and this one answers the same. It does not invent a different answer to one question.
     if (needle_len == 0u)
     {
         return corpus_len + 1u;
     }
 
     size_t offsets[ORIOR_STEER_ANCHORS];
-    // the placement the search uses: the steered route probes where the engines it is compared against do, and
-    // only the order of evaluation is this file's
+    // the placement that the search uses. The steered route probes where the engines that it compares with
+    // do, and only the order of evaluation belongs to this file
     choose_offsets(offsets, ORIOR_STEER_ANCHORS, needle_len);
 
     if (steered != 0)
     {
-        // THE ENGINE TURNED ONTO ITSELF. One pass over the corpus it is about to search produces
-        // the census, and the census decides the order this same corpus is then probed in.
+        // THE ENGINE TURNED ONTO ITSELF. One pass over the corpus that it will search makes the
+        // census. The census decides the order that the call then probes this same corpus in.
         OriorFieldCensus census;
         orior_field_census(corpus, corpus_len, &census);
         orior_steer_probe_order(offsets, ORIOR_STEER_ANCHORS, &census, needle, needle_len);
@@ -254,10 +253,10 @@ void orior_steer_scan_counters_reset(void)
 
 const OriorSteerEngine *orior_steer_best_engine(void)
 {
-    // Widest first, and each arm queries the processor before it is taken. The x86 arms and the ARM arms
-    // are gated by mutually exclusive build macros. At max one architecture's ladder is compiled
-    // in and the rest fold away. A present arm returning NULL means the build carried it but the
-    // running part does not, and the next arm down is tried.
+    // Widest first, and each arm queries the processor before the call takes it. Build macros that
+    // exclude each other gate the x86 arms and the ARM arms. At max the ladder of one architecture
+    // compiles in, and the rest fold away. A present arm that returns NULL means that the build
+    // carried it but the part that runs does not. The call then tries the next arm down.
 #if defined(ORIOR_STEER_HAVE_AVX512) && ORIOR_STEER_HAVE_AVX512
     {
         const OriorSteerEngine *wide = orior_steer_avx512_engine();
