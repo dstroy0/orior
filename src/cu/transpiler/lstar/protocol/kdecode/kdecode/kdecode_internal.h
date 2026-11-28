@@ -24,8 +24,8 @@
 
 #define KDECODE_NAMED 2400u
 
-// the max records of a run a walk retains, blobs, texts and rows each, and the max k-files of a table, oracles a run
-// contains and codes an oracle gives
+// the max records of a run that a walk keeps, for blobs, texts and rows each. Then the max k-files of a table, oracles
+// that a run holds, and codes that an oracle gives
 #define KDECODE_RECORDS_MAX (1u << 21u)
 
 #define KDECODE_FILES_MAX 4096u
@@ -34,9 +34,10 @@
 
 #define KDECODE_CODES_MAX 16384u
 
-// the record the decoder passes the run its text in, gathered in s_displayed and passed whenever it contains past half its
-// room and once the decoder is done (kdecode_displayed_passed), a failure passed at once (kdecode_failure_passed); a
-// decoder that is a member of no run writes its text to the standard output and its failures to the standard error
+// the record that the decoder passes its text to the run in, gathered in s_displayed. The decoder passes it whenever it
+// holds past half its room, and when the decoder ends (kdecode_displayed_passed). It passes a failure at once
+// (kdecode_failure_passed). A decoder that is a member of no run writes its text to the standard output, and its
+// failures to the standard error
 #define KDECODE_DISPLAYED "orior_kdecode"
 
 // A code an oracle gives: the family its `where` names, its name and its value
@@ -47,8 +48,8 @@ typedef struct
     unsigned long long value;
 } KdecodeCode;
 
-// A column of a table's row as its oracle gives it: its name, its form, and the oracle its gloss names, whose codes
-// are for it where its own oracle gives none
+// A column of the row of a table as its oracle gives it: its name, its form, and the oracle that its gloss names. The
+// codes of that oracle are for it where its own oracle gives none
 typedef struct
 {
     char name[KDECODE_WORD];
@@ -74,8 +75,8 @@ typedef struct
     unsigned int name_length;
 } KdecodeBlob;
 
-// A text of the run or of a k-file of it: the file's key, 0 for the run's table of texts, its number, and its bytes
-// where they are in the mapped run and their count
+// A text of the run or of a k-file of it. It holds the key of the file, 0 for the table of texts of the run, and its
+// number. Then its bytes where they are in the mapped run, and their count
 typedef struct
 {
     unsigned long long file;
@@ -99,8 +100,8 @@ typedef struct
     size_t words;
 } KdecodeRow;
 
-// An oracle the run contains, the latest blob of its name: its name and its bytes where they are in the mapped run,
-// and their counts
+// An oracle that the run holds, the latest blob of its name. It holds its name and its bytes where they are in the
+// mapped run, and their counts
 typedef struct
 {
     const char *name;
@@ -109,10 +110,14 @@ typedef struct
     unsigned long long size;
 } KdecodeContent;
 
-// What one walk of a run's blobs retains: the table requested, its range of keys and the max rows; every blob's
-// sequence and name, the run's texts and the texts and heads of the table's k-files; the rows of the range; the oracles
-// the run contains; each where it is in the mapped run, and 1 in `failed` where the run contains more than a walk
-// retains
+// What one walk of the blobs of a run keeps, each where it is in the mapped run:
+//
+// - the table requested, its range of keys and the max rows
+// - the sequence and name of every blob, the texts of the run, and the texts and heads of the k-files of the table
+// - the rows of the range
+// - the oracles that the run holds
+//
+// and 1 in `failed` where the run holds more than a walk keeps
 typedef struct
 {
     const char *table;
@@ -154,11 +159,12 @@ void kdecode_blob(void *context, const char *name, unsigned int name_length, uns
 int kdecode_oracle_read(const KdecodeRun *run, const char *path, KdecodeOracle *oracle, int codes_only);
 int kdecode_table(const char *path, const char *table, int raw, unsigned long long from, unsigned long long to,
                   unsigned long long max);
-// every blob of the run at `path` named `name`, each written whole after a line of its sequence, its name and its
-// size, a NUL byte displayed as a space; the latest alone where `latest` is 1. 1, or 0 where the run could not be read
+// every blob of the run at `path` named `name`, each written whole after a line of its sequence, its name and its size.
+// A NUL byte shows as a space. The latest alone where `latest` is 1. The return is 1, or 0 where the read of the run
+// failed
 int kdecode_blobs(const char *path, const char *name, int latest);
-// whether the `size` bytes at `bytes` are a run's records whole, as a .qry stores them with no head of its own: 1, or 0
-// where they are none, or not records to their last byte
+// whether the `size` bytes at `bytes` are the records of a run whole, as a .qry stores them with no head of its own.
+// The return is 1, or 0 where they are none, or not records to their last byte
 int kdecode_run_whole(const unsigned char *bytes, unsigned long long size);
 
 #endif
