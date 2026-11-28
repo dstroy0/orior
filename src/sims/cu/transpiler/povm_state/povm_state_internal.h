@@ -4,14 +4,24 @@
 #ifndef POVM_STATE_INTERNAL_H
 #define POVM_STATE_INTERNAL_H
 
-// The POVM and the state: a qubit's state carried exactly as the answer distribution of a complete POVM.
-// Two POVMs, E_i = (I + v_i . sigma) / 4 over four outcomes: a rational tetrahedral POVM, v_i = (+-1, +-1, +-1) / 2,
-// all in Q; and the true SIC, v_i = (+-1, +-1, +-1) / sqrt 3, in Q(sqrt 3), where the square root is carried by its
-// defining relation (sqrt 3)^2 = 3. Every value stays exact. Proved for each POVM: it is a
-// POVM; state -> answers -> state returns the state; the phase falls out of the POVM; the valid set accepts every
-// state and puts the pure ones on its boundary; the crossing rule reproduces the other POVMs' answers and carries
-// a negative weight; a distribution outside the valid set crosses to a non-probability; the two POVMs cross into
-// each other. Measured: how many of a grid of distributions are states.
+// The POVM and the state: the state of a qubit, carried exactly as the answer distribution of a complete POVM. There
+// are two POVMs, `E_i = (I + v_i . sigma) / 4` over four outcomes:
+//
+// - a rational tetrahedral POVM, `v_i = (+-1, +-1, +-1) / 2`, all in Q
+// - the true SIC, `v_i = (+-1, +-1, +-1) / sqrt 3`, in `Q(sqrt 3)`. Its relation `(sqrt 3)^2 = 3` carries the square
+//   root.
+//
+// Every value stays exact. The sim proves for each POVM:
+//
+// - it is a POVM
+// - `state -> answers -> state` returns the state
+// - the phase falls out of the POVM
+// - the valid set accepts every state, and puts the pure ones on its boundary
+// - the cross rule gives the answers of the other POVMs again, and carries a negative weight
+// - a distribution outside the valid set crosses to a value that is not a probability
+// - the two POVMs cross into each other
+//
+// It measures how many of a grid of distributions are states.
 
 #include "sim_rational.h"
 

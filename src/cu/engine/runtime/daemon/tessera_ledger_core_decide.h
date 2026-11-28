@@ -140,9 +140,11 @@ TESSERA_CORE unsigned long long tessera_core_lendable(const TesseraLedger *ledge
 
 // One pass over the system's one queue, in order. A job draws on its parent's room first, and the rest of what it needs
 // is what must fit the device's headroom. On an open device each job that waits and fits starts. The first job that
-// does not fit holds its device. Behind it, only a job with a tracked run starts, where it ends before the first job's
-// room frees or fits in what is spare then. A device whose running jobs never free that room shuts for the pass. A job
-// that holds one device holds back no job of another device
+// does not fit holds its device.
+//
+// Behind that job, only a job with a tracked run starts. It must end before the first job's room frees, or fit in what
+// is spare then. A device whose running jobs never free that room shuts for the pass. A job that holds one device holds
+// back no job of another device
 TESSERA_CORE unsigned long long tessera_core_admit(TesseraLedger *ledger, unsigned long long now, TesseraEvent *events,
                                                    unsigned long long start_limit)
 {

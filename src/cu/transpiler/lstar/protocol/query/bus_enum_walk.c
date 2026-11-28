@@ -8,8 +8,9 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
-// the types classify_walk wrote, read into `answers`, the types, from `next` on. How many it answered in order; a
-// line out of order, past the addresses it was given, or not three numbers ends the read where it is
+// the types that classify_walk wrote, read into `answers`, the types, from `next` on. The return is how many it
+// answered in order. A line out of order, past the addresses that it got, or not three numbers ends the read where it
+// is
 static unsigned long long bus_enum_walk_read(const QueryWalk *walk, const char *lines, unsigned long long next,
                                              unsigned long long given, void *answers)
 {
@@ -50,7 +51,7 @@ static unsigned long long bus_enum_walk_read(const QueryWalk *walk, const char *
     return read;
 }
 
-// the address that ended its probe is answered by the ending: nothing on the part drove it
+// the ending is the answer of the address that ended its probe, because nothing on the part drove it
 static void bus_enum_walk_ended(const QueryWalk *walk, unsigned long long next, InterfaceFault fault, void *answers)
 {
     (void)walk;

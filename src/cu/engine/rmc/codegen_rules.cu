@@ -54,9 +54,9 @@ int asm_printer_ruleset_same(const AsmPrinterRuleset *left, const AsmPrinterRule
 
 #if (defined(__CUDACC__))
 
-// the build in one thread (asm_printer_core_ruleset_build), since each word's number depends on every word before it;
-// the build stored in device memory and left there as it ended, its pointers the device's; its per-form arrays pass a
-// kernel's parameters by far: it is not passed by value
+// the build in one thread (asm_printer_core_ruleset_build), because the number of each word depends on every word
+// before it. The build stays in device memory as it ended, with pointers of the device. Its arrays for each form far
+// pass the room for the parameters of a kernel. Thus the call does not pass it by value
 __global__ void codegen_rules_build(AsmPrinterCoreBuild *build)
 {
     if (codegen_device_thread() != 0ULL)
@@ -192,8 +192,8 @@ int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, c
         mmgr_line_put(error, "the pool cannot meet the assembly printer's lists");
         return 0;
     }
-    // the program arranged by the device as well; the host's key is not retained, and the output it names is the
-    // program's
+    // the program, arranged by the device as well. The call does not keep the key of the host, and the output that it
+    // names is that of the program
     return asm_printer_program_device(&text_rules->program, &text_rules->program.layout, error);
 }
 

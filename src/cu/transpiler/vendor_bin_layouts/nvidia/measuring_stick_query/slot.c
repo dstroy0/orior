@@ -31,9 +31,9 @@ static void msq_register_add(MsqRegisters *set, unsigned long long number)
     }
 }
 
-// The general registers the line `raw` reads an address from, added to `set`: each `[` that opens no constant bank, one
-// not after `]`, `c` or `C`, then space, then `R<number>`, and the register after it where it reads `.64`. 1 where the
-// line is an EXIT with no guard, the end of what is read
+// The general registers that the line `raw` reads an address from, added to `set`. Each is a `[` that opens no constant
+// bank, one not after `]`, `c` or `C`, then space, then `R<number>`. Then the register after it, where it reads `.64`.
+// The return is 1 where the line is an EXIT with no guard, the end of what the call reads
 static int msq_addresses_added(const char *raw, MsqRegisters *set)
 {
     // each open bracket, reached from the one before it
@@ -111,11 +111,11 @@ size_t msq_first_word(const char *text, size_t *start)
                       .other = MSQ_SPACES);
 }
 
-// The highest register the instruction `body` reaches at or past `registers`, the count its kernel allots: a pair
-// reaches the register after the one named and a quad the third after it, as does every register of an operation read
-// .WIDE, .64 or .128. Each `R<number>` with a word's edge before it and after it, past the operation, is a register. 1
-// with
-// `*reached` set, or 0 where every register it reaches lies below the count, or no count is given
+// The highest register that the instruction `body` reaches at or past `registers`, the count that its kernel allots.
+// A pair reaches the register after the one named, and a quad the third after it. Every register of an operation
+// read `.WIDE`, `.64` or `.128` does so too. Each `R<number>` with the edge of a word before it and after it, past the
+// operation, is a register. The return is 1 with `*reached` set. It is 0 where every register that it reaches lies
+// below the count, or the caller gives no count
 int msq_register_reached(const char *body, unsigned int registers, unsigned long long *reached)
 {
     if (registers == 0u)
@@ -174,8 +174,8 @@ int msq_register_reached(const char *body, unsigned int registers, unsigned long
     return found;
 }
 
-// the general registers the instruction `body` writes: its first operand where that is one, `R<number>` and a word's
-// edge, and the rest of a pair or a quad where the operation reads .WIDE, .64 or .128
+// the general registers that the instruction `body` writes: its first operand where that is one, `R<number>` and the
+// edge of a word. Then the rest of a pair or a quad, where the operation reads `.WIDE`, `.64` or `.128`
 void msq_registers_written(const char *body, MsqRegisters *set)
 {
     EMBED_CALL(memor.set, MemoriaCfg, .dst = set, .bytes = sizeof(*set), .val = 0);

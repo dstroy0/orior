@@ -35,8 +35,8 @@ unsigned int sass_text_read(const char *output, const char *kernel, char *text, 
         line[EMBED_CALL(cellul.span_not, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
                         .other = "\r")] = '\0';
         walk += length + ((walk[length] == '\n') ? 1u : 0u);
-        // a listing contains a section a function, and only the kernel's own is written back. .sectioninfo names no
-        // section, and the name it shares the front of is not a line that opens one
+        // a listing holds one section for each function, and the call writes back only that of the kernel. The line
+        // `.sectioninfo` names no section, and the name whose front it shares is not a line that opens one
         const char *const section =
             EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = line, .cap = PLATFORM_TEXT_TO_TERMINATOR,
                        .other = ".section", .other_cap = PLATFORM_TEXT_TO_TERMINATOR, .ci = EMBED_FALSE);
@@ -150,7 +150,8 @@ unsigned int sass_machine_check(const SassMachine *machine, const SassListing *l
                 differed += 1u;
                 continue;
             }
-            // the scheduler's bits are none of the text's, and the form carries whatever they were when it was seen
+            // the bits of the scheduler are none of the text, and the form carries whatever they were when the probe
+            // saw it
             const unsigned long long control = 0xfffffe0000000000ULL;
             const int same_bits = (low == instruction->low) && ((high | control) == (instruction->high | control));
             tally->same_bits += same_bits ? 1u : 0u;
@@ -162,9 +163,9 @@ unsigned int sass_machine_check(const SassMachine *machine, const SassListing *l
                 by_bytes = by_bytes || (parts.type[place] == SASS_OPERAND_LABEL) ||
                            (parts.type[place] == SASS_OPERAND_UNKNOWN);
             }
-            // a branch counts its target from where it is, and a relocated operand is not in the instruction at
-            // all: the loader puts it there, and the listing prints what the ELF specifies it will be. Neither reads
-            // back from the bytes alone. For those the bytes are all that can be filled to the listing
+            // a branch counts its target from where it is, and a relocated operand is not in the instruction at all.
+            // The loader puts it there, and the listing prints what the ELF says it will be. Neither reads back from
+            // the bytes alone. For those, the bytes are all that the call can fill to the listing
             if (by_bytes)
             {
                 tally->by_bytes += 1u;

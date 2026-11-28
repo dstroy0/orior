@@ -4,8 +4,8 @@
 #include "asm_printer_internal.h"
 #include "memoria_operor/memoria_operor.h"
 
-// the assembly printer's program, as the build stored it, encoded by keymath and arranged by key_schedule into
-// `program`'s key and layout: 1 where they are, else 0 and why on `error_message`
+// the program of the assembly printer, as the build stored it, encoded by keymath and arranged by key_schedule into
+// the key and layout of `program`. The return is 1 where they are, else 0 and why on `error_message`
 static int asm_printer_program_layout(AsmPrinterProgram *program, VerbaLinea *error_message)
 {
     EngineError error{};
@@ -40,10 +40,10 @@ static int asm_printer_program_layout(AsmPrinterProgram *program, VerbaLinea *er
     return 1;
 }
 
-// the schema checked and the scratch taken, which are the reader's, then the build: every word and part a lane the core
-// decides can be written in, the lists, the program and its tables, arranged by the core (asm_printer_core.h) the
-// device runs as well, its steps given twice the memory each time they run past it; then the program encoded and
-// positioned out
+// the schema checked and the scratch taken, which belong to the reader. Then the build: every word and part that a
+// lane which the core decides can use, the lists, the program and its tables. The core (asm_printer_core.h), which the
+// device runs as well, arranges them. Its steps get twice the memory each time that they run past it. Then the program,
+// encoded and arranged
 int asm_printer_ruleset_build(const Ruleset *rules, const TargetInfo *target, const char *header,
                               AsmPrinterRuleset *text_rules, VerbaLinea *error)
 {
@@ -176,9 +176,11 @@ static void *asm_printer_host_cell(unsigned long long count, unsigned long long 
     return platform_cell_cleared((count != 0ULL) ? count : 1ULL, size, platform_place_g_program_owner, 1);
 }
 
-// the host oracle, in the device's order: each item's records counted and arranged, each record's first lane and the
-// index arranged from the running sum of the records' lanes, the program run, and the bytes that are not 0 taken in
-// lane order
+// the host oracle, in the order of the device:
+//
+// - the records of each item, counted and arranged
+// - the first lane of each record, and the index, arranged from the sum so far of the lanes of the records
+// - the program run, and then, in lane order, each byte that is not 0
 int asm_printer_host(const AsmPrinterRuleset *text_rules, const MachineInstr *items, unsigned long long count,
                      PlatformText *text, VerbaLinea *error_message)
 {

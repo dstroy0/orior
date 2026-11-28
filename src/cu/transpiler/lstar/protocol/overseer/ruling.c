@@ -11,7 +11,7 @@
 #include "overseer_internal.h"
 #include "verba_scribo/verba_scribo.h"
 
-// the lesson of `cause` at `carrier` applying `located` stored, once: 1 where it is new
+// the lesson of `cause` at `carrier` that applies `located`, stored once. The return is 1 where it is new
 static int overseer_lesson_stored(unsigned int cause, const char *carrier, const char *located)
 {
     for (unsigned int at = 0u; at < s_lesson_count; at += 1u)
@@ -69,7 +69,7 @@ int overseer_convened(QryShared *run, const char *identity, int other_way_put, O
     const unsigned char *const conference = s_conference;
     const unsigned long long gathered = qry_member_gathered(name, s_conference, sizeof(s_conference));
     const unsigned long long conference_size = (gathered == QRY_MEMBER_UNREAD) ? 0ULL : gathered;
-    // a question no party called a conference of, one answered as blocked or halted by the line, is received by no one
+    // a question that no party called a conference of, one answered as blocked or halted by the line, goes to no one
     if ((run == NULL) || (conference_size == 0ULL))
     {
         return 0;
@@ -160,8 +160,9 @@ int overseer_convened(QryShared *run, const char *identity, int other_way_put, O
             overseer_text_added(ruling, s_cause_words[tally->votes[at].cause]);
         }
     }
-    // the side of the statement the agreed cause names: the stand-in where its own encoding or scratch is the cause or
-    // it does what the cause names, and the link's context otherwise, a statement no account gives naming neither
+    // the side of the statement that the agreed cause names. It is the stand-in where its own encoding or scratch is
+    // the cause, or it does what the cause names. Else it is the context of the link. A statement that no account
+    // gives names neither
     const int stated = (tally->located[0] != '\0') && (tally->carrier[0] != '\0');
     const unsigned int cause = ruling->cause;
     const int are_in = (cause == OVERSEER_CAUSE_INSTRUCTION) ||
@@ -234,8 +235,8 @@ int overseer_convened(QryShared *run, const char *identity, int other_way_put, O
         }
     }
     overseer_account(run, identity, "overseer", ruling->text);
-    // the conference a row of the run's table of conferences: the ruling, its accounts received, the lesson where one
-    // was taught, and its words
+    // the conference as a row of the table of conferences of the run. The row holds the `ruling`, its accounts
+    // received, the lesson where the overseer taught one, and its words
     unsigned long long ruled[2u + 8] = {
         0ULL,
         0ULL,

@@ -1,16 +1,19 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-# The scaffolding's cubins read against the vendor's own disassembler before any reaches the part: the airlock the
-# scaffolding shares with the carrier. Each cubin a list names is decoded as one raw run (nvdisasm --binary), and an
-# encoding the vendor calls illegal, which our gate's operation key passed while the operation it probes is still
-# unlearned, is withheld from the part. The kernel the scaffolding writes is a real listing with one slot instruction varied,
-# so a legal pattern decodes whole and only an illegal slot stops the reader. Nothing here runs on the part.
+# The cubins of the scaffolding, read against the own disassembler of the vendor before any reaches the part. This is
+# the airlock that the scaffolding shares with the carrier. The script decodes each cubin that a list names as one raw
+# run (`nvdisasm --binary`). It keeps from the part an encoding that the vendor calls illegal, which the operation key
+# of our gate passed while the operation that it probes is still unlearned.
+#
+# The kernel that the scaffolding writes is a real listing with one slot instruction varied. Thus a legal pattern
+# decodes whole, and only an illegal slot stops the reader. Nothing here runs on the part.
 #
 #     interface_sass_withheld.py <list> <nvdisasm> <architecture> <folder> <withheld>
 #
-# The list is a line a cubin, `<cubin-path> <kernel>` (interface_sass_run's own list); a `skip` line is passed over.
-# <withheld> is the feedback interface_sass_run reads next (--gated): a line `<low> <high>` an encoding to hold off the part.
-# Exits 1 where the vendor holds one or more, 0 where none, 2 where a tool or file was not reached.
+# The list has one line for each cubin, `<cubin-path> <kernel>`, the own list of interface_sass_run. The script passes
+# over a `skip` line. `<withheld>` is the feedback that interface_sass_run reads next (--gated), with one line
+# `<low> <high>` for each encoding to keep off the part. Exit 1 where the vendor holds one or more, 0 where none, and
+# 2 where the script did not reach a tool or a file.
 import os, re, struct, subprocess, sys
 
 # an executable section of an ELF, by the flag its header carries
@@ -58,9 +61,9 @@ class Reader:
 
 
 def illegal_indices(reader, words):
-    """the indices of `words`, each a 16-byte encoding, the vendor calls illegal: read as one raw run and split past
-    each stop, since the reader stops at the first illegal encoding and names its address, every encoding before it
-    read as legal"""
+    """the indices of `words`, each a 16-byte encoding, that the vendor calls illegal. The call reads them as one raw
+    run, and splits it past each stop. The reader stops at the first illegal encoding and names its address, with
+    every encoding before it read as legal"""
     withheld = set()
     segments = [(0, words)]
     while segments:
@@ -99,7 +102,8 @@ def main(argv):
         return 2
     os.makedirs(folder, exist_ok=True)
     reader = Reader(nvdisasm, architecture, folder)
-    # every cubin's encodings in one order, each word remembered by its place: an illegal one is withheld by its encoding
+    # every cubin's encodings in one order, each word remembered by its place: an illegal one is withheld by its
+    # encoding
     words = []
     cubins = 0
     with open(listing) as lines:

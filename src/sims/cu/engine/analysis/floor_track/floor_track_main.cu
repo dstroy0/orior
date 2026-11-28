@@ -10,9 +10,12 @@ static const unsigned int s_track_deltas[TRACK_DELTAS] = {0u, 4u, 8u, 16u, 32u, 
 
 static const unsigned int s_track_patch_cells[TRACK_PATCHES] = {1u, TRACK_PATCH_MAX};
 
-// one scene: render its frames, take every frame's floor 2 from the engine and copy it to the host, arrange the planes,
-// build a query for every body, step of `stride` frames, patch and tolerance, run them, and grade them by the
-// bodies' paths
+// one scene:
+//
+// - render its frames, take the floor 2 of every frame from the engine, and copy it to the host
+// - arrange the planes
+// - build a query for every body, step of `stride` frames, patch and tolerance
+// - run them, and grade them by the paths of the bodies
 static int track_scene(SimResults *results, const char *name, const SimScene *scene, const SimCamera *camera,
                        unsigned long long stride, TrackHost *host, TrackDevice *device,
                        TrackSetting settings[TRACK_PATCHES][TRACK_DELTAS], unsigned int deltas)
@@ -103,8 +106,8 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
                     query->frame = (unsigned int)(frame + stride);
                     for (unsigned int cell = 0u; cell < TRACK_PATCH_MAX; cell += 1u)
                     {
-                        // the center first, then the other 26 in order; each digit of the order is 0, 1 or 2:
-                        // every step is -1, 0 or 1 once the digit is taken signed
+                        // the center first, then the other 26 in order. Each digit of the order is 0, 1 or 2,
+                        // and every step is -1, 0 or 1 after the call takes the digit as signed
                         const unsigned int order = (cell == 0u) ? 13u : ((cell <= 13u) ? (cell - 1u) : cell);
                         const int step[SIM_AXES] = {(int)(order / 9u) - 1, (int)((order / 3u) % 3u) - 1,
                                                     (int)(order % 3u) - 1};
@@ -378,7 +381,7 @@ int program_main(int count, char **arguments)
     EMBED_CALL(memor.set, MemoriaCfg, .dst = floor_step_settings, .bytes = sizeof(floor_step_settings), .val = 0);
     ok = ok && track_scene(&results, "camera law, a voxel a frame", &scene, &camera, (unsigned long long)TRACK_CELL,
                            &host, &device, floor_step_settings, TRACK_DELTAS);
-    // the same bodies without noise, ramp or pattern: what the floor's time step leaves once the noise is gone
+    // the same bodies with no noise, ramp or pattern: what the time step of the floor leaves with no noise
     SimScene quiet = scene;
     quiet.ramp = 0ULL;
     TrackSetting quiet_settings[TRACK_PATCHES][TRACK_DELTAS];

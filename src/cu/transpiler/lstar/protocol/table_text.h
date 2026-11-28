@@ -9,7 +9,7 @@ extern "C"
 {
 #endif
 
-// the table of texts, the name its rows are appended under
+// the table of texts, the name that its rows go under
 #define TABLE_TEXTS "texts"
 
 // the table of the files the run's programs wrote (files.oracle.tsv)
@@ -18,8 +18,8 @@ extern "C"
 // the table of links, each a relation between rows that one column of a row cannot contain (links.oracle.tsv)
 #define TABLE_LINKS "links"
 
-// a file's bytes, the record of a file written whole, written from the rows of a table keyed to the head row of the
-// file's records
+// the bytes of a file, the record of a file written whole. The writer writes it from the rows of a table keyed to the
+// head row of the records of the file
 #define TABLE_LINK_WRITTEN_FROM 0x1u
 
 // the max columns a row contains
@@ -34,9 +34,9 @@ extern "C"
 // the folder of the k-files' oracles, each `<type>/<type>.oracle.tsv` in it, from the top of the tree
 #define TABLE_KFILE_ORACLES "includes/file_defs"
 
-    // the number of the `length` bytes at `bytes` in the table of texts: their 64-bit FNV-1a hash, 1 for a hash of
-    // 0; the text appended as a row of the table the first time this process numbers it. An empty text has no
-    // number: 0, the number a row gives where it contains no text, and no row
+    // the number of the `length` bytes at `bytes` in the table of texts: their 64-bit FNV-1a hash, and 1 for a hash
+    // of 0. The call adds the text as a row of the table the first time that this process numbers it. An empty text has
+    // no number. The return is 0, the number that a row gives where it holds no text, and the call adds no row
     unsigned long long table_text(const void *bytes, unsigned long long length);
 
 #ifdef __cplusplus

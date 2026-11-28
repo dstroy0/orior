@@ -1,18 +1,22 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The record machine's lane as VHDL checked against the host oracle word for word (engine_table.md item 11(f), VHDL a
-// language of the register lane). record_test's programs, drawn from the same stream in the same order, are
-// encoded, arranged and run by cycle_record_run_host over their first VHDL_TEST_LANES lanes. VhdlTarget
-// (codegen/rulesets/vhdl.krs) writes each as VHDL, and GHDL analyzes and runs it under record_vhdl_bench.vhd. The bench
-// reads a memory image that the test arranges as the device arranges its launch (record_image.h). The emitted
-// cycle_program_unit runs the lanes as the device's resident kernel runs them, and the test compares its records with
-// the host's word for word. Synthesis takes the program unit whole. The lines give the same input digests as the host
-// test's. A program whose lane the code generator does not write counts as not supported, and neither passes nor
-// fails.
-// Where the caller gives a construction set, the set refines each program's lane (engine_table M23). The loop splits
-// the lane at the budgets that it proposes, checks each schedule against the host, and keeps the least cost among those
-// that pass.
+// The lane of the record machine as VHDL, checked against the host oracle word for word. That is engine_table.md item
+// 11(f), with VHDL as a language of the register lane. The test draws the programs of record_test from the same stream
+// in the same order. The call cycle_record_run_host encodes, arranges and runs them over their first VHDL_TEST_LANES
+// lanes.
+//
+// VhdlTarget (codegen/rulesets/vhdl.krs) writes each as VHDL, and GHDL analyzes and runs it under
+// record_vhdl_bench.vhd. The bench reads a memory image that the test arranges as the device arranges its launch
+// (record_image.h). The emitted cycle_program_unit runs the lanes as the resident kernel of the device runs them. The
+// test compares its records with those of the host, word for word.
+//
+// Synthesis takes the program unit whole. The lines give the same input digests as those of the host test. A program
+// whose lane the code generator does not write counts as not supported, and neither passes nor fails.
+//
+// Where the caller gives a construction set, the set refines the lane of each program (engine_table M23). The loop
+// splits the lane at the budgets that it proposes, and checks each schedule against the host. It keeps the least cost
+// among those that pass.
 //
 // The test runs in three stages. First it writes each schedule of each program, a job, into a folder of its own under
 // the work folder. Then the platform's workers run GHDL and Yosys on every job at once, one worker for each processor.
@@ -468,7 +472,7 @@ static void vhdl_rounds_written(const VhdlPlace *place, unsigned int index, Vhdl
     platform_text_ended(&scheduled);
 }
 
-// what each run of a program is given: the results and the place
+// what each run of a program gets: the results and the place
 struct VhdlRun
 {
     VhdlResults *results;

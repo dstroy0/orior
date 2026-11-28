@@ -108,17 +108,17 @@ extern "C"
         ENGINE_RECORD_COMPARE = 8,
         ENGINE_RECORD_FIELD_SIGNED = 9,
         ENGINE_RECORD_TABLE = 10,
-        // the exact integer's division as register operations: the quotient rounds toward zero and the remainder
-        // carries the numerator's sign (left = quotient . right + remainder); the gcd is never negative; the exact
-        // quotient is the multiply-and-mask division, and a remainder errors on the lane. A zero divisor errors on the
-        // lane.
+        // the division of the exact integer as register operations. The quotient rounds toward zero, and the
+        // remainder carries the sign of the numerator (`left = quotient * right + remainder`). The gcd is never
+        // negative. The exact quotient is the multiply-and-mask division, and a remainder gives an error on the lane.
+        // A zero divisor gives an error on the lane.
         ENGINE_RECORD_QUOTIENT = 11,
         ENGINE_RECORD_REMAINDER = 12,
         ENGINE_RECORD_GCD = 13,
         ENGINE_RECORD_EXACT_QUOTIENT = 14,
-        // the bitwise operations on the exact integers' two's complement, as though each were sign-extended without
-        // end: the xor is negative where exactly one operand is, the and where both are. Each is one bit wider than its
-        // wider operand, since -1 xor (2^n - 1) is -2^n.
+        // the bitwise operations on the two's complement of the exact integers, as if each had a sign extension with
+        // no end. The xor is negative where exactly one operand is, and the and where both are. Each is one bit wider
+        // than its wider operand, because `-1 xor (2^n - 1)` is `-2^n`.
         ENGINE_RECORD_XOR = 15,
         ENGINE_RECORD_AND = 16,
         // the two's complement wrap of the left register to `right` bits, ENGINE_RECORD_WRAP_BITS_LEAST or more: the
@@ -133,10 +133,10 @@ extern "C"
 
 #define ENGINE_GOLDEN_RUNGS 92u
 
-// The register file: ENGINE_RECORD_LIMBS_MAX limbs of live registers, each register's sign stored beside it. It is
-// the record machine's one binding resource. The step count is the scheduler's n and has no bound of its own: floors
-// of steps stack in one step table, register reuse frees a register after its last reader, and a lane runs the whole
-// stack in one launch.
+// The register file: ENGINE_RECORD_LIMBS_MAX limbs of live registers, with the sign of each register stored beside
+// it. It is the only resource of the record machine that binds. The step count is the n of the scheduler, and has no
+// bound of its own. Floors of steps stack in one step table, and the reuse of registers frees a register after its
+// last reader. A lane runs the whole stack in one launch.
 #define ENGINE_RECORD_LIMBS_MAX 256u
 
 // A lookup table's index is the low bits of one register. It fits a single limb.
@@ -158,10 +158,10 @@ extern "C"
         unsigned int member;
     } EngineRecordStep;
 
-    // One lookup table: the low `index_bits` of the source register select one of `1 << index_bits`
-    // entries, each `out_bits` wide, arranged as (1 << index_bits) rows of ((out_bits + 31) / 32) limbs.
-    // This is the engine's nonlinear edge (kolmogorov_arnold.md): a general one-variable function over a
-    // lane's alphabet, built once and composed with another table by reading one through the other.
+    // One lookup table: the low `index_bits` of the source register select one of `1 << index_bits` entries, each
+    // `out_bits` wide, arranged as `(1 << index_bits)` rows of `((out_bits + 31) / 32)` limbs. This is the nonlinear
+    // edge of the engine (kolmogorov_arnold.md): a general one-variable function over the alphabet of a lane. The
+    // engine builds it once, and composes it with another table by a read of one through the other.
     typedef struct
     {
         unsigned int index_bits;

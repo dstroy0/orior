@@ -90,8 +90,9 @@ __device__ static inline void cycle_record_negate(unsigned int *value, unsigned 
     value[limbs - 1u] = (left < 32u) ? (value[limbs - 1u] & ((1u << left) - 1u)) : value[limbs - 1u];
 }
 
-// limb `at` of a register's two's complement: the magnitude's limb, or its complement where the sign is negative,
-// with `carry` running the negation's one up the limbs. It starts at 1 and the limbs are taken from the lowest up
+// limb `at` of the two's complement of a register: the limb of the magnitude, or its complement where the sign is
+// negative. `carry` takes the one of the negation up the limbs. It starts at 1, and the call takes the limbs from the
+// lowest up
 __device__ static inline unsigned int cycle_record_complement(const unsigned int *value, unsigned int limbs,
                                                               unsigned int at, int sign, unsigned long long *carry)
 {
@@ -105,10 +106,12 @@ __device__ static inline unsigned int cycle_record_complement(const unsigned int
     return (unsigned int)(total & 0xFFFFFFFFULL);
 }
 
-// the xor or the and of two registers' two's complements over `limbs`, read back as a magnitude; returns its sign.
-// The sign is the operands': the xor is negative where exactly one is, the and where both are. A negative result has
-// the extra bit over the wider operand in its limbs. Its low limbs read back to the magnitude; a result keymath
-// narrowed (an and with a register never negative, an xor of two) is never negative and is its low limbs.
+// the xor or the and of the two's complements of two registers over `limbs`, read back as a magnitude. The return is
+// its sign, which comes from the operands: the xor is negative where exactly one is, and the and where both are.
+//
+// A negative result has the extra bit over the wider operand in its limbs. Its low limbs read back to the magnitude. A
+// result that keymath narrowed is never negative, and is its low limbs. That is an and with a register that is never
+// negative, or an xor of two.
 __device__ static inline int cycle_record_bitwise(unsigned int operation, const unsigned int *left,
                                                   unsigned int left_limbs, int left_sign, const unsigned int *right,
                                                   unsigned int right_limbs, int right_sign, unsigned int *value,
@@ -133,9 +136,10 @@ __device__ static inline int cycle_record_bitwise(unsigned int operation, const 
     return (cycle_record_is_zero(value, limbs) != 0) ? 0 : ((negative != 0) ? -1 : 1);
 }
 
-// a register wrapped to `bits` of two's complement, read back signed as a magnitude over `limbs`; returns its sign.
-// keymath gave the step the fewer of the source's bits and the wrap's. A wrap wider than the step's 32 limbs is a
-// source already inside the signed range, passed through, and any other step contains exactly the wrap's limbs.
+// a register wrapped to `bits` of two's complement, read back signed as a magnitude over `limbs`. The return is its
+// sign. The encoder keymath gave the step the fewer of the bits of the source and of the wrap. A wrap wider than the
+// 32 limbs of the step is a source already inside the signed range, passed through. Any other step holds exactly
+// the limbs of the wrap.
 __device__ static inline int cycle_record_wrap(const unsigned int *source, unsigned int source_limbs, int source_sign,
                                                unsigned int bits, unsigned int *value, unsigned int limbs)
 {
@@ -274,8 +278,8 @@ __device__ static inline void cycle_record_shift_down(const unsigned int *value,
     }
 }
 
-// Knuth's Algorithm D on the magnitudes: top = quotient . bottom + rest, each output limited to its own limbs and
-// either one left out when NULL; 0 for a zero divisor. scratch contains 2 * WIDE + 2 limbs.
+// Algorithm D of Knuth on the magnitudes: `top = quotient * bottom + rest`, with each output limited to its own limbs,
+// and either one left out when NULL. The return is 0 for a zero divisor. The scratch holds `2 * WIDE + 2` limbs.
 template <unsigned int WIDE>
 __device__ static int cycle_record_divide(const unsigned int *top, unsigned int top_limbs, const unsigned int *bottom,
                                           unsigned int bottom_limbs, unsigned int *quotient,

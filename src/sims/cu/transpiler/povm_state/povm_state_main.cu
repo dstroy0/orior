@@ -83,7 +83,7 @@ static void povm_frame_run(SimResults *results, PovmFrame *frame, const PovmStat
     unsigned int mixed = 0u;
     unsigned int inside = 0u;
     unsigned int crossings = 0u;
-    // an exact number is four exact integers. The table is stored statically. It is not on the stack
+    // an exact number is four exact integers. The table has static storage, and is not on the stack
     static PovmNumber equator_answer[POVM_STATES_MAX][POVM_OUTCOMES];
     unsigned int equators = 0u;
     unsigned int same_magnitudes = 0u;
@@ -294,8 +294,8 @@ int program_main(int argc, char **argv)
     povm_frame_run(&results, &rational, state, states);
     povm_frame_run(&results, &sic, state, states);
 
-    // the two complete POVMs cross into each other: the SIC's answers give the state, which gives the rational
-    // POVM's answers, and they equal the rational POVM measured directly
+    // the two complete POVMs cross into each other. The answers of the SIC give the state, which gives the answers of
+    // the rational POVM. They equal the rational POVM measured directly
     unsigned int crossed = 0u;
     for (unsigned int at = 0u; at < states; at += 1u)
     {

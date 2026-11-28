@@ -70,8 +70,8 @@ int program_main(int count, char **arguments)
     submit.grace_microseconds = RUN_RUNNING_MICROSECONDS;
     submit.sweep_microseconds = RUN_SWEEP_MICROSECONDS;
     submit.idle_microseconds = RUN_IDLE_MICROSECONDS;
-    // processors named past the signum's tracked peak are not reserved for requesting: the job waits only for capacity.
-    // It still reserves the tracked peak where that is more than it named
+    // a request does not reserve the processors that it names past the tracked peak of the signum. The job waits only
+    // for capacity. It still reserves the tracked peak where that is more than it named
     submit.override_budget = 1u;
     submit.daemon_path = daemon;
     submit.error = &error;
@@ -124,8 +124,8 @@ int program_main(int count, char **arguments)
     PlatformProgram child;
     EMBED_CALL(memor.set, MemoriaCfg, .dst = &child, .bytes = sizeof(child), .val = 0);
     int code = RUN_NOT_STARTED;
-    // the whole processors of the reservation, and never none: a job reserves its tracked peak where that is more than
-    // it named, and the count of whole ones in it is what the command may run on
+    // the whole processors of the reservation, and never none. A job reserves its tracked peak where that is more than
+    // it named. The command can run on the count of whole ones in it
     const unsigned long long whole = ticket.granted / TESSERA_HOST_PROCESSOR;
     char job_text[24];
     VerbaLinea job_line = mmgr_line_over(job_text, sizeof(job_text));

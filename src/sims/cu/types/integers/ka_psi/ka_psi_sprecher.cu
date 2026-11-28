@@ -81,9 +81,12 @@ void psi_scale_open(const PsiCase *psi_case, PsiScale *scale)
     }
 }
 
-// The scale step in numerators over D_L = 2^L . gamma^beta(L): (value, plus) at level L - 1 are raised by
-// 2 gamma^(beta(L) - beta(L - 1)); a regular digit adds i units of 2^L; the carried midpoint is
-// (value + plus) gamma^(beta(L) - beta(L - 1)) + tilt . 2^(L - 1), tilt being gamma - 2 (2.9) or gamma - 1 (2.7)
+// The scale step in numerators over `D_L = 2^L * gamma^beta(L)`:
+//
+// - `(value, plus)` at level `L - 1` go up by `2 gamma^(beta(L) - beta(L - 1))`
+// - a regular digit adds i units of `2^L`
+// - the carried midpoint is `(value + plus) gamma^(beta(L) - beta(L - 1)) + tilt * 2^(L - 1)`, with tilt equal to
+//   `gamma - 2` (2.9) or `gamma - 1` (2.7)
 static void psi_pair_numerator(const PsiCase *psi_case, const PsiScale *scale, const unsigned char *digit,
                                unsigned int levels, unsigned long long tilt, OriorExactInteger *value,
                                OriorExactInteger *plus)
@@ -128,8 +131,8 @@ static void psi_pair_numerator(const PsiCase *psi_case, const PsiScale *scale, c
     }
 }
 
-// level L from level L - 1, point by point, as the paper's recursion reads: a regular digit adds to the prefix's
-// value, and the last digit takes the prefix and its successor's average plus the carried units
+// level L from level `L - 1`, point by point, as the recursion of the paper reads. A regular digit adds to the value
+// of the prefix. The last digit takes the average of the prefix and of its successor, plus the carried units
 void psi_table_next(const PsiCase *psi_case, const PsiScale *scale, unsigned int level, unsigned long long tilt,
                     const OriorExactInteger *below, unsigned long long below_count, OriorExactInteger *table)
 {

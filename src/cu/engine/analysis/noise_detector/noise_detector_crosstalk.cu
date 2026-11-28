@@ -4,9 +4,9 @@
 #include "memoria_operor/memoria_operor.h"
 #include "noise_detector_internal.h"
 
-// One thread a voxel. Along y and along x, where the voxel three steps on is inside the view, every frame pair's
-// difference is squared and multiplied by the differences one, two and three steps on, each product's sign preserved by
-// summing the raised and lowered products apart.
+// One thread for each voxel. Along y and along x, where the voxel three steps on is inside the view, the kernel squares
+// the difference of every frame pair. It multiplies that by the differences one, two and three steps on. It keeps the
+// sign of each product by a sum of the raised and lowered products apart.
 __global__ static void noise_crosstalk_kernel(const unsigned short *lanes, unsigned long long frames,
                                               unsigned long long depth, unsigned long long height,
                                               unsigned long long width, unsigned long long *sums)

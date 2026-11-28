@@ -2870,7 +2870,7 @@ down	3	shr(nand(nor(w0, w0), nor(w0, w0)), w1)	-	0
 down	3	shr(w0, sub(w1, shl(ones, ones)))	-	0
 down	3	shr(bitxor(ones, nand(w0, w0)), w1)	-	0
 product	0	-	-	0
-who 01ed0b8901ed000018dec80268c27cdc
+who 01ed16b700000000000098e93be112e4
 
 # the operations that the system writes on the FMA pipe in place of the integer pipe. Each is the
 # operation, its writing there, and the lane that it moves in. The integer pipe of that lane

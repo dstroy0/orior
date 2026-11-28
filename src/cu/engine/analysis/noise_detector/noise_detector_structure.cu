@@ -12,8 +12,9 @@ __device__ static void noise_wide_scaled(unsigned long long low, unsigned long l
     scaled[1] = __umul64hi(low, factor) + (high * factor);
 }
 
-// One thread a voxel and its x neighbor: their totals over the frames give the pair's level bin, M and q, then at
-// each lag the pair's frame pairs and their y summed, and the nine sums added to the lag and bin once.
+// One thread for each voxel and its x neighbor. Their totals over the frames give the level bin, M and q of the pair.
+// Then at each lag, the kernel sums the frame pairs of the pair and their y. It adds the nine sums to the lag and bin
+// once.
 __global__ static void noise_structure_kernel(const unsigned short *lanes, unsigned long long frames,
                                               unsigned long long voxels, unsigned long long width,
                                               unsigned long long *sums)
@@ -46,8 +47,8 @@ __global__ static void noise_structure_kernel(const unsigned short *lanes, unsig
             continue;
         }
         const unsigned long long apart = (own > beside) ? (own - beside) : (beside - own);
-        // apart is at max 65535 T, below 2^32 for the frames the bound admits. Q fits one word; M is at max twice
-        // that, and each product below is limited to 128 bits as its low and high words
+        // apart is at max `65535 T`, below `2^32` for the frames that the bound admits. Q fits one word, and M is at
+        // max twice that. Each product below stays inside 128 bits, as its low and high words
         const unsigned long long along = apart * apart;
         const unsigned long long level = own + beside;
         const unsigned long long along_square[2] = {along * along, __umul64hi(along, along)};
@@ -185,7 +186,7 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
         platform_cell_released(sums, (unsigned int)platform_place_g_engine_owner);
         return NOISE_DETECTOR_ERROR;
     }
-    // the measurement's 28 exact integers are stored off the stack
+    // the call stores the 28 exact integers of the measurement off the stack
     NoiseStructureMeasurement *const read = (NoiseStructureMeasurement *)platform_cell_taken(
         (unsigned long long)(sizeof(NoiseStructureMeasurement)), (unsigned int)platform_place_g_engine_owner, 0);
     if (!NOISE_DETECTOR_CHECK(read != NULL, &read, error, ENGINE_ERROR_RESOURCE))

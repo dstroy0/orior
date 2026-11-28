@@ -31,8 +31,8 @@ SassListing s_sass_resident;
 SassListing s_sass_form;
 static char s_sass_texts[SASS_ENCODINGS][SASS_TEXT];
 
-// `name`.cubin in the folder listed with its encodings into `listing`, the listing written to `name`.sass, and the
-// whole ELF read by cuobjdump -elf into `name`.elf: 1, or 0 with the reason printed
+// `name`.cubin in the folder, listed with its encodings into `listing`, with the listing written to `name`.sass. Then
+// the whole ELF, read by `cuobjdump -elf` into `name`.elf. The return is 1, or 0 with the reason printed
 int sass_list(SassProbe *probe, const char *name, SassListing *listing)
 {
     char cubin[1024];
@@ -206,7 +206,7 @@ void sass_form_print(const char *name, const SassListing *form, const SassListin
     }
 }
 
-// what turning one bit over did to the base's text: its category and an example of the change
+// what the turn of one bit did to the text of the base: its category, and an example of the change
 static void sass_bit_read(const SassParts *base, const char *base_text, const char *text, char *category, char *example)
 {
     SassParts parts;
@@ -314,8 +314,9 @@ static void sass_bit_read(const SassParts *base, const char *base_text, const ch
     }
 }
 
-// the operation's 128 bits turned over one at a time and decoded: each run of bits of one category printed, and each
-// bit's reading written to opcode_<key>.bits in the folder. 1, or 0 where the disassembler failed
+// the 128 bits of the operation, turned over one at a time and decoded. The call prints each run of bits of one
+// category, and writes the reading of each bit to `opcode_<key>.bits` in the folder. The return is 1, or 0 where the
+// disassembler failed
 int sass_fields(SassProbe *probe, const SassOperation *operation)
 {
     unsigned long long low[SASS_ENCODINGS];

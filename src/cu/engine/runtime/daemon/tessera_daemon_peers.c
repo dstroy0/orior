@@ -273,8 +273,8 @@ int daemon_arguments(int count, char **arguments, unsigned long long *idle)
 
 int daemon_socket_passed(void)
 {
-    // systemd passes one listening socket over as fd 3 and names this process as its receiver. A system with no
-    // systemd sets neither variable, and the answer is then 0
+    // systemd passes one socket that listens over as fd 3, and names this process as its receiver. A system with no
+    // systemd sets neither variable, and then the answer is 0
     char listen_pid_text[PLATFORM_ENVIRONMENT_BYTES];
     const char *const listen_pid =
         (platform_environment("LISTEN_PID", listen_pid_text, sizeof(listen_pid_text)) != 0ULL) ? listen_pid_text : NULL;
@@ -291,8 +291,8 @@ int daemon_socket_passed(void)
 int daemon_error(void)
 {
 #if !defined(_WIN32)
-    // the connections that made systemd start this daemon wait on its socket: each is closed unanswered: its
-    // client errors and systemd has none left to start the daemon again for
+    // the connections that made systemd start this daemon wait on its socket. The call closes each with no answer.
+    // Its client gives an error, and systemd has none left to start the daemon again for
     if (daemon_socket_passed())
     {
         const int flags = fcntl(3, F_GETFL);

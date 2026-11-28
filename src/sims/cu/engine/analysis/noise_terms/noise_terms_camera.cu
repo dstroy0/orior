@@ -43,9 +43,10 @@ int terms_render(SimResults *results, const SimScene *scene, const SimCamera *ca
     return ok && (clipped == 0ULL);
 }
 
-// The lines' eight measurements against what the planted row, column and plane variances predict. Each offset of
-// variance v a frame puts 2 v into the frame difference, whose independent variance is 2 V: the whole-plane ratios
-// read 1000 + 1000 L v / V, L the voxels sharing it, and the static measurements 1000 v / V.
+// The eight measurements of the lines against what the planted row, column and plane variances predict. Each offset
+// of variance v for each frame puts `2 v` into the frame difference, whose independent variance is `2 V`. The
+// whole-plane ratios read `1000 + 1000 L v / V`, with L the voxels that share it. The static measurements read
+// `1000 v / V`.
 void terms_lines(SimResults *results, const unsigned short *lanes, unsigned long long row_square,
                  unsigned long long column_square, unsigned long long plane_square)
 {
@@ -101,9 +102,10 @@ static unsigned long long terms_crossings(unsigned long long lag, unsigned int o
     return crossed;
 }
 
-// The structure function's measurements against the plant. At lag k over n_k pairs, the frame difference's mean square
-// is 2 V plus, for each octave, 2 f times the share of pairs whose block changes; so D(k) n_k is proportional to
-// V n_k + f C(k), C(k) counting the pairs that cross a block over every octave. Both routes read the same ratio.
+// The measurements of the structure function against the plant. At lag k over n_k pairs, the mean square of the frame
+// difference is `2 V`. Each octave adds `2 f` times the share of pairs whose block changes. Thus `D(k) n_k` is
+// proportional to `V n_k + f C(k)`, with `C(k)` the count of the pairs that cross a block over every octave. Both
+// routes read the same ratio.
 void terms_flicker(SimResults *results, const unsigned short *lanes, unsigned long long flicker_square,
                    unsigned int octaves)
 {
@@ -142,8 +144,8 @@ void terms_flicker(SimResults *results, const unsigned short *lanes, unsigned lo
     }
 }
 
-// The neighbor pass against the plant. A mix of neighboring planes shares no draw between planes two or more apart.
-// Every radius past the first along z reads 0 in the null and in the mix alike.
+// The neighbor pass against the plant. A mix of planes next to each other shares no draw between planes two or more
+// apart. Every radius past the first along z reads 0 in the null and in the mix alike.
 void terms_neighbors(SimResults *results, const unsigned short *lanes, long long expected_z)
 {
     EngineError error;
@@ -167,10 +169,10 @@ void terms_neighbors(SimResults *results, const unsigned short *lanes, long long
     }
 }
 
-// The shot law read back by the moment pass. At S electrons with the read draw's variance r^2 (symmetric: third
-// cumulant 0, fourth -r^2/2), a Poisson shot gives k2 = S + r^2, k3 = S and k4 = S - r^2/2, and the symmetric shot
-// gives k2 = S + r^2, k3 = 0 and k4 = -S/2 - r^2/2. Each tolerance is about 5 standard errors of the mean over the
-// static blocks of 5 frames.
+// The shot law read back by the moment pass. At S electrons, with the variance `r^2` of the read draw (symmetric:
+// third cumulant 0, fourth `-r^2/2`), a Poisson shot gives `k2 = S + r^2`, `k3 = S` and `k4 = S - r^2/2`. The
+// symmetric shot gives `k2 = S + r^2`, `k3 = 0` and `k4 = -S/2 - r^2/2`. Each tolerance is about 5 standard errors of
+// the mean over the static blocks of 5 frames.
 void terms_shot_law(SimResults *results, const unsigned short *lanes, unsigned long long law)
 {
     EngineError error;

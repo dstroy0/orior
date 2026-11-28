@@ -110,8 +110,8 @@ CODEGEN_CORE unsigned int asm_printer_core_program(AsmPrinterCoreBuild *build)
         }
         else
         {
-            // the digit at `offset` from the left is the number over ten to the digits left after it, modulo ten; a
-            // place outside the atom reads some power, never 0, and its character is not taken
+            // the digit at `offset` from the left is the number over ten to the digits left after it, modulo ten. A
+            // place outside the atom reads some power, never 0, and the call does not take its character
             const unsigned int placeholder = placeholder_of[atom];
             const unsigned int last =
                 asm_printer_core_step(build, ENGINE_RECORD_DIFFERENCE, digits[placeholder], build->one);
@@ -129,8 +129,8 @@ CODEGEN_CORE unsigned int asm_printer_core_program(AsmPrinterCoreBuild *build)
     return asm_printer_core_step(build, ENGINE_RECORD_TABLE, byte, ASM_PRINTER_TABLE_BYTE);
 }
 
-// the tables arranged from the words and the parts, each row a word, each table's rows a power of two: 1 where each
-// fits its capacity, else 0 with the build left full
+// the tables arranged from the words and the parts, each row a word, with the rows of each table a power of two. The
+// return is 1 where each fits its capacity, else 0 with the build left full
 CODEGEN_CORE int asm_printer_core_tables(AsmPrinterCoreBuild *build)
 {
     const unsigned int part_bits =
@@ -207,10 +207,15 @@ CODEGEN_CORE int asm_printer_core_ended(AsmPrinterCoreBuild *build, unsigned int
     return 0;
 }
 
-// Every word and part a lane the core decides can be written in, arranged before any lane is: each form's parts from
-// its pieces, its placeholders four to a part and one part for a form of none, each bank's words around its number,
-// each stored register's word, the minus, the target's hash and the header, whole; then the program, its fields and its
-// tables. 1 where it is arranged, else 0 and how it ended in `end`, ASM_PRINTER_CORE_FULL where a capacity was short
+// Every word and part that a lane which the core decides can use, arranged before the first lane:
+//
+// - the parts of each form from its pieces, its placeholders four to a part, and one part for a form of none
+// - the words of each bank around its number, and the word of each stored register
+// - the minus, the hash of the target, and the header, whole
+// - then the program, its fields and its tables
+//
+// The return is 1 where the call arranged it, else 0, with how it ended in `end`. That is ASM_PRINTER_CORE_FULL where a
+// capacity was short
 CODEGEN_CORE int asm_printer_core_ruleset_build(AsmPrinterCoreBuild *build)
 {
     const AsmPrinterCoreRules *const rules = &build->rules;

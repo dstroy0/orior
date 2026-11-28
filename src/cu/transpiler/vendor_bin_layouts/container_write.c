@@ -19,8 +19,8 @@ static unsigned long long rounded(unsigned long long at, unsigned long long alig
     return ((align > 1ULL) && ((at % align) != 0ULL)) ? (at + (align - (at % align))) : at;
 }
 
-// The part's attributes written with the endings this code carries, into `written`; its size, or 0 where the section
-// carries no ending attribute and nothing was written
+// The attributes of the part, written with the exits that this code carries, into `written`. The return is its size, or
+// 0 where the section carries no exit attribute (`attribute_exits`) and the call wrote nothing
 static unsigned long long attributes_written(const Places *places, const unsigned char *bytes, unsigned long long size,
                                              const unsigned int *exits, unsigned int exit_count, unsigned char *written,
                                              unsigned long long room)
@@ -30,9 +30,9 @@ static unsigned long long attributes_written(const Places *places, const unsigne
         container_attribute_of(places, bytes, size, places->attribute_exits, &value_size);
     if (found == NULL)
     {
-        // A section with no ending attribute belongs to something the target calls and returns from instead of to
-        // something it enters: an entry ends where the container specifies it ends, and the other ends on its own.
-        // Carrying the section over untouched is right for that and only for that
+        // A section with no exit attribute belongs to something that the target calls and returns from, not to
+        // something that it enters. An entry ends where the container says it ends, and the other ends on its own. To
+        // carry the section over untouched is right for that case alone
         if (exit_count != 0u)
         {
             return 0ULL;
@@ -147,7 +147,8 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
         section_list[index].type = container_value_read(&pattern[at + places.section_type], places.section_type_width);
         section_list[index].goes_at =
             container_value_read(&pattern[at + places.section_offset], places.section_offset_width);
-        // a section that takes no bytes in the file is arranged at no length and retains the size its header gives
+        // the call arranges a section that takes no bytes in the file at no length, and it keeps the size that its
+        // header gives
         const int takes_bytes = container_section_takes_bytes(&places, pattern, at, index);
         section_list[index].bytes = takes_bytes ? &pattern[section_list[index].goes_at] : pattern;
         section_list[index].size =
@@ -224,7 +225,7 @@ int container_parts_write(const ContainerParts *args, unsigned char *written, un
                                &pattern[section_list[place[part].code_index].was_at + places.section_info],
                                places.section_info_width) &
                            places.registers_symbol_mask);
-        // the symbol's size is written inside the symbol table
+        // the call writes the size of the symbol inside the symbol table
         found = (((unsigned long long)place[part].symbol * places.symbol_bytes) + places.symbol_size +
                  places.symbol_size_width) <= section_list[symbols].size;
         if (!found)

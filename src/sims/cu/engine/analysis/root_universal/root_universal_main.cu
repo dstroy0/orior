@@ -37,8 +37,8 @@ int program_main(int argc, char **argv)
     const unsigned long long extent[ROOT_EXTENTS][4] = {{4ULL, 12ULL, 48ULL, 48ULL}, {3ULL, 13ULL, 37ULL, 41ULL}};
     RootVolume volume[ROOT_EXTENTS];
     EMBED_CALL(memor.set, MemoriaCfg, .dst = volume, .bytes = sizeof(volume), .val = 0);
-    // both volumes' device lanes, the tower's and the coder's pools for the larger, and the table of the widest edge;
-    // the coded stream, sized by the values, is left to the retained peak
+    // the device lanes of both volumes, the pools of the tower and of the coder for the larger, and the table of the
+    // widest edge. The coded stream, whose size the values decide, stays for the kept peak
     unsigned long long declared = (unsigned long long)ROOT_TABLE_CAPACITY * sizeof(unsigned int);
     unsigned long long lanes_declared = 0ULL;
     for (unsigned int shaped = 0u; shaped < ROOT_EXTENTS; shaped += 1u)
@@ -183,8 +183,9 @@ int program_main(int argc, char **argv)
     mmgr_line_decimal_columns(line, blocks, 24u);
     mmgr_line_ch(line, '\n');
     sim_flush(&results);
-    // "differs" is read on these keyed draws: tables that agree on every value the crystal contains would arrange the
-    // same crystal swapped or split. The last two checks show order and blocking on these volumes, not for every table
+    // the sim reads "differs" on these keyed draws. Tables that agree on every value that the crystal holds would
+    // arrange the same crystal swapped or split. The last two checks show order and blocks on these volumes, not for
+    // every table
     sim_check(&results, folds == ROOT_FOLD_VOLUMES,
               "two edges on one floor fold into the one table that composes them");
     sim_check(&results, orders == ROOT_FOLD_VOLUMES,

@@ -35,8 +35,8 @@ static long long match_lifted(const long long *from, unsigned long long line, un
     return from[line + (2ULL * along * stride)] + match_floor_shift(before + after + 2LL, 2u);
 }
 
-// the host's floor 2: two levels of the 5/3 lifting, each along z, then y, then x over the active corner, every
-// axis pass reading the coefficients as they was before it, as the engine's kernels do
+// the floor 2 of the host: two levels of the 5/3 lift, each along z, then y, then x over the active corner. Every
+// axis pass reads the coefficients as they were before it, as the kernels of the engine do
 void match_floor_host(const unsigned short *lanes, long long *work, long long *before, long long *floor_values)
 {
     const unsigned long long stride[SIM_AXES] = {MATCH_SIDE * MATCH_SIDE, MATCH_SIDE, 1ULL};
@@ -153,8 +153,9 @@ __global__ void match_planes_kernel(const unsigned short *floor_values, unsigned
     }
 }
 
-// one query's one word: the and over the planes, from the lowest bit up, of each plane where x's bit is 1 and its
-// complement where it is 0. The word stops once its mask is empty, and its reads are the plane words it took.
+// the single word of one query. It is the and over the planes, from the lowest bit up, of each plane where the x bit is
+// 1. Its complement goes where it is 0. The word stops after its mask is empty, and its reads are the plane words that
+// it took.
 __global__ void match_query_kernel(const unsigned int *planes, const unsigned int *queries, unsigned int *matches,
                                    unsigned char *reads)
 {

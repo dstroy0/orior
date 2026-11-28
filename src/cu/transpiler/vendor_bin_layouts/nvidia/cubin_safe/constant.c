@@ -7,7 +7,8 @@
 
 #include "../tables/read.h"
 
-// the vendor's instruction set for the part, read once; empty where the part's tables are not pulled
+// the instruction set of the vendor for the part, read once. It is empty where the tables pass did not pull the tables
+// of the part
 static TablesSet s_tables;
 
 static int s_tables_ready;
@@ -89,8 +90,9 @@ int cubin_constant_out_of_bank(const struct TablesSetTag *tables, unsigned long 
     {
         return 1;
     }
-    // the read, from the byte offset the class's offset field scales to (tables_class_offset) and as many bytes as its
-    // size operand specifies, four where it names none, must end inside the bank where the bank's size is known
+    // the read must end inside the bank, where the call knows the size of the bank. It starts at the byte offset that
+    // the offset field of the class scales to (tables_class_offset). It reads as many bytes as its size operand says,
+    // four where it names none
     const unsigned long long bytes = tables_class_offset(class_, low, high);
     return (bank_size != 0ULL) && (bytes + (unsigned long long)tables_class_bytes(class_, low, high) > bank_size);
 }

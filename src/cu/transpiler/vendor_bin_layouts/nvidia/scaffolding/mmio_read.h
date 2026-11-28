@@ -1,16 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// mmio_read.h: the userspace reader of the GPU's BAR0 register aperture through the kernel driver (mmio.h,
-// bar0_driver.c). It opens the driver's device and reads 32-bit registers from the mapped aperture; it never writes,
-// the driver exposing no write. This is the host side of the run channel's max direct listen on the part.
+// mmio_read.h: the userspace reader of the BAR0 register aperture of the GPU through the kernel driver (mmio.h,
+// bar0_driver.c). It opens the device of the driver, and reads 32-bit registers from the mapped aperture. It never
+// writes, because the driver exposes no write. This is the host side of the most direct listen of the run channel on
+// the part.
 #ifndef MMIO_READ_H
 #define MMIO_READ_H
 
 #if defined(_WIN32)
 #include <windows.h>
 
-// The driver's device opened for reading: a handle to close with mmio_close, or INVALID_HANDLE_VALUE where the driver
-// is not loaded or its service is not started
+// The device of the driver, opened for a read: a handle to close with mmio_close. The return is INVALID_HANDLE_VALUE
+// where the system did not load the driver, or did not start its service
 HANDLE mmio_open(void);
 
 // the device handle closed

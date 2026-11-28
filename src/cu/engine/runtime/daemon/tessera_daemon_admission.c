@@ -174,7 +174,7 @@ void daemon_handle(TesseraPeer *peer, const TesseraFrame *frame)
         request.idle_microseconds = frame->idle_microseconds;
         request.override_budget = frame->override_budget;
         request.device = acceptable ? daemon_device_index(device) : TESSERA_LEDGER_DEVICES;
-        // the job that the process of the submit runs inside, as tessera_run passed it down: the ledger lends its
+        // The job that the submit's process runs inside, as tessera_run passes it down. The ledger lends that job's
         // room where it runs on the same device
         request.parent = acceptable ? frame->identity : 0ULL;
         // The bytes that the job's process already allocated as it requests. They hold its context and what it kept

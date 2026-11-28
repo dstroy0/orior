@@ -96,8 +96,9 @@ _Static_assert(sizeof(TesseraFrame) == TESSERA_FRAME_BYTES, "tessera: a frame is
 
     TESSERA_EXPORT int tessera_device_names_host(const unsigned char device[TESSERA_DEVICE_BYTES]);
 
-    // the logical processors host jobs run on: every one but those of the host's last cores, reserved for the desktop
-    // (two, or $TESSERA_HOST_RESERVED_CORES, and never every core); 0 where the host's cores could not be read
+    // the logical processors that host jobs run on: every one but those of the last cores of the host. Those stay for
+    // the desktop (two, or $TESSERA_HOST_RESERVED_CORES, and never every core). The return is 0 where the call could
+    // not read the cores of the host
     TESSERA_EXPORT unsigned long long tessera_self_host_mask(void);
 
     typedef struct
@@ -117,9 +118,9 @@ _Static_assert(sizeof(TesseraFrame) == TESSERA_FRAME_BYTES, "tessera: a frame is
         unsigned long long waiting_microseconds;
     } TesseraJobSubmit;
 
-    // `located` is the bytes the job's process already allocated on the device as it requested (its CUDA context and
-    // whatever it retained from an earlier job), which the daemon measured and counted with its declaration; it is
-    // reported on admission
+    // `located` is the bytes that the process of the job already allocated on the device as it requested. That is its
+    // CUDA context, and whatever it kept from an earlier job. The daemon measured it and counted it with its
+    // declaration, and reports it on admission
     typedef struct
     {
         unsigned long long identity;
@@ -154,8 +155,8 @@ _Static_assert((offsetof(TesseraTicket, lost_path) % 8u) == 0u,
 
     TESSERA_EXPORT long tessera_job_precalc_saved(TesseraClient *client, EngineError *error);
 
-    // an admitted job's own measure, where the daemon reads none from outside (the host's processors, or a device under
-    // WSL); any growth the daemon reported back is read into the ticket
+    // the own measure of an admitted job, where the daemon reads none from outside (the processors of the host, or a
+    // device under WSL). The call reads into the ticket any growth that the daemon reported back
     TESSERA_EXPORT long tessera_job_report(TesseraClient *client, TesseraTicket *ticket, unsigned long long measured,
                                            EngineError *error);
 

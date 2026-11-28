@@ -17,7 +17,8 @@ unsigned long long container_value_read(const unsigned char *bytes, unsigned int
     return value;
 }
 
-// every place the emitter uses, taken out of `layout`. 1, or 0 with the missing row named by the layout itself
+// every place that the emitter uses, taken out of `layout`. The return is 1, or 0 with the layout itself naming the
+// row that it lacks
 int container_places_read(const ContainerLayout *layout, Places *places)
 {
     EMBED_CALL(memor.set, MemoriaCfg, .dst = places, .bytes = sizeof(*places), .val = 0);
@@ -94,8 +95,8 @@ unsigned int container_endings_find(const ContainerLayout *layout, const unsigne
     return found;
 }
 
-// 1 where the section whose header is at `at`, the `index`th, takes bytes in the file: the first section is no
-// section, and one of the type the layout names takes none
+// 1 where the section whose header is at `at`, the `index`th, takes bytes in the file. The first section is no
+// section, and one of the type that the layout names takes none
 int container_section_takes_bytes(const Places *places, const unsigned char *pattern, unsigned long long at,
                                   unsigned long long index)
 {
@@ -109,9 +110,11 @@ static int place_inside(unsigned long long at, unsigned int width, unsigned long
     return (width <= 8u) && (at <= entry) && ((unsigned long long)width <= (entry - at));
 }
 
-// 1 where every place the emitter reads in `pattern`, which is `size` bytes, lies inside it: every field inside its
-// header, entry or symbol, both tables, the bytes of every section that takes bytes in the file, and every section's
-// name with its ending inside the names
+// 1 where every place that the emitter reads in `pattern`, which is `size` bytes, lies inside it:
+//
+// - every field inside its header, entry or symbol, and both tables
+// - the bytes of every section that takes bytes in the file
+// - the name of every section, with its end inside the names
 int container_pattern_matches(const Places *places, const unsigned char *pattern, unsigned long long size)
 {
     if ((places->header_bytes > size) ||

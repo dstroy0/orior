@@ -135,11 +135,12 @@
 // A clean step holds no zero. The code flags a step where it is not clean, and its ends do not carry certified signs
 // that change.
 
+#include "../../includes/platform/platform.h"
 #include "../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../includes/platform/platform.h"
 #include "cellularum_laboro/cellularum_laboro.h"
+#include "embed_ticket_ring.h"
 #include "memoria_operor/memoria_operor.h"
 #include "sim.h"
 #include "verba_scribo/verba_linea.h"
@@ -151,13 +152,8 @@
 #include <stdlib.h>
 
 #include <algorithm>
-#include <chrono>
-#include <deque>
-#include <future>
 #include <map>
-#include <memory>
 #include <string>
-#include <thread>
 #include <vector>
 
 // the seconds that the run spends on the imprint, layout and load of programs. Then the seconds on the checks of the
@@ -171,7 +167,7 @@ static double turing_layout_seconds = 0.0;
 
 static double turing_now(void)
 {
-    return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    return (double)platform_clock_ns() / 1.0e9;
 }
 
 // the scale of each stored value, 2^62, and the half of it that one division takes
@@ -2067,8 +2063,7 @@ typedef struct
 } TuringCheck;
 
 // the host's run of lanes [first, end) of a check, each with its own number, against the device's records of them
-static int turing_check_lanes(std::shared_ptr<const TuringCheck> check, unsigned long long first,
-                              unsigned long long end)
+static int turing_check_lanes(const TuringCheck *check, unsigned long long first, unsigned long long end)
 {
     const TuringCheck &check_ref = *check;
     const unsigned long long count = end - first;
@@ -2095,45 +2090,207 @@ static int turing_check_lanes(std::shared_ptr<const TuringCheck> check, unsigned
                        .bytes = host_out.size() * sizeof(unsigned int)) == 0);
 }
 
-// the host checks running beside the device, at max one a core, each with the flag it clears where it differs
+// The host checks beside the device go through a ticket ring of embedded_types behind a set of turnstiles. The main
+// thread is the grantor. It takes the next ticket for each part of a check, and grants and pushes the part inside a
+// pass. Each worker takes the next ticket with one fetch-add. It pops that ticket inside a pass at its own address, and
+// runs the part.
+//
+// The main thread settles the parts in the order of their tickets. It reads the result of each part,
+// then drains the turnstiles and releases the part. The parts in flight are at max one a worker, and so at max
+// TURING_JOBS. Thus the place of each new ticket holds a released part.
+
+// the parts of the ring as a shift, 2^6, and the workers at max, one part in flight to each
+#define TURING_JOBS_SHIFT 6u
+#define TURING_JOBS (1u << TURING_JOBS_SHIFT)
+
+// one part of a check: the check, its lanes [first, end), and the flag that it clears where it differs. Also whether it
+// is the last part of its check, and its result, which `done` publishes
 typedef struct
 {
-    std::future<int> result;
+    TuringCheck *check;
+    unsigned long long first;
+    unsigned long long end;
     int *same;
-} TuringPending;
+    int last_part;
+    int result;
+    embed_atomic_u32 done;
+} TuringJob;
 
-static std::deque<TuringPending> turing_pending;
+// the ring of the parts, its turnstiles, the part of each place, and the workers, zeros at rest
+static EmbedTicketRingSlot turing_job_places[TURING_JOBS];
+static EmbedTicketRing turing_job_ring;
+static EmbedTurnstiles turing_job_turnstiles;
+static TuringJob turing_jobs[TURING_JOBS];
+static PlatformWorker turing_workers[TURING_JOBS];
+static unsigned int turing_worker_count = 0u;
 
+// the next ticket that a worker takes, and 1 while the workers run
+static embed_atomic_u64 turing_job_taken;
+static embed_atomic_u32 turing_job_running;
+
+// the next ticket that the main thread grants, and the next that it settles. The main thread alone reads these
+static unsigned long long turing_job_granted = 0ull;
+static unsigned long long turing_job_settled = 0ull;
+
+// the epoch of every stamp of the run, which the first grant sets from the clock
+static embed_word turing_job_epoch = 0u;
+
+static embed_word turing_job_stamp(unsigned long long ticket)
+{
+    return EMBED_CALL(embed_ticket_stamp, EmbedTicketStampCfg, .epoch = turing_job_epoch, .ticket = (embed_word)ticket);
+}
+
+// the work of one worker: each ticket it takes waited for until the main thread pushes it, popped inside a pass, and
+// its part run. A worker that waits ends where the workers stop
+static void turing_job_worker(void *context)
+{
+    embed_word found = 0u;
+    // Explicit cast carries the address of a local of this worker as the place that its passes enter at
+    const embed_atomic_uptr_value worker = (embed_atomic_uptr_value)(uintptr_t)&found;
+    const embed_word pushed = (embed_word)(EMBED_TICKET_PUSHED_BIT >> EMBED_TICKET_FLAG_SHIFT);
+    (void)context;
+    for (;;)
+    {
+        const unsigned long long ticket =
+            EMBED_CALL(embed_atomic_u64_fetch_add, EmbedAtomicU64FetchAddCfg, .word = &turing_job_taken, .value = 1u);
+        EmbedTicketRingSlot *const place = &turing_job_places[ticket & (TURING_JOBS - 1u)];
+        for (;;)
+        {
+            const embed_word word = EMBED_CALL(embed_atomic_word_load, EmbedAtomicWordLoadCfg, .word = &place->stamp);
+            const embed_word flags = EMBED_CALL(embed_ticket_flags_of_stamp, EmbedTicketFlagsOfStampCfg, .stamp = word);
+            if ((EMBED_CALL(embed_ticket_of_stamp, EmbedTicketOfStampCfg, .stamp = word) ==
+                 ((embed_word)ticket & EMBED_TICKET_MASK)) &&
+                ((flags & pushed) != 0u))
+            {
+                break;
+            }
+            if (EMBED_CALL(embed_atomic_u32_load, EmbedAtomicU32LoadCfg, .word = &turing_job_running) == 0u)
+            {
+                return;
+            }
+            platform_paused(1u);
+        }
+        void *job = NULL;
+        if (EMBED_CALL(embed_ticket_ring_pass_pop, EmbedTicketRingPassPopCfg, .set = &turing_job_turnstiles,
+                       .address = worker, .ring = &turing_job_ring, .stamp = turing_job_stamp(ticket), .job = &job,
+                       .found_stamp = &found))
+        {
+            TuringJob *const part = (TuringJob *)job;
+            part->result = turing_check_lanes(part->check, part->first, part->end);
+            EMBED_CALL(embed_atomic_u32_store, EmbedAtomicU32StoreCfg, .word = &part->done, .value = 1u);
+        }
+    }
+}
+
+// the workers started on the first part: half the cores, the other half for the driver and the machine
+static void turing_workers_started(void)
+{
+    const unsigned int cores = platform_processors();
+    const unsigned int wanted = (cores > 3u) ? cores / 2u : 1u;
+    EMBED_CALL(embed_ticket_ring_begin, EmbedTicketRingBeginCfg, .ring = &turing_job_ring, .slots = turing_job_places,
+               .shift = TURING_JOBS_SHIFT);
+    // The epoch moves every 2^32 ns, far past the life of a stamp of one part
+    turing_job_epoch = (embed_word)(platform_clock_ns() >> 32u);
+    EMBED_CALL(embed_atomic_u64_store, EmbedAtomicU64StoreCfg, .word = &turing_job_taken, .value = turing_job_granted);
+    EMBED_CALL(embed_atomic_u32_store, EmbedAtomicU32StoreCfg, .word = &turing_job_running, .value = 1u);
+    turing_worker_count = 0u;
+    for (unsigned int index = 0u; index < ((wanted < TURING_JOBS) ? wanted : TURING_JOBS); index += 1u)
+    {
+        turing_worker_count +=
+            (platform_worker_started(&turing_workers[index], turing_job_worker, NULL) != 0) ? 1u : 0u;
+    }
+    if (turing_worker_count == 0u)
+    {
+        fprintf(stderr, "exact_zeta_turing: the system started no worker for the host checks\n");
+        exit(1);
+    }
+}
+
+// the workers stopped and waited for, after every part settled
+static void turing_workers_stopped(void)
+{
+    EMBED_CALL(embed_atomic_u32_store, EmbedAtomicU32StoreCfg, .word = &turing_job_running, .value = 0u);
+    for (unsigned int index = 0u; index < turing_worker_count; index += 1u)
+    {
+        platform_worker_joined(&turing_workers[index]);
+    }
+    turing_worker_count = 0u;
+}
+
+// the oldest part in flight waited for, its result put in its flag, and its place released after a drain. The last
+// part of a check frees the check
 static void turing_settle_one(void)
 {
-    TuringPending &front = turing_pending.front();
-    const int result_ok = front.result.get();
-    *front.same = *front.same && result_ok;
-    turing_pending.pop_front();
+    const unsigned long long ticket = turing_job_settled;
+    TuringJob *const part = &turing_jobs[ticket & (TURING_JOBS - 1u)];
+    embed_word found = 0u;
+    while (EMBED_CALL(embed_atomic_u32_load, EmbedAtomicU32LoadCfg, .word = &part->done) == 0u)
+    {
+        platform_paused(1u);
+    }
+    *part->same = *part->same && part->result;
+    if (!EMBED_CALL(embed_ticket_ring_drain_release, EmbedTicketRingDrainReleaseCfg, .set = &turing_job_turnstiles,
+                    .ring = &turing_job_ring, .stamp = turing_job_stamp(ticket), .found_stamp = &found))
+    {
+        *part->same = 0;
+    }
+    if (part->last_part)
+    {
+        delete part->check;
+    }
+    turing_job_settled += 1ull;
 }
 
 // the lanes a part of a check runs on one host thread, at the least
 #define TURING_PART_LANES 8ull
 
 // the lanes [from, from + tried) of a check run on the host beside the device and beside the other checks. They run in
-// parts of TURING_PART_LANES lanes or more, as many parts at once as half the cores. The other half stays for the
-// driver and the machine
-static void turing_dispatch(const std::shared_ptr<const TuringCheck> &check, unsigned long long from,
-                            unsigned long long tried, int *same)
+// parts of TURING_PART_LANES lanes or more, as many parts at once as the workers. The ring holds the check until its
+// last part settles, and then frees it. This call frees a check with no lane
+static void turing_dispatch(TuringCheck *check, unsigned long long from, unsigned long long tried, int *same)
 {
-    const unsigned int cores = std::thread::hardware_concurrency();
-    const size_t threads = (cores > 3u) ? cores / 2u : 1u;
+    if (tried == 0ull)
+    {
+        delete check;
+        return;
+    }
+    if (turing_worker_count == 0u)
+    {
+        turing_workers_started();
+    }
+    const unsigned long long threads = (turing_worker_count > 0u) ? turing_worker_count : 1ull;
     unsigned long long part = (tried + threads - 1ull) / threads;
     part = (part > TURING_PART_LANES) ? part : TURING_PART_LANES;
+    embed_word found = 0u;
+    // Explicit cast carries the address of a local of the main thread as the place that its passes enter at
+    const embed_atomic_uptr_value grantor = (embed_atomic_uptr_value)(uintptr_t)&found;
     for (unsigned long long first = from; first < from + tried; first += part)
     {
-        while (turing_pending.size() >= threads)
+        while (turing_job_granted - turing_job_settled >= threads)
         {
             turing_settle_one();
         }
         const unsigned long long end = (first + part < from + tried) ? first + part : from + tried;
-        TuringPending pending = {std::async(std::launch::async, turing_check_lanes, check, first, end), same};
-        turing_pending.push_back(std::move(pending));
+        const unsigned long long ticket = turing_job_granted;
+        TuringJob *const held = &turing_jobs[ticket & (TURING_JOBS - 1u)];
+        held->check = check;
+        held->first = first;
+        held->end = end;
+        held->same = same;
+        held->last_part = (end == from + tried) ? 1 : 0;
+        held->result = 0;
+        EMBED_CALL(embed_atomic_u32_store, EmbedAtomicU32StoreCfg, .word = &held->done, .value = 0u);
+        const embed_word stamp = turing_job_stamp(ticket);
+        if (!EMBED_CALL(embed_ticket_ring_pass_grant, EmbedTicketRingPassGrantCfg, .set = &turing_job_turnstiles,
+                        .address = grantor, .ring = &turing_job_ring, .stamp = stamp, .found_stamp = &found) ||
+            !EMBED_CALL(embed_ticket_ring_pass_push, EmbedTicketRingPassPushCfg, .set = &turing_job_turnstiles,
+                        .address = grantor, .ring = &turing_job_ring, .stamp = stamp, .job = held,
+                        .found_stamp = &found))
+        {
+            fprintf(stderr, "exact_zeta_turing: the ring refused the grant or the push of a host check\n");
+            exit(1);
+        }
+        turing_job_granted += 1ull;
     }
 }
 
@@ -2157,9 +2314,13 @@ static void turing_defer(int ok, int *flag, const char *what)
 static void turing_settle(SimResults *job)
 {
     const double began = turing_now();
-    while (!turing_pending.empty())
+    while (turing_job_settled < turing_job_granted)
     {
         turing_settle_one();
+    }
+    if (turing_worker_count != 0u)
+    {
+        turing_workers_stopped();
     }
     turing_check_seconds += turing_now() - began;
     for (size_t at = 0u; at < turing_deferred.size(); at += 1u)
@@ -2349,7 +2510,8 @@ static int turing_check_range(const TuringStage *stage, unsigned int *const memb
                               unsigned long long from, unsigned long long tried, const unsigned int *device_out,
                               int *same)
 {
-    std::shared_ptr<TuringCheck> check(new TuringCheck);
+    // the ring frees the check when its last part settles, and this call frees it where it dispatches no part
+    TuringCheck *const check = new TuringCheck;
     check->layout = stage->layout;
     check->bodies[0] = check->bodies[1] = check->bodies[2] = 0ull;
     check->records_first = from;
@@ -2403,6 +2565,10 @@ static int turing_check_range(const TuringStage *stage, unsigned int *const memb
     if (ok)
     {
         turing_dispatch(check, from, tried, same);
+    }
+    else
+    {
+        delete check;
     }
     return ok;
 }
@@ -3576,7 +3742,8 @@ static int turing_job(const char *input, const char *output)
                 const std::vector<unsigned int> records =
                     turing_copy_back(device_pair_out, (size_t)(pair_lanes * pair.layout.out_limbs));
                 const unsigned long long tried = checked * heads;
-                std::shared_ptr<TuringCheck> check(new TuringCheck);
+                // the ring frees the check when its last part settles, and this block frees it where it dispatches none
+                TuringCheck *const check = new TuringCheck;
                 check->layout = pair.layout;
                 check->members[0] = turing_copy_back(device_pole, (size_t)((poles + 1ull) * pole.layout.out_limbs));
                 check->members[1] = turing_copy_back(device_point, (size_t)(points * point.layout.out_limbs));
@@ -3591,6 +3758,10 @@ static int turing_job(const char *input, const char *output)
                     check->records.assign(records.begin(), records.begin() + (size_t)(tried * pair.layout.out_limbs));
                     check->records_first = 0ull;
                     turing_dispatch(check, 0ull, tried, &host_pair);
+                }
+                else
+                {
+                    delete check;
                 }
                 std::vector<unsigned int> host_piece((size_t)(piece * sum_limbs), 0u);
                 const CycleRecordSumRequest host_sum = {records.data(),

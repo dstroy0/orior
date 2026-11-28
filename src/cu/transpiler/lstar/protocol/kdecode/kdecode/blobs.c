@@ -18,7 +18,7 @@ static void blob_printed(const char *name, unsigned int name_length, unsigned lo
     mmgr_line_ch(&s_displayed, '\n');
     for (unsigned long long at = 0ULL; at < size; at += 1ULL)
     {
-        // the text is passed every 64 KiB at max, far inside the half of its room it may still take
+        // the call passes the text every 64 KiB at max, far inside the half of its room that it can still take
         if ((at & 0xffffULL) == 0ULL)
         {
             kdecode_displayed_passed(0);
@@ -28,8 +28,9 @@ static void blob_printed(const char *name, unsigned int name_length, unsigned lo
     kdecode_line_ended();
 }
 
-// every record of the `size` bytes at `bytes`, a .qry mapped, passed to `each` with `context`, in the order the writer
-// wrote them, its time in place of its place: 1, or 0 where the bytes are not records whole
+// every record of the `size` bytes at `bytes`, a mapped .qry, passed to `each` with `context`. They go in the order
+// that the writer wrote them, with its time in place of its place. The return is 1, or 0 where the bytes are not
+// records whole
 int kdecode_records_each(const unsigned char *bytes, unsigned long long size,
                          void (*each)(void *context, const char *name, unsigned int name_length,
                                       unsigned long long time, const unsigned char *blob, unsigned long long blob_size),
@@ -61,8 +62,8 @@ int kdecode_run_whole(const unsigned char *bytes, unsigned long long size)
     return (size > 0ULL) && kdecode_records_each(bytes, size, records_passed, NULL);
 }
 
-// what the blob walk of kdecode_blobs retains: the name wanted, whether the latest alone is written, and that one where
-// it is in the mapped run
+// what the blob walk of kdecode_blobs keeps: the name wanted, and whether the call writes the latest alone. Then that
+// blob, where it is in the mapped run
 typedef struct
 {
     const char *name;

@@ -1,11 +1,12 @@
-# The SASS instruction word's layout: where each field of the 128-bit word starts and how many bits it holds. khw_write
-# reads it to write the part's .ksc field rows, which the register walk and the predicate walk read (orior_klq_identity);
-# sass_assemble.c fills the same places.
+# The layout of the SASS instruction word: where each field of the 128-bit word starts, and how many bits it holds. The
+# tool khw_write reads it to write the field rows of the .ksc of the part. The register walk and the predicate walk read
+# those rows (orior_klq_identity). The file sass_assemble.c fills the same places.
 #
-# field	<name>	<first>	<bits>	a place in the instruction word, in bits
+# - `field <name> <first> <bits>`: a place in the instruction word, in bits, with a tab between each two fields.
 #
-# A constant's offset, an address's offset and a memory operand's descriptor carry a scale or a displayed bit this row has
-# no column for, and sit in sass_assemble.c.
+# The offset of a constant, the offset of an address, and the descriptor of a memory operand carry what this row has
+# no column for. That is a scale, or the bit that tells whether the listing shows the descriptor. They sit in
+# sass_assemble.c.
 #
 # the guard predicate: three bits its number, and the bit above them its negation
 field	guard	12	3
@@ -16,8 +17,11 @@ field	ra	24	8
 field	rb	32	8
 field	rc	64	8
 #
-# the predicate places: pl a load's, holding its number inverted; pg the one an operation writes and po the second it
-# writes; pt the one it reads
+# the predicate places:
+#
+# - `pl`: that of a load, which holds its number inverted
+# - `pg`: the predicate that an operation writes, and `po` the second that it writes
+# - `pt`: the predicate that it reads
 field	pl	64	3
 field	pu	68	3
 field	pv	77	3
