@@ -68,8 +68,8 @@ static int sass_cubin_run(SassProbe *probe, const char *path, unsigned int first
         mmgr_line_hex(&buffer_line, first, 8u);
         (void)mmgr_line_finish(&buffer_line);
     }
-    // one case of eight words, none of the other seven zero, so that a question that divides is not queried for a zero
-    // divisor
+    // one case of eight words, none of the other seven zero, so that the call never queries a question that divides for
+    // a zero divisor
     char *const command[] = {(char *)probe->prober, (char *)"run",      (char *)path,       first_word,
                              (char *)"00000007",    (char *)"00000003", (char *)"00000005", (char *)"00000002",
                              (char *)"00000009",    (char *)"00000001", (char *)"00000004", NULL};
@@ -124,8 +124,9 @@ void sass_environment(const char *name, const char *value)
     (void)platform_environment_set(name, value);
 }
 
-// The nanoseconds a run took, as the runner timed it by the host's clock, or 0 where it printed none. The runner
-// times a run only where PROBE_REPEATS is set, and the count is what the caller set before calling
+// The nanoseconds that a run took, as the runner timed it by the clock of the host, or 0 where it printed none. The
+// runner times a run only where the environment holds PROBE_REPEATS, and the count is what the caller set before the
+// call
 double sass_cubin_nanoseconds(void)
 {
     const char *const line =
@@ -171,8 +172,8 @@ int sass_query_text(const char *was, const char *instruction, char *text, size_t
     return put;
 }
 
-// a question of more than one instruction named in one line: its instructions joined by a semicolon, and cut short
-// with an ellipsis where the line will not contain them
+// a question of more than one instruction, named in one line. Its instructions go joined by a semicolon, cut short with
+// an ellipsis where the line cannot hold them
 void sass_query_named(const char *instruction, char *named, size_t room)
 {
     size_t at = 0u;
@@ -182,7 +183,7 @@ void sass_query_named(const char *instruction, char *named, size_t room)
         at += 1u;
     }
     named[at] = '\0';
-    // 52 is the column the answers line up in, and a question past it is named by its opening
+    // 52 is the column that the answers line up in, and the call names a question past it by its opening
     if (at > 52u)
     {
         EMBED_CALL(memor.cpy, MemoriaCfg, .dst = &named[49], .src = "...", .bytes = 4u);
@@ -212,7 +213,8 @@ static double sass_prefer_time(SassProbe *probe, const SassMachine *machine, con
     static char s_looped[8192];
     static char s_query_text[65536];
     char path[1024];
-    // the answer emptied first: a coding the assembler refuses is read as refused and not as the last one's word
+    // the answer, emptied first. The call reads a coding that the assembler refuses as refused, and not as the word of
+    // the last one
     {
         VerbaLinea buffer_line = mmgr_line_over(answered, room);
         mmgr_line_put(&buffer_line, "refused");
@@ -243,24 +245,25 @@ static double sass_prefer_time(SassProbe *probe, const SassMachine *machine, con
     return nanoseconds;
 }
 
-// Which of two codings of one thing the part prefers, queried of the part in its own clock. Both are
-// run and both must answer what the question specifies, or they are not two codings of one thing. Then both are timed,
-// and the part's preference is the difference. How many were queried, and how many gave a reading
+// Which of two codings of one thing the part prefers, queried of the part in its own clock. The call runs both, and
+// both must answer what the question specifies, or they are not two codings of one thing. Then the call times both,
+// and the preference of the part is the difference. The return is how many the call queried, and how many gave a
+// reading
 unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, unsigned int *queried)
 {
     static const SassPrefer s_prefers[] = {
-        // A move has two codings on this part, one on each pipe, and the compiler writes the FMA pipe's where the
-        // integer pipe carries more (sass.ksc's pipe lines); neither is free. R0 contains the case's first word
+        // A move has two codings on this part, one on each pipe. The compiler writes that of the FMA pipe where the
+        // integer pipe carries more (the pipe lines of sass.ksc), and neither is free. R0 holds the first word of the
+        // case
         {"a move", "MOV R7, R0", "IMAD.MOV.U32 R7, RZ, RZ, R0", 0x0000000bu},
-        // A long operation, which is where this is going: the high word of a 64-bit add. sass.krs writes
+        // A long operation, which is where this goes: the high word of a 64-bit add. The file sass.krs writes
         // wide_add as IADD3 then IADD3.X. The other coding takes the carry with IMAD.X and adds the high word after,
-        // three
-        // instructions against two. Both read R0, which the loop never writes. A turn leaves the next one what
-        // it found: a body that carries its own answer forward measures a chain 400000 long and not the coding
+        // three instructions against two. Both read R0, which the loop never writes. A turn leaves the next one what
+        // it found. A body that carries its own answer forward measures a chain 400000 long, and not the coding
         {"a wide add's high word", "IADD3 R8, P6, R0, R0, RZ\nIADD3.X R9, R0, R0, RZ, P6, !PT\nMOV R7, R9",
          "IADD3 R8, P6, R0, R0, RZ\nIMAD.X R9, RZ, RZ, R0, P6\nIADD3 R9, R9, R0, RZ\nMOV R7, R9", 0x00000016u},
-        // a word doubled, added to itself against shifted left by one. SHF.L.U32 takes its count in a register on
-        // this part and no listing gave it an immediate: the shift pays a move for the 1 it shifts by
+        // a word doubled: added to itself, against a shift left by one. SHF.L.U32 takes its count in a register on
+        // this part, and no listing gave it an immediate. Thus the shift pays a move for the 1 that it shifts by
         {"doubled", "IADD3 R7, R0, R0, RZ", "IMAD.MOV.U32 R8, RZ, RZ, 0x1\nSHF.L.U32 R7, R0, R8, RZ", 0x00000016u},
     };
     static char s_was[65536];
@@ -284,7 +287,7 @@ unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, un
             {
                 char answer[256];
                 const double taken = sass_prefer_time(probe, machine, s_was, coding, answer, sizeof(answer));
-                // the answer is "answered <word> ..." where it ran, and "refused" where it did not assemble
+                // the answer reads "answered <word> ..." where it ran, and "refused" where it did not assemble
                 const unsigned int word =
                     (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = answer, .cap = PLATFORM_TEXT_TO_TERMINATOR,
                                 .other = "answered ", .ci = EMBED_FALSE))
@@ -326,13 +329,13 @@ unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, un
         read += 1u;
         const double apart = (least[0] > least[1]) ? (least[0] - least[1]) : (least[1] - least[0]);
         const double each = apart / (double)SASS_PREFER_TURNS;
-        // A reading the part gave, or a pair it ran and distinguished nothing on: the two was closer together than
-        // the same coding was to itself across its own runs, a question queried with no answer in it.
+        // A reading that the part gave, or a pair that it ran and told nothing apart on. The two were closer together
+        // than the same coding was to itself across its own runs: a question queried with no answer in it.
         //
-        // The word stored is 0 and never the time. How long a coding took is a cost and belongs in the .kdm; what
-        // belongs here is whether the question got an answer at all. Writing the time would also put a number that
-        // moves a nanosecond between runs into a file meant to be read against the last one, and every run would
-        // differ from the tree's copy for no reason the part could name
+        // The word stored is 0, and never the time. How long a coding took is a cost, and belongs in the .kdm. What
+        // belongs here is whether the question got an answer at all. A write of the time would also put a number that
+        // moves a nanosecond between runs into the file. A reader compares that file against the last one. Every run
+        // would then differ from the copy of the tree for no reason that the part could name
         sass_class_take(SASS_CHANNEL_CLOCK, (apart <= spread) ? SASS_CLASS_NOTHING : SASS_CLASS_ANSWERS, prefer->what,
                         0u);
         {
