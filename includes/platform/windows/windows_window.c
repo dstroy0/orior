@@ -24,10 +24,10 @@
 #include <dwmapi.h>
 #include <windowsx.h>
 
-// The graphics device the frames are flipped through: whether it is ready; the device, its queue, the allocator
-// and list a copy is recorded in, the fence a copy is waited on through and its event and last value; the swapchain,
-// its two buffers and their size; and the heap opened over the framebuffers' pages, those pages, and a buffer placed
-// over each framebuffer with where in the pages it lies.
+// The graphics device that flips the frames. It holds whether the device is ready, the device and its queue, and the
+// allocator and the list that record a copy. It holds the fence for a wait on a copy, with its event and last value.
+// It also holds the swapchain, its two buffers and their size. Last, it holds the heap over the framebuffer pages,
+// those pages, and a buffer over each framebuffer with its place in them.
 //
 // The swapchain keeps each buffer's pixels between presents. `stale` holds, for each buffer, the rectangle where its
 // pixels differ from the raster. A flip copies that rectangle alone.
@@ -74,7 +74,7 @@ struct GuiSystem
     int wheel_rest;
     // whether the system moves or sizes the window, its own cursor shown for it
     int sizing;
-    // whether the window reads the mouse's raw input, and whether the pointer is locked in the window's middle
+    // whether the window reads the raw input of the mouse, and whether the window locks the pointer in its middle
     int raw;
     int locked;
 };
@@ -87,7 +87,8 @@ struct GuiSystem
 
 static GuiSystem s_systems[SYSTEM_WINDOWS];
 
-// the boundary a framebuffer's buffer is placed on in its heap, and the bytes a copied row's pitch steps by
+// the boundary that each buffer of a framebuffer starts on in its heap, and the bytes that the pitch of a copied row
+// steps by
 #define SYSTEM_PLACE (64ULL << 10u)
 #define SYSTEM_ROW_STEP 256u
 
@@ -134,7 +135,7 @@ typedef struct
     GuiRect part;
     GuiRect other;
 } SystemWindowsCtx;
-// the device's buffers and the swapchain's let go, the heap with them, after the queue has done every copy
+// the buffers of the device and of the swapchain let go, and the heap with them, after the queue completes every copy
 EMBED_INLINE void system_surfaces_release(const SystemWindowsCtx *args)
 {
     if ((args->device->queue != NULL) && (args->device->fence != NULL))
@@ -184,9 +185,9 @@ EMBED_INLINE void system_device_release(const SystemWindowsCtx *args)
     args->device->ready = 0;
 }
 
-// the device made for `window`: its queue, its copy's allocator and list, its fence, and a flip swapchain of two
-// buffers over the window; first a heap opened over `pages`, which a device that cannot read pages where they lie
-// refuses before any swapchain is over the window: 1, or 0 with nothing made
+// the device made for `window`: its queue, the allocator and the list of its copy, and its fence. It also has a flip
+// swapchain of two buffers over the window. The call first opens a heap over `pages`. A device that cannot read pages
+// where they lie refuses the heap before a swapchain is over the window. The return is 1, or 0 with nothing made
 EMBED_INLINE int system_device_init(const SystemWindowsCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->device, .val = 0, .bytes = sizeof(*args->device)});
@@ -291,8 +292,8 @@ EMBED_INLINE int system_back_resize(const SystemWindowsCtx *args)
     return 1;
 }
 
-// the buffer placed over `raster`'s pixels in the heap over its pages, the heap opened over the pages where the one
-// open is over others: the buffer, or NULL where the device refuses it
+// the buffer over the pixels of `raster`, in the heap over its pages. Where the open heap is over other pages, the call
+// opens a heap over these. The return is the buffer, or NULL where the device refuses it
 EMBED_INLINE ID3D12Resource *system_position(const SystemWindowsCtx *args)
 {
     if (args->device->heap_pages != args->raster->pages)
@@ -317,8 +318,8 @@ EMBED_INLINE ID3D12Resource *system_position(const SystemWindowsCtx *args)
     D3D12_RESOURCE_DESC desc;
     memor.set(&(MemoriaCfg){.dst = &desc, .val = 0, .bytes = sizeof(desc)});
     desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    // the buffer reaches from the raster's place to the region's end, which has the raster at any size its capacity
-    // fits: a raster sized again in the same region is copied through the buffer already placed
+    // the buffer reaches from the place of the raster to the end of the region. Thus it holds the raster at any size
+    // that its capacity fits. The device copies a resized raster in the same region through the same buffer
     desc.Width = (UINT64)(args->raster->pages_bytes - args->raster->positioned);
     desc.Height = 1u;
     desc.DepthOrArraySize = 1u;
@@ -358,10 +359,10 @@ EMBED_INLINE GuiRect system_rect_join(const SystemWindowsCtx *args)
     return (GuiRect){left, top, right - left, bottom - top};
 }
 
-// `raster` copied by the device from where it lies into the swapchain's buffer and flipped onto the screen, the copy
-// done before this returns, the raster free to be drawn into again: 1, or 0 where the device cannot, which leaves the
-// raster to the system's drawing calls. The device is made as the first raster with pages comes, on the main window
-// alone. `part` is the rectangle of the raster that changed after the last flip. It is the whole raster where all of it
+// The device copies `raster` from where it lies into a buffer of the swapchain, and flips it onto the screen. The copy
+// is complete before the call returns, and the caller can draw into the raster again. The return is 1, or 0 where the
+// device cannot copy, and the draw calls of the system then take the raster. The call makes the device when the first
+// raster with pages comes, on the main window alone. `part` is the rectangle of the raster that changed after the last flip. It is the whole raster where all of it
 // changed
 static int system_flip(const SystemWindowsCtx *args)
 {
@@ -477,9 +478,9 @@ EMBED_INLINE unsigned int system_frame_ms_get(const SystemWindowsCtx *args)
     return (1000u + hertz - 1u) / hertz;
 }
 
-// the modifier keys down, as system.h names them: read from the keys' own messages as they come, which gives a key
-// message posted to the window the modifiers posted before it, and from the keyboard's state as the window takes
-// the focus
+// the modifier keys down, as system.h names them. The window reads them from the messages of the keys as they come.
+// Thus a key message that the window gets has the modifiers that came before it. The window also reads them from the
+// state of the keyboard when it takes the focus
 EMBED_INLINE unsigned int system_mods(const SystemWindowsCtx *args)
 {
     return args->system_read->mods;
@@ -519,8 +520,8 @@ EMBED_INLINE int system_modifier_key(const SystemWindowsCtx *args)
     return 1;
 }
 
-// a virtual key's name as the page's editor names a key, into `name`, which is sized for `capacity`: 1, or 0 for a key
-// that has no name, a modifier among them
+// the name of a virtual key as the editor of the page names a key, into `name`, which has room for `capacity`. The
+// return is 1, or 0 for a key that has no name, such as a modifier
 EMBED_INLINE int system_key_by_name(const SystemWindowsCtx *args)
 {
     WPARAM key = args->key;
@@ -582,8 +583,8 @@ EMBED_INLINE void system_key_press(const SystemWindowsCtx *args)
                .input = GUI_KEY_INPUT(named));
 }
 
-// a character typed passed to the window as UTF-8, a surrogate pair joined across its two messages; a control
-// character and one typed with the control key down are keys, not text
+// a typed character that the window gets as UTF-8, with a surrogate pair joined across its two messages. A control
+// character, and a character typed with the control key down, are keys and not text
 EMBED_INLINE void system_char_type(const SystemWindowsCtx *args)
 {
     if ((args->unit < 0x20u) || (args->unit == 0x7fu) || ((args->system->mods & (GUI_MOD_CONTROL | GUI_MOD_ALT)) != 0u))
@@ -657,8 +658,8 @@ EMBED_INLINE void system_blit(const SystemWindowsCtx *args)
                       &raster->pixels[args->from * raster->width], &info, DIB_RGB_COLORS);
 }
 
-// the system asked to say when the pointer leaves, by `flags`, the client's or the frame's, where it is not asked that
-// already
+// the call asks the system to tell when the pointer leaves the client or the frame, as `flags` names. It asks only
+// where the window did not ask that already
 EMBED_INLINE void system_leave_watch(const SystemWindowsCtx *args)
 {
     if (args->system->leave_watched != args->flags)
@@ -677,8 +678,8 @@ EMBED_INLINE void system_leave_watch(const SystemWindowsCtx *args)
     }
 }
 
-// the pointer gone from the client or the frame: the window told where it is off the window altogether, as a move
-// from the client onto the frame is no leave
+// the pointer gone from the client or the frame. The call tells the window only where the pointer is off the window
+// altogether. A move from the client onto the frame is no leave
 EMBED_INLINE void system_pointer_leave(const SystemWindowsCtx *args)
 {
     POINT at;
@@ -699,8 +700,9 @@ EMBED_INLINE LRESULT system_hit_code(const SystemWindowsCtx *args)
     return (args->hit < 13u) ? s_codes[args->hit] : HTCLIENT;
 }
 
-// the window's one-pixel border colored for `active`: the system's accent while the window is active and the user
-// shows the accent on borders, as the system's own windows do, else the compositor's default for the state
+// the one-pixel border of the window, colored for `active`. While the window is active and the user shows the accent
+// on borders, the border has the system accent. The windows of the system do the same. Else the border has the default
+// of the compositor for the state
 EMBED_INLINE void system_border_color(const SystemWindowsCtx *args)
 {
     COLORREF color = DWMWA_COLOR_DEFAULT;
@@ -722,8 +724,8 @@ EMBED_INLINE void system_border_color(const SystemWindowsCtx *args)
     DwmSetWindowAttribute(args->window, DWMWA_BORDER_COLOR, &color, sizeof(color));
 }
 
-// The cursor clipped to the one pixel in the middle of the window's client, on the screen: the pointer stays there and
-// the mouse's motion comes as raw input alone
+// The cursor clipped to the one pixel in the middle of the client of the window, on the screen. The pointer stays
+// there, and the motion of the mouse comes as raw input alone
 EMBED_INLINE void system_lock_clip(const SystemWindowsCtx *args)
 {
     RECT client;
@@ -734,9 +736,9 @@ EMBED_INLINE void system_lock_clip(const SystemWindowsCtx *args)
     ClipCursor(&pixel);
 }
 
-// One raw input of the mouse read while the window reads raw input: its motion passed on as a relative input in the
-// mouse's own counts. A motion the device gives as a place on the screen, as a pen or a remote session gives it, is
-// no relative motion and is passed on as nothing
+// One raw input of the mouse, read while the window reads raw input. The call gives its motion on as a relative input
+// in the counts of the mouse. A pen or a remote session gives a motion as a place on the screen. That motion is no
+// relative motion, and the call gives it on as nothing
 EMBED_INLINE void system_raw_read(const SystemWindowsCtx *args)
 {
     RAWINPUT input;
@@ -798,8 +800,8 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         }
         return 0;
     case WM_NCACTIVATE:
-        // the window taking or losing the focus: its border colored for the state, and the system told not to paint
-        // its own frame over the client, which -1 in place of the update region does
+        // the window takes or loses the focus. The call colors its border for the state. It also tells the system not
+        // to paint its own frame over the client, and -1 in place of the update region does that
         EMBED_CALL(system_border_color, SystemWindowsCtx, .window = window, .active = pixel_width != 0u);
         return DefWindowProcW(window, message, pixel_width, (LPARAM)-1);
     case WM_NCPAINT:
@@ -834,8 +836,8 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         }
         return 0;
     case WM_GETMINMAXINFO: {
-        // The least size the window is dragged to: the size a window owned opened at, else the main window's least, at
-        // its monitor's scale. A size at a scale is far inside a LONG
+        // The least size that a drag gives the window. It is the size that an owned window opened at, else the least
+        // of the main window, at the scale of its monitor. A size at a scale is far inside a LONG
         MINMAXINFO *const limits = (MINMAXINFO *)low;
         const int scale = EMBED_CALL(system_scale_get, SystemWindowsCtx, .window = window);
         const int owned = (system != NULL) && system->owner;
@@ -884,8 +886,8 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         EMBED_CALL(system_leave_watch, SystemWindowsCtx, .system = system, .window = window,
                    .flags = TME_LEAVE | TME_NONCLIENT);
         // The frame is the window's own pixels: its resize edges and the caption the hit test names. A move over them
-        // reaches the window as a move at the client's point, so a pointer that rests on the window's edge is seen
-        // there, and not only inside the edges
+        // reaches the window as a move at the point of the client. Thus the window sees a pointer that rests on its
+        // edge there, and not only inside the edges
         POINT at = {GET_X_LPARAM(low), GET_Y_LPARAM(low)};
         ScreenToClient(window, &at);
         EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
@@ -946,7 +948,7 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
                                         .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
         return 0;
     case WM_RBUTTONUP:
-        // a browser on Windows opens a menu as the right button is let go
+        // a browser on Windows opens a menu when the user lets go of the right button
         EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
                    .input = &(GuiInput){.type = GUI_INPUT_MENU,
                                         .x = GET_X_LPARAM(low),
@@ -956,8 +958,8 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         return 0;
     case WM_NCRBUTTONDOWN:
     case WM_NCRBUTTONUP: {
-        // the right button on the bar the system moves the window by is the window's own, at the client's pixel, as
-        // the page's bar takes it: the system opens no window menu of its own there
+        // the right button on the bar that the system moves the window by belongs to the window. The window takes it
+        // at the pixel of the client, as the bar of the page takes it. The system opens no window menu of its own there
         if (pixel_width != HTCAPTION)
         {
             return DefWindowProcW(window, message, pixel_width, low);
@@ -986,7 +988,7 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         return 0;
     case WM_SETFOCUS:
         system->mods = system_mods_of_keyboard();
-        // the system frees a clipped cursor as the window loses the focus: a locked pointer is clipped again
+        // the system frees a clipped cursor when the window loses the focus, and the call clips a locked pointer again
         if (system->locked)
         {
             EMBED_CALL(system_lock_clip, SystemWindowsCtx, .system_read = system);
@@ -1004,8 +1006,8 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         return DefWindowProcW(window, message, pixel_width, low);
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN:
-        // Alt+F4 is the system's, as a browser leaves it to the system: it closes the window as it closes any, and no
-        // part of the window is passed it
+        // Alt+F4 belongs to the system, as a browser leaves it to the system. The system closes the window as it closes
+        // any window, and the call gives it to no part of the window
         if ((message == WM_SYSKEYDOWN) && (pixel_width == VK_F4))
         {
             return DefWindowProcW(window, message, pixel_width, low);
@@ -1051,7 +1053,7 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         return 0;
     case WM_DESTROY:
         system->closed = 1;
-        // the loop is the owner's: a window owned going leaves it running
+        // the loop belongs to the owner: when an owned window goes, the loop continues
         if (!system->owner)
         {
             PostQuitMessage(0);
@@ -1135,8 +1137,8 @@ unsigned int gui_system_areas(const GuiSystemAreasCfg *args)
     return count;
 }
 
-// a window made at `place` under `owner`, none for a window of its own, its record made with it and left for the caller
-// to show: the record, or NULL with why given
+// a window made at `place` under `owner`, or under none for a window of its own. The call makes its record with it and
+// leaves the window for the caller to show. The return is the record, or NULL with the reason given
 static GuiSystem *system_window_init(const SystemWindowsCtx *args)
 {
     const GuiSystemEvents *events = args->events;
@@ -1188,7 +1190,7 @@ static GuiSystem *system_window_init(const SystemWindowsCtx *args)
     }
     SetWindowLongPtrW(system->window, GWLP_USERDATA, (LONG_PTR)system);
     system->frame_ms = EMBED_CALL(system_frame_ms_get, SystemWindowsCtx, .window = system->window);
-    // the frame's change is taken up now the client is the whole window
+    // the window takes up the change of the frame now that the client is the whole window
     SetWindowPos(system->window, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
     // the compositor rounds the window's corners and draws its one-pixel border in the system's color
     const DWM_WINDOW_CORNER_PREFERENCE corners = DWMWCP_ROUND;
@@ -1219,8 +1221,8 @@ GuiSystem *gui_system_owner_open(const GuiSystemPositionTitleCfg *args)
         return NULL;
     }
     system->owner = 1;
-    // a window owned is dragged no smaller than it opened, the size its owner asked for it; a place's sides are far
-    // inside what an int represents
+    // a drag makes an owned window no smaller than it opened, at the size that its owner asked for. The sides of a
+    // place are far inside what an int represents
     system->min_width = (int)args->place->width;
     system->min_height = (int)args->place->height;
     ShowWindow(system->window, SW_SHOW);
@@ -1233,9 +1235,9 @@ GuiSystem *gui_system_owner_open(const GuiSystemPositionTitleCfg *args)
     return system;
 }
 
-// one message dispatched: a key pressed with control or alt down in the window it is sent to is a key, not text, and is
-// not translated to a character; the character a key makes is queued behind the messages posted already, which would
-// put it past the modifiers' release
+// one message dispatched. A key pressed with control or alt down in its window is a key and not text. The call does
+// not translate it to a character. The character that a key makes goes into the queue behind the messages that
+// came already. That place would put it after the release of the modifiers
 EMBED_INLINE void system_message_alloc(const SystemWindowsCtx *args)
 {
     const GuiSystem *const system =
@@ -1375,7 +1377,8 @@ int gui_system_refresh_wait(void)
            (WaitForSingleObject(t_refresh_timer, INFINITE) == WAIT_OBJECT_0);
 }
 
-// an icon made from `raster`'s pixels with their alpha: a 32-bit section the pixels are copied into and an empty mask
+// an icon made from the pixels of `raster` with their alpha: a 32-bit section that holds a copy of the pixels, and an
+// empty mask
 EMBED_INLINE HICON system_icon_init(const SystemWindowsCtx *args)
 {
     BITMAPV5HEADER header;
@@ -1546,7 +1549,7 @@ static void system_pointer_release(SystemPointer *pointer)
 }
 
 // The surface `pointer` opened: the class the surfaces share, its window, its bitmap and the context that holds the
-// bitmap. A part the system refuses lets every part go, and the surface is not opened again
+// bitmap. A part that the system refuses lets every part go, and the call does not open the surface again
 static void system_pointer_open(SystemPointer *pointer)
 {
     WNDCLASSEXW class_of;
