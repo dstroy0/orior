@@ -499,7 +499,6 @@ src/cu/engine/rmc/asm_printer_internal.h	1
 src/cu/engine/rmc/asm_printer_layout.cu	5
 src/cu/engine/rmc/codegen_core.h	9
 src/cu/engine/rmc/codegen_device.h	1
-src/cu/engine/rmc/codegen_output.cu	13
 src/cu/engine/rmc/codegen_rules.cu	3
 src/cu/engine/rmc/instruction_selection.h	2
 src/cu/engine/rmc/precepts.h	1

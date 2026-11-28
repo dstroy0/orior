@@ -8,10 +8,11 @@
 
 #if (defined(__CUDACC__))
 
-// The lane written on the device, in `device_arena`, which the caller frees, from the step table at `device_steps`, in
-// device memory, and the rest of `layout`'s sizes: its forms decided (codegen_device_decide), split by `costs` where it
-// is given, arranged as the assembly printer's records, written a lane a byte and gathered. The records and the lanes
-// come back to the host after they are arranged, and the text's length after its bytes are gathered
+// The lane written on the device, in `device_arena`, which the caller frees. It comes from the step table at
+// `device_steps`, in device memory, and the rest of the sizes of `layout`. The device decides its forms
+// (codegen_device_decide), and splits them by `costs` where the caller gives it. It arranges them as the records of the
+// assembly printer, writes them one lane to a byte, and gathers them. The records and the lanes come back to the host
+// after the device arranges them. The length of the text comes back after it gathers its bytes
 static int codegen_device_written(DeviceArena *device_arena, const EngineRecordLayout *layout,
                                   const DeviceRecordStep *device_steps, const AsmPrinterRuleset *text_rules,
                                   unsigned int places, const ScheduleCosts *costs, PlatformText *text,
@@ -86,9 +87,9 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
         mmgr_line_put(error_message, "the device errored on a call");
         return 0;
     }
-    // the assembly printer arranged by the device and checked against the host's word for word, then run by the record
-    // machine, a lane a byte. Its output's offset read before the layout, which the record stores its own of, is given
-    // back
+    // the assembly printer, arranged by the device and checked against that of the host word for word. Then the record
+    // machine runs it, one lane to a byte. The call reads the offset of its output before it gives back the layout,
+    // because the record stores its own copy of the offset
     EngineRecordLayout text_layout{};
     if (asm_printer_program_placed(text_rules, &text_layout, error_message) == 0)
     {
@@ -119,7 +120,7 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
         memory.ok = cycle_record_run(&request) != CYCLE_ERROR;
     }
     cycle_record_release(record);
-    // the bytes that are not 0 gathered in lane order
+        // the device gathers the bytes that are not 0, in lane order
     unsigned char *const bytes = codegen_device_take<unsigned char>(&memory, lanes);
     unsigned char *const gathered = codegen_device_take<unsigned char>(&memory, lanes);
     int *const gathered_count = codegen_device_take<int>(&memory, 1ULL);
@@ -182,13 +183,15 @@ static void layout_error(int keymath, const LayoutEnd *ended, VerbaLinea *error)
                              : "the program's outputs are more bits than a record counts");
 }
 
-// The program of `request` arranged on the device, in `memory`, which the caller frees: keymath's encoding in one
-// thread, run again with an arena twice the size while it fills the one it has, then key_schedule's layout in one
-// thread. The step table is left in device memory at `*device_steps`, the tables' values, one after another as keymath
-// arranges the key's, at `*device_values`, `*value_count` words, and the rest of the program's sizes arranged in
-// `layout`, whose step table and tables' values are not. The host checks the request as keymath_record_encode and
-// key_schedule_record_layout do before their cores run, and reads back only how each core ended, the file's limbs and
-// the record's bits
+// The program of `request`, arranged on the device in `memory`, which the caller frees. The device runs the encoding of
+// keymath in one thread, again with an arena twice the size while it fills the one that it has. Then it runs the
+// layout of key_schedule in one thread.
+//
+// The step table stays in device memory at `*device_steps`. The values of the tables, one after another as keymath
+// arranges those of the key, go at `*device_values`, `*value_count` words. The rest of the sizes of the program go in
+// `layout`, but not its step table and the values of its tables. The host checks the request as keymath_record_encode
+// and key_schedule_record_layout do before their cores run. It reads back only how each core ended, the limbs of the
+// file and the bits of the record
 static int layout_steps(DeviceArena *memory, const LayoutRequest *request, EngineRecordLayout *layout,
                         DeviceRecordStep **device_steps, unsigned int **device_values, unsigned long long *value_count,
                         VerbaLinea *error)
@@ -212,9 +215,9 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
         return 0;
     }
     const unsigned int count = request->count;
-    // each table's values in device memory, one after another, and its descriptor pointing at them there; a table
-    // indexed by more bits than a table supports, or with no values, errors on whole, as keymath could not arrange the
-    // key's values
+    // the values of each table in device memory, one after another, with its descriptor as a pointer to them there. A
+    // table indexed by more bits than a table supports, or with no values, gives an error on the whole. Then keymath
+    // could not arrange the values of the key
     unsigned long long words = 0ULL;
     for (unsigned int table = 0u; table < request->table_count; table += 1u)
     {
@@ -255,8 +258,8 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
     const unsigned int *const outputs = codegen_device_copy(memory, request->outputs, request->output_count);
     LayoutEnd *const device_ended = codegen_device_take<LayoutEnd>(memory, 1ULL);
     LayoutEnd ended{};
-    // keymath's encoding: each step's term, never-negative mark and form. An arena that filled stays taken until the
-    // memory is freed, and the arenas taken are under twice the last
+    // the encoding of keymath: the term, never-negative mark and form of each step. An arena that filled stays taken
+    // until the call frees the memory, and the arenas taken are under twice the last
     EngineRecordTerm *const terms = codegen_device_take<EngineRecordTerm>(memory, count);
     unsigned char *const never_negative = codegen_device_take<unsigned char>(memory, count);
     memory->ok = (memory->ok != 0) && tessera_job_cleared(never_negative, count);
