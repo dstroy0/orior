@@ -64,8 +64,8 @@ void daemon_device_read(void)
     {
         return;
     }
-    // the host's processors are in use by the jobs running on them, as each reports. The desktop's own work runs on
-    // the cores reserved from the jobs and is not counted
+    // the jobs that run on the processors of the host use them, as each reports. The own work of the desktop runs on
+    // the cores kept from the jobs, and the daemon does not count it
     for (unsigned long long at = 0ULL; tessera_measure_host(g_daemon.measure) && (at < g_daemon.ledger.job_count);
          at += 1ULL)
     {
@@ -97,8 +97,8 @@ static void daemon_admit(unsigned long long now)
         if (peer != NULL)
         {
             daemon_post(peer, TESSERA_NOTICE_ADMITTED, events[at].identity, events[at].bytes, events[at].measured);
-            // an admission informs the job its whole declaration as the daemon records it: the bytes its process
-            // allocated as it requested and the bytes it declared on top
+            // an admission tells the job its whole declaration as the daemon records it. That is the bytes that its
+            // process allocated as it requested, and the bytes that it declared on top
             peer->decisive.declared = peer->located + peer->declared;
         }
     }
@@ -136,8 +136,9 @@ void daemon_handle(TesseraPeer *peer, const TesseraFrame *frame)
         request.sweep_microseconds = frame->sweep_microseconds;
         request.idle_microseconds = frame->idle_microseconds;
         request.override_budget = frame->override_budget;
-        // the bytes the job's process already allocated as it requests, its context and whatever it retained from
-        // an earlier job: read by its pid, or taken from its own report where no pid is read from outside
+        // the bytes that the process of the job already allocated as it requests, its context and whatever it kept
+        // from an earlier job. The daemon reads them by its pid, or takes them from its own report where no one
+        // reads a pid from outside
         request.located = 0ULL;
         if (tessera_measure_reported(g_daemon.measure))
         {
@@ -189,7 +190,8 @@ void daemon_handle(TesseraPeer *peer, const TesseraFrame *frame)
     }
     if (frame->type == TESSERA_REQUEST_MEASURED)
     {
-        // a process's own report is for its measure only where no pid is read from outside; it gets no answer
+        // the own report of a process takes the place of its measure only where no one reads a pid from outside. It
+        // gets no answer
         TesseraEvent grew;
         if (tessera_measure_reported(g_daemon.measure) && (frame->identity == peer->identity) &&
             (peer->identity != 0ULL) &&
