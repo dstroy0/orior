@@ -5,12 +5,15 @@
 #ifndef TESSERA_LEDGER_CORE_HEAP_H
 #define TESSERA_LEDGER_CORE_HEAP_H
 
-// tessera's ledger decisions as one source the host and the device both compile. There are two tesseras: the host's
-// daemon (tessera_daemon_*.c) runs them through tessera_ledger.c over arrays it grows, with no CUDA context of its own,
-// and the device's tessera (tessera.cu) runs them in one thread over arrays it arranged in the device's memory.
-// The core never grows an array. Each decision errors where an array it needs is full, as the host's errored where a
-// an array did not grow, and tessera_core_call errors on a call before it changes anything where the ledger lacks room
-// for the max the call could add: the caller grows the arrays and makes the call again, which decides the same
+// the ledger decisions of tessera, as one source that the host and the device both compile. There are two tesseras.
+// The daemon of the host (tessera_daemon_*.c) runs them through tessera_ledger.c over arrays that it grows, with no
+// CUDA context of its own. The tessera of the device (tessera.cu) runs them in one thread, over arrays that it
+// arranged in the memory of the device.
+//
+// The core never grows an array. Each decision gives an error where an array that it needs is full, as that of the host
+// did where an array did not grow. Where the ledger has no room for the max that a call could add, tessera_core_call
+// gives an error before it changes anything. Then the caller grows the arrays and makes the call again, which decides
+// the same
 
 #include "tessera_ledger.h"
 
@@ -55,8 +58,13 @@ TESSERA_CORE int tessera_core_signum_same(const EngineSignum *left, const Engine
     return same;
 }
 
-// the arrays a ledger's call of `type` can take: a job and a deadline for a submit, a tracked peak and a deadline for a
-// release, a deadline for an idle, a tracked peak for a remember, and a deadline for each job an admit could start
+// the arrays that a call of `type` on a ledger can take:
+//
+// - a job and a deadline for a submit
+// - a tracked peak and a deadline for a release
+// - a deadline for an idle
+// - a tracked peak for a remember
+// - a deadline for each job that an admit could start
 TESSERA_CORE TesseraCapacity tessera_core_capacity(const TesseraLedger *ledger, TesseraCallType type)
 {
     TesseraCapacity needed = {ledger->job_count, ledger->history_count, ledger->heap_count};
@@ -194,9 +202,9 @@ TESSERA_CORE const TesseraHistory *tessera_core_history(const TesseraLedger *led
     return NULL;
 }
 
-// a job is reserved its whole declaration, the bytes its process allocated as it requested and the bytes it declares on
-// top, or its signum's tracked peak when that is more: the capacity it will take is reserved from its start and not
-// only once a sweep has seen it grow
+// the ledger reserves for a job its whole declaration. That is the bytes that its process allocated as it requested,
+// and the bytes that it declares on top. Or it reserves the tracked peak of its signum, when that is more. The ledger
+// reserves the capacity that the job will take from its start, and not only after a sweep sees it grow
 TESSERA_CORE unsigned long long tessera_core_wants(const TesseraLedger *ledger, const TesseraJob *job)
 {
     const TesseraHistory *const previous = tessera_core_history(ledger, &job->request.signum);
@@ -204,8 +212,8 @@ TESSERA_CORE unsigned long long tessera_core_wants(const TesseraLedger *ledger, 
     return ((previous != NULL) && (previous->peak > total)) ? previous->peak : total;
 }
 
-// the bytes a waiting job has yet to find on the device: what it wants less what its process already allocated
-// there, which the device's measured use counts
+// the bytes that a job which waits must still find on the device. That is what it wants, less what its process already
+// allocated there, which the measured use of the device counts
 TESSERA_CORE unsigned long long tessera_core_needs(const TesseraLedger *ledger, const TesseraJob *job)
 {
     const unsigned long long wants = tessera_core_wants(ledger, job);
