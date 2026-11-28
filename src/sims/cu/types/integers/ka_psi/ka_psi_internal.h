@@ -4,19 +4,20 @@
 #ifndef KA_PSI_INTERNAL_H
 #define KA_PSI_INTERNAL_H
 
-// Kolmogorov's inner function, exactly (Braun and Griebel, Constructive Approximation 30(3) (2009) 653-675, the
-// preprint's section 2). Every value is exact: on the grids by exact integers over a common denominator, and at
-// depth by a sparse sum of c . gamma^-e whose exponent e = beta(L) = (n^L - 1)/(n - 1) is carried as an integer and
-// never expanded.
-// 1. Sprecher's psi (2.4) reproduces the paper's counterexample exactly and its descents are counted.
-// 2. Koppen's psi, in two readings the paper gives: (2.9)/(2.10), which its proofs use, where the carried midpoint
-//    adds (gamma - 2)/2 units. And (2.7) as printed, which adds (gamma - 1)/2. On every point of D_1 to D_5 the
-//    pair recursion (the scale step) equals the level-by-level recursion, psi is strictly increasing, its smallest
-//    gap is exactly gamma^-beta(L), and its largest gap is what the gap recursion predicts.
-// 3. Every scale, by the chained step: the smallest gap stays gamma^-beta(L) and the step stays monotone because
-//    gamma^(n^(L-1)) > gamma + 1, checked symbolically to depth; the largest gap stays below 2^-(L-1)/gamma and below
-//    the paper's Lemma 2.3 bound. Psi extends to a continuous strictly increasing function; a keyed point at
-//    depth lands its gap between the two.
+// The inner function of Kolmogorov, exactly (Braun and Griebel, Constructive Approximation 30(3) (2009) 653-675,
+// section 2 of the preprint). Every value is exact. On the grids, a value is an exact integer over a common
+// denominator. At depth, it is a sparse sum of `c * gamma^-e`. The code carries its exponent
+// `e = beta(L) = (n^L - 1)/(n - 1)` as an integer, and never expands it.
+//
+// 1. The psi of Sprecher (2.4) gives the counterexample of the paper exactly, and the sim counts its descents.
+// 2. The psi of Koppen, in two readings that the paper gives. One is (2.9)/(2.10), which its proofs use, where the
+//    carried midpoint adds `(gamma - 2)/2` units. The other is (2.7) as printed, which adds `(gamma - 1)/2`. On every
+//    point of D_1 to D_5, the pair recursion (the scale step) equals the level-by-level recursion. Psi increases
+//    strictly, its smallest gap is exactly `gamma^-beta(L)`, and its largest gap is what the gap recursion predicts.
+// 3. Every scale, by the chained step. The smallest gap stays `gamma^-beta(L)`, and the step stays monotone because
+//    `gamma^(n^(L-1)) > gamma + 1`, checked symbolically to depth. The largest gap stays below `2^-(L-1)/gamma`, and
+//    below the bound of Lemma 2.3 of the paper. Psi extends to a continuous function that increases strictly. A keyed
+//    point at depth lands its gap between the two.
 
 #include "sim_rational.h"
 
