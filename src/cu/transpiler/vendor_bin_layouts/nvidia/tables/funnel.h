@@ -35,23 +35,25 @@ extern "C"
 
     void tables_text_freed(TablesText *text);
 
-    // The record at `*at` of the capture `bytes`, `size` long, read into `record` and `*at` moved past it: a line
-    // `<dst src size>`, the addresses in hex and the count in decimal, then the count's bytes. 1, or 0 at the end
-    // of the capture or where no record is at `*at`
+    // The record at `*at` of the capture `bytes`, `size` long, read into `record`, with `*at` moved past it. It is a
+    // line `<dst src size>`, with the addresses in hex and the count in decimal, then the bytes of the count. The
+    // return is 1, or 0 at the end of the capture or where no record is at `*at`
     int tables_record_read(const unsigned char *bytes, size_t size, size_t *at, TablesRecord *record);
 
-    // 1 where `bytes`, `size` long, is an archive: its first word its own byte count, its second 0, and then
-    // blocks each headed by its unpacked and packed byte counts, the first block unpacked to TABLES_BLOCK bytes
+    // 1 where `bytes`, `size` long, is an archive. Its first word is its own byte count, and its second 0. Then come
+    // blocks, each with its unpacked and packed byte counts at its head, with the first block unpacked to
+    // TABLES_BLOCK bytes
     int tables_archive(const unsigned char *bytes, size_t size);
 
-    // The archive `bytes`, `size` long, unpacked into `text`: each block an LZ4 block whose matches reach back into
-    // every block before it. 1, or 0 where a block does not unpack to the count its header gives, the text containing
-    // what unpacked before it
+    // The archive `bytes`, `size` long, unpacked into `text`. Each block is an LZ4 block whose matches reach back into
+    // every block before it. The return is 1, or 0 where a block does not unpack to the count that its header gives.
+    // Then the text holds what unpacked before it
     int tables_unpacked(const unsigned char *bytes, size_t size, TablesText *text);
 
-    // The capture `bytes`, `size` long, read for the vendor's two tables: `instructions` the first archive among
-    // its records unpacked, `latencies` the copies out of the buffer that contains `OPERATION SETS` at its start, in
-    // their order. The count of tables found, 0 to 2, the instruction set counted where its archive unpacked whole
+    // The capture `bytes`, `size` long, read for the two tables of the vendor. `instructions` is the first archive
+    // among its records, unpacked. `latencies` is the copies out of the buffer that holds `OPERATION SETS` at its
+    // start, in their order. The return is the count of tables found, 0 to 2. It counts the instruction set where its
+    // archive unpacked whole
     unsigned int tables_funnelled(const unsigned char *bytes, size_t size, TablesText *instructions,
                                   TablesText *latencies);
 
