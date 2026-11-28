@@ -1,9 +1,9 @@
-// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com> SPDX-License-Identifier: AGPL-3.0-or-later
-// OR LicenseRef-Commercial OR LicenseRef-Educational glyphs.c: the window's text. A face's file is read whole through
-// the caller's faces into its segment of the block and its character map saved after it; a glyph is outlined at its
-// pixel size, measured, rasterized as coverage in a cell of its own size and saved as bytes in a entry found by its
-// key, every entry let go together as they fill; a glyph in a color is a cell of lanes positioned for the one blend,
-// saved the same way, which the text is drawn through
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// glyphs.c: the window's text. A face's file is read whole through the caller's faces into its segment of the block and
+// its character map saved after it; a glyph is outlined at its pixel size, measured, rasterized as coverage in a cell
+// of its own size and saved as bytes in a entry found by its key, every entry let go together as they fill; a glyph in
+// a color is a cell of lanes positioned for the one blend, saved the same way, which the text is drawn through
 #include "glyphs.h"
 
 #include "block.h"

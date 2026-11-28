@@ -1,9 +1,9 @@
-// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com> SPDX-License-Identifier: AGPL-3.0-or-later
-// OR LicenseRef-Commercial OR LicenseRef-Educational framebuffer.h: a window's rasters: the two framebuffers, passed
-// between drawing and showing by a ring of MMgr's with two segments, and the ground's raster, the one segment of a ring
-// of its own, each `gui_raster_pitch` of the window's width wide. The rings and the capacity of a segment are the
-// caller's: the caller positions the rings over pages it retains, commits them as far as the window draws, and gives
-// them back (framebuffer.c)
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// framebuffer.h: a window's rasters: the two framebuffers, passed between drawing and showing by a ring of MMgr's with
+// two segments, and the ground's raster, the one segment of a ring of its own, each `gui_raster_pitch` of the window's
+// width wide. The rings and the capacity of a segment are the caller's: the caller positions the rings over pages it
+// retains, commits them as far as the window draws, and gives them back (framebuffer.c)
 #ifndef GUI_FRAMEBUFFER_H
 #define GUI_FRAMEBUFFER_H
 #include "../raster/raster.h"

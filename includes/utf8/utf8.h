@@ -1,9 +1,9 @@
-// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com> SPDX-License-Identifier: AGPL-3.0-or-later
-// OR LicenseRef-Commercial OR LicenseRef-Educational utf8.h: a text of UTF-8 read character by character, and walked by
-// a set of bytes: the character at a place and the character before a place, each with the bytes it takes, a byte that
-// starts no character or a character cut short read as one character of its own byte; and the first place from a place
-// whose byte a set holds, or does not hold, and the place past the last such byte before a place, each the widest lane
-// the build has, then a word at a time (utf8.c)
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// utf8.h: a text of UTF-8 read character by character, and walked by a set of bytes: the character at a place and the
+// character before a place, each with the bytes it takes, a byte that starts no character or a character cut short read
+// as one character of its own byte; and the first place from a place whose byte a set holds, or does not hold, and the
+// place past the last such byte before a place, each the widest lane the build has, then a word at a time (utf8.c)
 #ifndef UTF8_H
 #define UTF8_H
 #include "embed_dispatch_layout.h"
