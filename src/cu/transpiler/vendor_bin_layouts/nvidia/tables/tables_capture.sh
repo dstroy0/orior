@@ -1,11 +1,13 @@
 #!/usr/bin/env sh
-# The vendor's tables captured off its disassembler, on Linux, for every key container given: the hook built, and
-# the disassembler run over each container with the hook loaded before the C library, its every copy written to
-# <out>/<name>.capture. Run inside the container the tables job starts, the tree's folder mounted.
+# The tables of the vendor, captured from its disassembler, on Linux, for every key container given. The script
+# builds the hook, and runs the disassembler over each container with the hook loaded before the C library. It writes
+# every copy of it to `<out>/<name>.capture`. Run inside the container that the tables job starts, with the folder of
+# the tree mounted.
 #
 #     tables_capture.sh <nvdisasm> <hook.c> <out> <cubin>...
 #
-# Exit 0 where every container was captured, 1 where the hook did not build or the disassembler failed on one.
+# Exit 0 where the script captured every container, and 1 where the hook did not build or the disassembler failed
+# on one.
 set -u
 nvdisasm="$1"
 hook="$2"
