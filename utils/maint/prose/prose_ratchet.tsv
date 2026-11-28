@@ -484,7 +484,7 @@ includes/glass/glass.c	1
 includes/glass/glass.h	5
 includes/parsers/who.c	5
 includes/parsers/who.h	2
-includes/platform/platform.h	25
+includes/platform/platform.h	2
 includes/platform/platform_internal.h	3
 includes/platform/platform_pool.c	8
 includes/platform/posix/linux/linux_picker.c	19
