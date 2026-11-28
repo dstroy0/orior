@@ -3,11 +3,14 @@
 #ifndef CODE_GENERATOR_H
 #define CODE_GENERATOR_H
 
-// The register lane, the code generator that names no language: each step unrolled at its widths into
-// straight-line text over registers the lane uses itself, every line a form of the language's ruleset. A language is
-// its ruleset's file, and the file names the toolchain that builds its text, where its header comes from, how many
-// memory writes its text can make in one state (write_ports), whether it uses the lane's file and signs in the thread
-// block's shared memory (shared), and the part whose files are read after it (part)
+// The register lane, the code generator that names no language. It unrolls each step at its widths into straight-line
+// text over registers that the lane uses itself. Every line is a form of the ruleset of the language. A language is the
+// file of its ruleset. The file names these things:
+//
+// - the toolchain that builds its text, and where its header comes from
+// - how many memory writes its text can make in one state (write_ports)
+// - whether it uses the file and signs of the lane in the shared memory of the thread block (shared)
+// - the part whose files the program reads after it (part)
 
 #include "codegen_core.h"
 #include "target.h"
@@ -37,8 +40,8 @@ struct ScheduleModel
     unsigned int writes;
 };
 
-// a lane as it was split: its states, the max cost one state chains, and the forms that alone cost more than a state
-// is true
+// a lane as the core split it: its states and the max cost that one state chains. Then the forms that alone cost more
+// than a state is true
 struct ScheduleReport
 {
     unsigned int states;
@@ -46,8 +49,8 @@ struct ScheduleReport
     unsigned int over;
 };
 
-// a schedule model as the core splits by it (Schedule): each form's cost by its number, the cost a state may chain, the
-// writes the model lets a state make and the language's write ports
+// a schedule model as the core splits by it (Schedule). It has the cost of each form by its number, and the cost that
+// a state can chain. Then the writes that the model lets a state make, and the write ports of the language
 struct ScheduleCosts
 {
     unsigned int cost[OPCODE_COUNT];
@@ -76,7 +79,7 @@ class CodeGenerator : public Target
     int program(const EngineRecordLayout *layout, const TargetInfo *target, const char *header, PlatformText *text,
                 unsigned int *places, unsigned int *live) override;
 
-    // the lane split into states by `model`, as program() writes it otherwise; `report` informed how it was split
+    // the lane split into states by `model`, as program() writes it in other cases. `report` gets how the call split it
     int scheduled(const EngineRecordLayout *layout, const TargetInfo *target, const char *header, PlatformText *text,
                   unsigned int *places, unsigned int *live, const ScheduleModel &model, ScheduleReport *report);
 
@@ -86,37 +89,38 @@ class CodeGenerator : public Target
     // want of a form. The device decides the same (codegen_device.h)
     int decided(const EngineRecordLayout *layout, unsigned int *places, PlatformArray *items);
 
-    // the forms scheduled() writes the lane in, as decided() gives program()'s, and `report` informed how it was split
+    // the forms that scheduled() writes the lane in, as decided() gives those of program(). `report` gets how the call
+    // split it
     int decided(const EngineRecordLayout *layout, const ScheduleModel &model, ScheduleReport *report,
                 unsigned int *places, PlatformArray *items);
 
-    // `model` as the core splits by it, each form's cost found by the name the ruleset gives it, with the language's
-    // write ports, on the host and the device alike
+    // `model` as the core splits by it. The call finds the cost of each form by the name that the ruleset gives it,
+    // with the write ports of the language. It does so on the host and the device alike
     ScheduleCosts schedule_costs(const ScheduleModel &model) const;
 
-    // the schedule model program() splits the lane by, where the language always splits it into states (a clocked one);
-    // NULL where program() writes the lane whole
+    // the schedule model that program() splits the lane by, where the language always splits it into states (a clocked
+    // one). NULL where program() writes the lane whole
     virtual const ScheduleModel *program_schedule_model(void) const;
 
-    // how many registers the language's one register file contains for the lane, where every bank is in that file and
-    // the banks are positioned end to end from the counts the lane declares, in place of each being numbered from 0. A
-    // language whose registers are virtual gives each bank a namespace of its own and answers 0. A lane whose banks
-    // run past what the file contains is written by nobody: program() refuses it, in place of writing a register the
-    // language pinned to something else
+    // how many registers the one register file of the language holds for the lane. There, every bank is in that file,
+    // and the banks go end to end from the counts that the lane declares. They do not each have numbers from 0. A
+    // language whose registers are virtual gives each bank a namespace of its own, and answers 0. Nothing writes a lane
+    // whose banks run past what the file holds. The call program() refuses it, and does not write a register that the
+    // language pinned to a different thing
     virtual unsigned int register_file_size(void) const;
 
-    // Whether the language writes the program resident itself. Max do: the resident is a form of the ruleset like
-    // any other, and program() puts it after the lane. A language whose resident reaches it already built answers
-    // 0, and program() leaves the form out in place of querying the ruleset for it
+    // Whether the language writes the program resident itself. Most do: the resident is a form of the ruleset as any
+    // other is, and program() puts it after the lane. A language whose resident reaches it already built answers 0.
+    // Then program() leaves the form out, and does not query the ruleset for it
     virtual int program_unit_written(void) const;
 
     // 1 where program() splits the lane, `costs` then its model as the core splits by it, for the device to split the
     // same
     int program_schedule_costs(ScheduleCosts *costs) const;
 
-    // each register the lane last written uses, one a line: the register as the ruleset writes it, what contains it,
-    // its bank, its fixed register's name, or the form whose scratch it is, and the items that claim and release it, by
-    // their place in the lane from 1 and their form (codegen_claims)
+    // each register that the lane written last uses, one to a line. A line has the register as the ruleset writes it,
+    // and what holds it. That is its bank, the name of its fixed register, or the form whose scratch it is. Then come
+    // the items that claim and release it, by their place in the lane from 1 and their form (codegen_claims)
     const char *register_claims(void);
 
   private:
@@ -129,10 +133,10 @@ class CodeGenerator : public Target
              unsigned int *places, unsigned int *live, const ScheduleModel *model, ScheduleReport *report);
 };
 
-// the code generator a process retains for the ruleset `file`, its ruleset read at its first call to ruleset(). A
-// ruleset that gives shared 1 arranges the file and its signs in shared memory, a thread's places a word each across
-// the thread block's threads and the signs a byte each after them, as the record machine sizes them: the lane then uses
-// the file's places there and opens by finding its signs
+// the code generator that a process keeps for the ruleset `file`, with its ruleset read at its first call to
+// ruleset(). A ruleset that gives shared 1 arranges the file and its signs in shared memory, as the record machine
+// sizes them. The places of a thread go one word each across the threads of the thread block, and the signs one byte
+// each after them. The lane then uses the places of the file there, and opens with a search for its signs
 CodeGenerator &code_generator(const char *file);
 
 #endif
