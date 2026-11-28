@@ -587,7 +587,6 @@ src/cu/transpiler/vendor_bin_layouts/container_layout.h	3
 src/cu/transpiler/vendor_bin_layouts/container_pattern.c	3
 src/cu/transpiler/vendor_bin_layouts/container_write.c	5
 src/cu/transpiler/vendor_bin_layouts/container_write_internal.h	2
-src/cu/transpiler/vendor_bin_layouts/nvidia/bus_clock.c	13
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing.h	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_listing/cut.c	5
 src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_run/driver.c	1
