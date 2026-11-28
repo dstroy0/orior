@@ -303,44 +303,55 @@ int cli_changes_step(const CliGitChangesCfg *args);
 // that it follows. The next commit takes each file, unless the reader left it out before. The call reads none where
 // `root` is NULL
 void cli_changes_read(const CliGitChangesCfg *args);
-// how many rows the changes have, the files with the rows open under them; how many files differ from the last commit;
-// the row `at` into `row`: 1, or 0 past the last; the row `at` toggled: a file's left
-// out of the next commit or taken again, its lines' choices cleared; a change's lines every one taken where some is
-// left out, else every one left out; a line's left out or taken; a file left out as its last line is, and taken again
-// as a line of it is; the changes of the file of the row `at` opened under it, the document store's changes of its
-// text, the open view's where one is open on it, against the file as the last commit has it, or closed where they are
-// open: 1, or 0 where the file's changes cannot open, a file gone, not a text or too far from the last commit's; how
-// many files the next commit takes; every file taken where `on`, else every file left out; and the menu of the row
-// `at` built as the menus' own rows, Open File, which a file gone cannot take, then Copy Path: 1, or 0 past the last
+// how many rows the changes have, with the rows that are open under the files
 unsigned int cli_changes_rows(const CliGitChangesCfg *args);
+// how many files differ from the last commit
 unsigned int cli_changes_files(const CliGitChangesCfg *args);
+// the row `at`, into `row`. The return is 1, or 0 past the last
 int cli_changes_row(const CliGitChangesCfg *args);
+// the row `at`, toggled:
+//
+// - a file: left out of the next commit or taken again, with the choices of its lines cleared
+// - a change: every line of it taken where the commit leaves some out, else every line left out
+// - a line: left out or taken. A file goes out with its last line, and comes back with a line of it.
 void cli_changes_toggle(const CliGitChangesCfg *args);
+// the changes of the file of the row `at`, opened under it, or closed where they are open. They are the changes of the
+// document store to its text, or of the open view where one is open on it. They are against the file as the last commit
+// has it. The return is 1, or 0 where the changes cannot open. That is a file gone, not a text, or too far from that of
+// the last commit
 int cli_changes_open(const CliGitChangesCfg *args);
+// how many files the next commit takes
 unsigned int cli_changes_taken(const CliGitChangesCfg *args);
+// every file taken where `on`, else every file left out
 void cli_changes_take_all(const CliGitChangesCfg *args);
+// the menu of the row `at`, built as the own rows of the menus: Open File, which a file gone cannot take, then Copy
+// Path. The return is 1, or 0 past the last
 int cli_changes_menu(const CliGitChangesCfg *args);
-// `size` bytes of `text` typed at the message's end; the key `name` pressed in the box, Backspace erasing the last
-// character: 1 where the key was taken; the message copied with its end into `text_out`, sized for
-// CLI_CHANGES_MESSAGE_MAX: its bytes; the files taken committed to the
-// tree at `root` with the message, a file with lines left out committed with the text of its lines taken, each
-// repository committed to pushed where `push`, the message cleared, the open changes closed and the changes read
-// again where git takes it: 1, or 0 where git refuses or nothing is to commit; and git's refusal of the
-// last commit, pull, push or roll back, or why nothing was to commit, copied with its end into `text_out` where that is
-// not NULL, sized for CLI_CHANGES_REFUSAL_MAX: its bytes, 0 where the last was taken
+// `size` bytes of `text`, typed at the end of the message
 void cli_changes_type(const CliGitChangesCfg *args);
+// the key `name`, pressed in the box. Backspace erases the last character. The return is 1 where the box took the key
 int cli_changes_key(const CliGitChangesCfg *args);
+// the message, copied with its end into `text_out`, sized for CLI_CHANGES_MESSAGE_MAX. The return is its bytes
 unsigned long long cli_changes_message(const CliGitChangesCfg *args);
+// the files taken, committed to the tree at `root` with the message. A file with lines left out goes in with the text
+// of the lines taken. Where `push`, the call pushes each repository that it committed to. Where git takes the commit,
+// the call clears the message, closes the open changes, and reads the changes again. The return is 1, or 0 where git
+// refuses or there is nothing to commit
 int cli_changes_commit(const CliGitChangesCfg *args);
+// the refusal of git to the last commit, pull, push or roll back, or why there was nothing to commit. The call copies
+// it with its end into `text_out` where that is not NULL, sized for CLI_CHANGES_REFUSAL_MAX. The return is its bytes,
+// 0 where git took the last
 unsigned long long cli_changes_refusal(const CliGitChangesCfg *args);
-// how many commits the branch has that the remote it follows does not into `ahead`, and the other way into `behind`:
-// 1, or 0 where it follows no remote, as the changes were last read; the branch pulled, and pushed, at `root`, the
-// changes read again after: 1, or 0 with the refusal located; and the files taken rolled back to the last commit at
-// `now_ms`: 0 where the press arms the roll back, a second press within CLI_CHANGES_ROLLBACK_MS rolling, 1 where it
-// rolled, a file the last commit does not contain refused, the list located as it was until it is read again
+// how many commits the branch has that the remote it follows does not, into `ahead`, and the other way, into `behind`.
+// They are as the last read found them. The return is 1, or 0 where it follows no remote
 int cli_changes_sync(const CliGitChangesCfg *args);
+// the branch at `root` pulled, with the changes read again after. The return is 1, or 0 with the refusal located
 int cli_changes_pull(const CliGitChangesCfg *args);
+// the branch at `root` pushed, in the same way
 int cli_changes_push(const CliGitChangesCfg *args);
+// the files taken, rolled back to the last commit at `now_ms`. The return is 0 where the press arms the roll back, and
+// a second press within CLI_CHANGES_ROLLBACK_MS rolls it. The return is 1 where it rolled. The call refuses a file that
+// the last commit does not hold. The list stays located as it was until the next read
 int cli_changes_rollback(const CliGitChangesCfg *args);
 struct CliGitChangesCfg
 {
