@@ -8,9 +8,9 @@
 #include "cubin_run_internal.h"
 #include "memoria_operor/memoria_operor.h"
 
-// The part's fault telemetry, the driver's management layer (NVML), reached by name and by its own entry points as the
-// driver is, and nothing of its vendor's toolchain compiled against. What cubin_safe's rule 8 reads after each launch:
-// the Xid critical errors the part stamps against the device
+// The fault telemetry of the part, the management layer of the driver (NVML). The program reaches it by name and by its
+// own entry points, as it reaches the driver. It compiles against nothing of the vendor toolchain. Rule 8 of cubin_safe
+// reads it after each launch: the Xid critical errors that the part stamps against the device
 typedef struct
 {
     int (*init)(void);
@@ -22,6 +22,8 @@ typedef struct
     int (*set_free)(void *);
 } CubinRunTelemetry;
 
+// the event that a wait fills: the handle of the part, the type stamped and its datum. Room past them holds the fields
+// that a newer management layer adds, and an older layer reads its shorter event into that same space
 typedef struct
 {
     void *device;
@@ -32,13 +34,17 @@ typedef struct
     unsigned char room[32];
 } CubinRunXidEvent;
 
-// The part's fault telemetry as the system's own log records it, beside the management layer: every error the display
-// driver, the provider nvlddmkm, writes to the System log, read through the system's event log reader, reached by name
-// and by its own entry points as the driver is. The driver writes each Xid there whether its management layer
-// is reached: the event's ID its Xid, and its text what the part did, as `Graphics SM Warp Exception on (GPC 1, TPC 0,
-// SM 0): Out Of Range Register`. The log is subscribed to once as the carrier opens, and each launch pulls off the
-// subscription what the driver wrote since: a pull with nothing written costs nothing, where a query of the log would
-// cost the majority of a launch's time
+// The fault telemetry of the part as the own log of the system records it, beside the management layer. It is every
+// error that the display driver, the provider nvlddmkm, writes to the System log. The program reads it through the
+// event log reader of the system. It reaches that reader by name and by its own entry points, as it reaches the driver.
+//
+// The driver writes each Xid there, whether or not the program reaches its management layer. The ID of the event is
+// its Xid, and its text is what the part did, as
+// `Graphics SM Warp Exception on (GPC 1, TPC 0, SM 0): Out Of Range Register`.
+//
+// The program subscribes to the log once, as the carrier opens. Each launch pulls from the subscription what the
+// driver wrote since. A pull with nothing written costs nothing, where a query of the log would cost most of the time
+// of a launch
 typedef struct
 {
     void *(WINAPI *subscribe)(void *, void *, const wchar_t *, const wchar_t *, void *, void *, void *, unsigned long);
@@ -59,8 +65,8 @@ int cubin_run_driver(CubinRunDriver *driver)
     {
         return 0;
     }
-    // each entry point's address is the function the driver exports under that name, which takes what its member
-    // allows: an object pointer is turned into a function pointer here and nowhere else
+    // the address of each entry point is the function that the driver exports under that name, which takes what its
+    // member allows. The program turns an object pointer into a function pointer here and nowhere else
     *(void **)&driver->init = cubin_run_entry(library, "cuInit");
     *(void **)&driver->device_get = cubin_run_entry(library, "cuDeviceGet");
     *(void **)&driver->context_retain = cubin_run_entry(library, "cuDevicePrimaryCtxRetain");
@@ -100,16 +106,16 @@ int s_telemetry_ready = 0;
 static CubinRunEvents s_events;
 int s_events_ready = 0;
 
-// the subscription to the driver's errors, pulled a launch at a time: only an error written past the last pull counts
-// against the launch to come
+// the subscription to the errors of the driver, pulled one launch at a time. Only an error written past the last pull
+// counts against the next launch
 static void *s_events_subscription = NULL;
 
 unsigned long long s_xid_data[CUBIN_RUN_XID_MAX];
 char s_xid_text[CUBIN_RUN_XID_MAX][CUBIN_RUN_XID_TEXT];
 unsigned int s_xid_count = 0u;
 
-// an Xid and the text the driver wrote of it recorded against the last launch, a `;` of the text written `,`, since the
-// listener's account ends in clauses after one
+// an Xid and the text that the driver wrote of it, recorded against the last launch. The call writes a `;` of the text
+// as `,`, because the account of the listener ends in clauses after one
 static void cubin_run_xid_stored(unsigned long long xid, const char *text)
 {
     if (s_xid_count < CUBIN_RUN_XID_MAX)
@@ -157,8 +163,8 @@ static unsigned long long cubin_run_event_number(const char *xml, const char *ta
                             : 0ULL;
 }
 
-// the text of the driver's error in `xml` into `text`, which has room for `room`: its second datum, the first the
-// device, or its first where it contains one alone
+// the text of the error of the driver in `xml`, into `text`, which has room for `room`. It is its second datum, as the
+// first is the device, or its first where it holds one alone
 static void cubin_run_event_text(const char *xml, char *text, size_t room)
 {
     const char *datum = EMBED_CALL(cellul.find, CatenaFinitaCfg, .src = xml, .cap = PLATFORM_TEXT_TO_TERMINATOR,
@@ -181,8 +187,8 @@ static void cubin_run_event_text(const char *xml, char *text, size_t room)
     }
 }
 
-// The driver's errors written since the last pull, read off the subscription in the order written, each recorded
-// against the launch where `store` (cubin_run_xid_stored): the count read
+// The errors that the driver wrote since the last pull, read from the subscription in the order written. Where `store`
+// is not zero, the call records each against the launch (cubin_run_xid_stored). The return is the count read
 static unsigned int cubin_run_events_read(int store)
 {
     static char s_xml[32768];
@@ -206,8 +212,9 @@ static unsigned int cubin_run_events_read(int store)
     return read;
 }
 
-// the system's log of the driver's errors subscribed to, the errors written from now on: 1 where it is ready to pull,
-// 0 where its reader or an entry point of it is not there, or the system records no such log
+// a subscription to the log of the system for the errors of the driver, the errors written from now on. The return is
+// 1 where it is ready to pull. It is 0 where its reader or an entry point of it is not there, or the system records no
+// such log
 static int cubin_run_events_open(void)
 {
 #if defined(_WIN32)
@@ -225,8 +232,8 @@ static int cubin_run_events_open(void)
     {
         return 0;
     }
-    // the subscription pulled, never waited on: the signal the reader sets as an error is written is only what a pull
-    // without a callback requires
+    // the subscription, pulled and never waited on. The reader sets a signal when the driver writes an error. A pull
+    // with no callback needs only that signal
     void *const signal = CreateEventW(NULL, FALSE, FALSE, NULL);
     if (signal == NULL)
     {
@@ -246,9 +253,9 @@ static int cubin_run_events_open(void)
 #endif
 }
 
-// The part's management layer opened and its Xid critical errors registered on device 0, the device the carrier runs:
-// 1 where it is ready to read, 0 where its library, an entry point, or the registration is not there. A part that
-// reports no such error still opens, and the wait then only ever comes back empty
+// The management layer of the part, opened, with its Xid critical errors registered on device 0, the device that the
+// carrier runs. The return is 1 where it is ready to read. It is 0 where its library, an entry point, or the
+// registration is not there. A part that reports no such error still opens, and the wait then only comes back empty
 static int cubin_run_management_open(void)
 {
 #if defined(_WIN32)
@@ -325,10 +332,11 @@ void cubin_run_telemetry_drain(void)
 #endif
 }
 
-// 1 where the part stamped an Xid critical error or the driver wrote an error of it to the system's log, every one
-// read without waiting and recorded: the launch just carried faulted the part. A launch the driver answered with
-// `status` other than 0 waits for the driver's error up to CUBIN_RUN_EVENTS_WAIT_MILLISECONDS, since the driver writes
-// it as the fault comes back. 0 where none is stamped or written, or the telemetry is not ready
+// 1 where the part stamped an Xid critical error, or the driver wrote an error of it to the log of the system. The call
+// reads each one with no wait, and records it: the launch that the carrier just carried faulted the part. A launch
+// that the driver answered with `status` other than 0 waits for the error of the driver, up to
+// CUBIN_RUN_EVENTS_WAIT_MILLISECONDS. The driver writes it as the fault comes back. The return is 0 where the part
+// stamped none and the driver wrote none, or the telemetry is not ready
 int cubin_run_telemetry_faulted(CubinRunStatus status)
 {
     const unsigned int before = s_xid_count;

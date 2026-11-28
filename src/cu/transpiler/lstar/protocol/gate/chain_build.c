@@ -5,8 +5,8 @@
 #include "memoria_operor/memoria_operor.h"
 #include "verba_scribo/verba_linea.h"
 
-// The precepts a chain is built from: the ones that carry a word and take a child. NOP carries no child, ERR reports a
-// thing cannot be done, and the two branches go nowhere a word comes back from
+// The precepts that the call builds a chain from: the ones that carry a word and take a child. NOP carries no child,
+// and ERR reports a thing that the program cannot do. The two branches go nowhere that a word comes back from
 static const unsigned char s_chain_precepts[] = {
     PRECEPT_NOT, PRECEPT_BITAND, PRECEPT_BITOR, PRECEPT_BITXOR, PRECEPT_NAND, PRECEPT_NOR, PRECEPT_MOV, PRECEPT_SHL,
     PRECEPT_SHR, PRECEPT_ASR,    PRECEPT_ROL,   PRECEPT_ROR,    PRECEPT_ADD,  PRECEPT_SUB, PRECEPT_MUL};
@@ -26,7 +26,7 @@ static const unsigned int s_precept_arity[] = {PRECEPTS(PRECEPT_ARITY)};
 // nothing else the cases supply
 #define CHAIN_SOURCES (PRECEPT_OPERANDS + 2u + CHAIN_NODES)
 
-// what is being built, and what it is being built against. The walk carries one pointer
+// what the call builds, and what it builds it against. The walk carries one pointer
 typedef struct
 {
     ChainSet *set;
@@ -39,9 +39,9 @@ typedef struct
     Chain building;
 } ChainWork;
 
-// the word the subtree rooted at node `at` produces for case `which`, through `answered`. A chain is written with
-// every node before its parent. The nodes up to and including `at` are a tree in their own right, and the walk that
-// reads a whole chain reads a node of one by being given a shorter count
+// the word that the subtree rooted at node `at` makes for case `which`, through `answered`. A chain has every node
+// written before its parent. The nodes from the first to `at` are a tree on their own. The walk that reads a whole
+// chain reads a node of one when it gets a shorter count
 static int chain_node_value(const ChainWork *work, unsigned int at, unsigned int which, unsigned int *answered)
 {
     return precept_value(work->building.node, at + 1u, &work->given[which], answered);
@@ -59,9 +59,9 @@ static int chain_child_value(const ChainWork *work, unsigned char child, unsigne
     return chain_node_value(work, child, which, answered);
 }
 
-// Whether node `at` changes anything. A node that answers what one of its children already answered, in every case
-// the relation carries, is the chain without it at greater length, and that shorter chain was found first. Without
-// this test a set fills with one working arrangement wrapped in moves
+// Whether node `at` changes anything. A node that answers what one of its children already answered, in every case of
+// the relation, is the chain without it at greater length. The search found that shorter chain first. Without this
+// test, a set fills with one arrangement that works, wrapped in moves
 static int chain_node_idle(const ChainWork *work, unsigned int at)
 {
     const unsigned char child[2] = {work->building.node[at].left, work->building.node[at].right};
@@ -91,8 +91,8 @@ static int chain_node_idle(const ChainWork *work, unsigned int at)
     return 0;
 }
 
-// whether every node before the root is read by a node after it. A node nothing reads is not part of the chain, and
-// the chain without it was found at a shorter length
+// whether a node after it reads every node before the root. A node that nothing reads is not part of the chain, and
+// the search found the chain without it at a shorter length
 static int chain_whole(const Chain *chain)
 {
     for (unsigned int at = 0u; (at + 1u) < chain->nodes; at += 1u)
@@ -130,10 +130,10 @@ static int chain_answers(const ChainWork *work)
     return 1;
 }
 
-// Whether the chain answers the relation on words the cases do not carry. A ladder's cases are its climbing order
-// and are few and small. An arrangement right about those words and wrong about the rest passes them and comes back
-// looking like a finding. The relation is true for every word there is and is queried for words the arrangement was
-// never fitted to
+// Whether the chain answers the relation on words that the cases do not carry. The cases of a ladder are its climb
+// order, and they are few and small. An arrangement that is right about those words and wrong about the rest passes
+// them, and comes back as if it were a finding. The relation is true for every word that exists. The call queries it
+// for words that the search never fitted the arrangement to
 static int chain_swept(const ChainWork *work)
 {
     unsigned int state = 0x9e3779b9u + work->cases[0].anchor;
@@ -162,7 +162,7 @@ static int chain_swept(const ChainWork *work)
     return 1;
 }
 
-// the chain as it is put into the set, where it fits together and answers and there is room
+// the chain as the call puts it into the set, where it fits together and answers, and there is room
 static void chain_retain(ChainWork *work)
 {
     work->set->tried += 1u;
@@ -195,7 +195,7 @@ static void chain_retain(ChainWork *work)
     work->set->chains += 1u;
 }
 
-// every arrangement of `nodes` nodes, filling node `at` and those after it
+// every arrangement of `nodes` nodes, with node `at` and those after it filled
 static void chain_walk(ChainWork *work, unsigned int nodes, unsigned int at)
 {
     if (at == nodes)
@@ -241,8 +241,8 @@ unsigned int chain_build_cases(ChainSet *set, const LadderQuestion *cases, unsig
     {
         return 0u;
     }
-    // a measure's answer is a property of the system and follows from no arrangement of its words. Built for
-    // anyway, every arrangement that lands on the one answer by accident comes back looking like a finding
+    // the answer of a measure is a property of the system, and follows from no arrangement of its words. Where the call
+    // builds for it all the same, each arrangement that lands on the one answer by accident looks like a finding
     if (s_ladder_measured[cases[0].anchor] != 0)
     {
         return 0u;

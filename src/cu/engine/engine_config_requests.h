@@ -59,11 +59,11 @@ extern "C"
         unsigned int *grouped;
     } EngineGroupRequest;
 
-    // A background order is even on every axis. A smooth order may be odd. An order o's window starts floor((o + 1) /
-    // 2) before the voxel: on an axis whose smooth order is odd, both terms and the residual with them sit half a voxel
-    // before the voxel of the lane's index. `offset_halves` receives that place per axis in half voxels, -1 on such an
-    // axis and 0 on the others. A request with an odd smooth order and no `offset_halves` errors, and the offset is
-    // never lost.
+    // A background order is even on every axis. A smooth order can be odd. The window of an order o starts
+    // `floor((o + 1) / 2)` before the voxel. On an axis whose smooth order is odd, both terms and the residual sit half
+    // a voxel before the voxel of the lane index. `offset_halves` gets that place for each axis in half voxels, -1 on
+    // such an axis and 0 on the others. A request with an odd smooth order and no `offset_halves` gives an error, and
+    // the call never loses the offset.
     typedef struct
     {
         const unsigned short *volume;
@@ -75,19 +75,22 @@ extern "C"
         unsigned int unit_sweep;
         int *offset_halves;
         EngineError *error;
-        // the comb: a running sum of comb[axis] voxels along each axis, taken on both terms alike before the smooth.
-        // It sends a period of comb[axis] along the axis to a constant, with every harmonic of it, and the residual's
-        // kernel still sums to zero. 0 and 1 leave the axis as it is. A comb of n moves both terms' centers by n - 1
-        // half voxels, as a smooth order of n - 1 does: the place an odd smooth order gives is set by s + n - 1.
+        // the comb: a moving sum of `comb[axis]` voxels along each axis, taken on both terms alike before the smooth.
+        // It sends a period of `comb[axis]` along the axis to a constant, with every harmonic of it. The kernel of the
+        // residual still sums to zero. 0 and 1 leave the axis as it is. A comb of n moves the centers of both terms by
+        // `n - 1` half voxels, as a smooth order of `n - 1` does. Thus `s + n - 1` sets the place that an odd smooth
+        // order gives.
         unsigned int comb[ENGINE_AXES];
-        // the spaced pairs: smooth_spaced[axis][j] pairs [1, 2, 1] whose taps are 2^j voxels apart, taken by both terms
-        // after the smooth order, and background_spaced[axis][j] more taken by the background's term after its order,
-        // the spacings in ascending order. A pair is symmetric about the voxel and moves no center. It adds 2 bits and
-        // the variance of an order 2 · 4^j: a smooth of wide variance costs bits in the count of its pairs.
+        // the spaced pairs. Both terms take `smooth_spaced[axis][j]` pairs [1, 2, 1], whose taps are `2^j` voxels
+        // apart, after the smooth order. The term of the background takes `background_spaced[axis][j]` more after its
+        // order. The spacings go up in order.
+        //
+        // A pair is symmetric about the voxel and moves no center. It adds 2 bits and the variance of an order
+        // `2 · 4^j`. Thus a smooth of wide variance costs bits in the count of its pairs.
         unsigned int smooth_spaced[ENGINE_AXES][ENGINE_SPACINGS];
         unsigned int background_spaced[ENGINE_AXES][ENGINE_SPACINGS];
-        // the limbs a residual lane is stored in, from 1 to ENGINE_RESIDUAL_LIMBS; 0 stores it in
-        // ENGINE_RESIDUAL_LIMBS. engine_residual_limbs gives the fewest that represent the request's residual
+        // the limbs that hold a residual lane, from 1 to ENGINE_RESIDUAL_LIMBS. 0 stores it in ENGINE_RESIDUAL_LIMBS.
+        // The call engine_residual_limbs gives the fewest that hold the residual of the request
         unsigned int limbs;
     } EngineResidualRequest;
 
@@ -116,10 +119,11 @@ extern "C"
         unsigned char bytes[ENGINE_SIGNUM_BYTES];
     } EngineSignum;
 
-    // A program resident on the device maintains a block: what it is, what the scheduler sends it, where it is and
-    // how it left. The program runs on its own, checks in to its block as it goes, and yields before its time to live
-    // runs out, leaving in the block all a launch needs to resume it. The scheduler writes only the command. The
-    // program writes the rest while a launch references the block, and the checksum seals the block whenever none does.
+    // A program resident on the device keeps a block: what it is, what the scheduler sends it, where it is and how it
+    // left. The program runs on its own, and checks in to its block as it goes. It yields before its time to live runs
+    // out, and leaves in the block all that a launch needs to resume it. The scheduler writes only the command.
+    //
+    // The program writes the rest while a launch refers to the block, and the checksum seals the block when none does.
     // Every word is 64 bits, a device address among them. The host and the device read one layout.
     typedef enum
     {
@@ -128,10 +132,10 @@ extern "C"
         ENGINE_PROGRAM_STOP = 2
     } EngineProgramCommand;
 
-    // where a program is: running, yielded to be resumed, waiting for its grant, or one of its exits. A question's
-    // exits are true, false, malformed (it built no lattice) and answered (the answer table contained it); a sweep's is
-    // done, its records written. A waiting program's grant is more than the scheduler has free, and it runs once the
-    // space frees
+    // where a program is: it runs, it yielded for a resume, it waits for its grant, or it is at one of its exits. The
+    // exits of a question are true, false, malformed (it built no lattice) and answered (the answer table held it). The
+    // exit of a sweep is complete, with its records written. The grant of a program that waits is more than the
+    // scheduler has free, and it runs after the space frees
     typedef enum
     {
         ENGINE_PROGRAM_PLACED = 0,
@@ -147,32 +151,35 @@ extern "C"
         ENGINE_PROGRAM_WAITING = 10
     } EngineProgramState;
 
-// the blocks one program reads from and is read by, at max
+// the blocks that one program reads from and that read from it, at max
 #define ENGINE_PROGRAM_LINKS 4u
 
     typedef struct
     {
-        // what it is: its signum, the run it was arranged for, and the launch that runs it
+        // what it is: its signum, the run that the scheduler arranged it for, and the launch that runs it
         EngineSignum signature;
         unsigned long long generation;
         unsigned long long owner;
-        // what the scheduler sends it (EngineProgramCommand), and the grant it is limited to: registers a thread,
-        // threads a launch, the local frame's device bytes across them, and the shared memory each thread block uses
-        // its registers in (the scheduler's measure: exact, from the program's widths)
+        // what the scheduler sends it (EngineProgramCommand), and the grant that limits it. The grant has registers
+        // for each thread, threads for each launch, and the device bytes of the local frame across them. It also has
+        // the shared memory that each thread block uses its registers in. The scheduler measures it exactly, from the
+        // widths of the program
         unsigned long long command;
         unsigned long long grant_registers;
         unsigned long long grant_threads;
         unsigned long long grant_bytes;
         unsigned long long grant_shared;
-        // where it is (EngineProgramState): the next lane it runs (execaddr), the step it left inside a lane
-        // (evacaddr, 0 where it leaves between lanes), the register map's limbs, and the registers it saved there
+        // where it is (EngineProgramState): the next lane that it runs (execaddr), and the step that it left in a lane.
+        // That step is evacaddr, 0 where it leaves between lanes. Then the limbs of the register map, and the registers
+        // that it saved there
         unsigned long long state;
         unsigned long long offset;
         unsigned long long step;
         unsigned long long span;
         unsigned long long saved;
-        // its clock, in the device timer's nanoseconds: the time a launch runs before it yields, the check-in the
-        // scheduler limits it to, this launch's start, the time across every launch of the run and this launch's own
+        // its clock, in nanoseconds of the device timer. It has the time that a launch runs before it yields, and the
+        // check-in that the scheduler limits it to. It has the start of this launch, the time across every launch of
+        // the run, and the own time of this launch
         unsigned long long ttl;
         unsigned long long wdt;
         unsigned long long launch_time;
@@ -187,8 +194,8 @@ extern "C"
         // how it failed: the engine module and the site, as EngineError records them
         unsigned long long error_module;
         unsigned long long error_site;
-        // its wiring: the blocks it reads, the blocks that read it, each link's words produced and consumed, its result
-        // and its length in words, and the block that launched it
+        // its wires: the blocks that it reads, the blocks that read it, and the words that each link makes and uses.
+        // Then its result, its length in words, and the block that launched it
         unsigned long long inputs[ENGINE_PROGRAM_LINKS];
         unsigned long long outputs[ENGINE_PROGRAM_LINKS];
         unsigned long long produced[ENGINE_PROGRAM_LINKS];
@@ -297,14 +304,15 @@ extern "C"
 
     typedef long long (*EngineFileSize)(const char *path);
 
-    // one item of `items` independent ones: 1 where it is done, 0 where it failed
+    // one item of `items` independent ones: 1 where it is complete, 0 where it failed
     typedef int (*EngineEachWork)(void *context, unsigned long long item);
 
-    // runs `work` on every item, on as many workers as the process has processors ($TESSERA_RUN_PROCESSORS, 1 where
-    // it is not set), and returns 1 where every item is done. Once an item fails no item is started after it
+    // runs `work` on every item, on as many workers as the process has processors. $TESSERA_RUN_PROCESSORS gives the
+    // count, or 1 where the environment does not set it. It returns 1 where every item is complete. After an item
+    // fails, the call starts no item after it
     typedef int (*EngineEach)(unsigned long long items, EngineEachWork work, void *context);
 
-    // `each` may be NULL, and a module that is passed none runs its items one at a time
+    // `each` can be NULL, and a module that gets none runs its items one at a time
     typedef struct
     {
         EngineBytesDecode decode[ENGINE_CODECS];

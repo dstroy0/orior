@@ -42,7 +42,7 @@ char s_channel_list[RUN_LIST_ROOM];
 char s_carrier_text[RUN_CARRIER_ENDING + RUN_CARRIER_OUTPUT];
 char s_cases_text[RUN_CASES_TEXT];
 
-// `message` passed to the run's trace: where there is no run, it is reported to none
+// `message`, passed to the trace of the run. Where there is no run, the call reports it to none
 void run_channel_trace_line(const char *message)
 {
     qry_member_append("trace", message,
@@ -90,7 +90,7 @@ void run_channel_counted(char *text, size_t room, unsigned long long count)
 // the panic the teacher passed its account of: it reports once for each
 static unsigned long long s_panic_answered = 0ULL;
 
-// the sequence of the panic whose ruling stopped the run, 0 while no panic has been ruled on
+// the sequence of the panic whose decision (OverseerRuling) stopped the run, or 0 while no panic has a decision
 static unsigned long long s_stopped_on = 0ULL;
 
 int run_channel_panic_ruled(void)
@@ -98,9 +98,10 @@ int run_channel_panic_ruled(void)
     return s_stopped_on != 0ULL;
 }
 
-// The conference a question the part refused calls (QRY_CONFERENCE_CALL, overseer.h): the teacher's account of it, the
-// question as it was put, how it came back and whether a panic is on the line, then every account the carrier reported
-// after the refusal in its answer, `output` of `output_size` bytes, as the carrier reported it
+// The conference that a question that the part refused calls (QRY_CONFERENCE_CALL, overseer.h). It has the account of
+// the teacher: the question as the program put it, and how it came back. It tells whether a panic is on the line. Then
+// it has every account that the carrier reported after the refusal in its answer, `output` of `output_size` bytes, as
+// the carrier reported it
 void run_channel_conference_called(const RunQuestion *question, const char *how, const unsigned char *output,
                                    unsigned long long output_size)
 {
@@ -152,20 +153,23 @@ void run_channel_conference_called(const RunQuestion *question, const char *how,
     qry_member_append(name, whole.out, whole.at, QRY_ORDINARY);
 }
 
-// The sequence of the panic on the line, or 0 while it is quiet: once a panic opens it the run is halted, and the
-// teacher puts no question until a conference's ruling closes it (qry_member.h, run_channel_line_ruled)
+// The sequence of the panic on the line, or 0 while it is quiet. After a panic opens it, the run halts. The teacher
+// puts no question until the decision of a conference closes it (qry_member.h, run_channel_line_ruled)
 unsigned long long run_channel_on_line(void)
 {
     return qry_member_panicked();
 }
 
-// The conference a refusal calls, convened at once where the refusal put a panic on the line (overseer_convened): where
-// every cause the parties read is the question's own, its instruction, an address it reached or a register it named,
-// whichever clause each names, the line closes, R blocking the question from the part for good; a launch that did not
-// return read by any party, or no cause read at all, leaves the line open. A clean refusal, the carrier ended clean
-// and the cause ruled the question's own instruction, an encoding the part refused as P9 reads it, stops nothing: the
-// round goes on past it. Every other ruling stops the run: no question is carried after its panic
-// (run_channel_panic_ruled). The ruling is traced
+// The conference that a refusal calls, convened at once where the refusal put a panic on the line (overseer_convened).
+// The line closes where every cause that the parties read is the own cause of the question. That is its instruction,
+// an address that it reached, or a register that it named, whichever clause each names. R then blocks the question
+// from the part for good. A launch that did not return, as any party reads it, or no cause read at all, leaves the
+// line open.
+//
+// A clean refusal stops nothing, and the round goes on past it. In a clean refusal, the carrier ended clean. The cause
+// that the conference decided is the own instruction of the question, an encoding that the part refused as P9 reads it.
+// Every other decision stops the run, and the program carries no question after its panic (run_channel_panic_ruled).
+// The call traces the decision
 void run_channel_line_ruled(const RunQuestion *question)
 {
     const unsigned long long panic = run_channel_on_line();
@@ -212,8 +216,8 @@ void run_channel_line_ruled(const RunQuestion *question)
     run_channel_check_traced(question, message);
 }
 
-// the questions of `questions` from `first` to `count` answered as blocked by the line: no question is put after a
-// panic, while the line is open and once its panic has been ruled on
+// the questions of `questions` from `first` to `count`, answered as blocked by the line. The program puts no question
+// after a panic, while the line is open and after the decision on its panic
 void run_channel_halted(RunQuestion *const *questions, unsigned int first, unsigned int count)
 {
     const unsigned long long on_line = run_channel_on_line();
@@ -236,9 +240,9 @@ void run_channel_halted(RunQuestion *const *questions, unsigned int first, unsig
     }
 }
 
-// The teacher's account on the line, passed as a panic of the call once for each panic: the round it passed the
-// carrier, its count of questions and its sequence, how the carrier ended, how many it answered before it, the line of
-// the question it was carrying, and that no question is put after this
+// The account of the teacher on the line, passed as a panic of the call once for each panic. It has the round that it
+// passed the carrier, with its count of questions and its sequence. It has how the carrier ended, how many it answered
+// before it, and the line of the question that it carried. It also says that the program puts no question after this
 void run_channel_panic_written(unsigned int questions, unsigned long long round, const InterfaceAnswer *answer,
                                unsigned int answered, const char *carrying)
 {
