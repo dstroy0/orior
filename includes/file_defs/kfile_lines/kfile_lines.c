@@ -239,7 +239,7 @@ unsigned int kfile_lines_put_by(KfileLines *file, unsigned int at, const char *c
     Who next_who;
     int next_has_who = 0;
     const int follows = (at < file->lines) && !kfile_lines_who_line(file->line[at], &next_who, &next_has_who);
-    // the lines put, each its own allocation, made before the file is touched
+    // the lines put, each its own allocation, made before the call touches the file
     const unsigned int put = count + (own ? 0u : 1u) + ((!own && follows) ? 1u : 0u);
     char **const made =
         (char **)platform_cell_cleared((size_t)put + 1u, sizeof(char *), platform_place_g_program_owner, 0);
@@ -327,8 +327,8 @@ int kfile_lines_cut(char *text, unsigned long long size, const char ***lines, un
 int kfile_lines_block_lines(const KfileLines *file, const char *lang, unsigned int from, unsigned int *first,
                             unsigned int *past)
 {
-    // the lines from `from` joined, each ended by a newline, and where each starts, for the block's places to be
-    // turned back into lines
+    // the lines from `from` joined, each with a newline at its end, and where each starts. The call turns the places of
+    // the block back into lines with them
     static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ULL];
     size_t joined = 0u;
     size_t *const starts =
@@ -348,8 +348,8 @@ int kfile_lines_block_lines(const KfileLines *file, const char *lang, unsigned i
     KlangBlock block;
     const int found = verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_text_bytes), .at = joined}) &&
                       klang_block_find(s_text_bytes, joined, 0u, lang, &block);
-    // the line containing the opener and the line containing the closer: the last to start at or before each, the
-    // starts rising line by line
+    // the line that holds the opener and the line that holds the closer: the last line that starts at or before each.
+    // The starts go up line by line
     unsigned int opener = file->lines;
     unsigned int closer = file->lines;
     for (unsigned int at = from; found && (at < file->lines); at += 1u)

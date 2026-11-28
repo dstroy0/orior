@@ -1,16 +1,19 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// kqr_merge.c: a member's record put together with the records the runs given contain, each a view of its run's table
-// of queries (kqr.h, krep_viewed_at). Every query a run's record contains whose identity the record does not, or
-// contains timed out where the run's resolved, and every sample a run's record contains that the record contains no
-// sample of, the same identity and nanoseconds, is stored into the record in the order of the runs, and the record is
-// passed to the run's writer, which writes it in its place as the run ends (kqr_write_by). The pairs of the record stay
-// as they are. What each run adds is passed to the run as the record `kqr_merge`.
+// kqr_merge.c: the record of a member put together with the records that the given runs contain. Each is a view of
+// the table of queries of its run (kqr.h, krep_viewed_at). The program stores some queries and samples into the
+// record, in the order of the runs. A query goes in where its identity is not in the record, or where it timed out in
+// the record and the run resolved it. A sample goes in where the record has no sample of the same identity and
+// nanoseconds. The program then passes the record to the writer of the run, which writes it in its place as the run
+// ends (kqr_write_by).
+//
+// The pairs of the record stay as they are. The program passes what each run adds to the run as the record
+// `kqr_merge`.
 //
 //     kqr_merge <member> <record.kqr> <run.qry>...
 //
-// Exit 0 where every run's record was read and the record passed; 1 where one was not, or the record was not passed,
-// no run's writer running; 2 where the words are not these
+// The exit is 0 where the program read the record of every run and passed the record. It is 1 where it did not, or
+// where it could not pass the record because the writer of no run was active. It is 2 where the words are not these
 #include "kqr_record.h"
 
 #include "../../parsers/who.h"
@@ -54,8 +57,8 @@ static int sample_new(const KqrSample *sample)
     return 1;
 }
 
-// the program's report, gathered and passed to the run as the record `kqr_merge` once it is written, `s_report_at`
-// bytes so far, the room once a write did not fit
+// the report of the program, gathered and passed to the run as the record `kqr_merge` after the program writes it.
+// It has `s_report_at` bytes so far, and the room after a write that did not fit
 static char s_report[2048];
 static size_t s_report_at;
 

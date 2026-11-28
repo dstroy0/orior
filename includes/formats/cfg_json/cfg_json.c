@@ -103,8 +103,9 @@ static size_t cfg_json_digits(CfgJsonWalk *walk)
     return digits;
 }
 
-// a number as RFC 8259 writes one (section 6), a minus, then 0 or digits not opening with 0, where fractions are
-// taken a fraction and an exponent after them each of one digit or more, and where they are not an integer alone
+// a number as RFC 8259 writes one (section 6): a minus, then 0 or digits that do not open with 0. Where the read takes
+// fractions, a fraction and an exponent can come after them, each of one digit or more. Else the number is an
+// integer alone
 static int cfg_json_number(CfgJsonWalk *walk)
 {
     const size_t start = walk->at;
@@ -151,8 +152,8 @@ static int cfg_json_number(CfgJsonWalk *walk)
     return cfg_json_token(walk, CFG_JSON_NUMBER, start, walk->at) != 0u;
 }
 
-// the walk past a value or a close: done where nothing stays open; else past a comma, a key expected next inside an
-// object, or before a close; anything else a value with no comma or close after it
+// the walk past a value or a close. The walk ends where nothing stays open. Else it goes past a comma, with a key next
+// inside an object, or it stops before a close. Anything else is a value with no comma or close after it
 static void cfg_json_after(CfgJsonWalk *walk)
 {
     walk->done = (walk->depth == 0u);
@@ -228,8 +229,8 @@ static void cfg_json_opened(CfgJsonWalk *walk, char byte)
     walk->expect_key = 0;
 }
 
-// a value that opens no object or array read at the walk's place, `byte` there: a string, a number or a literal; 1, or
-// 0 with why it fails in `reason`
+// a value that opens no object or array, read at the place of the walk, with `byte` there: a string, a number or a
+// literal. The return is 1, or 0 with the reason for the failure in `reason`
 static int cfg_json_value(CfgJsonWalk *walk, char byte)
 {
     if (byte == '"')
@@ -257,8 +258,8 @@ static int cfg_json_value(CfgJsonWalk *walk, char byte)
     return 0;
 }
 
-// one step of the walk at its place, which holds a byte: the close of what is open, a member's name, an opening or
-// a value; why it fails into `reason`
+// one step of the walk at its place, which holds a byte. The step reads the close of what is open, the name of a
+// member, an opening or a value. The reason for a failure goes into `reason`
 static void cfg_json_step(CfgJsonWalk *walk)
 {
     const char byte = walk->text[walk->at];

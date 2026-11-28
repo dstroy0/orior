@@ -24,8 +24,9 @@ EdoubleRecord edouble_record_product(ExactRecordProgram *program, EdoubleRecord 
                              exact_record_sum(program, a.exponent, b.exponent));
 }
 
-// the lift of the larger exponent's side, 2^|e_a - e_b|, and 1 where a's exponent is the larger or the two are equal;
-// where the program knows both exponents, the lift is a known power and `side` is 1 or 0 alike in every lane
+// the lift of the side with the larger exponent, 2^|e_a - e_b|, and 1 where the exponent of a is the larger or the two
+// are equal. Where the program knows both exponents, the lift is a known power, and `side` is 1 or 0 alike in every
+// lane
 static void edouble_record_line_up(ExactRecordProgram *program, unsigned int a_exponent, unsigned int b_exponent,
                                    unsigned int spread_bits, unsigned int *lift, unsigned int *a_larger, int *known_side)
 {
@@ -347,8 +348,9 @@ EdoubleRecordBall edouble_record_ball_times_two_to(ExactRecordProgram *program, 
         edouble_record_of(value.radius.mantissa, exact_record_sum(program, value.radius.exponent, moved)));
 }
 
-// a mantissa at exponent e read at the constant exponent `exponent`: lifted exact where e is the larger, else its
-// quotient toward zero, or its ceiling where `ceiling` is set; `cut` 1 where it was divided, a register
+// a mantissa at exponent e, read at the constant exponent `exponent`. The call lifts it exact where e is the larger.
+// Else it takes its quotient toward zero, or its ceiling where `ceiling` is 1. `cut` is 1 where the call divided it,
+// in a register
 static unsigned int edouble_record_read_at(ExactRecordProgram *program, EdoubleRecord value, long long exponent,
                                            unsigned int range_bits, int ceiling, unsigned int *cut)
 {
@@ -389,8 +391,8 @@ static unsigned int edouble_record_read_at(ExactRecordProgram *program, EdoubleR
     return exact_record_select(program, lifting, exact_record_product(program, value.mantissa, power), divided);
 }
 
-// the center's unit of `exponent` at `radius_exponent`, where the center was cut, added to the radius; the two checks;
-// the center wrapped and the radius narrowed
+// the unit of `exponent` of the center at `radius_exponent`, added to the radius where the call cut the center. Then
+// the two checks, and the center wrapped and the radius narrowed
 static EdoubleRecordBall edouble_record_ball_close(ExactRecordProgram *program, unsigned int center, unsigned int radius,
                                                    unsigned int cut, long long exponent, unsigned int bits,
                                                    long long radius_exponent, unsigned int radius_bits,
