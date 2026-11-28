@@ -498,7 +498,6 @@ src/cu/engine/runtime/daemon/service/tessera@.service	3
 src/cu/engine/runtime/daemon/tessera.cu	5
 src/cu/engine/runtime/daemon/tessera.h	6
 src/cu/engine/runtime/daemon/tessera_client_internal.h	5
-src/cu/engine/runtime/daemon/tessera_client_jobs.c	9
 src/cu/engine/runtime/daemon/tessera_client_socket.c	4
 src/cu/engine/runtime/daemon/tessera_daemon_admission.c	5
 src/cu/engine/runtime/daemon/tessera_daemon_main.c	1

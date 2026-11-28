@@ -55,8 +55,8 @@ static void tessera_self_begin(TesseraClient *client, const TesseraTicket *ticke
     (void)client;
     (void)ticket;
 #else
-    // an admitted job on a paravirtual device reports its own bytes from now until it is released; a host job reports
-    // its processors itself (tessera_job_report)
+    // an admitted job on a paravirtual device reports its own bytes from now until its release. A host job reports its
+    // processors itself (tessera_job_report)
     if ((ticket->over_budget == 0u) && (ticket->lost == 0u) && !client->measuring &&
         !tessera_device_names_host(client->device) && tessera_self_paravirtual())
     {
@@ -209,8 +209,8 @@ long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client, 
     frame.grace_microseconds = submit->grace_microseconds;
     frame.sweep_microseconds = submit->sweep_microseconds;
     frame.idle_microseconds = submit->idle_microseconds;
-    // where no pid is measured from outside, the process reports the bytes it already allocated as it requests; a
-    // host job is on nothing, since the processors it uses are counted only once it runs
+    // where no one measures a pid from outside, the process reports the bytes that it already allocated as it
+    // requests. A host job is on nothing, because the daemon counts the processors that it uses only after it runs
     unsigned long long located = 0ULL;
     if (!tessera_device_names_host(submit->device) && tessera_self_paravirtual() &&
         tessera_self_measure(submit->luid, &located))
@@ -279,7 +279,7 @@ long tessera_job_precalc_saved(TesseraClient *client, EngineError *error)
     return answered ? 0L : TESSERA_ERROR;
 }
 
-// 1 when a whole frame from the daemon waits to be read, read without blocking
+// 1 when a whole frame from the daemon waits for a read, read with no block
 static int tessera_waiting(TesseraClient *client)
 {
 #if defined(_WIN32)
@@ -303,8 +303,8 @@ long tessera_job_report(TesseraClient *client, TesseraTicket *ticket, unsigned l
     {
         return TESSERA_ERROR;
     }
-    // a report gets no answer, but the growth it shows is reported back: each report is read as it waits, and none is
-    // left to fill the pipe while the daemon waits to write the next
+    // a report gets no answer, but the daemon reports back the growth that it shows. The call reads each report as it
+    // waits, and leaves none to fill the pipe while the daemon waits to write the next
     while (tessera_waiting(client))
     {
         if (!TESSERA_CHECK(tessera_receive(client, &frame), client, error, ENGINE_ERROR_RESOURCE) ||
