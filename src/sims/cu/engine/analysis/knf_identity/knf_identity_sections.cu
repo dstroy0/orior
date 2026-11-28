@@ -7,8 +7,9 @@
 static const unsigned int s_knf_axis_order[6][SIM_AXES] = {{0u, 1u, 2u}, {0u, 2u, 1u}, {1u, 0u, 2u},
                                                            {1u, 2u, 0u}, {2u, 0u, 1u}, {2u, 1u, 0u}};
 
-// the knf's entangled entropy: every voxel's centerd windows against its neighbor's along z, y and x on the torus,
-// split into the edges inside a tile of the given side and the seams between tiles; a box's share is its own edges
+// the entangled entropy of the knf: the centered windows of every voxel against those of its neighbor along z, y and x
+// on the torus. The call splits it into the edges inside a tile of the given side and the seams between tiles. The
+// share of a box is its own edges
 void knf_entangle(const KnfRecord *record, const unsigned int *map, unsigned long long tile,
                   const unsigned short *boxes, KnfEntangled *result)
 {
