@@ -55,8 +55,8 @@ __global__ void max_tree_overlap_pairs_kernel(const unsigned char *earlier_range
     const long long x = (long long)(voxel % width) + (long long)lag_x;
     const unsigned int inside = (unsigned int)((z >= 0LL) && (z < (long long)depth) && (y >= 0LL) &&
                                                (y < (long long)height) && (x >= 0LL) && (x < (long long)width));
-    // the landing is only read inside the view, where it is a voxel index below 2^32 and narrows to unsigned int
-    // exactly
+    // the kernel reads `landed` only inside the view, where it is a voxel index below `2^32`, and narrows to
+    // unsigned int exactly
     const unsigned int landed = (unsigned int)((((z * (long long)height) + y) * (long long)width) + x) * inside;
     const unsigned int alive =
         inside & (unsigned int)(earlier_ranges[voxel] != 0u) & (unsigned int)(later_ranges[landed] != 0u);
