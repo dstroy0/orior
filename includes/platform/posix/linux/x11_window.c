@@ -277,7 +277,8 @@ EMBED_INLINE long system_direction(const SystemX11Ctx *args)
     return (args->hit < 13u) ? s_directions[args->hit] : -1L;
 }
 
-// the refusal of a request on the window of the settings as that window goes. The call does nothing about it. XSetErrorHandler declares its signature
+// the refusal of a request on the window of the settings as that window goes. The call does nothing about it.
+// XSetErrorHandler declares its signature
 static int system_settings_reject(Display *display, XErrorEvent *error) // NOSONAR
 {
     (void)display;
