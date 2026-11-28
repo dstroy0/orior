@@ -24,11 +24,11 @@ ROOT = findroot.root()
 STE_CHECK = os.path.join(ROOT, "utils", "maint", "prose", "ste_check.py")
 STE_RATCHET = os.path.join(ROOT, "utils", "maint", "prose", "ste_ratchet.tsv")
 MMGR = os.path.join(ROOT, "includes", "mmgr")
-# The other copies, each compared byte for byte with orior's. MMgr's is a submodule and must be there; embedded_types sits
-# under MMgr's deps/ only once MMgr's build fetched it.
+# The other copies, each compared byte for byte with orior's. MMgr and embedded_types are submodules under includes/,
+# and each copy must be there.
 STE_COPIES = (
     (os.path.join(MMGR, "test", "ste_check.py"), True),
-    (os.path.join(MMGR, "deps", "embedded_types", "test", "ste_check.py"), False),
+    (os.path.join(ROOT, "includes", "embedded_types", "test", "ste_check.py"), True),
 )
 
 
