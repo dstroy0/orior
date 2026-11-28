@@ -49,8 +49,9 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
         }
         return 0;
     }
-    // a register past the last the part answers a question's code can name is refused, the high half of a pair
-    // counted as its own register; RZ is no register a thread uses, and is named past every one
+    // the assembler refuses a register past the last one that, as the part answers, the code of a question can name.
+    // It counts the high half of a pair as its own register. RZ is no register that a thread uses, and its name is past
+    // every one
     for (unsigned int place = 0u; place < parts.operands; place += 1u)
     {
         const char *const operand = parts.operand[place];
@@ -128,9 +129,9 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
     sass_instruction_read(form->text, &base);
     *low = form->low;
     *high = form->high;
-    // An operand the form carries and does not print retains the bits the form was seen with. NVIDIA writes !PT into
-    // the carry-in IMAD reads as IMAD.X and PT into the predicate ISETP reads as .EX, and the part answers alike at
-    // every value of either without its modifier (interface_sass_unprinted.md)
+    // An operand that the form carries and does not print keeps the bits that the probe saw the form with. NVIDIA
+    // writes !PT into the carry-in that IMAD reads as IMAD.X, and PT into the predicate that ISETP reads as .EX. The
+    // part answers alike at every value of either without its modifier (interface_sass_unprinted.md)
     for (unsigned int place = 0u; place < parts.operands; place += 1u)
     {
         if (places[place].by_text != 0)
@@ -163,9 +164,9 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
         {
             sass_bits_write(low, high, places[place].offset.first, places[place].offset.bits, offset);
         }
-        // A memory operand that names its descriptor writes the uniform register into the descriptor field and
-        // specifies whether it is displayed: desc[URn] sets bit 101 and term[URn] clears it. One that names none
-        // retains both as its form carries them
+        // A memory operand that names its descriptor writes the uniform register into the descriptor field. It also
+        // tells whether the listing shows it: desc[URn] sets bit 101, and term[URn] clears it. One that names none
+        // keeps both as its form carries them
         const int named = (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = parts.operand[place],
                                       .cap = PLATFORM_TEXT_TO_TERMINATOR, .other = "desc[", .ci = EMBED_FALSE)) ||
                           (EMBED_CALL(cellul.starts, CatenaFinitaCfg, .src = parts.operand[place],
@@ -181,8 +182,9 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
             sass_bits_write(low, high, places[place].descriptor.first, places[place].descriptor.bits, descriptor);
             sass_bits_write(low, high, SASS_DESCRIPTOR_DISPLAYED, 1u, (parts.operand[place][0] == 'd') ? 1ULL : 0ULL);
         }
-        // a constant's bank must be the one the form carries, since the bank's own bits were not found by probing. And
-        // its offset a whole word the field holds, refused and not cut where it is part of a word or past the bank
+        // the bank of a constant must be the one that the form carries, because no probe found the own bits of the
+        // bank. Its offset must be a whole word that the field holds. The assembler refuses it, and does not cut it,
+        // where it is part of a word or past the bank
         if (parts.type[place] == SASS_OPERAND_CONSTANT)
         {
             unsigned long long bank = 0ULL;
@@ -233,8 +235,8 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
     return 1;
 }
 
-// one line of a listing taken from `text` into `line` and `text` moved past it: the line with the spaces at either
-// end cut, and the ';' a listing ends an instruction with dropped. NULL where the text is spent
+// one line of a listing, taken from `text` into `line`, with `text` moved past it. The line has the spaces at both
+// ends cut, and the ';' that a listing ends an instruction with dropped. NULL where the text has no more lines
 static const char *sass_line_take(const char *text, char *line, size_t room)
 {
     if ((text == NULL) || (*text == '\0'))
@@ -304,7 +306,8 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
     {
         if (sass_line_is_label(line))
         {
-            // a label past the max one text names, or longer than a name is stored, is refused and not dropped
+            // the assembler refuses, and does not drop, a label past the max that one text names, or longer than the
+            // store for a name
             if ((s_labels.count == SASS_LABELS) || (EMBED_CALL(cellul.len, CatenaFinitaCfg, .src = line,
                                                                .cap = PLATFORM_TEXT_TO_TERMINATOR) > SASS_LABEL_TOKEN))
             {
@@ -365,8 +368,8 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
         {
             const char *const open = EMBED_CALL(cellul.chr, CatenaFinitaCfg, .src = parts.operand[place],
                                                 .cap = PLATFORM_TEXT_TO_TERMINATOR, .byte = '(');
-            // a label of the text names where it is; a symbol is a relocation the loader fills, and the text
-            // specifies nothing about where it will be
+            // a label of the text names where it is. A symbol is a relocation that the loader fills, and the text
+            // tells nothing about where it will be
             if ((parts.type[place] == SASS_OPERAND_LABEL) && (open != NULL) && (open[1] == '.'))
             {
                 target = sass_label_address(&s_labels, parts.operand[place], &known);
@@ -392,7 +395,7 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
         }
         for (unsigned int byte = 0u; byte < 8u; byte += 1u)
         {
-            // each word is written low byte first, as the part reads it
+            // the assembler writes each word low byte first, as the part reads it
             code[address + byte] = (unsigned char)((low >> (8u * byte)) & 0xffu);
             code[address + 8ULL + byte] = (unsigned char)((high >> (8u * byte)) & 0xffu);
         }
