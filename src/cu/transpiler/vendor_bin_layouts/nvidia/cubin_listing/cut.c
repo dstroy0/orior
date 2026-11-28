@@ -7,7 +7,7 @@
 #include "cellularum_laboro/cellularum_laboro.h"
 #include "memoria_operor/memoria_operor.h"
 
-// the offset a label carries before the instruction it is before is read
+// the offset that a label carries before the cut reads the instruction that it is before
 #define CUBIN_LABEL_UNSET (~0ULL)
 
 // one line of a code section the cut retains: where it lies in the listing, and the offset the vendor printed for it
@@ -26,8 +26,8 @@ typedef struct
     unsigned long long offset;
 } CubinLabel;
 
-// the lines and the labels of the section the cut is in, stored in memory grown as a section needs and retained over
-// the whole cut, so that a section takes no memory of its own
+// the lines and the labels of the section that the cut is in, stored in memory that grows as a section needs. The
+// cut keeps it over the whole cut, so that a section takes no memory of its own
 typedef struct
 {
     CubinLine *lines;
@@ -121,8 +121,8 @@ static int cubin_label_line(const char *listing, size_t begin, size_t end)
                : 0;
 }
 
-// the name of the code section a `.section` line from `begin` to `end` opens, past `.text.` and short of its first
-// `,`, through `name` and `length`: 1, or 0 where it opens no code section
+// the name of the code section that a `.section` line from `begin` to `end` opens, past `.text.` and short of its first
+// `,`, through `name` and `length`. The return is 1, or 0 where it opens no code section
 static int cubin_code_section(const char *listing, size_t begin, size_t end, size_t *name, size_t *length)
 {
     static const char s_section[] = ".section";
@@ -193,9 +193,9 @@ static int cubin_section_written(const char *listing, CubinSection *section, uns
             const char *const open =
                 (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = listing + at, .bytes = end - at, .val = '`');
             size_t mark = (open != NULL) ? (size_t)(open - listing) : end;
-            // a note the cubin carries for an instruction, `(*"BRANCH_TARGETS ..."*)`, is the container's and no part
-            // of the instruction: it is where a raw read prints one space, and the note and the spaces before it
-            // are put as that space
+            // a note that the cubin carries for an instruction, `(*"BRANCH_TARGETS ..."*)`, belongs to the container,
+            // and is no part of the instruction. It is where a raw read prints one space. The call puts the note and
+            // the spaces before it as that space
             const char *const note =
                 (const char *)EMBED_CALL(memor.chr, MemoriaCfg, .src = listing + at, .bytes = mark - at, .val = '(');
             const int noted = (note != NULL) && (((size_t)(note - listing) + 1u) < end) && (note[1] == '*');
