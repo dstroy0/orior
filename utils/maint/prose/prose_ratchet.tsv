@@ -498,7 +498,6 @@ src/sims/cu/engine/analysis/floor_track/floor_track_floors.cu	1
 src/sims/cu/engine/analysis/knf_identity/knf_identity_internal.h	1
 src/sims/cu/engine/analysis/knf_identity/knf_identity_sections.cu	1
 src/sims/cu/engine/analysis/noise_root/noise_root.cu	1
-src/sims/cu/engine/analysis/period_power/period_power.cu	1
 src/sims/cu/sim_camera_scene.h	1
 theory/lng/Lng/any.lean	3
 theory/lng/Lng/g_lng.lean	2
