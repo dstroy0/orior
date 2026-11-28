@@ -1,16 +1,16 @@
-# The engine manifest. One row a file: which engine item it serves, where it is, and what it does.
+# The engine manifest. One row for each file: which engine item it serves, where it is, and what it does.
 #
-# item is the thing in the engine plan or the engine table the file exists for. A file that serves no item is a
-# file nobody asked for, and a file that is the only one under an item is an item with no second reading.
+# The column `item` is the thing in the engine plan or the engine table that the file exists for. A file that serves
+# no item is a file that nobody asked for. A file that is alone under an item is an item with no second reading.
 #
-# type says what the file is for the loop:
+# The column `type` says what the file is for the loop:
 #
-#   derived    written by the compiler from what a target answered. Never authored.
-#   seed       partial information given to the compiler. Legitimate, and completed by derivation.
-#   key        an answer key. A derivation is checked against it and may never read it.
-#   engine     the compiler itself. Knows no target and no vendor.
-#   entry      an entry point. Runs the engine against something.
-#   scaffold   holds the work up while it is built, and comes out when it is done.
+# - `derived`: written by the compiler from what a target answered. Never written by hand.
+# - `seed`: part of the information, given to the compiler. It is correct, and a derivation completes it.
+# - `key`: an answer key. The loop checks a derivation against it, and a derivation must never read it.
+# - `engine`: the compiler itself. It knows no target and no vendor.
+# - `entry`: an entry point. It runs the engine against something.
+# - `scaffold`: it holds the work up while the build goes on, and comes out when the work ends.
 #
 # item	type	path	what it does
 relations	engine	src/cu/transpiler/lstar/protocol/counterexample/ladder.h	The relations known before meeting anything, the anchors that name them, and the cases the ladder climbs by. 1,1 -> 2 and no writing of it.
