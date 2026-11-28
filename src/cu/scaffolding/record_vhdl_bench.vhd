@@ -1,14 +1,18 @@
 -- orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 -- SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 --
--- The bench a record program as VHDL runs under (record_vhdl_test.cpp). It holds no arithmetic and runs no lane: it
--- reads the memory image the test wrote (memory.txt: a line of the image's words, the lanes, the records' address and
--- words and the errors' address, then each word in hex), loads it into the emitted cycle_program_unit through its
--- ports a word a clock, runs the launch at address 0 by a clock of run, as the host launches the device's resident
--- kernel, waits for the unit's done, and reads back the errors and the records' words (records.txt), each word in
--- hex, then the clocks the launch ran, from its run to its done. The unit runs the lanes itself, as the kernel does.
--- The image's size is the generic words, which the test gives GHDL with -gwords. A launch that runs past clocks_max
--- without done stops the bench with a failure, and writes no records.
+-- The bench that a record program as VHDL runs under (record_vhdl_test.cpp). It holds no arithmetic, and runs no
+-- lane. It reads the memory image that the test wrote (memory.txt). Its first line holds the words of the image,
+-- the lanes, the address and words of the records, and the address of the errors. Then each word follows in hex.
+--
+-- The bench loads the image into the emitted cycle_program_unit through its ports, one word for each clock. It runs
+-- the launch at address 0 by a clock of `run`, as the host launches the resident kernel of the device. It waits for
+-- the `done` of the unit, and reads back the errors and the words of the records (records.txt), each word in hex. Then
+-- it reads the clocks that the launch ran, from its `run` to its `done`. The unit runs the lanes itself, as the kernel
+-- does.
+--
+-- The size of the image is the generic `words`, which the test gives GHDL with `-gwords`. A launch that runs past
+-- `clocks_max` with no `done` stops the bench with a failure, and writes no records.
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -60,8 +64,8 @@ begin
         variable error_address : natural;
         variable word : std_ulogic_vector(31 downto 0);
 
-        -- the word at `at` as the unit reads it back while done: read_at before a clock, which the unit asks for, and
-        -- read_word after the next, which read it
+        -- the word at `at` as the unit reads it back while `done`. `read_at` goes before a clock, which asks the
+        -- unit for it, and `read_word` after the next clock, which read it
         procedure read_back(constant at : in natural; variable value : out cycle_word) is
         begin
             read_at <= at;
