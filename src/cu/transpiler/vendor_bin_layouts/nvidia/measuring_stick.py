@@ -8,15 +8,15 @@
 # Guide list them. The kernels are numbered in the order the tables give them, and the manifest names each number's
 # function as its C text.
 #
-# Every kernel has the one arity: (const unsigned long long *in, unsigned long long *out, unsigned int count). A thread
-# past count returns; each thread reads its operands as in[4 . thread + k], each turned to its type as a cast does,
-# and writes its result to out[thread], an integer widened and a floating value by its bits. The kernel around a
+# Every kernel has the one arity: `(const unsigned long long *in, unsigned long long *out, unsigned int count)`. A
+# thread past count returns. Each thread reads its operands as `in[4 . thread + k]`, each turned to its type as a cast
+# does. It writes its result to `out[thread]`, an integer widened and a floating value by its bits. The kernel around a
 # function is the same text in every kernel of the same types, and what differs between two kernels is the function.
 #
-# Given a bridge, Lstar.klq, it writes in place of the stick every side of every identity between texts the bridge
-# holds, `text_identity <text> = <text>`, each side once, in the category text_identity. A side is a function as the
-# manifest writes it, its type and then its expression: the kernel reads a and b of that type and c an int, as a test
-# does, and writes the expression cast to that type as r.
+# With a bridge, Lstar.klq, it writes in place of the stick every side of every identity between texts that the bridge
+# holds. Those are `text_identity <text> = <text>`, each side once, in the category text_identity. A side is a function
+# as the manifest writes it: its type, and then its expression. The kernel reads a and b of that type and c an int, as
+# a test does. It writes the expression cast to that type as r.
 #
 #     python measuring_stick.py <stick .cu> <manifest>
 #     python measuring_stick.py <stick .cu> <manifest> <Lstar.klq>
@@ -56,7 +56,7 @@ UNARY = [
     ("++a", NUMBERS), ("a++", NUMBERS), ("--a", NUMBERS), ("a--", NUMBERS),
 ]
 
-# the statements, each over int a and int b, leaving int r
+# the statements, each over int a and int b, which leave int r
 STATEMENTS = [
     "int r = a; if (b > 0) { r = a + 1; }",
     "int r; if (b > 0) { r = a + 1; } else { r = a - 1; }",
@@ -82,7 +82,7 @@ STATEMENTS = [
     "int r = a; while (r > 1) { r = ((r & 1) != 0) ? ((3 * r) + 1) : (r / 2); if (r == b) { break; } }",
 ]
 
-# memory spaces and the ways memory is reached, each over int a and int b, leaving int r
+# memory spaces and the ways to reach memory, each over int a and int b, which leave int r
 MEMORY = [
     "__shared__ int s[256]; s[threadIdx.x & 255u] = a; __syncthreads(); int r = s[(threadIdx.x + 1u) & 255u];",
     "extern __shared__ int d[]; d[threadIdx.x] = a; __syncthreads(); int r = d[threadIdx.x ^ 1u];",
@@ -106,7 +106,7 @@ BUILT_IN = [
     "blockDim.x", "blockDim.y", "blockDim.z", "gridDim.x", "gridDim.y", "gridDim.z", "warpSize",
 ]
 
-# the ways a device function is called, each over int a and int b, leaving int r
+# the ways to call a device function, each over int a and int b, which leave int r
 CALLS = [
     "int r = measuring_stick_noinline(a, b);",
     "int r = measuring_stick_forceinline(a, b);",
@@ -217,8 +217,8 @@ ATOMICS = (
     + [("atomicOr", t) for t in (I, U, ULL)] + [("atomicXor", t) for t in (I, U, ULL)]
 )
 
-# the warp functions (CUDA C++ Programming Guide, Warp Vote, Warp Match, Warp Reduce and Warp Shuffle Functions),
-# each over int a and int b, leaving r
+# the warp functions, each over int a and int b, which leave r. The CUDA C++ Programming Guide names them in Warp
+# Vote, Warp Match, Warp Reduce and Warp Shuffle Functions
 WARP = [
     "int r = __all_sync(0xffffffffu, a > b);", "int r = __any_sync(0xffffffffu, a > b);",
     "unsigned int r = __ballot_sync(0xffffffffu, a > b);", "unsigned int r = __activemask();",
@@ -242,8 +242,9 @@ SYNC = [
 
 OPERAND_NAMES = ["a", "b", "c", "e"]
 
-# the tests asked where their predicate is read: each comparison over a and b of one type selected on, and-ed with
-# c != 0 and or-ed with it, and the tests of a against zero alone and joined with c != 0, a < 0 on the signed types
+# the tests asked where the kernel reads their predicate. The kernel selects on each comparison over a and b of one
+# type, and-ed with `c != 0`, and or-ed with it. Then come the tests of a against zero alone, and joined with
+# `c != 0`, and `a < 0` on the signed types
 TESTED = [I, U, LL, ULL]
 TEST_OPERATORS = ["==", "!=", "<", ">", "<=", ">="]
 ZERO_TESTS = ["a == 0", "a != 0", "(a != 0) && (c != 0)", "(a != 0) || (c != 0)"]
@@ -255,13 +256,14 @@ MULTIPLY_ADD = [
 ]
 
 
-# tasks of growing register pressure, each its count of values live at once and its rounds over them
+# tasks of register pressure that rises, each with its count of values live at once and its rounds over them
 PRESSURE = [(8, 8), (16, 8), (32, 8), (48, 8), (64, 8), (96, 8), (128, 8), (160, 8), (192, 8), (224, 8)]
 
 
 def pressure_text(values, rounds):
-    """`values` ints live at once over int a and int b: each a plus its own number, then every round each times the
-    next plus b, every value live through every round, and r every value taken together one statement a value"""
+    """`values` ints live at once over int a and int b. Each is a plus its own number. Then in every round each is
+    times the next plus b. Every value is live through every round. r is every value taken together, one statement for
+    each value"""
     names = ["v" + str(at) for at in range(values)]
     text = [f"int {name} = a + {at + 1};" for at, name in enumerate(names)]
     for _ in range(rounds):
@@ -408,9 +410,9 @@ def build():
 
 
 def text_identity_sides(bridge):
-    """every side of every identity between texts the bridge holds, once each, in the order the identities give
-    them, each side's kernel framed as a test's: a and b of the side's type, c an int, and r the expression cast to
-    that type"""
+    """every side of every identity between texts that the bridge holds, once each, in the order that the identities
+    give them. The kernel of each side has the frame of a test. It has a and b of the type of the side, c an int, and
+    r the expression cast to that type"""
     stick = Stick()
     sides = []
     with open(bridge, encoding="utf-8") as held:
@@ -425,7 +427,7 @@ def text_identity_sides(bridge):
     return stick
 
 
-# what every kernel shares: the device functions the calls reach and the constant memory read
+# the device functions and constant memory that every kernel shares
 PRELUDE = """// written by measuring_stick.py whole on every run
 #include <cuda_runtime.h>
 
