@@ -582,9 +582,9 @@ int sass_class_write_by(const char *machines, const char *part, Who who)
 
 // the comment over the pipes in a .kdm, a line an entry
 static const char *const s_pipe_comment[] = {
-    "# operations the system writes on the FMA pipe in place of the integer pipe: the operation, its",
-    "# writing there, and the lane it moves in, one whose integer pipe carries the first number of",
-    "# operations or more and the second more than its FMA pipe."};
+    "# the operations that the system writes on the FMA pipe in place of the integer pipe. Each is the",
+    "# operation, its writing there, and the lane that it moves in. The integer pipe of that lane",
+    "# holds the first number of operations or more, and the second more than its FMA pipe."};
 
 int sass_pipe_read(const char *machines, const char *part)
 {
