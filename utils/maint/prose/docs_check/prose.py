@@ -348,7 +348,8 @@ def prose_only(path, lines, ledger=None):
     if path.endswith(MATLAB_SUFFIXES):
         return legal_blank(quieted(matlab_prose(lines)), path, ledger)
     if path.endswith(SEMICOLON_SUFFIXES):
-        return legal_blank(quieted([" " + tail[1:] if tail else "" for tail in (marked_tail(line, ";") for line in lines)]), path, ledger)
+        tails = (marked_tail(line, ";") for line in lines)
+        return legal_blank(quieted([" " + tail[1:] if tail else "" for tail in tails]), path, ledger)
 
     retained = []
     in_block = False
