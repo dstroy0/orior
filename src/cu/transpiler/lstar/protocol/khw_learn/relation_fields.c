@@ -6,12 +6,16 @@
 #include "khw_learn_internal.h"
 #include "memoria_operor/memoria_operor.h"
 
-// The runs of a predicate form read off its own encoding, no question queried: a run inside a field the .ksc names
-// for a predicate that contains P0 is the destination, the answer's place, a predicate, and one containing another
-// predicate an operand with no place; a run inside a register field containing the first word's register is the first
-// word's place and the second word's register the second's, the other way round where the form reads the words
-// swapped; every other run is an operand with no place, retained as seen. The phase classified where a run is at
-// every place of the relation's tuple, void otherwise
+// The runs of a predicate form, read from its own encoding, with no question queried:
+//
+// - a run inside a field that the .ksc names for a predicate that holds P0 is the destination, the place of the
+//   answer, a predicate. One that holds another predicate is an operand with no place.
+// - a run inside a register field that holds the register of the first word is the place of the first word. One that
+//   holds the register of the second word is the place of the second. It is the other way round where the form reads
+//   the words swapped.
+// - every other run is an operand with no place, kept as seen.
+//
+// The phase reads as classified where a run is at every place of the tuple of the relation, and as void otherwise
 static void khw_predicate_runs_read(KhwAnswered *form)
 {
     static const char *const s_predicate_fields[] = {"guard", "pl", "pu", "pv", "pg", "po", "pt"};
@@ -71,8 +75,8 @@ static void khw_registers_read(KhwAnswered *form, unsigned int at, const KhwStag
     khw_ladder_registers_read(form, at, stage);
 }
 
-// the forms of `s_staged` from `first` to `staged` read off the round carried, each as `stage_number` reads it; the
-// count whose phase is then classified
+// the forms of `s_staged` from `first` to `staged`, read from the round carried, each as `stage_number` reads it. The
+// return is the count whose phase then reads as classified
 static unsigned int khw_staged_read(KhwStaged *staged_forms, unsigned int first, unsigned int staged,
                                     unsigned int stage_number)
 {
@@ -85,9 +89,10 @@ static unsigned int khw_staged_read(KhwStaged *staged_forms, unsigned int first,
     return classified;
 }
 
-// the questions a stage queries of `form`, pooled into `staged` where it is not NULL: a frame form's first stage two
-// a field of the probe place's form, the field set whole to the index's register and to the record's; otherwise each
-// run's settings for the stage, the run set to each. The count
+// the questions that a stage queries of `form`, pooled into `staged` where it is not NULL. For the first stage of a
+// frame form, they are two for each field of the form at the probe place. The field goes whole to the register of the
+// index, and to that of the record. Otherwise they are the settings of each run for the stage, with the run set to
+// each. The return is the count
 static unsigned int khw_stage_pooled(const KhwAnswered *form, unsigned int stage, const KhwStaged *staged)
 {
     unsigned int pooled = 0u;
@@ -132,11 +137,14 @@ static unsigned int khw_stage_pooled(const KhwAnswered *form, unsigned int stage
     return pooled;
 }
 
-// The register-runs of every turned form of `forms`, `count` of them, the second field-finding pass, in shared
-// rounds over KHW_STAGES stages: in each stage, each form's turns found set to each of the settings the stage gives
-// the run (khw_run_settings), over the same case, a question a setting a run, as many forms a round as the pool
-// is true; and what came back read into each form's operand runs, the frame forms' addresses after the first stage and
-// every form's phase classified, or void, after its last. The count of forms classified
+// The register runs of every turned form of `forms`, `count` of them: the second field pass, in shared rounds over
+// KHW_STAGES stages. In each stage, the call sets the turns found of each form to each setting that the stage gives the
+// run (khw_run_settings). That is over the same case, one question for each setting of each run, with as many forms in
+// a round as the pool holds.
+//
+// The call reads what came back into the operand runs of each form. It reads the addresses of the frame forms after
+// the first stage, and the phase of every form, classified or void, after its last. The return is the count of forms
+// classified
 unsigned int khw_fields_registers(KhwAnswered *const *forms, unsigned int count)
 {
     static KhwStaged s_staged[KHW_FORMS];
@@ -150,7 +158,7 @@ unsigned int khw_fields_registers(KhwAnswered *const *forms, unsigned int count)
             KhwStaged *const stage = &s_staged[staged];
             EMBED_CALL(memor.set, MemoriaCfg, .dst = stage, .bytes = sizeof(*stage), .val = 0);
             const unsigned int pooled = khw_stage_pooled(forms[at], stage_number, NULL);
-            // a predicate form queries nothing: its runs are read off its own encoding in the first stage
+            // a predicate form queries nothing. The call reads its runs from its own encoding in the first stage
             if ((pooled == 0u) && (stage_number == 0u) && (forms[at]->frame == (unsigned int)FRAME_RELATION_COUNT) &&
                 ladder_predicate(forms[at]->anchor))
             {
