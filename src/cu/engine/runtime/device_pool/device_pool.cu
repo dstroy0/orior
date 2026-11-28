@@ -25,7 +25,7 @@ static_assert(sizeof(size_t) >= sizeof(unsigned long long),
     engine_error_check((condition_), (type_), ENGINE_MODULE_DEVICE_POOL, (unsigned int)__LINE__,                       \
                        (const void *)(evacaddr_), (error_))
 
-// a plan's sum is bounded by this, a whole number of slices and of pages. Its rounding to either never wraps and never
+// the bound on the sum of a plan, a whole number of slices and of pages. Its rounding to either never wraps, and never
 // passes it
 #define DEVICE_POOL_BYTES_MAX (1ULL << 62u)
 
@@ -99,7 +99,7 @@ extern "C" long device_pool_take(const DevicePoolTakeRequest *request)
         return DEVICE_POOL_ERROR;
     }
     DevicePool *const pool = request->pool;
-    // what is taken never passes the pool, which is at max 2^62 bytes: the rounding never wraps
+    // what the calls take never passes the pool, which is at max `2^62` bytes, thus the rounding never wraps
     const unsigned long long offset = device_pool_round(pool->used, DEVICE_POOL_SLICE_ALIGN);
     if (!DEVICE_POOL_CHECK((offset <= pool->bytes) && (request->bytes <= (pool->bytes - offset)), pool, error,
                            ENGINE_ERROR_REQUEST))
