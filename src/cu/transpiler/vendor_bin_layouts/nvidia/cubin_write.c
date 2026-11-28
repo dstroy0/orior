@@ -9,8 +9,8 @@
 #include "../../../../../includes/parsers/line_read.h"
 #include "../container_write.h"
 
-// the layout of a cubin, in the folder of this file in the tree it was built from, read once a
-// process; NULL where it could not be read, with the reason printed
+// the layout of a cubin, in the folder of this file in the tree that the build used, read once for each process. The
+// return is NULL where the read failed, with the reason printed
 static const ContainerLayout *cubin_layout(void)
 {
     static ContainerLayout s_layout;
