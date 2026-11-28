@@ -489,7 +489,7 @@ src/cu/engine/nbody/orior/orior_core.c	28
 src/cu/engine/nbody/orior/orior_engines.h	25
 src/cu/engine/nbody/orior/orior_field.c	27
 src/cu/engine/nbody/orior/orior_internal.h	3
-src/cu/engine/nbody/orior/orior_steer.c	29
+src/cu/engine/nbody/orior/orior_steer.c	3
 src/cu/engine/nbody/orior/orior_steer_count.c	21
 src/cu/engine/nbody/orior/orior_steer_plan.c	26
 src/cu/engine/nbody/orior/scan.c	3
