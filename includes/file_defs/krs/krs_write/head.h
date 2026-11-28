@@ -8,11 +8,14 @@
 
 #include <stddef.h>
 
-// The head lines the part's .ksc at `ksc_path` answers for, written at `*at` into `out`, which has room for `cap`, and
-// `*at` moved past them, or to `cap` where they did not fit (verba_scribo.h): `toolchain cubin_write` where it contains
-// `run answers <n> container returned`, the container the vendor's writer makes loaded and returned from, and
-// `header container` where it contains `run answers <n> opening least`, the least opening a kernel runs with. The facts
-// not answered are written into `missing`, `room` bytes, apart by ", ", and empty where both are. The count written
+// The head lines that the .ksc of the part at `ksc_path` answers for, written at `*at` into `out`, which has room for
+// `cap`. The call moves `*at` past them, or to `cap` where they did not fit (verba_scribo.h). The line
+// `toolchain cubin_write` goes in where the file holds `run answers <n> container returned`. That container is the one
+// that the writer of the vendor makes, loads and returns from. The line `header container` goes in where the file
+// holds `run answers <n> opening least`, the least opening that a kernel runs with. The call writes the facts that the
+// file does not answer into `missing`, `room` bytes, apart by ", ", and empty where it answers both.
+//
+// The return is the count written
 unsigned int krs_head_written(char *out, size_t cap, size_t *at, const char *ksc_path, char *missing, size_t room);
 
 #endif

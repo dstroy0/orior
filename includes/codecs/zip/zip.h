@@ -59,8 +59,8 @@ extern "C"
 
     unsigned long long zip_crc32(const unsigned char *bytes, unsigned long long length);
 
-    // a run of members' bytes stored in memory: from the first one's local header to the end of the last one's data,
-    // `first` the offset in the archive where it starts
+    // a run of member bytes in memory, from the local header of the first member to the end of the data of the last.
+    // `first` is the offset in the archive where it starts
     typedef struct
     {
         unsigned char *bytes;
@@ -72,8 +72,8 @@ extern "C"
     int zip_span_read(const EngineIngestTools *tools, const char *path, const ZipArchive *archive,
                       const ZipEntry *entries, unsigned long long count, ZipSpan *span, EngineError *error);
 
-    // one member of a span unpacked into `out` and checked against its CRC. It reads the span alone, and members of one
-    // span may be unpacked on several workers at once
+    // one member of a span unpacked into `out` and checked against its CRC. It reads the span alone. Thus several
+    // workers can unpack members of one span at once
     long long zip_span_member(const EngineIngestTools *tools, const ZipSpan *span, const ZipEntry *entry,
                               unsigned char *out, unsigned long long capacity, EngineError *error);
 

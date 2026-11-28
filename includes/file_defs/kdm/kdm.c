@@ -49,7 +49,7 @@ int kdm_row_read(const char *line, KdmRow *row)
     }
     // Explicit cast narrows the signed word of the read to the int of a verdict, which holds one of a few values
     row->verdict = (fields == 6u) ? (int)EMBED_CALL(cellul.to_long, TransfiguroCfg, .src = field[5], .end = NULL) : -1;
-    // each field is cut to its length, which an int counts for a field that fits its room
+    // the call cuts each field to its length, which an int counts for a field that fits its room
     {
         VerbaLinea buffer_line = mmgr_line_over(row->operation, sizeof(row->operation));
         mmgr_line_put_max(&buffer_line, field[0], (size_t)((int)length[0]));
@@ -145,7 +145,7 @@ int kdm_section_written_by(KdmFile *file, const char *part, const char *const *l
 int kdm_pipes_replaced_by(KdmFile *file, const char *const *comment, unsigned int comments, const char *const *pipes,
                           unsigned int count, Who who)
 {
-    // the lines put, made before the file is touched: a blank line, the comment and the pipes
+    // the lines put, made before the call touches the file: a blank line, the comment and the pipes
     const char **const put = (const char **)platform_cell_cleared((unsigned long long)((size_t)comments + count + 2u),
                                                                   (unsigned long long)(sizeof(char *)),
                                                                   (unsigned int)platform_place_g_program_owner, 0);

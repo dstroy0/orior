@@ -7,7 +7,7 @@
 #include "memoria_operor/memoria_operor.h"
 
 
-// which lattice instances grounds have taken, a bit each
+// which lattice instances the grounds took, a bit each
 static embed_u32 s_lattice_allocated;
 
 typedef struct

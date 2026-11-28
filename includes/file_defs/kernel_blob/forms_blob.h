@@ -10,8 +10,8 @@
 // the record's name the vendor's writer appends the forms under
 #define FORMS_BLOB_NAME "forms_blob"
 
-// a form: its encoding's low and high words, 1 where its relation was read signed, its relation and its text as the
-// writer places its operands, each ended by a NUL within its room
+// a form: the low and high words of its encoding, and 1 where the reader read its relation as signed. Then its
+// relation and its text as the writer places its operands, each with a NUL at its end within its room
 typedef struct
 {
     unsigned long long low;
