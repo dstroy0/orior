@@ -15,10 +15,10 @@ static unsigned int query_satisfied(const Query *query)
     case QUERY_EQUALS:
         return (host_read(query->address) == query->word) ? 1u : 0u;
     case QUERY_ADVANCES: {
-        // The first read is retained and the address read again until a word differs from it or the reads run out: a
-        // counter that steps once in a while is caught at its step and not only where a step falls between two
-        // reads in a row. A counter that wraps between the reads still reads forward: the difference taken in the
-        // word's own width is a forward step where it sits in the lower half of the word
+        // The call keeps the first read, and reads the address again until a word differs from it or the reads run out.
+        // Thus it catches a counter that steps now and then at its step, not only where a step falls between two reads
+        // in a row. A counter that wraps between the reads still reads forward. The difference taken in the own width
+        // of the word is a forward step where it sits in the lower half of the word
         const unsigned int first = host_read(query->address);
         const unsigned long long reads = (query->turns > 1ULL) ? query->turns : 1ULL;
         unsigned int then = first;
@@ -56,8 +56,8 @@ unsigned int query_put(Query *query)
         query->type = QUERY_UNSATISFIED;
         query->bit = 0u;
     }
-    // A bound is the max the answer may cost, and a cost nobody read cannot be displayed to be inside it: a bound with
-    // no clock reads 0 and is never a verdict nobody measured
+    // A bound is the max that the answer can cost, and no one can show that a cost which nobody read is inside it. Thus
+    // a bound with no clock reads 0, and is never a verdict that nobody measured
     else if ((query->bound != 0ULL) && ((clocked == 0u) || (query->cost > query->bound)))
     {
         query->type = QUERY_PAST_BOUND;
