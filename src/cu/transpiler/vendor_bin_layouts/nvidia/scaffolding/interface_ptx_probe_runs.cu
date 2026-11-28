@@ -4,8 +4,9 @@
 // and run, and the membership, single and clocks probes
 #include "interface_ptx_probe_internal.h"
 
-// PTX's header for the device into `header`, `room` bytes of it, requested of NVRTC by compiling an empty kernel to
-// PTX: the .version, .target and .address_size lines. The answer is its length, 0 where NVRTC does not answer
+// the header of PTX for the device into `header`, `room` bytes of it. The call asks NVRTC for it with a compile of an
+// empty kernel to PTX: the .version, .target and .address_size lines. The answer is its length, 0 where NVRTC does not
+// answer
 size_t probe_header(int major, int minor, char *header, size_t room)
 {
     const char question[] = "extern \"C\" __global__ void interface_header(void)\n{\n}\n";
@@ -66,9 +67,10 @@ static const char *probe_decimal(unsigned long long value, char *text)
     return text;
 }
 
-// The kernel onto `text`: the header, then an entry of this probe's own that finds its case, loads its eight words
-// into temporaries 0 to 7 through the ruleset's global_load_constant_word, sets outputs 8 to 11 to 0, runs the body,
-// and stores the outputs through the ruleset's record_store_word, the record register set to the case's output
+// The kernel onto `text`: the header, then an own entry of this probe. The entry finds its case, and loads its eight
+// words into temporaries 0 to 7 through the global_load_constant_word of the ruleset. It sets outputs 8 to 11 to 0,
+// and runs the body. It stores the outputs through the record_store_word of the ruleset, with the record register
+// set to the output of the case
 static void probe_kernel(ProbeWriter *writer, const char *header, const char *body, PlatformText *text)
 {
     VerbaLinea *const line = &text->line;
@@ -146,8 +148,8 @@ static const char *probe_text(PlatformText *text, unsigned long long *size)
     return platform_text_bytes(text);
 }
 
-// The kernel's text assembled by nvJitLink for the device: 1 with the cubin, `*size` bytes of it, in a cell of the
-// temporary tier that the caller gives back before its work ends. 0 with the log printed
+// The text of the kernel, assembled by nvJitLink for the device. The return is 1 with the cubin, `*size` bytes of it,
+// in a cell of the temporary tier that the caller gives back before its work ends. It is 0 with the log printed
 static int probe_assemble(PlatformText *text, int major, int minor, char **cubin, size_t *size)
 {
     *cubin = NULL;
@@ -251,15 +253,15 @@ static int probe_write(PlatformText *text, int major, int minor, const char *pat
     return written;
 }
 
-// The machine code of each membership question for the SASS probe (interface_sass_probe.c): the kernel with no body
-// assembled into `folder`/kernel.cubin and each question's kernel into `folder`/form_<number>.cubin, a line
-// "cubin <number> <name>" printed for each. Exit 0 where every cubin was written, 2 where one was not.
+// The machine code of each membership question for the SASS probe (interface_sass_probe.c). The kernel with no body
+// goes into `folder`/kernel.cubin, and the kernel of each question into `folder`/form_<number>.cubin. The program
+// prints a line "cubin <number> <name>" for each. Exit 0 where the program wrote every cubin, 2 where it did not.
 //
-// The program resident is its own module: an empty lane for the resident's call to reach, then program_unit with the
-// launch's own layout in its 25 parameters. No question covers this part of a program, and no hand writes it twice.
-// The resident is 110 instructions of PTX that already runs, and the part's own compiler turns it into SASS that
-// already runs. The SASS probe requests this of every other form, and what comes back is the floor a rearrangement has
-// to beat
+// The program resident is its own module: an empty lane for the call of the resident to reach. Then comes program_unit,
+// with the own layout of the launch in its 25 parameters. No question covers this part of a program, and no hand writes
+// it twice. The resident is 110 instructions of PTX that already runs, and the own compiler of the part turns it into
+// SASS that already runs. The SASS probe asks this of every other form. What comes back is the floor that a new
+// arrangement must beat
 static void probe_resident(ProbeWriter *writer, const char *header, PlatformText *text)
 {
     VerbaLinea *const line = &text->line;
@@ -426,9 +428,9 @@ static void probe_words_put(VerbaLinea *line, const char *label, const unsigned 
     }
 }
 
-// One question's kernel run over every case, and its answers checked against the host's rule. The answer is 1 where a
-// defined case differs, 0 where none does, and -1 where the kernel did not build or the device errored, with the
-// probe's exit code in `code`
+// The kernel of one question, run over every case, with its answers checked against the rule of the host. The answer
+// is 1 where a defined case differs, and 0 where none does. It is -1 where the kernel did not build or the device gave
+// an error, with the exit code of the probe in `code`
 static int probe_question_checked(ProbeWriter *writer, const char *header, const ProbeQuestion *question, int major,
                                   int minor, int *code)
 {
@@ -613,9 +615,9 @@ int probe_single(ProbeWriter *writer, const char *header, const char *body, int 
     return 0;
 }
 
-// Every clock the part will name, queried of it instead of assumed. A part is a clocked thing and everything it does
-// is transitions at some rate: what rates it has is a question it can answer, and the answer is the unit every
-// cost is read in. The part's own clock register is not needed for that, and is not in the machine: the host's clock
+// Every clock that the part will name, queried of it and not assumed. A part is a clocked thing, and all that it does
+// is transitions at some rate. What rates it has is a question that it can answer, and the answer is the unit that
+// every cost reads in. That needs no own clock register of the part, and the machine has none. The clock of the host
 // times a run from outside (probe_cubin_run), and these report what one tick is worth
 int probe_clocks(int device)
 {
@@ -631,8 +633,8 @@ int probe_clocks(int device)
         {cudaDevAttrMultiProcessorCount, "the part's multiprocessors", ""},
         {cudaDevAttrWarpSize, "a warp", "lanes"},
         {cudaDevAttrMaxThreadsPerMultiProcessor, "a multiprocessor's threads", ""},
-        // what the register file contains against what a thread may take: their ratio is how many registers a thread
-        // can use and still fill the part, and a lane past it loses threads in step. That is where a knee is
+        // what the register file holds, against what a thread can take. Their ratio is how many registers a thread can
+        // use and still fill the part, and a lane past it loses threads in step. That is where a knee is
         {cudaDevAttrMaxRegistersPerMultiprocessor, "a multiprocessor's registers", ""},
         {cudaDevAttrMaxRegistersPerBlock, "a block's registers", ""},
         {cudaDevAttrL2CacheSize, "the second level cache", "bytes"},
@@ -718,9 +720,9 @@ int probe_cubin_run(const char *path, int count, char **arguments)
         return probe_error(status);
     }
     probe_answered(out);
-    // The run timed by our own clock, which is all a cost needs: the part's clock register is not in the machine,
-    // and a run measured from outside shows what a kernel costs whatever the part will name. The run above is not
-    // counted, since it carries the library load and the first launch
+    // The run, timed by our own clock, which is all that a cost needs. The clock register of the part is not in the
+    // machine. A run measured from outside shows what a kernel costs, whatever the part will name. The call does not
+    // count the run above, because it carries the library load and the first launch
     char repeats_text[PLATFORM_ENVIRONMENT_BYTES];
     const char *const repeats =
         (platform_environment("PROBE_REPEATS", repeats_text, sizeof(repeats_text)) != 0ULL) ? repeats_text : NULL;
