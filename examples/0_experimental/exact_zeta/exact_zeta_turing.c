@@ -1413,8 +1413,9 @@ static int main_machine(const char *binary, int64_t first, int64_t last, int64_t
     return proven ? 0 : 1;
 }
 
-// The pool of the program. Its cells of exact integers grow with the count of the run, past 900 MB for three cells
-const unsigned long long g_program_pool_bytes = 1ULL << 31u;
+// The pool of the program, in banks of MMgr. Its cells of exact integers grow with the count of the run, past 1.8 GB
+// for three cells. Each cell is at max 2^31 bytes
+const unsigned long long g_program_pool_bytes = 1ULL << 34u;
 
 int program_main(int argument_count, char **arguments)
 {
