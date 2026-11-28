@@ -138,8 +138,9 @@ void noise_exact_word(OriorExactInteger *value, unsigned long long word)
     value->sign = (word != 0ULL) ? 1 : 0;
 }
 
-// (squares / pairs) against (first_squares / first_pairs), in thousandths rounded down: the four words multiplied
-// across. No mean is ever rounded. 0 where either mean is undefined or the quotient passes 2^64.
+// `(squares / pairs)` against `(first_squares / first_pairs)`, in thousandths rounded down, with the four words
+// multiplied across. The call never rounds a mean. The return is 0 where either mean has no value, or the quotient
+// passes `2^64`.
 int noise_per_mille(unsigned long long squares, unsigned long long pairs, unsigned long long first_squares,
                     unsigned long long first_pairs, unsigned long long *per_mille)
 {
