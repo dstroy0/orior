@@ -10,7 +10,7 @@
 #define SCROLLBAR_ARROW_AFTER 1u
 #define SCROLLBAR_END_BEFORE 2u
 #define SCROLLBAR_END_AFTER 3u
-// the samples across and down a pixel a shape's coverage is counted from
+// the samples across and down a pixel that the coverage of a shape counts from
 #define SCROLLBAR_SAMPLES 4
 
 typedef struct
@@ -36,9 +36,8 @@ EMBED_INLINE int scrollbar_px(const ScrollbarCtx *args)
     return (pixels > (int)GUI_SCROLLBAR_SIDE_MAX) ? (int)GUI_SCROLLBAR_SIDE_MAX : pixels;
 }
 
-// whether a point `along` and `cross` the shape's own way, in pixels, lies inside the shape: an arrow a triangle of
-// three pixels' reach at the middle of its square, pointing to the scrollbar's start or end; a thumb's end half a disc
-// of the thumb's half thickness, round to the start or the end
+// whether a point `along` and `cross` lies inside the shape, in pixels on the own axes of the shape. An arrow is a
+// triangle with a reach of three pixels at the middle of its square. It points to the start or end of the scrollbar. The end of a thumb is half a disc of half the thickness of the thumb, round to the start or the end
 EMBED_INLINE int scrollbar_inside(const ScrollbarCtx *args)
 {
     const double length = (double)args->length;

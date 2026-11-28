@@ -27,7 +27,7 @@ static inline int ksc_text_order(const char *left, const char *right, size_t cap
     return (int)(unsigned char)left[differs] - (int)(unsigned char)right[differs];
 }
 
-// the max answers a channel's counts are taken again over
+// the max answers over which the call takes the counts of a channel again
 #define KSC_ANSWERS 32u
 
 int ksc_read(KscFile *file, const char *path)
@@ -50,8 +50,8 @@ int ksc_line_add(KscFile *file, const char *text)
     return kfile_lines_line_add(file, text);
 }
 
-// the word of `text` at `*at` into `word`, which has room for `room`, the spaces before it skipped and `*at` moved past
-// it: 1, or 0 where there is no word or it does not fit
+// the word of `text` at `*at` into `word`, which has room for `room`. The call skips the spaces before it and moves
+// `*at` past it. The return is 1, or 0 where there is no word or it does not fit
 static int ksc_word_read(const char *text, size_t *at, char *word, size_t room)
 {
     *at +=
@@ -146,9 +146,9 @@ int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *
             return 0;
         }
     }
-    // the rows go where the first row of the question was, so that a row put again retains its place; where the file
-    // contains none of the question, after the last row of the channel it retains, or after its last line where it
-    // retains none of the channel
+    // the rows go where the first row of the question was, and thus a row put again keeps its place. Where the file
+    // has none of the question, they go after the last row of the channel that it keeps. Where it keeps none of the
+    // channel, they go after its last line
     unsigned int place = file->lines;
     unsigned int first_match = file->lines;
     for (unsigned int at = 0u; at < file->lines; at += 1u)

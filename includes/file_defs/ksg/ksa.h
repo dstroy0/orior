@@ -10,9 +10,9 @@
 //     each approval in turn: the scheme's tag, 4 bytes. The bytes of its public key and of its signature, one word
 //     each, low byte first; the public key; the signature
 //
-// A scheme is a row of the table in ksa.c: its tag, its name, its sizes and its three calls. A scheme added is a row
-// added, and a list that contains an approval by a scheme a reader does not know is still read, that approval named and
-// not verified (ksa.c)
+// A scheme is a row of the table in ksa.c: its tag, its name, its sizes and its three calls. A new scheme is a new
+// row. A reader still reads a list that holds an approval by a scheme that the reader does not know. It names that
+// approval and does not verify it (ksa.c)
 #ifndef KSA_H
 #define KSA_H
 
@@ -36,8 +36,9 @@ extern "C"
 #define KSA_KEY_MAX 64u
 #define KSA_SIGNATURE_MAX 128u
 
-    // One scheme: its tag and name, the bytes of its secret, its public key and its signature, its public key made
-    // from a secret, a message signed, and a signature verified against its public key and message: 1, or 0
+    // One scheme: its tag and name, and the bytes of its secret, its public key and its signature. Then its three calls:
+    // a public key made from a secret, a message signed, and a signature verified against its public key and message:
+    // 1, or 0
     typedef struct
     {
         char tag[KSA_TAG_BYTES];
@@ -64,7 +65,7 @@ extern "C"
     // the scheme of `name`, or of the 4 bytes of `tag`: it, or NULL where the table has none
     const KsaScheme *ksa_scheme_named(const char *name);
     const KsaScheme *ksa_scheme_tagged(const char *tag);
-    // the schemes' names, one after another with a space between, for a reader to be informed
+    // the names of the schemes, one after another with a space between, for the information of a reader
     const char *ksa_scheme_names(void);
     // the trailer of a seal approved with `secret` by `scheme` into `approval`
     void ksa_approved(const KsaScheme *scheme, const unsigned char *secret, const unsigned char *trailer,

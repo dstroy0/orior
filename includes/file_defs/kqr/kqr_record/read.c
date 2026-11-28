@@ -50,8 +50,8 @@ static size_t kqr_error_put(char *error, size_t room, size_t at, const char *tex
         .out = error, .cap = room, .at = at, .text = text, .text_len = (length < left) ? length : left});
 }
 
-// the query or sample line `line`, past its type, read into its identity, its answer and where what follows starts:
-// 1, or 0 where it has no identity or no answer the oracle gives
+// the query or sample line `line`, past its type, read into its identity, its answer and where what follows starts.
+// The return is 1, or 0 where it has no identity or no answer that the oracle gives
 static int kqr_line_identity(const char *line, KqrIdentity *identity, unsigned int *answer, const char **rest)
 {
     const char *at =
@@ -93,9 +93,9 @@ static int kqr_line_identity(const char *line, KqrIdentity *identity, unsigned i
     return *answer < KQR_ANSWER_COUNT;
 }
 
-// The .kqr's text form, `size` bytes at `bytes`, read into `record` as records: the first line its member, every query
-// stored once, an answer in place of one that timed out, and every pair after every other record. 1, or 0 and why in
-// `error` where a line is none the oracle gives
+// The text form of the .kqr, `size` bytes at `bytes`, read into `record` as records. The first line is its member.
+// Every query goes in once, with an answer in place of one that timed out, and every pair after every other record.
+// The return is 1, or 0 with the reason in `error` where a line is none that the oracle gives
 static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned long long size, const char *path,
                          char *error, size_t room)
 {
@@ -289,8 +289,8 @@ static int kqr_text_read(KqrRecord *record, const unsigned char *bytes, unsigned
     return 1;
 }
 
-// every query of an identity stored before it let go but where the one before timed out and it takes that one's place:
-// each identity's query stored once, as the text form's reading contains it
+// every query of an identity stored before it let go, except where the one before timed out. There it takes the
+// place of that one. Thus the query of each identity goes in once, as the read of the text form holds it
 static void kqr_queries_once(KqrRecord *record)
 {
     static KqrQuery s_query;

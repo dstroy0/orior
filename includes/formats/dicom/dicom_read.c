@@ -72,7 +72,8 @@ static void dicom_extent(EngineArrayExtent *extent)
 
 int dicom_zip_has_member(const EngineIngestTools *tools, const char *path, const char *member)
 {
-    // a series the module already contains was gathered and parsed as DICOM whole, and is a member it contains
+    // the module gathered and parsed a series that it already contains as DICOM whole, and the series is a member of
+    // it
     const DicomResident *const resident = &g_dicom_resident;
     if ((resident->valid != 0) && (path != NULL) && (member != NULL) &&
         (EMBED_CALL(cellul.eq, CatenaFinitaCfg, .src = resident->path, .cap = PLATFORM_TEXT_TO_TERMINATOR,
@@ -139,7 +140,7 @@ static unsigned long long dicom_sign_extend(const DicomSlice *slice, unsigned ch
     const unsigned long long field = (slice->bits_stored >= 64u) ? ~0ULL : ((1ULL << slice->bits_stored) - 1ULL);
     const unsigned long long sign = 1ULL << (slice->bits_stored - 1u);
     const unsigned long long elements = slice->pixel_bytes / element_bytes;
-    // a stored field the element's whole width wide is its own sign extension: every element is left as it is
+    // a stored field as wide as the whole element is its own sign extension: the call leaves every element as it is
     if ((low == 0u) && (slice->bits_stored == width))
     {
         return 0ULL;
@@ -175,7 +176,7 @@ static unsigned long long dicom_sign_extend(const DicomSlice *slice, unsigned ch
         extended_any |= (canonical != word) ? 1ULL : 0ULL;
         for (unsigned int place = 0u; place < element_bytes; place += 1u)
         {
-            // one byte of the extended word is taken whole
+            // the call takes one byte of the extended word whole
             at[place] = (unsigned char)((extended >> (8u * place)) & 0xFFULL);
         }
     }

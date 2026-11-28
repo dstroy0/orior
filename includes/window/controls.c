@@ -22,16 +22,17 @@ EMBED_INLINE GuiRect controls_button(const ControlsCtx *args)
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CONTROL_WIDTH, .scale = args->frame->scale);
     const int gap =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CONTROL_GAP, .scale = args->frame->scale);
-    // the row the control is positioned in: the one passed in, else the frame's; a control's index is one of three
+    // the row that holds the control: the one passed in, else the row of the frame. The index of a control is one of
+    // three
     const GuiRect controls = (args->controls != NULL) ? *args->controls : args->frame->controls;
     const int at = controls.x + ((int)args->which * (pixel_width + gap));
     const GuiRect button = {at, controls.y, pixel_width, controls.height};
     return button;
 }
 
-// The controls' beads arranged, one a control at its rest place on the top menu's row, where the row is with no
-// claim, each on the top menu tools' side centred on the control, lit by the window's lights. A control's frames
-// bake the first time it is drawn
+// The beads of the controls arranged, one for each control at its rest place on the top menu row, where the row has
+// no claim. Each sits on the side of the top menu tools, centered on the control, and the lights of the window light
+// it. The frames of a control bake the first time that the call draws it
 EMBED_INLINE void controls_beads_positioned(const GuiControlsRasterCfg *args)
 {
     const GuiFrame *const frame = args->frame;

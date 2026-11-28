@@ -19,8 +19,8 @@ typedef struct
     unsigned int milliseconds;
 #endif
 } WindowsConnectCtx;
-// a connection made to one address within `milliseconds`, nonblocking for the wait alone: the socket, or
-// INVALID_SOCKET where it was refused or took too long
+// a connection made to one address within `milliseconds`, with the socket in no-wait mode for the wait alone. The
+// return is the socket, or INVALID_SOCKET where the address refused it or it took too long
 EMBED_INLINE SOCKET cli_connect_one(const WindowsConnectCtx *args)
 {
     SOCKET made = socket(args->address->ai_family, args->address->ai_socktype, args->address->ai_protocol);
@@ -52,8 +52,8 @@ EMBED_INLINE SOCKET cli_connect_one(const WindowsConnectCtx *args)
     return made;
 }
 
-// the system's sockets started once: 1, or 0 where they did not start. Windows counts its sockets' starts, so this
-// start beside windows.c's own is let go only as the process ends
+// the sockets of the system started once: 1, or 0 where they did not start. Windows counts the starts of its
+// sockets. Thus this start, beside the own start of windows.c, goes only as the process ends
 static int cli_connect_start(void)
 {
     static int s_started;

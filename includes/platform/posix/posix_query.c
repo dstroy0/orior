@@ -74,8 +74,8 @@ int query_file_copy(const QueryFromCtx *args)
     ssize_t got = whole ? read(source, piece, sizeof(piece)) : 0;
     while (whole && (got > 0))
     {
-        // a read that gave bytes gave a positive count, which a write puts whole or fails; they are a file's bytes, and
-        // no path is made of them
+        // a read that gave bytes gave a positive count, which a write puts whole or fails. They are the bytes of a file,
+        // and the call makes no path of them
         whole = write(target, piece, (size_t)got) == got; // NOSONAR
         got = read(source, piece, sizeof(piece));
     }
@@ -153,7 +153,7 @@ int query_path_full(const QueryCapacityPathCtx *args)
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = resolved, .cap = CLI_POOL_BYTES}) + 1u});
         return args->full[0] != '\0';
     }
-    // a path not there yet is made full against the folder this process is in
+    // the call makes a path that is not there yet full against the folder that this process is in
     if (args->path[0] == '/')
     {
         memor.cpy(
