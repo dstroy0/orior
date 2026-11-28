@@ -21,7 +21,7 @@ static unsigned long long noise_root_voxels(const unsigned long long box[4])
     return voxels;
 }
 
-// the next place in the box, x fastest, as the voxels are arranged
+// the next place in the box, x fastest, in the order of the voxels
 static void noise_root_next(unsigned long long place[4], const unsigned long long box[4])
 {
     for (unsigned int axis = 4u; axis > 0u; axis -= 1u)
@@ -59,7 +59,7 @@ static void noise_root_take(const NoiseRootRequest *request, const unsigned long
         {
             for (unsigned long long y = 0ULL; y < box[2]; y += 1ULL)
             {
-                // the volume is bounded. Its voxel count, and every place inside it, fits a word
+                // the volume has a bound. Its voxel count, and every place inside it, fits a word
                 const unsigned long long plane = (((low[0] + frame) * extent[1]) + low[1] + z) * extent[2];
                 const unsigned short *const row = &request->volume[((plane + low[2] + y) * extent[3]) + low[3]];
                 for (unsigned long long x = 0ULL; x < box[3]; x += 1ULL)
