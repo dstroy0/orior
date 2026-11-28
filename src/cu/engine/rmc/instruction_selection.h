@@ -94,10 +94,10 @@ CODEGEN_CORE void codegen_put(MachineFunction *lane, const IrStep *at)
     }
 }
 
-// one step of the lane and its put, from the loop number the step begins at, which lane->loops contains; 0 for a step
-// the lane does not support, which leaves the program to another language. The step's temporaries, 64-bit temporaries
-// and predicates are its own from 0: what it took is lane->temps and lane->wides after it; lane->errors is 1 where it
-// can leave the lane errored
+// one step of the lane and its put, from the loop number that the step starts at, which lane->loops holds. The
+// return is 0 for a step that the lane does not support, which leaves the program to another language. The
+// temporaries, 64-bit temporaries and predicates of the step are its own from 0. What it took is lane->temps and
+// lane->wides after it. lane->errors is 1 where it can leave the lane with an error
 CODEGEN_CORE int codegen_step(MachineFunction *lane, unsigned int at)
 {
     const IrProgram *const program = lane->program;
